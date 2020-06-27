@@ -7,7 +7,7 @@ type HexFunction = (
   input: HexFunctionInput,
   context: HexFunctionContext,
   next?: HexFunctionNext,
-) => Promise<HexFunctionResult>;
+) => HexFunctionResult;
 
 export {
   HexFunction as default,

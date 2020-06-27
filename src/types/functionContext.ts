@@ -1,5 +1,6 @@
 interface HexFunctionContext {
-  services: { [key: string]: Function | object };
+  services: Record<string, Function | object>;
+  vars: Record<string, unknown | null>;
 }
 
 export {

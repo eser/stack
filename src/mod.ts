@@ -4,6 +4,7 @@ import HexFunctionInput from "./types/functionInput.ts";
 import HexFunctionContext from "./types/functionContext.ts";
 import HexFunctionNext from "./types/functionNext.ts";
 import HexFunctionResult from "./types/functionResult.ts";
+import composer from "./composer.ts";
 import results from "./results.ts";
 
 export {
@@ -12,5 +13,6 @@ export {
   HexFunctionContext,
   HexFunctionNext,
   HexFunctionResult,
+  composer,
   results,
 };

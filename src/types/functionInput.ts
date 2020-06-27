@@ -3,15 +3,12 @@ interface HexFunctionInput {
     type: string;
     name: string;
   };
-  event: {
-    name: string;
-    [key: string]: unknown;
-  };
+  event: Record<string, unknown> & { name: string };
   requestedFormat: {
     mimetype: string;
     format: string;
   };
-  parameters: { [key: string]: unknown };
+  parameters: Record<string, unknown>;
 }
 
 export {

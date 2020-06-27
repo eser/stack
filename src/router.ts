@@ -13,7 +13,7 @@ function router(...routes: Array<HexFunction>): HexFunction {
     input: HexFunctionInput,
     context: HexFunctionContext,
     next: HexFunctionNext,
-  ): Promise<HexFunctionResult> {
+  ): HexFunctionResult {
     throw new Error("not implemented yet.");
   };
 }

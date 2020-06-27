@@ -22,12 +22,15 @@ async function cli(target: HexFunction): Promise<void> {
 
   const context: HexFunctionContext = {
     services: {},
+    vars: {},
   };
 
   // TODO no next yet
   const result = await target(input, context);
 
-  console.log(result.payload);
+  if (result !== undefined) {
+    console.log(result.payload);
+  }
 }
 
 export {

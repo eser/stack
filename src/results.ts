@@ -1,10 +1,12 @@
-import HexFunctionResult from "./types/functionResult.ts";
+import HexFunctionResult, {
+  HexFunctionResultBody,
+} from "./types/functionResult.ts";
 
-const ok: HexFunctionResult = {
+const ok: HexFunctionResultBody = {
   payload: undefined,
 };
 
-function text(body: string): HexFunctionResult {
+function text(body: string): HexFunctionResultBody {
   return {
     payload: body,
   };
@@ -12,7 +14,7 @@ function text(body: string): HexFunctionResult {
 
 const results = {
   ok,
-  text,        // text/plain
+  text, // text/plain
   // object(), // application/json, application/xml depending on request headers
   // file(),   // application/octet-stream
   // sound(),  // sends a sound file, dependending on platform

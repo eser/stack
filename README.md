@@ -9,6 +9,23 @@ Warning: This project is in early stages of its development.
 See [eser.dev](https://eser.dev) for development details.
 
 
+## Quick start
+
+Ensure that `Deno` is installed on your system first.
+
+Clone this git repo `git clone
+   https://github.com/eserozvataf/hex-functions.git` - and checkout the [tagged
+   release](https://github.com/eserozvataf/hex-functions/releases) you'd like to
+   use.
+
+Then run a sample file under `samples/` directory,
+
+```sh
+$ deno run samples/cli/basic.ts eser
+
+hello eser
+```
+
 ## Todo List
 
 See [GitHub Projects](https://github.com/eserozvataf/hex-functions/projects) for more.

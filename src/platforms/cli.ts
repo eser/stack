@@ -2,7 +2,7 @@ import HexFunction from "../types/function.ts";
 import HexFunctionInput from "../types/functionInput.ts";
 import HexFunctionContext from "../types/functionContext.ts";
 
-function cli(target: HexFunction): void {
+async function cli(target: HexFunction): Promise<void> {
   const input: HexFunctionInput = {
     platform: {
       type: "cli",
@@ -16,6 +16,7 @@ function cli(target: HexFunction): void {
       format: "",
     },
     parameters: {
+      ...Deno.args,
     },
   };
 
@@ -24,7 +25,9 @@ function cli(target: HexFunction): void {
   };
 
   // TODO no next yet
-  target(input, context);
+  const result = await target(input, context);
+
+  console.log(result.payload);
 }
 
 export {

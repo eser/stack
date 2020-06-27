@@ -1,4 +1,4 @@
-import { results, router, route } from "https://deno.land/x/hex-functions/mod.ts";
+import { results, router, route } from "https://deno.land/x/hex/mod.ts";
 
 const functions = {
   hello: (input: any, context: any) => {

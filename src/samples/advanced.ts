@@ -1,4 +1,4 @@
-import { results, composer, router, route, HexFunctionInput, HexFunctionContext, HexFunctionNext, HexFunctionResult } from "https://deno.land/x/hex-functions/mod.ts";
+import { results, composer, router, route, HexFunctionInput, HexFunctionContext, HexFunctionNext, HexFunctionResult } from "https://deno.land/x/hex/mod.ts";
 
 function authMiddleware(input: HexFunctionInput, context: HexFunctionContext, next: HexFunctionNext): Promise<HexFunctionResult> {
   return next();

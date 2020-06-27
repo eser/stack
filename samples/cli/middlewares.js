@@ -16,7 +16,7 @@ async function secondMiddleware(input, context, next) {
 function main(input, context) {
   const message = `hello ${context.vars.number} ${input.parameters[0]}`;
 
-  return Promise.resolve(results.text(message));
+  return results.text(message);
 }
 
 const composed = composer(firstMiddleware, secondMiddleware, main);

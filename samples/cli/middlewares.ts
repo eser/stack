@@ -38,7 +38,7 @@ function main(
 ): HexFunctionResult {
   const message = `hello ${context.vars.number} ${input.parameters[0]}`;
 
-  return Promise.resolve(results.text(message));
+  return results.text(message);
 }
 
 const composed = composer(firstMiddleware, secondMiddleware, main);

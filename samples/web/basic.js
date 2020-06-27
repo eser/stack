@@ -1,7 +1,7 @@
 import { results, router, route } from "https://deno.land/x/hex/mod.ts";
 
 const functions = {
-  hello: (input, context) => {
+  hello: (input) => {
     const message = `hello ${input.parameters.name}`;
 
     return results.text(message);

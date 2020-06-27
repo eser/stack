@@ -1,15 +1,13 @@
-import HexFunctionResult, {
-  HexFunctionResultBody,
-} from "./types/functionResult.ts";
+import HexFunctionResult from "./types/functionResult.ts";
 
-const ok: HexFunctionResultBody = {
+const ok: HexFunctionResult = Promise.resolve({
   payload: undefined,
-};
+});
 
-function text(body: string): HexFunctionResultBody {
-  return {
+function text(body: string): HexFunctionResult {
+  return Promise.resolve({
     payload: body,
-  };
+  });
 }
 
 const results = {

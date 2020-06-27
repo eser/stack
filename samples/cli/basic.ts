@@ -12,7 +12,7 @@ function main(
 ): HexFunctionResult {
   const message = `hello ${input.parameters[0]}`;
 
-  return Promise.resolve(results.text(message));
+  return results.text(message);
 }
 
 cli(main);

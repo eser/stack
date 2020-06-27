@@ -11,20 +11,26 @@ function composer(...functions: Array<HexFunction>): HexFunction {
     next?: HexFunctionNext,
   ): HexFunctionResult {
     let index = 0;
+    let currentContext = context;
 
-    const jump: HexFunctionNext = async (): HexFunctionResult => {
+    const jump: HexFunctionNext = (
+      newContext?: HexFunctionContext,
+    ): HexFunctionResult => {
       const current = functions[index];
 
       index += 1;
+      if (newContext !== undefined) {
+        currentContext = newContext;
+      }
 
       return current(
         input,
-        context,
+        currentContext,
         jump,
       );
     };
 
-    return jump();
+    return jump(currentContext);
   };
 }
 

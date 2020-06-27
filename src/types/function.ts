@@ -6,7 +6,7 @@ import HexFunctionResult from "./functionResult.ts";
 type HexFunction = (
   input: HexFunctionInput,
   context: HexFunctionContext,
-  next: HexFunctionNext,
+  next?: HexFunctionNext,
 ) => Promise<HexFunctionResult>;
 
 export {

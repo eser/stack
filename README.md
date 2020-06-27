@@ -1,6 +1,10 @@
 # ✖️ [hex-functions](https://github.com/eserozvataf/hex-functions)
 
-*no description yet*
+Function abstraction for better portability between platforms. Write once, run on cli, bots, function runtimes and web apis.
+
+Warning: This project is in early stages of its development.
+
+*no detailed description or instructions yet*
 
 See [eser.dev](https://eser.dev) for development details.
 

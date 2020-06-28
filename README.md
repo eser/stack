@@ -83,8 +83,8 @@ function main(input, context) {
 
 const composed = composer(initMiddleware, validationMiddleware, main);
 
-cli(main); // will be removed in future versions
-           // propably will be replaced w/ export
+cli(composed); // will be removed in future versions
+               // propably will be replaced w/ export
 ```
 
 

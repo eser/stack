@@ -8,7 +8,7 @@ import {
   HexFunctionNext,
 } from "../../src/mod.ts";
 
-async function firstMiddleware(
+function initMiddleware(
   input: HexFunctionInput,
   context: HexFunctionContext,
   next?: HexFunctionNext,
@@ -20,16 +20,17 @@ async function firstMiddleware(
   }
 }
 
-async function secondMiddleware(
+function validationMiddleware(
   input: HexFunctionInput,
   context: HexFunctionContext,
   next?: HexFunctionNext,
 ): HexFunctionResult {
-  if (input.parameters[0] === "throw") {
-    return results.error("requested by user", new Error("throw is specified"));
+  if (input.parameters[0] === undefined) {
+    return results.error(
+      "parameter is not specified",
+      new Error("parameter is not specified"),
+    );
   }
-
-  (context.vars.number as number) += 1;
 
   if (next !== undefined) {
     return next();
@@ -45,6 +46,6 @@ function main(
   return results.text(message);
 }
 
-const composed = composer(firstMiddleware, secondMiddleware, main);
+const composed = composer(initMiddleware, validationMiddleware, main);
 
 cli(composed);

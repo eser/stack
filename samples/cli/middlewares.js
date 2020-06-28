@@ -1,18 +1,19 @@
 import cli from "../../src/platforms/cli.ts";
 import { composer, results } from "../../src/mod.ts";
 
-async function firstMiddleware(input, context, next) {
+function initMiddleware(input, context, next) {
   context.vars.number = 1;
 
   return next();
 }
 
-async function secondMiddleware(input, context, next) {
-  if (input.parameters[0] === "throw") {
-    return results.error("requested by user", new Error("throw is specified"));
+function validationMiddleware(input, context, next) {
+  if (input.parameters[0] === undefined) {
+    return results.error(
+      "parameter is not specified",
+      new Error("parameter is not specified"),
+    );
   }
-
-  context.vars.number += 1;
 
   return next();
 }
@@ -23,6 +24,6 @@ function main(input, context) {
   return results.text(message);
 }
 
-const composed = composer(firstMiddleware, secondMiddleware, main);
+const composed = composer(initMiddleware, validationMiddleware, main);
 
 cli(composed);

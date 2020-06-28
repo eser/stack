@@ -1,20 +1,25 @@
 import HexFunctionResult from "../types/functionResult.ts";
 
-function fixNonSerializableObjects(key: string, value: any): any {
+function fixNonSerializableObjects(key: string, value: unknown): unknown {
   if (value instanceof Error) {
-    const error: Record<string, unknown> = {};
-
-    Object.getOwnPropertyNames(value).forEach(function (key: string) {
-      error[key] = (value as any)[key];
-    });
-
-    return error;
+    return Object.getOwnPropertyNames(value).reduce(
+      (acc: Record<string, unknown>, curr: string) => ({
+        ...acc,
+        // @ts-ignore
+        [curr]: value[curr],
+      }),
+      {},
+    );
   }
 
   return value;
 }
 
 async function formatter(result: HexFunctionResult): Promise<string> {
+  // if (result === undefined) {
+  //   return "";
+  // }
+
   const awaitedResult = await result;
 
   if (awaitedResult === undefined) {

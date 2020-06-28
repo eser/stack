@@ -2,7 +2,8 @@ import cli from "../../src/platforms/cli.ts";
 import { results } from "../../src/mod.ts";
 
 function main(input) {
-  const message = `hello ${input.parameters[0]}`;
+  const to = input.parameters[0] ?? "world";
+  const message = `hello ${to}`;
 
   return results.text(message);
 }

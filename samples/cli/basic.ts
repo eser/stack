@@ -10,7 +10,8 @@ function main(
   input: HexFunctionInput,
   context: HexFunctionContext,
 ): HexFunctionResult {
-  const message = `hello ${input.parameters[0]}`;
+  const to = input.parameters[0] ?? "world";
+  const message = `hello ${to}`;
 
   return results.text(message);
 }

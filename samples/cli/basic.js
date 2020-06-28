@@ -1,5 +1,5 @@
 import cli from "../../src/platforms/cli.ts";
-import { results } from "../../src/mod.ts";
+import { results } from "../../mod.ts";
 
 function main(input) {
   const to = input.parameters[0] ?? "world";

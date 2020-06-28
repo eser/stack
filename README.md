@@ -6,16 +6,30 @@ Function abstraction framework for better portability between platforms. Write y
 
 ## Roadmap
 
+### MVP
+
 - [x] ~Basic functions~
 - [x] ~Input and context interfaces~
 - [x] ~Middlewares~
 - [x] ~CLI platform~
-- [ ] Runtime
+- [x] ~Runtime~
 - [ ] Hypertext format
 - [ ] Web platform w/ Deno's http
 - [ ] Telegram bot platform
+
+### Next Milestones
+
+- [ ] API Maturity
+- [ ] AWS Lambda platform
+- [ ] Knative platform
 - [ ] Discord bot platform
 - [ ] Slack bot platform
+- [ ] Unit and integration testing utilities
+- [ ] Dockerization
+- [ ] Manifest files
+- [ ] Kafka/queue events
+- [ ] Scheduled events
+- [ ] Deployments (to cloud providers)
 
 
 See [eser.dev](https://eser.dev) for further development details (in Turkish).

@@ -5,8 +5,7 @@ function fixNonSerializableObjects(key: string, value: unknown): unknown {
     return Object.getOwnPropertyNames(value).reduce(
       (acc: Record<string, unknown>, curr: string) => ({
         ...acc,
-        // @ts-ignore
-        [curr]: value[curr],
+        [curr]: ((value as unknown) as { [key: string]: unknown })[curr],
       }),
       {},
     );

@@ -6,7 +6,7 @@ import {
   HexFunctionContext,
   HexFunctionResult,
   HexFunctionNext,
-} from "../../src/mod.ts";
+} from "../../mod.ts";
 
 function initMiddleware(
   input: HexFunctionInput,

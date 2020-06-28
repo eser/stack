@@ -4,7 +4,7 @@ import {
   HexFunctionInput,
   HexFunctionContext,
   HexFunctionResult,
-} from "../../src/mod.ts";
+} from "../../mod.ts";
 
 function main(
   input: HexFunctionInput,

@@ -1,7 +1,7 @@
 import HexFunction from "../types/function.ts";
 import HexFunctionInput from "../types/functionInput.ts";
 import HexFunctionContext from "../types/functionContext.ts";
-import formatter from "../formatters/text-plain.ts";
+import runtime from "../runtime.ts";
 
 async function cli(target: HexFunction): Promise<void> {
   const input: HexFunctionInput = {
@@ -26,8 +26,7 @@ async function cli(target: HexFunction): Promise<void> {
     vars: {},
   };
 
-  const result = target(input, context);
-  const output = await formatter(result);
+  const output = await runtime(target, input, context);
 
   console.log(output);
 }

@@ -8,6 +8,10 @@ async function firstMiddleware(input, context, next) {
 }
 
 async function secondMiddleware(input, context, next) {
+  if (input.parameters[0] === "throw") {
+    return results.error("requested by user", new Error("throw is specified"));
+  }
+
   context.vars.number += 1;
 
   return next();

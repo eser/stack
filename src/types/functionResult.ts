@@ -1,4 +1,5 @@
 interface HexFunctionResultBody {
+  error?: Error;
   payload?: unknown;
 }
 

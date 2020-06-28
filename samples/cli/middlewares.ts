@@ -25,6 +25,10 @@ async function secondMiddleware(
   context: HexFunctionContext,
   next?: HexFunctionNext,
 ): HexFunctionResult {
+  if (input.parameters[0] === "throw") {
+    return results.error("requested by user", new Error("throw is specified"));
+  }
+
   (context.vars.number as number) += 1;
 
   if (next !== undefined) {

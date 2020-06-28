@@ -4,9 +4,16 @@ const ok: HexFunctionResult = Promise.resolve({
   payload: undefined,
 });
 
-function text(body: string): HexFunctionResult {
+function text(message: string): HexFunctionResult {
   return Promise.resolve({
-    payload: body,
+    payload: message,
+  });
+}
+
+function error(message: string, error: Error): HexFunctionResult {
+  return Promise.resolve({
+    payload: message,
+    error: error,
   });
 }
 
@@ -23,13 +30,16 @@ const results = {
   // unsupported(), // unprocessable() // notAllowed()
   // unavailable(),
   // timedout(),
-  // error(),
+  error, // error(),
   // notFound(),
   // notImplemented(),
 };
 
 export {
   results as default,
+
   ok,
   text,
+
+  error,
 };

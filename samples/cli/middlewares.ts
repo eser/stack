@@ -1,11 +1,11 @@
-import cli from "../../src/platforms/cli.ts";
 import {
-  composer,
-  results,
   HexFunctionInput,
   HexFunctionContext,
   HexFunctionResult,
   HexFunctionNext,
+  composer,
+  results,
+  cli,
 } from "../../mod.ts";
 
 function initMiddleware(

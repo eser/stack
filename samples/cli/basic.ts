@@ -1,9 +1,9 @@
-import cli from "../../src/platforms/cli.ts";
 import {
-  results,
   HexFunctionInput,
   HexFunctionContext,
   HexFunctionResult,
+  results,
+  cli,
 } from "../../mod.ts";
 
 function main(

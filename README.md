@@ -40,20 +40,23 @@ See [eser.dev](https://eser.dev) for further development details (in Turkish).
 ### Basic
 
 ```js
-import { results } from "https://deno.land/x/hex/mod.ts";
+import { results, cli } from "https://deno.land/x/hex/mod.ts";
 
-export default function main(input) {
+function main(input) {
   const to = input.parameters[0] ?? "world";
   const message = `hello ${to}`;
 
   return results.text(message);
 }
+
+cli(main); // will be removed in future versions
+           // propably will be replaced w/ export
 ```
 
 ### With Middlewares
 
 ```js
-import { composer, results } from "https://deno.land/x/hex/mod.ts";
+import { composer, results, cli } from "https://deno.land/x/hex/mod.ts";
 
 function initMiddleware(input, context, next) {
   context.vars.number = 1;
@@ -80,9 +83,8 @@ function main(input, context) {
 
 const composed = composer(initMiddleware, validationMiddleware, main);
 
-export {
-  composed as default,
-};
+cli(main); // will be removed in future versions
+           // propably will be replaced w/ export
 ```
 
 

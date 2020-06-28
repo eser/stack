@@ -1,7 +1,7 @@
-import HexFunction from "../types/function.ts";
-import HexFunctionInput from "../types/functionInput.ts";
-import HexFunctionContext from "../types/functionContext.ts";
-import runtime from "../runtime.ts";
+import HexFunction from "../abstractions/function.ts";
+import HexFunctionInput from "../abstractions/functionInput.ts";
+import HexFunctionContext from "../abstractions/functionContext.ts";
+import runtime from "../core/runtime.ts";
 
 async function cli(target: HexFunction): Promise<void> {
   const input: HexFunctionInput = {

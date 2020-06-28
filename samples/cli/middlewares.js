@@ -1,5 +1,4 @@
-import cli from "../../src/platforms/cli.ts";
-import { composer, results } from "../../mod.ts";
+import { composer, results, cli } from "../../mod.ts";
 
 function initMiddleware(input, context, next) {
   context.vars.number = 1;

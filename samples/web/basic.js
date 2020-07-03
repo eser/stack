@@ -1,17 +1,10 @@
-import { results, router, route } from "https://deno.land/x/hex/mod.ts";
+import { results, webapi } from "../../mod.ts";
 
-const functions = {
-  hello: (input) => {
-    const message = `hello ${input.parameters.name}`;
+function main(input) {
+  const to = input.parameters.name ?? "world";
+  const message = `hello ${to}`;
 
-    return results.text(message);
-  },
-};
+  return results.text(message);
+}
 
-const routes = router(
-  route("GET", "/hello/:name", functions.hello),
-);
-
-export {
-  routes as default,
-};
+webapi(main, 3000);

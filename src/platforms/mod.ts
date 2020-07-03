@@ -1,6 +1,7 @@
-import { log } from "./deps.ts";
 import cli from "./cli.ts";
+import webapi from "./webapi.ts";
 
 export {
   cli,
+  webapi,
 };

@@ -13,6 +13,7 @@ Function abstraction framework for better portability between platforms. Write y
 - [x] ~Middlewares~
 - [x] ~CLI platform~
 - [x] ~Runtime~
+- [x] ~Web platform w/ oak~
 - [ ] Hypertext format
 - [ ] Web platform w/ Deno's http
 - [ ] Telegram bot platform

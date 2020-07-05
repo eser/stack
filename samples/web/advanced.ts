@@ -4,14 +4,14 @@ import {
   router,
   route,
   HexFunctionInput,
-  HexFunctionContext,
+  HexContext,
   HexFunctionNext,
   HexFunctionResult,
 } from "https://deno.land/x/hex/mod.ts";
 
 function authMiddleware(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  context: HexContext,
   next: HexFunctionNext,
 ): HexFunctionResult {
   return next();
@@ -19,7 +19,7 @@ function authMiddleware(
 
 async function logMiddleware(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  context: HexContext,
   next: HexFunctionNext,
 ): HexFunctionResult {
   await context.services.logger.debug(`req start - ${input.event.uri}`);
@@ -42,7 +42,7 @@ async function logMiddleware(
 
 function helloValidator(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  context: HexContext,
   next: HexFunctionNext,
 ): HexFunctionResult {
   if (input.parameters?.name === undefined) {
@@ -54,7 +54,7 @@ function helloValidator(
 
 async function helloMain(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  context: HexContext,
 ): HexFunctionResult {
   const message = `hello ${input.parameters.name}`;
 

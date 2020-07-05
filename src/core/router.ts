@@ -1,6 +1,6 @@
+import HexContext from "../abstractions/context.ts";
 import HexFunction from "../abstractions/function.ts";
 import HexFunctionInput from "../abstractions/functionInput.ts";
-import HexFunctionContext from "../abstractions/functionContext.ts";
 import HexFunctionNext from "../abstractions/functionNext.ts";
 import HexFunctionResult from "../abstractions/functionResult.ts";
 
@@ -11,7 +11,7 @@ function router(...routes: Array<HexFunction>): HexFunction {
   //      should be executed according to input parameters
   return function (
     input: HexFunctionInput,
-    context: HexFunctionContext,
+    context: HexContext,
     next: HexFunctionNext,
   ): HexFunctionResult {
     throw new Error("not implemented yet.");

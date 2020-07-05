@@ -1,8 +1,31 @@
 import { log, logLevels, oak } from "./webapi.deps.ts";
-import HexFunction from "../abstractions/function.ts";
+import HexContext from "../abstractions/context.ts";
 import HexFunctionInput from "../abstractions/functionInput.ts";
-import HexFunctionContext from "../abstractions/functionContext.ts";
-import runtime from "../core/runtime.ts";
+import HexPlatform from "../abstractions/platform.ts";
+
+function getContext(): HexContext {
+  return {
+    services: {},
+    vars: {},
+  };
+}
+
+function getDefaultInput(): HexFunctionInput {
+  return {
+    platform: {
+      type: "web",
+      name: "",
+    },
+    event: {
+      name: "Request",
+    },
+    requestedFormat: {
+      mimetype: "",
+      format: "",
+    },
+    parameters: {},
+  };
+}
 
 function handleRequest(target: HexFunction) {
   return async (ctx: oak.Context) => {
@@ -23,7 +46,7 @@ function handleRequest(target: HexFunction) {
       },
     };
 
-    const context: HexFunctionContext = {
+    const context: HexContext = {
       services: {},
       vars: {},
     };

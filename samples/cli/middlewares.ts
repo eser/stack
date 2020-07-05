@@ -1,16 +1,17 @@
 import {
   HexFunctionInput,
-  HexFunctionContext,
+  HexContext,
   HexFunctionResult,
   HexFunctionNext,
   composer,
   results,
+  createRuntime,
   cli,
 } from "../../mod.ts";
 
 function initMiddleware(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  context: HexContext,
   next?: HexFunctionNext,
 ): HexFunctionResult {
   context.vars.number = 1;
@@ -22,7 +23,7 @@ function initMiddleware(
 
 function validationMiddleware(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  context: HexContext,
   next?: HexFunctionNext,
 ): HexFunctionResult {
   if (input.parameters[0] === undefined) {
@@ -39,7 +40,7 @@ function validationMiddleware(
 
 function main(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  context: HexContext,
 ): HexFunctionResult {
   const message = `hello ${context.vars.number} ${input.parameters[0]}`;
 
@@ -48,4 +49,5 @@ function main(
 
 const composed = composer(initMiddleware, validationMiddleware, main);
 
-cli(composed);
+const runtime = createRuntime(cli);
+runtime.execute(composed);

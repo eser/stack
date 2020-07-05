@@ -1,4 +1,4 @@
-import { composer, results, cli } from "../../mod.ts";
+import { composer, results, createRuntime, cli } from "../../mod.ts";
 
 function initMiddleware(input, context, next) {
   context.vars.number = 1;
@@ -25,4 +25,5 @@ function main(input, context) {
 
 const composed = composer(initMiddleware, validationMiddleware, main);
 
-cli(composed);
+const runtime = createRuntime(cli);
+runtime.execute(composed);

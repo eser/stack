@@ -1,20 +1,20 @@
+import HexContext from "../abstractions/context.ts";
 import HexFunction from "../abstractions/function.ts";
 import HexFunctionInput from "../abstractions/functionInput.ts";
-import HexFunctionContext from "../abstractions/functionContext.ts";
 import HexFunctionNext from "../abstractions/functionNext.ts";
 import HexFunctionResult from "../abstractions/functionResult.ts";
 
 function composer(...functions: Array<HexFunction>): HexFunction {
   return function (
     input: HexFunctionInput,
-    context: HexFunctionContext,
+    context: HexContext,
     next?: HexFunctionNext,
   ): HexFunctionResult {
     let index = 0;
     let currentContext = context;
 
     const jump: HexFunctionNext = (
-      newContext?: HexFunctionContext,
+      newContext?: HexContext,
     ): HexFunctionResult => {
       const current = functions[index];
 

@@ -1,14 +1,15 @@
 import {
   HexFunctionInput,
-  HexFunctionContext,
+  HexContext,
   HexFunctionResult,
   results,
+  createRuntime,
   cli,
 } from "../../mod.ts";
 
 function main(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  context: HexContext,
 ): HexFunctionResult {
   const to = input.parameters[0] ?? "world";
   const message = `hello ${to}`;
@@ -16,4 +17,5 @@ function main(
   return results.text(message);
 }
 
-cli(main);
+const runtime = createRuntime(cli);
+runtime.execute(main);

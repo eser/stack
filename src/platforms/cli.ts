@@ -1,10 +1,16 @@
-import HexFunction from "../abstractions/function.ts";
+import HexContext from "../abstractions/context.ts";
 import HexFunctionInput from "../abstractions/functionInput.ts";
-import HexFunctionContext from "../abstractions/functionContext.ts";
-import runtime from "../core/runtime.ts";
+import HexPlatform from "../abstractions/platform.ts";
 
-async function cli(target: HexFunction): Promise<void> {
-  const input: HexFunctionInput = {
+function getContext(): HexContext {
+  return {
+    services: {},
+    vars: {},
+  };
+}
+
+function getDefaultInput(): HexFunctionInput {
+  return {
     platform: {
       type: "cli",
       name: "",
@@ -20,16 +26,17 @@ async function cli(target: HexFunction): Promise<void> {
       ...Deno.args,
     },
   };
-
-  const context: HexFunctionContext = {
-    services: {},
-    vars: {},
-  };
-
-  const output = await runtime(target, input, context);
-
-  console.log(output);
 }
+
+async function commitResult(result: Promise<string>): Promise<void> {
+  console.log(await result);
+}
+
+const cli: HexPlatform = {
+  getContext,
+  getDefaultInput,
+  commitResult,
+};
 
 export {
   cli as default,

@@ -1,4 +1,4 @@
-import { results, cli } from "../../mod.ts";
+import { results, createRuntime, cli } from "../../mod.ts";
 
 function main(input) {
   const to = input.parameters[0] ?? "world";
@@ -7,4 +7,5 @@ function main(input) {
   return results.text(message);
 }
 
-cli(main);
+const runtime = createRuntime(cli);
+runtime.execute(main);

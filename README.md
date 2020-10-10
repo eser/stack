@@ -41,7 +41,7 @@ See [eser.dev](https://eser.dev) for further development details (in Turkish).
 ### Basic
 
 ```js
-import { results, cli } from "https://deno.land/x/hex/mod.ts";
+import { results, createRuntime, cli } from "https://deno.land/x/hex/mod.ts";
 
 function main(input) {
   const to = input.parameters[0] ?? "world";
@@ -50,14 +50,16 @@ function main(input) {
   return results.text(message);
 }
 
-cli(main); // will be removed in future versions
-           // propably will be replaced w/ export
+// will be removed in future versions
+// propably will be replaced w/ export
+const runtime = createRuntime(cli);
+runtime.execute(main);
 ```
 
 ### With Middlewares
 
 ```js
-import { composer, results, cli } from "https://deno.land/x/hex/mod.ts";
+import { composer, results, createRuntime, cli } from "https://deno.land/x/hex/mod.ts";
 
 function initMiddleware(input, context, next) {
   context.vars.number = 1;
@@ -84,8 +86,10 @@ function main(input, context) {
 
 const composed = composer(initMiddleware, validationMiddleware, main);
 
-cli(composed); // will be removed in future versions
-               // propably will be replaced w/ export
+// will be removed in future versions
+// propably will be replaced w/ export
+const runtime = createRuntime(cli);
+runtime.execute(composed);
 ```
 
 

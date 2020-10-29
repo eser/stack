@@ -1,10 +1,10 @@
-# ✖️ [hex-functions](https://github.com/eserozvataf/hex-functions)
+# ✖️ [hex](https://github.com/eserozvataf/hex)
 
 Function abstraction framework for better portability between platforms. Write your code once in functional approach, then run on mainstream environments such as cli, bot platforms, cloud-function runtimes and web apis.
 
 *This project is in early stages of its development. Descriptions or instructions are not mature yet as well as the project itself.*
 
-## Roadmap
+## Functions Roadmap
 
 ### MVP
 
@@ -41,7 +41,7 @@ See [eser.dev](https://eser.dev) for further development details (in Turkish).
 ### Basic
 
 ```js
-import { results, createRuntime, cli } from "https://deno.land/x/hex/mod.ts";
+import { results, createRuntime, platforms } from "https://deno.land/x/hex/functions/mod.ts";
 
 function main(input) {
   const to = input.parameters[0] ?? "world";
@@ -52,14 +52,14 @@ function main(input) {
 
 // will be removed in future versions
 // propably will be replaced w/ export
-const runtime = createRuntime(cli);
+const runtime = createRuntime(platforms.cli);
 runtime.execute(main);
 ```
 
 ### With Middlewares
 
 ```js
-import { composer, results, createRuntime, cli } from "https://deno.land/x/hex/mod.ts";
+import { composer, results, createRuntime, platforms } from "https://deno.land/x/hex/functions/mod.ts";
 
 function initMiddleware(input, context, next) {
   context.vars.number = 1;
@@ -88,7 +88,7 @@ const composed = composer(initMiddleware, validationMiddleware, main);
 
 // will be removed in future versions
 // propably will be replaced w/ export
-const runtime = createRuntime(cli);
+const runtime = createRuntime(platforms.cli);
 runtime.execute(composed);
 ```
 
@@ -98,8 +98,8 @@ runtime.execute(composed);
 Ensure that `Deno` is installed on your system first.
 
 Clone this git repo `git clone
-   https://github.com/eserozvataf/hex-functions.git` - and checkout the [tagged
-   release](https://github.com/eserozvataf/hex-functions/releases) you'd like to
+   https://github.com/eserozvataf/hex.git` - and checkout the [tagged
+   release](https://github.com/eserozvataf/hex/releases) you'd like to
    use.
 
 Then run a sample file under `samples/` directory,
@@ -113,7 +113,7 @@ hello eser
 
 ## Todo List
 
-See [GitHub Projects](https://github.com/eserozvataf/hex-functions/projects) for more.
+See [GitHub Projects](https://github.com/eserozvataf/hex/projects) for more.
 
 
 ## Requirements
@@ -133,7 +133,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 It is publicly open for any contribution. Bugfixes, new features and extra modules are welcome.
 
 * To contribute to code: Fork the repo, push your changes to your fork, and submit a pull request.
-* To report a bug: If something does not work, please report it using [GitHub Issues](https://github.com/eserozvataf/hex-functions/issues).
+* To report a bug: If something does not work, please report it using [GitHub Issues](https://github.com/eserozvataf/hex/issues).
 
 
 ## To Support

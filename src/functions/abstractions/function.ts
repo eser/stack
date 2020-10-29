@@ -9,6 +9,4 @@ type HexFunction = (
   next?: HexFunctionNext,
 ) => HexFunctionResult;
 
-export type {
-  HexFunction,
-};
+export type { HexFunction };

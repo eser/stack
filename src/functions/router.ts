@@ -18,6 +18,4 @@ function router(...routes: Array<HexFunction>): HexFunction {
   };
 }
 
-export {
-  router,
-};
+export { router };

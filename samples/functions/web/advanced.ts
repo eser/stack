@@ -1,11 +1,11 @@
 import {
-  results,
   composer,
-  router,
-  HexFunctionInput,
   HexContext,
+  HexFunctionInput,
   HexFunctionNext,
   HexFunctionResult,
+  results,
+  router,
 } from "../../../src/functions/mod.ts";
 
 function authMiddleware(
@@ -74,6 +74,4 @@ const routes = router(
 // routes == function (input, context, next) - so it can composable
 const wrappedRoutes = composer(logMiddleware, routes);
 
-export {
-  wrappedRoutes as default,
-};
+export { wrappedRoutes as default };

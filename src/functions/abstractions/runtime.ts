@@ -8,6 +8,4 @@ interface HexRuntime {
   execute: (target: HexFunction, input?: HexFunctionInput) => Promise<void>;
 }
 
-export type {
-  HexRuntime,
-};
+export type { HexRuntime };

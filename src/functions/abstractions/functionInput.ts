@@ -11,6 +11,4 @@ interface HexFunctionInput {
   parameters: Record<string, unknown>;
 }
 
-export type {
-  HexFunctionInput,
-};
+export type { HexFunctionInput };

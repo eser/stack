@@ -34,6 +34,4 @@ function composer(...functions: Array<HexFunction>): HexFunction {
   };
 }
 
-export {
-  composer,
-};
+export { composer };

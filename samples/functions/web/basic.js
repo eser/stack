@@ -1,4 +1,4 @@
-import { results, platforms } from "../../../src/functions/mod.ts";
+import { platforms, results } from "../../../src/functions/mod.ts";
 
 function main(input) {
   const to = input.parameters.name ?? "world";

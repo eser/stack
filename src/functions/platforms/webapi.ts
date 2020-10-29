@@ -75,6 +75,4 @@ const webapi: HexPlatform = {
   commitResult,
 };
 
-export {
-  webapi,
-};
+export { webapi };

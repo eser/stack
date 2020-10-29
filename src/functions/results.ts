@@ -35,11 +35,4 @@ const results = {
   // notImplemented(),
 };
 
-export {
-  results,
-
-  ok,
-  text,
-
-  error,
-};
+export { error, ok, results, text };

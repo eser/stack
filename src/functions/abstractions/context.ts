@@ -4,6 +4,4 @@ interface HexContext {
   vars: Record<string, unknown | null>;
 }
 
-export type {
-  HexContext,
-};
+export type { HexContext };

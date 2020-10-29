@@ -32,6 +32,4 @@ async function formatter(result: HexFunctionResult): Promise<string> {
   );
 }
 
-export {
-  formatter,
-};
+export { formatter };

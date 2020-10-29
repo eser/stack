@@ -5,6 +5,4 @@ interface HexFunctionResultBody {
 
 type HexFunctionResult = Promise<HexFunctionResultBody | void> | void;
 
-export type {
-  HexFunctionResult,
-};
+export type { HexFunctionResult };

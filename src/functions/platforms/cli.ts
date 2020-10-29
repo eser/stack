@@ -38,6 +38,4 @@ const cli: HexPlatform = {
   commitResult,
 };
 
-export {
-  cli,
-};
+export { cli };

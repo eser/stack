@@ -3,6 +3,4 @@ import { HexFunctionResult } from "./functionResult.ts";
 
 type HexFunctionNext = (newContext?: HexContext) => HexFunctionResult;
 
-export type {
-  HexFunctionNext,
-};
+export type { HexFunctionNext };

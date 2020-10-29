@@ -6,11 +6,4 @@ import { results } from "./results.ts";
 import { router } from "./router.ts";
 
 export * from "./abstractions/mod.ts";
-export {
-  formatters,
-  platforms,
-  composer,
-  createRuntime,
-  results,
-  router,
-};
+export { composer, createRuntime, formatters, platforms, results, router };

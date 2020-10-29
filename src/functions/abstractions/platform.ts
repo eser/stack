@@ -11,6 +11,4 @@ interface HexPlatform {
   commitResult: (result: Promise<string>) => Promise<void>;
 }
 
-export type {
-  HexPlatform,
-};
+export type { HexPlatform };

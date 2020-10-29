@@ -37,6 +37,4 @@ function createRuntime(
   };
 }
 
-export {
-  createRuntime,
-};
+export { createRuntime };

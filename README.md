@@ -105,7 +105,7 @@ Clone this git repo `git clone
 Then run a sample file under `samples/` directory,
 
 ```sh
-$ deno run samples/cli/basic.ts eser
+$ deno run samples/functions/cli/basic.ts eser
 
 hello eser
 ```

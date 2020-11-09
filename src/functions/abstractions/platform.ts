@@ -1,5 +1,5 @@
-import { HexContext } from "./context.ts";
-import { HexFunctionInput } from "./functionInput.ts";
+import type { HexContext } from "./context.ts";
+import type { HexFunctionInput } from "./functionInput.ts";
 
 interface HexPlatform {
   // TODO available formatters

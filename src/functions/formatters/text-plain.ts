@@ -1,4 +1,4 @@
-import { HexFunctionResult } from "../abstractions/functionResult.ts";
+import type { HexFunctionResult } from "../abstractions/functionResult.ts";
 
 function fixNonSerializableObjects(key: string, value: unknown): unknown {
   if (value instanceof Error) {

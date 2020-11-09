@@ -1,9 +1,9 @@
-import { HexFormatter } from "./abstractions/formatter.ts";
-import { HexFunction } from "./abstractions/function.ts";
-import { HexFunctionInput } from "./abstractions/functionInput.ts";
-import { HexFunctionResult } from "./abstractions/functionResult.ts";
-import { HexPlatform } from "./abstractions/platform.ts";
-import { HexRuntime } from "./abstractions/runtime.ts";
+import type { HexFormatter } from "./abstractions/formatter.ts";
+import type { HexFunction } from "./abstractions/function.ts";
+import type { HexFunctionInput } from "./abstractions/functionInput.ts";
+import type { HexFunctionResult } from "./abstractions/functionResult.ts";
+import type { HexPlatform } from "./abstractions/platform.ts";
+import type { HexRuntime } from "./abstractions/runtime.ts";
 import { formatter as textPlainFormatter } from "./formatters/text-plain.ts";
 
 function pickProperFormatter(): HexFormatter {

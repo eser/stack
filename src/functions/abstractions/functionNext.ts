@@ -1,5 +1,5 @@
-import { HexContext } from "./context.ts";
-import { HexFunctionResult } from "./functionResult.ts";
+import type { HexContext } from "./context.ts";
+import type { HexFunctionResult } from "./functionResult.ts";
 
 type HexFunctionNext = (newContext?: HexContext) => HexFunctionResult;
 

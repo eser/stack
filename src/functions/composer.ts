@@ -1,8 +1,8 @@
-import { HexContext } from "./abstractions/context.ts";
-import { HexFunction } from "./abstractions/function.ts";
-import { HexFunctionInput } from "./abstractions/functionInput.ts";
-import { HexFunctionNext } from "./abstractions/functionNext.ts";
-import { HexFunctionResult } from "./abstractions/functionResult.ts";
+import type { HexContext } from "./abstractions/context.ts";
+import type { HexFunction } from "./abstractions/function.ts";
+import type { HexFunctionInput } from "./abstractions/functionInput.ts";
+import type { HexFunctionNext } from "./abstractions/functionNext.ts";
+import type { HexFunctionResult } from "./abstractions/functionResult.ts";
 
 function composer(...functions: Array<HexFunction>): HexFunction {
   return function (

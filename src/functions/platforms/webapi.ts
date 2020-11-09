@@ -1,7 +1,7 @@
 import { log, logLevels, oak } from "./webapi.deps.ts";
-import { HexContext } from "../abstractions/context.ts";
-import { HexFunctionInput } from "../abstractions/functionInput.ts";
-import { HexPlatform } from "../abstractions/platform.ts";
+import type { HexContext } from "../abstractions/context.ts";
+import type { HexFunctionInput } from "../abstractions/functionInput.ts";
+import type { HexPlatform } from "../abstractions/platform.ts";
 
 function getContext(): HexContext {
   return {

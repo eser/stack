@@ -1,0 +1,23 @@
+- bir platform'a ait context yaratılabilecek
+
+- const platformContext = hex.environment.platforms.cli.createContext()
+  hex.environment.getType(platformContext)
+  hex.environment.getAvailableFormatters(platformContext)
+  hex.environment.getAllVariables(platformContext)
+
+  hex.environment.consoleOutput("deneme");
+  hex.environment.consoleOutputError("deneme", ex);
+  hex.environment.response(platformSessionContext, new OutputObject());
+  hex.environment.responseError(platformSessionContext, new Error());
+
+  hex.environment.dispatch(platformContext, "signkill");
+
+  const request = { method: "GET", path: "/", dispatch };
+  hex.environment.dispatch(platformContext, "request", { request });
+
+- environment context bir kere oluşturulacak,
+  web için web listener v.s. objesine environment context'den ulaşılabilecek
+  yine environment context üzerinden "kill" v.s. gibi termination gerçekleştirilebilecek
+
+- environment'a yeni bir event gelebilecek,
+  yeni event runtime

@@ -1,20 +1,20 @@
-import type HexFunction from "./function.ts";
-import type HexFunctionContext from "./function-context.ts";
-import type HexFunctionInput from "./function-input.ts";
-import type HexFunctionNext from "./function-next.ts";
-import type HexFunctionResult from "./function-result.ts";
+import type { HexContext } from "./abstractions/context.ts";
+import type { HexFunction } from "./abstractions/function.ts";
+import type { HexFunctionInput } from "./abstractions/functionInput.ts";
+import type { HexFunctionNext } from "./abstractions/functionNext.ts";
+import type { HexFunctionResult } from "./abstractions/functionResult.ts";
 
-function composer(...functions: HexFunction[]): HexFunction {
+function composer(...functions: Array<HexFunction>): HexFunction {
   return function (
     input: HexFunctionInput,
-    context: HexFunctionContext,
+    context: HexContext,
     next?: HexFunctionNext,
   ): HexFunctionResult {
     let index = 0;
     let currentContext = context;
 
     const jump: HexFunctionNext = (
-      newContext?: HexFunctionContext,
+      newContext?: HexContext,
     ): HexFunctionResult => {
       const current = functions[index];
 
@@ -34,4 +34,4 @@ function composer(...functions: HexFunction[]): HexFunction {
   };
 }
 
-export { composer as default };
+export { composer };

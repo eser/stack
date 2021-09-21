@@ -1,0 +1,30 @@
+{
+  "$schema": "https://deno.land/x/denon/schema.json",
+
+  "scripts": {
+    "test": {
+      "cmd": "deno test ./src/ --coverage",
+      "desc": "runs tests",
+      "allow": [
+        "env",
+        "read",
+        "run",
+        "net"
+      ],
+      "unstable": false,
+      "watch": false
+    },
+    "cli": {
+      "cmd": "deno run ./src/cli.ts",
+      "desc": "runs the cli application",
+      "allow": [
+        "env",
+        "read",
+        "run",
+        "net"
+      ],
+      "unstable": false,
+      "watch": false
+    }
+  }
+}

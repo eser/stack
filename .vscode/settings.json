@@ -1,11 +1,15 @@
 {
   "deno.enable": true,
   "deno.lint": true,
-  "deno.unstable": true,
+  "deno.unstable": false,
   "[typescript]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
+  },
+  "deno.import_intellisense_origins": {
+    "https://deno.land": true,
+    "http://deno.land": true
   }
 }

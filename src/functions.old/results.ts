@@ -1,4 +1,4 @@
-import type HexFunctionResult from "./function-result.ts";
+import type { HexFunctionResult } from "./abstractions/functionResult.ts";
 
 const ok: HexFunctionResult = Promise.resolve({
   payload: undefined,
@@ -35,4 +35,4 @@ const results = {
   // notImplemented(),
 };
 
-export { results as default };
+export { error, ok, results, text };

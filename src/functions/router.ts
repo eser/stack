@@ -1,21 +1,21 @@
-import type { HexContext } from "./abstractions/context.ts";
-import type { HexFunction } from "./abstractions/function.ts";
-import type { HexFunctionInput } from "./abstractions/functionInput.ts";
-import type { HexFunctionNext } from "./abstractions/functionNext.ts";
-import type { HexFunctionResult } from "./abstractions/functionResult.ts";
+import type HexFunction from "./function.ts";
+import type HexFunctionContext from "./function-context.ts";
+import type HexFunctionInput from "./function-input.ts";
+import type HexFunctionNext from "./function-next.ts";
+import type HexFunctionResult from "./function-result.ts";
 
-function router(...routes: Array<HexFunction>): HexFunction {
+function router(...routes: HexFunction[]): HexFunction {
   // TODO collect each route definition by executing them
 
   // TODO return an HexFunction that decides which route definition
   //      should be executed according to input parameters
   return function (
     input: HexFunctionInput,
-    context: HexContext,
+    context: HexFunctionContext,
     next?: HexFunctionNext,
   ): HexFunctionResult {
     throw new Error("not implemented yet.");
   };
 }
 
-export { router };
+export { router as default };

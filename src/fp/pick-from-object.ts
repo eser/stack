@@ -7,9 +7,7 @@ function pickFromObject<T>(
   instance: Record<string, T>,
   keys: Array<string>,
 ): PickFromObjectResult<T> {
-  const existingKeys = Object.keys(instance);
-
-  return existingKeys.reduce(
+  return Object.keys(instance).reduce(
     (obj: PickFromObjectResult<T>, itemKey: string) => {
       if (keys.indexOf(itemKey) !== -1) {
         return {

@@ -2,14 +2,18 @@
 
 ## Package Information
 
-hex/fp is a set of helper methods in order to construct a new version of data without mutating/updating existing data structure in-place.
+hex/fp is a set of helper methods in order to construct a new version of data
+without mutating/updating existing data structure in-place.
 
-Compared to its alternatives, hex/fp only provides utility functions instead of delivering new data types/structures as a solution.
+Compared to its alternatives, hex/fp only provides utility functions instead of
+delivering new data types/structures as a solution.
 
-Additionally, as a library, hex/fp is completely tree-shaking-friendly. Your favorite module bundler can easily inline the functionality you need with no extra configuration, instead of bundling the whole hex/fp package.
+Additionally, as a library, hex/fp is completely tree-shaking-friendly. Your
+favorite module bundler can easily inline the functionality you need with no
+extra configuration, instead of bundling the whole hex/fp package.
 
-For further details such as requirements, license information and support guide, please see [main hex repository](https://github.com/eserozvataf/hex).
-
+For further details such as requirements, license information and support guide,
+please see [main hex repository](https://github.com/eserozvataf/hex).
 
 ## Usage
 
@@ -18,10 +22,10 @@ For further details such as requirements, license information and support guide,
 appends new item(s) to an array or a generator.
 
 ```js
-import appendToArray from 'hex/fp/append-to-array';
+import appendToArray from "hex/fp/append-to-array";
 
-const source = [ 'a', 'b' ];
-const newOne = appendToArray(source, 'c');
+const source = ["a", "b"];
+const newOne = appendToArray(source, "c");
 
 // output: Result: ['a','b','c']
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -34,7 +38,7 @@ console.log(`Is Same: ${source === newOne}`);
 appends new item(s) to an object.
 
 ```js
-import appendToObject from 'hex/fp/append-to-object';
+import appendToObject from "hex/fp/append-to-object";
 
 const source = { a: 1, b: 2 };
 const newOne = appendToObject(source, { c: 3 });
@@ -45,12 +49,85 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
+### compose(...functionsForComposition)
+
+.
+
+```js
+import compose from "hex/fp/compose";
+
+// compose - slug sample
+const lower = (x) => x.toLowerCase();
+const chars = (x) => x.replace(/[^\w \-]+/g, "");
+const spaces = (x) => x.split(" ");
+const dashes = (x) => x.join("-");
+
+const slug = compose(lower, chars, spaces, dashes);
+
+const message = slug("Hello World!");
+
+// outputs 'slug: hello-world'
+console.log(`slug: ${message}`);
+```
+
+### curry(targetFunction, ...argumentsToBePrepended)
+
+.
+
+```js
+import curry from "hex/fp/curry";
+
+// curry - sum sample
+const sum = (a, b) => a + b;
+
+const sumWith5 = curry(sum, 5);
+
+const result = sumWith5(3);
+
+// outputs 'result: 8'
+console.log(`result: ${result}`);
+```
+
+### curryRight(targetFunction, ...argumentsToBeAppended)
+
+.
+
+```js
+import curryRight from "hex/fp/curry-right";
+
+// curryRight - sum sample
+const dec = (a, b) => a - b;
+
+const decWith5 = curry(dec, 5);
+
+const result = decWith5(3);
+
+// outputs 'result: -2'
+console.log(`result: ${result}`);
+```
+
+### decorate(functionToDecorate, decoratorFunction)
+
+.
+
+```js
+import decorate from "hex/fp/decorate";
+
+// decorate - calculator sample
+let generator = () => 5;
+generator = decorate(generator, (func) => func() * 2);
+generator = decorate(generator, (func) => func() + 1);
+
+// outputs: 'generated: 11'
+console.log(`generated: ${generator()}`);
+```
+
 ### deepCopy(source)
 
 copies an instance with its constructor.
 
 ```js
-import deepCopy from 'hex/fp/deep-copy';
+import deepCopy from "hex/fp/deep-copy";
 
 class dummy {}
 
@@ -58,9 +135,55 @@ const source = new dummy();
 const newOne = deepCopy(source);
 
 // output: Result: class dummy {}
-console.log('Result:', newOne.constructor);
+console.log("Result:", newOne.constructor);
 // output: Is Same: false
 console.log(`Is Same: ${source === newOne}`);
+```
+
+### dispatcher(initialState, mutators) (awaitable)
+
+.
+
+```js
+import dispatcher from "hex/fp/dispatcher";
+
+// dispatcher - state mutation sample
+const initialState = { quarter: 1, year: 2018, sum: 1 };
+
+const actionAdd5 = (state, next) => next({ ...state, sum: state.sum + 5 });
+const actionDiv2 = (state, next) => next({ ...state, sum: state.sum / 2 });
+
+// outputs 'new state is: {"quarter":1,"year":2018,"sum":3}'
+dispatcher(initialState, [actionAdd5, actionDiv2])
+  .then((state) => console.log(`new state is: ${JSON.stringify(state)}`));
+```
+
+### dispatcher(initialState, mutators, subscribers) (awaitable)
+
+.
+
+```js
+import dispatcher from "hex/fp/dispatcher";
+
+// dispatcher - action logger sample
+const initialState = { quarter: 1, year: 2018, sum: 1 };
+
+const actionAdd5 = (state, next) => next({ ...state, sum: state.sum + 5 });
+const actionDiv2 = (state, next) => next({ ...state, sum: state.sum / 2 });
+
+const logger = (x) => console.log("INFO", x);
+
+/* outputs:
+   INFO { action: 'actionAdd5',
+     previousState: { quarter: 1, year: 2018, sum: 1 },
+     newState: { quarter: 1, year: 2018, sum: 6 } }
+   INFO { action: 'actionDiv2',
+     previousState: { quarter: 1, year: 2018, sum: 6 },
+     newState: { quarter: 1, year: 2018, sum: 3 } }
+   new state is: {"quarter":1,"year":2018,"sum":3}'
+*/
+dispatcher(initialState, [actionAdd5, actionDiv2], [logger])
+  .then((state) => console.log(`new state is: ${JSON.stringify(state)}`));
 ```
 
 ### dropFromArray(source, number)
@@ -68,9 +191,9 @@ console.log(`Is Same: ${source === newOne}`);
 skips first n items from an array or a generator.
 
 ```js
-import dropFromArray from 'hex/fp/drop-from-array';
+import dropFromArray from "hex/fp/drop-from-array";
 
-const source = [ 'a', 'b', 'c' ];
+const source = ["a", "b", "c"];
 const newOne = dropFromArray(source, 1);
 
 // output: Result: ['b','c']
@@ -84,7 +207,7 @@ console.log(`Is Same: ${source === newOne}`);
 skips first n items from an object.
 
 ```js
-import dropFromObject from 'hex/fp/drop-from-object';
+import dropFromObject from "hex/fp/drop-from-object";
 
 const source = { a: 1, b: 2, c: 3 };
 const newOne = dropFromObject(source, 1);
@@ -95,15 +218,71 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
+### emitter(events, eventName, eventParameters) (awaitable)
+
+.
+
+```js
+import emitter from "hex/fp/emitter";
+
+// emitter - static pub/sub sample
+const subscriberOne = (value) =>
+  console.log(`subscriberOne had value ${value}`);
+const subscriberTwo = (value) =>
+  console.log(`subscriberTwo had value ${value}`);
+
+const events = {
+  printToConsole: [subscriberOne, subscriberTwo],
+};
+
+/* outputs:
+   subscriberOne had value 5
+   subscriberTwo had value 5
+*/
+emitter(events, "printToConsole", [5]);
+```
+
+### emitter(events, eventName, eventParameters, subscribers) (awaitable)
+
+.
+
+```js
+import emitter from "hex/fp/emitter";
+
+// emitter - event logger sample
+const subscriberOne = (value) =>
+  console.log(`subscriberOne had value ${value}`);
+const subscriberTwo = (value) =>
+  console.log(`subscriberTwo had value ${value}`);
+
+const logger = (x) => console.log("INFO", x);
+
+const events = {
+  printToConsole: [subscriberOne, subscriberTwo],
+};
+
+/* outputs:
+   INFO { event: 'printToConsole',
+     subscriber: 'subscriberOne',
+     args: [ 5 ] }
+   subscriberOne had value 5
+   INFO { event: 'printToConsole',
+     subscriber: 'subscriberTwo',
+     args: [ 5 ] }
+   subscriberTwo had value 5
+*/
+emitter(events, "printToConsole", [5], [logger]);
+```
+
 ### filterArray(instance, predicate)
 
 returns matching items from an array or a generator.
 
 ```js
-import filterArray from 'hex/fp/filter-array';
+import filterArray from "hex/fp/filter-array";
 
-const source = [ 1, 2, 3, 4, 5 ];
-const newOne = filterArray(source, x => x <= 3);
+const source = [1, 2, 3, 4, 5];
+const newOne = filterArray(source, (x) => x <= 3);
 
 // output: Result: [1,2,3]
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -116,10 +295,10 @@ console.log(`Is Same: ${source === newOne}`);
 returns matching items from an object.
 
 ```js
-import filterObject from 'hex/fp/filter-object';
+import filterObject from "hex/fp/filter-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
-const newOne = filterObject(source, x => x <= 3);
+const newOne = filterObject(source, (x) => x <= 3);
 
 // output: Result: {'a':1,'b':2,'c':3}
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -127,15 +306,54 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### mapArray(instance, predicate)
+### iterate(iterable, func) (awaitable)
 
-creates a new array with the results of calling a provided function on every element in the calling array.
+.
 
 ```js
-import mapArray from 'hex/fp/map-array';
+import iterate from "hex/fp/iterate";
+import compose from "hex/fp/compose";
 
-const source = [ 1, 2, 3, 4, 5 ];
-const newOne = mapArray(source, x => x - 1);
+// iterate - url fetcher example
+const generator = function* () {
+  yield "http://localhost/samples/1"; // { value: 1 }
+  yield "http://localhost/samples/2"; // { value: 2 }
+  yield "http://localhost/samples/3"; // { value: 3 }
+};
+
+const fetchUrl = async function (url) {
+  const response = await fetch(url);
+  const document = await response.json();
+
+  return document.value;
+};
+
+const add5 = async (value) => await value + 5;
+const printToConsole = async (value) => {
+  console.log(await value);
+};
+
+/* outputs:
+   value is 6
+   value is 7
+   value is 8
+*/
+iterate(
+  generator(),
+  compose(fetchUrl, add5, printToConsole),
+);
+```
+
+### mapArray(instance, predicate)
+
+creates a new array with the results of calling a provided function on every
+element in the calling array.
+
+```js
+import mapArray from "hex/fp/map-array";
+
+const source = [1, 2, 3, 4, 5];
+const newOne = mapArray(source, (x) => x - 1);
 
 // output: Result: [0,1,2,3,4]
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -145,10 +363,11 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### mapObject(instance, predicate)
 
-creates a new object with the results of calling a provided function on every element in the calling object.
+creates a new object with the results of calling a provided function on every
+element in the calling object.
 
 ```js
-import mapObject from 'hex/fp/map-object';
+import mapObject from "hex/fp/map-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = mapObject(source, (value, key) => ({ [key]: value - 1 }));
@@ -164,10 +383,10 @@ console.log(`Is Same: ${source === newOne}`);
 merges two or more arrays into one.
 
 ```js
-import mergeArrays from 'hex/fp/merge-arrays';
+import mergeArrays from "hex/fp/merge-arrays";
 
-const source1 = [ 1, 2, 3 ];
-const source2 = [ 4, 5 ];
+const source1 = [1, 2, 3];
+const source2 = [4, 5];
 const newOne = mergeArrays(source1, source2);
 
 // output: Result: [1,2,3,4,5]
@@ -181,7 +400,7 @@ console.log(`Is Same: ${source === newOne}`);
 merges two or more objects into one.
 
 ```js
-import mergeObjects from 'hex/fp/merge-objects';
+import mergeObjects from "hex/fp/merge-objects";
 
 const source1 = { a: 1, b: 2, c: 3 };
 const source2 = { d: 4, e: 5 };
@@ -198,10 +417,10 @@ console.log(`Is Same: ${source === newOne}`);
 returns matching and not matching items from an array or a generator.
 
 ```js
-import pickFromArray from 'hex/fp/pick-from-array';
+import pickFromArray from "hex/fp/pick-from-array";
 
-const source = [ 1, 2, 3, 4, 5 ];
-const newOne = pickFromArray(source, [ 2, 3, 6 ]);
+const source = [1, 2, 3, 4, 5];
+const newOne = pickFromArray(source, [2, 3, 6]);
 
 // output: Result: {'items':[2,3],'rest':[1,4,5]}
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -214,10 +433,10 @@ console.log(`Is Same: ${source === newOne}`);
 returns matching and not matching items from an object.
 
 ```js
-import pickFromObject from 'hex/fp/pick-from-object';
+import pickFromObject from "hex/fp/pick-from-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
-const newOne = pickFromObject(source, [ 'b', 'c', 'f' ]);
+const newOne = pickFromObject(source, ["b", "c", "f"]);
 
 // output: Result: {'items':{'b':2,'c':3},'rest':{'a':1,'d':4,'e':5}}
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -230,10 +449,10 @@ console.log(`Is Same: ${source === newOne}`);
 prepends new item(s) to an array or a generator.
 
 ```js
-import prependToArray from 'hex/fp/prepend-to-array';
+import prependToArray from "hex/fp/prepend-to-array";
 
-const source = [ 'b', 'c' ];
-const newOne = prependToArray(source, 'a');
+const source = ["b", "c"];
+const newOne = prependToArray(source, "a");
 
 // output: Result: ['a','b','c']
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -246,7 +465,7 @@ console.log(`Is Same: ${source === newOne}`);
 prepends new item(s) to an object.
 
 ```js
-import prependToObject from 'hex/fp/prepend-to-object';
+import prependToObject from "hex/fp/prepend-to-object";
 
 const source = { b: 2, c: 3 };
 const newOne = prependToObject(source, { a: 1 });
@@ -262,10 +481,10 @@ console.log(`Is Same: ${source === newOne}`);
 removes first matching item from an array or a generator.
 
 ```js
-import removeFirstMatchFromArray from 'hex/fp/remove-first-match-from-array';
+import removeFirstMatchFromArray from "hex/fp/remove-first-match-from-array";
 
-const source = [ 1, 5, 2, 3, 4, 5 ];
-const newOne = removeFirstMatchFromArray(source, x => x === 5);
+const source = [1, 5, 2, 3, 4, 5];
+const newOne = removeFirstMatchFromArray(source, (x) => x === 5);
 
 // output: Result: [1,2,3,4,5]
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -278,10 +497,10 @@ console.log(`Is Same: ${source === newOne}`);
 removes first matching item from an object.
 
 ```js
-import removeFirstMatchFromObject from 'hex/fp/remove-first-match-from-object';
+import removeFirstMatchFromObject from "hex/fp/remove-first-match-from-object";
 
 const source = { a: 1, f: 5, b: 2, c: 3, d: 4, e: 5 };
-const newOne = removeFirstMatchFromObject(source, x => x === 5);
+const newOne = removeFirstMatchFromObject(source, (x) => x === 5);
 
 // output: Result: {'a':1,'b':2,'c':3,'d':4,'e':5}
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -289,15 +508,31 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### removeFromArray(source, ...items)
+### removeIndexFromArray(source, ...items)
+
+removes specified item index(es) from an array or a generator.
+
+```js
+import removeIndexFromArray from "hex/fp/remove-index-from-array";
+
+const source = [1, 2, 3, 4, 5];
+const newOne = removeIndexFromArray(source, 2, 3);
+
+// output: Result: [1,2,5]
+console.log(`Result: ${JSON.stringify(newOne)}`);
+// output: Is Same: false
+console.log(`Is Same: ${source === newOne}`);
+```
+
+### removeValueFromArray(source, ...items)
 
 removes specified item(s) from an array or a generator.
 
 ```js
-import removeFromArray from 'hex/fp/remove-from-array';
+import removeValueFromArray from "hex/fp/remove-value-from-array";
 
-const source = [ 1, 2, 3, 4, 5 ];
-const newOne = removeFromArray(source, 2, 3);
+const source = [1, 2, 3, 4, 5];
+const newOne = removeValueFromArray(source, 2, 3);
 
 // output: Result: [1,4,5]
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -310,10 +545,10 @@ console.log(`Is Same: ${source === newOne}`);
 removes items with specified key(s) from an object.
 
 ```js
-import removeKeyFromObject from 'hex/fp/remove-key-from-object';
+import removeKeyFromObject from "hex/fp/remove-key-from-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
-const newOne = removeKeyFromObject(source, 'b', 'c');
+const newOne = removeKeyFromObject(source, "b", "c");
 
 // output: Result: {'a':1,'d':4,'e':5}
 console.log(`Result: ${JSON.stringify(newOne)}`);
@@ -326,7 +561,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes items with specified value(s) from an object or a generator.
 
 ```js
-import removeValueFromObject from 'hex/fp/remove-value-from-object';
+import removeValueFromObject from "hex/fp/remove-value-from-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = removeValueFromObject(source, 2, 3);
@@ -342,9 +577,9 @@ console.log(`Is Same: ${source === newOne}`);
 reverses an array or a generator content.
 
 ```js
-import reverseArray from 'hex/fp/reverse-array';
+import reverseArray from "hex/fp/reverse-array";
 
-const source = [ 1, 2, 3, 4, 5 ];
+const source = [1, 2, 3, 4, 5];
 const newOne = reverseArray(source);
 
 // output: Result: [5,4,3,2,1]
@@ -358,7 +593,7 @@ console.log(`Is Same: ${source === newOne}`);
 reverses an object content.
 
 ```js
-import reverseObject from 'hex/fp/reverse-object';
+import reverseObject from "hex/fp/reverse-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = reverseObject(source);
@@ -374,28 +609,12 @@ console.log(`Is Same: ${source === newOne}`);
 splits an array or a generator content from specified index.
 
 ```js
-import splitArray from 'hex/fp/split-array';
+import splitArray from "hex/fp/split-array";
 
-const source = [ 1, 2, 3, 4, 5 ];
+const source = [1, 2, 3, 4, 5];
 const newOne = splitArray(source, 3);
 
 // output: Result: {'items':[1,2,3],'rest':[4,5]}
-console.log(`Result: ${JSON.stringify(newOne)}`);
-// output: Is Same: false
-console.log(`Is Same: ${source === newOne}`);
-```
-
-### splitLastArray(source, number)
-
-splits an array or a generator content from specified last index.
-
-```js
-import splitLastArray from 'hex/fp/split-last-array';
-
-const source = [ 1, 2, 3, 4, 5 ];
-const newOne = splitLastArray(source, 2);
-
-// output: Result: {'items':[4,5],'rest':[1,2,3]}
 console.log(`Result: ${JSON.stringify(newOne)}`);
 // output: Is Same: false
 console.log(`Is Same: ${source === newOne}`);
@@ -406,7 +625,7 @@ console.log(`Is Same: ${source === newOne}`);
 splits an object content from specified index.
 
 ```js
-import splitObject from 'hex/fp/split-object';
+import splitObject from "hex/fp/split-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = splitObject(source, 3);
@@ -417,30 +636,14 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### splitLastObject(source, number)
-
-splits an object content from specified last index.
-
-```js
-import splitLastObject from 'hex/fp/split-last-object';
-
-const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
-const newOne = splitLastObject(source, 2);
-
-// output: Result: {'items':{'d':4,'e':5},'rest':{'a':1,'b':2,'c':3}}
-console.log(`Result: ${JSON.stringify(newOne)}`);
-// output: Is Same: false
-console.log(`Is Same: ${source === newOne}`);
-```
-
 ### takeFromArray(source, number)
 
 takes first n items from an array or a generator.
 
 ```js
-import takeFromArray from 'hex/fp/take-from-array';
+import takeFromArray from "hex/fp/take-from-array";
 
-const source = [ 'a', 'b', 'c' ];
+const source = ["a", "b", "c"];
 const newOne = takeFromArray(source, 2);
 
 // output: Result: ['a','b']
@@ -454,7 +657,7 @@ console.log(`Is Same: ${source === newOne}`);
 takes first n items from an object.
 
 ```js
-import takeFromObject from 'hex/fp/take-from0bject';
+import takeFromObject from "hex/fp/take-from0bject";
 
 const source = { a: 1, b: 2, c: 3 };
 const newOne = takeFromObject(source, 2);

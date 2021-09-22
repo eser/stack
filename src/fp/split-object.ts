@@ -7,11 +7,9 @@ function splitObject<T>(
   instance: Record<string, T>,
   n: number,
 ): SplitObjectResult<T> {
-  const existingKeys = Object.keys(instance);
-
   let index = 0;
 
-  return existingKeys.reduce(
+  return Object.keys(instance).reduce(
     (obj: SplitObjectResult<T>, itemKey: string) => {
       if (index < n) {
         index += 1;

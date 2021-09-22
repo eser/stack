@@ -1,4 +1,4 @@
-# 🧱 [hex/fp](https://https://github.com/eserozvataf/hex/tree/development/src/fp)
+# 🧱 [hex/fp](https://github.com/eserozvataf/hex/tree/development/src/fp)
 
 ## Package Information
 

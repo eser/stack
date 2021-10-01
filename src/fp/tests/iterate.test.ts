@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import compose from "../compose.ts";
+import pipe from "../pipe.ts";
 import iterate from "../iterate.ts";
 
 Deno.test("hex/fp/iterate:basic", async () => {
@@ -46,7 +46,7 @@ Deno.test("hex/fp/iterate:async", async () => {
   asserts.assertEquals(total, 6);
 });
 
-Deno.test("hex/fp/iterate:with compose", async () => {
+Deno.test("hex/fp/iterate:with pipe", async () => {
   const gen1 = function* gen() {
     yield { value: 1 };
     yield { value: 2 };
@@ -63,7 +63,7 @@ Deno.test("hex/fp/iterate:with compose", async () => {
 
   await iterate(
     gen1(),
-    compose(
+    pipe(
       getValue,
       add5,
       sumWithTotal,

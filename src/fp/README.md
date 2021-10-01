@@ -51,7 +51,8 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### compose(...functionsForComposition)
 
-.
+passes the output of one function as an input to another one, but unlike `pipe`
+it executes the functions in reverse order.
 
 ```js
 import compose from "hex/fp/compose";
@@ -62,7 +63,7 @@ const chars = (x) => x.replace(/[^\w \-]+/g, "");
 const spaces = (x) => x.split(" ");
 const dashes = (x) => x.join("-");
 
-const slug = compose(lower, chars, spaces, dashes);
+const slug = compose(dashes, spaces, chars, lower);
 
 const message = slug("Hello World!");
 
@@ -442,6 +443,27 @@ const newOne = pickFromObject(source, ["b", "c", "f"]);
 console.log(`Result: ${JSON.stringify(newOne)}`);
 // output: Is Same: false
 console.log(`Is Same: ${source === newOne}`);
+```
+
+### pipe(...functionsForComposition)
+
+passes the output of one function as an input to another function.
+
+```js
+import pipe from "hex/fp/pipe";
+
+// pipe - slug sample
+const lower = (x) => x.toLowerCase();
+const chars = (x) => x.replace(/[^\w \-]+/g, "");
+const spaces = (x) => x.split(" ");
+const dashes = (x) => x.join("-");
+
+const slug = pipe(lower, chars, spaces, dashes);
+
+const message = slug("Hello World!");
+
+// outputs 'slug: hello-world'
+console.log(`slug: ${message}`);
 ```
 
 ### prependToArray(source, ...items)

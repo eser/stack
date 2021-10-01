@@ -4,7 +4,7 @@ type ComposableFunction = (...args: Array<any>) => any;
 function compose(...funcs: Array<ComposableFunction>): ComposableFunction {
   return funcs.reduce(
     (previousFunction, currentFunction) =>
-      (...args) => currentFunction(previousFunction(...args)),
+      (...args) => previousFunction(currentFunction(...args)),
   );
 }
 

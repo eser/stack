@@ -27,4 +27,4 @@ function registry(formatters: Iterable<Formatter>): Registry {
   return created as Registry;
 }
 
-export { registry as default };
+export { findByName, registry, registry as default };

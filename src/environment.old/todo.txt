@@ -1,3 +1,13 @@
+new environment()
++ addPlatformCli()
++ addPlatformHttp()
++ addPlatformDebugConsole()
+
+
+--> EVENT
+  -> diger Platformlara dispatch edilir
+
+
 - bir platform'a ait context yaratılabilecek
 
 - const platformContext = hex.environment.platforms.cli.createContext()

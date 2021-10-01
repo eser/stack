@@ -5,7 +5,7 @@ class Dummy {
   prop: unknown;
 
   constructor(prop: unknown) {
-      this.prop = prop;
+    this.prop = prop;
   }
 }
 

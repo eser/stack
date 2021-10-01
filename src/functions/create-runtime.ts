@@ -55,7 +55,8 @@ function execute(
 }
 
 function createContext(environment: HexEnvironment): HexFunctionContext {
-  const environmentContext: HexEnvironmentPlatformContext = environment.createContext(); // environmentHandler
+  const environmentContext: HexEnvironmentPlatformContext = environment
+    .createContext(); // environmentHandler
 
   return environmentContext as HexFunctionContext;
 }

@@ -10,4 +10,6 @@ async function handler(event: hex.environment.Event, ...args: unknown[]) {
 
 const context = hex.environment.platforms.cli.createContext(handler);
 hex.environment.platforms.cli.input(context, Deno.args);
-hex.environment.platforms.cli.output(context, { name: "Eser" }, { formatter: "json" });
+hex.environment.platforms.cli.output(context, { name: "Eser" }, {
+  formatter: "json",
+});

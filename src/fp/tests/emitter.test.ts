@@ -44,7 +44,6 @@ Deno.test("hex/fp/emitter:many events", async () => {
   asserts.assertEquals(sideEffectCounter, 2);
 });
 
-
 Deno.test("hex/fp/emitter:with wildcard events", async () => {
   let sideEffectCounter = 0;
 

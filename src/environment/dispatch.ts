@@ -23,7 +23,11 @@ import type PlatformContext from "./platform-context.ts";
 //   isError?: boolean;
 // }
 
-function dispatch(context: PlatformContext, type: EventType, ...args: unknown[]): void {
+function dispatch(
+  context: PlatformContext,
+  type: EventType,
+  ...args: unknown[]
+): void {
   const event: Event = {
     platformContext: context,
     type: type,

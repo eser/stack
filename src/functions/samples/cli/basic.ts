@@ -1,4 +1,8 @@
-import type { HexFunctionContext, HexFunctionInput, HexFunctionResult } from "../../../src/functions/mod.ts";
+import type {
+  HexFunctionContext,
+  HexFunctionInput,
+  HexFunctionResult,
+} from "../../../src/functions/mod.ts";
 import hex from "../../../mod.ts";
 
 function main(

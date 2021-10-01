@@ -7,5 +7,10 @@ import createRuntime from "./create-runtime.ts";
 import results from "./results.ts";
 import router from "./router.ts";
 
-export type { HexFunction, HexFunctionContext, HexFunctionInput, HexFunctionResult };
+export type {
+  HexFunction,
+  HexFunctionContext,
+  HexFunctionInput,
+  HexFunctionResult,
+};
 export { composer, createRuntime, results, router };

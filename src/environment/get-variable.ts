@@ -1,6 +1,9 @@
 import type PlatformContext from "./platform-context.ts";
 
-function getVariable(context: PlatformContext, name: string): unknown | null | undefined {
+function getVariable(
+  context: PlatformContext,
+  name: string,
+): unknown | null | undefined {
   return context.getVariable(name);
 }
 

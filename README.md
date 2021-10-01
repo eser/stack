@@ -1,8 +1,11 @@
 # ✖️ [hex](https://github.com/eserozvataf/hex)
 
-Function abstraction framework for better portability between platforms. Write your code once in functional approach, then run on mainstream environments such as cli, bot platforms, cloud-function runtimes and web apis.
+Function abstraction framework for better portability between platforms. Write
+your code once in functional approach, then run on mainstream environments such
+as cli, bot platforms, cloud-function runtimes and web apis.
 
-*This project is in early stages of its development. Descriptions or instructions are not mature yet as well as the project itself.*
+_This project is in early stages of its development. Descriptions or
+instructions are not mature yet as well as the project itself._
 
 ## Functions Roadmap
 
@@ -32,16 +35,18 @@ Function abstraction framework for better portability between platforms. Write y
 - [ ] Scheduled events
 - [ ] Deployments (to cloud providers)
 
-
 See [eser.dev](https://eser.dev) for further development details (in Turkish).
-
 
 ## Usage
 
 ### Basic
 
 ```js
-import { results, createRuntime, platforms } from "https://deno.land/x/hex/functions/mod.ts";
+import {
+  createRuntime,
+  platforms,
+  results,
+} from "https://deno.land/x/hex/functions/mod.ts";
 
 function main(input) {
   const to = input.parameters[0] ?? "world";
@@ -59,7 +64,12 @@ runtime.execute(main);
 ### With Middlewares
 
 ```js
-import { composer, results, createRuntime, platforms } from "https://deno.land/x/hex/functions/mod.ts";
+import {
+  composer,
+  createRuntime,
+  platforms,
+  results,
+} from "https://deno.land/x/hex/functions/mod.ts";
 
 function initMiddleware(input, context, next) {
   context.vars.number = 1;
@@ -92,15 +102,13 @@ const runtime = createRuntime(platforms.cli);
 runtime.execute(composed);
 ```
 
-
 ## Quick start
 
 Ensure that `Deno` is installed on your system first.
 
-Clone this git repo `git clone
-   https://github.com/eserozvataf/hex.git` - and checkout the [tagged
-   release](https://github.com/eserozvataf/hex/releases) you'd like to
-   use.
+Clone this git repo `git clone https://github.com/eserozvataf/hex.git` - and
+checkout the [tagged release](https://github.com/eserozvataf/hex/releases) you'd
+like to use.
 
 Then run a sample file under `samples/` directory,
 
@@ -110,31 +118,29 @@ $ deno run samples/functions/cli/basic.ts eser
 hello eser
 ```
 
-
 ## Todo List
 
 See [GitHub Projects](https://github.com/eserozvataf/hex/projects) for more.
 
-
 ## Requirements
 
-* Deno (https://deno.land/)
-
+- Deno (https://deno.land/)
 
 ## License
 
 Apache 2.0, for further details, please see [LICENSE](LICENSE) file.
 
-
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-It is publicly open for any contribution. Bugfixes, new features and extra modules are welcome.
+It is publicly open for any contribution. Bugfixes, new features and extra
+modules are welcome.
 
-* To contribute to code: Fork the repo, push your changes to your fork, and submit a pull request.
-* To report a bug: If something does not work, please report it using [GitHub Issues](https://github.com/eserozvataf/hex/issues).
-
+- To contribute to code: Fork the repo, push your changes to your fork, and
+  submit a pull request.
+- To report a bug: If something does not work, please report it using
+  [GitHub Issues](https://github.com/eserozvataf/hex/issues).
 
 ## To Support
 

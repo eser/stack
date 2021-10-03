@@ -50,3 +50,4 @@ function registry(formatters: Iterable<Formatter>): Registry {
 }
 
 export { findByName, registry, registry as default };
+export type { Registry };

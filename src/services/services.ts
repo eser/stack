@@ -1,58 +1,70 @@
-enum ServiceType {
-  Singleton = "SINGLETON",
-  Factory = "FACTORY",
-}
+import { container, get, setFactory, setValue } from "./container.ts";
+import type {
+  Container,
+  ContainerItemKey,
+  ContainerItemValue,
+} from "./container.ts";
 
 declare global {
-  var services: Record<string | symbol, [ServiceType, unknown]>;
+  var services: Container;
 }
 
-function getService(name: string | symbol, defaultValue?: unknown): unknown {
-  if (name in globalThis.services) {
-    const [serviceType, value] = globalThis.services[name];
-
-    if (serviceType === ServiceType.Factory) {
-      return (value as () => unknown)();
-    }
-
-    return value;
+function service(
+  name: ContainerItemKey,
+  defaultValue?: ContainerItemValue,
+): ContainerItemValue {
+  if (globalThis.services === undefined) {
+    return defaultValue;
   }
 
-  return defaultValue;
+  return get(globalThis.services.items, name, defaultValue);
 }
 
-function setValue(name: string | symbol, value: unknown): void {
-  globalThis.services = Object.assign({}, globalThis.services, {
-    [name]: [ServiceType.Singleton, value],
-  });
+function setServiceValue(
+  name: ContainerItemKey,
+  value: ContainerItemValue,
+): void {
+  if (globalThis.services === undefined) {
+    globalThis.services = container();
+  }
+
+  setValue(globalThis.services.items, name, value);
 }
 
-function setFactory(name: string | symbol, value: () => unknown): void {
-  globalThis.services = Object.assign({}, globalThis.services, {
-    [name]: [ServiceType.Factory, value],
-  });
+function setServiceFactory(
+  name: ContainerItemKey,
+  value: () => ContainerItemValue,
+): void {
+  if (globalThis.services === undefined) {
+    globalThis.services = container();
+  }
+
+  setFactory(globalThis.services.items, name, value);
 }
 
 function useServices(): [
-  (name: string | symbol, defaultValue?: unknown) => unknown,
+  // deno-lint-ignore no-explicit-any
+  (name: any, defaultValue?: any) => any,
   {
-    setValue: (name: string | symbol, value: unknown) => void;
-    setFactory: (name: string | symbol, value: () => unknown) => void;
+    // deno-lint-ignore no-explicit-any
+    setValue: (name: any, value: any) => void;
+    // deno-lint-ignore no-explicit-any
+    setFactory: (name: any, value: () => any) => void;
   },
 ] {
   return [
-    getService,
+    service, // getService
     {
-      setValue,
-      setFactory,
+      setValue: setServiceValue,
+      setFactory: setServiceFactory,
     },
   ];
 }
 
 export {
-  getService,
-  setFactory,
-  setValue,
+  service,
+  setServiceFactory,
+  setServiceValue,
   useServices,
   useServices as default,
 };

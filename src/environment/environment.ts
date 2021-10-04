@@ -1,4 +1,3 @@
-import { service } from "../services/mod.ts";
 import type Platform from "./platform.ts";
 
 interface Environment {

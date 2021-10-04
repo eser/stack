@@ -9,7 +9,21 @@ declare global {
   var services: Container;
 }
 
-function service(
+function service(name: ContainerItemKey): ContainerItemValue {
+  const value = get(globalThis.services.items, name);
+
+  if (value === undefined && name.constructor === Function) {
+    // deno-lint-ignore ban-types
+    const newValue = (name as Function)();
+
+    setValue(globalThis.services.items, name, newValue);
+    return newValue;
+  }
+
+  return value;
+}
+
+function getService(
   name: ContainerItemKey,
   defaultValue?: ContainerItemValue,
 ): ContainerItemValue {
@@ -44,8 +58,10 @@ function setServiceFactory(
 
 function useServices(): [
   // deno-lint-ignore no-explicit-any
-  (name: any, defaultValue?: any) => any,
+  (name: any) => any,
   {
+    // deno-lint-ignore no-explicit-any
+    get: (name: any, defaultValue?: any) => any;
     // deno-lint-ignore no-explicit-any
     setValue: (name: any, value: any) => void;
     // deno-lint-ignore no-explicit-any
@@ -53,8 +69,9 @@ function useServices(): [
   },
 ] {
   return [
-    service, // getService
+    service,
     {
+      get: getService,
       setValue: setServiceValue,
       setFactory: setServiceFactory,
     },
@@ -62,6 +79,7 @@ function useServices(): [
 }
 
 export {
+  getService,
   service,
   setServiceFactory,
   setServiceValue,

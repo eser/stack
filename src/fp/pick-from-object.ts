@@ -1,14 +1,14 @@
 type PickFromObjectResult<T> = {
-  items: Record<string, T>;
-  rest: Record<string, T>;
+  items: Record<string | symbol, T>;
+  rest: Record<string | symbol, T>;
 };
 
 function pickFromObject<T>(
-  instance: Record<string, T>,
-  keys: Array<string>,
+  instance: Record<string | symbol, T>,
+  keys: Array<string | symbol>,
 ): PickFromObjectResult<T> {
   return Object.keys(instance).reduce(
-    (obj: PickFromObjectResult<T>, itemKey: string) => {
+    (obj, itemKey) => {
       if (keys.indexOf(itemKey) !== -1) {
         return {
           items: Object.assign({}, obj.items, { [itemKey]: instance[itemKey] }),

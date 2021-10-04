@@ -1,11 +1,11 @@
 function filterObject<T>(
-  instance: Record<string, T>,
+  instance: Record<string | symbol, T>,
   predicate: (
     value: T,
-    key: string,
-    instance: Record<string, T>,
+    key: string | symbol,
+    instance: Record<string | symbol, T>,
   ) => boolean,
-): Record<string, T> {
+): Record<string | symbol, T> {
   return Object.keys(instance).reduce(
     (obj, itemKey) => {
       if (predicate(instance[itemKey], itemKey, obj)) {

@@ -1,16 +1,16 @@
 type SplitObjectResult<T> = {
-  items: Record<string, T>;
-  rest: Record<string, T>;
+  items: Record<string | symbol, T>;
+  rest: Record<string | symbol, T>;
 };
 
 function splitObject<T>(
-  instance: Record<string, T>,
+  instance: Record<string | symbol, T>,
   n: number,
 ): SplitObjectResult<T> {
   let index = 0;
 
   return Object.keys(instance).reduce(
-    (obj: SplitObjectResult<T>, itemKey: string) => {
+    (obj, itemKey) => {
       if (index < n) {
         index += 1;
 

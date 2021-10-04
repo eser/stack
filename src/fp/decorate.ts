@@ -1,8 +1,11 @@
-// deno-lint-ignore ban-types
-function decorate(target: Function, decorator: Function) {
-  // deno-lint-ignore no-explicit-any
-  return function func(...args: Array<any>): any {
-    return decorator(...args, target);
+type Decorated<T1, T2> = (...args: Array<T1>) => T2;
+
+function decorate<T1, T2>(
+  target: Decorated<T1, T2>,
+  decorator: (...args: [Decorated<T1, T2>, ...Array<T1>]) => T2,
+) {
+  return function func(...args: Array<T1>): T2 {
+    return decorator(target, ...args);
   };
 }
 

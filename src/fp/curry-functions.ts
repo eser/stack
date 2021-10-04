@@ -2,8 +2,11 @@ import curry from "./curry.ts";
 
 function curryFunctions<
   T1,
-  // deno-lint-ignore no-explicit-any
-  T2 extends Record<string, (...args: [...Array<T1>, ...Array<any>]) => any>,
+  T2 extends Record<
+    string | symbol,
+    // deno-lint-ignore no-explicit-any
+    (...args: [...Array<T1>, ...Array<any>]) => any
+  >,
   // deno-lint-ignore no-explicit-any
   T3 extends { [T4 in keyof T2]: any },
 >(

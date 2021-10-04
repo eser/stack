@@ -7,7 +7,7 @@ function deepCopy<T extends unknown>(instance: T): T {
 
   return Object.keys(instance).reduce(
     (obj, itemKey) => {
-      const value = (instance as Record<string, unknown>)[itemKey];
+      const value = (instance as Record<string | symbol, unknown>)[itemKey];
       if (value instanceof Object) {
         return Object.assign(new Type(), obj, {
           [itemKey]: deepCopy(value),

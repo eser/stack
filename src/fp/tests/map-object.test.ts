@@ -3,7 +3,7 @@ import mapObject from "../map-object.ts";
 
 Deno.test("hex/fp/map-object:basic", () => {
   const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };
-  const func1 = (value: number, key: string) => ({ [key]: value - 1 });
+  const func1 = (value: number, key: string | symbol) => ({ [key]: value - 1 });
 
   const result = mapObject(obj1, func1);
 
@@ -14,7 +14,7 @@ Deno.test("hex/fp/map-object:basic", () => {
 
 Deno.test("hex/fp/map-object:with-value-skipping", () => {
   const obj1 = { a: 1, b: 2, c: null };
-  const func1 = function func(value: number | null, key: string) {
+  const func1 = function func(value: number | null, key: string | symbol) {
     if (value === null) {
       return null;
     }

@@ -1,6 +1,6 @@
 function mergeObjects<T>(
-  ...instances: Array<Record<string, T>>
-): Record<string, T> {
+  ...instances: Array<Record<string | symbol, T>>
+): Record<string | symbol, T> {
   return Object.assign({}, ...instances);
 }
 

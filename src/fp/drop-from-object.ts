@@ -1,7 +1,7 @@
 function dropFromObject<T>(
-  instance: Record<string, T>,
+  instance: Record<string | symbol, T>,
   n: number,
-): Record<string, T> {
+): Record<string | symbol, T> {
   const newKeys = Object.keys(instance).slice(n);
 
   return newKeys.reduce(

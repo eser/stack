@@ -1,4 +1,4 @@
-# 🧱 [hex/directives](https://github.com/eserozvataf/hex/tree/development/src/directives)
+# 📓 [hex/directives](https://github.com/eserozvataf/hex/tree/development/src/directives)
 
 ## Package Information
 

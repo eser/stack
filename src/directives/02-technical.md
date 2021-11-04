@@ -16,6 +16,7 @@ philosophy can be shared across the ecosystem.
 ### Coding Mindset Rules
 - **DO** make your functions do one thing only.
 - **DO** use early returns whenever possible.
+- **DO** prefer composition over inheritance.
 - **DO** prefer promises over callbacks.
 - **DO** prefer template strings over string concatenation.
 - **DO** use plain `for loops` if there's a case for `break`/`continue`.

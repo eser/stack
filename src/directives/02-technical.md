@@ -30,7 +30,9 @@ philosophy can be shared across the ecosystem.
 - **DO** add semicolons always.
 - **DO** prefer `for..of loops` to go over the values of the array.
 - **DO** prefer `Number()` for string to number conversions.
-- **DO NOT** use eval.
+- **DO NOT** use `eval`.
+- **DO NOT** use `prototype`.
+- **DO NOT** use `Object.defineProperty`.
 - **DO NOT** use `var`. Instead, use `const` and `let`.
 - **DO NOT** use `||` for undefined and null checks. Instead, use nullish
   coalescing (`??`) operator.
@@ -45,3 +47,4 @@ philosophy can be shared across the ecosystem.
 - **AVOID** nesting or chaining loops.
 - **AVOID** truthy and falsy checks unless the variable/return type is a
   boolean. Instead, use full condition. (ex: `array.length === 0`)
+- **AVOID** `import *`. Instead, just use whatever needed.

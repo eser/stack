@@ -1,106 +1,26 @@
 # ✖️ [hex](https://github.com/eserozvataf/hex)
 
-Function abstraction framework for better portability between platforms. Write
-your code once in functional approach, then run on mainstream environments such
-as cli, bot platforms, cloud-function runtimes and web apis.
+**hex** is an ecosystem delivering practices, philosophy and portability.
 
-_This project is in early stages of its development. Descriptions or
-instructions are not mature yet as well as the project itself._
+Sub components of hex enables developer to abstract their codes for better
+portability between platforms. Encourages ones to write codes once in
+functional approach, then run on mainstream environments such as cli, bot
+platforms, cloud-function runtimes and web apis.
 
-## Functions Roadmap
+_This project is currently in early stages of its development. Descriptions
+or instructions are not mature yet as well as the project itself._
 
-### MVP
 
-- [x] ~Basic functions~
-- [x] ~Input and context interfaces~
-- [x] ~Middlewares~
-- [x] ~CLI platform~
-- [x] ~Runtime~
-- [x] ~Web platform w/ oak~
-- [ ] Hypertext format
-- [ ] Web platform w/ Deno's http
-- [ ] Telegram bot platform
+## Components
 
-### Next Milestones
+- [Directives](directives/)
+- [Environment](environment/)
+- [Formatters](formatters/)
+- [FP](fp/)
+- [Functions](functions/)
+- [Services](services/)
+- [Standards](standards/)
 
-- [ ] API Maturity
-- [ ] AWS Lambda platform
-- [ ] Knative platform
-- [ ] Discord bot platform
-- [ ] Slack bot platform
-- [ ] Unit and integration testing utilities
-- [ ] Dockerization
-- [ ] Manifest files
-- [ ] Kafka/queue events
-- [ ] Scheduled events
-- [ ] Deployments (to cloud providers)
-
-See [eser.dev](https://eser.dev) for further development details (in Turkish).
-
-## Usage
-
-### Basic
-
-```js
-import {
-  createRuntime,
-  platforms,
-  results,
-} from "https://deno.land/x/hex/functions/mod.ts";
-
-function main(input) {
-  const to = input.parameters[0] ?? "world";
-  const message = `hello ${to}`;
-
-  return results.text(message);
-}
-
-// will be removed in future versions
-// propably will be replaced w/ export
-const runtime = createRuntime(platforms.cli);
-runtime.execute(main);
-```
-
-### With Middlewares
-
-```js
-import {
-  composer,
-  createRuntime,
-  platforms,
-  results,
-} from "https://deno.land/x/hex/functions/mod.ts";
-
-function initMiddleware(input, context, next) {
-  context.vars.number = 1;
-
-  return next();
-}
-
-function validationMiddleware(input, context, next) {
-  if (input.parameters[0] === undefined) {
-    return results.error(
-      "parameter is not specified",
-      new Error("parameter is not specified"),
-    );
-  }
-
-  return next();
-}
-
-function main(input, context) {
-  const message = `hello ${context.vars.number} ${input.parameters[0]}`;
-
-  return results.text(message);
-}
-
-const composed = composer(initMiddleware, validationMiddleware, main);
-
-// will be removed in future versions
-// propably will be replaced w/ export
-const runtime = createRuntime(platforms.cli);
-runtime.execute(composed);
-```
 
 ## Quick start
 
@@ -113,7 +33,7 @@ like to use.
 Then run a sample file under `samples/` directory,
 
 ```sh
-$ deno run samples/functions/cli/basic.ts eser
+$ deno run functions/samples/cli/basic.ts eser
 
 hello eser
 ```

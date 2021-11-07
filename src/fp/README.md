@@ -141,6 +141,28 @@ console.log("Result:", newOne.constructor);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
+### deepCopyWith(source, modificationFn)
+
+copies an instance with its constructor, with specific mutation.
+
+```js
+import deepCopyWith from "hex/fp/deep-copy-with";
+
+class dummy {
+  constructor(value) {
+    this.value = value;
+  }
+}
+
+const source = new dummy(5);
+const newOne = deepCopyWith(source, (x) => x.value = 6);
+
+// output: Result: class dummy {}
+console.log("Result:", newOne.constructor);
+// output: Is Same: false
+console.log(`Is Same: ${source === newOne}`);
+```
+
 ### dispatcher(initialState, mutators) (awaitable)
 
 .

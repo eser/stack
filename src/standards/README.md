@@ -10,7 +10,6 @@ injection container.
 For further details such as requirements, license information and support guide,
 please see [main hex repository](https://github.com/eserozvataf/hex).
 
-
 ## Standards
 
 - [Logging](logging.ts)

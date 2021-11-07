@@ -8,7 +8,6 @@ platforms.
 For further details such as requirements, license information and support guide,
 please see [main hex repository](https://github.com/eserozvataf/hex).
 
-
 ## Component Roadmap
 
 ### MVP
@@ -38,7 +37,6 @@ please see [main hex repository](https://github.com/eserozvataf/hex).
 - [ ] Deployments (to cloud providers)
 
 See [eser.dev](https://eser.dev) for further development details (in Turkish).
-
 
 ## Usage
 

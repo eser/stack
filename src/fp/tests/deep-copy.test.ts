@@ -15,6 +15,7 @@ Deno.test("hex/fp/deep-copy:basic", () => {
   const result = deepCopy(obj1);
 
   asserts.assertNotStrictEquals(result, obj1);
+  asserts.assertStrictEquals(result.constructor, Dummy);
   asserts.assertEquals(result, obj1);
   asserts.assertEquals(result, new Dummy({ value: 5 }));
 });

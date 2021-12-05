@@ -1,15 +1,14 @@
 import deepCopy from "./deep-copy.ts";
 
-// deno-lint-ignore no-explicit-any
-function deepCopyWith<T extends unknown>(
-  source: T,
-  modificationFn: (value: T) => any,
+const deepCopyWith = function deepCopyWith<T extends unknown>(
+	source: T,
+	modificationFn: (value: T) => void,
 ): T {
-  const instance = deepCopy(source);
+	const instance = deepCopy(source);
 
-  modificationFn(instance);
+	modificationFn(instance);
 
-  return instance;
-}
+	return instance;
+};
 
-export { deepCopyWith as default };
+export { deepCopyWith, deepCopyWith as default };

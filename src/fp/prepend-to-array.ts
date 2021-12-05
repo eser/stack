@@ -1,8 +1,8 @@
 function prependToArray<T>(
-  instance: Iterable<T>,
-  ...values: Array<T>
+	instance: Iterable<T>,
+	...values: Array<T>
 ): Array<T> {
-  return [...values, ...instance];
+	return [...values, ...instance];
 }
 
-export { prependToArray as default };
+export { prependToArray, prependToArray as default };

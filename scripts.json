@@ -1,9 +1,8 @@
 {
   "$schema": "https://deno.land/x/denon/schema.json",
-
   "scripts": {
     "test": {
-      "cmd": "deno test ./src/ --coverage",
+      "cmd": "deno test ./src/ --coverage --config deno.json",
       "desc": "runs tests",
       "allow": [
         "env",
@@ -14,8 +13,22 @@
       "unstable": false,
       "watch": false
     },
+    "lint": {
+      "cmd": "deno lint ./src/ --config deno.json",
+      "desc": "runs linter",
+      "allow": [],
+      "unstable": false,
+      "watch": false
+    },
+    "fmt": {
+      "cmd": "deno fmt ./src/ --config deno.json",
+      "desc": "runs formatter",
+      "allow": [],
+      "unstable": false,
+      "watch": false
+    },
     "cli": {
-      "cmd": "deno run ./src/cli.ts",
+      "cmd": "deno run ./src/cli.ts --config deno.json",
       "desc": "runs the cli application",
       "allow": [
         "env",

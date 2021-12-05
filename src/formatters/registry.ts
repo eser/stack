@@ -20,34 +20,34 @@ import type Formatter from "./formatter.ts";
 //   const jsonFormatter = registry.findByName("json");
 //
 
-function findByName(
-  formatters: Iterable<Formatter>,
-  name: string,
+const findByName = function findByName(
+	formatters: Iterable<Formatter>,
+	name: string,
 ): Formatter | undefined {
-  for (const formatter of formatters) {
-    if (formatter.names.includes(name)) {
-      return formatter;
-    }
-  }
+	for (const formatter of formatters) {
+		if (formatter.names.includes(name)) {
+			return formatter;
+		}
+	}
 
-  return undefined;
-}
+	return undefined;
+};
 
 interface Registry {
-  items: Iterable<Formatter>;
+	items: Iterable<Formatter>;
 
-  findByName(name: string): Formatter | undefined;
+	findByName(name: string): Formatter | undefined;
 }
 
-function registry(formatters: Iterable<Formatter>): Registry {
-  const created: Partial<Registry> = {
-    items: formatters,
-  };
+const registry = function registry(formatters: Iterable<Formatter>): Registry {
+	const created: Partial<Registry> = {
+		items: formatters,
+	};
 
-  Object.assign(created, curryFunctions({ findByName }, created.items));
+	Object.assign(created, curryFunctions({ findByName }, created.items));
 
-  return created as Registry;
-}
+	return created as Registry;
+};
 
 export { findByName, registry, registry as default };
 export type { Registry };

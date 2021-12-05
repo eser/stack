@@ -1,25 +1,27 @@
 import type Platform from "./platform.ts";
 
 interface EnvironmentOptions {
-  vars: Record<string, string>;
-  platforms: Array<Platform>;
+	vars: Record<string, string>;
+	platforms: Array<Platform>;
 }
 
 interface Environment extends EnvironmentOptions {
-  addPlatform: (platform: Platform) => void;
+	addPlatform: (platform: Platform) => void;
 }
 
-function environment(options: EnvironmentOptions): Environment {
-  const instance = {
-    vars: options?.vars ?? {},
-    platforms: options?.platforms ?? [],
+const environment = function environment(
+	options: EnvironmentOptions,
+): Environment {
+	const instance = {
+		vars: options?.vars ?? {},
+		platforms: options?.platforms ?? [],
 
-    addPlatform: function (platform: Platform): void {
-      this.platforms = [...this.platforms, platform];
-    },
-  };
+		addPlatform: function (platform: Platform): void {
+			this.platforms = [...this.platforms, platform];
+		},
+	};
 
-  return instance;
-}
+	return instance;
+};
 
-export { environment as default };
+export { environment, environment as default };

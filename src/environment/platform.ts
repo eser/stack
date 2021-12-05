@@ -1,5 +1,5 @@
 interface Platform {
-  name: string;
+	name: string;
 }
 
-export type { Platform as default };
+export type { Platform, Platform as default };

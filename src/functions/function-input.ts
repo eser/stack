@@ -1,14 +1,14 @@
 interface HexFunctionInput {
-  platform: {
-    type: string;
-    name: string;
-  };
-  event: Record<string, unknown> & { name: string };
-  requestedFormat: {
-    mimetype: string;
-    format: string;
-  };
-  parameters: Record<string, unknown>;
+	platform: {
+		type: string;
+		name: string;
+	};
+	event: Record<string, unknown> & { name: string };
+	requestedFormat: {
+		mimetype: string;
+		format: string;
+	};
+	parameters: Record<string, unknown>;
 }
 
-export type { HexFunctionInput as default };
+export type { HexFunctionInput, HexFunctionInput as default };

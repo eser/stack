@@ -5,4 +5,4 @@ import HexEnvironmentPlatformContext from "../environment/platform-context.ts";
 
 type HexFunctionContext = HexEnvironmentPlatformContext;
 
-export type { HexFunctionContext as default };
+export type { HexFunctionContext, HexFunctionContext as default };

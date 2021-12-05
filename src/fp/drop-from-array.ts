@@ -1,9 +1,9 @@
 function dropFromArray<T>(instance: Iterable<T>, n: number): Array<T> {
-  const arrInstance = (instance.constructor === Array)
-    ? <Array<T>> instance
-    : [...instance];
+	const arrInstance = (instance.constructor === Array)
+		? <Array<T>> instance
+		: [...instance];
 
-  return arrInstance.slice(n);
+	return arrInstance.slice(n);
 }
 
-export { dropFromArray as default };
+export { dropFromArray, dropFromArray as default };

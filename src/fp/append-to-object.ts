@@ -1,8 +1,8 @@
 function appendToObject<T>(
-  instance: Record<string | symbol, T>,
-  ...values: Array<Record<string | symbol, T>>
+	instance: Record<string | symbol, T>,
+	...values: Array<Record<string | symbol, T>>
 ): Record<string | symbol, T> {
-  return Object.assign({}, instance, ...values);
+	return Object.assign({}, instance, ...values);
 }
 
-export { appendToObject as default };
+export { appendToObject, appendToObject as default };

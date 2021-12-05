@@ -1,8 +1,8 @@
 interface HexFunctionResultBody {
-  error?: Error;
-  payload?: unknown;
+	error?: Error;
+	payload?: unknown;
 }
 
 type HexFunctionResult = Promise<HexFunctionResultBody | void> | void;
 
-export type { HexFunctionResult as default };
+export type { HexFunctionResult, HexFunctionResult as default };

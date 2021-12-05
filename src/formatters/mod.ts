@@ -1,7 +1,4 @@
-import type Formatter from "./formatter.ts";
-import registry from "./registry.ts";
-import applicationJsonFormatter from "./application-json.ts";
-import textPlainFormatter from "./text-plain.ts";
-
-export type { Formatter };
-export { applicationJsonFormatter, registry, textPlainFormatter };
+export type { Formatter } from "./formatter.ts";
+export { registry } from "./registry.ts";
+export { applicationJsonFormatter } from "./application-json.ts";
+export { textPlainFormatter } from "./text-plain.ts";

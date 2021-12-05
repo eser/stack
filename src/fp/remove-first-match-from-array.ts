@@ -1,22 +1,22 @@
 function removeFirstMatchFromArray<T>(
-  instance: Iterable<T>,
-  predicate: (value: T, index: number, instance: Iterable<T>) => boolean,
+	instance: Iterable<T>,
+	predicate: (value: T, index: number, instance: Iterable<T>) => boolean,
 ): Array<T> {
-  const arrInstance = (instance.constructor === Array)
-    ? <Array<T>> instance
-    : [...instance];
+	const arrInstance = (instance.constructor === Array)
+		? <Array<T>> instance
+		: [...instance];
 
-  let notFound = true;
+	let notFound = true;
 
-  return arrInstance.filter((itemValue, itemKey, obj) => {
-    if (notFound && predicate(itemValue, itemKey, obj)) {
-      notFound = false;
+	return arrInstance.filter((itemValue, itemKey, obj) => {
+		if (notFound && predicate(itemValue, itemKey, obj)) {
+			notFound = false;
 
-      return false;
-    }
+			return false;
+		}
 
-    return true;
-  });
+		return true;
+	});
 }
 
-export { removeFirstMatchFromArray as default };
+export { removeFirstMatchFromArray, removeFirstMatchFromArray as default };

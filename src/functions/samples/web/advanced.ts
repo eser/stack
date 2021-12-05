@@ -1,74 +1,74 @@
 import {
-  composer,
-  HexFunctionContext,
-  HexFunctionInput,
-  HexFunctionNext,
-  HexFunctionResult,
-  results,
-  router,
+	composer,
+	HexFunctionContext,
+	HexFunctionInput,
+	HexFunctionNext,
+	HexFunctionResult,
+	results,
+	router,
 } from "../../../src/functions/mod.ts";
 
-function authMiddleware(
-  input: HexFunctionInput,
-  context: HexFunctionContext,
-  next: HexFunctionNext,
+const authMiddleware = function authMiddleware(
+	input: HexFunctionInput,
+	context: HexFunctionContext,
+	next: HexFunctionNext,
 ): HexFunctionResult {
-  return next();
-}
+	return next();
+};
 
-async function logMiddleware(
-  input: HexFunctionInput,
-  context: HexFunctionContext,
-  next?: HexFunctionNext,
+const logMiddleware = async function logMiddleware(
+	input: HexFunctionInput,
+	context: HexFunctionContext,
+	next?: HexFunctionNext,
 ): HexFunctionResult {
-  await context.services.logger.debug(`req start - ${input.event.uri}`);
+	await context.services.logger.debug(`req start - ${input.event.uri}`);
 
-  let result;
+	let result;
 
-  try {
-    result = await next();
+	try {
+		result = await next();
 
-    await context.services.logger.info(`req done - ${input.event.uri}`);
-  } catch (ex) {
-    await context.services.logger.error(`req error - ${input.event.uri}`);
-    throw ex;
-  } finally {
-    await context.services.logger.debug(`req end - ${input.event.uri}`);
-  }
+		await context.services.logger.info(`req done - ${input.event.uri}`);
+	} catch (ex) {
+		await context.services.logger.error(`req error - ${input.event.uri}`);
+		throw ex;
+	} finally {
+		await context.services.logger.debug(`req end - ${input.event.uri}`);
+	}
 
-  return result;
-}
+	return result;
+};
 
-function helloValidator(
-  input: HexFunctionInput,
-  context: HexFunctionContext,
-  next?: HexFunctionNext,
+const helloValidator = function helloValidator(
+	input: HexFunctionInput,
+	context: HexFunctionContext,
+	next?: HexFunctionNext,
 ): HexFunctionResult {
-  if (input.parameters?.name === undefined) {
-    return results.preconditionFailed("input.parameters.name");
-  }
+	if (input.parameters?.name === undefined) {
+		return results.preconditionFailed("input.parameters.name");
+	}
 
-  return next();
-}
+	return next();
+};
 
-async function helloMain(
-  input: HexFunctionInput,
-  context: HexFunctionContext,
+const helloMain = async function helloMain(
+	input: HexFunctionInput,
+	context: HexFunctionContext,
 ): HexFunctionResult {
-  const message = `hello ${input.parameters.name}`;
+	const message = `hello ${input.parameters.name}`;
 
-  await context.services.logger.warn(`response ${message}`);
+	await context.services.logger.warn(`response ${message}`);
 
-  return results.text(message);
-}
+	return results.text(message);
+};
 
 const hello = composer(helloValidator, helloMain);
 
 const routes = router(
-  route("GET", "/hello/:name", authMiddleware, hello),
-  route("GET", "/health", () => results.ok),
-  route("GET", "/", () => results.text("hello from hex functions.")),
-  // subrouter,
+	route("GET", "/hello/:name", authMiddleware, hello),
+	route("GET", "/health", () => results.ok),
+	route("GET", "/", () => results.text("hello from hex functions.")),
+	// subrouter,
 );
 
 // routes == function (input, context, next) - so it can composable

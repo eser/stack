@@ -5,10 +5,10 @@ import type HexFunctionNext from "./function-next.ts";
 import type HexFunctionResult from "./function-result.ts";
 
 const router = function router(...routes: HexFunction[]): HexFunction {
-	// TODO collect each route definition by executing them
+	// TODO(@eserozvataf) collect each route definition by executing them
 
-	// TODO return an HexFunction that decides which route definition
-	//      should be executed according to input parameters
+	// TODO(@eserozvataf) return an HexFunction that decides which route
+	//      definition should be executed according to input parameters
 	return function (
 		input: HexFunctionInput,
 		context: HexFunctionContext,

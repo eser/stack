@@ -7,7 +7,7 @@ import type { HexRuntime } from "./abstractions/runtime.ts";
 import { formatter as textPlainFormatter } from "./formatters/text-plain.ts";
 
 function pickProperFormatter(): HexFormatter {
-	// TODO for now there's only text/plain formatter
+	// TODO(@eserozvataf) for now there's only text/plain formatter
 	return textPlainFormatter;
 }
 

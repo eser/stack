@@ -2,9 +2,9 @@ import type { HexContext } from "./context.ts";
 import type { HexFunctionInput } from "./functionInput.ts";
 
 interface HexPlatform {
-	// TODO available formatters
-	// TODO syslog - debug function
-	// TODO get environment variables
+	// TODO(@eserozvataf) available formatters
+	// TODO(@eserozvataf) syslog - debug function
+	// TODO(@eserozvataf) get environment variables
 
 	getContext: () => HexContext;
 	getDefaultInput: () => HexFunctionInput;

@@ -6,7 +6,8 @@ import type {
 } from "./container.ts";
 
 declare global {
-	let services: Container;
+	// deno-lint-ignore no-var
+	var services: Container;
 }
 
 const service = function service(name: ContainerItemKey): ContainerItemValue {

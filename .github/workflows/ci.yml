@@ -1,0 +1,38 @@
+name: "CI"
+
+on:
+  push:
+    branches: [ development ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ development ]
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        deno-version: [ 1.19.0 ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup Deno ${{ matrix.deno-version }}
+      uses: denoland/setup-deno@v2
+      with:
+        deno-version: ${{ matrix.deno-version }}
+
+    - name: Deno Format
+      run: deno fmt --check
+
+    - name: Deno Lint
+      run: deno lint
+
+    - name: Deno Load Module
+      run: deno run --reload ./mod.ts
+
+    - name: Deno Test
+      run: deno test --allow-none

@@ -21,18 +21,18 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Setup Deno ${{ matrix.deno-version }}
-      uses: denoland/setup-deno@v1.1
+      uses: denoland/setup-deno@004814556e37c54a2f6e31384c9e18e983317366
       with:
         deno-version: ${{ matrix.deno-version }}
 
-    - name: Deno Format
+    - name: Verify Formatting
       run: deno fmt --check
 
-    - name: Deno Lint
+    - name: Run Linter
       run: deno lint
 
-    - name: Deno Load Module
+    - name: Module Loading Check
       run: deno run --reload ./mod.ts
 
-    - name: Deno Test
+    - name: Run tests
       run: deno test --allow-none

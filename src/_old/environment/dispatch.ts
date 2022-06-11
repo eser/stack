@@ -24,15 +24,15 @@ import type PlatformContext from "./platform-context.ts";
 // }
 
 function dispatch(
-	context: PlatformContext,
-	type: EventType,
-	...args: unknown[]
+  context: PlatformContext,
+  type: EventType,
+  ...args: unknown[]
 ): void {
-	const event: Event = {
-		platformContext: context,
-		type: type,
-		// vars:
-	};
+  const event: Event = {
+    platformContext: context,
+    type: type,
+    // vars:
+  };
 }
 
 export { dispatch as default };

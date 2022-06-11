@@ -1,6 +1,6 @@
 enum PlatformType {
-	Stateless,
-	Runtime,
+  Stateless,
+  Runtime,
 }
 
 export { PlatformType as default };

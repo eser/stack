@@ -1,7 +1,7 @@
 function mergeObjects<T>(
-	...instances: Array<Record<string | symbol, T>>
+  ...instances: Array<Record<string | symbol, T>>
 ): Record<string | symbol, T> {
-	return Object.assign({}, ...instances);
+  return Object.assign({}, ...instances);
 }
 
 export { mergeObjects, mergeObjects as default };

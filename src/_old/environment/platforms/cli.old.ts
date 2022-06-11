@@ -10,27 +10,27 @@ import applicationJsonFormatter from "../../formatters/application-json.ts";
 import pickFormatter from "../pick-formatter.ts";
 
 function getType(): PlatformType {
-	return PlatformType.Stateless;
+  return PlatformType.Stateless;
 }
 
 function getAvailableFormatters(): Formatter[] {
-	return [
-		textPlainFormatter,
-		applicationJsonFormatter,
-	];
+  return [
+    textPlainFormatter,
+    applicationJsonFormatter,
+  ];
 }
 
 function getAllVariables(
-	context: PlatformContext,
+  context: PlatformContext,
 ): Record<string, unknown | null> {
-	return {};
+  return {};
 }
 
 function getVariable(
-	context: PlatformContext,
-	name: string,
+  context: PlatformContext,
+  name: string,
 ): unknown | null | undefined {
-	return undefined;
+  return undefined;
 }
 
 // async function input<T>(
@@ -86,29 +86,29 @@ function getVariable(
 // }
 
 function createContext(
-	eventHandler?: (
-		event: Event,
-		...args: unknown[]
-	) => void | Promise<void>,
+  eventHandler?: (
+    event: Event,
+    ...args: unknown[]
+  ) => void | Promise<void>,
 ): PlatformContext {
-	return {
-		services: {},
-		eventHandler: eventHandler ?? null,
-	};
+  return {
+    services: {},
+    eventHandler: eventHandler ?? null,
+  };
 }
 
 const cli: Platform = {
-	getType,
-	getAvailableFormatters,
+  getType,
+  getAvailableFormatters,
 
-	createContext,
+  createContext,
 
-	getAllVariables,
-	getVariable,
+  getAllVariables,
+  getVariable,
 
-	input,
-	output,
-	kill,
+  input,
+  output,
+  kill,
 };
 
 export { cli as default };

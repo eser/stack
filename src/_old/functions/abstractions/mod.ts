@@ -8,12 +8,12 @@ import type { HexPlatform } from "./platform.ts";
 import type { HexRuntime } from "./runtime.ts";
 
 export type {
-	HexContext,
-	HexFormatter,
-	HexFunction,
-	HexFunctionInput,
-	HexFunctionNext,
-	HexFunctionResult,
-	HexPlatform,
-	HexRuntime,
+  HexContext,
+  HexFormatter,
+  HexFunction,
+  HexFunctionInput,
+  HexFunctionNext,
+  HexFunctionResult,
+  HexPlatform,
+  HexRuntime,
 };

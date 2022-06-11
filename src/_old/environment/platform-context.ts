@@ -8,17 +8,17 @@ import PlatformType from "./platform-type.ts";
 // c. each pc decides valid formatters.
 
 interface PlatformContext {
-	type: PlatformType;
+  type: PlatformType;
 
-	getAvailableFormatters: () => Formatter[];
-	getAllVariables: () => Record<string, unknown | null>;
-	getVariable: (name: string) => unknown | null | undefined;
+  getAvailableFormatters: () => Formatter[];
+  getAllVariables: () => Record<string, unknown | null>;
+  getVariable: (name: string) => unknown | null | undefined;
 
-	eventHandler:
-		| ((event: Event, ...args: unknown[]) => void | Promise<void>)
-		| null;
+  eventHandler:
+    | ((event: Event, ...args: unknown[]) => void | Promise<void>)
+    | null;
 
-	vars: Record<string, () => unknown | unknown>;
+  vars: Record<string, () => unknown | unknown>;
 }
 
 export type { PlatformContext as default };

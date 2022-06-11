@@ -1,89 +1,89 @@
 import { container, get, setFactory, setValue } from "./container.ts";
 import type {
-	Container,
-	ContainerItemKey,
-	ContainerItemValue,
+  Container,
+  ContainerItemKey,
+  ContainerItemValue,
 } from "./container.ts";
 
 declare global {
-	// deno-lint-ignore no-var
-	var services: Container;
+  // deno-lint-ignore no-var
+  var services: Container;
 }
 
 const service = function service(name: ContainerItemKey): ContainerItemValue {
-	const value = get(globalThis.services.items, name);
+  const value = get(globalThis.services.items, name);
 
-	if (value === undefined && name.constructor === Function) {
-		// deno-lint-ignore ban-types
-		const newValue = (name as Function)();
+  if (value === undefined && name.constructor === Function) {
+    // deno-lint-ignore ban-types
+    const newValue = (name as Function)();
 
-		setValue(globalThis.services.items, name, newValue);
-		return newValue;
-	}
+    setValue(globalThis.services.items, name, newValue);
+    return newValue;
+  }
 
-	return value;
+  return value;
 };
 
 const getService = function getService(
-	name: ContainerItemKey,
-	defaultValue?: ContainerItemValue,
+  name: ContainerItemKey,
+  defaultValue?: ContainerItemValue,
 ): ContainerItemValue {
-	if (globalThis.services === undefined) {
-		return defaultValue;
-	}
+  if (globalThis.services === undefined) {
+    return defaultValue;
+  }
 
-	return get(globalThis.services.items, name, defaultValue);
+  return get(globalThis.services.items, name, defaultValue);
 };
 
 const setServiceValue = function setServiceValue(
-	name: ContainerItemKey,
-	value: ContainerItemValue,
+  name: ContainerItemKey,
+  value: ContainerItemValue,
 ): void {
-	if (globalThis.services === undefined) {
-		globalThis.services = container();
-	}
+  if (globalThis.services === undefined) {
+    globalThis.services = container();
+  }
 
-	setValue(globalThis.services.items, name, value);
+  setValue(globalThis.services.items, name, value);
 };
 
 const setServiceFactory = function setServiceFactory(
-	name: ContainerItemKey,
-	value: () => ContainerItemValue,
+  name: ContainerItemKey,
+  value: () => ContainerItemValue,
 ): void {
-	if (globalThis.services === undefined) {
-		globalThis.services = container();
-	}
+  if (globalThis.services === undefined) {
+    globalThis.services = container();
+  }
 
-	setFactory(globalThis.services.items, name, value);
+  setFactory(globalThis.services.items, name, value);
 };
 
 const useServices = function useServices(): [
-	// deno-lint-ignore no-explicit-any
-	(name: any) => any,
-	{
-		// deno-lint-ignore no-explicit-any
-		get: (name: any, defaultValue?: any) => any;
-		// deno-lint-ignore no-explicit-any
-		setValue: (name: any, value: any) => void;
-		// deno-lint-ignore no-explicit-any
-		setFactory: (name: any, value: () => any) => void;
-	},
+  // deno-lint-ignore no-explicit-any
+  (name: any) => any,
+  {
+    // deno-lint-ignore no-explicit-any
+    get: (name: any, defaultValue?: any) => any;
+    // deno-lint-ignore no-explicit-any
+    setValue: (name: any, value: any) => void;
+    // deno-lint-ignore no-explicit-any
+    setFactory: (name: any, value: () => any) => void;
+  },
 ] {
-	return [
-		service,
-		{
-			get: getService,
-			setValue: setServiceValue,
-			setFactory: setServiceFactory,
-		},
-	];
+  return [
+    service,
+    {
+      get: getService,
+      setValue: setServiceValue,
+      setFactory: setServiceFactory,
+    },
+  ];
 };
 
 export {
-	getService,
-	service,
-	setServiceFactory,
-	setServiceValue,
-	useServices,
-	useServices as default,
+  getService,
+  service,
+  setServiceFactory,
+  setServiceValue,
+  useServices,
+  useServices as default,
 };

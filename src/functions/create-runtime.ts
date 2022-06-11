@@ -7,80 +7,80 @@ import type HexFunctionResult from "./function-result.ts";
 import type HexRuntime from "./runtime.ts";
 
 const getDefaultInput = function getDefaultInput(): HexFunctionInput {
-	return {
-		platform: {
-			type: "cli",
-			name: "",
-		},
-		event: {
-			name: "Command",
-		},
-		requestedFormat: {
-			mimetype: "",
-			format: "",
-		},
-		parameters: {
-			...Deno.args,
-		},
-	};
+  return {
+    platform: {
+      type: "cli",
+      name: "",
+    },
+    event: {
+      name: "Command",
+    },
+    requestedFormat: {
+      mimetype: "",
+      format: "",
+    },
+    parameters: {
+      ...Deno.args,
+    },
+  };
 
-	// {
-	//   platform: {
-	//     type: "web",
-	//     name: "",
-	//   },
-	//   event: {
-	//     name: "Request",
-	//   },
-	//   requestedFormat: {
-	//     mimetype: "",
-	//     format: "",
-	//   },
-	//   parameters: {},
-	// }
+  // {
+  //   platform: {
+  //     type: "web",
+  //     name: "",
+  //   },
+  //   event: {
+  //     name: "Request",
+  //   },
+  //   requestedFormat: {
+  //     mimetype: "",
+  //     format: "",
+  //   },
+  //   parameters: {},
+  // }
 };
 
 const execute = function execute(
-	environment: HexEnvironment,
-	context: HexFunctionContext,
-	target: HexFunction,
-	input?: HexFunctionInput,
+  environment: HexEnvironment,
+  context: HexFunctionContext,
+  target: HexFunction,
+  input?: HexFunctionInput,
 ): Promise<void> {
-	const result: HexFunctionResult = target(
-		input ?? getDefaultInput(),
-		context,
-	);
+  const result: HexFunctionResult = target(
+    input ?? getDefaultInput(),
+    context,
+  );
 
-	return environment.output(context, result);
+  return environment.output(context, result);
 };
 
 const createContext = function createContext(
-	environment: HexEnvironment,
+  environment: HexEnvironment,
 ): HexFunctionContext {
-	const environmentContext: HexEnvironmentPlatformContext = environment
-		.createContext(); // environmentHandler
+  const environmentContext: HexEnvironmentPlatformContext = environment
+    .createContext(); // environmentHandler
 
-	return environmentContext as HexFunctionContext;
+  return environmentContext as HexFunctionContext;
 };
 
 const createRuntime = function createRuntime(
-	environment: HexEnvironment,
-	options: Record<string, unknown> = {},
+  environment: HexEnvironment,
+  options: Record<string, unknown> = {},
 ): HexRuntime {
-	const context = createContext(environment); // environmentHandler
+  const context = createContext(environment); // environmentHandler
 
-	// function environmentHandler(event: HexEnvironmentEvent, ...args: unknown[]) {
-	//   if (event === HexEnvironmentEvent.Input) {
-	//     // execute();
-	//   }
-	// }
+  // function environmentHandler(event: HexEnvironmentEvent, ...args: unknown[]) {
+  //   if (event === HexEnvironmentEvent.Input) {
+  //     // execute();
+  //   }
+  // }
 
-	return {
-		context: context,
-		options: options,
-		execute: (target: HexFunction, input?: HexFunctionInput): Promise<void> =>
-			execute(environment, context, target, input),
-	};
+  return {
+    context: context,
+    options: options,
+    execute: (target: HexFunction, input?: HexFunctionInput): Promise<void> =>
+      execute(environment, context, target, input),
+  };
 };
 
 export { createRuntime, createRuntime as default };

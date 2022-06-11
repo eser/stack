@@ -1,6 +1,6 @@
 interface HexFunctionResultBody {
-	error?: Error;
-	payload?: unknown;
+  error?: Error;
+  payload?: unknown;
 }
 
 type HexFunctionResult = Promise<HexFunctionResultBody | void> | void;

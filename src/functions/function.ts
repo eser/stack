@@ -4,9 +4,9 @@ import type HexFunctionNext from "./function-next.ts";
 import type HexFunctionResult from "./function-result.ts";
 
 type HexFunction = (
-	input: HexFunctionInput,
-	context: HexFunctionContext,
-	next?: HexFunctionNext,
+  input: HexFunctionInput,
+  context: HexFunctionContext,
+  next?: HexFunctionNext,
 ) => HexFunctionResult;
 
 export type { HexFunction, HexFunction as default };

@@ -149,9 +149,9 @@ copies an instance with its constructor, with specific mutation.
 import deepCopyWith from "hex/fp/deep-copy-with";
 
 class dummy {
-	constructor(value) {
-		this.value = value;
-	}
+  constructor(value) {
+    this.value = value;
+  }
 }
 
 const source = new dummy(5);
@@ -178,7 +178,7 @@ const actionDiv2 = (state, next) => next({ ...state, sum: state.sum / 2 });
 
 // outputs 'new state is: {"quarter":1,"year":2018,"sum":3}'
 dispatcher(initialState, [actionAdd5, actionDiv2])
-	.then((state) => console.log(`new state is: ${JSON.stringify(state)}`));
+  .then((state) => console.log(`new state is: ${JSON.stringify(state)}`));
 ```
 
 ### dispatcher(initialState, mutators, subscribers) (awaitable)
@@ -206,7 +206,7 @@ const logger = (x) => console.log("INFO", x);
    new state is: {"quarter":1,"year":2018,"sum":3}'
 */
 dispatcher(initialState, [actionAdd5, actionDiv2], [logger])
-	.then((state) => console.log(`new state is: ${JSON.stringify(state)}`));
+  .then((state) => console.log(`new state is: ${JSON.stringify(state)}`));
 ```
 
 ### dropFromArray(source, number)
@@ -250,12 +250,12 @@ import emitter from "hex/fp/emitter";
 
 // emitter - static pub/sub sample
 const subscriberOne = (value) =>
-	console.log(`subscriberOne had value ${value}`);
+  console.log(`subscriberOne had value ${value}`);
 const subscriberTwo = (value) =>
-	console.log(`subscriberTwo had value ${value}`);
+  console.log(`subscriberTwo had value ${value}`);
 
 const events = {
-	printToConsole: [subscriberOne, subscriberTwo],
+  printToConsole: [subscriberOne, subscriberTwo],
 };
 
 /* outputs:
@@ -274,14 +274,14 @@ import emitter from "hex/fp/emitter";
 
 // emitter - event logger sample
 const subscriberOne = (value) =>
-	console.log(`subscriberOne had value ${value}`);
+  console.log(`subscriberOne had value ${value}`);
 const subscriberTwo = (value) =>
-	console.log(`subscriberTwo had value ${value}`);
+  console.log(`subscriberTwo had value ${value}`);
 
 const logger = (x) => console.log("INFO", x);
 
 const events = {
-	printToConsole: [subscriberOne, subscriberTwo],
+  printToConsole: [subscriberOne, subscriberTwo],
 };
 
 /* outputs:
@@ -339,21 +339,21 @@ import compose from "hex/fp/compose";
 
 // iterate - url fetcher example
 const generator = function* () {
-	yield "http://localhost/samples/1"; // { value: 1 }
-	yield "http://localhost/samples/2"; // { value: 2 }
-	yield "http://localhost/samples/3"; // { value: 3 }
+  yield "http://localhost/samples/1"; // { value: 1 }
+  yield "http://localhost/samples/2"; // { value: 2 }
+  yield "http://localhost/samples/3"; // { value: 3 }
 };
 
 const fetchUrl = async function (url) {
-	const response = await fetch(url);
-	const document = await response.json();
+  const response = await fetch(url);
+  const document = await response.json();
 
-	return document.value;
+  return document.value;
 };
 
 const add5 = async (value) => await value + 5;
 const printToConsole = async (value) => {
-	console.log(await value);
+  console.log(await value);
 };
 
 /* outputs:
@@ -362,8 +362,8 @@ const printToConsole = async (value) => {
    value is 8
 */
 iterate(
-	generator(),
-	compose(fetchUrl, add5, printToConsole),
+  generator(),
+  compose(fetchUrl, add5, printToConsole),
 );
 ```
 

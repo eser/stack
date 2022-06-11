@@ -4,31 +4,31 @@ import type { HexFunctionInput } from "../abstractions/functionInput.ts";
 import type { HexPlatform } from "../abstractions/platform.ts";
 
 function getContext(): HexContext {
-	return {
-		services: {},
-		vars: {},
-	};
+  return {
+    services: {},
+    vars: {},
+  };
 }
 
 function getDefaultInput(): HexFunctionInput {
-	return {
-		platform: {
-			type: "web",
-			name: "",
-		},
-		event: {
-			name: "Request",
-		},
-		requestedFormat: {
-			mimetype: "",
-			format: "",
-		},
-		parameters: {},
-	};
+  return {
+    platform: {
+      type: "web",
+      name: "",
+    },
+    event: {
+      name: "Request",
+    },
+    requestedFormat: {
+      mimetype: "",
+      format: "",
+    },
+    parameters: {},
+  };
 }
 
 async function commitResult(result: Promise<string>): Promise<void> {
-	console.log(await result);
+  console.log(await result);
 }
 
 // function handleRequest(target: HexFunction) {
@@ -70,9 +70,9 @@ async function commitResult(result: Promise<string>): Promise<void> {
 // }
 
 const webapi: HexPlatform = {
-	getContext,
-	getDefaultInput,
-	commitResult,
+  getContext,
+  getDefaultInput,
+  commitResult,
 };
 
 export { webapi };

@@ -1,8 +1,8 @@
 import curryFunctions from "../fp/curry-functions.ts";
 
 enum ServiceType {
-	Singleton = "SINGLETON",
-	Factory = "FACTORY",
+  Singleton = "SINGLETON",
+  Factory = "FACTORY",
 }
 
 // deno-lint-ignore no-explicit-any
@@ -12,68 +12,68 @@ type ContainerItemValue = any;
 type ContainerItems = Map<ContainerItemKey, [ServiceType, ContainerItemValue]>;
 
 interface Container {
-	items: ContainerItems;
+  items: ContainerItems;
 
-	get(
-		name: ContainerItemKey,
-		defaultValue?: ContainerItemValue,
-	): ContainerItemValue;
-	setValue(name: ContainerItemKey, value: ContainerItemValue): void;
-	setFactory(name: ContainerItemKey, value: ContainerItemValue): void;
+  get(
+    name: ContainerItemKey,
+    defaultValue?: ContainerItemValue,
+  ): ContainerItemValue;
+  setValue(name: ContainerItemKey, value: ContainerItemValue): void;
+  setFactory(name: ContainerItemKey, value: ContainerItemValue): void;
 }
 
 const get = function get(
-	containerItems: ContainerItems,
-	name: ContainerItemKey,
-	defaultValue?: ContainerItemValue,
+  containerItems: ContainerItems,
+  name: ContainerItemKey,
+  defaultValue?: ContainerItemValue,
 ): ContainerItemValue {
-	const stored = containerItems.get(name);
+  const stored = containerItems.get(name);
 
-	if (stored === undefined) {
-		return defaultValue;
-	}
+  if (stored === undefined) {
+    return defaultValue;
+  }
 
-	if (stored[0] === ServiceType.Factory) {
-		return (stored[1] as () => ContainerItemValue)();
-	}
+  if (stored[0] === ServiceType.Factory) {
+    return (stored[1] as () => ContainerItemValue)();
+  }
 
-	return stored[1];
+  return stored[1];
 };
 
 const setValue = function setValue(
-	containerItems: ContainerItems,
-	name: ContainerItemKey,
-	value: ContainerItemValue,
+  containerItems: ContainerItems,
+  name: ContainerItemKey,
+  value: ContainerItemValue,
 ): void {
-	containerItems.set(name, [ServiceType.Singleton, value]);
+  containerItems.set(name, [ServiceType.Singleton, value]);
 };
 
 const setFactory = function setFactory(
-	containerItems: ContainerItems,
-	name: ContainerItemKey,
-	value: () => ContainerItemValue,
+  containerItems: ContainerItems,
+  name: ContainerItemKey,
+  value: () => ContainerItemValue,
 ): void {
-	containerItems.set(name, [ServiceType.Factory, value]);
+  containerItems.set(name, [ServiceType.Factory, value]);
 };
 
 const container = function container(): Container {
-	const created: Partial<Container> = {
-		items: new Map(),
-	};
+  const created: Partial<Container> = {
+    items: new Map(),
+  };
 
-	Object.assign(
-		created,
-		curryFunctions({ get, setValue, setFactory }, created.items),
-	);
+  Object.assign(
+    created,
+    curryFunctions({ get, setValue, setFactory }, created.items),
+  );
 
-	return created as Container;
+  return created as Container;
 };
 
 export { container, container as default, get, setFactory, setValue };
 export type {
-	Container,
-	ContainerItemKey,
-	ContainerItems,
-	ContainerItemValue,
-	ServiceType,
+  Container,
+  ContainerItemKey,
+  ContainerItems,
+  ContainerItemValue,
+  ServiceType,
 };

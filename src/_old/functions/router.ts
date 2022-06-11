@@ -5,17 +5,17 @@ import type { HexFunctionNext } from "./abstractions/functionNext.ts";
 import type { HexFunctionResult } from "./abstractions/functionResult.ts";
 
 function router(...routes: Array<HexFunction>): HexFunction {
-	// TODO(@eserozvataf) collect each route definition by executing them
+  // TODO(@eserozvataf) collect each route definition by executing them
 
-	// TODO(@eserozvataf) return an HexFunction that decides which route
-	//      definition should be executed according to input parameters
-	return function (
-		input: HexFunctionInput,
-		context: HexContext,
-		next?: HexFunctionNext,
-	): HexFunctionResult {
-		throw new Error("not implemented yet.");
-	};
+  // TODO(@eserozvataf) return an HexFunction that decides which route
+  //      definition should be executed according to input parameters
+  return function (
+    input: HexFunctionInput,
+    context: HexContext,
+    next?: HexFunctionNext,
+  ): HexFunctionResult {
+    throw new Error("not implemented yet.");
+  };
 }
 
 export { router };

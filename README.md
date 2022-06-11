@@ -4,20 +4,18 @@
   </a>
 </p>
 
-
-
 # Intro
 
 ✖️ **hex** is an ecosystem delivering practices, philosophy and portability.
 
-Sub components of hex enables developers to abstract their codes for better
+hex consists of a set of **component**s that are designed to be used together.
+These sub-components enable developers to abstract their codes for better
 portability between platforms. Encourages ones to write codes once in
 functional approach, then run on mainstream environments such as cli, bot
 platforms, cloud-function runtimes and web apis.
 
 _This project is currently in early stages of its development. Descriptions
 or instructions are not mature yet as well as the project itself._
-
 
 ## Components
 
@@ -29,13 +27,9 @@ or instructions are not mature yet as well as the project itself._
 - [Services](src/services/)
 - [Standards](src/standards/)
 
-
-
 # Usage
 
 See related component page to figure out its specific usage.
-
-
 
 # FAQ
 
@@ -51,20 +45,11 @@ Check out issues with the `good first issue` and `help wanted` label if you are 
 
 Fork the repo, push your changes to your fork, and submit a pull request.
 
-
-
 # Development
 
 ## Quick start
 
 Ensure that `Deno` is installed on your system first.
-
-Install `Denon` if you don't have on your system,
-
-```sh
-$ deno install -qAf --unstable https://deno.land/x/denon/denon.ts
-```
-
 
 Clone this git repo `git clone https://github.com/eserozvataf/hex.git` - and
 checkout the [tagged release](https://github.com/eserozvataf/hex/releases) you'd
@@ -78,17 +63,13 @@ $ deno run src/functions/samples/cli/basic.ts eser
 hello eser
 ```
 
-
 ## Requirements
 
 - Deno (https://deno.land/)
-- Denon (https://deno.land/x/denon)
-
 
 ## License
 
 Apache 2.0, for further details, please see [LICENSE](LICENSE) file.
-
 
 ## To Support
 

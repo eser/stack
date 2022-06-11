@@ -12,30 +12,30 @@ import pickFormatter from "../pick-formatter.ts";
 import { log, logLevels, oak } from "./webapi.deps.ts";
 
 function getType(): PlatformType {
-	return PlatformType.Runtime;
+  return PlatformType.Runtime;
 }
 
 function getAvailableFormatters(): Formatter[] {
-	return [
-		textPlainFormatter,
-		applicationJsonFormatter,
-	];
+  return [
+    textPlainFormatter,
+    applicationJsonFormatter,
+  ];
 }
 
 function createContext(
-	eventHandler?: (
-		event: HexEnvironmentEvent,
-		...args: unknown[]
-	) => void | Promise<void>,
+  eventHandler?: (
+    event: HexEnvironmentEvent,
+    ...args: unknown[]
+  ) => void | Promise<void>,
 ): PlatformContext {
-	return {
-		services: {},
-		eventHandler: eventHandler ?? null,
-	};
+  return {
+    services: {},
+    eventHandler: eventHandler ?? null,
+  };
 }
 
 async function commitResult(result: Promise<string>): Promise<void> {
-	console.log(await result);
+  console.log(await result);
 }
 
 // function handleRequest(target: HexFunction) {
@@ -77,9 +77,9 @@ async function commitResult(result: Promise<string>): Promise<void> {
 // }
 
 const webapi: Platform = {
-	getContext,
-	getDefaultInput,
-	commitResult,
+  getContext,
+  getDefaultInput,
+  commitResult,
 };
 
 export { webapi as default };

@@ -17,15 +17,15 @@ import * as platforms from "./platforms/mod.ts";
 
 export type { Event, EventType, PlatformContext };
 export {
-	consoleOutput,
-	consoleOutputError,
-	dispatch,
-	getAllVariables,
-	getAvailableFormatters,
-	getType,
-	getVariable,
-	platforms,
-	PlatformType,
-	response,
-	responseError,
+  consoleOutput,
+  consoleOutputError,
+  dispatch,
+  getAllVariables,
+  getAvailableFormatters,
+  getType,
+  getVariable,
+  platforms,
+  PlatformType,
+  response,
+  responseError,
 };

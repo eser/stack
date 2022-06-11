@@ -1,8 +1,8 @@
 interface Platform {
-	name: string;
+  name: string;
 
-	read?: () => Promise<string>;
-	write: (text: string) => Promise<void>;
+  read?: () => Promise<string>;
+  write: (text: string) => Promise<void>;
 }
 
 type PlatformMethods = "read" | "write";

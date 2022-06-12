@@ -1,16 +1,14 @@
-type PickFromArrayResult<T> = { items: Array<T>; rest: Array<T> };
+type PickFromArrayResult<T> = { items: T[]; rest: T[] };
 
 const pickFromArray = function pickFromArray<T>(
   instance: Iterable<T>,
   items: Iterable<T>,
 ): PickFromArrayResult<T> {
   const arrInstance = (instance.constructor === Array)
-    ? <Array<T>> instance
+    ? <T[]> instance
     : [...instance];
 
-  const arrItems = (items.constructor === Array)
-    ? <Array<T>> items
-    : [...items];
+  const arrItems = (items.constructor === Array) ? <T[]> items : [...items];
 
   return arrInstance.reduce(
     (obj: PickFromArrayResult<T>, itemValue: T) => {

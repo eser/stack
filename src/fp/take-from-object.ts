@@ -1,7 +1,7 @@
 function takeFromObject<T>(
-  instance: Record<string | symbol, T>,
+  instance: Record<string | number | symbol, T>,
   n: number,
-): Record<string | symbol, T> {
+): Record<string | number | symbol, T> {
   const newKeys = Object.keys(instance).slice(0, n);
 
   return newKeys.reduce(

@@ -1,5 +1,5 @@
 interface Formatter {
-  names: string[];
+  names: readonly string[];
   serialize: <T>(payload: T | Promise<T>) => Promise<unknown>;
   deserialize: <T>(payload: unknown | Promise<unknown>) => Promise<T>;
 }

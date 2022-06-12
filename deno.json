@@ -31,6 +31,8 @@
   },
   "tasks": {
     "test": "deno test ./src/ --coverage=./etc/cov_profile",
+    "test:coverage": "deno coverage ./etc/cov_profile",
+    "test:generate-lcov": "deno coverage ./etc/cov_profile --lcov > ./etc/cov_profile/cov_profile.lcov",
     "lint": "deno lint ./src/",
     "fmt": "deno fmt ./src/",
     "cli": "deno run ./src/test.ts"

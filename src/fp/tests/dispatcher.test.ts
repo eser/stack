@@ -24,7 +24,7 @@ Deno.test("hex/fp/dispatcher:with logger", async () => {
   const actionDiv2 = (state: StateType, next: NextType<StateType>) =>
     next({ ...state, sum: state.sum / 2 });
 
-  const logs: Array<LogType<StateType>> = [];
+  const logs: LogType<StateType>[] = [];
   const logger = (entry: LogType<StateType>) => logs.push(entry);
 
   const result = await dispatcher(initialState, [actionAdd5, actionDiv2], [

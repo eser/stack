@@ -1,12 +1,12 @@
 import type { Platform, PlatformMethods } from "./platform.ts";
 
 interface Environment {
-  platforms: Array<Platform>;
+  platforms: Platform[];
 
-  dispatch: <T>(method: PlatformMethods, ...args: Array<T>) => Promise<void>;
+  dispatch: <T>(method: PlatformMethods, ...args: T[]) => Promise<void>;
   poll: <TR, T1 = void>(
     method: PlatformMethods,
-    ...args: Array<T1>
+    ...args: T1[]
   ) => Promise<TR | undefined>;
 
   read: () => Promise<string | undefined>;
@@ -14,11 +14,11 @@ interface Environment {
 }
 
 const environment = function environment(
-  ...platforms: Array<Platform>
+  ...platforms: Platform[]
 ): Environment {
   const dispatch = async function dispatch<T>(
     method: PlatformMethods,
-    ...args: Array<T>
+    ...args: T[]
   ): Promise<void> {
     await Promise.all(
       instance.platforms.map(async (platform) => {
@@ -35,7 +35,7 @@ const environment = function environment(
 
   const poll = async function poll<TR, T1 = void>(
     method: PlatformMethods,
-    ...args: Array<T1>
+    ...args: T1[]
   ): Promise<TR | undefined> {
     for (const platform of instance.platforms) {
       if (!(method in platform)) {

@@ -49,6 +49,14 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
+### associateArray(source, selectorFn)
+
+TODO
+
+### associateObject(source, selectorFn)
+
+TODO
+
 ### compose(...functionsForComposition)
 
 passes the output of one function as an input to another one, but unlike `pipe`

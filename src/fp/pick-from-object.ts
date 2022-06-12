@@ -1,11 +1,11 @@
 type PickFromObjectResult<T> = {
-  items: Record<string | symbol, T>;
-  rest: Record<string | symbol, T>;
+  items: Record<string | number | symbol, T>;
+  rest: Record<string | number | symbol, T>;
 };
 
 const pickFromObject = function pickFromObject<T>(
-  instance: Record<string | symbol, T>,
-  keys: Array<string | symbol>,
+  instance: Record<string | number | symbol, T>,
+  keys: (string | number | symbol)[],
 ): PickFromObjectResult<T> {
   return Object.keys(instance).reduce(
     (obj, itemKey) => {

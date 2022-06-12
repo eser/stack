@@ -1,5 +1,7 @@
 export { appendToArray } from "./append-to-array.ts";
 export { appendToObject } from "./append-to-object.ts";
+export { associateArray } from "./associate-array.ts";
+export { associateObject } from "./associate-object.ts";
 export { compose } from "./compose.ts";
 export { curryFunctions } from "./curry-functions.ts";
 export { curryRight } from "./curry-right.ts";

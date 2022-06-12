@@ -1,11 +1,11 @@
 function removeFirstMatchFromObject<T>(
-  instance: Record<string | symbol, T>,
+  instance: Record<string | number | symbol, T>,
   predicate: (
     value: T,
-    key: string | symbol,
-    instance: Record<string | symbol, T>,
+    key: string | number | symbol,
+    instance: Record<string | number | symbol, T>,
   ) => boolean,
-): Record<string | symbol, T> {
+): Record<string | number | symbol, T> {
   let notFound = true;
 
   return Object.keys(instance).reduce(

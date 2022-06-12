@@ -1,6 +1,6 @@
-function takeFromArray<T>(instance: Iterable<T>, n: number): Array<T> {
+function takeFromArray<T>(instance: Iterable<T>, n: number): T[] {
   const arrInstance = (instance.constructor === Array)
-    ? <Array<T>> instance
+    ? <T[]> instance
     : [...instance];
 
   return arrInstance.slice(0, n);

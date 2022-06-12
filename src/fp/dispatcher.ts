@@ -5,8 +5,8 @@ type LoggerType<T> = (entry: LogType<T>) => void;
 
 const dispatcher = function dispatcher<T>(
   state: T,
-  mutators: Array<MutatorType<T>>,
-  loggers?: Array<LoggerType<T>>,
+  mutators: MutatorType<T>[],
+  loggers?: LoggerType<T>[],
 ): Promise<T> {
   let index = 0;
 

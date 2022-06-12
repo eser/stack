@@ -1,9 +1,9 @@
 function removeIndexFromArray<T>(
   instance: Iterable<T>,
-  ...indexes: Array<number>
-): Array<T> {
+  ...indexes: number[]
+): T[] {
   const arrInstance = (instance.constructor === Array)
-    ? <Array<T>> instance
+    ? <T[]> instance
     : [...instance];
 
   return arrInstance.filter(

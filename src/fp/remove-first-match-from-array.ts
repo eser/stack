@@ -1,9 +1,9 @@
 function removeFirstMatchFromArray<T>(
   instance: Iterable<T>,
   predicate: (value: T, index: number, instance: Iterable<T>) => boolean,
-): Array<T> {
+): T[] {
   const arrInstance = (instance.constructor === Array)
-    ? <Array<T>> instance
+    ? <T[]> instance
     : [...instance];
 
   let notFound = true;

@@ -1,9 +1,9 @@
 function removeValueFromArray<T>(
   instance: Iterable<T>,
-  ...values: Array<T>
-): Array<T> {
+  ...values: T[]
+): T[] {
   const arrInstance = (instance.constructor === Array)
-    ? <Array<T>> instance
+    ? <T[]> instance
     : [...instance];
 
   return arrInstance.filter(

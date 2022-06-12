@@ -1,11 +1,11 @@
-type SplitArrayResult<T> = { items: Array<T>; rest: Array<T> };
+type SplitArrayResult<T> = { items: T[]; rest: T[] };
 
 const splitArray = function splitArray<T>(
   instance: Iterable<T>,
   n: number,
 ): SplitArrayResult<T> {
   const arrInstance = (instance.constructor === Array)
-    ? <Array<T>> instance
+    ? <T[]> instance
     : [...instance];
 
   // take n items

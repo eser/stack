@@ -1,7 +1,7 @@
 function prependToArray<T>(
   instance: Iterable<T>,
-  ...values: Array<T>
-): Array<T> {
+  ...values: T[]
+): T[] {
   return [...values, ...instance];
 }
 

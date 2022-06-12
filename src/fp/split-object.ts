@@ -1,10 +1,10 @@
 type SplitObjectResult<T> = {
-  items: Record<string | symbol, T>;
-  rest: Record<string | symbol, T>;
+  items: Record<string | number | symbol, T>;
+  rest: Record<string | number | symbol, T>;
 };
 
 const splitObject = function splitObject<T>(
-  instance: Record<string | symbol, T>,
+  instance: Record<string | number | symbol, T>,
   n: number,
 ): SplitObjectResult<T> {
   let index = 0;

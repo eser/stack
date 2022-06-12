@@ -1,17 +1,17 @@
 // deno-lint-ignore no-explicit-any
-type EventType = (...args: Array<any>) => void | Promise<void>;
+type EventType = (...args: any[]) => void | Promise<void>;
 type LogType = {
   event: string;
   subscriber: string;
-  args: Array<unknown> | undefined;
+  args: unknown[] | undefined;
 };
 type LoggerType = (entry: LogType) => void;
 
 const emitter = async function emitter(
-  events: Record<string, Array<EventType>>,
+  events: Record<string, EventType[]>,
   eventName: string,
-  args?: Array<unknown>,
-  loggers?: Array<LoggerType>,
+  args?: unknown[],
+  loggers?: LoggerType[],
 ): Promise<void> {
   const isEventWildcard = (eventName === "*");
   const argsPass = (args !== undefined) ? args : [];

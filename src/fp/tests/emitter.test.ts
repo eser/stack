@@ -97,7 +97,7 @@ Deno.test("hex/fp/emitter:with subscriber", async () => {
     calculate: [subscriberOne, subscriberTwo],
   };
 
-  const logs: Array<LogType> = [];
+  const logs: LogType[] = [];
   const logger = (entry: LogType) => logs.push(entry);
 
   await emitter(events, "calculate", [5], [logger]);

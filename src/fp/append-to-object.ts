@@ -1,7 +1,7 @@
 function appendToObject<T>(
-  instance: Record<string | symbol, T>,
-  ...values: Array<Record<string | symbol, T>>
-): Record<string | symbol, T> {
+  instance: Record<string | number | symbol, T>,
+  ...values: Record<string | number | symbol, T>[]
+): Record<string | number | symbol, T> {
   return Object.assign({}, instance, ...values);
 }
 

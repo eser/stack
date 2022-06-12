@@ -1,10 +1,10 @@
-function reverseArray<T>(instance: Iterable<T>): Array<T> {
+function reverseArray<T>(instance: Iterable<T>): T[] {
   const arrInstance = (instance.constructor === Array)
-    ? <Array<T>> instance
+    ? <T[]> instance
     : [...instance];
 
   return arrInstance.reduce(
-    (obj: Array<T>, itemValue: T) => [itemValue, ...obj],
+    (obj: T[], itemValue: T) => [itemValue, ...obj],
     [],
   );
 }

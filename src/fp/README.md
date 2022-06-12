@@ -65,12 +65,13 @@ const categories = [
 
 const result = associateArray(categories, (category) => category.id);
 
-// outputs:
-// {
-//   "1": { id: 1, name: "foo" },
-//   "2": { id: 2, name: "bar" },
-//   "3": { id: 3, name: "baz" }
-// }
+/* outputs:
+  {
+    "1": { id: 1, name: "foo" },
+    "2": { id: 2, name: "bar" },
+    "3": { id: 3, name: "baz" }
+  }
+*/
 console.dir(result);
 ```
 
@@ -258,6 +259,14 @@ const logger = (x) => console.log("INFO", x);
 dispatcher(initialState, [actionAdd5, actionDiv2], [logger])
   .then((state) => console.log(`new state is: ${JSON.stringify(state)}`));
 ```
+
+### distinctArray(source, selectorFn)
+
+TODO
+
+### distinctObject(source, selectorFn)
+
+TODO
 
 ### dropFromArray(source, number)
 

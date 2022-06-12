@@ -10,6 +10,8 @@ export { decorate } from "./decorate.ts";
 export { deepCopyWith } from "./deep-copy-with.ts";
 export { deepCopy } from "./deep-copy.ts";
 export { dispatcher } from "./dispatcher.ts";
+export { distinctArray } from "./distinct-array.ts";
+export { distinctObject } from "./distinct-object.ts";
 export { dropFromArray } from "./drop-from-array.ts";
 export { dropFromObject } from "./drop-from-object.ts";
 export { emitter } from "./emitter.ts";

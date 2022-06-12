@@ -10,12 +10,12 @@
 
 hex consists of a set of **component**s that are designed to be used together.
 These sub-components enable developers to abstract their codes for better
-portability between platforms. Encourages ones to write codes once in
-functional approach, then run on mainstream environments such as cli, bot
-platforms, cloud-function runtimes and web apis.
+portability between platforms. Encourages ones to write codes once in functional
+approach, then run on mainstream environments such as cli, bot platforms,
+cloud-function runtimes and web apis.
 
-_This project is currently in early stages of its development. Descriptions
-or instructions are not mature yet as well as the project itself._
+_This project is currently in early stages of its development. Descriptions or
+instructions are not mature yet as well as the project itself._
 
 ## Components
 
@@ -35,13 +35,17 @@ See related component page to figure out its specific usage.
 
 ## Want to report a bug or request a feature?
 
-Please read through our [CONTRIBUTING.md](CONTRIBUTING.md) and report it using [GitHub Issues](https://github.com/eserozvataf/hex/issues)!
+Please read through our [CONTRIBUTING.md](CONTRIBUTING.md) and report it using
+[GitHub Issues](https://github.com/eserozvataf/hex/issues)!
 
 ## Want to contribute?
 
-It is publicly open for any contribution. Bugfixes, new features and extra components are welcome.
+It is publicly open for any contribution. Bugfixes, new features and extra
+components are welcome.
 
-Check out issues with the `good first issue` and `help wanted` label if you are not sure how to begin. We suggest also looking at the closed ones to get a sense of the kinds of issues you can tackle.
+Check out issues with the `good first issue` and `help wanted` label if you are
+not sure how to begin. We suggest also looking at the closed ones to get a sense
+of the kinds of issues you can tackle.
 
 Fork the repo, push your changes to your fork, and submit a pull request.
 

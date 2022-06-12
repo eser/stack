@@ -51,11 +51,53 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### associateArray(source, selectorFn)
 
-TODO
+.
+
+```js
+import associateArray from "hex/fp/associate-array";
+
+// associate array - basic sample
+const categories = [
+  { id: 1, name: "foo" },
+  { id: 2, name: "bar" },
+  { id: 3, name: "baz" },
+];
+
+const result = associateArray(categories, (category) => category.id);
+
+// outputs:
+// {
+//   "1": { id: 1, name: "foo" },
+//   "2": { id: 2, name: "bar" },
+//   "3": { id: 3, name: "baz" }
+// }
+console.dir(result);
+```
 
 ### associateObject(source, selectorFn)
 
-TODO
+.
+
+```js
+import associateObject from "hex/fp/associate-object";
+
+// associate object - basic sample
+const categories = {
+  a: { id: 1, name: "foo" },
+  b: { id: 2, name: "bar" },
+  c: { id: 3, name: "baz" },
+};
+
+const result = associateObject(categories, (category) => category.id);
+
+// outputs:
+// {
+//   "1": { id: 1, name: "foo" },
+//   "2": { id: 2, name: "bar" },
+//   "3": { id: 3, name: "baz" }
+// }
+console.dir(result);
+```
 
 ### compose(...functionsForComposition)
 

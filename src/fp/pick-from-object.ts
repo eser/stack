@@ -5,7 +5,7 @@ type PickFromObjectResult<T> = {
 
 const pickFromObject = function pickFromObject<T>(
   instance: Record<string | number | symbol, T>,
-  keys: (string | number | symbol)[],
+  keys: readonly (string | number | symbol)[],
 ): PickFromObjectResult<T> {
   return Object.keys(instance).reduce(
     (obj, itemKey) => {

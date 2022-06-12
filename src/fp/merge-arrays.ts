@@ -1,6 +1,6 @@
-function mergeArrays<T>(...instances: Iterable<T>[]): T[] {
+function mergeArrays<T>(...instances: readonly Iterable<T>[]): T[] {
   return instances.reduce(
-    (obj: T[], instance: Iterable<T>) => [...obj, ...instance],
+    (obj: readonly T[], instance: Iterable<T>) => [...obj, ...instance],
     [],
   );
 }

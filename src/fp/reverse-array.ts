@@ -4,7 +4,7 @@ function reverseArray<T>(instance: Iterable<T>): T[] {
     : [...instance];
 
   return arrInstance.reduce(
-    (obj: T[], itemValue: T) => [itemValue, ...obj],
+    (obj: readonly T[], itemValue: T) => [itemValue, ...obj],
     [],
   );
 }

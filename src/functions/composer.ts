@@ -4,7 +4,9 @@ import type HexFunctionInput from "./function-input.ts";
 import type HexFunctionNext from "./function-next.ts";
 import type HexFunctionResult from "./function-result.ts";
 
-const composer = function composer(...functions: HexFunction[]): HexFunction {
+const composer = function composer(
+  ...functions: readonly HexFunction[]
+): HexFunction {
   return function (
     input: HexFunctionInput,
     context: HexFunctionContext,

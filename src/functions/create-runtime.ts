@@ -69,7 +69,7 @@ const createRuntime = function createRuntime(
 ): HexRuntime {
   const context = createContext(environment); // environmentHandler
 
-  // function environmentHandler(event: HexEnvironmentEvent, ...args: unknown[]) {
+  // function environmentHandler(event: HexEnvironmentEvent, ...args: readonly unknown[]) {
   //   if (event === HexEnvironmentEvent.Input) {
   //     // execute();
   //   }

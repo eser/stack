@@ -4,7 +4,7 @@ import type HexFunctionInput from "./function-input.ts";
 import type HexFunctionNext from "./function-next.ts";
 import type HexFunctionResult from "./function-result.ts";
 
-const router = function router(...routes: HexFunction[]): HexFunction {
+const router = function router(...routes: readonly HexFunction[]): HexFunction {
   // TODO(@eserozvataf) collect each route definition by executing them
 
   // TODO(@eserozvataf) return an HexFunction that decides which route

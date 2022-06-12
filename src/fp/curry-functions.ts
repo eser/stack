@@ -5,13 +5,13 @@ const curryFunctions = function curryFunctions<
   T2 extends Record<
     string | number | symbol,
     // deno-lint-ignore no-explicit-any
-    (...args: [...T1[], ...Array<any>]) => any
+    (...args: readonly [...readonly T1[], ...any]) => any
   >,
   // deno-lint-ignore no-explicit-any
   T3 extends { [T4 in keyof T2]: any },
 >(
   funcs: T2,
-  ...args: T1[]
+  ...args: readonly T1[]
 ): T3 {
   return Object.keys(funcs).reduce(
     (obj, itemKey) => {

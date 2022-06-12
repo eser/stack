@@ -11,7 +11,7 @@ enum Severity {
 }
 
 interface Logger {
-  log(severity: Severity, message: string, ...args: unknown[]): void;
+  log(severity: Severity, message: string, ...args: readonly unknown[]): void;
 }
 
 export type { Logger, Severity };

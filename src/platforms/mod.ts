@@ -4,6 +4,8 @@ import {
   HexFunctionContext,
   HexFunctionInput,
   HexFunctionResult,
+  HexFunctionResultAsyncGen,
+  HexFunctionResultGen,
   results,
 } from "../functions/mod.ts";
 
@@ -54,7 +56,12 @@ const main = async function main(
     Symbol.iterator in Object(iterator) ||
     Symbol.asyncIterator in Object(iterator)
   ) {
-    for await (const result of <Iterable<HexFunctionResult | void>> iterator) {
+    for await (
+      const result of <
+        | HexFunctionResultAsyncGen
+        | HexFunctionResultGen
+      > iterator
+    ) {
       console.log(result);
     }
 

@@ -2,7 +2,10 @@ import type HexFunction from "./function.ts";
 import type HexFunctionContext from "./function-context.ts";
 import type HexFunctionInput from "./function-input.ts";
 import type HexFunctionNext from "./function-next.ts";
-import type HexFunctionResult from "./function-result.ts";
+import type {
+  HexFunctionResult,
+  HexFunctionResultAsyncGen,
+} from "./function-result.ts";
 
 const composer = function composer(
   ...functions: readonly HexFunction[]
@@ -15,7 +18,7 @@ const composer = function composer(
     let index = 0;
     let currentContext = context;
 
-    const jump: HexFunctionNext = async function* jump(
+    const jump = async function* jump(
       newContext?: HexFunctionContext,
     ): HexFunctionResult {
       const current = functions[index];
@@ -35,7 +38,7 @@ const composer = function composer(
         Symbol.iterator in Object(result) ||
         Symbol.asyncIterator in Object(result)
       ) {
-        yield* result;
+        yield* <HexFunctionResultAsyncGen> result;
 
         return;
       }
@@ -44,7 +47,7 @@ const composer = function composer(
     };
 
     const jumped = await jump(currentContext);
-    yield* jumped;
+    yield* <HexFunctionResultAsyncGen> jumped;
   };
 };
 

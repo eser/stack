@@ -3,11 +3,20 @@ interface HexFunctionResultBody {
   payload?: unknown;
 }
 
+type HexFunctionResultAsyncGen = AsyncGenerator<HexFunctionResultBody | void>;
+
+type HexFunctionResultGen = Generator<HexFunctionResultBody | void>;
+
 type HexFunctionResult =
-  | AsyncGenerator<HexFunctionResultBody | void>
-  | Generator<HexFunctionResultBody | void>
+  | HexFunctionResultAsyncGen
+  | HexFunctionResultGen
   | Promise<HexFunctionResultBody | void>
   | HexFunctionResultBody
   | void;
 
-export type { HexFunctionResult, HexFunctionResult as default };
+export type {
+  HexFunctionResult,
+  HexFunctionResult as default,
+  HexFunctionResultAsyncGen,
+  HexFunctionResultGen,
+};

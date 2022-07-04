@@ -11,11 +11,9 @@ const initMiddleware = function initMiddleware(
   context: HexFunctionContext,
   next?: HexFunctionNext,
 ): HexFunctionResult {
-  context.vars.number = 1;
+  context.vars = { ...(context.vars ?? {}), number: 1 };
 
-  if (next !== undefined) {
-    return next();
-  }
+  return next?.();
 };
 
 const validationMiddleware = function validationMiddleware(
@@ -30,16 +28,14 @@ const validationMiddleware = function validationMiddleware(
     );
   }
 
-  if (next !== undefined) {
-    return next();
-  }
+  return next?.();
 };
 
 const main = function main(
   input: HexFunctionInput,
   context: HexFunctionContext,
 ): HexFunctionResult {
-  const message = `hello ${context.vars.number} ${input.parameters[0]}`;
+  const message = `hello ${context.vars?.number} ${input.parameters[0]}`;
 
   return hex.functions.results.text(message);
 };

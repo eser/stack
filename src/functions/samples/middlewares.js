@@ -3,9 +3,7 @@ import * as hex from "../../mod.ts";
 const initMiddleware = function initMiddleware(input, context, next) {
   context.vars.number = 1;
 
-  if (next !== undefined) {
-    return next();
-  }
+  return next();
 };
 
 const validationMiddleware = function validationMiddleware(
@@ -20,13 +18,11 @@ const validationMiddleware = function validationMiddleware(
     );
   }
 
-  if (next !== undefined) {
-    return next();
-  }
+  return next();
 };
 
 const main = function main(input, context) {
-  const message = `hello ${context.vars.number} ${input.parameters[0]}`;
+  const message = `hello ${context.vars?.number} ${input.parameters[0]}`;
 
   return hex.functions.results.text(message);
 };

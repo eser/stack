@@ -1,4 +1,5 @@
-function deepCopy<T extends unknown>(instance: T): T {
+// deno-lint-ignore ban-types
+function deepCopy<T extends object>(instance: T): T {
   if (!(instance instanceof Object)) {
     return instance;
   }

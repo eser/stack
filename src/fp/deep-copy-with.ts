@@ -1,6 +1,7 @@
 import deepCopy from "./deep-copy.ts";
 
-const deepCopyWith = function deepCopyWith<T extends unknown>(
+// deno-lint-ignore ban-types
+const deepCopyWith = function deepCopyWith<T extends object>(
   source: T,
   modificationFn: (value: T) => void,
 ): T {

@@ -3,6 +3,9 @@ interface HexFunctionResultBody {
   payload?: unknown;
 }
 
-type HexFunctionResult = Promise<HexFunctionResultBody | void> | void;
+type HexFunctionResult =
+  | Generator<HexFunctionResultBody | void>
+  | HexFunctionResultBody
+  | void;
 
 export type { HexFunctionResult, HexFunctionResult as default };

@@ -5,14 +5,14 @@ import type {
 } from "../../../src/functions/mod.ts";
 import * as hex from "../../../mod.ts";
 
-const main = function main(
+const main = function* main(
   input: HexFunctionInput,
   context: HexFunctionContext,
 ): HexFunctionResult {
   const to = input.parameters[0] ?? "world";
-  const message = `hello ${to}`;
 
-  return hex.functions.results.text(message);
+  yield hex.functions.results.text(`hello ${to} #1`);
+  yield hex.functions.results.text(`hello ${to} #2`);
 };
 
 hex.functions.execute(main);

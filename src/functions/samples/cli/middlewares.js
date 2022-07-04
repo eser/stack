@@ -1,9 +1,11 @@
-import hex from "../../../mod.ts";
+import * as hex from "../../../mod.ts";
 
 const initMiddleware = function initMiddleware(input, context, next) {
   context.vars.number = 1;
 
-  return next();
+  if (next !== undefined) {
+    return next();
+  }
 };
 
 const validationMiddleware = function validationMiddleware(
@@ -12,22 +14,27 @@ const validationMiddleware = function validationMiddleware(
   next,
 ) {
   if (input.parameters[0] === undefined) {
-    return results.error(
+    return hex.functions.results.error(
       "parameter is not specified",
       new Error("parameter is not specified"),
     );
   }
 
-  return next();
+  if (next !== undefined) {
+    return next();
+  }
 };
 
 const main = function main(input, context) {
   const message = `hello ${context.vars.number} ${input.parameters[0]}`;
 
-  return results.text(message);
+  return hex.functions.results.text(message);
 };
 
-const composed = composer(initMiddleware, validationMiddleware, main);
+const composed = hex.functions.composer(
+  initMiddleware,
+  validationMiddleware,
+  main,
+);
 
-const runtime = createRuntime(platforms.cli);
-runtime.execute(composed);
+hex.functions.execute(composed);

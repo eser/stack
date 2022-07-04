@@ -1,8 +1,6 @@
-import HexEnvironmentPlatformContext from "../environment/platform-context.ts";
-
-// interface HexFunctionContext extends HexEnvironmentContext {
-// }
-
-type HexFunctionContext = HexEnvironmentPlatformContext;
+interface HexFunctionContext {
+  options?: Record<string, unknown>;
+  vars?: Record<string, unknown>;
+}
 
 export type { HexFunctionContext, HexFunctionContext as default };

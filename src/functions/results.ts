@@ -1,20 +1,22 @@
 import type HexFunctionResult from "./function-result.ts";
 
-const ok: HexFunctionResult = Promise.resolve({
-  payload: undefined,
-});
+const ok = function ok(): HexFunctionResult {
+  return {
+    payload: undefined,
+  };
+};
 
 const text = function text(message: string): HexFunctionResult {
-  return Promise.resolve({
+  return {
     payload: message,
-  });
+  };
 };
 
 const error = function error(message: string, error: Error): HexFunctionResult {
-  return Promise.resolve({
+  return {
     payload: message,
     error: error,
-  });
+  };
 };
 
 const results = {

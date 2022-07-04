@@ -44,7 +44,7 @@ See [eser.dev](https://eser.dev) for further development details (in Turkish).
 
 ```js
 import {
-  createRuntime,
+  execute,
   platforms,
   results,
 } from "https://deno.land/x/hex/functions/mod.ts";
@@ -58,8 +58,7 @@ function main(input) {
 
 // will be removed in future versions
 // propably will be replaced w/ export
-const runtime = createRuntime(platforms.cli);
-runtime.execute(main);
+execute(main);
 ```
 
 ### With Middlewares
@@ -67,7 +66,7 @@ runtime.execute(main);
 ```js
 import {
   composer,
-  createRuntime,
+  execute,
   platforms,
   results,
 } from "https://deno.land/x/hex/functions/mod.ts";
@@ -99,6 +98,5 @@ const composed = composer(initMiddleware, validationMiddleware, main);
 
 // will be removed in future versions
 // propably will be replaced w/ export
-const runtime = createRuntime(platforms.cli);
-runtime.execute(composed);
+execute(composed);
 ```

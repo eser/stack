@@ -1,4 +1,4 @@
-import hex from "../../../mod.ts";
+import * as hex from "../../../mod.ts";
 
 const main = function main(input) {
   const to = input.parameters[0] ?? "world";
@@ -7,5 +7,4 @@ const main = function main(input) {
   return hex.functions.results.text(message);
 };
 
-const runtime = hex.functions.createRuntime(hex.environment.platforms.cli);
-runtime.execute(main);
+hex.functions.execute(main);

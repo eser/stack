@@ -46,4 +46,6 @@ const composed = hex.functions.composer(
   main,
 );
 
-hex.functions.execute(composed);
+hex.functions.dumper(
+  hex.functions.execute(composed),
+);

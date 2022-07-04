@@ -15,4 +15,6 @@ const main = function main(
   return hex.functions.results.text(message);
 };
 
-hex.functions.execute(main);
+hex.functions.dumper(
+  hex.functions.execute(main),
+);

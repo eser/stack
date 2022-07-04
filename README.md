@@ -62,7 +62,7 @@ like to use.
 Then run a sample file under `src/samples/` directory,
 
 ```sh
-$ deno run src/functions/samples/cli/basic.ts eser
+$ deno run src/functions/samples/basic.ts eser
 
 hello eser
 ```

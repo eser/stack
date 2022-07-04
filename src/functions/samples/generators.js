@@ -12,4 +12,6 @@ const main = async function* main(input) {
   yield hex.functions.results.text(`hello ${to} #2`);
 };
 
-hex.functions.execute(main);
+hex.functions.dumper(
+  hex.functions.execute(main),
+);

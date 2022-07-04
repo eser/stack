@@ -44,6 +44,7 @@ See [eser.dev](https://eser.dev) for further development details (in Turkish).
 
 ```js
 import {
+  dumper,
   execute,
   platforms,
   results,
@@ -58,7 +59,7 @@ function main(input) {
 
 // will be removed in future versions
 // propably will be replaced w/ export
-execute(main);
+dumper(execute(main));
 ```
 
 ### With Middlewares
@@ -66,6 +67,7 @@ execute(main);
 ```js
 import {
   composer,
+  dumper,
   execute,
   platforms,
   results,
@@ -98,5 +100,5 @@ const composed = composer(initMiddleware, validationMiddleware, main);
 
 // will be removed in future versions
 // propably will be replaced w/ export
-execute(composed);
+dumper(execute(composed));
 ```

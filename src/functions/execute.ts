@@ -1,7 +1,10 @@
 import type HexFunction from "./function.ts";
 import type HexFunctionContext from "./function-context.ts";
 import type HexFunctionInput from "./function-input.ts";
-import type HexFunctionResult from "./function-result.ts";
+import type {
+  HexFunctionResult,
+  HexFunctionResultAsyncGen,
+} from "./function-result.ts";
 
 const getDefaultInput = function getDefaultInput(): HexFunctionInput {
   return {
@@ -20,28 +23,13 @@ const getDefaultInput = function getDefaultInput(): HexFunctionInput {
       ...Deno.args,
     },
   };
-
-  // {
-  //   platform: {
-  //     type: "web",
-  //     name: "",
-  //   },
-  //   event: {
-  //     name: "Request",
-  //   },
-  //   requestedFormat: {
-  //     mimetype: "",
-  //     format: "",
-  //   },
-  //   parameters: {},
-  // }
 };
 
-const execute = async function execute(
+const execute = async function* execute(
   target: HexFunction,
   context?: HexFunctionContext,
   input?: HexFunctionInput,
-): Promise<void> {
+): HexFunctionResult {
   const currentContext = context ?? {
     vars: {},
   };
@@ -55,14 +43,12 @@ const execute = async function execute(
     Symbol.iterator in Object(iterator) ||
     Symbol.asyncIterator in Object(iterator)
   ) {
-    for await (const result of <Iterable<HexFunctionResult | void>> iterator) {
-      console.log(result);
-    }
+    yield* <HexFunctionResultAsyncGen> iterator;
 
     return;
   }
 
-  console.log(iterator);
+  yield iterator;
 };
 
 export { execute, execute as default };

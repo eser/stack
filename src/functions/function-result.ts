@@ -4,7 +4,9 @@ interface HexFunctionResultBody {
 }
 
 type HexFunctionResult =
+  | AsyncGenerator<HexFunctionResultBody | void>
   | Generator<HexFunctionResultBody | void>
+  | Promise<HexFunctionResultBody | void>
   | HexFunctionResultBody
   | void;
 

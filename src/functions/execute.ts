@@ -46,12 +46,15 @@ const execute = async function execute(
     vars: {},
   };
 
-  const iterator: HexFunctionResult = target(
+  const iterator: HexFunctionResult = await target(
     input ?? getDefaultInput(),
     currentContext,
   );
 
-  if (Symbol.iterator in Object(iterator)) {
+  if (
+    Symbol.iterator in Object(iterator) ||
+    Symbol.asyncIterator in Object(iterator)
+  ) {
     for await (const result of <Iterable<HexFunctionResult | void>> iterator) {
       console.log(result);
     }

@@ -1,4 +1,4 @@
-import * as hex from "../../../mod.ts";
+import * as hex from "../../mod.ts";
 
 const main = function* main(input) {
   const to = input.parameters[0] ?? "world";

@@ -2,8 +2,8 @@ import type {
   HexFunctionContext,
   HexFunctionInput,
   HexFunctionResult,
-} from "../../../src/functions/mod.ts";
-import * as hex from "../../../mod.ts";
+} from "../mod.ts";
+import * as hex from "../../mod.ts";
 
 const main = function main(
   input: HexFunctionInput,

@@ -3,8 +3,8 @@ import type {
   HexFunctionInput,
   HexFunctionNext,
   HexFunctionResult,
-} from "../../mod.ts";
-import * as hex from "../../../mod.ts";
+} from "../mod.ts";
+import * as hex from "../../mod.ts";
 
 const initMiddleware = function initMiddleware(
   input: HexFunctionInput,

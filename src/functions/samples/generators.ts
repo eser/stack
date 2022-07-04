@@ -5,13 +5,18 @@ import type {
 } from "../mod.ts";
 import * as hex from "../../mod.ts";
 
-const main = function* main(
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const main = async function* main(
   input: HexFunctionInput,
   context: HexFunctionContext,
 ): HexFunctionResult {
   const to = input.parameters[0] ?? "world";
 
   yield hex.functions.results.text(`hello ${to} #1`);
+  await sleep(1000);
   yield hex.functions.results.text(`hello ${to} #2`);
 };
 

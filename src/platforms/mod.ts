@@ -46,36 +46,24 @@ const main = async function main(
     vars: {},
   };
 
-  const iterator: HexFunctionResult = await execute(
+  const iterator = await execute(
     target,
     currentContext,
     input ?? getDefaultInput(),
   );
 
-  if (
-    Symbol.iterator in Object(iterator) ||
-    Symbol.asyncIterator in Object(iterator)
+  for await (
+    const result of iterator
   ) {
-    for await (
-      const result of <
-        | HexFunctionResultAsyncGen
-        | HexFunctionResultGen
-      > iterator
-    ) {
-      console.log(result);
-    }
-
-    return;
+    console.log(result);
   }
-
-  console.log(iterator);
 };
 
-const entryPoint = function entryPoint(input: HexFunctionInput) {
-  const to = input.parameters[0] ?? "world";
-  const message = `hello ${to}`;
-
-  return results.text(message);
+const entryPoint = function* entryPoint(
+  input: HexFunctionInput,
+) {
+  yield results.text("testing");
+  yield results.text("something");
 };
 
 main(entryPoint);

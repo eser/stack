@@ -34,7 +34,7 @@ const execute = async function* execute(
     vars: {},
   };
 
-  const iterator: HexFunctionResult = await target(
+  const iterator = await target(
     input ?? getDefaultInput(),
     currentContext,
   );

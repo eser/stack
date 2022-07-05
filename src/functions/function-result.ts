@@ -18,5 +18,6 @@ export type {
   HexFunctionResult,
   HexFunctionResult as default,
   HexFunctionResultAsyncGen,
+  HexFunctionResultBody,
   HexFunctionResultGen,
 };

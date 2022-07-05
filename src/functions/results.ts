@@ -1,18 +1,21 @@
-import type HexFunctionResult from "./function-result.ts";
+import type { HexFunctionResultBody } from "./function-result.ts";
 
-const ok = function ok(): HexFunctionResult {
+const ok = function ok(): HexFunctionResultBody {
   return {
     payload: undefined,
   };
 };
 
-const text = function text(message: string): HexFunctionResult {
+const text = function text(message: string): HexFunctionResultBody {
   return {
     payload: message,
   };
 };
 
-const error = function error(message: string, error: Error): HexFunctionResult {
+const error = function error(
+  message: string,
+  error: Error,
+): HexFunctionResultBody {
   return {
     payload: message,
     error: error,

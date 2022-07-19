@@ -1,6 +1,6 @@
-import type { Platform } from "../platform.ts";
+import type { Channel } from "../../standards/channel.ts";
 
-const cli = function cli(): Platform {
+const cli = function cli(): Channel<string, never> {
   const instance = {
     name: "cli",
 

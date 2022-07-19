@@ -1,6 +1,6 @@
-import type { Platform } from "../platform.ts";
+import type { Channel } from "../../standards/channel.ts";
 
-const webapi = function webapi(): Platform {
+const webapi = function webapi(): Channel<string, string> {
   const instance = {
     name: "webapi",
 

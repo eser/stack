@@ -1,14 +1,16 @@
-import type { Platform, PlatformMethods } from "./platform.ts";
+import type { Channel } from "../standards/channel.ts";
+
+type ChannelMethods = "read" | "write";
 
 interface Environment {
-  platforms: Platform[];
+  channels: readonly Channel[];
 
   dispatch: <T>(
-    method: PlatformMethods,
+    method: ChannelMethods,
     ...args: readonly T[]
   ) => Promise<void>;
   poll: <TR, T1 = void>(
-    method: PlatformMethods,
+    method: ChannelMethods,
     ...args: readonly T1[]
   ) => Promise<TR | undefined>;
 
@@ -17,17 +19,18 @@ interface Environment {
 }
 
 const environment = function environment(
-  ...platforms: Platform[]
+  // deno-lint-ignore no-explicit-any
+  ...channels: Channel<any, any>[]
 ): Environment {
   const dispatch = async function dispatch<T>(
-    method: PlatformMethods,
+    method: ChannelMethods,
     ...args: readonly T[]
   ): Promise<void> {
     await Promise.all(
-      instance.platforms.map(async (platform) => {
+      instance.channels.map(async (channel) => {
         // @ts-ignore dispatcher call
-        const result = await platform[method]?.apply(
-          platform,
+        const result = await channel[method]?.apply(
+          channel,
           args,
         );
 
@@ -37,17 +40,17 @@ const environment = function environment(
   };
 
   const poll = async function poll<TR, T1 = void>(
-    method: PlatformMethods,
+    method: ChannelMethods,
     ...args: readonly T1[]
   ): Promise<TR | undefined> {
-    for (const platform of instance.platforms) {
-      if (!(method in platform)) {
+    for (const channel of instance.channels) {
+      if (!(method in channel)) {
         continue;
       }
 
       // @ts-ignore object is not possibly undefined
-      const result = await platform[method].apply(
-        platform,
+      const result = await channel[method].apply(
+        channel,
         args,
       );
 
@@ -58,7 +61,7 @@ const environment = function environment(
   };
 
   const instance = {
-    platforms: platforms ?? [],
+    channels: channels ?? [],
 
     dispatch: dispatch,
     poll: poll,

@@ -14,18 +14,16 @@ portability between platforms. Encourages ones to write codes once in functional
 approach, then run on mainstream environments such as cli, bot platforms,
 cloud-function runtimes and web apis.
 
-_This project is currently in early stages of its development. Descriptions or
-instructions are not mature yet as well as the project itself._
+| Component                       | Area         | Description                       |
+|---------------------------------|--------------|-----------------------------------|
+| [Directives](src/directives/)   | Rules        |                                   |
+| [Environment](src/environment/) | Abstraction  |                                   |
+| [Formatters](src/formatters/)   | Abstraction  |                                   |
+| [Standards](src/standards/)     | Abstraction  |                                   |
+| [FP](src/fp/)                   | Tool Library |                                   |
+| [Functions](src/functions/)     | Manager      |                                   |
+| [Services](src/services/)       | Manager      |                                   |
 
-## Components
-
-- [Directives](src/directives/)
-- [Environment](src/environment/)
-- [Formatters](src/formatters/)
-- [FP](src/fp/)
-- [Functions](src/functions/)
-- [Services](src/services/)
-- [Standards](src/standards/)
 
 # Usage
 

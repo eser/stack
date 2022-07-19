@@ -14,4 +14,4 @@ interface Logger {
   log(severity: Severity, message: string, ...args: readonly unknown[]): void;
 }
 
-export type { Logger, Severity };
+export type { Logger, Logger as default, Severity };

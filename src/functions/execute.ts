@@ -2,8 +2,9 @@ import type HexFunction from "./function.ts";
 import type HexFunctionContext from "./function-context.ts";
 import type HexFunctionInput from "./function-input.ts";
 import type {
-  HexFunctionResult,
   HexFunctionResultAsyncGen,
+  HexFunctionResultIterable,
+  HexFunctionResultNonIterable,
 } from "./function-result.ts";
 
 const getDefaultInput = function getDefaultInput(): HexFunctionInput {
@@ -29,7 +30,7 @@ const execute = async function* execute(
   target: HexFunction,
   context?: HexFunctionContext,
   input?: HexFunctionInput,
-): HexFunctionResult {
+): HexFunctionResultAsyncGen {
   const currentContext = context ?? {
     vars: {},
   };
@@ -43,12 +44,12 @@ const execute = async function* execute(
     Symbol.iterator in Object(iterator) ||
     Symbol.asyncIterator in Object(iterator)
   ) {
-    yield* <HexFunctionResultAsyncGen> iterator;
+    yield* (<HexFunctionResultIterable> iterator);
 
     return;
   }
 
-  yield iterator;
+  yield (<HexFunctionResultNonIterable> iterator);
 };
 
 export { execute, execute as default };

@@ -7,12 +7,18 @@ type HexFunctionResultAsyncGen = AsyncGenerator<HexFunctionResultBody | void>;
 
 type HexFunctionResultGen = Generator<HexFunctionResultBody | void>;
 
-type HexFunctionResult =
+type HexFunctionResultIterable =
   | HexFunctionResultAsyncGen
-  | HexFunctionResultGen
+  | HexFunctionResultGen;
+
+type HexFunctionResultNonIterable =
   | Promise<HexFunctionResultBody | void>
   | HexFunctionResultBody
   | void;
+
+type HexFunctionResult =
+  | HexFunctionResultIterable
+  | HexFunctionResultNonIterable;
 
 export type {
   HexFunctionResult,
@@ -20,4 +26,6 @@ export type {
   HexFunctionResultAsyncGen,
   HexFunctionResultBody,
   HexFunctionResultGen,
+  HexFunctionResultIterable,
+  HexFunctionResultNonIterable,
 };

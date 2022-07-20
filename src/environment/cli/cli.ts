@@ -1,4 +1,4 @@
-import type { Channel } from "../../standards/channel.ts";
+import type { Channel } from "../channel.ts";
 
 const cli = function cli(): Channel<string, never> {
   const instance = {

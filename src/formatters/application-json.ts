@@ -22,9 +22,9 @@ const fixNonSerializableObjects = function fixNonSerializableObjects(
   return value;
 };
 
-const serialize = async function serialize<T>(
-  payload: T | Promise<T>,
-): Promise<unknown> {
+const serialize = async function serialize(
+  payload: unknown | Promise<unknown>,
+): Promise<string> {
   const awaitedPayload = await payload;
 
   if (awaitedPayload === undefined) {
@@ -38,16 +38,17 @@ const serialize = async function serialize<T>(
   );
 };
 
-const deserialize = async function deserialize<T>(
-  payload: unknown | Promise<unknown>,
-): Promise<T> {
+const deserialize = async function deserialize(
+  payload: string | Promise<string>,
+): Promise<unknown> {
   const awaitedPayload = await payload;
 
   return JSON.parse(String(awaitedPayload));
 };
 
-const applicationJsonFormatter: Formatter = {
+const applicationJsonFormatter: Formatter<unknown, string> = {
   names,
+
   serialize,
   deserialize,
 };

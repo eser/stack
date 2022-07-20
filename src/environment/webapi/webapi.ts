@@ -1,4 +1,4 @@
-import type { Channel } from "../../standards/channel.ts";
+import type { Channel } from "../channel.ts";
 
 const webapi = function webapi(): Channel<string, string> {
   const instance = {

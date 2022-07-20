@@ -48,7 +48,7 @@ Deno.test("hex/formatters/application-json:simple deserialization", async () => 
     6
   ]
 }`;
-  const deserialized = await applicationJsonFormatter.deserialize(serialized);
+  const deserialized = await applicationJsonFormatter.deserialize!(serialized);
   const expected = {
     test: 123,
     rest: [4, 5, 6],

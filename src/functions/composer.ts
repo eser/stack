@@ -3,8 +3,9 @@ import type HexFunctionContext from "./function-context.ts";
 import type HexFunctionInput from "./function-input.ts";
 import type HexFunctionNext from "./function-next.ts";
 import type {
-  HexFunctionResult,
   HexFunctionResultAsyncGen,
+  HexFunctionResultIterable,
+  HexFunctionResultNonIterable,
 } from "./function-result.ts";
 
 const composer = function composer(
@@ -14,13 +15,13 @@ const composer = function composer(
     input: HexFunctionInput,
     context: HexFunctionContext,
     next?: HexFunctionNext,
-  ): HexFunctionResult {
+  ): HexFunctionResultAsyncGen {
     let index = 0;
     let currentContext = context;
 
     const jump = async function* jump(
       newContext?: HexFunctionContext,
-    ): HexFunctionResult {
+    ): HexFunctionResultAsyncGen {
       const current = functions[index];
 
       index += 1;
@@ -28,26 +29,26 @@ const composer = function composer(
         currentContext = newContext;
       }
 
-      const result = await current(
+      const iterator = await current(
         input,
         currentContext,
         jump,
       );
 
       if (
-        Symbol.iterator in Object(result) ||
-        Symbol.asyncIterator in Object(result)
+        Symbol.iterator in Object(iterator) ||
+        Symbol.asyncIterator in Object(iterator)
       ) {
-        yield* <HexFunctionResultAsyncGen> result;
+        yield* (<HexFunctionResultIterable> iterator);
 
         return;
       }
 
-      yield result;
+      yield (<HexFunctionResultNonIterable> iterator);
     };
 
     const jumped = await jump(currentContext);
-    yield* <HexFunctionResultAsyncGen> jumped;
+    yield* <HexFunctionResultIterable> jumped;
   };
 };
 

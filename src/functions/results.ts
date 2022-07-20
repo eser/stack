@@ -12,6 +12,13 @@ const text = function text(message: string): HexFunctionResultBody {
   };
 };
 
+// deno-lint-ignore no-explicit-any
+const reactView = function reactView(view: any): HexFunctionResultBody {
+  return {
+    payload: view,
+  };
+};
+
 const error = function error(
   message: string,
   error: Error,
@@ -29,6 +36,8 @@ const results = {
   // file(),   // application/octet-stream
   // sound(),  // sends a sound file, dependending on platform
   // media(),  // ?
+
+  reactView,
 
   // preconditionFailed(),
   // unauthorized(),

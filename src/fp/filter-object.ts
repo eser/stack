@@ -9,9 +9,7 @@ function filterObject<T>(
   return Object.keys(instance).reduce(
     (obj, itemKey) => {
       if (predicate(instance[itemKey], itemKey, obj)) {
-        return Object.assign({}, obj, {
-          [itemKey]: instance[itemKey],
-        });
+        return { ...obj, [itemKey]: instance[itemKey] };
       }
 
       return obj;

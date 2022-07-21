@@ -16,9 +16,7 @@ function removeFirstMatchFromObject<T>(
         return obj;
       }
 
-      return Object.assign({}, obj, {
-        [itemKey]: instance[itemKey],
-      });
+      return { ...obj, [itemKey]: instance[itemKey] };
     },
     {},
   );

@@ -11,7 +11,7 @@ function mapObject<T1, T2>(
       const value = predicate(instance[itemKey], itemKey, obj);
 
       if (value !== null) {
-        return Object.assign({}, obj, value);
+        return { ...obj, ...value };
       }
 
       return obj;

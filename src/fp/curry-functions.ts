@@ -15,9 +15,7 @@ const curryFunctions = function curryFunctions<
 ): T3 {
   return Object.keys(funcs).reduce(
     (obj, itemKey) => {
-      return Object.assign({}, obj, {
-        [itemKey]: curry(funcs[itemKey], ...args),
-      });
+      return { ...obj, [itemKey]: curry(funcs[itemKey], ...args) };
     },
     <T3> {},
   );

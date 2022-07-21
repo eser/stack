@@ -11,14 +11,14 @@ const pickFromObject = function pickFromObject<T>(
     (obj, itemKey) => {
       if (keys.indexOf(itemKey) !== -1) {
         return {
-          items: Object.assign({}, obj.items, { [itemKey]: instance[itemKey] }),
+          items: { ...obj.items, [itemKey]: instance[itemKey] },
           rest: obj.rest,
         };
       }
 
       return {
         items: obj.items,
-        rest: Object.assign({}, obj.rest, { [itemKey]: instance[itemKey] }),
+        rest: { ...obj.rest, [itemKey]: instance[itemKey] },
       };
     },
     {

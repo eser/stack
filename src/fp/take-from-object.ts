@@ -6,9 +6,7 @@ function takeFromObject<T>(
 
   return newKeys.reduce(
     (obj, itemKey) => {
-      return Object.assign({}, obj, {
-        [itemKey]: instance[itemKey],
-      });
+      return { ...obj, [itemKey]: instance[itemKey] };
     },
     {},
   );

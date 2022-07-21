@@ -5,9 +5,7 @@ function removeKeyFromObject<T>(
   return Object.keys(instance).reduce(
     (obj, itemKey) => {
       if (keys.indexOf(itemKey) === -1) {
-        return Object.assign({}, obj, {
-          [itemKey]: instance[itemKey],
-        });
+        return { ...obj, [itemKey]: instance[itemKey] };
       }
 
       return obj;

@@ -1,6 +1,8 @@
 import mutate from "../mutate.ts";
 
-Deno.bench("hex/fp/mutate:basic", () => {
+const group = "mutate";
+
+Deno.bench("hex/fp/mutate:basic", { group }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
@@ -10,7 +12,7 @@ Deno.bench("hex/fp/mutate:basic", () => {
   mutate(obj1, (x) => x.firstName = "Helo");
 });
 
-Deno.bench("Object.assign", () => {
+Deno.bench("Object.assign", { group }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
@@ -20,7 +22,7 @@ Deno.bench("Object.assign", () => {
   Object.assign({}, obj1, { firstName: "Helo" });
 });
 
-Deno.bench("spread operator", () => {
+Deno.bench("spread operator", { group }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",

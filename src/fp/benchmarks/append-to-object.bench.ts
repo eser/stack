@@ -2,7 +2,7 @@ import appendToObject from "../append-to-object.ts";
 
 const group = "append-to-object";
 
-Deno.bench("hex/fp/append-to-object:basic", { group }, () => {
+Deno.bench("hex/fp/append-to-object", { group, baseline: true }, () => {
   const obj1 = { a: 1, b: 2 };
 
   appendToObject(obj1, { c: 3 });

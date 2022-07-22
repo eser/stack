@@ -10,7 +10,7 @@ class Dummy {
   }
 }
 
-Deno.bench("hex/fp/deep-copy:basic", { group }, () => {
+Deno.bench("hex/fp/deep-copy", { group, baseline: true }, () => {
   const obj1 = new Dummy({ value: 5 });
 
   deepCopy(obj1);

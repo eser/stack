@@ -2,7 +2,7 @@ import appendToArray from "../append-to-array.ts";
 
 const group = "append-to-array";
 
-Deno.bench("hex/fp/append-to-array:basic", { group }, () => {
+Deno.bench("hex/fp/append-to-array", { group, baseline: true }, () => {
   const arr1 = ["a", "b"];
 
   appendToArray(arr1, "c");

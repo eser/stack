@@ -2,7 +2,7 @@ import mutate from "../mutate.ts";
 
 const group = "mutate";
 
-Deno.bench("hex/fp/mutate:basic", { group }, () => {
+Deno.bench("hex/fp/mutate", { group, baseline: true }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",

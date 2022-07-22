@@ -3,23 +3,14 @@ import {
   HexFunctionResultIterable,
 } from "./function-result.ts";
 
-// import {
-//   renderToString,
-// } from "https://esm.sh/preact-render-to-string@5.2.0?deps=preact@10.8.2";
+// @deno-types="https://denopkg.com/soremwar/deno_types/react-dom/v16.13.1/server.d.ts"
+import ReactDOMServer from "https://jspm.dev/react-dom@17.0.2/server";
 
-//     "_jsx": "react-jsx",
-//     "_jsxImportSource": "https://esm.sh/preact"
-
-const defaultDumpFunction = (x: unknown) => console.log(x); // renderToString(x.payload)
-
-async function dumperReact(
-  iterator: HexFunctionResult,
-  dumpFunction: (x: unknown) => void = defaultDumpFunction,
-) {
+async function dumperReact(iterator: HexFunctionResult) {
   for await (
     const result of <HexFunctionResultIterable> iterator
   ) {
-    dumpFunction(result);
+    console.log(ReactDOMServer.renderToString(result.payload));
   }
 }
 

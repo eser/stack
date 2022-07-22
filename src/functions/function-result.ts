@@ -1,24 +1,32 @@
-interface HexFunctionResultBody {
+// deno-lint-ignore no-explicit-any
+type HexFunctionPayloadTypes = any;
+
+interface HexFunctionResultBody<T = HexFunctionPayloadTypes> {
   error?: Error;
-  payload?: unknown;
+  payload?: T;
 }
 
-type HexFunctionResultAsyncGen = AsyncGenerator<HexFunctionResultBody | void>;
+type HexFunctionResultAsyncGen<T = HexFunctionPayloadTypes> = AsyncGenerator<
+  HexFunctionResultBody<T>
+>;
 
-type HexFunctionResultGen = Generator<HexFunctionResultBody | void>;
+type HexFunctionResultGen<T = HexFunctionPayloadTypes> = Generator<
+  HexFunctionResultBody<T>
+>;
 
-type HexFunctionResultIterable =
-  | HexFunctionResultAsyncGen
-  | HexFunctionResultGen;
+type HexFunctionResultIterable<T = HexFunctionPayloadTypes> =
+  | HexFunctionResultAsyncGen<T>
+  | HexFunctionResultGen<T>;
 
-type HexFunctionResultNonIterable =
-  | Promise<HexFunctionResultBody | void>
-  | HexFunctionResultBody
+type HexFunctionResultNonIterable<T = HexFunctionPayloadTypes> =
+  | Promise<HexFunctionResultBody<T>>
+  | HexFunctionResultBody<T>;
+
+type HexFunctionResult<T = HexFunctionPayloadTypes> =
+  | HexFunctionResultIterable<T>
+  | HexFunctionResultNonIterable<T>
+  | Promise<void>
   | void;
-
-type HexFunctionResult =
-  | HexFunctionResultIterable
-  | HexFunctionResultNonIterable;
 
 export type {
   HexFunctionResult,

@@ -40,6 +40,10 @@ const execute = async function* execute(
     currentContext,
   );
 
+  if (iterator === undefined) {
+    return;
+  }
+
   if (
     Symbol.iterator in Object(iterator) ||
     Symbol.asyncIterator in Object(iterator)

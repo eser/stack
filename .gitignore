@@ -6,3 +6,6 @@
 
 # coverage files
 etc/cov_profile/*.json
+
+# hidden
+tmp/

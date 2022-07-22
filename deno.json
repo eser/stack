@@ -11,7 +11,9 @@
         "*.md",
         "*.json"
       ],
-      "exclude": []
+      "exclude": [
+        "tmp/"
+      ]
     },
     "rules": {
       "tags": [
@@ -33,13 +35,26 @@
         "*.md",
         "*.json"
       ],
-      "exclude": []
+      "exclude": [
+        "tmp/"
+      ]
+    }
+  },
+  "test": {
+    "files": {
+      "include": [
+        "src/"
+      ],
+      "exclude": [
+        "tmp/"
+      ]
     }
   },
   "tasks": {
     "test": "deno test ./src/ --coverage=./etc/cov_profile",
     "test:coverage": "deno coverage ./etc/cov_profile",
     "test:generate-lcov": "deno coverage ./etc/cov_profile --lcov > ./etc/cov_profile/cov_profile.lcov",
+    "bench": "deno bench ./src/ --unstable",
     "cli": "deno run ./src/test.ts"
   }
 }

@@ -7,7 +7,6 @@ export { curryFunctions } from "./curry-functions.ts";
 export { curryRight } from "./curry-right.ts";
 export { curry } from "./curry.ts";
 export { decorate } from "./decorate.ts";
-export { deepCopyWith } from "./deep-copy-with.ts";
 export { deepCopy } from "./deep-copy.ts";
 export { dispatcher } from "./dispatcher.ts";
 export { distinctArray } from "./distinct-array.ts";

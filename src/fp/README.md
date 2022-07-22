@@ -192,28 +192,6 @@ console.log("Result:", newOne.constructor);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### deepCopyWith(source, modificationFn)
-
-copies an instance with its constructor, with specific mutation.
-
-```js
-import deepCopyWith from "hex/fp/deep-copy-with";
-
-class dummy {
-  constructor(value) {
-    this.value = value;
-  }
-}
-
-const source = new dummy(5);
-const newOne = deepCopyWith(source, (x) => x.value = 6);
-
-// output: Result: class dummy {}
-console.log("Result:", newOne.constructor);
-// output: Is Same: false
-console.log(`Is Same: ${source === newOne}`);
-```
-
 ### dispatcher(initialState, mutators) (awaitable)
 
 .
@@ -490,6 +468,28 @@ const newOne = mergeObjects(source1, source2);
 
 // output: Result: {'a':1,'b':2,'c':3,'d':4,'e':5}
 console.log(`Result: ${JSON.stringify(newOne)}`);
+// output: Is Same: false
+console.log(`Is Same: ${source === newOne}`);
+```
+
+### mutate(source, modificationFn)
+
+copies an instance with its constructor, with specific mutation.
+
+```js
+import mutate from "hex/fp/mutate";
+
+class dummy {
+  constructor() {
+    this.items = [];
+  }
+}
+
+const source = new dummy();
+const newOne = mutate(source, (x) => x.items.push(6));
+
+// output: Result: class dummy {}
+console.log("Result:", newOne.constructor);
 // output: Is Same: false
 console.log(`Is Same: ${source === newOne}`);
 ```

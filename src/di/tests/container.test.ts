@@ -1,7 +1,7 @@
 import { asserts } from "./deps.ts";
 import { container } from "../container.ts";
 
-Deno.test("hex/services/container:basic", () => {
+Deno.test("hex/di/container:basic", () => {
   const sandbox = container();
 
   sandbox.setValue("a", 5);
@@ -9,13 +9,13 @@ Deno.test("hex/services/container:basic", () => {
   asserts.assertStrictEquals(sandbox.get("a"), 5);
 });
 
-Deno.test("hex/services/container:empty", () => {
+Deno.test("hex/di/container:empty", () => {
   const sandbox = container();
 
   asserts.assertStrictEquals(sandbox.get("_"), undefined);
 });
 
-Deno.test("hex/services/container:with symbols", () => {
+Deno.test("hex/di/container:with symbols", () => {
   const sandbox = container();
   const b = Symbol("b");
 
@@ -24,7 +24,7 @@ Deno.test("hex/services/container:with symbols", () => {
   asserts.assertStrictEquals(sandbox.get(b), 6);
 });
 
-Deno.test("hex/services/container:with nullables", () => {
+Deno.test("hex/di/container:with nullables", () => {
   const sandbox = container();
 
   sandbox.setValue("c", null);
@@ -36,7 +36,7 @@ Deno.test("hex/services/container:with nullables", () => {
   asserts.assertStrictEquals(sandbox.get("f"), undefined);
 });
 
-Deno.test("hex/services/container:with functions", () => {
+Deno.test("hex/di/container:with functions", () => {
   const sandbox = container();
 
   sandbox.setValue("g", (x: number) => x + 3);
@@ -47,7 +47,7 @@ Deno.test("hex/services/container:with functions", () => {
   asserts.assertStrictEquals(result(5), 8);
 });
 
-Deno.test("hex/services/container:with factory", () => {
+Deno.test("hex/di/container:with factory", () => {
   const sandbox = container();
 
   let number = 1;
@@ -58,7 +58,7 @@ Deno.test("hex/services/container:with factory", () => {
   asserts.assertStrictEquals(sandbox.get("h"), 3);
 });
 
-Deno.test("hex/services/container:with mixed keys", () => {
+Deno.test("hex/di/container:with mixed keys", () => {
   const sandbox = container();
 
   sandbox.setValue(Object.keys, "Object.keys method");

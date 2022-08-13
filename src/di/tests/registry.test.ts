@@ -1,7 +1,7 @@
 import { asserts } from "./deps.ts";
 import { useRegistry } from "../registry.ts";
 
-Deno.test("hex/services/services:basic", () => {
+Deno.test("hex/di/registry:basic", () => {
   const [getService, serviceController] = useRegistry();
 
   serviceController.setValue("a", 5);
@@ -9,7 +9,7 @@ Deno.test("hex/services/services:basic", () => {
   asserts.assertStrictEquals(getService("a"), 5);
 });
 
-Deno.test("hex/services/services:factory", () => {
+Deno.test("hex/di/registry:factory", () => {
   const [getService, serviceController] = useRegistry();
 
   let count = 55;
@@ -24,7 +24,7 @@ Deno.test("hex/services/services:factory", () => {
   asserts.assertStrictEquals(getService("b"), 56);
 });
 
-Deno.test("hex/services/services:empty", () => {
+Deno.test("hex/di/registry:empty", () => {
   const [getService] = useRegistry();
 
   asserts.assertStrictEquals(getService("_"), undefined);

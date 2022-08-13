@@ -18,11 +18,11 @@ cloud-function runtimes and web apis.
 |---------------------------------|-------------------|-----------------------------------|
 | [Directives](src/directives/)   | Rules             |                                   |
 | [Standards](src/standards/)     | Abstraction       |                                   |
-| [FP](src/fp/)                   | Functions Library |                                   |
-| [Environment](src/environment/) | Objects Library   |                                   |
-| [Formatters](src/formatters/)   | Objects Library   |                                   |
-| [Functions](src/functions/)     | Manager           |                                   |
-| [Services](src/services/)       | Manager           |                                   |
+| [FP](src/fp/)                   | Functions Library | Tools for functional programming  |
+| [Environment](src/environment/) | Objects Library   | Environment adapters              |
+| [Formatters](src/formatters/)   | Objects Library   | Object serializers/deserializers  |
+| [Functions](src/functions/)     | Manager           | Functions runtime                 |
+| [DI](src/di/)                   | Manager           | Dependency injection library      |
 
 
 # Usage

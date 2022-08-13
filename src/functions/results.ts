@@ -1,19 +1,19 @@
 import type { HexFunctionResultBody } from "./function-result.ts";
 
-const ok = function ok(): HexFunctionResultBody {
+const ok = function ok(): HexFunctionResultBody<never> {
   return {
     payload: undefined,
   };
 };
 
-const text = function text(message: string): HexFunctionResultBody {
+const text = function text(message: string): HexFunctionResultBody<string> {
   return {
     payload: message,
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const reactView = function reactView(view: any): HexFunctionResultBody {
+const reactView = function reactView(view: any): HexFunctionResultBody<any> {
   return {
     payload: view,
   };
@@ -22,7 +22,7 @@ const reactView = function reactView(view: any): HexFunctionResultBody {
 const error = function error(
   message: string,
   error: Error,
-): HexFunctionResultBody {
+): HexFunctionResultBody<string> {
   return {
     payload: message,
     error: error,

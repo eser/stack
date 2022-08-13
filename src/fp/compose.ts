@@ -5,8 +5,8 @@ const compose = function compose(
   ...funcs: readonly ComposableFunction[]
 ): ComposableFunction {
   return funcs.reduce(
-    (previousFunction, currentFunction) =>
-      (...args) => previousFunction(currentFunction(...args)),
+    (previousFunction, currentFunction) => (...args) =>
+      previousFunction(currentFunction(...args)),
   );
 };
 

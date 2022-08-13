@@ -5,8 +5,8 @@ const pipe = function pipe(
   ...funcs: readonly ComposableFunction[]
 ): ComposableFunction {
   return funcs.reduce(
-    (previousFunction, currentFunction) =>
-      (...args) => currentFunction(previousFunction(...args)),
+    (previousFunction, currentFunction) => (...args) =>
+      currentFunction(previousFunction(...args)),
   );
 };
 

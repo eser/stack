@@ -1,6 +1,6 @@
 import type { Channel } from "./channel.ts";
 
-type ChannelMethods = "read" | "write";
+type ChannelMethods = string; // "read" | "write";
 
 interface Environment {
   channels: readonly Channel[];
@@ -13,9 +13,6 @@ interface Environment {
     method: ChannelMethods,
     ...args: readonly T1[]
   ) => Promise<TR | undefined>;
-
-  read: () => Promise<string | undefined>;
-  write: (text: string) => Promise<void>;
 }
 
 const environment = function environment(
@@ -28,6 +25,10 @@ const environment = function environment(
   ): Promise<void> {
     await Promise.all(
       instance.channels.map(async (channel) => {
+        if (!(method in channel)) {
+          return undefined;
+        }
+
         // @ts-ignore dispatcher call
         const result = await channel[method]?.apply(
           channel,
@@ -65,9 +66,6 @@ const environment = function environment(
 
     dispatch: dispatch,
     poll: poll,
-
-    read: () => poll<string>("read"),
-    write: (text: string) => dispatch("write", text),
   };
 
   return instance;

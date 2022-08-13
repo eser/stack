@@ -48,7 +48,7 @@ const composer = function composer(
     };
 
     const jumped = await jump(currentContext);
-    yield* <HexFunctionResultIterable> jumped;
+    yield* jumped;
   };
 };
 

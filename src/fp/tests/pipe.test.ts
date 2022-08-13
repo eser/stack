@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import pipe from "../pipe.ts";
+import { pipe } from "../pipe.ts";
 
 Deno.test("hex/fp/pipe:basic", () => {
   const lower = (x: string) => x.toLowerCase();

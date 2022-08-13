@@ -28,12 +28,12 @@ type HexFunctionResult<T = HexFunctionPayloadTypes> =
   | Promise<void>
   | void;
 
-export type {
-  HexFunctionResult,
-  HexFunctionResult as default,
-  HexFunctionResultAsyncGen,
-  HexFunctionResultBody,
-  HexFunctionResultGen,
-  HexFunctionResultIterable,
-  HexFunctionResultNonIterable,
+export {
+  type HexFunctionResult,
+  type HexFunctionResult as default,
+  type HexFunctionResultAsyncGen,
+  type HexFunctionResultBody,
+  type HexFunctionResultGen,
+  type HexFunctionResultIterable,
+  type HexFunctionResultNonIterable,
 };

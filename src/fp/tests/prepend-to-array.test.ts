@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import prependToArray from "../prepend-to-array.ts";
+import { prependToArray } from "../prepend-to-array.ts";
 
 Deno.test("hex/fp/prepend-to-array:basic", () => {
   const arr1 = ["b", "c"];

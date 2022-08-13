@@ -1,10 +1,10 @@
-import type HexFunction from "./function.ts";
-import type HexFunctionContext from "./function-context.ts";
-import type HexFunctionInput from "./function-input.ts";
-import type {
-  HexFunctionResultAsyncGen,
-  HexFunctionResultIterable,
-  HexFunctionResultNonIterable,
+import { type HexFunction } from "./function.ts";
+import { type HexFunctionContext } from "./function-context.ts";
+import { type HexFunctionInput } from "./function-input.ts";
+import {
+  type HexFunctionResultAsyncGen,
+  type HexFunctionResultIterable,
+  type HexFunctionResultNonIterable,
 } from "./function-result.ts";
 
 const getDefaultInput = function getDefaultInput(): HexFunctionInput {

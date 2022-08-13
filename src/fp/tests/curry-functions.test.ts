@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import curryFunctions from "../curry-functions.ts";
+import { curryFunctions } from "../curry-functions.ts";
 
 Deno.test("hex/fp/curry-functions:basic", () => {
   const func1 = (x: number) => x + 1;

@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import container from "../container.ts";
+import { container } from "../container.ts";
 
 Deno.test("hex/services/container:basic", () => {
   const sandbox = container();

@@ -1,4 +1,4 @@
-import deepCopy from "../deep-copy.ts";
+import { deepCopy } from "../deep-copy.ts";
 
 const group = "deep-copy";
 

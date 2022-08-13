@@ -1,7 +1,7 @@
-import type HexFunctionContext from "./function-context.ts";
-import type HexFunctionInput from "./function-input.ts";
-import type HexFunctionNext from "./function-next.ts";
-import type HexFunctionResult from "./function-result.ts";
+import { type HexFunctionContext } from "./function-context.ts";
+import { type HexFunctionInput } from "./function-input.ts";
+import { type HexFunctionNext } from "./function-next.ts";
+import { type HexFunctionResult } from "./function-result.ts";
 
 type HexFunction = (
   input: HexFunctionInput,
@@ -9,4 +9,4 @@ type HexFunction = (
   next?: HexFunctionNext,
 ) => HexFunctionResult;
 
-export type { HexFunction, HexFunction as default };
+export { type HexFunction, type HexFunction as default };

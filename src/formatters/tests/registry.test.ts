@@ -1,6 +1,6 @@
 import { asserts } from "./deps.ts";
-import applicationJsonFormatter from "../application-json.ts";
-import registry, { findByName } from "../registry.ts";
+import { applicationJsonFormatter } from "../application-json.ts";
+import { findByName, registry } from "../registry.ts";
 
 Deno.test("hex/formatters/registry:basic", () => {
   const formatters = [applicationJsonFormatter];

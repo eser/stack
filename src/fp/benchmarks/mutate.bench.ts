@@ -1,4 +1,4 @@
-import mutate from "../mutate.ts";
+import { mutate } from "../mutate.ts";
 
 const group = "mutate";
 

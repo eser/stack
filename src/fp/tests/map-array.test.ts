@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import mapArray from "../map-array.ts";
+import { mapArray } from "../map-array.ts";
 
 Deno.test("hex/fp/map-array:basic", () => {
   const arr1 = [1, 2, 3, 4, 5];

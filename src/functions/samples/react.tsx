@@ -1,7 +1,7 @@
-import type {
-  HexFunctionContext,
-  HexFunctionInput,
-  HexFunctionResult,
+import {
+  type HexFunctionContext,
+  type HexFunctionInput,
+  type HexFunctionResult,
 } from "../mod.ts";
 import * as hex from "../../mod.ts";
 

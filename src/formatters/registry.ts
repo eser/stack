@@ -1,11 +1,11 @@
-import curryFunctions from "../fp/curry-functions.ts";
-import type Formatter from "./formatter.ts";
+import { curryFunctions } from "../fp/curry-functions.ts";
+import { type Formatter } from "./formatter.ts";
 
 //
 // This registry can be used in two ways:
 //
 // Functional way:
-//   import applicationJsonFormatter from "./application-json.ts";
+//   import { applicationJsonFormatter } from "./application-json.ts";
 //   import { findByName } from "./registry.ts";
 //
 //   const formatters = [ applicationJsonFormatter ];
@@ -13,8 +13,8 @@ import type Formatter from "./formatter.ts";
 //
 //
 // Or, object-oriented way:
-//   import applicationJsonFormatter from "./application-json.ts";
-//   import registry from "./registry.ts";
+//   import { applicationJsonFormatter } from "./application-json.ts";
+//   import { registry } from "./registry.ts";
 //
 //   const formatterRegistry = registry([ applicationJsonFormatter ]);
 //   const jsonFormatter = registry.findByName("json");
@@ -49,5 +49,4 @@ const registry = function registry(formatters: Iterable<Formatter>): Registry {
   return created as Registry;
 };
 
-export { findByName, registry, registry as default };
-export type { Registry };
+export { findByName, type Registry, registry, registry as default };

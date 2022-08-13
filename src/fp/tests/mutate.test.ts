@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import mutate from "../mutate.ts";
+import { mutate } from "../mutate.ts";
 
 Deno.test("hex/fp/mutate:basic", () => {
   const obj1 = {

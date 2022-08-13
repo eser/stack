@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import prependToObject from "../prepend-to-object.ts";
+import { prependToObject } from "../prepend-to-object.ts";
 
 Deno.test("hex/fp/prepend-to-object:basic", () => {
   const obj1 = { b: 2, c: 3 };

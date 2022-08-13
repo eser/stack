@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import compose from "../compose.ts";
+import { compose } from "../compose.ts";
 
 Deno.test("hex/fp/compose:basic", () => {
   const lower = (x: string) => x.toLowerCase();

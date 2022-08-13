@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import deepCopy from "../deep-copy.ts";
+import { deepCopy } from "../deep-copy.ts";
 
 class Dummy {
   prop: unknown;

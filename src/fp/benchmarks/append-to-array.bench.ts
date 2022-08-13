@@ -1,4 +1,4 @@
-import appendToArray from "../append-to-array.ts";
+import { appendToArray } from "../append-to-array.ts";
 
 const group = "append-to-array";
 

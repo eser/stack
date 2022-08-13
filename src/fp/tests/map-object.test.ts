@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import mapObject from "../map-object.ts";
+import { mapObject } from "../map-object.ts";
 
 Deno.test("hex/fp/map-object:basic", () => {
   const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };

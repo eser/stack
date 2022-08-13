@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import decorate from "../decorate.ts";
+import { decorate } from "../decorate.ts";
 
 Deno.test("hex/fp/decorate:basic", () => {
   let generator = () => 5;

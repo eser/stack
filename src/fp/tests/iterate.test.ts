@@ -1,6 +1,6 @@
 import { asserts } from "./deps.ts";
-import pipe from "../pipe.ts";
-import iterate from "../iterate.ts";
+import { pipe } from "../pipe.ts";
+import { iterate } from "../iterate.ts";
 
 Deno.test("hex/fp/iterate:basic", async () => {
   const gen1 = function* gen() {

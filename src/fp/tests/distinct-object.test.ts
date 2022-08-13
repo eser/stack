@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import distinctObject from "../distinct-object.ts";
+import { distinctObject } from "../distinct-object.ts";
 
 Deno.test("hex/fp/distinct-object:basic", () => {
   const obj1 = {

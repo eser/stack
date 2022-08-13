@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import filterObject from "../filter-object.ts";
+import { filterObject } from "../filter-object.ts";
 
 Deno.test("hex/fp/filter-object:basic", () => {
   const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };

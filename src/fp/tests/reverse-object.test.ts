@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import reverseObject from "../reverse-object.ts";
+import { reverseObject } from "../reverse-object.ts";
 
 Deno.test("hex/fp/reverse-object:basic", () => {
   const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };

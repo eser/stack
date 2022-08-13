@@ -1,4 +1,4 @@
-import deepCopy from "./deep-copy.ts";
+import { deepCopy } from "./deep-copy.ts";
 
 // deno-lint-ignore ban-types
 function mutate<T extends object>(

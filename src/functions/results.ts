@@ -1,4 +1,4 @@
-import type { HexFunctionResultBody } from "./function-result.ts";
+import { type HexFunctionResultBody } from "./function-result.ts";
 
 const ok = function ok(): HexFunctionResultBody<never> {
   return {

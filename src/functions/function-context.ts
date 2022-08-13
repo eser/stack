@@ -3,4 +3,4 @@ interface HexFunctionContext {
   vars?: Record<string, unknown>;
 }
 
-export type { HexFunctionContext, HexFunctionContext as default };
+export { type HexFunctionContext, type HexFunctionContext as default };

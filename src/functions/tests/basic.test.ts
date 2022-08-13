@@ -1,11 +1,12 @@
 import { asserts } from "./deps.ts";
 
-import type {
-  HexFunctionContext,
-  HexFunctionInput,
-  HexFunctionResult,
+import {
+  execute,
+  type HexFunctionContext,
+  type HexFunctionInput,
+  type HexFunctionResult,
+  results,
 } from "../mod.ts";
-import { execute, results } from "../mod.ts";
 
 Deno.test("hex/functions/execute:basic", async () => {
   const fn1 = function fn1(

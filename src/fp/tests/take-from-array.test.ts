@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import takeFromArray from "../take-from-array.ts";
+import { takeFromArray } from "../take-from-array.ts";
 
 Deno.test("hex/fp/take-from-array:basic", () => {
   const arr1 = ["a", "b", "c"];

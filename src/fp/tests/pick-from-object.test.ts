@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import pickFromObject from "../pick-from-object.ts";
+import { pickFromObject } from "../pick-from-object.ts";
 
 Deno.test("hex/fp/pick-from-object:basic", () => {
   const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };

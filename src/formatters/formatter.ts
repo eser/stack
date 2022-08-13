@@ -5,4 +5,4 @@ interface Formatter<TSource = unknown, TTarget = string> {
   deserialize?: (payload: TTarget | Promise<TTarget>) => Promise<TSource>;
 }
 
-export type { Formatter, Formatter as default };
+export { type Formatter, type Formatter as default };

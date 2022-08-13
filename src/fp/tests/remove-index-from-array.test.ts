@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import removeIndexFromArray from "../remove-index-from-array.ts";
+import { removeIndexFromArray } from "../remove-index-from-array.ts";
 
 Deno.test("hex/fp/remove-index-from-array:basic", () => {
   const arr1 = [1, 2, 3, 4, 5];

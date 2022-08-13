@@ -40,5 +40,11 @@ const dispatcher = function dispatcher<T>(
   return next(state);
 };
 
-export { dispatcher, dispatcher as default };
-export type { LoggerType, LogType, MutatorType, NextType };
+export {
+  dispatcher,
+  dispatcher as default,
+  type LoggerType,
+  type LogType,
+  type MutatorType,
+  type NextType,
+};

@@ -33,5 +33,10 @@ const emitter = async function emitter(
   }
 };
 
-export { emitter, emitter as default };
-export type { EventType, LoggerType, LogType };
+export {
+  emitter,
+  emitter as default,
+  type EventType,
+  type LoggerType,
+  type LogType,
+};

@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import mergeObjects from "../merge-objects.ts";
+import { mergeObjects } from "../merge-objects.ts";
 
 Deno.test("hex/fp/merge-objects:basic", () => {
   const obj1 = { a: 1, b: 2 };

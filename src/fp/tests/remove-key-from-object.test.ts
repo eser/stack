@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import removeKeyFromObject from "../remove-key-from-object.ts";
+import { removeKeyFromObject } from "../remove-key-from-object.ts";
 
 Deno.test("hex/fp/remove-key-from-object:basic", () => {
   const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };

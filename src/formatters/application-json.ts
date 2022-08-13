@@ -1,4 +1,4 @@
-import type Formatter from "./formatter.ts";
+import { type Formatter } from "./formatter.ts";
 
 const names = [
   "json",

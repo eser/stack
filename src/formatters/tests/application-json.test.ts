@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import applicationJsonFormatter from "../application-json.ts";
+import { applicationJsonFormatter } from "../application-json.ts";
 
 Deno.test("hex/formatters/application-json:simple serialization", async () => {
   const deserialized = {

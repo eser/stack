@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import removeFirstMatchFromArray from "../remove-first-match-from-array.ts";
+import { removeFirstMatchFromArray } from "../remove-first-match-from-array.ts";
 
 Deno.test("hex/fp/remove-first-match-from-array:basic", () => {
   const arr1 = [1, 5, 2, 3, 4, 5];

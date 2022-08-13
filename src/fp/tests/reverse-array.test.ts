@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import reverseArray from "../reverse-array.ts";
+import { reverseArray } from "../reverse-array.ts";
 
 Deno.test("hex/fp/reverse-array:basic", () => {
   const arr1 = [1, 2, 3, 4, 5];

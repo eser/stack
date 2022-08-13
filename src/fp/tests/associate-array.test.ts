@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import associateArray from "../associate-array.ts";
+import { associateArray } from "../associate-array.ts";
 
 Deno.test("hex/fp/associate-array:basic", () => {
   const arr1 = [

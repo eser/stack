@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import splitArray from "../split-array.ts";
+import { splitArray } from "../split-array.ts";
 
 Deno.test("hex/fp/split-array:basic", () => {
   const arr1 = [1, 2, 3, 4, 5];

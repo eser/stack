@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import wth from "../wth.ts";
+import { wth } from "../wth.ts";
 
 Deno.test("hex/fp/wth:basic", () => {
   const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };

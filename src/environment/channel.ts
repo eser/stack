@@ -7,4 +7,4 @@ interface Channel<TWrite = ChannelParams, TRead = ChannelParams> {
   write: (payload: TWrite) => Promise<void>;
 }
 
-export type { Channel, Channel as default, ChannelParams };
+export { type Channel, type Channel as default, type ChannelParams };

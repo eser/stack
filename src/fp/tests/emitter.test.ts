@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import emitter, { LogType } from "../emitter.ts";
+import { emitter, LogType } from "../emitter.ts";
 
 Deno.test("hex/fp/emitter:basic", async () => {
   let sideEffectCounter = 0;

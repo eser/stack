@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import dispatcher, { LogType, NextType } from "../dispatcher.ts";
+import { dispatcher, LogType, NextType } from "../dispatcher.ts";
 
 type StateType = Record<string, number>;
 

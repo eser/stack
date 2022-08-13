@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import appendToObject from "../append-to-object.ts";
+import { appendToObject } from "../append-to-object.ts";
 
 Deno.test("hex/fp/append-to-object:basic", () => {
   const obj1 = { a: 1, b: 2 };

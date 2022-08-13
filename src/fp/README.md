@@ -22,7 +22,7 @@ please see [main hex repository](https://github.com/eserozvataf/hex).
 appends new item(s) to an array or a generator.
 
 ```js
-import appendToArray from "hex/fp/append-to-array";
+import { appendToArray } from "hex/fp/append-to-array";
 
 const source = ["a", "b"];
 const newOne = appendToArray(source, "c");
@@ -38,7 +38,7 @@ console.log(`Is Same: ${source === newOne}`);
 appends new item(s) to an object.
 
 ```js
-import appendToObject from "hex/fp/append-to-object";
+import { appendToObject } from "hex/fp/append-to-object";
 
 const source = { a: 1, b: 2 };
 const newOne = appendToObject(source, { c: 3 });
@@ -54,7 +54,7 @@ console.log(`Is Same: ${source === newOne}`);
 .
 
 ```js
-import associateArray from "hex/fp/associate-array";
+import { associateArray } from "hex/fp/associate-array";
 
 // associate array - basic sample
 const categories = [
@@ -80,7 +80,7 @@ console.dir(result);
 .
 
 ```js
-import associateObject from "hex/fp/associate-object";
+import { associateObject } from "hex/fp/associate-object";
 
 // associate object - basic sample
 const categories = {
@@ -106,7 +106,7 @@ passes the output of one function as an input to another one, but unlike `pipe`
 it executes the functions in reverse order.
 
 ```js
-import compose from "hex/fp/compose";
+import { compose } from "hex/fp/compose";
 
 // compose - slug sample
 const lower = (x) => x.toLowerCase();
@@ -127,7 +127,7 @@ console.log(`slug: ${message}`);
 .
 
 ```js
-import curry from "hex/fp/curry";
+import { curry } from "hex/fp/curry";
 
 // curry - sum sample
 const sum = (a, b) => a + b;
@@ -145,7 +145,7 @@ console.log(`result: ${result}`);
 .
 
 ```js
-import curryRight from "hex/fp/curry-right";
+import { curryRight } from "hex/fp/curry-right";
 
 // curryRight - sum sample
 const dec = (a, b) => a - b;
@@ -163,7 +163,7 @@ console.log(`result: ${result}`);
 .
 
 ```js
-import decorate from "hex/fp/decorate";
+import { decorate } from "hex/fp/decorate";
 
 // decorate - calculator sample
 let generator = () => 5;
@@ -179,7 +179,7 @@ console.log(`generated: ${generator()}`);
 copies an instance with its constructor.
 
 ```js
-import deepCopy from "hex/fp/deep-copy";
+import { deepCopy } from "hex/fp/deep-copy";
 
 class dummy {}
 
@@ -197,7 +197,7 @@ console.log(`Is Same: ${source === newOne}`);
 .
 
 ```js
-import dispatcher from "hex/fp/dispatcher";
+import { dispatcher } from "hex/fp/dispatcher";
 
 // dispatcher - state mutation sample
 const initialState = { quarter: 1, year: 2018, sum: 1 };
@@ -215,7 +215,7 @@ dispatcher(initialState, [actionAdd5, actionDiv2])
 .
 
 ```js
-import dispatcher from "hex/fp/dispatcher";
+import { dispatcher } from "hex/fp/dispatcher";
 
 // dispatcher - action logger sample
 const initialState = { quarter: 1, year: 2018, sum: 1 };
@@ -251,7 +251,7 @@ TODO
 skips first n items from an array or a generator.
 
 ```js
-import dropFromArray from "hex/fp/drop-from-array";
+import { dropFromArray } from "hex/fp/drop-from-array";
 
 const source = ["a", "b", "c"];
 const newOne = dropFromArray(source, 1);
@@ -267,7 +267,7 @@ console.log(`Is Same: ${source === newOne}`);
 skips first n items from an object.
 
 ```js
-import dropFromObject from "hex/fp/drop-from-object";
+import { dropFromObject } from "hex/fp/drop-from-object";
 
 const source = { a: 1, b: 2, c: 3 };
 const newOne = dropFromObject(source, 1);
@@ -283,7 +283,7 @@ console.log(`Is Same: ${source === newOne}`);
 .
 
 ```js
-import emitter from "hex/fp/emitter";
+import { emitter } from "hex/fp/emitter";
 
 // emitter - static pub/sub sample
 const subscriberOne = (value) =>
@@ -307,7 +307,7 @@ emitter(events, "printToConsole", [5]);
 .
 
 ```js
-import emitter from "hex/fp/emitter";
+import { emitter } from "hex/fp/emitter";
 
 // emitter - event logger sample
 const subscriberOne = (value) =>
@@ -339,7 +339,7 @@ emitter(events, "printToConsole", [5], [logger]);
 returns matching items from an array or a generator.
 
 ```js
-import filterArray from "hex/fp/filter-array";
+import { filterArray } from "hex/fp/filter-array";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = filterArray(source, (x) => x <= 3);
@@ -355,7 +355,7 @@ console.log(`Is Same: ${source === newOne}`);
 returns matching items from an object.
 
 ```js
-import filterObject from "hex/fp/filter-object";
+import { filterObject } from "hex/fp/filter-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = filterObject(source, (x) => x <= 3);
@@ -371,8 +371,8 @@ console.log(`Is Same: ${source === newOne}`);
 .
 
 ```js
-import iterate from "hex/fp/iterate";
-import compose from "hex/fp/compose";
+import { iterate } from "hex/fp/iterate";
+import { compose } from "hex/fp/compose";
 
 // iterate - url fetcher example
 const generator = function* () {
@@ -410,7 +410,7 @@ creates a new array with the results of calling a provided function on every
 element in the calling array.
 
 ```js
-import mapArray from "hex/fp/map-array";
+import { mapArray } from "hex/fp/map-array";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = mapArray(source, (x) => x - 1);
@@ -427,7 +427,7 @@ creates a new object with the results of calling a provided function on every
 element in the calling object.
 
 ```js
-import mapObject from "hex/fp/map-object";
+import { mapObject } from "hex/fp/map-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = mapObject(source, (value, key) => ({ [key]: value - 1 }));
@@ -443,7 +443,7 @@ console.log(`Is Same: ${source === newOne}`);
 merges two or more arrays into one.
 
 ```js
-import mergeArrays from "hex/fp/merge-arrays";
+import { mergeArrays } from "hex/fp/merge-arrays";
 
 const source1 = [1, 2, 3];
 const source2 = [4, 5];
@@ -460,7 +460,7 @@ console.log(`Is Same: ${source === newOne}`);
 merges two or more objects into one.
 
 ```js
-import mergeObjects from "hex/fp/merge-objects";
+import { mergeObjects } from "hex/fp/merge-objects";
 
 const source1 = { a: 1, b: 2, c: 3 };
 const source2 = { d: 4, e: 5 };
@@ -477,7 +477,7 @@ console.log(`Is Same: ${source === newOne}`);
 copies an instance with its constructor, with specific mutation.
 
 ```js
-import mutate from "hex/fp/mutate";
+import { mutate } from "hex/fp/mutate";
 
 class dummy {
   constructor() {
@@ -499,7 +499,7 @@ console.log(`Is Same: ${source === newOne}`);
 returns matching and not matching items from an array or a generator.
 
 ```js
-import pickFromArray from "hex/fp/pick-from-array";
+import { pickFromArray } from "hex/fp/pick-from-array";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = pickFromArray(source, [2, 3, 6]);
@@ -515,7 +515,7 @@ console.log(`Is Same: ${source === newOne}`);
 returns matching and not matching items from an object.
 
 ```js
-import pickFromObject from "hex/fp/pick-from-object";
+import { pickFromObject } from "hex/fp/pick-from-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = pickFromObject(source, ["b", "c", "f"]);
@@ -531,7 +531,7 @@ console.log(`Is Same: ${source === newOne}`);
 passes the output of one function as an input to another function.
 
 ```js
-import pipe from "hex/fp/pipe";
+import { pipe } from "hex/fp/pipe";
 
 // pipe - slug sample
 const lower = (x) => x.toLowerCase();
@@ -552,7 +552,7 @@ console.log(`slug: ${message}`);
 prepends new item(s) to an array or a generator.
 
 ```js
-import prependToArray from "hex/fp/prepend-to-array";
+import { prependToArray } from "hex/fp/prepend-to-array";
 
 const source = ["b", "c"];
 const newOne = prependToArray(source, "a");
@@ -568,7 +568,7 @@ console.log(`Is Same: ${source === newOne}`);
 prepends new item(s) to an object.
 
 ```js
-import prependToObject from "hex/fp/prepend-to-object";
+import { prependToObject } from "hex/fp/prepend-to-object";
 
 const source = { b: 2, c: 3 };
 const newOne = prependToObject(source, { a: 1 });
@@ -584,7 +584,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes first matching item from an array or a generator.
 
 ```js
-import removeFirstMatchFromArray from "hex/fp/remove-first-match-from-array";
+import { removeFirstMatchFromArray } from "hex/fp/remove-first-match-from-array";
 
 const source = [1, 5, 2, 3, 4, 5];
 const newOne = removeFirstMatchFromArray(source, (x) => x === 5);
@@ -600,7 +600,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes first matching item from an object.
 
 ```js
-import removeFirstMatchFromObject from "hex/fp/remove-first-match-from-object";
+import { removeFirstMatchFromObject } from "hex/fp/remove-first-match-from-object";
 
 const source = { a: 1, f: 5, b: 2, c: 3, d: 4, e: 5 };
 const newOne = removeFirstMatchFromObject(source, (x) => x === 5);
@@ -616,7 +616,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes specified item index(es) from an array or a generator.
 
 ```js
-import removeIndexFromArray from "hex/fp/remove-index-from-array";
+import { removeIndexFromArray } from "hex/fp/remove-index-from-array";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = removeIndexFromArray(source, 2, 3);
@@ -632,7 +632,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes specified item(s) from an array or a generator.
 
 ```js
-import removeValueFromArray from "hex/fp/remove-value-from-array";
+import { removeValueFromArray } from "hex/fp/remove-value-from-array";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = removeValueFromArray(source, 2, 3);
@@ -648,7 +648,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes items with specified key(s) from an object.
 
 ```js
-import removeKeyFromObject from "hex/fp/remove-key-from-object";
+import { removeKeyFromObject } from "hex/fp/remove-key-from-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = removeKeyFromObject(source, "b", "c");
@@ -664,7 +664,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes items with specified value(s) from an object or a generator.
 
 ```js
-import removeValueFromObject from "hex/fp/remove-value-from-object";
+import { removeValueFromObject } from "hex/fp/remove-value-from-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = removeValueFromObject(source, 2, 3);
@@ -680,7 +680,7 @@ console.log(`Is Same: ${source === newOne}`);
 reverses an array or a generator content.
 
 ```js
-import reverseArray from "hex/fp/reverse-array";
+import { reverseArray } from "hex/fp/reverse-array";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = reverseArray(source);
@@ -696,7 +696,7 @@ console.log(`Is Same: ${source === newOne}`);
 reverses an object content.
 
 ```js
-import reverseObject from "hex/fp/reverse-object";
+import { reverseObject } from "hex/fp/reverse-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = reverseObject(source);
@@ -712,7 +712,7 @@ console.log(`Is Same: ${source === newOne}`);
 splits an array or a generator content from specified index.
 
 ```js
-import splitArray from "hex/fp/split-array";
+import { splitArray } from "hex/fp/split-array";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = splitArray(source, 3);
@@ -728,7 +728,7 @@ console.log(`Is Same: ${source === newOne}`);
 splits an object content from specified index.
 
 ```js
-import splitObject from "hex/fp/split-object";
+import { splitObject } from "hex/fp/split-object";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = splitObject(source, 3);
@@ -744,7 +744,7 @@ console.log(`Is Same: ${source === newOne}`);
 takes first n items from an array or a generator.
 
 ```js
-import takeFromArray from "hex/fp/take-from-array";
+import { takeFromArray } from "hex/fp/take-from-array";
 
 const source = ["a", "b", "c"];
 const newOne = takeFromArray(source, 2);
@@ -760,7 +760,7 @@ console.log(`Is Same: ${source === newOne}`);
 takes first n items from an object.
 
 ```js
-import takeFromObject from "hex/fp/take-from0bject";
+import { takeFromObject } from "hex/fp/take-from0bject";
 
 const source = { a: 1, b: 2, c: 3 };
 const newOne = takeFromObject(source, 2);

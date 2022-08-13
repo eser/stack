@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import associateObject from "../associate-object.ts";
+import { associateObject } from "../associate-object.ts";
 
 Deno.test("hex/fp/associate-object:basic", () => {
   const obj1 = {

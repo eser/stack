@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import distinctArray from "../distinct-array.ts";
+import { distinctArray } from "../distinct-array.ts";
 
 Deno.test("hex/fp/distinct-array:basic", () => {
   const arr1 = [

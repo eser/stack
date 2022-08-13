@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import dropFromObject from "../drop-from-object.ts";
+import { dropFromObject } from "../drop-from-object.ts";
 
 Deno.test("hex/fp/drop-from-object:basic", () => {
   const obj1 = { a: 1, b: 2, c: 3 };

@@ -1,4 +1,4 @@
-import type { Channel } from "./channel.ts";
+import { type Channel } from "./channel.ts";
 
 type ChannelMethods = string; // "read" | "write";
 

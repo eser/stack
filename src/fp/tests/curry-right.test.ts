@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import curryRight from "../curry-right.ts";
+import { curryRight } from "../curry-right.ts";
 
 Deno.test("hex/fp/curry-right:basic", () => {
   const dec = (a: number, b: number) => a - b;

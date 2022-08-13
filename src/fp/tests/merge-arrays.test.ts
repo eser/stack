@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import mergeArrays from "../merge-arrays.ts";
+import { mergeArrays } from "../merge-arrays.ts";
 
 Deno.test("hex/fp/merge-arrays:basic", () => {
   const arr1 = [1, 2, 3];

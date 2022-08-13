@@ -1,5 +1,5 @@
 import { asserts } from "./deps.ts";
-import filterArray from "../filter-array.ts";
+import { filterArray } from "../filter-array.ts";
 
 Deno.test("hex/fp/filter-array:basic", () => {
   const arr1 = [1, 2, 3, 4, 5];

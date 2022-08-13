@@ -1,4 +1,4 @@
-import appendToObject from "../append-to-object.ts";
+import { appendToObject } from "../append-to-object.ts";
 
 const group = "append-to-object";
 

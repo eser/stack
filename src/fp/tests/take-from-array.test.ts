@@ -20,9 +20,11 @@ Deno.test("hex/fp/take-from-array:with-generator", () => {
   };
   const int1 = 2;
 
-  const result = takeFromArray(gen1(), int1);
+  const generated1 = gen1();
+  const result = takeFromArray(generated1, int1);
 
-  asserts.assertNotStrictEquals(result, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result, <any> generated1);
   asserts.assertEquals(result.length, 2);
   asserts.assertEquals(result, ["a", "b"]);
 });

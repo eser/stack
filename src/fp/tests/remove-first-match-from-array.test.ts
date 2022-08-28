@@ -23,9 +23,11 @@ Deno.test("hex/fp/remove-first-match-from-array:with-generator", () => {
   };
   const func1 = (x: number) => x === 5;
 
-  const result = removeFirstMatchFromArray(gen1(), func1);
+  const generated1 = gen1();
+  const result = removeFirstMatchFromArray(generated1, func1);
 
-  asserts.assertNotStrictEquals(result, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result, <any> generated1);
   asserts.assertEquals(result.length, 5);
   asserts.assertEquals(result, [1, 2, 3, 4, 5]);
 });

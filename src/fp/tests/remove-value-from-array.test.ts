@@ -24,9 +24,11 @@ Deno.test("hex/fp/remove-value-from-array:with-generator", () => {
   const int1 = 2;
   const int2 = 3;
 
-  const result = removeValueFromArray(gen1(), int1, int2);
+  const generated1 = gen1();
+  const result = removeValueFromArray(generated1, int1, int2);
 
-  asserts.assertNotStrictEquals(result, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result, <any> generated1);
   asserts.assertEquals(result.length, 3);
   asserts.assertEquals(result, [1, 4, 5]);
 });

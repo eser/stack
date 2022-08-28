@@ -20,9 +20,11 @@ Deno.test("hex/fp/reverse-array:with-generator", () => {
     yield 5;
   };
 
-  const result = reverseArray(gen1());
+  const generated1 = gen1();
+  const result = reverseArray(generated1);
 
-  asserts.assertNotStrictEquals(result, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result, <any> generated1);
   asserts.assertEquals(result.length, 5);
   asserts.assertEquals(result, [5, 4, 3, 2, 1]);
 });

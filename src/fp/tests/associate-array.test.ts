@@ -11,7 +11,8 @@ Deno.test("hex/fp/associate-array:basic", () => {
 
   const result = associateArray(arr1, func1);
 
-  asserts.assertNotStrictEquals(result, arr1);
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result, <any> arr1);
   asserts.assertEquals(Object.keys(result).length, 3);
   asserts.assertEquals(result, {
     1: { id: 1, name: "foo" },
@@ -31,7 +32,8 @@ Deno.test("hex/fp/associate-array:with-value-skipping", () => {
 
   const result = associateArray(arr1, func1);
 
-  asserts.assertNotStrictEquals(result, arr1);
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result, <any> arr1);
   asserts.assertEquals(Object.keys(result).length, 2);
   asserts.assertEquals(result, {
     1: { id: 1, name: "foo", skip: false },

@@ -21,9 +21,11 @@ Deno.test("hex/fp/merge-arrays:with-generator-1", () => {
   };
   const arr1 = [4, 5];
 
-  const result = mergeArrays(gen1(), arr1);
+  const generated1 = gen1();
+  const result = mergeArrays(generated1, arr1);
 
-  asserts.assertNotStrictEquals(result, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result, <any> generated1);
   asserts.assertNotStrictEquals(result, arr1);
   asserts.assertEquals(result.length, 5);
   asserts.assertEquals(result, [1, 2, 3, 4, 5]);
@@ -36,10 +38,12 @@ Deno.test("hex/fp/merge-arrays:with-generator-2", () => {
     yield 5;
   };
 
-  const result = mergeArrays(arr1, gen1());
+  const generated1 = gen1();
+  const result = mergeArrays(arr1, generated1);
 
   asserts.assertNotStrictEquals(result, arr1);
-  asserts.assertNotStrictEquals(result, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result, <any> generated1);
   asserts.assertEquals(result.length, 5);
   asserts.assertEquals(result, [1, 2, 3, 4, 5]);
 });

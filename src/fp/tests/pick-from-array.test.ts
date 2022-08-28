@@ -29,14 +29,17 @@ Deno.test("hex/fp/pick-from-array:with-generator-1", () => {
 
   const arr1 = [2, 3, 6];
 
-  const result = pickFromArray(gen1(), arr1);
+  const generated1 = gen1();
+  const result = pickFromArray(generated1, arr1);
 
-  asserts.assertNotStrictEquals(result.items, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result.items, <any> generated1);
   asserts.assertNotStrictEquals(result.items, arr1);
   asserts.assertEquals(result.items.length, 2);
   asserts.assertEquals(result.items, [2, 3]);
 
-  asserts.assertNotStrictEquals(result.rest, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result.rest, <any> generated1);
   asserts.assertNotStrictEquals(result.rest, arr1);
   asserts.assertEquals(result.rest.length, 3);
   asserts.assertEquals(result.rest, [1, 4, 5]);
@@ -50,15 +53,18 @@ Deno.test("hex/fp/pick-from-array:with-generator-2", () => {
     yield 6;
   };
 
-  const result = pickFromArray(arr1, gen1());
+  const generated1 = gen1();
+  const result = pickFromArray(arr1, generated1);
 
   asserts.assertNotStrictEquals(result.items, arr1);
-  asserts.assertNotStrictEquals(result.items, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result.items, <any> generated1);
   asserts.assertEquals(result.items.length, 2);
   asserts.assertEquals(result.items, [2, 3]);
 
   asserts.assertNotStrictEquals(result.rest, arr1);
-  asserts.assertNotStrictEquals(result.rest, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result.rest, <any> generated1);
   asserts.assertEquals(result.rest.length, 3);
   asserts.assertEquals(result.rest, [1, 4, 5]);
 });

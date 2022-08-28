@@ -19,9 +19,11 @@ Deno.test("hex/fp/append-to-array:with-generator", () => {
   };
   const str1 = "c";
 
-  const result = appendToArray(gen1(), str1);
+  const generated1 = gen1();
+  const result = appendToArray(generated1, str1);
 
-  asserts.assertNotStrictEquals(result, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result, <any> generated1);
   asserts.assertEquals(result.length, 3);
   asserts.assertEquals(result, ["a", "b", "c"]);
 });

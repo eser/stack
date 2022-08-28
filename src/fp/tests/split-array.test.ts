@@ -27,13 +27,16 @@ Deno.test("hex/fp/split-array:with-generator-1", () => {
 
   const int1 = 3;
 
-  const result = splitArray(gen1(), int1);
+  const generated1 = gen1();
+  const result = splitArray(generated1, int1);
 
-  asserts.assertNotStrictEquals(result.items, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result.items, <any> generated1);
   asserts.assertEquals(result.items.length, 3);
   asserts.assertEquals(result.items, [1, 2, 3]);
 
-  asserts.assertNotStrictEquals(result.rest, gen1());
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result.rest, <any> generated1);
   asserts.assertEquals(result.rest.length, 2);
   asserts.assertEquals(result.rest, [4, 5]);
 });

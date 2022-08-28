@@ -29,7 +29,8 @@ Deno.test("hex/fp/map-object:with-value-skipping", () => {
 
   const result = mapObject(obj1, func1);
 
-  asserts.assertNotStrictEquals(result, obj1);
+  // deno-lint-ignore no-explicit-any
+  asserts.assertNotStrictEquals(<any> result, <any> obj1);
   asserts.assertEquals(Object.keys(result).length, 2);
   asserts.assertEquals(result, { a: 0, b: 1 });
 });

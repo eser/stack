@@ -7,7 +7,7 @@ import {
 import * as hex from "../../mod.ts";
 
 const initMiddleware = function initMiddleware(
-  input: HexFunctionInput,
+  _input: HexFunctionInput,
   context: HexFunctionContext,
   next?: HexFunctionNext,
 ): HexFunctionResult {
@@ -18,7 +18,7 @@ const initMiddleware = function initMiddleware(
 
 const validationMiddleware = function validationMiddleware(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  _context: HexFunctionContext,
   next?: HexFunctionNext,
 ): HexFunctionResult {
   if (input.parameters[0] === undefined) {

@@ -11,7 +11,7 @@ import {
 Deno.test("hex/functions/execute:basic", async () => {
   const fn1 = function fn1(
     input: HexFunctionInput,
-    context: HexFunctionContext,
+    _context: HexFunctionContext,
   ): HexFunctionResult {
     const to = input.parameters[0] ?? "world";
     const message = `hello ${to}`;

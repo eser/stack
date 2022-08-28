@@ -1,6 +1,6 @@
 import * as hex from "../../mod.ts";
 
-const initMiddleware = function initMiddleware(input, context, next) {
+const initMiddleware = function initMiddleware(_input, context, next) {
   context.vars.number = 1;
 
   return next();
@@ -8,7 +8,7 @@ const initMiddleware = function initMiddleware(input, context, next) {
 
 const validationMiddleware = function validationMiddleware(
   input,
-  context,
+  _context,
   next,
 ) {
   if (input.parameters[0] === undefined) {

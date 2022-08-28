@@ -22,7 +22,7 @@ Deno.test("hex/fp/iterate:basic", async () => {
 
 Deno.test("hex/fp/iterate:async", async () => {
   const delay = (ms: number, value: number): Promise<number> =>
-    new Promise((resolve, reject) => {
+    new Promise((resolve, _reject) => {
       setTimeout(
         () => resolve(value),
         ms,

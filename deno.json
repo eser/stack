@@ -19,12 +19,8 @@
       "tags": [
         "recommended"
       ],
-      "include": [
-        "ban-untagged-todo"
-      ],
-      "exclude": [
-        "no-unused-vars"
-      ]
+      "include": [],
+      "exclude": []
     }
   },
   "fmt": {

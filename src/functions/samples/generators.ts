@@ -11,7 +11,7 @@ function sleep(ms: number) {
 
 const main = async function* main(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  _context: HexFunctionContext,
 ): HexFunctionResult {
   const to = input.parameters[0] ?? "world";
 

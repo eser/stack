@@ -14,7 +14,7 @@ const composer = function composer(
   return async function* (
     input: HexFunctionInput,
     context: HexFunctionContext,
-    next?: HexFunctionNext,
+    _next?: HexFunctionNext,
   ): HexFunctionResultAsyncGen {
     let index = 0;
     let currentContext = context;

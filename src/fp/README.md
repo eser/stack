@@ -199,15 +199,34 @@ merges two instances with source's constructor.
 ```js
 import { deepMerge } from "hex/fp/deep-merge";
 
-class dummy1 {}
-class dummy2 {}
+const source = {
+  a: {
+    b: [1, 2, 3],
+    c: {
+      d: 4,
+    },
+  },
+};
 
-const source = new dummy1();
-const other = new dummy2();
+const other = {
+  a: {
+    b: [55],
+  },
+  e: "hello",
+};
+
 const newOne = deepMerge(source, other);
 
-// output: Result: class dummy1 {}
-console.log("Result:", newOne.constructor);
+// output: Result: {
+//   a: {
+//     b: [55],
+//     c: {
+//       d: 4,
+//     },
+//   },
+//   e: "hello",
+// }
+console.log("Result:", newOne);
 // output: Is Same: false
 console.log(`Is Same: ${source === newOne}`);
 ```

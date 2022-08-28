@@ -1,6 +1,39 @@
 import { asserts } from "./deps.ts";
 import { deepMerge } from "../deep-merge.ts";
 
+type Dummy1Prop = {
+  inners: {
+    inner1: number;
+    inner2: number[];
+    inner3?: number;
+  };
+  outer?: string;
+};
+
+class Dummy1 {
+  prop: Dummy1Prop;
+
+  constructor(prop: Dummy1Prop) {
+    this.prop = prop;
+  }
+}
+
+type Dummy2Prop = {
+  inners: {
+    inner2: number[];
+    inner3: number;
+  };
+  outer: string;
+};
+
+class Dummy2 {
+  prop: Dummy2Prop;
+
+  constructor(prop: Dummy2Prop) {
+    this.prop = prop;
+  }
+}
+
 Deno.test("hex/fp/deep-merge:basic", () => {
   const obj1 = {
     a: {
@@ -32,4 +65,38 @@ Deno.test("hex/fp/deep-merge:basic", () => {
     },
     e: "hello",
   });
+});
+
+Deno.test("hex/fp/deep-merge:classes", () => {
+  const obj1 = new Dummy1({
+    inners: {
+      inner1: 1,
+      inner2: [2, 3],
+    },
+  });
+
+  const obj2 = new Dummy2({
+    inners: {
+      inner2: [4, 5],
+      inner3: 6,
+    },
+    outer: "sub-mariner",
+  });
+
+  const result = deepMerge(obj1, obj2);
+
+  asserts.assertNotStrictEquals(result, obj1);
+  asserts.assertNotStrictEquals(result, obj2);
+  asserts.assertStrictEquals(result.constructor, Dummy1);
+  asserts.assertEquals(
+    result,
+    new Dummy1({
+      inners: {
+        inner1: 1,
+        inner2: [4, 5],
+        inner3: 6,
+      },
+      outer: "sub-mariner",
+    }),
+  );
 });

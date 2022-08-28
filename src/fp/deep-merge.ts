@@ -1,19 +1,24 @@
 // deno-lint-ignore no-explicit-any
 type ObjectType = Record<string | number | symbol, any>;
 
-function deepMerge<T extends ObjectType>(
-  instance: T,
-  other: ObjectType | undefined,
-): ObjectType {
+function deepMerge<
+  T1 extends ObjectType,
+  T2 extends ObjectType,
+  TR extends T1 & T2,
+>(
+  instance: T1,
+  other: T2,
+): TR {
   if (!(instance instanceof Object)) {
     return instance;
   }
 
-  const Type = instance.constructor as { new (): T };
+  const Type = instance.constructor as { new (): TR };
 
   const firstMerge = Object.keys(instance).reduce(
     (acc, itemKey) => {
       const recordValue = instance[itemKey];
+      const otherKeyExists = (other !== undefined) && (itemKey in other);
       const otherValue = other?.[itemKey];
 
       if (recordValue instanceof Object && recordValue.constructor !== Array) {
@@ -27,7 +32,7 @@ function deepMerge<T extends ObjectType>(
 
       return {
         merged: Object.assign(new Type(), acc.merged, {
-          [itemKey]: (otherValue !== undefined) ? otherValue : recordValue,
+          [itemKey]: (otherKeyExists) ? otherValue : recordValue,
         }),
         otherKeys: acc.otherKeys.filter((x) => x !== itemKey),
       };
@@ -46,9 +51,10 @@ function deepMerge<T extends ObjectType>(
     (acc, itemKey) => {
       const otherValue = other[itemKey];
 
-      if (otherValue === undefined) {
-        return acc;
-      }
+      // FIXME if key is defined in object, we need to merge it
+      // if (otherValue === undefined) {
+      //   return acc;
+      // }
 
       return Object.assign(acc, { [itemKey]: otherValue });
     },

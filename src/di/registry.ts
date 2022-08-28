@@ -1,34 +1,29 @@
 import { type Container, container } from "./container.ts";
+import { useContainerBuilder } from "./use-container-builder.ts";
 
 // interface definitions
 // ---------------------
-type Registry = Container;
+// deno-lint-ignore no-explicit-any
+type Registry = Container<string, any>;
 
 // implementation (public)
 // -----------------------
 // this field is used to store service objects
-const registry = container();
+// deno-lint-ignore no-explicit-any
+const registry: Registry = container<string, any>();
 
 const getService = registry.get;
 const setServiceValue = registry.setValue;
 const setServiceFactory = registry.setFactory;
 
-const useRegistry = function useRegistry() {
-  return [
-    registry.get,
-    {
-      get: getService,
-      setValue: setServiceValue,
-      setFactory: setServiceFactory,
-    },
-  ];
-};
+const useRegistry = useContainerBuilder(registry);
 
 export {
   getService,
+  type Registry,
   registry,
+  registry as default,
   setServiceFactory,
   setServiceValue,
   useRegistry,
-  useRegistry as default,
 };

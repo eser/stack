@@ -7,14 +7,15 @@ enum ServiceType {
   Factory = "FACTORY",
 }
 
-type ContainerItems<K, V> = Map<K, [ServiceType, V | (() => V)]>;
+type ContainerItems<K, V> = Map<K, [ServiceType, V | (() => V | undefined)]>;
+
 // deno-lint-ignore no-explicit-any
 interface Container<K = any, V = any> {
   items: ContainerItems<K, V>;
 
-  get(name: K, defaultValue?: V): V;
+  get(name: K, defaultValue?: V): V | undefined;
   setValue(name: K, value: V): void;
-  setFactory(name: K, value: V): void;
+  setFactory(name: K, value: () => V | undefined): void;
 }
 
 // implementation (public)
@@ -31,7 +32,7 @@ const get = function get<K, V>(
   }
 
   if (stored[0] === ServiceType.Factory) {
-    return (stored[1] as () => V)();
+    return (stored[1] as () => V | undefined)();
   }
 
   return stored[1] as V;
@@ -48,7 +49,7 @@ const setValue = function setValue<K, V>(
 const setFactory = function setFactory<K, V>(
   containerItems: ContainerItems<K, V>,
   name: K,
-  value: () => V,
+  value: () => V | undefined,
 ): void {
   containerItems.set(name, [ServiceType.Factory, value]);
 };

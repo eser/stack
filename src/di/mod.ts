@@ -1,1 +1,1 @@
-export * from "./di.ts";
+export * from "./registry.ts";

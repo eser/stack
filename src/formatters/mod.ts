@@ -1,4 +1,4 @@
-export { type Formatter } from "./formatter.ts";
-export { registry } from "./registry.ts";
-export { applicationJsonFormatter } from "./application-json.ts";
-export { textPlainFormatter } from "./text-plain.ts";
+export * from "./formatter.ts";
+export * from "./registry.ts";
+export * from "./application-json.ts";
+export * from "./text-plain.ts";

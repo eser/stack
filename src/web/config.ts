@@ -12,7 +12,7 @@ interface Config {
 
   constants?: Record<string, string>;
 
-  pages?: {
+  app?: {
     baseDir?: string;
     startRoute?: string;
     extensions?: string[];
@@ -47,8 +47,8 @@ const defaultConfig: Config = {
     "twitter-handle": "@denohex",
   },
 
-  pages: {
-    baseDir: "./src/",
+  app: {
+    baseDir: "./src/app/",
     startRoute: "home",
     extensions: [".tsx", ".ts", ".jsx", ".js", ".mdx", ".md"],
   },
@@ -69,4 +69,32 @@ const makeConfig = (config: Config) => {
   return newConfig;
 };
 
-export { type Config, defaultConfig, makeConfig };
+const readConfig = async function readConfig(baseDir: string) {
+  const variations = [
+    `${baseDir}/hex.config.ts`,
+    `${baseDir}/hex.config.js`,
+  ];
+
+  let config;
+  for (const variation of variations) {
+    try {
+      config = (await import(variation))?.default;
+
+      break;
+    } catch (err) {
+      if (!(err instanceof Deno.errors.NotFound)) {
+        throw err;
+      }
+
+      // otherwise, do nothing
+    }
+  }
+
+  if (config === undefined) {
+    return defaultConfig;
+  }
+
+  return makeConfig(config);
+};
+
+export { type Config, defaultConfig, makeConfig, readConfig };

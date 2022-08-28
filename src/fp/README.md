@@ -192,6 +192,26 @@ console.log("Result:", newOne.constructor);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
+### deepMerge(source, other)
+
+merges two instances with source's constructor.
+
+```js
+import { deepMerge } from "hex/fp/deep-merge";
+
+class dummy1 {}
+class dummy2 {}
+
+const source = new dummy1();
+const other = new dummy2();
+const newOne = deepMerge(source, other);
+
+// output: Result: class dummy1 {}
+console.log("Result:", newOne.constructor);
+// output: Is Same: false
+console.log(`Is Same: ${source === newOne}`);
+```
+
 ### dispatcher(initialState, mutators) (awaitable)
 
 .

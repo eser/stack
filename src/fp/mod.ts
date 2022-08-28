@@ -8,6 +8,7 @@ import * as curryRightImports from "./curry-right.ts";
 import * as curryImports from "./curry.ts";
 import * as decorateImports from "./decorate.ts";
 import * as deepCopyImports from "./deep-copy.ts";
+import * as deepMergeImports from "./deep-merge.ts";
 import * as dispatcherImports from "./dispatcher.ts";
 import * as distinctArrayImports from "./distinct-array.ts";
 import * as distinctObjectImports from "./distinct-object.ts";
@@ -53,6 +54,7 @@ const exports = {
   ...curryImports,
   ...decorateImports,
   ...deepCopyImports,
+  ...deepMergeImports,
   ...dispatcherImports,
   ...distinctArrayImports,
   ...distinctObjectImports,
@@ -99,6 +101,7 @@ export * from "./curry-right.ts";
 export * from "./curry.ts";
 export * from "./decorate.ts";
 export * from "./deep-copy.ts";
+export * from "./deep-merge.ts";
 export * from "./dispatcher.ts";
 export * from "./distinct-array.ts";
 export * from "./distinct-object.ts";

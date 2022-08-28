@@ -13,11 +13,11 @@ const composer = function composer<T>(
 ): HexFunction<T> {
   return async function* (
     input: HexFunctionInput<T>,
-    context: HexFunctionContext,
+    ctx: HexFunctionContext,
     _next?: HexFunctionNext,
   ): HexFunctionResultAsyncGen {
     let index = 0;
-    let currentContext = context;
+    let currentContext = ctx;
 
     const jump = async function* jump(
       newContext?: HexFunctionContext,

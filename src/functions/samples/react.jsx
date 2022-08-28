@@ -7,7 +7,7 @@ const ParagraphMaker = function ParagraphMaker(props) {
 };
 
 const main = function main(input) {
-  const to = input.parameters[0] ?? "world";
+  const to = input.params[0] ?? "world";
   const message = `hello ${to}`;
 
   return hex.functions.results.reactView(

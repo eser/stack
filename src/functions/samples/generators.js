@@ -5,7 +5,7 @@ function sleep(ms) {
 }
 
 const main = async function* main(input) {
-  const to = input.parameters[0] ?? "world";
+  const to = input.params[0] ?? "world";
 
   yield hex.functions.results.text(`hello ${to} #1`);
   await sleep(1000);

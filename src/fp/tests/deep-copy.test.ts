@@ -10,6 +10,17 @@ class Dummy {
 }
 
 Deno.test("hex/fp/deep-copy:basic", () => {
+  const obj1 = { value: 5 };
+
+  const result = deepCopy(obj1);
+
+  asserts.assertNotStrictEquals(result, obj1);
+  asserts.assertStrictEquals(result.constructor, Object);
+  asserts.assertEquals(result, obj1);
+  asserts.assertEquals(result, { value: 5 });
+});
+
+Deno.test("hex/fp/deep-copy:classes", () => {
   const obj1 = new Dummy({ value: 5 });
 
   const result = deepCopy(obj1);

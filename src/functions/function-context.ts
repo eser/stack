@@ -1,5 +1,4 @@
 interface HexFunctionContext {
-  options?: Record<string, unknown>;
   vars?: Record<string, unknown>;
 }
 

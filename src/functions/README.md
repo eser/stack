@@ -51,7 +51,7 @@ import {
 } from "https://deno.land/x/hex/functions/mod.ts";
 
 function main(input) {
-  const to = input.parameters[0] ?? "world";
+  const to = input.params[0] ?? "world";
   const message = `hello ${to}`;
 
   return results.text(message);
@@ -80,7 +80,7 @@ function initMiddleware(input, context, next) {
 }
 
 function validationMiddleware(input, context, next) {
-  if (input.parameters[0] === undefined) {
+  if (input.params[0] === undefined) {
     return results.error(
       "parameter is not specified",
       new Error("parameter is not specified"),
@@ -91,7 +91,7 @@ function validationMiddleware(input, context, next) {
 }
 
 function main(input, context) {
-  const message = `hello ${context.vars.number} ${input.parameters[0]}`;
+  const message = `hello ${context.vars.number} ${input.params[0]}`;
 
   return results.text(message);
 }

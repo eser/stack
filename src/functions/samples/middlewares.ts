@@ -8,20 +8,20 @@ import * as hex from "../../mod.ts";
 
 const initMiddleware = function initMiddleware(
   _input: HexFunctionInput,
-  context: HexFunctionContext,
+  ctx: HexFunctionContext,
   next?: HexFunctionNext,
 ): HexFunctionResult {
-  context.vars = { ...(context.vars ?? {}), number: 1 };
+  ctx.vars = { ...(ctx.vars ?? {}), number: 1 };
 
   return next?.();
 };
 
 const validationMiddleware = function validationMiddleware(
   input: HexFunctionInput,
-  _context: HexFunctionContext,
+  _ctx: HexFunctionContext,
   next?: HexFunctionNext,
 ): HexFunctionResult {
-  if (input.parameters[0] === undefined) {
+  if (input.params[0] === undefined) {
     return hex.functions.results.error(
       "parameter is not specified",
       new Error("parameter is not specified"),
@@ -33,9 +33,9 @@ const validationMiddleware = function validationMiddleware(
 
 const main = function main(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  ctx: HexFunctionContext,
 ): HexFunctionResult {
-  const message = `hello ${context.vars?.number} ${input.parameters[0]}`;
+  const message = `hello ${ctx.vars?.number} ${input.params[0]}`;
 
   return hex.functions.results.text(message);
 };

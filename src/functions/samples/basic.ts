@@ -7,9 +7,9 @@ import * as hex from "../../mod.ts";
 
 const main = function main(
   input: HexFunctionInput,
-  _context: HexFunctionContext,
+  _ctx: HexFunctionContext,
 ): HexFunctionResult {
-  const to = input.parameters[0] ?? "world";
+  const to = input.params[0] ?? "world";
   const message = `hello ${to}`;
 
   return hex.functions.results.text(message);

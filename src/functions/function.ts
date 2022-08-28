@@ -6,7 +6,7 @@ import { type HexFunctionResult } from "./function-result.ts";
 // deno-lint-ignore no-explicit-any
 type HexFunction<T = Record<string | number | symbol, any>> = (
   input: HexFunctionInput<T>,
-  context: HexFunctionContext,
+  ctx: HexFunctionContext,
   next?: HexFunctionNext,
 ) => HexFunctionResult;
 

@@ -11,7 +11,7 @@ const validationMiddleware = function validationMiddleware(
   _context,
   next,
 ) {
-  if (input.parameters[0] === undefined) {
+  if (input.params[0] === undefined) {
     return hex.functions.results.error(
       "parameter is not specified",
       new Error("parameter is not specified"),
@@ -22,7 +22,7 @@ const validationMiddleware = function validationMiddleware(
 };
 
 const main = function main(input, context) {
-  const message = `hello ${context.vars?.number} ${input.parameters[0]}`;
+  const message = `hello ${context.vars?.number} ${input.params[0]}`;
 
   return hex.functions.results.text(message);
 };

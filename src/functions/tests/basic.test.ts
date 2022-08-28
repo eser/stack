@@ -11,9 +11,9 @@ import {
 Deno.test("hex/functions/execute:basic", async () => {
   const fn1 = function fn1(
     input: HexFunctionInput,
-    _context: HexFunctionContext,
+    _ctx: HexFunctionContext,
   ): HexFunctionResult {
-    const to = input.parameters[0] ?? "world";
+    const to = input.params[0] ?? "world";
     const message = `hello ${to}`;
 
     return results.text(message);
@@ -34,9 +34,9 @@ Deno.test("hex/functions/execute:basic", async () => {
 Deno.test("hex/functions/execute:with-extra-data", async () => {
   const fn1 = function fn1(
     input: HexFunctionInput,
-    _context: HexFunctionContext,
+    _ctx: HexFunctionContext,
   ): HexFunctionResult {
-    const to = input.parameters[0] ?? "world";
+    const to = input.params[0] ?? "world";
     const message = `hello ${to}`;
 
     return results.text(message, { hello: "darkness" });

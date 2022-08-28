@@ -1,5 +1,7 @@
-// deno-lint-ignore ban-types
-function deepCopy<T extends object>(instance: T): T {
+// deno-lint-ignore no-explicit-any
+function deepCopy<T extends Record<string | number | symbol, any>>(
+  instance: T,
+): T {
   if (!(instance instanceof Object)) {
     return instance;
   }
@@ -8,9 +10,9 @@ function deepCopy<T extends object>(instance: T): T {
 
   return Object.keys(instance).reduce(
     (obj, itemKey) => {
-      const value =
-        (instance as Record<string | number | symbol, unknown>)[itemKey];
-      if (value instanceof Object) {
+      const value = instance[itemKey];
+
+      if (value instanceof Object && value.constructor !== Array) {
         return Object.assign(new Type(), obj, {
           [itemKey]: deepCopy(value),
         });

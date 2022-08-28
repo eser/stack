@@ -53,7 +53,7 @@ const executeFromCli = function executeFromCli(
       mimetype: "",
       format: "",
     },
-    parameters: {
+    params: {
       ...Deno.args,
     },
   };

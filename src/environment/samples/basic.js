@@ -1,7 +1,7 @@
 import * as hex from "../../mod.ts";
 
 const _fnc = function fnc(input) {
-  const to = input.parameters[0] ?? "world";
+  const to = input.params[0] ?? "world";
   const message = `hello ${to}`;
 
   return hex.functions.results.text(message);

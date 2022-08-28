@@ -13,7 +13,7 @@ const router = function router<T>(
   //      definition should be executed according to input parameters
   return function (
     _input: HexFunctionInput<T>,
-    _context: HexFunctionContext,
+    _ctx: HexFunctionContext,
     _next?: HexFunctionNext,
   ): HexFunctionResult {
     throw new Error("not implemented yet.");

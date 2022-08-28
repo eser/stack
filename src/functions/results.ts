@@ -1,32 +1,65 @@
-import { type HexFunctionResultBody } from "./function-result.ts";
+import {
+  type HexFunctionExtraData,
+  type HexFunctionResultBody,
+} from "./function-result.ts";
 
-const ok = function ok(): HexFunctionResultBody<never> {
-  return {
+const result = function result<T>(
+  body: HexFunctionResultBody<T>, // Omit<HexFunctionResultBody<T>, "with" | "extraData">,
+  extraData?: HexFunctionExtraData,
+) {
+  const newBody: HexFunctionResultBody<T> = {
+    ...body,
+    // with: (extraData: HexFunctionExtraData) => {
+    //   Object.assign(newBody.extra, extra);
+    //   return newBody;
+    // },
+  };
+
+  if (extraData !== undefined) {
+    newBody.extraData = extraData;
+  }
+
+  return newBody;
+};
+
+const ok = function ok(
+  extraData?: HexFunctionExtraData,
+): HexFunctionResultBody<never> {
+  return result<never>({
     payload: undefined,
-  };
+  }, extraData);
 };
 
-const text = function text(message: string): HexFunctionResultBody<string> {
-  return {
+const text = function text(
+  message: string,
+  extraData?: HexFunctionExtraData,
+): HexFunctionResultBody<string> {
+  return result<string>({
     payload: message,
-  };
+  }, extraData);
 };
 
-// deno-lint-ignore no-explicit-any
-const reactView = function reactView(view: any): HexFunctionResultBody<any> {
-  return {
+const reactView = function reactView(
+  // deno-lint-ignore no-explicit-any
+  view: any,
+  extraData?: HexFunctionExtraData,
+  // deno-lint-ignore no-explicit-any
+): HexFunctionResultBody<any> {
+  // deno-lint-ignore no-explicit-any
+  return result<any>({
     payload: view,
-  };
+  }, extraData);
 };
 
 const error = function error(
   message: string,
   error: Error,
+  extraData?: HexFunctionExtraData,
 ): HexFunctionResultBody<string> {
-  return {
+  return result<string>({
     payload: message,
     error: error,
-  };
+  }, extraData);
 };
 
 const results = {

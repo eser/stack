@@ -1,9 +1,16 @@
 // deno-lint-ignore no-explicit-any
 type HexFunctionPayloadTypes = any;
+// deno-lint-ignore no-explicit-any
+type HexFunctionExtraData = Record<string | number | symbol, any>;
 
 interface HexFunctionResultBody<T = HexFunctionPayloadTypes> {
   error?: Error;
   payload?: T;
+  extraData?: HexFunctionExtraData;
+
+  // with: (
+  //   extraData: HexFunctionExtraData,
+  // ) => HexFunctionResultBody<T>;
 }
 
 type HexFunctionResultAsyncGen<T = HexFunctionPayloadTypes> = AsyncGenerator<
@@ -29,6 +36,7 @@ type HexFunctionResult<T = HexFunctionPayloadTypes> =
   | void;
 
 export {
+  type HexFunctionExtraData,
   type HexFunctionResult,
   type HexFunctionResult as default,
   type HexFunctionResultAsyncGen,

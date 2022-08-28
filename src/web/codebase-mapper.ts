@@ -20,12 +20,62 @@ const checkFileNaming = function checkFileNaming(
   return false;
 };
 
+interface CodebaseItem {
+  isDynamicRoute: boolean;
+  isCatchAllRoute: boolean;
+
+  subpaths: CodebaseSubpath[];
+  handlers: { name: string }[];
+  layouts: { name: string }[];
+  translations: { name: string }[];
+  types: { name: string }[];
+  assets: { name: string }[];
+  others: { name: string }[];
+}
+
+interface CodebaseSubpath {
+  name: string;
+  items: CodebaseItem;
+}
+
+const comparer = function comparer(a: boolean, b: boolean) {
+  if (a === b) {
+    return 0;
+  }
+
+  return a ? 1 : -1;
+};
+
+const codebaseSubpathSorter = function (
+  a: CodebaseSubpath,
+  b: CodebaseSubpath,
+) {
+  const catchAllRouteComparision = comparer(
+    a.items.isCatchAllRoute,
+    b.items.isCatchAllRoute,
+  );
+
+  if (catchAllRouteComparision !== 0) {
+    return catchAllRouteComparision;
+  }
+
+  const dynamicRouteComparision = comparer(
+    a.items.isDynamicRoute,
+    b.items.isDynamicRoute,
+  );
+
+  if (dynamicRouteComparision !== 0) {
+    return dynamicRouteComparision;
+  }
+
+  return a.name.localeCompare(b.name);
+};
+
 const discoverDirectory = async function discoverDirectory(
   dir: string,
   config: Config,
 ) {
-  // deno-lint-ignore no-explicit-any
-  const result: any = {
+  const result: CodebaseItem = {
     isDynamicRoute: false,
     isCatchAllRoute: false,
 
@@ -129,6 +179,8 @@ const discoverDirectory = async function discoverDirectory(
     result.others.push({ name: entry.name });
   }
 
+  result.subpaths = result.subpaths.sort(codebaseSubpathSorter);
+
   return result;
 };
 
@@ -143,4 +195,4 @@ const codebaseMapper = async function codebaseMapper(
   return map;
 };
 
-export { codebaseMapper, codebaseMapper as default };
+export { type CodebaseItem, codebaseMapper, codebaseMapper as default };

@@ -3,8 +3,9 @@ import { type HexFunctionInput } from "./function-input.ts";
 import { type HexFunctionNext } from "./function-next.ts";
 import { type HexFunctionResult } from "./function-result.ts";
 
-type HexFunction = (
-  input: HexFunctionInput,
+// deno-lint-ignore no-explicit-any
+type HexFunction<T = Record<string | number | symbol, any>> = (
+  input: HexFunctionInput<T>,
   context: HexFunctionContext,
   next?: HexFunctionNext,
 ) => HexFunctionResult;

@@ -16,5 +16,5 @@ const main = function main(input) {
 };
 
 hex.functions.dumperReact(
-  hex.functions.execute(main),
+  hex.functions.executeFromCli(main),
 );

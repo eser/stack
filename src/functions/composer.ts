@@ -8,11 +8,11 @@ import {
   type HexFunctionResultNonIterable,
 } from "./function-result.ts";
 
-const composer = function composer(
-  ...functions: readonly HexFunction[]
-): HexFunction {
+const composer = function composer<T>(
+  ...functions: readonly HexFunction<T>[]
+): HexFunction<T> {
   return async function* (
-    input: HexFunctionInput,
+    input: HexFunctionInput<T>,
     context: HexFunctionContext,
     _next?: HexFunctionNext,
   ): HexFunctionResultAsyncGen {

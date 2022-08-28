@@ -47,5 +47,5 @@ const composed = hex.functions.composer(
 );
 
 hex.functions.dumper(
-  hex.functions.execute(composed),
+  hex.functions.executeFromCli(composed),
 );

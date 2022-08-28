@@ -8,5 +8,5 @@ const main = function main(input) {
 };
 
 hex.functions.dumper(
-  hex.functions.execute(main),
+  hex.functions.executeFromCli(main),
 );

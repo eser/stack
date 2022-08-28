@@ -8,7 +8,7 @@ const _fnc = function fnc(input) {
 };
 
 // hex.functions.dumper(
-//   hex.functions.execute(fnc),
+//   hex.functions.executeFromCli(fnc),
 // );
 
 async function main() {

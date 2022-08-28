@@ -7,36 +7,17 @@ import {
   type HexFunctionResultNonIterable,
 } from "./function-result.ts";
 
-const getDefaultInput = function getDefaultInput(): HexFunctionInput {
-  return {
-    platform: {
-      type: "cli",
-      name: "",
-    },
-    event: {
-      name: "Command",
-    },
-    requestedFormat: {
-      mimetype: "",
-      format: "",
-    },
-    parameters: {
-      ...Deno.args,
-    },
-  };
-};
-
-const execute = async function* execute(
-  target: HexFunction,
+const execute = async function* execute<T>(
+  target: HexFunction<T>,
+  input: HexFunctionInput<T>,
   context?: HexFunctionContext,
-  input?: HexFunctionInput,
 ): HexFunctionResultAsyncGen {
   const currentContext = context ?? {
     vars: {},
   };
 
   const iterator = await target(
-    input ?? getDefaultInput(),
+    input,
     currentContext,
   );
 
@@ -56,4 +37,28 @@ const execute = async function* execute(
   yield (<HexFunctionResultNonIterable> iterator);
 };
 
-export { execute, execute as default };
+const executeFromCli = function executeFromCli(
+  target: HexFunction,
+  context?: HexFunctionContext,
+): HexFunctionResultAsyncGen {
+  const input: HexFunctionInput = {
+    platform: {
+      type: "cli",
+      name: "",
+    },
+    event: {
+      name: "Command",
+    },
+    requestedFormat: {
+      mimetype: "",
+      format: "",
+    },
+    parameters: {
+      ...Deno.args,
+    },
+  };
+
+  return execute(target, input, context);
+};
+
+export { execute, execute as default, executeFromCli };

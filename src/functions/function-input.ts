@@ -1,4 +1,5 @@
-interface HexFunctionInput {
+// deno-lint-ignore no-explicit-any
+interface HexFunctionInput<T = Record<string | number | symbol, any>> {
   platform: {
     type: string;
     name: string;
@@ -8,7 +9,7 @@ interface HexFunctionInput {
     mimetype: string;
     format: string;
   };
-  parameters: Record<string, unknown>;
+  parameters: T;
 }
 
 export { type HexFunctionInput, type HexFunctionInput as default };

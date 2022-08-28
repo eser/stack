@@ -16,5 +16,5 @@ const main = function main(
 };
 
 hex.functions.dumper(
-  hex.functions.execute(main),
+  hex.functions.executeFromCli(main),
 );

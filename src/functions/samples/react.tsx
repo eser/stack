@@ -14,7 +14,7 @@ const ParagraphMaker = function ParagraphMaker(props: { text: string }) {
 
 const main = function main(
   input: HexFunctionInput,
-  context: HexFunctionContext,
+  _context: HexFunctionContext,
 ): HexFunctionResult {
   const to = input.parameters[0] ?? "world";
   const message = `hello ${to}`;
@@ -25,5 +25,5 @@ const main = function main(
 };
 
 hex.functions.dumperReact(
-  hex.functions.execute(main),
+  hex.functions.executeFromCli(main),
 );

@@ -1,7 +1,7 @@
 import { asserts } from "./deps.ts";
 
 import {
-  execute,
+  executeFromCli,
   type HexFunctionContext,
   type HexFunctionInput,
   type HexFunctionResult,
@@ -19,7 +19,7 @@ Deno.test("hex/functions/execute:basic", async () => {
     return results.text(message);
   };
 
-  const executed = await execute(fn1);
+  const executed = await executeFromCli(fn1);
 
   const result1 = await executed.next();
   const result2 = await executed.next();

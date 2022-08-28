@@ -1,4 +1,4 @@
-import { type Container } from "./container.ts";
+import { type Container } from "./containers.ts";
 
 type UseContainerBuilderResult<K, V> = () => [
   (name: K, defaultValue?: V) => V | undefined,

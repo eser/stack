@@ -1,4 +1,4 @@
-import { type Container, container } from "./container.ts";
+import { type Container, container } from "./containers.ts";
 import { useContainerBuilder } from "./use-container-builder.ts";
 
 // interface definitions

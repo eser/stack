@@ -18,15 +18,18 @@ interface Config {
     extensions?: string[];
   };
 
+  urls?: {
+    structure?: string;
+    rewrites?: {
+      source: string;
+      destination: string;
+    }[];
+  };
+
   i18n?: {
     mode?: string;
     languages?: string[];
   };
-
-  rewrites?: {
-    source: string;
-    destination: string;
-  }[];
 }
 
 const defaultConfig: Config = {
@@ -49,8 +52,15 @@ const defaultConfig: Config = {
 
   app: {
     baseDir: "./src/app/",
-    startRoute: "home",
+    // startRoute: "/en/home",
+    startRoute: "/home",
     extensions: [".tsx", ".ts", ".jsx", ".js", ".mdx", ".md"],
+  },
+
+  urls: {
+    // structure: "/[lang]/[...path]",
+    structure: "/[...path]",
+    rewrites: [],
   },
 
   i18n: {
@@ -59,8 +69,6 @@ const defaultConfig: Config = {
       "en",
     ],
   },
-
-  rewrites: [],
 };
 
 const makeConfig = (config: Config) => {

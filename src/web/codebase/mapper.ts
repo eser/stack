@@ -1,5 +1,4 @@
-import { type Config } from "./config.ts";
-import { fsWalk, pathPosix } from "./deps.ts";
+import { fsWalk } from "../deps.ts";
 
 const checkFileNaming = function checkFileNaming(
   filename: string,
@@ -71,9 +70,9 @@ const codebaseSubpathSorter = function (
   return a.name.localeCompare(b.name);
 };
 
-const discoverDirectory = async function discoverDirectory(
+const codebaseMapper = async function codebaseMapper(
   dir: string,
-  config: Config,
+  extensions: string[],
 ) {
   const result: CodebaseItem = {
     isDynamicRoute: false,
@@ -109,7 +108,7 @@ const discoverDirectory = async function discoverDirectory(
     if (entry.isDirectory) {
       result.subpaths.push({
         name: entry.name,
-        items: await discoverDirectory(`${sanitizedDir}${entry.name}`, config),
+        items: await codebaseMapper(`${sanitizedDir}${entry.name}`, extensions),
       });
 
       continue;
@@ -117,7 +116,7 @@ const discoverDirectory = async function discoverDirectory(
 
     // handlers
     if (
-      checkFileNaming(entry.name, false, "index", config.app!.extensions!)
+      checkFileNaming(entry.name, false, "index", extensions)
     ) {
       result.handlers.push({ name: entry.name });
 
@@ -126,7 +125,7 @@ const discoverDirectory = async function discoverDirectory(
 
     // layouts
     if (
-      checkFileNaming(entry.name, false, "layout", config.app!.extensions!)
+      checkFileNaming(entry.name, false, "layout", extensions)
     ) {
       result.layouts.push({ name: entry.name });
 
@@ -139,7 +138,7 @@ const discoverDirectory = async function discoverDirectory(
         entry.name,
         false,
         "translations",
-        config.app!.extensions!,
+        extensions,
       )
     ) {
       result.translations.push({ name: entry.name });
@@ -152,7 +151,7 @@ const discoverDirectory = async function discoverDirectory(
         entry.name,
         true,
         ".translations",
-        config.app!.extensions!,
+        extensions,
       )
     ) {
       result.translations.push({ name: entry.name });
@@ -162,7 +161,7 @@ const discoverDirectory = async function discoverDirectory(
 
     // types
     if (
-      checkFileNaming(entry.name, false, "types", config.app!.extensions!)
+      checkFileNaming(entry.name, false, "types", extensions)
     ) {
       result.types.push({ name: entry.name });
 
@@ -170,7 +169,7 @@ const discoverDirectory = async function discoverDirectory(
     }
 
     // assets
-    if (!checkFileNaming(entry.name, false, "", config.app!.extensions!)) {
+    if (!checkFileNaming(entry.name, false, "", extensions)) {
       result.assets.push({ name: entry.name });
 
       continue;
@@ -182,17 +181,6 @@ const discoverDirectory = async function discoverDirectory(
   result.subpaths = result.subpaths.sort(codebaseSubpathSorter);
 
   return result;
-};
-
-const codebaseMapper = async function codebaseMapper(
-  baseDir: string,
-  config: Config,
-) {
-  const rootDir = pathPosix.join(baseDir, config.app!.baseDir!);
-
-  const map = await discoverDirectory(rootDir, config);
-
-  return map;
 };
 
 export { type CodebaseItem, codebaseMapper, codebaseMapper as default };

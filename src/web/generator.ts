@@ -1,55 +1,32 @@
+import { codebaseMapper } from "./codebase/mapper.ts";
+import { transformCodebaseMapToRoutes } from "./routing/transformers.ts";
+import { urlResolver } from "./url-resolver.ts";
 import { type Config, readConfig } from "./config.ts";
-import { codebaseMapper } from "./codebase-mapper.ts";
+import { pathPosix } from "./deps.ts";
 
-interface PathContent {
-  pathElements: string[];
-  isDynamicRoute: boolean;
-  isCatchAllRoute: boolean;
-}
+const generator = async function generator(baseDir: string, config: Config) {
+  const rootDir = pathPosix.join(baseDir, config.app!.baseDir!);
 
-const extractPaths = function extractPaths(
-  pathElements: string[],
-  // deno-lint-ignore no-explicit-any
-  node: any,
-  config: Config,
-): PathContent[] {
-  let paths: PathContent[] = [];
+  const codebaseMap = await codebaseMapper(rootDir, config.app!.extensions!);
 
-  if (!node.isCatchAllRoute) {
-    for (const subnode of node.subpaths) {
-      const subpaths = extractPaths(
-        [...pathElements, subnode.name],
-        subnode.items,
-        config,
-      );
+  const routes = transformCodebaseMapToRoutes([], codebaseMap);
 
-      paths = [...paths, ...subpaths];
-    }
-  }
-
-  if (node.handlers.length > 0) {
-    paths = [...paths, {
-      pathElements,
-      isDynamicRoute: node.isDynamicRoute,
-      isCatchAllRoute: node.isCatchAllRoute,
-    }];
-  }
-
-  return paths;
+  return routes;
 };
 
-const generate = async function generate(baseDir: string) {
+const fakeRequest = async function fakeRequest() {
+  const baseDir = Deno.cwd();
   const config = await readConfig(baseDir);
 
-  const map = await codebaseMapper(baseDir, config);
+  const routes = await generator(baseDir, config);
 
-  const paths = extractPaths([], map, config);
+  const resolution = urlResolver("/en/home", routes, config);
 
-  console.log(config);
-  console.log(JSON.stringify(map, null, 2));
-  console.log(paths);
+  console.log(routes);
+  console.log(resolution);
 };
 
-generate(Deno.cwd());
+const result = await fakeRequest();
+console.log(result);
 
-export { generate, generate as default };
+export { generator, generator as default };

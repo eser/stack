@@ -15,10 +15,9 @@ on:
   push:
     branches: [ development ]
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ development ]
-  schedule:
-    - cron: '18 21 * * 6'
+    branches: [ "**" ]
+  # schedule:
+  #   - cron: '18 21 * * 6'
 
 jobs:
   analyze:

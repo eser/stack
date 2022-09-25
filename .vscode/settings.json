@@ -1,6 +1,41 @@
 {
   "deno.enable": true,
-  "deno.lint": true,
+  "deno.suggest.autoImports": true,
+  "deno.suggest.completeFunctionCalls": true,
+  "deno.suggest.imports.autoDiscover": true,
+  "deno.suggest.imports.hosts": {
+    "https://deno.land": true
+  },
+  "deno.suggest.names": true,
+  "deno.suggest.paths": true,
   "deno.unstable": true,
-  "editor.defaultFormatter": "denoland.vscode-deno"
+  "editor.defaultFormatter": "denoland.vscode-deno",
+  "coverage-gutters.coverageBaseDir": "**/etc/coverage",
+  "coverage-gutters.coverageFileNames": [ "cov_profile.lcov" ],
+  "coverage-gutters.showGutterCoverage": true,
+  "coverage-gutters.showLineCoverage": true,
+  "coverage-gutters.showRulerCoverage": true,
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    ".github/ISSUE_TEMPLATE": true,
+    ".github/FUNDING.yml": true,
+    "etc/coverage/*.json": true,
+    ".editorconfig": true,
+    "CODE_OF_CONDUCT.md": true,
+    "CONTRIBUTING.md": true,
+    "SECURITY.md": true,
+    "LICENSE": true
+  },
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/*/**": true,
+    "**/.hg/store/**": true,
+    "etc/coverage/**": true
+  }
 }

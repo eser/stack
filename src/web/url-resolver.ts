@@ -1,4 +1,4 @@
-import { assert } from "https://deno.land/std@0.153.0/_util/assert.ts";
+import { assert } from "https://deno.land/std@0.157.0/_util/assert.ts";
 import { type Config } from "./config.ts";
 
 const applyPattern = function applyPattern(

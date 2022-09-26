@@ -14,16 +14,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# Build output
-*.tsbuildinfo
-
 # sensitive files
 *.pem
 *.swp
 
-# coverage files
-etc/coverage/*.json
-etc/coverage/cov_profile.lcov
-
-# hidden
-tmp/_hidden/
+# typescript
+*.tsbuildinfo

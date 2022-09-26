@@ -1,4 +1,4 @@
-import { assert } from "https://deno.land/std@0.157.0/_util/assert.ts";
+import { asserts } from "./deps.ts";
 import { type Config } from "./config.ts";
 
 const applyPattern = function applyPattern(
@@ -55,7 +55,7 @@ const routesToRegExp = function routesToRegExp(route: string) {
 
   const routeParts = route.match(splitterRegExp);
 
-  assert(routeParts !== null, `unable to parse route: ${route}`);
+  asserts.assert(routeParts !== null, `unable to parse route: ${route}`);
 
   const splittedRegExp = routeParts.map(
     (routePart) => {
@@ -115,7 +115,7 @@ const urlResolver = function urlResolver(
 ) {
   const urlStructure = config.urls?.structure!;
 
-  assert(
+  asserts.assert(
     urlStructure.startsWith("/"),
     `config.urls.structure value must start with /.
 example: /[lang]/[...path]

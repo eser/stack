@@ -8,60 +8,75 @@ interface BaseOptions {
 type Options<T> = BaseOptions & Partial<T>;
 
 interface WrappedEnv {
-  readString: (key: string, defaultValue?: string) => string | undefined;
-  readEnum: (
+  readString: <T extends string>(
     key: string,
-    values: string[],
-    defaultValue?: string,
-  ) => string | undefined;
-  readInt: (key: string, defaultValue?: number) => number | undefined;
-  readBool: (key: string, defaultValue?: boolean) => boolean | undefined;
+    defaultValue?: T,
+  ) => T | undefined;
+  readEnum: <T extends string>(
+    key: string,
+    values: T[],
+    defaultValue?: T,
+  ) => T | undefined;
+  readInt: <T extends number>(key: string, defaultValue?: T) => T | undefined;
+  readBool: <T extends boolean>(key: string, defaultValue?: T) => T | undefined;
 }
 
 // public functions
 const wrapEnv = (env: LoadEnvResult): WrappedEnv => {
   return {
-    readString: (key: string, defaultValue?: string): string | undefined => {
-      return env[key] ?? defaultValue;
-    },
-    readEnum: (
+    readString: <T extends string>(
       key: string,
-      values: string[],
-      defaultValue?: string,
-    ): string | undefined => {
+      defaultValue?: T,
+    ): T | undefined => {
+      return env[key] as T ?? defaultValue;
+    },
+    readEnum: <T extends string>(
+      key: string,
+      values: T[],
+      defaultValue?: T,
+    ): T | undefined => {
       if (env[key] === undefined) {
         return defaultValue;
       }
 
-      if (values.includes(env[key])) {
-        return env[key];
+      if (values.includes(env[key] as T)) {
+        return env[key] as T;
       }
 
       return defaultValue;
     },
-    readInt: (key: string, defaultValue?: number): number | undefined => {
+    readInt: <T extends number>(
+      key: string,
+      defaultValue?: T,
+    ): T | undefined => {
       if (env[key] === undefined) {
         return defaultValue;
       }
 
-      return parseInt(env[key], 10);
+      return parseInt(env[key], 10) as T;
     },
-    readBool: (key: string, defaultValue?: boolean): boolean | undefined => {
+    readBool: <T extends boolean>(
+      key: string,
+      defaultValue?: T,
+    ): T | undefined => {
       if (env[key] === undefined) {
         return defaultValue;
       }
 
       if (["1", "true", true].includes(env[key].trim().toLowerCase())) {
-        return true;
+        return true as T;
       }
 
-      return false;
+      return false as T;
     },
   };
 };
 
 const loadOptions = async <T>(
-  loader: (wrappedEnv: WrappedEnv, options: Options<T>) => Options<T>,
+  loader: (
+    wrappedEnv: WrappedEnv,
+    options: Options<T>,
+  ) => Promise<Options<T> | void> | Options<T> | void,
   options?: LoadEnvOptions,
 ): Promise<Options<T>> => {
   const env = await loadEnv(options);
@@ -72,7 +87,7 @@ const loadOptions = async <T>(
     envName: env.name,
   };
 
-  const result = loader(wrappedEnv, newOptions);
+  const result = await loader(wrappedEnv, newOptions);
 
   return result ?? newOptions;
 };

@@ -1,7 +1,6 @@
 import { dotenv } from "./deps.ts";
 
 // inteface definitions
-
 interface LoadEnvOptions {
   baseDir?: string;
   defaultEnvVar?: string;
@@ -9,12 +8,11 @@ interface LoadEnvOptions {
 }
 
 interface LoadEnvResult {
-  name: string;
+  envName: string;
   [key: string]: string;
 }
 
 // public functions
-
 const loadEnvFile = async (filepath: string): Promise<dotenv.DotenvConfig> => {
   try {
     const result = dotenv.parse(
@@ -54,7 +52,7 @@ const loadEnv = async (options?: LoadEnvOptions): Promise<LoadEnvResult> => {
   Object.assign(vars, sysVars);
 
   return {
-    name: envName,
+    envName: envName,
     ...vars,
   };
 };

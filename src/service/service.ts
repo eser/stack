@@ -10,12 +10,13 @@ import {
   type RouterMiddleware,
   type State,
 } from "./http-types.ts";
-import { loadServiceOptions, ServiceOptions } from "./options.ts";
+import * as options from "../options/mod.ts";
+import { createOptionsBuilder, type ServiceOptions } from "./options.ts";
 
-interface Service {
+interface Service<TOptions extends ServiceOptions> {
   internalApp: Application;
   router: Router;
-  options: ServiceOptions;
+  options: options.Options<TOptions>;
 
   addMiddleware: (middleware: Middleware) => void;
   addHealthCheck: (path: string) => void;
@@ -36,18 +37,29 @@ interface Service {
     ]
   ) => void;
 
+  loadOptions: (loaderFn: options.LoaderFn<TOptions>) => void;
+
   start: () => Promise<void>;
 }
 
 // public functions
-const start = async (service: Service): Promise<void> => {
+const start = async <TOptions extends ServiceOptions>(
+  service: Service<TOptions>,
+): Promise<void> => {
   // boot application server
   await service.internalApp.listen({ port: service.options.port });
 };
 
-const init = async (customOptions?: ServiceOptions): Promise<Service> => {
+const init = async <TOptions extends ServiceOptions>(): Promise<
+  Service<TOptions>
+> => {
+  // service object reference
+  // deno-lint-ignore prefer-const
+  let serviceObject: Service<TOptions>;
+
   // determine options
-  const options_ = customOptions ?? await loadServiceOptions();
+  const optionsBuilder = await createOptionsBuilder<TOptions>();
+  const partialOptions = optionsBuilder.build();
 
   // initialize oak application
   const app = new oak.Application();
@@ -60,7 +72,7 @@ const init = async (customOptions?: ServiceOptions): Promise<Service> => {
       const uri = `${protocol}${hostname}:${e.port}/`;
 
       log.info(`Application is starting on ${uri}`);
-      log.debug(JSON.stringify(options_, null, 2));
+      log.debug(JSON.stringify(serviceObject.options, null, 2));
     },
   );
 
@@ -70,7 +82,7 @@ const init = async (customOptions?: ServiceOptions): Promise<Service> => {
   // init logger
   await log.setup({
     handlers: {
-      console: new log.handlers.ConsoleHandler(options_.logs ?? "INFO"),
+      console: new log.handlers.ConsoleHandler(partialOptions.logs ?? "INFO"),
     },
     loggers: {
       default: {
@@ -81,10 +93,10 @@ const init = async (customOptions?: ServiceOptions): Promise<Service> => {
   });
 
   // construct service object
-  const serviceObject: Service = {
+  serviceObject = {
     internalApp: app,
     router: router,
-    options: options_,
+    options: partialOptions,
 
     addMiddleware: (middleware: Middleware): void => {
       app.use(middleware);
@@ -135,7 +147,12 @@ const init = async (customOptions?: ServiceOptions): Promise<Service> => {
       router[method](path, ...middlewares_);
     },
 
-    start: () => start(serviceObject),
+    loadOptions: (loaderFn: options.LoaderFn<TOptions>): void => {
+      optionsBuilder.load(loaderFn);
+      serviceObject.options = optionsBuilder.build();
+    },
+
+    start: () => start<TOptions>(serviceObject),
   };
 
   return serviceObject;
@@ -147,9 +164,11 @@ const fixErrorObjectResult = (err: Error) => {
   return JSON.parse(serialized);
 };
 
-const run = async (initializer: (s: Service) => void | Promise<void>) => {
+const run = async <TOptions extends ServiceOptions>(
+  initializer: (s: Service<TOptions>) => void | Promise<void>,
+) => {
   try {
-    const service = await init();
+    const service = await init<TOptions>();
 
     // deno-lint-ignore no-explicit-any
     service.internalApp.use(async (ctx: any, next: any) => {

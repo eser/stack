@@ -107,8 +107,8 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
         P,
         S
       >[];
-      middlewares_.push((ctx: RouterContext<R, P, S>) => {
-        const result = fn?.(ctx);
+      middlewares_.push(async (ctx: RouterContext<R, P, S>) => {
+        const result = await fn?.(ctx);
 
         if (result === undefined || result === null) {
           ctx.response.body = "";

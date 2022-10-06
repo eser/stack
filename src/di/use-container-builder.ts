@@ -1,13 +1,17 @@
 import { type Container } from "./containers.ts";
 
 type UseContainerBuilderResult<K, V> = () => [
-  (token: K, defaultValue?: V) => V | undefined,
+  <V2 = V>(token: K, defaultValue?: V2) => V2 | undefined,
   {
-    get: (token: K, defaultValue?: V) => V | undefined;
+    get: <V2 = V>(
+      token: K,
+      defaultValue?: V2,
+    ) => Promise<V2 | undefined> | V2 | undefined;
     getMany: <K2 extends string | number | symbol>(
       ...tokens: K2[]
-    ) => Record<K2, V>;
+    ) => Promise<Record<K2, V | undefined>> | Record<K2, V | undefined>;
     setValue: (token: K, value: V) => void;
+    setValueLazy: (token: K, value: () => V | undefined) => void;
     setFactory: (token: K, value: () => V | undefined) => void;
   },
 ];
@@ -21,6 +25,7 @@ const useContainerBuilder = <K, V>(
       get: targetContainer.get,
       getMany: targetContainer.getMany,
       setValue: targetContainer.setValue,
+      setValueLazy: targetContainer.setValueLazy,
       setFactory: targetContainer.setFactory,
     },
   ];

@@ -3,19 +3,29 @@ import { curryFunctions } from "../fp/curry-functions.ts";
 // interface definitions
 // ---------------------
 enum ServiceType {
-  Singleton = "SINGLETON",
+  Value = "VALUE",
+  ValueLazy = "VALUE_LAZY",
   Factory = "FACTORY",
 }
 
-type ContainerItems<K, V> = Map<K, [ServiceType, V | (() => V | undefined)]>;
+type ContainerItems<K, V> = Map<
+  K,
+  [ServiceType, V | (() => V | undefined) | undefined]
+>;
 
 // deno-lint-ignore no-explicit-any
 interface Container<K = any, V = any> {
   items: ContainerItems<K, V>;
 
-  get(token: K, defaultValue?: V): V | undefined;
-  getMany<K2 extends string | number | symbol>(...tokens: K2[]): Record<K2, V>;
+  get<V2 = V>(
+    token: K,
+    defaultValue?: V2,
+  ): Promise<V2 | undefined> | V2 | undefined;
+  getMany<K2 extends string | number | symbol>(
+    ...tokens: K2[]
+  ): Promise<Record<K2, V | undefined>> | Record<K2, V | undefined>;
   setValue(token: K, value: V): void;
+  setValueLazy(token: K, value: () => V | undefined): void;
   setFactory(token: K, value: () => V | undefined): void;
 }
 
@@ -25,11 +35,18 @@ const get = <K, V>(
   containerItems: ContainerItems<K, V>,
   token: K,
   defaultValue?: V,
-): V | undefined => {
+): Promise<V | undefined> | V | undefined => {
   const stored = containerItems.get(token);
 
   if (stored === undefined) {
     return defaultValue;
+  }
+
+  if (stored[0] === ServiceType.ValueLazy) {
+    const value = (stored[1] as () => V | undefined)();
+    containerItems.set(token, [ServiceType.Value, value]);
+
+    return value;
   }
 
   if (stored[0] === ServiceType.Factory) {
@@ -42,7 +59,7 @@ const get = <K, V>(
 const getMany = <K2 extends string | number | symbol, V>(
   containerItems: ContainerItems<K2, V>,
   ...tokens: K2[]
-): Record<K2, V | undefined> => {
+): Promise<Record<K2, V | undefined>> | Record<K2, V | undefined> => {
   const items = {} as Record<K2, V | undefined>;
 
   for (const token of tokens) {
@@ -50,6 +67,14 @@ const getMany = <K2 extends string | number | symbol, V>(
 
     if (stored === undefined) {
       items[token] = undefined;
+      continue;
+    }
+
+    if (stored[0] === ServiceType.ValueLazy) {
+      const value = (stored[1] as () => V | undefined)();
+      containerItems.set(token, [ServiceType.Value, value]);
+
+      items[token] = value;
       continue;
     }
 
@@ -69,7 +94,15 @@ const setValue = <K, V>(
   token: K,
   value: V,
 ): void => {
-  containerItems.set(token, [ServiceType.Singleton, value]);
+  containerItems.set(token, [ServiceType.Value, value]);
+};
+
+const setValueLazy = <K, V>(
+  containerItems: ContainerItems<K, V>,
+  token: K,
+  value: () => V | undefined,
+): void => {
+  containerItems.set(token, [ServiceType.ValueLazy, value]);
 };
 
 const setFactory = <K, V>(
@@ -86,7 +119,10 @@ const container = <K, V>() => {
   return {
     items: map,
 
-    ...curryFunctions({ get, getMany, setValue, setFactory }, map),
+    ...curryFunctions(
+      { get, getMany, setValue, setValueLazy, setFactory },
+      map,
+    ),
   };
 };
 
@@ -100,4 +136,5 @@ export {
   type ServiceType,
   setFactory,
   setValue,
+  setValueLazy,
 };

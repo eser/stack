@@ -1,5 +1,33 @@
-import { mongo } from "./deps.ts";
-import { type Repository } from "./repository.ts";
+import { mongo } from "../deps.ts";
+import { type Connection } from "../connection.ts";
+import { type Repository } from "../repository.ts";
+
+class MongoDbConnection implements Connection {
+  uri: string;
+  client?: mongo.MongoClient;
+  database?: mongo.Database;
+
+  constructor(uri: string) {
+    this.uri = uri;
+  }
+
+  async connect() {
+    this.client = new mongo.MongoClient();
+    this.database = await this.client.connect(this.uri);
+  }
+
+  repository<T = unknown, K extends keyof any = "_id">(
+    id: string,
+  ): Repository<T, K> {
+    if (this.database === undefined) {
+      throw new Error("Database is not connected.");
+    }
+
+    const collection = this.database.collection<T>(id);
+
+    return new MongoDbRepository<T>(collection) as unknown as Repository<T, K>;
+  }
+}
 
 class MongoDbRepository<T = mongo.Bson.Document>
   implements Repository<T, "_id"> {
@@ -48,4 +76,4 @@ class MongoDbRepository<T = mongo.Bson.Document>
   }
 }
 
-export { MongoDbRepository };
+export { MongoDbConnection, MongoDbRepository };

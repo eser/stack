@@ -13,19 +13,19 @@ type ContainerItems<K, V> = Map<K, [ServiceType, V | (() => V | undefined)]>;
 interface Container<K = any, V = any> {
   items: ContainerItems<K, V>;
 
-  get(name: K, defaultValue?: V): V | undefined;
-  setValue(name: K, value: V): void;
-  setFactory(name: K, value: () => V | undefined): void;
+  get(token: K, defaultValue?: V): V | undefined;
+  setValue(token: K, value: V): void;
+  setFactory(token: K, value: () => V | undefined): void;
 }
 
 // implementation (public)
 // -----------------------
 const get = function get<K, V>(
   containerItems: ContainerItems<K, V>,
-  name: K,
+  token: K,
   defaultValue?: V,
 ): V | undefined {
-  const stored = containerItems.get(name);
+  const stored = containerItems.get(token);
 
   if (stored === undefined) {
     return defaultValue;
@@ -40,18 +40,18 @@ const get = function get<K, V>(
 
 const setValue = function setValue<K, V>(
   containerItems: ContainerItems<K, V>,
-  name: K,
+  token: K,
   value: V,
 ): void {
-  containerItems.set(name, [ServiceType.Singleton, value]);
+  containerItems.set(token, [ServiceType.Singleton, value]);
 };
 
 const setFactory = function setFactory<K, V>(
   containerItems: ContainerItems<K, V>,
-  name: K,
+  token: K,
   value: () => V | undefined,
 ): void {
-  containerItems.set(name, [ServiceType.Factory, value]);
+  containerItems.set(token, [ServiceType.Factory, value]);
 };
 
 const container = function container<K, V>() {

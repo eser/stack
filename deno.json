@@ -2,6 +2,7 @@
   "importMap": "./import_map.json",
   "compilerOptions": {
     "allowJs": true,
+    "emitDecoratorMetadata": true,
     "jsx": "react",
     "strict": true
   },

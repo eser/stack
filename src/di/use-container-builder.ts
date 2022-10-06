@@ -1,11 +1,11 @@
 import { type Container } from "./containers.ts";
 
 type UseContainerBuilderResult<K, V> = () => [
-  (name: K, defaultValue?: V) => V | undefined,
+  (token: K, defaultValue?: V) => V | undefined,
   {
-    get: (name: K, defaultValue?: V) => V | undefined;
-    setValue: (name: K, value: V) => void;
-    setFactory: (name: K, value: () => V | undefined) => void;
+    get: (token: K, defaultValue?: V) => V | undefined;
+    setValue: (token: K, value: V) => void;
+    setFactory: (token: K, value: () => V | undefined) => void;
   },
 ];
 

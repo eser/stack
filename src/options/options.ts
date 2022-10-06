@@ -19,13 +19,13 @@ interface EnvReader {
   readBool<T extends boolean>(key: string): T | undefined;
 }
 
-type LoaderFn<T> = (
+type ConfigureOptionsFn<T> = (
   envReader: EnvReader,
   options: Options<T>,
 ) => Promise<Options<T> | void> | Options<T> | void;
 
 interface BuilderResult<T> {
-  load: (loaderFn: LoaderFn<T>) => Promise<void>;
+  load: (configureOptionsFn: ConfigureOptionsFn<T>) => Promise<void>;
   build: () => Options<T>;
 }
 
@@ -105,8 +105,8 @@ const createBuilder = async <T>(
   ];
 
   return {
-    load: async (loaderFn: LoaderFn<T>): Promise<void> => {
-      const result = await loaderFn(envReader, newOptions[0]);
+    load: async (configureOptionsFn: ConfigureOptionsFn<T>): Promise<void> => {
+      const result = await configureOptionsFn(envReader, newOptions[0]);
 
       if (result !== undefined) {
         newOptions[0] = result;
@@ -119,8 +119,8 @@ const createBuilder = async <T>(
   };
 };
 
-const loadOptions = async <T>(
-  loaderFn: LoaderFn<T>,
+const configureOptions = async <T>(
+  configureOptionsFn: ConfigureOptionsFn<T>,
   options?: LoadEnvOptions,
 ): Promise<Options<T>> => {
   const [env, envReader] = await loadEnvAndCreateEnvReader(options);
@@ -130,15 +130,15 @@ const loadOptions = async <T>(
     envName: env.name,
   };
 
-  const result = await loaderFn(envReader, newOptions);
+  const result = await configureOptionsFn(envReader, newOptions);
 
   return result ?? newOptions;
 };
 
 export {
+  configureOptions,
+  type ConfigureOptionsFn,
   createBuilder,
   type LoadEnvOptions,
-  type LoaderFn,
-  loadOptions,
   type Options,
 };

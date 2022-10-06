@@ -11,6 +11,7 @@ import {
   type State,
 } from "./http-types.ts";
 import * as options from "../options/mod.ts";
+import * as di from "../di/mod.ts";
 import { createOptionsBuilder, type ServiceOptions } from "./options.ts";
 
 interface Service<TOptions extends ServiceOptions> {
@@ -37,7 +38,13 @@ interface Service<TOptions extends ServiceOptions> {
     ]
   ) => void;
 
-  loadOptions: (loaderFn: options.LoaderFn<TOptions>) => void;
+  configureOptions: (
+    configureOptionsFn: options.ConfigureOptionsFn<TOptions>,
+  ) => Promise<void>;
+
+  configureDI: (
+    configureDIFn: (registry: di.Registry) => Promise<void> | void,
+  ) => Promise<void>;
 
   start: () => Promise<void>;
 }
@@ -147,9 +154,17 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
       router[method](path, ...middlewares_);
     },
 
-    loadOptions: (loaderFn: options.LoaderFn<TOptions>): void => {
-      optionsBuilder.load(loaderFn);
+    configureOptions: async (
+      configureOptionsFn: options.ConfigureOptionsFn<TOptions>,
+    ): Promise<void> => {
+      await optionsBuilder.load(configureOptionsFn);
       serviceObject.options = optionsBuilder.build();
+    },
+
+    configureDI: async (
+      configureDIFn: (registry: di.Registry) => Promise<void> | void,
+    ) => {
+      await configureDIFn(di.registry);
     },
 
     start: () => start<TOptions>(serviceObject),

@@ -1,2 +1,2 @@
-export * from "./mongo.ts";
+export * from "./mongodb.ts";
 export * from "./repository.ts";

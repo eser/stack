@@ -19,9 +19,9 @@ const setServiceFactory = registry.setFactory;
 const useRegistry = useContainerBuilder(registry);
 
 export {
+  type Container,
   getService,
   type Registry,
-  type Container,
   registry,
   registry as default,
   setServiceFactory,

@@ -1,7 +1,8 @@
 import { mongo } from "./deps.ts";
 import { type Repository } from "./repository.ts";
 
-class MongoRepository<T = mongo.Bson.Document> implements Repository<T, "_id"> {
+class MongoDbRepository<T = mongo.Bson.Document>
+  implements Repository<T, "_id"> {
   collection: mongo.Collection<T>;
 
   constructor(collection: mongo.Collection<T>) {
@@ -47,4 +48,4 @@ class MongoRepository<T = mongo.Bson.Document> implements Repository<T, "_id"> {
   }
 }
 
-export { MongoRepository };
+export { MongoDbRepository };

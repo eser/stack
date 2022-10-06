@@ -6,7 +6,7 @@ interface LayoutProps {
   children: JSX.Element;
 }
 
-const Layout = function Layout(props: LayoutProps) {
+const Layout = (props: LayoutProps) => {
   return (
     <html lang={props.lang.code}>
       <head>

@@ -3,10 +3,10 @@ type PickFromObjectResult<T> = {
   rest: Record<string | number | symbol, T>;
 };
 
-const pickFromObject = function pickFromObject<T>(
+const pickFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   keys: readonly (string | number | symbol)[],
-): PickFromObjectResult<T> {
+): PickFromObjectResult<T> => {
   return Object.keys(instance).reduce(
     (obj, itemKey) => {
       if (keys.indexOf(itemKey) !== -1) {

@@ -5,10 +5,10 @@ const names = [
   "application/json",
 ];
 
-const fixNonSerializableObjects = function fixNonSerializableObjects(
+const fixNonSerializableObjects = (
   _key: string,
   value: unknown,
-): unknown {
+): unknown => {
   if (value instanceof Error) {
     return Object.getOwnPropertyNames(value).reduce(
       (acc: Record<string, unknown>, curr: string) => ({

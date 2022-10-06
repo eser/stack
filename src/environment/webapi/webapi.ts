@@ -1,6 +1,6 @@
 import { type Channel } from "../channel.ts";
 
-const webapi = function webapi(): Channel<string, string> {
+const webapi = (): Channel<string, string> => {
   const instance = {
     name: "webapi",
 

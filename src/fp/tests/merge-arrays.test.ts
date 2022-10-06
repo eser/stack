@@ -14,7 +14,7 @@ Deno.test("hex/fp/merge-arrays:basic", () => {
 });
 
 Deno.test("hex/fp/merge-arrays:with-generator-1", () => {
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield 1;
     yield 2;
     yield 3;
@@ -33,7 +33,7 @@ Deno.test("hex/fp/merge-arrays:with-generator-1", () => {
 
 Deno.test("hex/fp/merge-arrays:with-generator-2", () => {
   const arr1 = [1, 2, 3];
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield 4;
     yield 5;
   };

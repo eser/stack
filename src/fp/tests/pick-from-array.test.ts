@@ -19,7 +19,7 @@ Deno.test("hex/fp/pick-from-array:basic", () => {
 });
 
 Deno.test("hex/fp/pick-from-array:with-generator-1", () => {
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield 1;
     yield 2;
     yield 3;
@@ -47,7 +47,7 @@ Deno.test("hex/fp/pick-from-array:with-generator-1", () => {
 
 Deno.test("hex/fp/pick-from-array:with-generator-2", () => {
   const arr1 = [1, 2, 3, 4, 5];
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield 2;
     yield 3;
     yield 6;

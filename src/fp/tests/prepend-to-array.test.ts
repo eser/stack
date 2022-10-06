@@ -13,7 +13,7 @@ Deno.test("hex/fp/prepend-to-array:basic", () => {
 });
 
 Deno.test("hex/fp/prepend-to-array:with-generator", () => {
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield "b";
     yield "c";
   };

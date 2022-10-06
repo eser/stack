@@ -1,10 +1,10 @@
 import { asserts } from "./deps.ts";
 import { type Config } from "./config.ts";
 
-const applyPattern = function applyPattern(
+const applyPattern = (
   url: string,
   variables: Record<string, string>,
-): string {
+): string => {
   return url.replaceAll(/\[([^\]]+)\]/g, (match: string, variable) => {
     if (variables[variable]) {
       return applyPattern(variables[variable], variables);
@@ -14,28 +14,28 @@ const applyPattern = function applyPattern(
   });
 };
 
-const applyRewrites = function applyRewrites(
+const applyRewrites = (
   url: string,
   _rewrites: { source: string; destination: string }[],
-): string {
+): string => {
   // TODO
   return url;
 };
 
-const applyAll = function applyAll(
+const applyAll = (
   url: string,
   variables: Record<string, string>,
   rewrites: { source: string; destination: string }[],
-): string {
+): string => {
   return applyRewrites(
     applyPattern(url, variables),
     rewrites,
   );
 };
 
-const leadingSlashAndSpaceTrimmer = function leadingSlashAndSpaceTrimmer(
+const leadingSlashAndSpaceTrimmer = (
   urlPart: string,
-): string {
+): string => {
   return urlPart.replace(/^[\s\/]+/, "");
 };
 
@@ -45,12 +45,12 @@ interface UrlResolution {
   parameters: Record<string, string>;
 }
 
-const escapeRegExp = function escapeRegex(input: string) {
+const escapeRegExp = (input: string) => {
   // $& means the whole matched string
   return input.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&");
 };
 
-const routesToRegExp = function routesToRegExp(route: string) {
+const routesToRegExp = (route: string) => {
   const splitterRegExp = /\[[^\]]+\]|[^\s|\[]+/g;
 
   const routeParts = route.match(splitterRegExp);
@@ -80,19 +80,19 @@ const routesToRegExp = function routesToRegExp(route: string) {
 };
 
 // TODO not yet
-const _compileRoutes = function compileRoutes(
+const _compileRoutes = (
   routes: string[],
-): Record<string, RegExp> {
+): Record<string, RegExp> => {
   return routes.reduce(
     (acc, curr) => ({ ...acc, [curr]: routesToRegExp(curr) }),
     {},
   );
 };
 
-const routeMatcher = function routeMatcher(
+const routeMatcher = (
   route: string,
   url: string,
-): UrlResolution | undefined {
+): UrlResolution | undefined => {
   const routeRegExp = routesToRegExp(route);
 
   const matches = routeRegExp.exec(url);
@@ -108,11 +108,11 @@ const routeMatcher = function routeMatcher(
   };
 };
 
-const urlResolver = function urlResolver(
+const urlResolver = (
   url: string,
   routes: string[],
   config: Config,
-) {
+) => {
   const urlStructure = config.urls?.structure!;
 
   asserts.assert(

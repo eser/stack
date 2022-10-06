@@ -3,11 +3,11 @@ type MutatorType<T> = (state: T, next: NextType<T>) => Promise<T>;
 type LogType<T> = { action: string; previousState: T; newState: T };
 type LoggerType<T> = (entry: LogType<T>) => void;
 
-const dispatcher = function dispatcher<T>(
+const dispatcher = <T>(
   state: T,
   mutators: readonly MutatorType<T>[],
   loggers?: readonly LoggerType<T>[],
-): Promise<T> {
+): Promise<T> => {
   let index = 0;
 
   async function next(newState: T): Promise<T> {

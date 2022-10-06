@@ -1,11 +1,11 @@
 import { fsWalk } from "../deps.ts";
 
-const checkFileNaming = function checkFileNaming(
+const checkFileNaming = (
   filename: string,
   checkEndsWith: boolean,
   prefix: string,
   extensions: string[],
-) {
+) => {
   for (const extension of extensions) {
     if (checkEndsWith) {
       if (filename.endsWith(`${prefix}${extension}`)) {
@@ -37,7 +37,7 @@ interface CodebaseSubpath {
   items: CodebaseItem;
 }
 
-const comparer = function comparer(a: boolean, b: boolean) {
+const comparer = (a: boolean, b: boolean) => {
   if (a === b) {
     return 0;
   }
@@ -45,10 +45,10 @@ const comparer = function comparer(a: boolean, b: boolean) {
   return a ? 1 : -1;
 };
 
-const codebaseSubpathSorter = function (
+const codebaseSubpathSorter = (
   a: CodebaseSubpath,
   b: CodebaseSubpath,
-) {
+) => {
   const catchAllRouteComparision = comparer(
     a.items.isCatchAllRoute,
     b.items.isCatchAllRoute,
@@ -70,10 +70,10 @@ const codebaseSubpathSorter = function (
   return a.name.localeCompare(b.name);
 };
 
-const codebaseMapper = async function codebaseMapper(
+const codebaseMapper = async (
   dir: string,
   extensions: string[],
-) {
+) => {
   const result: CodebaseItem = {
     isDynamicRoute: false,
     isCatchAllRoute: false,

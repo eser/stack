@@ -15,10 +15,10 @@ interface Environment {
   ) => Promise<TR | undefined>;
 }
 
-const environment = function environment(
+const environment = (
   // deno-lint-ignore no-explicit-any
   ...channels: Channel<any, any>[]
-): Environment {
+): Environment => {
   const dispatch = async function dispatch<T>(
     method: ChannelMethods,
     ...args: readonly T[]

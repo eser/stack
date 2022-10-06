@@ -4,9 +4,9 @@ import { type HexFunctionInput } from "./function-input.ts";
 import { type HexFunctionNext } from "./function-next.ts";
 import { type HexFunctionResult } from "./function-result.ts";
 
-const router = function router<T>(
+const router = <T>(
   ..._routes: readonly HexFunction<T>[]
-): HexFunction<T> {
+): HexFunction<T> => {
   // TODO(@eserozvataf) collect each route definition by executing them
 
   // TODO(@eserozvataf) return an HexFunction that decides which route

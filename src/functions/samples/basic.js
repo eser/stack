@@ -1,6 +1,6 @@
 import * as hex from "../../mod.ts";
 
-const main = function main(input) {
+const main = (input) => {
   const to = input.params[0] ?? "world";
   const message = `hello ${to}`;
 

@@ -13,7 +13,7 @@ Deno.test("hex/fp/drop-from-array:basic", () => {
 });
 
 Deno.test("hex/fp/drop-from-array:with-generator", () => {
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield "a";
     yield "b";
     yield "c";

@@ -6,21 +6,21 @@ import {
 } from "../mod.ts";
 import * as hex from "../../mod.ts";
 
-const initMiddleware = function initMiddleware(
+const initMiddleware = (
   _input: HexFunctionInput,
   ctx: HexFunctionContext,
   next?: HexFunctionNext,
-): HexFunctionResult {
+): HexFunctionResult => {
   ctx.vars = { ...(ctx.vars ?? {}), number: 1 };
 
   return next?.();
 };
 
-const validationMiddleware = function validationMiddleware(
+const validationMiddleware = (
   input: HexFunctionInput,
   _ctx: HexFunctionContext,
   next?: HexFunctionNext,
-): HexFunctionResult {
+): HexFunctionResult => {
   if (input.params[0] === undefined) {
     return hex.functions.results.error(
       "parameter is not specified",
@@ -31,10 +31,10 @@ const validationMiddleware = function validationMiddleware(
   return next?.();
 };
 
-const main = function main(
+const main = (
   input: HexFunctionInput,
   ctx: HexFunctionContext,
-): HexFunctionResult {
+): HexFunctionResult => {
   const message = `hello ${ctx.vars?.number} ${input.params[0]}`;
 
   return hex.functions.results.text(message);

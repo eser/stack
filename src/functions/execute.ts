@@ -37,10 +37,10 @@ const execute = async function* execute<T>(
   yield (<HexFunctionResultNonIterable> iterator);
 };
 
-const executeFromCli = function executeFromCli(
+const executeFromCli = (
   target: HexFunction,
   context?: HexFunctionContext,
-): HexFunctionResultAsyncGen {
+): HexFunctionResultAsyncGen => {
   const input: HexFunctionInput = {
     platform: {
       type: "cli",

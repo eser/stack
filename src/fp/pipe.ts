@@ -1,9 +1,9 @@
 // deno-lint-ignore no-explicit-any
 type ComposableFunction = (...args: readonly any[]) => any;
 
-const pipe = function pipe(
+const pipe = (
   ...funcs: readonly ComposableFunction[]
-): ComposableFunction {
+): ComposableFunction => {
   return funcs.reduce(
     (previousFunction, currentFunction) => (...args) =>
       currentFunction(previousFunction(...args)),

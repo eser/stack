@@ -3,10 +3,10 @@ type SplitObjectResult<T> = {
   rest: Record<string | number | symbol, T>;
 };
 
-const splitObject = function splitObject<T>(
+const splitObject = <T>(
   instance: Record<string | number | symbol, T>,
   n: number,
-): SplitObjectResult<T> {
+): SplitObjectResult<T> => {
   let index = 0;
 
   return Object.keys(instance).reduce(

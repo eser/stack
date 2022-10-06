@@ -20,10 +20,10 @@ import { type Formatter } from "./formatter.ts";
 //   const jsonFormatter = registry.findByName("json");
 //
 
-const findByName = function findByName(
+const findByName = (
   formatters: Iterable<Formatter>,
   name: string,
-): Formatter | undefined {
+): Formatter | undefined => {
   for (const formatter of formatters) {
     if (formatter.names.includes(name)) {
       return formatter;
@@ -39,7 +39,7 @@ interface Registry {
   findByName(name: string): Formatter | undefined;
 }
 
-const registry = function registry(formatters: Iterable<Formatter>): Registry {
+const registry = (formatters: Iterable<Formatter>): Registry => {
   const created: Partial<Registry> = {
     items: formatters,
   };

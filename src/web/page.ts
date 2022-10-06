@@ -1,8 +1,8 @@
-const HeadContents = function HeadContents() {
+const HeadContents = () => {
   throw new Error("not implemented yet.");
 };
 
-const BodyContents = function BodyContents() {
+const BodyContents = () => {
   throw new Error("not implemented yet.");
 };
 

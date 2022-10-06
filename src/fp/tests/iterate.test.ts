@@ -3,7 +3,7 @@ import { pipe } from "../pipe.ts";
 import { iterate } from "../iterate.ts";
 
 Deno.test("hex/fp/iterate:basic", async () => {
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield 1;
     yield 2;
     yield 3;
@@ -29,7 +29,7 @@ Deno.test("hex/fp/iterate:async", async () => {
       );
     });
 
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield 1;
     yield 2;
     yield 3;
@@ -47,7 +47,7 @@ Deno.test("hex/fp/iterate:async", async () => {
 });
 
 Deno.test("hex/fp/iterate:with pipe", async () => {
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield { value: 1 };
     yield { value: 2 };
     yield { value: 3 };

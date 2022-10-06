@@ -13,7 +13,7 @@ interface PageProps {
   lang: Language;
 }
 
-const Page = function HomeIndex(input: HexFunctionInput<PageProps>) {
+const Page = (_input: HexFunctionInput<PageProps>) => {
   return results.reactView(
     <div>
       <h1>Homepage</h1>

@@ -5,10 +5,10 @@ import {
 } from "../mod.ts";
 import * as hex from "../../mod.ts";
 
-const main = function main(
+const main = (
   input: HexFunctionInput,
   _ctx: HexFunctionContext,
-): HexFunctionResult {
+): HexFunctionResult => {
   const to = input.params[0] ?? "world";
   const message = `hello ${to}`;
 

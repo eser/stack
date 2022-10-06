@@ -13,7 +13,7 @@ Deno.test("hex/fp/remove-first-match-from-array:basic", () => {
 });
 
 Deno.test("hex/fp/remove-first-match-from-array:with-generator", () => {
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield 1;
     yield 5;
     yield 2;

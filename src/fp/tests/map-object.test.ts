@@ -16,10 +16,10 @@ Deno.test("hex/fp/map-object:basic", () => {
 
 Deno.test("hex/fp/map-object:with-value-skipping", () => {
   const obj1 = { a: 1, b: 2, c: null };
-  const func1 = function func(
+  const func1 = (
     value: number | null,
     key: string | number | symbol,
-  ) {
+  ) => {
     if (value === null) {
       return null;
     }

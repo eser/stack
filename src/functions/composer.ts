@@ -8,9 +8,9 @@ import {
   type HexFunctionResultNonIterable,
 } from "./function-result.ts";
 
-const composer = function composer<T>(
+const composer = <T>(
   ...functions: readonly HexFunction<T>[]
-): HexFunction<T> {
+): HexFunction<T> => {
   return async function* (
     input: HexFunctionInput<T>,
     ctx: HexFunctionContext,

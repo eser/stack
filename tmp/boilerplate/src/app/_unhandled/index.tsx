@@ -5,7 +5,7 @@ interface PageProps {
   lang: Language;
 }
 
-const Page = function HomeIndex(ctx: Context<PageProps>) {
+const Page = (_ctx: Context<PageProps>) => {
   return results.reactView(
     <div>
       <h1>Homepage</h1>

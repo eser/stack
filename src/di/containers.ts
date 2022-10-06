@@ -14,17 +14,18 @@ interface Container<K = any, V = any> {
   items: ContainerItems<K, V>;
 
   get(token: K, defaultValue?: V): V | undefined;
+  getMany<K2 extends string | number | symbol>(...tokens: K2[]): Record<K2, V>;
   setValue(token: K, value: V): void;
   setFactory(token: K, value: () => V | undefined): void;
 }
 
 // implementation (public)
 // -----------------------
-const get = function get<K, V>(
+const get = <K, V>(
   containerItems: ContainerItems<K, V>,
   token: K,
   defaultValue?: V,
-): V | undefined {
+): V | undefined => {
   const stored = containerItems.get(token);
 
   if (stored === undefined) {
@@ -38,29 +39,54 @@ const get = function get<K, V>(
   return stored[1] as V;
 };
 
-const setValue = function setValue<K, V>(
+const getMany = <K2 extends string | number | symbol, V>(
+  containerItems: ContainerItems<K2, V>,
+  ...tokens: K2[]
+): Record<K2, V | undefined> => {
+  const items = {} as Record<K2, V | undefined>;
+
+  for (const token of tokens) {
+    const stored = containerItems.get(token);
+
+    if (stored === undefined) {
+      items[token] = undefined;
+      continue;
+    }
+
+    if (stored[0] === ServiceType.Factory) {
+      items[token] = (stored[1] as () => V | undefined)();
+      continue;
+    }
+
+    items[token] = stored[1] as V;
+  }
+
+  return items;
+};
+
+const setValue = <K, V>(
   containerItems: ContainerItems<K, V>,
   token: K,
   value: V,
-): void {
+): void => {
   containerItems.set(token, [ServiceType.Singleton, value]);
 };
 
-const setFactory = function setFactory<K, V>(
+const setFactory = <K, V>(
   containerItems: ContainerItems<K, V>,
   token: K,
   value: () => V | undefined,
-): void {
+): void => {
   containerItems.set(token, [ServiceType.Factory, value]);
 };
 
-const container = function container<K, V>() {
+const container = <K, V>() => {
   const map = new Map<K, V>();
 
   return {
     items: map,
 
-    ...curryFunctions({ get, setValue, setFactory }, map),
+    ...curryFunctions({ get, getMany, setValue, setFactory }, map),
   };
 };
 
@@ -70,6 +96,7 @@ export {
   container as default,
   type ContainerItems,
   get,
+  getMany,
   type ServiceType,
   setFactory,
   setValue,

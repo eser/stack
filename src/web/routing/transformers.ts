@@ -1,9 +1,9 @@
 import { type CodebaseItem } from "../codebase/mapper.ts";
 
-const transformCodebaseMapToRoutes = function transformCodebaseMapToRoutes(
+const transformCodebaseMapToRoutes = (
   pathElements: string[],
   codebaseMapNode: CodebaseItem,
-): string[] {
+): string[] => {
   let paths: string[] = [];
 
   if (!codebaseMapNode.isCatchAllRoute) {

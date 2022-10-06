@@ -14,7 +14,7 @@ Deno.test("hex/fp/remove-index-from-array:basic", () => {
 });
 
 Deno.test("hex/fp/remove-index-from-array:with-generator", () => {
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield 1;
     yield 2;
     yield 3;

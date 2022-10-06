@@ -1,6 +1,6 @@
 import { curry } from "./curry.ts";
 
-const curryFunctions = function curryFunctions<
+const curryFunctions = <
   T1,
   T2 extends Record<
     string | number | symbol,
@@ -10,7 +10,7 @@ const curryFunctions = function curryFunctions<
 >(
   funcs: T2,
   ...args: readonly T1[]
-) {
+) => {
   return Object.keys(funcs).reduce(
     (obj, itemKey) => {
       return { ...obj, [itemKey]: curry(funcs[itemKey], ...args) };

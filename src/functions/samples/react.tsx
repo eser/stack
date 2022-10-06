@@ -8,14 +8,14 @@ import * as hex from "../../mod.ts";
 // @deno-types="https://denopkg.com/soremwar/deno_types/react/v16.13.1/react.d.ts"
 import React from "https://jspm.dev/react@17.0.2";
 
-const ParagraphMaker = function ParagraphMaker(props: { text: string }) {
+const ParagraphMaker = (props: { text: string }) => {
   return <p>{props.text}</p>;
 };
 
-const main = function main(
+const main = (
   input: HexFunctionInput,
   _ctx: HexFunctionContext,
-): HexFunctionResult {
+): HexFunctionResult => {
   const to = input.params[0] ?? "world";
   const message = `hello ${to}`;
 

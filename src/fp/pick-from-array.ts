@@ -1,9 +1,9 @@
 type PickFromArrayResult<T> = { items: T[]; rest: T[] };
 
-const pickFromArray = function pickFromArray<T>(
+const pickFromArray = <T>(
   instance: Iterable<T>,
   items: Iterable<T>,
-): PickFromArrayResult<T> {
+): PickFromArrayResult<T> => {
   const arrInstance = (instance.constructor === Array)
     ? <T[]> instance
     : [...instance];

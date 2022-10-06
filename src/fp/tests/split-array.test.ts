@@ -17,7 +17,7 @@ Deno.test("hex/fp/split-array:basic", () => {
 });
 
 Deno.test("hex/fp/split-array:with-generator-1", () => {
-  const gen1 = function* gen() {
+  const gen1 = function* () {
     yield 1;
     yield 2;
     yield 3;

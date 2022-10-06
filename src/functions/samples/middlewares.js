@@ -1,16 +1,16 @@
 import * as hex from "../../mod.ts";
 
-const initMiddleware = function initMiddleware(_input, context, next) {
+const initMiddleware = (_input, context, next) => {
   context.vars.number = 1;
 
   return next();
 };
 
-const validationMiddleware = function validationMiddleware(
+const validationMiddleware = (
   input,
   _context,
   next,
-) {
+) => {
   if (input.params[0] === undefined) {
     return hex.functions.results.error(
       "parameter is not specified",
@@ -21,7 +21,7 @@ const validationMiddleware = function validationMiddleware(
   return next();
 };
 
-const main = function main(input, context) {
+const main = (input, context) => {
   const message = `hello ${context.vars?.number} ${input.params[0]}`;
 
   return hex.functions.results.text(message);

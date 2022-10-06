@@ -3,10 +3,10 @@ import {
   type HexFunctionResultBody,
 } from "./function-result.ts";
 
-const result = function result<T>(
+const result = <T>(
   body: HexFunctionResultBody<T>, // Omit<HexFunctionResultBody<T>, "with" | "extraData">,
   extraData?: HexFunctionExtraData,
-) {
+) => {
   const newBody: HexFunctionResultBody<T> = {
     ...body,
     // with: (extraData: HexFunctionExtraData) => {
@@ -22,40 +22,40 @@ const result = function result<T>(
   return newBody;
 };
 
-const ok = function ok(
+const ok = (
   extraData?: HexFunctionExtraData,
-): HexFunctionResultBody<never> {
+): HexFunctionResultBody<never> => {
   return result<never>({
     payload: undefined,
   }, extraData);
 };
 
-const text = function text(
+const text = (
   message: string,
   extraData?: HexFunctionExtraData,
-): HexFunctionResultBody<string> {
+): HexFunctionResultBody<string> => {
   return result<string>({
     payload: message,
   }, extraData);
 };
 
-const reactView = function reactView(
+const reactView = (
   // deno-lint-ignore no-explicit-any
   view: any,
   extraData?: HexFunctionExtraData,
   // deno-lint-ignore no-explicit-any
-): HexFunctionResultBody<any> {
+): HexFunctionResultBody<any> => {
   // deno-lint-ignore no-explicit-any
   return result<any>({
     payload: view,
   }, extraData);
 };
 
-const error = function error(
+const error = (
   message: string,
   error: Error,
   extraData?: HexFunctionExtraData,
-): HexFunctionResultBody<string> {
+): HexFunctionResultBody<string> => {
   return result<string>({
     payload: message,
     error: error,

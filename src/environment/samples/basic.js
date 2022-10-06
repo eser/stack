@@ -1,6 +1,6 @@
 import * as hex from "../../mod.ts";
 
-const _fnc = function fnc(input) {
+const _fnc = (input) => {
   const to = input.params[0] ?? "world";
   const message = `hello ${to}`;
 
@@ -11,12 +11,12 @@ const _fnc = function fnc(input) {
 //   hex.functions.executeFromCli(fnc),
 // );
 
-async function main() {
+const main = async () => {
   const env = hex.environment.environment(
     hex.environment.cli(),
   );
 
   await env.dispatch("write", "Hello, world!");
-}
+};
 
 main();

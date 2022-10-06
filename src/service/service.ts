@@ -1,53 +1,19 @@
 import { log, oak } from "./deps.ts";
 import {
-  type Application,
   type Context,
   type HttpMethods,
   type Middleware,
   type RouteParams,
-  type Router,
   type RouterContext,
   type RouterMiddleware,
+  type Service,
+  type ServiceOptions,
   type State,
-} from "./http-types.ts";
+} from "./types.ts";
 import * as options from "../options/mod.ts";
 import * as di from "../di/mod.ts";
-import { createOptionsBuilder, type ServiceOptions } from "./options.ts";
-
-interface Service<TOptions extends ServiceOptions> {
-  internalApp: Application;
-  router: Router;
-  options: options.Options<TOptions>;
-
-  addMiddleware: (middleware: Middleware) => void;
-  addHealthCheck: (path: string) => void;
-  addRoute: <
-    R extends string,
-    P extends RouteParams<R> = RouteParams<R>,
-    // deno-lint-ignore no-explicit-any
-    S extends State = Record<string, any>,
-  >(
-    method: HttpMethods,
-    path: R,
-    ...middlewares: [
-      ...RouterMiddleware<R, P, S>[],
-      (ctx: RouterContext<R, P, S> | Context) => unknown,
-    ] | [
-      // FIXME sorry, it's mandatory hack for typescript
-      (ctx: Context) => unknown,
-    ]
-  ) => void;
-
-  configureOptions: (
-    configureOptionsFn: options.ConfigureOptionsFn<TOptions>,
-  ) => Promise<void>;
-
-  configureDI: (
-    configureDIFn: (registry: di.Registry) => Promise<void> | void,
-  ) => Promise<void>;
-
-  start: () => Promise<void>;
-}
+import { createOptionsBuilder } from "./options.ts";
+import { errorHandlerMiddleware } from "./middlewares/error-handler.ts";
 
 // public functions
 const start = async <TOptions extends ServiceOptions>(
@@ -173,42 +139,13 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
   return serviceObject;
 };
 
-const fixErrorObjectResult = (err: Error) => {
-  const serialized = JSON.stringify(err, Object.getOwnPropertyNames(err));
-
-  return JSON.parse(serialized);
-};
-
 const run = async <TOptions extends ServiceOptions>(
   initializer: (s: Service<TOptions>) => void | Promise<void>,
 ) => {
   try {
     const service = await init<TOptions>();
 
-    // deno-lint-ignore no-explicit-any
-    service.internalApp.use(async (ctx: any, next: any) => {
-      try {
-        await next();
-      } catch (err) {
-        log.error(err);
-
-        if (oak.isHttpError(err)) {
-          ctx.response.status = err.status;
-        } else {
-          ctx.response.status = 500;
-        }
-
-        if (service.options.envName === "production") {
-          ctx.response.body = { error: err.message };
-        } else {
-          ctx.response.body = {
-            error: err.message,
-            details: fixErrorObjectResult(err),
-          };
-        }
-        ctx.response.type = "json";
-      }
-    });
+    service.internalApp.use(errorHandlerMiddleware(service));
 
     await initializer(service);
 

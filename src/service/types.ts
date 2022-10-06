@@ -47,6 +47,7 @@ interface ServiceOptions {
 interface Service<TOptions extends ServiceOptions> {
   internalApp: Application;
   router: Router;
+  registry: di.Registry;
   options: options.Options<TOptions>;
 
   addMiddleware: (middleware: Middleware) => void;

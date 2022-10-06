@@ -69,6 +69,7 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
   serviceObject = {
     internalApp: app,
     router: router,
+    registry: di.registry,
     options: partialOptions,
 
     addMiddleware: (middleware: Middleware): void => {

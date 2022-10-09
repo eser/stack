@@ -4,13 +4,16 @@ import { useContainerBuilder } from "./use-container-builder.ts";
 // interface definitions
 // ---------------------
 // deno-lint-ignore no-explicit-any
-type Registry = Container<string | symbol, any>;
+type Class = { new (...args: any[]): any };
+
+// deno-lint-ignore no-explicit-any
+type Registry = Container<Class | symbol | string, any>;
 
 // implementation (public)
 // -----------------------
 // this field is used to store service objects
 // deno-lint-ignore no-explicit-any
-const registry: Registry = container<string | symbol, any>();
+const registry: Registry = container<Class | symbol | string, any>();
 
 const getService = registry.get;
 const getServices = registry.getMany;

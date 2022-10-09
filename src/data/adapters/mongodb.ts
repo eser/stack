@@ -12,49 +12,64 @@ class MongoDbConnection implements Connection {
   }
 
   async connect() {
+    if (this.client !== undefined) {
+      return;
+    }
+
     this.client = new mongo.MongoClient();
     this.database = await this.client.connect(this.uri);
   }
 
+  // deno-lint-ignore no-explicit-any
   repository<T = unknown, K extends keyof any = "_id">(
     id: string,
   ): Repository<T, K> {
-    if (this.database === undefined) {
-      throw new Error("Database is not connected.");
-    }
-
-    const collection = this.database.collection<T>(id);
-
-    return new MongoDbRepository<T>(collection) as unknown as Repository<T, K>;
+    return new MongoDbRepository<T>(this, id) as unknown as Repository<T, K>;
   }
 }
 
 class MongoDbRepository<T = mongo.Bson.Document>
   implements Repository<T, "_id"> {
-  collection: mongo.Collection<T>;
+  connection: MongoDbConnection;
+  collectionName: string;
 
-  constructor(collection: mongo.Collection<T>) {
-    this.collection = collection;
+  constructor(connection: MongoDbConnection, collectionName: string) {
+    this.connection = connection;
+    this.collectionName = collectionName;
   }
 
-  get(id: string): Promise<T | undefined> {
-    return this.collection.findOne({
+  async getCollection(): Promise<mongo.Collection<T>> {
+    await this.connection.connect();
+
+    return this.connection.database!.collection<T>(this.collectionName);
+  }
+
+  async get(id: string): Promise<T | undefined> {
+    const collection = await this.getCollection();
+
+    return collection.findOne({
       _id: new mongo.ObjectId(id),
     });
   }
 
-  getAll(): Promise<T[]> {
-    return this.collection.find().toArray();
+  async getAll(): Promise<T[]> {
+    const collection = await this.getCollection();
+
+    return collection.find().toArray();
   }
 
   async add(data: Omit<T, "_id">): Promise<string> {
-    const id = await this.collection.insertOne(data);
+    const collection = await this.getCollection();
+
+    const id = await collection.insertOne(data);
 
     return String(id);
   }
 
   async update(id: string, data: Partial<T>): Promise<void> {
-    await this.collection.updateOne(
+    const collection = await this.getCollection();
+
+    await collection.updateOne(
       { _id: new mongo.ObjectId(id) },
       // @ts-ignore a bug in type definition
       { $set: data },
@@ -62,7 +77,9 @@ class MongoDbRepository<T = mongo.Bson.Document>
   }
 
   async replace(id: string, data: Omit<T, "_id">): Promise<void> {
-    await this.collection.replaceOne(
+    const collection = await this.getCollection();
+
+    await collection.replaceOne(
       { _id: new mongo.ObjectId(id) },
       // @ts-ignore a bug in type definition
       data,
@@ -70,7 +87,9 @@ class MongoDbRepository<T = mongo.Bson.Document>
   }
 
   async remove(id: string): Promise<void> {
-    await this.collection.deleteOne(
+    const collection = await this.getCollection();
+
+    await collection.deleteOne(
       { _id: new mongo.ObjectId(id) },
     );
   }

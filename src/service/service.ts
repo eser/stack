@@ -34,8 +34,17 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
   const optionsBuilder = await createOptionsBuilder<TOptions>();
   const partialOptions = optionsBuilder.build();
 
+  // define routes
+  const router = new oak.Router();
+
+  const appState = {
+    router: router,
+    registry: di.registry,
+    options: partialOptions,
+  };
+
   // initialize oak application
-  const app = new oak.Application();
+  const app = new oak.Application({ state: appState });
 
   app.addEventListener(
     "listen",
@@ -48,9 +57,6 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
       log.debug(JSON.stringify(serviceObject.options, null, 2));
     },
   );
-
-  // define routes
-  const router = new oak.Router();
 
   // init logger
   await log.setup({
@@ -68,9 +74,7 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
   // construct service object
   serviceObject = {
     internalApp: app,
-    router: router,
-    registry: di.registry,
-    options: partialOptions,
+    ...appState,
 
     addMiddleware: (middleware: Middleware): void => {
       app.use(middleware);

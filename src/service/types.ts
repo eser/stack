@@ -2,10 +2,11 @@ import * as di from "../di/mod.ts";
 import * as options from "../options/mod.ts";
 import { logLevels, oak } from "./deps.ts";
 
-type Application = oak.Application;
+type State = oak.State;
+// deno-lint-ignore no-explicit-any
+type Application<AS extends State = Record<string, any>> = oak.Application<AS>;
 type Middleware = oak.Middleware;
 type Router = oak.Router;
-type State = oak.State;
 type Context = oak.Context & {
   params: Record<string, string>;
 };
@@ -44,11 +45,15 @@ interface ServiceOptions {
   logs: logLevels.LevelName;
 }
 
-interface Service<TOptions extends ServiceOptions> {
-  internalApp: Application;
+interface ServiceState<TOptions extends ServiceOptions> {
   router: Router;
   registry: di.Registry;
   options: options.Options<TOptions>;
+}
+
+interface Service<TOptions extends ServiceOptions>
+  extends ServiceState<TOptions> {
+  internalApp: Application<ServiceState<TOptions>>;
 
   addMiddleware: (middleware: Middleware) => void;
   addHealthCheck: (path: string) => void;

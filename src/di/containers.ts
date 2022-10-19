@@ -8,13 +8,17 @@ enum ServiceType {
   Factory = "FACTORY",
 }
 
-type ContainerItems<K, V> = Map<
+// deno-lint-ignore no-explicit-any
+type Class = { new (...args: any[]): any };
+
+// deno-lint-ignore no-explicit-any
+type ContainerItems<K = Class | symbol | string, V = any> = Map<
   K,
   [ServiceType, V | (() => V | undefined) | undefined]
 >;
 
 // deno-lint-ignore no-explicit-any
-interface Container<K = any, V = any> {
+interface Container<K = Class | symbol | string, V = any> {
   items: ContainerItems<K, V>;
 
   get<V2 = V>(
@@ -113,7 +117,7 @@ const setFactory = <K, V>(
   containerItems.set(token, [ServiceType.Factory, value]);
 };
 
-const container = <K, V>() => {
+const container = <K = Class | symbol | string, V = any>() => {
   const map = new Map<K, V>();
 
   return {

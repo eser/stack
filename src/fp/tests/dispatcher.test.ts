@@ -16,7 +16,7 @@ Deno.test("hex/fp/dispatcher:basic", async () => {
   asserts.assertEquals(result, { quarter: 1, year: 2018, sum: 3 });
 });
 
-Deno.test("hex/fp/dispatcher:with logger", async () => {
+Deno.test("hex/fp/dispatcher:logger", async () => {
   const initialState = { quarter: 1, year: 2018, sum: 1 };
 
   const actionAdd5 = (state: StateType, next: NextType<StateType>) =>
@@ -46,7 +46,7 @@ Deno.test("hex/fp/dispatcher:with logger", async () => {
   ]);
 });
 
-Deno.test("hex/fp/dispatcher:with promises", async () => {
+Deno.test("hex/fp/dispatcher:promises", async () => {
   const initialState = 0;
 
   const delay = (num: number) =>

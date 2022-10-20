@@ -1,7 +1,10 @@
 import { type Container } from "./containers.ts";
 
 type UseContainerBuilderResult<K, V> = () => [
-  <V2 = V>(token: K, defaultValue?: V2) => Promise<V2 | undefined> | V2 | undefined,
+  <V2 = V>(
+    token: K,
+    defaultValue?: V2,
+  ) => Promise<V2 | undefined> | V2 | undefined,
   {
     get: <V2 = V>(
       token: K,

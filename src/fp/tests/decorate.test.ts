@@ -12,7 +12,7 @@ Deno.test("hex/fp/decorate:basic", () => {
   asserts.assertEquals(result, 11);
 });
 
-Deno.test("hex/fp/decorate:with parameters", () => {
+Deno.test("hex/fp/decorate:parameters", () => {
   let generator = (a: number) => a + 5;
 
   generator = decorate(generator, (x, a) => x(a) * 2);

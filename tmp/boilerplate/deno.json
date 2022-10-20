@@ -1,5 +1,9 @@
 {
+  "importMap": "./import_map.json",
   "compilerOptions": {
+    "allowJs": true,
+    "emitDecoratorMetadata": true,
+    "jsx": "react",
     "strict": true
   },
   "lint": {
@@ -40,11 +44,10 @@
     }
   },
   "tasks": {
-    "test": "deno test ./src/ --coverage=./etc/cov_profile",
-    "test:coverage": "deno coverage ./etc/cov_profile",
-    "test:generate-lcov": "deno coverage ./etc/cov_profile --lcov > ./etc/cov_profile/cov_profile.lcov",
+    "test": "deno test --allow-net --allow-env --allow-read ./src/ --parallel --coverage=./etc/coverage",
+    "test:coverage": "deno coverage ./etc/coverage",
+    "test:generate-lcov": "deno coverage ./etc/coverage --lcov > ./etc/coverage/cov_profile.lcov",
     "bench": "deno bench ./src/ --unstable",
-    "start": "deno run -A --watch=src/,public/ dev.ts"
-  },
-  "importMap": "./import_map.json"
+    "dev": "deno run -A --watch=src/,public/ dev.ts"
+  }
 }

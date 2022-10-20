@@ -1,4 +1,4 @@
-import { asserts } from "./deps.ts";
+import { asserts, mock } from "./deps.ts";
 import { container } from "../containers.ts";
 
 Deno.test("hex/di/container:basic", () => {
@@ -15,7 +15,7 @@ Deno.test("hex/di/container:empty", () => {
   asserts.assertStrictEquals(sandbox.get("_"), undefined);
 });
 
-Deno.test("hex/di/container:with symbols", () => {
+Deno.test("hex/di/container:symbols", () => {
   const sandbox = container();
   const b = Symbol("b");
 
@@ -24,7 +24,7 @@ Deno.test("hex/di/container:with symbols", () => {
   asserts.assertStrictEquals(sandbox.get(b), 6);
 });
 
-Deno.test("hex/di/container:with nullables", () => {
+Deno.test("hex/di/container:nullables", () => {
   const sandbox = container();
 
   sandbox.setValue("c", null);
@@ -36,7 +36,7 @@ Deno.test("hex/di/container:with nullables", () => {
   asserts.assertStrictEquals(sandbox.get("f"), undefined);
 });
 
-Deno.test("hex/di/container:with functions", () => {
+Deno.test("hex/di/container:functions", () => {
   const sandbox = container();
 
   sandbox.setValue("g", (x: number) => x + 3);
@@ -47,7 +47,7 @@ Deno.test("hex/di/container:with functions", () => {
   asserts.assertStrictEquals(result(5), 8);
 });
 
-Deno.test("hex/di/container:with factory", () => {
+Deno.test("hex/di/container:factory", () => {
   const sandbox = container();
 
   let number = 1;
@@ -58,7 +58,64 @@ Deno.test("hex/di/container:with factory", () => {
   asserts.assertStrictEquals(sandbox.get("h"), 3);
 });
 
-Deno.test("hex/di/container:with mixed keys", () => {
+Deno.test("hex/di/container:promise", async () => {
+  const sandbox = container();
+
+  sandbox.setFactory("h", () => Promise.resolve("test"));
+
+  asserts.assertStrictEquals(await sandbox.get("h"), "test");
+});
+
+Deno.test("hex/di/container:lazy values", () => {
+  const sandbox = container();
+
+  const spyFn = mock.spy();
+
+  let number = 1;
+  sandbox.setValueLazy("h", () => {
+    spyFn();
+    return ++number;
+  });
+
+  asserts.assertStrictEquals(number, 1);
+  asserts.assertStrictEquals(sandbox.get("h"), 2);
+  asserts.assertStrictEquals(number, 2);
+
+  mock.assertSpyCalls(spyFn, 1);
+});
+
+Deno.test("hex/di/container:getMany", () => {
+  const sandbox = container();
+
+  const lazySpyFn = mock.spy();
+  const factorySpyFn = mock.spy();
+
+  let number = 1;
+  sandbox.setValue("a", number);
+  sandbox.setValueLazy("b", () => {
+    lazySpyFn();
+    return ++number;
+  });
+  sandbox.setValueLazy("c", () => {
+    factorySpyFn();
+    return ++number;
+  });
+
+  asserts.assertStrictEquals(number, 1);
+
+  const { a, b, c, d } = sandbox.getMany("a", "b", "c", "d");
+
+  asserts.assertStrictEquals(number, 3);
+  asserts.assertStrictEquals(a, 1);
+  asserts.assertStrictEquals(b, 2);
+  asserts.assertStrictEquals(c, 3);
+  asserts.assertStrictEquals(d, undefined);
+
+  mock.assertSpyCalls(lazySpyFn, 1);
+  mock.assertSpyCalls(factorySpyFn, 1);
+});
+
+Deno.test("hex/di/container:mixed keys", () => {
   const sandbox = container();
 
   sandbox.setValue(Object.keys, "Object.keys method");

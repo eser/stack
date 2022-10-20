@@ -1,4 +1,4 @@
-import React from "https://jspm.dev/react@17.0.2";
+import React from "https://esm.sh/react-dom@18.2.0?target=deno";
 
 import {
   dumper,

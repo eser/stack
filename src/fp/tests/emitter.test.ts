@@ -44,7 +44,7 @@ Deno.test("hex/fp/emitter:many events", async () => {
   asserts.assertEquals(sideEffectCounter, 2);
 });
 
-Deno.test("hex/fp/emitter:with wildcard events", async () => {
+Deno.test("hex/fp/emitter:wildcard events", async () => {
   let sideEffectCounter = 0;
 
   const subscriberOne = () => {
@@ -64,7 +64,7 @@ Deno.test("hex/fp/emitter:with wildcard events", async () => {
   asserts.assertEquals(sideEffectCounter, -1);
 });
 
-Deno.test("hex/fp/emitter:with parameters", async () => {
+Deno.test("hex/fp/emitter:parameters", async () => {
   let sideEffectCounter = 0;
 
   const subscriberOne = (value: number) => {
@@ -83,7 +83,7 @@ Deno.test("hex/fp/emitter:with parameters", async () => {
   asserts.assertEquals(sideEffectCounter, 15);
 });
 
-Deno.test("hex/fp/emitter:with subscriber", async () => {
+Deno.test("hex/fp/emitter:subscribers", async () => {
   let sideEffectCounter = 0;
 
   const subscriberOne = (value: number) => {

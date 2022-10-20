@@ -117,6 +117,7 @@ const setFactory = <K, V>(
   containerItems.set(token, [ServiceType.Factory, value]);
 };
 
+// deno-lint-ignore no-explicit-any
 const container = <K = Class | symbol | string, V = any>() => {
   const map = new Map<K, V>();
 

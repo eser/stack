@@ -5,8 +5,7 @@ import {
 } from "../mod.ts";
 import * as hex from "../../mod.ts";
 
-// @deno-types="https://denopkg.com/soremwar/deno_types/react/v16.13.1/react.d.ts"
-import React from "https://jspm.dev/react@17.0.2";
+import React from "https://esm.sh/react@18.2.0?target=deno";
 
 const ParagraphMaker = (props: { text: string }) => {
   return <p>{props.text}</p>;

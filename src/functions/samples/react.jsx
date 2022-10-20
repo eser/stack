@@ -1,6 +1,6 @@
 import * as hex from "../../mod.ts";
 
-import React from "https://jspm.dev/react@17.0.2";
+import React from "https://esm.sh/react@18.2.0?target=deno";
 
 const ParagraphMaker = (props) => {
   return <p>{props.text}</p>;

@@ -46,7 +46,7 @@ Deno.test("hex/fp/iterate:async", async () => {
   asserts.assertEquals(total, 6);
 });
 
-Deno.test("hex/fp/iterate:with pipe", async () => {
+Deno.test("hex/fp/iterate:pipe", async () => {
   const gen1 = function* () {
     yield { value: 1 };
     yield { value: 2 };

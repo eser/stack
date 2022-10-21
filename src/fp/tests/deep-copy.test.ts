@@ -1,4 +1,4 @@
-import { asserts } from "./deps.ts";
+import { asserts, bdd } from "./deps.ts";
 import { deepCopy } from "../deep-copy.ts";
 
 class Dummy {
@@ -9,24 +9,26 @@ class Dummy {
   }
 }
 
-Deno.test("hex/fp/deep-copy:basic", () => {
-  const obj1 = { value: 5 };
+bdd.describe("hex/fp/deep-copy", () => {
+  bdd.it("basic", () => {
+    const obj1 = { value: 5 };
 
-  const result = deepCopy(obj1);
+    const result = deepCopy(obj1);
 
-  asserts.assertNotStrictEquals(result, obj1);
-  asserts.assertStrictEquals(result.constructor, Object);
-  asserts.assertEquals(result, obj1);
-  asserts.assertEquals(result, { value: 5 });
-});
+    asserts.assertNotStrictEquals(result, obj1);
+    asserts.assertStrictEquals(result.constructor, Object);
+    asserts.assertEquals(result, obj1);
+    asserts.assertEquals(result, { value: 5 });
+  });
 
-Deno.test("hex/fp/deep-copy:classes", () => {
-  const obj1 = new Dummy({ value: 5 });
+  bdd.it("classes", () => {
+    const obj1 = new Dummy({ value: 5 });
 
-  const result = deepCopy(obj1);
+    const result = deepCopy(obj1);
 
-  asserts.assertNotStrictEquals(result, obj1);
-  asserts.assertStrictEquals(result.constructor, Dummy);
-  asserts.assertEquals(result, obj1);
-  asserts.assertEquals(result, new Dummy({ value: 5 }));
+    asserts.assertNotStrictEquals(result, obj1);
+    asserts.assertStrictEquals(result.constructor, Dummy);
+    asserts.assertEquals(result, obj1);
+    asserts.assertEquals(result, new Dummy({ value: 5 }));
+  });
 });

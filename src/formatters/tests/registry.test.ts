@@ -1,27 +1,29 @@
-import { asserts } from "./deps.ts";
+import { asserts, bdd } from "./deps.ts";
 import { applicationJsonFormatter } from "../application-json.ts";
 import { findByName, registry } from "../registry.ts";
 
-Deno.test("hex/formatters/registry:basic", () => {
-  const formatters = [applicationJsonFormatter];
-  const formatterRegistry = registry(formatters);
+bdd.describe("hex/formatters/registry", () => {
+  bdd.it("basic", () => {
+    const formatters = [applicationJsonFormatter];
+    const formatterRegistry = registry(formatters);
 
-  asserts.assertEquals([...formatterRegistry.items].length, 1);
-});
+    asserts.assertEquals([...formatterRegistry.items].length, 1);
+  });
 
-Deno.test("hex/formatters/registry:find-by-name-functional", () => {
-  const formatters = [applicationJsonFormatter];
+  bdd.it("find-by-name-functional", () => {
+    const formatters = [applicationJsonFormatter];
 
-  const jsonFormatter = findByName(formatters, "json");
+    const jsonFormatter = findByName(formatters, "json");
 
-  asserts.assertStrictEquals(jsonFormatter, applicationJsonFormatter);
-});
+    asserts.assertStrictEquals(jsonFormatter, applicationJsonFormatter);
+  });
 
-Deno.test("hex/formatters/registry:find-by-name-object-oriented", () => {
-  const formatters = [applicationJsonFormatter];
-  const formatterRegistry = registry(formatters);
+  bdd.it("find-by-name-object-oriented", () => {
+    const formatters = [applicationJsonFormatter];
+    const formatterRegistry = registry(formatters);
 
-  const jsonFormatter = formatterRegistry.findByName("json");
+    const jsonFormatter = formatterRegistry.findByName("json");
 
-  asserts.assertStrictEquals(jsonFormatter, applicationJsonFormatter);
+    asserts.assertStrictEquals(jsonFormatter, applicationJsonFormatter);
+  });
 });

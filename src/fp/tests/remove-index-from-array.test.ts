@@ -1,34 +1,36 @@
-import { asserts } from "./deps.ts";
+import { asserts, bdd } from "./deps.ts";
 import { removeIndexFromArray } from "../remove-index-from-array.ts";
 
-Deno.test("hex/fp/remove-index-from-array:basic", () => {
-  const arr1 = [1, 2, 3, 4, 5];
-  const int1 = 2;
-  const int2 = 3;
+bdd.describe("hex/fp/remove-index-from-array", () => {
+  bdd.it("basic", () => {
+    const arr1 = [1, 2, 3, 4, 5];
+    const int1 = 2;
+    const int2 = 3;
 
-  const result = removeIndexFromArray(arr1, int1, int2);
+    const result = removeIndexFromArray(arr1, int1, int2);
 
-  asserts.assertNotStrictEquals(result, arr1);
-  asserts.assertEquals(result.length, 3);
-  asserts.assertEquals(result, [1, 2, 5]);
-});
+    asserts.assertNotStrictEquals(result, arr1);
+    asserts.assertEquals(result.length, 3);
+    asserts.assertEquals(result, [1, 2, 5]);
+  });
 
-Deno.test("hex/fp/remove-index-from-array:with-generator", () => {
-  const gen1 = function* () {
-    yield 1;
-    yield 2;
-    yield 3;
-    yield 4;
-    yield 5;
-  };
-  const int1 = 2;
-  const int2 = 3;
+  bdd.it("with-generator", () => {
+    const gen1 = function* () {
+      yield 1;
+      yield 2;
+      yield 3;
+      yield 4;
+      yield 5;
+    };
+    const int1 = 2;
+    const int2 = 3;
 
-  const generated1 = gen1();
-  const result = removeIndexFromArray(generated1, int1, int2);
+    const generated1 = gen1();
+    const result = removeIndexFromArray(generated1, int1, int2);
 
-  // deno-lint-ignore no-explicit-any
-  asserts.assertNotStrictEquals(<any> result, <any> generated1);
-  asserts.assertEquals(result.length, 3);
-  asserts.assertEquals(result, [1, 2, 5]);
+    // deno-lint-ignore no-explicit-any
+    asserts.assertNotStrictEquals(<any> result, <any> generated1);
+    asserts.assertEquals(result.length, 3);
+    asserts.assertEquals(result, [1, 2, 5]);
+  });
 });

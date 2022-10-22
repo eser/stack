@@ -35,7 +35,7 @@ const generateProject = async (projectPath: string, template?: string) => {
 
   for (const file of templateContent.default.files) {
     const sourcePath = pathPosix.join(
-      relativeUrl.pathname,
+      relativeUrl.href,
       templatePath,
       "files",
       file,

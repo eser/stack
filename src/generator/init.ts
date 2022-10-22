@@ -2,10 +2,20 @@ import { flags, pathPosix } from "./deps.ts";
 
 const VERSION = "0.0.1";
 
-const relativePath = pathPosix.relative(
-  Deno.cwd(),
-  pathPosix.fromFileUrl(import.meta.url),
-);
+const getRelativePath = () => {
+  const url = new URL(import.meta.url);
+
+  if (url.protocol === "file:") {
+    return pathPosix.relative(
+      Deno.cwd(),
+      pathPosix.fromFileUrl(url.href),
+    );
+  }
+
+  return url.href;
+};
+
+const relativePath = getRelativePath();
 
 const readTemplate = async (templatePath: string) => {
   const template = await import(templatePath, { assert: { type: "json" } });

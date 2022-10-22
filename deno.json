@@ -14,9 +14,7 @@
         "*.md",
         "*.json"
       ],
-      "exclude": [
-        "tmp/"
-      ]
+      "exclude": []
     },
     "rules": {
       "tags": [
@@ -34,9 +32,7 @@
         "*.md",
         "*.json"
       ],
-      "exclude": [
-        "tmp/"
-      ]
+      "exclude": []
     }
   },
   "test": {
@@ -44,9 +40,7 @@
       "include": [
         "src/"
       ],
-      "exclude": [
-        "tmp/"
-      ]
+      "exclude": []
     }
   },
   "tasks": {

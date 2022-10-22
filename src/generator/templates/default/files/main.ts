@@ -1,4 +1,6 @@
-const hexConfig = {
+import { run } from "@hex/web/mod.ts";
+
+run({
   urls: {
     structure: "/[lang]/[...path]",
     rewrites: [
@@ -12,9 +14,7 @@ const hexConfig = {
   i18n: {
     languages: [
       "en",
-      "tr"
-    ]
+      "tr",
+    ],
   },
-};
-
-export { hexConfig as default, hexConfig };
+});

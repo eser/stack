@@ -5,15 +5,19 @@ import { copy } from "./copy.ts";
 const generate = async (
   basePath: string,
   projectPath: string,
-  template?: string,
+  templateName?: string,
 ) => {
-  const templateFolder = `./templates/${template ?? "default"}`;
-  const templateContent = await readTemplate(templateFolder);
+  const templateFolder = `./templates/${templateName ?? "default"}`;
+  const template = await readTemplate(templateFolder).then((mod) =>
+    mod.default
+  );
 
-  console.log(`Creating ${projectPath}...`);
+  console.log(
+    `Creating "${template.name} ${template.version}" on ${projectPath}...`,
+  );
   await Deno.mkdir(projectPath, { recursive: true });
 
-  for (const file of templateContent.default.files) {
+  for (const file of template.files) {
     const sourcePath = `${basePath}${
       pathPosix.join(`${templateFolder}/files`, file)
     }`;

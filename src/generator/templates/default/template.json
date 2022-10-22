@@ -1,4 +1,6 @@
 {
+  "name": "hex web template",
+  "version": "0.0.1",
   "files": [
     ".vscode/extensions.json",
     ".vscode/settings.json",

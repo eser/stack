@@ -24,14 +24,14 @@ const relativePath = getRelativePath();
 const showHelp = () => {
   const messageContents = `hex/generator/init
 
-  Initialize a new hex web project. This will create all the necessary files for
-  a new web project.
+  Initialize a new hex project. This will create all the necessary files for
+  a new hex project.
 
-  To generate a project in the './my_project' subdirectory:
-    deno run -A ${relativePath} ./my_project
+  To generate a project in the './my-project' subdirectory:
+    deno run -A ${relativePath} ./my-project
 
   To generate a project in the current directory:
-    deno run ${relativePath} .
+    deno run -A ${relativePath} .
 
   Print this message:
     deno run ${relativePath} --help

@@ -1,4 +1,5 @@
-import { flags, pathPosix, streams } from "./deps.ts";
+import { flags, pathPosix } from "./deps.ts";
+import { generate } from "./generate.ts";
 
 const VERSION = "0.0.1";
 
@@ -19,61 +20,6 @@ const getRelativePath = () => {
 };
 
 const relativePath = getRelativePath();
-
-const readTemplate = async (templatePath: string) => {
-  const template = await import(templatePath, { assert: { type: "json" } });
-
-  return template;
-};
-
-const generateProject = async (projectPath: string, template?: string) => {
-  const template_ = template ?? "default";
-  const templatePath = `./templates/${template_}`;
-  const templateContent = await readTemplate(`${templatePath}/template.json`);
-
-  const relativeUrl = new URL(".", baseUrl);
-
-  console.log(`Creating ${projectPath}...`);
-  await Deno.mkdir(projectPath, { recursive: true });
-
-  for (const file of templateContent.default.files) {
-    const sourcePath = `${relativeUrl.href}${
-      pathPosix.join(templatePath, "files", file)
-    }`;
-    const targetPath = pathPosix.join(projectPath, file);
-
-    console.log(`Copying ${targetPath}...`);
-
-    const targetPathDirectory = pathPosix.dirname(targetPath);
-    await Deno.mkdir(targetPathDirectory, { recursive: true });
-
-    let sourceStream: Deno.Reader | undefined;
-    if (relativeUrl.protocol === "file:") {
-      sourceStream = await Deno.open(pathPosix.fromFileUrl(sourcePath));
-    } else {
-      sourceStream = await fetch(sourcePath)
-        .then((response) => response.body)
-        .then((body) => body?.getReader())
-        .then((reader) =>
-          (reader !== undefined)
-            ? streams.readerFromStreamReader(reader)
-            : undefined
-        );
-    }
-
-    if (sourceStream === undefined) {
-      throw new Error(`source stream reader is undefined for '${sourcePath}'`);
-    }
-
-    const targetStream = await Deno.open(targetPath, {
-      create: true,
-      write: true,
-    });
-    await streams.copy(sourceStream, targetStream);
-  }
-
-  console.log("done.");
-};
 
 const showHelp = () => {
   const messageContents = `hex/generator/init
@@ -120,7 +66,9 @@ const init = async (args: string[]) => {
   if (params._.length === 1) {
     const [projectPath] = params._ as string[];
 
-    await generateProject(projectPath, params.template);
+    const relativeUrl = new URL(".", baseUrl);
+
+    await generate(relativeUrl.href, projectPath, params.template);
 
     return;
   }

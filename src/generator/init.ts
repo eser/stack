@@ -22,7 +22,7 @@ const getRelativePath = () => {
 const relativePath = getRelativePath();
 
 const showHelp = () => {
-  const messageContents = `hex/generator/init
+  const messageContents = `hex/generator
 
   Initialize a new hex project. This will create all the necessary files for
   a new hex project.
@@ -41,7 +41,7 @@ const showHelp = () => {
 };
 
 const showVersion = () => {
-  const messageContents = `hex/generator/init version ${VERSION}`;
+  const messageContents = `hex/generator version ${VERSION}`;
 
   console.log(messageContents);
 };

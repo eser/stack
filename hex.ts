@@ -10,9 +10,20 @@ import { create } from "./src/generator/create.ts";
 
 const VERSION = "0.0.1";
 
+const upgradeCli = async (args: string[], options: ExecuteOptions) => {
+  const p = Deno.run({
+    cmd: ["deno", "install", "-A", "-r", "-f", "https://deno.land/x/hex/hex.ts"],
+    stdout: "inherit",
+    stderr: "inherit",
+    stdin: "null",
+  });
+
+  await p.status();
+};
+
 const run = async (args: string[], options: ExecuteOptions) => {
   const p = Deno.run({
-    cmd: ["deno", "run", "-A", "main.ts"],
+    cmd: ["deno", "run", "-A", "-r", "main.ts"],
     stdout: "inherit",
     stderr: "inherit",
     stdin: "null",
@@ -38,6 +49,14 @@ if (import.meta.main) {
   };
 
   const commands: Command[] = [
+    {
+      type: CommandType.SubCommand,
+      name: "upgrade",
+      // shortcut: "u",
+      description: "Upgrades hex cli to the latest version",
+
+      run: (args: string[]) => upgradeCli(args, executeOptions),
+    },
     {
       type: CommandType.SubCommand,
       name: "create",

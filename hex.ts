@@ -1,7 +1,36 @@
-import { type Command, CommandType, execute, showHelp, showVersion, ExecuteOptions } from "./src/cli/mod.ts";
+import {
+  type Command,
+  CommandType,
+  execute,
+  ExecuteOptions,
+  showHelp,
+  showVersion,
+} from "./src/cli/mod.ts";
 import { create } from "./src/generator/create.ts";
 
 const VERSION = "0.0.1";
+
+const run = async (args: string[], options: ExecuteOptions) => {
+  const p = Deno.run({
+    cmd: ["deno", "run", "-A", "main.ts"],
+    stdout: "inherit",
+    stderr: "inherit",
+    stdin: "null",
+  });
+
+  await p.status();
+};
+
+const test = async (args: string[], options: ExecuteOptions) => {
+  const p = Deno.run({
+    cmd: ["deno", "task", "test"],
+    stdout: "inherit",
+    stderr: "inherit",
+    stdin: "null",
+  });
+
+  await p.status();
+};
 
 if (import.meta.main) {
   const executeOptions: ExecuteOptions = {
@@ -16,6 +45,22 @@ if (import.meta.main) {
       description: "Initialize a new project",
 
       run: (args: string[]) => create(args, executeOptions),
+    },
+    {
+      type: CommandType.SubCommand,
+      name: "run",
+      // shortcut: "r",
+      description: "Runs the project",
+
+      run: (args: string[]) => run(args, executeOptions),
+    },
+    {
+      type: CommandType.SubCommand,
+      name: "test",
+      // shortcut: "t",
+      description: "Runs tests of the project",
+
+      run: (args: string[]) => test(args, executeOptions),
     },
     {
       type: CommandType.Option,

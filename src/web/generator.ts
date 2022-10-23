@@ -14,19 +14,4 @@ const generator = async function generator(baseDir: string, config: Config) {
   return routes;
 };
 
-const fakeRequest = async function fakeRequest() {
-  const baseDir = Deno.cwd();
-  const config = await readConfig(baseDir);
-
-  const routes = await generator(baseDir, config);
-
-  const resolution = urlResolver("/en/home", routes, config);
-
-  console.log(routes);
-  console.log(resolution);
-};
-
-const result = await fakeRequest();
-console.log(result);
-
 export { generator, generator as default };

@@ -14,33 +14,31 @@ portability between platforms. Encourages ones to write codes once in functional
 approach, then run on mainstream environments such as cli, bot platforms,
 cloud-function runtimes and web apis.
 
-
 # ⚙ Components
 
-| Component                       | Area              | Description                       |
-|---------------------------------|-------------------|-----------------------------------|
-| [Directives](src/directives/)   | Rules             |                                   |
-| [Standards](src/standards/)     | Abstraction       |                                   |
-| [FP](src/fp/)                   | Functions Library | Tools for functional programming  |
-| [Data](src/data/)               | Objects Library   | Data Objects and Patterns         |
-| [Environment](src/environment/) | Objects Library   | Environment adapters              |
-| [Formatters](src/formatters/)   | Objects Library   | Object serializers/deserializers  |
-| [CLI](src/cli/)                 | Manager           | CLI library                       |
-| [DI](src/di/)                   | Manager           | Dependency injection library      |
-| [Functions](src/functions/)     | Manager           | Functions runtime                 |
-| [Generator](src/generator/)     | Manager           | Project generator                 |
-| [I18N](src/i18n/)               | Manager           | Internationalization library      |
-| [Options](src/options/)         | Manager           | Configuration library             |
-| [Service](src/service/)         | Framework         | A micro http framework            |
-| [Web](src/web/)                 | Framework         | A web framework implementation    |
-
+| Component                       | Area              | Description                      |
+| ------------------------------- | ----------------- | -------------------------------- |
+| [Directives](src/directives/)   | Rules             |                                  |
+| [Standards](src/standards/)     | Abstraction       |                                  |
+| [FP](src/fp/)                   | Functions Library | Tools for functional programming |
+| [Data](src/data/)               | Objects Library   | Data Objects and Patterns        |
+| [Environment](src/environment/) | Objects Library   | Environment adapters             |
+| [Formatters](src/formatters/)   | Objects Library   | Object serializers/deserializers |
+| [CLI](src/cli/)                 | Manager           | CLI library                      |
+| [DI](src/di/)                   | Manager           | Dependency injection library     |
+| [Functions](src/functions/)     | Manager           | Functions runtime                |
+| [Generator](src/generator/)     | Manager           | Project generator                |
+| [I18N](src/i18n/)               | Manager           | Internationalization library     |
+| [Options](src/options/)         | Manager           | Configuration library            |
+| [Service](src/service/)         | Framework         | A micro http framework           |
+| [Web](src/web/)                 | Framework         | A web framework implementation   |
 
 See the respective component page to figure out its specific usage.
 
-
 # 🚀 Jumpstart
 
-Ensure that [Deno](https://deno.land/) 1.25 or higher is installed on your system first.
+Ensure that [Deno](https://deno.land/) 1.25 or higher is installed on your
+system first.
 
 Install hex globally first, then create a new project:
 
@@ -61,7 +59,6 @@ $ deno run https://deno.land/x/hex/src/functions/samples/basic.ts eser
 
 { payload: "hello eser" }
 ```
-
 
 # 📖 FAQ
 

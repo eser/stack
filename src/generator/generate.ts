@@ -7,7 +7,7 @@ const generate = async (
   projectPath: string,
   templateName?: string,
 ) => {
-  const templateFolder = `./templates/${templateName ?? "default"}`;
+  const templateFolder = `../../etc/templates/${templateName ?? "default"}`;
   const template = await readTemplate(templateFolder).then((mod) =>
     mod.default
   );
@@ -18,9 +18,11 @@ const generate = async (
   await Deno.mkdir(projectPath, { recursive: true });
 
   for (const file of template.files) {
-    const sourcePath = `${basePath}${
-      pathPosix.join(`${templateFolder}/files`, file)
-    }`;
+    const sourcePath = pathPosix.join(
+      basePath,
+      `${templateFolder}/files`,
+      file,
+    );
     const targetPath = pathPosix.join(projectPath, file);
 
     console.log(`Copying ${targetPath}...`);

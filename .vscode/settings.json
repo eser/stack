@@ -11,7 +11,7 @@
   "deno.unstable": true,
   "editor.defaultFormatter": "denoland.vscode-deno",
   "coverage-gutters.coverageBaseDir": "**/etc/coverage",
-  "coverage-gutters.coverageFileNames": [ "cov_profile.lcov" ],
+  "coverage-gutters.coverageFileNames": ["cov_profile.lcov"],
   "coverage-gutters.showGutterCoverage": true,
   "coverage-gutters.showLineCoverage": true,
   "coverage-gutters.showRulerCoverage": true,

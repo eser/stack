@@ -8,8 +8,8 @@ const showHelp = (options: ExecuteOptions) => {
   let generateCommand, otherCommand;
 
   if (options.command !== undefined) {
-    generateCommand = `hex init`;
-    otherCommand = `hex init`;
+    generateCommand = `hex create`;
+    otherCommand = `hex create`;
   } else {
     generateCommand = `deno run -A ${options.moduleRelative}`; // --allow-read --allow-write --allow-net
     otherCommand = `deno run -A ${options.moduleRelative}`; // --allow-read
@@ -43,7 +43,7 @@ const showVersion = () => {
   console.log(messageContents);
 };
 
-const init = async (args: string[], options: ExecuteOptions) => {
+const create = async (args: string[], options: ExecuteOptions) => {
   const options_ = validateOptions(options);
 
   const params = flags.parse(args, {
@@ -83,7 +83,7 @@ const init = async (args: string[], options: ExecuteOptions) => {
 };
 
 if (import.meta.main) {
-  init(Deno.args, { module: import.meta.url });
+  create(Deno.args, { module: import.meta.url });
 }
 
-export { init, init as default };
+export { create, create as default };

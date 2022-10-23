@@ -1,7 +1,7 @@
-import { init } from "./src/generator/init.ts";
+import { create } from "./src/generator/create.ts";
 
 if (import.meta.main) {
-  init(Deno.args, { module: import.meta.url });
+  create(Deno.args, { module: import.meta.url });
 }
 
-export { init, init as default };
+export { create, create as default };

@@ -1,5 +1,5 @@
 import { type Command, CommandType, execute, showHelp, showVersion, ExecuteOptions } from "@hex/cli/mod.ts";
-import { init } from "@hex/generator/init.ts";
+import { create } from "@hex/generator/create.ts";
 
 const VERSION = "0.0.1";
 
@@ -11,11 +11,11 @@ if (import.meta.main) {
   const commands: Command[] = [
     {
       type: CommandType.SubCommand,
-      name: "init",
-      shortcut: "i",
+      name: "create",
+      shortcut: "c",
       description: "Initialize a new project",
 
-      run: (args: string[]) => init(args, executeOptions),
+      run: (args: string[]) => create(args, executeOptions),
     },
     {
       type: CommandType.Option,

@@ -25,10 +25,12 @@ cloud-function runtimes and web apis.
 | [Data](src/data/)               | Objects Library   | Data Objects and Patterns         |
 | [Environment](src/environment/) | Objects Library   | Environment adapters              |
 | [Formatters](src/formatters/)   | Objects Library   | Object serializers/deserializers  |
-| [Options](src/options/)         | Manager           | Configuration library             |
+| [CLI](src/cli/)                 | Manager           | CLI library                       |
 | [DI](src/di/)                   | Manager           | Dependency injection library      |
-| [I18N](src/i18n/)               | Manager           | Internationalization library      |
 | [Functions](src/functions/)     | Manager           | Functions runtime                 |
+| [Generator](src/generator/)     | Manager           | Project generator                 |
+| [I18N](src/i18n/)               | Manager           | Internationalization library      |
+| [Options](src/options/)         | Manager           | Configuration library             |
 | [Service](src/service/)         | Framework         | A micro http framework            |
 | [Web](src/web/)                 | Framework         | A web framework implementation    |
 
@@ -40,16 +42,24 @@ See the respective component page to figure out its specific usage.
 
 Ensure that [Deno](https://deno.land/) 1.25 or higher is installed on your system first.
 
-Clone this git repo `git clone https://github.com/eserozvataf/hex.git` - and
-checkout the [tagged release](https://github.com/eserozvataf/hex/releases) you'd
-like to use.
-
-Then run a sample file under `src/functions/samples/` directory,
+Install hex globally first, then create a new project:
 
 ```sh
-$ deno run src/functions/samples/basic.ts eser
+$ deno install -A -f https://deno.land/x/hex/hex.ts
 
-hello eser
+$ hex create my-project
+
+Creating "hex web template 0.0.1" on my-project...
+...
+done.
+```
+
+Or run a file directly from the resource:
+
+```sh
+$ deno run https://deno.land/x/hex/src/functions/samples/basic.ts eser
+
+{ payload: "hello eser" }
 ```
 
 

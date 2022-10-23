@@ -40,7 +40,9 @@
       "include": [
         "src/"
       ],
-      "exclude": []
+      "exclude": [
+        "src/generator/templates/"
+      ]
     }
   },
   "tasks": {

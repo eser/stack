@@ -1,5 +1,5 @@
-import { type Command, CommandType, execute, showHelp, showVersion, ExecuteOptions } from "@hex/cli/mod.ts";
-import { create } from "@hex/generator/create.ts";
+import { type Command, CommandType, execute, showHelp, showVersion, ExecuteOptions } from "./src/cli/mod.ts";
+import { create } from "./src/generator/create.ts";
 
 const VERSION = "0.0.1";
 

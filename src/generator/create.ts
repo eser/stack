@@ -1,5 +1,5 @@
+import { type ExecuteOptions, validateOptions } from "../cli/mod.ts";
 import { flags } from "./deps.ts";
-import { type ExecuteOptions, validateOptions } from "@hex/cli/mod.ts";
 import { generate } from "./generate.ts";
 
 const VERSION = "0.0.1";

@@ -26,16 +26,23 @@
     ".github/ISSUE_TEMPLATE": true,
     ".github/FUNDING.yml": true,
     "etc/coverage/*.json": true,
+    "node_modules": true,
+    "yarn.lock": true,
+    "package-lock.json": true,
+    "package.json": true,
     ".editorconfig": true,
     "CODE_OF_CONDUCT.md": true,
     "CONTRIBUTING.md": true,
     "SECURITY.md": true,
-    "LICENSE": true
+    "LICENSE": true,
+    "packager.ts": true
   },
   "files.watcherExclude": {
     "**/.git/objects/**": true,
     "**/.git/subtree-cache/**": true,
+    "**/node_modules/*/**": true,
     "**/.hg/store/**": true,
+    "dist/**": true,
     "etc/coverage/**": true
   }
 }

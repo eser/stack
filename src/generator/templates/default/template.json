@@ -4,6 +4,9 @@
   "files": [
     ".vscode/extensions.json",
     ".vscode/settings.json",
+    ".github/ISSUE_TEMPLATE/bug_report.md",
+    ".github/ISSUE_TEMPLATE/feature_request.md",
+    ".github/FUNDING.yml",
     "etc/coverage/.gitkeep",
     "public/favicon.ico",
     "public/robots.txt",
@@ -33,6 +36,7 @@
     ".gitignore",
     "deno.json",
     "import_map.json",
-    "main.ts"
+    "main.ts",
+    "README.md"
   ]
 }

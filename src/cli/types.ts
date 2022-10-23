@@ -1,3 +1,9 @@
+interface ExecuteOptions {
+  command?: string;
+  module?: string;
+  moduleRelative?: string;
+}
+
 enum CommandType {
   SubCommand = "subcommand",
   Option = "option",
@@ -10,7 +16,7 @@ interface Command {
   description: string;
   isDefault?: boolean;
 
-  run: (args: string[]) => void;
+  run: (args: string[], options: ExecuteOptions) => void;
 }
 
-export { type Command, CommandType };
+export { type Command, CommandType, type ExecuteOptions };

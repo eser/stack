@@ -1,10 +1,14 @@
-import { type Command, CommandType } from "./types.ts";
+import { type Command, CommandType, type ExecuteOptions } from "./types.ts";
 
-const showHelp = (commands: Command[], version: string) => {
+const showHelp = (
+  commands: Command[],
+  version: string,
+  options: ExecuteOptions,
+) => {
   const messageContents = `hex ${version}
 
 USAGE:
-  hex [OPTIONS] [SUBCOMMAND]
+  ${options.command ?? "hex"} [OPTIONS] [SUBCOMMAND]
 
 OPTIONS:
 ${

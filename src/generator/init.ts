@@ -1,40 +1,37 @@
-import { flags, pathPosix } from "./deps.ts";
+import { flags } from "./deps.ts";
+import { type ExecuteOptions, validateOptions } from "@hex/cli/mod.ts";
 import { generate } from "./generate.ts";
 
 const VERSION = "0.0.1";
 
-const baseUrl = import.meta.url;
-// const baseUrl = "https:/deno.land/x/hex/src/generator/init.ts";
+const showHelp = (options: ExecuteOptions) => {
+  let generateCommand, otherCommand;
 
-const getRelativePath = () => {
-  const url = new URL(baseUrl);
-
-  if (url.protocol === "file:") {
-    return pathPosix.relative(
-      Deno.cwd(),
-      pathPosix.fromFileUrl(url.href),
-    );
+  if (options.command !== undefined) {
+    generateCommand = `hex init`;
+    otherCommand = `hex init`;
+  } else {
+    generateCommand = `deno run -A ${options.moduleRelative}`; // --allow-read --allow-write --allow-net
+    otherCommand = `deno run -A ${options.moduleRelative}`; // --allow-read
   }
 
-  return url.href;
-};
-
-const relativePath = getRelativePath();
-
-const showHelp = () => {
   const messageContents = `hex/generator
 
   Initialize a new hex project. This will create all the necessary files for
   a new hex project.
 
   To generate a project in the './my-project' subdirectory:
-    deno run -A ${relativePath} ./my-project
+    ${generateCommand} my-project
+
+  To generate a project in the './my-project' subdirectory with the
+  specific template:
+    ${generateCommand} my-service-project --template service
 
   To generate a project in the current directory:
-    deno run -A ${relativePath} .
+    ${generateCommand} .
 
   Print this message:
-    deno run ${relativePath} --help
+    ${otherCommand} --help
   `;
 
   console.log(messageContents);
@@ -46,8 +43,15 @@ const showVersion = () => {
   console.log(messageContents);
 };
 
-const init = async (args: string[]) => {
+const init = async (args: string[], options: ExecuteOptions) => {
+  const options_ = validateOptions(options);
+
   const params = flags.parse(args, {
+    alias: {
+      "h": "help",
+      "V": "version",
+      "t": "template",
+    },
     boolean: ["help", "version"],
     string: ["template"],
     default: {},
@@ -59,25 +63,27 @@ const init = async (args: string[]) => {
   }
 
   if (params.help || params._.length === 0) {
-    showHelp();
+    showHelp(options_);
     return;
   }
 
   if (params._.length === 1) {
     const [projectPath] = params._ as string[];
 
-    const relativeUrl = new URL(".", baseUrl);
+    const relativeUrl = new URL(".", import.meta.url);
 
     await generate(relativeUrl.href, projectPath, params.template);
 
     return;
   }
 
-  console.log(`invalid command - try 'deno run ${relativePath} --help'`);
+  console.log(
+    `invalid command - ${args.join(" ")}'`,
+  );
 };
 
 if (import.meta.main) {
-  init(Deno.args);
+  init(Deno.args, { module: import.meta.url });
 }
 
 export { init, init as default };

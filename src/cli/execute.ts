@@ -1,7 +1,39 @@
-import { type Command, CommandType } from "./types.ts";
-import { flags } from "./deps.ts";
+import { type Command, CommandType, ExecuteOptions } from "./types.ts";
+import { flags, pathPosix } from "./deps.ts";
 
-const execute = (commands: Command[], args: string[]) => {
+const getRelativePath = (originUrl: string) => {
+  const url = new URL(originUrl);
+
+  if (url.protocol === "file:") {
+    return pathPosix.relative(
+      Deno.cwd(),
+      pathPosix.fromFileUrl(url.href),
+    );
+  }
+
+  return url.href;
+};
+
+const validateOptions = (options: ExecuteOptions) => {
+  const newOptions: ExecuteOptions = {
+    ...options,
+    moduleRelative: (options.moduleRelative)
+      ? options.moduleRelative
+      : (options.module !== undefined)
+      ? getRelativePath(options.module)
+      : undefined,
+  };
+
+  return newOptions;
+};
+
+const execute = (
+  commands: Command[],
+  args: string[],
+  options: ExecuteOptions,
+) => {
+  const options_ = validateOptions(options);
+
   const params = flags.parse(args, {
     alias: commands.reduce<Record<string, string>>((acc, command) => {
       if (command.shortcut !== undefined) {
@@ -24,7 +56,7 @@ const execute = (commands: Command[], args: string[]) => {
     );
 
     if (subcommand !== undefined) {
-      subcommand.run(args.slice(1));
+      subcommand.run(args.slice(1), options_);
       return;
     }
   }
@@ -35,7 +67,7 @@ const execute = (commands: Command[], args: string[]) => {
   );
 
   if (option !== undefined) {
-    option.run(args);
+    option.run(args, options_);
     return;
   }
 
@@ -44,7 +76,7 @@ const execute = (commands: Command[], args: string[]) => {
     const defaultCommand = commands.find((command) => command.isDefault);
 
     if (defaultCommand !== undefined) {
-      defaultCommand.run(args);
+      defaultCommand.run(args, options_);
       return;
     }
   }
@@ -53,4 +85,4 @@ const execute = (commands: Command[], args: string[]) => {
   console.log(`Command not found - ${params._.join(" ")}`);
 };
 
-export { execute, execute as default };
+export { execute, execute as default, validateOptions };

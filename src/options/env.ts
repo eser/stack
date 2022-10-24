@@ -15,9 +15,11 @@ interface LoadEnvResult {
 // public functions
 const loadEnvFile = async (filepath: string): Promise<dotenv.DotenvConfig> => {
   try {
-    const result = dotenv.parse(
-      new TextDecoder("utf-8").decode(await Deno.readFile(filepath)),
-    );
+    const data = await Deno.readFile(filepath);
+    const decoded = new TextDecoder("utf-8").decode(data);
+    const escaped = decodeURIComponent(decoded);
+
+    const result = dotenv.parse(escaped);
 
     return result;
   } catch (e) {

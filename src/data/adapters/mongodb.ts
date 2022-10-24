@@ -2,7 +2,8 @@ import { mongo } from "../deps.ts";
 import { type Connection } from "../connection.ts";
 import { type Repository } from "../repository.ts";
 
-class MongoDbConnection implements Connection {
+class MongoDbConnection<T = unknown>
+  implements Connection<T, MongoDbRepository<T>> {
   uri: string;
   client?: mongo.MongoClient;
   database?: mongo.Database;
@@ -20,20 +21,16 @@ class MongoDbConnection implements Connection {
     this.database = await this.client.connect(this.uri);
   }
 
-  // deno-lint-ignore no-explicit-any
-  repository<T = unknown, K extends keyof any = "_id">(
-    id: string,
-  ): Repository<T, K> {
-    return new MongoDbRepository<T>(this, id) as unknown as Repository<T, K>;
+  repository(id: string) {
+    return new MongoDbRepository<T>(this, id);
   }
 }
 
-class MongoDbRepository<T = mongo.Bson.Document>
-  implements Repository<T, "_id"> {
+class MongoDbRepository<T = mongo.Bson.Document> implements Repository<T> {
   connection: MongoDbConnection;
   collectionName: string;
 
-  constructor(connection: MongoDbConnection, collectionName: string) {
+  constructor(connection: MongoDbConnection<T>, collectionName: string) {
     this.connection = connection;
     this.collectionName = collectionName;
   }
@@ -58,15 +55,16 @@ class MongoDbRepository<T = mongo.Bson.Document>
     return collection.find().toArray();
   }
 
-  async add(data: Omit<T, "_id">): Promise<string> {
+  async add<R = T>(data: R): Promise<string> {
     const collection = await this.getCollection();
 
+    // @ts-ignore a bug in type definition
     const id = await collection.insertOne(data);
 
     return String(id);
   }
 
-  async update(id: string, data: Partial<T>): Promise<void> {
+  async update<R = T>(id: string, data: R): Promise<void> {
     const collection = await this.getCollection();
 
     await collection.updateOne(
@@ -76,7 +74,7 @@ class MongoDbRepository<T = mongo.Bson.Document>
     );
   }
 
-  async replace(id: string, data: Omit<T, "_id">): Promise<void> {
+  async replace<R = T>(id: string, data: R): Promise<void> {
     const collection = await this.getCollection();
 
     await collection.replaceOne(

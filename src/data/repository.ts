@@ -1,11 +1,10 @@
-// deno-lint-ignore no-explicit-any
-interface Repository<T = unknown, K extends keyof any = "id"> {
+interface Repository<T = unknown> {
   get(id: string): Promise<T | undefined>;
   getAll(): Promise<T[]>;
 
-  add(data: Omit<T, K>): Promise<string>;
-  update(id: string, data: Partial<T>): Promise<void>;
-  replace(id: string, data: Omit<T, K>): Promise<void>;
+  add<R = T>(data: R): Promise<string>;
+  update<R = T>(id: string, data: R): Promise<void>;
+  replace<R = T>(id: string, data: R): Promise<void>;
   remove(id: string): Promise<void>;
 
   // TODO getCursor, bulkInsert, upsert, count, aggregate, etc.

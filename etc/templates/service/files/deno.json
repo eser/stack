@@ -65,10 +65,10 @@
     "bench": "deno bench ./src/ --unstable",
     "cleanup": "rm -rf ./dist/ yarn.lock package-lock.json",
     "build": "deno run -A packager.ts",
-    "start": "deno run --allow-net --allow-env --allow-read --unstable ./main.ts",
+    "start": "deno run --allow-net --allow-env --allow-read --unstable ./src/main.ts",
     "cli": "deno run ./src/test.ts",
-    "dev": "deno run --allow-net --allow-env --allow-read --unstable --watch ./main.ts",
-    "dev:inspector": "deno run --allow-net --allow-env --allow-read --unstable --inspect-brk --watch ./main.ts",
+    "dev": "deno run --allow-net --allow-env --allow-read --unstable --watch ./src/main.ts",
+    "dev:inspector": "deno run --allow-net --allow-env --allow-read --unstable --inspect-brk --watch ./src/main.ts",
     "dockerize": "docker build -t hex-service . && docker run -it --init -p 8080:8080 hex-service"
   }
 }

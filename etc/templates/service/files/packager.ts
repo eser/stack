@@ -7,7 +7,7 @@ await emptyDir("./dist");
 await build({
   packageManager: "yarn",
   entryPoints: [
-    "./src/app.ts",
+    "./src/main.ts",
   ],
   outDir: "./dist",
   package: packageJson,

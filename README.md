@@ -40,6 +40,8 @@ See the respective component page to figure out its specific usage.
 Ensure that [Deno](https://deno.land/) 1.25 or higher is installed on your
 system first.
 
+**Alternative I**:
+
 Install hex globally first, then create a new project:
 
 ```sh
@@ -52,13 +54,30 @@ Creating "hex web template 0.0.1" on my-project...
 done.
 ```
 
-Or run a file directly from the resource:
+
+**Alternative II**:
+
+Without any preparation, invoke creating a new project remotely:
+
+```sh
+$ deno run -A https://deno.land/x/hex/hex.ts create my-project
+
+Creating "hex web template 0.0.1" on my-project...
+...
+done.
+```
+
+
+**Alternative III**:
+
+Or run a hex routines directly from the resource:
 
 ```sh
 $ deno run https://deno.land/x/hex/src/functions/samples/basic.ts eser
 
 { payload: "hello eser" }
 ```
+
 
 # 📖 FAQ
 

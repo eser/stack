@@ -13,7 +13,7 @@ COPY ./src/ ./src/
 COPY ./run ./
 COPY ./.env ./
 COPY ./.env.* ./
-RUN deno cache ./main.ts
+RUN deno cache ./src/main.ts
 
 ENTRYPOINT []
 CMD ["sh", "./run"]

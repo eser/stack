@@ -23,7 +23,7 @@ const upgradeCli = async (args: string[], options: ExecuteOptions) => {
 
 const run = async (args: string[], options: ExecuteOptions) => {
   const p = Deno.run({
-    cmd: ["deno", "run", "-A", "-r", "main.ts"],
+    cmd: ["deno", "run", "-A", "src/main.ts", ...args],
     stdout: "inherit",
     stderr: "inherit",
     stdin: "null",
@@ -43,9 +43,10 @@ const test = async (args: string[], options: ExecuteOptions) => {
   await p.status();
 };
 
-if (import.meta.main) {
+const hexCli = async () => {
   const executeOptions: ExecuteOptions = {
     command: "hex",
+    module: import.meta.url,
   };
 
   const commands: Command[] = [
@@ -103,4 +104,10 @@ if (import.meta.main) {
   const args = (typeof Deno !== "undefined") ? Deno.args : [];
 
   execute(commands, args, executeOptions);
+};
+
+if (import.meta.main) {
+  hexCli();
 }
+
+export { hexCli as default, hexCli, run, test, upgradeCli };

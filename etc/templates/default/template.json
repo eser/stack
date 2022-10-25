@@ -31,12 +31,12 @@
     "src/app/global.css",
     "src/app/layout.tsx",
     "src/shared/.gitkeep",
+    "src/main.ts",
     ".editorconfig",
     ".gitattributes",
     ".gitignore",
     "deno.json",
     "import_map.json",
-    "main.ts",
     "README.md"
   ]
 }

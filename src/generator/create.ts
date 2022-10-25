@@ -1,8 +1,7 @@
 import { type ExecuteOptions, validateOptions } from "../cli/mod.ts";
+import metadata from "../metadata.json" assert { type: "json" };
 import { flags } from "./deps.ts";
 import { generate } from "./generate.ts";
-
-const VERSION = "0.0.1";
 
 const showHelp = (options: ExecuteOptions) => {
   let generateCommand, otherCommand;
@@ -38,7 +37,7 @@ const showHelp = (options: ExecuteOptions) => {
 };
 
 const showVersion = () => {
-  const messageContents = `hex/generator version ${VERSION}`;
+  const messageContents = `hex/generator version ${metadata.version}`;
 
   console.log(messageContents);
 };

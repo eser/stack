@@ -7,8 +7,7 @@ import {
   showVersion,
 } from "./src/cli/mod.ts";
 import { create } from "./src/generator/create.ts";
-
-const VERSION = "0.0.1";
+import metadata from "./src/metadata.json" assert { type: "json" };
 
 const upgradeCli = async (args: string[], options: ExecuteOptions) => {
   const p = Deno.run({
@@ -89,7 +88,7 @@ const hexCli = async () => {
       description: "Display help information",
       isDefault: true,
 
-      run: () => showHelp(commands, VERSION, executeOptions),
+      run: () => showHelp(commands, metadata.version, executeOptions),
     },
     {
       type: CommandType.Option,
@@ -97,7 +96,7 @@ const hexCli = async () => {
       shortcut: "V",
       description: "Display version information",
 
-      run: () => showVersion(VERSION),
+      run: () => showVersion(metadata.version),
     },
   ];
 

@@ -1,6 +1,7 @@
 import {
   type Command,
   CommandType,
+  ValueType,
   execute,
   ExecuteOptions,
   showHelp,
@@ -22,7 +23,7 @@ const upgradeCli = async (args: string[], options: ExecuteOptions) => {
 
 const run = async (args: string[], options: ExecuteOptions) => {
   const p = Deno.run({
-    cmd: ["deno", "run", "-A", "src/main.ts", ...args],
+    cmd: ["deno", "run", "-A", "--unstable", "src/main.ts", ...args],
     stdout: "inherit",
     stderr: "inherit",
     stdin: "null",
@@ -63,6 +64,17 @@ const hexCli = async () => {
       shortcut: "c",
       description: "Initialize a new project",
 
+      subcommands: [
+        {
+          type: CommandType.Option,
+          name: "template",
+          shortcut: "t",
+          description: "The template to use",
+          defaultValue: "default",
+          valueType: ValueType.String,
+        },
+      ],
+
       run: (args: string[]) => create(args, executeOptions),
     },
     {
@@ -70,6 +82,17 @@ const hexCli = async () => {
       name: "run",
       // shortcut: "r",
       description: "Runs the project",
+
+      subcommands: [
+        {
+          type: CommandType.Option,
+          name: "reload",
+          shortcut: "r",
+          description: "Reloads all modules before running",
+          defaultValue: false,
+          valueType: ValueType.Boolean,
+        },
+      ],
 
       run: (args: string[]) => run(args, executeOptions),
     },

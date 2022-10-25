@@ -9,14 +9,28 @@ enum CommandType {
   Option = "option",
 }
 
+enum ValueType {
+  NoValue = "no-value",
+  Boolean = "boolean",
+  String = "string",
+}
+
 interface Command {
   type: CommandType;
   name: string;
   shortcut?: string;
   description: string;
   isDefault?: boolean;
+  defaultValue?: string | boolean;
+  valueType?: ValueType;
 
-  run: (args: string[], options: ExecuteOptions) => void;
+  subcommands?: Command[];
+
+  run?: (
+    args: string[],
+    options: Record<string, string>,
+    executeOptions: ExecuteOptions,
+  ) => void;
 }
 
-export { type Command, CommandType, type ExecuteOptions };
+export { type Command, CommandType, type ExecuteOptions, ValueType };

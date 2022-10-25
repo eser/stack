@@ -1,4 +1,4 @@
-import { type Context, type Registry } from "../types.ts";
+import { type Context, type Registry } from "@app/types.ts";
 import { MongoDbConnection } from "@hex/data/adapters/mongodb.ts";
 
 interface Comment {

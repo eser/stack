@@ -51,7 +51,7 @@ const app = run<AppOptions>(async (s) => {
   s.addRoute("get", "/:slug", (ctx: Context) => {
     ctx.assert(ctx?.params?.slug?.length > 2, 400, "Slug is required");
 
-    return echoAction(s.registry, ctx?.params?.slug);
+    return echoAction({ registry: s.registry, slug: ctx?.params?.slug });
   });
 
   // sentry initialization

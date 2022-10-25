@@ -1,12 +1,17 @@
-import { type Registry } from "../types.ts";
+import { type Registry } from "@app/types.ts";
 
-const echoAction = (r: Registry, slug: string) => {
-  const { test } = r.getMany("test");
+interface EchoActionProps {
+  registry: Registry;
+  slug: string;
+}
+
+const echoAction = (props: EchoActionProps) => {
+  const { test } = props.registry.getMany("test");
 
   return {
-    message: `Hello ${slug}! Testing ${test}...`,
+    message: `Hello ${props.slug}! Testing ${test}...`,
     timestamp: new Date().toLocaleDateString(),
   };
 };
 
-export { echoAction, echoAction as default };
+export { echoAction, echoAction as default, type EchoActionProps };

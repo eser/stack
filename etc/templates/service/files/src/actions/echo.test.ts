@@ -1,6 +1,6 @@
 import * as di from "@hex/di/mod.ts";
 import { echoAction } from "@app/actions/echo.ts";
-import { asserts } from "../deps.ts";
+import { asserts } from "@app/deps.ts";
 
 Deno.test("actions:echo", async (t) => {
   await t.step("basic output", () => {
@@ -14,6 +14,6 @@ Deno.test("actions:echo", async (t) => {
       timestamp: new Date().toLocaleDateString(),
     };
 
-    asserts.assertEquals(expected, echoAction(di.registry, slug));
+    asserts.assertEquals(expected, echoAction({ registry: di.registry, slug }));
   });
 });

@@ -14,8 +14,7 @@ import * as Sentry from "npm:@sentry/node";
 
 import { type AppOptions } from "./types.ts";
 
-// public functions
-const app = run<AppOptions>(async (s) => {
+run<AppOptions>(async (s) => {
   // configure options
   await s.configureOptions((env, options) => {
     options.mongoDbConnString = env.readString("MONGODB_CONNSTRING");
@@ -67,5 +66,3 @@ const app = run<AppOptions>(async (s) => {
     });
   }
 });
-
-export { app, app as default };

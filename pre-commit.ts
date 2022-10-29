@@ -1,5 +1,5 @@
 import metadata from "./src/metadata.json" assert { type: "json" };
-import * as pathPosix from "https://deno.land/std@0.160.0/path/posix.ts";
+import * as pathPosix from "https://deno.land/std@0.161.0/path/posix.ts";
 
 const main = async () => {
   const baseUrl = new URL(".", import.meta.url);

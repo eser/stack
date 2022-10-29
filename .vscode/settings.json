@@ -24,6 +24,7 @@
     "**/.DS_Store": true,
     "**/Thumbs.db": true,
     ".github/ISSUE_TEMPLATE": true,
+    ".github/PULL_REQUEST_TEMPLATE.md": true,
     ".github/FUNDING.yml": true,
     "etc/coverage/*.json": true,
     ".editorconfig": true,

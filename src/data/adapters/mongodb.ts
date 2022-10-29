@@ -55,6 +55,18 @@ class MongoDbRepository<T = mongo.Bson.Document> implements Repository<T> {
     return collection.find().toArray();
   }
 
+  async find(filter: mongo.Filter<T>): Promise<T | undefined> {
+    const collection = await this.getCollection();
+
+    return collection.findOne(filter);
+  }
+
+  async findAll(filter: mongo.Filter<T>): Promise<T[]> {
+    const collection = await this.getCollection();
+
+    return collection.find(filter).toArray();
+  }
+
   async add<R = T>(data: R): Promise<string> {
     const collection = await this.getCollection();
 

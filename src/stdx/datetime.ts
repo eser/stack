@@ -23,4 +23,17 @@ const clampTime = (date: Date): Date => {
   return newDate;
 };
 
-export { clampTime, tryParse };
+const datesBetween = (fromDate: Date, toDate: Date): Date[] => {
+  const dates: Date[] = [];
+  const date = fromDate;
+
+  while (date <= toDate) {
+    dates.push(new Date(date));
+
+    date.setDate(date.getDate() + 1);
+  }
+
+  return dates;
+};
+
+export { clampTime, datesBetween, tryParse };

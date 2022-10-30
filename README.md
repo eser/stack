@@ -21,6 +21,7 @@ cloud-function runtimes and web apis.
 | [Directives](src/directives/)   | Rules             |                                  |
 | [Standards](src/standards/)     | Abstraction       |                                  |
 | [FP](src/fp/)                   | Functions Library | Tools for functional programming |
+| [StdX](src/stdx/)               | Functions Library | Encriched Standard Library       |
 | [Data](src/data/)               | Objects Library   | Data Objects and Patterns        |
 | [Environment](src/environment/) | Objects Library   | Environment adapters             |
 | [Formatters](src/formatters/)   | Objects Library   | Object serializers/deserializers |

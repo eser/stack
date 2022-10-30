@@ -1,2 +1,2 @@
-export * as asserts from "https://deno.land/std@0.161.0/testing/asserts.ts";
-export * as bdd from "https://deno.land/std@0.161.0/testing/bdd.ts";
+export * as asserts from "../../stdx/testing/asserts.ts";
+export * as bdd from "../../stdx/testing/bdd.ts";

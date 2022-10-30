@@ -1,4 +1,4 @@
-import { pathPosix, streams } from "./deps.ts";
+import { path, streams } from "./deps.ts";
 
 const tryParseUrl = (url: string): URL | undefined => {
   try {
@@ -21,7 +21,7 @@ const copy = async (source: string, target: string) => {
 
   if (isLocalFile) {
     sourceStream = await Deno.open(
-      sourceUrl !== undefined ? pathPosix.fromFileUrl(sourceUrl) : source,
+      sourceUrl !== undefined ? path.posix.fromFileUrl(sourceUrl) : source,
     );
   } else {
     sourceStream = await fetch(sourceUrl)

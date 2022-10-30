@@ -1,6 +1,6 @@
 import * as di from "../di/mod.ts";
 import * as options from "../options/mod.ts";
-import { logLevels, oak } from "./deps.ts";
+import { log, oak } from "./deps.ts";
 
 type State = oak.State;
 // deno-lint-ignore no-explicit-any
@@ -42,7 +42,7 @@ type HttpMethods =
 
 interface ServiceOptions {
   port: number;
-  logs: logLevels.LevelName;
+  logs: log.LevelName;
 }
 
 interface ServiceState<TOptions extends ServiceOptions> {

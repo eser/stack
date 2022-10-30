@@ -1,13 +1,13 @@
 import { type Command, CommandType, ExecuteOptions } from "./types.ts";
-import { flags, pathPosix } from "./deps.ts";
+import { flags, path } from "./deps.ts";
 
 const getRelativePath = (originUrl: string) => {
   const url = new URL(originUrl);
 
   if (url.protocol === "file:") {
-    return pathPosix.relative(
+    return path.posix.relative(
       Deno.cwd(),
-      pathPosix.fromFileUrl(url.href),
+      path.posix.fromFileUrl(url.href),
     );
   }
 

@@ -1,4 +1,4 @@
-import { logLevels } from "./deps.ts";
+import { log } from "./deps.ts";
 import { type ServiceOptions } from "./types.ts";
 import * as options from "../options/mod.ts";
 
@@ -8,7 +8,7 @@ const createOptionsBuilder = async <TOptions extends ServiceOptions>() => {
 
   builder.load((env, opts) => {
     opts.port = env.readInt("PORT", 8080);
-    opts.logs = env.readEnum<logLevels.LevelName>("LOGS", [
+    opts.logs = env.readEnum<log.LevelName>("LOGS", [
       "DEBUG",
       "INFO",
       "WARNING",

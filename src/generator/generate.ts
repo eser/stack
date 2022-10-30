@@ -1,4 +1,4 @@
-import { pathPosix } from "./deps.ts";
+import { path } from "./deps.ts";
 import { readTemplate } from "./template-reader.ts";
 import { copy } from "./copy.ts";
 
@@ -18,16 +18,16 @@ const generate = async (
   await Deno.mkdir(projectPath, { recursive: true });
 
   for (const file of template.files) {
-    const sourcePath = pathPosix.join(
+    const sourcePath = path.posix.join(
       basePath,
       `${templateFolder}/files`,
       file,
     );
-    const targetPath = pathPosix.join(projectPath, file);
+    const targetPath = path.posix.join(projectPath, file);
 
     console.log(`Copying ${targetPath}...`);
 
-    const targetPathDirectory = pathPosix.dirname(targetPath);
+    const targetPathDirectory = path.posix.dirname(targetPath);
     await Deno.mkdir(targetPathDirectory, { recursive: true });
 
     copy(sourcePath, targetPath);

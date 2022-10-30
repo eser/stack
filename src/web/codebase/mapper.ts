@@ -1,4 +1,4 @@
-import { fsWalk } from "../deps.ts";
+import { fs } from "../deps.ts";
 
 const checkFileNaming = (
   filename: string,
@@ -89,7 +89,7 @@ const codebaseMapper = async (
 
   const sanitizedDir = dir.endsWith("/") ? dir : `${dir}/`;
 
-  for await (const entry of fsWalk.walk(sanitizedDir, { maxDepth: 1 })) {
+  for await (const entry of fs.walk(sanitizedDir, { maxDepth: 1 })) {
     if (entry.path === sanitizedDir) {
       if (
         entry.isDirectory && entry.name.startsWith("[") &&

@@ -25,13 +25,13 @@ const clampTime = (date: Date): Date => {
 
 const datesBetween = (fromDate: Date, toDate: Date): Date[] => {
   const dates: Date[] = [];
-  const date = fromDate;
+  const date = new Date(fromDate);
 
-  while (date <= toDate) {
+  do {
     dates.push(new Date(date));
 
     date.setDate(date.getDate() + 1);
-  }
+  } while (date !== fromDate && date <= toDate);
 
   return dates;
 };

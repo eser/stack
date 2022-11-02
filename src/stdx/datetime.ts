@@ -23,15 +23,34 @@ const clampTime = (date: Date): Date => {
   return newDate;
 };
 
-const datesBetween = (fromDate: Date, toDate: Date): Date[] => {
-  const dates: Date[] = [];
-  const date = new Date(fromDate);
+interface DatesBetweenOptions {
+  includeFinalPeriod?: boolean;
+}
 
-  do {
-    dates.push(new Date(date));
+const datesBetween = (
+  fromDate: Date,
+  toDate: Date,
+  options?: DatesBetweenOptions,
+): Date[] => {
+  let date = new Date(fromDate);
+  const dates: Date[] = [date];
+  let newDate;
 
-    date.setDate(date.getDate() + 1);
-  } while (date !== fromDate && date <= toDate);
+  while (true) {
+    newDate = new Date(date);
+    newDate.setDate(newDate.getDate() + 1);
+
+    if (newDate > toDate) {
+      break;
+    }
+
+    dates.push(newDate);
+    date = newDate;
+  }
+
+  if (options?.includeFinalPeriod && date < toDate) {
+    dates.push(new Date(toDate));
+  }
 
   return dates;
 };

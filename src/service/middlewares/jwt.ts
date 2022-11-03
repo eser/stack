@@ -1,6 +1,6 @@
 import { djwt } from "../deps.ts";
 
-const jwtMiddleware = (key?: CryptoKey) => {
+const jwtMiddleware = (key?: CryptoKey, decodeOnly?: boolean) => {
   // deno-lint-ignore no-explicit-any
   const jwtMiddlewareFn = async (ctx: any, next: any) => {
     const authHeader = ctx.request.headers.get("Authorization");
@@ -15,8 +15,13 @@ const jwtMiddleware = (key?: CryptoKey) => {
 
     const authToken = authHeader.slice(7);
 
-    const payload = await djwt.verify(authToken, key ?? null);
-    ctx.state.jwt = payload;
+    if (decodeOnly) {
+      const payload = await djwt.decode(authToken);
+      ctx.state.jwt = payload;
+    } else {
+      const payload = await djwt.verify(authToken, key ?? null);
+      ctx.state.jwt = payload;
+    }
 
     await next();
   };

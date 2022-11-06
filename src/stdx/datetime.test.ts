@@ -18,7 +18,7 @@ bdd.describe("hex/stdx/datetime", () => {
     asserts.assertEquals(result, expected);
   });
 
-  bdd.it("datesBetween", () => {
+  bdd.it("datesBetween - complete dates", () => {
     const result = datesBetween(
       new Date(2021, 0, 1, 0, 0, 0),
       new Date(2021, 0, 3, 0, 0, 0),
@@ -28,6 +28,20 @@ bdd.describe("hex/stdx/datetime", () => {
       new Date(2021, 0, 1, 0, 0, 0),
       new Date(2021, 0, 2, 0, 0, 0),
       new Date(2021, 0, 3, 0, 0, 0),
+    ]);
+  });
+
+  bdd.it("datesBetween - complex dates", () => {
+    const result = datesBetween(
+      new Date(2021, 0, 1, 22, 0, 0),
+      new Date(2021, 0, 5, 15, 0, 0),
+    );
+
+    asserts.assertEquals(result, [
+      new Date(2021, 0, 1, 22, 0, 0),
+      new Date(2021, 0, 2, 22, 0, 0),
+      new Date(2021, 0, 3, 22, 0, 0),
+      new Date(2021, 0, 4, 22, 0, 0),
     ]);
   });
 });

@@ -39,8 +39,8 @@ ${
   console.log(messageContents);
 };
 
-const showVersion = (version: string) => {
-  const messageContents = `hex version ${version}`;
+const showVersion = (version: string, options: ExecuteOptions) => {
+  const messageContents = `${options.command ?? "hex"} version ${version}`;
 
   console.log(messageContents);
 };

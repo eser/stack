@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/eserozvataf/hex">
-    <img alt="hex: a deno library" src="./etc/logo.svg" width="849" />
+    <img alt="hex: a deno library" src="https://raw.githubusercontent.com/eserozvataf/hex/development/etc/logo.svg" width="849" />
   </a>
 </p>
 
@@ -32,11 +32,8 @@ cloud-function runtimes and web apis.
 | [CLI](src/cli/)                 | Manager           | CLI library                      |
 | [DI](src/di/)                   | Manager           | Dependency injection library     |
 | [Functions](src/functions/)     | Manager           | Functions runtime                |
-| [Generator](src/generator/)     | Manager           | Project generator                |
 | [I18N](src/i18n/)               | Manager           | Internationalization library     |
 | [Options](src/options/)         | Manager           | Configuration library            |
-| [Service](src/service/)         | Framework         | A micro http framework           |
-| [Web](src/web/)                 | Framework         | A web framework implementation   |
 
 See the respective component page to figure out its specific usage.
 

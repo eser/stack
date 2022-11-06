@@ -1,8 +1,10 @@
 <p align="center">
   <a href="https://github.com/eserozvataf/hex">
-    <img alt="hex: a deno library" src="./etc/logo.png" width="849" />
+    <img alt="hex: a deno library" src="./etc/logo.svg" width="849" />
   </a>
 </p>
+
+
 
 # Intro
 
@@ -13,6 +15,8 @@ These sub-components enable developers to abstract their codes for better
 portability between platforms. Encourages ones to write codes once in functional
 approach, then run on mainstream environments such as cli, bot platforms,
 cloud-function runtimes and web apis.
+
+
 
 # ⚙ Components
 
@@ -36,40 +40,29 @@ cloud-function runtimes and web apis.
 
 See the respective component page to figure out its specific usage.
 
+
+
 # 🚀 Jumpstart
 
-Ensure that [Deno](https://deno.land/) 1.25 or higher is installed on your
+Ensure that [Deno](https://deno.land/) 1.27 or higher is installed on your
 system first.
 
 **Alternative I**:
 
-Install hex globally first, then create a new project:
+Install dext globally first, then create a new project:
 
 ```sh
-$ deno install -A -f https://deno.land/x/hex/hex.ts
+$ deno run -A https://dext.deno.dev
 
-$ hex create my-project
+$ dext create my-project
 
-Creating "hex web template 0.0.1" on my-project...
+Creating "dext web template 0.0.1" on my-project...
 ...
 done.
 ```
 
 
 **Alternative II**:
-
-Without any preparation, invoke creating a new project remotely:
-
-```sh
-$ deno run -A https://deno.land/x/hex/hex.ts create my-project
-
-Creating "hex web template 0.0.1" on my-project...
-...
-done.
-```
-
-
-**Alternative III**:
 
 Or run a hex routines directly from the resource:
 
@@ -78,6 +71,7 @@ $ deno run https://deno.land/x/hex/src/functions/samples/basic.ts eser
 
 { payload: "hello eser" }
 ```
+
 
 
 # 📖 FAQ
@@ -100,7 +94,7 @@ Fork the repo, push your changes to your fork, and submit a pull request.
 
 ## Requirements
 
-- Deno 1.25 or higher (https://deno.land/)
+- Deno 1.27 or higher (https://deno.land/)
 
 ## License
 

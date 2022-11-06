@@ -5,7 +5,7 @@ const showHelp = (
   version: string,
   options: ExecuteOptions,
 ) => {
-  const messageContents = `hex ${version}
+  const messageContents = `${options.command ?? "hex"} ${version}
 
 USAGE:
   ${options.command ?? "hex"} [OPTIONS] [SUBCOMMAND]

@@ -16,15 +16,25 @@ const tryParse = (
   }
 };
 
-const clampTime = (date: Date): Date => {
+interface ClampTimeOptions {
+  includeFinalPeriod?: boolean;
+  utc?: boolean;
+}
+
+const clampTime = (date: Date, options?: ClampTimeOptions): Date => {
   const newDate = new Date(date);
-  newDate.setHours(0, 0, 0, 0);
+  if (options?.utc ?? false) {
+    newDate.setUTCHours(0, 0, 0, 0);
+  } else {
+    newDate.setHours(0, 0, 0, 0);
+  }
 
   return newDate;
 };
 
 interface DatesBetweenOptions {
   includeFinalPeriod?: boolean;
+  utc?: boolean;
 }
 
 const datesBetween = (
@@ -38,7 +48,11 @@ const datesBetween = (
 
   while (true) {
     newDate = new Date(date);
-    newDate.setDate(newDate.getDate() + 1);
+    if (options?.utc ?? false) {
+      newDate.setUTCDate(newDate.getUTCDate() + 1);
+    } else {
+      newDate.setDate(newDate.getDate() + 1);
+    }
 
     if (newDate > toDate) {
       break;

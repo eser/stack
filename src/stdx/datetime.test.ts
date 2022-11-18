@@ -18,6 +18,15 @@ bdd.describe("hex/stdx/datetime", () => {
     asserts.assertEquals(result, expected);
   });
 
+  bdd.it("clampTime - utc date", () => {
+    const date = new Date(Date.UTC(2021, 0, 1, 12, 30, 45));
+    const result = clampTime(date, { utc: true });
+
+    const expected = new Date(Date.UTC(2021, 0, 1, 0, 0, 0));
+
+    asserts.assertEquals(result, expected);
+  });
+
   bdd.it("datesBetween - complete dates", () => {
     const result = datesBetween(
       new Date(2021, 0, 1, 0, 0, 0),

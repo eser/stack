@@ -20,20 +20,20 @@ cloud-function runtimes and web apis.
 
 # ⚙ Components
 
-| Component                       | Area              | Description                      |
-| ------------------------------- | ----------------- | -------------------------------- |
-| [Directives](src/directives/)   | Rules             |                                  |
-| [Standards](src/standards/)     | Abstraction       |                                  |
-| [FP](src/fp/)                   | Functions Library | Tools for functional programming |
-| [StdX](src/stdx/)               | Functions Library | Encriched Standard Library       |
-| [Data](src/data/)               | Objects Library   | Data Objects and Patterns        |
-| [Environment](src/environment/) | Objects Library   | Environment adapters             |
-| [Formatters](src/formatters/)   | Objects Library   | Object serializers/deserializers |
-| [CLI](src/cli/)                 | Manager           | CLI library                      |
-| [DI](src/di/)                   | Manager           | Dependency injection library     |
-| [Functions](src/functions/)     | Manager           | Functions runtime                |
-| [I18N](src/i18n/)               | Manager           | Internationalization library     |
-| [Options](src/options/)         | Manager           | Configuration library            |
+|              Component              |       Area        |           Description            |
+| ----------------------------------- | ----------------- | -------------------------------- |
+| [Directives](src/lib/directives/)   | Rules             |                                  |
+| [Standards](src/lib/standards/)     | Abstraction       |                                  |
+| [FP](src/lib/fp/)                   | Functions Library | Tools for functional programming |
+| [StdX](src/lib/stdx/)               | Functions Library | Encriched Standard Library       |
+| [Data](src/lib/data/)               | Objects Library   | Data Objects and Patterns        |
+| [Environment](src/lib/environment/) | Objects Library   | Environment adapters             |
+| [Formatters](src/lib/formatters/)   | Objects Library   | Object serializers/deserializers |
+| [CLI](src/lib/cli/)                 | Manager           | CLI library                      |
+| [DI](src/lib/di/)                   | Manager           | Dependency injection library     |
+| [Functions](src/lib/functions/)     | Manager           | Functions runtime                |
+| [I18N](src/lib/i18n/)               | Manager           | Internationalization library     |
+| [Options](src/lib/options/)         | Manager           | Configuration library            |
 
 See the respective component page to figure out its specific usage.
 
@@ -46,14 +46,14 @@ system first.
 
 **Alternative I**:
 
-Install dext globally first, then create a new project:
+Install hex cli globally first, then create a new project:
 
 ```sh
-$ deno run -A https://dext.deno.dev
+$ deno run -A https://hexfw.deno.dev
 
-$ dext create my-project
+$ hex create my-project
 
-Creating "dext web template 0.0.1" on my-project...
+Creating "hex framework web template 0.0.1" on my-project...
 ...
 done.
 ```
@@ -61,10 +61,23 @@ done.
 
 **Alternative II**:
 
+Without any preparation, invoke creating a new project remotely:
+
+```sh
+$ deno run -A https://hexfw.deno.dev create my-project
+
+Creating "hex framework web template 0.0.1" on my-project...
+...
+done.
+```
+
+
+**Alternative III**:
+
 Or run a hex routines directly from the resource:
 
 ```sh
-$ deno run https://deno.land/x/hex/src/functions/samples/basic.ts eser
+$ deno run https://deno.land/x/hex/src/lib/functions/samples/basic.ts eser
 
 { payload: "hello eser" }
 ```

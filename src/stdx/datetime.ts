@@ -1,5 +1,22 @@
-import * as datetime from "https://deno.land/std@0.161.0/datetime/mod.ts";
-export * from "https://deno.land/std@0.161.0/datetime/mod.ts";
+import * as datetime from "https://deno.land/std@0.165.0/datetime/mod.ts";
+import {
+  DateTimeFormatter,
+} from "https://deno.land/std@0.165.0/datetime/formatter.ts";
+export * from "https://deno.land/std@0.165.0/datetime/mod.ts";
+
+interface FormatExOptions {
+  utc?: boolean;
+}
+
+const formatEx = (
+  date: Date,
+  formatString: string,
+  options?: FormatExOptions,
+): string => {
+  const formatter = new DateTimeFormatter(formatString);
+
+  return formatter.format(date, { timeZone: options?.utc ? "UTC" : undefined });
+};
 
 const tryParse = (
   dateString: unknown | null | undefined,
@@ -69,4 +86,13 @@ const datesBetween = (
   return dates;
 };
 
-export { clampTime, datesBetween, tryParse };
+export {
+  clampTime,
+  type ClampTimeOptions,
+  datesBetween,
+  type DatesBetweenOptions,
+  DateTimeFormatter,
+  formatEx,
+  type FormatExOptions,
+  tryParse,
+};

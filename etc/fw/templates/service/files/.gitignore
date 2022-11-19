@@ -1,0 +1,32 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Editor-specific files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# dotenv local environment variables file
+.env.local
+.env.*.local
+
+# NPM packaging
+node_modules/
+yarn.lock
+package-lock.json
+
+# Build output
+dist/
+tsconfig.tsbuildinfo
+
+# sensitive files
+*.pem
+*.swp
+
+# coverage files
+etc/coverage/*.json
+etc/coverage/cov_profile.lcov

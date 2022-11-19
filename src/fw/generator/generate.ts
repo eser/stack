@@ -7,7 +7,10 @@ const generate = async (
   projectPath: string,
   templateName?: string,
 ) => {
-  const templateFolder = `../../etc/templates/${templateName ?? "default"}`;
+  const templateFolder = `../../../etc/fw/templates/${
+    templateName ?? "default"
+  }`;
+
   const template = await readTemplate(templateFolder).then((mod) =>
     mod.default
   );

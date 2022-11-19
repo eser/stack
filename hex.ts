@@ -1,3 +1,4 @@
+#!/usr/bin/env -S deno run --allow-run --allow-read --allow-write --allow-net
 import {
   type Command,
   CommandType,
@@ -32,6 +33,17 @@ const run = async (args: string[], _options: ExecuteOptions) => {
   await p.status();
 };
 
+const runDev = async (_args: string[], _options: ExecuteOptions) => {
+  const p = Deno.run({
+    cmd: ["deno", "task", "dev"],
+    stdout: "inherit",
+    stderr: "inherit",
+    stdin: "null",
+  });
+
+  await p.status();
+};
+
 const test = async (_args: string[], _options: ExecuteOptions) => {
   const p = Deno.run({
     cmd: ["deno", "task", "test"],
@@ -55,7 +67,7 @@ const hexCli = async () => {
       name: "upgrade",
       // shortcut: "u",
       description: "Upgrades hex cli to the latest version",
-      isDefault: true,
+      // isDefault: true,
 
       run: (args: string[]) => upgradeCli(args, executeOptions),
     },
@@ -99,6 +111,25 @@ const hexCli = async () => {
     },
     {
       type: CommandType.SubCommand,
+      name: "dev",
+      // shortcut: "d",
+      description: "Runs the project in development mode",
+
+      subcommands: [
+        {
+          type: CommandType.Option,
+          name: "reload",
+          shortcut: "r",
+          description: "Reloads all modules before running",
+          defaultValue: false,
+          valueType: ValueType.Boolean,
+        },
+      ],
+
+      run: (args: string[]) => runDev(args, executeOptions),
+    },
+    {
+      type: CommandType.SubCommand,
       name: "test",
       // shortcut: "t",
       description: "Runs tests of the project",
@@ -110,6 +141,7 @@ const hexCli = async () => {
       name: "help",
       shortcut: "h",
       description: "Display help information",
+      isDefault: true,
 
       run: () => showHelp(commands, metadata.version, executeOptions),
     },

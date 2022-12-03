@@ -11,9 +11,9 @@ const curryFunctions = <
   funcs: T2,
   ...args: readonly T1[]
 ) => {
-  return Object.keys(funcs).reduce(
-    (obj, itemKey) => {
-      return { ...obj, [itemKey]: curry(funcs[itemKey], ...args) };
+  return Object.entries(funcs).reduce(
+    (obj, [itemKey, value]) => {
+      return { ...obj, [itemKey]: curry(value, ...args) };
     },
     // deno-lint-ignore no-explicit-any
     {} as { [T4 in keyof T2]: any },

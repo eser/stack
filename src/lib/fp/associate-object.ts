@@ -6,14 +6,14 @@ function associateObject<T>(
     instance: Record<string | number | symbol, T>,
   ) => string | number | symbol | undefined,
 ): Record<string | number | symbol, T> {
-  return Object.keys(instance).reduce(
-    (obj, itemKey) => {
-      const key = predicate(instance[itemKey], itemKey, obj);
+  return Object.entries(instance).reduce(
+    (obj, [itemKey, value]) => {
+      const key = predicate(value, itemKey, obj);
 
       if (key !== undefined) {
         return {
           ...obj,
-          [key]: instance[itemKey],
+          [key]: value,
         };
       }
 

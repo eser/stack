@@ -8,16 +8,16 @@ function distinctObject<T>(
 ): Record<string | number | symbol, T> {
   const predicateValue = predicate ?? ((value) => value);
 
-  const result = Object.keys(instance).reduce(
-    (obj, itemKey) => {
-      const key = predicateValue(instance[itemKey], itemKey, obj.items);
+  const result = Object.entries(instance).reduce(
+    (obj, [itemKey, value]) => {
+      const key = predicateValue(value, itemKey, obj.items);
 
       if (obj.dict.has(key)) {
         return obj;
       }
 
       return {
-        items: { ...obj.items, [itemKey]: instance[itemKey] },
+        items: { ...obj.items, [itemKey]: value },
         dict: new Set<unknown>([...obj.dict, key]),
       };
     },

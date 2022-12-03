@@ -6,9 +6,9 @@ function mapObject<T1, T2>(
     instance: Record<string | number | symbol, T1>,
   ) => Record<string | number | symbol, T2> | null,
 ): Record<string | number | symbol, T2> {
-  return Object.keys(instance).reduce(
-    (obj, itemKey) => {
-      const value = predicate(instance[itemKey], itemKey, obj);
+  return Object.entries(instance).reduce(
+    (obj, [itemKey, itemValue]) => {
+      const value = predicate(itemValue, itemKey, obj);
 
       if (value !== null) {
         return { ...obj, ...value };

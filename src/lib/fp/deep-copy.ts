@@ -8,21 +8,20 @@ function deepCopy<T extends Record<string | number | symbol, any>>(
 
   const Type = instance.constructor as { new (): T };
 
-  return Object.keys(instance).reduce(
-    (obj, itemKey) => {
-      const value = instance[itemKey];
-
+  return Object.entries(instance).reduce(
+    (obj, [itemKey, value]) => {
       if (value instanceof Object && value.constructor !== Array) {
-        return Object.assign(new Type(), obj, {
-          [itemKey]: deepCopy(value),
-        });
+        obj[itemKey] = deepCopy(value);
+
+        return obj;
       }
 
-      return Object.assign(new Type(), obj, {
-        [itemKey]: value,
-      });
+      obj[itemKey] = value;
+
+      return obj;
     },
-    new Type(),
+    // deno-lint-ignore no-explicit-any
+    new Type() as any,
   );
 }
 

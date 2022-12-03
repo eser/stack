@@ -1,8 +1,8 @@
 function reverseObject<T>(
   instance: Record<string | number | symbol, T>,
 ): Record<string | number | symbol, T> {
-  return Object.keys(instance).reduce(
-    (obj, itemKey) => ({ [itemKey]: instance[itemKey], ...obj }),
+  return Object.entries(instance).reduce(
+    (obj, [itemKey, value]) => ({ [itemKey]: value, ...obj }),
     {},
   );
 }

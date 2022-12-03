@@ -68,11 +68,11 @@ class PostgresRepository<T> implements Repository<T> {
     return result!.rows;
   }
 
-  find<F>(filter: F): Promise<T | undefined> {
+  find<F>(_filter: F): Promise<T | undefined> {
     throw new Error("not implemented yet.");
   }
 
-  findAll<F>(filter: F): Promise<T[]> {
+  findAll<F>(_filter: F): Promise<T[]> {
     throw new Error("not implemented yet.");
   }
 

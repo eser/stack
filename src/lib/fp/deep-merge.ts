@@ -15,9 +15,8 @@ function deepMerge<
 
   const Type = instance.constructor as { new (): TR };
 
-  const firstMerge = Object.keys(instance).reduce(
-    (acc, itemKey) => {
-      const recordValue = instance[itemKey];
+  const firstMerge = Object.entries(instance).reduce(
+    (acc, [itemKey, recordValue]) => {
       const otherKeyExists = (other !== undefined) && (itemKey in other);
       const otherValue = other?.[itemKey];
 

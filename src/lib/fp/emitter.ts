@@ -16,12 +16,12 @@ const emitter = async function emitter(
   const isEventWildcard = (eventName === "*");
   const argsPass = (args !== undefined) ? args : [];
 
-  for (const eventKey of Object.keys(events)) {
+  for (const [eventKey, value] of Object.entries(events)) {
     if (!isEventWildcard && eventName !== eventKey) {
       continue;
     }
 
-    for (const eventSubscriber of events[eventKey]) {
+    for (const eventSubscriber of value) {
       loggers?.forEach((logger: LoggerType) => {
         logger(
           { event: eventKey, subscriber: eventSubscriber.name, args: args },

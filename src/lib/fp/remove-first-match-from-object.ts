@@ -8,15 +8,15 @@ function removeFirstMatchFromObject<T>(
 ): Record<string | number | symbol, T> {
   let notFound = true;
 
-  return Object.keys(instance).reduce(
-    (obj, itemKey) => {
-      if (notFound && predicate(instance[itemKey], itemKey, obj)) {
+  return Object.entries(instance).reduce(
+    (obj, [itemKey, value]) => {
+      if (notFound && predicate(value, itemKey, obj)) {
         notFound = false;
 
         return obj;
       }
 
-      return { ...obj, [itemKey]: instance[itemKey] };
+      return { ...obj, [itemKey]: value };
     },
     {},
   );

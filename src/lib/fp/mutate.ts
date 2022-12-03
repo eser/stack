@@ -9,7 +9,8 @@ function mutate<T extends object>(
 
   mutator(newInstance);
 
-  return deepCopy(newInstance);
+  // return deepCopy(newInstance);
+  return newInstance;
 }
 
 export { mutate, mutate as default };

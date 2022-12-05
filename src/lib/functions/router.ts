@@ -11,11 +11,11 @@ const router = <T>(
 
   // TODO(@eserozvataf) return an HexFunction that decides which route
   //      definition should be executed according to input parameters
-  return function (
+  return (
     _input: HexFunctionInput<T>,
     _ctx: HexFunctionContext,
     _next?: HexFunctionNext,
-  ): HexFunctionResult {
+  ): HexFunctionResult => {
     throw new Error("not implemented yet.");
   };
 };

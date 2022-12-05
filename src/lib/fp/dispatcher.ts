@@ -10,7 +10,7 @@ const dispatcher = <T>(
 ): Promise<T> => {
   let index = 0;
 
-  async function next(newState: T): Promise<T> {
+  const next = async (newState: T): Promise<T> => {
     const layer = mutators[index];
 
     if (layer === undefined) {
@@ -35,7 +35,7 @@ const dispatcher = <T>(
         return next(currentState);
       },
     );
-  }
+  };
 
   return next(state);
 };

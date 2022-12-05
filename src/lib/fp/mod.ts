@@ -20,6 +20,7 @@ export * from "./filter-object.ts";
 export * from "./iterate.ts";
 export * from "./map-array.ts";
 export * from "./map-object.ts";
+export * from "./match.ts";
 export * from "./merge-arrays.ts";
 export * from "./merge-objects.ts";
 export * from "./mutate.ts";

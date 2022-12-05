@@ -1,7 +1,7 @@
-function removeValueFromObject<T>(
+const removeValueFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   ...values: T[]
-): Record<string | number | symbol, T> {
+): Record<string | number | symbol, T> => {
   return Object.entries(instance).reduce(
     (obj, [itemKey, value]) => {
       if (values.indexOf(value) === -1) {
@@ -12,6 +12,6 @@ function removeValueFromObject<T>(
     },
     {},
   );
-}
+};
 
 export { removeValueFromObject, removeValueFromObject as default };

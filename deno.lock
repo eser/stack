@@ -219,5 +219,14 @@
     "https://esm.sh/v99/@types/scheduler@0.16.2/tracing.d.ts": "f5a8b384f182b3851cec3596ccc96cb7464f8d3469f48c74bf2befb782a19de5",
     "https://esm.sh/v99/csstype@3.1.1/index.d.ts": "1c29793071152b207c01ea1954e343be9a44d85234447b2b236acae9e709a383",
     "https://esm.sh/v99/react-dom@18.2.0/deno/server.js": "bf1ce0fcb084be382713a3bbf9df8d6564cddad331ef30e9307f1c8eaa1e513d"
+  },
+  "npm": {
+    "specifiers": { "lodash.reject": "lodash.reject@4.6.0" },
+    "packages": {
+      "lodash.reject@4.6.0": {
+        "integrity": "sha512-qkTuvgEzYdyhiJBx42YPzPo71R1aEr0z79kAv7Ixg8wPFEjgRgJdUsGMG3Hf3OYSF/kHI79XhNlt+5Ar6OzwxQ==",
+        "dependencies": {}
+      }
+    }
   }
 }

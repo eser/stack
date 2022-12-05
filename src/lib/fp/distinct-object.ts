@@ -1,11 +1,11 @@
-function distinctObject<T>(
+const distinctObject = <T>(
   instance: Record<string | number | symbol, T>,
   predicate: (
     value: T,
     key: string | number | symbol,
     instance: Record<string | number | symbol, T>,
   ) => unknown,
-): Record<string | number | symbol, T> {
+): Record<string | number | symbol, T> => {
   const predicateValue = predicate ?? ((value) => value);
 
   const result = Object.entries(instance).reduce(
@@ -28,6 +28,6 @@ function distinctObject<T>(
   );
 
   return result.items;
-}
+};
 
 export { distinctObject, distinctObject as default };

@@ -1,7 +1,7 @@
-function removeValueFromArray<T>(
+const removeValueFromArray = <T>(
   instance: Iterable<T>,
   ...values: T[]
-): T[] {
+): T[] => {
   const arrInstance = (instance.constructor === Array)
     ? <T[]> instance
     : [...instance];
@@ -9,6 +9,6 @@ function removeValueFromArray<T>(
   return arrInstance.filter(
     (item) => values.indexOf(item) === -1,
   );
-}
+};
 
 export { removeValueFromArray, removeValueFromArray as default };

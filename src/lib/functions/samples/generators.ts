@@ -5,11 +5,11 @@ import {
 } from "../mod.ts";
 import * as hex from "../../mod.ts";
 
-function sleep(ms: number) {
+const sleep = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
+};
 
-const main = async function* main(
+const main = async function* (
   input: HexFunctionInput,
   _ctx: HexFunctionContext,
 ): HexFunctionResult {

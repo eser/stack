@@ -1,11 +1,11 @@
-function filterObject<T>(
+const filterObject = <T>(
   instance: Record<string | number | symbol, T>,
   predicate: (
     value: T,
     key: string | number | symbol,
     instance: Record<string | number | symbol, T>,
   ) => boolean,
-): Record<string | number | symbol, T> {
+): Record<string | number | symbol, T> => {
   return Object.entries(instance).reduce(
     (obj, [itemKey, value]) => {
       if (predicate(value, itemKey, obj)) {
@@ -16,6 +16,6 @@ function filterObject<T>(
     },
     {},
   );
-}
+};
 
 export { filterObject, filterObject as default };

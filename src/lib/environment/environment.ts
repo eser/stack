@@ -19,10 +19,10 @@ const environment = (
   // deno-lint-ignore no-explicit-any
   ...channels: Channel<any, any>[]
 ): Environment => {
-  const dispatch = async function dispatch<T>(
+  const dispatch = async <T>(
     method: ChannelMethods,
     ...args: readonly T[]
-  ): Promise<void> {
+  ): Promise<void> => {
     await Promise.all(
       instance.channels.map(async (channel) => {
         if (!(method in channel)) {
@@ -40,10 +40,10 @@ const environment = (
     );
   };
 
-  const poll = async function poll<TR, T1 = void>(
+  const poll = async <TR, T1 = void>(
     method: ChannelMethods,
     ...args: readonly T1[]
-  ): Promise<TR | undefined> {
+  ): Promise<TR | undefined> => {
     for (const channel of instance.channels) {
       if (!(method in channel)) {
         continue;

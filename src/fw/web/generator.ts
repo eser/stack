@@ -3,7 +3,7 @@ import { transformCodebaseMapToRoutes } from "./routing/transformers.ts";
 import { type Config } from "./config.ts";
 import { path } from "./deps.ts";
 
-const generator = async function generator(baseDir: string, config: Config) {
+const generator = async (baseDir: string, config: Config) => {
   const rootDir = path.posix.join(baseDir, config.app!.baseDir!);
 
   const codebaseMap = await codebaseMapper(rootDir, config.app!.extensions!);

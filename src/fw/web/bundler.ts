@@ -31,7 +31,7 @@ const outputOptionsList = [
 ];
 
 // deno-lint-ignore no-explicit-any
-async function generateOutputs(bundle: any) {
+const generateOutputs = async (bundle: any) => {
   for (const outputOptions of outputOptionsList) {
     // generate output specific code in-memory
     // you can call this function multiple times on the same bundle object
@@ -80,9 +80,9 @@ async function generateOutputs(bundle: any) {
       }
     }
   }
-}
+};
 
-async function build() {
+const build = async () => {
   let bundle;
   // let buildFailed = false;
 
@@ -104,6 +104,6 @@ async function build() {
     // closes the bundle
     await bundle.close();
   }
-}
+};
 
 build();

@@ -23,9 +23,9 @@ bdd.describe("hex/lib/di/registry", () => {
 
     let count = 55;
 
-    function test() {
+    const test = () => {
       return count++;
-    }
+    };
 
     serviceController.setFactory("b", test);
 

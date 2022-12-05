@@ -1,4 +1,4 @@
-function trimStart(input: string, chars?: string[]) {
+const trimStart = (input: string, chars?: string[]) => {
   if (chars === undefined) {
     return input.trimStart();
   }
@@ -10,9 +10,9 @@ function trimStart(input: string, chars?: string[]) {
   }
 
   return "";
-}
+};
 
-function trimEnd(input: string, chars?: string[]) {
+const trimEnd = (input: string, chars?: string[]) => {
   if (chars === undefined) {
     return input.trimEnd();
   }
@@ -24,6 +24,6 @@ function trimEnd(input: string, chars?: string[]) {
   }
 
   return "";
-}
+};
 
 export { trimEnd, trimStart };

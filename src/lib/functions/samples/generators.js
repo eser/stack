@@ -1,10 +1,10 @@
 import * as hex from "../../mod.ts";
 
-function sleep(ms) {
+const sleep = (ms) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
+};
 
-const main = async function* main(input) {
+const main = async function* (input) {
   const to = input.params[0] ?? "world";
 
   yield hex.functions.results.text(`hello ${to} #1`);

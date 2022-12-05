@@ -7,12 +7,12 @@ type LogType = {
 };
 type LoggerType = (entry: LogType) => void;
 
-const emitter = async function emitter(
+const emitter = async (
   events: Record<string, EventType[]>,
   eventName: string,
   args?: readonly unknown[],
   loggers?: readonly LoggerType[],
-): Promise<void> {
+): Promise<void> => {
   const isEventWildcard = (eventName === "*");
   const argsPass = (args !== undefined) ? args : [];
 

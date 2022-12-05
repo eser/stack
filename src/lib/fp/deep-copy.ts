@@ -1,7 +1,7 @@
 // deno-lint-ignore no-explicit-any
-function deepCopy<T extends Record<string | number | symbol, any>>(
+const deepCopy = <T extends Record<string | number | symbol, any>>(
   instance: T,
-): T {
+): T => {
   if (!(instance instanceof Object)) {
     return instance;
   }
@@ -23,6 +23,6 @@ function deepCopy<T extends Record<string | number | symbol, any>>(
     // deno-lint-ignore no-explicit-any
     new Type() as any,
   );
-}
+};
 
 export { deepCopy, deepCopy as default };

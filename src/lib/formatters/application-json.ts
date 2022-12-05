@@ -22,9 +22,9 @@ const fixNonSerializableObjects = (
   return value;
 };
 
-const serialize = async function serialize(
+const serialize = async (
   payload: unknown | Promise<unknown>,
-): Promise<string> {
+): Promise<string> => {
   const awaitedPayload = await payload;
 
   if (awaitedPayload === undefined) {
@@ -38,9 +38,9 @@ const serialize = async function serialize(
   );
 };
 
-const deserialize = async function deserialize(
+const deserialize = async (
   payload: string | Promise<string>,
-): Promise<unknown> {
+): Promise<unknown> => {
   const awaitedPayload = await payload;
 
   return JSON.parse(String(awaitedPayload));

@@ -1,7 +1,7 @@
-function takeFromObject<T>(
+const takeFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   n: number,
-): Record<string | number | symbol, T> {
+): Record<string | number | symbol, T> => {
   const newKeys = Object.entries(instance).slice(0, n);
 
   return newKeys.reduce(
@@ -10,6 +10,6 @@ function takeFromObject<T>(
     },
     {},
   );
-}
+};
 
 export { takeFromObject, takeFromObject as default };

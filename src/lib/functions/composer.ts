@@ -19,7 +19,7 @@ const composer = <T>(
     let index = 0;
     let currentContext = ctx;
 
-    const jump = async function* jump(
+    const jump = async function* (
       newContext?: HexFunctionContext,
     ): HexFunctionResultAsyncGen {
       const current = functions[index];

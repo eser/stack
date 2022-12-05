@@ -7,7 +7,7 @@ import {
   type HexFunctionResultNonIterable,
 } from "./function-result.ts";
 
-const execute = async function* execute<T>(
+const execute = async function* <T>(
   target: HexFunction<T>,
   input: HexFunctionInput<T>,
   context?: HexFunctionContext,

@@ -38,7 +38,7 @@ bdd.describe("hex/lib/fp/iterate", () => {
 
     let total = 0;
 
-    const func1 = async function func(x: number) {
+    const func1 = async (x: number) => {
       total += await delay(10, x);
     };
 

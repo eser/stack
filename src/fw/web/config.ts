@@ -77,7 +77,7 @@ const makeConfig = (config: Config) => {
   return newConfig;
 };
 
-const readConfig = async function readConfig(baseDir: string) {
+const readConfig = async (baseDir: string) => {
   const variations = [
     `${baseDir}/hex.config.ts`,
     `${baseDir}/hex.config.js`,

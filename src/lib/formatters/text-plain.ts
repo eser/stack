@@ -5,9 +5,9 @@ const names = [
   "text/plain",
 ];
 
-const serialize = async function serialize(
+const serialize = async (
   payload: unknown | Promise<unknown>,
-): Promise<string> {
+): Promise<string> => {
   const awaitedPayload = await payload;
 
   const stringified = String(awaitedPayload);

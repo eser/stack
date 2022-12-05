@@ -145,14 +145,16 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
 };
 
 const run = async <TOptions extends ServiceOptions>(
-  initializer: (s: Service<TOptions>) => void | Promise<void>,
+  ...initializers: ((s: Service<TOptions>) => void | Promise<void>)[]
 ) => {
   try {
     const service = await init<TOptions>();
 
     service.internalApp.use(errorHandlerMiddleware(service));
 
-    await initializer(service);
+    for (const initializer of initializers) {
+      await initializer(service);
+    }
 
     // insert these as last 2 middlewares
     service.internalApp.use(service.router.routes());

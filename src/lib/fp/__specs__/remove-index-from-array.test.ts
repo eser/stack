@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { removeIndexFromArray } from "../remove-index-from-array.ts";
 
 bdd.describe("hex/lib/fp/remove-index-from-array", () => {
@@ -9,9 +9,9 @@ bdd.describe("hex/lib/fp/remove-index-from-array", () => {
 
     const result = removeIndexFromArray(arr1, int1, int2);
 
-    asserts.assertNotStrictEquals(result, arr1);
-    asserts.assertEquals(result.length, 3);
-    asserts.assertEquals(result, [1, 2, 5]);
+    assert.assertNotStrictEquals(result, arr1);
+    assert.assertEquals(result.length, 3);
+    assert.assertEquals(result, [1, 2, 5]);
   });
 
   bdd.it("with-generator", () => {
@@ -29,8 +29,8 @@ bdd.describe("hex/lib/fp/remove-index-from-array", () => {
     const result = removeIndexFromArray(generated1, int1, int2);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> generated1);
-    asserts.assertEquals(result.length, 3);
-    asserts.assertEquals(result, [1, 2, 5]);
+    assert.assertNotStrictEquals(<any> result, <any> generated1);
+    assert.assertEquals(result.length, 3);
+    assert.assertEquals(result, [1, 2, 5]);
   });
 });

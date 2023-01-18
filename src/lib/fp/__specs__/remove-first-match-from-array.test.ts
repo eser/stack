@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { removeFirstMatchFromArray } from "../remove-first-match-from-array.ts";
 
 bdd.describe("hex/lib/fp/remove-first-match-from-array", () => {
@@ -8,9 +8,9 @@ bdd.describe("hex/lib/fp/remove-first-match-from-array", () => {
 
     const result = removeFirstMatchFromArray(arr1, func1);
 
-    asserts.assertNotStrictEquals(result, arr1);
-    asserts.assertEquals(result.length, 5);
-    asserts.assertEquals(result, [1, 2, 3, 4, 5]);
+    assert.assertNotStrictEquals(result, arr1);
+    assert.assertEquals(result.length, 5);
+    assert.assertEquals(result, [1, 2, 3, 4, 5]);
   });
 
   bdd.it("with-generator", () => {
@@ -28,8 +28,8 @@ bdd.describe("hex/lib/fp/remove-first-match-from-array", () => {
     const result = removeFirstMatchFromArray(generated1, func1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> generated1);
-    asserts.assertEquals(result.length, 5);
-    asserts.assertEquals(result, [1, 2, 3, 4, 5]);
+    assert.assertNotStrictEquals(<any> result, <any> generated1);
+    assert.assertEquals(result.length, 5);
+    assert.assertEquals(result, [1, 2, 3, 4, 5]);
   });
 });

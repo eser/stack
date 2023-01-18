@@ -1,4 +1,4 @@
-import { asserts, bdd, mock } from "./deps.ts";
+import { assert, bdd, mock } from "./deps.ts";
 import { container } from "../containers.ts";
 
 bdd.describe("hex/lib/di/containers", () => {
@@ -7,13 +7,13 @@ bdd.describe("hex/lib/di/containers", () => {
 
     sandbox.setValue("a", 5);
 
-    asserts.assertStrictEquals(sandbox.get("a"), 5);
+    assert.assertStrictEquals(sandbox.get("a"), 5);
   });
 
   bdd.it("empty", () => {
     const sandbox = container();
 
-    asserts.assertStrictEquals(sandbox.get("_"), undefined);
+    assert.assertStrictEquals(sandbox.get("_"), undefined);
   });
 
   bdd.it("symbols", () => {
@@ -22,7 +22,7 @@ bdd.describe("hex/lib/di/containers", () => {
 
     sandbox.setValue(b, 6);
 
-    asserts.assertStrictEquals(sandbox.get(b), 6);
+    assert.assertStrictEquals(sandbox.get(b), 6);
   });
 
   bdd.it("nullables", () => {
@@ -31,10 +31,10 @@ bdd.describe("hex/lib/di/containers", () => {
     sandbox.setValue("c", null);
     sandbox.setValue("d", undefined);
 
-    asserts.assertStrictEquals(sandbox.get("c"), null);
-    asserts.assertStrictEquals(sandbox.get("d"), undefined);
-    asserts.assertStrictEquals(sandbox.get("e", "non-exists"), "non-exists");
-    asserts.assertStrictEquals(sandbox.get("f"), undefined);
+    assert.assertStrictEquals(sandbox.get("c"), null);
+    assert.assertStrictEquals(sandbox.get("d"), undefined);
+    assert.assertStrictEquals(sandbox.get("e", "non-exists"), "non-exists");
+    assert.assertStrictEquals(sandbox.get("f"), undefined);
   });
 
   bdd.it("functions", () => {
@@ -44,8 +44,8 @@ bdd.describe("hex/lib/di/containers", () => {
 
     const result = sandbox.get("g");
 
-    asserts.assertStrictEquals(result.constructor, Function);
-    asserts.assertStrictEquals(result(5), 8);
+    assert.assertStrictEquals(result.constructor, Function);
+    assert.assertStrictEquals(result(5), 8);
   });
 
   bdd.it("factory", () => {
@@ -54,9 +54,9 @@ bdd.describe("hex/lib/di/containers", () => {
     let number = 1;
     sandbox.setFactory("h", () => number++);
 
-    asserts.assertStrictEquals(sandbox.get("h"), 1);
-    asserts.assertStrictEquals(sandbox.get("h"), 2);
-    asserts.assertStrictEquals(sandbox.get("h"), 3);
+    assert.assertStrictEquals(sandbox.get("h"), 1);
+    assert.assertStrictEquals(sandbox.get("h"), 2);
+    assert.assertStrictEquals(sandbox.get("h"), 3);
   });
 
   bdd.it("promise", async () => {
@@ -64,7 +64,7 @@ bdd.describe("hex/lib/di/containers", () => {
 
     sandbox.setFactory("h", () => Promise.resolve("test"));
 
-    asserts.assertStrictEquals(await sandbox.get("h"), "test");
+    assert.assertStrictEquals(await sandbox.get("h"), "test");
   });
 
   bdd.it("lazy values", () => {
@@ -78,9 +78,9 @@ bdd.describe("hex/lib/di/containers", () => {
       return ++number;
     });
 
-    asserts.assertStrictEquals(number, 1);
-    asserts.assertStrictEquals(sandbox.get("h"), 2);
-    asserts.assertStrictEquals(number, 2);
+    assert.assertStrictEquals(number, 1);
+    assert.assertStrictEquals(sandbox.get("h"), 2);
+    assert.assertStrictEquals(number, 2);
 
     mock.assertSpyCalls(spyFn, 1);
   });
@@ -102,15 +102,15 @@ bdd.describe("hex/lib/di/containers", () => {
       return ++number;
     });
 
-    asserts.assertStrictEquals(number, 1);
+    assert.assertStrictEquals(number, 1);
 
     const { a, b, c, d } = sandbox.getMany("a", "b", "c", "d");
 
-    asserts.assertStrictEquals(number, 3);
-    asserts.assertStrictEquals(a, 1);
-    asserts.assertStrictEquals(b, 2);
-    asserts.assertStrictEquals(c, 3);
-    asserts.assertStrictEquals(d, undefined);
+    assert.assertStrictEquals(number, 3);
+    assert.assertStrictEquals(a, 1);
+    assert.assertStrictEquals(b, 2);
+    assert.assertStrictEquals(c, 3);
+    assert.assertStrictEquals(d, undefined);
 
     mock.assertSpyCalls(lazySpyFn, 1);
     mock.assertSpyCalls(factorySpyFn, 1);
@@ -123,12 +123,12 @@ bdd.describe("hex/lib/di/containers", () => {
     sandbox.setValue(Object.values, "Object.values method");
     sandbox.setValue(Object.entries, "Object.entries method");
 
-    asserts.assertStrictEquals(sandbox.get(Object.keys), "Object.keys method");
-    asserts.assertStrictEquals(
+    assert.assertStrictEquals(sandbox.get(Object.keys), "Object.keys method");
+    assert.assertStrictEquals(
       sandbox.get(Object.values),
       "Object.values method",
     );
-    asserts.assertStrictEquals(
+    assert.assertStrictEquals(
       sandbox.get(Object.entries),
       "Object.entries method",
     );

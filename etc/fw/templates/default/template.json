@@ -36,7 +36,6 @@
     ".gitattributes",
     ".gitignore",
     "deno.jsonc",
-    "import_map.json",
     "README.md"
   ]
 }

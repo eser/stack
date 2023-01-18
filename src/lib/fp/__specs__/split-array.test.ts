@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { splitArray } from "../split-array.ts";
 
 bdd.describe("hex/lib/fp/split-array", () => {
@@ -8,13 +8,13 @@ bdd.describe("hex/lib/fp/split-array", () => {
 
     const result = splitArray(arr1, int1);
 
-    asserts.assertNotStrictEquals(result.items, arr1);
-    asserts.assertEquals(result.items.length, 3);
-    asserts.assertEquals(result.items, [1, 2, 3]);
+    assert.assertNotStrictEquals(result.items, arr1);
+    assert.assertEquals(result.items.length, 3);
+    assert.assertEquals(result.items, [1, 2, 3]);
 
-    asserts.assertNotStrictEquals(result.rest, arr1);
-    asserts.assertEquals(result.rest.length, 2);
-    asserts.assertEquals(result.rest, [4, 5]);
+    assert.assertNotStrictEquals(result.rest, arr1);
+    assert.assertEquals(result.rest.length, 2);
+    assert.assertEquals(result.rest, [4, 5]);
   });
 
   bdd.it("with-generator", () => {
@@ -32,13 +32,13 @@ bdd.describe("hex/lib/fp/split-array", () => {
     const result = splitArray(generated1, int1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result.items, <any> generated1);
-    asserts.assertEquals(result.items.length, 3);
-    asserts.assertEquals(result.items, [1, 2, 3]);
+    assert.assertNotStrictEquals(<any> result.items, <any> generated1);
+    assert.assertEquals(result.items.length, 3);
+    assert.assertEquals(result.items, [1, 2, 3]);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result.rest, <any> generated1);
-    asserts.assertEquals(result.rest.length, 2);
-    asserts.assertEquals(result.rest, [4, 5]);
+    assert.assertNotStrictEquals(<any> result.rest, <any> generated1);
+    assert.assertEquals(result.rest.length, 2);
+    assert.assertEquals(result.rest, [4, 5]);
   });
 });

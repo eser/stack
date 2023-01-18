@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { curry } from "../curry.ts";
 
 bdd.describe("hex/lib/fp/curry", () => {
@@ -9,6 +9,6 @@ bdd.describe("hex/lib/fp/curry", () => {
 
     const result = sumWith5(3);
 
-    asserts.assertEquals(result, 8);
+    assert.assertEquals(result, 8);
   });
 });

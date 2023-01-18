@@ -1,4 +1,4 @@
-# 📓 [hex/lib/directives/social](https://github.com/eserozvataf/hex/tree/development/src/lib/directives/social)
+# 📓 [hex/lib/directives/social](https://github.com/eser/hex/tree/development/src/lib/directives/social)
 
 ## Our Pledge
 

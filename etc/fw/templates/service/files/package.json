@@ -3,7 +3,7 @@
   "description": "Deno and Node.js boilerplate for plain backend microservices",
   "keywords": [],
   "version": "0.5.0",
-  "homepage": "https://github.com/eserozvataf/hexfw-service#readme",
+  "homepage": "https://github.com/eser/hexfw-service#readme",
   "author": "Eser Ozvataf <eser@ozvataf.com>",
   "contributors": [
     {
@@ -14,10 +14,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eserozvataf/hexfw-service.git"
+    "url": "git+https://github.com/eser/hexfw-service.git"
   },
   "bugs": {
-    "url": "https://github.com/eserozvataf/hexfw-service/issues"
+    "url": "https://github.com/eser/hexfw-service/issues"
   },
   "license": "Apache-2.0",
   "devDependencies": {

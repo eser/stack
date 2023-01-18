@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { distinctArray } from "../distinct-array.ts";
 
 bdd.describe("hex/lib/fp/distinct-array", () => {
@@ -12,9 +12,9 @@ bdd.describe("hex/lib/fp/distinct-array", () => {
 
     const result = distinctArray(arr1, func1);
 
-    asserts.assertNotStrictEquals(result, arr1);
-    asserts.assertEquals(Object.keys(result).length, 2);
-    asserts.assertEquals(result, [
+    assert.assertNotStrictEquals(result, arr1);
+    assert.assertEquals(Object.keys(result).length, 2);
+    assert.assertEquals(result, [
       { id: 1, name: "foo", parent: 0 },
       { id: 2, name: "bar", parent: 1 },
     ]);

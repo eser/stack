@@ -25,7 +25,6 @@
     ".env.development",
     "Dockerfile",
     "deno.json",
-    "import_map.json",
     "README.md"
   ]
 }

@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { takeFromArray } from "../take-from-array.ts";
 
 bdd.describe("hex/lib/fp/take-from-array", () => {
@@ -8,9 +8,9 @@ bdd.describe("hex/lib/fp/take-from-array", () => {
 
     const result = takeFromArray(arr1, int1);
 
-    asserts.assertNotStrictEquals(result, arr1);
-    asserts.assertEquals(result.length, 2);
-    asserts.assertEquals(result, ["a", "b"]);
+    assert.assertNotStrictEquals(result, arr1);
+    assert.assertEquals(result.length, 2);
+    assert.assertEquals(result, ["a", "b"]);
   });
 
   bdd.it("with-generator", () => {
@@ -25,8 +25,8 @@ bdd.describe("hex/lib/fp/take-from-array", () => {
     const result = takeFromArray(generated1, int1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> generated1);
-    asserts.assertEquals(result.length, 2);
-    asserts.assertEquals(result, ["a", "b"]);
+    assert.assertNotStrictEquals(<any> result, <any> generated1);
+    assert.assertEquals(result.length, 2);
+    assert.assertEquals(result, ["a", "b"]);
   });
 });

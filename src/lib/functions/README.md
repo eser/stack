@@ -1,4 +1,4 @@
-# 🧱 [hex/lib/functions](https://github.com/eserozvataf/hex/tree/development/src/lib/functions)
+# 🧱 [hex/lib/functions](https://github.com/eser/hex/tree/development/src/lib/functions)
 
 ## Package Information
 
@@ -6,18 +6,18 @@ hex/functions is a function runtime, which enables better portability between
 platforms.
 
 For further details such as requirements, license information and support guide,
-please see [main hex repository](https://github.com/eserozvataf/hex).
+please see [main hex repository](https://github.com/eser/hex).
 
 ## Component Roadmap
 
 ### MVP
 
-- [x] ~Basic functions~
-- [x] ~Input and context interfaces~
-- [x] ~Middlewares~
-- [x] ~CLI platform~
-- [x] ~Runtime~
-- [x] ~Web platform w/ oak~
+- [x] ~~Basic functions~~
+- [x] ~~Input and context interfaces~~
+- [x] ~~Middlewares~~
+- [x] ~~CLI platform~~
+- [x] ~~Runtime~~
+- [x] ~~Web platform w/ oak~~
 - [ ] Hypertext format
 - [ ] Web platform w/ Deno's http
 - [ ] Telegram bot platform

@@ -8,7 +8,6 @@ USER deno
 
 COPY ./src/deps.ts ./src/
 COPY ./deno.json ./
-COPY ./import_map.json ./
 RUN deno cache --unstable ./src/deps.ts
 
 COPY ./src/ ./src/

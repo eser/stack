@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { deepMerge } from "../deep-merge.ts";
 
 type Dummy1Prop = {
@@ -54,10 +54,10 @@ bdd.describe("hex/lib/fp/deep-merge", () => {
 
     const result = deepMerge(obj1, obj2);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertNotStrictEquals(result, obj2);
-    asserts.assertStrictEquals(result.constructor, Object);
-    asserts.assertEquals(result, {
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertNotStrictEquals(result, obj2);
+    assert.assertStrictEquals(result.constructor, Object);
+    assert.assertEquals(result, {
       a: {
         b: [55],
         c: {
@@ -86,10 +86,10 @@ bdd.describe("hex/lib/fp/deep-merge", () => {
 
     const result = deepMerge(obj1, obj2);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertNotStrictEquals(result, obj2);
-    asserts.assertStrictEquals(result.constructor, Dummy1);
-    asserts.assertEquals(
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertNotStrictEquals(result, obj2);
+    assert.assertStrictEquals(result.constructor, Dummy1);
+    assert.assertEquals(
       result,
       new Dummy1({
         inners: {

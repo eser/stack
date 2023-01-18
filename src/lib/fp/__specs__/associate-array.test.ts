@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { associateArray } from "../associate-array.ts";
 
 bdd.describe("hex/lib/fp/associate-array", () => {
@@ -13,9 +13,9 @@ bdd.describe("hex/lib/fp/associate-array", () => {
     const result = associateArray(arr1, func1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> arr1);
-    asserts.assertEquals(Object.keys(result).length, 3);
-    asserts.assertEquals(result, {
+    assert.assertNotStrictEquals(<any> result, <any> arr1);
+    assert.assertEquals(Object.keys(result).length, 3);
+    assert.assertEquals(result, {
       1: { id: 1, name: "foo" },
       2: { id: 2, name: "bar" },
       3: { id: 3, name: "baz" },
@@ -34,9 +34,9 @@ bdd.describe("hex/lib/fp/associate-array", () => {
     const result = associateArray(arr1, func1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> arr1);
-    asserts.assertEquals(Object.keys(result).length, 2);
-    asserts.assertEquals(result, {
+    assert.assertNotStrictEquals(<any> result, <any> arr1);
+    assert.assertEquals(Object.keys(result).length, 2);
+    assert.assertEquals(result, {
       1: { id: 1, name: "foo", skip: false },
       2: { id: 2, name: "bar", skip: false },
     });

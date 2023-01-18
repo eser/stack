@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { match } from "../match.ts";
 
 bdd.describe("hex/lib/fp/match", () => {
@@ -11,7 +11,7 @@ bdd.describe("hex/lib/fp/match", () => {
       ["banana", () => "Banana is selected."],
     ]);
 
-    asserts.assertEquals(
+    assert.assertEquals(
       result,
       "Apple is selected.",
     );
@@ -29,7 +29,7 @@ bdd.describe("hex/lib/fp/match", () => {
       [str3 === "banana", () => "Banana is selected."],
     ]);
 
-    asserts.assertEquals(
+    assert.assertEquals(
       result,
       "Pear is selected.",
     );

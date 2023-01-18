@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { dispatcher, LogType, NextType } from "../dispatcher.ts";
 
 type StateType = Record<string, number>;
@@ -14,7 +14,7 @@ bdd.describe("hex/lib/fp/dispatcher", () => {
 
     const result = await dispatcher(initialState, [actionAdd5, actionDiv2]);
 
-    asserts.assertEquals(result, { quarter: 1, year: 2018, sum: 3 });
+    assert.assertEquals(result, { quarter: 1, year: 2018, sum: 3 });
   });
 
   bdd.it("logger", async () => {
@@ -32,8 +32,8 @@ bdd.describe("hex/lib/fp/dispatcher", () => {
       logger,
     ]);
 
-    asserts.assertEquals(result, { quarter: 1, year: 2018, sum: 3 });
-    asserts.assertEquals(logs, [
+    assert.assertEquals(result, { quarter: 1, year: 2018, sum: 3 });
+    assert.assertEquals(logs, [
       {
         action: "actionAdd5",
         previousState: { quarter: 1, year: 2018, sum: 1 },
@@ -59,6 +59,6 @@ bdd.describe("hex/lib/fp/dispatcher", () => {
 
     const result = await dispatcher(initialState, [actionFirst, actionSecond]);
 
-    asserts.assertEquals(result, 8);
+    assert.assertEquals(result, 8);
   });
 });

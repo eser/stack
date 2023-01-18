@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { useRegistry } from "../registry.ts";
 
 bdd.describe("hex/lib/di/registry", () => {
@@ -7,7 +7,7 @@ bdd.describe("hex/lib/di/registry", () => {
 
     serviceController.setValue("a", 5);
 
-    asserts.assertStrictEquals(getService("a"), 5);
+    assert.assertStrictEquals(getService("a"), 5);
   });
 
   bdd.it("basic", () => {
@@ -15,7 +15,7 @@ bdd.describe("hex/lib/di/registry", () => {
 
     serviceController.setValue("a", 5);
 
-    asserts.assertStrictEquals(getService("a"), 5);
+    assert.assertStrictEquals(getService("a"), 5);
   });
 
   bdd.it("factory", () => {
@@ -29,13 +29,13 @@ bdd.describe("hex/lib/di/registry", () => {
 
     serviceController.setFactory("b", test);
 
-    asserts.assertStrictEquals(getService("b"), 55);
-    asserts.assertStrictEquals(getService("b"), 56);
+    assert.assertStrictEquals(getService("b"), 55);
+    assert.assertStrictEquals(getService("b"), 56);
   });
 
   bdd.it("empty", () => {
     const [getService] = useRegistry();
 
-    asserts.assertStrictEquals(getService("_"), undefined);
+    assert.assertStrictEquals(getService("_"), undefined);
   });
 });

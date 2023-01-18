@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { dropFromObject } from "../drop-from-object.ts";
 
 bdd.describe("hex/lib/fp/drop-from-object", () => {
@@ -8,8 +8,8 @@ bdd.describe("hex/lib/fp/drop-from-object", () => {
 
     const result = dropFromObject(obj1, int1);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 2);
-    asserts.assertEquals(result, { b: 2, c: 3 });
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 2);
+    assert.assertEquals(result, { b: 2, c: 3 });
   });
 });

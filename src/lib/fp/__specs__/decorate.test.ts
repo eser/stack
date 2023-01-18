@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { decorate } from "../decorate.ts";
 
 bdd.describe("hex/lib/fp/decorate", () => {
@@ -10,7 +10,7 @@ bdd.describe("hex/lib/fp/decorate", () => {
 
     const result = generator();
 
-    asserts.assertEquals(result, 11);
+    assert.assertEquals(result, 11);
   });
 
   bdd.it("parameters", () => {
@@ -21,6 +21,6 @@ bdd.describe("hex/lib/fp/decorate", () => {
 
     const result = generator(3);
 
-    asserts.assertEquals(result, 17);
+    assert.assertEquals(result, 17);
   });
 });

@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { pipe } from "../pipe.ts";
 import { iterate } from "../iterate.ts";
 
@@ -18,7 +18,7 @@ bdd.describe("hex/lib/fp/iterate", () => {
 
     await iterate(gen1(), func1);
 
-    asserts.assertEquals(total, 6);
+    assert.assertEquals(total, 6);
   });
 
   bdd.it("async", async () => {
@@ -44,7 +44,7 @@ bdd.describe("hex/lib/fp/iterate", () => {
 
     await iterate(gen1(), func1);
 
-    asserts.assertEquals(total, 6);
+    assert.assertEquals(total, 6);
   });
 
   bdd.it("pipe", async () => {
@@ -71,6 +71,6 @@ bdd.describe("hex/lib/fp/iterate", () => {
       ),
     );
 
-    asserts.assertEquals(total, 21);
+    assert.assertEquals(total, 21);
   });
 });

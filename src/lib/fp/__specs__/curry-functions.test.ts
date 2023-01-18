@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { curryFunctions } from "../curry-functions.ts";
 
 bdd.describe("hex/lib/fp/curry-functions", () => {
@@ -10,9 +10,9 @@ bdd.describe("hex/lib/fp/curry-functions", () => {
 
     const result = curryFunctions(obj1, int1);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 2);
-    asserts.assertEquals(result.func1(), 6);
-    asserts.assertEquals(result.func2(), 10);
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 2);
+    assert.assertEquals(result.func1(), 6);
+    assert.assertEquals(result.func2(), 10);
   });
 });

@@ -1,4 +1,4 @@
-import * as asserts from "../../lib/stdx/testing/asserts.ts";
+import * as assert from "../../lib/stdx/assert.ts";
 
 type Platform = unknown;
 
@@ -10,7 +10,7 @@ const getPlatformFromStack = (
   stack: Stack,
   name: string,
 ): Platform => {
-  asserts.assert(
+  assert.assert(
     name in stack.platforms, // name === undefined || name === null
     "platform name is required",
   );

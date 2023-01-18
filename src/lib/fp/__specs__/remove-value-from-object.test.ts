@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { removeValueFromObject } from "../remove-value-from-object.ts";
 
 bdd.describe("hex/lib/fp/remove-value-from-object", () => {
@@ -9,8 +9,8 @@ bdd.describe("hex/lib/fp/remove-value-from-object", () => {
 
     const result = removeValueFromObject(obj1, str1, str2);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 3);
-    asserts.assertEquals(result, { a: "Ia", d: "IVd", e: "Ve" });
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 3);
+    assert.assertEquals(result, { a: "Ia", d: "IVd", e: "Ve" });
   });
 });

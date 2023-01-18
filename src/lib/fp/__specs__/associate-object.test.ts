@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { associateObject } from "../associate-object.ts";
 
 bdd.describe("hex/lib/fp/associate-object", () => {
@@ -12,9 +12,9 @@ bdd.describe("hex/lib/fp/associate-object", () => {
 
     const result = associateObject(obj1, func1);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 3);
-    asserts.assertEquals(result, {
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 3);
+    assert.assertEquals(result, {
       1: { id: 1, name: "foo" },
       2: { id: 2, name: "bar" },
       3: { id: 3, name: "baz" },
@@ -32,9 +32,9 @@ bdd.describe("hex/lib/fp/associate-object", () => {
 
     const result = associateObject(obj1, func1);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 2);
-    asserts.assertEquals(result, {
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 2);
+    assert.assertEquals(result, {
       1: { id: 1, name: "foo", skip: false },
       2: { id: 2, name: "bar", skip: false },
     });

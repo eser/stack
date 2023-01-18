@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { mutate } from "../mutate.ts";
 
 bdd.describe("hex/lib/fp/mutate", () => {
@@ -11,9 +11,9 @@ bdd.describe("hex/lib/fp/mutate", () => {
 
     const result = mutate(obj1, (x) => x.firstName = "Helo");
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 3);
-    asserts.assertEquals(
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 3);
+    assert.assertEquals(
       result,
       {
         firstName: "Helo",
@@ -36,9 +36,9 @@ bdd.describe("hex/lib/fp/mutate", () => {
       x.aliases.push("laroux");
     });
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 3);
-    asserts.assertEquals(
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 3);
+    assert.assertEquals(
       result,
       {
         firstName: "Helo",
@@ -65,10 +65,10 @@ bdd.describe("hex/lib/fp/mutate", () => {
       x.items.push("laroux");
     });
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(result.constructor, dummy);
-    asserts.assertEquals(Object.keys(result), ["items"]);
-    asserts.assertEquals(
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(result.constructor, dummy);
+    assert.assertEquals(Object.keys(result), ["items"]);
+    assert.assertEquals(
       result.items,
       [
         "laroux",

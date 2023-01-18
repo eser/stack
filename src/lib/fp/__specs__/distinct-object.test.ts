@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { distinctObject } from "../distinct-object.ts";
 
 bdd.describe("hex/lib/fp/distinct-object", () => {
@@ -12,9 +12,9 @@ bdd.describe("hex/lib/fp/distinct-object", () => {
 
     const result = distinctObject(obj1, func1);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 2);
-    asserts.assertEquals(result, {
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 2);
+    assert.assertEquals(result, {
       a: { id: 1, name: "foo", parent: 0 },
       b: { id: 2, name: "bar", parent: 1 },
     });

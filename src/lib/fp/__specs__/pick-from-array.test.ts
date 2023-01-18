@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { pickFromArray } from "../pick-from-array.ts";
 
 bdd.describe("hex/lib/fp/pick-from-array", () => {
@@ -8,15 +8,15 @@ bdd.describe("hex/lib/fp/pick-from-array", () => {
 
     const result = pickFromArray(arr1, arr2);
 
-    asserts.assertNotStrictEquals(result.items, arr1);
-    asserts.assertNotStrictEquals(result.items, arr2);
-    asserts.assertEquals(result.items.length, 2);
-    asserts.assertEquals(result.items, [2, 3]);
+    assert.assertNotStrictEquals(result.items, arr1);
+    assert.assertNotStrictEquals(result.items, arr2);
+    assert.assertEquals(result.items.length, 2);
+    assert.assertEquals(result.items, [2, 3]);
 
-    asserts.assertNotStrictEquals(result.rest, arr1);
-    asserts.assertNotStrictEquals(result.rest, arr2);
-    asserts.assertEquals(result.rest.length, 3);
-    asserts.assertEquals(result.rest, [1, 4, 5]);
+    assert.assertNotStrictEquals(result.rest, arr1);
+    assert.assertNotStrictEquals(result.rest, arr2);
+    assert.assertEquals(result.rest.length, 3);
+    assert.assertEquals(result.rest, [1, 4, 5]);
   });
 
   bdd.it("with-generator-1", () => {
@@ -34,16 +34,16 @@ bdd.describe("hex/lib/fp/pick-from-array", () => {
     const result = pickFromArray(generated1, arr1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result.items, <any> generated1);
-    asserts.assertNotStrictEquals(result.items, arr1);
-    asserts.assertEquals(result.items.length, 2);
-    asserts.assertEquals(result.items, [2, 3]);
+    assert.assertNotStrictEquals(<any> result.items, <any> generated1);
+    assert.assertNotStrictEquals(result.items, arr1);
+    assert.assertEquals(result.items.length, 2);
+    assert.assertEquals(result.items, [2, 3]);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result.rest, <any> generated1);
-    asserts.assertNotStrictEquals(result.rest, arr1);
-    asserts.assertEquals(result.rest.length, 3);
-    asserts.assertEquals(result.rest, [1, 4, 5]);
+    assert.assertNotStrictEquals(<any> result.rest, <any> generated1);
+    assert.assertNotStrictEquals(result.rest, arr1);
+    assert.assertEquals(result.rest.length, 3);
+    assert.assertEquals(result.rest, [1, 4, 5]);
   });
 
   bdd.it("with-generator-2", () => {
@@ -57,16 +57,16 @@ bdd.describe("hex/lib/fp/pick-from-array", () => {
     const generated1 = gen1();
     const result = pickFromArray(arr1, generated1);
 
-    asserts.assertNotStrictEquals(result.items, arr1);
+    assert.assertNotStrictEquals(result.items, arr1);
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result.items, <any> generated1);
-    asserts.assertEquals(result.items.length, 2);
-    asserts.assertEquals(result.items, [2, 3]);
+    assert.assertNotStrictEquals(<any> result.items, <any> generated1);
+    assert.assertEquals(result.items.length, 2);
+    assert.assertEquals(result.items, [2, 3]);
 
-    asserts.assertNotStrictEquals(result.rest, arr1);
+    assert.assertNotStrictEquals(result.rest, arr1);
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result.rest, <any> generated1);
-    asserts.assertEquals(result.rest.length, 3);
-    asserts.assertEquals(result.rest, [1, 4, 5]);
+    assert.assertNotStrictEquals(<any> result.rest, <any> generated1);
+    assert.assertEquals(result.rest.length, 3);
+    assert.assertEquals(result.rest, [1, 4, 5]);
   });
 });

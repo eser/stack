@@ -1,4 +1,4 @@
-# 📑 [hex/lib/standards](https://github.com/eserozvataf/hex/tree/development/src/lib/standards)
+# 📑 [hex/lib/standards](https://github.com/eser/hex/tree/development/src/lib/standards)
 
 ## Package Information
 
@@ -12,7 +12,7 @@ libraries. so, interfaces for other components should be defined in their own
 respective packages.
 
 For further details such as requirements, license information and support guide,
-please see [main hex repository](https://github.com/eserozvataf/hex).
+please see [main hex repository](https://github.com/eser/hex).
 
 ## Standards
 

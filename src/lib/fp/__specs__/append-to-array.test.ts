@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { appendToArray } from "../append-to-array.ts";
 
 bdd.describe("hex/lib/fp/append-to-array", () => {
@@ -8,9 +8,9 @@ bdd.describe("hex/lib/fp/append-to-array", () => {
 
     const result = appendToArray(arr1, str1);
 
-    asserts.assertNotStrictEquals(result, arr1);
-    asserts.assertEquals(result.length, 3);
-    asserts.assertEquals(result, ["a", "b", "c"]);
+    assert.assertNotStrictEquals(result, arr1);
+    assert.assertEquals(result.length, 3);
+    assert.assertEquals(result, ["a", "b", "c"]);
   });
 
   bdd.it("with-generator", () => {
@@ -24,8 +24,8 @@ bdd.describe("hex/lib/fp/append-to-array", () => {
     const result = appendToArray(generated1, str1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> generated1);
-    asserts.assertEquals(result.length, 3);
-    asserts.assertEquals(result, ["a", "b", "c"]);
+    assert.assertNotStrictEquals(<any> result, <any> generated1);
+    assert.assertEquals(result.length, 3);
+    assert.assertEquals(result, ["a", "b", "c"]);
   });
 });

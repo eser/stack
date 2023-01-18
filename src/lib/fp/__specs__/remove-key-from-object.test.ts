@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { removeKeyFromObject } from "../remove-key-from-object.ts";
 
 bdd.describe("hex/lib/fp/remove-key-from-object", () => {
@@ -9,8 +9,8 @@ bdd.describe("hex/lib/fp/remove-key-from-object", () => {
 
     const result = removeKeyFromObject(obj1, str1, str2);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 3);
-    asserts.assertEquals(result, { a: 1, d: 4, e: 5 });
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 3);
+    assert.assertEquals(result, { a: 1, d: 4, e: 5 });
   });
 });

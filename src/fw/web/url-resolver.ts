@@ -1,4 +1,4 @@
-import { asserts } from "./deps.ts";
+import { assert } from "./deps.ts";
 import { type Config } from "./config.ts";
 
 const applyPattern = (
@@ -55,7 +55,7 @@ const routesToRegExp = (route: string) => {
 
   const routeParts = route.match(splitterRegExp);
 
-  asserts.assert(routeParts !== null, `unable to parse route: ${route}`);
+  assert.assert(routeParts !== null, `unable to parse route: ${route}`);
 
   const splittedRegExp = routeParts.map(
     (routePart) => {
@@ -115,7 +115,7 @@ const urlResolver = (
 ) => {
   const urlStructure = config.urls?.structure!;
 
-  asserts.assert(
+  assert.assert(
     urlStructure.startsWith("/"),
     `config.urls.structure value must start with /.
 example: /[lang]/[...path]

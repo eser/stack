@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { emitter, LogType } from "../emitter.ts";
 
 bdd.describe("hex/lib/fp/emitter", () => {
@@ -18,7 +18,7 @@ bdd.describe("hex/lib/fp/emitter", () => {
 
     await emitter(events, "calculate");
 
-    asserts.assertEquals(sideEffectCounter, 3);
+    assert.assertEquals(sideEffectCounter, 3);
   });
 
   bdd.it("many events", async () => {
@@ -42,7 +42,7 @@ bdd.describe("hex/lib/fp/emitter", () => {
     await emitter(events, "add");
     await emitter(events, "sub");
 
-    asserts.assertEquals(sideEffectCounter, 2);
+    assert.assertEquals(sideEffectCounter, 2);
   });
 
   bdd.it("wildcard events", async () => {
@@ -62,7 +62,7 @@ bdd.describe("hex/lib/fp/emitter", () => {
 
     await emitter(events, "*");
 
-    asserts.assertEquals(sideEffectCounter, -1);
+    assert.assertEquals(sideEffectCounter, -1);
   });
 
   bdd.it("parameters", async () => {
@@ -81,7 +81,7 @@ bdd.describe("hex/lib/fp/emitter", () => {
 
     await emitter(events, "calculate", [5]);
 
-    asserts.assertEquals(sideEffectCounter, 15);
+    assert.assertEquals(sideEffectCounter, 15);
   });
 
   bdd.it("subscribers", async () => {
@@ -103,8 +103,8 @@ bdd.describe("hex/lib/fp/emitter", () => {
 
     await emitter(events, "calculate", [5], [logger]);
 
-    asserts.assertEquals(sideEffectCounter, 15);
-    asserts.assertEquals(logs, [
+    assert.assertEquals(sideEffectCounter, 15);
+    assert.assertEquals(logs, [
       {
         event: "calculate",
         subscriber: "subscriberOne",

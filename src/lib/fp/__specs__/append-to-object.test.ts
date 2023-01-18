@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { appendToObject } from "../append-to-object.ts";
 
 bdd.describe("hex/lib/fp/append-to-object", () => {
@@ -8,9 +8,9 @@ bdd.describe("hex/lib/fp/append-to-object", () => {
 
     const result = appendToObject(obj1, obj2);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertNotStrictEquals(result, obj2);
-    asserts.assertEquals(Object.keys(result).length, 3);
-    asserts.assertEquals(result, { a: 1, b: 2, c: 3 });
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertNotStrictEquals(result, obj2);
+    assert.assertEquals(Object.keys(result).length, 3);
+    assert.assertEquals(result, { a: 1, b: 2, c: 3 });
   });
 });

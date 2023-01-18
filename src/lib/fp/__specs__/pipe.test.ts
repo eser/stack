@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { pipe } from "../pipe.ts";
 
 bdd.describe("hex/lib/fp/pipe", () => {
@@ -12,6 +12,6 @@ bdd.describe("hex/lib/fp/pipe", () => {
 
     const result = slug("Hello World!");
 
-    asserts.assertEquals(result, "hello-world");
+    assert.assertEquals(result, "hello-world");
   });
 });

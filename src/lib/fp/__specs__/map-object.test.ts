@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { mapObject } from "../map-object.ts";
 
 bdd.describe("hex/lib/fp/map-object", () => {
@@ -10,9 +10,9 @@ bdd.describe("hex/lib/fp/map-object", () => {
 
     const result = mapObject(obj1, func1);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 5);
-    asserts.assertEquals(result, { a: 0, b: 1, c: 2, d: 3, e: 4 });
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 5);
+    assert.assertEquals(result, { a: 0, b: 1, c: 2, d: 3, e: 4 });
   });
 
   bdd.it("with-value-skipping", () => {
@@ -31,8 +31,8 @@ bdd.describe("hex/lib/fp/map-object", () => {
     const result = mapObject(obj1, func1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> obj1);
-    asserts.assertEquals(Object.keys(result).length, 2);
-    asserts.assertEquals(result, { a: 0, b: 1 });
+    assert.assertNotStrictEquals(<any> result, <any> obj1);
+    assert.assertEquals(Object.keys(result).length, 2);
+    assert.assertEquals(result, { a: 0, b: 1 });
   });
 });

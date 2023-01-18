@@ -1,4 +1,4 @@
-# ✖️ [hexfw-service](https://github.com/eserozvataf/hexfw-service)
+# ✖️ [hexfw-service](https://github.com/eser/hexfw-service)
 
 Dext Service is a service boilerplate to enable developers to start coding their
 **forward-compatible** backend projects immediately.
@@ -33,9 +33,9 @@ Additionally, it allows you to compile your code in order to run on good old
 
 Ensure that `Deno` or `Node.js` is installed on your system first.
 
-Clone this git repo `git clone https://github.com/eserozvataf/hexfw-service.git` -
+Clone this git repo `git clone https://github.com/eser/hexfw-service.git` -
 and checkout the
-[tagged release](https://github.com/eserozvataf/hexfw-service/releases) you'd like
+[tagged release](https://github.com/eser/hexfw-service/releases) you'd like
 to use.
 
 **Important**: local env files (i.e., `.env.local`) is git-ignored, so you can
@@ -74,7 +74,7 @@ node dist/script/app.js
 
 ## Todo List
 
-See [GitHub Projects](https://github.com/eserozvataf/hexfw-service/projects) for
+See [GitHub Projects](https://github.com/eser/hexfw-service/projects) for
 more.
 
 ## Requirements
@@ -101,8 +101,8 @@ modules are welcome.
 - To contribute to code: Fork the repo, push your changes to your fork, and
   submit a pull request.
 - To report a bug: If something does not work, please report it using
-  [GitHub Issues](https://github.com/eserozvataf/hexfw-service/issues).
+  [GitHub Issues](https://github.com/eser/hexfw-service/issues).
 
 ## To Support
 
-[Visit my GitHub Sponsors profile at github.com/sponsors/eserozvataf](https://github.com/sponsors/eserozvataf)
+[Visit my GitHub Sponsors profile at github.com/sponsors/eser](https://github.com/sponsors/eser)

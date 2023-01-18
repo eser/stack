@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { wthout } from "../wthout.ts";
 
 bdd.describe("hex/fp/wthout", () => {
@@ -8,8 +8,8 @@ bdd.describe("hex/fp/wthout", () => {
 
     const result = wthout(obj1, ...arr1);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 3);
-    asserts.assertEquals(result, { b: 2, c: 3, e: 5 });
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 3);
+    assert.assertEquals(result, { b: 2, c: 3, e: 5 });
   });
 });

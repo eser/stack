@@ -1,4 +1,3 @@
-export * as asserts from "./asserts.ts";
 export * as bdd from "./bdd.ts";
 export * as mock from "./mock.ts";
 export * as snapshot from "./snapshot.ts";

@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { reverseObject } from "../reverse-object.ts";
 
 bdd.describe("hex/lib/fp/reverse-object", () => {
@@ -7,8 +7,8 @@ bdd.describe("hex/lib/fp/reverse-object", () => {
 
     const result = reverseObject(obj1);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 5);
-    asserts.assertEquals(result, { e: 5, d: 4, c: 3, b: 2, a: 1 });
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 5);
+    assert.assertEquals(result, { e: 5, d: 4, c: 3, b: 2, a: 1 });
   });
 });

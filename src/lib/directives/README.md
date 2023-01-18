@@ -1,4 +1,4 @@
-# 📓 [hex/lib/directives](https://github.com/eserozvataf/hex/tree/development/src/lib/directives)
+# 📓 [hex/lib/directives](https://github.com/eser/hex/tree/development/src/lib/directives)
 
 ## Package Information
 
@@ -8,7 +8,7 @@ would say, these directives are not just a set of rules, it is a philosophy that
 consists of some best practices and proven experiences.
 
 For further details such as requirements, license information and support guide,
-please see [main hex repository](https://github.com/eserozvataf/hex).
+please see [main hex repository](https://github.com/eser/hex).
 
 ## Directives
 

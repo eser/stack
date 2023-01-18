@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { mergeArrays } from "../merge-arrays.ts";
 
 bdd.describe("hex/lib/fp/merge-arrays", () => {
@@ -8,10 +8,10 @@ bdd.describe("hex/lib/fp/merge-arrays", () => {
 
     const result = mergeArrays(arr1, arr2);
 
-    asserts.assertNotStrictEquals(result, arr1);
-    asserts.assertNotStrictEquals(result, arr2);
-    asserts.assertEquals(result.length, 5);
-    asserts.assertEquals(result, [1, 2, 3, 4, 5]);
+    assert.assertNotStrictEquals(result, arr1);
+    assert.assertNotStrictEquals(result, arr2);
+    assert.assertEquals(result.length, 5);
+    assert.assertEquals(result, [1, 2, 3, 4, 5]);
   });
 
   bdd.it("with-generator-1", () => {
@@ -26,10 +26,10 @@ bdd.describe("hex/lib/fp/merge-arrays", () => {
     const result = mergeArrays(generated1, arr1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> generated1);
-    asserts.assertNotStrictEquals(result, arr1);
-    asserts.assertEquals(result.length, 5);
-    asserts.assertEquals(result, [1, 2, 3, 4, 5]);
+    assert.assertNotStrictEquals(<any> result, <any> generated1);
+    assert.assertNotStrictEquals(result, arr1);
+    assert.assertEquals(result.length, 5);
+    assert.assertEquals(result, [1, 2, 3, 4, 5]);
   });
 
   bdd.it("with-generator-2", () => {
@@ -42,10 +42,10 @@ bdd.describe("hex/lib/fp/merge-arrays", () => {
     const generated1 = gen1();
     const result = mergeArrays(arr1, generated1);
 
-    asserts.assertNotStrictEquals(result, arr1);
+    assert.assertNotStrictEquals(result, arr1);
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> generated1);
-    asserts.assertEquals(result.length, 5);
-    asserts.assertEquals(result, [1, 2, 3, 4, 5]);
+    assert.assertNotStrictEquals(<any> result, <any> generated1);
+    assert.assertEquals(result.length, 5);
+    assert.assertEquals(result, [1, 2, 3, 4, 5]);
   });
 });

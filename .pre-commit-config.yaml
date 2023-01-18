@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.3.0
+    rev: v4.4.0
     hooks:
       - id: check-added-large-files
       - id: check-case-conflict
@@ -43,7 +43,7 @@ repos:
     - id: deno-test
       name: deno test
       description: Run tests using Deno's built-in test runner.
-      entry: deno task test
+      entry: deno task test:run
       types_or: [javascript, jsx, ts, tsx, json]
       pass_filenames: false
       language: system

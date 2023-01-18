@@ -1,4 +1,4 @@
-# 📓 [hex/lib/directives/technical](https://github.com/eserozvataf/hex/tree/development/src/lib/directives/technical)
+# 📓 [hex/lib/directives/technical](https://github.com/eser/hex/tree/development/src/lib/directives/technical)
 
 ## Technical Directives
 

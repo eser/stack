@@ -1,4 +1,4 @@
-# Contributing to [hex](https://github.com/eserozvataf/hex)
+# Contributing to [hex](https://github.com/eser/hex)
 
 👍🎉 First off, thanks for taking the time to contribute! 🎉👍
 
@@ -38,4 +38,4 @@ enhancements, bugfixes, new features and extra modules are welcome.
 - To contribute to code: Fork the repo, push your changes to your fork, and
   submit a pull request.
 - To report a bug: If something does not work, please report it using
-  [GitHub Issues](https://github.com/eserozvataf/hex/issues).
+  [GitHub Issues](https://github.com/eser/hex/issues).

@@ -1,6 +1,0 @@
-{
-  "imports": {
-    "@hex/": "https://deno.land/x/hex/src/",
-    "@app/": "./src/"
-  }
-}

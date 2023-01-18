@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { splitObject } from "../split-object.ts";
 
 bdd.describe("hex/lib/fp/split-object", () => {
@@ -8,12 +8,12 @@ bdd.describe("hex/lib/fp/split-object", () => {
 
     const result = splitObject(obj1, int1);
 
-    asserts.assertNotStrictEquals(result.items, obj1);
-    asserts.assertEquals(Object.keys(result.items).length, 3);
-    asserts.assertEquals(result.items, { a: 1, b: 2, c: 3 });
+    assert.assertNotStrictEquals(result.items, obj1);
+    assert.assertEquals(Object.keys(result.items).length, 3);
+    assert.assertEquals(result.items, { a: 1, b: 2, c: 3 });
 
-    asserts.assertNotStrictEquals(result.rest, obj1);
-    asserts.assertEquals(Object.keys(result.rest).length, 2);
-    asserts.assertEquals(result.rest, { d: 4, e: 5 });
+    assert.assertNotStrictEquals(result.rest, obj1);
+    assert.assertEquals(Object.keys(result.rest).length, 2);
+    assert.assertEquals(result.rest, { d: 4, e: 5 });
   });
 });

@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { curryRight } from "../curry-right.ts";
 
 bdd.describe("hex/lib/fp/curry-right", () => {
@@ -9,6 +9,6 @@ bdd.describe("hex/lib/fp/curry-right", () => {
 
     const result = decWith5(3);
 
-    asserts.assertEquals(result, -2);
+    assert.assertEquals(result, -2);
   });
 });

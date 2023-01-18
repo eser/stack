@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 
 import {
   executeFromCli,
@@ -25,11 +25,11 @@ bdd.describe("hex/lib/functions/execute", () => {
     const result1 = await executed.next();
     const result2 = await executed.next();
 
-    asserts.assertEquals(result1, {
+    assert.assertEquals(result1, {
       value: { payload: "hello world" },
       done: false,
     });
-    asserts.assertEquals(result2, { value: undefined, done: true });
+    assert.assertEquals(result2, { value: undefined, done: true });
   });
 
   bdd.it("with-extra-data", async () => {
@@ -48,10 +48,10 @@ bdd.describe("hex/lib/functions/execute", () => {
     const result1 = await executed.next();
     const result2 = await executed.next();
 
-    asserts.assertEquals(result1, {
+    assert.assertEquals(result1, {
       value: { payload: "hello world", extraData: { hello: "darkness" } },
       done: false,
     });
-    asserts.assertEquals(result2, { value: undefined, done: true });
+    assert.assertEquals(result2, { value: undefined, done: true });
   });
 });

@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { filterArray } from "../filter-array.ts";
 
 bdd.describe("hex/lib/fp/filter-array", () => {
@@ -8,9 +8,9 @@ bdd.describe("hex/lib/fp/filter-array", () => {
 
     const result = filterArray(arr1, func1);
 
-    asserts.assertNotStrictEquals(result, arr1);
-    asserts.assertEquals(result.length, 3);
-    asserts.assertEquals(result, [1, 2, 3]);
+    assert.assertNotStrictEquals(result, arr1);
+    assert.assertEquals(result.length, 3);
+    assert.assertEquals(result, [1, 2, 3]);
   });
 
   bdd.it("with-generator", () => {
@@ -27,8 +27,8 @@ bdd.describe("hex/lib/fp/filter-array", () => {
     const result = filterArray(generated1, func1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> generated1);
-    asserts.assertEquals(result.length, 3);
-    asserts.assertEquals(result, [1, 2, 3]);
+    assert.assertNotStrictEquals(<any> result, <any> generated1);
+    assert.assertEquals(result.length, 3);
+    assert.assertEquals(result, [1, 2, 3]);
   });
 });

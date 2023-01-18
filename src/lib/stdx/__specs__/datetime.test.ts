@@ -1,4 +1,5 @@
-import { asserts, bdd } from "../testing/mod.ts";
+import * as assert from "../assert.ts";
+import { bdd } from "../testing/mod.ts";
 import { clampTime, datesBetween, tryParse } from "../datetime.ts";
 
 bdd.describe("hex/lib/stdx/datetime", () => {
@@ -6,7 +7,7 @@ bdd.describe("hex/lib/stdx/datetime", () => {
     const result = tryParse("2021-01-01", "yyyy-MM-dd");
     const expected = new Date(2021, 0, 1);
 
-    asserts.assertEquals(result, expected);
+    assert.assertEquals(result, expected);
   });
 
   bdd.it("clampTime", () => {
@@ -15,7 +16,7 @@ bdd.describe("hex/lib/stdx/datetime", () => {
 
     const expected = new Date(2021, 0, 1, 0, 0, 0);
 
-    asserts.assertEquals(result, expected);
+    assert.assertEquals(result, expected);
   });
 
   bdd.it("clampTime - utc date", () => {
@@ -24,7 +25,7 @@ bdd.describe("hex/lib/stdx/datetime", () => {
 
     const expected = new Date(Date.UTC(2021, 0, 1, 0, 0, 0));
 
-    asserts.assertEquals(result, expected);
+    assert.assertEquals(result, expected);
   });
 
   bdd.it("datesBetween - complete dates", () => {
@@ -33,7 +34,7 @@ bdd.describe("hex/lib/stdx/datetime", () => {
       new Date(2021, 0, 3, 0, 0, 0),
     );
 
-    asserts.assertEquals(result, [
+    assert.assertEquals(result, [
       new Date(2021, 0, 1, 0, 0, 0),
       new Date(2021, 0, 2, 0, 0, 0),
       new Date(2021, 0, 3, 0, 0, 0),
@@ -46,7 +47,7 @@ bdd.describe("hex/lib/stdx/datetime", () => {
       new Date(2021, 0, 5, 15, 0, 0),
     );
 
-    asserts.assertEquals(result, [
+    assert.assertEquals(result, [
       new Date(2021, 0, 1, 22, 0, 0),
       new Date(2021, 0, 2, 22, 0, 0),
       new Date(2021, 0, 3, 22, 0, 0),

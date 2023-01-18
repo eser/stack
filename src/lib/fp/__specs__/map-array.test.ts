@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { mapArray } from "../map-array.ts";
 
 bdd.describe("hex/lib/fp/map-array", () => {
@@ -8,9 +8,9 @@ bdd.describe("hex/lib/fp/map-array", () => {
 
     const result = mapArray(arr1, func1);
 
-    asserts.assertNotStrictEquals(result, arr1);
-    asserts.assertEquals(result.length, 5);
-    asserts.assertEquals(result, [0, 1, 2, 3, 4]);
+    assert.assertNotStrictEquals(result, arr1);
+    assert.assertEquals(result.length, 5);
+    assert.assertEquals(result, [0, 1, 2, 3, 4]);
   });
 
   bdd.it("with-generator", () => {
@@ -27,8 +27,8 @@ bdd.describe("hex/lib/fp/map-array", () => {
     const result = mapArray(generated1, func1);
 
     // deno-lint-ignore no-explicit-any
-    asserts.assertNotStrictEquals(<any> result, <any> generated1);
-    asserts.assertEquals(result.length, 5);
-    asserts.assertEquals(result, [0, 1, 2, 3, 4]);
+    assert.assertNotStrictEquals(<any> result, <any> generated1);
+    assert.assertEquals(result.length, 5);
+    assert.assertEquals(result, [0, 1, 2, 3, 4]);
   });
 });

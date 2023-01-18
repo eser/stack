@@ -1,5 +1,4 @@
 {
-  "importMap": "./import_map.json",
   "compilerOptions": {
     "allowJs": true,
     "lib": [
@@ -11,6 +10,10 @@
     ],
     "jsx": "react",
     "strict": true
+  },
+  "imports": {
+    "@hex/": "https://deno.land/x/hex/src/",
+    "@app/": "./src/"
   },
   "lint": {
     "files": {

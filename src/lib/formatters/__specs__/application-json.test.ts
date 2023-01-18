@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { applicationJsonFormatter } from "../application-json.ts";
 
 bdd.describe("hex/lib/formatters/application-json", () => {
@@ -18,14 +18,14 @@ bdd.describe("hex/lib/formatters/application-json", () => {
   ]
 }`;
 
-    asserts.assertEquals(serialized, expected);
+    assert.assertEquals(serialized, expected);
   });
 
   bdd.it("empty serialization", async () => {
     const serialized = await applicationJsonFormatter.serialize(undefined);
     const expected = "";
 
-    asserts.assertEquals(serialized, expected);
+    assert.assertEquals(serialized, expected);
   });
 
   bdd.it("error serialization", async () => {
@@ -37,7 +37,7 @@ bdd.describe("hex/lib/formatters/application-json", () => {
   "message": "test error"
 }`;
 
-    asserts.assertEquals(serialized, expected);
+    assert.assertEquals(serialized, expected);
   });
 
   bdd.it("simple deserialization", async () => {
@@ -57,6 +57,6 @@ bdd.describe("hex/lib/formatters/application-json", () => {
       rest: [4, 5, 6],
     };
 
-    asserts.assertEquals(deserialized, expected);
+    assert.assertEquals(deserialized, expected);
   });
 });

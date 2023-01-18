@@ -1,4 +1,4 @@
-import { asserts, bdd } from "./deps.ts";
+import { assert, bdd } from "./deps.ts";
 import { filterObject } from "../filter-object.ts";
 
 bdd.describe("hex/lib/fp/filter-object", () => {
@@ -8,8 +8,8 @@ bdd.describe("hex/lib/fp/filter-object", () => {
 
     const result = filterObject(obj1, func1);
 
-    asserts.assertNotStrictEquals(result, obj1);
-    asserts.assertEquals(Object.keys(result).length, 3);
-    asserts.assertEquals(result, { a: 1, b: 2, c: 3 });
+    assert.assertNotStrictEquals(result, obj1);
+    assert.assertEquals(Object.keys(result).length, 3);
+    assert.assertEquals(result, { a: 1, b: 2, c: 3 });
   });
 });

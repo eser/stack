@@ -1,10 +1,13 @@
 {
-  "importMap": "./import_map.json",
   "compilerOptions": {
     "allowJs": true,
     "emitDecoratorMetadata": true,
     "jsx": "react",
     "strict": true
+  },
+  "imports": {
+    "@hex/": "https://deno.land/x/hex/src/",
+    "@app/": "./src/"
   },
   "lint": {
     "files": {

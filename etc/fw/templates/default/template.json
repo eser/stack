@@ -35,7 +35,7 @@
     ".editorconfig",
     ".gitattributes",
     ".gitignore",
-    "deno.json",
+    "deno.jsonc",
     "import_map.json",
     "README.md"
   ]

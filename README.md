@@ -77,7 +77,7 @@ done.
 Or run a hex routines directly from the resource:
 
 ```sh
-$ deno run https://deno.land/x/hex/src/lib/functions/samples/basic.ts eser
+$ deno run https://deno.land/x/hex/samples/lib-functions/basic.ts eser
 
 { payload: "hello eser" }
 ```
@@ -91,6 +91,7 @@ $ deno run https://deno.land/x/hex/src/lib/functions/samples/basic.ts eser
 Please read through our [CONTRIBUTING.md](CONTRIBUTING.md) and report it using
 [GitHub Issues](https://github.com/eserozvataf/hex/issues)!
 
+
 ## Want to contribute?
 
 It is publicly open for any contribution. Bugfixes, new features and extra
@@ -102,13 +103,16 @@ of the kinds of issues you can tackle.
 
 Fork the repo, push your changes to your fork, and submit a pull request.
 
+
 ## Requirements
 
 - Deno 1.27 or higher (https://deno.land/)
 
+
 ## License
 
 Apache 2.0, for further details, please see [LICENSE](LICENSE) file.
+
 
 ## To Support
 

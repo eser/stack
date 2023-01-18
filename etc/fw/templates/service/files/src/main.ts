@@ -9,7 +9,7 @@ import { mongoAction } from "@app/actions/mongo.ts";
 import { echoAction } from "@app/actions/echo.ts";
 import { errorProneAction } from "@app/actions/error-prone.ts";
 
-import * as Sentry from "npm:@sentry/node";
+import * as Sentry from "npm:@sentry/browser";
 
 import { type AppOptions } from "./types.ts";
 

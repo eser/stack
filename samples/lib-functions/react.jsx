@@ -1,6 +1,5 @@
-import * as hex from "../../mod.ts";
-
-import React from "https://esm.sh/react@18.2.0?target=deno";
+import React from "npm:react";
+import * as functions from "@hex/lib/functions/mod.ts";
 
 const ParagraphMaker = (props) => {
   return <p>{props.text}</p>;
@@ -10,11 +9,11 @@ const main = (input) => {
   const to = input.params[0] ?? "world";
   const message = `hello ${to}`;
 
-  return hex.functions.results.reactView(
+  return functions.results.reactView(
     <ParagraphMaker text={message} />,
   );
 };
 
-hex.functions.dumperReact(
-  hex.functions.executeFromCli(main),
+functions.dumperReact(
+  functions.executeFromCli(main),
 );

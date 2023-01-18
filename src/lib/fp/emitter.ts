@@ -13,7 +13,7 @@ const emitter = async (
   args?: readonly unknown[],
   loggers?: readonly LoggerType[],
 ): Promise<void> => {
-  const isEventWildcard = (eventName === "*");
+  const isEventWildcard = eventName === "*";
   const argsPass = (args !== undefined) ? args : [];
 
   for (const [eventKey, value] of Object.entries(events)) {

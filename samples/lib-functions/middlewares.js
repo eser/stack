@@ -1,4 +1,4 @@
-import * as hex from "../../mod.ts";
+import * as functions from "@hex/lib/functions/mod.ts";
 
 const initMiddleware = (_input, context, next) => {
   context.vars.number = 1;
@@ -12,7 +12,7 @@ const validationMiddleware = (
   next,
 ) => {
   if (input.params[0] === undefined) {
-    return hex.functions.results.error(
+    return functions.results.error(
       "parameter is not specified",
       new Error("parameter is not specified"),
     );
@@ -24,15 +24,15 @@ const validationMiddleware = (
 const main = (input, context) => {
   const message = `hello ${context.vars?.number} ${input.params[0]}`;
 
-  return hex.functions.results.text(message);
+  return functions.results.text(message);
 };
 
-const composed = hex.functions.composer(
+const composed = functions.composer(
   initMiddleware,
   validationMiddleware,
   main,
 );
 
-hex.functions.dumper(
-  hex.functions.executeFromCli(composed),
+functions.dumper(
+  functions.executeFromCli(composed),
 );

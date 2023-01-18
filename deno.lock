@@ -221,11 +221,26 @@
     "https://esm.sh/v99/react-dom@18.2.0/deno/server.js": "bf1ce0fcb084be382713a3bbf9df8d6564cddad331ef30e9307f1c8eaa1e513d"
   },
   "npm": {
-    "specifiers": { "lodash.reject": "lodash.reject@4.6.0" },
+    "specifiers": {
+      "lodash.reject": "lodash.reject@4.6.0",
+      "react": "react@18.2.0"
+    },
     "packages": {
+      "js-tokens@4.0.0": {
+        "integrity": "sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==",
+        "dependencies": {}
+      },
       "lodash.reject@4.6.0": {
         "integrity": "sha512-qkTuvgEzYdyhiJBx42YPzPo71R1aEr0z79kAv7Ixg8wPFEjgRgJdUsGMG3Hf3OYSF/kHI79XhNlt+5Ar6OzwxQ==",
         "dependencies": {}
+      },
+      "loose-envify@1.4.0": {
+        "integrity": "sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==",
+        "dependencies": { "js-tokens": "js-tokens@4.0.0" }
+      },
+      "react@18.2.0": {
+        "integrity": "sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==",
+        "dependencies": { "loose-envify": "loose-envify@1.4.0" }
       }
     }
   }

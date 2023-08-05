@@ -26,22 +26,29 @@ repos:
       always_run: true
       pass_filenames: false
       language: system
-    - id: deno-fmt-check
-      name: deno formatter check
+    - id: deno-fmt
+      name: verify formatting
       description: Auto-format JavaScript, TypeScript, Markdown, and JSON files.
       entry: deno fmt --check
       types_or: [javascript, jsx, ts, tsx, json, markdown]
       pass_filenames: false
       language: system
-    - id: deno-lint-check
-      name: deno lint check
+    - id: deno-lint
+      name: lint
       description: Lint JavaScript/TypeScript source code.
       entry: deno lint
       types_or: [javascript, jsx, ts, tsx, json, markdown]
       pass_filenames: false
       language: system
+    - id: deno-check
+      name: checks if modules are broken
+      description: Checks if modules are broken.
+      entry: deno task check
+      types_or: [javascript, jsx, ts, tsx, json, markdown]
+      pass_filenames: false
+      language: system
     - id: deno-test
-      name: deno test
+      name: run tests
       description: Run tests using Deno's built-in test runner.
       entry: deno task test:run
       types_or: [javascript, jsx, ts, tsx, json]

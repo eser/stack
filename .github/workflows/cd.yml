@@ -28,5 +28,5 @@ jobs:
       - name: Upload to Deno Deploy
         uses: denoland/deployctl@v1
         with:
-          project: hex
-          entrypoint: ./src/mod.ts
+          project: hexfw
+          entrypoint: ./pkg/mod.ts

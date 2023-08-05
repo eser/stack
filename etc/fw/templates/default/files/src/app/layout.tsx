@@ -1,5 +1,5 @@
-import { type Language } from "@hex/lib/i18n";
-import { BodyContents, HeadContents } from "@hex/fw/web/page";
+import { type Language } from "@hex/i18n/mod.ts";
+import { BodyContents, HeadContents } from "@hex/web/page.ts";
 
 export interface LayoutProps {
   lang: Language;

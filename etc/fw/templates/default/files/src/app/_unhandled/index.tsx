@@ -1,5 +1,5 @@
-import { type Language } from "@hex/lib/i18n";
-import { type Context, results } from "@hex/fw/web/page";
+import { type Language } from "@hex/i18n/mod.ts";
+import { type Context, results } from "@hex/web/page.ts";
 
 export interface PageProps {
   lang: Language;

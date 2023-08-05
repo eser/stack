@@ -1,4 +1,4 @@
-import * as di from "@hex/lib/di/mod.ts";
+import * as di from "@hex/di/mod.ts";
 import { echoAction } from "@app/actions/echo.ts";
 import { assert } from "@app/deps.ts";
 

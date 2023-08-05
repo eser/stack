@@ -12,7 +12,7 @@
     "strict": true
   },
   "imports": {
-    "@hex/": "https://deno.land/x/hex/src/",
+    "@hex/": "https://deno.land/x/hex/",
     "@app/": "./src/"
   },
   "lint": {

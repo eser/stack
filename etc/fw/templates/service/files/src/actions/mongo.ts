@@ -1,5 +1,5 @@
 import { type Context, type Registry } from "@app/types.ts";
-import { MongoDbConnection } from "@hex/lib/data/adapters/mongodb.ts";
+import { MongoDbConnection } from "@hex/data/adapters/mongodb.ts";
 
 interface Comment {
   _id: string;

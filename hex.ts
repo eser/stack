@@ -7,9 +7,9 @@ import {
   ExecuteOptions,
   showHelp,
   showVersion,
-} from "https://deno.land/x/hex/src/lib/cli/mod.ts";
-import { create } from "https://deno.land/x/hex/src/fw/generator/create.ts";
-import metadata from "https://deno.land/x/hex/src/metadata.json" assert { type: "json" };
+} from "https://deno.land/x/hex/cli/mod.ts";
+import { create } from "https://deno.land/x/hex/generator/create.ts";
+import metadata from "https://deno.land/x/hex/metadata.json" assert { type: "json" };
 
 export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
   const p = Deno.run({
@@ -24,7 +24,7 @@ export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
 
 export const run = async (args: string[], _options: ExecuteOptions) => {
   const p = Deno.run({
-    cmd: ["deno", "run", "-A", "--unstable", "src/main.ts", ...args],
+    cmd: ["deno", "run", "-A", "--unstable", "pkg/main.ts", ...args],
     stdout: "inherit",
     stderr: "inherit",
     stdin: "null",

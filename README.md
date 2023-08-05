@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/eser/hex">
-    <img alt="hex: a deno library" src="https://raw.githubusercontent.com/eser/hex/development/etc/logo.svg" width="849" />
+    <img alt="hex: a deno library" src="https://raw.githubusercontent.com/eser/hex/dev/etc/logo.svg" width="849" />
   </a>
 </p>
 
@@ -16,20 +16,20 @@ cloud-function runtimes and web apis.
 
 # ⚙ Components
 
-| Component                           | Area              | Description                      |
-| ----------------------------------- | ----------------- | -------------------------------- |
-| [Directives](src/lib/directives/)   | Rules             |                                  |
-| [Standards](src/lib/standards/)     | Abstraction       |                                  |
-| [FP](src/lib/fp/)                   | Functions Library | Tools for functional programming |
-| [StdX](src/lib/stdx/)               | Functions Library | Encriched Standard Library       |
-| [Data](src/lib/data/)               | Objects Library   | Data Objects and Patterns        |
-| [Environment](src/lib/environment/) | Objects Library   | Environment adapters             |
-| [Formatters](src/lib/formatters/)   | Objects Library   | Object serializers/deserializers |
-| [CLI](src/lib/cli/)                 | Manager           | CLI library                      |
-| [DI](src/lib/di/)                   | Manager           | Dependency injection library     |
-| [Functions](src/lib/functions/)     | Manager           | Functions runtime                |
-| [I18N](src/lib/i18n/)               | Manager           | Internationalization library     |
-| [Options](src/lib/options/)         | Manager           | Configuration library            |
+| Component                       | Area              | Description                      |
+| ------------------------------- | ----------------- | -------------------------------- |
+| [Directives](pkg/directives/)   | Rules             |                                  |
+| [Standards](pkg/standards/)     | Abstraction       |                                  |
+| [FP](pkg/fp/)                   | Functions Library | Tools for functional programming |
+| [StdX](pkg/stdx/)               | Functions Library | Encriched Standard Library       |
+| [Data](pkg/data/)               | Objects Library   | Data Objects and Patterns        |
+| [Environment](pkg/environment/) | Objects Library   | Environment adapters             |
+| [Formatters](pkg/formatters/)   | Objects Library   | Object serializers/deserializers |
+| [CLI](pkg/cli/)                 | Manager           | CLI library                      |
+| [DI](pkg/di/)                   | Manager           | Dependency injection library     |
+| [Functions](pkg/functions/)     | Manager           | Functions runtime                |
+| [I18N](pkg/i18n/)               | Manager           | Internationalization library     |
+| [Options](pkg/options/)         | Manager           | Configuration library            |
 
 See the respective component page to figure out its specific usage.
 

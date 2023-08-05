@@ -1,5 +1,5 @@
 import React from "npm:react";
-import * as functions from "@hex/lib/functions/mod.ts";
+import * as functions from "@hexfunctions/mod.ts";
 
 const ParagraphMaker = (props) => {
   return <p>{props.text}</p>;

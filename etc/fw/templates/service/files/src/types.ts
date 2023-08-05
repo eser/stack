@@ -1,9 +1,9 @@
-import { type Registry } from "@hex/lib/di/registry.ts";
+import { type Registry } from "@hex/di/registry.ts";
 import {
   type Context,
   type Service,
   type ServiceOptions,
-} from "@hex/fw/service/mod.ts";
+} from "@hex/service/mod.ts";
 
 // interface definitions
 export interface AppOptions extends ServiceOptions {

@@ -6,8 +6,8 @@ import {
   executeFromCli,
   type HexFunctionInput,
   results,
-} from "@hex/lib/functions/mod.ts";
-import { type Language } from "@hex/lib/i18n/mod.ts";
+} from "@hex/functions/mod.ts";
+import { type Language } from "@hex/i18n/mod.ts";
 
 export interface PageProps {
   lang: Language;

@@ -1,4 +1,4 @@
-import * as functions from "@hex/lib/functions/mod.ts";
+import * as functions from "@hex/functions/mod.ts";
 
 const main = (input) => {
   const to = input.params[0] ?? "world";

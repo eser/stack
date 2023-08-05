@@ -1,4 +1,4 @@
-import * as functions from "@hex/lib/functions/mod.ts";
+import * as functions from "@hexfunctions/mod.ts";
 
 const initMiddleware = (
   _input: functions.HexFunctionInput,

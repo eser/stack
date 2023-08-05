@@ -56,7 +56,7 @@ const execute = (
     );
 
     if (subcommand !== undefined) {
-      subcommand.run(args.slice(1), options_);
+      subcommand.run?.(args.slice(1), options_);
       return;
     }
   }
@@ -67,7 +67,7 @@ const execute = (
   );
 
   if (option !== undefined) {
-    option.run(args, options_);
+    option.run?.(args, options_);
     return;
   }
 
@@ -76,7 +76,7 @@ const execute = (
     const defaultCommand = commands.find((command) => command.isDefault);
 
     if (defaultCommand !== undefined) {
-      defaultCommand.run(args, options_);
+      defaultCommand.run?.(args, options_);
       return;
     }
   }

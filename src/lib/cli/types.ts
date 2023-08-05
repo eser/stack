@@ -28,8 +28,7 @@ interface Command {
 
   run?: (
     args: string[],
-    options: Record<string, string>,
-    executeOptions: ExecuteOptions,
+    executeOptions?: ExecuteOptions,
   ) => void;
 }
 

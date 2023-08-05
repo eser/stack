@@ -13,7 +13,9 @@ interface LoadEnvResult {
 }
 
 // public functions
-const loadEnvFile = async (filepath: string): Promise<dotenv.DotenvConfig> => {
+const loadEnvFile = async (
+  filepath: string,
+): Promise<ReturnType<typeof dotenv.parse>> => {
   try {
     const data = await Deno.readFile(filepath);
     const decoded = new TextDecoder("utf-8").decode(data);
@@ -24,8 +26,9 @@ const loadEnvFile = async (filepath: string): Promise<dotenv.DotenvConfig> => {
     return result;
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) {
-      return <dotenv.DotenvConfig> {};
+      return {};
     }
+
     throw e;
   }
 };

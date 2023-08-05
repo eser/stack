@@ -1,4 +1,4 @@
-import { LibName, build, emptyDir } from "https://deno.land/x/dnt/mod.ts";
+import { LibName, build, emptyDir } from "https://deno.land/x/dnt@0.38.0/mod.ts";
 import packageJson from "./package.json" assert { type: "json" };
 import denoJson from "./deno.json" assert { type: "json" };
 
@@ -63,7 +63,7 @@ await build({
     webSocket: true,
   },
   mappings: {
-    "https://deno.land/x/oak@v11.1.0/http_server_native.ts": "https://deno.land/x/oak@v11.1.0/http_server_node.ts",
+    "https://deno.land/x/oak@v12.6.0/http_server_native.ts": "https://deno.land/x/oak@v12.6.0/http_server_node.ts",
   },
   typeCheck: false,
   test: false,

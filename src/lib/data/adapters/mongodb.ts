@@ -2,7 +2,11 @@ import { mongo } from "../deps.ts";
 import { type Connection } from "../connection.ts";
 import { type Repository } from "../repository.ts";
 
-class MongoDbConnection<T = unknown>
+// deno-lint-ignore no-empty-interface
+interface MongoDocument extends mongo.Bson.Document {
+}
+
+class MongoDbConnection<T extends MongoDocument>
   implements Connection<T, MongoDbRepository<T>> {
   uri: string;
   client?: mongo.MongoClient;
@@ -26,8 +30,8 @@ class MongoDbConnection<T = unknown>
   }
 }
 
-class MongoDbRepository<T = mongo.Bson.Document> implements Repository<T> {
-  connection: MongoDbConnection;
+class MongoDbRepository<T extends MongoDocument> implements Repository<T> {
+  connection: MongoDbConnection<T>;
   collectionName: string;
 
   constructor(connection: MongoDbConnection<T>, collectionName: string) {

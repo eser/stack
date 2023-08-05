@@ -1,11 +1,14 @@
 import React from "npm:react";
-import * as functions from "@hexfunctions/mod.ts";
+import * as functions from "../mod.ts";
 
-const ParagraphMaker = (props) => {
+const ParagraphMaker = (props: { text: string }) => {
   return <p>{props.text}</p>;
 };
 
-const main = (input) => {
+const main = (
+  input: functions.HexFunctionInput,
+  _ctx: functions.HexFunctionContext,
+): functions.HexFunctionResult => {
   const to = input.params[0] ?? "world";
   const message = `hello ${to}`;
 

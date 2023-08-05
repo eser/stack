@@ -1,5 +1,5 @@
-import * as environment from "@hex/environment/mod.ts";
-import * as functions from "@hex/functions/mod.ts";
+import * as environment from "../mod.ts";
+import * as functions from "../../functions/mod.ts";
 
 const _fnc = (input) => {
   const to = input.params[0] ?? "world";

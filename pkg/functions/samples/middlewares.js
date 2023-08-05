@@ -1,4 +1,4 @@
-import * as functions from "@hexfunctions/mod.ts";
+import * as functions from "../mod.ts";
 
 const initMiddleware = (_input, context, next) => {
   context.vars.number = 1;

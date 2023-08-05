@@ -69,7 +69,7 @@ done.
 Or run a hex routines directly from the resource:
 
 ```sh
-$ deno run https://deno.land/x/hex/samples/lib-functions/basic.ts eser
+$ deno run https://deno.land/x/hex/functions/samples/basic.ts eser
 
 { payload: "hello eser" }
 ```

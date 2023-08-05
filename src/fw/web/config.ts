@@ -1,6 +1,6 @@
 import { deepMerge } from "../../lib/fp/deep-merge.ts";
 
-interface Config {
+export interface Config {
   react?: {
     strictMode?: boolean;
   };
@@ -32,7 +32,7 @@ interface Config {
   };
 }
 
-const defaultConfig: Config = {
+export const defaultConfig: Config = {
   react: {
     strictMode: false,
   },
@@ -71,13 +71,13 @@ const defaultConfig: Config = {
   },
 };
 
-const makeConfig = (config: Config) => {
+export const makeConfig = (config: Config) => {
   const newConfig = deepMerge(defaultConfig, config);
 
   return newConfig;
 };
 
-const readConfig = async (baseDir: string) => {
+export const readConfig = async (baseDir: string) => {
   const variations = [
     `${baseDir}/hex.config.ts`,
     `${baseDir}/hex.config.js`,
@@ -104,5 +104,3 @@ const readConfig = async (baseDir: string) => {
 
   return makeConfig(config);
 };
-
-export { type Config, defaultConfig, makeConfig, readConfig };

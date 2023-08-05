@@ -19,7 +19,7 @@ const checkFileNaming = (
   return false;
 };
 
-interface CodebaseItem {
+export interface CodebaseItem {
   isDynamicRoute: boolean;
   isCatchAllRoute: boolean;
 
@@ -70,7 +70,7 @@ const codebaseSubpathSorter = (
   return a.name.localeCompare(b.name);
 };
 
-const codebaseMapper = async (
+export const codebaseMapper = async (
   dir: string,
   extensions: string[],
 ) => {
@@ -183,4 +183,4 @@ const codebaseMapper = async (
   return result;
 };
 
-export { type CodebaseItem, codebaseMapper, codebaseMapper as default };
+export { codebaseMapper as default };

@@ -8,7 +8,7 @@ interface Comment {
   workspace_id: string;
 }
 
-const mongoAction = async (ctx: Context) => {
+export const mongoAction = async (ctx: Context) => {
   const registry = ctx.app.state.registry as Registry;
   const db = await registry.get<MongoDbConnection>("db");
   const commentRepository = db!.repository<Comment>("comments");
@@ -18,4 +18,4 @@ const mongoAction = async (ctx: Context) => {
   return comments;
 };
 
-export { mongoAction, mongoAction as default };
+export { mongoAction as default };

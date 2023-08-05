@@ -1,6 +1,8 @@
 import { type HexFunctionContext } from "./function-context.ts";
 import { type HexFunctionResult } from "./function-result.ts";
 
-type HexFunctionNext = (newContext?: HexFunctionContext) => HexFunctionResult;
+export type HexFunctionNext = (
+  newContext?: HexFunctionContext,
+) => HexFunctionResult;
 
-export { type HexFunctionNext, type HexFunctionNext as default };
+export { type HexFunctionNext as default };

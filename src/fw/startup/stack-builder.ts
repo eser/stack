@@ -11,23 +11,23 @@ import { type Stack } from "./stack.ts";
 /// const stack = await stackBuilder.build();
 /// await stack.run();
 
-interface StackBuilderItem {
+export interface StackBuilderItem {
   name: string;
   configureOptionsFn: () => void;
   initFn: () => Promise<void>;
 }
 
-interface StackBuilder {
+export interface StackBuilder {
   initializers: StackBuilderItem[];
 }
 
-const stackInit = (): StackBuilder => {
+export const stackInit = (): StackBuilder => {
   return {
     initializers: [],
   };
 };
 
-const stackAddPlatform = (
+export const stackAddPlatform = (
   stackBuilder: StackBuilder,
   name: string,
   configureOptionsFn: () => void,
@@ -48,7 +48,7 @@ const stackAddPlatform = (
   };
 };
 
-const stackBuild = async (
+export const stackBuild = async (
   stackBuilder: StackBuilder,
 ): Promise<Stack> => {
   const stack: Stack = {
@@ -63,5 +63,3 @@ const stackBuild = async (
 
   return stack;
 };
-
-export { stackAddPlatform, stackBuild, stackInit };

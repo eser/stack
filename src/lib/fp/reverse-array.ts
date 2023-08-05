@@ -1,4 +1,4 @@
-const reverseArray = <T>(instance: Iterable<T>): T[] => {
+export const reverseArray = <T>(instance: Iterable<T>): T[] => {
   const arrInstance = (instance.constructor === Array)
     ? <T[]> instance
     : [...instance];
@@ -9,4 +9,4 @@ const reverseArray = <T>(instance: Iterable<T>): T[] => {
   );
 };
 
-export { reverseArray, reverseArray as default };
+export { reverseArray as default };

@@ -1,4 +1,4 @@
-const associateArray = <T>(
+export const associateArray = <T>(
   instance: Iterable<T>,
   predicate: (
     value: T,
@@ -27,4 +27,4 @@ const associateArray = <T>(
   );
 };
 
-export { associateArray, associateArray as default };
+export { associateArray as default };

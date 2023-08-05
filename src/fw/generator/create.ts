@@ -42,7 +42,7 @@ const showVersion = () => {
   console.log(messageContents);
 };
 
-const create = async (args: string[], options: ExecuteOptions) => {
+export const create = async (args: string[], options: ExecuteOptions) => {
   const options_ = validateOptions(options);
 
   const params = flags.parse(args, {
@@ -85,4 +85,4 @@ if (import.meta.main) {
   create(Deno.args, { module: import.meta.url });
 }
 
-export { create, create as default };
+export { create as default };

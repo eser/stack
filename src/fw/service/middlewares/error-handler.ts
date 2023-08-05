@@ -7,7 +7,7 @@ const fixErrorObjectResult = (err: Error) => {
   return JSON.parse(serialized);
 };
 
-const errorHandlerMiddleware = <TOptions extends ServiceOptions>(
+export const errorHandlerMiddleware = <TOptions extends ServiceOptions>(
   service: Service<TOptions>,
 ) => {
   // deno-lint-ignore no-explicit-any
@@ -38,4 +38,4 @@ const errorHandlerMiddleware = <TOptions extends ServiceOptions>(
   return errorHandlerMiddlewareFn;
 };
 
-export { errorHandlerMiddleware, errorHandlerMiddleware as default };
+export { errorHandlerMiddleware as default };

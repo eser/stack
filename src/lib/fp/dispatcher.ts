@@ -1,9 +1,9 @@
-type NextType<T> = (newState: T) => Promise<T>;
-type MutatorType<T> = (state: T, next: NextType<T>) => Promise<T>;
-type LogType<T> = { action: string; previousState: T; newState: T };
-type LoggerType<T> = (entry: LogType<T>) => void;
+export type NextType<T> = (newState: T) => Promise<T>;
+export type MutatorType<T> = (state: T, next: NextType<T>) => Promise<T>;
+export type LogType<T> = { action: string; previousState: T; newState: T };
+export type LoggerType<T> = (entry: LogType<T>) => void;
 
-const dispatcher = <T>(
+export const dispatcher = <T>(
   state: T,
   mutators: readonly MutatorType<T>[],
   loggers?: readonly LoggerType<T>[],
@@ -40,11 +40,4 @@ const dispatcher = <T>(
   return next(state);
 };
 
-export {
-  dispatcher,
-  dispatcher as default,
-  type LoggerType,
-  type LogType,
-  type MutatorType,
-  type NextType,
-};
+export { dispatcher as default };

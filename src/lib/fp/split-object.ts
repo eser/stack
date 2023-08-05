@@ -1,9 +1,9 @@
-type SplitObjectResult<T> = {
+export type SplitObjectResult<T> = {
   items: Record<string | number | symbol, T>;
   rest: Record<string | number | symbol, T>;
 };
 
-const splitObject = <T>(
+export const splitObject = <T>(
   instance: Record<string | number | symbol, T>,
   n: number,
 ): SplitObjectResult<T> => {
@@ -32,4 +32,4 @@ const splitObject = <T>(
   );
 };
 
-export { splitObject, splitObject as default };
+export { splitObject as default };

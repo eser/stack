@@ -1,4 +1,4 @@
-const removeValueFromArray = <T>(
+export const removeValueFromArray = <T>(
   instance: Iterable<T>,
   ...values: T[]
 ): T[] => {
@@ -11,4 +11,4 @@ const removeValueFromArray = <T>(
   );
 };
 
-export { removeValueFromArray, removeValueFromArray as default };
+export { removeValueFromArray as default };

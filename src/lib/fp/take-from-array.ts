@@ -1,4 +1,4 @@
-const takeFromArray = <T>(instance: Iterable<T>, n: number): T[] => {
+export const takeFromArray = <T>(instance: Iterable<T>, n: number): T[] => {
   const arrInstance = (instance.constructor === Array)
     ? <T[]> instance
     : [...instance];
@@ -6,4 +6,4 @@ const takeFromArray = <T>(instance: Iterable<T>, n: number): T[] => {
   return arrInstance.slice(0, n);
 };
 
-export { takeFromArray, takeFromArray as default };
+export { takeFromArray as default };

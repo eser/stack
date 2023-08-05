@@ -1,6 +1,6 @@
 import { type Command, CommandType, type ExecuteOptions } from "./types.ts";
 
-const showHelp = (
+export const showHelp = (
   commands: Command[],
   version: string,
   options: ExecuteOptions,
@@ -39,10 +39,8 @@ ${
   console.log(messageContents);
 };
 
-const showVersion = (version: string, options: ExecuteOptions) => {
+export const showVersion = (version: string, options: ExecuteOptions) => {
   const messageContents = `${options.command ?? "hex"} version ${version}`;
 
   console.log(messageContents);
 };
-
-export { showHelp, showVersion };

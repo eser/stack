@@ -1,4 +1,4 @@
-const mapObject = <T1, T2>(
+export const mapObject = <T1, T2>(
   instance: Record<string | number | symbol, T1>,
   predicate: (
     value: T1,
@@ -20,4 +20,4 @@ const mapObject = <T1, T2>(
   );
 };
 
-export { mapObject, mapObject as default };
+export { mapObject as default };

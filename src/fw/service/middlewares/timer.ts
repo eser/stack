@@ -1,6 +1,6 @@
 import { log } from "../deps.ts";
 
-const timerMiddleware = () => {
+export const timerMiddleware = () => {
   // deno-lint-ignore no-explicit-any
   const timerMiddlewareFn = async (ctx: any, next: any) => {
     const start = Date.now();
@@ -16,4 +16,4 @@ const timerMiddleware = () => {
   return timerMiddlewareFn;
 };
 
-export { timerMiddleware, timerMiddleware as default };
+export { timerMiddleware as default };

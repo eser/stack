@@ -1,6 +1,6 @@
 import { deepCopy } from "./deep-copy.ts";
 
-const mutate = <T extends object>(
+export const mutate = <T extends object>(
   instance: T,
   mutator: (draft: T) => void,
 ): T => {
@@ -12,4 +12,4 @@ const mutate = <T extends object>(
   return newInstance;
 };
 
-export { mutate, mutate as default };
+export { mutate as default };

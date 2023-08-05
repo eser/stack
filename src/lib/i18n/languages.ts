@@ -1,6 +1,6 @@
-interface Language {
+export interface Language {
   code: string;
   name: string;
 }
 
-export { type Language, type Language as default };
+export { type Language as default };

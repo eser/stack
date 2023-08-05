@@ -4,10 +4,10 @@ import { type HexFunctionNext } from "./function-next.ts";
 import { type HexFunctionResult } from "./function-result.ts";
 
 // deno-lint-ignore no-explicit-any
-type HexFunction<T = Record<string | number | symbol, any>> = (
+export type HexFunction<T = Record<string | number | symbol, any>> = (
   input: HexFunctionInput<T>,
   ctx: HexFunctionContext,
   next?: HexFunctionNext,
 ) => HexFunctionResult;
 
-export { type HexFunction, type HexFunction as default };
+export { type HexFunction as default };

@@ -1,11 +1,11 @@
 import { type Language } from "@hex/lib/i18n";
 import { type Context, results } from "@hex/fw/web/page";
 
-interface PageProps {
+export interface PageProps {
   lang: Language;
 }
 
-const Page = (_ctx: Context<PageProps>) => {
+export const Page = (_ctx: Context<PageProps>) => {
   return results.reactView(
     <div>
       <h1>Homepage</h1>
@@ -18,4 +18,4 @@ const Page = (_ctx: Context<PageProps>) => {
   );
 };
 
-export { Page, Page as default };
+export { Page as default };

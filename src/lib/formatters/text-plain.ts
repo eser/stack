@@ -15,10 +15,10 @@ const serialize = async (
   return stringified;
 };
 
-const textPlainFormatter: Formatter = {
+export const textPlainFormatter: Formatter = {
   names,
 
   serialize,
 };
 
-export { textPlainFormatter, textPlainFormatter as default };
+export { textPlainFormatter as default };

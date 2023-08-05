@@ -1,6 +1,6 @@
 import { type Channel } from "../channel.ts";
 
-const cli = (): Channel<string, never> => {
+export const cli = (): Channel<string, never> => {
   const instance = {
     name: "cli",
 
@@ -14,4 +14,4 @@ const cli = (): Channel<string, never> => {
   return instance;
 };
 
-export { cli, cli as default };
+export { cli as default };

@@ -1,4 +1,4 @@
-const story = {
+export const story = {
   nameSingular: "Story",
   namePlural: "Stories",
   filePathPattern: "./content/**/*.md",
@@ -27,4 +27,4 @@ const story = {
   },
 };
 
-export { story, story as default };
+export { story as default };

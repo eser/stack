@@ -1,6 +1,6 @@
-type PickFromArrayResult<T> = { items: T[]; rest: T[] };
+export type PickFromArrayResult<T> = { items: T[]; rest: T[] };
 
-const pickFromArray = <T>(
+export const pickFromArray = <T>(
   instance: Iterable<T>,
   items: Iterable<T>,
 ): PickFromArrayResult<T> => {
@@ -31,4 +31,4 @@ const pickFromArray = <T>(
   );
 };
 
-export { pickFromArray, pickFromArray as default };
+export { pickFromArray as default };

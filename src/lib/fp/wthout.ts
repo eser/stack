@@ -1,6 +1,6 @@
 type Key = string | number | symbol;
 
-const wthout = <T>(
+export const wthout = <T>(
   instance: Record<Key, T>,
   ...fields: Key[]
 ): Record<Key, T> => {
@@ -16,4 +16,4 @@ const wthout = <T>(
   );
 };
 
-export { wthout, wthout as default };
+export { wthout as default };

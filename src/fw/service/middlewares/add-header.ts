@@ -1,4 +1,4 @@
-const addHeaderMiddleware = (headers: Record<string, string>) => {
+export const addHeaderMiddleware = (headers: Record<string, string>) => {
   // deno-lint-ignore no-explicit-any
   const addHeaderMiddlewarFn = async (ctx: any, next: any) => {
     for (const [key, value] of Object.entries(headers)) {
@@ -11,4 +11,4 @@ const addHeaderMiddleware = (headers: Record<string, string>) => {
   return addHeaderMiddlewarFn;
 };
 
-export { addHeaderMiddleware, addHeaderMiddleware as default };
+export { addHeaderMiddleware as default };

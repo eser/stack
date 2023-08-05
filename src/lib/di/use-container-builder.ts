@@ -19,7 +19,7 @@ type UseContainerBuilderResult<K, V> = () => [
   },
 ];
 
-const useContainerBuilder = <K, V>(
+export const useContainerBuilder = <K, V>(
   targetContainer: Container<K, V>,
 ): UseContainerBuilderResult<K, V> => {
   return () => [
@@ -34,4 +34,4 @@ const useContainerBuilder = <K, V>(
   ];
 };
 
-export { useContainerBuilder, useContainerBuilder as default };
+export { useContainerBuilder as default };

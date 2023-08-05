@@ -1,6 +1,6 @@
 import { type CodebaseItem } from "../codebase/mapper.ts";
 
-const transformCodebaseMapToRoutes = (
+export const transformCodebaseMapToRoutes = (
   pathElements: string[],
   codebaseMapNode: CodebaseItem,
 ): string[] => {
@@ -24,7 +24,4 @@ const transformCodebaseMapToRoutes = (
   return paths;
 };
 
-export {
-  transformCodebaseMapToRoutes,
-  transformCodebaseMapToRoutes as default,
-};
+export { transformCodebaseMapToRoutes as default };

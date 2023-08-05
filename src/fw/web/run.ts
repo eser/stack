@@ -2,7 +2,7 @@ import { type Config, makeConfig } from "./config.ts";
 import { generator } from "./generator.ts";
 import { urlResolver } from "./url-resolver.ts";
 
-const run = async (config: Config) => {
+export const run = async (config: Config) => {
   const baseDir = Deno.cwd();
 
   const config_ = makeConfig(config);
@@ -14,4 +14,4 @@ const run = async (config: Config) => {
   console.log(resolution);
 };
 
-export { run, run as default };
+export { run as default };

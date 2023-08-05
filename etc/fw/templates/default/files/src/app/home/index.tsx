@@ -9,11 +9,11 @@ import {
 } from "@hex/lib/functions/mod.ts";
 import { type Language } from "@hex/lib/i18n/mod.ts";
 
-interface PageProps {
+export interface PageProps {
   lang: Language;
 }
 
-const Page = (_input: HexFunctionInput<PageProps>) => {
+export const Page = (_input: HexFunctionInput<PageProps>) => {
   return results.reactView(
     <div>
       <h1>Homepage</h1>
@@ -26,8 +26,10 @@ const Page = (_input: HexFunctionInput<PageProps>) => {
   );
 };
 
-const result = executeFromCli(Page);
-// dumper(result);
-dumperReact(result);
+if (import.meta.main) {
+  const result = executeFromCli(Page);
+  // dumper(result);
+  dumperReact(result);
+}
 
-export { Page, Page as default };
+export { Page as default };

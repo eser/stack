@@ -3,7 +3,9 @@ import { type ServiceOptions } from "./types.ts";
 import * as options from "../../lib/options/mod.ts";
 
 // public functions
-const createOptionsBuilder = async <TOptions extends ServiceOptions>() => {
+export const createOptionsBuilder = async <
+  TOptions extends ServiceOptions,
+>() => {
   const builder = await options.createBuilder<TOptions>();
 
   builder.load((env, opts) => {
@@ -19,5 +21,3 @@ const createOptionsBuilder = async <TOptions extends ServiceOptions>() => {
 
   return builder;
 };
-
-export { createOptionsBuilder };

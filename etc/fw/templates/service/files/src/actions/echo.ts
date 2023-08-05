@@ -1,11 +1,11 @@
 import { type Registry } from "@app/types.ts";
 
-interface EchoActionProps {
+export interface EchoActionProps {
   registry: Registry;
   slug: string;
 }
 
-const echoAction = (props: EchoActionProps) => {
+export const echoAction = (props: EchoActionProps) => {
   const { test } = props.registry.getMany("test");
 
   return {
@@ -14,4 +14,4 @@ const echoAction = (props: EchoActionProps) => {
   };
 };
 
-export { echoAction, echoAction as default, type EchoActionProps };
+export { echoAction as default };

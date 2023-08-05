@@ -4,11 +4,11 @@ import {
 } from "https://deno.land/std@0.197.0/datetime/_common.ts";
 export * from "https://deno.land/std@0.197.0/datetime/mod.ts";
 
-interface FormatExOptions {
+export interface FormatExOptions {
   utc?: boolean;
 }
 
-const formatEx = (
+export const formatEx = (
   date: Date,
   formatString: string,
   options?: FormatExOptions,
@@ -18,7 +18,7 @@ const formatEx = (
   return formatter.format(date, { timeZone: options?.utc ? "UTC" : undefined });
 };
 
-const tryParse = (
+export const tryParse = (
   dateString: unknown | null | undefined,
   formatString: string,
 ): Date | undefined => {
@@ -33,12 +33,12 @@ const tryParse = (
   }
 };
 
-interface ClampTimeOptions {
+export interface ClampTimeOptions {
   includeFinalPeriod?: boolean;
   utc?: boolean;
 }
 
-const clampTime = (date: Date, options?: ClampTimeOptions): Date => {
+export const clampTime = (date: Date, options?: ClampTimeOptions): Date => {
   const newDate = new Date(date);
   if (options?.utc ?? false) {
     newDate.setUTCHours(0, 0, 0, 0);
@@ -49,12 +49,12 @@ const clampTime = (date: Date, options?: ClampTimeOptions): Date => {
   return newDate;
 };
 
-interface DatesBetweenOptions {
+export interface DatesBetweenOptions {
   includeFinalPeriod?: boolean;
   utc?: boolean;
 }
 
-const datesBetween = (
+export const datesBetween = (
   fromDate: Date,
   toDate: Date,
   options?: DatesBetweenOptions,
@@ -86,13 +86,4 @@ const datesBetween = (
   return dates;
 };
 
-export {
-  clampTime,
-  type ClampTimeOptions,
-  datesBetween,
-  type DatesBetweenOptions,
-  DateTimeFormatter,
-  formatEx,
-  type FormatExOptions,
-  tryParse,
-};
+export { DateTimeFormatter };

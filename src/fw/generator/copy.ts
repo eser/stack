@@ -12,7 +12,7 @@ const tryParseUrl = (url: string): URL | undefined => {
   }
 };
 
-const copy = async (source: string, target: string) => {
+export const copy = async (source: string, target: string) => {
   let sourceStream: Deno.Reader | undefined;
 
   const sourceUrl = tryParseUrl(source);
@@ -48,4 +48,4 @@ const copy = async (source: string, target: string) => {
   await streams.copy(sourceStream, targetStream);
 };
 
-export { copy, copy as default };
+export { copy as default };

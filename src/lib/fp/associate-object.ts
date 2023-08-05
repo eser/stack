@@ -1,4 +1,4 @@
-const associateObject = <T>(
+export const associateObject = <T>(
   instance: Record<string | number | symbol, T>,
   predicate: (
     value: T,
@@ -23,4 +23,4 @@ const associateObject = <T>(
   );
 };
 
-export { associateObject, associateObject as default };
+export { associateObject as default };

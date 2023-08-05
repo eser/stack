@@ -1,4 +1,4 @@
-const reverseObject = <T>(
+export const reverseObject = <T>(
   instance: Record<string | number | symbol, T>,
 ): Record<string | number | symbol, T> => {
   return Object.entries(instance).reduce(
@@ -7,4 +7,4 @@ const reverseObject = <T>(
   );
 };
 
-export { reverseObject, reverseObject as default };
+export { reverseObject as default };

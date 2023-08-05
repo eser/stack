@@ -2,7 +2,7 @@ import { type Channel } from "./channel.ts";
 
 type ChannelMethods = string; // "read" | "write";
 
-interface Environment {
+export interface Environment {
   channels: readonly Channel[];
 
   dispatch: <T>(
@@ -15,7 +15,7 @@ interface Environment {
   ) => Promise<TR | undefined>;
 }
 
-const environment = (
+export const environment = (
   // deno-lint-ignore no-explicit-any
   ...channels: Channel<any, any>[]
 ): Environment => {
@@ -71,4 +71,4 @@ const environment = (
   return instance;
 };
 
-export { environment, environment as default };
+export { environment as default };

@@ -11,7 +11,7 @@ import {
 import { create } from "https://deno.land/x/hex/src/fw/generator/create.ts";
 import metadata from "https://deno.land/x/hex/src/metadata.json" assert { type: "json" };
 
-const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
+export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
   const p = Deno.run({
     cmd: ["deno", "install", "-A", "-r", "-f", "https://deno.land/x/hex/hex.ts"],
     stdout: "inherit",
@@ -22,7 +22,7 @@ const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
   await p.status();
 };
 
-const run = async (args: string[], _options: ExecuteOptions) => {
+export const run = async (args: string[], _options: ExecuteOptions) => {
   const p = Deno.run({
     cmd: ["deno", "run", "-A", "--unstable", "src/main.ts", ...args],
     stdout: "inherit",
@@ -44,7 +44,7 @@ const runDev = async (_args: string[], _options: ExecuteOptions) => {
   await p.status();
 };
 
-const test = async (_args: string[], _options: ExecuteOptions) => {
+export const test = async (_args: string[], _options: ExecuteOptions) => {
   const p = Deno.run({
     cmd: ["deno", "task", "test"],
     stdout: "inherit",
@@ -55,7 +55,7 @@ const test = async (_args: string[], _options: ExecuteOptions) => {
   await p.status();
 };
 
-const hexCli = async () => {
+export const hexCli = async () => {
   const executeOptions: ExecuteOptions = {
     command: "hex",
     module: import.meta.url,
@@ -164,4 +164,4 @@ if (import.meta.main) {
   hexCli();
 }
 
-export { hexCli as default, hexCli, run, test, upgradeCli };
+export { hexCli as default };

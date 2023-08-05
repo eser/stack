@@ -1,4 +1,4 @@
-const removeFirstMatchFromObject = <T>(
+export const removeFirstMatchFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   predicate: (
     value: T,
@@ -22,4 +22,4 @@ const removeFirstMatchFromObject = <T>(
   );
 };
 
-export { removeFirstMatchFromObject, removeFirstMatchFromObject as default };
+export { removeFirstMatchFromObject as default };

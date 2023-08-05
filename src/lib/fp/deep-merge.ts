@@ -1,7 +1,7 @@
 // deno-lint-ignore no-explicit-any
 type ObjectType = Record<string | number | symbol, any>;
 
-const deepMerge = <
+export const deepMerge = <
   T1 extends ObjectType,
   T2 extends ObjectType,
   TR extends T1 & T2,
@@ -63,4 +63,4 @@ const deepMerge = <
   return finalMerge;
 };
 
-export { deepMerge, deepMerge as default };
+export { deepMerge as default };

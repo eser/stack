@@ -1,7 +1,11 @@
-type Callback = () => unknown;
-type Pattern = [unknown, Callback];
+export type Callback = () => unknown;
+export type Pattern = [unknown, Callback];
 
-const match = (value: unknown, patterns: Pattern[], otherwise?: Callback) => {
+export const match = (
+  value: unknown,
+  patterns: Pattern[],
+  otherwise?: Callback,
+) => {
   const pattern = patterns.find((x) => value === x[0]);
 
   if (pattern === undefined) {
@@ -11,4 +15,4 @@ const match = (value: unknown, patterns: Pattern[], otherwise?: Callback) => {
   return pattern[1]?.();
 };
 
-export { match, match as default };
+export { match as default };

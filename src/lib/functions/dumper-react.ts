@@ -5,7 +5,7 @@ import {
 
 import ReactDOMServer from "https://esm.sh/react-dom@18.2.0/server?target=deno";
 
-const dumperReact = async (iterator: HexFunctionResult) => {
+export const dumperReact = async (iterator: HexFunctionResult) => {
   for await (
     const result of <HexFunctionResultIterable> iterator
   ) {
@@ -13,4 +13,4 @@ const dumperReact = async (iterator: HexFunctionResult) => {
   }
 };
 
-export { dumperReact, dumperReact as default };
+export { dumperReact as default };

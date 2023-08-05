@@ -2,35 +2,36 @@ import * as di from "../../lib/di/mod.ts";
 import * as options from "../../lib/options/mod.ts";
 import { log, oak } from "./deps.ts";
 
-type State = oak.State;
+export type State = oak.State;
 // deno-lint-ignore no-explicit-any
-type Application<AS extends State = Record<string, any>> = oak.Application<AS>;
-type Middleware = oak.Middleware;
-type Router = oak.Router;
-type Context = oak.Context & {
+export type Application<AS extends State = Record<string, any>> =
+  oak.Application<AS>;
+export type Middleware = oak.Middleware;
+export type Router = oak.Router;
+export type Context = oak.Context & {
   params: Record<string, string>;
 };
-type RouteParams<Route extends string> = oak.RouteParams<Route>;
-type Route<
+export type RouteParams<Route extends string> = oak.RouteParams<Route>;
+export type Route<
   R extends string,
   P extends RouteParams<R> = RouteParams<R>,
   // deno-lint-ignore no-explicit-any
   S extends State = Record<string, any>,
 > = oak.Route<R, P, S>;
-type RouterMiddleware<
+export type RouterMiddleware<
   R extends string,
   P extends RouteParams<R> = RouteParams<R>,
   // deno-lint-ignore no-explicit-any
   S extends State = Record<string, any>,
 > = oak.RouterMiddleware<R, P, S>;
-type RouterContext<
+export type RouterContext<
   R extends string,
   P extends RouteParams<R> = RouteParams<R>,
   // deno-lint-ignore no-explicit-any
   S extends State = Record<string, any>,
 > = oak.RouterContext<R, P, S>;
 
-type HttpMethods =
+export type HttpMethods =
   | "all"
   | "get"
   | "post"
@@ -40,18 +41,18 @@ type HttpMethods =
   | "head"
   | "options";
 
-interface ServiceOptions {
+export interface ServiceOptions {
   port: number;
   logs: log.LevelName;
 }
 
-interface ServiceState<TOptions extends ServiceOptions> {
+export interface ServiceState<TOptions extends ServiceOptions> {
   router: Router;
   registry: di.Registry;
   options: options.Options<TOptions>;
 }
 
-interface Service<TOptions extends ServiceOptions>
+export interface Service<TOptions extends ServiceOptions>
   extends ServiceState<TOptions> {
   internalApp: Application<ServiceState<TOptions>>;
 
@@ -84,18 +85,3 @@ interface Service<TOptions extends ServiceOptions>
 
   start: () => Promise<void>;
 }
-
-export {
-  type Application,
-  type Context,
-  type HttpMethods,
-  type Middleware,
-  type Route,
-  type RouteParams,
-  type Router,
-  type RouterContext,
-  type RouterMiddleware,
-  type Service,
-  type ServiceOptions,
-  type State,
-};

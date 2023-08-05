@@ -1,21 +1,21 @@
-interface ExecuteOptions {
+export interface ExecuteOptions {
   command?: string;
   module?: string;
   moduleRelative?: string;
 }
 
-enum CommandType {
+export enum CommandType {
   SubCommand = "subcommand",
   Option = "option",
 }
 
-enum ValueType {
+export enum ValueType {
   NoValue = "no-value",
   Boolean = "boolean",
   String = "string",
 }
 
-interface Command {
+export interface Command {
   type: CommandType;
   name: string;
   shortcut?: string;
@@ -31,5 +31,3 @@ interface Command {
     executeOptions?: ExecuteOptions,
   ) => void;
 }
-
-export { type Command, CommandType, type ExecuteOptions, ValueType };

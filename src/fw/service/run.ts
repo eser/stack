@@ -144,7 +144,7 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
   return serviceObject;
 };
 
-const run = async <TOptions extends ServiceOptions>(
+export const run = async <TOptions extends ServiceOptions>(
   ...initializers: ((s: Service<TOptions>) => void | Promise<void>)[]
 ) => {
   try {
@@ -166,4 +166,4 @@ const run = async <TOptions extends ServiceOptions>(
   }
 };
 
-export { run, run as default };
+export { run as default };

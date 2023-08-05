@@ -1,4 +1,4 @@
-interface Repository<T = unknown> {
+export interface Repository<T = unknown> {
   get(id: string): Promise<T | undefined>;
   getAll(): Promise<T[]>;
 
@@ -12,5 +12,3 @@ interface Repository<T = unknown> {
 
   // TODO getCursor, bulkInsert, upsert, count, aggregate, etc.
 }
-
-export { type Repository };

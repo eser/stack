@@ -1,4 +1,4 @@
-const filterObject = <T>(
+export const filterObject = <T>(
   instance: Record<string | number | symbol, T>,
   predicate: (
     value: T,
@@ -18,4 +18,4 @@ const filterObject = <T>(
   );
 };
 
-export { filterObject, filterObject as default };
+export { filterObject as default };

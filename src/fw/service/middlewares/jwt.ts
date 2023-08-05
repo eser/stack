@@ -1,6 +1,6 @@
 import { djwt } from "../deps.ts";
 
-const jwtMiddleware = (key?: CryptoKey, decodeOnly?: boolean) => {
+export const jwtMiddleware = (key?: CryptoKey, decodeOnly?: boolean) => {
   // deno-lint-ignore no-explicit-any
   const jwtMiddlewareFn = async (ctx: any, next: any) => {
     const authHeader = ctx.request.headers.get("Authorization");
@@ -29,4 +29,4 @@ const jwtMiddleware = (key?: CryptoKey, decodeOnly?: boolean) => {
   return jwtMiddlewareFn;
 };
 
-export { jwtMiddleware, jwtMiddleware as default };
+export { jwtMiddleware as default };

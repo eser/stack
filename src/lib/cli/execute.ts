@@ -14,7 +14,7 @@ const getRelativePath = (originUrl: string) => {
   return url.href;
 };
 
-const validateOptions = (options: ExecuteOptions) => {
+export const validateOptions = (options: ExecuteOptions) => {
   const newOptions: ExecuteOptions = {
     ...options,
     moduleRelative: (options.moduleRelative)
@@ -27,7 +27,7 @@ const validateOptions = (options: ExecuteOptions) => {
   return newOptions;
 };
 
-const execute = (
+export const execute = (
   commands: Command[],
   args: string[],
   options: ExecuteOptions,
@@ -85,4 +85,4 @@ const execute = (
   console.log(`Command not found - ${params._.join(" ")}`);
 };
 
-export { execute, execute as default, validateOptions };
+export { execute as default };

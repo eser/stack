@@ -5,7 +5,7 @@ import {
 
 const defaultDumpFunction = (x: unknown) => console.log(x);
 
-const dumper = async (
+export const dumper = async (
   iterator: HexFunctionResult,
   dumpFunction: (x: unknown) => void = defaultDumpFunction,
 ) => {
@@ -16,4 +16,4 @@ const dumper = async (
   }
 };
 
-export { dumper, dumper as default };
+export { dumper as default };

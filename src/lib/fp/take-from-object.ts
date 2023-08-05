@@ -1,4 +1,4 @@
-const takeFromObject = <T>(
+export const takeFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   n: number,
 ): Record<string | number | symbol, T> => {
@@ -12,4 +12,4 @@ const takeFromObject = <T>(
   );
 };
 
-export { takeFromObject, takeFromObject as default };
+export { takeFromObject as default };

@@ -1,9 +1,9 @@
-type PickFromObjectResult<T> = {
+export type PickFromObjectResult<T> = {
   items: Record<string | number | symbol, T>;
   rest: Record<string | number | symbol, T>;
 };
 
-const pickFromObject = <T>(
+export const pickFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   keys: readonly (string | number | symbol)[],
 ): PickFromObjectResult<T> => {
@@ -28,4 +28,4 @@ const pickFromObject = <T>(
   );
 };
 
-export { pickFromObject, pickFromObject as default };
+export { pickFromObject as default };

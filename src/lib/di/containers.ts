@@ -2,7 +2,7 @@ import { curryFunctions } from "../fp/curry-functions.ts";
 
 // interface definitions
 // ---------------------
-enum ServiceType {
+export enum ServiceType {
   Value = "VALUE",
   ValueLazy = "VALUE_LAZY",
   Factory = "FACTORY",
@@ -12,13 +12,13 @@ enum ServiceType {
 type Class = { new (...args: any[]): any };
 
 // deno-lint-ignore no-explicit-any
-type ContainerItems<K = Class | symbol | string, V = any> = Map<
+export type ContainerItems<K = Class | symbol | string, V = any> = Map<
   K,
   [ServiceType, V | (() => V | undefined) | undefined]
 >;
 
 // deno-lint-ignore no-explicit-any
-interface Container<K = Class | symbol | string, V = any> {
+export interface Container<K = Class | symbol | string, V = any> {
   items: ContainerItems<K, V>;
 
   get<V2 = V>(
@@ -35,7 +35,7 @@ interface Container<K = Class | symbol | string, V = any> {
 
 // implementation (public)
 // -----------------------
-const get = <K, V>(
+export const get = <K, V>(
   containerItems: ContainerItems<K, V>,
   token: K,
   defaultValue?: V,
@@ -60,7 +60,7 @@ const get = <K, V>(
   return stored[1] as V;
 };
 
-const getMany = <K2 extends string | number | symbol, V>(
+export const getMany = <K2 extends string | number | symbol, V>(
   containerItems: ContainerItems<K2, V>,
   ...tokens: K2[]
 ): Promise<Record<K2, V | undefined>> | Record<K2, V | undefined> => {
@@ -93,7 +93,7 @@ const getMany = <K2 extends string | number | symbol, V>(
   return items;
 };
 
-const setValue = <K, V>(
+export const setValue = <K, V>(
   containerItems: ContainerItems<K, V>,
   token: K,
   value: V,
@@ -101,7 +101,7 @@ const setValue = <K, V>(
   containerItems.set(token, [ServiceType.Value, value]);
 };
 
-const setValueLazy = <K, V>(
+export const setValueLazy = <K, V>(
   containerItems: ContainerItems<K, V>,
   token: K,
   value: () => V | undefined,
@@ -109,7 +109,7 @@ const setValueLazy = <K, V>(
   containerItems.set(token, [ServiceType.ValueLazy, value]);
 };
 
-const setFactory = <K, V>(
+export const setFactory = <K, V>(
   containerItems: ContainerItems<K, V>,
   token: K,
   value: () => V | undefined,
@@ -118,7 +118,7 @@ const setFactory = <K, V>(
 };
 
 // deno-lint-ignore no-explicit-any
-const container = <K = Class | symbol | string, V = any>() => {
+export const container = <K = Class | symbol | string, V = any>() => {
   const map = new Map<K, V>();
 
   return {
@@ -131,15 +131,4 @@ const container = <K = Class | symbol | string, V = any>() => {
   };
 };
 
-export {
-  type Container,
-  container,
-  container as default,
-  type ContainerItems,
-  get,
-  getMany,
-  type ServiceType,
-  setFactory,
-  setValue,
-  setValueLazy,
-};
+export { container as default };

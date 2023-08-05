@@ -4,10 +4,10 @@ const fetchTemplate = async (templatePath: string) => {
   return template;
 };
 
-const readTemplate = (templateFolder: string) => {
+export const readTemplate = (templateFolder: string) => {
   const templateFile = `${templateFolder}/template.json`;
 
   return fetchTemplate(templateFile);
 };
 
-export { readTemplate, readTemplate as default };
+export { readTemplate as default };

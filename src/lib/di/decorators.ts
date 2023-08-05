@@ -6,7 +6,7 @@
 //   "hex.di.injectable.container",
 // );
 
-// const injectable = (
+// export const injectable = (
 //   token?: string,
 //   targetContainer?: Container,
 // ): ClassDecorator => {
@@ -27,7 +27,7 @@
 //   };
 // };
 
-// const inject = (
+// export const inject = (
 //   token: string,
 //   targetContainer?: Container,
 // ): PropertyDecorator => {
@@ -65,5 +65,3 @@
 
 // const b = new B();
 // console.log(b.deneme());
-
-// export { inject, injectable };

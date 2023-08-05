@@ -1,12 +1,12 @@
 import * as assert from "../../lib/stdx/assert.ts";
 
-type Platform = unknown;
+export type Platform = unknown;
 
-interface Stack {
+export interface Stack {
   platforms: Record<string | symbol, Platform>;
 }
 
-const getPlatformFromStack = (
+export const getPlatformFromStack = (
   stack: Stack,
   name: string,
 ): Platform => {
@@ -17,5 +17,3 @@ const getPlatformFromStack = (
 
   return stack.platforms[name];
 };
-
-export { getPlatformFromStack, type Platform, type Stack };

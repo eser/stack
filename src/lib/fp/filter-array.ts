@@ -1,4 +1,4 @@
-const filterArray = <T>(
+export const filterArray = <T>(
   instance: Iterable<T>,
   predicate: (value: T, index: number, instance: Iterable<T>) => boolean,
 ): T[] => {
@@ -9,4 +9,4 @@ const filterArray = <T>(
   return arrInstance.filter(predicate);
 };
 
-export { filterArray, filterArray as default };
+export { filterArray as default };

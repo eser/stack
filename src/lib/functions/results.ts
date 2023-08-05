@@ -3,7 +3,7 @@ import {
   type HexFunctionResultBody,
 } from "./function-result.ts";
 
-const result = <T>(
+export const result = <T>(
   body: HexFunctionResultBody<T>, // Omit<HexFunctionResultBody<T>, "with" | "extraData">,
   extraData?: HexFunctionExtraData,
 ) => {
@@ -62,7 +62,7 @@ const error = (
   }, extraData);
 };
 
-const results = {
+export const results = {
   ok,
   text, // text/plain
   // object(), // application/json, application/xml depending on request headers
@@ -82,4 +82,4 @@ const results = {
   // notImplemented(),
 };
 
-export { results, results as default };
+export { results as default };

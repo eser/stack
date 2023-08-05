@@ -1,4 +1,4 @@
-const trimStart = (input: string, chars?: string[]) => {
+export const trimStart = (input: string, chars?: string[]) => {
   if (chars === undefined) {
     return input.trimStart();
   }
@@ -12,7 +12,7 @@ const trimStart = (input: string, chars?: string[]) => {
   return "";
 };
 
-const trimEnd = (input: string, chars?: string[]) => {
+export const trimEnd = (input: string, chars?: string[]) => {
   if (chars === undefined) {
     return input.trimEnd();
   }
@@ -25,5 +25,3 @@ const trimEnd = (input: string, chars?: string[]) => {
 
   return "";
 };
-
-export { trimEnd, trimStart };

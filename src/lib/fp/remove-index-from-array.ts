@@ -1,4 +1,4 @@
-const removeIndexFromArray = <T>(
+export const removeIndexFromArray = <T>(
   instance: Iterable<T>,
   ...indexes: number[]
 ): T[] => {
@@ -11,4 +11,4 @@ const removeIndexFromArray = <T>(
   );
 };
 
-export { removeIndexFromArray, removeIndexFromArray as default };
+export { removeIndexFromArray as default };

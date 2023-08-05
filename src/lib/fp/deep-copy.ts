@@ -1,7 +1,7 @@
 type Key = string | number | symbol;
 
 // deno-lint-ignore no-explicit-any
-const deepCopy = <T extends Record<Key, any>>(
+export const deepCopy = <T extends Record<Key, any>>(
   instance: T,
 ): T => {
   if (typeof instance !== "object") { // PERF !(instance instanceof Object)
@@ -27,7 +27,7 @@ const deepCopy = <T extends Record<Key, any>>(
 };
 
 // deno-lint-ignore no-explicit-any
-const deepCopy2 = <T extends Record<string | number | symbol, any>>(
+export const deepCopy2 = <T extends Record<string | number | symbol, any>>(
   instance: T,
 ): T => {
   if (!(instance instanceof Object)) {
@@ -53,4 +53,4 @@ const deepCopy2 = <T extends Record<string | number | symbol, any>>(
   );
 };
 
-export { deepCopy, deepCopy as default, deepCopy2 };
+export { deepCopy as default };

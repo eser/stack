@@ -1,4 +1,4 @@
-const removeKeyFromObject = <T>(
+export const removeKeyFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   ...keys: (string | number | symbol)[]
 ): Record<string | number | symbol, T> => {
@@ -14,4 +14,4 @@ const removeKeyFromObject = <T>(
   );
 };
 
-export { removeKeyFromObject, removeKeyFromObject as default };
+export { removeKeyFromObject as default };

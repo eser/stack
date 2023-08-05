@@ -3,7 +3,7 @@ import { bld } from "../deps.ts";
 import { type Connection } from "../connection.ts";
 import { type Repository } from "../repository.ts";
 
-class PostgresConnection<T = unknown>
+export class PostgresConnection<T = unknown>
   implements Connection<T, PostgresRepository<T>> {
   uri: string;
   client?: postgres.Client;
@@ -28,7 +28,7 @@ class PostgresConnection<T = unknown>
   }
 }
 
-class PostgresRepository<T> implements Repository<T> {
+export class PostgresRepository<T> implements Repository<T> {
   connection: PostgresConnection;
   table: string;
 
@@ -125,5 +125,3 @@ class PostgresRepository<T> implements Repository<T> {
     ).finally(() => this.connection.end());
   }
 }
-
-export { PostgresConnection, PostgresRepository };

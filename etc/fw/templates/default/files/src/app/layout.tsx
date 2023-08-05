@@ -1,12 +1,12 @@
 import { type Language } from "@hex/lib/i18n";
 import { BodyContents, HeadContents } from "@hex/fw/web/page";
 
-interface LayoutProps {
+export interface LayoutProps {
   lang: Language;
   children: JSX.Element;
 }
 
-const Layout = (props: LayoutProps) => {
+export const Layout = (props: LayoutProps) => {
   return (
     <html lang={props.lang.code}>
       <head>
@@ -32,4 +32,4 @@ const Layout = (props: LayoutProps) => {
   );
 };
 
-export { Layout, Layout as default };
+export { Layout as default };

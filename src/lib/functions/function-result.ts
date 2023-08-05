@@ -1,9 +1,9 @@
 // deno-lint-ignore no-explicit-any
 type HexFunctionPayloadTypes = any;
 // deno-lint-ignore no-explicit-any
-type HexFunctionExtraData = Record<string | number | symbol, any>;
+export type HexFunctionExtraData = Record<string | number | symbol, any>;
 
-interface HexFunctionResultBody<T = HexFunctionPayloadTypes> {
+export interface HexFunctionResultBody<T = HexFunctionPayloadTypes> {
   error?: Error;
   payload?: T;
   extraData?: HexFunctionExtraData;
@@ -13,35 +13,27 @@ interface HexFunctionResultBody<T = HexFunctionPayloadTypes> {
   // ) => HexFunctionResultBody<T>;
 }
 
-type HexFunctionResultAsyncGen<T = HexFunctionPayloadTypes> = AsyncGenerator<
+export type HexFunctionResultAsyncGen<T = HexFunctionPayloadTypes> =
+  AsyncGenerator<
+    HexFunctionResultBody<T>
+  >;
+
+export type HexFunctionResultGen<T = HexFunctionPayloadTypes> = Generator<
   HexFunctionResultBody<T>
 >;
 
-type HexFunctionResultGen<T = HexFunctionPayloadTypes> = Generator<
-  HexFunctionResultBody<T>
->;
-
-type HexFunctionResultIterable<T = HexFunctionPayloadTypes> =
+export type HexFunctionResultIterable<T = HexFunctionPayloadTypes> =
   | HexFunctionResultAsyncGen<T>
   | HexFunctionResultGen<T>;
 
-type HexFunctionResultNonIterable<T = HexFunctionPayloadTypes> =
+export type HexFunctionResultNonIterable<T = HexFunctionPayloadTypes> =
   | Promise<HexFunctionResultBody<T>>
   | HexFunctionResultBody<T>;
 
-type HexFunctionResult<T = HexFunctionPayloadTypes> =
+export type HexFunctionResult<T = HexFunctionPayloadTypes> =
   | HexFunctionResultIterable<T>
   | HexFunctionResultNonIterable<T>
   | Promise<void>
   | void;
 
-export {
-  type HexFunctionExtraData,
-  type HexFunctionResult,
-  type HexFunctionResult as default,
-  type HexFunctionResultAsyncGen,
-  type HexFunctionResultBody,
-  type HexFunctionResultGen,
-  type HexFunctionResultIterable,
-  type HexFunctionResultNonIterable,
-};
+export { type HexFunctionResult as default };

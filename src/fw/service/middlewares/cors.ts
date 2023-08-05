@@ -1,4 +1,4 @@
-const corsMiddleware = () => {
+export const corsMiddleware = () => {
   // deno-lint-ignore no-explicit-any
   const corsMiddlewarFn = async (ctx: any, next: any) => {
     ctx.response.headers.set("Access-Control-Allow-Origin", "*");
@@ -9,4 +9,4 @@ const corsMiddleware = () => {
   return corsMiddlewarFn;
 };
 
-export { corsMiddleware, corsMiddleware as default };
+export { corsMiddleware as default };

@@ -4,7 +4,7 @@ import { type HexFunctionInput } from "./function-input.ts";
 import { type HexFunctionNext } from "./function-next.ts";
 import { type HexFunctionResult } from "./function-result.ts";
 
-const router = <T>(
+export const router = <T>(
   ..._routes: readonly HexFunction<T>[]
 ): HexFunction<T> => {
   // TODO(@eser) collect each route definition by executing them
@@ -20,4 +20,4 @@ const router = <T>(
   };
 };
 
-export { router, router as default };
+export { router as default };

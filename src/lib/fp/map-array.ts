@@ -1,4 +1,4 @@
-const mapArray = <T1, T2>(
+export const mapArray = <T1, T2>(
   instance: Iterable<T1>,
   predicate: (value: T1, index: number, instance: Iterable<T1>) => T2,
 ): T2[] => {
@@ -9,4 +9,4 @@ const mapArray = <T1, T2>(
   return arrInstance.map(predicate);
 };
 
-export { mapArray, mapArray as default };
+export { mapArray as default };

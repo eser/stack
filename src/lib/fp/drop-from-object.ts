@@ -1,4 +1,4 @@
-const dropFromObject = <T>(
+export const dropFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   n: number,
 ): Record<string | number | symbol, T> => {
@@ -12,4 +12,4 @@ const dropFromObject = <T>(
   );
 };
 
-export { dropFromObject, dropFromObject as default };
+export { dropFromObject as default };

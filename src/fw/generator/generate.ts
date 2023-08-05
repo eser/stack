@@ -2,7 +2,7 @@ import { path } from "./deps.ts";
 import { readTemplate } from "./template-reader.ts";
 import { copy } from "./copy.ts";
 
-const generate = async (
+export const generate = async (
   basePath: string,
   projectPath: string,
   templateName?: string,
@@ -39,4 +39,4 @@ const generate = async (
   console.log("done.");
 };
 
-export { generate, generate as default };
+export { generate as default };

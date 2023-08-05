@@ -1,13 +1,13 @@
 // deno-lint-ignore no-explicit-any
-type EventType = (...args: readonly any[]) => void | Promise<void>;
-type LogType = {
+export type EventType = (...args: readonly any[]) => void | Promise<void>;
+export type LogType = {
   event: string;
   subscriber: string;
   args: readonly unknown[] | undefined;
 };
-type LoggerType = (entry: LogType) => void;
+export type LoggerType = (entry: LogType) => void;
 
-const emitter = async (
+export const emitter = async (
   events: Record<string, EventType[]>,
   eventName: string,
   args?: readonly unknown[],
@@ -33,10 +33,4 @@ const emitter = async (
   }
 };
 
-export {
-  emitter,
-  emitter as default,
-  type EventType,
-  type LoggerType,
-  type LogType,
-};
+export { emitter as default };

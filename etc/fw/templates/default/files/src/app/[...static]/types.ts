@@ -1,4 +1,4 @@
-const staticPage = {
+export const staticPage = {
   nameSingular: "StaticPage",
   namePlural: "StaticPages",
   filePathPattern: "./content/**/*.md",
@@ -27,4 +27,4 @@ const staticPage = {
   },
 };
 
-export { staticPage, staticPage as default };
+export { staticPage as default };

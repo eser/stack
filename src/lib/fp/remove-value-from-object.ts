@@ -1,4 +1,4 @@
-const removeValueFromObject = <T>(
+export const removeValueFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   ...values: T[]
 ): Record<string | number | symbol, T> => {
@@ -14,4 +14,4 @@ const removeValueFromObject = <T>(
   );
 };
 
-export { removeValueFromObject, removeValueFromObject as default };
+export { removeValueFromObject as default };

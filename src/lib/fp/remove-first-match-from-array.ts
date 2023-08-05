@@ -1,4 +1,4 @@
-const removeFirstMatchFromArray = <T>(
+export const removeFirstMatchFromArray = <T>(
   instance: Iterable<T>,
   predicate: (value: T, index: number, instance: Iterable<T>) => boolean,
 ): T[] => {
@@ -19,4 +19,4 @@ const removeFirstMatchFromArray = <T>(
   });
 };
 
-export { removeFirstMatchFromArray, removeFirstMatchFromArray as default };
+export { removeFirstMatchFromArray as default };

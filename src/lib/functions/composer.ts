@@ -8,7 +8,7 @@ import {
   type HexFunctionResultNonIterable,
 } from "./function-result.ts";
 
-const composer = <T>(
+export const composer = <T>(
   ...functions: readonly HexFunction<T>[]
 ): HexFunction<T> => {
   return async function* (
@@ -52,4 +52,4 @@ const composer = <T>(
   };
 };
 
-export { composer, composer as default };
+export { composer as default };

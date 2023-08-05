@@ -46,11 +46,11 @@ const deserialize = async (
   return JSON.parse(String(awaitedPayload));
 };
 
-const applicationJsonFormatter: Formatter<unknown, string> = {
+export const applicationJsonFormatter: Formatter<unknown, string> = {
   names,
 
   serialize,
   deserialize,
 };
 
-export { applicationJsonFormatter, applicationJsonFormatter as default };
+export { applicationJsonFormatter as default };

@@ -108,7 +108,7 @@ const routeMatcher = (
   };
 };
 
-const urlResolver = (
+export const urlResolver = (
   url: string,
   routes: string[],
   config: Config,
@@ -144,4 +144,4 @@ current: ${urlStructure}`,
   return undefined;
 };
 
-export { urlResolver, urlResolver as default };
+export { urlResolver as default };

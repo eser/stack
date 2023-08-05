@@ -1,4 +1,4 @@
-const iterate = async (
+export const iterate = async (
   // deno-lint-ignore no-explicit-any
   iterable: Iterable<any> | Promise<Iterable<any>>,
   // deno-lint-ignore no-explicit-any
@@ -9,4 +9,4 @@ const iterate = async (
   }
 };
 
-export { iterate, iterate as default };
+export { iterate as default };

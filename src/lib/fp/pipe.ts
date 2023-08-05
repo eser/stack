@@ -1,7 +1,7 @@
 // deno-lint-ignore no-explicit-any
 type ComposableFunction = (...args: readonly any[]) => any;
 
-const pipe = (
+export const pipe = (
   ...funcs: readonly ComposableFunction[]
 ): ComposableFunction => {
   return funcs.reduce(
@@ -10,4 +10,4 @@ const pipe = (
   );
 };
 
-export { pipe, pipe as default };
+export { pipe as default };

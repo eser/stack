@@ -1,6 +1,6 @@
-type Decorated<T1, T2> = (...args: readonly T1[]) => T2;
+export type Decorated<T1, T2> = (...args: readonly T1[]) => T2;
 
-const decorate = <T1, T2>(
+export const decorate = <T1, T2>(
   target: Decorated<T1, T2>,
   decorator: (...args: readonly [Decorated<T1, T2>, ...T1[]]) => T2,
 ) => {
@@ -9,4 +9,4 @@ const decorate = <T1, T2>(
   };
 };
 
-export { decorate, decorate as default };
+export { decorate as default };

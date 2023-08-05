@@ -1,5 +1,5 @@
 // taken from RFC5424 (see: https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.1)
-enum Severity {
+export enum Severity {
   Emergency = 0, // system is unusable
   Alert = 1, // action must be taken immediately
   Critical = 2, // critical conditions
@@ -10,8 +10,8 @@ enum Severity {
   Debug = 7, // debug-level messages
 }
 
-interface Logger {
+export interface Logger {
   log(severity: Severity, message: string, ...args: readonly unknown[]): void;
 }
 
-export { type Logger, type Logger as default, type Severity };
+export { type Logger as default };

@@ -1,13 +1,13 @@
 import { loadEnv, type LoadEnvOptions, type LoadEnvResult } from "./env.ts";
 
 // interface definitions
-interface BaseOptions {
+export interface BaseOptions {
   envName: string;
 }
 
-type Options<T> = BaseOptions & T;
+export type Options<T> = BaseOptions & T;
 
-interface EnvReader {
+export interface EnvReader {
   envName: string;
   readString<T extends string>(key: string, defaultValue: T): T;
   readString<T extends string>(key: string): T | undefined;
@@ -19,7 +19,7 @@ interface EnvReader {
   readBool<T extends boolean>(key: string): T | undefined;
 }
 
-type ConfigureOptionsFn<T> = (
+export type ConfigureOptionsFn<T> = (
   envReader: EnvReader,
   options: Options<T>,
 ) => Promise<Options<T> | void> | Options<T> | void;
@@ -30,7 +30,7 @@ interface BuilderResult<T> {
 }
 
 // public functions
-const createEnvReader = (env: LoadEnvResult): EnvReader => {
+export const createEnvReader = (env: LoadEnvResult): EnvReader => {
   return {
     envName: env.name,
     readString: <T extends string>(
@@ -83,7 +83,7 @@ const createEnvReader = (env: LoadEnvResult): EnvReader => {
   };
 };
 
-const loadEnvAndCreateEnvReader = async (
+export const loadEnvAndCreateEnvReader = async (
   options?: LoadEnvOptions,
 ): Promise<[LoadEnvResult, EnvReader]> => {
   const env = await loadEnv(options);
@@ -92,7 +92,7 @@ const loadEnvAndCreateEnvReader = async (
   return [env, envReader];
 };
 
-const createBuilder = async <T>(
+export const createBuilder = async <T>(
   options?: LoadEnvOptions,
 ): Promise<BuilderResult<T>> => {
   const [env, envReader] = await loadEnvAndCreateEnvReader(options);
@@ -119,7 +119,7 @@ const createBuilder = async <T>(
   };
 };
 
-const configureOptions = async <T>(
+export const configureOptions = async <T>(
   configureOptionsFn: ConfigureOptionsFn<T>,
   options?: LoadEnvOptions,
 ): Promise<Options<T>> => {
@@ -135,10 +135,4 @@ const configureOptions = async <T>(
   return result ?? newOptions;
 };
 
-export {
-  configureOptions,
-  type ConfigureOptionsFn,
-  createBuilder,
-  type LoadEnvOptions,
-  type Options,
-};
+export { type LoadEnvOptions };

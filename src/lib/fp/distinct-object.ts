@@ -1,4 +1,4 @@
-const distinctObject = <T>(
+export const distinctObject = <T>(
   instance: Record<string | number | symbol, T>,
   predicate: (
     value: T,
@@ -30,4 +30,4 @@ const distinctObject = <T>(
   return result.items;
 };
 
-export { distinctObject, distinctObject as default };
+export { distinctObject as default };

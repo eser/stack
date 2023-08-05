@@ -1,4 +1,4 @@
-const distinctArray = <T>(
+export const distinctArray = <T>(
   instance: Iterable<T>,
   predicate: (value: T, index: number, instance: Iterable<T>) => unknown,
 ): T[] => {
@@ -30,4 +30,4 @@ const distinctArray = <T>(
   return result.items;
 };
 
-export { distinctArray, distinctArray as default };
+export { distinctArray as default };

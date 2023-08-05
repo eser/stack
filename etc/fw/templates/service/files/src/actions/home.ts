@@ -1,5 +1,5 @@
-const homeAction = () => {
+export const homeAction = () => {
   return "Hello world!";
 };
 
-export { homeAction, homeAction as default };
+export { homeAction as default };

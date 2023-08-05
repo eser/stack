@@ -1,6 +1,6 @@
-type SplitArrayResult<T> = { items: T[]; rest: T[] };
+export type SplitArrayResult<T> = { items: T[]; rest: T[] };
 
-const splitArray = <T>(
+export const splitArray = <T>(
   instance: Iterable<T>,
   n: number,
 ): SplitArrayResult<T> => {
@@ -15,4 +15,4 @@ const splitArray = <T>(
   };
 };
 
-export { splitArray, splitArray as default };
+export { splitArray as default };

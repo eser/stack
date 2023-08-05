@@ -1,6 +1,6 @@
 import { type Channel } from "../channel.ts";
 
-const webapi = (): Channel<string, string> => {
+export const webapi = (): Channel<string, string> => {
   const instance = {
     name: "webapi",
 
@@ -18,4 +18,4 @@ const webapi = (): Channel<string, string> => {
   return instance;
 };
 
-export { webapi, webapi as default };
+export { webapi as default };

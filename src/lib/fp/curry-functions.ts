@@ -1,6 +1,6 @@
 import { curry } from "./curry.ts";
 
-const curryFunctions = <
+export const curryFunctions = <
   T1,
   T2 extends Record<
     string | number | symbol,
@@ -20,4 +20,4 @@ const curryFunctions = <
   );
 };
 
-export { curryFunctions, curryFunctions as default };
+export { curryFunctions as default };

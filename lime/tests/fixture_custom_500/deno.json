@@ -2,9 +2,16 @@
   "lock": false,
   "imports": {
     "$cool/": "../../../",
-    "preact": "https://esm.sh/preact@10.15.1",
-    "preact/": "https://esm.sh/preact@10.15.1/",
-    "preact-render-to-string": "https://esm.sh/*preact-render-to-string@6.2.1"
+    "$std/": "https://deno.land/std@0.200.0/",
+    "preact": "https://esm.sh/preact@10.17.1?target=deno",
+    "preact/compat": "https://esm.sh/*preact@10.17.1/compat?target=deno",
+    "preact/debug": "https://esm.sh/*preact@10.17.1/debug?target=deno",
+    "preact/devtools": "https://esm.sh/*preact@10.17.1/devtools?target=deno",
+    "preact/hooks": "https://esm.sh/*preact@10.17.1/hooks?target=deno",
+    "preact-render-to-string": "https://esm.sh/*preact-render-to-string@6.2.1?target=deno",
+    "preact/jsx-runtime": "https://esm.sh/*preact@10.17.1/jsx-runtime?target=deno",
+    "@preact/signals": "https://esm.sh/*@preact/signals@1.2.1?target=deno",
+    "@preact/signals-core": "https://esm.sh/@preact/signals-core@1.4.0?target=deno"
   },
   "compilerOptions": {
     "jsx": "react-jsx",

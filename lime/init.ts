@@ -1,7 +1,7 @@
 import { basename, colors, join, parse, resolve } from "./src/dev/deps.ts";
 import { error } from "./src/dev/error.ts";
 import { collect, ensureMinDenoVersion, generate } from "./src/dev/mod.ts";
-import { limeImports } from "./src/dev/imports.ts";
+import { baseImports, preactImports } from "./src/dev/imports.ts";
 
 ensureMinDenoVersion();
 
@@ -520,7 +520,9 @@ const config = {
     jsxImportSource: "preact",
   },
 };
-limeImports(config.imports);
+baseImports(config.imports);
+// reactImports(config.imports);
+preactImports(config.imports);
 
 const DENO_CONFIG = JSON.stringify(config, null, 2) + "\n";
 

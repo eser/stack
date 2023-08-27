@@ -1,8 +1,13 @@
 import { updateCheck } from "./update_check.ts";
 import { DAY, dirname, fromFileUrl, join } from "./deps.ts";
-import { LimeOptions } from "../server/mod.ts";
+import { type LimeOptions } from "../server/types.ts";
 import { build } from "./build.ts";
-import { collect, ensureMinDenoVersion, generate, Manifest } from "./mod.ts";
+import {
+  collect,
+  ensureMinDenoVersion,
+  generate,
+  type Manifest,
+} from "./mod.ts";
 
 export async function dev(
   base: string,
@@ -19,14 +24,14 @@ export async function dev(
   const dir = dirname(fromFileUrl(base));
 
   let currentManifest: Manifest;
-  const prevManifest = Deno.env.get("FRSH_DEV_PREVIOUS_MANIFEST");
+  const prevManifest = Deno.env.get("LIME_DEV_PREVIOUS_MANIFEST");
   if (prevManifest) {
     currentManifest = JSON.parse(prevManifest);
   } else {
     currentManifest = { islands: [], routes: [] };
   }
   const newManifest = await collect(dir);
-  Deno.env.set("FRSH_DEV_PREVIOUS_MANIFEST", JSON.stringify(newManifest));
+  Deno.env.set("LIME_DEV_PREVIOUS_MANIFEST", JSON.stringify(newManifest));
 
   const manifestChanged =
     !arraysEqual(newManifest.routes, currentManifest.routes) ||

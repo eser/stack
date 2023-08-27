@@ -85,7 +85,7 @@ deno task screenshot [url] [your-app-name]
 ```
 
 Then add your site to
-[showcase.json](https://github.com/eser/coollime/blob/main/www/data/showcase.json),
+[showcase.json](https://github.com/eser/cool/blob/main/lime/www/data/showcase.json),
 preferably with source code on GitHub, but not required.
 
 ## Badges

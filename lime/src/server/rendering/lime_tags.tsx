@@ -67,14 +67,14 @@ export function renderLimeTags(
   // The inline script that will hydrate the page.
   let script = "";
 
-  // Serialize the state into the <script id=__FRSH_STATE> tag and generate the
+  // Serialize the state into the <script id=__LIME_STATE> tag and generate the
   // inline script to deserialize it. This script starts by deserializing the
   // state in the tag. This potentially requires importing @preact/signals.
   if (state[0].length > 0 || state[1].length > 0) {
     const res = serialize(state);
     const escapedState = htmlEscapeJsonString(res.serialized);
     opts.bodyHtml +=
-      `<script id="__FRSH_STATE" type="application/json">${escapedState}</script>`;
+      `<script id="__LIME_STATE" type="application/json">${escapedState}</script>`;
 
     if (res.requiresDeserializer) {
       const url = addImport("deserializer.js");
@@ -84,7 +84,7 @@ export function renderLimeTags(
       const url = addImport("signals.js");
       script += `import { signal } from "${url}";`;
     }
-    script += `const ST = document.getElementById("__FRSH_STATE").textContent;`;
+    script += `const ST = document.getElementById("__LIME_STATE").textContent;`;
     script += `const STATE = `;
     if (res.requiresDeserializer) {
       if (res.hasSignals) {
@@ -131,7 +131,7 @@ export function renderLimeTags(
 
   if (opts.styles.length > 0) {
     const node = h("style", {
-      id: "__FRSH_STYLE",
+      id: "__LIME_STYLE",
       dangerouslySetInnerHTML: { __html: opts.styles.join("\n") },
     });
 

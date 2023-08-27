@@ -12,7 +12,7 @@ import {
 } from "./deps.ts";
 import { ComponentType, h } from "preact";
 import * as router from "./router.ts";
-import { DenoConfig, Manifest } from "./mod.ts";
+import { type DenoConfig, type Manifest } from "./mod.ts";
 import { ALIVE_URL, JS_PREFIX, REFRESH_JS_URL } from "./constants.ts";
 import { BUILD_ID } from "./build_id.ts";
 import DefaultErrorHandler from "./default_error_page.ts";
@@ -25,7 +25,7 @@ import {
   Island,
   LayoutModule,
   LayoutRoute,
-  LimeOptions,
+  type LimeOptions,
   MiddlewareHandler,
   MiddlewareHandlerContext,
   MiddlewareModule,

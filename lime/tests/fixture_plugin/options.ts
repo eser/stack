@@ -1,4 +1,4 @@
-import { LimeOptions } from "$cool/lime/server.ts";
+import { type LimeOptions } from "$cool/lime/types.ts";
 import cssInjectPlugin from "./utils/css-inject-plugin.ts";
 import jsInjectPlugin from "./utils/js-inject-plugin.ts";
 import cssInjectPluginAsync from "./utils/css-inject-plugin-async.ts";

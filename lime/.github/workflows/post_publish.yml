@@ -8,7 +8,7 @@ jobs:
   update-dl-version:
     name: update dl.deno.land version
     runs-on: ubuntu-22.04
-    if: github.repository == 'eser/coollime'
+    if: github.repository == 'eser/not-cool'
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3

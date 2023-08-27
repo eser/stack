@@ -35,7 +35,7 @@ See the respective component page to figure out its specific usage.
 
 # 🚀 Jumpstart
 
-Ensure that [Deno](https://deno.land/) 1.27 or higher is installed on your
+Ensure that [Deno](https://deno.land/) 1.36 or higher is installed on your
 system first.
 
 **Alternative I**:
@@ -94,7 +94,7 @@ Fork the repo, push your changes to your fork, and submit a pull request.
 
 ## Requirements
 
-- Deno 1.27 or higher (https://deno.land/)
+- Deno 1.36 or higher (https://deno.land/)
 
 ## License
 

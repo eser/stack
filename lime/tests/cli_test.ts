@@ -143,7 +143,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "lime-init --vscode",
+  name: "lime-init --docker",
   async fn(t) {
     // Preparation
     const tmpDirName = await Deno.makeTempDir();
@@ -155,7 +155,7 @@ Deno.test({
           "-A",
           "init.ts",
           tmpDirName,
-          "--vscode",
+          "--docker",
         ],
         stdin: "null",
         stdout: "null",
@@ -175,8 +175,7 @@ Deno.test({
       "/routes/_app.tsx",
       "/routes/index.tsx",
       "/static/logo.svg",
-      "/.vscode/settings.json",
-      "/.vscode/extensions.json",
+      "/Dockerfile",
       "/.gitignore",
     ];
 

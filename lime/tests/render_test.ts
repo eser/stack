@@ -9,8 +9,8 @@ Deno.test("doesn't leak data across renderers", async () => {
   await withLime("./tests/fixture/main.ts", async (address) => {
     function load(name: string) {
       return fetchHtml(`${address}/admin/${name}`).then((doc) => {
-        assertSelector(doc, "#__FRSH_STATE");
-        const text = doc.querySelector("#__FRSH_STATE")?.textContent!;
+        assertSelector(doc, "#__LIME_STATE");
+        const text = doc.querySelector("#__LIME_STATE")?.textContent!;
         const json = JSON.parse(text);
         assertEquals(json, { "v": [[{ "site": name }], []] });
       });

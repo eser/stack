@@ -1,7 +1,7 @@
 import { basename, colors, join, parse, resolve } from "./src/dev/deps.ts";
 import { error } from "./src/dev/error.ts";
 import { collect, ensureMinDenoVersion, generate } from "./src/dev/mod.ts";
-import { dotenvImports, limeImports } from "./src/dev/imports.ts";
+import { limeImports } from "./src/dev/imports.ts";
 
 ensureMinDenoVersion();
 
@@ -21,18 +21,15 @@ USAGE:
 
 OPTIONS:
     --force   Overwrite existing files
-    --vscode  Setup project for VSCode
     --docker  Setup Project to use Docker
 `;
 
 const CONFIRM_EMPTY_MESSAGE =
   "The target directory is not empty (files could get overwritten). Do you want to continue anyway?";
 
-const USE_VSCODE_MESSAGE = "Do you use VS Code?";
-
 const flags = parse(Deno.args, {
-  boolean: ["force", "vscode", "docker"],
-  default: { "force": null, "vscode": null, "docker": null },
+  boolean: ["force", "docker"],
+  default: { "force": null, "docker": null },
 });
 
 console.log();
@@ -76,19 +73,13 @@ console.log(
   "font-weight: bold",
 );
 
-const useVSCode = flags.vscode === null
-  ? confirm(USE_VSCODE_MESSAGE)
-  : flags.vscode;
-
 const useDocker = flags.docker;
 
 await Deno.mkdir(join(resolvedDirectory, "routes", "api"), { recursive: true });
 await Deno.mkdir(join(resolvedDirectory, "islands"), { recursive: true });
 await Deno.mkdir(join(resolvedDirectory, "static"), { recursive: true });
 await Deno.mkdir(join(resolvedDirectory, "components"), { recursive: true });
-if (useVSCode) {
-  await Deno.mkdir(join(resolvedDirectory, ".vscode"), { recursive: true });
-}
+await Deno.mkdir(join(resolvedDirectory, ".vscode"), { recursive: true });
 
 const GITIGNORE = `# dotenv environment variable files
 .env
@@ -530,7 +521,6 @@ const config = {
   },
 };
 limeImports(config.imports);
-dotenvImports(config.imports);
 
 const DENO_CONFIG = JSON.stringify(config, null, 2) + "\n";
 
@@ -578,12 +568,10 @@ const vscodeSettings = {
 
 const VSCODE_SETTINGS = JSON.stringify(vscodeSettings, null, 2) + "\n";
 
-if (useVSCode) {
-  await Deno.writeTextFile(
-    join(resolvedDirectory, ".vscode", "settings.json"),
-    VSCODE_SETTINGS,
-  );
-}
+await Deno.writeTextFile(
+  join(resolvedDirectory, ".vscode", "settings.json"),
+  VSCODE_SETTINGS,
+);
 
 const vscodeExtensions = {
   recommendations: ["denoland.vscode-deno"],
@@ -591,12 +579,10 @@ const vscodeExtensions = {
 
 const VSCODE_EXTENSIONS = JSON.stringify(vscodeExtensions, null, 2) + "\n";
 
-if (useVSCode) {
-  await Deno.writeTextFile(
-    join(resolvedDirectory, ".vscode", "extensions.json"),
-    VSCODE_EXTENSIONS,
-  );
-}
+await Deno.writeTextFile(
+  join(resolvedDirectory, ".vscode", "extensions.json"),
+  VSCODE_EXTENSIONS,
+);
 
 const manifest = await collect(resolvedDirectory);
 await generate(resolvedDirectory, manifest);

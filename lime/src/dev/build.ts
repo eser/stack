@@ -1,5 +1,5 @@
 import { ServerContext } from "../server/context.ts";
-import { LimeOptions, Manifest } from "../server/mod.ts";
+import { type LimeOptions, type Manifest } from "../server/types.ts";
 import { dirname, fromFileUrl, join, toFileUrl } from "../server/deps.ts";
 import { fs } from "./deps.ts";
 

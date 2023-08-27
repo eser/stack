@@ -7,46 +7,49 @@
   },
   "lock": false,
   "imports": {
-    "@hex/": "./pkg/"
+    "$cool/": "./"
   },
   "lint": {
-    "include": [
-      "pkg/",
-      "mod.ts",
-      "*.md",
-      "*.json"
-    ],
     "rules": {
       "tags": [
         "recommended"
-      ],
-      "include": []
-    }
+      ]
+    },
+    "exclude": [
+      "_tmp/"
+    ]
   },
   "fmt": {
-    "include": [
-      "pkg/",
-      "mod.ts",
-      "*.md",
-      "*.json"
+    "exclude": [
+      "_etc/templates/default/files/.github/ISSUE_TEMPLATE/bug_report.md",
+      "_etc/templates/default/files/.github/ISSUE_TEMPLATE/feature_request.md",
+      "_etc/templates/service/files/.github/ISSUE_TEMPLATE/bug_report.md",
+      "_etc/templates/service/files/.github/ISSUE_TEMPLATE/feature_request.md",
+      ".github/ISSUE_TEMPLATE/bug_report.md",
+      ".github/ISSUE_TEMPLATE/feature_request.md",
+      "_tmp/"
     ]
   },
   "test": {
-    "include": [
-      "pkg/"
+    "exclude": [
+      "_etc/templates/",
+      "_tmp/",
+      "lime/"
     ]
   },
   "bench": {
-    "include": [
-      "pkg/"
+    "exclude": [
+      "_etc/templates/",
+      "_tmp/",
+      "lime/"
     ]
   },
   "tasks": {
     "test": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --watch",
-    "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --coverage=./etc/coverage/",
-    "test:coverage": "deno coverage ./etc/coverage/",
-    "test:generate-lcov": "deno coverage ./etc/coverage --lcov > ./etc/coverage/cov_profile.lcov",
-    "check": "deno run --check --reload ./pkg/mod.ts",
-    "cli": "deno run --check --reload ./pkg/cli.ts"
+    "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --coverage=./_etc/coverage/",
+    "test:coverage": "deno coverage ./_etc/coverage/",
+    "test:generate-lcov": "deno coverage ./_etc/coverage --lcov > ./_etc/coverage/cov_profile.lcov",
+    "check": "deno run --check --reload ./hex/mod.ts",
+    "cli": "deno run --check --reload ./hex/cli.ts"
   }
 }

@@ -1,0 +1,32 @@
+{
+  "name": "cool service project template",
+  "version": "0.0.1",
+  "files": [
+    ".vscode/extensions.json",
+    ".vscode/settings.json",
+    ".vscode/launch.json",
+    ".github/ISSUE_TEMPLATE/bug_report.md",
+    ".github/ISSUE_TEMPLATE/feature_request.md",
+    ".github/FUNDING.yml",
+    "etc/coverage/.gitkeep",
+    "src/actions/echo.ts",
+    "src/actions/echo.test.ts",
+    "src/actions/error-prone.ts",
+    "src/actions/home.ts",
+    "src/actions/home.test.ts",
+    "src/actions/mongo.ts",
+    "src/types.ts",
+    "src/deps.ts",
+    "src/main.ts",
+    ".editorconfig",
+    ".gitattributes",
+    ".gitignore",
+    ".pre-commit-config",
+    ".tool-versions",
+    ".env",
+    ".env.development",
+    "Dockerfile",
+    "deno.json",
+    "README.md"
+  ]
+}

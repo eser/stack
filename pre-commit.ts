@@ -1,5 +1,5 @@
-import metadata from "./pkg/metadata.json" assert { type: "json" };
-import * as path from "./pkg/stdx/path.ts";
+import metadata from "./metadata.json" assert { type: "json" };
+import * as path from "./hex/stdx/path.ts";
 
 const main = async () => {
   const baseUrl = new URL(".", import.meta.url);

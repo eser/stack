@@ -1,0 +1,30 @@
+{
+  "name": "cool-service-project",
+  "description": "Deno and Node.js boilerplate for plain backend microservices",
+  "keywords": [],
+  "version": "0.5.0",
+  "homepage": "https://github.com/eser/cool-service-project#readme",
+  "author": "Eser Ozvataf <eser@ozvataf.com>",
+  "contributors": [
+    {
+      "name": "Eser Ozvataf",
+      "email": "eser@ozvataf.com",
+      "url": "http://eser.ozvataf.com/"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eser/cool-service-project.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eser/cool/issues"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^18.7.18",
+    "@types/ws": "^8.5.3"
+  },
+  "dependencies": {
+    "tslib": "^2.4.0"
+  }
+}

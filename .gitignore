@@ -14,7 +14,7 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# Build output
+# tool outputs
 *.tsbuildinfo
 
 # sensitive files
@@ -22,8 +22,8 @@ Thumbs.db
 *.swp
 
 # coverage files
-etc/coverage/*.json
-etc/coverage/cov_profile.lcov
+_etc/coverage/*.json
+_etc/coverage/cov_profile.lcov
 
-# hidden
-tmp/_hidden/
+# temporary files
+_tmp/

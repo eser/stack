@@ -65,11 +65,11 @@ jobs:
       contents: read
 
     steps:
-      # - name: Clone repository
-      #   uses: actions/checkout@v3
+      - name: Clone repository
+        uses: actions/checkout@v3
 
       - name: Upload to Deno Deploy
         uses: denoland/deployctl@v1
         with:
-          project: hexfw
-          entrypoint: ./pkg/mod.ts
+          project: c00l
+          entrypoint: ./hex/mod.ts

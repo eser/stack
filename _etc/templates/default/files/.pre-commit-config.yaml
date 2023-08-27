@@ -1,0 +1,56 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-xml
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      - id: forbid-new-submodules
+      - id: mixed-line-ending
+  - repo: local
+    hooks:
+    # - id: local-precommit
+    #   name: local pre-commit tasks
+    #   description: Runs local pre-commit tasks.
+    #   entry: bash -c 'deno run -A pre-commit.ts; git add -u' --
+    #   always_run: true
+    #   pass_filenames: false
+    #   language: system
+    - id: deno-fmt
+      name: verify formatting
+      description: Auto-format JavaScript, TypeScript, Markdown, and JSON files.
+      entry: deno fmt --check
+      types_or: [javascript, jsx, ts, tsx, json, markdown]
+      pass_filenames: false
+      language: system
+    - id: deno-lint
+      name: lint
+      description: Lint JavaScript/TypeScript source code.
+      entry: deno lint
+      types_or: [javascript, jsx, ts, tsx, json, markdown]
+      pass_filenames: false
+      language: system
+    # - id: deno-check
+    #   name: checks if modules are broken
+    #   description: Checks if modules are broken.
+    #   entry: deno task check
+    #   types_or: [javascript, jsx, ts, tsx, json, markdown]
+    #   pass_filenames: false
+    #   language: system
+    # - id: deno-test
+    #   name: run tests
+    #   description: Run tests using Deno's built-in test runner.
+    #   entry: deno task test:run
+    #   types_or: [javascript, jsx, ts, tsx, json]
+    #   pass_filenames: false
+    #   language: system

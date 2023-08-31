@@ -1,12 +1,10 @@
+import { options, render } from "preact";
 import {
-  ComponentChildren,
-  ComponentType,
-  Fragment,
-  h,
-  options,
-  render,
-  VNode,
-} from "preact";
+  type ComponentChildren,
+  type ComponentType,
+  view,
+  type VNode,
+} from "../drivers/view.ts";
 import { assetHashingHook } from "../utils.ts";
 
 function createRootFragment(
@@ -59,7 +57,7 @@ export function revive(
     [],
     // Keep a root node in the vnode stack to save a couple of checks
     // later during iteration
-    [h(Fragment, null)],
+    [view.h(view.Fragment, null)],
     document.body,
   );
 }
@@ -160,7 +158,7 @@ function _walkInner(
           kind: MarkerKind.Slot,
         });
         // @ts-ignore TS gets confused
-        vnodeStack.push(h(ServerComponent, { key: comment }));
+        vnodeStack.push(view.h(ServerComponent, { key: comment }));
       } else if (
         marker !== null && (
           comment.startsWith("/lime") ||
@@ -297,7 +295,7 @@ function _walkInner(
           text: comment,
           kind: MarkerKind.Island,
         });
-        const vnode = h(islands[id][exportName], islandProps);
+        const vnode = view.h(islands[id][exportName], islandProps);
         vnodeStack.push(vnode);
       }
     } else if (isTextNode(sib)) {
@@ -325,7 +323,7 @@ function _walkInner(
           const attr = sib.attributes[i];
           props[attr.nodeName] = attr.nodeValue;
         }
-        const vnode = h(sib.localName, props);
+        const vnode = view.h(sib.localName, props);
         addPropsChild(parentVNode, vnode);
         vnodeStack.push(vnode);
       }

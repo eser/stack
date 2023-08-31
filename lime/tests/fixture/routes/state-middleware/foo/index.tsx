@@ -1,4 +1,4 @@
-import { HandlerContext, PageProps } from "$cool/lime/server.ts";
+import { type HandlerContext, type PageProps } from "$cool/lime/server.ts";
 
 export const handler = (_req: Request, ctx: HandlerContext) => {
   ctx.state.handler3 = "it works";

@@ -1,13 +1,13 @@
-import { ComponentChildren } from "preact";
+import { type ComponentChildren } from "../runtime/drivers/view.ts";
 import {
-  AsyncLayout,
-  AsyncRoute,
-  LayoutContext,
-  RouteContext,
-  StartOptions,
+  type AsyncLayout,
+  type AsyncRoute,
+  type LayoutContext,
+  type RouteContext,
+  type StartOptions,
 } from "./types.ts";
 import { checkAsyncComponent } from "./render.ts";
-import { AppContext } from "$cool/lime/server.ts";
+import { type AppContext } from "$cool/lime/server.ts";
 
 export function defineConfig(config: StartOptions): StartOptions {
   return config;

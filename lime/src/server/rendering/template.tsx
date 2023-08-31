@@ -1,7 +1,7 @@
 import { RenderState } from "./state.ts";
 import { setRenderState } from "./preact_hooks.ts";
 import { renderToString } from "preact-render-to-string";
-import { Fragment, h } from "preact";
+import { view } from "../../runtime/drivers/view.ts";
 import { HEAD_CONTEXT } from "../../runtime/head.ts";
 import { CSP_CONTEXT } from "../../runtime/csp.ts";
 
@@ -13,7 +13,7 @@ export function renderHtml(state: RenderState) {
   const componentStack = state.componentStack;
   try {
     const routeComponent = componentStack[componentStack.length - 1];
-    let finalComp = h(routeComponent, state.routeOptions);
+    let finalComp = view.h(routeComponent, state.routeOptions);
 
     // Skip page component
     let i = componentStack.length - 1;
@@ -21,7 +21,7 @@ export function renderHtml(state: RenderState) {
       const component = componentStack[i];
       const curComp = finalComp;
 
-      finalComp = h(component, {
+      finalComp = view.h(component, {
         ...state.routeOptions,
         Component() {
           return curComp;
@@ -29,11 +29,11 @@ export function renderHtml(state: RenderState) {
       });
     }
 
-    const app = h(
+    const app = view.h(
       CSP_CONTEXT.Provider,
       // deno-lint-ignore no-explicit-any
       { value: state.csp } as any,
-      h(HEAD_CONTEXT.Provider, {
+      view.h(HEAD_CONTEXT.Provider, {
         value: state.headVNodes,
         children: finalComp,
       }),
@@ -42,7 +42,7 @@ export function renderHtml(state: RenderState) {
     let html = renderToString(app);
 
     for (const [id, children] of state.slots.entries()) {
-      const slotHtml = renderToString(h(Fragment, null, children));
+      const slotHtml = renderToString(view.h(view.Fragment, null, children));
       const templateId = id.replace(/:/g, "-");
       html += `<template id="${templateId}">${slotHtml}</template>`;
     }
@@ -72,30 +72,30 @@ export function renderOuterDocument(
     headVNodes,
   } = state;
 
-  const page = h(
+  const page = view.h(
     "html",
     docHtml ?? { lang: opts.lang },
-    h(
+    view.h(
       "head",
       docHead,
-      !renderedHtmlTag ? h("meta", { charSet: "utf-8" }) : null,
+      !renderedHtmlTag ? view.h("meta", { charSet: "utf-8" }) : null,
       !renderedHtmlTag
-        ? (h("meta", {
+        ? (view.h("meta", {
           name: "viewport",
           content: "width=device-width, initial-scale=1.0",
         }))
         : null,
       docTitle,
-      docHeadNodes.map((node) => h(node.type, node.props)),
+      docHeadNodes.map((node) => view.h(node.type, node.props)),
       opts.preloads.map((src) =>
-        h("link", { rel: "modulepreload", href: src })
+        view.h("link", { rel: "modulepreload", href: src })
       ),
       opts.moduleScripts.map(([src, nonce]) =>
-        h("script", { src: src, nonce, type: "module" })
+        view.h("script", { src: src, nonce, type: "module" })
       ),
       headVNodes,
     ),
-    h("body", {
+    view.h("body", {
       ...docBody,
       dangerouslySetInnerHTML: { __html: opts.bodyHtml },
     }),

@@ -10,41 +10,41 @@ import {
   typeByExtension,
   walk,
 } from "./deps.ts";
-import { ComponentType, h } from "preact";
+import { type ComponentType, view } from "../runtime/drivers/view.ts";
 import * as router from "./router.ts";
 import { type DenoConfig, type Manifest } from "./mod.ts";
 import { ALIVE_URL, JS_PREFIX, REFRESH_JS_URL } from "./constants.ts";
 import { BUILD_ID } from "./build_id.ts";
 import DefaultErrorHandler from "./default_error_page.ts";
 import {
-  AppModule,
-  BaseRoute,
-  ErrorPage,
-  ErrorPageModule,
-  Handler,
-  Island,
-  LayoutModule,
-  LayoutRoute,
+  type AppModule,
+  type BaseRoute,
+  type ErrorPage,
+  type ErrorPageModule,
+  type Handler,
+  type Island,
+  type LayoutModule,
+  type LayoutRoute,
   type LimeOptions,
-  MiddlewareHandler,
-  MiddlewareHandlerContext,
-  MiddlewareModule,
-  MiddlewareRoute,
-  Plugin,
-  RenderFunction,
-  RenderOptions,
-  Route,
-  RouteModule,
-  RouterOptions,
-  RouterState,
-  ServeHandlerInfo,
-  UnknownPage,
-  UnknownPageModule,
+  type MiddlewareHandler,
+  type MiddlewareHandlerContext,
+  type MiddlewareModule,
+  type MiddlewareRoute,
+  type Plugin,
+  type RenderFunction,
+  type RenderOptions,
+  type Route,
+  type RouteModule,
+  type RouterOptions,
+  type RouterState,
+  type ServeHandlerInfo,
+  type UnknownPage,
+  type UnknownPageModule,
 } from "./types.ts";
 import { DEFAULT_RENDER_FN, render as internalRender } from "./render.ts";
 import {
-  ContentSecurityPolicy,
-  ContentSecurityPolicyDirectives,
+  type ContentSecurityPolicy,
+  type ContentSecurityPolicyDirectives,
   SELF,
 } from "../runtime/csp.ts";
 import { ASSET_CACHE_BUST_KEY, INTERNAL_PREFIX } from "../runtime/utils.ts";
@@ -157,7 +157,7 @@ export class ServerContext {
     );
     if (typeof config.importMap !== "string" && !isObject(config.imports)) {
       throw new Error(
-        "deno.json must contain an 'importMap' or 'imports' property.",
+        "deno configuration must contain an 'importMap' or 'imports' property.",
       );
     }
 
@@ -434,7 +434,8 @@ export class ServerContext {
     const dev = isDevMode();
     if (dev) {
       // Ensure that debugging hooks are set up for SSR rendering
-      await import("preact/debug");
+      // FIXME(@eser): temporarily disabled
+      // await import("preact/debug");
     }
 
     return new ServerContext(
@@ -1012,7 +1013,8 @@ const DEFAULT_ROUTER_OPTIONS: RouterOptions = {
 };
 
 const DEFAULT_APP: AppModule = {
-  default: ({ Component }: { Component: ComponentType }) => h(Component, {}),
+  default: ({ Component }: { Component: ComponentType }) =>
+    view.h(Component, {}),
 };
 
 const DEFAULT_NOT_FOUND: UnknownPage = {
@@ -1315,7 +1317,7 @@ async function readDenoConfig(
     const parent = dirname(dir);
     if (parent === dir) {
       throw new Error(
-        `Could not find a deno.json file in the current directory or any parent directory.`,
+        `Could not find a deno configuration file in the current directory or any parent directory.`,
       );
     }
     dir = parent;

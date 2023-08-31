@@ -1,6 +1,10 @@
-import { ComponentChildren, ComponentType, VNode } from "preact";
+import {
+  type ComponentChildren,
+  type ComponentType,
+  type VNode,
+} from "../runtime/drivers/view.ts";
 import * as router from "./router.ts";
-import { InnerRenderFunction, RenderContext } from "./render.ts";
+import { type InnerRenderFunction, RenderContext } from "./render.ts";
 
 // --- APPLICATION CONFIGURATION ---
 

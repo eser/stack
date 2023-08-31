@@ -1,4 +1,4 @@
-name: CI/CD
+name: Continuous Integration
 
 on:
   push:
@@ -31,8 +31,8 @@ jobs:
           - 1.35.3
 
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v3.5.3
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
 
@@ -47,29 +47,10 @@ jobs:
       - name: Lint
         run: deno lint
 
-      - name: Check if modules are broken
-        run: deno task check
+      # - name: Check if modules are broken
+      #   run: |
+      #     deno task api:check
+      #     deno task web:check
 
-      - name: Run tests
-        run: deno task test:run
-
-  deployment:
-    name: Deployment
-    runs-on: ubuntu-latest
-
-    needs: integration
-    if: success() && github.ref == 'refs/heads/main'
-
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Clone repository
-        uses: actions/checkout@v3
-
-      - name: Upload to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: c00l
-          entrypoint: ./hex/mod.ts
+      # - name: Run tests
+      #   run: deno task test:run

@@ -1,4 +1,4 @@
-import { Handlers, PageProps } from "$cool/lime/server.ts";
+import { type Handlers, type PageProps } from "$cool/lime/server.ts";
 
 interface Data extends Record<string, unknown> {
   info: string;

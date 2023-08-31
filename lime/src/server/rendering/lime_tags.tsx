@@ -2,9 +2,13 @@ import { bundleAssetUrl } from "../constants.ts";
 import { RenderState } from "./state.ts";
 import { htmlEscapeJsonString } from "../htmlescape.ts";
 import { serialize } from "../serializer.ts";
-import { Plugin, PluginRenderResult, PluginRenderStyleTag } from "../types.ts";
-import { ContentSecurityPolicy, nonce } from "../../runtime/csp.ts";
-import { h } from "preact";
+import {
+  type Plugin,
+  type PluginRenderResult,
+  type PluginRenderStyleTag,
+} from "../types.ts";
+import { type ContentSecurityPolicy, nonce } from "../../runtime/csp.ts";
+import { view } from "../../runtime/drivers/view.ts";
 
 function getRandomNonce(
   opts: { randomNonce?: string; csp?: ContentSecurityPolicy },
@@ -130,7 +134,7 @@ export function renderLimeTags(
   }
 
   if (opts.styles.length > 0) {
-    const node = h("style", {
+    const node = view.h("style", {
       id: "__LIME_STYLE",
       dangerouslySetInnerHTML: { __html: opts.styles.join("\n") },
     });
@@ -139,7 +143,7 @@ export function renderLimeTags(
   }
 
   for (const style of styleTags) {
-    const node = h("style", {
+    const node = view.h("style", {
       id: style.id,
       media: style.media,
       dangerouslySetInnerHTML: { __html: style.cssText },

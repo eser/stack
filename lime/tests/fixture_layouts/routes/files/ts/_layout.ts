@@ -1,6 +1,6 @@
-import { h } from "preact";
-import { LayoutProps } from "$cool/lime/server.ts";
+import { view } from "../../../../../src/runtime/drivers/view.ts";
+import { type LayoutProps } from "$cool/lime/server.ts";
 
 export default function TsLayout({ Component }: LayoutProps) {
-  return h("div", { class: "ts-layout" }, h(Component, null));
+  return view.h("div", { class: "ts-layout" }, view.h(Component, null));
 }

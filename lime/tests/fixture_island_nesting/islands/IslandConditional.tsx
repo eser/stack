@@ -1,5 +1,5 @@
 import { Signal } from "@preact/signals";
-import { ComponentChildren } from "preact";
+import { type ComponentChildren } from "../../../src/runtime/drivers/view.ts";
 
 export interface IslandConditionalProps {
   show: Signal<boolean>;
@@ -10,7 +10,7 @@ export default function IslandConditional(
   { show, children }: IslandConditionalProps,
 ) {
   return (
-    <div class="island">
+    <div className="island">
       {show.value ? <p>island content</p> : <>{children}</>}
     </div>
   );

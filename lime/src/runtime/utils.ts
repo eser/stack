@@ -1,4 +1,4 @@
-import { VNode } from "preact";
+import { type VNode } from "./drivers/view.ts";
 import { BUILD_ID } from "./build_id.ts";
 
 export const INTERNAL_PREFIX = "/_lime";

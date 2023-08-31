@@ -1,4 +1,4 @@
-import { RouteConfig } from "$cool/lime/server.ts";
+import { type RouteConfig } from "$cool/lime/server.ts";
 
 export const config: RouteConfig = {
   skipAppWrapper: true,
@@ -6,7 +6,7 @@ export const config: RouteConfig = {
 
 export default function OverridePage() {
   return (
-    <p class="no-app">
+    <p className="no-app">
       no <code>_app.tsx</code> template
     </p>
   );

@@ -1,4 +1,4 @@
-import { MiddlewareHandlerContext } from "$cool/lime/server.ts";
+import { type MiddlewareHandlerContext } from "$cool/lime/server.ts";
 
 interface State {
   root: string;

@@ -1,9 +1,9 @@
 import { defineLayout } from "$cool/lime/server.ts";
-import { State } from "../other/state.ts";
+import { type State } from "../other/state.ts";
 
-export default defineLayout<State>((req, ctx) => {
+export default defineLayout<State>((_req, ctx) => {
   return (
-    <div class="layout">
+    <div className="layout">
       <p>
         Layout: {ctx.state.something === "foo" ? "it works" : "it doesn't work"}
       </p>

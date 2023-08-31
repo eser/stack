@@ -1,3 +1,3 @@
 export default function Boof() {
-  return <p class="boof">Boof Page</p>;
+  return <p className="boof">Boof Page</p>;
 }

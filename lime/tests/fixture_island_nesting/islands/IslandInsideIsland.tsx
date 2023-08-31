@@ -1,11 +1,11 @@
-import { ComponentChildren } from "preact";
+import { type ComponentChildren } from "../../../src/runtime/drivers/view.ts";
 import Island from "./Island.tsx";
 
 export default function IslandInsideIsland(
   props: { children?: ComponentChildren },
 ) {
   return (
-    <div class="island">
+    <div className="island">
       <Island>
         {props.children}
       </Island>

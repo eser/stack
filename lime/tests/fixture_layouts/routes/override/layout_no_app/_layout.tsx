@@ -1,4 +1,4 @@
-import { LayoutConfig, LayoutProps } from "$cool/lime/server.ts";
+import { type LayoutConfig, type LayoutProps } from "$cool/lime/server.ts";
 
 export const config: LayoutConfig = {
   skipAppWrapper: true,
@@ -6,7 +6,7 @@ export const config: LayoutConfig = {
 
 export default function OverrideLayout({ Component }: LayoutProps) {
   return (
-    <div class="no-app-layout">
+    <div className="no-app-layout">
       <Component />
     </div>
   );

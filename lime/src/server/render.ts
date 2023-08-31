@@ -1,20 +1,20 @@
-import { h, VNode } from "preact";
+import { view, type VNode } from "../runtime/drivers/view.ts";
 import {
-  AppModule,
-  AsyncLayout,
-  AsyncRoute,
-  ErrorPage,
-  LayoutRoute,
-  Plugin,
-  PluginRenderFunctionResult,
-  PluginRenderResult,
-  RenderFunction,
-  Route,
-  RouteContext,
-  UnknownPage,
+  type AppModule,
+  type AsyncLayout,
+  type AsyncRoute,
+  type ErrorPage,
+  type LayoutRoute,
+  type Plugin,
+  type PluginRenderFunctionResult,
+  type PluginRenderResult,
+  type RenderFunction,
+  type Route,
+  type RouteContext,
+  type UnknownPage,
 } from "./types.ts";
 import { NONE, UNSAFE_INLINE } from "../runtime/csp.ts";
-import { ContentSecurityPolicy } from "../runtime/csp.ts";
+import { type ContentSecurityPolicy } from "../runtime/csp.ts";
 import { RenderState } from "./rendering/state.ts";
 import { renderHtml, renderOuterDocument } from "./rendering/template.tsx";
 import { renderLimeTags } from "./rendering/lime_tags.tsx";
@@ -209,7 +209,7 @@ export async function render<Data>(
       const componentCtx = isRouteComponent ? context : {
         ...context,
         Component() {
-          return h(componentStack[i + 1], props);
+          return view.h(componentStack[i + 1], props);
         },
       };
       // deno-lint-ignore no-explicit-any

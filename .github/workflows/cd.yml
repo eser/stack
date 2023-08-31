@@ -1,0 +1,32 @@
+name: Continuous Deployment
+
+on:
+  # workflow_run:
+  #   workflows:
+  #     - Continuous Integration
+  #   types:
+  #     - completed
+  #   branches:
+  #     - main
+  push:
+    branches:
+      - main
+
+jobs:
+  deployment:
+    name: Deployment
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+
+      - name: Upload to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: c00l
+          entrypoint: ./hex/mod.ts

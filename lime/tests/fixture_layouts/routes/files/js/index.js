@@ -1,5 +1,5 @@
-import { h } from "preact";
+import { view } from "../../../../../src/runtime/drivers/view.ts";
 
 export default function JsPage() {
-  return h("div", { class: "js-page" }, "/files/js");
+  return view.h("div", { class: "js-page" }, "/files/js");
 }

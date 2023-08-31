@@ -1,6 +1,6 @@
 export default function OverridePage() {
   return (
-    <div class="override-page">
+    <div className="override-page">
       /override index page
     </div>
   );

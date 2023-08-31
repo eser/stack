@@ -1,9 +1,19 @@
 {
   "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+
     "allowJs": true,
-    "emitDecoratorMetadata": true,
-    "jsx": "react",
-    "strict": true
+    "allowArbitraryExtensions": true,
+    "checkJs": true,
+
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "strict": true,
+
+    "exactOptionalPropertyTypes": false
   },
   "lock": false,
   "imports": {
@@ -16,35 +26,28 @@
       ]
     },
     "exclude": [
-      "_tmp/"
+      "./_tmp/"
     ]
   },
   "fmt": {
     "exclude": [
-      "_etc/templates/default/files/.github/ISSUE_TEMPLATE/bug_report.md",
-      "_etc/templates/default/files/.github/ISSUE_TEMPLATE/feature_request.md",
-      "_etc/templates/service/files/.github/ISSUE_TEMPLATE/bug_report.md",
-      "_etc/templates/service/files/.github/ISSUE_TEMPLATE/feature_request.md",
-      ".github/ISSUE_TEMPLATE/bug_report.md",
-      ".github/ISSUE_TEMPLATE/feature_request.md",
-      "_tmp/"
+      "./_tmp/"
     ]
   },
   "test": {
-    "exclude": [
-      "_etc/templates/",
-      "_tmp/",
-      "lime/"
+    "include": [
+      "./hex/**/*.test.[js,jsx,ts,tsx]" // ,
+      // "./lime/**/*.test.[js,jsx,ts,tsx]"
     ]
   },
   "bench": {
-    "exclude": [
-      "_etc/templates/",
-      "_tmp/",
-      "lime/"
+    "include": [
+      "./hex/**/*.test.[js,jsx,ts,tsx]" // ,
+      // "./lime/**/*.test.[js,jsx,ts,tsx]"
     ]
   },
   "tasks": {
+    "cleanup": "rm deno.lock && deno cache --unstable --reload ./hex/mod.ts",
     "test": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --watch",
     "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --coverage=./_etc/coverage/",
     "test:coverage": "deno coverage ./_etc/coverage/",

@@ -1,16 +1,16 @@
-import { useEffect, useState } from "preact/hooks";
+import { view } from "../../../src/runtime/drivers/view.ts";
 
 export default function IslandWithProps(
   props: { foo: { bar: string } },
 ) {
-  const [showText, setShowText] = useState(false);
+  const [showText, setShowText] = view.useState(false)!;
 
-  useEffect(() => {
+  view.useEffect(() => {
     setShowText(true);
   }, []);
 
   return (
-    <div class="island">
+    <div className="island">
       <p>
         {showText ? props.foo.bar : "it doesn't work"}
       </p>

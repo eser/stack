@@ -1,5 +1,8 @@
-import { MiddlewareHandlerContext, Plugin } from "$cool/lime/server.ts";
-import { PluginMiddlewareState } from "./route-plugin.ts";
+import {
+  type MiddlewareHandlerContext,
+  type Plugin,
+} from "$cool/lime/server.ts";
+import { type PluginMiddlewareState } from "./route-plugin.ts";
 
 export default function secondMiddlewarePlugin(): Plugin<
   PluginMiddlewareState

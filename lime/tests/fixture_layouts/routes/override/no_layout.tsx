@@ -1,4 +1,4 @@
-import { LayoutConfig } from "$cool/lime/server.ts";
+import { type LayoutConfig } from "$cool/lime/server.ts";
 
 export const config: LayoutConfig = {
   skipInheritedLayouts: true,
@@ -6,7 +6,7 @@ export const config: LayoutConfig = {
 
 export default function OverridePage() {
   return (
-    <p class="no-layouts">
+    <p className="no-layouts">
       no layouts
     </p>
   );

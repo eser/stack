@@ -17,7 +17,8 @@
  *
  * The corresponding deserializer is in `src/runtime/deserializer.ts`.
  */
-import { isValidElement, VNode } from "preact";
+import { isValidElement } from "preact";
+import { type VNode } from "../runtime/drivers/view.ts";
 import { KEY } from "../runtime/deserializer.ts";
 
 interface SerializeResult {

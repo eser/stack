@@ -1,6 +1,6 @@
 export default function SubPage() {
   return (
-    <div class="sub-page">
+    <div className="sub-page">
       /skip/sub page
     </div>
   );

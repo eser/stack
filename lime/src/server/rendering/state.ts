@@ -1,6 +1,9 @@
-import { type ComponentChildren, type VNode } from "preact";
-import { Island } from "../types.ts";
-import { ContentSecurityPolicy } from "../../runtime/csp.ts";
+import {
+  type ComponentChildren,
+  type VNode,
+} from "../../runtime/drivers/view.ts";
+import { type Island } from "../types.ts";
+import { type ContentSecurityPolicy } from "../../runtime/csp.ts";
 
 export interface RenderStateRouteOptions {
   url: URL;

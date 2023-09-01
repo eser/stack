@@ -1,11 +1,11 @@
-import { options, render } from "preact";
+// import { options } from "preact";
 import {
   type ComponentChildren,
   type ComponentType,
   view,
   type VNode,
 } from "../drivers/view.ts";
-import { assetHashingHook } from "../utils.ts";
+// import { assetHashingHook } from "../utils.ts";
 
 function createRootFragment(
   parent: Element,
@@ -253,7 +253,7 @@ function _walkInner(
             );
 
             const _render = () =>
-              render(
+              view.render(
                 vnode,
                 createRootFragment(
                   parentNode,
@@ -351,8 +351,9 @@ function _walkInner(
   }
 }
 
-const originalHook = options.vnode;
-options.vnode = (vnode) => {
-  assetHashingHook(vnode);
-  if (originalHook) originalHook(vnode);
-};
+// FIXME(@eser): temporarily disabled
+// const originalHook = options.vnode;
+// options.vnode = (vnode) => {
+//   assetHashingHook(vnode);
+//   if (originalHook) originalHook(vnode);
+// };

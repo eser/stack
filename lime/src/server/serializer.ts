@@ -17,8 +17,7 @@
  *
  * The corresponding deserializer is in `src/runtime/deserializer.ts`.
  */
-import { isValidElement } from "preact";
-import { type VNode } from "../runtime/drivers/view.ts";
+import { view, type VNode } from "../runtime/drivers/view.ts";
 import { KEY } from "../runtime/deserializer.ts";
 
 interface SerializeResult {
@@ -51,7 +50,7 @@ function isSignal(x: any): x is Signal {
 function isVNode(x: any): x is VNode {
   return x !== null && typeof x === "object" && "type" in x && "ref" in x &&
     "__k" in x &&
-    isValidElement(x);
+    view.isValidElement(x);
 }
 
 export function serialize(data: unknown): SerializeResult {

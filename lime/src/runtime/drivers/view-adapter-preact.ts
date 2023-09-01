@@ -1,23 +1,21 @@
-import { createContext, Fragment, h } from "preact";
+import { createContext, Fragment, h, isValidElement, render } from "preact";
 import { useContext, useEffect, useState } from "preact/hooks";
+import { renderToString } from "preact-render-to-string";
 import { type ViewAdapterBase } from "./view-adapter-base.ts";
 
 export class PreactViewAdapter implements ViewAdapterBase {
   hasSignals = true;
   Fragment = Fragment;
 
-  // deno-lint-ignore no-explicit-any
-  createContext<T>(initialValue: T): any {
+  createContext<T>(initialValue: T): unknown {
     return createContext(initialValue);
   }
 
-  // deno-lint-ignore no-explicit-any
-  useContext<T>(context: T): any {
+  useContext<T>(context: T): unknown {
     return useContext(context);
   }
 
-  // deno-lint-ignore no-explicit-any
-  useEffect(callback: () => void, deps?: any[]): void {
+  useEffect(callback: () => void, deps?: unknown[]): void {
     useEffect(callback, deps);
   }
 
@@ -31,5 +29,21 @@ export class PreactViewAdapter implements ViewAdapterBase {
     ...children: unknown[]
   ): unknown {
     return h(tag, props, ...children);
+  }
+
+  isValidElement(element: unknown): boolean {
+    return isValidElement(element);
+  }
+
+  render(fragment: unknown, target: HTMLElement): void {
+    render(fragment, target);
+  }
+
+  renderHydrate(fragment: unknown, target: HTMLElement): void {
+    render(fragment, target);
+  }
+
+  renderToString(fragment: unknown): string {
+    return renderToString(fragment);
   }
 }

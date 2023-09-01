@@ -1,4 +1,4 @@
-import { type VNode } from "./drivers/view.ts";
+// import { type VNode } from "./drivers/view.ts";
 import { BUILD_ID } from "./build_id.ts";
 
 export const INTERNAL_PREFIX = "/_lime";
@@ -51,21 +51,22 @@ export function assetSrcSet(srcset: string): string {
   return constructed.join(",");
 }
 
-export function assetHashingHook(
-  vnode: VNode<{
-    src?: string;
-    srcset?: string;
-    ["data-lime-disable-lock"]?: boolean;
-  }>,
-) {
-  if (vnode.type === "img" || vnode.type === "source") {
-    const { props } = vnode;
-    if (props["data-lime-disable-lock"]) return;
-    if (typeof props.src === "string") {
-      props.src = asset(props.src);
-    }
-    if (typeof props.srcset === "string") {
-      props.srcset = assetSrcSet(props.srcset);
-    }
-  }
-}
+// FIXME(@eser): temporarily disabled
+// export function assetHashingHook(
+//   vnode: VNode<{
+//     src?: string;
+//     srcset?: string;
+//     ["data-lime-disable-lock"]?: boolean;
+//   }>,
+// ) {
+//   if (vnode.type === "img" || vnode.type === "source") {
+//     const { props } = vnode;
+//     if (props["data-lime-disable-lock"]) return;
+//     if (typeof props.src === "string") {
+//       props.src = asset(props.src);
+//     }
+//     if (typeof props.srcset === "string") {
+//       props.srcset = assetSrcSet(props.srcset);
+//     }
+//   }
+// }

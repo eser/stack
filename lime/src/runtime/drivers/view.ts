@@ -32,18 +32,15 @@ export class View {
     this.Fragment = adapter.Fragment;
   }
 
-  // deno-lint-ignore no-explicit-any
-  createContext<T>(initialValue: T): any {
+  createContext<T>(initialValue: T): unknown | undefined {
     return this.adapter?.createContext(initialValue);
   }
 
-  // deno-lint-ignore no-explicit-any
-  useContext<T>(context: T): any {
+  useContext<T>(context: T): unknown | undefined {
     return this.adapter?.useContext(context);
   }
 
-  // deno-lint-ignore no-explicit-any
-  useEffect(callback: () => void, deps?: any[]) {
+  useEffect(callback: () => void, deps?: unknown[]) {
     this.adapter?.useEffect(callback, deps);
   }
 
@@ -55,14 +52,26 @@ export class View {
     tag: string,
     props: Record<string, unknown> | null,
     ...children: unknown[]
-  ): unknown {
+  ): unknown | undefined {
     return this.adapter?.h(tag, props, ...children);
   }
-}
 
-export const view = new View();
-// TODO(@eser): Make this configurable
-view.setViewAdapter(new PreactViewAdapter());
+  isValidElement(element: unknown): boolean | undefined {
+    return this.adapter?.isValidElement(element);
+  }
+
+  render(fragment: unknown, target: HTMLElement): void {
+    this.adapter?.render(fragment, target);
+  }
+
+  renderHydrate(fragment: unknown, target: HTMLElement): void {
+    this.adapter?.renderHydrate(fragment, target);
+  }
+
+  renderToString(fragment: unknown): string | undefined {
+    return this.adapter?.renderToString(fragment);
+  }
+}
 
 export const setViewAdapter = (adapterName: ViewAdapter) => {
   switch (adapterName) {
@@ -74,3 +83,7 @@ export const setViewAdapter = (adapterName: ViewAdapter) => {
       break;
   }
 };
+
+export const view = new View();
+// TODO(@eser): Make this configurable
+setViewAdapter(ViewAdapter.React);

@@ -1,6 +1,5 @@
 import { RenderState } from "./state.ts";
 import { setRenderState } from "./preact_hooks.ts";
-import { renderToString } from "preact-render-to-string";
 import { view } from "../../runtime/drivers/view.ts";
 import { HEAD_CONTEXT } from "../../runtime/head.ts";
 import { CSP_CONTEXT } from "../../runtime/csp.ts";
@@ -39,10 +38,12 @@ export function renderHtml(state: RenderState) {
       }),
     );
 
-    let html = renderToString(app);
+    let html = view.renderToString(app);
 
     for (const [id, children] of state.slots.entries()) {
-      const slotHtml = renderToString(view.h(view.Fragment, null, children));
+      const slotHtml = view.renderToString(
+        view.h(view.Fragment, null, children),
+      );
       const templateId = id.replace(/:/g, "-");
       html += `<template id="${templateId}">${slotHtml}</template>`;
     }
@@ -103,7 +104,7 @@ export function renderOuterDocument(
 
   try {
     setRenderState(state);
-    return "<!DOCTYPE html>" + renderToString(page);
+    return "<!DOCTYPE html>" + view.renderToString(page);
   } finally {
     setRenderState(null);
   }

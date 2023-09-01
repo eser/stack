@@ -2,28 +2,28 @@ import {
   createContext,
   createElement,
   Fragment,
+  isValidElement,
   useContext,
   useEffect,
   useState,
 } from "react";
+import { createRoot, hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { type ViewAdapterBase } from "./view-adapter-base.ts";
 
 export class ReactViewAdapter implements ViewAdapterBase {
   hasSignals = false;
   Fragment = Fragment;
 
-  // deno-lint-ignore no-explicit-any
-  createContext<T>(initialValue: T): any {
+  createContext<T>(initialValue: T): unknown {
     return createContext(initialValue);
   }
 
-  // deno-lint-ignore no-explicit-any
-  useContext<T>(context: T): any {
+  useContext<T>(context: T): unknown {
     return useContext(context);
   }
 
-  // deno-lint-ignore no-explicit-any
-  useEffect(callback: () => void, deps?: any[]): void {
+  useEffect(callback: () => void, deps?: unknown[]): void {
     useEffect(callback, deps);
   }
 
@@ -37,5 +37,25 @@ export class ReactViewAdapter implements ViewAdapterBase {
     ...children: unknown[]
   ): unknown {
     return createElement(tag, props, ...children);
+  }
+
+  isValidElement(element: unknown): boolean {
+    return isValidElement(element);
+  }
+
+  render(fragment: unknown, target: HTMLElement): void {
+    const root = createRoot(target);
+
+    root.render(fragment);
+  }
+
+  renderHydrate(fragment: unknown, target: HTMLElement): void {
+    const root = hydrateRoot(target);
+
+    root.render(fragment);
+  }
+
+  renderToString(fragment: unknown): string {
+    return renderToString(fragment);
   }
 }

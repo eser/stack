@@ -14,7 +14,7 @@ import { type ComponentType, view } from "../runtime/drivers/view.ts";
 import * as router from "./router.ts";
 import { type DenoConfig, type Manifest } from "./mod.ts";
 import { ALIVE_URL, JS_PREFIX, REFRESH_JS_URL } from "./constants.ts";
-import { BUILD_ID } from "./build_id.ts";
+import { BUILD_ID, setBuildId } from "./build_id.ts";
 import DefaultErrorHandler from "./default_error_page.ts";
 import {
   type AppModule,
@@ -51,6 +51,7 @@ import { ASSET_CACHE_BUST_KEY, INTERNAL_PREFIX } from "../runtime/utils.ts";
 import {
   Builder,
   BuildSnapshot,
+  BuildSnapshotJson,
   EsbuildBuilder,
   EsbuildSnapshot,
   JSXConfig,
@@ -174,9 +175,12 @@ export class ServerContext {
           );
 
           const snapshotPath = join(snapshotDirPath, "snapshot.json");
-          const json = JSON.parse(await Deno.readTextFile(snapshotPath));
+          const json = JSON.parse(
+            await Deno.readTextFile(snapshotPath),
+          ) as BuildSnapshotJson;
+          setBuildId(json.build_id);
           const dependencies = new Map<string, string[]>(
-            Object.entries(json),
+            Object.entries(json.files),
           );
 
           const files = new Map();

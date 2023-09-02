@@ -57,7 +57,6 @@ import {
   JSXConfig,
 } from "../build/mod.ts";
 import { InternalRoute } from "./router.ts";
-import { setAllIslands } from "./rendering/preact_hooks.ts";
 
 const DEFAULT_CONN_INFO: ServeHandlerInfo = {
   localAddr: { transport: "tcp", hostname: "localhost", port: 8080 },
@@ -436,11 +435,12 @@ export class ServerContext {
     }
 
     const dev = isDevMode();
-    if (dev) {
-      // Ensure that debugging hooks are set up for SSR rendering
-      // FIXME(@eser): temporarily disabled
-      // await import("preact/debug");
-    }
+
+    // FIXME(@eser): temporarily disabled
+    // if (dev) {
+    //   // Ensure that debugging hooks are set up for SSR rendering
+    //   await import("preact/debug");
+    // }
 
     return new ServerContext(
       routes,
@@ -715,7 +715,7 @@ export class ServerContext {
     }
 
     // Tell renderer about all globally available islands
-    setAllIslands(this.#islands);
+    view.adapter.setAllIslands(this.#islands);
 
     const dependenciesFn = (path: string) => {
       const snapshot = this.#maybeBuildSnapshot();
@@ -904,7 +904,7 @@ export class ServerContext {
         {
           ...ctx,
           error,
-          render: errorHandlerRender(req, {}, undefined, error),
+          render: errorHandlerRender(req, {}, ctx, error),
         },
       );
     };
@@ -1018,7 +1018,7 @@ const DEFAULT_ROUTER_OPTIONS: RouterOptions = {
 
 const DEFAULT_APP: AppModule = {
   default: ({ Component }: { Component: ComponentType }) =>
-    view.h(Component, {}),
+    view.adapter.h(Component, {}),
 };
 
 const DEFAULT_NOT_FOUND: UnknownPage = {
@@ -1219,7 +1219,7 @@ function toPascalCase(text: string): string {
 }
 
 function sanitizeIslandName(name: string): string {
-  const fileName = name.replaceAll(/[/\\\\\(\)]/g, "_");
+  const fileName = name.replaceAll(/[/\\\\\(\)\[\]]/g, "_");
   return toPascalCase(fileName);
 }
 

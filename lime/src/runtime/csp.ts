@@ -127,14 +127,14 @@ export interface ContentSecurityPolicyDirectives {
   reportUri?: string;
 }
 
-export const CSP_CONTEXT = view.createContext<
+export const CSP_CONTEXT = view.adapter.createContext<
   ContentSecurityPolicy | undefined
 >(
   undefined,
 );
 
 export function useCSP(mutator: (csp: ContentSecurityPolicy) => void) {
-  const csp = view.useContext(CSP_CONTEXT);
+  const csp = view.adapter.useContext(CSP_CONTEXT);
   if (csp) {
     mutator(csp);
   }

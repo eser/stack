@@ -14,7 +14,7 @@ export default function DefaultErrorPage(props: ErrorPageProps) {
     }
   }
 
-  return view.h(
+  return view.adapter.h(
     "div",
     {
       class: "lime-error-page",
@@ -24,7 +24,7 @@ export default function DefaultErrorPage(props: ErrorPageProps) {
         alignItems: "center",
       },
     },
-    view.h(
+    view.adapter.h(
       "div",
       {
         style: {
@@ -35,7 +35,7 @@ export default function DefaultErrorPage(props: ErrorPageProps) {
           minWidth: "300px",
         },
       },
-      view.h("p", {
+      view.adapter.h("p", {
         style: {
           margin: 0,
           fontSize: "12pt",
@@ -43,7 +43,7 @@ export default function DefaultErrorPage(props: ErrorPageProps) {
           fontFamily: "sans-serif",
         },
       }, "An error occurred during route handling or page rendering."),
-      message && view.h("pre", {
+      message && view.adapter.h("pre", {
         style: {
           margin: 0,
           fontSize: "12pt",

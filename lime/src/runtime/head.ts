@@ -4,13 +4,13 @@ export interface HeadProps {
   children: ComponentChildren;
 }
 
-export const HEAD_CONTEXT = view.createContext<ComponentChildren[]>([]);
+export const HEAD_CONTEXT = view.adapter.createContext<ComponentChildren[]>([]);
 
 export function Head(props: HeadProps) {
   let context: ComponentChildren[];
 
   try {
-    context = view.useContext(HEAD_CONTEXT);
+    context = view.adapter.useContext(HEAD_CONTEXT);
   } catch (err) {
     throw new Error(
       "<Head> component is not supported in the browser, or during suspense renders.",

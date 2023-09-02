@@ -57,7 +57,7 @@ export function revive(
     [],
     // Keep a root node in the vnode stack to save a couple of checks
     // later during iteration
-    [view.h(view.Fragment, null)],
+    [view.adapter.h(view.adapter.Fragment, null)],
     document.body,
   );
 }
@@ -158,7 +158,7 @@ function _walkInner(
           kind: MarkerKind.Slot,
         });
         // @ts-ignore TS gets confused
-        vnodeStack.push(view.h(ServerComponent, { key: comment }));
+        vnodeStack.push(view.adapter.h(ServerComponent, { key: comment }));
       } else if (
         marker !== null && (
           comment.startsWith("/lime") ||
@@ -253,7 +253,7 @@ function _walkInner(
             );
 
             const _render = () =>
-              view.render(
+              view.adapter.render(
                 vnode,
                 createRootFragment(
                   parentNode,
@@ -295,7 +295,7 @@ function _walkInner(
           text: comment,
           kind: MarkerKind.Island,
         });
-        const vnode = view.h(islands[id][exportName], islandProps);
+        const vnode = view.adapter.h(islands[id][exportName], islandProps);
         vnodeStack.push(vnode);
       }
     } else if (isTextNode(sib)) {
@@ -323,7 +323,7 @@ function _walkInner(
           const attr = sib.attributes[i];
           props[attr.nodeName] = attr.nodeValue;
         }
-        const vnode = view.h(sib.localName, props);
+        const vnode = view.adapter.h(sib.localName, props);
         addPropsChild(parentVNode, vnode);
         vnodeStack.push(vnode);
       }

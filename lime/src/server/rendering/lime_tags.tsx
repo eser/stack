@@ -134,7 +134,7 @@ export function renderLimeTags(
   }
 
   if (opts.styles.length > 0) {
-    const node = view.h("style", {
+    const node = view.adapter.h("style", {
       id: "__LIME_STYLE",
       dangerouslySetInnerHTML: { __html: opts.styles.join("\n") },
     });
@@ -143,7 +143,7 @@ export function renderLimeTags(
   }
 
   for (const style of styleTags) {
-    const node = view.h("style", {
+    const node = view.adapter.h("style", {
       id: style.id,
       media: style.media,
       dangerouslySetInnerHTML: { __html: style.cssText },

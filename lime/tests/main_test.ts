@@ -273,6 +273,10 @@ Deno.test("/failure", async () => {
   assertEquals(resp.status, Status.InternalServerError);
   const body = await resp.text();
   assert(body.includes("500 internal error: it errored!"));
+  assertStringIncludes(
+    body,
+    `<meta name="generator" content="The coolest framework!"/>`,
+  );
 });
 
 Deno.test("/foo/:path*", async () => {

@@ -1,7 +1,7 @@
 import { view } from "../../../src/runtime/drivers/view.ts";
 
 export default function Test() {
-  view.useEffect(() => {
+  view.adapter.useEffect(() => {
     document.getElementById("foo")!.textContent = "it works";
   }, []);
 

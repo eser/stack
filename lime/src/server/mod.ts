@@ -115,10 +115,10 @@ export async function start(routes: Manifest, opts: StartOptions = {}) {
     opts.onListen = (params) => {
       console.log();
       console.log(
-        colors.bgRgb8(colors.black(colors.bold(" 🍋 cool lime ready ")), 121),
+        colors.bgRgb8(colors.rgb8(" 🍋 cool lime ready ", 28), 194),
       );
 
-      const address = colors.cyan(`http://localhost:${params.port}/`);
+      const address = colors.rgb8(`http://localhost:${params.port}/`, 33);
       const localLabel = colors.bold("Local:");
       console.log(`    ${localLabel} ${address}\n`);
     };

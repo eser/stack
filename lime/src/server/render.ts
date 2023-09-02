@@ -209,7 +209,7 @@ export async function render<Data>(
       const componentCtx = isRouteComponent ? context : {
         ...context,
         Component() {
-          return view.h(componentStack[i + 1], props);
+          return view.adapter.h(componentStack[i + 1], props);
         },
       };
       // deno-lint-ignore no-explicit-any

@@ -1,49 +1,88 @@
-import { createContext, Fragment, h, isValidElement, render } from "preact";
-import { useContext, useEffect, useState } from "preact/hooks";
+import {
+  type ComponentChild,
+  type ComponentChildren,
+  type ComponentType,
+  type ContainerNode,
+  type Context,
+  createContext,
+  Fragment,
+  h,
+  hydrate,
+  isValidElement,
+  type PreactContext,
+  render,
+  type VNode,
+} from "preact";
+import {
+  type StateUpdater,
+  useContext,
+  useEffect,
+  useState,
+} from "preact/hooks";
 import { renderToString } from "preact-render-to-string";
-import { type ViewAdapterBase } from "./view-adapter-base.ts";
+import {
+  setAllIslands,
+  setRenderState,
+} from "../../server/rendering/preact_hooks.ts";
+import {
+  type DependencyList,
+  type EffectCallback,
+  type Island,
+  type RenderState,
+  type ViewAdapterBase,
+} from "./view-adapter-base.ts";
 
 export class PreactViewAdapter implements ViewAdapterBase {
   hasSignals = true;
-  Fragment = Fragment;
+  Fragment: typeof Fragment = Fragment;
 
-  createContext<T>(initialValue: T): unknown {
-    return createContext(initialValue);
+  createContext<T>(defaultValue: T): Context<T> {
+    return createContext(defaultValue);
   }
 
-  useContext<T>(context: T): unknown {
+  useContext<T>(context: PreactContext<T>) {
     return useContext(context);
   }
 
-  useEffect(callback: () => void, deps?: unknown[]): void {
+  useEffect(callback: EffectCallback, deps?: DependencyList) {
     useEffect(callback, deps);
   }
 
-  useState<T>(initialValue: T): [T, (value: T) => void] {
-    return useState(initialValue);
+  useState<S>(initialState: S | (() => S)): [S, StateUpdater<S>] {
+    return useState(initialState);
   }
 
   h(
-    tag: string,
+    type: ComponentType<Record<string, unknown>>,
     props: Record<string, unknown> | null,
-    ...children: unknown[]
-  ): unknown {
-    return h(tag, props, ...children);
+    ...children: ComponentChildren[]
+  ) {
+    return h(type, props, ...children);
   }
 
-  isValidElement(element: unknown): boolean {
-    return isValidElement(element);
+  // deno-lint-ignore no-explicit-any, ban-types
+  isValidElement(object: any): object is VNode<{}> {
+    return isValidElement(object);
   }
 
-  render(fragment: unknown, target: HTMLElement): void {
-    render(fragment, target);
+  render(fragment: ComponentChild, container: ContainerNode) {
+    render(fragment, container);
   }
 
-  renderHydrate(fragment: unknown, target: HTMLElement): void {
-    render(fragment, target);
+  renderHydrate(fragment: ComponentChild, container: ContainerNode) {
+    hydrate(fragment, container);
   }
 
-  renderToString(fragment: unknown): string {
+  // deno-lint-ignore ban-types
+  renderToString(fragment: VNode<{}>) {
     return renderToString(fragment);
+  }
+
+  setAllIslands(islands: Island[]) {
+    setAllIslands(islands);
+  }
+
+  setRenderState(state: RenderState | null) {
+    setRenderState(state);
   }
 }

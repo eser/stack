@@ -50,7 +50,7 @@ function isSignal(x: any): x is Signal {
 function isVNode(x: any): x is VNode {
   return x !== null && typeof x === "object" && "type" in x && "ref" in x &&
     "__k" in x &&
-    view.isValidElement(x);
+    view.adapter.isValidElement(x);
 }
 
 export function serialize(data: unknown): SerializeResult {

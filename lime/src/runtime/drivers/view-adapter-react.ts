@@ -1,61 +1,97 @@
 import {
+  type ComponentClass,
+  type Context,
   createContext,
   createElement,
+  type Dispatch,
   Fragment,
+  type FunctionComponent,
   isValidElement,
+  type JSXElementConstructor,
+  type ReactElement,
+  type ReactNode,
+  type SetStateAction,
   useContext,
   useEffect,
   useState,
 } from "react";
-import { createRoot, hydrateRoot } from "react-dom/client";
+import {
+  createRoot,
+  type DocumentFragment,
+  type Element,
+  hydrateRoot,
+} from "react-dom/client";
 import { renderToString } from "react-dom/server";
-import { type ViewAdapterBase } from "./view-adapter-base.ts";
+import {
+  type DependencyList,
+  type EffectCallback,
+  type Island,
+  type RenderState,
+  type ViewAdapterBase,
+} from "./view-adapter-base.ts";
 
 export class ReactViewAdapter implements ViewAdapterBase {
-  hasSignals = false;
-  Fragment = Fragment;
+  hasSignals = true;
+  Fragment: typeof Fragment = Fragment;
 
-  createContext<T>(initialValue: T): unknown {
-    return createContext(initialValue);
+  createContext<T>(defaultValue: T): Context<T> {
+    return createContext(defaultValue);
   }
 
-  useContext<T>(context: T): unknown {
+  useContext<T>(context: Context<T>) {
     return useContext(context);
   }
 
-  useEffect(callback: () => void, deps?: unknown[]): void {
+  useEffect(callback: EffectCallback, deps?: DependencyList) {
     useEffect(callback, deps);
   }
 
-  useState<T>(initialValue: T): [T, (value: T) => void] {
-    return useState(initialValue);
+  useState<S>(initialState: S | (() => S)): [S, Dispatch<SetStateAction<S>>] {
+    return useState(initialState);
   }
 
   h(
-    tag: string,
+    type:
+      | string
+      | FunctionComponent<Record<string, unknown>>
+      // deno-lint-ignore no-explicit-any
+      | ComponentClass<Record<string, unknown>, any>,
     props: Record<string, unknown> | null,
-    ...children: unknown[]
-  ): unknown {
-    return createElement(tag, props, ...children);
+    ...children: ReactNode[]
+  ) {
+    return createElement(type, props, ...children);
   }
 
-  isValidElement(element: unknown): boolean {
-    return isValidElement(element);
+  // deno-lint-ignore ban-types
+  isValidElement(object: {}) {
+    return isValidElement(object);
   }
 
-  render(fragment: unknown, target: HTMLElement): void {
-    const root = createRoot(target);
+  render(fragment: ReactNode, container: Element | DocumentFragment) {
+    const root = createRoot(container);
 
     root.render(fragment);
   }
 
-  renderHydrate(fragment: unknown, target: HTMLElement): void {
-    const root = hydrateRoot(target);
+  renderHydrate(
+    fragment: ReactNode,
+    container: Element | DocumentFragment,
+  ) {
+    const root = hydrateRoot(container);
 
     root.render(fragment);
   }
 
-  renderToString(fragment: unknown): string {
+  renderToString(
+    // deno-lint-ignore no-explicit-any
+    fragment: ReactElement<any, string | JSXElementConstructor<any>>,
+  ) {
     return renderToString(fragment);
+  }
+
+  setAllIslands(_islands: Island[]) {
+  }
+
+  setRenderState(_state: RenderState | null) {
   }
 }

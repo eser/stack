@@ -1,20 +1,56 @@
+import type * as Preact from "preact";
+import type * as PreactHooks from "preact/hooks";
+import type * as React from "react";
+import { type Island } from "../../server/types.ts";
+export { type Island } from "../../server/types.ts";
+import { RenderState } from "../../server/rendering/state.ts";
+export { RenderState } from "../../server/rendering/state.ts";
+
+export type FragmentType = typeof Preact.Fragment | typeof React.Fragment;
+export type ContextBase<T> = Preact.Context<T> | React.Context<T>;
+export type Context<T> = Preact.PreactContext<T> | React.Context<T>;
+export type EffectCallback = () => void;
+export type DependencyList = ReadonlyArray<unknown>;
+
+// deno-lint-ignore ban-types
+export type Component<P = {}, S = {}> =
+  | Preact.Component<P, S>
+  | React.Component<P, S>;
+export type ComponentChildren =
+  | Preact.ComponentChildren
+  | typeof React.Children;
+// deno-lint-ignore no-explicit-any
+export type VNode<T = any> = Preact.VNode<T> | React.ReactElement<T>;
+// deno-lint-ignore ban-types
+export type ComponentType<P = {}> =
+  | Preact.ComponentType<P>
+  | React.ComponentType<P>;
 export interface ViewAdapterBase {
   hasSignals: boolean;
-  Fragment: unknown;
+  Fragment: FragmentType;
 
-  createContext<T>(initialValue: T): unknown;
-  useContext<T>(context: T): unknown;
-  useEffect(callback: () => void, deps?: unknown[]): void;
-  useState<T>(initialValue: T): [T, (value: T) => void];
+  createContext<T>(defaultValue: T): ContextBase<T>;
+  useContext<T>(context: Context<T>): T;
+  useEffect(callback: EffectCallback, deps?: DependencyList): void;
+  useState<S>(
+    initialState: S | (() => S),
+  ): [S, PreactHooks.StateUpdater<S>] | [
+    S,
+    React.Dispatch<React.SetStateAction<S>>,
+  ];
 
   h(
-    tag: string,
+    type: unknown,
     props: Record<string, unknown> | null,
     ...children: unknown[]
   ): unknown;
-  isValidElement(element: unknown): boolean;
+  // deno-lint-ignore ban-types
+  isValidElement(object: {}): boolean;
 
-  render(fragment: unknown, target: HTMLElement): void;
-  renderHydrate(fragment: unknown, target: HTMLElement): void;
+  render(fragment: unknown, container: HTMLElement): void;
+  renderHydrate(fragment: unknown, container: HTMLElement): void;
   renderToString(fragment: unknown): string;
+
+  setAllIslands(islands: Island[]): void;
+  setRenderState(state: RenderState | null): void;
 }

@@ -3,9 +3,9 @@ import { view } from "../../../src/runtime/drivers/view.ts";
 export default function IslandWithProps(
   props: { foo: { bar: string } },
 ) {
-  const [showText, setShowText] = view.useState(false)!;
+  const [showText, setShowText] = view.adapter.useState(false)!;
 
-  view.useEffect(() => {
+  view.adapter.useEffect(() => {
     setShowText(true);
   }, []);
 

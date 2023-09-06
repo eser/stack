@@ -1,4 +1,4 @@
-import { type ComponentChildren, view } from "./drivers/view.ts";
+import { type ComponentChildren, view } from "./drivers/view.tsx";
 
 export interface HeadProps {
   children: ComponentChildren;

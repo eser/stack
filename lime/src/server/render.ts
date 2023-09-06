@@ -1,4 +1,4 @@
-import { view, type VNode } from "../runtime/drivers/view.ts";
+import { view, type VNode } from "../runtime/drivers/view.tsx";
 import {
   type AppModule,
   type AsyncLayout,
@@ -18,6 +18,8 @@ import { type ContentSecurityPolicy } from "../runtime/csp.ts";
 import { RenderState } from "./rendering/state.ts";
 import { renderHtml, renderOuterDocument } from "./rendering/template.tsx";
 import { renderLimeTags } from "./rendering/lime_tags.tsx";
+
+export const DEFAULT_LANGUAGE = "en";
 
 export const DEFAULT_RENDER_FN: RenderFunction = (_ctx, render) => {
   render();
@@ -129,15 +131,19 @@ export async function render<Data>(
   // Only inherit layouts up to the nearest root layout.
   // Note that the route itself can act as the root layout.
   let layouts = opts.layouts;
+
   if (opts.route.inheritLayouts) {
     let rootIdx = 0;
     let layoutIdx = opts.layouts.length;
+
     while (layoutIdx--) {
       if (!opts.layouts[layoutIdx].inheritLayouts) {
         rootIdx = layoutIdx;
+
         break;
       }
     }
+
     layouts = opts.layouts.slice(rootIdx);
   } else {
     layouts = [];
@@ -150,6 +156,7 @@ export async function render<Data>(
     data: opts.data,
     state: opts.state,
   };
+
   if (opts.error) {
     props.error = opts.error;
   }
@@ -157,9 +164,11 @@ export async function render<Data>(
   const csp: ContentSecurityPolicy | undefined = opts.route.csp
     ? defaultCsp()
     : undefined;
-  if (csp) {
+
+  if (csp !== undefined) {
     // Clear the csp
     const newCsp = defaultCsp();
+
     csp.directives = newCsp.directives;
     csp.reportOnly = newCsp.reportOnly;
   }
@@ -168,7 +177,7 @@ export async function render<Data>(
     crypto.randomUUID(),
     opts.url,
     opts.route.pattern,
-    opts.lang ?? "en",
+    opts.lang ?? DEFAULT_LANGUAGE,
   );
 
   const context: RouteContext = {
@@ -185,6 +194,7 @@ export async function render<Data>(
   // Prepare render order
   // deno-lint-ignore no-explicit-any
   const renderStack: any[] = [];
+
   // Check if appLayout is enabled
   if (
     opts.route.appWrapper &&
@@ -192,16 +202,22 @@ export async function render<Data>(
   ) {
     renderStack.push(opts.app.default);
   }
+
   for (let i = 0; i < layouts.length; i++) {
     renderStack.push(layouts[i].component);
   }
+
   renderStack.push(component);
 
   // Build the final stack of component functions
   const componentStack = new Array(renderStack.length).fill(null);
+
   for (let i = 0; i < renderStack.length; i++) {
     const fn = renderStack[i];
-    if (!fn) continue;
+
+    if (!fn) {
+      continue;
+    }
 
     if (checkAsyncComponent(fn)) {
       // Don't pass <Component /> when it's the route component
@@ -255,22 +271,27 @@ export async function render<Data>(
 
   function renderSync(): PluginRenderFunctionResult {
     const plugin = syncPlugins.shift();
-    if (plugin) {
-      const res = plugin.render!({ render: renderSync });
+
+    if (plugin !== undefined) {
+      const res = plugin.render?.({ render: renderSync });
+
       if (res === undefined) {
         throw new Error(
           `${plugin?.name}'s render hook did not return a PluginRenderResult object.`,
         );
       }
+
       renderResults.push([plugin, res]);
     } else {
       bodyHtml = renderHtml(renderState);
     }
+
     if (bodyHtml === null) {
       throw new Error(
         `The 'render' function was not called by ${plugin?.name}'s render hook.`,
       );
     }
+
     return {
       htmlText: bodyHtml,
       requiresHydration: renderState.encounteredIslands.size > 0,
@@ -280,16 +301,21 @@ export async function render<Data>(
   const asyncPlugins = opts.plugins.filter((p) => p.renderAsync);
 
   let asyncRenderResponse: Response | undefined;
+
   async function renderAsync(): Promise<PluginRenderFunctionResult> {
     const plugin = asyncPlugins.shift();
-    if (plugin) {
-      const res = await plugin.renderAsync!({ renderAsync });
+
+    if (plugin !== undefined) {
+      const res = await plugin.renderAsync?.({ renderAsync });
+
       if (res === undefined) {
         throw new Error(
           `${plugin?.name}'s async render hook did not return a PluginRenderResult object.`,
         );
       }
+
       renderResults.push([plugin, res]);
+
       if (bodyHtml === null) {
         throw new Error(
           `The 'renderAsync' function was not called by ${plugin?.name}'s async render hook.`,
@@ -304,6 +330,7 @@ export async function render<Data>(
         );
       }
     }
+
     return {
       htmlText: bodyHtml,
       requiresHydration: renderState.encounteredIslands.size > 0,
@@ -316,6 +343,7 @@ export async function render<Data>(
     vnode !== null && typeof vnode === "object" && "type" in vnode &&
     props !== null && vnode.type === "title"
   );
+
   if (idx !== -1) {
     renderState.docTitle = renderState.headVNodes[idx] as VNode<
       { children: string }
@@ -347,5 +375,6 @@ export async function render<Data>(
     moduleScripts: result.moduleScripts,
     lang: ctx.lang,
   });
+
   return [html, csp];
 }

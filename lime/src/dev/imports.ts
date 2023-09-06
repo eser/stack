@@ -12,25 +12,23 @@ export function baseImports(imports: Record<string, string>) {
 }
 
 export function reactImports(imports: Record<string, string>) {
-  imports["react"] = `https://esm.sh/react@${RECOMMENDED_REACT_VERSION}`;
-  imports["react/"] = `https://esm.sh/*react@${RECOMMENDED_REACT_VERSION}/`;
-  imports["react-dom"] =
-    `https://esm.sh/react-dom@${RECOMMENDED_REACT_VERSION}?external=react`;
-  imports["react-dom/"] =
-    `https://esm.sh/*react-dom@${RECOMMENDED_REACT_VERSION}/`;
+  imports["react"] = `npm:react@${RECOMMENDED_REACT_VERSION}`;
+  imports["react/"] = `npm:/react@${RECOMMENDED_REACT_VERSION}/`;
+  imports["react-dom"] = `npm:react-dom@${RECOMMENDED_REACT_VERSION}`;
+  imports["react-dom/"] = `npm:/react-dom@${RECOMMENDED_REACT_VERSION}/`;
   imports["@preact/signals-core"] =
-    `https://esm.sh/@preact/signals-core@${RECOMMENDED_PREACT_SIGNALS_CORE_VERSION}`;
+    `npm:@preact/signals-core@${RECOMMENDED_PREACT_SIGNALS_CORE_VERSION}`;
   imports["@preact/signals-react"] =
-    `https://esm.sh/@preact/signals-react@${RECOMMENDED_PREACT_SIGNALS_REACT_VERSION}?external=react`;
+    `npm:@preact/signals-react@${RECOMMENDED_PREACT_SIGNALS_REACT_VERSION}`;
 }
 
 export function preactImports(imports: Record<string, string>) {
-  imports["preact"] = `https://esm.sh/preact@${RECOMMENDED_PREACT_VERSION}`;
-  imports["preact/"] = `https://esm.sh/*preact@${RECOMMENDED_PREACT_VERSION}/`;
+  imports["preact"] = `npm:preact@${RECOMMENDED_PREACT_VERSION}`;
+  imports["preact/"] = `npm:/preact@${RECOMMENDED_PREACT_VERSION}/`;
   imports["preact-render-to-string"] =
-    `https://esm.sh/*preact-render-to-string@${RECOMMENDED_PREACT_RTS_VERSION}`;
+    `npm:preact-render-to-string@${RECOMMENDED_PREACT_RTS_VERSION}`;
   imports["@preact/signals"] =
-    `https://esm.sh/@preact/signals@${RECOMMENDED_PREACT_SIGNALS_VERSION}?external=preact`;
+    `npm:@preact/signals@${RECOMMENDED_PREACT_SIGNALS_VERSION}`;
   imports["@preact/signals-core"] =
-    `https://esm.sh/@preact/signals-core@${RECOMMENDED_PREACT_SIGNALS_CORE_VERSION}`;
+    `npm:@preact/signals-core@${RECOMMENDED_PREACT_SIGNALS_CORE_VERSION}`;
 }

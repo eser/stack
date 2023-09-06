@@ -47,12 +47,7 @@ repos:
           README.md|
           SECURITY.md|
           Dockerfile|
-          _etc/templates/default/files/.github/FUNDING.yml|
-          _etc/templates/default/files/.github/ISSUE_TEMPLATE/bug_report.md|
-          _etc/templates/default/files/.github/ISSUE_TEMPLATE/feature_request.md|
-          _etc/templates/service/files/.github/FUNDING.yml|
-          _etc/templates/service/files/.github/ISSUE_TEMPLATE/bug_report.md|
-          _etc/templates/service/files/.github/ISSUE_TEMPLATE/feature_request.md|
+          _etc/.*|
           _tmp/.*|
           lime/.*
         )$

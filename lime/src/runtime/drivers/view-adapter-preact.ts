@@ -33,7 +33,11 @@ import {
 } from "./view-adapter-base.ts";
 
 export class PreactViewAdapter implements ViewAdapterBase {
-  hasSignals = true;
+  libSignals = "@preact/signals";
+  libJSX = "preact";
+  libAdapter = "preact";
+  libAdapterDOM = "preact";
+  libAdapterHooks = "preact/hooks";
   Fragment: typeof Fragment = Fragment;
 
   createContext<T>(defaultValue: T): Context<T> {

@@ -1,4 +1,4 @@
-import { type Signal } from "@preact/signals";
+import { type Signal } from "@preact/signals-core";
 import { IS_BROWSER } from "$cool/lime/runtime.ts";
 
 interface CounterProps {

@@ -25,31 +25,43 @@ export async function dev(
 
   let currentManifest: Manifest;
   const prevManifest = Deno.env.get("LIME_DEV_PREVIOUS_MANIFEST");
+
   if (prevManifest) {
     currentManifest = JSON.parse(prevManifest);
   } else {
     currentManifest = { islands: [], routes: [] };
   }
+
   const newManifest = await collect(dir);
+
   Deno.env.set("LIME_DEV_PREVIOUS_MANIFEST", JSON.stringify(newManifest));
 
   const manifestChanged =
     !arraysEqual(newManifest.routes, currentManifest.routes) ||
     !arraysEqual(newManifest.islands, currentManifest.islands);
 
-  if (manifestChanged) await generate(dir, newManifest);
+  if (manifestChanged) {
+    await generate(dir, newManifest);
+  }
 
   if (Deno.args.includes("build")) {
     await build(join(dir, "lime.gen.ts"), options);
-  } else {
-    await import(entrypoint);
+    return;
   }
+
+  await import(entrypoint);
 }
 
 function arraysEqual<T>(a: T[], b: T[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; ++i) {
-    if (a[i] !== b[i]) return false;
+  if (a.length !== b.length) {
+    return false;
   }
+
+  for (let i = 0; i < a.length; ++i) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+
   return true;
 }

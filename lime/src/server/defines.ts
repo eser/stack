@@ -1,4 +1,4 @@
-import { type ComponentChildren } from "../runtime/drivers/view.ts";
+import { type ComponentChildren } from "../runtime/drivers/view.tsx";
 import {
   type AsyncLayout,
   type AsyncRoute,
@@ -22,8 +22,11 @@ export function defineRoute<
     ctx: RouteContext<void, T>,
   ) => ComponentChildren | Response | Promise<ComponentChildren | Response>,
 ): AsyncRoute<void, T> {
-  // deno-lint-ignore no-explicit-any
-  if (checkAsyncComponent(fn)) return fn as any;
+  if (checkAsyncComponent(fn)) {
+    // deno-lint-ignore no-explicit-any
+    return fn as any;
+  }
+
   // deno-lint-ignore require-await
   return async (req, ctx) => fn(req, ctx);
 }
@@ -35,8 +38,11 @@ export function defineLayout<T>(
     ctx: LayoutContext<void, T>,
   ) => ComponentChildren | Response | Promise<ComponentChildren | Response>,
 ): AsyncLayout<void, T> {
-  // deno-lint-ignore no-explicit-any
-  if (checkAsyncComponent(fn)) return fn as any;
+  if (checkAsyncComponent(fn)) {
+    // deno-lint-ignore no-explicit-any
+    return fn as any;
+  }
+
   // deno-lint-ignore require-await
   return async (req, ctx) => fn(req, ctx);
 }
@@ -48,8 +54,11 @@ export function defineApp<T>(
     ctx: AppContext<void, T>,
   ) => ComponentChildren | Response | Promise<ComponentChildren | Response>,
 ): AsyncLayout<void, T> {
-  // deno-lint-ignore no-explicit-any
-  if (checkAsyncComponent(fn)) return fn as any;
+  if (checkAsyncComponent(fn)) {
+    // deno-lint-ignore no-explicit-any
+    return fn as any;
+  }
+
   // deno-lint-ignore require-await
   return async (req, ctx) => fn(req, ctx);
 }

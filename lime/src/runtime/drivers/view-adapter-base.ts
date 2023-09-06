@@ -26,7 +26,11 @@ export type ComponentType<P = {}> =
   | Preact.ComponentType<P>
   | React.ComponentType<P>;
 export interface ViewAdapterBase {
-  hasSignals: boolean;
+  libSignals: string | null;
+  libJSX: string | null;
+  libAdapter: string | null;
+  libAdapterDOM: string | null;
+  libAdapterHooks: string | null;
   Fragment: FragmentType;
 
   createContext<T>(defaultValue: T): ContextBase<T>;

@@ -1,4 +1,4 @@
-import { view } from "./drivers/view.ts";
+import { view } from "./drivers/view.tsx";
 
 export const SELF = "'self'";
 export const UNSAFE_INLINE = "'unsafe-inline'";
@@ -135,7 +135,8 @@ export const CSP_CONTEXT = view.adapter.createContext<
 
 export function useCSP(mutator: (csp: ContentSecurityPolicy) => void) {
   const csp = view.adapter.useContext(CSP_CONTEXT);
-  if (csp) {
+
+  if (csp !== undefined) {
     mutator(csp);
   }
 }

@@ -1,4 +1,4 @@
-// import "https://esm.sh/@abraham/reflection?target=deno";
+// import "npm:@abraham/reflection";
 // import { type Container, registry } from "./registry.ts";
 
 // const injectableDecoratorTokenKey = Symbol.for("cool.hex.di.injectable.token");

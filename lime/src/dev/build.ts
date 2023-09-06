@@ -28,7 +28,10 @@ export async function build(
   // Write output files to disk
   await Promise.all(snapshot.paths.map((fileName) => {
     const data = snapshot.read(fileName);
-    if (data === null) return;
+
+    if (data === null) {
+      return;
+    }
 
     return Deno.writeFile(join(outDir, fileName), data);
   }));
@@ -38,11 +41,14 @@ export async function build(
     build_id: BUILD_ID,
     files: {},
   };
+
   for (const filePath of snapshot.paths) {
     const dependencies = snapshot.dependencies(filePath);
+
     jsonSnapshot.files[filePath] = dependencies;
   }
 
   const snapshotPath = join(outDir, "snapshot.json");
+
   await Deno.writeTextFile(snapshotPath, JSON.stringify(jsonSnapshot, null, 2));
 }

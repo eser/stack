@@ -15,13 +15,9 @@ import {
   useEffect,
   useState,
 } from "react";
-import {
-  createRoot,
-  type DocumentFragment,
-  type Element,
-  hydrateRoot,
-} from "react-dom/client";
+import { createRoot, hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
+import { setAllIslands } from "../../server/rendering/react_hooks.ts";
 import {
   type DependencyList,
   type EffectCallback,
@@ -31,7 +27,11 @@ import {
 } from "./view-adapter-base.ts";
 
 export class ReactViewAdapter implements ViewAdapterBase {
-  hasSignals = true;
+  libSignals = "@preact/signals-react";
+  libJSX = "react";
+  libAdapter = "react";
+  libAdapterDOM = "react-dom";
+  libAdapterHooks = "react";
   Fragment: typeof Fragment = Fragment;
 
   createContext<T>(defaultValue: T): Context<T> {
@@ -75,11 +75,9 @@ export class ReactViewAdapter implements ViewAdapterBase {
 
   renderHydrate(
     fragment: ReactNode,
-    container: Element | DocumentFragment,
+    container: Element | Document,
   ) {
-    const root = hydrateRoot(container);
-
-    root.render(fragment);
+    hydrateRoot(container, fragment);
   }
 
   renderToString(
@@ -89,7 +87,8 @@ export class ReactViewAdapter implements ViewAdapterBase {
     return renderToString(fragment);
   }
 
-  setAllIslands(_islands: Island[]) {
+  setAllIslands(islands: Island[]) {
+    setAllIslands(islands);
   }
 
   setRenderState(_state: RenderState | null) {

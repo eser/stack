@@ -1,5 +1,5 @@
 import { RenderState } from "./state.ts";
-import { view } from "../../runtime/drivers/view.ts";
+import { view } from "../../runtime/drivers/view.tsx";
 import { HEAD_CONTEXT } from "../../runtime/head.ts";
 import { CSP_CONTEXT } from "../../runtime/csp.ts";
 
@@ -9,12 +9,14 @@ export function renderHtml(state: RenderState) {
   state.headChildren = false;
 
   const componentStack = state.componentStack;
+
   try {
     const routeComponent = componentStack[componentStack.length - 1];
     let finalComp = view.adapter.h(routeComponent, state.routeOptions);
 
     // Skip page component
     let i = componentStack.length - 1;
+
     while (i--) {
       const component = componentStack[i];
       const curComp = finalComp;
@@ -44,6 +46,7 @@ export function renderHtml(state: RenderState) {
         view.adapter.h(view.adapter.Fragment, null, children),
       );
       const templateId = id.replace(/:/g, "-");
+
       html += `<template id="${templateId}">${slotHtml}</template>`;
     }
 
@@ -103,6 +106,7 @@ export function renderOuterDocument(
 
   try {
     view.adapter.setRenderState(state);
+
     return "<!DOCTYPE html>" + view.adapter.renderToString(page);
   } finally {
     view.adapter.setRenderState(null);

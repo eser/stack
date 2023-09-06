@@ -1,5 +1,5 @@
 import { type LayoutConfig } from "$cool/lime/server.ts";
-import { type ComponentChildren } from "../runtime/drivers/view.ts";
+import { type ComponentChildren } from "../runtime/drivers/view.tsx";
 import { ServerContext } from "./context.ts";
 import { colors } from "./deps.ts";
 export { colors, Status } from "./deps.ts";

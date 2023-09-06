@@ -1,7 +1,7 @@
 import {
   type ComponentChildren,
   type VNode,
-} from "../../runtime/drivers/view.ts";
+} from "../../runtime/drivers/view.tsx";
 import { type Island } from "../types.ts";
 import { type ContentSecurityPolicy } from "../../runtime/csp.ts";
 
@@ -50,7 +50,9 @@ export class RenderState {
     this.csp = csp;
     this.componentStack = componentStack;
 
-    if (error) this.routeOptions.error = error;
+    if (error) {
+      this.routeOptions.error = error;
+    }
   }
 
   clearTmpState() {

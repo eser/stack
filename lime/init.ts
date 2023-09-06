@@ -2,6 +2,7 @@ import { basename, colors, join, parse, resolve } from "./src/dev/deps.ts";
 import { error } from "./src/dev/error.ts";
 import { collect, ensureMinDenoVersion, generate } from "./src/dev/mod.ts";
 import { baseImports, preactImports, reactImports } from "./src/dev/imports.ts";
+import { view } from "$cool/lime/src/runtime/drivers/view.ts";
 
 ensureMinDenoVersion();
 
@@ -124,7 +125,8 @@ CMD ["run", "-A", "main.ts"]
   );
 }
 
-const ROUTES_INDEX_TSX = `import { useSignal } from "@preact/signals";
+const ROUTES_INDEX_TSX =
+  `import { useSignal } from "${view.adapter.libSignals}";
 import Counter from "../islands/Counter.tsx";
 
 export default function Home() {
@@ -155,7 +157,7 @@ await Deno.writeTextFile(
   ROUTES_INDEX_TSX,
 );
 
-const COMPONENTS_BUTTON_TSX = `import { JSX } from "preact";
+const COMPONENTS_BUTTON_TSX = `import { JSX } from "${view.adapter.libJSX}";
 import { IS_BROWSER } from "$cool/lime/runtime.ts";
 
 export function Button(props: JSX.HTMLAttributes<HTMLButtonElement>) {
@@ -173,7 +175,8 @@ await Deno.writeTextFile(
   COMPONENTS_BUTTON_TSX,
 );
 
-const ISLANDS_COUNTER_TSX = `import { type Signal } from "@preact/signals";
+const ISLANDS_COUNTER_TSX =
+  `import { type Signal } from "${view.adapter.libSignals}";
 import { Button } from "../components/Button.tsx";
 
 interface CounterProps {
@@ -612,12 +615,12 @@ console.log(
   "color: cyan",
   "",
 );
-console.log();
-console.log(
-  "Stuck? Join our Discord %chttps://discord.gg/deno",
-  "color: cyan",
-  "",
-);
+// console.log();
+// console.log(
+//   "Stuck? Join our Discord %chttps://discord.gg/deno",
+//   "color: cyan",
+//   "",
+// );
 console.log();
 console.log(
   "%cHappy hacking! 🦕",

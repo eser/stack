@@ -10,7 +10,7 @@ import {
   typeByExtension,
   walk,
 } from "./deps.ts";
-import { type ComponentType, view } from "../runtime/drivers/view.ts";
+import { type ComponentType, view } from "../runtime/drivers/view.tsx";
 import * as router from "./router.ts";
 import { type DenoConfig, type Manifest } from "./mod.ts";
 import { ALIVE_URL, JS_PREFIX, REFRESH_JS_URL } from "./constants.ts";
@@ -155,6 +155,7 @@ export class ServerContext {
     const { config, path: configPath } = await readDenoConfig(
       fromFileUrl(baseUrl),
     );
+
     if (typeof config.importMap !== "string" && !isObject(config.imports)) {
       throw new Error(
         "deno configuration must contain an 'importMap' or 'imports' property.",
@@ -167,6 +168,7 @@ export class ServerContext {
     const loadFromSnapshot = !opts.skipSnapshot;
     if (loadFromSnapshot) {
       const snapshotDirPath = join(dirname(configPath), "_lime");
+
       try {
         if ((await Deno.stat(snapshotDirPath)).isDirectory) {
           console.log(
@@ -177,13 +179,16 @@ export class ServerContext {
           const json = JSON.parse(
             await Deno.readTextFile(snapshotPath),
           ) as BuildSnapshotJson;
+
           setBuildId(json.build_id);
+
           const dependencies = new Map<string, string[]>(
             Object.entries(json.files),
           );
 
           const files = new Map();
           const names = Object.keys(json);
+
           await Promise.all(names.map(async (name) => {
             const filePath = join(snapshotDirPath, name);
             files.set(name, await Deno.readFile(filePath));
@@ -239,9 +244,11 @@ export class ServerContext {
       const [self, module] of allRoutes
     ) {
       const url = new URL(self, baseUrl).href;
+
       if (!url.startsWith(baseUrl + "routes")) {
         throw new TypeError("Page is not a child of the basepath.");
       }
+
       const path = url.substring(baseUrl.length).substring("routes".length);
       const baseRoute = path.substring(1, path.length - extname(path).length);
       const name = baseRoute.replace("/", "-");
@@ -251,31 +258,38 @@ export class ServerContext {
       const isMiddleware = path.endsWith("/_middleware.tsx") ||
         path.endsWith("/_middleware.ts") || path.endsWith("/_middleware.jsx") ||
         path.endsWith("/_middleware.js");
+
       if (
         !path.startsWith("/_") && !isLayout && !isMiddleware
       ) {
         const { default: component, config } = module as RouteModule;
         let pattern = pathToPattern(baseRoute);
+
         if (config?.routeOverride) {
           pattern = String(config.routeOverride);
         }
+
         let { handler } = module as RouteModule;
+
         if (!handler && "handlers" in module) {
           throw new Error(
             `Found named export "handlers" in ${self} instead of "handler". Did you mean "handler"?`,
           );
         }
+
         handler ??= {};
         if (
           component && typeof handler === "object" && handler.GET === undefined
         ) {
           handler.GET = (_req, { render }) => render();
         }
+
         if (
           typeof handler === "object" && handler.GET !== undefined &&
           handler.HEAD === undefined
         ) {
           const GET = handler.GET;
+
           handler.HEAD = async (req, ctx) => {
             const resp = await GET(req, ctx);
             resp.body?.cancel();
@@ -286,6 +300,7 @@ export class ServerContext {
             });
           };
         }
+
         const route: Route = {
           baseRoute: toBaseRoute(baseRoute),
           pattern,
@@ -297,6 +312,7 @@ export class ServerContext {
           appWrapper: !config?.skipAppWrapper,
           inheritLayouts: !config?.skipInheritedLayouts,
         };
+
         routes.push(route);
       } else if (isMiddleware) {
         middlewares.push({
@@ -311,6 +327,7 @@ export class ServerContext {
       } else if (isLayout) {
         const mod = module as LayoutModule;
         const config = mod.config;
+
         layouts.push({
           baseRoute: toBaseRoute(baseRoute),
           handler: mod.handler,
@@ -324,6 +341,7 @@ export class ServerContext {
       ) {
         const { default: component, config } = module as UnknownPageModule;
         let { handler } = module as UnknownPageModule;
+
         if (component && handler === undefined) {
           handler = (_req, { render }) => render();
         }
@@ -345,6 +363,7 @@ export class ServerContext {
       ) {
         const { default: component, config } = module as ErrorPageModule;
         let { handler } = module as ErrorPageModule;
+
         if (component && handler === undefined) {
           handler = (_req, { render }) => render();
         }
@@ -366,21 +385,27 @@ export class ServerContext {
 
     for (const [self, module] of Object.entries(manifest.islands)) {
       const url = new URL(self, baseUrl).href;
+
       if (!url.startsWith(baseUrl)) {
         throw new TypeError("Island is not a child of the basepath.");
       }
+
       let path = url.substring(baseUrl.length);
+
       if (path.startsWith("islands")) {
         path = path.slice("islands".length + 1);
       }
+
       const baseRoute = path.substring(0, path.length - extname(path).length);
 
       for (const [exportName, exportedFunction] of Object.entries(module)) {
         if (typeof exportedFunction !== "function") {
           continue;
         }
+
         const name = sanitizeIslandName(baseRoute);
         const id = `${name}_${exportName}`.toLowerCase();
+
         islands.push({
           id,
           name,
@@ -392,6 +417,7 @@ export class ServerContext {
     }
 
     const staticFiles: StaticFile[] = [];
+
     try {
       const staticFolder = new URL(
         opts.staticDir ?? "./static",
@@ -402,7 +428,9 @@ export class ServerContext {
         includeDirs: false,
         followSymlinks: false,
       });
+
       const encoder = new TextEncoder();
+
       for await (const entry of entries) {
         const localUrl = toFileUrl(entry.path);
         const path = localUrl.href.substring(staticFolder.href.length);
@@ -424,6 +452,7 @@ export class ServerContext {
           contentType,
           etag,
         };
+
         staticFiles.push(staticFile);
       }
     } catch (err) {
@@ -474,6 +503,7 @@ export class ServerContext {
       router.getParamsAndRoute<RouterState>(handlers),
     );
     const trailingSlashEnabled = this.#routerOptions?.trailingSlash;
+
     return async function handler(
       req: Request,
       connInfo: ServeHandlerInfo = DEFAULT_CONN_INFO,
@@ -482,6 +512,7 @@ export class ServerContext {
       // slash counterpart.
       // Ex: /about/ -> /about
       const url = new URL(req.url);
+
       if (
         url.pathname.length > 1 && url.pathname.endsWith("/") &&
         !trailingSlashEnabled
@@ -489,6 +520,7 @@ export class ServerContext {
         // Remove trailing slashes
         const path = url.pathname.replace(/\/+$/, "");
         const location = `${path}${url.search}`;
+
         return new Response(null, {
           status: Status.TemporaryRedirect,
           headers: { location },
@@ -502,6 +534,7 @@ export class ServerContext {
 
         if (!isFile && !isInternal) {
           url.pathname += "/";
+
           return Response.redirect(url, Status.PermanentRedirect);
         }
       }
@@ -514,21 +547,26 @@ export class ServerContext {
     if ("build" in this.#builder || this.#builder instanceof Promise) {
       return null;
     }
+
     return this.#builder;
   }
 
   async buildSnapshot() {
     if ("build" in this.#builder) {
       const builder = this.#builder;
+
       this.#builder = builder.build();
+
       try {
         const snapshot = await this.#builder;
+
         this.#builder = snapshot;
       } catch (err) {
         this.#builder = builder;
         throw err;
       }
     }
+
     return this.#builder;
   }
 
@@ -647,6 +685,7 @@ export class ServerContext {
         default: this.#bundleAssetRoute(),
       },
     };
+
     if (this.#dev) {
       internalRoutes[REFRESH_JS_URL] = {
         baseRoute: toBaseRoute(REFRESH_JS_URL),
@@ -660,6 +699,7 @@ export class ServerContext {
           },
         },
       };
+
       internalRoutes[ALIVE_URL] = {
         baseRoute: toBaseRoute(ALIVE_URL),
         methods: {
@@ -678,6 +718,7 @@ export class ServerContext {
                 }
               },
             });
+
             return new Response(body.pipeThrough(new TextEncoderStream()), {
               headers: {
                 "content-type": "text/event-stream",
@@ -731,6 +772,7 @@ export class ServerContext {
       error?: unknown,
     ) => {
       const notFound = this.#notFound;
+
       if (!notFound.component) {
         return sendResponse(["Not found.", undefined], {
           status: Status.NotFound,
@@ -777,7 +819,11 @@ export class ServerContext {
       status: number,
     ) => {
       const imports: string[] = [];
-      if (this.#dev) imports.push(REFRESH_JS_URL);
+
+      if (this.#dev) {
+        imports.push(REFRESH_JS_URL);
+      }
+
       return (
         req: Request,
         params: Record<string, string>,
@@ -832,7 +878,9 @@ export class ServerContext {
       if (this.#routerOptions.trailingSlash && route.pattern != "/") {
         route.pattern += "/";
       }
+
       const createRender = genRender(route, Status.OK);
+
       if (typeof route.handler === "function") {
         routes[route.pattern] = {
           baseRoute: route.baseRoute,
@@ -853,6 +901,7 @@ export class ServerContext {
           baseRoute: route.baseRoute,
           methods: {},
         };
+
         for (const [method, handler] of Object.entries(route.handler)) {
           routes[route.pattern].methods[method as router.KnownMethod] = (
             req,
@@ -899,6 +948,7 @@ export class ServerContext {
         "color:red",
         error,
       );
+
       return this.#error.handler(
         req,
         {
@@ -920,9 +970,12 @@ export class ServerContext {
     return (req: Request) => {
       const url = new URL(req.url);
       const key = url.searchParams.get(ASSET_CACHE_BUST_KEY);
+
       if (key !== null && BUILD_ID !== key) {
         url.searchParams.delete(ASSET_CACHE_BUST_KEY);
+
         const location = url.pathname + url.search;
+
         return new Response(null, {
           status: 307,
           headers: {
@@ -930,21 +983,25 @@ export class ServerContext {
           },
         });
       }
+
       const headers = new Headers({
         "content-type": contentType,
         etag,
         vary: "If-None-Match",
       });
+
       if (key !== null) {
         headers.set("Cache-Control", "public, max-age=31536000, immutable");
       }
+
       const ifNoneMatch = req.headers.get("if-none-match");
+
       if (ifNoneMatch === etag || ifNoneMatch === "W/" + etag) {
         return new Response(null, { status: 304, headers });
-      } else {
-        headers.set("content-length", String(size));
-        return new Response(null, { status: 200, headers });
       }
+
+      headers.set("content-length", String(size));
+      return new Response(null, { status: 200, headers });
     };
   }
 
@@ -957,9 +1014,12 @@ export class ServerContext {
     return async (req: Request) => {
       const url = new URL(req.url);
       const key = url.searchParams.get(ASSET_CACHE_BUST_KEY);
+
       if (key !== null && BUILD_ID !== key) {
         url.searchParams.delete(ASSET_CACHE_BUST_KEY);
+
         const location = url.pathname + url.search;
+
         return new Response("", {
           status: 307,
           headers: {
@@ -968,22 +1028,27 @@ export class ServerContext {
           },
         });
       }
+
       const headers = new Headers({
         "content-type": contentType,
         etag,
         vary: "If-None-Match",
       });
+
       if (key !== null) {
         headers.set("Cache-Control", "public, max-age=31536000, immutable");
       }
+
       const ifNoneMatch = req.headers.get("if-none-match");
+
       if (ifNoneMatch === etag || ifNoneMatch === "W/" + etag) {
         return new Response(null, { status: 304, headers });
-      } else {
-        const file = await Deno.open(localUrl);
-        headers.set("content-length", String(size));
-        return new Response(file.readable, { headers });
       }
+
+      const file = await Deno.open(localUrl);
+      headers.set("content-length", String(size));
+
+      return new Response(file.readable, { headers });
     };
   }
 
@@ -995,14 +1060,20 @@ export class ServerContext {
     return async (_req, _ctx, params) => {
       const snapshot = await this.buildSnapshot();
       const contents = snapshot.read(params.path);
-      if (!contents) return new Response(null, { status: 404 });
+
+      if (!contents) {
+        return new Response(null, { status: 404 });
+      }
 
       const headers: Record<string, string> = {
         "Cache-Control": "public, max-age=604800, immutable",
       };
 
       const contentType = typeByExtension(extname(params.path));
-      if (contentType) headers["Content-Type"] = contentType;
+
+      if (contentType !== undefined) {
+        headers["Content-Type"] = contentType;
+      }
 
       return new Response(contents, {
         status: 200,
@@ -1056,6 +1127,7 @@ export function selectSharedRoutes<T extends { baseRoute: BaseRoute }>(
       curBaseRoute.startsWith(
         baseRoute.length > 1 ? baseRoute + "/" : baseRoute,
       );
+
     if (res) {
       selected.push(item);
     }
@@ -1072,33 +1144,51 @@ const APP_REG = /_app\.[tj]sx?$/;
  */
 export function sortRoutePaths(a: string, b: string) {
   // The `_app` route should always be the first
-  if (APP_REG.test(a)) return -1;
-  else if (APP_REG.test(b)) return 1;
+  if (APP_REG.test(a)) {
+    return -1;
+  }
+
+  if (APP_REG.test(b)) {
+    return 1;
+  }
 
   let segmentIdx = 0;
   const aLen = a.length;
   const bLen = b.length;
-  const maxLen = aLen > bLen ? aLen : bLen;
+  const maxLen = (aLen > bLen) ? aLen : bLen;
+
   for (let i = 0; i < maxLen; i++) {
     const charA = a.charAt(i);
     const charB = b.charAt(i);
-    const nextA = i + 1 < aLen ? a.charAt(i + 1) : "";
-    const nextB = i + 1 < bLen ? b.charAt(i + 1) : "";
 
     if (charA === "/" || charB === "/") {
       segmentIdx = i;
+
       // If the other path doesn't close the segment
       // then we don't need to continue
-      if (charA !== "/") return -1;
-      if (charB !== "/") return 1;
+      if (charA !== "/") {
+        return -1;
+      }
+
+      if (charB !== "/") {
+        return 1;
+      }
+
       continue;
     }
 
     if (i === segmentIdx + 1) {
+      const nextA = i + 1 < aLen ? a.charAt(i + 1) : "";
+      const nextB = i + 1 < bLen ? b.charAt(i + 1) : "";
+
       const scoreA = getRoutePathScore(charA, nextA);
       const scoreB = getRoutePathScore(charB, nextB);
-      if (scoreA === scoreB) continue;
-      return scoreA > scoreB ? -1 : 1;
+
+      if (scoreA === scoreB) {
+        continue;
+      }
+
+      return (scoreA > scoreB) ? -1 : 1;
     }
   }
 
@@ -1112,31 +1202,40 @@ export function sortRoutePaths(a: string, b: string) {
  */
 function getRoutePathScore(char: string, nextChar: string): number {
   if (char === "_") {
-    if (nextChar === "m") return 4;
+    if (nextChar === "m") {
+      return 4;
+    }
+
     return 3;
-  } else if (char === "[") {
+  }
+
+  if (char === "[") {
     if (nextChar === ".") {
       return 0;
     }
+
     return 1;
   }
+
   return 2;
 }
 
 /** Transform a filesystem URL path to a `path-to-regex` style matcher. */
 export function pathToPattern(path: string): string {
   const parts = path.split("/");
+
   if (parts[parts.length - 1] === "index") {
     if (parts.length === 1) {
       return "/";
     }
+
     parts.pop();
   }
 
   let route = "";
 
   for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
+    const part = parts[i]!;
 
     // Case: /[...foo].tsx
     if (part.startsWith("[...") && part.endsWith("]")) {
@@ -1168,18 +1267,26 @@ export function pathToPattern(path: string): string {
     // Case: /asdf[bar].tsx
     let pattern = "";
     let groupOpen = 0;
+
     for (let j = 0; j < part.length; j++) {
       const char = part[j];
+
       if (char === "[") {
         pattern += ":";
         groupOpen++;
-      } else if (char === "]") {
+
+        continue;
+      }
+
+      if (char === "]") {
         if (--groupOpen < 0) {
           throw new SyntaxError(`Invalid route pattern: "${path}"`);
         }
-      } else {
-        pattern += char;
+
+        continue;
       }
+
+      pattern += char;
     }
 
     route += "/" + pattern;
@@ -1193,6 +1300,7 @@ export function normalizeURLPath(path: string): string | null {
   try {
     const pathUrl = new URL("file:///");
     pathUrl.pathname = path;
+
     return pathUrl.pathname;
   } catch {
     return null;
@@ -1220,6 +1328,7 @@ function toPascalCase(text: string): string {
 
 function sanitizeIslandName(name: string): string {
   const fileName = name.replaceAll(/[/\\\\\(\)\[\]]/g, "_");
+
   return toPascalCase(fileName);
 }
 
@@ -1278,11 +1387,10 @@ function collectEntrypoints(
     deserializer: import.meta.resolve(`${entrypointBase}/deserializer.ts`),
   };
 
-  try {
-    import.meta.resolve("@preact/signals");
-    entryPoints.signals = import.meta.resolve(`${entrypointBase}/signals.ts`);
-  } catch {
-    // @preact/signals is not in the import map
+  if (view.adapter.libSignals !== null) {
+    entryPoints["signals"] = import.meta.resolve(
+      `${entrypointBase}/signals.ts`,
+    );
   }
 
   for (const island of islands) {
@@ -1302,28 +1410,33 @@ async function readDenoConfig(
   directory: string,
 ): Promise<{ config: DenoConfig; path: string }> {
   let dir = directory;
+
   while (true) {
     for (const name of ["deno.json", "deno.jsonc"]) {
       const path = join(dir, name);
+
       try {
         const file = await Deno.readTextFile(path);
+
         if (name.endsWith(".jsonc")) {
           return { config: JSONC.parse(file) as DenoConfig, path };
-        } else {
-          return { config: JSON.parse(file), path };
         }
+
+        return { config: JSON.parse(file), path };
       } catch (err) {
         if (!(err instanceof Deno.errors.NotFound)) {
           throw err;
         }
       }
     }
+
     const parent = dirname(dir);
     if (parent === dir) {
       throw new Error(
         `Could not find a deno configuration file in the current directory or any parent directory.`,
       );
     }
+
     dir = parent;
   }
 }
@@ -1331,6 +1444,7 @@ async function readDenoConfig(
 function formatMiddlewarePath(path: string): string {
   const prefix = !path.startsWith("/") ? "/" : "";
   const suffix = !path.endsWith("/") ? "/" : "";
+
   return prefix + path + suffix;
 }
 
@@ -1343,11 +1457,16 @@ function getMiddlewareRoutesFromPlugins(
     string,
     [string, { handler: MiddlewareHandler[] }]
   > = {};
+
   for (let i = 0; i < middlewares.length; i++) {
     const mw = middlewares[i];
     const handler = mw.middleware.handler;
     const key = `./routes${formatMiddlewarePath(mw.path)}_middleware.ts`;
-    if (!mws[key]) mws[key] = [key, { handler: [] }];
+
+    if (!mws[key]) {
+      mws[key] = [key, { handler: [] }];
+    }
+
     mws[key][1].handler.push(...Array.isArray(handler) ? handler : [handler]);
   }
 
@@ -1383,20 +1502,24 @@ function sendResponse(
   };
 
   const [body, csp] = resp;
-  if (csp) {
+
+  if (csp !== undefined) {
     if (options.isDev) {
       csp.directives.connectSrc = [
         ...(csp.directives.connectSrc ?? []),
         SELF,
       ];
     }
+
     const directive = serializeCSPDirectives(csp.directives);
+
     if (csp.reportOnly) {
       headers["content-security-policy-report-only"] = directive;
     } else {
       headers["content-security-policy"] = directive;
     }
   }
+
   return new Response(body, {
     status: options.status,
     statusText: options.statusText,

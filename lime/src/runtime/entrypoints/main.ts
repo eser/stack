@@ -4,7 +4,7 @@ import {
   type ComponentType,
   view,
   type VNode,
-} from "../drivers/view.ts";
+} from "../drivers/view.tsx";
 // import { assetHashingHook } from "../utils.ts";
 
 function createRootFragment(
@@ -38,9 +38,11 @@ function createRootFragment(
 function isCommentNode(node: Node): node is Comment {
   return node.nodeType === Node.COMMENT_NODE;
 }
+
 function isTextNode(node: Node): node is Text {
   return node.nodeType === Node.TEXT_NODE;
 }
+
 function isElementNode(node: Node): node is HTMLElement {
   return node.nodeType === Node.ELEMENT_NODE;
 }

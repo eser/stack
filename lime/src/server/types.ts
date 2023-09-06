@@ -2,7 +2,7 @@ import {
   type ComponentChildren,
   type ComponentType,
   type VNode,
-} from "../runtime/drivers/view.ts";
+} from "../runtime/drivers/view.tsx";
 import * as router from "./router.ts";
 import { type InnerRenderFunction, RenderContext } from "./render.ts";
 

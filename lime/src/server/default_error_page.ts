@@ -1,4 +1,4 @@
-import { view } from "../runtime/drivers/view.ts";
+import { view } from "../runtime/drivers/view.tsx";
 import { DEBUG } from "./constants.ts";
 import { type ErrorPageProps } from "./types.ts";
 

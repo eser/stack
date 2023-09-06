@@ -11,7 +11,7 @@ import {
   type ComponentType,
   view,
   type VNode,
-} from "../../runtime/drivers/view.ts";
+} from "../../runtime/drivers/view.tsx";
 
 // These hooks are long stable, but when we originally added them we
 // weren't sure if they should be public.
@@ -32,18 +32,20 @@ options.errorBoundaries = true;
 // Set up a preact option hook to track when vnode with custom functions are
 // created.
 let current: RenderState | null = null;
+
 // Keep track of which component rendered which vnode. This allows us
 // to detect when an island is rendered within another instead of being
 // passed as children.
 let ownerStack: VNode[] = [];
+
 // Keep track of all available islands
 const islandByComponent = new Map<ComponentType, Island>();
+
 export function setAllIslands(islands: Island[]) {
   for (let i = 0; i < islands.length; i++) {
-    const island = islands[i];
-    if (island !== undefined) {
-      islandByComponent.set(island.component, island);
-    }
+    const island = islands[i]!;
+
+    islandByComponent.set(island.component, island);
   }
 }
 
@@ -84,6 +86,7 @@ function SlotTracker(
   props: { id: string; children?: ComponentChildren },
 ): VNode {
   current?.slots.delete(props.id);
+
   // deno-lint-ignore no-explicit-any
   return props.children as any;
 }
@@ -93,9 +96,15 @@ function SlotTracker(
  */
 function excludeChildren(props: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
+
   for (const k in props) {
-    if (k !== "children") out[k] = props[k];
+    if (k === "children") {
+      continue;
+    }
+
+    out[k] = props[k];
   }
+
   return out;
 }
 
@@ -117,8 +126,10 @@ options.vnode = (vnode) => {
   // lowercase variant.
   if (typeof vnode.type === "string") {
     const props = vnode.props as Record<string, unknown>;
+
     for (const key in props) {
       const value = props[key];
+
       if (key.startsWith("on") && typeof value === "string") {
         delete props[key];
         props["ON" + key.slice(2)] = value;
@@ -182,6 +193,7 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
             props: vnode.props,
           });
         }
+
         vnode.type = view.adapter.Fragment;
       }
     } else if (
@@ -189,6 +201,7 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
     ) {
       // Detect island vnodes and wrap them with a marker
       const island = islandByComponent.get(vnode.type);
+
       patchIsland:
       if (
         island &&
@@ -202,10 +215,12 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
         //   }
         let tmpVNode = vnode;
         let owner;
+
         while ((owner = current.owners.get(tmpVNode)) !== undefined) {
           if (islandByComponent.has(owner.type)) {
             break patchIsland;
           }
+
           tmpVNode = owner;
         }
 
@@ -215,7 +230,9 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
         patched.add(vnode);
 
         vnode.type = (props) => {
-          if (!current) return null;
+          if (!current) {
+            return null;
+          }
 
           const { encounteredIslands, islandProps, slots } = current;
           encounteredIslands.add(island);
@@ -226,6 +243,7 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
             let children = props.children;
             const markerText =
               `lime-slot-${island.id}:${island.exportName}:${id}:children`;
+
             // @ts-ignore nonono
             props.children = wrapWithMarker(
               children,
@@ -253,8 +271,10 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
       }
     }
   }
+
   oldDiff?.(vnode);
 };
+
 options.__r = (vnode) => {
   if (
     typeof vnode.type === "function" &&
@@ -262,17 +282,18 @@ options.__r = (vnode) => {
   ) {
     ownerStack.push(vnode);
   }
+
   oldRender?.(vnode);
 };
+
 options.diffed = (vnode: VNode<Record<string, unknown>>) => {
   if (typeof vnode.type === "function") {
     if (vnode.type !== view.adapter.Fragment) {
       ownerStack.pop();
-    } else if (vnode.props["__limeHead"]) {
-      if (current) {
-        current.headChildren = false;
-      }
+    } else if (vnode.props["__limeHead"] && current) {
+      current.headChildren = false;
     }
   }
+
   oldDiffed?.(vnode);
 };

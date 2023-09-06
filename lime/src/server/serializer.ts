@@ -17,7 +17,7 @@
  *
  * The corresponding deserializer is in `src/runtime/deserializer.ts`.
  */
-import { view, type VNode } from "../runtime/drivers/view.ts";
+import { view, type VNode } from "../runtime/drivers/view.tsx";
 import { KEY } from "../runtime/deserializer.ts";
 
 interface SerializeResult {

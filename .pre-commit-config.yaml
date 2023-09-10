@@ -38,20 +38,21 @@ repos:
       files: '[^a-z0-9.\-\/\[\]\@]'
       exclude: |
         (?x)^(
+          .github/FUNDING.yml|
           .github/ISSUE_TEMPLATE/bug_report.md|
           .github/ISSUE_TEMPLATE/feature_request.md|
           .github/PULL_REQUEST_TEMPLATE.md|
-          .github/FUNDING.yml|
+          directives/README.md|
+          standards/README.md|
           CODE_OF_CONDUCT.md|
+          CONTRIBUTING.md|
+          Dockerfile|
           LICENSE|
           README.md|
           SECURITY.md|
-          Dockerfile|
           _etc/.*|
           _tmp/.*|
-          lime/.*|
-          directives/README.md|
-          standards/README.md
+          lime/.*
         )$
     - id: deno-fmt
       name: verify formatting

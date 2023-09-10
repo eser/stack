@@ -1,6 +1,6 @@
 <p align="center">
-  <a href="https://github.com/eser/cool">
-    <img alt="cool: a deno library" src="https://raw.githubusercontent.com/eser/cool/dev/_etc/logo.svg" width="849" />
+  <a href="./">
+    <img alt="cool: a deno ecosystem" src="./_etc/logo.svg" width="849" />
   </a>
 </p>
 
@@ -16,20 +16,20 @@ cloud-function runtimes and web apis.
 
 # ⚙ Components
 
-| Component                       | Area              | Description                      |
-| ------------------------------- | ----------------- | -------------------------------- |
-| [Directives](hex/directives/)   | Rules             |                                  |
-| [Standards](hex/standards/)     | Abstraction       |                                  |
-| [FP](hex/fp/)                   | Functions Library | Tools for functional programming |
-| [StdX](hex/stdx/)               | Functions Library | Encriched Standard Library       |
-| [Data](hex/data/)               | Objects Library   | Data Objects and Patterns        |
-| [Environment](hex/environment/) | Objects Library   | Environment adapters             |
-| [Formatters](hex/formatters/)   | Objects Library   | Object serializers/deserializers |
-| [CLI](hex/cli/)                 | Manager           | CLI library                      |
-| [DI](hex/di/)                   | Manager           | Dependency injection library     |
-| [Functions](hex/functions/)     | Manager           | Functions runtime                |
-| [I18N](hex/i18n/)               | Manager           | Internationalization library     |
-| [Options](hex/options/)         | Manager           | Configuration library            |
+| Component                           | Area              | Description                      |
+| ----------------------------------- | ----------------- | -------------------------------- |
+| [Directives](directives/)           | Rules             |                                  |
+| [Standards](standards/)             | Abstraction       |                                  |
+| [hex/FP](hex/fp/)                   | Functions Library | Tools for functional programming |
+| [hex/StdX](hex/stdx/)               | Functions Library | Encriched Standard Library       |
+| [hex/Data](hex/data/)               | Objects Library   | Data Objects and Patterns        |
+| [hex/Environment](hex/environment/) | Objects Library   | Environment adapters             |
+| [hex/Formatters](hex/formatters/)   | Objects Library   | Object serializers/deserializers |
+| [hex/CLI](hex/cli/)                 | Manager           | CLI library                      |
+| [hex/DI](hex/di/)                   | Manager           | Dependency injection library     |
+| [hex/Functions](hex/functions/)     | Manager           | Functions runtime                |
+| [hex/I18N](hex/i18n/)               | Manager           | Internationalization library     |
+| [hex/Options](hex/options/)         | Manager           | Configuration library            |
 
 See the respective component page to figure out its specific usage.
 
@@ -83,14 +83,15 @@ Please read through our [CONTRIBUTING.md](CONTRIBUTING.md) and report it using
 
 ## Want to contribute?
 
-It is publicly open for any contribution. Bugfixes, new features and extra
+It is publicly open for any contribution. Bug fixes, new features and additional
 components are welcome.
 
-Check out issues with the `good first issue` and `help wanted` label if you are
-not sure how to begin. We suggest also looking at the closed ones to get a sense
-of the kinds of issues you can tackle.
+If you're not sure where to start, check out the issues labeled
+`good first issue` and `help wanted`. We also recommend looking at closed ones
+to get a sense of the kinds of issues you can tackle.
 
-Fork the repo, push your changes to your fork, and submit a pull request.
+To contribute, fork the repo, push your changes to your fork, and then submit a
+pull request.
 
 ## Requirements
 

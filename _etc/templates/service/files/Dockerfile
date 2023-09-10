@@ -1,4 +1,4 @@
-FROM denoland/deno:debian-1.36.3
+FROM denoland/deno:debian-1.36.4
 
 EXPOSE 8080
 

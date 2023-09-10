@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         deno-version:
-          - 1.35.3
+          - 1.36.4
 
     steps:
       - name: Checkout repository

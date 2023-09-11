@@ -1,4 +1,6 @@
 #!/usr/bin/env -S deno run --allow-run --allow-read --allow-write --allow-net
+import { metadata } from "https://deno.land/x/cool@0.7.8/mod.ts";
+import { deno } from "https://deno.land/x/cool@0.7.8/deps.ts";
 import {
   type Command,
   CommandType,
@@ -9,11 +11,10 @@ import {
   ValueType,
 } from "https://deno.land/x/cool@0.7.5/hex/cli/mod.ts";
 import { create } from "https://deno.land/x/cool@0.7.5/hex/generator/create.ts";
-import { metadata } from "https://deno.land/x/cool@0.7.7/mod.ts";
 
 export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
-  const p = new Deno.Command(
-    Deno.execPath(),
+  const p = new deno.Command(
+    deno.execPath(),
     {
       args: [
         "install",
@@ -34,8 +35,8 @@ export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
 };
 
 export const run = async (_args: string[], _options: ExecuteOptions) => {
-  const p = new Deno.Command(
-    Deno.execPath(),
+  const p = new deno.Command(
+    deno.execPath(),
     {
       args: ["task", "start"],
       stdout: "inherit",
@@ -48,8 +49,8 @@ export const run = async (_args: string[], _options: ExecuteOptions) => {
 };
 
 const runDev = async (_args: string[], _options: ExecuteOptions) => {
-  const p = new Deno.Command(
-    Deno.execPath(),
+  const p = new deno.Command(
+    deno.execPath(),
     {
       args: ["task", "dev"],
       stdout: "inherit",
@@ -62,8 +63,8 @@ const runDev = async (_args: string[], _options: ExecuteOptions) => {
 };
 
 export const test = async (_args: string[], _options: ExecuteOptions) => {
-  const p = new Deno.Command(
-    Deno.execPath(),
+  const p = new deno.Command(
+    deno.execPath(),
     {
       args: ["task", "test"],
       stdout: "inherit",
@@ -175,9 +176,7 @@ export const main = () => {
     },
   ];
 
-  const args = (typeof Deno !== "undefined") ? Deno.args : [];
-
-  execute(commands, args, executeOptions);
+  execute(commands, deno.args, executeOptions);
 };
 
 if (import.meta.main) {

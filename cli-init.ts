@@ -1,10 +1,11 @@
 import { load } from "$cool/dotenv/mod.ts";
+import { deno } from "./deps.ts";
 import * as mod from "./mod.ts";
 
 // TODO(@eser) get dependency injection container entries instead of this
-(async () => {
+await (async () => {
   const env = await load();
-  const kv = await Deno.openKv();
+  const kv = await deno.openKv();
 
   const variables: Record<string, unknown> = {
     ...mod,
@@ -13,7 +14,10 @@ import * as mod from "./mod.ts";
   };
 
   const vars = () => {
-    console.log("\npredefined variables\n--------------------");
+    console.log(
+      "\n%cpredefined variables\n--------------------",
+      "font-weight: bold",
+    );
     console.log(
       "- " +
         Object.keys(variables).map((x, i) =>
@@ -29,6 +33,8 @@ import * as mod from "./mod.ts";
     // @ts-ignore globalThis type check
     globalThis[key] = value;
   }
+
+  console.log(`%ccool cli, version ${mod.metadata.version}`, "color: #00ff00");
 
   vars();
 })();

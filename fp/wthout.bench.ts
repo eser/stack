@@ -1,9 +1,10 @@
+import { deno } from "$cool/deps.ts";
 import { wthout } from "./wthout.ts";
 import lodashReject from "npm:lodash.reject";
 
 const group = "wthout";
 
-Deno.bench("cool/fp/wthout", { group, baseline: true }, () => {
+deno.bench("cool/fp/wthout", { group, baseline: true }, () => {
   const student = {
     id: 1,
     name: "John Doe",
@@ -14,7 +15,7 @@ Deno.bench("cool/fp/wthout", { group, baseline: true }, () => {
   wthout(student, "name", "age");
 });
 
-Deno.bench("npm:lodash.reject", { group }, () => {
+deno.bench("npm:lodash.reject", { group }, () => {
   const student = {
     id: 1,
     name: "John Doe",

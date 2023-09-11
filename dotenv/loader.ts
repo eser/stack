@@ -1,3 +1,4 @@
+import { deno } from "$cool/deps.ts";
 import * as stdDotenv from "$std/dotenv/mod.ts";
 import { defaultEnvValue, defaultEnvVar, env, type EnvMap } from "./base.ts";
 
@@ -19,7 +20,7 @@ export const parseEnvFromFile = async (
   filepath: string,
 ): Promise<ReturnType<typeof parseEnvString>> => {
   try {
-    const data = await Deno.readFile(filepath);
+    const data = await deno.readFile(filepath);
     const decoded = new TextDecoder("utf-8").decode(data);
     const escaped = decodeURIComponent(decoded);
 
@@ -27,7 +28,7 @@ export const parseEnvFromFile = async (
 
     return result;
   } catch (e) {
-    if (e instanceof Deno.errors.NotFound) {
+    if (e instanceof deno.errors.NotFound) {
       return {};
     }
 
@@ -45,7 +46,7 @@ export const load = async (
     ...(options ?? {}),
   };
 
-  const sysVars = (typeof Deno !== "undefined") ? Deno.env.toObject() : {};
+  const sysVars = deno.env.toObject();
   const envName = sysVars[options_.defaultEnvVar] ?? options_.defaultEnvValue;
 
   const vars = new Map<typeof env | string, string>();

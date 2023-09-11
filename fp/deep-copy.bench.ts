@@ -1,3 +1,4 @@
+import { deno } from "$cool/deps.ts";
 import { deepCopy, deepCopy2 } from "./deep-copy.ts";
 
 const group = "deep-copy";
@@ -10,19 +11,19 @@ class Dummy {
   }
 }
 
-Deno.bench("cool/fp/deep-copy", { group, baseline: true }, () => {
+deno.bench("cool/fp/deep-copy", { group, baseline: true }, () => {
   const obj1 = new Dummy({ value: 5 });
 
   deepCopy(obj1);
 });
 
-Deno.bench("cool/fp/deep-copy-2", { group }, () => {
+deno.bench("cool/fp/deep-copy-2", { group }, () => {
   const obj1 = new Dummy({ value: 5 });
 
   deepCopy2(obj1);
 });
 
-Deno.bench("structuredClone", { group }, () => {
+deno.bench("structuredClone", { group }, () => {
   const obj1 = new Dummy({ value: 5 });
 
   structuredClone(obj1);

@@ -1,14 +1,15 @@
+import { deno } from "$cool/deps.ts";
 import { appendToArray } from "./append-to-array.ts";
 
 const group = "append-to-array";
 
-Deno.bench("cool/fp/append-to-array", { group, baseline: true }, () => {
+deno.bench("cool/fp/append-to-array", { group, baseline: true }, () => {
   const arr1 = ["a", "b"];
 
   appendToArray(arr1, "c");
 });
 
-Deno.bench("spread operator", { group }, () => {
+deno.bench("spread operator", { group }, () => {
   const arr1 = ["a", "b"];
 
   [...arr1, "c"];

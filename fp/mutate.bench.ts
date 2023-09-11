@@ -1,8 +1,9 @@
+import { deno } from "$cool/deps.ts";
 import { mutate } from "./mutate.ts";
 
 const group = "mutate";
 
-Deno.bench("cool/fp/mutate", { group, baseline: true }, () => {
+deno.bench("cool/fp/mutate", { group, baseline: true }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
@@ -12,7 +13,7 @@ Deno.bench("cool/fp/mutate", { group, baseline: true }, () => {
   mutate(obj1, (x) => x.firstName = "Helo");
 });
 
-Deno.bench("Object.assign", { group }, () => {
+deno.bench("Object.assign", { group }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
@@ -22,7 +23,7 @@ Deno.bench("Object.assign", { group }, () => {
   Object.assign({}, obj1, { firstName: "Helo" });
 });
 
-Deno.bench("spread operator", { group }, () => {
+deno.bench("spread operator", { group }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",

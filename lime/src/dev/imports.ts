@@ -4,7 +4,7 @@ export const RECOMMENDED_PREACT_RTS_VERSION = "6.2.1";
 export const RECOMMENDED_PREACT_SIGNALS_VERSION = "1.2.1";
 export const RECOMMENDED_PREACT_SIGNALS_CORE_VERSION = "1.4.0";
 export const RECOMMENDED_PREACT_SIGNALS_REACT_VERSION = "1.3.6";
-export const RECOMMENDED_STD_VERSION = "0.200.0";
+export const RECOMMENDED_STD_VERSION = "0.201.0";
 
 export function baseImports(imports: Record<string, string>) {
   imports["$cool/"] = new URL("../../../", import.meta.url).href;

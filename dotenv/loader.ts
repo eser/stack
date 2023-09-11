@@ -1,5 +1,4 @@
-import { deno } from "$cool/deps.ts";
-import * as stdDotenv from "$std/dotenv/mod.ts";
+import { deno, dotenv } from "../deps.ts";
 import { defaultEnvValue, defaultEnvVar, env, type EnvMap } from "./base.ts";
 
 // interface definitions
@@ -12,8 +11,8 @@ export interface LoaderOptions {
 // public functions
 export const parseEnvString = (
   rawDotenv: string,
-): ReturnType<typeof stdDotenv.parse> => {
-  return stdDotenv.parse(rawDotenv);
+): ReturnType<typeof dotenv.parse> => {
+  return dotenv.parse(rawDotenv);
 };
 
 export const parseEnvFromFile = async (

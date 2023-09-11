@@ -9,4 +9,4 @@ USER deno
 COPY ./ ./
 
 ENTRYPOINT []
-CMD ["deno", "task", "cli"]
+CMD ["deno", "task", "repl"]

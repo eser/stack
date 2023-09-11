@@ -1,5 +1,4 @@
-import * as assert from "$std/assert/mod.ts";
-import * as bdd from "$std/testing/bdd.ts";
+import { assert, bdd } from "../deps.ts";
 import { curryRight } from "./curry-right.ts";
 
 bdd.describe("cool/fp/curry-right", () => {

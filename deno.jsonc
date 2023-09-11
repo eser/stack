@@ -69,6 +69,6 @@
     "test:coverage": "deno coverage ./_etc/coverage/",
     "test:generate-lcov": "deno coverage ./_etc/coverage --lcov > ./_etc/coverage/cov_profile.lcov",
     "check": "deno run --check --reload ./mod.ts",
-    "cli": "deno repl --unstable --allow-all --eval-file=./cli-init.ts"
+    "repl": "deno repl --unstable --allow-all --eval-file=./repl-init.ts"
   }
 }

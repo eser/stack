@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-run --allow-read --allow-write --allow-net
-import { metadata } from "https://deno.land/x/cool@0.7.8/mod.ts";
-import { deno } from "https://deno.land/x/cool@0.7.8/deps.ts";
+import { metadata } from "https://deno.land/x/cool@0.7.9/mod.ts";
+import { deno } from "https://deno.land/x/cool@0.7.9/deps.ts";
 import {
   type Command,
   CommandType,
@@ -12,16 +12,35 @@ import {
 } from "https://deno.land/x/cool@0.7.5/hex/cli/mod.ts";
 import { create } from "https://deno.land/x/cool@0.7.5/hex/generator/create.ts";
 
+export const repl = async (_args: string[], _options: ExecuteOptions) => {
+  const p = new deno.Command(
+    deno.execPath(),
+    {
+      args: [
+        "repl",
+        "--unstable",
+        "--allow-all",
+        "--eval-file=https://deno.land/x/cool@0.7.9/repl-init.ts",
+      ],
+      stdout: "inherit",
+      stderr: "inherit",
+      stdin: "inherit",
+    },
+  );
+
+  await (p.spawn()).status;
+};
+
 export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
   const p = new deno.Command(
     deno.execPath(),
     {
       args: [
         "install",
-        "-A",
-        "-r",
-        "-f",
-        "-n",
+        "--allow-all",
+        "--reload",
+        "--force",
+        "--name",
         "cool",
         "https://deno.land/x/cool/cool.ts",
       ],
@@ -156,6 +175,14 @@ export const main = () => {
       description: "Runs tests of the project",
 
       run: (args: string[]) => test(args, executeOptions),
+    },
+    {
+      type: CommandType.SubCommand,
+      name: "repl",
+      // shortcut: "t",
+      description: "Runs REPL",
+
+      run: (args: string[]) => repl(args, executeOptions),
     },
     {
       type: CommandType.Option,

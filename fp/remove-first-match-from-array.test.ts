@@ -1,5 +1,4 @@
-import * as assert from "$std/assert/mod.ts";
-import * as bdd from "$std/testing/bdd.ts";
+import { assert, bdd } from "../deps.ts";
 import { removeFirstMatchFromArray } from "./remove-first-match-from-array.ts";
 
 bdd.describe("cool/fp/remove-first-match-from-array", () => {

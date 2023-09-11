@@ -1,5 +1,4 @@
-import * as assert from "$std/assert/mod.ts";
-import * as bdd from "$std/testing/bdd.ts";
+import { assert, bdd } from "../deps.ts";
 import { dispatcher, type LogType, type NextType } from "./dispatcher.ts";
 
 type StateType = Record<string, number>;

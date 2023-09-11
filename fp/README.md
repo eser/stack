@@ -28,7 +28,7 @@ in predictable, reliable, and testable code with no side effects during runtime.
 appends new item(s) to an array or a generator.
 
 ```js
-import { appendToArray } from "$cool/fp/append-to-array";
+import { appendToArray } from "$cool/fp/append-to-array.ts";
 
 const source = ["a", "b"];
 const newOne = appendToArray(source, "c");
@@ -44,7 +44,7 @@ console.log(`Is Same: ${source === newOne}`);
 appends new item(s) to an object.
 
 ```js
-import { appendToObject } from "$cool/fp/append-to-object";
+import { appendToObject } from "$cool/fp/append-to-object.ts";
 
 const source = { a: 1, b: 2 };
 const newOne = appendToObject(source, { c: 3 });
@@ -60,7 +60,7 @@ console.log(`Is Same: ${source === newOne}`);
 .
 
 ```js
-import { associateArray } from "$cool/fp/associate-array";
+import { associateArray } from "$cool/fp/associate-array.ts";
 
 // associate array - basic sample
 const categories = [
@@ -86,7 +86,7 @@ console.dir(result);
 .
 
 ```js
-import { associateObject } from "$cool/fp/associate-object";
+import { associateObject } from "$cool/fp/associate-object.ts";
 
 // associate object - basic sample
 const categories = {
@@ -112,7 +112,7 @@ passes the output of one function as an input to another one, but unlike `pipe`
 it executes the functions in reverse order.
 
 ```js
-import { compose } from "$cool/fp/compose";
+import { compose } from "$cool/fp/compose.ts";
 
 // compose - slug sample
 const lower = (x) => x.toLowerCase();
@@ -133,7 +133,7 @@ console.log(`slug: ${message}`);
 .
 
 ```js
-import { curry } from "$cool/fp/curry";
+import { curry } from "$cool/fp/curry.ts";
 
 // curry - sum sample
 const sum = (a, b) => a + b;
@@ -151,7 +151,7 @@ console.log(`result: ${result}`);
 .
 
 ```js
-import { curryRight } from "$cool/fp/curry-right";
+import { curryRight } from "$cool/fp/curry-right.ts";
 
 // curryRight - sum sample
 const dec = (a, b) => a - b;
@@ -169,7 +169,7 @@ console.log(`result: ${result}`);
 .
 
 ```js
-import { decorate } from "$cool/fp/decorate";
+import { decorate } from "$cool/fp/decorate.ts";
 
 // decorate - calculator sample
 let generator = () => 5;
@@ -185,7 +185,7 @@ console.log(`generated: ${generator()}`);
 copies an instance with its constructor.
 
 ```js
-import { deepCopy } from "$cool/fp/deep-copy";
+import { deepCopy } from "$cool/fp/deep-copy.ts";
 
 class dummy {}
 
@@ -203,7 +203,7 @@ console.log(`Is Same: ${source === newOne}`);
 merges two instances with source's constructor.
 
 ```js
-import { deepMerge } from "$cool/fp/deep-merge";
+import { deepMerge } from "$cool/fp/deep-merge.ts";
 
 const source = {
   a: {
@@ -242,7 +242,7 @@ console.log(`Is Same: ${source === newOne}`);
 .
 
 ```js
-import { dispatcher } from "$cool/fp/dispatcher";
+import { dispatcher } from "$cool/fp/dispatcher.ts";
 
 // dispatcher - state mutation sample
 const initialState = { quarter: 1, year: 2018, sum: 1 };
@@ -260,7 +260,7 @@ dispatcher(initialState, [actionAdd5, actionDiv2])
 .
 
 ```js
-import { dispatcher } from "$cool/fp/dispatcher";
+import { dispatcher } from "$cool/fp/dispatcher.ts";
 
 // dispatcher - action logger sample
 const initialState = { quarter: 1, year: 2018, sum: 1 };
@@ -296,7 +296,7 @@ TODO
 skips first n items from an array or a generator.
 
 ```js
-import { dropFromArray } from "$cool/fp/drop-from-array";
+import { dropFromArray } from "$cool/fp/drop-from-array.ts";
 
 const source = ["a", "b", "c"];
 const newOne = dropFromArray(source, 1);
@@ -312,7 +312,7 @@ console.log(`Is Same: ${source === newOne}`);
 skips first n items from an object.
 
 ```js
-import { dropFromObject } from "$cool/fp/drop-from-object";
+import { dropFromObject } from "$cool/fp/drop-from-object.ts";
 
 const source = { a: 1, b: 2, c: 3 };
 const newOne = dropFromObject(source, 1);
@@ -328,7 +328,7 @@ console.log(`Is Same: ${source === newOne}`);
 .
 
 ```js
-import { emitter } from "$cool/fp/emitter";
+import { emitter } from "$cool/fp/emitter.ts";
 
 // emitter - static pub/sub sample
 const subscriberOne = (value) =>
@@ -352,7 +352,7 @@ emitter(events, "printToConsole", [5]);
 .
 
 ```js
-import { emitter } from "$cool/fp/emitter";
+import { emitter } from "$cool/fp/emitter.ts";
 
 // emitter - event logger sample
 const subscriberOne = (value) =>
@@ -384,7 +384,7 @@ emitter(events, "printToConsole", [5], [logger]);
 returns matching items from an array or a generator.
 
 ```js
-import { filterArray } from "$cool/fp/filter-array";
+import { filterArray } from "$cool/fp/filter-array.ts";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = filterArray(source, (x) => x <= 3);
@@ -400,7 +400,7 @@ console.log(`Is Same: ${source === newOne}`);
 returns matching items from an object.
 
 ```js
-import { filterObject } from "$cool/fp/filter-object";
+import { filterObject } from "$cool/fp/filter-object.ts";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = filterObject(source, (x) => x <= 3);
@@ -416,8 +416,8 @@ console.log(`Is Same: ${source === newOne}`);
 .
 
 ```js
-import { iterate } from "$cool/fp/iterate";
-import { compose } from "$cool/fp/compose";
+import { iterate } from "$cool/fp/iterate.ts";
+import { compose } from "$cool/fp/compose.ts";
 
 // iterate - url fetcher example
 const generator = function* () {
@@ -455,7 +455,7 @@ creates a new array with the results of calling a provided function on every
 element in the calling array.
 
 ```js
-import { mapArray } from "$cool/fp/map-array";
+import { mapArray } from "$cool/fp/map-array.ts";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = mapArray(source, (x) => x - 1);
@@ -472,7 +472,7 @@ creates a new object with the results of calling a provided function on every
 element in the calling object.
 
 ```js
-import { mapObject } from "$cool/fp/map-object";
+import { mapObject } from "$cool/fp/map-object.ts";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = mapObject(source, (value, key) => ({ [key]: value - 1 }));
@@ -488,7 +488,7 @@ console.log(`Is Same: ${source === newOne}`);
 merges two or more arrays into one.
 
 ```js
-import { mergeArrays } from "$cool/fp/merge-arrays";
+import { mergeArrays } from "$cool/fp/merge-arrays.ts";
 
 const source1 = [1, 2, 3];
 const source2 = [4, 5];
@@ -505,7 +505,7 @@ console.log(`Is Same: ${source === newOne}`);
 merges two or more objects into one.
 
 ```js
-import { mergeObjects } from "$cool/fp/merge-objects";
+import { mergeObjects } from "$cool/fp/merge-objects.ts";
 
 const source1 = { a: 1, b: 2, c: 3 };
 const source2 = { d: 4, e: 5 };
@@ -522,7 +522,7 @@ console.log(`Is Same: ${source === newOne}`);
 copies an instance with its constructor, with specific mutation.
 
 ```js
-import { mutate } from "$cool/fp/mutate";
+import { mutate } from "$cool/fp/mutate.ts";
 
 class dummy {
   constructor() {
@@ -544,7 +544,7 @@ console.log(`Is Same: ${source === newOne}`);
 returns matching and not matching items from an array or a generator.
 
 ```js
-import { pickFromArray } from "$cool/fp/pick-from-array";
+import { pickFromArray } from "$cool/fp/pick-from-array.ts";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = pickFromArray(source, [2, 3, 6]);
@@ -560,7 +560,7 @@ console.log(`Is Same: ${source === newOne}`);
 returns matching and not matching items from an object.
 
 ```js
-import { pickFromObject } from "$cool/fp/pick-from-object";
+import { pickFromObject } from "$cool/fp/pick-from-object.ts";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = pickFromObject(source, ["b", "c", "f"]);
@@ -576,7 +576,7 @@ console.log(`Is Same: ${source === newOne}`);
 passes the output of one function as an input to another function.
 
 ```js
-import { pipe } from "$cool/fp/pipe";
+import { pipe } from "$cool/fp/pipe.ts";
 
 // pipe - slug sample
 const lower = (x) => x.toLowerCase();
@@ -597,7 +597,7 @@ console.log(`slug: ${message}`);
 prepends new item(s) to an array or a generator.
 
 ```js
-import { prependToArray } from "$cool/fp/prepend-to-array";
+import { prependToArray } from "$cool/fp/prepend-to-array.ts";
 
 const source = ["b", "c"];
 const newOne = prependToArray(source, "a");
@@ -613,7 +613,7 @@ console.log(`Is Same: ${source === newOne}`);
 prepends new item(s) to an object.
 
 ```js
-import { prependToObject } from "$cool/fp/prepend-to-object";
+import { prependToObject } from "$cool/fp/prepend-to-object.ts";
 
 const source = { b: 2, c: 3 };
 const newOne = prependToObject(source, { a: 1 });
@@ -629,7 +629,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes first matching item from an array or a generator.
 
 ```js
-import { removeFirstMatchFromArray } from "$cool/fp/remove-first-match-from-array";
+import { removeFirstMatchFromArray } from "$cool/fp/remove-first-match-from-array.ts";
 
 const source = [1, 5, 2, 3, 4, 5];
 const newOne = removeFirstMatchFromArray(source, (x) => x === 5);
@@ -645,7 +645,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes first matching item from an object.
 
 ```js
-import { removeFirstMatchFromObject } from "$cool/fp/remove-first-match-from-object";
+import { removeFirstMatchFromObject } from "$cool/fp/remove-first-match-from-object.ts";
 
 const source = { a: 1, f: 5, b: 2, c: 3, d: 4, e: 5 };
 const newOne = removeFirstMatchFromObject(source, (x) => x === 5);
@@ -661,7 +661,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes specified item index(es) from an array or a generator.
 
 ```js
-import { removeIndexFromArray } from "$cool/fp/remove-index-from-array";
+import { removeIndexFromArray } from "$cool/fp/remove-index-from-array.ts";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = removeIndexFromArray(source, 2, 3);
@@ -677,7 +677,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes specified item(s) from an array or a generator.
 
 ```js
-import { removeValueFromArray } from "$cool/fp/remove-value-from-array";
+import { removeValueFromArray } from "$cool/fp/remove-value-from-array.ts";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = removeValueFromArray(source, 2, 3);
@@ -693,7 +693,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes items with specified key(s) from an object.
 
 ```js
-import { removeKeyFromObject } from "$cool/fp/remove-key-from-object";
+import { removeKeyFromObject } from "$cool/fp/remove-key-from-object.ts";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = removeKeyFromObject(source, "b", "c");
@@ -709,7 +709,7 @@ console.log(`Is Same: ${source === newOne}`);
 removes items with specified value(s) from an object or a generator.
 
 ```js
-import { removeValueFromObject } from "$cool/fp/remove-value-from-object";
+import { removeValueFromObject } from "$cool/fp/remove-value-from-object.ts";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = removeValueFromObject(source, 2, 3);
@@ -725,7 +725,7 @@ console.log(`Is Same: ${source === newOne}`);
 reverses an array or a generator content.
 
 ```js
-import { reverseArray } from "$cool/fp/reverse-array";
+import { reverseArray } from "$cool/fp/reverse-array.ts";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = reverseArray(source);
@@ -741,7 +741,7 @@ console.log(`Is Same: ${source === newOne}`);
 reverses an object content.
 
 ```js
-import { reverseObject } from "$cool/fp/reverse-object";
+import { reverseObject } from "$cool/fp/reverse-object.ts";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = reverseObject(source);
@@ -757,7 +757,7 @@ console.log(`Is Same: ${source === newOne}`);
 splits an array or a generator content from specified index.
 
 ```js
-import { splitArray } from "$cool/fp/split-array";
+import { splitArray } from "$cool/fp/split-array.ts";
 
 const source = [1, 2, 3, 4, 5];
 const newOne = splitArray(source, 3);
@@ -773,7 +773,7 @@ console.log(`Is Same: ${source === newOne}`);
 splits an object content from specified index.
 
 ```js
-import { splitObject } from "$cool/fp/split-object";
+import { splitObject } from "$cool/fp/split-object.ts";
 
 const source = { a: 1, b: 2, c: 3, d: 4, e: 5 };
 const newOne = splitObject(source, 3);
@@ -789,7 +789,7 @@ console.log(`Is Same: ${source === newOne}`);
 takes first n items from an array or a generator.
 
 ```js
-import { takeFromArray } from "$cool/fp/take-from-array";
+import { takeFromArray } from "$cool/fp/take-from-array.ts";
 
 const source = ["a", "b", "c"];
 const newOne = takeFromArray(source, 2);
@@ -805,7 +805,7 @@ console.log(`Is Same: ${source === newOne}`);
 takes first n items from an object.
 
 ```js
-import { takeFromObject } from "$cool/fp/take-from0bject";
+import { takeFromObject } from "$cool/fp/take-from-object.ts";
 
 const source = { a: 1, b: 2, c: 3 };
 const newOne = takeFromObject(source, 2);

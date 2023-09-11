@@ -40,7 +40,7 @@ export type ServiceResolution<T> = Promisable<T | undefined>;
 
 export interface ServiceScope<K = ServiceKey, V = ServiceValue> {
   registry: ServiceRegistry<K, V>;
-  topScope: ServiceScope<K, V>;
+  rootScope: ServiceScope<K, V>;
   items: Map<K, ServiceResolution<V>>;
 
   get<V2 = V>(token: K, defaultValue?: V2): ServiceResolution<V2>;
@@ -87,7 +87,7 @@ export class Registry<K = ServiceKey, V = ServiceValue>
 export class Scope<K = ServiceKey, V = ServiceValue>
   implements ServiceScope<K, V> {
   registry;
-  topScope;
+  rootScope;
   items = new Map<K, ServiceResolution<V>>();
 
   constructor(
@@ -95,7 +95,7 @@ export class Scope<K = ServiceKey, V = ServiceValue>
     parent?: ServiceScope<K, V>,
   ) {
     this.registry = registry;
-    this.topScope = parent ?? (this as ServiceScope<K, V>);
+    this.rootScope = parent ?? (this as ServiceScope<K, V>);
   }
 
   get<V2 = V>(token: K, defaultValue?: V2): ServiceResolution<V2> {
@@ -114,7 +114,7 @@ export class Scope<K = ServiceKey, V = ServiceValue>
     ) {
       const targetScope = (descriptor[0] === ServiceType.Scoped)
         ? this
-        : this.topScope;
+        : this.rootScope;
       const stored = targetScope.items.get(token);
 
       if (stored !== undefined) {
@@ -150,6 +150,6 @@ export class Scope<K = ServiceKey, V = ServiceValue>
   }
 
   createScope(): ServiceScope<K, V> {
-    return new Scope<K, V>(this.registry, this.topScope);
+    return new Scope<K, V>(this.registry, this.rootScope);
   }
 }

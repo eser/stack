@@ -23,3 +23,12 @@ export const injectable = (key?: ServiceKey) => {
     }
   };
 };
+
+export const inject = (_key: ServiceKey) => {
+  // deno-lint-ignore no-explicit-any
+  return (_source: any, _context?: ClassMemberDecoratorContext) => {
+    // context.addInitializer((instance) => {
+    //   instance[key] = services.get(key);
+    // });
+  };
+};

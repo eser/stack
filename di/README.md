@@ -73,8 +73,9 @@ registry
 
 ### Retrieving services
 
-Once the container is built, you may retrieve your services using the `get` and
-`getMany` methods.
+Once you have the services container, you may retrieve your services using the
+`get` and `getMany` methods. Even better, you can use the `di` template literal
+tag to retrieve services.
 
 ```ts
 import { di } from "https://deno.land/x/cool/di/mod.ts";
@@ -137,15 +138,18 @@ Registers a transient service with the specified key. The value is created anew
 each time it is called.
 
 **build(): Container**\
-Creates a container with the registered values.
+Builds a dependency injection container with the registered services.
 
 ### Container
 
 **get(key: string | symbol | object, defaultValue?: any): any**\
-Returns the value corresponding to the specified key.
+Returns the corresponding service to the specified key.
 
 **getMany(...keys: (string | symbol | object)[]): any[]**\
-Returns the values corresponding to the specified keys in an array.
+Returns the corresponding services to the specified keys in an array.
 
 **createScope(): Container**\
-Creates a scope for this container.
+Initiates a new scope. Each new scope inherits all services from the root scope
+**except** those marked as 'scoped'. Scoped services are instantiated just once
+per scope. When a scope is disposed of, all its scoped services lose their
+references as if they were never instantiated.

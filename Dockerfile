@@ -6,11 +6,7 @@ WORKDIR /app
 
 USER deno
 
-COPY ./src/ ./src/
-COPY ./etc/ ./etc/
-COPY ./.env ./
-COPY ./.env.* ./
-RUN deno cache ./src/mod.ts
+COPY ./ ./
 
 ENTRYPOINT []
-CMD ["deno", "task", "start"]
+CMD ["deno", "task", "cli"]

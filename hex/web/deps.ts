@@ -1,3 +1,3 @@
-export * as assert from "../stdx/assert.ts";
-export * as fs from "../stdx/fs.ts";
-export * as path from "../stdx/path.ts";
+export * as assert from "$std/assert/mod.ts";
+export * as fs from "$std/fs/mod.ts";
+export * as path from "$std/path/mod.ts";

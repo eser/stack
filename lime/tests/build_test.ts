@@ -1,9 +1,8 @@
 import * as path from "$std/path/mod.ts";
 import { puppeteer } from "./deps.ts";
-import { assert } from "$std/_util/asserts.ts";
+import { assert, assertStringIncludes } from "$std/assert/mod.ts";
 import { startLimeServer, waitForText } from "$cool/lime/tests/test_utils.ts";
 import { BuildSnapshotJson } from "$cool/lime/src/build/mod.ts";
-import { assertStringIncludes } from "$std/testing/asserts.ts";
 
 Deno.test("build snapshot and restore from it", async (t) => {
   const fixture = path.join(Deno.cwd(), "tests", "fixture_build");

@@ -1,5 +1,6 @@
-import { PostgresConnection } from "../postgres.ts";
-import { assert, bdd } from "./deps.ts";
+import * as assert from "$std/assert/mod.ts";
+import * as bdd from "$std/testing/bdd.ts";
+import { PostgresConnection } from "./postgres.ts";
 
 type DummyCol = { id?: string; value: string; condition: boolean };
 const dummy1: DummyCol = { id: "1", value: "foo", condition: false };
@@ -31,8 +32,8 @@ bdd.describe.ignore("cool/hex/data/adapters/postgres", () => {
 
   bdd.it("getAll", async () => {
     const got = await TestRepo.getAll();
-    assert.equal(got![0].value, dummy1.value);
-    assert.equal(got![1].value, dummy2.value);
+    assert.equal(got![0]?.value, dummy1.value);
+    assert.equal(got![1]?.value, dummy2.value);
   });
 
   bdd.it("update", async () => {

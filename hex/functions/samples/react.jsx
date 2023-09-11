@@ -1,4 +1,3 @@
-import React from "npm:react";
 import * as functions from "../mod.ts";
 
 const ParagraphMaker = (props) => {

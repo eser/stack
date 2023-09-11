@@ -10,13 +10,11 @@ export {
   assertMatch,
   assertNotMatch,
   assertStringIncludes,
-} from "https://deno.land/std@0.200.0/assert/mod.ts";
-export { assertSnapshot } from "https://deno.land/std@0.200.0/testing/snapshot.ts";
-export {
-  TextLineStream,
-} from "https://deno.land/std@0.200.0/streams/text_line_stream.ts";
-export { delay } from "https://deno.land/std@0.200.0/async/delay.ts";
-export { retry } from "https://deno.land/std@0.200.0/async/retry.ts";
+} from "$std/assert/mod.ts";
+export { assertSnapshot } from "$std/testing/snapshot.ts";
+export { TextLineStream } from "$std/streams/text_line_stream.ts";
+export { delay } from "$std/async/delay.ts";
+export { retry } from "$std/async/retry.ts";
 export {
   default as puppeteer,
   Page,
@@ -27,4 +25,4 @@ export {
   HTMLElement,
   HTMLMetaElement,
 } from "npm:linkedom@0.15.1";
-export * as fs from "https://deno.land/std@0.200.0/fs/mod.ts";
+export * as fs from "$std/fs/mod.ts";

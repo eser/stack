@@ -1,4 +1,4 @@
-import * as assert from "../stdx/assert.ts";
+import * as assert from "$std/assert/mod.ts";
 
 export type Platform = unknown;
 

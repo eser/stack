@@ -5,7 +5,7 @@ import {
   fetchHtml,
   withLime,
 } from "$cool/lime/tests/test_utils.ts";
-import { assertNotMatch } from "$std/testing/asserts.ts";
+import { assertNotMatch } from "$std/assert/mod.ts";
 
 Deno.test("doesn't apply internal app template", async () => {
   await withLime(

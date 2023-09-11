@@ -1,6 +1,7 @@
-import { assert, bdd } from "./deps.ts";
-import { applicationJsonFormatter } from "../application-json.ts";
-import { findByName, registry } from "../registry.ts";
+import * as assert from "$std/assert/mod.ts";
+import * as bdd from "$std/testing/bdd.ts";
+import { applicationJsonFormatter } from "./application-json.ts";
+import { findByName, registry } from "./registry.ts";
 
 bdd.describe("cool/hex/formatters/registry", () => {
   bdd.it("basic", () => {

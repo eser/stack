@@ -3,7 +3,7 @@ import { dirname, join } from "$std/path/mod.ts";
 import { assertStringIncludes } from "./deps.ts";
 import { ServerContext } from "$cool/lime/server.ts";
 import manifest from "./fixture/lime.gen.ts";
-import { assertEquals } from "$std/testing/asserts.ts";
+import { assertEquals } from "$std/assert/mod.ts";
 
 const dir = dirname(import.meta.url);
 

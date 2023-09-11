@@ -3,7 +3,7 @@ import {
   fetchHtml,
   withLime,
 } from "$cool/lime/tests/test_utils.ts";
-import { assertEquals } from "$std/testing/asserts.ts";
+import { assertEquals } from "$std/assert/mod.ts";
 
 Deno.test("doesn't leak data across renderers", async () => {
   await withLime("./tests/fixture/main.ts", async (address) => {

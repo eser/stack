@@ -1,3 +1,3 @@
-export * as flags from "../stdx/flags.ts";
-export * as path from "../stdx/path.ts";
-export * as streams from "../stdx/streams.ts";
+export * as flags from "$std/flags/mod.ts";
+export * as path from "$std/path/mod.ts";
+export * as streams from "$std/streams/mod.ts";

@@ -1,7 +1,5 @@
-import React from "npm:react-dom@18.2.0";
-
 import {
-  dumper,
+  // dumper,
   dumperReact,
   executeFromCli,
   type HexFunctionInput,

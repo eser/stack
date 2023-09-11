@@ -29,7 +29,7 @@ export const composer = <T>(
         currentContext = newContext;
       }
 
-      const iterator = await current(
+      const iterator = await current?.(
         input,
         currentContext,
         jump,

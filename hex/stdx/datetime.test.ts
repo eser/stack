@@ -1,6 +1,6 @@
-import * as assert from "../assert.ts";
-import { bdd } from "../testing/mod.ts";
-import { clampTime, datesBetween, tryParse } from "../datetime.ts";
+import * as assert from "$std/assert/mod.ts";
+import * as bdd from "$std/testing/bdd.ts";
+import { clampTime, datesBetween, tryParse } from "./datetime.ts";
 
 bdd.describe("cool/hex/stdx/datetime", () => {
   bdd.it("tryParse", () => {

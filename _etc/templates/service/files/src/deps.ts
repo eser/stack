@@ -1,4 +1,4 @@
-export * as assert from "$cool/hex/stdx/assert.ts";
-export * as bdd from "$cool/hex/stdx/testing/bdd.ts";
-export * as log from "$cool/hex/stdx/log.ts";
-export * as mongo from "https://deno.land/x/mongo@v0.31.2/mod.ts";
+export * as assert from "$std/assert/mod.ts";
+export * as bdd from "$std/testing/bdd.ts";
+export * as log from "$std/log/mod.ts";
+export * as mongo from "https://deno.land/x/mongo@v0.32.0/mod.ts";

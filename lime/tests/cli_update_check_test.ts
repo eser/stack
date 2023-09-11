@@ -1,9 +1,5 @@
 import { colors, join } from "../src/server/deps.ts";
-import {
-  assertEquals,
-  assertMatch,
-  assertNotMatch,
-} from "$std/testing/asserts.ts";
+import { assertEquals, assertMatch, assertNotMatch } from "$std/assert/mod.ts";
 import versions from "../versions.json" assert { type: "json" };
 import { CheckFile } from "$cool/lime/src/dev/update_check.ts";
 import { WEEK } from "$cool/lime/src/dev/deps.ts";

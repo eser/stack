@@ -1,16 +1,16 @@
 import {
   HexFunctionResult,
-  HexFunctionResultIterable,
+  // HexFunctionResultIterable,
 } from "./function-result.ts";
 
-import ReactDOMServer from "npm:react-dom@18.2.0/server";
+// import { renderToString } from "react-dom/server";
 
-export const dumperReact = async (iterator: HexFunctionResult) => {
-  for await (
-    const result of <HexFunctionResultIterable> iterator
-  ) {
-    console.log(ReactDOMServer.renderToString(result.payload));
-  }
+export const dumperReact = async (_iterator: HexFunctionResult) => {
+  // for await (
+  //   const result of <HexFunctionResultIterable> iterator
+  // ) {
+  //   console.log(renderToString(result.payload));
+  // }
 };
 
 export { dumperReact as default };

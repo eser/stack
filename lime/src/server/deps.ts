@@ -5,13 +5,11 @@ export {
   fromFileUrl,
   join,
   toFileUrl,
-} from "https://deno.land/std@0.200.0/path/mod.ts";
-export { walk } from "https://deno.land/std@0.200.0/fs/walk.ts";
-export * as colors from "https://deno.land/std@0.200.0/fmt/colors.ts";
-export { Status } from "https://deno.land/std@0.200.0/http/http_status.ts";
-export {
-  typeByExtension,
-} from "https://deno.land/std@0.200.0/media_types/mod.ts";
-export { toHashString } from "https://deno.land/std@0.200.0/crypto/to_hash_string.ts";
-export { escape } from "https://deno.land/std@0.200.0/regexp/escape.ts";
-export * as JSONC from "https://deno.land/std@0.200.0/jsonc/mod.ts";
+} from "$std/path/mod.ts";
+export { walk } from "$std/fs/walk.ts";
+export * as colors from "$std/fmt/colors.ts";
+export { Status } from "$std/http/http_status.ts";
+export { typeByExtension } from "$std/media_types/mod.ts";
+export { toHashString } from "$std/crypto/to_hash_string.ts";
+export { escape } from "$std/regexp/escape.ts";
+export * as JSONC from "$std/jsonc/mod.ts";

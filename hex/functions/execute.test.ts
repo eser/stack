@@ -1,4 +1,5 @@
-import { assert, bdd } from "./deps.ts";
+import * as assert from "$std/assert/mod.ts";
+import * as bdd from "$std/testing/bdd.ts";
 
 import {
   executeFromCli,
@@ -6,7 +7,7 @@ import {
   type HexFunctionInput,
   type HexFunctionResult,
   results,
-} from "../mod.ts";
+} from "./mod.ts";
 
 bdd.describe("cool/hex/functions/execute", () => {
   bdd.it("basic", async () => {

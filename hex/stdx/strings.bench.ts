@@ -1,4 +1,4 @@
-import { trimEnd, trimStart } from "../strings.ts";
+import { trimEnd, trimStart } from "./strings.ts";
 
 const groupTrimStart = "trimStart";
 

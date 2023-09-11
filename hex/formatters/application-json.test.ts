@@ -1,5 +1,6 @@
-import { assert, bdd } from "./deps.ts";
-import { applicationJsonFormatter } from "../application-json.ts";
+import * as assert from "$std/assert/mod.ts";
+import * as bdd from "$std/testing/bdd.ts";
+import { applicationJsonFormatter } from "./application-json.ts";
 
 bdd.describe("cool/hex/formatters/application-json", () => {
   bdd.it("simple serialization", async () => {

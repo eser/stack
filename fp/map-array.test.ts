@@ -1,5 +1,5 @@
-import * as assert from "$cool/hex/stdx/assert.ts";
-import * as bdd from "$cool/hex/stdx/testing/bdd.ts";
+import * as assert from "$std/assert/mod.ts";
+import * as bdd from "$std/testing/bdd.ts";
 import { mapArray } from "./map-array.ts";
 
 bdd.describe("cool/fp/map-array", () => {

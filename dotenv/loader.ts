@@ -1,4 +1,4 @@
-import * as stdDotenv from "https://deno.land/std@0.200.0/dotenv/mod.ts";
+import * as stdDotenv from "$std/dotenv/mod.ts";
 import { defaultEnvValue, defaultEnvVar, env, type EnvMap } from "./base.ts";
 
 // interface definitions

@@ -62,7 +62,6 @@ runtime.listen(router); // or runtime.execute(fn);
 | 🔐 [cool/dotenv](dotenv/)         | Manager           | Load configurations from environment                |
 
 <!--
-| [hex/StdX](hex/stdx/)               | Functions Library | Encriched Standard Library       |
 | [hex/Data](hex/data/)               | Objects Library   | Data Objects and Patterns        |
 | [hex/Environment](hex/environment/) | Objects Library   | Environment adapters             |
 | [hex/Formatters](hex/formatters/)   | Objects Library   | Object serializers/deserializers |

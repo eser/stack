@@ -18,6 +18,7 @@
   "lock": false,
   "imports": {
     "$cool/": "./",
+    "$std/": "https://deno.land/std@0.201.0/",
 
     "@preact/signals-core": "npm:@preact/signals-core@1.4.0",
 
@@ -39,24 +40,26 @@
       ]
     },
     "exclude": [
-      "./_tmp/"
+      "_tmp/"
     ]
   },
   "fmt": {
     "exclude": [
-      "./_tmp/"
+      "_tmp/"
     ]
   },
   "test": {
-    "include": [
-      "./hex/**/*.test.[js,jsx,ts,tsx]" // ,
-      // "./lime/**/*.test.[js,jsx,ts,tsx]"
+    "exclude": [
+      "_etc/",
+      "_tmp/",
+      "lime/"
     ]
   },
   "bench": {
-    "include": [
-      "./hex/**/*.test.[js,jsx,ts,tsx]" // ,
-      // "./lime/**/*.test.[js,jsx,ts,tsx]"
+    "exclude": [
+      "_etc/",
+      "_tmp/",
+      "lime/"
     ]
   },
   "tasks": {

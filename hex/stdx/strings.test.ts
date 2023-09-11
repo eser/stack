@@ -1,6 +1,6 @@
-import * as assert from "../../assert.ts";
-import { bdd } from "../../testing/mod.ts";
-import { trimEnd, trimStart } from "../strings.ts";
+import * as assert from "$std/assert/mod.ts";
+import * as bdd from "$std/testing/bdd.ts";
+import { trimEnd, trimStart } from "./strings.ts";
 
 bdd.describe("cool/hex/stdx/fmt/strings", () => {
   bdd.it("trimStart - basic", () => {

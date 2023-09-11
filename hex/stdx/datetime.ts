@@ -1,8 +1,5 @@
-import * as datetime from "https://deno.land/std@0.200.0/datetime/mod.ts";
-import {
-  DateTimeFormatter,
-} from "https://deno.land/std@0.200.0/datetime/_common.ts";
-export * from "https://deno.land/std@0.200.0/datetime/mod.ts";
+import * as datetime from "$std/datetime/mod.ts";
+import { DateTimeFormatter } from "$std/datetime/_common.ts";
 
 export interface FormatExOptions {
   utc?: boolean;

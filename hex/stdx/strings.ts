@@ -4,7 +4,7 @@ export const trimStart = (input: string, chars?: string[]) => {
   }
 
   for (let i = 0; i < input.length; i++) {
-    if (!chars.includes(input[i])) {
+    if (!chars.includes(input[i]!)) {
       return input.substring(i);
     }
   }
@@ -18,7 +18,7 @@ export const trimEnd = (input: string, chars?: string[]) => {
   }
 
   for (let i = input.length - 1; i >= 0; i--) {
-    if (!chars.includes(input[i])) {
+    if (!chars.includes(input[i]!)) {
       return input.substring(0, i + 1);
     }
   }

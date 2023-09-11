@@ -1,9 +1,9 @@
 import metadata from "./metadata.json" assert { type: "json" };
-import * as path from "./hex/stdx/path.ts";
+import { fromFileUrl } from "$std/path/posix.ts";
 
 const main = async () => {
   const baseUrl = new URL(".", import.meta.url);
-  const basePath = path.posix.fromFileUrl(baseUrl.href);
+  const basePath = fromFileUrl(baseUrl.href);
 
   await Deno.writeTextFile(`${basePath}/version.txt`, `${metadata.version}\n`);
 };

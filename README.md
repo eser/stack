@@ -61,15 +61,6 @@ runtime.listen(router); // or runtime.execute(fn);
 | 🧱 [cool/fp](fp/)                 | Functions Library | Tools for functional programming                    |
 | 🔐 [cool/dotenv](dotenv/)         | Manager           | Load configurations from environment                |
 
-<!--
-| [hex/Data](hex/data/)               | Objects Library   | Data Objects and Patterns        |
-| [hex/Environment](hex/environment/) | Objects Library   | Environment adapters             |
-| [hex/Formatters](hex/formatters/)   | Objects Library   | Object serializers/deserializers |
-| [hex/CLI](hex/cli/)                 | Manager           | CLI library                      |
-| [hex/Functions](hex/functions/)     | Manager           | Functions runtime                |
-| [hex/I18N](hex/i18n/)               | Manager           | Internationalization library     |
--->
-
 See the respective component page to figure out its specific usage.
 
 # 🚀 Jumpstart
@@ -77,40 +68,16 @@ See the respective component page to figure out its specific usage.
 Ensure that [Deno](https://deno.land/) 1.36 or higher is installed on your
 system first.
 
-**Alternative I**:
-
 Install cool cli globally first, then create a new project:
 
 ```sh
-$ deno run -A https://c00l.deno.dev
+$ deno install -A -n cool https://c00l.deno.dev
 
 $ cool create my-cool-project
 
 Creating "cool web project template 0.0.1" on my-cool-project...
 ...
 done.
-```
-
-**Alternative II**:
-
-Without any preparation, invoke creating a new project remotely:
-
-```sh
-$ deno run -A https://c00l.deno.dev create my-cool-project
-
-Creating "cool web project template 0.0.1" on my-cool-project...
-...
-done.
-```
-
-**Alternative III**:
-
-Or run a cool routines directly from the resource:
-
-```sh
-$ deno run https://deno.land/x/cool/hex/functions/samples/basic.ts eser
-
-{ payload: "hello eser" }
 ```
 
 # 📖 FAQ

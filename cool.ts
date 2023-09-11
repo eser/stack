@@ -7,17 +7,26 @@ import {
   showHelp,
   showVersion,
   ValueType,
-} from "https://deno.land/x/cool/hex/cli/mod.ts";
-import { create } from "https://deno.land/x/cool/hex/generator/create.ts";
-import metadata from "https://deno.land/x/cool/metadata.json" assert {
+} from "https://deno.land/x/cool@0.7.5/hex/cli/mod.ts";
+import { create } from "https://deno.land/x/cool@0.7.5/hex/generator/create.ts";
+import metadata from "https://deno.land/x/cool@0.7.6/metadata.json" assert {
   type: "json",
 };
+// import { metadata } from "https://deno.land/x/cool@0.7.6/mod.ts";
 
 export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
-  const p = Deno.command(
+  const p = new Deno.Command(
     Deno.execPath(),
     {
-      args: ["install", "-A", "-r", "-f", "https://deno.land/x/cool/cool.ts"],
+      args: [
+        "install",
+        "-A",
+        "-r",
+        "-f",
+        "-n",
+        "cool",
+        "https://deno.land/x/cool/cool.ts",
+      ],
       stdout: "inherit",
       stderr: "inherit",
       stdin: "null",
@@ -27,11 +36,11 @@ export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
   await (p.spawn()).status;
 };
 
-export const run = async (args: string[], _options: ExecuteOptions) => {
-  const p = Deno.command(
+export const run = async (_args: string[], _options: ExecuteOptions) => {
+  const p = new Deno.Command(
     Deno.execPath(),
     {
-      args: ["run", "-A", "--unstable", "./hex/main.ts", ...args],
+      args: ["task", "start"],
       stdout: "inherit",
       stderr: "inherit",
       stdin: "null",
@@ -42,7 +51,7 @@ export const run = async (args: string[], _options: ExecuteOptions) => {
 };
 
 const runDev = async (_args: string[], _options: ExecuteOptions) => {
-  const p = Deno.command(
+  const p = new Deno.Command(
     Deno.execPath(),
     {
       args: ["task", "dev"],
@@ -56,7 +65,7 @@ const runDev = async (_args: string[], _options: ExecuteOptions) => {
 };
 
 export const test = async (_args: string[], _options: ExecuteOptions) => {
-  const p = Deno.command(
+  const p = new Deno.Command(
     Deno.execPath(),
     {
       args: ["task", "test"],
@@ -69,7 +78,7 @@ export const test = async (_args: string[], _options: ExecuteOptions) => {
   await (p.spawn()).status;
 };
 
-export const coolCli = () => {
+export const main = () => {
   const executeOptions: ExecuteOptions = {
     command: "cool",
     module: import.meta.url,
@@ -175,7 +184,7 @@ export const coolCli = () => {
 };
 
 if (import.meta.main) {
-  coolCli();
+  main();
 }
 
-export { coolCli as default };
+export { main as default, metadata };

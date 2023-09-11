@@ -25,8 +25,8 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
 
-      - name: Upload to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: c00l
-          entrypoint: ./hex/mod.ts
+      # - name: Upload to Deno Deploy
+      #   uses: denoland/deployctl@v1
+      #   with:
+      #     project: c00l
+      #     entrypoint: ./mod.ts

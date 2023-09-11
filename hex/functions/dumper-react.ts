@@ -3,7 +3,7 @@ import {
   HexFunctionResultIterable,
 } from "./function-result.ts";
 
-import ReactDOMServer from "https://esm.sh/react-dom@18.2.0/server?target=deno";
+import ReactDOMServer from "npm:react-dom@18.2.0/server";
 
 export const dumperReact = async (iterator: HexFunctionResult) => {
   for await (

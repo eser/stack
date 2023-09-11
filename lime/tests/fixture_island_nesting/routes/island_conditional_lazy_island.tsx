@@ -11,7 +11,7 @@ export default function Page() {
     <div id="page">
       <IslandConditional show={show}>
         <div>
-          <p class="server">server rendered</p>
+          <p className="server">server rendered</p>
           <Counter count={count} />
         </div>
       </IslandConditional>

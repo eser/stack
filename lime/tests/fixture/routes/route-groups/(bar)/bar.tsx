@@ -1,3 +1,3 @@
 export default function BarPage() {
-  return <p class="bar-page">Bar page</p>;
+  return <p className="bar-page">Bar page</p>;
 }

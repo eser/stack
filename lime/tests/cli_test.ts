@@ -49,7 +49,7 @@ Deno.test({
     const files = [
       `/README.md`,
       `/.gitignore`,
-      `/deno.json`,
+      `/deno.jsonc`,
       `/lime.gen.ts`,
       `/components/Button.tsx`,
       `/islands/Counter.tsx`,
@@ -80,8 +80,8 @@ Deno.test({
       assertEquals(code, 0);
     });
 
-    await t.step("check deno.json", async () => {
-      const configPath = path.join(tmpDirName, "deno.json");
+    await t.step("check deno.jsonc", async () => {
+      const configPath = path.join(tmpDirName, "deno.jsonc");
       const json = JSON.parse(await Deno.readTextFile(configPath));
 
       // Check tasks
@@ -327,14 +327,14 @@ Deno.test({
 
     await cliProcess.output();
 
-    // move deno.json one level up
+    // move deno.jsonc one level up
     await Deno.rename(
-      path.join(tmpDirName, "subdirectory", "subsubdirectory", "deno.json"),
-      path.join(tmpDirName, "deno.json"),
+      path.join(tmpDirName, "subdirectory", "subsubdirectory", "deno.jsonc"),
+      path.join(tmpDirName, "deno.jsonc"),
     );
 
     const files = [
-      "/deno.json",
+      "/deno.jsonc",
       "/subdirectory/subsubdirectory/main.ts",
       "/subdirectory/subsubdirectory/dev.ts",
       "/subdirectory/subsubdirectory/lime.gen.ts",

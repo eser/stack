@@ -1,4 +1,4 @@
-import { MiddlewareHandlerContext } from "$cool/lime/server.ts";
+import { type MiddlewareHandlerContext } from "$cool/lime/server.ts";
 
 export async function handler(_req: Request, ctx: MiddlewareHandlerContext) {
   ctx.state.layer1 = "layer1_mw";

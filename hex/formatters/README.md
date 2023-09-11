@@ -1,4 +1,4 @@
-# 🧱 [cool/hex/formatters](https://github.com/eser/cool/tree/dev/hex/formatters)
+# 🧱 [cool/hex/formatters](./)
 
 ## Package Information
 

@@ -1,7 +1,7 @@
-import { useEffect } from "preact/hooks";
+import { view } from "../../../src/runtime/drivers/view.ts";
 
 export default function Test() {
-  useEffect(() => {
+  view.adapter.useEffect(() => {
     document.getElementById("foo")!.textContent = "it works";
   }, []);
 

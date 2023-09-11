@@ -1,6 +1,6 @@
 export default function BarPage() {
   return (
-    <div class="bar-page">
+    <div className="bar-page">
       /foo/bar page
     </div>
   );

@@ -1,8 +1,8 @@
-import { LayoutProps } from "$cool/lime/server.ts";
+import { type LayoutProps } from "$cool/lime/server.ts";
 
 export default function FooLayout({ Component }: LayoutProps) {
   return (
-    <div class="foo-layout">
+    <div className="foo-layout">
       <Component />
     </div>
   );

@@ -5,8 +5,13 @@
   "coverage-gutters.showLineCoverage": true,
   "coverage-gutters.showRulerCoverage": true,
   "deno.enable": true,
-  "deno.lint": true,
   "deno.codeLens.test": true,
+  "deno.lint": true,
+  "deno.suggest.autoImports": true,
+  "deno.suggest.completeFunctionCalls": true,
+  "deno.suggest.imports.autoDiscover": true,
+  "deno.suggest.names": true,
+  "deno.suggest.paths": true,
   "editor.defaultFormatter": "denoland.vscode-deno",
   "yaml.schemas": {
     "https://json.schemastore.org/github-workflow.json": "./.github/workflows/*.yml"
@@ -15,7 +20,7 @@
     "**/.git": true,
     "**/.DS_Store": true,
     "**/Thumbs.db": true,
-    "etc/coverage/*.json": false
+    "_etc/coverage/*.json": false
   },
   "files.watcherExclude": {
     "**/.git/objects/**": true,
@@ -28,16 +33,16 @@
   "[postcss]": {
     "editor.defaultFormatter": "ronilaukkarinen.vscode-stylefmt"
   },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
   "[javascriptreact]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
   },
   "[javascript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  },
+  "[typescript]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
   }
 }

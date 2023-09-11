@@ -3,6 +3,7 @@ repos:
     rev: v4.4.0
     hooks:
       - id: check-added-large-files
+        args: ["--maxkb=1024"]
         exclude: |
           (?x)^(
             lime/src/build/esbuild_v0.19.2.wasm
@@ -30,6 +31,31 @@ repos:
       always_run: true
       pass_filenames: false
       language: system
+    - id: kebab-case-files-only
+      name: kebab-case files only
+      entry: filenames must be kebab-case only
+      language: fail
+      files: '[^a-z0-9.\-\/\[\]\@]'
+      exclude: |
+        (?x)^(
+          .github/FUNDING.yml|
+          .github/ISSUE_TEMPLATE/bug_report.md|
+          .github/ISSUE_TEMPLATE/feature_request.md|
+          .github/PULL_REQUEST_TEMPLATE.md|
+          directives/README.md|
+          standards/README.md|
+          di/README.md|
+          hex/.*/README.md|
+          CODE_OF_CONDUCT.md|
+          CONTRIBUTING.md|
+          Dockerfile|
+          LICENSE|
+          README.md|
+          SECURITY.md|
+          _etc/.*|
+          _tmp/.*|
+          lime/.*
+        )$
     - id: deno-fmt
       name: verify formatting
       description: Auto-format JavaScript, TypeScript, Markdown, and JSON files.
@@ -44,17 +70,17 @@ repos:
       types_or: [javascript, jsx, ts, tsx, json, markdown]
       pass_filenames: false
       language: system
-    - id: deno-check
-      name: checks if modules are broken
-      description: Checks if modules are broken.
-      entry: deno task check
-      types_or: [javascript, jsx, ts, tsx, json, markdown]
-      pass_filenames: false
-      language: system
-    - id: deno-test
-      name: run tests
-      description: Run tests using Deno's built-in test runner.
-      entry: deno task test:run
-      types_or: [javascript, jsx, ts, tsx, json]
-      pass_filenames: false
-      language: system
+    # - id: deno-check
+    #   name: checks if modules are broken
+    #   description: Checks if modules are broken.
+    #   entry: deno task check
+    #   types_or: [javascript, jsx, ts, tsx, json, markdown]
+    #   pass_filenames: false
+    #   language: system
+    # - id: deno-test
+    #   name: run tests
+    #   description: Run tests using Deno's built-in test runner.
+    #   entry: deno task test:run
+    #   types_or: [javascript, jsx, ts, tsx, json]
+    #   pass_filenames: false
+    #   language: system

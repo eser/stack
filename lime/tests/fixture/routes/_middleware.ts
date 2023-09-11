@@ -1,6 +1,6 @@
 import {
-  MiddlewareHandler,
-  MiddlewareHandlerContext,
+  type MiddlewareHandler,
+  type MiddlewareHandlerContext,
 } from "$cool/lime/server.ts";
 
 // cors middleware

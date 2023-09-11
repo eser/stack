@@ -1,4 +1,4 @@
-import { Handler, PageProps } from "$cool/lime/server.ts";
+import { type Handler, type PageProps } from "$cool/lime/server.ts";
 import Greeter from "../../islands/Greeter.tsx";
 
 export const handler: Handler = (_req, ctx) =>

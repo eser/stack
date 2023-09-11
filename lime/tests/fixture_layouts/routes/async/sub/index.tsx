@@ -1,9 +1,10 @@
-import { RouteContext } from "$cool/lime/server.ts";
+import { type RouteContext } from "$cool/lime/server.ts";
 
-export default async function AsyncSubPage(req: Request, ctx: RouteContext) {
+export default async function AsyncSubPage(_req: Request, _ctx: RouteContext) {
   await new Promise((r) => setTimeout(r, 10));
+
   return (
-    <div class="async-sub-page">
+    <div className="async-sub-page">
       <p>Async Sub page</p>
     </div>
   );

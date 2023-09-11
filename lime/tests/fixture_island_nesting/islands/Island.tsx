@@ -1,8 +1,8 @@
-import { ComponentChildren } from "preact";
+import { type ComponentChildren } from "../../../src/runtime/drivers/view.ts";
 
 export default function Island(props: { children?: ComponentChildren }) {
   return (
-    <div class="island">
+    <div className="island">
       {props.children}
     </div>
   );

@@ -1,4 +1,4 @@
-import { Component } from "preact";
+import { Component } from "../../../src/runtime/drivers/view.ts";
 
 class ErrorBoundary extends Component {
   state = { error: null } as { error: Error | null };

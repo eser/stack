@@ -1,16 +1,17 @@
 import {
-  Component,
-  type ComponentChildren,
-  Fragment,
-  h,
   type Options as PreactOptions,
   options as preactOptions,
-  type VNode,
 } from "preact";
 import { assetHashingHook } from "../../runtime/utils.ts";
-import { renderToString } from "preact-render-to-string";
 import { RenderState } from "./state.ts";
-import { Island } from "../types.ts";
+import { type Island } from "../types.ts";
+import {
+  type Component,
+  type ComponentChildren,
+  type ComponentType,
+  view,
+  type VNode,
+} from "../../runtime/drivers/view.tsx";
 
 // These hooks are long stable, but when we originally added them we
 // weren't sure if they should be public.
@@ -31,63 +32,49 @@ options.errorBoundaries = true;
 // Set up a preact option hook to track when vnode with custom functions are
 // created.
 let current: RenderState | null = null;
+
 // Keep track of which component rendered which vnode. This allows us
 // to detect when an island is rendered within another instead of being
 // passed as children.
 let ownerStack: VNode[] = [];
+
 // Keep track of all available islands
-const islandByComponent = new Map();
+const islandByComponent = new Map<ComponentType, Island>();
+
 export function setAllIslands(islands: Island[]) {
   for (let i = 0; i < islands.length; i++) {
-    const island = islands[i];
+    const island = islands[i]!;
+
     islandByComponent.set(island.component, island);
   }
 }
 
 export function setRenderState(state: RenderState | null): void {
-  if (current) current.clearTmpState();
+  if (current !== null) {
+    current.clearTmpState();
+  }
+
   current = state;
   ownerStack = state?.ownerStack ?? [];
-}
-
-// Check if an older version of `preact-render-to-string` is used
-const supportsUnstableComments = renderToString(h(Fragment, {
-  // @ts-ignore unstable features not supported in types
-  UNSTABLE_comment: "foo",
-})) !== "";
-
-if (!supportsUnstableComments) {
-  console.warn(
-    "⚠️  Found old version of 'preact-render-to-string'. Please upgrade it to >=6.1.0",
-  );
 }
 
 /**
  *  Wrap a node with comment markers in the HTML
  */
 function wrapWithMarker(vnode: ComponentChildren, markerText: string) {
-  // Newer versions of preact-render-to-string allow you to render comments
-  if (supportsUnstableComments) {
-    return h(
-      Fragment,
-      null,
-      h(Fragment, {
-        // @ts-ignore unstable property is not typed
-        UNSTABLE_comment: markerText,
-      }),
-      vnode,
-      h(Fragment, {
-        // @ts-ignore unstable property is not typed
-        UNSTABLE_comment: "/" + markerText,
-      }),
-    );
-  } else {
-    return h(
-      `!--${markerText}--`,
-      null,
-      vnode,
-    );
-  }
+  return view.adapter.h(
+    view.adapter.Fragment,
+    null,
+    view.adapter.h(view.adapter.Fragment, {
+      // @ts-ignore unstable property is not typed
+      UNSTABLE_comment: markerText,
+    }),
+    vnode,
+    view.adapter.h(view.adapter.Fragment, {
+      // @ts-ignore unstable property is not typed
+      UNSTABLE_comment: "/" + markerText,
+    }),
+  );
 }
 
 /**
@@ -99,6 +86,7 @@ function SlotTracker(
   props: { id: string; children?: ComponentChildren },
 ): VNode {
   current?.slots.delete(props.id);
+
   // deno-lint-ignore no-explicit-any
   return props.children as any;
 }
@@ -108,9 +96,15 @@ function SlotTracker(
  */
 function excludeChildren(props: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
+
   for (const k in props) {
-    if (k !== "children") out[k] = props[k];
+    if (k === "children") {
+      continue;
+    }
+
+    out[k] = props[k];
   }
+
   return out;
 }
 
@@ -132,26 +126,32 @@ options.vnode = (vnode) => {
   // lowercase variant.
   if (typeof vnode.type === "string") {
     const props = vnode.props as Record<string, unknown>;
+
     for (const key in props) {
       const value = props[key];
+
       if (key.startsWith("on") && typeof value === "string") {
         delete props[key];
         props["ON" + key.slice(2)] = value;
       }
     }
   } else if (
-    current && typeof vnode.type === "function" && vnode.type !== Fragment &&
-    ownerStack.length > 0
+    current && typeof vnode.type === "function" &&
+    vnode.type !== view.adapter.Fragment
   ) {
-    current.owners.set(vnode, ownerStack[ownerStack.length - 1]);
+    const lastItem = ownerStack[ownerStack.length - 1];
+
+    if (lastItem !== undefined) {
+      current.owners.set(vnode, lastItem);
+    }
   }
 
-  if (oldVNodeHook) oldVNodeHook(vnode);
+  oldVNodeHook?.(vnode);
 };
 
 options.__b = (vnode: VNode<Record<string, unknown>>) => {
   if (
-    current && current.renderingUserTemplate
+    current !== null && current.renderingUserTemplate
   ) {
     // Internally rendering happens in two phases. This is done so
     // that the `<Head>` component works. When we do the first render
@@ -171,21 +171,21 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
       if (vnode.type === "html") {
         current.renderedHtmlTag = true;
         current.docHtml = excludeChildren(vnode.props);
-        vnode.type = Fragment;
+        vnode.type = view.adapter.Fragment;
       } else if (vnode.type === "head") {
         current.docHead = excludeChildren(vnode.props);
         current.headChildren = true;
-        vnode.type = Fragment;
+        vnode.type = view.adapter.Fragment;
         vnode.props = {
           __limeHead: true,
           children: vnode.props.children,
         };
       } else if (vnode.type === "body") {
         current.docBody = excludeChildren(vnode.props);
-        vnode.type = Fragment;
+        vnode.type = view.adapter.Fragment;
       } else if (current.headChildren) {
         if (vnode.type === "title") {
-          current.docTitle = h("title", vnode.props);
+          current.docTitle = view.adapter.h("title", vnode.props);
           vnode.props = { children: null };
         } else {
           current.docHeadNodes.push({
@@ -193,11 +193,15 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
             props: vnode.props,
           });
         }
-        vnode.type = Fragment;
+
+        vnode.type = view.adapter.Fragment;
       }
-    } else if (typeof vnode.type === "function" && vnode.type !== Fragment) {
+    } else if (
+      typeof vnode.type === "function" && vnode.type !== view.adapter.Fragment
+    ) {
       // Detect island vnodes and wrap them with a marker
       const island = islandByComponent.get(vnode.type);
+
       patchIsland:
       if (
         island &&
@@ -211,10 +215,12 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
         //   }
         let tmpVNode = vnode;
         let owner;
+
         while ((owner = current.owners.get(tmpVNode)) !== undefined) {
           if (islandByComponent.has(owner.type)) {
             break patchIsland;
           }
+
           tmpVNode = owner;
         }
 
@@ -224,7 +230,9 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
         patched.add(vnode);
 
         vnode.type = (props) => {
-          if (!current) return null;
+          if (!current) {
+            return null;
+          }
 
           const { encounteredIslands, islandProps, slots } = current;
           encounteredIslands.add(island);
@@ -235,6 +243,7 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
             let children = props.children;
             const markerText =
               `lime-slot-${island.id}:${island.exportName}:${id}:children`;
+
             // @ts-ignore nonono
             props.children = wrapWithMarker(
               children,
@@ -243,14 +252,14 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
             slots.set(markerText, children);
             children = props.children;
             // deno-lint-ignore no-explicit-any
-            (props as any).children = h(
+            (props as any).children = view.adapter.h(
               SlotTracker,
               { id: markerText },
               children,
             );
           }
 
-          const child = h(originalType, props);
+          const child = view.adapter.h(originalType, props);
           patched.add(child);
           islandProps.push(props);
 
@@ -262,26 +271,29 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
       }
     }
   }
+
   oldDiff?.(vnode);
 };
+
 options.__r = (vnode) => {
   if (
     typeof vnode.type === "function" &&
-    vnode.type !== Fragment
+    vnode.type !== view.adapter.Fragment
   ) {
     ownerStack.push(vnode);
   }
+
   oldRender?.(vnode);
 };
+
 options.diffed = (vnode: VNode<Record<string, unknown>>) => {
   if (typeof vnode.type === "function") {
-    if (vnode.type !== Fragment) {
+    if (vnode.type !== view.adapter.Fragment) {
       ownerStack.pop();
-    } else if (vnode.props["__limeHead"]) {
-      if (current) {
-        current.headChildren = false;
-      }
+    } else if (vnode.props["__limeHead"] && current) {
+      current.headChildren = false;
     }
   }
+
   oldDiffed?.(vnode);
 };

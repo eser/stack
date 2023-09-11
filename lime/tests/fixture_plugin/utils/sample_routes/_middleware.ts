@@ -1,5 +1,5 @@
-import { MiddlewareHandlerContext } from "$cool/lime/server.ts";
-import { PluginMiddlewareState } from "../../utils/route-plugin.ts";
+import { type MiddlewareHandlerContext } from "$cool/lime/server.ts";
+import { type PluginMiddlewareState } from "../../utils/route-plugin.ts";
 
 export async function handler(
   _req: Request,

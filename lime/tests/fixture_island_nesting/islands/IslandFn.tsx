@@ -1,4 +1,4 @@
-import { VNode } from "preact";
+import { type VNode } from "../../../src/runtime/drivers/view.ts";
 
 import FragmentIsland from "./FragmentIsland.tsx";
 
@@ -8,7 +8,7 @@ function Foo(props: { children: () => VNode }) {
 
 export default function IslandFn() {
   return (
-    <div class="island">
+    <div className="island">
       <Foo>
         {() => <FragmentIsland />}
       </Foo>

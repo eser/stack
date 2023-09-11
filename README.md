@@ -1,35 +1,37 @@
 <p align="center">
-  <a href="https://github.com/eser/cool">
-    <img alt="cool: a deno library" src="https://raw.githubusercontent.com/eser/cool/dev/_etc/logo.svg" width="849" />
+  <a href="./">
+    <img alt="cool: a deno ecosystem" src="./_etc/logo.svg" width="849" />
   </a>
 </p>
 
 # Intro
 
-✖️ **cool** is an ecosystem delivering practices, philosophy and portability.
+✖️ **cool** is an ecosystem designed to promote best practices, a specific
+philosophy, and enhanced portability across different platforms.
 
-cool consists of a set of **component**s that are designed to be used together.
-These sub-components enable developers to abstract their codes for better
-portability between platforms. Encourages ones to write codes once in functional
-approach, then run on mainstream environments such as cli, bot platforms,
-cloud-function runtimes and web apis.
+It is comprised of various sub-**component**s, each designed to work
+harmoniously together, allowing developers to abstract their code for better
+portability across different platforms. This encourages a functional programming
+approach, enabling code to be written once and then run on various mainstream
+environments such as CLI, bot platforms, cloud-function runtimes, and web APIs.
 
 # ⚙ Components
 
-| Component                       | Area              | Description                      |
-| ------------------------------- | ----------------- | -------------------------------- |
-| [Directives](hex/directives/)   | Rules             |                                  |
-| [Standards](hex/standards/)     | Abstraction       |                                  |
-| [FP](hex/fp/)                   | Functions Library | Tools for functional programming |
-| [StdX](hex/stdx/)               | Functions Library | Encriched Standard Library       |
-| [Data](hex/data/)               | Objects Library   | Data Objects and Patterns        |
-| [Environment](hex/environment/) | Objects Library   | Environment adapters             |
-| [Formatters](hex/formatters/)   | Objects Library   | Object serializers/deserializers |
-| [CLI](hex/cli/)                 | Manager           | CLI library                      |
-| [DI](hex/di/)                   | Manager           | Dependency injection library     |
-| [Functions](hex/functions/)     | Manager           | Functions runtime                |
-| [I18N](hex/i18n/)               | Manager           | Internationalization library     |
-| [Options](hex/options/)         | Manager           | Configuration library            |
+| Component                 | Area        | Description                    |
+| ------------------------- | ----------- | ------------------------------ |
+| [Directives](directives/) | Rules       |                                |
+| [Standards](standards/)   | Abstraction |                                |
+| [DI](di/)                 | Manager     | Dependency injection container |
+
+<!-- | [hex/FP](hex/fp/)                   | Functions Library | Tools for functional programming |
+| [hex/StdX](hex/stdx/)               | Functions Library | Encriched Standard Library       |
+| [hex/Data](hex/data/)               | Objects Library   | Data Objects and Patterns        |
+| [hex/Environment](hex/environment/) | Objects Library   | Environment adapters             |
+| [hex/Formatters](hex/formatters/)   | Objects Library   | Object serializers/deserializers |
+| [hex/CLI](hex/cli/)                 | Manager           | CLI library                      |
+| [hex/Functions](hex/functions/)     | Manager           | Functions runtime                |
+| [hex/I18N](hex/i18n/)               | Manager           | Internationalization library     |
+| [hex/Options](hex/options/)         | Manager           | Configuration library            | -->
 
 See the respective component page to figure out its specific usage.
 
@@ -83,14 +85,15 @@ Please read through our [CONTRIBUTING.md](CONTRIBUTING.md) and report it using
 
 ## Want to contribute?
 
-It is publicly open for any contribution. Bugfixes, new features and extra
+It is publicly open for any contribution. Bug fixes, new features and additional
 components are welcome.
 
-Check out issues with the `good first issue` and `help wanted` label if you are
-not sure how to begin. We suggest also looking at the closed ones to get a sense
-of the kinds of issues you can tackle.
+If you're not sure where to start, check out the issues labeled
+`good first issue` and `help wanted`. We also recommend looking at closed ones
+to get a sense of the kinds of issues you can tackle.
 
-Fork the repo, push your changes to your fork, and submit a pull request.
+To contribute, fork the repo, push your changes to your fork, and then submit a
+pull request.
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 import { delay } from "$std/async/delay.ts";
-import { AppContext } from "$cool/lime/src/server/types.ts";
+import { type AppContext } from "$cool/lime/src/server/types.ts";
 
-export default async function App(req: Request, ctx: AppContext) {
+export default async function App(_req: Request, ctx: AppContext) {
   await delay(100);
 
   return (
@@ -15,7 +15,7 @@ export default async function App(req: Request, ctx: AppContext) {
         <title>cool lime title</title>
       </head>
       <body>
-        <div class="app">
+        <div className="app">
           App template
           <ctx.Component />
         </div>

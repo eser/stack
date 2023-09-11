@@ -1,4 +1,4 @@
-import { LayoutConfig } from "$cool/lime/server.ts";
+import { type LayoutConfig } from "$cool/lime/server.ts";
 
 export const config: LayoutConfig = {
   skipAppWrapper: true,
@@ -7,7 +7,7 @@ export const config: LayoutConfig = {
 
 export default function OverridePage() {
   return (
-    <p class="no-app-no-layouts">
+    <p className="no-app-no-layouts">
       no <code>_app.tsx</code> template and no layouts
     </p>
   );

@@ -1,9 +1,9 @@
-import { ComponentChildren } from "preact";
+import { type ComponentChildren } from "../../../src/runtime/drivers/view.ts";
 import Island from "../islands/Island.tsx";
 
 function Foo(props: { children?: ComponentChildren }) {
   return (
-    <div class="server">
+    <div className="server">
       {props.children}
     </div>
   );

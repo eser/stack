@@ -1,7 +1,8 @@
 import { basename, colors, join, parse, resolve } from "./src/dev/deps.ts";
 import { error } from "./src/dev/error.ts";
 import { collect, ensureMinDenoVersion, generate } from "./src/dev/mod.ts";
-import { limeImports } from "./src/dev/imports.ts";
+import { baseImports, preactImports, reactImports } from "./src/dev/imports.ts";
+import { view } from "$cool/lime/src/runtime/drivers/view.ts";
 
 ensureMinDenoVersion();
 
@@ -21,6 +22,7 @@ USAGE:
 
 OPTIONS:
     --force   Overwrite existing files
+    --preact  Setup Project to use Preact
     --docker  Setup Project to use Docker
 `;
 
@@ -28,8 +30,8 @@ const CONFIRM_EMPTY_MESSAGE =
   "The target directory is not empty (files could get overwritten). Do you want to continue anyway?";
 
 const flags = parse(Deno.args, {
-  boolean: ["force", "docker"],
-  default: { "force": null, "docker": null },
+  boolean: ["force", "preact", "docker"],
+  default: { "force": null, "preact": null, "docker": null },
 });
 
 console.log();
@@ -73,6 +75,7 @@ console.log(
   "font-weight: bold",
 );
 
+const usePreact = flags.preact;
 const useDocker = flags.docker;
 
 await Deno.mkdir(join(resolvedDirectory, "routes", "api"), { recursive: true });
@@ -122,25 +125,26 @@ CMD ["run", "-A", "main.ts"]
   );
 }
 
-const ROUTES_INDEX_TSX = `import { useSignal } from "@preact/signals";
+const ROUTES_INDEX_TSX =
+  `import { useSignal } from "${view.adapter.libSignals}";
 import Counter from "../islands/Counter.tsx";
 
 export default function Home() {
   const count = useSignal(3);
   return (
-    <div class="px-4 py-8 mx-auto bg-[#86efac]">
-      <div class="max-w-screen-md mx-auto flex flex-col items-center justify-center">
+    <div className="px-4 py-8 mx-auto bg-[#86efac]">
+      <div className="max-w-screen-md mx-auto flex flex-col items-center justify-center">
         <img
-          class="my-6"
+          className="my-6"
           src="/logo.svg"
           width="128"
           height="128"
           alt="the cool lime logo: a sliced lime dripping with juice"
         />
-        <h1 class="text-4xl font-bold">Welcome to cool lime</h1>
-        <p class="my-4">
+        <h1 className="text-4xl font-bold">Welcome to cool lime</h1>
+        <p className="my-4">
           Try updating this message in the
-          <code class="mx-2">./routes/index.tsx</code> file, and refresh.
+          <code className="mx-2">./routes/index.tsx</code> file, and refresh.
         </p>
         <Counter count={count} />
       </div>
@@ -153,7 +157,7 @@ await Deno.writeTextFile(
   ROUTES_INDEX_TSX,
 );
 
-const COMPONENTS_BUTTON_TSX = `import { JSX } from "preact";
+const COMPONENTS_BUTTON_TSX = `import { JSX } from "${view.adapter.libJSX}";
 import { IS_BROWSER } from "$cool/lime/runtime.ts";
 
 export function Button(props: JSX.HTMLAttributes<HTMLButtonElement>) {
@@ -161,7 +165,7 @@ export function Button(props: JSX.HTMLAttributes<HTMLButtonElement>) {
     <button
       {...props}
       disabled={!IS_BROWSER || props.disabled}
-      class="px-2 py-1 border-gray-500 border-2 rounded bg-white hover:bg-gray-200 transition-colors"
+      className="px-2 py-1 border-gray-500 border-2 rounded bg-white hover:bg-gray-200 transition-colors"
     />
   );
 }
@@ -171,7 +175,8 @@ await Deno.writeTextFile(
   COMPONENTS_BUTTON_TSX,
 );
 
-const ISLANDS_COUNTER_TSX = `import type { Signal } from "@preact/signals";
+const ISLANDS_COUNTER_TSX =
+  `import { type Signal } from "${view.adapter.libSignals}";
 import { Button } from "../components/Button.tsx";
 
 interface CounterProps {
@@ -180,9 +185,9 @@ interface CounterProps {
 
 export default function Counter(props: CounterProps) {
   return (
-    <div class="flex gap-8 py-6">
+    <div className="flex gap-8 py-6">
       <Button onClick={() => props.count.value -= 1}>-1</Button>
-      <p class="text-3xl">{props.count}</p>
+      <p className="text-3xl">{props.count}</p>
       <Button onClick={() => props.count.value += 1}>+1</Button>
     </div>
   );
@@ -193,7 +198,7 @@ await Deno.writeTextFile(
   ISLANDS_COUNTER_TSX,
 );
 
-const ROUTES_GREET_TSX = `import { PageProps } from "$cool/lime/server.ts";
+const ROUTES_GREET_TSX = `import { type PageProps } from "$cool/lime/server.ts";
 
 export default function Greet(props: PageProps) {
   return <div>Hello {props.params.name}</div>;
@@ -216,20 +221,20 @@ export default function Error404() {
       <Head>
         <title>404 - Page not found</title>
       </Head>
-      <div class="px-4 py-8 mx-auto bg-[#86efac]">
-        <div class="max-w-screen-md mx-auto flex flex-col items-center justify-center">
+      <div className="px-4 py-8 mx-auto bg-[#86efac]">
+        <div className="max-w-screen-md mx-auto flex flex-col items-center justify-center">
           <img
-            class="my-6"
+            className="my-6"
             src="/logo.svg"
             width="128"
             height="128"
             alt="the cool lime logo: a sliced lime dripping with juice"
           />
-          <h1 class="text-4xl font-bold">404 - Page not found</h1>
-          <p class="my-4">
+          <h1 className="text-4xl font-bold">404 - Page not found</h1>
+          <p className="my-4">
             The page you were looking for doesn't exist.
           </p>
-          <a href="/" class="underline">Go back home</a>
+          <a href="/" className="underline">Go back home</a>
         </div>
       </div>
     </>
@@ -243,7 +248,7 @@ await Deno.writeTextFile(
 );
 
 const ROUTES_API_JOKE_TS =
-  `import { HandlerContext } from "$cool/lime/server.ts";
+  `import { type HandlerContext } from "$cool/lime/server.ts";
 
 // Jokes courtesy of https://punsandoneliners.com/randomness/programmer-jokes/
 const JOKES = [
@@ -398,7 +403,7 @@ html {
 }
 `;
 
-const APP_WRAPPER = `import { AppProps } from "$cool/lime/server.ts";
+const APP_WRAPPER = `import { type AppProps } from "$cool/lime/server.ts";
 
 export default function App({ Component }: AppProps) {
   return (
@@ -500,10 +505,10 @@ const config = {
   lock: false,
   tasks: {
     check:
-      "deno fmt --check && deno lint && deno check **/*.ts && deno check **/*.tsx",
-    start: "deno run -A --watch=static/,routes/ dev.ts",
-    build: "deno run -A dev.ts build",
-    preview: "deno run -A main.ts",
+      "deno fmt --check && deno lint && deno check ./**/*.ts && deno check ./**/*.tsx",
+    start: "deno run -A --watch=static/,routes/ ./dev.ts",
+    build: "deno run -A ./dev.ts build",
+    preview: "deno run -A ./main.ts",
   },
   lint: {
     rules: {
@@ -517,14 +522,19 @@ const config = {
   imports: {} as Record<string, string>,
   compilerOptions: {
     jsx: "react-jsx",
-    jsxImportSource: "preact",
+    jsxImportSource: usePreact ? "preact" : "react",
   },
 };
-limeImports(config.imports);
+baseImports(config.imports);
+if (usePreact) {
+  preactImports(config.imports);
+} else {
+  reactImports(config.imports);
+}
 
 const DENO_CONFIG = JSON.stringify(config, null, 2) + "\n";
 
-await Deno.writeTextFile(join(resolvedDirectory, "deno.json"), DENO_CONFIG);
+await Deno.writeTextFile(join(resolvedDirectory, "deno.jsonc"), DENO_CONFIG);
 
 const README_MD = `# cool lime project
 
@@ -552,16 +562,16 @@ const vscodeSettings = {
   "deno.enable": true,
   "deno.lint": true,
   "editor.defaultFormatter": "denoland.vscode-deno",
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "denoland.vscode-deno",
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno",
-  },
   "[javascriptreact]": {
     "editor.defaultFormatter": "denoland.vscode-deno",
   },
   "[javascript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno",
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "denoland.vscode-deno",
+  },
+  "[typescript]": {
     "editor.defaultFormatter": "denoland.vscode-deno",
   },
 };
@@ -605,12 +615,12 @@ console.log(
   "color: cyan",
   "",
 );
-console.log();
-console.log(
-  "Stuck? Join our Discord %chttps://discord.gg/deno",
-  "color: cyan",
-  "",
-);
+// console.log();
+// console.log(
+//   "Stuck? Join our Discord %chttps://discord.gg/deno",
+//   "color: cyan",
+//   "",
+// );
 console.log();
 console.log(
   "%cHappy hacking! 🦕",

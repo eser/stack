@@ -1,5 +1,4 @@
-import { createContext } from "preact";
-import { useContext } from "preact/hooks";
+import { view } from "./drivers/view.tsx";
 
 export const SELF = "'self'";
 export const UNSAFE_INLINE = "'unsafe-inline'";
@@ -128,13 +127,16 @@ export interface ContentSecurityPolicyDirectives {
   reportUri?: string;
 }
 
-export const CSP_CONTEXT = createContext<ContentSecurityPolicy | undefined>(
+export const CSP_CONTEXT = view.adapter.createContext<
+  ContentSecurityPolicy | undefined
+>(
   undefined,
 );
 
 export function useCSP(mutator: (csp: ContentSecurityPolicy) => void) {
-  const csp = useContext(CSP_CONTEXT);
-  if (csp) {
+  const csp = view.adapter.useContext(CSP_CONTEXT);
+
+  if (csp !== undefined) {
     mutator(csp);
   }
 }

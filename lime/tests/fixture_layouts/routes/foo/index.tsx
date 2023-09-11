@@ -1,6 +1,6 @@
 export default function FooPage() {
   return (
-    <div class="foo-page">
+    <div className="foo-page">
       /foo index page
     </div>
   );

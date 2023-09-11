@@ -1,5 +1,5 @@
-import { h } from "preact";
+import { view } from "../../../../../src/runtime/drivers/view.ts";
 
 export default function TsPage() {
-  return h("div", { class: "ts-page" }, "/files/ts");
+  return view.adapter.h("div", { className: "ts-page" }, "/files/ts");
 }

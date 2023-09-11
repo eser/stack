@@ -1,5 +1,5 @@
-import { MiddlewareHandlerContext } from "$cool/lime/server.ts";
-import { TestState } from "../_app.tsx";
+import { type MiddlewareHandlerContext } from "$cool/lime/server.ts";
+import { type TestState } from "../_app.tsx";
 
 export async function handler(
   _req: Request,

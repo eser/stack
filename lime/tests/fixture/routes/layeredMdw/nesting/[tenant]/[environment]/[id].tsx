@@ -1,4 +1,4 @@
-import { Handlers, PageProps } from "$cool/lime/server.ts";
+import { type Handlers, type PageProps } from "$cool/lime/server.ts";
 
 export const handler: Handlers = {
   async GET(_req: Request, ctx) {

@@ -1,4 +1,3 @@
-import { type Registry } from "$cool/hex/di/registry.ts";
 import {
   type Context,
   type Service,
@@ -13,4 +12,4 @@ export interface AppOptions extends ServiceOptions {
 
 export type App = Service<AppOptions>;
 
-export { type Context, type Registry };
+export { type Context };

@@ -10,16 +10,27 @@ function getHomeDir(): string | null {
   switch (Deno.build.os) {
     case "linux": {
       const xdg = Deno.env.get("XDG_CACHE_HOME");
-      if (xdg) return xdg;
+
+      if (xdg) {
+        return xdg;
+      }
 
       const home = Deno.env.get("HOME");
-      if (home) return `${home}/.cache`;
+
+      if (home) {
+        return `${home}/.cache`;
+      }
+
       break;
     }
 
     case "darwin": {
       const home = Deno.env.get("HOME");
-      if (home) return `${home}/Library/Caches`;
+
+      if (home) {
+        return `${home}/Library/Caches`;
+      }
+
       break;
     }
 
@@ -32,12 +43,17 @@ function getHomeDir(): string | null {
 
 function getLimeCacheDir(): string | null {
   const home = getHomeDir();
-  if (home) return join(home, "lime");
+
+  if (home) {
+    return join(home, "lime");
+  }
+
   return null;
 }
 
 async function fetchLatestVersion() {
   const res = await fetch("https://dl.deno.land/coollime/release-latest.txt");
+
   if (res.ok) {
     return (await res.text()).trim().replace(/^v/, "");
   }
@@ -49,6 +65,7 @@ async function readCurrentVersion() {
   const versions = (await import("../../versions.json", {
     "assert": { type: "json" },
   })).default as string[];
+
   return versions[0];
 }
 
@@ -68,8 +85,13 @@ export async function updateCheck(
   }
 
   const home = getCacheDir();
-  if (!home) return;
+
+  if (!home) {
+    return;
+  }
+
   const filePath = join(home, "latest.json");
+
   try {
     await Deno.mkdir(home, { recursive: true });
   } catch (err) {
@@ -85,8 +107,10 @@ export async function updateCheck(
     latest_version: version,
     last_checked: new Date(0).toISOString(),
   };
+
   try {
     const text = await Deno.readTextFile(filePath);
+
     checkFile = JSON.parse(text);
   } catch (err) {
     if (!(err instanceof Deno.errors.NotFound)) {
@@ -107,6 +131,7 @@ export async function updateCheck(
       console.error(
         colors.red(`    Update check failed: `) + err.message,
       );
+
       return;
     }
   }
@@ -126,5 +151,6 @@ export async function updateCheck(
   }
 
   const raw = JSON.stringify(checkFile, null, 2);
+
   await Deno.writeTextFile(filePath, raw);
 }

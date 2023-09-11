@@ -1,12 +1,12 @@
-import { RouteContext } from "$cool/lime/server.ts";
+import { type RouteContext } from "$cool/lime/server.ts";
 
 export default async function AsyncRedirectPage(
-  req: Request,
-  ctx: RouteContext,
+  _req: Request,
+  _ctx: RouteContext,
 ) {
   await new Promise((r) => setTimeout(r, 10));
   return (
-    <div class="async-sub-page">
+    <div className="async-sub-page">
       <p>Async Redirect page</p>
     </div>
   );

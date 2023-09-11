@@ -1,27 +1,27 @@
 import { RenderState } from "./state.ts";
-import { setRenderState } from "./preact_hooks.ts";
-import { renderToString } from "preact-render-to-string";
-import { Fragment, h } from "preact";
+import { view } from "../../runtime/drivers/view.tsx";
 import { HEAD_CONTEXT } from "../../runtime/head.ts";
 import { CSP_CONTEXT } from "../../runtime/csp.ts";
 
 export function renderHtml(state: RenderState) {
-  setRenderState(state);
+  view.adapter.setRenderState(state);
   state.renderingUserTemplate = true;
   state.headChildren = false;
 
   const componentStack = state.componentStack;
+
   try {
     const routeComponent = componentStack[componentStack.length - 1];
-    let finalComp = h(routeComponent, state.routeOptions);
+    let finalComp = view.adapter.h(routeComponent, state.routeOptions);
 
     // Skip page component
     let i = componentStack.length - 1;
+
     while (i--) {
       const component = componentStack[i];
       const curComp = finalComp;
 
-      finalComp = h(component, {
+      finalComp = view.adapter.h(component, {
         ...state.routeOptions,
         Component() {
           return curComp;
@@ -29,27 +29,30 @@ export function renderHtml(state: RenderState) {
       });
     }
 
-    const app = h(
+    const app = view.adapter.h(
       CSP_CONTEXT.Provider,
       // deno-lint-ignore no-explicit-any
       { value: state.csp } as any,
-      h(HEAD_CONTEXT.Provider, {
+      view.adapter.h(HEAD_CONTEXT.Provider, {
         value: state.headVNodes,
         children: finalComp,
       }),
     );
 
-    let html = renderToString(app);
+    let html = view.adapter.renderToString(app);
 
     for (const [id, children] of state.slots.entries()) {
-      const slotHtml = renderToString(h(Fragment, null, children));
+      const slotHtml = view.adapter.renderToString(
+        view.adapter.h(view.adapter.Fragment, null, children),
+      );
       const templateId = id.replace(/:/g, "-");
+
       html += `<template id="${templateId}">${slotHtml}</template>`;
     }
 
     return html;
   } finally {
-    setRenderState(null);
+    view.adapter.setRenderState(null);
   }
 }
 
@@ -72,39 +75,40 @@ export function renderOuterDocument(
     headVNodes,
   } = state;
 
-  const page = h(
+  const page = view.adapter.h(
     "html",
     docHtml ?? { lang: opts.lang },
-    h(
+    view.adapter.h(
       "head",
       docHead,
-      !renderedHtmlTag ? h("meta", { charSet: "utf-8" }) : null,
+      !renderedHtmlTag ? view.adapter.h("meta", { charSet: "utf-8" }) : null,
       !renderedHtmlTag
-        ? (h("meta", {
+        ? (view.adapter.h("meta", {
           name: "viewport",
           content: "width=device-width, initial-scale=1.0",
         }))
         : null,
       docTitle,
-      docHeadNodes.map((node) => h(node.type, node.props)),
+      docHeadNodes.map((node) => view.adapter.h(node.type, node.props)),
       opts.preloads.map((src) =>
-        h("link", { rel: "modulepreload", href: src })
+        view.adapter.h("link", { rel: "modulepreload", href: src })
       ),
       opts.moduleScripts.map(([src, nonce]) =>
-        h("script", { src: src, nonce, type: "module" })
+        view.adapter.h("script", { src: src, nonce, type: "module" })
       ),
       headVNodes,
     ),
-    h("body", {
+    view.adapter.h("body", {
       ...docBody,
       dangerouslySetInnerHTML: { __html: opts.bodyHtml },
     }),
   );
 
   try {
-    setRenderState(state);
-    return "<!DOCTYPE html>" + renderToString(page);
+    view.adapter.setRenderState(state);
+
+    return "<!DOCTYPE html>" + view.adapter.renderToString(page);
   } finally {
-    setRenderState(null);
+    view.adapter.setRenderState(null);
   }
 }

@@ -1,13 +1,13 @@
-import { ComponentChildren } from "preact";
+import { type ComponentChildren } from "../runtime/drivers/view.tsx";
 import {
-  AsyncLayout,
-  AsyncRoute,
-  LayoutContext,
-  RouteContext,
-  StartOptions,
+  type AsyncLayout,
+  type AsyncRoute,
+  type LayoutContext,
+  type RouteContext,
+  type StartOptions,
 } from "./types.ts";
 import { checkAsyncComponent } from "./render.ts";
-import { AppContext } from "$cool/lime/server.ts";
+import { type AppContext } from "$cool/lime/server.ts";
 
 export function defineConfig(config: StartOptions): StartOptions {
   return config;
@@ -22,8 +22,11 @@ export function defineRoute<
     ctx: RouteContext<void, T>,
   ) => ComponentChildren | Response | Promise<ComponentChildren | Response>,
 ): AsyncRoute<void, T> {
-  // deno-lint-ignore no-explicit-any
-  if (checkAsyncComponent(fn)) return fn as any;
+  if (checkAsyncComponent(fn)) {
+    // deno-lint-ignore no-explicit-any
+    return fn as any;
+  }
+
   // deno-lint-ignore require-await
   return async (req, ctx) => fn(req, ctx);
 }
@@ -35,8 +38,11 @@ export function defineLayout<T>(
     ctx: LayoutContext<void, T>,
   ) => ComponentChildren | Response | Promise<ComponentChildren | Response>,
 ): AsyncLayout<void, T> {
-  // deno-lint-ignore no-explicit-any
-  if (checkAsyncComponent(fn)) return fn as any;
+  if (checkAsyncComponent(fn)) {
+    // deno-lint-ignore no-explicit-any
+    return fn as any;
+  }
+
   // deno-lint-ignore require-await
   return async (req, ctx) => fn(req, ctx);
 }
@@ -48,8 +54,11 @@ export function defineApp<T>(
     ctx: AppContext<void, T>,
   ) => ComponentChildren | Response | Promise<ComponentChildren | Response>,
 ): AsyncLayout<void, T> {
-  // deno-lint-ignore no-explicit-any
-  if (checkAsyncComponent(fn)) return fn as any;
+  if (checkAsyncComponent(fn)) {
+    // deno-lint-ignore no-explicit-any
+    return fn as any;
+  }
+
   // deno-lint-ignore require-await
   return async (req, ctx) => fn(req, ctx);
 }

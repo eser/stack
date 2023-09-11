@@ -5,7 +5,7 @@ export default function FooIsland() {
   return (
     <button
       onClick={() => sig.value += 1}
-      class="bg-gray-200 py-2 px-4 rounded m-8"
+      className="bg-gray-200 py-2 px-4 rounded m-8"
     >
       update {sig}
     </button>

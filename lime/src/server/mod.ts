@@ -1,19 +1,19 @@
-import { LayoutConfig } from "$cool/lime/server.ts";
-import { ComponentChildren } from "preact";
+import { type LayoutConfig } from "$cool/lime/server.ts";
+import { type ComponentChildren } from "../runtime/drivers/view.tsx";
 import { ServerContext } from "./context.ts";
-export { Status } from "./deps.ts";
-import { colors, serve } from "./deps.ts";
+import { colors } from "./deps.ts";
+export { colors, Status } from "./deps.ts";
 import {
-  ErrorHandler,
-  Handler,
-  Handlers,
-  IslandModule,
-  MiddlewareModule,
-  RouteConfig,
-  ServeHandler,
-  ServeHandlerInfo,
-  StartOptions,
-  UnknownHandler,
+  type ErrorHandler,
+  type Handler,
+  type Handlers,
+  type IslandModule,
+  type MiddlewareModule,
+  type RouteConfig,
+  type ServeHandler,
+  type ServeHandlerInfo,
+  type StartOptions,
+  type UnknownHandler,
 } from "./types.ts";
 export {
   defineApp,
@@ -21,43 +21,42 @@ export {
   defineLayout,
   defineRoute,
 } from "./defines.ts";
-export type {
-  AppContext,
-  AppProps,
-  ErrorHandler,
-  ErrorHandlerContext,
-  ErrorPageProps,
-  Handler,
-  HandlerContext,
-  Handlers,
-  LayoutConfig,
-  LayoutContext,
-  LayoutProps,
-  LimeOptions,
-  MiddlewareHandler,
-  MiddlewareHandlerContext,
-  MultiHandler,
-  PageProps,
-  Plugin,
-  PluginAsyncRenderContext,
-  PluginAsyncRenderFunction,
-  PluginRenderContext,
-  PluginRenderFunction,
-  PluginRenderFunctionResult,
-  PluginRenderResult,
-  PluginRenderScripts,
-  PluginRenderStyleTag,
-  RenderFunction,
-  RouteConfig,
-  RouteContext,
-  ServeHandlerInfo,
-  StartOptions,
-  UnknownHandler,
-  UnknownHandlerContext,
-  UnknownPageProps,
+export {
+  type AppContext,
+  type AppProps,
+  type ErrorHandler,
+  type ErrorHandlerContext,
+  type ErrorPageProps,
+  type Handler,
+  type HandlerContext,
+  type Handlers,
+  type LayoutConfig,
+  type LayoutContext,
+  type LayoutProps,
+  type LimeOptions,
+  type MiddlewareHandler,
+  type MiddlewareHandlerContext,
+  type MultiHandler,
+  type PageProps,
+  type Plugin,
+  type PluginAsyncRenderContext,
+  type PluginAsyncRenderFunction,
+  type PluginRenderContext,
+  type PluginRenderFunction,
+  type PluginRenderFunctionResult,
+  type PluginRenderResult,
+  type PluginRenderScripts,
+  type PluginRenderStyleTag,
+  type RenderFunction,
+  type RouteConfig,
+  type RouteContext,
+  type ServeHandlerInfo,
+  type StartOptions,
+  type UnknownHandler,
+  type UnknownHandlerContext,
+  type UnknownPageProps,
 } from "./types.ts";
-export { RenderContext } from "./render.ts";
-export type { InnerRenderFunction } from "./render.ts";
+export { type InnerRenderFunction, RenderContext } from "./render.ts";
 
 export interface Manifest {
   routes: Record<
@@ -116,10 +115,10 @@ export async function start(routes: Manifest, opts: StartOptions = {}) {
     opts.onListen = (params) => {
       console.log();
       console.log(
-        colors.bgRgb8(colors.black(colors.bold(" 🍋 cool lime ready ")), 121),
+        colors.bgRgb8(colors.rgb8(" 🍋 cool lime ready ", 28), 194),
       );
 
-      const address = colors.cyan(`http://localhost:${params.port}/`);
+      const address = colors.rgb8(`http://localhost:${params.port}/`, 33);
       const localLabel = colors.bold("Local:");
       console.log(`    ${localLabel} ${address}\n`);
     };
@@ -167,11 +166,5 @@ export async function start(routes: Manifest, opts: StartOptions = {}) {
 
 async function bootServer(handler: ServeHandler, opts: StartOptions) {
   // @ts-ignore Ignore type error when type checking with Deno versions
-  if (typeof Deno.serve === "function") {
-    // @ts-ignore Ignore type error when type checking with Deno versions
-    await Deno.serve(opts, handler).finished;
-  } else {
-    // @ts-ignore Deprecated std serve way
-    await serve(handler, opts);
-  }
+  await Deno.serve(opts, handler).finished;
 }

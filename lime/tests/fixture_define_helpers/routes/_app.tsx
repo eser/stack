@@ -1,10 +1,10 @@
 import { defineApp } from "$cool/lime/server.ts";
-import { State } from "../other/state.ts";
+import { type State } from "../other/state.ts";
 
 export default defineApp<State>((req, ctx) => {
   ctx.state.something = "foo";
   return (
-    <div class="app">
+    <div className="app">
       <ctx.Component />
     </div>
   );

@@ -1,5 +1,9 @@
-import { h } from "preact";
+import { view } from "../../../../../src/runtime/drivers/view.ts";
 
 export default function JsLayout({ Component }) {
-  return h("div", { class: "js-layout" }, h(Component, null));
+  return view.adapter.h(
+    "div",
+    { class: "js-layout" },
+    view.adapter.h(Component, null),
+  );
 }

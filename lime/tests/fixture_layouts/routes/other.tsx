@@ -1,6 +1,6 @@
 export default function OtherPage() {
   return (
-    <div class="other-page">
+    <div className="other-page">
       /other
     </div>
   );

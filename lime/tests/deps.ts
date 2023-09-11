@@ -10,7 +10,7 @@ export {
   assertMatch,
   assertNotMatch,
   assertStringIncludes,
-} from "https://deno.land/std@0.200.0/testing/asserts.ts";
+} from "https://deno.land/std@0.200.0/assert/mod.ts";
 export { assertSnapshot } from "https://deno.land/std@0.200.0/testing/snapshot.ts";
 export {
   TextLineStream,
@@ -26,5 +26,5 @@ export {
   DOMParser,
   HTMLElement,
   HTMLMetaElement,
-} from "https://esm.sh/linkedom@0.15.1";
+} from "npm:linkedom@0.15.1";
 export * as fs from "https://deno.land/std@0.200.0/fs/mod.ts";

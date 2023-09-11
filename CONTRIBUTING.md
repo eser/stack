@@ -1,4 +1,4 @@
-# Contributing to [cool](https://github.com/eser/cool)
+# Contributing to [cool](./)
 
 👍🎉 First off, thanks for taking the time to contribute! 🎉👍
 
@@ -12,9 +12,9 @@ request.
 ### Code of Conduct
 
 This project and everyone participating in it is governed by the
-[Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to
-uphold this code. Please report unacceptable behavior to
-[eser@ozvataf.com](mailto:eser@ozvataf.com).
+[cool/directives](directives/README.md). By participating, you are expected to
+uphold this code. Please report unacceptable behavior as in specified in the
+link.
 
 ### Technical Requirements
 

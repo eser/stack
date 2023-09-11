@@ -27,9 +27,14 @@ async function collectDir(
   // Check if provided path is a directory
   try {
     const stat = await Deno.stat(dir);
-    if (!stat.isDirectory) return;
+    if (!stat.isDirectory) {
+      return;
+    }
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) return;
+    if (err instanceof Deno.errors.NotFound) {
+      return;
+    }
+
     throw err;
   }
 

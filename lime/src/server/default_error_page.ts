@@ -1,6 +1,6 @@
-import { h } from "preact";
+import { view } from "../runtime/drivers/view.tsx";
 import { DEBUG } from "./constants.ts";
-import type { ErrorPageProps } from "./types.ts";
+import { type ErrorPageProps } from "./types.ts";
 
 export default function DefaultErrorPage(props: ErrorPageProps) {
   const { error } = props;
@@ -14,7 +14,7 @@ export default function DefaultErrorPage(props: ErrorPageProps) {
     }
   }
 
-  return h(
+  return view.adapter.h(
     "div",
     {
       class: "lime-error-page",
@@ -24,7 +24,7 @@ export default function DefaultErrorPage(props: ErrorPageProps) {
         alignItems: "center",
       },
     },
-    h(
+    view.adapter.h(
       "div",
       {
         style: {
@@ -35,7 +35,7 @@ export default function DefaultErrorPage(props: ErrorPageProps) {
           minWidth: "300px",
         },
       },
-      h("p", {
+      view.adapter.h("p", {
         style: {
           margin: 0,
           fontSize: "12pt",
@@ -43,7 +43,7 @@ export default function DefaultErrorPage(props: ErrorPageProps) {
           fontFamily: "sans-serif",
         },
       }, "An error occurred during route handling or page rendering."),
-      message && h("pre", {
+      message && view.adapter.h("pre", {
         style: {
           margin: 0,
           fontSize: "12pt",

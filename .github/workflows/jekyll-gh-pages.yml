@@ -26,8 +26,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v3.5.3
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
 
@@ -41,7 +41,7 @@ jobs:
           destination: ./_site
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v2
 
   # Deployment job
   deploy:
@@ -53,4 +53,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v2

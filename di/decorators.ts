@@ -1,67 +1,25 @@
-// import "npm:@abraham/reflection";
-// import { type Container, registry } from "./registry.ts";
+import { type ServiceKey } from "./container.ts";
+import { registry } from "./services.ts";
 
-// const injectableDecoratorTokenKey = Symbol.for("cool.hex.di.injectable.token");
-// const injectableDecoratorContainerKey = Symbol.for(
-//   "cool.hex.di.injectable.container",
-// );
-
-// export const injectable = (
-//   token?: string,
-//   targetContainer?: Container,
-// ): ClassDecorator => {
-//   // deno-lint-ignore ban-types
-//   return (target: Function) => {
-//     Reflect.defineMetadata(
-//       injectableDecoratorTokenKey,
-//       token ?? target.name,
-//       target,
-//     );
-//     Reflect.defineMetadata(
-//       injectableDecoratorContainerKey,
-//       targetContainer,
-//       target,
-//     );
-
-//     (targetContainer ?? registry).setValue(token ?? target.name, target);
-//   };
-// };
-
-// export const inject = (
-//   token: string,
-//   targetContainer?: Container,
-// ): PropertyDecorator => {
-//   // deno-lint-ignore ban-types
-//   return (target: Object, propertyKey: string | symbol): void => {
-//     const value = (targetContainer ?? registry).get(token);
-
-//     Object.defineProperty(target, propertyKey, {
-//       configurable: false,
-//       get: () => new value(),
-//     });
-//   };
-// };
-
-// @injectable()
-// class A {
-//   text: string;
-
-//   constructor() {
-//     this.text = "dene-type";
+// declare global {
+//   interface SymbolConstructor {
+//     metadata?: symbol;
 //   }
 // }
 
-// // console.log(getInjectableMetadata(A));
+// Symbol.metadata ??= Symbol("metadata");
 
-// class B {
-//   @inject("A")
-//   public a2!: A;
+export const injectable = (key?: ServiceKey) => {
+  // deno-lint-ignore no-explicit-any
+  return (source: any, context?: ClassDecoratorContext) => {
+    if (context !== undefined && context.kind !== "class") {
+      return;
+    }
 
-//   deneme() {
-//     // this.a2 = new A();
-//     console.log("output", this.a2);
-//   }
-// }
+    const name = key ?? context?.name ?? source.name;
 
-// const b = new B();
-// console.log(b.deneme());
+    if (name !== undefined) {
+      registry.setLazy(name, () => new source());
+    }
+  };
+};

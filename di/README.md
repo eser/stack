@@ -77,13 +77,13 @@ Once the container is built, you may retrieve your services using the `get` and
 `getMany` methods.
 
 ```ts
-import { services } from "https://deno.land/x/cool/di/mod.ts";
+import { di } from "https://deno.land/x/cool/di/mod.ts";
 
 // Retrieve registered services
-const dns = services.get("mailService");
-const mns = services.get("notifyService");
-const db = services.get("dbConnection");
-const users = services.get("userList");
+const dns = di`mailService`;
+const mns = di`notifyService`;
+const db = di`dbConnection`;
+const users = di`userList`;
 ```
 
 Alternatively, retrieve multiple services at once:
@@ -97,6 +97,22 @@ const [dns, mns, db, users] = services.getMany(
   "dbConnection",
   "userList",
 );
+```
+
+### Decorators
+
+```ts
+import { di, injectable } from "https://deno.land/x/cool/di/mod.ts";
+
+@injectable()
+class PrinterClass {
+  print() {
+    console.log("testing");
+  }
+}
+
+const test = di`PrinterClass`;
+test.print(); // outputs "testing"
 ```
 
 ## API Reference

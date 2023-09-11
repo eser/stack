@@ -6,13 +6,14 @@
 
 # Intro
 
-✖️ **cool** is an ecosystem delivering practices, philosophy and portability.
+✖️ **cool** is an ecosystem designed to promote best practices, a specific
+philosophy, and enhanced portability across different platforms.
 
-cool consists of a set of **component**s that are designed to be used together.
-These sub-components enable developers to abstract their codes for better
-portability between platforms. Encourages ones to write codes once in functional
-approach, then run on mainstream environments such as cli, bot platforms,
-cloud-function runtimes and web apis.
+It is comprised of various sub-**component**s, each designed to work
+harmoniously together, allowing developers to abstract their code for better
+portability across different platforms. This encourages a functional programming
+approach, enabling code to be written once and then run on various mainstream
+environments such as CLI, bot platforms, cloud-function runtimes, and web APIs.
 
 # ⚙ Components
 

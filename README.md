@@ -17,13 +17,14 @@ environments such as CLI, bot platforms, cloud-function runtimes, and web APIs.
 
 # ⚙ Components
 
-| Component                 | Area        | Description                    |
-| ------------------------- | ----------- | ------------------------------ |
-| [Directives](directives/) | Rules       |                                |
-| [Standards](standards/)   | Abstraction |                                |
-| [DI](di/)                 | Manager     | Dependency injection container |
+| Component                 | Area              | Description                                         |
+| ------------------------- | ----------------- | --------------------------------------------------- |
+| [Directives](directives/) | Rules             | The ground rules adhered to by the entire ecosystem |
+| [Standards](standards/)   | Abstraction       |                                                     |
+| [DI](di/)                 | Manager           | Dependency injection container                      |
+| [FP](fp/)                 | Functions Library | Tools for functional programming                    |
 
-<!-- | [hex/FP](hex/fp/)                   | Functions Library | Tools for functional programming |
+<!--
 | [hex/StdX](hex/stdx/)               | Functions Library | Encriched Standard Library       |
 | [hex/Data](hex/data/)               | Objects Library   | Data Objects and Patterns        |
 | [hex/Environment](hex/environment/) | Objects Library   | Environment adapters             |
@@ -31,7 +32,8 @@ environments such as CLI, bot platforms, cloud-function runtimes, and web APIs.
 | [hex/CLI](hex/cli/)                 | Manager           | CLI library                      |
 | [hex/Functions](hex/functions/)     | Manager           | Functions runtime                |
 | [hex/I18N](hex/i18n/)               | Manager           | Internationalization library     |
-| [hex/Options](hex/options/)         | Manager           | Configuration library            | -->
+| [hex/Options](hex/options/)         | Manager           | Configuration library            |
+-->
 
 See the respective component page to figure out its specific usage.
 

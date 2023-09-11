@@ -1,4 +1,4 @@
-import { deepMerge } from "../fp/deep-merge.ts";
+import { deepMerge } from "../../fp/deep-merge.ts";
 
 export interface Config {
   react?: {

@@ -1,6 +1,6 @@
 # 🧱 [cool/hex/functions](./)
 
-## Package Information
+## Component Information
 
 cool/hex/functions is a function runtime, which enables better portability
 between platforms.

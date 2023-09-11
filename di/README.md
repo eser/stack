@@ -1,6 +1,6 @@
 # 🧱 [cool/di](./)
 
-## Package Information
+## Component Information
 
 cool/di is a crucial submodule of cool ecosystem that provides a simple and
 efficient dependency injection container. It is designed to manage your
@@ -36,7 +36,7 @@ Start by creating a registry and registering your services using the `set`,
 `setLazy`, `setScoped` and `setTransient` methods.
 
 ```ts
-import { registry } from "https://deno.land/x/cool/di/mod.ts";
+import { registry } from "$cool/di/mod.ts";
 
 // Register the mailService as a singleton service
 registry.set("mailService", new MailService());
@@ -59,7 +59,7 @@ registry.setLazy(
 Alternatively, you can chain the registration methods:
 
 ```ts
-import { registry } from "https://deno.land/x/cool/di/mod.ts";
+import { registry } from "$cool/di/mod.ts";
 
 registry
   .set("mailService", new MailService())
@@ -78,7 +78,7 @@ Once you have the services container, you may retrieve your services using the
 tag to retrieve services.
 
 ```ts
-import { di } from "https://deno.land/x/cool/di/mod.ts";
+import { di } from "$cool/di/mod.ts";
 
 // Retrieve registered services
 const dns = di`mailService`;
@@ -90,7 +90,7 @@ const users = di`userList`;
 Alternatively, retrieve multiple services at once:
 
 ```ts
-import { services } from "https://deno.land/x/cool/di/mod.ts";
+import { services } from "$cool/di/mod.ts";
 
 const [dns, mns, db, users] = services.getMany(
   "mailService",
@@ -103,7 +103,7 @@ const [dns, mns, db, users] = services.getMany(
 ### Decorators
 
 ```ts
-import { di, injectable } from "https://deno.land/x/cool/di/mod.ts";
+import { di, injectable } from "$cool/di/mod.ts";
 
 @injectable()
 class PrinterClass {

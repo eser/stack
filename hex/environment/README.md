@@ -1,6 +1,6 @@
 # 🧱 [cool/hex/environment](./)
 
-## Package Information
+## Component Information
 
 cool/hex/environment is a submodule ...
 

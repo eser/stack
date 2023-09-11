@@ -11,7 +11,7 @@ import {
   type State,
 } from "./types.ts";
 import * as options from "../options/mod.ts";
-import * as di from "../di/mod.ts";
+import * as di from "../../di/mod.ts";
 import { createOptionsBuilder } from "./options.ts";
 import { errorHandlerMiddleware } from "./middlewares/error-handler.ts";
 

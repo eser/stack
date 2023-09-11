@@ -1,6 +1,6 @@
 # 📑 [cool/standards](./)
 
-## Package Information
+## Component Information
 
 cool/standards provides common interfaces and type declarations for mostly used
 modules for applications. It enables using implementations of these definitions

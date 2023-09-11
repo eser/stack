@@ -45,6 +45,7 @@ repos:
           directives/README.md|
           standards/README.md|
           di/README.md|
+          fp/README.md|
           hex/.*/README.md|
           CODE_OF_CONDUCT.md|
           CONTRIBUTING.md|

@@ -1,6 +1,6 @@
 # 🧱 [cool/hex/formatters](./)
 
-## Package Information
+## Component Information
 
 cool/hex/formatters is a submodule which helps some other routines to serialize
 and deserialize between objects and strings.

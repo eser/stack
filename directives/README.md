@@ -1,6 +1,6 @@
 # 📓 [cool/directives](./)
 
-## Package Information
+## Component Information
 
 cool/directives consists of sets of rules and recommendations that can be
 applied to the entire cool ecosystem. As Captain Picard of The USS Enterprise

@@ -1,4 +1,4 @@
-import * as di from "../di/mod.ts";
+import * as di from "../../di/mod.ts";
 import * as options from "../options/mod.ts";
 import { log, oak } from "./deps.ts";
 

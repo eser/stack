@@ -1,4 +1,4 @@
-import { curryFunctions } from "../fp/curry-functions.ts";
+import { curryFunctions } from "../../fp/curry-functions.ts";
 import { type Formatter } from "./formatter.ts";
 
 //

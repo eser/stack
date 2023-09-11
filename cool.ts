@@ -9,10 +9,7 @@ import {
   ValueType,
 } from "https://deno.land/x/cool@0.7.5/hex/cli/mod.ts";
 import { create } from "https://deno.land/x/cool@0.7.5/hex/generator/create.ts";
-import metadata from "https://deno.land/x/cool@0.7.6/metadata.json" assert {
-  type: "json",
-};
-// import { metadata } from "https://deno.land/x/cool@0.7.6/mod.ts";
+import { metadata } from "https://deno.land/x/cool@0.7.7/mod.ts";
 
 export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
   const p = new Deno.Command(

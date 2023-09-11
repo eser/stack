@@ -59,6 +59,7 @@ runtime.listen(router); // or runtime.execute(fn);
 | 📑 [cool/standards](standards/)   | Abstraction       |                                                     |
 | ⚙️ [cool/di](di/)                  | Manager           | Dependency injection container                      |
 | 🧱 [cool/fp](fp/)                 | Functions Library | Tools for functional programming                    |
+| 🔐 [cool/dotenv](dotenv/)         | Manager           | Load configurations from environment                |
 
 <!--
 | [hex/StdX](hex/stdx/)               | Functions Library | Encriched Standard Library       |
@@ -68,7 +69,6 @@ runtime.listen(router); // or runtime.execute(fn);
 | [hex/CLI](hex/cli/)                 | Manager           | CLI library                      |
 | [hex/Functions](hex/functions/)     | Manager           | Functions runtime                |
 | [hex/I18N](hex/i18n/)               | Manager           | Internationalization library     |
-| [hex/Options](hex/options/)         | Manager           | Configuration library            |
 -->
 
 See the respective component page to figure out its specific usage.

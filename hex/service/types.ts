@@ -1,5 +1,5 @@
+import * as dotenv from "../../dotenv/mod.ts";
 import * as di from "../../di/mod.ts";
-import * as options from "../options/mod.ts";
 import { log, oak } from "./deps.ts";
 
 export type State = oak.State;
@@ -49,7 +49,7 @@ export interface ServiceOptions {
 export interface ServiceState<TOptions extends ServiceOptions> {
   router: Router;
   registry: di.Registry;
-  options: options.Options<TOptions>;
+  options: TOptions;
 }
 
 export interface Service<TOptions extends ServiceOptions>
@@ -76,7 +76,7 @@ export interface Service<TOptions extends ServiceOptions>
   ) => void;
 
   configureOptions: (
-    configureOptionsFn: options.ConfigureOptionsFn<TOptions>,
+    configureOptionsFn: dotenv.ConfigureFn<TOptions>,
   ) => Promise<void>;
 
   configureDI: (

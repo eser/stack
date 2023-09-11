@@ -10,9 +10,8 @@ import {
   type ServiceOptions,
   type State,
 } from "./types.ts";
-import * as options from "../options/mod.ts";
+import * as dotenv from "../../dotenv/mod.ts";
 import * as di from "../../di/mod.ts";
-import { createOptionsBuilder } from "./options.ts";
 import { errorHandlerMiddleware } from "./middlewares/error-handler.ts";
 
 // public functions
@@ -30,17 +29,13 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
   // deno-lint-ignore prefer-const
   let serviceObject: Service<TOptions>;
 
-  // determine options
-  const optionsBuilder = await createOptionsBuilder<TOptions>();
-  const partialOptions = optionsBuilder.build();
-
   // define routes
   const router = new oak.Router();
 
   const appState = {
     router: router,
     registry: di.registry,
-    options: partialOptions,
+    options: {} as TOptions,
   };
 
   // initialize oak application
@@ -61,7 +56,7 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
   // init logger
   await log.setup({
     handlers: {
-      console: new log.handlers.ConsoleHandler(partialOptions.logs ?? "INFO"),
+      console: new log.handlers.ConsoleHandler("INFO"),
     },
     loggers: {
       default: {
@@ -126,10 +121,12 @@ const init = async <TOptions extends ServiceOptions>(): Promise<
     },
 
     configureOptions: async (
-      configureOptionsFn: options.ConfigureOptionsFn<TOptions>,
+      configureOptionsFn: dotenv.ConfigureFn<TOptions>,
     ): Promise<void> => {
-      await optionsBuilder.load(configureOptionsFn);
-      serviceObject.options = optionsBuilder.build();
+      serviceObject.options = (await dotenv.configure<TOptions>(
+        configureOptionsFn,
+        serviceObject.options ?? {},
+      ))!;
     },
 
     configureDI: async (

@@ -16,12 +16,13 @@ cloud-function runtimes and web apis.
 
 # ⚙ Components
 
-| Component                           | Area              | Description                      |
-| ----------------------------------- | ----------------- | -------------------------------- |
-| [Directives](directives/)           | Rules             |                                  |
-| [Standards](standards/)             | Abstraction       |                                  |
-| [DI](di/)                           | Manager           | Dependency injection container   |
-| [hex/FP](hex/fp/)                   | Functions Library | Tools for functional programming |
+| Component                 | Area        | Description                    |
+| ------------------------- | ----------- | ------------------------------ |
+| [Directives](directives/) | Rules       |                                |
+| [Standards](standards/)   | Abstraction |                                |
+| [DI](di/)                 | Manager     | Dependency injection container |
+
+<!-- | [hex/FP](hex/fp/)                   | Functions Library | Tools for functional programming |
 | [hex/StdX](hex/stdx/)               | Functions Library | Encriched Standard Library       |
 | [hex/Data](hex/data/)               | Objects Library   | Data Objects and Patterns        |
 | [hex/Environment](hex/environment/) | Objects Library   | Environment adapters             |
@@ -29,7 +30,7 @@ cloud-function runtimes and web apis.
 | [hex/CLI](hex/cli/)                 | Manager           | CLI library                      |
 | [hex/Functions](hex/functions/)     | Manager           | Functions runtime                |
 | [hex/I18N](hex/i18n/)               | Manager           | Internationalization library     |
-| [hex/Options](hex/options/)         | Manager           | Configuration library            |
+| [hex/Options](hex/options/)         | Manager           | Configuration library            | -->
 
 See the respective component page to figure out its specific usage.
 

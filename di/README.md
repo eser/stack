@@ -36,7 +36,7 @@ Start by creating a registry and registering your services using the `set`,
 `setLazy`, `setScoped` and `setTransient` methods.
 
 ```ts
-const registry = new Registry();
+import { registry } from "https://deno.land/x/cool/di/mod.ts";
 
 // Register the mailService as a singleton service
 registry.set("mailService", new MailService());
@@ -59,7 +59,9 @@ registry.setLazy(
 Alternatively, you can chain the registration methods:
 
 ```ts
-const registry = new Registry()
+import { registry } from "https://deno.land/x/cool/di/mod.ts";
+
+registry
   .set("mailService", new MailService())
   .set("notifyService", new PushNotificationService())
   .setTransient("dbConnection", () => new DatabaseConnection())
@@ -75,21 +77,21 @@ Once the container is built, you may retrieve your services using the `get` and
 `getMany` methods.
 
 ```ts
-const container = registry.build();
+import { services } from "https://deno.land/x/cool/di/mod.ts";
 
 // Retrieve registered services
-const dns = container.get("mailService");
-const mns = container.get("notifyService");
-const db = container.get("dbConnection");
-const users = container.get("userList");
+const dns = services.get("mailService");
+const mns = services.get("notifyService");
+const db = services.get("dbConnection");
+const users = services.get("userList");
 ```
 
 Alternatively, retrieve multiple services at once:
 
 ```ts
-const container = registry.build();
+import { services } from "https://deno.land/x/cool/di/mod.ts";
 
-const [dns, mns, db, users] = container.getMany(
+const [dns, mns, db, users] = services.getMany(
   "mailService",
   "notifyService",
   "dbConnection",

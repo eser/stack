@@ -4,7 +4,7 @@
   </a>
 </p>
 
-# Intro
+# ⭐ Intro
 
 ✖️ **cool** is an ecosystem designed to promote best practices, a specific
 philosophy, and enhanced portability across different platforms.
@@ -15,14 +15,50 @@ portability across different platforms. This encourages a functional programming
 approach, enabling code to be written once and then run on various mainstream
 environments such as CLI, bot platforms, cloud-function runtimes, and web APIs.
 
-# ⚙ Components
+The reason we started to build this project is the feeling of a lack of a
+JavaScript/TypeScript framework that is portable across web browsers, Deno,
+Supabase, Netlify, AWS Lambda, and Cloudflare Workers. By adhering to WinterCG
+guidelines and TC39 standards, we aim to provide a framework that is portable
+across all these platforms.
 
-| Component                 | Area              | Description                                         |
-| ------------------------- | ----------------- | --------------------------------------------------- |
-| [Directives](directives/) | Rules             | The ground rules adhered to by the entire ecosystem |
-| [Standards](standards/)   | Abstraction       |                                                     |
-| [DI](di/)                 | Manager           | Dependency injection container                      |
-| [FP](fp/)                 | Functions Library | Tools for functional programming                    |
+## Sample (WIP)
+
+```js
+import { Runtime, Context } from "$cool/runtime/mod.ts";
+
+const fn = (ctx: Context) => {
+  const name = ctx.input.get("name");
+  const db = ctx.di`db`;
+
+  ctx.logger.info(`Hello ${name}!`);
+
+  return ctx.results.json(db.query("SELECT * FROM users"));
+};
+
+const router = (ctx: Context) => {
+  const path = ctx.input.get("path");
+
+  switch (path) {
+    case "/":
+      return fn(ctx);
+    default:
+      return ctx.results.notFound();
+  }
+};
+
+const runtime = new Runtime();
+runtime.ci.register("db", new DatabaseConnection());
+runtime.listen(router); // or runtime.execute(fn);
+```
+
+# 📂 Components
+
+| Component                         | Area              | Description                                         |
+| --------------------------------- | ----------------- | --------------------------------------------------- |
+| 📓 [cool/directives](directives/) | Rules             | The ground rules adhered to by the entire ecosystem |
+| 📑 [cool/standards](standards/)   | Abstraction       |                                                     |
+| ⚙️ [cool/di](di/)                  | Manager           | Dependency injection container                      |
+| 🧱 [cool/fp](fp/)                 | Functions Library | Tools for functional programming                    |
 
 <!--
 | [hex/StdX](hex/stdx/)               | Functions Library | Encriched Standard Library       |

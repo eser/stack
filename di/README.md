@@ -1,4 +1,4 @@
-# 🧱 [cool/di](./)
+# ⚙️ [cool/di](./)
 
 ## Component Information
 

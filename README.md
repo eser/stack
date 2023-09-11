@@ -6,7 +6,7 @@
 
 # ⭐ Intro
 
-✖️ **cool** is an ecosystem designed to promote best practices, a specific
+**cool** is an ecosystem designed to promote best practices, a specific
 philosophy, and enhanced portability across different platforms.
 
 It is comprised of various sub-**component**s, each designed to work
@@ -21,26 +21,30 @@ Supabase, Netlify, AWS Lambda, and Cloudflare Workers. By adhering to WinterCG
 guidelines and TC39 standards, we aim to provide a framework that is portable
 across all these platforms.
 
-## Sample (WIP)
+## Our Goal
 
 ```js
 import { Runtime, Context } from "$cool/runtime/mod.ts";
 
-const fn = (ctx: Context) => {
-  const name = ctx.input.get("name");
+const home = (ctx: Context) => {
+  return ctx.results.jsx(<h1>Hello there!</h1>);
+};
+
+const profile = (ctx: Context) => {
+  const slug = ctx.input.param("id");
   const db = ctx.di`db`;
 
-  ctx.logger.info(`Hello ${name}!`);
+  ctx.logger.info(`Visiting the profile of ${slug}!`);
 
-  return ctx.results.json(db.query("SELECT * FROM users"));
+  return ctx.results.json(db.query("SELECT * FROM users WHERE slug=:slug", { slug }));
 };
 
 const router = (ctx: Context) => {
-  const path = ctx.input.get("path");
-
-  switch (path) {
-    case "/":
-      return fn(ctx);
+  switch (true) {
+    case ctx.route.match("/"):
+      return home(ctx);
+    case ctx.route.match("/:id"):
+      return profile(ctx);
     default:
       return ctx.results.notFound();
   }

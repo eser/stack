@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-run --allow-read --allow-write --allow-net
-import { metadata } from "https://deno.land/x/cool@0.7.9/mod.ts";
-import { deno } from "https://deno.land/x/cool@0.7.9/deps.ts";
+import { metadata } from "https://deno.land/x/cool@0.7.10/mod.ts";
+import { deno } from "https://deno.land/x/cool@0.7.10/deps.ts";
 import {
   type Command,
   CommandType,
@@ -20,7 +20,7 @@ export const repl = async (_args: string[], _options: ExecuteOptions) => {
         "repl",
         "--unstable",
         "--allow-all",
-        "--eval-file=https://deno.land/x/cool@0.7.9/repl-init.ts",
+        "--eval-file=https://deno.land/x/cool@0.7.10/repl-init.ts",
       ],
       stdout: "inherit",
       stderr: "inherit",

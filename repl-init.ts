@@ -34,7 +34,7 @@ await (async () => {
     globalThis[key] = value;
   }
 
-  console.log(`%ccool cli, version ${mod.metadata.version}`, "color: #00ff00");
+  console.log(`%ccool REPL, version ${mod.metadata.version}`, "color: #00ff00");
 
   vars();
 })();

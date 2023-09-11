@@ -1,4 +1,4 @@
-# 📑 [cool/standards](https://github.com/eser/cool/tree/dev/standards)
+# 📑 [cool/standards](./)
 
 ## Package Information
 

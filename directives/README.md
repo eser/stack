@@ -1,4 +1,4 @@
-# 📓 [cool/directives](https://github.com/eser/cool/tree/dev/directives)
+# 📓 [cool/directives](./)
 
 ## Package Information
 

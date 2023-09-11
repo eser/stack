@@ -1,4 +1,4 @@
-# 🧱 [cool/hex/functions](https://github.com/eser/cool/tree/dev/hex/functions)
+# 🧱 [cool/hex/functions](./)
 
 ## Package Information
 

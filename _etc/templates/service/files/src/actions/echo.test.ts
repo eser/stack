@@ -1,19 +1,19 @@
-import * as di from "$cool/hex/di/mod.ts";
-import { echoAction } from "$app/actions/echo.ts";
-import { assert } from "$app/deps.ts";
+import { services } from "$cool/di/mod.ts";
+import { echoAction } from "./echo.ts";
+import { assert } from "../deps.ts";
 
 Deno.test("actions:echo", async (t) => {
   await t.step("basic output", () => {
     const slug = "eser";
     const test = "placeholder value";
 
-    di.registry.setValue("test", test);
+    services.registry.set("test", test);
 
     const expected = {
       message: `Hello ${slug}! Testing ${test}...`,
       timestamp: new Date().toLocaleDateString(),
     };
 
-    assert.assertEquals(expected, echoAction({ registry: di.registry, slug }));
+    assert.assertEquals(expected, echoAction({ services, slug }));
   });
 });

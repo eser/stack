@@ -1,4 +1,4 @@
-# 🧱 [cool/hex/fp](https://github.com/eser/cool/tree/dev/hex/fp)
+# 🧱 [cool/hex/fp](./)
 
 ## Package Information
 

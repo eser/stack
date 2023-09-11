@@ -20,13 +20,13 @@ cloud-function runtimes and web apis.
 | ----------------------------------- | ----------------- | -------------------------------- |
 | [Directives](directives/)           | Rules             |                                  |
 | [Standards](standards/)             | Abstraction       |                                  |
+| [DI](di/)                           | Manager           | Dependency injection container   |
 | [hex/FP](hex/fp/)                   | Functions Library | Tools for functional programming |
 | [hex/StdX](hex/stdx/)               | Functions Library | Encriched Standard Library       |
 | [hex/Data](hex/data/)               | Objects Library   | Data Objects and Patterns        |
 | [hex/Environment](hex/environment/) | Objects Library   | Environment adapters             |
 | [hex/Formatters](hex/formatters/)   | Objects Library   | Object serializers/deserializers |
 | [hex/CLI](hex/cli/)                 | Manager           | CLI library                      |
-| [hex/DI](hex/di/)                   | Manager           | Dependency injection library     |
 | [hex/Functions](hex/functions/)     | Manager           | Functions runtime                |
 | [hex/I18N](hex/i18n/)               | Manager           | Internationalization library     |
 | [hex/Options](hex/options/)         | Manager           | Configuration library            |

@@ -1,4 +1,4 @@
-# Contributing to [cool](https://github.com/eser/cool)
+# Contributing to [cool](./)
 
 👍🎉 First off, thanks for taking the time to contribute! 🎉👍
 

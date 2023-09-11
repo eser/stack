@@ -44,6 +44,8 @@ repos:
           .github/PULL_REQUEST_TEMPLATE.md|
           directives/README.md|
           standards/README.md|
+          di/README.md|
+          hex/.*/README.md|
           CODE_OF_CONDUCT.md|
           CONTRIBUTING.md|
           Dockerfile|

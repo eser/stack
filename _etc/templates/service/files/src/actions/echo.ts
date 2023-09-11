@@ -1,12 +1,12 @@
-import { type Registry } from "$app/types.ts";
+import { type ServiceScope } from "$cool/di/mod.ts";
 
 export interface EchoActionProps {
-  registry: Registry;
+  services: ServiceScope;
   slug: string;
 }
 
 export const echoAction = (props: EchoActionProps) => {
-  const { test } = props.registry.getMany("test");
+  const test = props.services.get("test");
 
   return {
     message: `Hello ${props.slug}! Testing ${test}...`,

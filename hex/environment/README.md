@@ -1,4 +1,4 @@
-# 🧱 [cool/hex/environment](https://github.com/eser/cool/tree/dev/hex/environment)
+# 🧱 [cool/hex/environment](./)
 
 ## Package Information
 

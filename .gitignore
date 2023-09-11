@@ -31,5 +31,5 @@ node_modules/*
 package-lock.json
 
 # temporary files
-/_tmp/*
-!/_tmp/.gitkeep
+/_etc/temp/*
+!/_etc/temp/.gitkeep

@@ -40,25 +40,23 @@
       ]
     },
     "exclude": [
-      "_tmp/"
+      "_etc/temp/"
     ]
   },
   "fmt": {
     "exclude": [
-      "_tmp/"
+      "_etc/temp/"
     ]
   },
   "test": {
     "exclude": [
       "_etc/",
-      "_tmp/",
       "lime/"
     ]
   },
   "bench": {
     "exclude": [
       "_etc/",
-      "_tmp/",
       "lime/"
     ]
   },

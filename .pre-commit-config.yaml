@@ -54,7 +54,6 @@ repos:
           README.md|
           SECURITY.md|
           _etc/.*|
-          _tmp/.*|
           lime/.*
         )$
     - id: deno-fmt

@@ -60,10 +60,11 @@ runtime.listen(router); // or runtime.execute(fn);
 | Component                         | Area              | Description                                         |
 | --------------------------------- | ----------------- | --------------------------------------------------- |
 | 📓 [cool/directives](directives/) | Rules             | The ground rules adhered to by the entire ecosystem |
-| 📑 [cool/standards](standards/)   | Abstraction       |                                                     |
-| ⚙️ [cool/di](di/)                  | Manager           | Dependency injection container                      |
+| 📑 [cool/standards](standards/)   | Abstraction       | Provides common abstraction layers for DI           |
+| ⚙️ [cool/di](di/)                  | Manager           | Dependency injection system                         |
 | 🧱 [cool/fp](fp/)                 | Functions Library | Tools for functional programming                    |
 | 🔐 [cool/dotenv](dotenv/)         | Manager           | Load configurations from environment                |
+| 〰️ [cool/parsing](parsing/)       | Manager           | Parsing tools for various strings and streams       |
 
 See the respective component page to figure out its specific usage.
 

@@ -47,6 +47,7 @@ repos:
           di/README.md|
           fp/README.md|
           dotenv/README.md|
+          parsing/README.md|
           CODE_OF_CONDUCT.md|
           CONTRIBUTING.md|
           Dockerfile|

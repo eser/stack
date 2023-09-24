@@ -4,9 +4,9 @@
   </a>
 </p>
 
-# ⭐ Intro
+## 📖 Overview
 
-**cool** is an ecosystem designed to promote best practices, a specific
+`cool` is an ecosystem designed to promote best practices, a specific
 philosophy, and enhanced portability across different platforms.
 
 It is comprised of various sub-**component**s, each designed to work
@@ -21,7 +21,7 @@ Supabase, Netlify, AWS Lambda, and Cloudflare Workers. By adhering to WinterCG
 guidelines and TC39 standards, we aim to provide a framework that is portable
 across all these platforms.
 
-## Our Goal
+## 🎯 Our Goal / The Bigger Picture
 
 ```js
 import { Runtime, Context } from "$cool/runtime/mod.ts";
@@ -55,7 +55,7 @@ runtime.ci.register("db", new DatabaseConnection());
 runtime.listen(router); // or runtime.execute(fn);
 ```
 
-# 📂 Components
+## 📂 Component Set
 
 | Component                         | Area              | Description                                         |
 | --------------------------------- | ----------------- | --------------------------------------------------- |
@@ -73,7 +73,7 @@ See the respective component page to figure out its specific usage.
 Ensure that [Deno](https://deno.land/) 1.36 or higher is installed on your
 system first.
 
-Install cool cli globally first, then create a new project:
+Install `cool cli` globally first, then create a new project:
 
 ```sh
 $ deno install -A -n cool https://c00l.deno.dev
@@ -85,17 +85,20 @@ Creating "cool web project template 0.0.1" on my-cool-project...
 done.
 ```
 
-# 📖 FAQ
+## 🙋🏻 FAQ
 
-## Want to report a bug or request a feature?
+### Want to report a bug or request a feature?
 
 Please read through our [CONTRIBUTING.md](CONTRIBUTING.md) and report it using
 [GitHub Issues](https://github.com/eser/cool/issues)!
 
-## Want to contribute?
+### Want to contribute?
 
 It is publicly open for any contribution. Bug fixes, new features and additional
 components are welcome.
+
+If you find a bug, have a feature request, or want to improve the ecosystem,
+please check out [our contribution guidelines](CONTRIBUTING.md) to get started.
 
 If you're not sure where to start, check out the issues labeled
 `good first issue` and `help wanted`. We also recommend looking at closed ones
@@ -104,14 +107,15 @@ to get a sense of the kinds of issues you can tackle.
 To contribute, fork the repo, push your changes to your fork, and then submit a
 pull request.
 
-## Requirements
+### Requirements
 
 - Deno 1.36 or higher (https://deno.land/)
 
-## License
+### License
 
-Apache 2.0, for further details, please see [LICENSE](LICENSE) file.
+This project is licensed under the Apache 2.0 License. For further details,
+please see the [LICENSE](LICENSE) file.
 
-## To Support
+### To support the project...
 
 [Visit my GitHub Sponsors profile at github.com/sponsors/eser](https://github.com/sponsors/eser)

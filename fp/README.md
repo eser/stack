@@ -1,16 +1,21 @@
 # 🧱 [cool/fp](./)
 
-## Component Information
+`cool/fp` is a set of utility functions designed for functional programming
+enthusiasts. If you're familiar with libraries like Lodash or Ramda, think of
+`cool/fp` as an alternative.
 
-cool/fp consists of helper methods designed to create altered revisions of a
-data structure without mutating the existing one. Unlike its alternatives,
-cool/fp only provides utility functions and does not introduce new data types or
-structures as a solution.
+Some remarkable features:
 
-For further details such as requirements, license information and support guide,
-please see [main cool repository](https://github.com/eser/cool).
+- **Immutable Operations:** All methods in `cool/fp` return a new instance,
+  ensuring the original data remains unchanged. (see: _no mutation_)
 
-## Functional Programming (FP)
+- **No New Data Types:** Unlike some alternatives, `cool/fp` doesn't introduce
+  new data types or structures.
+
+- **Pure Functions:** Embrace the power of functional programming with functions
+  that always produce the same output for the same input. (see: _determinism_)
+
+## 🚀 Getting Started with Functional Programming (FP)
 
 Functional programming is a programming paradigm (a way of writing programs)
 using only functions. It is a declarative programming approach in which
@@ -21,11 +26,16 @@ By constructing your code with writing, composing and calling plain/pure
 functions, it always produces the same output for the same input. This results
 in predictable, reliable, and testable code with no side effects during runtime.
 
-## Usage and API Reference
+## 🛠 Usage and API Reference
+
+Below you'll find a list of utility functions provided by `cool/fp` along with
+brief descriptions and usage examples. Dive in and explore the usage of
+functional programming paradigms.
 
 ### appendToArray(source, ...items)
 
-appends new item(s) to an array or a generator.
+adds new item(s) to the end of an array or generator without mutating the
+original.
 
 ```js
 import { appendToArray } from "$cool/fp/append-to-array.ts";
@@ -41,7 +51,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### appendToObject(source, ...items)
 
-appends new item(s) to an object.
+adds new item(s) to an object without changing the original.
 
 ```js
 import { appendToObject } from "$cool/fp/append-to-object.ts";
@@ -57,7 +67,8 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### associateArray(source, selectorFn)
 
-.
+transforms an array or generator into an object where keys are determined by a
+selector function (`selectorFn`).
 
 ```js
 import { associateArray } from "$cool/fp/associate-array.ts";
@@ -83,7 +94,8 @@ console.dir(result);
 
 ### associateObject(source, selectorFn)
 
-.
+transforms an object into another object where keys are determined by a selector
+function (`selectorFn`).
 
 ```js
 import { associateObject } from "$cool/fp/associate-object.ts";
@@ -108,8 +120,9 @@ console.dir(result);
 
 ### compose(...functionsForComposition)
 
-passes the output of one function as an input to another one, but unlike `pipe`
-it executes the functions in reverse order.
+composes multiple functions into a single function. it is done by passing the
+results of a function as an input to another one. unlike `pipe`, it executes the
+functions from reverse order (right to left).
 
 ```js
 import { compose } from "$cool/fp/compose.ts";
@@ -130,7 +143,8 @@ console.log(`slug: ${message}`);
 
 ### curry(targetFunction, ...argumentsToBePrepended)
 
-.
+transforms a function into a curried version, allowing you to partially apply
+arguments from the left.
 
 ```js
 import { curry } from "$cool/fp/curry.ts";
@@ -148,7 +162,8 @@ console.log(`result: ${result}`);
 
 ### curryRight(targetFunction, ...argumentsToBeAppended)
 
-.
+transforms a function into a curried version, allowing you to partially apply
+arguments from the right.
 
 ```js
 import { curryRight } from "$cool/fp/curry-right.ts";
@@ -164,9 +179,10 @@ const result = decWith5(3);
 console.log(`result: ${result}`);
 ```
 
-### decorate(functionToDecorate, decoratorFunction)
+### decorate(functionToDecorate, decoratorFn)
 
-.
+enhances or alters the behavior of a function using a decorator function
+(`decoratorFn`).
 
 ```js
 import { decorate } from "$cool/fp/decorate.ts";
@@ -182,7 +198,7 @@ console.log(`generated: ${generator()}`);
 
 ### deepCopy(source)
 
-copies an instance with its constructor.
+creates a deep copy of the provided data structure, preserving its constructor.
 
 ```js
 import { deepCopy } from "$cool/fp/deep-copy.ts";
@@ -200,7 +216,8 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### deepMerge(source, other)
 
-merges two instances with source's constructor.
+merges two data structures deeply, resulting in a new structure with combined
+items.
 
 ```js
 import { deepMerge } from "$cool/fp/deep-merge.ts";
@@ -237,9 +254,10 @@ console.log("Result:", newOne);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### dispatcher(initialState, mutators) (awaitable)
+### dispatcher(initialState, mutatorFns) (awaitable)
 
-.
+manages state mutations in a controlled manner using an initial state and a set
+of functions (`mutatorFns`).
 
 ```js
 import { dispatcher } from "$cool/fp/dispatcher.ts";
@@ -255,9 +273,11 @@ dispatcher(initialState, [actionAdd5, actionDiv2])
   .then((state) => console.log(`new state is: ${JSON.stringify(state)}`));
 ```
 
-### dispatcher(initialState, mutators, subscribers) (awaitable)
+### dispatcher(initialState, mutatorFns, subscribers) (awaitable)
 
-.
+manages state mutations in a controlled manner using an initial state and a set
+of functions (`mutatorFns`). additionally, it notifies subscribers about the
+state changes.
 
 ```js
 import { dispatcher } from "$cool/fp/dispatcher.ts";
@@ -285,15 +305,21 @@ dispatcher(initialState, [actionAdd5, actionDiv2], [logger])
 
 ### distinctArray(source, selectorFn)
 
-TODO
+filters out duplicate values in an array or generator based on a selector
+function (`selectorFn`).
+
+// TODO
 
 ### distinctObject(source, selectorFn)
 
-TODO
+filters out duplicate values in an object based on a selector function
+(`selectorFn`).
 
-### dropFromArray(source, number)
+// TODO
 
-skips first n items from an array or a generator.
+### dropFromArray(source, n)
+
+skips the first `n` item(s) in an array or generator.
 
 ```js
 import { dropFromArray } from "$cool/fp/drop-from-array.ts";
@@ -307,9 +333,9 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### dropFromObject(source, number)
+### dropFromObject(source, n)
 
-skips first n items from an object.
+Skips the first `n` item(s) in an object.
 
 ```js
 import { dropFromObject } from "$cool/fp/drop-from-object.ts";
@@ -325,7 +351,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### emitter(events, eventName, eventParameters) (awaitable)
 
-.
+emits events to subscribed listeners.
 
 ```js
 import { emitter } from "$cool/fp/emitter.ts";
@@ -349,7 +375,8 @@ emitter(events, "printToConsole", [5]);
 
 ### emitter(events, eventName, eventParameters, subscribers) (awaitable)
 
-.
+emits events to subscribed listeners. additionally, it notifies subscribers
+about the event.
 
 ```js
 import { emitter } from "$cool/fp/emitter.ts";
@@ -379,9 +406,10 @@ const events = {
 emitter(events, "printToConsole", [5], [logger]);
 ```
 
-### filterArray(instance, predicate)
+### filterArray(instance, predicateFn)
 
-returns matching items from an array or a generator.
+returns a new array containing only the items that satisfy the provided
+predicate function (`predicateFn`).
 
 ```js
 import { filterArray } from "$cool/fp/filter-array.ts";
@@ -395,9 +423,10 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### filterObject(instance, predicate)
+### filterObject(instance, predicateFn)
 
-returns matching items from an object.
+returns a new object containing only the items that satisfy the provided
+predicate function (`predicateFn`).
 
 ```js
 import { filterObject } from "$cool/fp/filter-object.ts";
@@ -411,9 +440,10 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### iterate(iterable, func) (awaitable)
+### iterate(iterable, fn) (awaitable)
 
-.
+iterates over an iterable (like a generator) and applies a function (`fn`) to
+each item.
 
 ```js
 import { iterate } from "$cool/fp/iterate.ts";
@@ -451,8 +481,8 @@ iterate(
 
 ### mapArray(instance, predicate)
 
-creates a new array with the results of calling a provided function on every
-element in the calling array.
+transforms each item in an array or generator using a provided predicate
+function (`predicateFn`).
 
 ```js
 import { mapArray } from "$cool/fp/map-array.ts";
@@ -468,8 +498,8 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### mapObject(instance, predicate)
 
-creates a new object with the results of calling a provided function on every
-element in the calling object.
+transforms each property in an object using a provided predicate function
+(`predicateFn`).
 
 ```js
 import { mapObject } from "$cool/fp/map-object.ts";
@@ -485,7 +515,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### mergeArrays(...sources)
 
-merges two or more arrays into one.
+combines two or more arrays into a single array.
 
 ```js
 import { mergeArrays } from "$cool/fp/merge-arrays.ts";
@@ -502,7 +532,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### mergeObjects(...sources)
 
-merges two or more objects into one.
+combines two or more objects into a single object.
 
 ```js
 import { mergeObjects } from "$cool/fp/merge-objects.ts";
@@ -517,9 +547,10 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### mutate(source, modificationFn)
+### mutate(source, mutatorFn)
 
-copies an instance with its constructor, with specific mutation.
+creates a copy of a data structure and applies a mutator function (`mutatorFn`)
+to it. copies an instance with its constructor, with specific mutation.
 
 ```js
 import { mutate } from "$cool/fp/mutate.ts";
@@ -541,7 +572,8 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### pickFromArray(source, items)
 
-returns matching and not matching items from an array or a generator.
+Returns an object containing items that match and don't match the provided
+criteria from an array or generator.
 
 ```js
 import { pickFromArray } from "$cool/fp/pick-from-array.ts";
@@ -557,7 +589,8 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### pickFromObject(source, keys)
 
-returns matching and not matching items from an object.
+returns an object containing items that match and don't match the provided keys
+from an object.
 
 ```js
 import { pickFromObject } from "$cool/fp/pick-from-object.ts";
@@ -573,7 +606,9 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### pipe(...functionsForComposition)
 
-passes the output of one function as an input to another function.
+composes multiple functions into a single function. it is done by passing the
+results of a function as an input to another one. unlike `compose`, it executes
+the functions from straight order (left to right).
 
 ```js
 import { pipe } from "$cool/fp/pipe.ts";
@@ -594,7 +629,8 @@ console.log(`slug: ${message}`);
 
 ### prependToArray(source, ...items)
 
-prepends new item(s) to an array or a generator.
+adds new item(s) to the beginning of an array or generator without mutating the
+original.
 
 ```js
 import { prependToArray } from "$cool/fp/prepend-to-array.ts";
@@ -610,7 +646,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### prependToObject(source, ...items)
 
-prepends new item(s) to an object.
+adds new item(s) to the beginning of an object without changing the original.
 
 ```js
 import { prependToObject } from "$cool/fp/prepend-to-object.ts";
@@ -624,9 +660,10 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### removeFirstMatchFromArray(source, predicate)
+### removeFirstMatchFromArray(source, predicateFn)
 
-removes first matching item from an array or a generator.
+removes the first item in an array or generator that matches the provided
+predicate function (`predicateFn`).
 
 ```js
 import { removeFirstMatchFromArray } from "$cool/fp/remove-first-match-from-array.ts";
@@ -640,9 +677,10 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### removeFirstMatchFromObject(source, predicate)
+### removeFirstMatchFromObject(source, predicateFn)
 
-removes first matching item from an object.
+removes the first property in an object that matches the provided predicate
+function (`predicateFn`).
 
 ```js
 import { removeFirstMatchFromObject } from "$cool/fp/remove-first-match-from-object.ts";
@@ -658,7 +696,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### removeIndexFromArray(source, ...items)
 
-removes specified item index(es) from an array or a generator.
+removes items from an array or generator based on their indices.
 
 ```js
 import { removeIndexFromArray } from "$cool/fp/remove-index-from-array.ts";
@@ -674,7 +712,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### removeValueFromArray(source, ...items)
 
-removes specified item(s) from an array or a generator.
+removes specified values from an array or generator.
 
 ```js
 import { removeValueFromArray } from "$cool/fp/remove-value-from-array.ts";
@@ -690,7 +728,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### removeKeyFromObject(source, ...keys)
 
-removes items with specified key(s) from an object.
+removes items from an object based on their keys.
 
 ```js
 import { removeKeyFromObject } from "$cool/fp/remove-key-from-object.ts";
@@ -706,7 +744,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### removeValueFromObject(source, ...values)
 
-removes items with specified value(s) from an object or a generator.
+Removes items from an object based on their values.
 
 ```js
 import { removeValueFromObject } from "$cool/fp/remove-value-from-object.ts";
@@ -722,7 +760,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### reverseArray(source)
 
-reverses an array or a generator content.
+reverses the order of items in an array or generator.
 
 ```js
 import { reverseArray } from "$cool/fp/reverse-array.ts";
@@ -738,7 +776,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### reverseObject(source)
 
-reverses an object content.
+reverses the order of items in an object.
 
 ```js
 import { reverseObject } from "$cool/fp/reverse-object.ts";
@@ -752,9 +790,9 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### splitArray(source, number)
+### splitArray(source, index)
 
-splits an array or a generator content from specified index.
+divides an array or generator into two parts based on the provided index.
 
 ```js
 import { splitArray } from "$cool/fp/split-array.ts";
@@ -768,9 +806,9 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### splitObject(source, number)
+### splitObject(source, index)
 
-splits an object content from specified index.
+divides an object into two parts based on the provided index.
 
 ```js
 import { splitObject } from "$cool/fp/split-object.ts";
@@ -784,9 +822,9 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
-### takeFromArray(source, number)
+### takeFromArray(source, n)
 
-takes first n items from an array or a generator.
+returns the first `n` items from an array or generator.
 
 ```js
 import { takeFromArray } from "$cool/fp/take-from-array.ts";
@@ -802,7 +840,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### takeFromObject(source, number)
 
-takes first n items from an object.
+returns the first `n` items from an object.
 
 ```js
 import { takeFromObject } from "$cool/fp/take-from-object.ts";
@@ -815,3 +853,8 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 // output: Is Same: false
 console.log(`Is Same: ${source === newOne}`);
 ```
+
+---
+
+🔗 For further details such as requirements, licensing and support guide, please
+visit the [main cool repository](https://github.com/eser/cool).

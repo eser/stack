@@ -1,16 +1,9 @@
 # ⚙️ [cool/di](./)
 
-## Component Information
+`cool/di` is a crucial submodule of cool ecosystem that provides simple and
+efficient dependency injection solutions.
 
-cool/di is a crucial submodule of cool ecosystem that provides a simple and
-efficient dependency injection container. It is designed to manage your
-application's services in a maintainable and scalable way, improving the overall
-codebase structure.
-
-For further details such as requirements, license information and support guide,
-please see [main cool repository](https://github.com/eser/cool).
-
-## Dependency Injection (DI)
+## 🚀 Getting Started with Dependency Injection (DI)
 
 Dependency injection is a software design pattern that enables the removal of
 hard-coded dependencies from the code, making it possible to change them
@@ -19,16 +12,24 @@ whenever needed.
 As it fosters loose coupling, its use enhances the testability and
 maintainability of the codebase.
 
-## Dependency Injection Container
+### Dependency Injection Container (DIC)
 
 A dependency injection container is a software component responsible for the
 instantiation and distribution of services or objects in your code. It
 simplifies the management of dependencies by serving as a central registry for
 all services.
 
-## Usage
+## 🤔 What cool/di does?
 
-With cool/di, you may register and retrieve services.
+`cool/di` helps you handle these dependencies properly. It provides a simple and
+efficient dependency injection container that is designed to manage your
+application's services in a maintainable and scalable way, improving the overall
+codebase structure.
+
+## 🛠 Usage
+
+Below you'll find a list of features provided by `cool/di` along with brief
+descriptions and usage examples.
 
 ### Registering services
 
@@ -116,7 +117,7 @@ const test = di`PrinterClass`;
 test.print(); // outputs "testing"
 ```
 
-## API Reference
+## 📕 API Reference
 
 The following is a list of all available methods and their descriptions.
 
@@ -153,3 +154,8 @@ Initiates a new scope. Each new scope inherits all services from the root scope
 **except** those marked as 'scoped'. Scoped services are instantiated just once
 per scope. When a scope is disposed of, all its scoped services lose their
 references as if they were never instantiated.
+
+---
+
+🔗 For further details such as requirements, licensing and support guide, please
+visit the [main cool repository](https://github.com/eser/cool).

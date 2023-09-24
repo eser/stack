@@ -89,25 +89,28 @@ done.
 
 ### Want to report a bug or request a feature?
 
-If you find a bug, have a feature request, please check out
-[our contribution guidelines](CONTRIBUTING.md) and report it using
-[GitHub Issues](https://github.com/eser/cool/issues)!
+If you're going to report a bug or request a new feature, please ensure first
+that you comply with the conditions found under
+[cool/directives](https://github.com/eser/cool/blob/dev/directives/README.md).
+After that, you can report an issue or request using
+[GitHub Issues](https://github.com/eser/cool/issues). Thanks in advance.
 
 ### Want to contribute?
 
 It is publicly open for any contribution. Bug fixes, new features and additional
 components are welcome.
 
-If you want to improve the ecosystem, please read through our
-[CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+If you're interested in becoming a contributor and enhancing the ecosystem,
+please start by reading through our [CONTRIBUTING.md](CONTRIBUTING.md).
 
-If you're not sure where to start, check out the
+If you're not sure where to begin, take a look at the
 [issues](https://github.com/eser/cool/issues) labeled `good first issue` and
-`help wanted`. We also recommend looking at closed ones to get a sense of the
-kinds of issues you can tackle.
+`help wanted`. Reviewing closed issues can also give you a sense of the types of
+contributions we're looking for and you can tackle.
 
-To contribute to codebase, fork the repo, push your changes to your fork, and
-then submit a pull request.
+If you're already an experienced OSS contributor, let's take you to the shortest
+path: To contribute to the codebase, just fork the repo, push your changes to
+your fork, and then submit a pull request.
 
 ### Requirements
 

@@ -47,7 +47,7 @@ descriptions and usage examples.
 
 **Basic usage:**
 
-```ts
+```js
 import { load } from "$cool/dotenv/mod.ts";
 
 const vars = await load();
@@ -56,7 +56,7 @@ console.log(vars);
 
 **Load from different directory:**
 
-```ts
+```js
 import { load } from "$cool/dotenv/mod.ts";
 
 const vars = await load({ baseDir: "./config" });
@@ -67,7 +67,7 @@ console.log(vars);
 
 **Basic usage:**
 
-```ts
+```js
 import { configure, env } from "$cool/dotenv/mod.ts";
 
 const options = await configure(
@@ -83,7 +83,7 @@ const options = await configure(
 
 **With custom interfaces:**
 
-```ts
+```js
 import { configure, env } from "$cool/dotenv/mod.ts";
 
 interface Options {

@@ -1,8 +1,9 @@
 import { Registry } from "./container.ts";
+import { factory } from "./fluent-api-factory.ts";
 
 export const registry = new Registry();
 export const services = registry.build();
 
-export const di = (strings: TemplateStringsArray) => services.get(strings[0]!);
+export const di = factory(services);
 
-export { services as default };
+export { di as default };

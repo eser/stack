@@ -37,7 +37,7 @@ descriptions and usage examples.
 Start by creating a registry and registering your services using the `set`,
 `setLazy`, `setScoped` and `setTransient` methods.
 
-```ts
+```js
 import { registry } from "$cool/di/mod.ts";
 
 // Register the mailService as a singleton service
@@ -60,7 +60,7 @@ registry.setLazy(
 
 Alternatively, you can chain the registration methods:
 
-```ts
+```js
 import { registry } from "$cool/di/mod.ts";
 
 registry
@@ -73,13 +73,30 @@ registry
   );
 ```
 
+We saved the best for last. You can call your own functions with registered
+services as parameters:
+
+```js
+import { registry } from "$cool/di/mod.ts";
+
+function notifyUser(
+  dbConnection: DatabaseConnection,
+  mailService: MailService,
+  notifyService: PushNotificationService,
+) {
+  // ...
+}
+
+di.invoke(notifyUser);
+```
+
 ### Retrieving services
 
 Once you have the services container, you may retrieve your services using the
-`get` and `getMany` methods. Even better, you can use the `di` template literal
-tag to retrieve services.
+`get`, `getMany`, `invoke` methods. Even better, you can use the `di` template
+literal tag to retrieve services.
 
-```ts
+```js
 import { di } from "$cool/di/mod.ts";
 
 // Retrieve registered services
@@ -91,10 +108,10 @@ const users = di`userList`;
 
 Alternatively, retrieve multiple services at once:
 
-```ts
+```js
 import { services } from "$cool/di/mod.ts";
 
-const [dns, mns, db, users] = services.getMany(
+const [dns, mns, db, users] = di.many(
   "mailService",
   "notifyService",
   "dbConnection",
@@ -104,7 +121,7 @@ const [dns, mns, db, users] = services.getMany(
 
 ### Decorators
 
-```ts
+```js
 import { di, injectable } from "$cool/di/mod.ts";
 
 @injectable()

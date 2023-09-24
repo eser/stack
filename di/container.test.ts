@@ -1,7 +1,7 @@
 import { assert, bdd, mock } from "../deps.ts";
 import { Registry } from "./container.ts";
 
-bdd.describe("cool/di/containers", () => {
+bdd.describe("cool/di/container", () => {
   bdd.it("non-existent key", () => {
     const registry = new Registry();
 

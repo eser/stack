@@ -1,4 +1,4 @@
-import { type ServiceKey } from "./container.ts";
+import { type ServiceKey } from "./primitives.ts";
 import { registry } from "./services.ts";
 
 // declare global {

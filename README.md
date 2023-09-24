@@ -9,19 +9,55 @@
 `cool` is an ecosystem designed to promote best practices, a specific
 philosophy, and enhanced portability across different platforms.
 
-It comprises various sub-**component**s, each designed to work harmoniously
-together, allowing developers to abstract their code for better portability
-across different platforms. This encourages a functional programming approach,
-enabling code to be written once and then run on various mainstream environments
-such as CLI, bot platforms, cloud-function runtimes, and web APIs.
+It comprises various [sub-components](#-components), each designed to work
+seamlessly together, allowing developers to abstract their code for better
+portability across different platforms. This encourages a functional programming
+approach, enabling code to be written once and then run on various mainstream
+environments such as CLI, bot platforms, cloud-function runtimes and web APIs.
 
-The reason we started to build this project is the feeling of a lack of a
-JavaScript/TypeScript framework that is portable across web browsers, Deno,
-Supabase, Netlify, AWS Lambda, and Cloudflare Workers. By adhering to WinterCG
-guidelines and TC39 standards, we aim to provide a framework that is portable
-across all these platforms.
+## 🌟 Why choose cool?
 
-## 🎯 Our Goal / The Bigger Picture
+`cool` is meticulously designed for developers who:
+
+- **Seek Portability**: If you've ever felt the need for a JavaScript/TypeScript
+  framework that seamlessly works across web browsers, Deno, Supabase, Netlify,
+  AWS Lambda and Cloudflare Workers, `cool` is your answer.
+  [See the full list of supported platforms](#platform-support)
+
+- **Love Functional Programming**: `cool` not only supports but encourages a
+  functional programming approach. This means you can write your code once and
+  run it on various platforms without modifications.
+  [Dive into our functional programming tools](./fp/)
+
+- **Want Enhanced Testability**: With the removal of hard-coded dependencies and
+  the promotion of loose coupling, `cool` enhances the testability of your
+  codebase, ensuring that your applications run as expected.
+  [Explore our dependency injection system](./di/)
+
+- **Desire a Unified Approach**: Instead of juggling multiple libraries and
+  tools, `cool` provides a unified ecosystem where each component works
+  harmoniously with the others, ensuring a smoother development experience.
+  [Check out our component set](#component-set)
+
+## 📂 Components
+
+### Component Set
+
+| Component                         | Area              | Description                                         |
+| --------------------------------- | ----------------- | --------------------------------------------------- |
+| 📓 [cool/directives](directives/) | Rules             | The ground rules adhered to by the entire ecosystem |
+| 📑 [cool/standards](standards/)   | Abstraction       | Provides common abstraction layers for DI           |
+| ⚙️ [cool/di](di/)                  | Manager           | Dependency injection system                         |
+| 🧱 [cool/fp](fp/)                 | Functions Library | Tools for functional programming                    |
+| 🔐 [cool/dotenv](dotenv/)         | Manager           | Load configurations from environment                |
+| 〰️ [cool/parsing](parsing/)       | Manager           | Parsing tools for various strings and streams       |
+
+Visit the respective component page for detailed usage instructions.
+
+### Our Goal / The Bigger Picture
+
+We strive to run the following code seamlessly across
+[all platforms we support](#platform-support):
 
 ```js
 import { Runtime, Context } from "$cool/runtime/mod.ts";
@@ -55,25 +91,39 @@ runtime.ci.register("db", new DatabaseConnection());
 runtime.listen(router); // or runtime.execute(fn);
 ```
 
-## 📂 Component Set
+### Platform Support
 
-| Component                         | Area              | Description                                         |
-| --------------------------------- | ----------------- | --------------------------------------------------- |
-| 📓 [cool/directives](directives/) | Rules             | The ground rules adhered to by the entire ecosystem |
-| 📑 [cool/standards](standards/)   | Abstraction       | Provides common abstraction layers for DI           |
-| ⚙️ [cool/di](di/)                  | Manager           | Dependency injection system                         |
-| 🧱 [cool/fp](fp/)                 | Functions Library | Tools for functional programming                    |
-| 🔐 [cool/dotenv](dotenv/)         | Manager           | Load configurations from environment                |
-| 〰️ [cool/parsing](parsing/)       | Manager           | Parsing tools for various strings and streams       |
+Since the reason we started to build this project is the feeling of a lack of a
+JavaScript/TypeScript framework that is portable across many platforms, we're
+always looking for the widen this list. By adhering to
+[WinterCG guidelines](https://wintercg.org/) and
+[TC39 standards](https://tc39.es/), we strive to provide a framework that is
+portable across all these platforms.
 
-See the respective component page to figure out its specific usage.
+- [x] Deno
+- [ ] Node.js
+- [x] Web Browsers
+- [ ] Service Workers
+- [x] Deno Deploy
+- [ ] Cloudflare Workers
+- [ ] Supabase Functions
+- [ ] Netlify
+- [ ] AWS Lambda
+- [ ] Google Cloud Functions
+- [ ] Azure Functions
+- [ ] Telegram Bots
+- [ ] Discord Bots
+- [ ] Slack Bots
+
+...and all other platforms that comply with the
+[WinterCG guidelines](https://wintercg.org/).
 
 ## 🚀 Jumpstart
 
 Ensure that [Deno](https://deno.land/) 1.36 or higher is installed on your
 system first.
 
-Install `cool cli` globally first, then create a new project:
+First, install `cool cli` globally, then create a new project:
 
 ```sh
 $ deno install -A -n cool https://c00l.deno.dev
@@ -97,8 +147,8 @@ After that, you can report an issue or request using
 
 ### Want to contribute?
 
-It is publicly open for any contribution. Bug fixes, new features and additional
-components are welcome.
+It is publicly open for any contribution from the community. Bug fixes, new
+features and additional components are welcome.
 
 If you're interested in becoming a contributor and enhancing the ecosystem,
 please start by reading through our [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -115,6 +165,12 @@ your fork, and then submit a pull request.
 ### Requirements
 
 - Deno 1.36 or higher (https://deno.land/)
+
+### Versioning
+
+This project follows [Semantic Versioning](https://semver.org/). For the
+versions available, see the
+[tags on this repository](https://github.com/eser/cool/tags).
 
 ### License
 

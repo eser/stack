@@ -14,7 +14,7 @@ programming languages to understanding natural language.
 
 ### Tokenizer (also known as Lexer)
 
-Tokenizer is a crucial component in compilers and interpreters. It reads the
+A tokenizer is a crucial component in compilers and interpreters. It reads the
 input of raw text and breaks it down into a series of tokens, which are
 sequences of characters with a known meaning. The lexer included in
 `cool/parsing` is designed to be both efficient and versatile, making it
@@ -22,7 +22,7 @@ suitable for a wide range of input sources.
 
 ### Parser
 
-Parser takes the tokens produced by the tokenizer and arranges them in a
+A parser takes the tokens produced by the tokenizer and arranges them in a
 structure, often hierarchical, that represents the syntactic meaning of the
 tokens in the context of the input. The output of the parser is usually a
 tree-like representation of the input, which can be processed further or
@@ -38,10 +38,10 @@ used extensively in compilers and source code analysis tools.
 
 ## 🛠 Usage
 
-Below you'll find a list of features provided by `cool/parsing` along with brief
+Here you'll find a list of features provided by `cool/parsing` along with brief
 descriptions and usage examples.
 
-### Tokenize from source
+### Tokenizing from source
 
 **Basic usage:**
 
@@ -55,7 +55,7 @@ for (const token of lexer.tokenizeFromString("1 + 2")) {
 }
 ```
 
-**With a different token dictionary:**
+**Using a different token dictionary:**
 
 ```js
 import { extendedTokens, Tokenizer } from "$cool/parsing/mod.ts";

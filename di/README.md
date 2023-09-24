@@ -1,6 +1,6 @@
 # ⚙️ [cool/di](./)
 
-`cool/di` is a crucial submodule of cool ecosystem that provides simple and
+`cool/di` is a crucial component of cool ecosystem that provides simple and
 efficient dependency injection solutions.
 
 ## 🚀 Getting Started with Dependency Injection (DI)
@@ -9,8 +9,8 @@ Dependency injection is a software design pattern that enables the removal of
 hard-coded dependencies from the code, making it possible to change them
 whenever needed.
 
-As it fosters loose coupling, its use enhances the testability and
-maintainability of the codebase.
+By promoting loose coupling, it enhances the testability and maintainability of
+the overall codebase structure.
 
 ### Dependency Injection Container (DIC)
 
@@ -19,16 +19,17 @@ instantiation and distribution of services or objects in your code. It
 simplifies the management of dependencies by serving as a central registry for
 all services.
 
-## 🤔 What cool/di does?
+## 🤔 What cool/di offers?
 
-`cool/di` helps you handle these dependencies properly. It provides a simple and
-efficient dependency injection container that is designed to manage your
-application's services in a maintainable and scalable way, improving the overall
-codebase structure.
+`cool/di` helps you handle these dependencies by providing a structured,
+scalable and proper way to manage dependencies in your application. While its
+dependency injection container is focused on simplicity and efficiency, it also
+provides a set of decorators to make managing your application's services and
+dependencies even easier.
 
 ## 🛠 Usage
 
-Below you'll find a list of features provided by `cool/di` along with brief
+Here you'll find a list of features provided by `cool/di` along with brief
 descriptions and usage examples.
 
 ### Registering services
@@ -152,8 +153,8 @@ Returns the corresponding services to the specified keys in an array.
 **createScope(): Container**\
 Initiates a new scope. Each new scope inherits all services from the root scope
 **except** those marked as 'scoped'. Scoped services are instantiated just once
-per scope. When a scope is disposed of, all its scoped services lose their
-references as if they were never instantiated.
+per scope. When a scope is closed (or disposed), all its scoped services lose
+their references as if they were never instantiated.
 
 ---
 

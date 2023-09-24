@@ -1,10 +1,13 @@
 # 🧱 [cool/fp](./)
 
-`cool/fp` is a set of utility functions designed for functional programming
-enthusiasts. If you're familiar with libraries like Lodash or Ramda, think of
-`cool/fp` as an alternative.
+`cool/fp` is a library designed for functional programming enthusiasts. It
+covers a wide range of utility functions, making it a one-stop solution for many
+functional programming needs.
 
-Some remarkable features:
+If you're familiar with libraries like Lodash or Ramda, think of `cool/fp` as an
+alternative.
+
+## 💫 Key features
 
 - **Immutable Operations:** All methods in `cool/fp` return a new instance,
   ensuring the original data remains unchanged. (see: _no mutation_)
@@ -12,25 +15,92 @@ Some remarkable features:
 - **No New Data Types:** Unlike some alternatives, `cool/fp` doesn't introduce
   new data types or structures.
 
-- **Pure Functions:** Embrace the power of functional programming with functions
-  that always produce the same output for the same input. (see: _determinism_)
+- **Pure Functions:** Embrace the predictability and reliability provided by the
+  functional programming approach, as functions always produce the same output
+  for the same input. (see: _determinism_)
+
+- **No Dependencies:** `cool/fp` is a standalone library with no external
+  dependencies.
+
+- **Type Support:** `Written in TypeScript,`cool/fp` provides full-fledged
+  support for TypeScript users.
+
+## 📚 Key functions
+
+- **Array and Object Manipulation**: Functions like
+  [appendToArray](#appendtoarraysource-items),
+  [appendToObject](#appendtoobjectsource-items),
+  [associateArray](#associatearraysource-selectorfn),
+  [associateObject](#associateobjectsource-selectorfn),
+  [deepCopy](#deepcopysource), [deepMerge](#deepmergesource-other),
+  [filterArray](#filterarrayinstance-predicatefn),
+  [filterObject](#filterobjectinstance-predicatefn),
+  [mapArray](#maparrayinstance-predicate),
+  [mapObject](#mapobjectinstance-predicate), [mergeArrays](#mergearrayssources),
+  [mergeObjects](#mergeobjectssources), [reverseArray](#reversearraysource),
+  [reverseObject](#reverseobjectsource), [splitArray](#splitarraysource-index),
+  [splitObject](#splitobjectsource-index),
+  [takeFromArray](#takefromarraysource-n) and
+  [takeFromObject](#takefromobjectsource-number) help in manipulating arrays and
+  objects without mutating the original data.
+
+- **Functional Composition**: [compose](#composefunctionsforcomposition) and
+  [pipe](#pipefunctionsforcomposition) allow users to combine multiple functions
+  into a single function, executing them in reverse order or straight order,
+  respectively.
+
+- **Decorators and Currying**:
+  [decorate](#decoratefunctiontodecorate-decoratorfn),
+  [curry](#currytargetfunction-argumentstobeprepended) and
+  [curryRight](#curryrighttargetfunction-argumentstobeappended) transform a
+  function into a curried or decorated version which has enhanced or altered
+  behavior of the existing function.
+
+- **State Management**:
+  [dispatcher](#dispatcherinitialstate-mutatorfns-awaitable) manages state
+  mutations in a controlled manner.
+
+- **Event Emission**:
+  [emitter](#emitterevents-eventname-eventparameters-awaitable) emits events to
+  subscribed listeners.
+
+- **Iteration**: [iterate](#iterateiterable-fn-awaitable) allows iteration over
+  an iterable and applies a function to each item.
+
+- **Mutation**: [mutate](#mutatesource-mutatorfn) creates a copy of a data
+  structure and applies a mutator function to it.
+
+- **Selection**: Functions like
+  [distinctArray](#distinctarraysource-selectorfn),
+  [distinctObject](#distinctobjectsource-selectorfn),
+  [pickFromArray](#pickfromarraysource-items),
+  [pickFromObject](#pickfromobjectsource-keys),
+  [removeFirstMatchFromArray](#removefirstmatchfromarraysource-predicatefn),
+  [removeFirstMatchFromObject](#removefirstmatchfromobjectsource-predicatefn),
+  [removeIndexFromArray](#removeindexfromarraysource-items),
+  [removeValueFromArray](#removevaluefromarraysource-items),
+  [removeKeyFromObject](#removekeyfromobjectsource-keys) and
+  [removeValueFromObject](#removevaluefromobjectsource-values) help in
+  selecting, removing or filtering specific items.
+
+... and more!
 
 ## 🚀 Getting Started with Functional Programming (FP)
 
 Functional programming is a programming paradigm (a way of writing programs)
-using only functions. It is a declarative programming approach in which
-functions take inputs and return outputs, rather than a sequence of imperative
-statements.
+that emphasizes using functions as first-class citizens for designing our code.
+It is a declarative programming approach in which functions take inputs and
+return outputs, rather than a sequence of imperative statements.
 
-By constructing your code using plain/pure functions, you ensure that the same
-input always produces the same output. This results in predictable, reliable,
-and testable code with no side effects during runtime.
+By constructing your code with pure functions, you ensure that the same input
+always produces the same output. This results in predictable, reliable and
+testable code with no side effects during runtime.
 
 [Learn more about Functional Programming](https://medium.com/javascript-scene/master-the-javascript-interview-what-is-functional-programming-7f218c68b3a0).
 
 ## 🛠 Usage and API Reference
 
-Below you'll find a list of utility functions provided by `cool/fp` along with
+Here you'll find a list of utility functions provided by `cool/fp` along with
 brief descriptions and usage examples. Dive in and explore the usage of
 functional programming paradigms.
 
@@ -69,7 +139,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### associateArray(source, selectorFn)
 
-transforms an array or generator into an object where keys are determined by a
+transforms an array or generator into an object with keys are determined by a
 selector function (`selectorFn`).
 
 ```js
@@ -96,7 +166,7 @@ console.dir(result);
 
 ### associateObject(source, selectorFn)
 
-transforms an object into another object where keys are determined by a selector
+transforms an object into another object with keys are determined by a selector
 function (`selectorFn`).
 
 ```js
@@ -122,9 +192,9 @@ console.dir(result);
 
 ### compose(...functionsForComposition)
 
-composes multiple functions into a single function. it is done by passing the
-results of a function as an input to another one. unlike `pipe`, it executes the
-functions from reverse order (right to left).
+composes multiple functions into a single function by passing the results of one
+function as input to the next. unlike `pipe`, it executes the functions from
+reverse order (right to left).
 
 ```js
 import { compose } from "$cool/fp/compose.ts";
@@ -145,8 +215,8 @@ console.log(`slug: ${message}`);
 
 ### curry(targetFunction, ...argumentsToBePrepended)
 
-transforms a function into a curried version, allowing you to partially apply
-arguments from the left.
+transforms a function into a curried version, allowing for partial application
+of arguments from the left.
 
 ```js
 import { curry } from "$cool/fp/curry.ts";
@@ -164,8 +234,8 @@ console.log(`result: ${result}`);
 
 ### curryRight(targetFunction, ...argumentsToBeAppended)
 
-transforms a function into a curried version, allowing you to partially apply
-arguments from the right.
+transforms a function into a curried version, allowing for partial application
+of arguments from the right.
 
 ```js
 import { curryRight } from "$cool/fp/curry-right.ts";
@@ -183,7 +253,7 @@ console.log(`result: ${result}`);
 
 ### decorate(functionToDecorate, decoratorFn)
 
-enhances or alters the behavior of a function using a decorator function
+enhances or alters a function's behavior using a decorator function
 (`decoratorFn`).
 
 ```js
@@ -200,7 +270,8 @@ console.log(`generated: ${generator()}`);
 
 ### deepCopy(source)
 
-creates a deep copy of the provided data structure, preserving its constructor.
+creates a deep copy of the given data structure while preserving its
+constructor.
 
 ```js
 import { deepCopy } from "$cool/fp/deep-copy.ts";
@@ -218,7 +289,7 @@ console.log(`Is Same: ${source === newOne}`);
 
 ### deepMerge(source, other)
 
-merges two data structures deeply, resulting in a new structure with combined
+merges two data structures deeply to produce a new structure with combined
 items.
 
 ```js

@@ -6,12 +6,13 @@ recommends separating configuration from code.
 
 ## 🚀 Getting Started with Environment Variables (ENV)
 
-Environment variables (often shortened to env vars or env) are variables that
-are available in all command line sessions and affect the behavior of the
+Environment variables (often shortened to env vars or env) are variables
+available in all command line sessions and affect the behavior of the
 applications on your system. They are essential for managing the configuration
 of your applications separate from your code.
 
-**The 12-Factor App** recommends storing config in environment variables
+**The 12-Factor App** methodology recommends storing configurations in
+environment variables.
 
 ### The 12-Factor App
 
@@ -19,9 +20,9 @@ The 12-Factor App is a set of best practices designed to enable applications to
 be built with portability and resilience when deployed to the web.
 [Learn more about The 12-Factor App](https://12factor.net/).
 
-## 🤔 What cool/dotenv does?
+## 🤔 What cool/dotenv offers?
 
-`cool/dotenv` helps you handle these configurations properly. While using
+`cool/dotenv` helps you handle these configurations properly. With using
 `cool/dotenv`, the environment variables are loaded from the following sources:
 
 - Environment variables that passed to the Deno process.
@@ -39,7 +40,7 @@ from file or environment variable) takes precedence. That means you can use the
 
 ## 🛠 Usage and API Reference
 
-Below you'll find a list of features provided by `cool/dotenv` along with brief
+Here you'll find a list of features provided by `cool/dotenv` along with brief
 descriptions and usage examples.
 
 ### Loading environment variables
@@ -62,7 +63,7 @@ const vars = await load({ baseDir: "./config" });
 console.log(vars);
 ```
 
-### Configure an options object with environment reader
+### Configuring an options object with environment reader
 
 **Basic usage:**
 

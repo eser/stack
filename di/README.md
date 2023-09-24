@@ -73,23 +73,6 @@ registry
   );
 ```
 
-We saved the best for last. You can call your own functions with registered
-services as parameters:
-
-```js
-import { registry } from "$cool/di/mod.ts";
-
-function notifyUser(
-  dbConnection: DatabaseConnection,
-  mailService: MailService,
-  notifyService: PushNotificationService,
-) {
-  // ...
-}
-
-di.invoke(notifyUser);
-```
-
 ### Retrieving services
 
 Once you have the services container, you may retrieve your services using the
@@ -117,6 +100,38 @@ const [dns, mns, db, users] = di.many(
   "dbConnection",
   "userList",
 );
+```
+
+You can directly call your functions using the registered services as
+parameters:
+
+```js
+import { registry } from "$cool/di/mod.ts";
+
+di.register("serviceA", () => console.log("Service A"));
+di.register("serviceB", () => console.log("Service B"));
+
+function myFunction(serviceA, serviceB) {
+  serviceA();
+  serviceB();
+}
+
+di.invoke(myFunction); // This will log "Service A" and then "Service B"
+```
+
+### Template Strings
+
+You can use the `di` template literal tag to easily retrieve services using
+template strings. This provides a more readable and concise way to access your
+dependencies.
+
+```js
+import { registry } from "$cool/di/mod.ts";
+
+di.register("serviceA", () => console.log("Service A"));
+di.register("serviceB", () => console.log("Service B"));
+
+di`first: ${"serviceA"} second: ${"serviceB"}`; // This will log "first: Service A second: Service B"
 ```
 
 ### Decorators

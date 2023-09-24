@@ -27,17 +27,23 @@ environments such as CLI, bot platforms, cloud-function runtimes and web APIs.
 - **Love Functional Programming**: `cool` not only supports but encourages a
   functional programming approach. This means you can write your code once and
   run it on various platforms without modifications.
-  [Dive into our functional programming tools](./fp/)
+  [Dive into our functional programming tools](./fp/README.md)
 
 - **Want Enhanced Testability**: With the removal of hard-coded dependencies and
   the promotion of loose coupling, `cool` enhances the testability of your
   codebase, ensuring that your applications run as expected.
-  [Explore our dependency injection system](./di/)
+  [Explore our dependency injection system](./di/README.md)
 
 - **Desire a Unified Approach**: Instead of juggling multiple libraries and
   tools, `cool` provides a unified toolkit where each component works seamlessly
   with the others, ensuring a smoother development experience.
   [Check out our component set](#component-set)
+
+- **Prioritize Best Practices**: If you've been struggling with maintaining best
+  practices in your development process, `cool` is here to guide you. With
+  built-in support for principles like 12factor and dependency injection, you
+  can ensure that your code remains clean, maintainable, and scalable.
+  [Learn more about our best practices approach](#best-practices)
 
 ## 📂 Components
 

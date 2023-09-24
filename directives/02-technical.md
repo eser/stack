@@ -2,7 +2,7 @@
 
 ## Technical Directives
 
-**cool** is the name of the ecosystem, encompassing numerous sub-products. While
+**cool** is the name of the toolkit, encompassing numerous components. While
 each component of **cool** has its distinct nature, we believe a common
 philosophy can be adopted across the ecosystem.
 

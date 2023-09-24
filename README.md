@@ -1,15 +1,15 @@
 <p align="center">
   <a href="./">
-    <img alt="cool: a deno ecosystem" src="./_etc/logo.svg" width="849" />
+    <img alt="cool: a javascript toolkit" src="./_etc/logo.svg" width="849" />
   </a>
 </p>
 
 ## 📖 Overview
 
-`cool` is an ecosystem designed to promote best practices, a specific
+`cool` is a javascript toolkit designed to promote best practices, a specific
 philosophy, and enhanced portability across different platforms.
 
-It comprises various [sub-components](#-components), each designed to work
+It comprises various [components](#-components), each designed to work
 seamlessly together, allowing developers to abstract their code for better
 portability across different platforms. This encourages a functional programming
 approach, enabling code to be written once and then run on various mainstream
@@ -35,8 +35,8 @@ environments such as CLI, bot platforms, cloud-function runtimes and web APIs.
   [Explore our dependency injection system](./di/)
 
 - **Desire a Unified Approach**: Instead of juggling multiple libraries and
-  tools, `cool` provides a unified ecosystem where each component works
-  harmoniously with the others, ensuring a smoother development experience.
+  tools, `cool` provides a unified toolkit where each component works seamlessly
+  with the others, ensuring a smoother development experience.
   [Check out our component set](#component-set)
 
 ## 📂 Components

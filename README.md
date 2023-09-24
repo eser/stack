@@ -9,11 +9,11 @@
 `cool` is an ecosystem designed to promote best practices, a specific
 philosophy, and enhanced portability across different platforms.
 
-It is comprised of various sub-**component**s, each designed to work
-harmoniously together, allowing developers to abstract their code for better
-portability across different platforms. This encourages a functional programming
-approach, enabling code to be written once and then run on various mainstream
-environments such as CLI, bot platforms, cloud-function runtimes, and web APIs.
+It comprises various sub-**component**s, each designed to work harmoniously
+together, allowing developers to abstract their code for better portability
+across different platforms. This encourages a functional programming approach,
+enabling code to be written once and then run on various mainstream environments
+such as CLI, bot platforms, cloud-function runtimes, and web APIs.
 
 The reason we started to build this project is the feeling of a lack of a
 JavaScript/TypeScript framework that is portable across web browsers, Deno,

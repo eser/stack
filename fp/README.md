@@ -22,9 +22,11 @@ using only functions. It is a declarative programming approach in which
 functions take inputs and return outputs, rather than a sequence of imperative
 statements.
 
-By constructing your code with writing, composing and calling plain/pure
-functions, it always produces the same output for the same input. This results
-in predictable, reliable, and testable code with no side effects during runtime.
+By constructing your code using plain/pure functions, you ensure that the same
+input always produces the same output. This results in predictable, reliable,
+and testable code with no side effects during runtime.
+
+[Learn more about Functional Programming](https://medium.com/javascript-scene/master-the-javascript-interview-what-is-functional-programming-7f218c68b3a0).
 
 ## 🛠 Usage and API Reference
 

@@ -1,17 +1,25 @@
 # 🔐 [cool/dotenv](./)
 
 `cool/dotenv` helps you load configurations from `.env.*` files and environment
-variables, a practice based on the **12-Factor App** methodology which
+variables, a practice based on **The 12-Factor App** methodology which
 recommends separating configuration from code.
 
 ## 🚀 Getting Started with Environment Variables (ENV)
 
-Environment variables are variables that are available in all command line
-sessions and affect the behavior of the applications on your system. They are
-essential for managing the configuration of your applications separate from your
-code.
+Environment variables (often shortened to env vars or env) are variables that
+are available in all command line sessions and affect the behavior of the
+applications on your system. They are essential for managing the configuration
+of your applications separate from your code.
 
-## 🤔 What cool/env does?
+**The 12-Factor App** recommends storing config in environment variables
+
+### The 12-Factor App
+
+The 12-Factor App is a set of best practices designed to enable applications to
+be built with portability and resilience when deployed to the web.
+[Learn more about The 12-Factor App](https://12factor.net/).
+
+## 🤔 What cool/dotenv does?
 
 `cool/dotenv` helps you handle these configurations properly. While using
 `cool/dotenv`, the environment variables are loaded from the following sources:
@@ -22,7 +30,7 @@ code.
 - `.env.local` file - Local overrides. This file is loaded for all environments
   **except "test"**.
 - `.env.$(ENV)` file - Environment-specific settings.
-- `.env` file - The Original®
+- `.env` file - The default configuration file.
 
 These files are loaded in the order listed above. The first value set (either
 from file or environment variable) takes precedence. That means you can use the

@@ -68,7 +68,7 @@ runtime.listen(router); // or runtime.execute(fn);
 
 See the respective component page to figure out its specific usage.
 
-# 🚀 Jumpstart
+## 🚀 Jumpstart
 
 Ensure that [Deno](https://deno.land/) 1.36 or higher is installed on your
 system first.

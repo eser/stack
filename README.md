@@ -89,7 +89,8 @@ done.
 
 ### Want to report a bug or request a feature?
 
-Please read through our [CONTRIBUTING.md](CONTRIBUTING.md) and report it using
+If you find a bug, have a feature request, please check out
+[our contribution guidelines](CONTRIBUTING.md) and report it using
 [GitHub Issues](https://github.com/eser/cool/issues)!
 
 ### Want to contribute?
@@ -97,15 +98,16 @@ Please read through our [CONTRIBUTING.md](CONTRIBUTING.md) and report it using
 It is publicly open for any contribution. Bug fixes, new features and additional
 components are welcome.
 
-If you find a bug, have a feature request, or want to improve the ecosystem,
-please check out [our contribution guidelines](CONTRIBUTING.md) to get started.
+If you want to improve the ecosystem, please read through our
+[CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
-If you're not sure where to start, check out the issues labeled
-`good first issue` and `help wanted`. We also recommend looking at closed ones
-to get a sense of the kinds of issues you can tackle.
+If you're not sure where to start, check out the
+[issues](https://github.com/eser/cool/issues) labeled `good first issue` and
+`help wanted`. We also recommend looking at closed ones to get a sense of the
+kinds of issues you can tackle.
 
-To contribute, fork the repo, push your changes to your fork, and then submit a
-pull request.
+To contribute to codebase, fork the repo, push your changes to your fork, and
+then submit a pull request.
 
 ### Requirements
 

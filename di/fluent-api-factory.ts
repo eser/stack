@@ -30,6 +30,8 @@ export const factory = <K = ServiceKey, V = ServiceValue>(
     return result;
   };
 
+  di.get = (token: K) => services.get(token);
+
   di.many = (...tokens: ReadonlyArray<K>) => services.getMany(...tokens);
 
   // deno-lint-ignore no-explicit-any

@@ -6,6 +6,7 @@ import {
 
 function getFunctionParametersFromString(fnSerialized: string) {
   const match = fnSerialized.match(/(?:function.*?\(|\()(.*?)(?:\)|=>)/);
+
   if (match && match[1]) {
     return match[1].split(",").map((p) => p.trim());
   }

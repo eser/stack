@@ -1,7 +1,7 @@
 # ⚙️ [cool/di](./)
 
-`cool/di` is a crucial component of cool toolkit that provides simple and
-efficient dependency injection solutions.
+`cool/di` is a crucial component of `cool` that provides simple and efficient
+dependency injection solutions.
 
 ## 🚀 Getting Started with Dependency Injection (DI)
 

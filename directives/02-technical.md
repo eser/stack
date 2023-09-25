@@ -2,9 +2,9 @@
 
 ## Technical Directives
 
-**cool** is the name of the toolkit, encompassing numerous components. While
-each component of **cool** has its distinct nature, we believe a common
-philosophy can be adopted across the ecosystem.
+`cool` is the name of the toolkit and/or ecosystem, encompassing numerous
+components. While each component of `cool` has its distinct nature, we believe a
+common philosophy can be adopted across the ecosystem.
 
 ### Architectural Rules
 

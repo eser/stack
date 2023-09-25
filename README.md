@@ -1,19 +1,31 @@
+# `cool` - The Portability Solution for Your Code! 🚀
+
 <p align="center">
   <a href="./">
     <img alt="cool javascript toolkit" src="./_etc/logo.svg" width="849" />
   </a>
 </p>
 
+Step into a world where you never have to deal with portability and platform
+issues. Whether you're targeting **web browsers**, **serverless platforms**,
+**chatbots**, **CLI**, or multiple platforms simultaneously, cool ensures **your
+code runs** flawlessly **everywhere**.
+
 ## 📖 Overview
 
-`cool` is a javascript toolkit designed to promote best practices, a specific
-philosophy, and enhanced portability across different platforms.
+`cool` is a JavaScript toolkit designed to uphold best practices and enhance
+portability across different platforms.
 
-It comprises various [components](#-components), each designed to work
-seamlessly together, allowing developers to abstract their code for better
-portability across different platforms. This encourages a functional programming
-approach, enabling code to be written once and then run on various mainstream
-environments such as CLI, bot platforms, cloud-function runtimes and web APIs.
+Beyond being a toolkit, `cool` advocates for a philosophy that emphasizes
+writing code driven by algorithms, design and patterns, not by platform-specific
+implementation details.
+
+While `cool` offers you a layer of abstraction that isolates you from the
+platforms, **you can focus on your implementation**. Don't worry about the rest,
+your solution will excel across diverse environments.
+
+Every [component](#-components) of `cool` is designed to work in harmony,
+strives to offer you an intuitive and delightful development experience.
 
 ## 🌟 Why choose cool?
 

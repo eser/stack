@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="./">
-    <img alt="cool javascript toolkit" src="./_etc/logo.svg" width="849" />
+    <img alt="cool javascript toolkit" src="./_etc/cover.svg" width="849" />
   </a>
 </p>
 

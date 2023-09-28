@@ -1,10 +1,10 @@
-import { assert, bdd } from "../deps.ts";
-import { extendedTokens } from "./tokens/extended.ts";
+import { assert, bdd } from "../../deps.ts";
+import { simpleTokens } from "./tokens/simple.ts";
 import { Tokenizer } from "./lexer.ts";
 
 bdd.describe("cool/parsing/lexer", () => {
   bdd.it("operators and symbols", () => {
-    const lexer = new Tokenizer(extendedTokens);
+    const lexer = new Tokenizer(simpleTokens);
 
     const input = "=+-*_/%<>!&|?:;,.()[]{}^";
 
@@ -13,37 +13,37 @@ bdd.describe("cool/parsing/lexer", () => {
     assert.assertEquals(
       result,
       [
-        { kind: "T_EQUAL", value: "=" },
+        { kind: "T_EQUALS", value: "=" },
         { kind: "T_PLUS", value: "+" },
-        { kind: "T_MINUS", value: "-" },
-        { kind: "T_MULTIPLY", value: "*" },
+        { kind: "T_HYPHEN", value: "-" },
+        { kind: "T_ASTERISK", value: "*" },
         { kind: "T_UNDERSCORE", value: "_" },
-        { kind: "T_DIVIDE", value: "/" },
-        { kind: "T_MOD", value: "%" },
+        { kind: "T_SLASH", value: "/" },
+        { kind: "T_PERCENT", value: "%" },
         { kind: "T_IS_SMALLER", value: "<" },
         { kind: "T_IS_GREATER", value: ">" },
-        { kind: "T_NOT", value: "!" },
-        { kind: "T_BITWISE_AND", value: "&" },
-        { kind: "T_BITWISE_OR", value: "|" },
+        { kind: "T_EXCLAMATION_MARK", value: "!" },
+        { kind: "T_AMPERSAND", value: "&" },
+        { kind: "T_PIPE", value: "|" },
         { kind: "T_QUESTION_MARK", value: "?" },
         { kind: "T_COLON", value: ":" },
         { kind: "T_SEMICOLON", value: ";" },
         { kind: "T_COMMA", value: "," },
         { kind: "T_DOT", value: "." },
-        { kind: "T_OPEN_BRACKET", value: "(" },
-        { kind: "T_CLOSE_BRACKET", value: ")" },
-        { kind: "T_OPEN_SQUARE_BRACKET", value: "[" },
-        { kind: "T_CLOSE_SQUARE_BRACKET", value: "]" },
-        { kind: "T_OPEN_CURLY_BRACKET", value: "{" },
-        { kind: "T_CLOSE_CURLY_BRACKET", value: "}" },
-        { kind: "T_BITWISE_XOR", value: "^" },
+        { kind: "T_PARENTHESIS_OPEN", value: "(" },
+        { kind: "T_PARENTHESIS_CLOSE", value: ")" },
+        { kind: "T_SQUARE_BRACKET_OPEN", value: "[" },
+        { kind: "T_SQUARE_BRACKET_CLOSE", value: "]" },
+        { kind: "T_CURLY_BRACKET_OPEN", value: "{" },
+        { kind: "T_CURLY_BRACKET_CLOSE", value: "}" },
+        { kind: "T_CARET", value: "^" },
         { kind: "T_END", value: "" },
       ],
     );
   });
 
   bdd.it("numbers", () => {
-    const lexer = new Tokenizer(extendedTokens);
+    const lexer = new Tokenizer(simpleTokens);
 
     const input = `1234 5678`;
 
@@ -60,7 +60,7 @@ bdd.describe("cool/parsing/lexer", () => {
   });
 
   bdd.it("whitespace and comments", () => {
-    const lexer = new Tokenizer(extendedTokens);
+    const lexer = new Tokenizer(simpleTokens);
 
     const input = `   // This is a comment
     /* This is a
@@ -71,7 +71,8 @@ bdd.describe("cool/parsing/lexer", () => {
       result,
       [
         { kind: "T_WHITESPACE", value: "   " },
-        { kind: "T_COMMENT", value: "//" },
+        { kind: "T_SLASH", value: "/" },
+        { kind: "T_SLASH", value: "/" },
         { kind: "T_WHITESPACE", value: " " },
         { kind: "T_ALPHANUMERIC", value: "This" },
         { kind: "T_WHITESPACE", value: " " },
@@ -82,7 +83,8 @@ bdd.describe("cool/parsing/lexer", () => {
         { kind: "T_ALPHANUMERIC", value: "comment" },
         { kind: "T_NEWLINE", value: "\n" },
         { kind: "T_WHITESPACE", value: "    " },
-        { kind: "T_COMMENT_MULTILINE_START", value: "/*" },
+        { kind: "T_SLASH", value: "/" },
+        { kind: "T_ASTERISK", value: "*" },
         { kind: "T_WHITESPACE", value: " " },
         { kind: "T_ALPHANUMERIC", value: "This" },
         { kind: "T_WHITESPACE", value: " " },
@@ -95,7 +97,8 @@ bdd.describe("cool/parsing/lexer", () => {
         { kind: "T_WHITESPACE", value: " " },
         { kind: "T_ALPHANUMERIC", value: "comment" },
         { kind: "T_WHITESPACE", value: " " },
-        { kind: "T_COMMENT_MULTILINE_END", value: "*/" },
+        { kind: "T_ASTERISK", value: "*" },
+        { kind: "T_SLASH", value: "/" },
         { kind: "T_WHITESPACE", value: "   " },
         { kind: "T_END", value: "" },
       ],
@@ -103,7 +106,7 @@ bdd.describe("cool/parsing/lexer", () => {
   });
 
   bdd.it("multiline comments", () => {
-    const lexer = new Tokenizer(extendedTokens);
+    const lexer = new Tokenizer(simpleTokens);
 
     const input = `/* test */`;
 
@@ -111,18 +114,20 @@ bdd.describe("cool/parsing/lexer", () => {
     assert.assertEquals(
       result,
       [
-        { kind: "T_COMMENT_MULTILINE_START", value: "/*" },
+        { kind: "T_SLASH", value: "/" },
+        { kind: "T_ASTERISK", value: "*" },
         { kind: "T_WHITESPACE", value: " " },
         { kind: "T_ALPHANUMERIC", value: "test" },
         { kind: "T_WHITESPACE", value: " " },
-        { kind: "T_COMMENT_MULTILINE_END", value: "*/" },
+        { kind: "T_ASTERISK", value: "*" },
+        { kind: "T_SLASH", value: "/" },
         { kind: "T_END", value: "" },
       ],
     );
   });
 
   bdd.it("singleline comments", () => {
-    const lexer = new Tokenizer(extendedTokens);
+    const lexer = new Tokenizer(simpleTokens);
 
     const input = `// test`;
 
@@ -130,7 +135,8 @@ bdd.describe("cool/parsing/lexer", () => {
     assert.assertEquals(
       result,
       [
-        { kind: "T_COMMENT", value: "//" },
+        { kind: "T_SLASH", value: "/" },
+        { kind: "T_SLASH", value: "/" },
         { kind: "T_WHITESPACE", value: " " },
         { kind: "T_ALPHANUMERIC", value: "test" },
         { kind: "T_END", value: "" },
@@ -139,7 +145,7 @@ bdd.describe("cool/parsing/lexer", () => {
   });
 
   bdd.it("mixed expression", () => {
-    const lexer = new Tokenizer(extendedTokens);
+    const lexer = new Tokenizer(simpleTokens);
 
     const input = `rocketLauncher++ /* Comment */ && test123`;
 
@@ -148,15 +154,19 @@ bdd.describe("cool/parsing/lexer", () => {
       result,
       [
         { kind: "T_ALPHANUMERIC", value: "rocketLauncher" },
-        { kind: "T_INCREMENT", value: "++" },
+        { kind: "T_PLUS", value: "+" },
+        { kind: "T_PLUS", value: "+" },
         { kind: "T_WHITESPACE", value: " " },
-        { kind: "T_COMMENT_MULTILINE_START", value: "/*" },
+        { kind: "T_SLASH", value: "/" },
+        { kind: "T_ASTERISK", value: "*" },
         { kind: "T_WHITESPACE", value: " " },
         { kind: "T_ALPHANUMERIC", value: "Comment" },
         { kind: "T_WHITESPACE", value: " " },
-        { kind: "T_COMMENT_MULTILINE_END", value: "*/" },
+        { kind: "T_ASTERISK", value: "*" },
+        { kind: "T_SLASH", value: "/" },
         { kind: "T_WHITESPACE", value: " " },
-        { kind: "T_AND", value: "&&" },
+        { kind: "T_AMPERSAND", value: "&" },
+        { kind: "T_AMPERSAND", value: "&" },
         { kind: "T_WHITESPACE", value: " " },
         { kind: "T_ALPHANUMERIC", value: "test123" },
         { kind: "T_END", value: "" },
@@ -165,7 +175,7 @@ bdd.describe("cool/parsing/lexer", () => {
   });
 
   bdd.it("alphanumeric from readable stream", async () => {
-    const lexer = new Tokenizer(extendedTokens);
+    const lexer = new Tokenizer(simpleTokens);
 
     const readableStream = new ReadableStream({
       start(controller) {
@@ -190,7 +200,7 @@ bdd.describe("cool/parsing/lexer", () => {
   });
 
   bdd.it("alphanumeric from string", () => {
-    const lexer = new Tokenizer(extendedTokens);
+    const lexer = new Tokenizer(simpleTokens);
 
     const input = `rocketLauncher`;
 
@@ -205,7 +215,7 @@ bdd.describe("cool/parsing/lexer", () => {
   });
 
   bdd.it("alphanumeric from string, buffer boundary", () => {
-    const lexer = new Tokenizer(extendedTokens);
+    const lexer = new Tokenizer(simpleTokens);
 
     lexer._reset();
     const result1 = Array.from(lexer._tokenizeChunk("rocket"));

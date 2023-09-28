@@ -3,6 +3,11 @@ import {
   type TokenDefinitions,
 } from "./tokens/definition.ts";
 
+export interface Token {
+  kind: string;
+  value: string;
+}
+
 export class Tokenizer {
   readonly tokenDefs: TokenDefinitions;
   _isDone = true;
@@ -40,13 +45,17 @@ export class Tokenizer {
     while (position < this._buffer.length) {
       let matched = false;
 
-      for (const [tokenKind, [, pattern]] of Object.entries(this.tokenDefs)) {
+      for (const [tokenKind, pattern] of Object.entries(this.tokenDefs)) {
+        if (pattern === null) {
+          continue;
+        }
+
         if (pattern.constructor === String) {
           if (
             pattern !== "" &&
             this._buffer.startsWith(pattern as string, position)
           ) {
-            yield { kind: tokenKind, value: pattern };
+            yield { kind: tokenKind, value: pattern } as Token;
 
             position += pattern.length;
             matched = true;
@@ -69,7 +78,7 @@ export class Tokenizer {
           }
 
           if (value !== null) {
-            yield { kind: tokenKind, value };
+            yield { kind: tokenKind, value } as Token;
 
             position += length;
             matched = true;
@@ -81,7 +90,7 @@ export class Tokenizer {
 
       if (!matched) {
         yield {
-          kind: this.tokenDefs.T_UNKNOWN[0],
+          kind: "T_UNKNOWN",
           value: this._buffer[position],
         };
 
@@ -98,7 +107,7 @@ export class Tokenizer {
         return;
       }
 
-      yield { kind: this.tokenDefs.T_END[0], value: "" };
+      yield { kind: "T_END", value: "" } as Token;
     }
   }
 

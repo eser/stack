@@ -33,7 +33,7 @@ function getFunctionParameters(fn: (...args: any) => any) {
 //     });
 //   }
 
-//   const paramName = (isRestOrSpread ? param.substr(3) : param).trim();
+//   const paramName = (isRestOrSpread ? param.substring(3) : param).trim();
 
 //   if (defaultValueMatch) {
 //     const [_, name, defaultValue] = defaultValueMatch;

@@ -5,7 +5,7 @@ import {
 
 export interface Token {
   kind: string;
-  value: string;
+  value: string | undefined;
 }
 
 export class Tokenizer {

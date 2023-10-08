@@ -24,7 +24,7 @@ While `cool` offers you a layer of abstraction that isolates you from the
 platforms, **you can focus on your implementation**. Don't worry about the rest,
 your solution will excel across diverse environments.
 
-Every [component](#-components) of `cool` is designed to work in harmony,
+Every [component](#component-set) of `cool` is designed to work in harmony,
 strives to offer you an intuitive and delightful development experience.
 
 ## 🌟 Why choose cool?

@@ -18,7 +18,7 @@
   "lock": false,
   "imports": {
     "$cool/": "./",
-    "$std/": "https://deno.land/std@0.201.0/",
+    "$std/": "https://deno.land/std@0.203.0/",
 
     "@preact/signals-core": "npm:@preact/signals-core@1.4.0",
 

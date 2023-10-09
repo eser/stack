@@ -4,6 +4,7 @@
   "coverage-gutters.showGutterCoverage": true,
   "coverage-gutters.showLineCoverage": true,
   "coverage-gutters.showRulerCoverage": true,
+  "deno.documentPreloadLimit": 2000,
   "deno.enable": true,
   "deno.codeLens.test": true,
   "deno.lint": true,
@@ -43,6 +44,9 @@
     "editor.defaultFormatter": "denoland.vscode-deno"
   },
   "[typescript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  },
+  "[markdown]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
   }
 }

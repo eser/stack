@@ -1,10 +1,19 @@
 import {
+  isValidElement,
   type Options as PreactOptions,
   options as preactOptions,
 } from "preact";
 import { assetHashingHook } from "../../runtime/utils.ts";
+import { Partial, type PartialProps } from "../../runtime/Partial.tsx";
+import { setActiveUrl } from "../../runtime/active_url.ts";
 import { RenderState } from "./state.ts";
 import { type Island } from "../types.ts";
+import {
+  CLIENT_NAV_ATTR,
+  DATA_KEY_ATTR,
+  LOADING_ATTR,
+  PartialMode,
+} from "../../constants.ts";
 import {
   type Component,
   type ComponentChildren,
@@ -12,6 +21,22 @@ import {
   view,
   type VNode,
 } from "../../runtime/drivers/view.tsx";
+
+// See: https://github.com/preactjs/preact/blob/7748dcb83cedd02e37b3713634e35b97b26028fd/src/internal.d.ts#L3C1-L16
+enum HookType {
+  useState = 1,
+  useReducer = 2,
+  useEffect = 3,
+  useLayoutEffect = 4,
+  useRef = 5,
+  useImperativeHandle = 6,
+  useMemo = 7,
+  useCallback = 8,
+  useContext = 9,
+  useErrorBoundary = 10,
+  // Not a real hook, but the devtools treat is as such
+  useDebugvalue = 11,
+}
 
 // These hooks are long stable, but when we originally added them we
 // weren't sure if they should be public.
@@ -23,6 +48,8 @@ interface AdvancedPreactOptions extends PreactOptions {
   errorBoundaries?: boolean;
   /** before diff hook */
   __b?(vnode: VNode): void;
+  /** Attach a hook that is invoked before a hook's state is queried. */
+  __h?(component: Component, index: number, type: HookType): void;
 }
 const options = preactOptions as AdvancedPreactOptions;
 
@@ -50,7 +77,7 @@ export function setAllIslands(islands: Island[]) {
 }
 
 export function setRenderState(state: RenderState | null): void {
-  if (current !== null) {
+  if (current) {
     current.clearTmpState();
   }
 
@@ -108,12 +135,36 @@ function excludeChildren(props: Record<string, unknown>) {
   return out;
 }
 
+/**
+ * Check if the current component was rendered in an island
+ */
+function hasIslandOwner(current: RenderState, vnode: VNode): boolean {
+  let tmpVNode = vnode;
+  let owner;
+  while ((owner = current.owners.get(tmpVNode)) !== undefined) {
+    if (islandByComponent.has(owner.type as ComponentType)) {
+      return true;
+    }
+    tmpVNode = owner;
+  }
+
+  return false;
+}
+
+function encodePartialMode(mode: PartialProps["mode"]): PartialMode {
+  if (mode === "replace") return PartialMode.REPLACE;
+  else if (mode === "append") return PartialMode.APPEND;
+  else if (mode === "prepend") return PartialMode.PREPEND;
+  throw new Error(`Unknown partial mode "${mode}"`);
+}
+
 const patched = new WeakSet<VNode>();
 
 const oldVNodeHook = options.vnode;
 const oldDiff = options.__b;
 const oldDiffed = options.diffed;
 const oldRender = options.__r;
+const oldHook = options.__h;
 
 options.vnode = (vnode) => {
   assetHashingHook(vnode);
@@ -135,6 +186,22 @@ options.vnode = (vnode) => {
         props["ON" + key.slice(2)] = value;
       }
     }
+    // Don't do key preservation for nodes in <head>.
+    if (
+      vnode.key && vnode.type !== "meta" && vnode.type !== "title" &&
+      vnode.type !== "style" && vnode.type !== "script" && vnode.type !== "link"
+    ) {
+      props[DATA_KEY_ATTR] = vnode.key;
+    }
+
+    if (props[LOADING_ATTR]) {
+      // Avoid automatic signals unwrapping
+      props[LOADING_ATTR] = { value: props[LOADING_ATTR] };
+    }
+
+    if (typeof props[CLIENT_NAV_ATTR] === "boolean") {
+      props[CLIENT_NAV_ATTR] = props[CLIENT_NAV_ATTR] ? "true" : null;
+    }
   } else if (
     current && typeof vnode.type === "function" &&
     vnode.type !== view.adapter.Fragment
@@ -150,6 +217,13 @@ options.vnode = (vnode) => {
 };
 
 options.__b = (vnode: VNode<Record<string, unknown>>) => {
+  // Add CSP nonce to inline script tags
+  if (typeof vnode.type === "string" && vnode.type === "script") {
+    if (!vnode.props.nonce) {
+      vnode.props.nonce = current!.getNonce();
+    }
+  }
+
   if (
     current !== null && current.renderingUserTemplate
   ) {
@@ -195,33 +269,34 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
         }
 
         vnode.type = view.adapter.Fragment;
+      } else if (LOADING_ATTR in vnode.props) {
+        current.islandProps.push({
+          [LOADING_ATTR]: vnode.props[LOADING_ATTR],
+        });
+        vnode.props[LOADING_ATTR] = current.islandProps.length - 1;
+      } else if (vnode.type === "a") {
+        setActiveUrl(vnode, current.url.pathname);
       }
-    } else if (
-      typeof vnode.type === "function" && vnode.type !== view.adapter.Fragment
-    ) {
+    } else if (typeof vnode.type === "function") {
       // Detect island vnodes and wrap them with a marker
       const island = islandByComponent.get(vnode.type);
 
       patchIsland:
       if (
+        vnode.type !== view.adapter.Fragment &&
         island &&
         !patched.has(vnode)
       ) {
+        current.islandDepth++;
+
         // Check if an island is rendered inside another island, not just
         // passed as a child.In that case we treat it like a normal
         // Component. Example:
-        //   function Island() {}
+        //   function Island() {
         //     return <OtherIsland />
         //   }
-        let tmpVNode = vnode;
-        let owner;
-
-        while ((owner = current.owners.get(tmpVNode)) !== undefined) {
-          if (islandByComponent.has(owner.type)) {
-            break patchIsland;
-          }
-
-          tmpVNode = owner;
+        if (hasIslandOwner(current, vnode)) {
+          break patchIsland;
         }
 
         // At this point we know that we need to patch the island. Mark the
@@ -241,6 +316,23 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
           const id = islandProps.length;
           if ("children" in props) {
             let children = props.children;
+
+            // Guard against passing objects as children to JSX
+            if (
+              typeof children === "function" || (
+                children !== null && typeof children === "object" &&
+                !Array.isArray(children) &&
+                !isValidElement(children)
+              )
+            ) {
+              const name = originalType.displayName || originalType.name ||
+                "Anonymous";
+
+              throw new Error(
+                `Invalid JSX child passed to island <${name} />. To resolve this error, pass the data as a standard prop instead.`,
+              );
+            }
+
             const markerText =
               `lime-slot-${island.id}:${island.exportName}:${id}:children`;
 
@@ -259,14 +351,43 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
             );
           }
 
-          const child = view.adapter.h(originalType, props);
+          const child = view.adapter.h(originalType, props) as VNode;
           patched.add(child);
           islandProps.push(props);
 
           return wrapWithMarker(
             child,
-            `lime-${island.id}:${island.exportName}:${islandProps.length - 1}`,
+            `lime-${island.id}:${island.exportName}:${islandProps.length - 1}:${
+              vnode.key ?? ""
+            }`,
           );
+        };
+        // deno-lint-ignore no-explicit-any
+      } else if (vnode.type === (Partial as any)) {
+        current.partialCount++;
+        current.partialDepth++;
+
+        if (hasIslandOwner(current, vnode)) {
+          throw new Error(
+            `<Partial> components cannot be used inside islands.`,
+          );
+        }
+
+        const mode = encodePartialMode(
+          // deno-lint-ignore no-explicit-any
+          (vnode.props as any).mode ?? "replace",
+        );
+        vnode.props.children = wrapWithMarker(
+          vnode.props.children,
+          `lime-partial:${vnode.props.name}:${mode}:${vnode.key ?? ""}`,
+        );
+      } else if (
+        vnode.key && (current.islandDepth > 0 || current.partialDepth > 0)
+      ) {
+        const child = view.adapter.h(vnode.type, vnode.props);
+        vnode.type = view.adapter.Fragment;
+        vnode.props = {
+          children: wrapWithMarker(child, `lime-key:${vnode.key}`),
         };
       }
     }
@@ -289,6 +410,14 @@ options.__r = (vnode) => {
 options.diffed = (vnode: VNode<Record<string, unknown>>) => {
   if (typeof vnode.type === "function") {
     if (vnode.type !== view.adapter.Fragment) {
+      if (current) {
+        if (islandByComponent.has(vnode.type)) {
+          current.islandDepth--;
+        } else if (vnode.type === Partial as ComponentType) {
+          current.partialDepth--;
+        }
+      }
+
       ownerStack.pop();
     } else if (vnode.props["__limeHead"] && current) {
       current.headChildren = false;
@@ -296,4 +425,27 @@ options.diffed = (vnode: VNode<Record<string, unknown>>) => {
   }
 
   oldDiffed?.(vnode);
+};
+
+options.__h = (component, idx, type) => {
+  // deno-lint-ignore no-explicit-any
+  const vnode = (component as any).__v;
+  // Warn when using stateful hooks outside of islands
+  if (
+    // Only error for stateful hooks for now.
+    (type === HookType.useState || type === HookType.useReducer) && current &&
+    !islandByComponent.has(vnode.type) && !hasIslandOwner(current, vnode) &&
+    !current.error
+  ) {
+    const name = HookType[type];
+    const message =
+      `Hook "${name}" cannot be used outside of an island component.`;
+    const hint = type === HookType.useState
+      ? `\n\nInstead, use the "useSignal" hook to share state across islands.`
+      : "";
+
+    // Don't throw here because that messes up internal Preact state
+    current.error = new Error(message + hint);
+  }
+  oldHook?.(component, idx, type);
 };

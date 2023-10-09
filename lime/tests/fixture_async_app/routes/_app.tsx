@@ -1,5 +1,5 @@
 import { delay } from "$std/async/delay.ts";
-import { type AppContext } from "$cool/lime/src/server/types.ts";
+import { type AppContext } from "$cool/lime/server.ts";
 
 export default async function App(_req: Request, ctx: AppContext) {
   await delay(100);

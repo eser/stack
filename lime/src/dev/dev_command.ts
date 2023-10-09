@@ -1,6 +1,6 @@
 import { updateCheck } from "./update_check.ts";
-import { DAY, dirname, fromFileUrl, join } from "./deps.ts";
-import { type LimeOptions } from "../server/types.ts";
+import { DAY, dirname, fromFileUrl, join, toFileUrl } from "./deps.ts";
+import { type LimeOptions, Manifest as ServerManifest } from "../server/mod.ts";
 import { build } from "./build.ts";
 import {
   collect,
@@ -8,18 +8,19 @@ import {
   generate,
   type Manifest,
 } from "./mod.ts";
+import { startFromContext } from "../server/boot.ts";
+import { getLimeConfigWithDefaults } from "../server/config.ts";
+import { getServerContext } from "../server/context.ts";
 
 export async function dev(
   base: string,
   entrypoint: string,
-  options: LimeOptions = {},
+  options?: LimeOptions,
 ) {
   ensureMinDenoVersion();
 
   // Run update check in background
   updateCheck(DAY).catch(() => {});
-
-  entrypoint = new URL(entrypoint, base).href;
 
   const dir = dirname(fromFileUrl(base));
 
@@ -32,7 +33,7 @@ export async function dev(
     currentManifest = { islands: [], routes: [] };
   }
 
-  const newManifest = await collect(dir);
+  const newManifest = await collect(dir, options?.router?.ignoreFilePattern);
 
   Deno.env.set("LIME_DEV_PREVIOUS_MANIFEST", JSON.stringify(newManifest));
 
@@ -44,11 +45,38 @@ export async function dev(
     await generate(dir, newManifest);
   }
 
+  const manifest = (await import(toFileUrl(join(dir, "manifest.gen.ts")).href))
+    .default as ServerManifest;
+
   if (Deno.args.includes("build")) {
-    await build(join(dir, "lime.gen.ts"), options);
+    const config = await getLimeConfigWithDefaults(
+      manifest,
+      options ?? {},
+    );
+    config.dev = false;
+    config.loadSnapshot = false;
+
+    await build(config);
+
     return;
   }
 
+  if (options) {
+    const config = await getLimeConfigWithDefaults(
+      manifest,
+      options,
+    );
+    config.dev = true;
+    config.loadSnapshot = false;
+
+    const ctx = await getServerContext(config);
+    await startFromContext(ctx, config.server);
+
+    return;
+  }
+
+  Deno.env.set("__LIME_LEGACY_DEV", "true");
+  entrypoint = new URL(entrypoint, base).href;
   await import(entrypoint);
 }
 

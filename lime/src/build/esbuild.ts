@@ -55,7 +55,7 @@ export class EsbuildBuilder implements Builder {
         entryPoints: opts.entrypoints,
 
         platform: "browser",
-        target: ["chrome99", "firefox99", "safari15"],
+        target: this.#options.target,
 
         format: "esm",
         bundle: true,
@@ -87,6 +87,11 @@ export class EsbuildBuilder implements Builder {
         const path = toFileUrl(file.path).href.slice(absWorkingDirLen);
         files.set(path, file.contents);
       }
+
+      files.set(
+        "metafile.json",
+        new TextEncoder().encode(JSON.stringify(bundle.metafile)),
+      );
 
       const metaOutputs = new Map(Object.entries(bundle.metafile.outputs));
 

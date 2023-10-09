@@ -1,4 +1,4 @@
-import { type ComponentChildren } from "../../../src/runtime/drivers/view.ts";
+import { type ComponentChildren } from "$cool/lime/runtime.ts";
 import Island from "../islands/Island.tsx";
 
 function Foo(props: { children?: ComponentChildren }) {

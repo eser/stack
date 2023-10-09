@@ -242,7 +242,15 @@ export async function render<Data>(
       componentFn.displayName = (fn as any).displayName || fn.name;
       componentStack[i] = componentFn;
     } else {
-      componentStack[i] = fn;
+      componentStack[i] = () => {
+        return view.adapter.h(fn, {
+          ...props,
+          Component() {
+            return view.adapter.h(componentStack[i + 1], null);
+          },
+          // deno-lint-ignore no-explicit-any
+        } as any);
+      };
     }
   }
 
@@ -338,6 +346,9 @@ export async function render<Data>(
   }
 
   await renderAsync();
+  if (renderState.error !== null) {
+    throw renderState.error;
+  }
 
   const idx = renderState.headVNodes.findIndex((vnode) =>
     vnode !== null && typeof vnode === "object" && "type" in vnode &&

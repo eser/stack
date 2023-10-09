@@ -1,4 +1,4 @@
-import { view } from "../../../src/runtime/drivers/view.ts";
+import { view } from "$cool/lime/runtime.ts";
 
 export default function IslandWithProps(
   props: { foo: { bar: string } },

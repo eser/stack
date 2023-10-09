@@ -11,6 +11,7 @@ import {
   isValidElement,
   type PreactContext,
   render,
+  toChildArray,
   type VNode,
 } from "preact";
 import {
@@ -45,7 +46,7 @@ export class PreactViewAdapter implements ViewAdapterBase {
   }
 
   useContext<T>(context: PreactContext<T>) {
-    return useContext(context);
+    return useContext<T>(context);
   }
 
   useEffect(callback: EffectCallback, deps?: DependencyList) {
@@ -64,9 +65,13 @@ export class PreactViewAdapter implements ViewAdapterBase {
     return h(type, props, ...children);
   }
 
-  // deno-lint-ignore no-explicit-any, ban-types
-  isValidElement(object: any): object is VNode<{}> {
+  // deno-lint-ignore ban-types
+  isValidElement(object: unknown): object is VNode<{}> {
     return isValidElement(object);
+  }
+
+  toChildArray(children: ComponentChild) {
+    return toChildArray(children);
   }
 
   render(fragment: ComponentChild, container: ContainerNode) {

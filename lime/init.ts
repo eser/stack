@@ -2,7 +2,7 @@ import { basename, colors, join, parse, resolve } from "./src/dev/deps.ts";
 import { error } from "./src/dev/error.ts";
 import { collect, ensureMinDenoVersion, generate } from "./src/dev/mod.ts";
 import { baseImports, preactImports, reactImports } from "./src/dev/imports.ts";
-import { view } from "$cool/lime/src/runtime/drivers/view.ts";
+import { view } from "$cool/lime/runtime.ts";
 
 ensureMinDenoVersion();
 
@@ -78,11 +78,13 @@ console.log(
 const usePreact = flags.preact;
 const useDocker = flags.docker;
 
-await Deno.mkdir(join(resolvedDirectory, "routes", "api"), { recursive: true });
-await Deno.mkdir(join(resolvedDirectory, "islands"), { recursive: true });
-await Deno.mkdir(join(resolvedDirectory, "static"), { recursive: true });
-await Deno.mkdir(join(resolvedDirectory, "components"), { recursive: true });
-await Deno.mkdir(join(resolvedDirectory, ".vscode"), { recursive: true });
+await Promise.all([
+  Deno.mkdir(join(resolvedDirectory, "routes", "api"), { recursive: true }),
+  Deno.mkdir(join(resolvedDirectory, "islands"), { recursive: true }),
+  Deno.mkdir(join(resolvedDirectory, "static"), { recursive: true }),
+  Deno.mkdir(join(resolvedDirectory, "components"), { recursive: true }),
+  Deno.mkdir(join(resolvedDirectory, ".vscode"), { recursive: true }),
+]);
 
 const GITIGNORE = `# dotenv environment variable files
 .env
@@ -152,10 +154,6 @@ export default function Home() {
   );
 }
 `;
-await Deno.writeTextFile(
-  join(resolvedDirectory, "routes", "index.tsx"),
-  ROUTES_INDEX_TSX,
-);
 
 const COMPONENTS_BUTTON_TSX = `import { JSX } from "${view.adapter.libJSX}";
 import { IS_BROWSER } from "$cool/lime/runtime.ts";
@@ -170,10 +168,6 @@ export function Button(props: JSX.HTMLAttributes<HTMLButtonElement>) {
   );
 }
 `;
-await Deno.writeTextFile(
-  join(resolvedDirectory, "components", "Button.tsx"),
-  COMPONENTS_BUTTON_TSX,
-);
 
 const ISLANDS_COUNTER_TSX =
   `import { type Signal } from "${view.adapter.libSignals}";
@@ -193,24 +187,6 @@ export default function Counter(props: CounterProps) {
   );
 }
 `;
-await Deno.writeTextFile(
-  join(resolvedDirectory, "islands", "Counter.tsx"),
-  ISLANDS_COUNTER_TSX,
-);
-
-const ROUTES_GREET_TSX = `import { type PageProps } from "$cool/lime/server.ts";
-
-export default function Greet(props: PageProps) {
-  return <div>Hello {props.params.name}</div>;
-}
-`;
-await Deno.mkdir(join(resolvedDirectory, "routes", "greet"), {
-  recursive: true,
-});
-await Deno.writeTextFile(
-  join(resolvedDirectory, "routes", "greet", "[name].tsx"),
-  ROUTES_GREET_TSX,
-);
 
 // 404 page
 const ROUTES_404_PAGE = `import { Head } from "$cool/lime/runtime.ts";
@@ -242,9 +218,36 @@ export default function Error404() {
 }
 `;
 
+await Promise.all([
+  Deno.writeTextFile(
+    join(resolvedDirectory, "routes", "index.tsx"),
+    ROUTES_INDEX_TSX,
+  ),
+  Deno.writeTextFile(
+    join(resolvedDirectory, "components", "Button.tsx"),
+    COMPONENTS_BUTTON_TSX,
+  ),
+  Deno.writeTextFile(
+    join(resolvedDirectory, "islands", "Counter.tsx"),
+    ISLANDS_COUNTER_TSX,
+  ),
+  Deno.writeTextFile(
+    join(resolvedDirectory, "routes", "_404.tsx"),
+    ROUTES_404_PAGE,
+  ),
+]);
+
+const ROUTES_GREET_TSX = `import { PageProps } from "$cool/lime/server.ts";
+export default function Greet(props: PageProps) {
+  return <div>Hello {props.params.name}</div>;
+}
+`;
+await Deno.mkdir(join(resolvedDirectory, "routes", "greet"), {
+  recursive: true,
+});
 await Deno.writeTextFile(
-  join(resolvedDirectory, "routes", "_404.tsx"),
-  ROUTES_404_PAGE,
+  join(resolvedDirectory, "routes", "greet", "[name].tsx"),
+  ROUTES_GREET_TSX,
 );
 
 const ROUTES_API_JOKE_TS =
@@ -398,7 +401,7 @@ html {
 .rounded {
   border-radius: 0.25rem;
 }
-.hover\:bg-gray-200:hover {
+.hover\\:bg-gray-200:hover {
   background-color: #e5e7eb;
 }
 `;
@@ -465,7 +468,7 @@ export default defineConfig({
   plugins: [],
 });
 `;
-const CONFIG_TS_PATH = join(resolvedDirectory, "lime.config.ts");
+const CONFIG_TS_PATH = join(resolvedDirectory, "config.ts");
 await Deno.writeTextFile(CONFIG_TS_PATH, LIME_CONFIG_TS);
 
 let MAIN_TS = `/// <reference no-default-lib="true" />
@@ -477,8 +480,8 @@ let MAIN_TS = `/// <reference no-default-lib="true" />
 import "$std/dotenv/load.ts";
 
 import { start } from "$cool/lime/server.ts";
-import manifest from "./lime.gen.ts";
-import config from "./lime.config.ts";
+import manifest from "./manifest.gen.ts";
+import config from "./config.ts";
 `;
 
 MAIN_TS += `
@@ -489,7 +492,9 @@ await Deno.writeTextFile(MAIN_TS_PATH, MAIN_TS);
 const DEV_TS = `#!/usr/bin/env -S deno run -A --watch=static/,routes/
 
 import dev from "$cool/lime/dev.ts";
-import config from "./lime.config.ts";
+import config from "./config.ts";
+
+import "$std/dotenv/load.ts";
 
 await dev(import.meta.url, "./main.ts", config);
 `;
@@ -514,11 +519,8 @@ const config = {
     rules: {
       tags: ["fresh", "recommended"],
     },
-    exclude: ["_lime"],
   },
-  fmt: {
-    exclude: ["_lime"],
-  },
+  exclude: ["**/_lime/*"],
   imports: {} as Record<string, string>,
   compilerOptions: {
     jsx: "react-jsx",

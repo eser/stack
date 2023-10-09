@@ -4,6 +4,7 @@ import {
 } from "../../runtime/drivers/view.tsx";
 import { type Island } from "../types.ts";
 import { type ContentSecurityPolicy } from "../../runtime/csp.ts";
+import { PARTIAL_SEARCH_PARAM } from "../../constants.ts";
 
 export interface RenderStateRouteOptions {
   url: URL;
@@ -38,6 +39,13 @@ export class RenderState {
   // Preact state
   ownerStack: VNode[] = [];
   owners = new Map<VNode, VNode>();
+  #nonce = "";
+  error: Error | null = null;
+  isPartial: boolean;
+  partialCount = 0;
+  partialDepth = 0;
+  islandDepth = 0;
+  url: URL;
 
   constructor(
     routeOptions: RenderStateRouteOptions,
@@ -49,10 +57,19 @@ export class RenderState {
     this.routeOptions = routeOptions;
     this.csp = csp;
     this.componentStack = componentStack;
+    this.url = routeOptions.url;
+    this.isPartial = routeOptions.url.searchParams.has(PARTIAL_SEARCH_PARAM);
 
     if (error) {
       this.routeOptions.error = error;
     }
+  }
+
+  getNonce(): string {
+    if (this.#nonce === "") {
+      this.#nonce = crypto.randomUUID().replace(/-/g, "");
+    }
+    return this.#nonce;
   }
 
   clearTmpState() {

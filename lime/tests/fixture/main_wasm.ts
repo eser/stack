@@ -8,7 +8,7 @@
 
 import "./polyfill_deno_deploy.ts";
 import { start } from "$cool/lime/server.ts";
-import routes from "./lime.gen.ts";
+import routes from "./manifest.gen.ts";
 import options from "./options.ts";
 
 await start(routes, options);

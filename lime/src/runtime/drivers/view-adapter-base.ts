@@ -48,8 +48,8 @@ export interface ViewAdapterBase {
     props: Record<string, unknown> | null,
     ...children: unknown[]
   ): unknown;
-  // deno-lint-ignore ban-types
-  isValidElement(object: {}): boolean;
+  isValidElement(object: unknown): boolean;
+  toChildArray(children: unknown): unknown[];
 
   render(fragment: unknown, container: HTMLElement): void;
   renderHydrate(fragment: unknown, container: HTMLElement): void;

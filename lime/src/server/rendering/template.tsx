@@ -1,5 +1,6 @@
 import { RenderState } from "./state.ts";
 import { view } from "../../runtime/drivers/view.tsx";
+import { type VNode } from "preact";
 import { HEAD_CONTEXT } from "../../runtime/head.ts";
 import { CSP_CONTEXT } from "../../runtime/csp.ts";
 
@@ -12,13 +13,13 @@ export function renderHtml(state: RenderState) {
 
   try {
     const routeComponent = componentStack[componentStack.length - 1];
-    let finalComp = view.adapter.h(routeComponent, state.routeOptions);
+    let finalComp = view.adapter.h(routeComponent, state.routeOptions) as VNode;
 
     // Skip page component
     let i = componentStack.length - 1;
 
     while (i--) {
-      const component = componentStack[i];
+      const component = componentStack[i] as ComponentType;
       const curComp = finalComp;
 
       finalComp = view.adapter.h(component, {
@@ -26,7 +27,8 @@ export function renderHtml(state: RenderState) {
         Component() {
           return curComp;
         },
-      });
+        // deno-lint-ignore no-explicit-any
+      } as any) as VNode;
     }
 
     const app = view.adapter.h(
@@ -37,13 +39,13 @@ export function renderHtml(state: RenderState) {
         value: state.headVNodes,
         children: finalComp,
       }),
-    );
+    ) as VNode;
 
     let html = view.adapter.renderToString(app);
 
     for (const [id, children] of state.slots.entries()) {
       const slotHtml = view.adapter.renderToString(
-        view.adapter.h(view.adapter.Fragment, null, children),
+        view.adapter.h(view.adapter.Fragment, null, children) as VNode,
       );
       const templateId = id.replace(/:/g, "-");
 
@@ -69,11 +71,38 @@ export function renderOuterDocument(
     docHtml,
     docHead,
     renderedHtmlTag,
-    docTitle,
     docBody,
     docHeadNodes,
     headVNodes,
   } = state;
+
+  let docTitle = state.docTitle;
+
+  // Filter out duplicate head vnodes by "key" if set
+  const filteredHeadNodes: unknown[] = [];
+
+  if (headVNodes.length > 0) {
+    const seen = new Map<string, unknown>();
+    const userChildren = view.adapter.toChildArray(headVNodes);
+    for (let i = 0; i < userChildren.length; i++) {
+      // deno-lint-ignore no-explicit-any
+      const child = userChildren[i] as any;
+
+      if (view.adapter.isValidElement(child)) {
+        if (child.type === "title") {
+          docTitle = child;
+        } else if (child.key !== undefined) {
+          seen.set(child.key, child);
+        } else {
+          filteredHeadNodes.push(child);
+        }
+      }
+    }
+
+    if (seen.size > 0) {
+      filteredHeadNodes.push(...seen.values());
+    }
+  }
 
   const page = view.adapter.h(
     "html",
@@ -96,13 +125,13 @@ export function renderOuterDocument(
       opts.moduleScripts.map(([src, nonce]) =>
         view.adapter.h("script", { src: src, nonce, type: "module" })
       ),
-      headVNodes,
+      filteredHeadNodes,
     ),
     view.adapter.h("body", {
       ...docBody,
       dangerouslySetInnerHTML: { __html: opts.bodyHtml },
     }),
-  );
+  ) as VNode;
 
   try {
     view.adapter.setRenderState(state);

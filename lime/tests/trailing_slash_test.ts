@@ -1,7 +1,7 @@
-import { INTERNAL_PREFIX } from "../runtime.ts";
-import { ServerContext, Status } from "../server.ts";
+import { INTERNAL_PREFIX } from "$cool/lime/runtime.ts";
+import { ServerContext, Status } from "$cool/lime/server.ts";
 import { assert, assertEquals } from "./deps.ts";
-import manifest from "./fixture_router/lime.gen.ts";
+import manifest from "./fixture_router/manifest.gen.ts";
 
 const ctx = await ServerContext.fromManifest(manifest, {
   router: {

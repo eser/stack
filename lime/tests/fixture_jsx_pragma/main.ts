@@ -4,5 +4,5 @@
 /// <reference lib="deno.ns" />
 
 import { start } from "$cool/lime/server.ts";
-import manifest from "./lime.gen.ts";
+import manifest from "./manifest.gen.ts";
 await start(manifest);

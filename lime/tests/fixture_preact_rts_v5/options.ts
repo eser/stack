@@ -1,4 +1,4 @@
-import { type LimeOptions } from "$cool/lime/types.ts";
+import { type LimeOptions } from "$cool/lime/server.ts";
 
 export default {
   async render(_ctx, render) {

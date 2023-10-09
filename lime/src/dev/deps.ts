@@ -22,4 +22,4 @@ export * as JSONC from "$std/jsonc/mod.ts";
 export * as fs from "$std/fs/mod.ts";
 
 // ts-morph
-export { Node, Project } from "https://deno.land/x/ts_morph@17.0.1/mod.ts";
+export { Node, Project } from "https://deno.land/x/ts_morph@20.0.0/mod.ts";

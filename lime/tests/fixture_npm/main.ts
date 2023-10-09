@@ -5,6 +5,6 @@
 /// <reference lib="deno.ns" />
 
 import { start } from "$cool/lime/server.ts";
-import routes from "./lime.gen.ts";
+import routes from "./manifest.gen.ts";
 
 await start(routes);

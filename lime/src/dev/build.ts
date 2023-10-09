@@ -1,39 +1,31 @@
-import { ServerContext } from "../server/context.ts";
-import { type LimeOptions, type Manifest } from "../server/mod.ts";
-import { dirname, fromFileUrl, join, toFileUrl } from "../server/deps.ts";
-import { fs } from "./deps.ts";
+import { getServerContext } from "../server/context.ts";
+import { join } from "../server/deps.ts";
+import { colors, fs } from "./deps.ts";
 import { type BuildSnapshotJson } from "../build/mod.ts";
 import { BUILD_ID } from "../server/build_id.ts";
+import { type InternalLimeOptions } from "../server/types.ts";
 
 export async function build(
-  manifestPath: string,
-  opts: LimeOptions,
+  config: InternalLimeOptions,
 ) {
-  const manifest = (await import(toFileUrl(manifestPath).href))
-    .default as Manifest;
-
-  const outDir = join(dirname(fromFileUrl(manifest.baseUrl)), "_lime");
-
   // Ensure that build dir is empty
-  await fs.emptyDir(outDir);
+  await fs.emptyDir(config.build.outDir);
 
-  const ctx = await ServerContext.fromManifest(manifest, {
-    ...opts,
-    skipSnapshot: true,
-  });
+  await Promise.all(config.plugins.map((plugin) => plugin.buildStart?.()));
 
   // Bundle assets
+  const ctx = await getServerContext(config);
   const snapshot = await ctx.buildSnapshot();
 
   // Write output files to disk
-  await Promise.all(snapshot.paths.map((fileName) => {
-    const data = snapshot.read(fileName);
+  await Promise.all(snapshot.paths.map(async (fileName) => {
+    const data = await snapshot.read(fileName);
 
     if (data === null) {
       return;
     }
 
-    return Deno.writeFile(join(outDir, fileName), data);
+    return Deno.writeFile(join(config.build.outDir, fileName), data);
   }));
 
   // Write dependency snapshot file to disk
@@ -48,7 +40,13 @@ export async function build(
     jsonSnapshot.files[filePath] = dependencies;
   }
 
-  const snapshotPath = join(outDir, "snapshot.json");
+  const snapshotPath = join(config.build.outDir, "snapshot.json");
 
   await Deno.writeTextFile(snapshotPath, JSON.stringify(jsonSnapshot, null, 2));
+
+  console.log(
+    `Assets written to: ${colors.green(config.build.outDir)}`,
+  );
+
+  await Promise.all(config.plugins.map((plugin) => plugin.buildEnd?.()));
 }

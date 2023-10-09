@@ -1,4 +1,5 @@
 import {
+  Children,
   type ComponentClass,
   type Context,
   createContext,
@@ -65,6 +66,10 @@ export class ReactViewAdapter implements ViewAdapterBase {
   // deno-lint-ignore ban-types
   isValidElement(object: {}) {
     return isValidElement(object);
+  }
+
+  toChildArray(children: ReactNode) {
+    return Children.toArray(children);
   }
 
   render(fragment: ReactNode, container: Element | DocumentFragment) {

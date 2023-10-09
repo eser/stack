@@ -3,6 +3,7 @@ export {
   dirname,
   extname,
   fromFileUrl,
+  isAbsolute,
   join,
   toFileUrl,
 } from "$std/path/mod.ts";

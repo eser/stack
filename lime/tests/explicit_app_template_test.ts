@@ -2,16 +2,15 @@ import {
   assertNotSelector,
   assertSelector,
   assertTextMany,
-  fetchHtml,
-  withLime,
+  withFakeServe,
 } from "$cool/lime/tests/test_utils.ts";
 import { assertNotMatch } from "$std/assert/mod.ts";
 
 Deno.test("doesn't apply internal app template", async () => {
-  await withLime(
+  await withFakeServe(
     "./tests/fixture_explicit_app/main.ts",
-    async (address) => {
-      const doc = await fetchHtml(`${address}`);
+    async (server) => {
+      const doc = await server.getHtml("/");
 
       // Doesn't render internal app template
       assertNotSelector(doc, "body body");
@@ -32,10 +31,10 @@ Deno.test("doesn't apply internal app template", async () => {
 });
 
 Deno.test("user _app works with <Head>", async () => {
-  await withLime(
+  await withFakeServe(
     "./tests/fixture_explicit_app/main.ts",
-    async (address) => {
-      const doc = await fetchHtml(`${address}/head`);
+    async (server) => {
+      const doc = await server.getHtml("/head");
 
       // Doesn't render internal app template
       assertNotSelector(doc, "body body");
@@ -59,20 +58,20 @@ Deno.test("user _app works with <Head>", async () => {
 });
 
 Deno.test("don't duplicate <title>", async () => {
-  await withLime(
+  await withFakeServe(
     "./tests/fixture_explicit_app/main.ts",
-    async (address) => {
-      const doc = await fetchHtml(`${address}/title`);
+    async (server) => {
+      const doc = await server.getHtml("/title");
       assertTextMany(doc, "title", ["foo bar"]);
     },
   );
 });
 
 Deno.test("sets <html> + <head> + <body> classes", async () => {
-  await withLime(
+  await withFakeServe(
     "./tests/fixture_explicit_app/main.ts",
-    async (address) => {
-      const doc = await fetchHtml(`${address}`);
+    async (server) => {
+      const doc = await server.getHtml(""); // FIXME(@eser): This should be "/"?
       assertSelector(doc, "html.html");
       assertSelector(doc, "head.head");
       assertSelector(doc, "body.body");
@@ -81,10 +80,10 @@ Deno.test("sets <html> + <head> + <body> classes", async () => {
 });
 
 Deno.test("renders valid html document", async () => {
-  await withLime(
+  await withFakeServe(
     "./tests/fixture_explicit_app/main.ts",
-    async (address) => {
-      const res = await fetch(address);
+    async (server) => {
+      const res = await server.getHtml("/");
       const text = await res.text();
 
       assertNotMatch(text, /<\/body><\/head>/);

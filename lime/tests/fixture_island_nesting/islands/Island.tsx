@@ -1,4 +1,4 @@
-import { type ComponentChildren } from "../../../src/runtime/drivers/view.ts";
+import { type ComponentChildren } from "$cool/lime/runtime.ts";
 
 export default function Island(props: { children?: ComponentChildren }) {
   return (

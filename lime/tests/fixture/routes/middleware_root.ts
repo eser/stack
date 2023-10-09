@@ -1,4 +1,4 @@
-import { type Handlers } from "../../../server.ts";
+import { type Handlers } from "$cool/lime/server.ts";
 
 interface State {
   root: string;

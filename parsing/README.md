@@ -74,7 +74,7 @@ console.log(tokens);
 ```js
 import { extendedTokens, Tokenizer } from "$cool/parsing/mod.ts";
 
-const response = await fetch("https://deno.land/x/cool@0.7.9/di/mod.ts");
+const response = await fetch("https://deno.land/x/cool@0.7.13/di/mod.ts");
 
 const lexer = new Tokenizer(extendedTokens);
 

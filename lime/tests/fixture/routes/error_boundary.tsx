@@ -1,4 +1,4 @@
-import { type Component } from "$cool/lime/runtime.ts";
+import { type Component } from "../../../runtime.ts";
 
 class ErrorBoundary extends Component {
   state = { error: null } as { error: Error | null };

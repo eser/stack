@@ -1,7 +1,7 @@
 import {
   type MiddlewareHandler,
   type MiddlewareHandlerContext,
-} from "$cool/lime/server.ts";
+} from "../../../server.ts";
 
 // cors middleware
 async function corsHandler(
@@ -47,7 +47,7 @@ async function rootHandler(
   _req: Request,
   ctx: MiddlewareHandlerContext,
 ) {
-  ctx.state.root = "root_mw";
+  ctx.state["root"] = "root_mw";
   const resp = await ctx.next();
   resp.headers.set("server", "cool lime test server");
   return resp;

@@ -1,5 +1,5 @@
-import { defineRoute } from "$cool/lime/server.ts";
-import { delay } from "$cool/lime/tests/deps.ts";
+import { defineRoute } from "../../../server.ts";
+import { delay } from "../../deps.ts";
 import { type State } from "../other/state.ts";
 
 export default defineRoute<State>(async (_req, ctx) => {

@@ -1,5 +1,5 @@
-import { type LayoutContext } from "$cool/lime/server.ts";
-import { delay } from "$cool/lime/tests/deps.ts";
+import { type LayoutContext } from "../../../../server.ts";
+import { delay } from "../../../deps.ts";
 
 export default async function AsyncLayout(
   _req: Request,

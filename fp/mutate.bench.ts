@@ -1,4 +1,4 @@
-import { deno } from "$cool/deps.ts";
+import { deno } from "../deps.ts";
 import { mutate } from "./mutate.ts";
 
 const group = "mutate";

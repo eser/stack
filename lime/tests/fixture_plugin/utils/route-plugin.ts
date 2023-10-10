@@ -1,7 +1,4 @@
-import {
-  type MiddlewareHandlerContext,
-  type Plugin,
-} from "$cool/lime/server.ts";
+import { type MiddlewareHandlerContext, type Plugin } from "../../../server.ts";
 import { handler as testMiddleware } from "./sample_routes/_middleware.ts";
 import { AppBuilder } from "./sample_routes/AppBuilder.tsx";
 import { SimpleRoute } from "./sample_routes/simple-route.tsx";

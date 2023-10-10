@@ -1,11 +1,11 @@
-import { type MiddlewareHandlerContext } from "$cool/lime/server.ts";
+import { type MiddlewareHandlerContext } from "../../../../server.ts";
 
 export async function handler(
   _req: Request,
   ctx: MiddlewareHandlerContext,
 ) {
   try {
-    ctx.state.flag = true;
+    ctx.state["flag"] = true;
     return await ctx.next();
   } catch (error) {
     console.log("we're very thoroughly dealing with this error here: " + error);

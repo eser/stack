@@ -1,4 +1,4 @@
-import { IS_BROWSER } from "$cool/lime/runtime.ts";
+import { IS_BROWSER } from "../../../runtime.ts";
 import isNumber from "npm:is-number";
 
 export default function Test() {

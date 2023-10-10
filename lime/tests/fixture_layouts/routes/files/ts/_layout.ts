@@ -1,5 +1,5 @@
-import { view } from "$cool/lime/runtime.ts";
-import { type LayoutProps } from "$cool/lime/server.ts";
+import { view } from "../../../../../runtime.ts";
+import { type LayoutProps } from "../../../../../server.ts";
 
 export default function TsLayout({ Component }: LayoutProps) {
   return view.adapter.h(

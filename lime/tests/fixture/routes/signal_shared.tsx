@@ -1,5 +1,5 @@
 import { useSignal } from "@preact/signals";
-import Counter from "$cool/lime/tests/fixture/islands/Counter.tsx";
+import Counter from "../islands/Counter.tsx";
 
 export default function SignalShared() {
   const sig = useSignal(1);

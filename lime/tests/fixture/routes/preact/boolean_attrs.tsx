@@ -1,5 +1,5 @@
-import { defineRoute } from "$cool/lime/server.ts";
-import { FormIsland } from "$cool/lime/tests/fixture/islands/FormIsland.tsx";
+import { defineRoute } from "../../../../server.ts";
+import { FormIsland } from "../../islands/FormIsland.tsx";
 
 export default defineRoute(() => {
   return (

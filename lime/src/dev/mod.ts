@@ -1,4 +1,4 @@
-import { gte, join, posix, relative, walk, WalkEntry } from "./deps.ts";
+import { join, posix, relative, semver, walk, WalkEntry } from "./deps.ts";
 import { error } from "./error.ts";
 
 const MIN_DENO_VERSION = "1.37.0";
@@ -6,7 +6,7 @@ const TEST_FILE_PATTERN = /[._]test\.(?:[tj]sx?|[mc][tj]s)$/;
 
 export function ensureMinDenoVersion() {
   // Check that the minimum supported Deno version is being used.
-  if (!gte(Deno.version.deno, MIN_DENO_VERSION)) {
+  if (!semver.gte(Deno.version.deno, MIN_DENO_VERSION)) {
     let message =
       `Deno version ${MIN_DENO_VERSION} or higher is required. Please update Deno.\n\n`;
 
@@ -177,8 +177,16 @@ export default manifest;
   const manifestPath = join(directory, "./manifest.gen.ts");
 
   await Deno.writeTextFile(manifestPath, manifestStr);
+}
+
+export async function buildManifestFile(base: string) {
+  const manifest = await collect(base);
+  await generate(base, manifest);
+
   console.log(
-    `%cThe manifest has been generated for ${routes.length} routes and ${islands.length} islands.`,
+    `%cThe manifest has been generated for ${manifest.routes.length} routes and ${manifest.islands.length} islands.`,
     "color: blue; font-weight: bold",
   );
+
+  // return manifest;
 }

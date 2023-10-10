@@ -1,4 +1,4 @@
-import { type ComponentChildren } from "$cool/lime/runtime.ts";
+import { type ComponentChildren } from "../../../runtime.ts";
 
 export default function Island(props: { children?: ComponentChildren }) {
   return (

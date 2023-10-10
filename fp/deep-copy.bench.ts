@@ -1,4 +1,4 @@
-import { deno } from "$cool/deps.ts";
+import { deno } from "../deps.ts";
 import { deepCopy, deepCopy2 } from "./deep-copy.ts";
 
 const group = "deep-copy";

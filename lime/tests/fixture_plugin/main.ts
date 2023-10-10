@@ -4,7 +4,8 @@
 /// <reference lib="dom.asynciterable" />
 /// <reference lib="deno.ns" />
 
-import { start } from "$cool/lime/server.ts";
+import { start } from "../../server.ts";
 import manifest from "./manifest.gen.ts";
 import options from "./options.ts";
+
 await start(manifest, options);

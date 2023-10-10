@@ -1,4 +1,4 @@
-import { IS_BROWSER } from "$cool/lime/runtime.ts";
+import { IS_BROWSER } from "../../../runtime.ts";
 import Test from "../islands/Test.tsx";
 
 export default function Home() {

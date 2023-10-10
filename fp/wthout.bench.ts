@@ -1,4 +1,4 @@
-import { deno } from "$cool/deps.ts";
+import { deno } from "../deps.ts";
 import { wthout } from "./wthout.ts";
 import lodashReject from "npm:lodash.reject";
 

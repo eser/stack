@@ -1,4 +1,4 @@
-import { collect } from "$cool/lime/src/dev/mod.ts";
+import { collect } from "../src/dev/mod.ts";
 import { assert, dirname, fromFileUrl, join } from "./deps.ts";
 
 Deno.test({

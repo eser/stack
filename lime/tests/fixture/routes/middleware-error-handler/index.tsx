@@ -1,8 +1,8 @@
-import { type Handlers, type PageProps } from "$cool/lime/server.ts";
+import { type Handlers, type PageProps } from "../../../../server.ts";
 
 export const handler: Handlers = {
   GET(_req, ctx) {
-    return ctx.render(ctx.state.flag);
+    return ctx.render(ctx.state["flag"]);
   },
 };
 

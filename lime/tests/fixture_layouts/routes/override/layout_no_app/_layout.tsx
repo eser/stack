@@ -1,4 +1,4 @@
-import { type LayoutConfig, type LayoutProps } from "$cool/lime/server.ts";
+import { type LayoutConfig, type LayoutProps } from "../../../../../server.ts";
 
 export const config: LayoutConfig = {
   skipAppWrapper: true,

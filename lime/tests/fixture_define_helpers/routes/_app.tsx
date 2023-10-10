@@ -1,4 +1,4 @@
-import { defineApp } from "$cool/lime/server.ts";
+import { defineApp } from "../../../server.ts";
 import { type State } from "../other/state.ts";
 
 export default defineApp<State>((req, ctx) => {

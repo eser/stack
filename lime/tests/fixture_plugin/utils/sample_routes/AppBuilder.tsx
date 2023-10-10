@@ -1,5 +1,5 @@
-import { type AppProps } from "$cool/lime/server.ts";
-import { Head } from "$cool/lime/runtime.ts";
+import { type AppProps } from "../../../../server.ts";
+import { Head } from "../../../../runtime.ts";
 import { type Options } from "../route-plugin.ts";
 
 export function AppBuilder(options: Options) {

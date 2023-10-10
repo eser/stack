@@ -1,5 +1,5 @@
-import { type AppProps } from "$cool/lime/server.ts";
-import { Partial } from "$cool/lime/runtime.ts";
+import { type AppProps } from "../../../../server.ts";
+import { Partial } from "../../../../runtime.ts";
 import { Fader } from "../../islands/Fader.tsx";
 
 export default function AppLayout({ Component }: AppProps) {

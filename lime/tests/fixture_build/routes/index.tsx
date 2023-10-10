@@ -1,6 +1,6 @@
 import { useSignal } from "@preact/signals";
 import Counter from "../islands/Counter.tsx";
-import { asset, Head } from "$cool/lime/runtime.ts";
+import { asset, Head } from "../../../runtime.ts";
 
 export default function Home() {
   const signal = useSignal(0);

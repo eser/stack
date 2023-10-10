@@ -1,4 +1,7 @@
-import { type LayoutConfig, type LayoutProps } from "$cool/lime/server.ts";
+import {
+  type LayoutConfig,
+  type LayoutProps,
+} from "../../../../../lime/server.ts";
 
 export const config: LayoutConfig = {
   skipInheritedLayouts: true,

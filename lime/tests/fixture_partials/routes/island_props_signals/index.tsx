@@ -1,5 +1,5 @@
-import { Partial } from "$cool/lime/runtime.ts";
 import { useSignal } from "@preact/signals";
+import { Partial } from "../../../../runtime.ts";
 import { Fader } from "../../islands/Fader.tsx";
 import SignalProp from "../../islands/SignalProp.tsx";
 

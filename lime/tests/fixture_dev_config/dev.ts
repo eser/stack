@@ -1,4 +1,4 @@
-import { dev } from "$cool/lime/src/dev/dev_command.ts";
+import { dev } from "../../dev.ts";
 import config from "./config.ts";
 
-await dev(import.meta.url, "./main.ts", config);
+await dev(import.meta.url, config);

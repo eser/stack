@@ -1,4 +1,4 @@
-import { type ComponentChildren } from "$cool/lime/runtime.ts";
+import { type ComponentChildren } from "../../../runtime.ts";
 import Island from "./Island.tsx";
 
 export default function IslandInsideIsland(

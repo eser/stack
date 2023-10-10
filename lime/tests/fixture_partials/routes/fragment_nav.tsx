@@ -1,4 +1,4 @@
-import { Partial } from "$cool/lime/runtime.ts";
+import { Partial } from "../../../runtime.ts";
 
 export default function SlotDemo() {
   return (

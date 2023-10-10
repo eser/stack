@@ -1,4 +1,4 @@
-import { Partial } from "$cool/lime/runtime.ts";
+import { Partial } from "../../../../runtime.ts";
 import { Fader } from "../../islands/Fader.tsx";
 
 export default function ModeDemo() {

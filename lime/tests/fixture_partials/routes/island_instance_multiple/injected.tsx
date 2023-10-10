@@ -1,4 +1,4 @@
-import { defineRoute } from "$cool/lime/server.ts";
+import { defineRoute } from "../../../../server.ts";
 
 export default defineRoute(() => {
   return new Response("", {

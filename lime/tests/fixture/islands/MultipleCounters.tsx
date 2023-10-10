@@ -1,5 +1,5 @@
 import { type Signal } from "@preact/signals-core";
-import { IS_BROWSER } from "$cool/lime/runtime.ts";
+import { IS_BROWSER } from "../../../runtime.ts";
 
 interface CounterProps {
   count: Signal<number>;

@@ -1,4 +1,4 @@
-import { type RouteContext } from "$cool/lime/server.ts";
+import { type RouteContext } from "../../../server.ts";
 
 // deno-lint-ignore require-await
 export default async function Home(_req: Request, ctx: RouteContext) {

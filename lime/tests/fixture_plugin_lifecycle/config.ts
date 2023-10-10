@@ -1,4 +1,4 @@
-import { defineConfig } from "$cool/lime/server.ts";
+import { defineConfig } from "../../server.ts";
 
 export default defineConfig({
   plugins: [

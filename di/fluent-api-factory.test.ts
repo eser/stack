@@ -98,7 +98,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
 
     di.register("n", mock.spy());
 
-    const fn = function (n: () => void) {
+    const fn = (n: () => void) => {
       n();
     };
 
@@ -115,7 +115,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
     di.register("p", mock.spy());
     di.register("q", mock.spy());
 
-    const fn = function (o: () => void, p: () => void, q: () => void) {
+    const fn = (o: () => void, p: () => void, q: () => void) => {
       o();
       p();
       p();
@@ -136,7 +136,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
 
     di.register("r", mock.spy());
 
-    const fn = function myFunc(r: () => void) {
+    const fn = (r: () => void) => {
       r();
     };
 
@@ -153,7 +153,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
     di.register("t", mock.spy());
     di.register("u", mock.spy());
 
-    const fn = function myFunc(s: () => void, t: () => void, u: () => void) {
+    const fn = (s: () => void, t: () => void, u: () => void) => {
       s();
       t();
       t();
@@ -174,7 +174,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
 
     di.register("v", mock.spy());
 
-    const fn = function* myFunc(v: () => void) {
+    const fn = function* (v: () => void) {
       yield v();
     };
 
@@ -191,7 +191,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
     di.register("x", mock.spy());
     di.register("y", mock.spy());
 
-    const fn = function* myFunc(w: () => void, x: () => void, y: () => void) {
+    const fn = function* (w: () => void, x: () => void, y: () => void) {
       yield w();
       yield x();
       yield x();
@@ -212,7 +212,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
 
     di.register("z", mock.spy());
 
-    const fn = async function myFunc(z: () => void) {
+    const fn = async (z: () => void) => {
       await Promise.resolve(z());
     };
 
@@ -229,11 +229,11 @@ bdd.describe("cool/di/fluent-api-factory", () => {
     di.register("ab", mock.spy());
     di.register("ac", mock.spy());
 
-    const fn = async function myFunc(
+    const fn = async (
       aa: () => void,
       ab: () => void,
       ac: () => void,
-    ) {
+    ) => {
       await Promise.all([
         Promise.resolve(aa()),
         Promise.resolve(ab()),
@@ -256,7 +256,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
 
     di.register("ad", mock.spy());
 
-    const fn = async function* myFunc(ad: () => void) {
+    const fn = async function* (ad: () => void) {
       yield await Promise.resolve(ad());
     };
 
@@ -273,7 +273,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
     di.register("af", mock.spy());
     di.register("ag", mock.spy());
 
-    const fn = async function* myFunc(
+    const fn = async function* (
       ae: () => void,
       af: () => void,
       ag: () => void,

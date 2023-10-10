@@ -1,4 +1,4 @@
-import { type LimeOptions } from "$cool/lime/server.ts";
+import { type LimeOptions } from "../../server.ts";
 
 export default {
   router: {

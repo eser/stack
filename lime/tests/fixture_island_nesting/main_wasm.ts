@@ -7,7 +7,7 @@
 /// <reference lib="deno.ns" />
 
 import "./polyfill_deno_deploy.ts";
-import { start } from "$cool/lime/server.ts";
+import { start } from "../../server.ts";
 import routes from "./manifest.gen.ts";
 
 await start(routes);

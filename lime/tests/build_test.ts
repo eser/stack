@@ -5,12 +5,8 @@ import {
   assertNotMatch,
   assertStringIncludes,
 } from "$std/assert/mod.ts";
-import {
-  getStdOutput,
-  startLimeServer,
-  waitForText,
-} from "$cool/lime/tests/test_utils.ts";
-import { BuildSnapshotJson } from "$cool/lime/src/build/mod.ts";
+import { getStdOutput, startLimeServer, waitForText } from "./test_utils.ts";
+import { BuildSnapshotJson } from "../src/build/mod.ts";
 
 function runBuild(fixture: string, subDirPath: string, outDir: string) {
   return new Deno.Command(Deno.execPath(), {

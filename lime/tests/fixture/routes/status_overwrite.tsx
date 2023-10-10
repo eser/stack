@@ -1,4 +1,4 @@
-import { type HandlerContext } from "$cool/lime/server.ts";
+import { type HandlerContext } from "../../../server.ts";
 
 export default function Page() {
   return <div>This is HTML</div>;

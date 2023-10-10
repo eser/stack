@@ -1,4 +1,4 @@
-import { join } from "$cool/lime/src/server/deps.ts";
+import { join } from "../src/server/deps.ts";
 import {
   assert,
   assertEquals,
@@ -6,10 +6,10 @@ import {
   assertNotEquals,
   assertNotMatch,
 } from "$std/assert/mod.ts";
-import versions from "$cool/lime/versions.json" assert { type: "json" };
-import { CheckFile } from "$cool/lime/src/dev/update_check.ts";
-import { WEEK } from "$cool/lime/src/dev/deps.ts";
-import { getStdOutput } from "$cool/lime/tests/test_utils.ts";
+import versions from "../versions.json" assert { type: "json" };
+import { CheckFile } from "../src/dev/update_check.ts";
+import { WEEK } from "../src/dev/deps.ts";
+import { getStdOutput } from "./test_utils.ts";
 
 Deno.test({
   name: "stores update check file in $HOME/lime",

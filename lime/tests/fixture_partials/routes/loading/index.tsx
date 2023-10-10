@@ -1,5 +1,5 @@
-import { Partial } from "$cool/lime/runtime.ts";
 import { useSignal } from "@preact/signals";
+import { Partial } from "../../../../runtime.ts";
 import Spinner from "../../islands/Spinner.tsx";
 import PartialTrigger from "../../islands/PartialTrigger.tsx";
 

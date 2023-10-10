@@ -1,5 +1,5 @@
-import { defineRoute, type RouteConfig } from "$cool/lime/server.ts";
-import { Partial } from "$cool/lime/runtime.ts";
+import { defineRoute, type RouteConfig } from "../../../../server.ts";
+import { Partial } from "../../../../runtime.ts";
 import { Fader } from "../../islands/Fader.tsx";
 import Other from "../../islands/Other.tsx";
 

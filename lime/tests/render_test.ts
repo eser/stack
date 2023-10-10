@@ -1,8 +1,4 @@
-import {
-  assertSelector,
-  fetchHtml,
-  withLime,
-} from "$cool/lime/tests/test_utils.ts";
+import { assertSelector, fetchHtml, withLime } from "./test_utils.ts";
 import { assertEquals } from "$std/assert/mod.ts";
 
 Deno.test("doesn't leak data across renderers", async () => {

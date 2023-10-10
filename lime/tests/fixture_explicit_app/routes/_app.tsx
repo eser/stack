@@ -1,4 +1,4 @@
-import { type AppProps, type Handler } from "$cool/lime/server.ts";
+import { type AppProps, type Handler } from "../../../server.ts";
 
 export const handler: Handler = (_req, ctx) => {
   ctx.state.lang = "de";

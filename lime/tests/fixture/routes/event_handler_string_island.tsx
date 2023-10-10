@@ -1,4 +1,4 @@
-import StringEventIsland from "$cool/lime/tests/fixture/islands/StringEventIsland.tsx";
+import StringEventIsland from "../islands/StringEventIsland.tsx";
 
 export default function Page() {
   return (

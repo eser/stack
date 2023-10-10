@@ -1,8 +1,8 @@
-import { type HandlerContext, type RouteConfig } from "$cool/lime/server.ts";
+import { type HandlerContext, type RouteConfig } from "../../../server.ts";
 
 export const handler = {
   GET(_req: Request, { params }: HandlerContext) {
-    return new Response(params.path);
+    return new Response(params["path"]);
   },
 };
 

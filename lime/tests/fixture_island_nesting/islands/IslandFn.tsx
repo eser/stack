@@ -1,4 +1,4 @@
-import { type VNode } from "$cool/lime/runtime.ts";
+import { type VNode } from "../../../runtime.ts";
 
 import FragmentIsland from "./FragmentIsland.tsx";
 

@@ -1,4 +1,4 @@
-import { asset } from "$cool/lime/runtime.ts";
+import { asset } from "../../../runtime.ts";
 
 export default function StaticPage() {
   return (

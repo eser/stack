@@ -6,7 +6,7 @@ import {
   withLime,
   withPageName,
 } from "./test_utils.ts";
-import { Status } from "$cool/lime/server.ts";
+import { Status } from "../server.ts";
 
 Deno.test({
   name: "render async server component",

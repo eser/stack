@@ -1,8 +1,8 @@
 import { basename, colors, join, parse, resolve } from "./src/dev/deps.ts";
 import { error } from "./src/dev/error.ts";
-import { collect, ensureMinDenoVersion, generate } from "./src/dev/mod.ts";
+import { buildManifestFile, ensureMinDenoVersion } from "./src/dev/mod.ts";
 import { baseImports, preactImports, reactImports } from "./src/dev/imports.ts";
-import { view } from "$cool/lime/runtime.ts";
+import { view } from "./runtime.ts";
 
 ensureMinDenoVersion();
 
@@ -496,7 +496,7 @@ import config from "./config.ts";
 
 import "$std/dotenv/load.ts";
 
-await dev(import.meta.url, "./main.ts", config);
+await dev(import.meta.url, config);
 `;
 const DEV_TS_PATH = join(resolvedDirectory, "dev.ts");
 await Deno.writeTextFile(DEV_TS_PATH, DEV_TS);
@@ -596,8 +596,7 @@ await Deno.writeTextFile(
   VSCODE_EXTENSIONS,
 );
 
-const manifest = await collect(resolvedDirectory);
-await generate(resolvedDirectory, manifest);
+await buildManifestFile(resolvedDirectory);
 
 // Specifically print unresolvedDirectory, rather than resolvedDirectory in order to
 // not leak personal info (e.g. `/Users/MyName`)

@@ -7,15 +7,11 @@ export async function readDenoConfig(
 ): Promise<{ config: DenoConfig; path: string }> {
   let dir = directory;
   while (true) {
-    for (const name of ["deno.json", "deno.jsonc"]) {
+    for (const name of ["deno.jsonc", "deno.json"]) {
       const path = join(dir, name);
       try {
         const file = await Deno.readTextFile(path);
-        if (name.endsWith(".jsonc")) {
-          return { config: JSONC.parse(file) as DenoConfig, path };
-        } else {
-          return { config: JSON.parse(file), path };
-        }
+        return { config: JSONC.parse(file) as DenoConfig, path };
       } catch (err) {
         if (!(err instanceof Deno.errors.NotFound)) {
           throw err;
@@ -51,9 +47,7 @@ export async function getLimeConfigWithDefaults(
   }
 
   const config: InternalLimeOptions = {
-    loadSnapshot: typeof opts.skipSnapshot === "boolean"
-      ? !opts.skipSnapshot
-      : false,
+    loadSnapshot: !(opts.skipSnapshot ?? true),
     dev: opts.dev ?? false,
     denoJsonPath,
     denoJson,

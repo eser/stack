@@ -1,5 +1,5 @@
-import { Head } from "$cool/lime/runtime.ts";
-import { type AppProps } from "$cool/lime/server.ts";
+import { Head } from "../../../runtime.ts";
+import { type AppProps } from "../../../server.ts";
 
 export type TestState = {
   root: string;

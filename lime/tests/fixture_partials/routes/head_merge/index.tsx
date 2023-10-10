@@ -1,4 +1,4 @@
-import { Head, Partial } from "$cool/lime/runtime.ts";
+import { Head, Partial } from "../../../../runtime.ts";
 import { Fader } from "../../islands/Fader.tsx";
 
 export default function SlotDemo() {

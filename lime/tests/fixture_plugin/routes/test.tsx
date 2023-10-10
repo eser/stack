@@ -2,7 +2,7 @@ import {
   type HandlerContext,
   type Handlers,
   type PageProps,
-} from "$cool/lime/server.ts";
+} from "../../../server.ts";
 
 export const handler: Handlers<unknown, { test: string }> = {
   async GET(_req, ctx: HandlerContext<unknown, { test: string }>) {

@@ -1,5 +1,5 @@
-import { updateCheck } from "$cool/lime/src/dev/update_check.ts";
-import { DAY } from "$cool/lime/src/dev/deps.ts";
+import { updateCheck } from "../../src/dev/update_check.ts";
+import { DAY } from "../../src/dev/deps.ts";
 
 // deno-lint-ignore require-await
 async function getLatestVersion() {

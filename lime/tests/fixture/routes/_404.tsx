@@ -1,4 +1,4 @@
-import { type UnknownPageProps } from "$cool/lime/server.ts";
+import { type UnknownPageProps } from "../../../server.ts";
 
 type Data = { hello: string };
 type State = { root: string };

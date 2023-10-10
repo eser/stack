@@ -1,4 +1,4 @@
-import { type MiddlewareHandlerContext } from "$cool/lime/server.ts";
+import { type MiddlewareHandlerContext } from "../../../server.ts";
 
 export type LayoutState = {
   something: string;

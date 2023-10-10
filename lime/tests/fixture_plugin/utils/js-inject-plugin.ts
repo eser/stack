@@ -1,4 +1,4 @@
-import { Plugin } from "$cool/lime/server.ts";
+import { Plugin } from "../../../server.ts";
 
 export default {
   name: "js-inject",

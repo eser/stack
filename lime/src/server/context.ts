@@ -457,13 +457,6 @@ export class ServerContext {
     manifest: Manifest,
     opts: FromManifestOptions,
   ): Promise<ServerContext> {
-    const isLegacyDev = Deno.env.get("__LIME_LEGACY_DEV") === "true";
-
-    if (isLegacyDev) {
-      opts.dev = true;
-      opts.skipSnapshot = true;
-    }
-
     const config = await getLimeConfigWithDefaults(manifest, opts);
     return getServerContext(config);
   }
@@ -808,6 +801,7 @@ export class ServerContext {
         // deno-lint-ignore no-explicit-any
         ctx?: any,
         error?: unknown,
+        codeFrame?: string,
       ) => {
         return async (data?: Data, options?: RenderOptions) => {
           if (route.component === undefined) {
@@ -836,6 +830,7 @@ export class ServerContext {
             data,
             state: ctx?.state,
             error,
+            codeFrame,
           });
 
           if (resp instanceof Response) {
@@ -926,14 +921,13 @@ export class ServerContext {
         "color:red",
       );
 
+      let codeFrame: string | undefined;
       if (this.#dev && error instanceof Error) {
-        const codeFrame = await getCodeFrame(error);
+        codeFrame = await getCodeFrame(error);
 
         if (codeFrame) {
           console.error();
           console.error(codeFrame);
-          // deno-lint-ignore no-explicit-any
-          (error as any).codeFrame = codeFrame;
         }
       }
       console.error(error);
@@ -943,7 +937,7 @@ export class ServerContext {
         {
           ...ctx,
           error,
-          render: errorHandlerRender(req, {}, ctx, error),
+          render: errorHandlerRender(req, {}, ctx, error, codeFrame),
         },
       );
     };

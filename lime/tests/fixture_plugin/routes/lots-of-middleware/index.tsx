@@ -1,4 +1,4 @@
-import { type Handlers, type PageProps } from "$cool/lime/server.ts";
+import { type Handlers, type PageProps } from "../../../../server.ts";
 import { type PluginMiddlewareState } from "../../utils/route-plugin.ts";
 
 export const handler: Handlers = {

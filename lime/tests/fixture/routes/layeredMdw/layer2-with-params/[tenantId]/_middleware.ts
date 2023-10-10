@@ -1,4 +1,4 @@
-import { type MiddlewareHandlerContext } from "$cool/lime/server.ts";
+import { type MiddlewareHandlerContext } from "../../../../../../server.ts";
 
 export async function handler(_req: Request, ctx: MiddlewareHandlerContext) {
   const resp = await ctx.next();

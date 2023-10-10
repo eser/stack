@@ -1,4 +1,4 @@
-import { Partial } from "$cool/lime/runtime.ts";
+import { Partial } from "../../../../runtime.ts";
 import CounterA from "../../islands/CounterA.tsx";
 import CounterB from "../../islands/CounterB.tsx";
 import PassThrough from "../../islands/PassThrough.tsx";

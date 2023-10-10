@@ -1,5 +1,5 @@
 import * as path from "$std/path/mod.ts";
-import { Status } from "$cool/lime/src/server/deps.ts";
+import { Status } from "../src/server/deps.ts";
 import {
   assert,
   assertEquals,
@@ -237,7 +237,7 @@ Deno.test({
   sanitizeResources: false,
 });
 
-Deno.test("lime-init error(help)", async function (t) {
+Deno.test("lime-init error(help)", async (t) => {
   const includeText = "lime-init";
 
   await t.step(
@@ -285,7 +285,7 @@ Deno.test("lime-init error(help)", async function (t) {
   );
 });
 
-Deno.test("lime-init .", async function (t) {
+Deno.test("lime-init .", async (t) => {
   // Preparation
   const tmpDirName = await Deno.makeTempDir();
 

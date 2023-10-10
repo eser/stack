@@ -1,4 +1,4 @@
-import { type RouteConfig } from "$cool/lime/server.ts";
+import { type RouteConfig } from "../../../../server.ts";
 
 export const config: RouteConfig = {
   skipAppWrapper: true,

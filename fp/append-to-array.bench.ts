@@ -1,4 +1,4 @@
-import { deno } from "$cool/deps.ts";
+import { deno } from "../deps.ts";
 import { appendToArray } from "./append-to-array.ts";
 
 const group = "append-to-array";

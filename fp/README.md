@@ -529,7 +529,7 @@ const generator = function* () {
   yield "http://localhost/samples/3"; // { value: 3 }
 };
 
-const fetchUrl = async function (url) {
+const fetchUrl = async (url) => {
   const response = await fetch(url);
   const document = await response.json();
 

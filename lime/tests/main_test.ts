@@ -1,4 +1,4 @@
-import { ServerContext, Status } from "$cool/lime/server.ts";
+import { ServerContext, Status } from "../server.ts";
 import {
   assert,
   assertEquals,
@@ -11,7 +11,7 @@ import {
 } from "./deps.ts";
 import manifest from "./fixture/manifest.gen.ts";
 import options from "./fixture/options.ts";
-import { BUILD_ID } from "$cool/lime/src/server/build_id.ts";
+import { BUILD_ID } from "../src/server/build_id.ts";
 import {
   assertSelector,
   assertTextMany,

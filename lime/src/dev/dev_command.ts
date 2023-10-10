@@ -14,7 +14,6 @@ import { getServerContext } from "../server/context.ts";
 
 export async function dev(
   base: string,
-  entrypoint: string,
   options?: LimeOptions,
 ) {
   ensureMinDenoVersion();
@@ -48,36 +47,24 @@ export async function dev(
   const manifest = (await import(toFileUrl(join(dir, "manifest.gen.ts")).href))
     .default as ServerManifest;
 
+  const config = await getLimeConfigWithDefaults(
+    manifest,
+    options ?? {},
+  );
+  config.loadSnapshot = false;
+
   if (Deno.args.includes("build")) {
-    const config = await getLimeConfigWithDefaults(
-      manifest,
-      options ?? {},
-    );
     config.dev = false;
-    config.loadSnapshot = false;
 
     await build(config);
 
     return;
   }
 
-  if (options) {
-    const config = await getLimeConfigWithDefaults(
-      manifest,
-      options,
-    );
-    config.dev = true;
-    config.loadSnapshot = false;
+  config.dev = true;
 
-    const ctx = await getServerContext(config);
-    await startFromContext(ctx, config.server);
-
-    return;
-  }
-
-  Deno.env.set("__LIME_LEGACY_DEV", "true");
-  entrypoint = new URL(entrypoint, base).href;
-  await import(entrypoint);
+  const ctx = await getServerContext(config);
+  await startFromContext(ctx, config.server);
 }
 
 function arraysEqual<T>(a: T[], b: T[]): boolean {

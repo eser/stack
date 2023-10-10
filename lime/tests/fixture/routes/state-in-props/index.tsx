@@ -1,4 +1,4 @@
-import { type Handlers, type PageProps } from "$cool/lime/server.ts";
+import { type Handlers, type PageProps } from "../../../../server.ts";
 import { type TestState } from "../_app.tsx";
 
 export const handler: Handlers<boolean> = {

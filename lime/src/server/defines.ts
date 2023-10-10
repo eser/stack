@@ -7,7 +7,7 @@ import {
   type StartOptions,
 } from "./types.ts";
 import { checkAsyncComponent } from "./render.ts";
-import { type AppContext } from "$cool/lime/server.ts";
+import { type AppContext } from "./types.ts";
 
 export function defineConfig(config: StartOptions): StartOptions {
   return config;

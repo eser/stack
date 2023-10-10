@@ -1,4 +1,4 @@
-import { type MiddlewareHandlerContext } from "$cool/lime/server.ts";
+import { type MiddlewareHandlerContext } from "../../../../server.ts";
 
 export const handler = (_req: Request, ctx: MiddlewareHandlerContext) => {
   ctx.state = { handler1: "it works" };

@@ -1,4 +1,4 @@
-import { type LayoutProps } from "$cool/lime/server.ts";
+import { type LayoutProps } from "../../../../../../server.ts";
 
 export default function BarLayout({ Component }: LayoutProps) {
   return (

@@ -1,4 +1,4 @@
-import ReturningNull from "$cool/lime/tests/fixture/islands/ReturningNull.tsx";
+import ReturningNull from "../../islands/ReturningNull.tsx";
 
 export default function Home() {
   return <ReturningNull />;

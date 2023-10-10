@@ -1,5 +1,5 @@
 import { Signal } from "@preact/signals";
-import { type ComponentChildren } from "$cool/lime/runtime.ts";
+import { type ComponentChildren } from "../../../runtime.ts";
 
 export interface IslandConditionalProps {
   show: Signal<boolean>;

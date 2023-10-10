@@ -1,8 +1,8 @@
-import { type PageProps, type RouteConfig } from "$cool/lime/server.ts";
+import { type PageProps, type RouteConfig } from "../../../server.ts";
 
 export default function WildcardPage({ params }: PageProps) {
-  if (typeof params.path === "string") {
-    return <p>{params.path}</p>;
+  if (typeof params["path"] === "string") {
+    return <p>{params["path"]}</p>;
   } else {
     return <p>Not a string.</p>;
   }

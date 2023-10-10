@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "./deps.ts";
-import { Status } from "$cool/lime/server.ts";
+import { Status } from "../server.ts";
 import {
   assertNotSelector,
   assertSelector,
@@ -30,33 +30,6 @@ Deno.test({
   async fn() {
     await withFakeServe(
       "./tests/fixture_dev_config/dev.ts",
-      async (server) => {
-        const doc = await server.getHtml("/codeframe");
-        assertSelector(doc, ".lime-error-page");
-        assertSelector(doc, ".code-frame");
-      },
-    );
-  },
-});
-
-Deno.test({
-  name: "dev_command legacy",
-  async fn() {
-    await withPageName(
-      "./tests/fixture_dev_legacy/main.ts",
-      async (page, address) => {
-        await page.goto(`${address}`);
-        await waitForStyle(page, "h1", "color", "rgb(220, 38, 38)");
-      },
-    );
-  },
-});
-
-Deno.test({
-  name: "dev_command legacy: shows codeframe",
-  async fn() {
-    await withFakeServe(
-      "./tests/fixture_dev_legacy/dev.ts",
       async (server) => {
         const doc = await server.getHtml("/codeframe");
         assertSelector(doc, ".lime-error-page");

@@ -1,8 +1,8 @@
-import { type Handlers, type PageProps } from "$cool/lime/server.ts";
+import { type Handlers, type PageProps } from "../../../../../../../server.ts";
 
 export const handler: Handlers = {
   async GET(_req: Request, ctx) {
-    const order = ctx.state.middlewareNestingOrder as string;
+    const order = ctx.state["middlewareNestingOrder"] as string;
     const resp = await ctx.render(order + "4");
     return resp;
   },

@@ -1,4 +1,4 @@
-import { defineLayout } from "$cool/lime/server.ts";
+import { defineLayout } from "../../../server.ts";
 import { type State } from "../other/state.ts";
 
 export default defineLayout<State>((_req, ctx) => {

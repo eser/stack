@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run -A --watch=static/,routes/
 
-import dev from "$cool/lime/dev.ts";
+import dev from "../../dev.ts";
 
 const TEST_CONFIG_SERVER = Deno.env.get("TEST_CONFIG_SERVER") === "true";
 const onListen = (params: { hostname: string; port: number }) => {
@@ -12,7 +12,7 @@ const onListen2 = (params: { hostname: string; port: number }) => {
   console.log(`http://localhost:${params.port}`);
 };
 
-await dev(import.meta.url, "./main.ts", {
+await dev(import.meta.url, {
   server: {
     onListen: TEST_CONFIG_SERVER ? onListen2 : undefined,
   },

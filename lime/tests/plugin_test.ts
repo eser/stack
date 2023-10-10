@@ -1,4 +1,4 @@
-import { ServerContext, Status } from "$cool/lime/server.ts";
+import { ServerContext, Status } from "../server.ts";
 import {
   assert,
   assertEquals,

@@ -1,6 +1,6 @@
-import { defineApp } from "$cool/lime/server.ts";
+import { defineApp } from "../../../server.ts";
 
-export default defineApp((res, ctx) => {
+export default defineApp((_res, ctx) => {
   return (
     <html>
       <head>

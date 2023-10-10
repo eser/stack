@@ -4,7 +4,7 @@
 /// <reference lib="dom.asynciterable" />
 /// <reference lib="deno.ns" />
 
-import { start } from "$cool/lime/server.ts";
+import { start } from "../../../../server.ts";
 import routes from "./manifest.gen.ts";
 
 await start(routes);

@@ -15,7 +15,6 @@ export { DAY, WEEK } from "$std/datetime/constants.ts";
 export * as colors from "$std/fmt/colors.ts";
 export { walk, type WalkEntry, WalkError } from "$std/fs/walk.ts";
 export { parse } from "$std/flags/mod.ts";
-export { gte } from "$std/semver/mod.ts";
 export { existsSync } from "$std/fs/mod.ts";
 export * as semver from "$std/semver/mod.ts";
 export * as JSONC from "$std/jsonc/mod.ts";

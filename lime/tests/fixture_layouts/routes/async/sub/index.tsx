@@ -1,4 +1,4 @@
-import { type RouteContext } from "$cool/lime/server.ts";
+import { type RouteContext } from "../../../../../server.ts";
 
 export default async function AsyncSubPage(_req: Request, _ctx: RouteContext) {
   await new Promise((r) => setTimeout(r, 10));

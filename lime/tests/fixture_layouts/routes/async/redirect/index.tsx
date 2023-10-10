@@ -1,4 +1,4 @@
-import { type RouteContext } from "$cool/lime/server.ts";
+import { type RouteContext } from "../../../../../server.ts";
 
 export default async function AsyncRedirectPage(
   _req: Request,

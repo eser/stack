@@ -1,4 +1,4 @@
-import { type RouteContext } from "$cool/lime/server.ts";
+import { type RouteContext } from "../../../../server.ts";
 import { delay } from "../../../deps.ts";
 
 export default async function Foo(_req: Request, ctx: RouteContext) {

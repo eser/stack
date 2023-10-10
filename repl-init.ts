@@ -1,4 +1,4 @@
-import { load } from "$cool/dotenv/mod.ts";
+import { load } from "./dotenv/mod.ts";
 import { deno } from "./deps.ts";
 import * as mod from "./mod.ts";
 

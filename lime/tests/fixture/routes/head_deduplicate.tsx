@@ -1,4 +1,4 @@
-import { Head } from "$cool/lime/runtime.ts";
+import { Head } from "../../../runtime.ts";
 
 export default function Page() {
   return (

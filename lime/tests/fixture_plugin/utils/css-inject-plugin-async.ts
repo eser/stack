@@ -1,4 +1,4 @@
-import { Plugin } from "$cool/lime/server.ts";
+import { Plugin } from "../../../server.ts";
 
 let CSS_TO_INJECT = "h1 { text-decoration: underline; }";
 

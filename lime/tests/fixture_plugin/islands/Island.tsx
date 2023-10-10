@@ -1,4 +1,4 @@
-import { IS_BROWSER } from "$cool/lime/runtime.ts";
+import { IS_BROWSER } from "../../../runtime.ts";
 
 export default function Island() {
   const id = IS_BROWSER ? "csr" : "ssr";

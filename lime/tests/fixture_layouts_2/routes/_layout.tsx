@@ -1,4 +1,4 @@
-import { LayoutProps } from "$cool/lime/server.ts";
+import { LayoutProps } from "../../../server.ts";
 
 export default function RootLayout(
   { Component }: LayoutProps<unknown>,

@@ -1,4 +1,4 @@
-import { type AppProps } from "$cool/lime/server.ts";
+import { type AppProps } from "../../../server.ts";
 
 export default function App({ Component }: AppProps) {
   return (

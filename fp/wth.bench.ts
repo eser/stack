@@ -1,4 +1,4 @@
-import { deno } from "$cool/deps.ts";
+import { deno } from "../deps.ts";
 import { wth } from "./wth.ts";
 
 const group = "wth";

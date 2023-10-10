@@ -1,4 +1,4 @@
-import { view } from "$cool/lime/runtime.ts";
+import { view } from "../../../runtime.ts";
 
 export default function Test() {
   view.adapter.useEffect(() => {

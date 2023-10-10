@@ -1,4 +1,4 @@
-import { colors, toFileUrl } from "$cool/lime/src/server/deps.ts";
+import { colors, toFileUrl } from "../src/server/deps.ts";
 import { assert } from "$std/assert/mod.ts";
 import * as path from "$std/path/mod.ts";
 import {
@@ -6,7 +6,7 @@ import {
   Manifest,
   ServeHandlerInfo,
   ServerContext,
-} from "$cool/lime/server.ts";
+} from "../server.ts";
 import {
   assertEquals,
   basename,

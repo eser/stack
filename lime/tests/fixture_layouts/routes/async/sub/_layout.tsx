@@ -1,4 +1,4 @@
-import { type LayoutContext } from "$cool/lime/server.ts";
+import { type LayoutContext } from "../../../../../server.ts";
 
 export default async function AsyncSubLayout(
   _req: Request,

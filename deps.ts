@@ -1,4 +1,5 @@
 /// <reference lib="deno.ns" />
+/// <reference lib="deno.unstable" />
 
 if (globalThis.Deno === undefined) {
   throw new Error("Deno is not defined");

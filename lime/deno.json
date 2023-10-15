@@ -13,18 +13,18 @@
   ],
   "imports": {
     "$cool/": "../",
-    "$std/": "https://deno.land/std@0.203.0/",
+    "$std/": "https://deno.land/std@0.204.0/",
 
-    "@preact/signals-core": "npm:@preact/signals-core@1.4.0",
+    "@preact/signals-core": "npm:@preact/signals-core@1.5.0",
 
-    "preact": "npm:preact@10.17.1",
-    "preact/": "npm:/preact@10.17.1/",
-    "preact-render-to-string": "npm:preact-render-to-string@6.2.1",
+    "preact": "npm:preact@10.18.1",
+    "preact/": "npm:/preact@10.18.1/",
+    "preact-render-to-string": "npm:preact-render-to-string@6.2.2",
     "@preact/signals": "npm:@preact/signals@1.2.1",
 
-    "_react": "npm:preact@10.17.1/compat",
-    "_react-dom": "npm:preact@10.17.1/compat",
-    "_react/": "npm:/preact@10.17.1/",
+    "_react": "npm:preact@10.18.1/compat",
+    "_react-dom": "npm:preact@10.18.1/compat",
+    "_react/": "npm:/preact@10.18.1/",
     "_@preact/signals-react": "npm:@preact/signals@1.2.1",
     "react": "npm:react@18.2.0",
     "react/": "npm:/react@18.2.0/",

@@ -1,0 +1,13 @@
+import { useSignal } from "@preact/signals";
+
+export default function KeyExplorer() {
+  const sig = useSignal(0);
+
+  return (
+    <div className="island">
+      <h1>counter</h1>
+      <p className="output">{sig.value}</p>
+      <button onClick={() => sig.value += 1}>update</button>
+    </div>
+  );
+}

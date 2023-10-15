@@ -3,13 +3,13 @@ import {
   type AsyncLayout,
   type AsyncRoute,
   type LayoutContext,
+  type LimeConfig,
   type RouteContext,
-  type StartOptions,
 } from "./types.ts";
 import { checkAsyncComponent } from "./render.ts";
 import { type AppContext } from "./types.ts";
 
-export function defineConfig(config: StartOptions): StartOptions {
+export function defineConfig(config: LimeConfig): LimeConfig {
   return config;
 }
 

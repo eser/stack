@@ -27,9 +27,7 @@ export interface DenoConfig {
 
 // --- APPLICATION CONFIGURATION ---
 
-export type StartOptions = LimeOptions;
-
-export interface LimeOptions {
+export interface LimeConfig {
   build?: {
     /**
      * The directory to write generated files to when `dev.ts build` is run.
@@ -104,7 +102,7 @@ export interface LimeOptions {
   onListen?: (params: { hostname: string; port: number }) => void;
 }
 
-export interface InternalLimeOptions {
+export interface InternalLimeConfig {
   dev: boolean;
   loadSnapshot: boolean;
   denoJsonPath: string;

@@ -9,7 +9,7 @@ import {
 } from "./deps.ts";
 import { type ComponentType, view } from "../runtime/drivers/view.tsx";
 import * as router from "./router.ts";
-import { type Manifest } from "./mod.ts";
+import { LimeConfig, type Manifest } from "./mod.ts";
 import { ALIVE_URL, JS_PREFIX, REFRESH_JS_URL } from "./constants.ts";
 import { BUILD_ID, setBuildId } from "./build_id.ts";
 import DefaultErrorHandler from "./default_error_page.tsx";
@@ -19,11 +19,10 @@ import {
   type ErrorPage,
   type ErrorPageModule,
   type Handler,
-  type InternalLimeOptions,
+  type InternalLimeConfig,
   type Island,
   type LayoutModule,
   type LayoutRoute,
-  type LimeOptions,
   type MiddlewareHandler,
   type MiddlewareHandlerContext,
   type MiddlewareModule,
@@ -78,20 +77,21 @@ interface StaticFile {
   etag: string;
 }
 
-export type FromManifestOptions = LimeOptions & {
+export type FromManifestConfig = LimeConfig & {
   skipSnapshot?: boolean;
   dev?: boolean;
 };
 
-export async function getServerContext(opts: InternalLimeOptions) {
-  const { manifest, denoJson: config, denoJsonPath: configPath } = opts;
+export async function getServerContext(internalConfig: InternalLimeConfig) {
+  const { manifest, denoJson: config, denoJsonPath: configPath } =
+    internalConfig;
   // Get the manifest' base URL.
   const baseUrl = new URL("./", manifest.baseUrl).href;
 
   // Restore snapshot if available
   let snapshot: BuildSnapshot | null = null;
-  if (opts.loadSnapshot) {
-    const snapshotDirPath = opts.build.outDir;
+  if (internalConfig.loadSnapshot) {
+    const snapshotDirPath = internalConfig.build.outDir;
     try {
       if ((await Deno.stat(snapshotDirPath)).isDirectory) {
         console.log(
@@ -153,8 +153,12 @@ export async function getServerContext(opts: InternalLimeOptions) {
   let error: ErrorPage = DEFAULT_ERROR;
   const allRoutes = [
     ...Object.entries(manifest.routes),
-    ...(opts.plugins ? getMiddlewareRoutesFromPlugins(opts.plugins) : []),
-    ...(opts.plugins ? getRoutesFromPlugins(opts.plugins) : []),
+    ...(internalConfig.plugins
+      ? getMiddlewareRoutesFromPlugins(internalConfig.plugins)
+      : []),
+    ...(internalConfig.plugins
+      ? getRoutesFromPlugins(internalConfig.plugins)
+      : []),
   ];
 
   // Presort all routes so that we only need to sort once
@@ -455,10 +459,13 @@ export class ServerContext {
    */
   static async fromManifest(
     manifest: Manifest,
-    opts: FromManifestOptions,
+    config: FromManifestConfig,
   ): Promise<ServerContext> {
-    const config = await getLimeConfigWithDefaults(manifest, opts);
-    return getServerContext(config);
+    const configWithDefaults = await getLimeConfigWithDefaults(
+      manifest,
+      config,
+    );
+    return getServerContext(configWithDefaults);
   }
 
   /**
@@ -1498,9 +1505,24 @@ function sendResponse(
     }
   }
 
+  if (options.headers) {
+    if (Array.isArray(options.headers)) {
+      for (let i = 0; i < options.headers.length; i++) {
+        const item = options.headers[i];
+        headers[item[0]] = item[1];
+      }
+    } else if (options.headers instanceof Headers) {
+      options.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+    } else {
+      Object.assign(headers, options.headers);
+    }
+  }
+
   return new Response(body, {
     status: options.status,
     statusText: options.statusText,
-    headers: options.headers ? { ...headers, ...options.headers } : headers,
+    headers: headers,
   });
 }

@@ -3,10 +3,10 @@ import { join } from "../server/deps.ts";
 import { colors, fs } from "./deps.ts";
 import { type BuildSnapshotJson } from "../build/mod.ts";
 import { BUILD_ID } from "../server/build_id.ts";
-import { type InternalLimeOptions } from "../server/types.ts";
+import { type InternalLimeConfig } from "../server/types.ts";
 
 export async function build(
-  config: InternalLimeOptions,
+  config: InternalLimeConfig,
 ) {
   // Ensure that build dir is empty
   await fs.emptyDir(config.build.outDir);

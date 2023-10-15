@@ -5,6 +5,6 @@
 /// <reference lib="deno.ns" />
 
 import { start } from "../../../server.ts";
-import routes from "./manifest.gen.ts";
+import manifest from "./manifest.gen.ts";
 
-await start(routes);
+await start(manifest);

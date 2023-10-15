@@ -1,4 +1,4 @@
-import { view } from "$cool/lime/runtime.ts";
+import { view } from "../../../../../runtime.ts";
 
 export default function JsLayout({ Component }) {
   return view.adapter.h(

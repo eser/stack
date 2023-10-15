@@ -1,4 +1,4 @@
-import { type LimeOptions } from "../../server.ts";
+import { type LimeConfig } from "../../server.ts";
 
 export default {
   async render(_ctx, render) {
@@ -8,4 +8,4 @@ export default {
       throw new Error("body is missing");
     }
   },
-} as LimeOptions;
+} as LimeConfig;

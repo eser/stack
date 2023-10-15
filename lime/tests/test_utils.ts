@@ -2,7 +2,7 @@ import { colors, toFileUrl } from "../src/server/deps.ts";
 import { assert } from "$std/assert/mod.ts";
 import * as path from "$std/path/mod.ts";
 import {
-  type FromManifestOptions,
+  type FromManifestConfig,
   Manifest,
   ServeHandlerInfo,
   ServerContext,
@@ -254,9 +254,9 @@ async function handleRequest(
 
 export async function fakeServe(
   manifest: Manifest,
-  options: FromManifestOptions,
+  config: FromManifestConfig,
 ): Promise<FakeServer> {
-  const ctx = await ServerContext.fromManifest(manifest, options);
+  const ctx = await ServerContext.fromManifest(manifest, config);
   const handler = ctx.handler();
 
   const conn: ServeHandlerInfo = {

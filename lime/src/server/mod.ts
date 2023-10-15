@@ -1,5 +1,4 @@
 import { ServerContext } from "./context.ts";
-export { type FromManifestOptions } from "./context.ts";
 export { colors, Status } from "./deps.ts";
 import {
   type ErrorHandler,
@@ -7,10 +6,10 @@ import {
   type Handlers,
   type IslandModule,
   type LayoutConfig,
+  type LimeConfig,
   type MiddlewareModule,
   type RouteConfig,
   type ServeHandlerInfo,
-  type StartOptions,
   type UnknownHandler,
 } from "./types.ts";
 export {
@@ -32,7 +31,7 @@ export {
   type LayoutConfig,
   type LayoutContext,
   type LayoutProps,
-  type LimeOptions,
+  type LimeConfig,
   type MiddlewareHandler,
   type MiddlewareHandlerContext,
   type MultiHandler,
@@ -50,12 +49,11 @@ export {
   type RouteConfig,
   type RouteContext,
   type ServeHandlerInfo,
-  type StartOptions,
   type UnknownHandler,
   type UnknownHandlerContext,
   type UnknownPageProps,
 } from "./types.ts";
-import { startFromContext } from "./boot.ts";
+import { startServer } from "./boot.ts";
 export { type InnerRenderFunction, RenderContext } from "./render.ts";
 export { type DestinationKind } from "./router.ts";
 
@@ -84,21 +82,21 @@ export interface Manifest {
 export { ServerContext };
 
 export async function createHandler(
-  routes: Manifest,
-  opts: StartOptions = {},
+  manifest: Manifest,
+  config: LimeConfig = {},
 ): Promise<
   (req: Request, connInfo?: ServeHandlerInfo) => Promise<Response>
 > {
-  const ctx = await ServerContext.fromManifest(routes, opts);
+  const ctx = await ServerContext.fromManifest(manifest, config);
   return ctx.handler();
 }
 
-export async function start(routes: Manifest, opts: StartOptions = {}) {
-  const ctx = await ServerContext.fromManifest(routes, {
-    ...opts,
+export async function start(manifest: Manifest, config: LimeConfig = {}) {
+  const ctx = await ServerContext.fromManifest(manifest, {
+    ...config,
     skipSnapshot: false,
     dev: false,
   });
 
-  await startFromContext(ctx, opts.server ?? opts);
+  await startServer(ctx.handler(), config.server ?? config);
 }

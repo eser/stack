@@ -1,6 +1,6 @@
 import { updateCheck } from "./update_check.ts";
 import { DAY, dirname, fromFileUrl, join, toFileUrl } from "./deps.ts";
-import { type LimeOptions, Manifest as ServerManifest } from "../server/mod.ts";
+import { type LimeConfig, Manifest as ServerManifest } from "../server/mod.ts";
 import { build } from "./build.ts";
 import {
   collect,
@@ -8,13 +8,13 @@ import {
   generate,
   type Manifest,
 } from "./mod.ts";
-import { startFromContext } from "../server/boot.ts";
+import { startServer } from "../server/boot.ts";
 import { getLimeConfigWithDefaults } from "../server/config.ts";
 import { getServerContext } from "../server/context.ts";
 
 export async function dev(
   base: string,
-  options?: LimeOptions,
+  config?: LimeConfig,
 ) {
   ensureMinDenoVersion();
 
@@ -32,7 +32,7 @@ export async function dev(
     currentManifest = { islands: [], routes: [] };
   }
 
-  const newManifest = await collect(dir, options?.router?.ignoreFilePattern);
+  const newManifest = await collect(dir, config?.router?.ignoreFilePattern);
 
   Deno.env.set("LIME_DEV_PREVIOUS_MANIFEST", JSON.stringify(newManifest));
 
@@ -47,14 +47,14 @@ export async function dev(
   const manifest = (await import(toFileUrl(join(dir, "manifest.gen.ts")).href))
     .default as ServerManifest;
 
-  const config = await getLimeConfigWithDefaults(
+  const configWithDefaults = await getLimeConfigWithDefaults(
     manifest,
-    options ?? {},
+    config ?? {},
   );
-  config.loadSnapshot = false;
+  configWithDefaults.loadSnapshot = false;
 
   if (Deno.args.includes("build")) {
-    config.dev = false;
+    configWithDefaults.dev = false;
 
     await build(config);
 
@@ -63,8 +63,8 @@ export async function dev(
 
   config.dev = true;
 
-  const ctx = await getServerContext(config);
-  await startFromContext(ctx, config.server);
+  const ctx = await getServerContext(configWithDefaults);
+  await startServer(ctx.handler(), configWithDefaults.server);
 }
 
 function arraysEqual<T>(a: T[], b: T[]): boolean {

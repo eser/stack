@@ -57,7 +57,7 @@ export const load = async (
     }
   };
 
-  console.log(`${options_.baseDir}/.env`);
+  // console.log(`${options_.baseDir}/.env`);
   envImport(await parseEnvFromFile(`${options_.baseDir}/.env`));
   envImport(await parseEnvFromFile(`${options_.baseDir}/.env.${envName}`));
   if (envName !== "test") {

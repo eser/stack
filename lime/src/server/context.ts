@@ -171,7 +171,7 @@ export async function getServerContext(internalConfig: InternalLimeConfig) {
     if (!url.startsWith(baseUrl + "routes")) {
       throw new TypeError("Page is not a child of the basepath.");
     }
-    const path = url.substring(baseUrl.length).substring("routes".length);
+    const path = url.substring(baseUrl.length + "routes".length);
     const baseRoute = path.substring(1, path.length - extname(path).length);
     const name = baseRoute.replace("/", "-");
     const isLayout = path.endsWith("/_layout.tsx") ||

@@ -1,3 +1,5 @@
+import { type Promisable } from "../standards/promises.ts";
+
 export enum ServiceType {
   Singleton = 0,
   Lazy = 1,
@@ -14,7 +16,6 @@ export type FunctionService = (...args: any[]) => Value;
 
 export type ServiceKey = ClassService | FunctionService | symbol | string;
 export type ServiceValue = ClassService | FunctionService | Value;
-export type Promisable<T> = PromiseLike<T> | T;
 export type PromisableBuilder<T> = <K>(
   scope: ServiceScope<K, T>,
 ) => Promisable<T>;

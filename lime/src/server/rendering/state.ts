@@ -42,6 +42,7 @@ export class RenderState {
   #nonce = "";
   error: Error | null = null;
   isPartial: boolean;
+  encounteredPartials = new Set<string>();
   partialCount = 0;
   partialDepth = 0;
   islandDepth = 0;
@@ -76,5 +77,6 @@ export class RenderState {
     this.renderingUserTemplate = false;
     this.ownerStack = [];
     this.owners.clear();
+    this.encounteredPartials.clear();
   }
 }

@@ -8,7 +8,7 @@ export default function AppLayout({ Component }: AppProps) {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>fresh title</title>
+        <title>cool lime title</title>
       </head>
       <body f-client-nav>
         <Partial name="body">

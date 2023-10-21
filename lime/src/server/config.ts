@@ -1,6 +1,10 @@
 import { dirname, fromFileUrl, isAbsolute, join, JSONC } from "./deps.ts";
 import { type FromManifestConfig, type Manifest } from "./mod.ts";
-import { type DenoConfig, type InternalLimeConfig } from "./types.ts";
+import {
+  type DenoConfig,
+  type InternalLimeState,
+  ResolvedLimeConfig,
+} from "./types.ts";
 
 export async function readDenoConfig(
   directory: string,
@@ -33,10 +37,10 @@ function isObject(value: unknown) {
     !Array.isArray(value);
 }
 
-export async function getLimeConfigWithDefaults(
+export async function getInternalLimeState(
   manifest: Manifest,
   config: FromManifestConfig,
-): Promise<InternalLimeConfig> {
+): Promise<InternalLimeState> {
   const base = dirname(fromFileUrl(manifest.baseUrl));
   const { config: denoJson, path: denoJsonPath } = await readDenoConfig(base);
 
@@ -46,12 +50,8 @@ export async function getLimeConfigWithDefaults(
     );
   }
 
-  const internalConfig: InternalLimeConfig = {
-    loadSnapshot: !(config.skipSnapshot ?? true),
+  const internalConfig: ResolvedLimeConfig = {
     dev: config.dev ?? false,
-    denoJsonPath,
-    denoJson,
-    manifest,
     build: {
       outDir: "",
       target: config.build?.target ?? ["chrome99", "firefox99", "safari15"],
@@ -96,7 +96,15 @@ export async function getLimeConfigWithDefaults(
     ? parseFileOrUrl(config.staticDir, base)
     : join(base, "static");
 
-  return internalConfig;
+  return {
+    config: internalConfig,
+    manifest,
+    loadSnapshot: typeof config.skipSnapshot === "boolean"
+      ? !config.skipSnapshot
+      : false,
+    denoJsonPath,
+    denoJson,
+  };
 }
 
 function parseFileOrUrl(input: string, base: string) {

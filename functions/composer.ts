@@ -18,12 +18,15 @@ export const composer = <T>(
       newContext?: Context<T>,
     ): ResultAsyncGen<T> {
       const current = functions[index];
+      console.log(current?.name);
 
       index += 1;
       currentContext = {
         ...(newContext ?? currentContext ?? {}),
         next: jump,
       };
+
+      console.log(currentContext);
 
       const iterator = await current?.(currentContext);
 

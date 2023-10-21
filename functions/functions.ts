@@ -13,5 +13,6 @@ export type NextFn<T> = (
 
 export interface Context<T> {
   next?: NextFn<T>;
-  [key: string | number | symbol]: unknown;
+  // deno-lint-ignore no-explicit-any
+  [key: string | number | symbol]: any;
 }

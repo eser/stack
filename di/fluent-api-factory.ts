@@ -1,5 +1,5 @@
+import { type Promisable } from "../standards/promises.ts";
 import {
-  type Promisable,
   type PromisableBuilder,
   type ServiceKey,
   type ServiceScope,

@@ -1,4 +1,5 @@
-export type ExtraData = Record<string | number | symbol, unknown>;
+// deno-lint-ignore no-explicit-any
+export type ExtraData = Record<string | number | symbol, any>;
 
 export interface ResultBody<T> {
   error?: Error;
@@ -28,7 +29,9 @@ export type ResultNonIterable<T> =
 
 export type Result<T> =
   | ResultIterable<T>
-  | ResultNonIterable<T>;
+  | ResultNonIterable<T>
+  | Promise<void>
+  | void;
 
 export const Ok = <T>(result?: T): ResultBody<T> => {
   return {

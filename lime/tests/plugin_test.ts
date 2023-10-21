@@ -5,6 +5,7 @@ import {
   assertMatch,
   assertStringIncludes,
   delay,
+  join,
   puppeteer,
 } from "./deps.ts";
 import manifest from "./fixture_plugin/manifest.gen.ts";
@@ -148,6 +149,7 @@ Deno.test("calls buildStart() and buildEnd()", async () => {
   assertEquals(out, [
     "Plugin a: buildStart",
     "Plugin b: buildStart",
+    `Plugin c: ${join("tests", "fixture_plugin_lifecycle", "_lime")}`,
     "Plugin a: buildEnd",
     "Plugin b: buildEnd",
   ]);

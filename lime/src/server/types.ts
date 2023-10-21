@@ -102,12 +102,16 @@ export interface LimeConfig {
   onListen?: (params: { hostname: string; port: number }) => void;
 }
 
-export interface InternalLimeConfig {
-  dev: boolean;
+export interface InternalLimeState {
+  config: ResolvedLimeConfig;
+  manifest: Manifest;
   loadSnapshot: boolean;
   denoJsonPath: string;
   denoJson: DenoConfig;
-  manifest: Manifest;
+}
+
+export interface ResolvedLimeConfig {
+  dev: boolean;
   build: {
     outDir: string;
     target: string | string[];
@@ -539,7 +543,7 @@ export interface Plugin<State = Record<string, unknown>> {
   /**
    * Called before running the cool lime build task
    */
-  buildStart?(): Promise<void> | void;
+  buildStart?(config: ResolvedLimeConfig): Promise<void> | void;
   /**
    * Called after completing the cool lime build task
    */

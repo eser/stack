@@ -31,7 +31,7 @@ function reconnect() {
   reconnectTimer = setTimeout(() => {
     if (backoffIdx === 0) {
       console.log(
-        `%c Fresh %c Connection closed. Trying to reconnect...`,
+        `%c Lime %c Connection closed. Trying to reconnect...`,
         "background-color: #86efac; color: black",
         "color: inherit",
       );
@@ -48,7 +48,7 @@ function reconnect() {
 }
 
 function connect(forceReload?: boolean) {
-  const url = new URL("/_frsh/alive", location.origin.replace("http", "ws"));
+  const url = new URL("/_lime/alive", location.origin.replace("http", "ws"));
   ws = new WebSocket(
     url,
   );
@@ -64,7 +64,7 @@ function connect(forceReload?: boolean) {
     } else {
       backoffIdx = 0;
       console.log(
-        `%c Fresh %c Connected to development server.`,
+        `%c Lime %c Connected to development server.`,
         "background-color: #86efac; color: black",
         "color: inherit",
       );

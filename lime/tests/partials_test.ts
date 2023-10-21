@@ -1019,7 +1019,7 @@ Deno.test("submit form GET", async () => {
       });
 
       const url = await page.$eval(".url", (el) => el.textContent);
-      assertEquals(url, `${address}/form_get?name=foobar&fresh-partial=true`);
+      assertEquals(url, `${address}/form_get?name=foobar&lime-partial=true`);
 
       // Server can update form value
       const value = await page.$eval("input", (el) => el.value);
@@ -1050,7 +1050,7 @@ Deno.test("submit form POST", async () => {
       });
 
       const url = await page.$eval(".url", (el) => el.textContent);
-      assertEquals(url, `${address}/form_post?fresh-partial=true`);
+      assertEquals(url, `${address}/form_post?lime-partial=true`);
 
       const logs = await page.$eval("#logs", (el) => el.textContent);
       assertEquals(logs.split(/\n/).filter(Boolean), [
@@ -1081,7 +1081,7 @@ Deno.test("pull values from event.submitter if set", async () => {
       });
 
       const url = await page.$eval(".url", (el) => el.textContent);
-      assertEquals(url, `${address}/form_submitter?fresh-partial=true`);
+      assertEquals(url, `${address}/form_submitter?lime-partial=true`);
 
       const logs = await page.$eval("#logs", (el) => el.textContent);
       assertEquals(logs.split(/\n/).filter(Boolean), [
@@ -1112,7 +1112,7 @@ Deno.test("pull values from event.submitter if set with f-partial", async () => 
       });
 
       const url = await page.$eval(".url", (el) => el.textContent);
-      assertEquals(url, `${address}/form_submitter_partial?fresh-partial=true`);
+      assertEquals(url, `${address}/form_submitter_partial?lime-partial=true`);
 
       const logs = await page.$eval("#logs", (el) => el.textContent);
       assertEquals(logs.split(/\n/).filter(Boolean), [
@@ -1380,6 +1380,47 @@ Deno.test("supports relative links", async () => {
 
       await page.click("button");
       await page.waitForSelector(".status-refreshed");
+    },
+  );
+});
+
+Deno.test("nested partials are able to be updated", async () => {
+  await withPageName(
+    "./tests/fixture_partials/main.ts",
+    async (page, address) => {
+      await page.goto(`${address}/nested`);
+      await page.waitForSelector(".status-outer");
+      await page.waitForSelector(".status-inner");
+
+      await page.click(".update-outer");
+      await waitForText(page, ".status-outer", "updated outer");
+      await waitForText(page, ".status-inner", "inner");
+
+      await page.click(".update-inner");
+      await waitForText(page, ".status-outer", "updated outer");
+      await waitForText(page, ".status-inner", "updated inner");
+
+      await page.click(".update-outer");
+      await waitForText(page, ".status-outer", "updated outer");
+      await waitForText(page, ".status-inner", "inner");
+    },
+  );
+});
+
+Deno.test("errors on duplicate partial name", async () => {
+  await withPageName(
+    "./tests/fixture_partials/main.ts",
+    async (page, address) => {
+      await page.goto(`${address}/duplicate_name`);
+      await page.waitForSelector(".swap-link");
+
+      const logs: string[] = [];
+      page.on("console", (msg) => logs.push(msg.text()));
+
+      await Promise.all([
+        page.waitForResponse((res) => res.status() === 500),
+        page.click(".swap-link"),
+      ]);
     },
   );
 });

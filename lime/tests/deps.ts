@@ -28,4 +28,10 @@ export {
   HTMLMetaElement,
 } from "npm:linkedom@0.15.1";
 export * as fs from "$std/fs/mod.ts";
-export { basename, dirname, fromFileUrl, join } from "$std/path/mod.ts";
+export {
+  basename,
+  dirname,
+  fromFileUrl,
+  join,
+  relative,
+} from "$std/path/mod.ts";

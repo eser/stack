@@ -3,18 +3,21 @@ import { join } from "../server/deps.ts";
 import { colors, fs } from "./deps.ts";
 import { type BuildSnapshotJson } from "../build/mod.ts";
 import { BUILD_ID } from "../server/build_id.ts";
-import { type InternalLimeConfig } from "../server/types.ts";
+import { type InternalLimeState } from "../server/types.ts";
 
 export async function build(
-  config: InternalLimeConfig,
+  state: InternalLimeState,
 ) {
-  // Ensure that build dir is empty
-  await fs.emptyDir(config.build.outDir);
+  const outDir = state.config.build.outDir;
+  const plugins = state.config.plugins;
 
-  await Promise.all(config.plugins.map((plugin) => plugin.buildStart?.()));
+  // Ensure that build dir is empty
+  await fs.emptyDir(outDir);
+
+  await Promise.all(plugins.map((plugin) => plugin.buildStart?.(state.config)));
 
   // Bundle assets
-  const ctx = await getServerContext(config);
+  const ctx = await getServerContext(state);
   const snapshot = await ctx.buildSnapshot();
 
   // Write output files to disk
@@ -25,7 +28,7 @@ export async function build(
       return;
     }
 
-    return Deno.writeFile(join(config.build.outDir, fileName), data);
+    return Deno.writeFile(join(outDir, fileName), data);
   }));
 
   // Write dependency snapshot file to disk
@@ -40,13 +43,13 @@ export async function build(
     jsonSnapshot.files[filePath] = dependencies;
   }
 
-  const snapshotPath = join(config.build.outDir, "snapshot.json");
+  const snapshotPath = join(outDir, "snapshot.json");
 
   await Deno.writeTextFile(snapshotPath, JSON.stringify(jsonSnapshot, null, 2));
 
   console.log(
-    `Assets written to: ${colors.green(config.build.outDir)}`,
+    `Assets written to: ${colors.green(outDir)}`,
   );
 
-  await Promise.all(config.plugins.map((plugin) => plugin.buildEnd?.()));
+  await Promise.all(plugins.map((plugin) => plugin.buildEnd?.()));
 }

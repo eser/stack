@@ -9,7 +9,7 @@ import {
   type Manifest,
 } from "./mod.ts";
 import { startServer } from "../server/boot.ts";
-import { getLimeConfigWithDefaults } from "../server/config.ts";
+import { getInternalLimeState } from "../server/config.ts";
 import { getServerContext } from "../server/context.ts";
 
 export async function dev(
@@ -47,24 +47,24 @@ export async function dev(
   const manifest = (await import(toFileUrl(join(dir, "manifest.gen.ts")).href))
     .default as ServerManifest;
 
-  const configWithDefaults = await getLimeConfigWithDefaults(
+  const state = await getInternalLimeState(
     manifest,
     config ?? {},
   );
-  configWithDefaults.loadSnapshot = false;
+  state.loadSnapshot = false;
 
   if (Deno.args.includes("build")) {
-    configWithDefaults.dev = false;
+    state.config.dev = false;
 
-    await build(config);
+    await build(state);
 
     return;
   }
 
-  config.dev = true;
+  state.config.dev = true;
 
-  const ctx = await getServerContext(configWithDefaults);
-  await startServer(ctx.handler(), configWithDefaults.server);
+  const ctx = await getServerContext(state);
+  await startServer(ctx.handler(), state.config.server);
 }
 
 function arraysEqual<T>(a: T[], b: T[]): boolean {

@@ -373,13 +373,21 @@ options.__b = (vnode: VNode<Record<string, unknown>>) => {
           );
         }
 
+        const name = vnode.props.name as string;
+        if (current.encounteredPartials.has(name)) {
+          current.error = new Error(
+            `Duplicate partial name "${name}" found. The partial name prop is expected to be unique among partial components.`,
+          );
+        }
+        current.encounteredPartials.add(name);
+
         const mode = encodePartialMode(
           // deno-lint-ignore no-explicit-any
           (vnode.props as any).mode ?? "replace",
         );
         vnode.props.children = wrapWithMarker(
           vnode.props.children,
-          `lime-partial:${vnode.props.name}:${mode}:${vnode.key ?? ""}`,
+          `lime-partial:${name}:${mode}:${vnode.key ?? ""}`,
         );
       } else if (
         vnode.key && (current.islandDepth > 0 || current.partialDepth > 0)

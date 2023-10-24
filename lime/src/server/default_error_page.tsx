@@ -107,7 +107,7 @@ export default function DefaultErrorPage(props: ErrorPageProps) {
 function CodeFrame(props: { codeFrame: string }) {
   const lines: ComponentChildren[] = [];
 
-  colors.stripColor(props.codeFrame.trimEnd()).split("\n").forEach(
+  colors.stripAnsiCode(props.codeFrame.trimEnd()).split("\n").forEach(
     (line, i, arr) => {
       const vnode = (
         <span

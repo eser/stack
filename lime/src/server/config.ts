@@ -1,35 +1,57 @@
 import { dirname, fromFileUrl, isAbsolute, join, JSONC } from "./deps.ts";
 import { type FromManifestConfig, type Manifest } from "./mod.ts";
+import { DEFAULT_RENDER_FN } from "./render.ts";
 import {
   type DenoConfig,
   type InternalLimeState,
   ResolvedLimeConfig,
 } from "./types.ts";
 
-export async function readDenoConfig(
+export async function locateDenoConfig(
   directory: string,
-): Promise<{ config: DenoConfig; path: string }> {
+  searchParents = false,
+): Promise<string | undefined> {
   let dir = directory;
+
   while (true) {
     for (const name of ["deno.jsonc", "deno.json"]) {
       const path = join(dir, name);
-      try {
-        const file = await Deno.readTextFile(path);
-        return { config: JSONC.parse(file) as DenoConfig, path };
-      } catch (err) {
-        if (!(err instanceof Deno.errors.NotFound)) {
-          throw err;
-        }
+      const fileInfo = await Deno.stat(path);
+
+      if (fileInfo.isFile) {
+        console.log(path);
+        return path;
       }
     }
+
+    if (!searchParents) {
+      break;
+    }
+
     const parent = dirname(dir);
     if (parent === dir) {
-      throw new Error(
-        `Could not find a deno.json file in the current directory or any parent directory.`,
-      );
+      break;
     }
+
     dir = parent;
   }
+
+  return undefined;
+}
+
+export async function readDenoConfig(
+  directory: string,
+): Promise<{ config: DenoConfig; path: string }> {
+  const path = await locateDenoConfig(directory, true);
+
+  if (path === undefined) {
+    throw new Error(
+      `Could not find a deno.json file in the current directory or any parent directory.`,
+    );
+  }
+
+  const file = await Deno.readTextFile(path);
+  return { config: JSONC.parse(file) as DenoConfig, path };
 }
 
 function isObject(value: unknown) {
@@ -53,12 +75,16 @@ export async function getInternalLimeState(
   const internalConfig: ResolvedLimeConfig = {
     dev: config.dev ?? false,
     build: {
-      outDir: "",
+      outDir: config.build?.outDir
+        ? parseFileOrUrl(config.build.outDir, base)
+        : join(base, "_lime"),
       target: config.build?.target ?? ["chrome99", "firefox99", "safari15"],
     },
     plugins: config.plugins ?? [],
-    staticDir: "",
-    render: config.render,
+    staticDir: config.staticDir
+      ? parseFileOrUrl(config.staticDir, base)
+      : join(base, "static"),
+    render: config.render ?? DEFAULT_RENDER_FN,
     router: config.router,
     server: config.server ?? {},
   };
@@ -88,20 +114,10 @@ export async function getInternalLimeState(
     internalConfig.server.signal = config.signal;
   }
 
-  internalConfig.build.outDir = config.build?.outDir
-    ? parseFileOrUrl(config.build.outDir, base)
-    : join(base, "_lime");
-
-  internalConfig.staticDir = config.staticDir
-    ? parseFileOrUrl(config.staticDir, base)
-    : join(base, "static");
-
   return {
     config: internalConfig,
     manifest,
-    loadSnapshot: typeof config.skipSnapshot === "boolean"
-      ? !config.skipSnapshot
-      : false,
+    loadSnapshot: true,
     denoJsonPath,
     denoJson,
   };

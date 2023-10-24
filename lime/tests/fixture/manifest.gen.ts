@@ -53,7 +53,7 @@ import * as $47 from "./routes/movies/[foo]@[bar].ts";
 import * as $48 from "./routes/nonce_inline.tsx";
 import * as $49 from "./routes/not_found.ts";
 import * as $50 from "./routes/params.tsx";
-import * as $51 from "./routes/preact/boolean_attrs.tsx";
+import * as $51 from "./routes/react/boolean_attrs.tsx";
 import * as $52 from "./routes/props/[id].tsx";
 import * as $53 from "./routes/route-groups-islands/index.tsx";
 import * as $54 from "./routes/route-groups/(bar)/(baz)/_layout.tsx";
@@ -89,7 +89,7 @@ import * as $$12 from "./islands/kebab-case-counter-test.tsx";
 import * as $$13 from "./routes/route-groups-islands/(_islands)/Counter.tsx";
 import * as $$14 from "./routes/route-groups-islands/(_islands)/invalid.tsx";
 
-const manifest = {
+export const manifest = {
   routes: {
     "./routes/[name].tsx": $0,
     "./routes/_404.tsx": $1,
@@ -142,7 +142,7 @@ const manifest = {
     "./routes/nonce_inline.tsx": $48,
     "./routes/not_found.ts": $49,
     "./routes/params.tsx": $50,
-    "./routes/preact/boolean_attrs.tsx": $51,
+    "./routes/react/boolean_attrs.tsx": $51,
     "./routes/props/[id].tsx": $52,
     "./routes/route-groups-islands/index.tsx": $53,
     "./routes/route-groups/(bar)/(baz)/_layout.tsx": $54,
@@ -182,5 +182,3 @@ const manifest = {
   },
   baseUrl: import.meta.url,
 };
-
-export default manifest;

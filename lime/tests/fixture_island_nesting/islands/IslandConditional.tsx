@@ -1,4 +1,4 @@
-import { Signal } from "@preact/signals";
+import { type Signal } from "@preact/signals-type";
 import { type ComponentChildren } from "../../../runtime.ts";
 
 export interface IslandConditionalProps {

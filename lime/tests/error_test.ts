@@ -1,6 +1,6 @@
 import { ServerContext, Status } from "../server.ts";
 import { assert, assertEquals, assertStringIncludes } from "./deps.ts";
-import manifest from "./fixture_error/manifest.gen.ts";
+import { manifest } from "./fixture_error/manifest.gen.ts";
 
 const ctx = await ServerContext.fromManifest(manifest, { dev: true });
 const handler = ctx.handler();

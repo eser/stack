@@ -68,13 +68,17 @@ export function serialize(data: unknown): SerializeResult {
     v: data,
     get r() {
       earlyReturn = true;
+
       if (references.size > 0) {
         const refs = [];
+
         for (const [targetPath, refPaths] of references) {
           refs.push([targetPath, ...refPaths]);
         }
+
         return refs;
       }
+
       return undefined;
     },
   };
@@ -118,25 +122,31 @@ export function serialize(data: unknown): SerializeResult {
     if (typeof value === "object" && value !== null) {
       const path = seen.get(value);
       const currentPath = [...keyStack];
+
       if (path !== undefined) {
         requiresDeserializer = true;
         const referenceArr = references.get(path);
+
         if (referenceArr === undefined) {
           references.set(path, [currentPath]);
         } else {
           referenceArr.push(currentPath);
         }
+
         return 0;
-      } else if (isVNode(value)) {
+      }
+
+      if (isVNode(value)) {
         requiresDeserializer = true;
         // No need to serialize JSX as we pick that up from
         // the rendered HTML in the browser.
         const res = null;
         parentStack.push(res);
+
         return res;
-      } else {
-        seen.set(value, currentPath);
       }
+
+      seen.set(value, currentPath);
     }
 
     if (isSignal(value)) {
@@ -145,17 +155,23 @@ export function serialize(data: unknown): SerializeResult {
       const res = { [KEY]: "s", v: value.peek() };
       parentStack.push(res);
       return res;
-    } else if (typeof value === "bigint") {
+    }
+
+    if (typeof value === "bigint") {
       requiresDeserializer = true;
       const res = { [KEY]: "b", d: value.toString() };
       parentStack.push(res);
       return res;
-    } else if (value instanceof Uint8Array) {
+    }
+
+    if (value instanceof Uint8Array) {
       requiresDeserializer = true;
       const res = { [KEY]: "u8a", d: b64encode(value) };
       parentStack.push(res);
       return res;
-    } else if (typeof value === "object" && value && KEY in value) {
+    }
+
+    if (typeof value === "object" && value && KEY in value) {
       requiresDeserializer = true;
       // deno-lint-ignore no-explicit-any
       const v: any = { ...value };
@@ -164,10 +180,10 @@ export function serialize(data: unknown): SerializeResult {
       const res = { [KEY]: "l", k, v };
       parentStack.push(res);
       return res;
-    } else {
-      parentStack.push(value);
-      return value;
     }
+
+    parentStack.push(value);
+    return value;
   }
 
   const serialized = JSON.stringify(toSerialize, replacer);
@@ -192,24 +208,28 @@ export function b64encode(buffer: ArrayBuffer): string {
   let result = "",
     i;
   const l = uint8.length;
+
   for (i = 2; i < l; i += 3) {
-    result += base64abc[uint8[i - 2] >> 2];
-    result += base64abc[((uint8[i - 2] & 0x03) << 4) | (uint8[i - 1] >> 4)];
-    result += base64abc[((uint8[i - 1] & 0x0f) << 2) | (uint8[i] >> 6)];
-    result += base64abc[uint8[i] & 0x3f];
+    result += base64abc[uint8[i - 2]! >> 2];
+    result += base64abc[((uint8[i - 2]! & 0x03) << 4) | (uint8[i - 1]! >> 4)];
+    result += base64abc[((uint8[i - 1]! & 0x0f) << 2) | (uint8[i]! >> 6)];
+    result += base64abc[uint8[i]! & 0x3f];
   }
+
   if (i === l + 1) {
     // 1 octet yet to write
-    result += base64abc[uint8[i - 2] >> 2];
-    result += base64abc[(uint8[i - 2] & 0x03) << 4];
+    result += base64abc[uint8[i - 2]! >> 2];
+    result += base64abc[(uint8[i - 2]! & 0x03) << 4];
     result += "==";
   }
+
   if (i === l) {
     // 2 octets yet to write
-    result += base64abc[uint8[i - 2] >> 2];
-    result += base64abc[((uint8[i - 2] & 0x03) << 4) | (uint8[i - 1] >> 4)];
-    result += base64abc[(uint8[i - 1] & 0x0f) << 2];
+    result += base64abc[uint8[i - 2]! >> 2];
+    result += base64abc[((uint8[i - 2]! & 0x03) << 4) | (uint8[i - 1]! >> 4)];
+    result += base64abc[(uint8[i - 1]! & 0x0f) << 2];
     result += "=";
   }
+
   return result;
 }

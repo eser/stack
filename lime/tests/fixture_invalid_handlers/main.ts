@@ -5,7 +5,7 @@
 /// <reference lib="deno.ns" />
 
 import { start } from "../../server.ts";
-import manifest from "./manifest.gen.ts";
+import { manifest } from "./manifest.gen.ts";
 
 // @ts-expect-error: the index.tsx file declares a "handlers" but no "handler", to simulate a typo or confusion on the user's part
 await start(manifest);

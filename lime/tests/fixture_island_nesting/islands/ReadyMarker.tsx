@@ -1,5 +1,5 @@
-import { useSignal } from "@preact/signals";
-import { useEffect } from "preact/hooks";
+import { useSignal } from "@preact/signals-react";
+import { useEffect } from "react";
 
 export function ReadyMarker() {
   const sig = useSignal(false);

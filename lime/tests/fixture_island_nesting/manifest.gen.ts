@@ -33,7 +33,7 @@ import * as $$9 from "./islands/IslandWithProps.tsx";
 import * as $$10 from "./islands/PassThrough.tsx";
 import * as $$11 from "./islands/ReadyMarker.tsx";
 
-const manifest = {
+export const manifest = {
   routes: {
     "./routes/dropdown.tsx": $0,
     "./routes/index.tsx": $1,
@@ -70,5 +70,3 @@ const manifest = {
   },
   baseUrl: import.meta.url,
 };
-
-export default manifest;

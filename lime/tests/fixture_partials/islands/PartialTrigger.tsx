@@ -1,5 +1,5 @@
-import { Signal } from "@preact/signals";
-import { ComponentChildren } from "preact";
+import { type Signal } from "@preact/signals-react";
+import { type ComponentChildren } from "../../../src/runtime/drivers/view.tsx";
 
 export default function PartialTrigger(
   props: {

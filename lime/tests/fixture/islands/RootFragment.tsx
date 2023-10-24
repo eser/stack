@@ -1,4 +1,4 @@
-import { useSignal } from "@preact/signals";
+import { useSignal } from "@preact/signals-react";
 
 export default function RootFragment() {
   const shown = useSignal(false);

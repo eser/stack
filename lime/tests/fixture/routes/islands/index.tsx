@@ -1,4 +1,4 @@
-import { useSignal } from "@preact/signals";
+import { useSignal } from "@preact/signals-react";
 import Counter from "../../islands/Counter.tsx";
 import FolderCounter from "../../islands/folder/Counter.tsx";
 import SubfolderCounter from "../../islands/folder/subfolder/Counter.tsx";

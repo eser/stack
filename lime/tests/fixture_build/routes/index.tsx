@@ -1,4 +1,4 @@
-import { useSignal } from "@preact/signals";
+import { useSignal } from "@preact/signals-react";
 import Counter from "../islands/Counter.tsx";
 import { asset, Head } from "../../../runtime.ts";
 

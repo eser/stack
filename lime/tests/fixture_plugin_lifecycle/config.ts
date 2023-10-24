@@ -1,7 +1,7 @@
-import { defineConfig } from "../../server.ts";
-import * as path from "https://deno.land/std@0.204.0/path/mod.ts";
+import { defineConfig, type LimeConfig } from "../../server.ts";
+import * as path from "$std/path/mod.ts";
 
-export default defineConfig({
+export const config = defineConfig({
   plugins: [
     {
       name: "a",
@@ -29,4 +29,4 @@ export default defineConfig({
       },
     },
   ],
-});
+}) as LimeConfig;

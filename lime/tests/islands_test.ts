@@ -1,3 +1,4 @@
+import { assert, assertEquals, assertStringIncludes } from "$std/assert/mod.ts";
 import {
   assertNoPageComments,
   assertNotSelector,
@@ -9,6 +10,7 @@ import {
   withFakeServe,
   withPageName,
 } from "./test_utils.ts";
+import { type Page } from "./deps.ts";
 
 Deno.test("island tests", async (t) => {
   await withPage(async (page, address) => {
@@ -188,18 +190,6 @@ Deno.test("island using `npm:` specifiers", async () => {
     await page.reload();
     await page.waitForSelector("#browser-true");
   });
-});
-
-Deno.test("works with older preact-render-to-string v5", async () => {
-  await withPageName(
-    "./tests/fixture_preact_rts_v5/main.ts",
-    async (page, address) => {
-      await page.goto(address);
-      await page.waitForSelector("#foo");
-      await waitForText(page, "#foo", "it works");
-      await assertNoPageComments(page);
-    },
-  );
 });
 
 Deno.test("pass single JSX child to island", async () => {
@@ -424,7 +414,7 @@ Deno.test("revive boolean attributes", async () => {
   await withPageName(
     "./tests/fixture/main.ts",
     async (page, address) => {
-      await page.goto(`${address}/preact/boolean_attrs`);
+      await page.goto(`${address}/react/boolean_attrs`);
       await waitForText(page, ".form-revived", "Revived: true");
       await assertNoPageComments(page);
 

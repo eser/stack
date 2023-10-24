@@ -5,7 +5,7 @@
 /// <reference lib="deno.ns" />
 
 import { start } from "../../server.ts";
-import manifest from "./manifest.gen.ts";
-import config from "./config.ts";
+import { manifest } from "./manifest.gen.ts";
+import { config } from "./config.ts";
 
 await start(manifest, config);

@@ -1,8 +1,8 @@
 import { assertSelector, parseHtml, withFakeServe } from "./test_utils.ts";
 import { assertEquals } from "$std/assert/mod.ts";
 import { createHandler } from "../server.ts";
-import manifest from "./fixture/manifest.gen.ts";
-import options from "./fixture/options.ts";
+import { manifest } from "./fixture/manifest.gen.ts";
+import { options } from "./fixture/options.ts";
 
 const handler = await createHandler(manifest, options);
 

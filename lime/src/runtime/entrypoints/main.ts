@@ -1,5 +1,5 @@
 import "../polyfills.ts";
-// import { options } from "preact";
+// import { options } from "react";
 import {
   type ComponentChildren,
   type ComponentType,
@@ -8,7 +8,7 @@ import {
 } from "../drivers/view.tsx";
 import { INTERNAL_PREFIX } from "../utils.ts"; // assetHashingHook
 import { type SerializedState } from "../../server/rendering/lime_tags.tsx";
-import { type Signal } from "@preact/signals";
+import { type Signal } from "@preact/signals-react";
 import {
   CLIENT_NAV_ATTR,
   DATA_ANCESTOR,
@@ -124,7 +124,7 @@ function ServerComponent(
 ): ComponentChildren {
   return props.children;
 }
-ServerComponent.displayName = "PreactServerComponent";
+ServerComponent.displayName = "ReactServerComponent";
 
 function addPropsChild(parent: VNode, vnode: ComponentChildren) {
   const props = parent.props;
@@ -336,11 +336,7 @@ function _walkInner(
         sib = sib.nextSibling;
         continue;
       } else if (
-        marker !== null && (
-          comment.startsWith("/lime") ||
-          // Check for old Preact RTS
-          marker.text === comment
-        )
+        marker !== null && comment.startsWith("/lime")
       ) {
         // We're closing either a slot or an island
         marker.endNode = sib;
@@ -477,7 +473,7 @@ function _walkInner(
         ) {
           // Parse the server rendered DOM into vnodes that we can
           // attach to the virtual-dom tree. In the future, once
-          // Preact supports a way to skip over subtrees, this
+          // React supports a way to skip over subtrees, this
           // can be dropped.
           const childLen = sib.childNodes.length;
           const newProps: Record<string, unknown> = {

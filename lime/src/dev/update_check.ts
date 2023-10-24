@@ -101,7 +101,7 @@ export async function updateCheck(
     }
   }
 
-  const version = await getCurrentVersion();
+  const version = await getCurrentVersion() ?? "0.0.0";
 
   let checkFile: CheckFile = {
     current_version: version,

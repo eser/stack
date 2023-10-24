@@ -7,6 +7,6 @@
 import "$std/dotenv/load.ts";
 
 import { start } from "../../server.ts";
-import manifest from "./manifest.gen.ts";
+import { manifest } from "./manifest.gen.ts";
 
 await start(manifest);

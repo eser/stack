@@ -1,7 +1,7 @@
 import { basename, colors, join, parse, resolve } from "./src/dev/deps.ts";
 import { error } from "./src/dev/error.ts";
 import { buildManifestFile, ensureMinDenoVersion } from "./src/dev/mod.ts";
-import { baseImports, preactImports, reactImports } from "./src/dev/imports.ts";
+import { baseImports, reactImports } from "./src/dev/imports.ts";
 import { view } from "./runtime.ts";
 
 ensureMinDenoVersion();
@@ -22,7 +22,6 @@ USAGE:
 
 OPTIONS:
     --force   Overwrite existing files
-    --preact  Setup Project to use Preact
     --docker  Setup Project to use Docker
 `;
 
@@ -30,8 +29,8 @@ const CONFIRM_EMPTY_MESSAGE =
   "The target directory is not empty (files could get overwritten). Do you want to continue anyway?";
 
 const flags = parse(Deno.args, {
-  boolean: ["force", "preact", "docker"],
-  default: { "force": null, "preact": null, "docker": null },
+  boolean: ["force", "docker"],
+  default: { "force": null, "docker": null },
 });
 
 console.log();
@@ -75,7 +74,6 @@ console.log(
   "font-weight: bold",
 );
 
-const usePreact = flags.preact;
 const useDocker = flags.docker;
 
 await Promise.all([
@@ -239,7 +237,7 @@ await Promise.all([
 
 const ROUTES_GREET_TSX = `import { PageProps } from "$cool/lime/server.ts";
 export default function Greet(props: PageProps) {
-  return <div>Hello {props.params.name}</div>;
+  return <div>Hello {props.params["name"]}</div>;
 }
 `;
 await Deno.mkdir(join(resolvedDirectory, "routes", "greet"), {
@@ -464,7 +462,7 @@ try {
 let LIME_CONFIG_TS = `import { defineConfig } from "$cool/lime/server.ts";\n`;
 
 LIME_CONFIG_TS += `
-export default defineConfig({
+export const config = defineConfig({
   plugins: [],
 });
 `;
@@ -480,8 +478,8 @@ let MAIN_TS = `/// <reference no-default-lib="true" />
 import "$std/dotenv/load.ts";
 
 import { start } from "$cool/lime/server.ts";
-import manifest from "./manifest.gen.ts";
-import config from "./config.ts";
+import { manifest } from "./manifest.gen.ts";
+import { config } from "./config.ts";
 `;
 
 MAIN_TS += `
@@ -491,8 +489,8 @@ await Deno.writeTextFile(MAIN_TS_PATH, MAIN_TS);
 
 const DEV_TS = `#!/usr/bin/env -S deno run -A --watch=static/,routes/
 
-import dev from "$cool/lime/dev.ts";
-import config from "./config.ts";
+import { dev } from "$cool/lime/dev.ts";
+import { config } from "./config.ts";
 
 import "$std/dotenv/load.ts";
 
@@ -523,16 +521,12 @@ const config = {
   exclude: ["**/_lime/*"],
   imports: {} as Record<string, string>,
   compilerOptions: {
-    jsx: "react-jsx",
-    jsxImportSource: usePreact ? "preact" : "react",
+    jsx: "react",
+    // jsxImportSource: "react",
   },
 };
 baseImports(config.imports);
-if (usePreact) {
-  preactImports(config.imports);
-} else {
-  reactImports(config.imports);
-}
+reactImports(config.imports);
 
 const DENO_CONFIG = JSON.stringify(config, null, 2) + "\n";
 

@@ -1,6 +1,6 @@
 import { type LimeConfig } from "../../server.ts";
 
-export default {
+export const config = {
   router: {
     ignoreFilePattern: /[\.|_]cy\.[t|j]s(x)?$/,
   },

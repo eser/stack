@@ -36,7 +36,7 @@ export class RenderState {
   // Route options
   routeOptions: RenderStateRouteOptions;
   csp: ContentSecurityPolicy | undefined;
-  // Preact state
+  // React state
   ownerStack: VNode[] = [];
   owners = new Map<VNode, VNode>();
   #nonce = "";

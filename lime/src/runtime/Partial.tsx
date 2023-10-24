@@ -1,4 +1,5 @@
-import { ComponentChildren, VNode } from "preact";
+import { type ReactElement } from "react";
+import { type ComponentChildren } from "./drivers/view.tsx";
 
 export interface PartialProps {
   children?: ComponentChildren;
@@ -13,7 +14,7 @@ export interface PartialProps {
   mode?: "replace" | "prepend" | "append";
 }
 
-export function Partial(props: PartialProps): VNode {
+export function Partial(props: PartialProps): ReactElement {
   // deno-lint-ignore no-explicit-any
   return props.children as any;
 }

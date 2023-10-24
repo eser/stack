@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useState } from "react";
 
 export default function Stateful(props: { id: string }) {
   const [v, set] = useState(0);

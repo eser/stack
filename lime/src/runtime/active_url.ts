@@ -1,4 +1,4 @@
-import { VNode } from "preact";
+import { type ReactElement } from "react";
 import { DATA_ANCESTOR, DATA_CURRENT } from "../constants.ts";
 
 export const enum UrlMatchKind {
@@ -30,7 +30,7 @@ export function matchesUrl(current: string, needle: string): UrlMatchKind {
  * Mark active or ancestor link
  * Note: This function is used both on the server and the client
  */
-export function setActiveUrl(vnode: VNode, pathname: string): void {
+export function setActiveUrl(vnode: ReactElement, pathname: string): void {
   const props = vnode.props as Record<string, unknown>;
   const hrefProp = props.href;
   if (typeof hrefProp === "string" && hrefProp.startsWith("/")) {

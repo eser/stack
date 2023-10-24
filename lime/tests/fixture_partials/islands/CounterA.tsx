@@ -1,4 +1,4 @@
-import { useSignal } from "@preact/signals";
+import { useSignal } from "@preact/signals-react";
 import { Logger } from "./Logger.tsx";
 
 export default function CounterA() {

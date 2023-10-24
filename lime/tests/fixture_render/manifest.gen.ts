@@ -7,7 +7,7 @@ import * as $1 from "./routes/header_instance.tsx";
 import * as $2 from "./routes/header_obj.tsx";
 import * as $3 from "./routes/index.tsx";
 
-const manifest = {
+export const manifest = {
   routes: {
     "./routes/header_arr.tsx": $0,
     "./routes/header_instance.tsx": $1,
@@ -17,5 +17,3 @@ const manifest = {
   islands: {},
   baseUrl: import.meta.url,
 };
-
-export default manifest;

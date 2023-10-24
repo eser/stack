@@ -1,5 +1,5 @@
-import { useEffect } from "preact/hooks";
-import { useSignal } from "@preact/signals";
+import { useEffect } from "react";
+import { useSignal } from "@preact/signals-react";
 
 export default function Island() {
   const sig = useSignal(false);

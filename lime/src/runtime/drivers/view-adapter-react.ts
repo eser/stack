@@ -1,5 +1,6 @@
 import {
   Children,
+  Component,
   type ComponentClass,
   type Context,
   createContext,
@@ -34,6 +35,7 @@ export class ReactViewAdapter implements ViewAdapterBase {
   libAdapterDOM = "react-dom";
   libAdapterHooks = "react";
   Fragment: typeof Fragment = Fragment;
+  Component: typeof Component = Component;
 
   createContext<T>(defaultValue: T): Context<T> {
     return createContext(defaultValue);

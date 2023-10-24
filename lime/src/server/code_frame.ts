@@ -1,7 +1,7 @@
 import { colors, fromFileUrl } from "./deps.ts";
 
-function tabs2Spaces(str: string) {
-  return str.replace(/^\t+/, (tabs) => "  ".repeat(tabs.length));
+function tabs2Spaces(str: string, tabSize = 2) {
+  return str.replace(/^\t+/, (tabs) => " ".repeat(tabSize).repeat(tabs.length));
 }
 
 /**
@@ -20,7 +20,7 @@ export function createCodeFrame(
   const lines = text.split("\n");
 
   // Check if specified range is valid
-  if (lines.length <= lineNum || lines[lineNum].length < columnNum) {
+  if (lines.length <= lineNum || lines[lineNum]!.length < columnNum) {
     return;
   }
 
@@ -40,18 +40,18 @@ export function createCodeFrame(
   const spaceLines: string[] = [];
   let maxLineLen = 0;
   for (let i = start; i < end; i++) {
-    const line = tabs2Spaces(lines[i]);
+    const line = tabs2Spaces(lines[i]!);
     spaceLines.push(line);
 
     if (line.length > maxLineLen) maxLineLen = line.length;
   }
 
-  const activeLine = spaceLines[lineNum - start];
+  const activeLine = spaceLines[lineNum - start]!;
   // Move marker into correct place by taking the amount of
   // normalized tabs into account
   const count = Math.max(
     0,
-    activeLine.length - lines[lineNum].length + columnNum,
+    activeLine.length - lines[lineNum]!.length + columnNum,
   );
 
   const sep = colors.dim("|");
@@ -87,13 +87,15 @@ export interface StackFrame {
 }
 export function getFirstUserFile(stack: string): StackFrame | undefined {
   const lines = stack.split("\n");
+
   for (let i = 0; i < lines.length; i++) {
-    const match = lines[i].match(STACK_FRAME);
-    if (match && match) {
+    const match = lines[i]!.match(STACK_FRAME);
+
+    if (match !== null) {
       const fnName = match[1] ?? "";
-      const file = match[2];
-      const line = +match[3];
-      const column = +match[4];
+      const file = match[2]!;
+      const line = +match[3]!;
+      const column = +match[4]!;
 
       if (file.startsWith("file://")) {
         return {
@@ -105,23 +107,32 @@ export function getFirstUserFile(stack: string): StackFrame | undefined {
       }
     }
   }
+
+  return undefined;
 }
 
 export async function getCodeFrame(error: Error) {
-  if (!error.stack) return;
+  if (!error.stack) {
+    return undefined;
+  }
 
   const file = getFirstUserFile(error.stack);
-  if (file) {
-    try {
-      const filePath = fromFileUrl(file.file);
-      const text = await Deno.readTextFile(filePath);
-      return createCodeFrame(
-        text,
-        file.line - 1,
-        file.column - 1,
-      );
-    } catch {
-      // Ignore
-    }
+
+  if (file === undefined) {
+    return undefined;
+  }
+
+  try {
+    const filePath = fromFileUrl(file.file);
+    const text = await Deno.readTextFile(filePath);
+
+    return createCodeFrame(
+      text,
+      file.line - 1,
+      file.column - 1,
+    );
+  } catch {
+    // Ignore
+    return undefined;
   }
 }

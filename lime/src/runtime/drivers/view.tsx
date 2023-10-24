@@ -1,4 +1,3 @@
-// import { PreactViewAdapter } from "./view-adapter-preact.ts";
 import { ReactViewAdapter } from "./view-adapter-react.ts";
 import {
   type ComponentChildren,

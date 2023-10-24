@@ -1291,7 +1291,7 @@ Deno.test("throws an error when response contains no partials", async () => {
       await page.click(".update-link");
 
       await waitFor(() => logs.length > 0);
-      assertMatch(logs[0], /Found no partials/);
+      assertMatch(logs[0]!, /Found no partials/);
     },
   );
 });

@@ -5,12 +5,12 @@ export {
   extname,
   fromFileUrl,
   join,
-  posix,
   relative,
   resolve,
   SEP,
   toFileUrl,
 } from "$std/path/mod.ts";
+export * as posix from "$std/path/posix/mod.ts";
 export { DAY, WEEK } from "$std/datetime/constants.ts";
 export * as colors from "$std/fmt/colors.ts";
 export { walk, type WalkEntry, WalkError } from "$std/fs/walk.ts";

@@ -16,7 +16,7 @@ import {
   HTMLElement,
   HTMLMetaElement,
   join,
-  Page,
+  type Page,
   puppeteer,
   TextLineStream,
 } from "./deps.ts";
@@ -342,13 +342,13 @@ export async function clickWhenListenerReady(page: Page, selector: string) {
     (sel) => {
       const el = document.querySelector(sel)!;
 
-      // Wait for Preact to have attached either a captured or non-captured
+      // Wait for react to have attached either a captured or non-captured
       // click event
       // deno-lint-ignore no-explicit-any
-      const preactListener = (el as any).l as Record<string, unknown> | null;
+      const reactListener = (el as any).l as Record<string, unknown> | null;
       if (
-        !preactListener || typeof preactListener !== "object" ||
-        (!preactListener.clickfalse && !preactListener.clicktrue)
+        !reactListener || typeof reactListener !== "object" ||
+        (!reactListener["clickfalse"] && !reactListener["clicktrue"])
       ) {
         return false;
       }
@@ -499,10 +499,10 @@ export function getStdOutput(
   out: Deno.CommandOutput,
 ): { stdout: string; stderr: string } {
   const decoder = new TextDecoder();
-  const stdout = colors.stripColor(decoder.decode(out.stdout));
+  const stdout = colors.stripAnsiCode(decoder.decode(out.stdout));
 
   const decoderErr = new TextDecoder();
-  const stderr = colors.stripColor(decoderErr.decode(out.stderr));
+  const stderr = colors.stripAnsiCode(decoderErr.decode(out.stderr));
 
   return { stdout, stderr };
 }

@@ -69,7 +69,7 @@ async function testBuild(
         "signals.js output file not found in snapshot",
       );
 
-      // Should not include `preact/debug`
+      // Should not include `react/debug`
       const mainJs = await Deno.readTextFile(path.join(outDir, "main.js"));
       assertNotMatch(mainJs, /Undefined parent passed to render()/);
     });

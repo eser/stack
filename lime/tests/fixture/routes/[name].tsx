@@ -3,5 +3,5 @@ interface Props {
 }
 
 export default function Greet(props: Props) {
-  return <div>Hello {props.params.name}</div>;
+  return <div>Hello {props.params["name"]}</div>;
 }

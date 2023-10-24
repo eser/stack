@@ -1,4 +1,17 @@
+import { isWsRevision } from "../../dev/ws_connection.ts";
+
 let ws: WebSocket;
+
+// Keep track of the current revision
+let revision = 0;
+
+function logMessage(msg: string) {
+  console.log(
+    `%c 🍋 Lime %c ${msg}`,
+    "background-color: #86efac; color: black",
+    "color: inherit",
+  );
+}
 
 let reconnectTimer: number;
 const backoff = [
@@ -30,16 +43,12 @@ function reconnect() {
 
   reconnectTimer = setTimeout(() => {
     if (backoffIdx === 0) {
-      console.log(
-        `%c Lime %c Connection closed. Trying to reconnect...`,
-        "background-color: #86efac; color: black",
-        "color: inherit",
-      );
+      logMessage("Connection closed. Trying to reconnect...");
     }
     backoffIdx++;
 
     try {
-      connect(true);
+      connect();
       clearTimeout(reconnectTimer);
     } catch (_err) {
       reconnect();
@@ -47,28 +56,15 @@ function reconnect() {
   }, backoff[Math.min(backoffIdx, backoff.length - 1)]);
 }
 
-function connect(forceReload?: boolean) {
+function connect() {
   const url = new URL("/_lime/alive", location.origin.replace("http", "ws"));
   ws = new WebSocket(
     url,
   );
 
-  addEventListener("unload", () => {
-    // Prevent form submits from triggering a reconnect
-    clearTimeout(reconnectTimer);
-  });
-
   ws.addEventListener("open", () => {
-    if (forceReload) {
-      location.reload();
-    } else {
-      backoffIdx = 0;
-      console.log(
-        `%c Lime %c Connected to development server.`,
-        "background-color: #86efac; color: black",
-        "color: inherit",
-      );
-    }
+    backoffIdx = 0;
+    logMessage("Connected to development server.");
   });
 
   ws.addEventListener("close", () => {
@@ -83,7 +79,18 @@ connect();
 
 function handleMessage(e: MessageEvent) {
   const data = JSON.parse(e.data);
-  console.log(data);
+
+  if (!isWsRevision(data)) {
+    return;
+  }
+
+  if (revision === 0) {
+    revision = data.value;
+
+    return;
+  }
+
+  location.reload();
 }
 
 function handleError(e: Event) {

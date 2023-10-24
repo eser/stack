@@ -6,7 +6,7 @@ import { colors } from "./deps.ts";
 function testCodeFrame(text: string, line: number, column: number) {
   const codeFrame = createCodeFrame(text, line, column);
   if (codeFrame !== undefined) {
-    return "\n" + colors.stripColor(codeFrame);
+    return "\n" + colors.stripAnsiCode(codeFrame);
   }
   return codeFrame;
 }

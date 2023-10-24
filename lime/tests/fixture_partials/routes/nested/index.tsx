@@ -1,5 +1,5 @@
 import { Partial } from "$cool/lime/runtime.ts";
-import { ComponentChildren } from "preact";
+import { type ComponentChildren } from "react";
 import { Fader } from "../../islands/Fader.tsx";
 import { Logger } from "../../islands/Logger.tsx";
 

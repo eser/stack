@@ -5,7 +5,7 @@
 /// <reference lib="deno.ns" />
 
 import { start } from "../../server.ts";
-import manifest from "./manifest.gen.ts";
+import { manifest } from "./manifest.gen.ts";
 
 function throwErr() {
   throw new Error("Error thrown");

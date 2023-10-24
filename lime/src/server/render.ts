@@ -70,7 +70,7 @@ export class RenderContext {
   /**
    * State that is persisted between multiple renders with the same render
    * context. This is useful because one logical JIT render could have multiple
-   * preact render passes due to suspense.
+   * react render passes due to suspense.
    */
   get state(): Map<string, unknown> {
     return this.#state;

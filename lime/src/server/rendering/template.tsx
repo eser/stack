@@ -1,6 +1,6 @@
 import { RenderState } from "./state.ts";
 import { view } from "../../runtime/drivers/view.tsx";
-import { type VNode } from "preact";
+import { type ReactElement } from "react";
 import { HEAD_CONTEXT } from "../../runtime/head.ts";
 import { CSP_CONTEXT } from "../../runtime/csp.ts";
 

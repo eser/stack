@@ -5,7 +5,7 @@ export interface SignalLike<T> {
 }
 
 declare global {
-  namespace preact.createElement.JSX {
+  namespace JSX {
     interface HTMLAttributes {
       /**
        * Alternative url to fetch partials from on `<a>` or `<form>` tags

@@ -34,7 +34,7 @@ import * as $28 from "./routes/override/no_layout_no_app.tsx";
 import * as $29 from "./routes/skip/sub/_layout.tsx";
 import * as $30 from "./routes/skip/sub/index.tsx";
 
-const manifest = {
+export const manifest = {
   routes: {
     "./routes/_app.tsx": $0,
     "./routes/_layout.tsx": $1,
@@ -71,5 +71,3 @@ const manifest = {
   islands: {},
   baseUrl: import.meta.url,
 };
-
-export default manifest;

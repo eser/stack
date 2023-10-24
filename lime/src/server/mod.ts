@@ -1,4 +1,5 @@
 import { ServerContext } from "./context.ts";
+export { type FromManifestConfig } from "./context.ts";
 export { colors, Status } from "./deps.ts";
 import {
   type ErrorHandler,
@@ -99,7 +100,6 @@ export async function createHandler(
 export async function start(manifest: Manifest, config: LimeConfig = {}) {
   const ctx = await ServerContext.fromManifest(manifest, {
     ...config,
-    skipSnapshot: false,
     dev: false,
   });
 

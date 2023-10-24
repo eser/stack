@@ -1,4 +1,4 @@
-import { useSignal } from "@preact/signals";
+import { useSignal } from "@preact/signals-react";
 import { Partial } from "../../../../runtime.ts";
 import Spinner from "../../islands/Spinner.tsx";
 import PartialTrigger from "../../islands/PartialTrigger.tsx";

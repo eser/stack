@@ -1,4 +1,4 @@
-import { type Signal } from "@preact/signals";
+import { type Signal } from "@preact/signals-react";
 import { IS_BROWSER } from "../../../../runtime.ts";
 
 interface CounterProps {

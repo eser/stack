@@ -121,7 +121,7 @@ import * as $$12 from "./islands/SignalProp.tsx";
 import * as $$13 from "./islands/Spinner.tsx";
 import * as $$14 from "./islands/Stateful.tsx";
 
-const manifest = {
+export const manifest = {
   routes: {
     "./routes/_app.tsx": $0,
     "./routes/active_nav/foo/bar.tsx": $1,
@@ -246,5 +246,3 @@ const manifest = {
   },
   baseUrl: import.meta.url,
 };
-
-export default manifest;

@@ -8,8 +8,8 @@ import {
   join,
   puppeteer,
 } from "./deps.ts";
-import manifest from "./fixture_plugin/manifest.gen.ts";
-import options from "./fixture_plugin/options.ts";
+import { manifest } from "./fixture_plugin/manifest.gen.ts";
+import { options } from "./fixture_plugin/options.ts";
 import {
   clickWhenListenerReady,
   runBuild,

@@ -1,3 +1,3 @@
 // FIXME(@eser): temporarily disabled
-// import "preact/debug";
+// import "react/debug";
 export * from "./main.ts";

@@ -3,7 +3,7 @@ interface Props {
 }
 
 export default function Lang(props: Props) {
-  return props.params.lang
-    ? <div>Hello {props.params.lang}</div>
+  return props.params["lang"]
+    ? <div>Hello {props.params["lang"]}</div>
     : <div>Hello</div>;
 }

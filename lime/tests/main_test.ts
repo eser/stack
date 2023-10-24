@@ -9,8 +9,8 @@ import {
   puppeteer,
   retry,
 } from "./deps.ts";
-import manifest from "./fixture/manifest.gen.ts";
-import options from "./fixture/options.ts";
+import { manifest } from "./fixture/manifest.gen.ts";
+import { options } from "./fixture/options.ts";
 import { BUILD_ID } from "../src/server/build_id.ts";
 import {
   assertSelector,
@@ -969,6 +969,8 @@ Deno.test({
             return true;
           }
         }
+
+        return false;
       });
     });
   },

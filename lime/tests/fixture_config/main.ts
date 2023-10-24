@@ -5,7 +5,7 @@
 /// <reference lib="deno.ns" />
 
 import { start } from "../../server.ts";
-import manifest from "./manifest.gen.ts";
+import { manifest } from "./manifest.gen.ts";
 
 const TEST_CONFIG_SERVER = Deno.env.get("TEST_CONFIG_SERVER") === "true";
 const onListen = (params: { hostname: string; port: number }) => {

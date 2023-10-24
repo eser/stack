@@ -1,6 +1,10 @@
 // islands/Dropdown.tsx
-import { ComponentChildren, createContext } from "preact";
-import { StateUpdater, useState } from "preact/hooks";
+import {
+  type ComponentChildren,
+  createContext,
+  type StateUpdater,
+  useState,
+} from "react";
 
 const DropdownContext = createContext<[boolean, StateUpdater<boolean>]>(
   [false, () => {}],

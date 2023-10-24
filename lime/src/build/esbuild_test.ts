@@ -1,14 +1,14 @@
-import { assertEquals } from "$std/testing/asserts.ts";
+import { assertEquals } from "$std/assert/mod.ts";
 import { fromFileUrl, join, toFileUrl } from "../server/deps.ts";
+import { locateDenoConfig } from "../server/config.ts";
 import { EsbuildBuilder } from "./esbuild.ts";
 
-const denoJson = join(
+const denoJson = await locateDenoConfig(join(
   fromFileUrl(import.meta.url),
   "..",
   "..",
   "..",
-  "deno.json",
-);
+));
 
 const mainEntry = toFileUrl(join(
   fromFileUrl(import.meta.url),
@@ -23,14 +23,12 @@ Deno.test("esbuild snapshot with cwd=Deno.cwd()", async () => {
   const builder = new EsbuildBuilder({
     absoluteWorkingDir: Deno.cwd(),
     buildID: "foo",
-    configPath: denoJson,
+    configPath: denoJson!,
     dev: false,
     entrypoints: {
       main: mainEntry,
     },
-    jsxConfig: {
-      jsx: "react-jsx",
-    },
+    jsx: "react",
     target: "es2020",
   });
 
@@ -45,14 +43,12 @@ Deno.test({
     const builder = new EsbuildBuilder({
       absoluteWorkingDir: "/",
       buildID: "foo",
-      configPath: denoJson,
+      configPath: denoJson!,
       dev: false,
       entrypoints: {
         main: mainEntry,
       },
-      jsxConfig: {
-        jsx: "react-jsx",
-      },
+      jsx: "react",
       target: "es2020",
     });
 

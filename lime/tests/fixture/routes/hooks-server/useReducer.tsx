@@ -1,4 +1,4 @@
-import { useReducer } from "preact/hooks";
+import { useReducer } from "react";
 
 export default function Page() {
   useReducer(() => {}, undefined);

@@ -8,7 +8,7 @@ import * as $2 from "./routes/test.tsx";
 import * as $3 from "./routes/with-island.tsx";
 import * as $$0 from "./islands/Island.tsx";
 
-const manifest = {
+export const manifest = {
   routes: {
     "./routes/lots-of-middleware/index.tsx": $0,
     "./routes/static.tsx": $1,
@@ -20,5 +20,3 @@ const manifest = {
   },
   baseUrl: import.meta.url,
 };
-
-export default manifest;

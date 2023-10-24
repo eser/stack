@@ -1,6 +1,6 @@
 import IslandConditional from "../islands/IslandConditional.tsx";
 import BooleanButton from "../islands/BooleanButton.tsx";
-import { useSignal } from "@preact/signals";
+import { useSignal } from "@preact/signals-react";
 import Counter from "../islands/Counter.tsx";
 import { ReadyMarker } from "../islands/ReadyMarker.tsx";
 

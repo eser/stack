@@ -1,4 +1,4 @@
-import { type ComponentChildren } from "preact";
+import { type ComponentChildren } from "react";
 
 export default function SlotDemo() {
   return (

@@ -1,4 +1,4 @@
-import { useSignal } from "@preact/signals";
+import { useSignal } from "@preact/signals-react";
 import { Partial } from "../../../../runtime.ts";
 import { Fader } from "../../islands/Fader.tsx";
 import SignalProp from "../../islands/SignalProp.tsx";

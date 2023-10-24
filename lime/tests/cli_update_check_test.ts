@@ -27,7 +27,7 @@ Deno.test({
 
     const text = JSON.parse(await Deno.readTextFile(filePath));
     assertEquals(text, {
-      current_version: versions[0],
+      current_version: versions[0] ?? "0.0.0",
       latest_version: "99.99.999",
       last_checked: text.last_checked,
       last_shown: text.last_shown,
@@ -97,7 +97,7 @@ Deno.test({
     // Updates check file
     const text = JSON.parse(await Deno.readTextFile(filePath));
     assertEquals(text, {
-      current_version: versions[0],
+      current_version: versions[0] ?? "0.0.0",
       latest_version: "999.999.0",
       last_checked: text.last_checked,
       last_shown: text.last_shown,
@@ -186,7 +186,7 @@ Deno.test({
       env: {
         CI: "false",
         TEST_HOME: tmpDirName,
-        LATEST_VERSION: versions[0],
+        LATEST_VERSION: versions[0] ?? "0.0.0",
       },
       stderr: "piped",
       stdout: "piped",
@@ -220,7 +220,7 @@ Deno.test({
       env: {
         CI: "false",
         TEST_HOME: tmpDirName,
-        LATEST_VERSION: versions[0],
+        LATEST_VERSION: versions[0] ?? "0.0.0",
         CURRENT_VERSION: "99999.9999.0",
       },
       stderr: "piped",
@@ -338,7 +338,7 @@ Deno.test(
       env: {
         CI: "false",
         TEST_HOME: tmpDirName,
-        CURRENT_VERSION: versions[0],
+        CURRENT_VERSION: versions[0] ?? "0.0.0",
         LATEST_VERSION: "99999.9999.0",
       },
       stderr: "piped",

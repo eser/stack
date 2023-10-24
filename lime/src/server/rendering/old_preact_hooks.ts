@@ -1,8 +1,8 @@
 import {
   isValidElement,
-  type Options as PreactOptions,
-  options as preactOptions,
-} from "preact";
+  type Options as ReactOptions,
+  options as reactOptions,
+} from "react";
 import { assetHashingHook } from "../../runtime/utils.ts";
 import { Partial, type PartialProps } from "../../runtime/Partial.tsx";
 import { setActiveUrl } from "../../runtime/active_url.ts";
@@ -40,7 +40,7 @@ enum HookType {
 
 // These hooks are long stable, but when we originally added them we
 // weren't sure if they should be public.
-interface AdvancedPreactOptions extends PreactOptions {
+interface AdvancedReactOptions extends ReactOptions {
   /** Attach a hook that is invoked after a tree was mounted or was updated. */
   __c?(vnode: VNode, commitQueue: Component[]): void;
   /** Attach a hook that is invoked before a vnode has rendered. */
@@ -51,12 +51,12 @@ interface AdvancedPreactOptions extends PreactOptions {
   /** Attach a hook that is invoked before a hook's state is queried. */
   __h?(component: Component, index: number, type: HookType): void;
 }
-const options = preactOptions as AdvancedPreactOptions;
+const options = reactOptions as AdvancedReactOptions;
 
-// Enable error boundaries in Preact.
+// Enable error boundaries in React.
 options.errorBoundaries = true;
 
-// Set up a preact option hook to track when vnode with custom functions are
+// Set up a react option hook to track when vnode with custom functions are
 // created.
 let current: RenderState | null = null;
 
@@ -169,11 +169,11 @@ const oldHook = options.__h;
 options.vnode = (vnode) => {
   assetHashingHook(vnode);
 
-  // Work around `preact/debug` string event handler error which
+  // Work around `react/debug` string event handler error which
   // errors when an event handler gets a string. This makes sense
   // on the client where this is a common vector for XSS. On the
   // server when the string was not created through concatenation
-  // it is fine. Internally, `preact/debug` only checks for the
+  // it is fine. Internally, `react/debug` only checks for the
   // lowercase variant.
   if (typeof vnode.type === "string") {
     const props = vnode.props as Record<string, unknown>;
@@ -452,7 +452,7 @@ options.__h = (component, idx, type) => {
       ? `\n\nInstead, use the "useSignal" hook to share state across islands.`
       : "";
 
-    // Don't throw here because that messes up internal Preact state
+    // Don't throw here because that messes up internal React state
     current.error = new Error(message + hint);
   }
   oldHook?.(component, idx, type);

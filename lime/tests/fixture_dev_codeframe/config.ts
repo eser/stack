@@ -1,5 +1,5 @@
-import { defineConfig } from "../../server.ts";
+import { defineConfig, type LimeConfig } from "../../server.ts";
 
-export default defineConfig({
+export const config = defineConfig({
   plugins: [],
-});
+}) as LimeConfig;

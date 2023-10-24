@@ -5,6 +5,7 @@ import {
 } from "https://deno.land/x/esbuild@v0.19.4/mod.js";
 import { denoPlugins, fromFileUrl, regexpEscape, relative } from "./deps.ts";
 import { Builder, BuildSnapshot } from "./mod.ts";
+import { BUNDLE_PUBLIC_PATH } from "../server/constants.ts";
 
 export interface EsbuildBuilderOptions {
   /** The build ID. */
@@ -16,14 +17,10 @@ export interface EsbuildBuilderOptions {
   /** The path to the deno.json / deno.jsonc config file. */
   configPath: string;
   /** The JSX configuration. */
-  jsxConfig: JSXConfig;
+  jsx?: string;
+  jsxImportSource?: string;
   target: string | string[];
   absoluteWorkingDir: string;
-}
-
-export interface JSXConfig {
-  jsx: "react" | "react-jsx";
-  jsxImportSource?: string;
 }
 
 export class EsbuildBuilder implements Builder {
@@ -61,7 +58,7 @@ export class EsbuildBuilder implements Builder {
       const absWorkingDir = opts.absoluteWorkingDir;
 
       // In dev-mode we skip identifier minification to be able to show proper
-      // component names in Preact DevTools instead of single characters.
+      // component names in React DevTools instead of single characters.
       const minifyOptions: Partial<BuildOptions> = opts.dev
         ? {
           minifyIdentifiers: false,
@@ -83,11 +80,18 @@ export class EsbuildBuilder implements Builder {
         sourcemap: opts.dev ? "linked" : false,
         ...minifyOptions,
 
-        jsx: JSX_RUNTIME_MODE[opts.jsxConfig.jsx],
-        jsxImportSource: opts.jsxConfig.jsxImportSource,
+        jsx: opts.jsx === "react"
+          ? "transform"
+          : opts.jsx === "react-native" || opts.jsx === "preserve"
+          ? "preserve"
+          : !opts.jsxImportSource
+          ? "transform"
+          : "automatic",
+        jsxImportSource: opts.jsxImportSource ?? "react",
 
         absWorkingDir,
         outdir: ".",
+        publicPath: BUNDLE_PUBLIC_PATH,
         write: false,
         metafile: true,
 
@@ -125,11 +129,6 @@ export class EsbuildBuilder implements Builder {
     }
   }
 }
-
-const JSX_RUNTIME_MODE = {
-  "react": "transform",
-  "react-jsx": "automatic",
-} as const;
 
 function buildIdPlugin(buildId: string): Plugin {
   const file = import.meta.resolve("../runtime/build_id.ts");

@@ -1,6 +1,6 @@
 import IslandConditional from "../islands/IslandConditional.tsx";
 import BooleanButton from "../islands/BooleanButton.tsx";
-import { signal } from "@preact/signals";
+import { signal } from "@preact/signals-react";
 
 const show = signal(true);
 

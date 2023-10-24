@@ -1,5 +1,4 @@
-import { ComponentChildren } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import { type ComponentChildren, useEffect, useRef } from "react";
 
 export function Logger(props: { children?: ComponentChildren; name?: string }) {
   const mounted = useRef(false);

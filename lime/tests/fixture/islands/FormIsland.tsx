@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "preact/hooks";
-import { ComponentChildren } from "preact";
+import { useEffect, useRef } from "react";
+import { type ComponentChildren } from "../../../src/runtime/drivers/view.tsx";
 
 export function FormIsland({ children }: { children: ComponentChildren }) {
   const ref = useRef<HTMLParagraphElement | null>(null);

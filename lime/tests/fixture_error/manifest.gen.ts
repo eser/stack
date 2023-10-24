@@ -5,7 +5,7 @@
 import * as $0 from "./routes/[...all].ts";
 import * as $1 from "./routes/index.tsx";
 
-const manifest = {
+export const manifest = {
   routes: {
     "./routes/[...all].ts": $0,
     "./routes/index.tsx": $1,
@@ -13,5 +13,3 @@ const manifest = {
   islands: {},
   baseUrl: import.meta.url,
 };
-
-export default manifest;

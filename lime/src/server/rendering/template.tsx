@@ -63,8 +63,8 @@ export function renderOuterDocument(
   opts: {
     bodyHtml: string;
     lang?: string;
-    preloads: string[];
-    moduleScripts: [src: string, nonce: string][];
+    preloads: Array<string>;
+    moduleScripts: Array<[src: string, nonce: string]>;
   },
 ) {
   const {
@@ -79,7 +79,7 @@ export function renderOuterDocument(
   let docTitle = state.docTitle;
 
   // Filter out duplicate head vnodes by "key" if set
-  const filteredHeadNodes: unknown[] = [];
+  const filteredHeadNodes: Array<unknown> = [];
 
   if (headVNodes.length > 0) {
     const seen = new Map<string, unknown>();

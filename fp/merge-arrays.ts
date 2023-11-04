@@ -1,6 +1,8 @@
-export const mergeArrays = <T>(...instances: readonly Iterable<T>[]): T[] => {
+export const mergeArrays = <T>(
+  ...instances: ReadonlyArray<Iterable<T>>
+): Array<T> => {
   return instances.reduce(
-    (obj: readonly T[], instance: Iterable<T>) => [...obj, ...instance],
+    (obj: ReadonlyArray<T>, instance: Iterable<T>) => [...obj, ...instance],
     [],
   );
 };

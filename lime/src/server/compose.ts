@@ -35,9 +35,9 @@ export function toBaseRoute(input: string): BaseRoute {
 
 export function selectSharedRoutes<T extends { baseRoute: BaseRoute }>(
   curBaseRoute: BaseRoute,
-  items: T[],
-): T[] {
-  const selected: T[] = [];
+  items: ReadonlyArray<T>,
+): Array<T> {
+  const selected: Array<T> = [];
 
   for (const item of items) {
     const { baseRoute } = item;
@@ -58,7 +58,7 @@ export function selectSharedRoutes<T extends { baseRoute: BaseRoute }>(
  * chain them and return a handler response
  */
 export function composeMiddlewares(
-  middlewares: MiddlewareRoute[],
+  middlewares: Array<MiddlewareRoute>,
   errorHandler: ErrorHandler<RouterState>,
   paramsAndRoute: (
     url: string,
@@ -70,7 +70,7 @@ export function composeMiddlewares(
     connInfo: ServeHandlerInfo,
     inner: FinalHandler<RouterState>,
   ) => {
-    const handlers: (() => Promisable<Response>)[] = [];
+    const handlers: Array<() => Promisable<Response>> = [];
     const paramsAndRouteResult = paramsAndRoute(req.url);
 
     // identify middlewares to apply, if any.

@@ -51,7 +51,9 @@ export function deserialize(
   }
 
   const { v, r } = JSON.parse(str, reviver);
-  const references = (r ?? []) as [string[], ...string[][]][];
+  const references = (r ?? []) as Array<
+    [Array<string>, ...Array<Array<string>>]
+  >;
 
   for (const [targetPath, ...refPaths] of references) {
     const target = targetPath.reduce((o, k) => k === null ? o : o[k], v);

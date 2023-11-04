@@ -1,6 +1,9 @@
-export const dropFromArray = <T>(instance: Iterable<T>, n: number): T[] => {
+export const dropFromArray = <T>(
+  instance: Iterable<T>,
+  n: number,
+): Array<T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <T[]> instance
+    ? <ReadonlyArray<T>> instance
     : [...instance];
 
   return arrInstance.slice(n);

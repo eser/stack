@@ -1,9 +1,9 @@
 export const removeValueFromArray = <T>(
   instance: Iterable<T>,
-  ...values: T[]
-): T[] => {
+  ...values: ReadonlyArray<T>
+): Array<T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <T[]> instance
+    ? <ReadonlyArray<T>> instance
     : [...instance];
 
   return arrInstance.filter(

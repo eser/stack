@@ -63,8 +63,8 @@ export async function collect(
 ): Promise<Manifest> {
   const filePaths = new Set<string>();
 
-  const routes: string[] = [];
-  const islands: string[] = [];
+  const routes: Array<string> = [];
+  const islands: Array<string> = [];
   await Promise.all([
     collectDir(join(directory, "./routes"), (entry, dir) => {
       const rel = join("routes", relative(dir, entry.path));

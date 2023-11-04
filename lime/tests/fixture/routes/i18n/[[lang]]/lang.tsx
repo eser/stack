@@ -1,5 +1,5 @@
 interface Props {
-  params: Record<string, string | string[]>;
+  params: Record<string, string | Array<string>>;
 }
 
 export default function Lang(props: Props) {

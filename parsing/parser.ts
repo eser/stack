@@ -24,7 +24,7 @@ export const token = (input: string): Parser => {
   };
 };
 
-export const sequence = (...parsers: Parser[]): Parser => {
+export const sequence = (...parsers: ReadonlyArray<Parser>): Parser => {
   return (t: Iterator<Token>) => {
     const results = [];
 

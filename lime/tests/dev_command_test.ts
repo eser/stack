@@ -31,7 +31,7 @@ Deno.test({
     await withPageName(
       "./tests/fixture_dev_config/dev.ts",
       async (page, address) => {
-        const logs: string[] = [];
+        const logs: Array<string> = [];
         page.on("console", (msg) => logs.push(msg.text()));
         await page.goto(`${address}`, { waitUntil: "networkidle2" });
         await waitForStyle(page, "h1", "color", "rgb(220, 38, 38)");

@@ -1,3 +1,5 @@
+import { type ArgList } from "./functions.ts";
+
 // taken from RFC5424 (see: https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.1)
 export enum Severity {
   Emergency = 0, // system is unusable
@@ -11,7 +13,7 @@ export enum Severity {
 }
 
 export interface Logger {
-  log(severity: Severity, message: string, ...args: readonly unknown[]): void;
+  log(severity: Severity, message: string, ...args: ArgList): void;
 }
 
 export { type Logger as default };

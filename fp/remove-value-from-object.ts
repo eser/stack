@@ -1,6 +1,6 @@
 export const removeValueFromObject = <T>(
   instance: Record<string | number | symbol, T>,
-  ...values: T[]
+  ...values: ReadonlyArray<T>
 ): Record<string | number | symbol, T> => {
   return Object.entries(instance).reduce(
     (obj, [itemKey, value]) => {

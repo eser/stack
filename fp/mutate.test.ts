@@ -27,7 +27,7 @@ bdd.describe("cool/fp/mutate", () => {
     const obj1 = {
       firstName: "Eser",
       lastName: "Ozvataf",
-      aliases: <string[]> [],
+      aliases: <Array<string>> [],
     };
 
     const result = mutate(obj1, (x) => {
@@ -52,7 +52,7 @@ bdd.describe("cool/fp/mutate", () => {
 
   bdd.it("with-class", () => {
     class dummy {
-      items: string[];
+      items: Array<string>;
 
       constructor() {
         this.items = [];

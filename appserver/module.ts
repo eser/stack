@@ -3,8 +3,8 @@ export interface Module {
 
   manifest: unknown; // TODO(@eser): type this
 
-  uses?: string[]; // TODO(@eser): type this
-  provides: unknown[]; // TODO(@eser): type this
+  uses?: ReadonlyArray<string>; // TODO(@eser): type this
+  provides: ReadonlyArray<unknown>; // TODO(@eser): type this
 
   entrypoint: () => void; // TODO(@eser): type this
 }

@@ -1,14 +1,16 @@
-export type PickFromArrayResult<T> = { items: T[]; rest: T[] };
+export type PickFromArrayResult<T> = { items: Array<T>; rest: Array<T> };
 
 export const pickFromArray = <T>(
   instance: Iterable<T>,
   items: Iterable<T>,
 ): PickFromArrayResult<T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <T[]> instance
+    ? <ReadonlyArray<T>> instance
     : [...instance];
 
-  const arrItems = (items.constructor === Array) ? <T[]> items : [...items];
+  const arrItems = (items.constructor === Array)
+    ? <ReadonlyArray<T>> items
+    : [...items];
 
   return arrInstance.reduce(
     (obj: PickFromArrayResult<T>, itemValue: T) => {

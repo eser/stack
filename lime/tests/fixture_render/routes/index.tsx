@@ -2,7 +2,7 @@ import * as path from "$std/path/mod.ts";
 
 const __dirname = path.dirname(path.fromFileUrl(import.meta.url));
 
-const links: string[] = [];
+const links: Array<string> = [];
 for (const file of Deno.readDirSync(__dirname)) {
   if (file.name.startsWith("index")) continue;
   const name = path.basename(file.name, path.extname(file.name));

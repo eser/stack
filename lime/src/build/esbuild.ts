@@ -19,7 +19,7 @@ export interface EsbuildBuilderOptions {
   /** The JSX configuration. */
   jsx?: string;
   jsxImportSource?: string;
-  target: string | string[];
+  target: string | Array<string>;
   absoluteWorkingDir: string;
 }
 
@@ -102,7 +102,7 @@ export class EsbuildBuilder implements Builder {
       });
 
       const files = new Map<string, Uint8Array>();
-      const dependencies = new Map<string, string[]>();
+      const dependencies = new Map<string, Array<string>>();
 
       for (const file of bundle.outputFiles) {
         const path = relative(absWorkingDir, file.path);
@@ -157,17 +157,17 @@ function buildIdPlugin(buildId: string): Plugin {
 
 export class EsbuildSnapshot implements BuildSnapshot {
   #files: Map<string, Uint8Array>;
-  #dependencies: Map<string, string[]>;
+  #dependencies: Map<string, Array<string>>;
 
   constructor(
     files: Map<string, Uint8Array>,
-    dependencies: Map<string, string[]>,
+    dependencies: Map<string, Array<string>>,
   ) {
     this.#files = files;
     this.#dependencies = dependencies;
   }
 
-  get paths(): string[] {
+  get paths(): Array<string> {
     return Array.from(this.#files.keys());
   }
 
@@ -175,7 +175,7 @@ export class EsbuildSnapshot implements BuildSnapshot {
     return this.#files.get(path) ?? null;
   }
 
-  dependencies(path: string): string[] {
+  dependencies(path: string): Array<string> {
     return this.#dependencies.get(path) ?? [];
   }
 }

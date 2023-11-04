@@ -13,13 +13,13 @@ export interface DenoConfig {
   importMap?: string;
   tasks?: Record<string, string>;
   lint?: {
-    rules: { tags?: string[] };
-    exclude?: string[];
+    rules: { tags?: Array<string> };
+    exclude?: Array<string>;
   };
   fmt?: {
-    exclude?: string[];
+    exclude?: Array<string>;
   };
-  exclude?: string[];
+  exclude?: Array<string>;
   compilerOptions?: {
     jsx?: string;
     jsxImportSource?: string;
@@ -41,10 +41,10 @@ export interface LimeConfig {
      * support range. See https://esbuild.github.io/api/#target
      * @default {"es2022"}
      */
-    target?: string | string[];
+    target?: string | Array<string>;
   };
   render?: RenderFunction;
-  plugins?: Plugin[];
+  plugins?: Array<Plugin>;
   staticDir?: string;
   router?: RouterOptions;
   server?: Partial<Deno.ServeTlsOptions>;
@@ -115,10 +115,10 @@ export interface ResolvedLimeConfig {
   dev: boolean;
   build: {
     outDir: string;
-    target: string | string[];
+    target: string | Array<string>;
   };
   render?: RenderFunction;
-  plugins: Plugin[];
+  plugins: Array<Plugin>;
   staticDir: string;
   router?: RouterOptions;
   server: Partial<Deno.ServeTlsOptions>;
@@ -511,11 +511,11 @@ export type MiddlewareHandler<State = Record<string, unknown>> = (
 
 // deno-lint-ignore no-explicit-any
 export interface MiddlewareModule<State = any> {
-  handler: MiddlewareHandler<State> | MiddlewareHandler<State>[];
+  handler: MiddlewareHandler<State> | Array<MiddlewareHandler<State>>;
 }
 
 export interface Middleware<State = Record<string, unknown>> {
-  handler: MiddlewareHandler<State> | MiddlewareHandler<State>[];
+  handler: MiddlewareHandler<State> | Array<MiddlewareHandler<State>>;
 }
 
 // --- ISLANDS ---
@@ -575,9 +575,9 @@ export interface Plugin<State = Record<string, unknown>> {
    */
   buildEnd?(): Promisable<void>;
 
-  routes?: PluginRoute[];
+  routes?: Array<PluginRoute>;
 
-  middlewares?: PluginMiddleware<State>[];
+  middlewares?: Array<PluginMiddleware<State>>;
 }
 
 export interface PluginRenderContext {
@@ -590,9 +590,9 @@ export interface PluginAsyncRenderContext {
 
 export interface PluginRenderResult {
   /** CSS styles to be injected into the page. */
-  styles?: PluginRenderStyleTag[];
+  styles?: Array<PluginRenderStyleTag>;
   /** JS scripts to ship to the client. */
-  scripts?: PluginRenderScripts[];
+  scripts?: Array<PluginRenderScripts>;
 }
 
 export interface PluginRenderStyleTag {

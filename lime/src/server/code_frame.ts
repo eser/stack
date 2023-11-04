@@ -37,7 +37,7 @@ export function createCodeFrame(
   // Normalize all indentation (=tabs) to use 2 spaces. We need to
   // apply the difference to the marker position to move it back in
   // place.
-  const spaceLines: string[] = [];
+  const spaceLines: Array<string> = [];
   let maxLineLen = 0;
   for (let i = start; i < end; i++) {
     const line = tabs2Spaces(lines[i]!);

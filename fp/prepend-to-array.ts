@@ -1,7 +1,7 @@
 export const prependToArray = <T>(
   instance: Iterable<T>,
-  ...values: T[]
-): T[] => {
+  ...values: ReadonlyArray<T>
+): Array<T> => {
   return [...values, ...instance];
 };
 

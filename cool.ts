@@ -12,7 +12,7 @@ import {
 } from "https://deno.land/x/cool@0.7.5/hex/cli/mod.ts";
 import { create } from "https://deno.land/x/cool@0.7.5/hex/generator/create.ts";
 
-export const repl = async (_args: string[], _options: ExecuteOptions) => {
+export const repl = async (_args: Array<string>, _options: ExecuteOptions) => {
   const p = new deno.Command(
     deno.execPath(),
     {
@@ -31,7 +31,10 @@ export const repl = async (_args: string[], _options: ExecuteOptions) => {
   await (p.spawn()).status;
 };
 
-export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
+export const upgradeCli = async (
+  _args: Array<string>,
+  _options: ExecuteOptions,
+) => {
   const p = new deno.Command(
     deno.execPath(),
     {
@@ -53,7 +56,7 @@ export const upgradeCli = async (_args: string[], _options: ExecuteOptions) => {
   await (p.spawn()).status;
 };
 
-export const run = async (_args: string[], _options: ExecuteOptions) => {
+export const run = async (_args: Array<string>, _options: ExecuteOptions) => {
   const p = new deno.Command(
     deno.execPath(),
     {
@@ -67,7 +70,7 @@ export const run = async (_args: string[], _options: ExecuteOptions) => {
   await (p.spawn()).status;
 };
 
-const runDev = async (_args: string[], _options: ExecuteOptions) => {
+const runDev = async (_args: Array<string>, _options: ExecuteOptions) => {
   const p = new deno.Command(
     deno.execPath(),
     {
@@ -81,7 +84,7 @@ const runDev = async (_args: string[], _options: ExecuteOptions) => {
   await (p.spawn()).status;
 };
 
-export const test = async (_args: string[], _options: ExecuteOptions) => {
+export const test = async (_args: Array<string>, _options: ExecuteOptions) => {
   const p = new deno.Command(
     deno.execPath(),
     {
@@ -101,7 +104,7 @@ export const main = () => {
     module: import.meta.url,
   };
 
-  const commands: Command[] = [
+  const commands: Array<Command> = [
     {
       type: CommandType.SubCommand,
       name: "upgrade",
@@ -109,7 +112,7 @@ export const main = () => {
       description: "Upgrades cool cli to the latest version",
       // isDefault: true,
 
-      run: (args: string[]) => upgradeCli(args, executeOptions),
+      run: (args: Array<string>) => upgradeCli(args, executeOptions),
     },
     {
       type: CommandType.SubCommand,
@@ -128,7 +131,7 @@ export const main = () => {
         },
       ],
 
-      run: (args: string[]) => create(args, executeOptions),
+      run: (args: Array<string>) => create(args, executeOptions),
     },
     {
       type: CommandType.SubCommand,
@@ -147,7 +150,7 @@ export const main = () => {
         },
       ],
 
-      run: (args: string[]) => run(args, executeOptions),
+      run: (args: Array<string>) => run(args, executeOptions),
     },
     {
       type: CommandType.SubCommand,
@@ -166,7 +169,7 @@ export const main = () => {
         },
       ],
 
-      run: (args: string[]) => runDev(args, executeOptions),
+      run: (args: Array<string>) => runDev(args, executeOptions),
     },
     {
       type: CommandType.SubCommand,
@@ -174,7 +177,7 @@ export const main = () => {
       // shortcut: "t",
       description: "Runs tests of the project",
 
-      run: (args: string[]) => test(args, executeOptions),
+      run: (args: Array<string>) => test(args, executeOptions),
     },
     {
       type: CommandType.SubCommand,
@@ -182,7 +185,7 @@ export const main = () => {
       // shortcut: "t",
       description: "Runs REPL",
 
-      run: (args: string[]) => repl(args, executeOptions),
+      run: (args: Array<string>) => repl(args, executeOptions),
     },
     {
       type: CommandType.Option,

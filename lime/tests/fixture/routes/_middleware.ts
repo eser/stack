@@ -62,7 +62,7 @@ async function kindHandler(
   return resp;
 }
 
-export const handler: MiddlewareHandler | MiddlewareHandler[] = [
+export const handler: MiddlewareHandler | Array<MiddlewareHandler> = [
   rootHandler,
   logHandler,
   kindHandler,

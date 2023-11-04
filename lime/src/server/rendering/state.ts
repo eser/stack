@@ -14,15 +14,15 @@ export interface RenderStateRouteOptions {
   // deno-lint-ignore no-explicit-any
   state?: any;
   error?: unknown;
-  params: Record<string, string | string[]>;
+  params: Record<string, string | Array<string>>;
 }
 
 export class RenderState {
   // deno-lint-ignore no-explicit-any
-  componentStack: any[];
+  componentStack: Array<any>;
   renderingUserTemplate = false;
   encounteredIslands = new Set<Island>();
-  islandProps: unknown[] = [];
+  islandProps: Array<unknown> = [];
   slots = new Map<string, ComponentChildren>();
   headChildren = false;
   renderedHtmlTag = false;
@@ -31,13 +31,13 @@ export class RenderState {
   docHtml: Record<string, unknown> | null = null;
   docHead: Record<string, unknown> | null = null;
   docBody: Record<string, unknown> | null = null;
-  docHeadNodes: { type: string; props: Record<string, unknown> }[] = [];
-  headVNodes: ComponentChildren[] = [];
+  docHeadNodes: Array<{ type: string; props: Record<string, unknown> }> = [];
+  headVNodes: Array<ComponentChildren> = [];
   // Route options
   routeOptions: RenderStateRouteOptions;
   csp: ContentSecurityPolicy | undefined;
   // React state
-  ownerStack: VNode[] = [];
+  ownerStack: Array<VNode> = [];
   owners = new Map<VNode, VNode>();
   #nonce = "";
   error: Error | null = null;
@@ -51,7 +51,7 @@ export class RenderState {
   constructor(
     routeOptions: RenderStateRouteOptions,
     // deno-lint-ignore no-explicit-any
-    componentStack: any[],
+    componentStack: Array<any>,
     csp?: ContentSecurityPolicy,
     error?: unknown,
   ) {

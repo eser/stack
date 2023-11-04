@@ -9,7 +9,7 @@ export const config: RouteConfig = {
 };
 
 // Just to get some syntax highlighting
-const css = (arr: TemplateStringsArray, ...exts: never[]) => {
+const css = (arr: TemplateStringsArray, ...exts: Array<never>) => {
   if (exts.length) {
     throw new Error("Not allowed");
   }
@@ -105,7 +105,7 @@ export default function DefaultErrorPage(props: ErrorPageProps) {
 }
 
 function CodeFrame(props: { codeFrame: string }) {
-  const lines: ComponentChildren[] = [];
+  const lines: Array<ComponentChildren> = [];
 
   colors.stripAnsiCode(props.codeFrame.trimEnd()).split("\n").forEach(
     (line, i, arr) => {

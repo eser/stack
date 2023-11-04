@@ -4,10 +4,12 @@ export interface HeadProps {
   children: ComponentChildren;
 }
 
-export const HEAD_CONTEXT = view.adapter.createContext<ComponentChildren[]>([]);
+export const HEAD_CONTEXT = view.adapter.createContext<
+  Array<ComponentChildren>
+>([]);
 
 export function Head(props: HeadProps) {
-  let context: ComponentChildren[];
+  let context: Array<ComponentChildren>;
 
   try {
     context = view.adapter.useContext(HEAD_CONTEXT);

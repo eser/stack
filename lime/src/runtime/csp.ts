@@ -22,104 +22,104 @@ export interface ContentSecurityPolicyDirectives {
    * Defines the valid sources for web workers and nested browsing contexts
    * loaded using elements such as <frame> and <iframe>.
    */
-  childSrc?: string[];
+  childSrc?: Array<string>;
   /**
    * Restricts the URLs which can be loaded using script interfaces.
    */
-  connectSrc?: string[];
+  connectSrc?: Array<string>;
   /**
    * Serves as a fallback for the other fetch directives.
    */
-  defaultSrc?: string[];
+  defaultSrc?: Array<string>;
   /**
    * Specifies valid sources for fonts loaded using @font-face.
    */
-  fontSrc?: string[];
+  fontSrc?: Array<string>;
   /**
    * Specifies valid sources for nested browsing contexts loading using elements
    * such as <frame> and <iframe>.
    */
-  frameSrc?: string[];
+  frameSrc?: Array<string>;
   /**
    * Specifies valid sources of images and favicons.
    */
-  imgSrc?: string[];
+  imgSrc?: Array<string>;
   /**
    * Specifies valid sources of application manifest files.
    */
-  manifestSrc?: string[];
+  manifestSrc?: Array<string>;
   /**
    * Specifies valid sources for loading media using the <audio> , <video> and
    * <track> elements.
    */
-  mediaSrc?: string[];
+  mediaSrc?: Array<string>;
   /**
    * Specifies valid sources for the <object>, <embed>, and <applet> elements.
    */
-  objectSrc?: string[];
+  objectSrc?: Array<string>;
   /**
    * Specifies valid sources to be prefetched or prerendered.
    */
-  prefetchSrc?: string[];
+  prefetchSrc?: Array<string>;
   /**
    * Specifies valid sources for JavaScript.
    */
-  scriptSrc?: string[];
+  scriptSrc?: Array<string>;
   /**
    * Specifies valid sources for JavaScript <script> elements.
    */
-  scriptSrcElem?: string[];
+  scriptSrcElem?: Array<string>;
   /**
    * Specifies valid sources for JavaScript inline event handlers.
    */
-  scriptSrcAttr?: string[];
+  scriptSrcAttr?: Array<string>;
   /**
    * Specifies valid sources for stylesheets.
    */
-  styleSrc?: string[];
+  styleSrc?: Array<string>;
   /**
    * Specifies valid sources for stylesheets <style> elements and <link>
    * elements with rel="stylesheet".
    */
-  styleSrcElem?: string[];
+  styleSrcElem?: Array<string>;
   /**
    * Specifies valid sources for inline styles applied to individual DOM
    * elements.
    */
-  styleSrcAttr?: string[];
+  styleSrcAttr?: Array<string>;
   /**
    * Specifies valid sources for Worker, SharedWorker, or ServiceWorker scripts.
    */
-  workerSrc?: string[];
+  workerSrc?: Array<string>;
 
   // Document directives
   /**
    * Restricts the URLs which can be used in a document's <base> element.
    */
-  baseUri?: string[];
+  baseUri?: Array<string>;
   /**
    * Enables a sandbox for the requested resource similar to the <iframe>
    * sandbox attribute.
    */
-  sandbox?: string[];
+  sandbox?: Array<string>;
 
   // Navigation directives
   /**
    * Restricts the URLs which can be used as the target of a form submissions
    * from a given context.
    */
-  formAction?: string[];
+  formAction?: Array<string>;
   /**
    * Specifies valid parents that may embed a page using <frame>, <iframe>,
    * <object>, <embed>, or <applet>.
    */
-  frameAncestors?: string[];
+  frameAncestors?: Array<string>;
   /**
    * Restricts the URLs to which a document can initiate navigation by any
    * means, including <form> (if form-action is not specified), <a>,
    * window.location, window.open, etc.
    */
-  navigateTo?: string[];
+  navigateTo?: Array<string>;
 
   /**
    * The URI to report CSP violations to.

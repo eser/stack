@@ -30,13 +30,13 @@ export interface RenderOptions<Data> {
   // deno-lint-ignore no-explicit-any
   context: any;
   route: Route<Data> | UnknownPage | ErrorPage;
-  plugins: Plugin[];
+  plugins: Array<Plugin>;
   app: AppModule;
-  layouts: LayoutRoute[];
-  imports: string[];
-  dependenciesFn: (path: string) => string[];
+  layouts: Array<LayoutRoute>;
+  imports: Array<string>;
+  dependenciesFn: (path: string) => Array<string>;
   url: URL;
-  params: Record<string, string | string[]>;
+  params: Record<string, string | Array<string>>;
   renderFn: RenderFunction;
   data?: Data;
   state?: Record<string, unknown>;
@@ -50,7 +50,7 @@ export type InnerRenderFunction = () => string;
 export class RenderContext {
   #id: string;
   #state: Map<string, unknown> = new Map();
-  #styles: string[] = [];
+  #styles: Array<string> = [];
   #url: URL;
   #route: string;
   #lang: string;
@@ -82,7 +82,7 @@ export class RenderContext {
    * suspense!). The CSS rules will always be inserted on the client in the
    * order specified here.
    */
-  get styles(): string[] {
+  get styles(): Array<string> {
     return this.#styles;
   }
 
@@ -198,7 +198,7 @@ export async function render<Data>(
 
   // Prepare render order
   // deno-lint-ignore no-explicit-any
-  const renderStack: any[] = [];
+  const renderStack: Array<any> = [];
 
   // Check if appLayout is enabled
   if (
@@ -280,7 +280,7 @@ export async function render<Data>(
 
   const syncPlugins = opts.plugins.filter((p) => p.render);
 
-  const renderResults: [Plugin, PluginRenderResult][] = [];
+  const renderResults: Array<[Plugin, PluginRenderResult]> = [];
 
   function renderSync(): PluginRenderFunctionResult {
     const plugin = syncPlugins.shift();

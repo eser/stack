@@ -5,8 +5,8 @@ export interface EnvReader {
   [env]: string;
   readString<T extends string>(key: string, defaultValue: T): T;
   readString<T extends string>(key: string): T | undefined;
-  readEnum<T extends string>(key: string, values: T[], defaultValue: T): T;
-  readEnum<T extends string>(key: string, values: T[]): T | undefined;
+  readEnum<T extends string>(key: string, values: Array<T>, defaultValue: T): T;
+  readEnum<T extends string>(key: string, values: Array<T>): T | undefined;
   readInt<T extends number>(key: string, defaultValue: T): T;
   readInt<T extends number>(key: string): T | undefined;
   readBool<T extends boolean>(key: string, defaultValue: T): T;
@@ -25,7 +25,7 @@ export const createEnvReader = (state: EnvMap): EnvReader => {
     },
     readEnum: <T extends string>(
       key: string,
-      values: T[],
+      values: Array<T>,
       defaultValue?: T,
     ): T | undefined => {
       const value = state.get(key);

@@ -10,18 +10,21 @@ import {
 import { type ContentSecurityPolicy, nonce } from "../../runtime/csp.ts";
 import { view } from "../../runtime/drivers/view.tsx";
 
-export type SerializedState = [islands: unknown[], plugins: unknown[]];
+export type SerializedState = [
+  islands: Array<unknown>,
+  plugins: Array<unknown>,
+];
 
 export function renderLimeTags(
   renderState: RenderState,
   opts: {
     bodyHtml: string;
     csp?: ContentSecurityPolicy;
-    imports: string[];
+    imports: Array<string>;
     randomNonce?: string;
-    dependenciesFn: (path: string) => string[];
-    styles: string[];
-    pluginRenderResults: [Plugin, PluginRenderResult][];
+    dependenciesFn: (path: string) => Array<string>;
+    styles: Array<string>;
+    pluginRenderResults: Array<[Plugin, PluginRenderResult]>;
   },
 ) {
   const { isPartial } = renderState;
@@ -33,7 +36,7 @@ export function renderLimeTags(
     ];
   }
 
-  const moduleScripts: [string, string][] = [];
+  const moduleScripts: Array<[string, string]> = [];
 
   for (const url of opts.imports) {
     moduleScripts.push([url, renderState.getNonce()]);
@@ -61,8 +64,8 @@ export function renderLimeTags(
     renderState.islandProps,
     [],
   ];
-  const styleTags: PluginRenderStyleTag[] = [];
-  const pluginScripts: [string, string, number][] = [];
+  const styleTags: Array<PluginRenderStyleTag> = [];
+  const pluginScripts: Array<[string, string, number]> = [];
 
   for (const [plugin, res] of opts.pluginRenderResults) {
     for (const hydrate of res.scripts ?? []) {

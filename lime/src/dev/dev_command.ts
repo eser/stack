@@ -67,7 +67,7 @@ export async function dev(
   await startServer(ctx.handler(), state.config.server);
 }
 
-function arraysEqual<T>(a: T[], b: T[]): boolean {
+function arraysEqual<T>(a: ReadonlyArray<T>, b: ReadonlyArray<T>): boolean {
   if (a.length !== b.length) {
     return false;
   }

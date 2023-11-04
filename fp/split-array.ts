@@ -1,11 +1,11 @@
-export type SplitArrayResult<T> = { items: T[]; rest: T[] };
+export type SplitArrayResult<T> = { items: Array<T>; rest: Array<T> };
 
 export const splitArray = <T>(
   instance: Iterable<T>,
   n: number,
 ): SplitArrayResult<T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <T[]> instance
+    ? <ReadonlyArray<T>> instance
     : [...instance];
 
   // take n items

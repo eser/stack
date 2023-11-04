@@ -14,7 +14,7 @@ import {
   withPageName,
 } from "./test_utils.ts";
 
-async function assertLogs(page: Page, expected: string[]) {
+async function assertLogs(page: Page, expected: Array<string>) {
   const text = expected.length > 0 ? expected.join("\n") + "\n" : "";
   await waitForText(page, "#logs", text);
 }
@@ -56,7 +56,7 @@ Deno.test("warns on missing partial", async () => {
   await withPageName(
     "./tests/fixture_partials/main.ts",
     async (page, address) => {
-      const logs: string[] = [];
+      const logs: Array<string> = [];
       page.on("console", (msg) => logs.push(msg.text()));
 
       const initialUrl = `${address}/missing_partial`;
@@ -76,7 +76,7 @@ Deno.test("does not include revive() when no island present", async () => {
   await withPageName(
     "./tests/fixture_partials/main.ts",
     async (page, address) => {
-      const logs: string[] = [];
+      const logs: Array<string> = [];
       page.on("pageerror", (msg) => logs.push(msg.message));
 
       const initialUrl = `${address}`;
@@ -1165,7 +1165,7 @@ Deno.test("fragment navigation should not cause loop", async () => {
   await withPageName(
     "./tests/fixture_partials/main.ts",
     async (page, address) => {
-      const logs: string[] = [];
+      const logs: Array<string> = [];
       page.on("console", (msg) => logs.push(msg.text()));
 
       await page.goto(`${address}/fragment_nav`);
@@ -1279,7 +1279,7 @@ Deno.test("throws an error when response contains no partials", async () => {
   await withPageName(
     "./tests/fixture_partials/main.ts",
     async (page, address) => {
-      const logs: string[] = [];
+      const logs: Array<string> = [];
       page.on("pageerror", (msg) => logs.push(msg.message));
 
       await page.goto(`${address}/no_partial_response`);
@@ -1414,7 +1414,7 @@ Deno.test("errors on duplicate partial name", async () => {
       await page.goto(`${address}/duplicate_name`);
       await page.waitForSelector(".swap-link");
 
-      const logs: string[] = [];
+      const logs: Array<string> = [];
       page.on("console", (msg) => logs.push(msg.text()));
 
       await Promise.all([

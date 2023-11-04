@@ -17,7 +17,7 @@ import {
   waitForText,
 } from "./test_utils.ts";
 
-const assertFileExistence = async (files: string[], dirname: string) => {
+const assertFileExistence = async (files: Array<string>, dirname: string) => {
   for (const filePath of files) {
     const parts = filePath.split("/").slice(1);
 

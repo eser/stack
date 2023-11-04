@@ -90,7 +90,7 @@ export async function getServerContext(state: InternalLimeState) {
 
 export class ServerContext {
   #renderFn: RenderFunction;
-  #plugins: Plugin[];
+  #plugins: Array<Plugin>;
   #builder: Builder | Promisable<BuildSnapshot>;
   #state: InternalLimeState;
   #extractResult: FsExtractResult;
@@ -319,7 +319,7 @@ export class ServerContext {
       route: Route<Data> | UnknownPage | ErrorPage,
       status: number,
     ) => {
-      const imports: string[] = [];
+      const imports: Array<string> = [];
 
       return (
         req: Request,
@@ -562,7 +562,7 @@ export class ServerContext {
 const createRenderNotFound = (
   extractResult: FsExtractResult,
   dev: boolean,
-  plugins: Plugin<Record<string, unknown>>[],
+  plugins: Array<Plugin<Record<string, unknown>>>,
   renderFunction: RenderFunction,
   buildSnapshot: BuildSnapshot | null,
 ) => {
@@ -590,7 +590,7 @@ const createRenderNotFound = (
       extractResult.layouts,
     );
 
-    const imports: string[] = [];
+    const imports: Array<string> = [];
     const resp = await internalRender({
       request: req,
       context: ctx,
@@ -648,7 +648,7 @@ function sanitizePathToRegex(path: string): string {
 function serializeCSPDirectives(csp: ContentSecurityPolicyDirectives): string {
   return Object.entries(csp)
     .filter(([_key, value]) => value !== undefined)
-    .map(([k, v]: [string, string | string[]]) => {
+    .map(([k, v]: [string, string | Array<string>]) => {
       // Turn camel case into snake case.
       const key = k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
       const value = Array.isArray(v) ? v.join(" ") : v;
@@ -659,8 +659,8 @@ function serializeCSPDirectives(csp: ContentSecurityPolicyDirectives): string {
 
 function collectEntrypoints(
   dev: boolean,
-  islands: Island[],
-  plugins: Plugin[],
+  islands: Array<Island>,
+  plugins: Array<Plugin>,
 ): Record<string, string> {
   const entrypointBase = "../runtime/entrypoints";
   const entryPoints: Record<string, string> = {

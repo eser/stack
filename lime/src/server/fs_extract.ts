@@ -55,13 +55,13 @@ const DEFAULT_ERROR: ErrorPage = {
 
 export interface FsExtractResult {
   app: AppModule;
-  layouts: LayoutRoute[];
+  layouts: Array<LayoutRoute>;
   notFound: UnknownPage;
   error: ErrorPage;
-  middlewares: MiddlewareRoute[];
-  islands: Island[];
-  routes: Route[];
-  staticFiles: StaticFile[];
+  middlewares: Array<MiddlewareRoute>;
+  islands: Array<Island>;
+  routes: Array<Route>;
+  staticFiles: Array<StaticFile>;
 }
 
 /**
@@ -75,11 +75,11 @@ export async function extractRoutes(
   // Get the manifest' base URL.
   const baseUrl = new URL("./", manifest.baseUrl).href;
 
-  const routes: Route[] = [];
-  const islands: Island[] = [];
-  const middlewares: MiddlewareRoute[] = [];
+  const routes: Array<Route> = [];
+  const islands: Array<Island> = [];
+  const middlewares: Array<MiddlewareRoute> = [];
   let app: AppModule = DEFAULT_APP;
-  const layouts: LayoutRoute[] = [];
+  const layouts: Array<LayoutRoute> = [];
   let notFound: UnknownPage = DEFAULT_NOT_FOUND;
   let error: ErrorPage = DEFAULT_ERROR;
   const allRoutes = [
@@ -262,7 +262,7 @@ export async function extractRoutes(
     }
   }
 
-  const staticFiles: StaticFile[] = [];
+  const staticFiles: Array<StaticFile> = [];
   try {
     const staticDirUrl = toFileUrl(config.staticDir);
     const entries = walk(config.staticDir, {
@@ -513,13 +513,13 @@ function formatMiddlewarePath(path: string): string {
 }
 
 function getMiddlewareRoutesFromPlugins(
-  plugins: Plugin[],
-): [string, MiddlewareModule][] {
+  plugins: Array<Plugin>,
+): Array<[string, MiddlewareModule]> {
   const middlewares = plugins.flatMap((plugin) => plugin.middlewares ?? []);
 
   const mws: Record<
     string,
-    [string, { handler: MiddlewareHandler[] }]
+    [string, { handler: Array<MiddlewareHandler> }]
   > = {};
   for (let i = 0; i < middlewares.length; i++) {
     const mw = middlewares[i];
@@ -536,7 +536,9 @@ function formatRoutePath(path: string) {
   return path.startsWith("/") ? path : "/" + path;
 }
 
-function getRoutesFromPlugins(plugins: Plugin[]): [string, RouteModule][] {
+function getRoutesFromPlugins(
+  plugins: ReadonlyArray<Plugin>,
+): Array<[string, RouteModule]> {
   return plugins.flatMap((plugin) => plugin.routes ?? [])
     .map((route) => {
       return [`./routes${formatRoutePath(route.path)}.ts`, {

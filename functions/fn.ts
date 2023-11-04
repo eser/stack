@@ -1,7 +1,5 @@
 import { type Generatable, type Promisable } from "../standards/promises.ts";
-
-// deno-lint-ignore no-explicit-any
-export type ArgList = Array<any>;
+import { type ArgList } from "../standards/functions.ts";
 
 export type Context<T, TR> = {
   next: () => Generatable<TR>;

@@ -41,8 +41,8 @@ export function specifierToIdentifier(specifier: string, used: Set<string>) {
 }
 
 export interface Manifest {
-  routes: string[];
-  islands: string[];
+  routes: Array<string>;
+  islands: Array<string>;
 }
 
 export async function generate(directory: string, manifest: Manifest) {

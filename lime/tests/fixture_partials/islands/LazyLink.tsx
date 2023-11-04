@@ -1,7 +1,7 @@
 import { useSignal } from "@preact/signals-react";
 import { useEffect } from "react";
 
-export default function LazyLink(props: { links: string[] }) {
+export default function LazyLink(props: { links: Array<string> }) {
   const sig = useSignal(false);
 
   useEffect(() => {

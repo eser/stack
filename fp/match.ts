@@ -3,7 +3,7 @@ export type Pattern = [unknown, Callback];
 
 export const match = (
   value: unknown,
-  patterns: Pattern[],
+  patterns: ReadonlyArray<Pattern>,
   otherwise?: Callback,
 ) => {
   const pattern = patterns.find((x) => value === x[0]);

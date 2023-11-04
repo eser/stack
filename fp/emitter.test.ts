@@ -98,7 +98,7 @@ bdd.describe("cool/fp/emitter", () => {
       calculate: [subscriberOne, subscriberTwo],
     };
 
-    const logs: LogType[] = [];
+    const logs: Array<LogType> = [];
     const logger = (entry: LogType) => logs.push(entry);
 
     await emitter(events, "calculate", [5], [logger]);

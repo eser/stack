@@ -43,15 +43,15 @@ export interface ViewAdapterBase {
   h(
     type: unknown,
     props: Record<string, unknown> | null,
-    ...children: unknown[]
+    ...children: ReadonlyArray<unknown>
   ): unknown;
   isValidElement(object: unknown): boolean;
-  toChildArray(children: unknown): unknown[];
+  toChildArray(children: unknown): Array<unknown>;
 
   render(fragment: unknown, container: HTMLElement): void;
   renderHydrate(fragment: unknown, container: HTMLElement): void;
   renderToString(fragment: unknown): string;
 
-  setAllIslands(islands: Island[]): void;
+  setAllIslands(islands: ReadonlyArray<Island>): void;
   setRenderState(state: RenderState | null): void;
 }

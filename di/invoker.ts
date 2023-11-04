@@ -1,3 +1,4 @@
+import { type AnonymousFunction } from "../standards/functions.ts";
 import {
   type ServiceKey,
   type ServiceScope,
@@ -14,8 +15,7 @@ function getFunctionParametersFromString(fnSerialized: string) {
   return [];
 }
 
-// deno-lint-ignore no-explicit-any
-function getFunctionParameters(fn: (...args: any) => any) {
+function getFunctionParameters(fn: AnonymousFunction) {
   return getFunctionParametersFromString(fn.toString());
 }
 
@@ -54,15 +54,14 @@ function getFunctionParameters(fn: (...args: any) => any) {
 // }
 
 export const invoke = <
-  // deno-lint-ignore no-explicit-any
-  T extends (...args: any) => any,
+  T extends AnonymousFunction,
   K = ServiceKey,
   V = ServiceValue,
 >(
   scope: ServiceScope<K, V>,
   fn: T,
 ): ReturnType<T> => {
-  const params = getFunctionParameters(fn) as K[];
+  const params = getFunctionParameters(fn) as Array<K>;
 
   const values = scope.getMany(...params);
 

@@ -5,8 +5,8 @@ export type LoggerType<T> = (entry: LogType<T>) => void;
 
 export const dispatcher = <T>(
   state: T,
-  mutators: readonly MutatorType<T>[],
-  loggers?: readonly LoggerType<T>[],
+  mutators: ReadonlyArray<MutatorType<T>>,
+  loggers?: ReadonlyArray<LoggerType<T>>,
 ): Promise<T> => {
   let index = 0;
 

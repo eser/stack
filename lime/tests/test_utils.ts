@@ -76,7 +76,7 @@ export function assertNotSelector(doc: Document, selector: string) {
 export function assertTextMany(
   doc: Document,
   selector: string,
-  expected: string[],
+  expected: Array<string>,
 ) {
   const texts = Array.from(doc.querySelectorAll(selector)).map((el) =>
     el.textContent
@@ -97,7 +97,7 @@ export function assertTextMatch(
 ) {
   const texts = Array.from(doc.querySelectorAll(selector)).map((el) =>
     el.textContent
-  ).filter(Boolean) as string[];
+  ).filter(Boolean) as Array<string>;
 
   if (!texts.some((text) => regex.test(text))) {
     const html = "\n\n" + prettyDom(doc);
@@ -445,7 +445,7 @@ async function spawnServer(
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(new TextLineStream());
 
-  const output: string[] = [];
+  const output: Array<string> = [];
   let address = "";
   // @ts-ignore yes it does
   for await (const line of lines.values({ preventCancel: true })) {

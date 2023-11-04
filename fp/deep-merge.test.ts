@@ -4,7 +4,7 @@ import { deepMerge } from "./deep-merge.ts";
 type Dummy1Prop = {
   inners: {
     inner1: number;
-    inner2: number[];
+    inner2: Array<number>;
     inner3?: number;
   };
   outer?: string;
@@ -20,7 +20,7 @@ class Dummy1 {
 
 type Dummy2Prop = {
   inners: {
-    inner2: number[];
+    inner2: Array<number>;
     inner3: number;
   };
   outer: string;

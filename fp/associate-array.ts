@@ -7,7 +7,7 @@ export const associateArray = <T>(
   ) => string | number | symbol | undefined,
 ): Record<string | number | symbol, T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <T[]> instance
+    ? <ReadonlyArray<T>> instance
     : [...instance];
 
   return arrInstance.reduce(

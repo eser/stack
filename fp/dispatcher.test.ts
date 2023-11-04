@@ -25,7 +25,7 @@ bdd.describe("cool/fp/dispatcher", () => {
     const actionDiv2 = (state: StateType, next: NextType<StateType>) =>
       next({ ...state, sum: (state["sum"] ?? 0) / 2 });
 
-    const logs: LogType<StateType>[] = [];
+    const logs: Array<LogType<StateType>> = [];
     const logger = (entry: LogType<StateType>) => logs.push(entry);
 
     const result = await dispatcher(initialState, [actionAdd5, actionDiv2], [

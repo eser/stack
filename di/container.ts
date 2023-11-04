@@ -1,4 +1,5 @@
 import { type Promisable } from "../standards/promises.ts";
+import { type AnonymousFunction } from "../standards/functions.ts";
 import {
   type PromisableBuilder,
   type ServiceDescriptor,
@@ -109,8 +110,7 @@ export class Scope<K = ServiceKey, V = ServiceValue>
     return tokens.map((token) => this.get(token));
   }
 
-  // deno-lint-ignore no-explicit-any
-  invoke<T extends (...args: any) => any>(fn: T): ReturnType<T> {
+  invoke<T extends AnonymousFunction>(fn: T): ReturnType<T> {
     return invoke(this, fn);
   }
 

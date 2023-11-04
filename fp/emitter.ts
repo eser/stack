@@ -1,18 +1,21 @@
 import { type Promisable } from "../standards/promises.ts";
-// deno-lint-ignore no-explicit-any
-export type EventType = (...args: readonly any[]) => Promisable<void>;
+import { type ArgList } from "../standards/functions.ts";
+
+export type EventType = (...args: ArgList) => Promisable<void>;
+
 export type LogType = {
   event: string;
   subscriber: string;
-  args: readonly unknown[] | undefined;
+  args: ReadonlyArray<unknown> | undefined;
 };
+
 export type LoggerType = (entry: LogType) => void;
 
 export const emitter = async (
-  events: Record<string, EventType[]>,
+  events: Record<string, Array<EventType>>,
   eventName: string,
-  args?: readonly unknown[],
-  loggers?: readonly LoggerType[],
+  args?: ReadonlyArray<unknown>,
+  loggers?: ReadonlyArray<LoggerType>,
 ): Promise<void> => {
   const isEventWildcard = eventName === "*";
   const argsPass = (args !== undefined) ? args : [];

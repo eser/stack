@@ -5,17 +5,17 @@ import { setBuildId } from "../server/build_id.ts";
 
 export class AotSnapshot implements BuildSnapshot {
   #files: Map<string, string>;
-  #dependencies: Map<string, string[]>;
+  #dependencies: Map<string, Array<string>>;
 
   constructor(
     files: Map<string, string>,
-    dependencies: Map<string, string[]>,
+    dependencies: Map<string, Array<string>>,
   ) {
     this.#files = files;
     this.#dependencies = dependencies;
   }
 
-  get paths(): string[] {
+  get paths(): Array<string> {
     return Array.from(this.#files.keys());
   }
 
@@ -34,7 +34,7 @@ export class AotSnapshot implements BuildSnapshot {
     return null;
   }
 
-  dependencies(path: string): string[] {
+  dependencies(path: string): Array<string> {
     return this.#dependencies.get(path) ?? [];
   }
 }
@@ -55,7 +55,7 @@ export async function loadAotSnapshot(
       ) as BuildSnapshotJson;
       setBuildId(json.build_id);
 
-      const dependencies = new Map<string, string[]>(
+      const dependencies = new Map<string, Array<string>>(
         Object.entries(json.files),
       );
 

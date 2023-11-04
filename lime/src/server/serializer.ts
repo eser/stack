@@ -56,11 +56,14 @@ function isVNode(x: any): x is VNode {
 export function serialize(data: unknown): SerializeResult {
   let requiresDeserializer = false;
   let hasSignals = false;
-  const seen = new Map<unknown, (string | null)[]>();
-  const references = new Map<(string | null)[], (string | null)[][]>();
+  const seen = new Map<unknown, Array<string | null>>();
+  const references = new Map<
+    Array<string | null>,
+    Array<Array<string | null>>
+  >();
 
-  const keyStack: (string | null)[] = [];
-  const parentStack: unknown[] = [];
+  const keyStack: Array<string | null> = [];
+  const parentStack: Array<unknown> = [];
 
   let earlyReturn = false;
 

@@ -5,11 +5,11 @@ export const curryFunctions = <
   T2 extends Record<
     string | number | symbol,
     // deno-lint-ignore no-explicit-any
-    (...args: readonly [...readonly T1[], ...any]) => any
+    (...args: readonly [...ReadonlyArray<T1>, ...ReadonlyArray<any>]) => any
   >,
 >(
   funcs: T2,
-  ...args: readonly T1[]
+  ...args: ReadonlyArray<T1>
 ) => {
   return Object.entries(funcs).reduce(
     (obj, [itemKey, value]) => {

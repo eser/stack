@@ -42,7 +42,7 @@ enum HookType {
 // weren't sure if they should be public.
 interface AdvancedReactOptions extends ReactOptions {
   /** Attach a hook that is invoked after a tree was mounted or was updated. */
-  __c?(vnode: VNode, commitQueue: Component[]): void;
+  __c?(vnode: VNode, commitQueue: Array<Component>): void;
   /** Attach a hook that is invoked before a vnode has rendered. */
   __r?(vnode: VNode): void;
   errorBoundaries?: boolean;
@@ -63,12 +63,12 @@ let current: RenderState | null = null;
 // Keep track of which component rendered which vnode. This allows us
 // to detect when an island is rendered within another instead of being
 // passed as children.
-let ownerStack: VNode[] = [];
+let ownerStack: Array<VNode> = [];
 
 // Keep track of all available islands
 const islandByComponent = new Map<ComponentType, Island>();
 
-export function setAllIslands(islands: Island[]) {
+export function setAllIslands(islands: ReadonlyArray<Island>) {
   for (let i = 0; i < islands.length; i++) {
     const island = islands[i]!;
 

@@ -2,7 +2,7 @@ type Key = string | number | symbol;
 
 export const wthout = <T>(
   instance: Record<Key, T>,
-  ...fields: Key[]
+  ...fields: ReadonlyArray<Key>
 ): Record<Key, T> => {
   return Object.entries(instance).reduce<Record<Key, T>>(
     (obj, [itemKey, value]) => {

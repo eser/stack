@@ -118,7 +118,7 @@ Deno.test({
     await withTmpFixture(
       "./tests/fixture_hmr/dev.ts",
       async (page, address) => {
-        const logs: string[] = [];
+        const logs: Array<string> = [];
         page.on("console", (msg) => logs.push(msg.text()));
 
         await page.goto(`${address}/form_get`);

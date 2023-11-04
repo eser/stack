@@ -846,7 +846,7 @@ Deno.test("preloading javascript files", async () => {
       waitUntil: "networkidle2",
     });
 
-    const preloads: string[] = await page.$$eval(
+    const preloads: Array<string> = await page.$$eval(
       'link[rel="modulepreload"]',
       (elements) => elements.map((element) => element.getAttribute("href")),
     );
@@ -1003,7 +1003,7 @@ Deno.test({
   name: "Log error in browser console on string event handlers",
   async fn() {
     await withPageName("./tests/fixture/main.ts", async (page, address) => {
-      const logs: { type: string; message: string }[] = [];
+      const logs: Array<{ type: string; message: string }> = [];
       page.on("console", (ev) => {
         logs.push({ type: ev.type(), message: ev.text() });
       });

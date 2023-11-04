@@ -1,4 +1,5 @@
 import { type Promisable } from "../standards/promises.ts";
+import { type AnonymousFunction } from "../standards/functions.ts";
 import {
   type PromisableBuilder,
   type ServiceKey,
@@ -34,8 +35,7 @@ export const factory = <K = ServiceKey, V = ServiceValue>(
 
   di.many = (...tokens: ReadonlyArray<K>) => services.getMany(...tokens);
 
-  // deno-lint-ignore no-explicit-any
-  di.invoke = <T extends (...args: any) => any>(fn: T): ReturnType<T> =>
+  di.invoke = <T extends AnonymousFunction>(fn: T): ReturnType<T> =>
     services.invoke(fn);
 
   di.scope = () => services.createScope();

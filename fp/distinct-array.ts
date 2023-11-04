@@ -1,9 +1,9 @@
 export const distinctArray = <T>(
   instance: Iterable<T>,
   predicate: (value: T, index: number, instance: Iterable<T>) => unknown,
-): T[] => {
+): Array<T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <T[]> instance
+    ? <ReadonlyArray<T>> instance
     : [...instance];
 
   const predicateValue = predicate ?? ((value) => value);
@@ -22,7 +22,7 @@ export const distinctArray = <T>(
       };
     },
     {
-      items: <T[]> [],
+      items: <Array<T>> [],
       dict: new Set<unknown>(),
     },
   );

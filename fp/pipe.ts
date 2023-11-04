@@ -1,11 +1,15 @@
-// deno-lint-ignore no-explicit-any
-type ComposableFunction = (...args: readonly any[]) => any;
+import {
+  type AnonymousFunction,
+  type ArgList,
+} from "../standards/functions.ts";
+
+type ComposableFunction = AnonymousFunction;
 
 export const pipe = (
-  ...funcs: readonly ComposableFunction[]
+  ...funcs: ReadonlyArray<ComposableFunction>
 ): ComposableFunction => {
   return funcs.reduce(
-    (previousFunction, currentFunction) => (...args) =>
+    (previousFunction, currentFunction) => (...args: ArgList) =>
       currentFunction(previousFunction(...args)),
   );
 };

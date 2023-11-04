@@ -5,7 +5,7 @@ export type PickFromObjectResult<T> = {
 
 export const pickFromObject = <T>(
   instance: Record<string | number | symbol, T>,
-  keys: readonly (string | number | symbol)[],
+  keys: ReadonlyArray<string | number | symbol>,
 ): PickFromObjectResult<T> => {
   return Object.entries(instance).reduce(
     (obj, [itemKey, value]) => {

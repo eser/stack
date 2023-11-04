@@ -11,8 +11,8 @@ export type RewindableIterator<T, TReturn = any, TNext = undefined> =
 export const rewindable = <T, TReturn = any, TNext = undefined>(
   iterator: Iterator<T, TReturn, TNext>,
 ) => {
-  let buffer: IteratorResult<T, TReturn>[] = [];
-  let stash: IteratorResult<T, TReturn>[] = [];
+  let buffer: Array<IteratorResult<T, TReturn>> = [];
+  let stash: Array<IteratorResult<T, TReturn>> = [];
   let done = false;
 
   const rewindableGenerator: RewindableIterator<T, TReturn | undefined, TNext> =

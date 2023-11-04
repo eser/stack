@@ -42,7 +42,7 @@ function createRootFragment(
       return child;
     },
     get childNodes() {
-      const children: ChildNode[] = [];
+      const children: Array<ChildNode> = [];
 
       let child = startMarker.nextSibling;
       while (child !== null && child !== endMarker) {
@@ -85,9 +85,9 @@ type IslandRegistry = Record<string, Record<string, ComponentType>>;
 export function revive(
   islands: IslandRegistry,
   // deno-lint-ignore no-explicit-any
-  props: any[],
+  props: Array<any>,
 ) {
-  const result: RenderRequest[] = [];
+  const result: Array<RenderRequest> = [];
   _walkInner(
     islands,
     props,
@@ -212,11 +212,11 @@ function hideMarker(marker: Marker) {
 function addChildrenFromTemplate(
   islands: Record<string, Record<string, ComponentType>>,
   // deno-lint-ignore no-explicit-any
-  props: any[],
-  markerStack: Marker[],
-  vnodeStack: VNode[],
+  props: Array<any>,
+  markerStack: Array<Marker>,
+  vnodeStack: Array<VNode>,
   comment: string,
-  result: RenderRequest[],
+  result: Array<RenderRequest>,
 ) {
   const [id, exportName, n] = comment.slice("/lime-".length).split(
     ":",
@@ -280,11 +280,11 @@ function addChildrenFromTemplate(
 function _walkInner(
   islands: Record<string, Record<string, ComponentType>>,
   // deno-lint-ignore no-explicit-any
-  props: any[],
-  markerStack: Marker[],
-  vnodeStack: VNode[],
+  props: Array<any>,
+  markerStack: Array<Marker>,
+  vnodeStack: Array<VNode>,
   node: Node | Comment,
-  result: RenderRequest[],
+  result: Array<RenderRequest>,
 ) {
   let sib: Node | null = node;
   while (sib !== null) {
@@ -581,7 +581,7 @@ function updateLinks(url: URL) {
 }
 
 function collectPartials(
-  encounteredPartials: RenderRequest[],
+  encounteredPartials: Array<RenderRequest>,
   islands: IslandRegistry,
   state: SerializedState,
   node: Node,
@@ -607,7 +607,7 @@ function collectPartials(
           firstChild: startNode,
           parentNode: node,
           get childNodes() {
-            const children: ChildNode[] = [startNode!];
+            const children: Array<ChildNode> = [startNode!];
             let node = startNode!;
             while ((node = node.nextSibling) !== null) {
               children.push(node);
@@ -654,7 +654,7 @@ export async function applyPartials(res: Response): Promise<void> {
   const resText = await res.text();
   const doc = new DOMParser().parseFromString(resText, "text/html") as Document;
 
-  const promises: Promise<void>[] = [];
+  const promises: Array<Promise<void>> = [];
 
   // Preload all islands because they need to be available synchronously
   // for rendering later
@@ -706,7 +706,7 @@ export async function applyPartials(res: Response): Promise<void> {
   }
 
   // Collect all partials and build up the vnode tree
-  const encounteredPartials: RenderRequest[] = [];
+  const encounteredPartials: Array<RenderRequest> = [];
   collectPartials(encounteredPartials, islands, state, doc.body);
 
   if (encounteredPartials.length === 0) {
@@ -823,7 +823,9 @@ export async function applyPartials(res: Response): Promise<void> {
 
         // Update rendered children keys if necessary
         // deno-lint-ignore no-explicit-any
-        const renderedChildren = (instance as any).__v.__k as VNode[] | null;
+        const renderedChildren = (instance as any).__v.__k as
+          | Array<VNode>
+          | null;
         if (Array.isArray(renderedChildren)) {
           for (let i = 0; i < renderedChildren.length; i++) {
             const child = renderedChildren[i];

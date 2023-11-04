@@ -34,7 +34,7 @@ export type ErrorHandler<T = unknown> = (
 type UnknownMethodHandler<T = unknown> = (
   req: Request,
   ctx: HandlerContext<T>,
-  knownMethods: KnownMethod[],
+  knownMethods: Array<KnownMethod>,
 ) => Promisable<Response>;
 
 export type MatchHandler<T = unknown> = (
@@ -106,7 +106,7 @@ export function defaultErrorHandler(
 export function defaultUnknownMethodHandler(
   _req: Request,
   _ctx: HandlerContext,
-  knownMethods: KnownMethod[],
+  knownMethods: Array<KnownMethod>,
 ): Response {
   return new Response(null, {
     status: 405,
@@ -256,7 +256,7 @@ export function router<T = unknown>(
             unknownMethodHandler!(
               req,
               ctx,
-              Object.keys(route.methods) as KnownMethod[],
+              Object.keys(route.methods) as Array<KnownMethod>,
             ),
         };
       }

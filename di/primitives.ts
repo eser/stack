@@ -1,4 +1,8 @@
 import { type Promisable } from "../standards/promises.ts";
+import {
+  type AnonymousClass,
+  type AnonymousFunction,
+} from "../standards/functions.ts";
 
 export enum ServiceType {
   Singleton = 0,
@@ -9,10 +13,8 @@ export enum ServiceType {
 
 // deno-lint-ignore no-explicit-any
 export type Value = any;
-// deno-lint-ignore no-explicit-any
-export type ClassService = new (...args: any[]) => Value;
-// deno-lint-ignore no-explicit-any
-export type FunctionService = (...args: any[]) => Value;
+export type ClassService = AnonymousClass<Value>;
+export type FunctionService = AnonymousFunction<Value>;
 
 export type ServiceKey = ClassService | FunctionService | symbol | string;
 export type ServiceValue = ClassService | FunctionService | Value;
@@ -44,8 +46,7 @@ export interface ServiceScope<K = ServiceKey, V = ServiceValue> {
 
   get<V2 = V>(token: K, defaultValue?: V2): ServiceResolution<V2>;
   getMany(...tokens: ReadonlyArray<K>): ReadonlyArray<ServiceResolution<V>>;
-  // deno-lint-ignore no-explicit-any
-  invoke<T extends (...args: any) => any>(fn: T): ReturnType<T>;
+  invoke<T extends AnonymousFunction>(fn: T): ReturnType<T>;
 
   createScope(): ServiceScope<K, V>;
 }

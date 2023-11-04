@@ -60,7 +60,7 @@ export class ReactViewAdapter implements ViewAdapterBase {
       // deno-lint-ignore no-explicit-any
       | ComponentClass<Record<string, unknown>, any>,
     props: Record<string, unknown> | null,
-    ...children: ReactNode[]
+    ...children: ReadonlyArray<ReactNode>
   ) {
     return createElement(type, props, ...children);
   }
@@ -94,7 +94,7 @@ export class ReactViewAdapter implements ViewAdapterBase {
     return renderToString(fragment);
   }
 
-  setAllIslands(islands: Island[]) {
+  setAllIslands(islands: ReadonlyArray<Island>) {
     setAllIslands(islands);
   }
 

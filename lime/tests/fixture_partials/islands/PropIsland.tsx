@@ -3,7 +3,7 @@ export default function PropIsland(
     number: number;
     string: string;
     boolean: boolean;
-    strArr: string[];
+    strArr: Array<string>;
     obj: { foo: number };
   },
 ) {

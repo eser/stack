@@ -89,7 +89,7 @@ export class Scope<K = ServiceKey, V = ServiceValue>
         return result.then((resolved) => {
           targetScope.items.set(token, resolved);
 
-          return resolved;
+          return resolved as ServiceResolution<V2>;
         });
       }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run -A --watch=static/,routes/
 
 import { dev } from "../../dev.ts";
-import { options } from "./options.ts";
+import { config } from "./config.ts";
 
-await dev(import.meta.url, options);
+await dev(import.meta.url, config);

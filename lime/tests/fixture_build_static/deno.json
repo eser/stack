@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "jsx": "precompile",
+    "jsxImportSource": "$cool"
+  },
+  "lock": false,
+  "imports": {
+    "$cool/": "../../../",
+    "$std/": "https://deno.land/std@0.205.0/"
+  }
+}

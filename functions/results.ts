@@ -1,4 +1,4 @@
-import { type Generatable, type Promisable } from "../standards/promises.ts";
+import { type Promisable } from "../standards/promises.ts";
 
 // deno-lint-ignore no-explicit-any
 export type ExtraData = Record<string | number | symbol, any>;
@@ -13,7 +13,7 @@ export interface ResultBody<T> {
   // ) => ResultBody<T>;
 }
 
-export type ResultIterable<T> = Generatable<ResultBody<T>>;
+export type ResultIterable<T> = AsyncIterable<ResultBody<T>>;
 export type ResultNonIterable<T> = Promisable<ResultBody<T>>;
 export type ResultNone = Promisable<void>;
 export type Result<T> =

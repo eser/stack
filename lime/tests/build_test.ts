@@ -2,10 +2,17 @@ import * as path from "$std/path/mod.ts";
 import { puppeteer } from "./deps.ts";
 import {
   assert,
+  assertEquals,
   assertNotMatch,
   assertStringIncludes,
 } from "$std/assert/mod.ts";
-import { getStdOutput, startLimeServer, waitForText } from "./test_utils.ts";
+import {
+  getStdOutput,
+  recreateFolder,
+  startLimeServer,
+  waitForText,
+  withFakeServe,
+} from "./test_utils.ts";
 import { BuildSnapshotJson } from "../src/build/mod.ts";
 
 function runBuild(fixture: string, subDirPath: string, outDir: string) {
@@ -115,7 +122,7 @@ async function testBuild(
           });
 
           for (let i = 0; i < assetUrls.length; i++) {
-            assertStringIncludes(assetUrls[i], snapshot.build_id);
+            assertStringIncludes(assetUrls[i]!, snapshot.build_id);
           }
         } finally {
           await browser.close();
@@ -253,5 +260,49 @@ Deno.test("pass target options", async () => {
     txt,
     /\?\?/,
     `Asset contained ?? despite target es2015\n\n${stdout}\n${stderr}`,
+  );
+});
+
+Deno.test("serve static files from build dir", async () => {
+  const filePath = path.join(
+    path.dirname(path.fromFileUrl(import.meta.url)),
+    "fixture_build_static",
+    "_lime",
+    "static",
+    "foo.txt",
+  );
+
+  await recreateFolder(path.dirname(filePath));
+  await Deno.writeTextFile(filePath, `it works`);
+
+  await withFakeServe(
+    "./tests/fixture_build_static/main.ts",
+    async (server) => {
+      const res = await server.get("/foo.txt");
+      const text = await res.text();
+      assertEquals(text, "it works");
+    },
+  );
+});
+
+Deno.test("prefer static files from build dir", async () => {
+  const filePath = path.join(
+    path.dirname(path.fromFileUrl(import.meta.url)),
+    "fixture_build_static",
+    "_lime",
+    "static",
+    "duplicate.txt",
+  );
+
+  await recreateFolder(path.dirname(filePath));
+  await Deno.writeTextFile(filePath, "it works");
+
+  await withFakeServe(
+    "./tests/fixture_build_static/main.ts",
+    async (server) => {
+      const res = await server.get("/duplicate.txt");
+      const text = await res.text();
+      assertEquals(text, "it works");
+    },
   );
 });

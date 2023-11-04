@@ -6,6 +6,6 @@
 
 import { start } from "../../server.ts";
 import { manifest } from "./manifest.gen.ts";
-import { options } from "./options.ts";
+import { config } from "./config.ts";
 
-await start(manifest, options);
+await start(manifest, config);

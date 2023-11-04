@@ -5,7 +5,7 @@ import cssInjectPluginAsync from "./utils/css-inject-plugin-async.ts";
 import routePlugin from "./utils/route-plugin.ts";
 import secondMiddlewarePlugin from "./utils/second-middleware-plugin.ts";
 
-export const options = {
+export const config = {
   plugins: [
     cssInjectPlugin,
     jsInjectPlugin,

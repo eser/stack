@@ -1,6 +1,6 @@
 import { assert, bdd, mock } from "../deps.ts";
 import { Ok } from "./results.ts";
-import { fn } from "./fn.ts";
+import { type Context, fn } from "./fn.ts";
 
 bdd.describe("cool/functions/fn", () => {
   bdd.it("simple fn().run()", async () => {
@@ -34,6 +34,34 @@ bdd.describe("cool/functions/fn", () => {
     }
 
     mock.assertSpyCalls(spyFn, 1);
+    assert.assertEquals(items, ["hello", "world"]);
+  });
+
+  bdd.it("multiple fn().iterate()", async () => {
+    const spyFn1 = mock.spy();
+
+    const fn1 = async function* (c: Context) {
+      spyFn1();
+
+      yield Ok("hello");
+      yield* await c.next();
+    };
+
+    const spyFn2 = mock.spy();
+
+    const fn2 = function* () {
+      spyFn2();
+
+      yield Ok("world");
+    };
+
+    const items = [];
+    for await (const item of fn(fn1, fn2).iterate()) {
+      items.push(item.payload);
+    }
+
+    mock.assertSpyCalls(spyFn1, 1);
+    mock.assertSpyCalls(spyFn2, 1);
     assert.assertEquals(items, ["hello", "world"]);
   });
 });

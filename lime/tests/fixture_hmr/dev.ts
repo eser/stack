@@ -2,4 +2,4 @@
 
 import { dev } from "$cool/lime/dev.ts";
 
-await dev(import.meta.url, "./main.ts");
+await dev(import.meta.url);

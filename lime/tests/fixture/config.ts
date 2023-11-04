@@ -1,6 +1,6 @@
 import { type LimeConfig } from "../../server.ts";
 
-export const options = {
+export const config = {
   async render(_ctx, render) {
     await new Promise<void>((r) => r());
     const body = render();

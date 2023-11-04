@@ -1,8 +1,9 @@
 import { type Generatable, type Promisable } from "../standards/promises.ts";
-import { type ArgList } from "../standards/functions.ts";
+import { type ArgList, nullAsyncGeneratorFn } from "../standards/functions.ts";
 
-export type Context<T, TR> = {
-  next: () => Generatable<TR>;
+// deno-lint-ignore no-explicit-any, ban-types
+export type Context<T = {}, TR = any> = {
+  next: () => AsyncIterable<TR>;
 } & T;
 
 export type Fn<T, TR> = (
@@ -13,14 +14,12 @@ export type Fn<T, TR> = (
 export type Pipeline<T, TR> = {
   use: (...fns: Array<Fn<T, TR>>) => Pipeline<T, TR>;
   set: (fn: Fn<T, TR>) => Pipeline<T, TR>;
-  iterate: (...args: ArgList) => Generatable<TR>;
-  run: (...args: ArgList) => Promisable<Array<TR>>;
+  iterate: (...args: ArgList) => AsyncIterable<TR>;
+  run: (...args: ArgList) => Promise<Array<TR>>;
 };
 
-export const nullFn = async function* () {};
-
 export const fn = function <T, TR>(...fns: Array<Fn<T, TR>>): Pipeline<T, TR> {
-  let target: Fn<T, TR> = fns.pop() ?? nullFn;
+  let target: Fn<T, TR> = fns.pop() ?? nullAsyncGeneratorFn;
   const stack: Array<Fn<T, TR>> = fns;
 
   const use = function (this: Pipeline<T, TR>, ...fns: Array<Fn<T, TR>>) {
@@ -48,9 +47,7 @@ export const fn = function <T, TR>(...fns: Array<Fn<T, TR>>): Pipeline<T, TR> {
 
       const newContext = {
         ...context,
-        next: async function* () {
-          yield* await jumper(index + 1);
-        },
+        next: () => jumper(index + 1),
       };
 
       const nextFn = (index === stack.length) ? target : stack[index];
@@ -59,20 +56,25 @@ export const fn = function <T, TR>(...fns: Array<Fn<T, TR>>): Pipeline<T, TR> {
       }
 
       // deno-lint-ignore no-explicit-any
-      const result: any = await nextFn(newContext, ...args);
+      const result: any = nextFn(newContext, ...args);
 
       if (
-        Symbol.iterator in Object(result) ||
-        Symbol.asyncIterator in Object(result)
+        result[Symbol.asyncIterator] !== undefined ||
+        result[Symbol.iterator] !== undefined
       ) {
         yield* result;
+        return;
+      }
+
+      if (result.constructor === Promise) {
+        yield await result;
         return;
       }
 
       yield result;
     };
 
-    yield* await jumper(0);
+    yield* jumper(0);
   };
 
   const run = async function (this: Pipeline<T, TR>, ...args: ArgList) {

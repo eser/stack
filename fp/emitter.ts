@@ -1,5 +1,6 @@
+import { type Promisable } from "../standards/promises.ts";
 // deno-lint-ignore no-explicit-any
-export type EventType = (...args: readonly any[]) => void | Promise<void>;
+export type EventType = (...args: readonly any[]) => Promisable<void>;
 export type LogType = {
   event: string;
   subscriber: string;

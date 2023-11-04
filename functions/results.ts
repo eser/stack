@@ -1,3 +1,5 @@
+import { type Generatable, type Promisable } from "../standards/promises.ts";
+
 // deno-lint-ignore no-explicit-any
 export type ExtraData = Record<string | number | symbol, any>;
 
@@ -11,30 +13,23 @@ export interface ResultBody<T> {
   // ) => ResultBody<T>;
 }
 
-export type ResultAsyncGen<T> = AsyncGenerator<
-  ResultBody<T>
->;
-
-export type ResultGen<T> = Generator<
-  ResultBody<T>
->;
-
-export type ResultIterable<T> =
-  | ResultAsyncGen<T>
-  | ResultGen<T>;
-
-export type ResultNonIterable<T> =
-  | Promise<ResultBody<T>>
-  | ResultBody<T>;
-
+export type ResultIterable<T> = Generatable<ResultBody<T>>;
+export type ResultNonIterable<T> = Promisable<ResultBody<T>>;
+export type ResultNone = Promisable<void>;
 export type Result<T> =
   | ResultIterable<T>
   | ResultNonIterable<T>
-  | Promise<void>
-  | void;
+  | ResultNone;
 
 export const Ok = <T>(result?: T): ResultBody<T> => {
   return {
+    payload: result,
+  };
+};
+
+export const Fail = <T>(error: Error, result?: T): ResultBody<T> => {
+  return {
+    error: error,
     payload: result,
   };
 };

@@ -1,3 +1,4 @@
+import { type Promisable } from "../../../standards/promises.ts";
 import { contentType, extname, Status } from "./deps.ts";
 import { view } from "../runtime/drivers/view.tsx";
 import * as router from "./router.ts";
@@ -16,6 +17,7 @@ import {
   type RouterState,
   type ServeHandlerInfo,
   type UnknownPage,
+  type UnknownRenderFunction,
 } from "./types.ts";
 import { render as internalRender } from "./render.ts";
 import {
@@ -58,7 +60,7 @@ export async function getServerContext(state: InternalLimeState) {
   const extractResult = await extractRoutes(state);
 
   // Restore snapshot if available
-  let snapshot: Builder | BuildSnapshot | Promise<BuildSnapshot> | null = null;
+  let snapshot: Builder | Promisable<BuildSnapshot> | null = null;
   if (state.loadSnapshot) {
     const loadedSnapshot = await loadAotSnapshot(config);
     if (loadedSnapshot !== null) snapshot = loadedSnapshot;
@@ -89,7 +91,7 @@ export async function getServerContext(state: InternalLimeState) {
 export class ServerContext {
   #renderFn: RenderFunction;
   #plugins: Plugin[];
-  #builder: Builder | Promise<BuildSnapshot> | BuildSnapshot;
+  #builder: Builder | Promisable<BuildSnapshot>;
   #state: InternalLimeState;
   #extractResult: FsExtractResult;
   #dev: boolean;
@@ -97,7 +99,7 @@ export class ServerContext {
   constructor(
     state: InternalLimeState,
     extractResult: FsExtractResult,
-    snapshot: Builder | BuildSnapshot | Promise<BuildSnapshot>,
+    snapshot: Builder | Promisable<BuildSnapshot>,
   ) {
     this.#state = state;
     this.#extractResult = extractResult;
@@ -126,12 +128,20 @@ export class ServerContext {
    * by cool lime, including static files.
    */
   handler(): (req: Request, connInfo?: ServeHandlerInfo) => Promise<Response> {
-    const handlers = this.#handlers();
+    const renderNotFound = createRenderNotFound(
+      this.#extractResult,
+      this.#dev,
+      this.#plugins,
+      this.#renderFn,
+      this.#maybeBuildSnapshot(),
+    );
+    const handlers = this.#handlers(renderNotFound);
     const inner = router.router<RouterState>(handlers);
     const withMiddlewares = composeMiddlewares(
       this.#extractResult.middlewares,
       handlers.errorHandler,
       router.getParamsAndRoute<RouterState>(handlers),
+      renderNotFound,
     );
     const trailingSlashEnabled = this.#state.config.router?.trailingSlash;
     const isDev = this.#dev;
@@ -173,8 +183,12 @@ export class ServerContext {
           });
 
           return response;
-        } else if (url.pathname === DEV_CLIENT_URL) {
-          return bundleAssetRoute(req, connInfo, { path: "client.js" });
+        }
+
+        if (url.pathname === DEV_CLIENT_URL) {
+          return bundleAssetRoute(req, { ...connInfo, isPartial: false }, {
+            path: "client.js",
+          });
         }
       }
 
@@ -242,7 +256,9 @@ export class ServerContext {
    * This function returns all routes required by cool lime as an extended
    * path-to-regex, to handler mapping.
    */
-  #handlers(): {
+  #handlers(
+    renderNotFound: UnknownRenderFunction,
+  ): {
     internalRoutes: router.Routes<RouterState>;
     staticRoutes: router.Routes<RouterState>;
     routes: router.Routes<RouterState>;
@@ -297,63 +313,6 @@ export class ServerContext {
     const dependenciesFn = (path: string) => {
       const snapshot = this.#maybeBuildSnapshot();
       return snapshot?.dependencies(path) ?? [];
-    };
-
-    const renderNotFound = async <Data = undefined>(
-      req: Request,
-      params: Record<string, string>,
-      // deno-lint-ignore no-explicit-any
-      ctx?: any,
-      data?: Data,
-      error?: unknown,
-    ) => {
-      const notFound = this.#extractResult.notFound;
-
-      if (!notFound.component) {
-        return sendResponse(["Not found.", undefined], {
-          status: Status.NotFound,
-          isDev: this.#dev,
-          statusText: undefined,
-          headers: undefined,
-        });
-      }
-
-      const layouts = selectSharedRoutes(
-        ROOT_BASE_ROUTE,
-        this.#extractResult.layouts,
-      );
-
-      const imports: string[] = [];
-      if (this.#dev) {
-        imports.push(DEV_CLIENT_URL);
-      }
-      const resp = await internalRender({
-        request: req,
-        context: ctx,
-        route: notFound,
-        plugins: this.#plugins,
-        app: this.#extractResult.app,
-        layouts,
-        imports,
-        dependenciesFn,
-        renderFn: this.#renderFn,
-        url: new URL(req.url),
-        params,
-        data,
-        state: ctx?.state,
-        error,
-      });
-
-      if (resp instanceof Response) {
-        return resp;
-      }
-
-      return sendResponse(resp, {
-        status: Status.NotFound,
-        isDev: this.#dev,
-        statusText: undefined,
-        headers: undefined,
-      });
     };
 
     const genRender = <Data = undefined>(
@@ -599,6 +558,68 @@ export class ServerContext {
     };
   };
 }
+
+const createRenderNotFound = (
+  extractResult: FsExtractResult,
+  dev: boolean,
+  plugins: Plugin<Record<string, unknown>>[],
+  renderFunction: RenderFunction,
+  buildSnapshot: BuildSnapshot | null,
+) => {
+  const dependenciesFn = (path: string) => {
+    const snapshot = buildSnapshot;
+    return snapshot?.dependencies(path) ?? [];
+  };
+
+  return async (
+    ...args: Parameters<UnknownRenderFunction>
+  ) => {
+    const [req, params, ctx, data, error] = args;
+    const notFound = extractResult.notFound;
+    if (!notFound.component) {
+      return sendResponse(["Not found.", undefined], {
+        status: Status.NotFound,
+        isDev: dev,
+        statusText: undefined,
+        headers: undefined,
+      });
+    }
+
+    const layouts = selectSharedRoutes(
+      ROOT_BASE_ROUTE,
+      extractResult.layouts,
+    );
+
+    const imports: string[] = [];
+    const resp = await internalRender({
+      request: req,
+      context: ctx,
+      route: notFound,
+      plugins: plugins,
+      app: extractResult.app,
+      layouts,
+      imports,
+      dependenciesFn,
+      renderFn: renderFunction,
+      url: new URL(req.url),
+      params,
+      data,
+      state: ctx?.state,
+      error,
+    });
+
+    if (resp instanceof Response) {
+      return resp;
+    }
+
+    return sendResponse(resp, {
+      status: Status.NotFound,
+      isDev: dev,
+      statusText: undefined,
+      headers: undefined,
+    });
+  };
+};
 
 // Normalize a path for use in a URL. Returns null if the path is unparsable.
 export function normalizeURLPath(path: string): string | null {

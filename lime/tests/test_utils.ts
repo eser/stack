@@ -1,3 +1,4 @@
+import { type Promisable } from "../../standards/promises.ts";
 import { colors, toFileUrl } from "../src/server/deps.ts";
 import { assert } from "$std/assert/mod.ts";
 import * as path from "$std/path/mod.ts";
@@ -287,7 +288,7 @@ export async function fakeServe(
 
 export async function withFakeServe(
   name: string,
-  cb: (server: FakeServer) => Promise<void> | void,
+  cb: (server: FakeServer) => Promisable<void>,
 ) {
   const fixture = join(Deno.cwd(), name);
   const dev = basename(name) === "dev.ts";
@@ -508,7 +509,7 @@ export function getStdOutput(
 }
 
 export async function waitFor(
-  fn: () => Promise<unknown> | unknown,
+  fn: () => Promisable<unknown>,
 ): Promise<void> {
   let now = Date.now();
   const limit = now + 2000;

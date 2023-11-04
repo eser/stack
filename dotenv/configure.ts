@@ -1,10 +1,9 @@
+import { type Promisable } from "../standards/promises.ts";
 import { env } from "./base.ts";
 import { load, type LoaderOptions } from "./loader.ts";
 import { createEnvReader, type EnvReader } from "./reader.ts";
 
 // interface definitions
-export type Promisable<T> = PromiseLike<T> | T;
-
 export interface BaseEnvVariables {
   [env]: string;
 }

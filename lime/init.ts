@@ -1,7 +1,7 @@
 import { basename, colors, join, parse, resolve } from "./src/dev/deps.ts";
 import { error } from "./src/dev/error.ts";
 import { buildManifestFile, ensureMinDenoVersion } from "./src/dev/mod.ts";
-import { baseImports, reactImports } from "./src/dev/imports.ts";
+import { baseImports } from "./src/dev/imports.ts";
 import { view } from "./runtime.ts";
 
 ensureMinDenoVersion();
@@ -521,12 +521,11 @@ const config = {
   exclude: ["**/_lime/*"],
   imports: {} as Record<string, string>,
   compilerOptions: {
-    jsx: "react",
-    // jsxImportSource: "react",
+    jsx: "precompile",
+    jsxImportSource: "$cool",
   },
 };
 baseImports(config.imports);
-reactImports(config.imports);
 
 const DENO_CONFIG = JSON.stringify(config, null, 2) + "\n";
 

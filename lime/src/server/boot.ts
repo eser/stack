@@ -1,5 +1,5 @@
 import { colors } from "./deps.ts";
-import { ServeHandler } from "./types.ts";
+import { type ServeHandler } from "./types.ts";
 
 export async function startServer(
   handler: Deno.ServeHandler,
@@ -25,34 +25,35 @@ export async function startServer(
 
   if (opts.port) {
     await bootServer(handler, opts);
-  } else {
-    // No port specified, check for a free port. Instead of picking just
-    // any port we'll check if the next one is free for UX reasons.
-    // That way the user only needs to increment a number when running
-    // multiple apps vs having to remember completely different ports.
-    let firstError;
-    for (let port = 8000; port < 8020; port++) {
-      try {
-        await bootServer(handler, { ...opts, port });
-        firstError = undefined;
-        break;
-      } catch (err) {
-        if (err instanceof Deno.errors.AddrInUse) {
-          // Throw first EADDRINUSE error
-          // if no port is free
-          if (!firstError) {
-            firstError = err;
-          }
-          continue;
+    return;
+  }
+
+  // No port specified, check for a free port. Instead of picking just
+  // any port we'll check if the next one is free for UX reasons.
+  // That way the user only needs to increment a number when running
+  // multiple apps vs having to remember completely different ports.
+  let firstError;
+  for (let port = 8000; port < 8020; port++) {
+    try {
+      await bootServer(handler, { ...opts, port });
+      firstError = undefined;
+      break;
+    } catch (err) {
+      if (err instanceof Deno.errors.AddrInUse) {
+        // Throw first EADDRINUSE error
+        // if no port is free
+        if (!firstError) {
+          firstError = err;
         }
-
-        throw err;
+        continue;
       }
-    }
 
-    if (firstError) {
-      throw firstError;
+      throw err;
     }
+  }
+
+  if (firstError) {
+    throw firstError;
   }
 }
 

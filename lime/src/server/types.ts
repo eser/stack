@@ -1,3 +1,4 @@
+import { type Promisable } from "../../../standards/promises.ts";
 import {
   type ComponentChildren,
   type ComponentType,
@@ -42,7 +43,7 @@ export interface LimeConfig {
      */
     target?: string | string[];
   };
-  render: RenderFunction;
+  render?: RenderFunction;
   plugins?: Plugin[];
   staticDir?: string;
   router?: RouterOptions;
@@ -93,7 +94,7 @@ export interface LimeConfig {
    * The handler to invoke when route handlers throw an error.
    * @deprecated Use `server.onError` instead
    */
-  onError?: (error: unknown) => Response | Promise<Response>;
+  onError?: (error: unknown) => Promisable<Response>;
 
   /**
    * The callback which is called when the server starts listening.
@@ -143,7 +144,7 @@ export interface RouterOptions {
 export type RenderFunction = (
   ctx: RenderContext,
   render: InnerRenderFunction,
-) => void | Promise<void>;
+) => Promisable<void>;
 
 /// --- ROUTES ---
 
@@ -195,12 +196,13 @@ export type RouteContext<T = any, S = Record<string, unknown>> = {
   /** @types deprecated */
   localAddr?: Deno.NetAddr;
   remoteAddr: Deno.NetAddr;
-  renderNotFound: (data?: T) => Response | Promise<Response>;
+  renderNotFound: (data?: T) => Promisable<Response>;
   url: URL;
   route: string;
   params: Record<string, string>;
   state: S;
   data: T;
+  isPartial: boolean;
 };
 
 export interface RouteConfig {
@@ -248,7 +250,7 @@ export type ServeHandlerInfo = {
 export type ServeHandler = (
   request: Request,
   info: ServeHandlerInfo,
-) => Response | Promise<Response>;
+) => Promisable<Response>;
 
 export interface HandlerContext<
   Data = unknown,
@@ -259,16 +261,17 @@ export interface HandlerContext<
   render: (
     data?: Data,
     options?: RenderOptions,
-  ) => Response | Promise<Response>;
-  renderNotFound: (data?: NotFoundData) => Response | Promise<Response>;
+  ) => Promisable<Response>;
+  renderNotFound: (data?: NotFoundData) => Promisable<Response>;
   state: State;
+  isPartial: boolean;
 }
 
 // deno-lint-ignore no-explicit-any
 export type Handler<T = any, State = Record<string, unknown>> = (
   req: Request,
   ctx: HandlerContext<T, State>,
-) => Response | Promise<Response>;
+) => Promisable<Response>;
 
 // deno-lint-ignore no-explicit-any
 export type Handlers<T = any, State = Record<string, unknown>> = {
@@ -398,14 +401,14 @@ export interface UnknownPageProps<T = any, S = Record<string, unknown>> {
 
 export interface UnknownHandlerContext<State = Record<string, unknown>>
   extends ServeHandlerInfo {
-  render: () => Response | Promise<Response>;
+  render: () => Promisable<Response>;
   state: State;
 }
 
 export type UnknownHandler = (
   req: Request,
   ctx: UnknownHandlerContext,
-) => Response | Promise<Response>;
+) => Promisable<Response>;
 
 export interface UnknownPageModule {
   default?: PageComponent<UnknownPageProps>;
@@ -424,6 +427,15 @@ export interface UnknownPage {
   appWrapper: boolean;
   inheritLayouts: boolean;
 }
+
+export type UnknownRenderFunction = (
+  req: Request,
+  params: Record<string, string>,
+  // deno-lint-ignore no-explicit-any
+  ctx?: any,
+  data?: unknown,
+  error?: unknown,
+) => Promise<Response>;
 
 // --- ERROR PAGE ---
 
@@ -445,7 +457,7 @@ export interface ErrorPageProps {
 export interface ErrorHandlerContext<State = Record<string, unknown>>
   extends ServeHandlerInfo {
   error: unknown;
-  render: () => Response | Promise<Response>;
+  render: () => Promisable<Response>;
   state: State;
 }
 
@@ -455,7 +467,7 @@ export type BaseRoute = string & { readonly __brand: unique symbol };
 export type ErrorHandler = (
   req: Request,
   ctx: ErrorHandlerContext,
-) => Response | Promise<Response>;
+) => Promisable<Response>;
 
 export interface ErrorPageModule {
   default?: PageComponent<ErrorPageProps>;
@@ -480,9 +492,11 @@ export interface ErrorPage {
 export interface MiddlewareHandlerContext<State = Record<string, unknown>>
   extends ServeHandlerInfo {
   next: () => Promise<Response>;
+  renderNotFound: (state?: State) => Response | Promise<Response>;
   state: State;
   destination: router.DestinationKind;
   params: Record<string, string>;
+  isPartial: boolean;
 }
 
 export interface MiddlewareRoute {
@@ -493,7 +507,7 @@ export interface MiddlewareRoute {
 export type MiddlewareHandler<State = Record<string, unknown>> = (
   req: Request,
   ctx: MiddlewareHandlerContext<State>,
-) => Response | Promise<Response>;
+) => Promisable<Response>;
 
 // deno-lint-ignore no-explicit-any
 export interface MiddlewareModule<State = any> {
@@ -507,8 +521,7 @@ export interface Middleware<State = Record<string, unknown>> {
 // --- ISLANDS ---
 
 export interface IslandModule {
-  // deno-lint-ignore no-explicit-any
-  [key: string]: ComponentType<any>;
+  [key: string]: ComponentType<unknown>;
 }
 
 export interface Island {
@@ -556,11 +569,11 @@ export interface Plugin<State = Record<string, unknown>> {
   /**
    * Called before running the cool lime build task
    */
-  buildStart?(config: ResolvedLimeConfig): Promise<void> | void;
+  buildStart?(config: ResolvedLimeConfig): Promisable<void>;
   /**
    * Called after completing the cool lime build task
    */
-  buildEnd?(): Promise<void> | void;
+  buildEnd?(): Promisable<void>;
 
   routes?: PluginRoute[];
 
@@ -604,9 +617,9 @@ export interface PluginRenderScripts {
 
 export type PluginRenderFunction = () => PluginRenderFunctionResult;
 
-export type PluginAsyncRenderFunction = () =>
-  | PluginRenderFunctionResult
-  | Promise<PluginRenderFunctionResult>;
+export type PluginAsyncRenderFunction = () => Promisable<
+  PluginRenderFunctionResult
+>;
 
 export interface PluginRenderFunctionResult {
   /** The HTML text that was rendered. */

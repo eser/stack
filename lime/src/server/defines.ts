@@ -1,3 +1,4 @@
+import { type Promisable } from "../../../standards/promises.ts";
 import { type ComponentChildren } from "../runtime/drivers/view.tsx";
 import {
   type AsyncLayout,
@@ -20,7 +21,7 @@ export function defineRoute<
   fn: (
     req: Request,
     ctx: RouteContext<void, T>,
-  ) => ComponentChildren | Response | Promise<ComponentChildren | Response>,
+  ) => Promisable<ComponentChildren | Response>,
 ): AsyncRoute<void, T> {
   if (checkAsyncComponent(fn)) {
     // deno-lint-ignore no-explicit-any
@@ -36,7 +37,7 @@ export function defineLayout<T>(
   fn: (
     req: Request,
     ctx: LayoutContext<void, T>,
-  ) => ComponentChildren | Response | Promise<ComponentChildren | Response>,
+  ) => Promisable<ComponentChildren | Response>,
 ): AsyncLayout<void, T> {
   if (checkAsyncComponent(fn)) {
     // deno-lint-ignore no-explicit-any
@@ -52,7 +53,7 @@ export function defineApp<T>(
   fn: (
     req: Request,
     ctx: AppContext<void, T>,
-  ) => ComponentChildren | Response | Promise<ComponentChildren | Response>,
+  ) => Promisable<ComponentChildren | Response>,
 ): AsyncLayout<void, T> {
   if (checkAsyncComponent(fn)) {
     // deno-lint-ignore no-explicit-any

@@ -3,7 +3,7 @@ export { generate, type Manifest } from "./manifest.ts";
 import { generate, type Manifest } from "./manifest.ts";
 import { error } from "./error.ts";
 
-const MIN_DENO_VERSION = "1.37.0";
+const MIN_DENO_VERSION = "1.38.0";
 const TEST_FILE_PATTERN = /[._]test\.(?:[tj]sx?|[mc][tj]s)$/;
 
 export function ensureMinDenoVersion() {

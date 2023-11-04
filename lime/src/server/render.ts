@@ -193,6 +193,7 @@ export async function render<Data>(
     params: opts.params as Record<string, string>,
     state: opts.state ?? {},
     data: opts.data,
+    isPartial: opts.context.isPartial,
   };
 
   // Prepare render order

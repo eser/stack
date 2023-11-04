@@ -1,1 +1,2 @@
-export type Promisable<T> = PromiseLike<T> | T;
+export type Promisable<T> = Promise<T> | T;
+export type Generatable<T> = AsyncGenerator<T> | Generator<T>;

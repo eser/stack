@@ -1,6 +1,6 @@
 import { assert, bdd, mock } from "../deps.ts";
-import { Ok, type Result } from "./results.ts";
-import { type Context, fn } from "./fn.ts";
+import { Ok } from "./results.ts";
+import { fn } from "./fn.ts";
 
 bdd.describe("cool/functions/fn", () => {
   bdd.it("simple fn().run()", async () => {
@@ -46,13 +46,13 @@ bdd.describe("cool/functions/fn", () => {
     const spyFn2 = mock.spy();
 
     const fns = fn(
-      async function* (c: Context<Result<string>>) {
+      async function* (c) {
         spyFn1();
 
         yield Ok("hello");
         yield* c.next();
       },
-      function* () {
+      async function* () {
         spyFn2();
 
         yield Ok("world");
@@ -69,51 +69,54 @@ bdd.describe("cool/functions/fn", () => {
     assert.assertEquals(items, ["hello", "world"]);
   });
 
-  // bdd.it("fn().use().run()", async () => {
-  //   const spyFn1 = mock.spy();
-  //   const spyFn2 = mock.spy();
+  bdd.it("fn().use().run()", async () => {
+    const spyFn1 = mock.spy();
+    const spyFn2 = mock.spy();
 
-  //   const fns = fn()
-  //     .use(
-  //       async function* (c: Context<Result<string>>) {
-  //         spyFn1();
+    const fns = fn()
+      .use(
+        async function* (c) {
+          spyFn1();
 
-  //         yield Ok("hello");
-  //         yield* c.next();
-  //       },
-  //     )
-  //     .use(
-  //       function* () {
-  //         spyFn2();
+          yield Ok("hello");
+          yield* c.next();
+        },
+      )
+      .use(
+        async function* () {
+          spyFn2();
 
-  //         yield Ok("world");
-  //       },
-  //     );
+          yield Ok("world");
+        },
+      );
 
-  //   const items = await fns.run();
+    const items = await fns.run();
 
-  //   mock.assertSpyCalls(spyFn1, 1);
-  //   mock.assertSpyCalls(spyFn2, 1);
-  //   assert.assertEquals(items, ["hello", "world"]);
-  // });
+    mock.assertSpyCalls(spyFn1, 1);
+    mock.assertSpyCalls(spyFn2, 1);
+    assert.assertEquals(items, [
+      { payload: "hello" },
+      { payload: "world" },
+    ]);
+  });
 
-  // bdd.it("alias fn()", async () => {
-  //   const spyFn = mock.spy();
+  bdd.it("alias fn()", async () => {
+    const spyFn = mock.spy();
 
-  //   const express = fn;
+    const express = fn;
 
-  //   const result = await express()
-  //     .use(
-  //       async function* (c: Context<Result<string>>) {
-  //         spyFn();
+    const result = await express()
+      .use(
+        async function* (c) {
+          spyFn();
 
-  //         yield Ok("Testing");
-  //         yield* c.next();
-  //       },
-  //     )
-  //     .run();
+          yield Ok("Testing");
+          yield* c.next();
+        },
+      )
+      .run();
 
-  //   mock.assertSpyCalls(spyFn, 1);
-  //   assert.assertEquals(result[0]?.payload, "Testing");
-  // });
+    mock.assertSpyCalls(spyFn, 1);
+    assert.assertEquals(result[0]?.payload, "Testing");
+  });
 });

@@ -1,84 +1,83 @@
 import { type Generatable, type Promisable } from "../standards/promises.ts";
 import { type ArgList, nullAsyncGeneratorFn } from "../standards/functions.ts";
 
-// deno-lint-ignore no-explicit-any, ban-types
-export type Context<T = {}, TR = any> = {
-  next: () => AsyncIterable<TR>;
-} & T;
-
-export type Fn<T, TR> = (
-  context: Context<T, TR>,
-  ...args: ArgList
-) => Generatable<TR> | Promisable<TR> | Promisable<void>;
-
-export type Pipeline<T, TR> = {
-  use: (...fns: Array<Fn<T, TR>>) => Pipeline<T, TR>;
-  set: (fn: Fn<T, TR>) => Pipeline<T, TR>;
-  iterate: (...args: ArgList) => AsyncIterable<TR>;
-  run: (...args: ArgList) => Promise<Array<TR>>;
+export type Context<T = unknown> = {
+  next: () => AsyncGenerator<T>;
 };
 
-export const fn = function <T, TR>(...fns: Array<Fn<T, TR>>): Pipeline<T, TR> {
-  let target: Fn<T, TR> = fns.pop() ?? nullAsyncGeneratorFn;
-  const stack: Array<Fn<T, TR>> = fns;
+export type Fn<T> = (
+  context: Context<T>,
+  ...args: ArgList
+) => Generatable<T> | Promisable<T> | Promisable<void>;
 
-  const use = function (this: Pipeline<T, TR>, ...fns: Array<Fn<T, TR>>) {
+export type Pipeline<T> = {
+  use: (...fns: ReadonlyArray<Fn<T>>) => Pipeline<T>;
+  set: (fn: Fn<T>) => Pipeline<T>;
+  iterate: (...args: ArgList) => AsyncGenerator<T>;
+  run: (...args: ArgList) => Promise<Array<T>>;
+};
+
+export const fn = function <T>(...fns: ReadonlyArray<Fn<T>>): Pipeline<T> {
+  let target: Fn<T> = fns.at(-1) ?? nullAsyncGeneratorFn;
+  const stack: Array<Fn<T>> = fns.slice(0, -1);
+
+  const use = function (this: Pipeline<T>, ...fns: ReadonlyArray<Fn<T>>) {
     stack.push(...fns);
 
     return this;
   };
 
-  const set = function (this: Pipeline<T, TR>, fn: Fn<T, TR>) {
+  const set = function (this: Pipeline<T>, fn: Fn<T>) {
     target = fn;
 
     return this;
   };
 
-  const iterate = async function* (this: Pipeline<T, TR>, ...args: ArgList) {
+  const iterate = async function* (
+    this: Pipeline<T>,
+    ...args: ArgList
+  ): AsyncGenerator<T> {
     let prevIndex = -1;
-    const context = {} as Context<T, TR>;
 
-    const jumper = async function* (index: number) {
+    const jumper = async function* (index: number): AsyncGenerator<T> {
       if (index === prevIndex) {
         throw new Error("next() called multiple times");
       }
 
       prevIndex = index;
 
-      const newContext = {
-        ...context,
+      const newContext: Context<T> = {
         next: () => jumper(index + 1),
       };
 
       const nextFn = (index === stack.length) ? target : stack[index];
-      if (nextFn === undefined) {
+      const result = nextFn?.(newContext, ...args);
+
+      if (result?.constructor === undefined) {
         return;
       }
-
-      // deno-lint-ignore no-explicit-any
-      const result: any = nextFn(newContext, ...args);
 
       if (
-        result[Symbol.asyncIterator] !== undefined ||
-        result[Symbol.iterator] !== undefined
+        (Symbol.asyncIterator in (result as AsyncGenerator<T>)) ||
+        (Symbol.iterator in (result as Generator<T>))
       ) {
-        yield* result;
+        yield* (result as Generator<T>);
         return;
       }
 
-      if (result.constructor === Promise) {
-        yield await result;
+      if (result?.constructor === Promise) {
+        yield await (result as Promise<T>);
         return;
       }
 
-      yield result;
+      yield result as T;
     };
 
     yield* jumper(0);
   };
 
-  const run = async function (this: Pipeline<T, TR>, ...args: ArgList) {
-    const results: Array<TR> = [];
+  const run = async function (this: Pipeline<T>, ...args: ArgList) {
+    const results: Array<T> = [];
 
     for await (const item of this.iterate(...args)) {
       results.push(item);

@@ -1,33 +1,23 @@
-import { type Promisable } from "../standards/promises.ts";
-
 // deno-lint-ignore no-explicit-any
 export type ExtraData = Record<string | number | symbol, any>;
 
-export interface ResultBody<T> {
+export interface Result<T> {
   error?: Error;
   payload?: T;
   extraData?: ExtraData;
 
   // with: (
   //   extraData: ExtraData,
-  // ) => ResultBody<T>;
+  // ) => Result<T>;
 }
 
-export type ResultIterable<T> = AsyncIterable<ResultBody<T>>;
-export type ResultNonIterable<T> = Promisable<ResultBody<T>>;
-export type ResultNone = Promisable<void>;
-export type Result<T> =
-  | ResultIterable<T>
-  | ResultNonIterable<T>
-  | ResultNone;
-
-export const Ok = <T>(result?: T): ResultBody<T> => {
+export const Ok = <T>(result?: T): Result<T> => {
   return {
     payload: result,
   };
 };
 
-export const Fail = <T>(error: Error, result?: T): ResultBody<T> => {
+export const Fail = <T>(error: Error, result?: T): Result<T> => {
   return {
     error: error,
     payload: result,

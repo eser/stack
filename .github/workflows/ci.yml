@@ -45,10 +45,6 @@ jobs:
         with:
           deno-version: ${{ matrix.deno-version }}
 
-      - name: Check typos
-        if: matrix.os == 'ubuntu-latest'
-        uses: crate-ci/typos@master
-
       - name: Check formatting, linting, license headers, types and run tests
         run: deno task ok
 

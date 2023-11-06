@@ -53,7 +53,7 @@ jobs:
         run: deno task ok
 
       - name: Create lcov file
-        run: deno task cov:gen
+        run: deno task test:generate-lcov
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 export function printError(message: string) {
   console.error(`%cerror%c: ${message}`, "color: red; font-weight: bold", "");
 }

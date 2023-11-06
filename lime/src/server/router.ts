@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type Promisable } from "../../../standards/promises.ts";
 import { PARTIAL_SEARCH_PARAM } from "../constants.ts";
 import {

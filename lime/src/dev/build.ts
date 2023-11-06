@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { getServerContext } from "../server/context.ts";
 import { join } from "../server/deps.ts";
 import { colors, fs } from "./deps.ts";

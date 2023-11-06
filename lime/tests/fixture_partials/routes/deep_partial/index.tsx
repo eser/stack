@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { Partial } from "../../../../runtime.ts";
 import { Fader } from "../../islands/Fader.tsx";
 import { Logger } from "../../islands/Logger.tsx";

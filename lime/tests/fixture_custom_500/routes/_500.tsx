@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { ErrorHandler, ErrorPageProps } from "../../../server.ts";
 
 export const handler: ErrorHandler = (_req, ctx) => {

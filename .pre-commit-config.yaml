@@ -51,7 +51,7 @@ repos:
           fp/README.md|
           functions/README.md|
           jsx-runtime/README.md|
-          lime/*|
+          lime/.*|
           parsing/README.md|
           standards/README.md|
           CNAME|

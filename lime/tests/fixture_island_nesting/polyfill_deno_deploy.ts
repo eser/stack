@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 // Simulate Deno Deploy environment
 
 //@ts-ignore: Remove Deno.run for simulating deno deploy env

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { defineRoute, RouteConfig } from "$fresh/server.ts";
 import { Partial } from "../../../../runtime.ts";
 import { type IsPartialInContextState } from "./_middleware.ts";

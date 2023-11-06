@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type HandlerContext, type PageProps } from "../../../../../server.ts";
 
 export const handler = (_req: Request, ctx: HandlerContext) => {

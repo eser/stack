@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { updateCheck } from "./update_check.ts";
 import { DAY, dirname, fromFileUrl, join, toFileUrl } from "./deps.ts";
 import { type LimeConfig, Manifest as ServerManifest } from "../server/mod.ts";

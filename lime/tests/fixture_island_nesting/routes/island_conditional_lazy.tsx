@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import IslandConditional from "../islands/IslandConditional.tsx";
 import BooleanButton from "../islands/BooleanButton.tsx";
 import { signal } from "@preact/signals-react";

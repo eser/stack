@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { view } from "../runtime/drivers/view.tsx";
 import { DEBUG } from "./constants.ts";
 import { type ErrorPageProps, type RouteConfig } from "./types.ts";

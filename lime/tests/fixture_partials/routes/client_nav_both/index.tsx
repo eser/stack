@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { Partial } from "../../../../runtime.ts";
 import { RouteConfig } from "../../../../server.ts";
 import CounterA from "../../islands/CounterA.tsx";

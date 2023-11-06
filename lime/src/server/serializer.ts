@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 /**
  * This module contains a serializer for island props. The serializer is capable
  * of serializing the following:

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { assertSelector, parseHtml, withFakeServe } from "./test_utils.ts";
 import { assertEquals } from "$std/assert/mod.ts";
 import { createHandler } from "../server.ts";

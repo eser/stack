@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { defineApp } from "../../../server.ts";
 import { type State } from "../other/state.ts";
 

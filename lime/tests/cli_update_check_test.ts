@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { join } from "../src/server/deps.ts";
 import {
   assert,

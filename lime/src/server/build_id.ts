@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { toHashString } from "./deps.ts";
 
 const deploymentId = Deno.env.get("DENO_DEPLOYMENT_ID") ||

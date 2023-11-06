@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 export interface SignalLike<T> {
   value: T;
   peek(): T;

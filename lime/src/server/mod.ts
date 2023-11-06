@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { ServerContext } from "./context.ts";
 export { type FromManifestConfig } from "./context.ts";
 export { colors, Status } from "./deps.ts";

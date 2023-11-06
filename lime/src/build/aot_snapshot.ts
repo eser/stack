@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type ResolvedLimeConfig } from "../server/types.ts";
 import { colors, join } from "../server/deps.ts";
 import { type BuildSnapshot, type BuildSnapshotJson } from "./mod.ts";

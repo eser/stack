@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type VNode } from "./drivers/view.tsx";
 import { BUILD_ID } from "./build_id.ts";
 

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { assert, assertEquals, assertStringIncludes } from "./deps.ts";
 import { Status } from "../server.ts";
 import {

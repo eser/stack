@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 // -- $std --
 export { fromFileUrl, join, relative, toFileUrl } from "$std/path/mod.ts";
 export { escape as regexpEscape } from "$std/regexp/escape.ts";

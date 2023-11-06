@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { ServerContext, Status } from "../server.ts";
 import { assert, assertEquals, assertStringIncludes } from "./deps.ts";
 import { manifest } from "./fixture_error/manifest.gen.ts";

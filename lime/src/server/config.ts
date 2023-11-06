@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { dirname, fromFileUrl, isAbsolute, join, JSONC } from "./deps.ts";
 import { type FromManifestConfig, type Manifest } from "./mod.ts";
 import { DEFAULT_RENDER_FN } from "./render.ts";

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { delay } from "$std/async/delay.ts";
 import { type AppContext } from "../../../server.ts";
 

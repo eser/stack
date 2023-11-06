@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type Promisable } from "../../standards/promises.ts";
 import { colors, toFileUrl } from "../src/server/deps.ts";
 import { assert } from "$std/assert/mod.ts";

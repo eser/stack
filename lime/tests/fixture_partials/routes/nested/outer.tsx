@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { defineRoute } from "$cool/lime/src/server/defines.ts";
 import { RouteConfig } from "$cool/lime/server.ts";
 import { Partial } from "$cool/lime/runtime.ts";

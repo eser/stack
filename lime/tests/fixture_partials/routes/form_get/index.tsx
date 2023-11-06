@@ -1,5 +1,7 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { Partial } from "../../../../runtime.ts";
-import { PageProps } from "../../../../server.ts";
+import { type PageProps } from "../../../../server.ts";
 import { Logger } from "../../islands/Logger.tsx";
 
 export default function SlotDemo(props: PageProps) {

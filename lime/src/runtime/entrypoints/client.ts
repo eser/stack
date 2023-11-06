@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { isWsRevision } from "../../dev/ws_connection.ts";
 
 let ws: WebSocket;

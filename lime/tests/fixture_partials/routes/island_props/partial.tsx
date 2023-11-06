@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { defineRoute, type RouteConfig } from "../../../../server.ts";
 import { Partial } from "../../../../runtime.ts";
 import PropIsland from "../../islands/PropIsland.tsx";

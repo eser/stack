@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { collect } from "../src/dev/mod.ts";
 import { assert, dirname, fromFileUrl, join } from "./deps.ts";
 

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { assert, assertEquals, assertStringIncludes } from "$std/assert/mod.ts";
 import {
   assertNoPageComments,

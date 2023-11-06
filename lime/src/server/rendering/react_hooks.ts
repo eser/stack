@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type Island } from "../types.ts";
 import { type ComponentType } from "../../runtime/drivers/view.tsx";
 

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { useSignal } from "@preact/signals-react";
 import Counter from "../../islands/Counter.tsx";
 import FolderCounter from "../../islands/folder/Counter.tsx";

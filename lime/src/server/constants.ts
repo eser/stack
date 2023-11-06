@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { INTERNAL_PREFIX } from "../runtime/utils.ts";
 import { BUILD_ID } from "./build_id.ts";
 

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type LimeConfig } from "../../server.ts";
 import cssInjectPlugin from "./utils/css-inject-plugin.ts";
 import jsInjectPlugin from "./utils/js-inject-plugin.ts";

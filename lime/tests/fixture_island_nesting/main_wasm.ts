@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 // Simulate Deno Deploy environment
 
 /// <reference no-default-lib="true" />

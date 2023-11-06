@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { assert, assertEquals, assertMatch } from "$std/assert/mod.ts";
 import { Page } from "./deps.ts";
 import {

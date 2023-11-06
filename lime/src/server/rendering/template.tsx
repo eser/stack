@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { RenderState } from "./state.ts";
 import { view } from "../../runtime/drivers/view.tsx";
 import { type ReactElement } from "react";

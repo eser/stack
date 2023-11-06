@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import * as path from "$std/path/mod.ts";
 import { puppeteer } from "./deps.ts";
 import {

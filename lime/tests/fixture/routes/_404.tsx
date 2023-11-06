@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type UnknownPageProps } from "../../../server.ts";
 
 type Data = { hello: string };

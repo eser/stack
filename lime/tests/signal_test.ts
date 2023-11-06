@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { waitForText, withPageName } from "./test_utils.ts";
 
 Deno.test({

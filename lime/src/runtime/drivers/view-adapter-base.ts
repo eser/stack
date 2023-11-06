@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import type * as React from "react";
 import { type Island } from "../../server/types.ts";
 export { type Island } from "../../server/types.ts";

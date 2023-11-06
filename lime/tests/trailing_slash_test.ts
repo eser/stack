@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { INTERNAL_PREFIX } from "../runtime.ts";
 import { ServerContext, Status } from "../server.ts";
 import { assert, assertEquals } from "./deps.ts";

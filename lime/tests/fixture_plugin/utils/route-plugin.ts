@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type MiddlewareHandlerContext, type Plugin } from "../../../server.ts";
 import { handler as testMiddleware } from "./sample_routes/_middleware.ts";
 import { AppBuilder } from "./sample_routes/AppBuilder.tsx";

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { assertEquals, assertThrows } from "$std/assert/mod.ts";
 import { pathToPattern, sortRoutePaths } from "./fs_extract.ts";
 

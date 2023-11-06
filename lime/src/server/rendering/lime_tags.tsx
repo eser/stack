@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { bundleAssetUrl } from "../constants.ts";
 import { RenderState } from "./state.ts";
 import { htmlEscapeJsonString } from "../htmlescape.ts";

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 /// <reference no-default-lib="true" />
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
@@ -6,7 +8,7 @@
 
 import { start } from "../../server.ts";
 import { manifest } from "./manifest.gen.ts";
-import { options } from "./options.ts";
+import { config } from "./config.ts";
 
 // this just exists to function as a type check to assert that we can actually pass a key and cert in
-await start(manifest, { ...options, key: "test", cert: "test" });
+await start(manifest, { ...config, key: "test", cert: "test" });

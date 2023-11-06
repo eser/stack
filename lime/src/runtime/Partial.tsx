@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type ReactElement } from "react";
 import { type ComponentChildren } from "./drivers/view.tsx";
 

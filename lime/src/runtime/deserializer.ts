@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 // Run `deno run -A npm:esbuild --minify src/runtime/deserializer.ts` to minify
 // this file. It is embedded into src/server/deserializer_code.ts.
 

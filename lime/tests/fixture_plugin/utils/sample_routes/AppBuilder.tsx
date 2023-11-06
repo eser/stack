@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type AppProps } from "../../../../server.ts";
 import { Head } from "../../../../runtime.ts";
 import { type Options } from "../route-plugin.ts";

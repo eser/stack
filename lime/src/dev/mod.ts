@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { join, relative, semver, walk, WalkEntry } from "./deps.ts";
 export { generate, type Manifest } from "./manifest.ts";
 import { generate, type Manifest } from "./manifest.ts";

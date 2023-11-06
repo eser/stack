@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { startLimeServerExpectErrors } from "./test_utils.ts";
 import { dirname, join } from "$std/path/mod.ts";
 import { assertStringIncludes } from "./deps.ts";

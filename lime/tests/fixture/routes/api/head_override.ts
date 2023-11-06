@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 export const handler = {
   HEAD() {
     return new Response(null, {

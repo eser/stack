@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { assert, delay } from "./deps.ts";
 import { withPageName } from "./test_utils.ts";
 

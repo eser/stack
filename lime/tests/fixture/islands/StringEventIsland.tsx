@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 export default function StringEventIsland() {
   return (
     <button // @ts-ignore - we don't officially recommend this, but lots of

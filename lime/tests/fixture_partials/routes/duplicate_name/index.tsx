@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { Partial } from "$cool/lime/runtime.ts";
 import { PageProps } from "$cool/lime/server.ts";
 

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type AppProps, type Handler } from "../../../server.ts";
 
 export const handler: Handler = (_req, ctx) => {

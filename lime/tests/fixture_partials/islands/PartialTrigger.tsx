@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type Signal } from "@preact/signals-react";
 import { type ComponentChildren } from "../../../src/runtime/drivers/view.tsx";
 

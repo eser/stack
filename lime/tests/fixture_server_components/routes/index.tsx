@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import * as path from "$std/path/mod.ts";
 
 const __dirname = path.dirname(path.fromFileUrl(import.meta.url));

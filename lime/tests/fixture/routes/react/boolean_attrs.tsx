@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { defineRoute } from "../../../../server.ts";
 import { FormIsland } from "../../islands/FormIsland.tsx";
 

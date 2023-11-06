@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type ComponentChildren, view } from "./drivers/view.tsx";
 
 export interface IslandProps {

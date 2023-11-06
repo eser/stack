@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type Handlers, type PageProps } from "../../../server.ts";
 
 interface Data extends Record<string, unknown> {

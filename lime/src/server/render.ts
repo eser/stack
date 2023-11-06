@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { view, type VNode } from "../runtime/drivers/view.tsx";
 import {
   type AppModule,

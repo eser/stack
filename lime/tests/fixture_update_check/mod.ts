@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { updateCheck } from "../../src/dev/update_check.ts";
 import { DAY } from "../../src/dev/deps.ts";
 

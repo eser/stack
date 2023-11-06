@@ -1,5 +1,5 @@
 // Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
-// Copied from std/_tools/check_license.ts
+// Copied from $std/_tools/check_license.ts
 
 import { walk } from "$std/fs/walk.ts";
 
@@ -9,7 +9,7 @@ const ROOT = new URL("../../", import.meta.url);
 const CHECK = Deno.args.includes("--check");
 const CURRENT_YEAR = new Date().getFullYear();
 const RX_COPYRIGHT = new RegExp(
-  `// Copyright ([0-9]{4}) the cool authors\\. All rights reserved\\. Apache-2.0 license\\.\n`,
+  `// Copyright ([0-9]{4}) the cool authors\\. All rights reserved\\. ([0-9A-Za-z\-\.]+) license\\.\n`,
 );
 const COPYRIGHT =
   `// Copyright ${CURRENT_YEAR} the cool authors. All rights reserved. Apache-2.0 license.`;
@@ -23,7 +23,7 @@ for await (
       /_etc\/coverage\/*$/,
       /_etc\/temp\/*$/,
       /_etc\/templates\/*$/,
-      /lime\/*$/,
+      /manifest\.gen\.ts$/,
     ],
     includeDirs: false,
   })

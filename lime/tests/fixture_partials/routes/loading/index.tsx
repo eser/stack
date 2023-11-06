@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { useSignal } from "@preact/signals-react";
 import { Partial } from "../../../../runtime.ts";
 import Spinner from "../../islands/Spinner.tsx";

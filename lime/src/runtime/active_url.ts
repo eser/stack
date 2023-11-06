@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type ReactElement } from "react";
 import { DATA_ANCESTOR, DATA_CURRENT } from "../constants.ts";
 

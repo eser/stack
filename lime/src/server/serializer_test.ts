@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-explicit-any
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
 
 import { serialize } from "./serializer.ts";
 import { assert, assertEquals, assertSnapshot } from "../../tests/deps.ts";
@@ -51,6 +51,7 @@ Deno.test("serializer - signals", async (t) => {
   assert(res.requiresDeserializer);
   assert(res.hasSignals);
   await assertSnapshot(t, res.serialized);
+  // deno-lint-ignore no-explicit-any
   const deserialized: any = deserialize(res.serialized, signal);
   assertEquals(typeof deserialized, "object");
   assertEquals(deserialized.a, 1);
@@ -67,6 +68,7 @@ Deno.test("serializer - multiple versions of @preact/signals-core", async (t) =>
   assert(res.requiresDeserializer);
   assert(res.hasSignals);
   await assertSnapshot(t, res.serialized);
+  // deno-lint-ignore no-explicit-any
   const deserialized: any = deserialize(res.serialized, signal);
   assertEquals(typeof deserialized, "object");
   assertEquals(deserialized.a, 1);
@@ -85,6 +87,7 @@ Deno.test("serializer - magic key", async (t) => {
 });
 
 Deno.test("serializer - circular reference objects", async (t) => {
+  // deno-lint-ignore no-explicit-any
   const data: any = { a: 1 };
   data.b = data;
   const res = serialize(data);
@@ -96,6 +99,7 @@ Deno.test("serializer - circular reference objects", async (t) => {
 });
 
 Deno.test("serializer - circular reference nested objects", async (t) => {
+  // deno-lint-ignore no-explicit-any
   const data: any = { a: 1, b: { c: 2 } };
   data.b.d = data;
   const res = serialize(data);
@@ -107,18 +111,21 @@ Deno.test("serializer - circular reference nested objects", async (t) => {
 });
 
 Deno.test("serializer - circular reference array", async (t) => {
+  // deno-lint-ignore no-explicit-any
   const data: any = [1, 2, 3];
   data.push(data);
   const res = serialize(data);
   assert(res.requiresDeserializer);
   assert(!res.hasSignals);
   await assertSnapshot(t, res.serialized);
+  // deno-lint-ignore no-explicit-any
   const deserialized: any = deserialize(res.serialized);
   assertEquals(deserialized, data);
   assertEquals(deserialized.length, 4);
 });
 
 Deno.test("serializer - multiple reference", async (t) => {
+  // deno-lint-ignore no-explicit-any
   const data: any = { a: 1, b: { c: 2 } };
   data.d = data.b;
   const res = serialize(data);
@@ -130,6 +137,7 @@ Deno.test("serializer - multiple reference", async (t) => {
 });
 
 Deno.test("serializer - multiple reference signals", async (t) => {
+  // deno-lint-ignore no-explicit-any
   const inner: any = { [KEY]: "x", x: 1 };
   inner.y = inner;
   const s = signal(inner);
@@ -138,6 +146,7 @@ Deno.test("serializer - multiple reference signals", async (t) => {
   assert(res.requiresDeserializer);
   assert(res.hasSignals);
   await assertSnapshot(t, res.serialized);
+  // deno-lint-ignore no-explicit-any
   const deserialized: any = deserialize(res.serialized, signal);
   assertEquals(deserialized.a.value, inner);
   assertEquals(deserialized.a.peek(), inner);
@@ -150,12 +159,14 @@ Deno.test("serializer - multiple reference signals", async (t) => {
 
 Deno.test("serializer - multiple reference in magic key", async (t) => {
   const inner = { foo: "bar" };
+  // deno-lint-ignore no-explicit-any
   const literal: any = { [KEY]: "x", inner };
   const data = { literal, inner };
   const res = serialize(data);
   assert(res.requiresDeserializer);
   assert(!res.hasSignals);
   await assertSnapshot(t, res.serialized);
+  // deno-lint-ignore no-explicit-any
   const deserialized: any = deserialize(res.serialized);
   assertEquals(deserialized, data);
 });
@@ -168,6 +179,7 @@ Deno.test("serializer - multiple reference in signal", async (t) => {
   assert(res.requiresDeserializer);
   assert(res.hasSignals);
   await assertSnapshot(t, res.serialized);
+  // deno-lint-ignore no-explicit-any
   const deserialized: any = deserialize(res.serialized, signal);
   assertEquals(deserialized.s.value, inner);
   assertEquals(deserialized.s.peek(), inner);

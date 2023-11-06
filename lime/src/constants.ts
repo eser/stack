@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 export const PARTIAL_SEARCH_PARAM = "lime-partial";
 export const PARTIAL_ATTR = "f-partial";
 export const LOADING_ATTR = "f-loading";

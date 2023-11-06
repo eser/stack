@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { Plugin } from "../../../server.ts";
 
 let CSS_TO_INJECT = "h1 { text-decoration: underline; }";

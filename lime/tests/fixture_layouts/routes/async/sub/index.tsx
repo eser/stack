@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type RouteContext } from "../../../../../server.ts";
 
 export default async function AsyncSubPage(_req: Request, _ctx: RouteContext) {

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { assertEquals } from "$std/assert/mod.ts";
 import { specifierToIdentifier } from "./manifest.ts";
 

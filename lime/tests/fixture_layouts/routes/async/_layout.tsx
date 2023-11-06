@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. MIT license.
+
 import { type LayoutContext } from "../../../../server.ts";
 import { delay } from "../../../deps.ts";
 

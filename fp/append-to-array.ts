@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 export const appendToArray = <T>(
   instance: Iterable<T>,
   ...values: ReadonlyArray<T>

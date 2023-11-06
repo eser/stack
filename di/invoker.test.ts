@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 import { assert, bdd } from "../deps.ts";
 import { Registry } from "./container.ts";
 import { invoke } from "./invoker.ts";

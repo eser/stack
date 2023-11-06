@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 import metadata from "./metadata.json" assert { type: "json" };
 import { deno, posix } from "./deps.ts";
 

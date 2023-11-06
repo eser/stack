@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 import { events } from "../events/events.ts";
 import { di } from "../di/services.ts";
 

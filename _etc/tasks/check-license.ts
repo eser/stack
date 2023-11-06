@@ -2,15 +2,10 @@
 // Copied from std/_tools/check_license.ts
 
 import { walk } from "$std/fs/walk.ts";
-import { globToRegExp } from "$std/path/glob.ts";
 
-const EXTENSIONS = [".ts", ".tsx"];
-const EXCLUDED_DIRS = [
-  "data",
-  "static",
-];
+const EXTENSIONS = ["*.js", ".ts", "*.jsx", ".tsx"];
 
-const ROOT = new URL("../", import.meta.url);
+const ROOT = new URL("../../", import.meta.url);
 const CHECK = Deno.args.includes("--check");
 const CURRENT_YEAR = new Date().getFullYear();
 const RX_COPYRIGHT = new RegExp(
@@ -25,9 +20,10 @@ for await (
   const { path } of walk(ROOT, {
     exts: EXTENSIONS,
     skip: [
-      ...EXCLUDED_DIRS.map((path) => globToRegExp(path)),
-      /manifest\.gen\.ts/,
-      /_etc\/temp\//,
+      /_etc\/coverage\/*$/,
+      /_etc\/temp\/*$/,
+      /_etc\/templates\/*$/,
+      /lime\/*$/,
     ],
     includeDirs: false,
   })

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 export const curry = <T1, T2, T3>(
   func: (...args: readonly [...ReadonlyArray<T1>, ...ReadonlyArray<T2>]) => T3,
   ...args: ReadonlyArray<T1>

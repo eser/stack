@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 type Key = string | number | symbol;
 
 // deno-lint-ignore no-explicit-any

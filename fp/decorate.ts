@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 export type Decorated<T1, T2> = (...args: ReadonlyArray<T1>) => T2;
 
 export const decorate = <T1, T2>(

@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 // deno-lint-ignore-file no-explicit-any
 export type RewindableIterator<T, TReturn = any, TNext = undefined> =
   & Iterable<T>

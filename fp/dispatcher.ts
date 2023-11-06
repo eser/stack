@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 export type NextType<T> = (newState: T) => Promise<T>;
 export type MutatorType<T> = (state: T, next: NextType<T>) => Promise<T>;
 export type LogType<T> = { action: string; previousState: T; newState: T };

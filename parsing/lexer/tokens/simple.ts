@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 import { isAlphanumeric } from "../checks/is-alphanumeric.ts";
 import { isNumeric } from "../checks/is-numeric.ts";
 import { isWhitespace } from "../checks/is-whitespace.ts";

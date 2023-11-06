@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 import { type Promisable } from "../standards/promises.ts";
 import { env } from "./base.ts";
 import { load, type LoaderOptions } from "./loader.ts";

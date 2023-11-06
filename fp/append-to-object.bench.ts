@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 import { deno } from "../deps.ts";
 import { appendToObject } from "./append-to-object.ts";
 

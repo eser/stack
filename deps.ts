@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 /// <reference lib="deno.ns" />
 /// <reference lib="deno.unstable" />
 

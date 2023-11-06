@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 import { assert, bdd } from "../deps.ts";
 import { pipe } from "./pipe.ts";
 import { iterate } from "./iterate.ts";

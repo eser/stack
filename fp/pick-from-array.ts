@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 export type PickFromArrayResult<T> = { items: Array<T>; rest: Array<T> };
 
 export const pickFromArray = <T>(

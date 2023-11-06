@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 export type PickFromObjectResult<T> = {
   items: Record<string | number | symbol, T>;
   rest: Record<string | number | symbol, T>;

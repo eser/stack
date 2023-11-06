@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 export * from "./append-to-array.ts";
 export * from "./append-to-object.ts";
 export * from "./associate-array.ts";

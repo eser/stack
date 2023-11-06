@@ -1,3 +1,5 @@
+// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+
 import { type ArgList } from "../standards/functions.ts";
 
 // deno-lint-ignore no-explicit-any

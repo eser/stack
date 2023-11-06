@@ -38,50 +38,34 @@ repos:
       files: '[^a-z0-9.\-\/\[\]\@]'
       exclude: |
         (?x)^(
+          _etc/.*|
           .github/FUNDING.yml|
           .github/ISSUE_TEMPLATE/bug_report.md|
           .github/ISSUE_TEMPLATE/feature_request.md|
           .github/PULL_REQUEST_TEMPLATE.md|
-          directives/README.md|
-          standards/README.md|
+          appserver/README.md|
           di/README.md|
-          fp/README.md|
+          directives/README.md|
           dotenv/README.md|
+          events/README.md|
+          fp/README.md|
+          functions/README.md|
+          jsx-runtime/README.md|
+          lime/*|
           parsing/README.md|
+          standards/README.md|
+          CNAME|
           CODE_OF_CONDUCT.md|
           CONTRIBUTING.md|
           Dockerfile|
           LICENSE|
           README.md|
-          SECURITY.md|
-          _etc/.*|
-          lime/.*
+          SECURITY.md
         )$
-    - id: deno-fmt
-      name: verify formatting
-      description: Auto-format JavaScript, TypeScript, Markdown, and JSON files.
-      entry: deno fmt --check
+    - id: check-integrity
+      name: check integrity
+      description: Check formatting, linting, license headers, types and run tests.
+      entry: deno task ok
       types_or: [javascript, jsx, ts, tsx, json, markdown]
       pass_filenames: false
       language: system
-    - id: deno-lint
-      name: lint
-      description: Lint JavaScript/TypeScript source code.
-      entry: deno lint
-      types_or: [javascript, jsx, ts, tsx, json, markdown]
-      pass_filenames: false
-      language: system
-    # - id: deno-check
-    #   name: checks if modules are broken
-    #   description: Checks if modules are broken.
-    #   entry: deno task check
-    #   types_or: [javascript, jsx, ts, tsx, json, markdown]
-    #   pass_filenames: false
-    #   language: system
-    # - id: deno-test
-    #   name: run tests
-    #   description: Run tests using Deno's built-in test runner.
-    #   entry: deno task test:run
-    #   types_or: [javascript, jsx, ts, tsx, json]
-    #   pass_filenames: false
-    #   language: system

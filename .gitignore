@@ -23,8 +23,8 @@ Thumbs.db
 *.swp
 
 # coverage files
-/_etc/coverage/*.json
-/_etc/coverage/cov_profile.lcov
+/_etc/coverage/*
+/_etc/cov_profile.lcov
 
 # package managers
 node_modules/*

@@ -1,5 +1,5 @@
 // deno-lint-ignore no-explicit-any
-export type ExtraData = Record<string | number | symbol, any>;
+export type ExtraData = Record<string | symbol, any>;
 
 export interface Result<T> {
   error?: Error;

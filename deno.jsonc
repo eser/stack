@@ -50,12 +50,14 @@
     ]
   },
   "tasks": {
-    "cleanup": "rm deno.lock && deno cache --unstable --reload ./mod.ts",
+    "cleanup": "rm ./_etc/coverage/ ./_etc/cov_profile.lcov ./deno.lock && deno cache --unstable --reload ./mod.ts",
     "test": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --watch",
     "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --trace-ops --coverage=./_etc/coverage/",
-    "test:coverage": "deno coverage ./_etc/coverage/",
-    "test:generate-lcov": "deno coverage ./_etc/coverage --lcov > ./_etc/coverage/cov_profile.lcov",
-    "check": "deno run --check --reload ./mod.ts",
+    "test:coverage": "deno coverage ./_etc/coverage/ --exclude='.tsx'",
+    "test:generate-lcov": "deno coverage ./_etc/coverage --exclude='.tsx' --lcov --output=./_etc/cov_profile.lcov",
+    "check:license": "deno run --allow-read --allow-write ./_etc/tasks/check_license.ts",
+    "check:mod": "deno run --check --reload ./mod.ts",
+    "ok": "deno fmt --check && deno lint && deno task check:license --check && deno task check:mod && deno task test:run",
     "repl": "deno repl --unstable --allow-all --eval-file=./repl-init.ts"
   }
 }

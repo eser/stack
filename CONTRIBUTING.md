@@ -3,11 +3,11 @@
 👍🎉 First off, thanks for taking the time to contribute! 🎉👍
 
 The following is a set of guidelines for contributing to `cool` and its
-packages, which are hosted in GitHub. These are mostly guidelines, not rules.
-Use your best judgment, and feel free to propose changes to this document in a
-pull request.
+packages, which are hosted in GitHub. These are mostly guidelines, not strict
+rules. Use your best judgment and feel free to propose changes to this document
+in a pull request.
 
-## What should I know before I get started?
+## What Should I Know Before I Get Started?
 
 ### Code of Conduct
 
@@ -18,24 +18,45 @@ link.
 
 ### Technical Requirements
 
-Just JavaScript and Git.
+Just familiarity with JavaScript and Git.
 
 ### Conventions
 
-Using Deno Formatter should be fine for now.
+Using Deno Formatter and Linter should be fine for now. Please ensure your
+submissions are formatted accordingly.
 
 ### Design Decisions
 
-To make a significant decision in how we maintain the project and what we can or
-cannot support, please open a new topic as an issue to discuss the suggested
-design first.
+Before making significant changes, please open a new issue to discuss the
+proposed changes and its design first.
 
 ## How Can I Contribute?
 
-It is publicly open for any contribution. Reporting bugs, suggesting
-enhancements, bugfixes, new features and extra modules are welcome.
+### Ways to Contribute
 
-- To contribute to code: Fork the repo, push your changes to your fork, and
-  submit a pull request.
-- To report a bug: If something does not work, please report it using
-  [GitHub Issues](https://github.com/eser/cool/issues).
+It is publicly open for any contribution. Here are some ideas you can begin
+from:
+
+- Reporting bugs
+- Suggesting enhancements and new features
+- Implementing performance improvements
+- Improving documentation
+- Submitting bug fixes
+- Linking to your cool project
+
+## Creating an Issue
+
+- Check the [GitHub Issues](https://github.com/eser/cool/issues) first to avoid
+  duplicating an existing issue.
+- Use the issue tracker to ask questions, report problems or for discussion
+  related to the project.
+
+## Submitting a Pull Request
+
+- Adhere to [cool/directives](directives/README.md)
+- Fork the repo
+- Make your changes in a new branch
+- Provide tests for your changes, particularly for new features or fixes
+- Push changes to your own fork
+- Submit a pull request, linking it to the relevant issue. If an issue does not
+  exist, create one before submission.

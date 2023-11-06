@@ -10,7 +10,6 @@ on:
     types:
       - opened
       - synchronize
-
     branches:
       - "**"
 
@@ -20,15 +19,20 @@ on:
 jobs:
   integration:
     name: Integration
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     permissions:
-      contents: read
+      contents: read # Needed to clone the repository
 
     strategy:
+      fail-fast: false
       matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macOS-latest
         deno-version:
-          - 1.36.4
+          - 1.38.0
 
     steps:
       - name: Checkout repository
@@ -41,16 +45,18 @@ jobs:
         with:
           deno-version: ${{ matrix.deno-version }}
 
-      - name: Verify formatting
-        run: deno fmt --check
+      - name: Check typos
+        if: matrix.os == 'ubuntu-latest'
+        uses: crate-ci/typos@master
 
-      - name: Lint
-        run: deno lint
+      - name: Check formatting, linting, license headers, types and run tests
+        run: deno task ok
 
-      # - name: Check if modules are broken
-      #   run: |
-      #     deno task api:check
-      #     deno task web:check
+      - name: Create lcov file
+        run: deno task cov:gen
 
-      # - name: Run tests
-      #   run: deno task test:run
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          name: ${{ matrix.os }}
+          files: _etc/cov_profile.lcov

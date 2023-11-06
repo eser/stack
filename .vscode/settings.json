@@ -4,9 +4,8 @@
   "coverage-gutters.showGutterCoverage": true,
   "coverage-gutters.showLineCoverage": true,
   "coverage-gutters.showRulerCoverage": true,
-  "deno.documentPreloadLimit": 2000,
-  "deno.enable": true,
   "deno.codeLens.test": true,
+  "deno.enable": true,
   "deno.lint": true,
   "deno.suggest.autoImports": true,
   "deno.suggest.completeFunctionCalls": true,
@@ -16,17 +15,6 @@
   "editor.defaultFormatter": "denoland.vscode-deno",
   "yaml.schemas": {
     "https://json.schemastore.org/github-workflow.json": "./.github/workflows/*.yml"
-  },
-  "files.exclude": {
-    "**/.git": true,
-    "**/.DS_Store": true,
-    "**/Thumbs.db": true,
-    "_etc/coverage/*.json": false
-  },
-  "files.watcherExclude": {
-    "**/.git/objects/**": true,
-    "**/.git/subtree-cache/**": true,
-    "_etc/coverage/**": true
   },
   "[jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"

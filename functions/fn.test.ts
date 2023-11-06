@@ -1,12 +1,12 @@
 import { assert, bdd, mock } from "../deps.ts";
-import { Ok } from "./results.ts";
+import { Ok, type Result } from "./results.ts";
 import { fn } from "./fn.ts";
 
 bdd.describe("cool/functions/fn", () => {
   bdd.it("simple fn().run()", async () => {
     const spyFn = mock.spy();
 
-    const fns = fn(
+    const fns = fn<Result<string>>(
       function () {
         spyFn();
 
@@ -45,7 +45,7 @@ bdd.describe("cool/functions/fn", () => {
     const spyFn1 = mock.spy();
     const spyFn2 = mock.spy();
 
-    const fns = fn(
+    const fns = fn<Result<string>>(
       async function* (c) {
         spyFn1();
 
@@ -73,7 +73,7 @@ bdd.describe("cool/functions/fn", () => {
     const spyFn1 = mock.spy();
     const spyFn2 = mock.spy();
 
-    const fns = fn()
+    const fns = fn<Result<string>>()
       .use(
         async function* (c) {
           spyFn1();
@@ -105,7 +105,7 @@ bdd.describe("cool/functions/fn", () => {
 
     const express = fn;
 
-    const result = await express()
+    const result = await express<Result<string>>()
       .use(
         async function* (c) {
           spyFn();

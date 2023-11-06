@@ -8,6 +8,7 @@ on:
   #     - completed
   #   branches:
   #     - main
+
   push:
     branches:
       - main
@@ -18,15 +19,27 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      id-token: write
-      contents: read
+      id-token: write # Needed for auth with Deno Deploy
+      contents: read  # Needed to clone the repository
+
+    env:
+      GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID }}
+      GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET }}
 
     steps:
-      - name: Clone repository
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
-      # - name: Upload to Deno Deploy
-      #   uses: denoland/deployctl@v1
-      #   with:
-      #     project: c00l
-      #     entrypoint: ./mod.ts
+      - name: Setup Deno (latest)
+        uses: denoland/setup-deno@v1
+
+      - name: Build step
+        run: deno task build
+
+      - name: Upload to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: c00l
+          entrypoint: ./main.ts

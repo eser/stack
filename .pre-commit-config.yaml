@@ -29,6 +29,10 @@ repos:
         verbose: true
         args: [
         ]
+        exclude: |
+          (?x)^(
+            docs/.*
+          )$
   - repo: local
     hooks:
     - id: local-precommit
@@ -53,6 +57,7 @@ repos:
           appserver/README.md|
           di/README.md|
           directives/README.md|
+          docs/.*|
           dotenv/README.md|
           events/README.md|
           fp/README.md|

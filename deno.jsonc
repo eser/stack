@@ -30,33 +30,39 @@
       ]
     },
     "exclude": [
-      "_etc/temp/"
+      "_etc/temp/",
+      "docs/"
     ]
   },
   "fmt": {
     "exclude": [
-      "_etc/temp/"
+      "_etc/temp/",
+      "docs/"
     ]
   },
   "test": {
     "exclude": [
       "_etc/",
+      "docs/",
       "lime/"
     ]
   },
   "bench": {
     "exclude": [
-      "_etc/"
+      "_etc/",
+      "docs/"
     ]
   },
   "tasks": {
-    "cleanup": "rm ./_etc/coverage/ ./_etc/cov_profile.lcov ./deno.lock && deno cache --unstable --reload ./mod.ts",
+    "cleanup": "rm -rf ./_etc/coverage/ ./_etc/cov_profile.lcov ./deno.lock && deno cache --unstable --reload ./mod.ts",
+    "check:license": "deno run --allow-read --allow-write ./_etc/tasks/check-license.ts",
+    "check:mod": "deno run --check --reload ./mod.ts",
+    "doc:lint": "deno doc --lint ./mod.ts",
+    "doc:generate": "rm -rf ./docs/ && deno doc --name='cool' --output=./docs/ --html ./mod.ts",
     "test": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --watch",
     "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --trace-ops --coverage=./_etc/coverage/",
     "test:coverage": "deno coverage ./_etc/coverage/ --exclude='\\.(j|t)sx$'",
     "test:generate-lcov": "deno coverage ./_etc/coverage --exclude='\\.(j|t)sx$' --lcov --output=./_etc/cov_profile.lcov",
-    "check:license": "deno run --allow-read --allow-write ./_etc/tasks/check-license.ts",
-    "check:mod": "deno run --check --reload ./mod.ts",
     "ok": "deno fmt --check && deno lint && deno task check:license --check && deno task check:mod && deno task test:run",
     "repl": "deno repl --unstable --allow-all --eval-file=./repl-init.ts"
   }

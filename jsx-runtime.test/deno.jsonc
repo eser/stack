@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "jsx": "precompile",
+    "jsxImportSource": "$cool"
+  },
+  "lock": false,
+  "imports": {
+    "$cool/jsx-runtime": "../jsx-runtime/mod.ts",
+    "$cool/": "../"
+  }
+}

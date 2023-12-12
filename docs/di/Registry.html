@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>di.registry - cool documentation</title>
+  <title>di.Registry - cool documentation</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="doc-current-symbol" content="di.registry">
+  <meta name="doc-current-symbol" content="di.Registry">
   <link rel="stylesheet" href="./../styles.css">
-  <style></style>
 </head>
 <body>
 
@@ -71,46 +70,225 @@
 
 <div id="content">
   <a href="./../index.html">&#8592; Back to index</a>
+  <input type="text" id="searchbar" style="display: none;" />
 
-<input type="text" id="searchbar" style="display: none;" />
-
-
-  <main class="symbol_group" id="symbol_di.registry">
+  <main class="symbol_group" id="symbol_di.Registry">
 
     <article class="symbol">
       <div class="symbol_header">
         <div class="doc_block_title">
           <div>
-            <span class="kind_Variable_text">variable</span>&nbsp;<span style="font-weight: 700;">di.registry</span>
+            <span class="kind_Class_text">class</span>&nbsp;<span style="font-weight: 700;">di.Registry</span>
           </div>
+          <div class="doc_block_subtitle">
 
+
+      <div>
+        <span class="doc_block_subtitle_text"> implements </span>
+
+          <a href="./../../di/ServiceRegistry.html" class="link">ServiceRegistry</a>&lt;<a href="#type_param_K" class="link">K</a><span>, </span><a href="#type_param_V" class="link">V</a>&gt;
+
+
+      </div>
+
+
+
+
+
+
+</div>
         </div>
       </div>
       <div>
-        <div class="doc_block_items"><div><h2 class="section_title" id="type"><a href="#type" aria-label="Anchor">type</a></h2><div class="section">
-    <div class="doc_item" id="variable_registry">
-      <a
-      href="#variable_registry"
-      class="anchor"
-      aria-label="Anchor"
-      tabIndex=-1
-    >
-      <div style="width: 14px; height: 14px; display: inline-block;">&#128279;</div>
-    </a>
-      <div class="doc_entry">
-        <span class="doc_entry_children">
-          <code>
-            <span style="font-weight: 700;"></span><span style="font-weight: 500;"><a href="./../../di/Registry.html" class="link">Registry</a></span>
-          </code>
-        </span>
-      </div>
+        <div class="doc_block_items"><div>
+  Type Parameters
+  <div class="section">
+    <div class="doc_item" id="type_param_K">
 
-    </div>
-   </div></div></div>
+<a
+    href="#type_param_K"
+    class="anchor"
+    aria-label="Anchor"
+    tabIndex=-1
+>
+    <div style="width: 14px; height: 14px; display: inline-block;">&#128279;</div>
+</a>
+
+  <div class="doc_entry">
+    <span class="doc_entry_children">
+    <code>
+      <span style="font-weight: 700;">K</span><span style="font-weight: 500;">
+        <span><span> = </span><a href="./../../di/ServiceKey.html" class="link">ServiceKey</a></span>
+      </span>
+    </code>
+    </span>
+  </div>
+
+</div><div class="doc_item" id="type_param_V">
+
+<a
+    href="#type_param_V"
+    class="anchor"
+    aria-label="Anchor"
+    tabIndex=-1
+>
+    <div style="width: 14px; height: 14px; display: inline-block;">&#128279;</div>
+</a>
+
+  <div class="doc_entry">
+    <span class="doc_entry_children">
+    <code>
+      <span style="font-weight: 700;">V</span><span style="font-weight: 500;">
+        <span><span> = </span><a href="./../../di/ServiceValue.html" class="link">ServiceValue</a></span>
+      </span>
+    </code>
+    </span>
+  </div>
+
+</div>
+  </div>
+</div><div>
+  Properties
+  <div class="section">
+    <div class="doc_item" id="property_descriptors">
+
+<a
+    href="#property_descriptors"
+    class="anchor"
+    aria-label="Anchor"
+    tabIndex=-1
+>
+    <div style="width: 14px; height: 14px; display: inline-block;">&#128279;</div>
+</a>
+
+  <div class="doc_entry">
+    <span class="doc_entry_children">
+    <code>
+      <span style="font-weight: 700;">descriptors</span><span style="font-weight: 500;">
+        : <span>Map</span>&lt;<a href="#type_param_K" class="link">K</a><span>, </span><a href="./../../di/ServiceDescriptor.html" class="link">ServiceDescriptor</a>&lt;<a href="#type_param_V" class="link">V</a>&gt;&gt;
+      </span>
+    </code>
+    </span>
+  </div>
+
+</div>
+  </div>
+</div><div>
+  Methods
+  <div class="section">
+    <div class="doc_item" id="method_build_0">
+
+<a
+    href="#method_build_0"
+    class="anchor"
+    aria-label="Anchor"
+    tabIndex=-1
+>
+    <div style="width: 14px; height: 14px; display: inline-block;">&#128279;</div>
+</a>
+
+  <div class="doc_entry">
+    <span class="doc_entry_children">
+    <code>
+      <span style="font-weight: 700;">build</span><span style="font-weight: 500;">
+        ()
+      </span>
+    </code>
+    </span>
+  </div>
+
+</div><div class="doc_item" id="method_set_0">
+
+<a
+    href="#method_set_0"
+    class="anchor"
+    aria-label="Anchor"
+    tabIndex=-1
+>
+    <div style="width: 14px; height: 14px; display: inline-block;">&#128279;</div>
+</a>
+
+  <div class="doc_entry">
+    <span class="doc_entry_children">
+    <code>
+      <span style="font-weight: 700;">set</span><span style="font-weight: 500;">
+        (<span><span>token<span>: <a href="#type_param_K" class="link">K</a></span></span><span>, </span><span>value<span>: <span>Promisable</span>&lt;<a href="#type_param_V" class="link">V</a>&gt;</span></span></span>)
+      </span>
+    </code>
+    </span>
+  </div>
+
+</div><div class="doc_item" id="method_setLazy_0">
+
+<a
+    href="#method_setLazy_0"
+    class="anchor"
+    aria-label="Anchor"
+    tabIndex=-1
+>
+    <div style="width: 14px; height: 14px; display: inline-block;">&#128279;</div>
+</a>
+
+  <div class="doc_entry">
+    <span class="doc_entry_children">
+    <code>
+      <span style="font-weight: 700;">setLazy</span><span style="font-weight: 500;">
+        (<span><span>token<span>: <a href="#type_param_K" class="link">K</a></span></span><span>, </span><span>value<span>: <a href="./../../di/PromisableBuilder.html" class="link">PromisableBuilder</a>&lt;<a href="#type_param_V" class="link">V</a>&gt;</span></span></span>)
+      </span>
+    </code>
+    </span>
+  </div>
+
+</div><div class="doc_item" id="method_setScoped_0">
+
+<a
+    href="#method_setScoped_0"
+    class="anchor"
+    aria-label="Anchor"
+    tabIndex=-1
+>
+    <div style="width: 14px; height: 14px; display: inline-block;">&#128279;</div>
+</a>
+
+  <div class="doc_entry">
+    <span class="doc_entry_children">
+    <code>
+      <span style="font-weight: 700;">setScoped</span><span style="font-weight: 500;">
+        (<span><span>token<span>: <a href="#type_param_K" class="link">K</a></span></span><span>, </span><span>value<span>: <a href="./../../di/PromisableBuilder.html" class="link">PromisableBuilder</a>&lt;<a href="#type_param_V" class="link">V</a>&gt;</span></span></span>)
+      </span>
+    </code>
+    </span>
+  </div>
+
+</div><div class="doc_item" id="method_setTransient_0">
+
+<a
+    href="#method_setTransient_0"
+    class="anchor"
+    aria-label="Anchor"
+    tabIndex=-1
+>
+    <div style="width: 14px; height: 14px; display: inline-block;">&#128279;</div>
+</a>
+
+  <div class="doc_entry">
+    <span class="doc_entry_children">
+    <code>
+      <span style="font-weight: 700;">setTransient</span><span style="font-weight: 500;">
+        (<span><span>token<span>: <a href="#type_param_K" class="link">K</a></span></span><span>, </span><span>value<span>: <a href="./../../di/PromisableBuilder.html" class="link">PromisableBuilder</a>&lt;<a href="#type_param_V" class="link">V</a>&gt;</span></span></span>)
+      </span>
+    </code>
+    </span>
+  </div>
+
+</div>
+  </div>
+</div></div>
       </div>
     </article>
 
 </main>
+
 
   <div id="searchResults"></div>
 </div>

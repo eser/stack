@@ -6,7 +6,7 @@ repos:
         args: ["--maxkb=1024"]
         exclude: |
           (?x)^(
-            lime/src/build/esbuild_v0.19.2.wasm
+            lime/build/esbuild_v0.19.2.wasm
           )$
       - id: check-case-conflict
       - id: check-executables-have-shebangs
@@ -22,8 +22,9 @@ repos:
       - id: fix-byte-order-marker
       - id: forbid-new-submodules
       - id: mixed-line-ending
+      - id: trailing-whitespace
   - repo: https://github.com/crate-ci/typos
-    rev: v1.16.22
+    rev: v1.16.23
     hooks:
       - id: typos
         verbose: true
@@ -46,7 +47,7 @@ repos:
       name: kebab-case files only
       entry: filenames must be kebab-case only
       language: fail
-      files: '[^a-z0-9.\-\/\[\]\@]'
+      files: '(?!\.test\.[jt]sx?$)[^a-z0-9.\/\[\]@-]'
       exclude: |
         (?x)^(
           _etc/.*|
@@ -66,7 +67,6 @@ repos:
           lime/.*|
           parsing/README.md|
           standards/README.md|
-          CNAME|
           CODE_OF_CONDUCT.md|
           CONTRIBUTING.md|
           Dockerfile|

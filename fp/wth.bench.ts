@@ -1,15 +1,15 @@
-// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
 
-import { deno } from "../deps.ts";
+import * as runtime from "../standards/runtime.ts";
 import { wth } from "./wth.ts";
 
 const group = "wth";
 
-deno.bench("cool/fp/wth", { group, baseline: true }, () => {
+runtime.bench("cool/fp/wth", { group, baseline: true }, () => {
   wth({ a: 1 }, { b: 2 });
 });
 
-deno.bench("spread operator", { group }, () => {
+runtime.bench("spread operator", { group }, () => {
   const instance = { a: 1 };
   const mapping = { b: 2 };
 

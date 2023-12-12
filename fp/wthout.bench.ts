@@ -1,12 +1,12 @@
-// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
 
-import { deno } from "../deps.ts";
+import * as runtime from "../standards/runtime.ts";
 import { wthout } from "./wthout.ts";
 import lodashReject from "npm:lodash.reject";
 
 const group = "wthout";
 
-deno.bench("cool/fp/wthout", { group, baseline: true }, () => {
+runtime.bench("cool/fp/wthout", { group, baseline: true }, () => {
   const student = {
     id: 1,
     name: "John Doe",
@@ -17,7 +17,7 @@ deno.bench("cool/fp/wthout", { group, baseline: true }, () => {
   wthout(student, "name", "age");
 });
 
-deno.bench("npm:lodash.reject", { group }, () => {
+runtime.bench("npm:lodash.reject", { group }, () => {
   const student = {
     id: 1,
     name: "John Doe",

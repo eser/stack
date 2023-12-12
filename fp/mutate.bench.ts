@@ -1,11 +1,11 @@
-// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
 
-import { deno } from "../deps.ts";
+import * as runtime from "../standards/runtime.ts";
 import { mutate } from "./mutate.ts";
 
 const group = "mutate";
 
-deno.bench("cool/fp/mutate", { group, baseline: true }, () => {
+runtime.bench("cool/fp/mutate", { group, baseline: true }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
@@ -15,7 +15,7 @@ deno.bench("cool/fp/mutate", { group, baseline: true }, () => {
   mutate(obj1, (x) => x.firstName = "Helo");
 });
 
-deno.bench("Object.assign", { group }, () => {
+runtime.bench("Object.assign", { group }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
@@ -25,7 +25,7 @@ deno.bench("Object.assign", { group }, () => {
   Object.assign({}, obj1, { firstName: "Helo" });
 });
 
-deno.bench("spread operator", { group }, () => {
+runtime.bench("spread operator", { group }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",

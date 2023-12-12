@@ -1,6 +1,7 @@
-// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
 
-import { assert, bdd } from "../deps.ts";
+import * as assert from "$std/assert/mod.ts";
+import * as bdd from "$std/testing/bdd.ts";
 import { takeFromArray } from "./take-from-array.ts";
 
 bdd.describe("cool/fp/take-from-array", () => {

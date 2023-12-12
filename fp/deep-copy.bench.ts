@@ -1,6 +1,6 @@
-// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
 
-import { deno } from "../deps.ts";
+import * as runtime from "../standards/runtime.ts";
 import { deepCopy, deepCopy2 } from "./deep-copy.ts";
 
 const group = "deep-copy";
@@ -13,19 +13,19 @@ class Dummy {
   }
 }
 
-deno.bench("cool/fp/deep-copy", { group, baseline: true }, () => {
+runtime.bench("cool/fp/deep-copy", { group, baseline: true }, () => {
   const obj1 = new Dummy({ value: 5 });
 
   deepCopy(obj1);
 });
 
-deno.bench("cool/fp/deep-copy-2", { group }, () => {
+runtime.bench("cool/fp/deep-copy-2", { group }, () => {
   const obj1 = new Dummy({ value: 5 });
 
   deepCopy2(obj1);
 });
 
-deno.bench("structuredClone", { group }, () => {
+runtime.bench("structuredClone", { group }, () => {
   const obj1 = new Dummy({ value: 5 });
 
   structuredClone(obj1);

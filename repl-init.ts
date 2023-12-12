@@ -1,13 +1,13 @@
-// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
 
-import { load } from "./dotenv/mod.ts";
-import { deno } from "./deps.ts";
+import * as dotenv from "./dotenv/mod.ts";
+import * as runtime from "./standards/runtime.ts";
 import * as mod from "./mod.ts";
 
 // TODO(@eser) get dependency injection container entries instead of this
 await (async () => {
-  const env = await load();
-  const kv = await deno.openKv();
+  const env = await dotenv.load();
+  const kv = await runtime.openKv();
 
   const variables: Record<string, unknown> = {
     ...mod,

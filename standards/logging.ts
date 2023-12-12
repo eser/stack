@@ -1,4 +1,4 @@
-// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
 
 import { type ArgList } from "./functions.ts";
 

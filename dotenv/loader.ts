@@ -1,6 +1,7 @@
-// Copyright 2023 the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
 
-import { deno, dotenv } from "../deps.ts";
+import * as dotenv from "$std/dotenv/mod.ts";
+import * as runtime from "../standards/runtime.ts";
 import { defaultEnvValue, defaultEnvVar, env, type EnvMap } from "./base.ts";
 
 // interface definitions
@@ -21,7 +22,7 @@ export const parseEnvFromFile = async (
   filepath: string,
 ): Promise<ReturnType<typeof parseEnvString>> => {
   try {
-    const data = await deno.readFile(filepath);
+    const data = await runtime.readFile(filepath);
     const decoded = new TextDecoder("utf-8").decode(data);
     const escaped = decodeURIComponent(decoded);
 
@@ -29,7 +30,7 @@ export const parseEnvFromFile = async (
 
     return result;
   } catch (e) {
-    if (e instanceof deno.errors.NotFound) {
+    if (e instanceof runtime.errors.NotFound) {
       return {};
     }
 
@@ -47,7 +48,7 @@ export const load = async (
     ...(options ?? {}),
   };
 
-  const sysVars = deno.env.toObject();
+  const sysVars = runtime.env.toObject();
   const envName = sysVars[options_.defaultEnvVar] ?? options_.defaultEnvValue;
 
   const vars = new Map<typeof env | string, string>();

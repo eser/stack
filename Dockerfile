@@ -1,4 +1,4 @@
-FROM denoland/deno:debian-1.36.4
+FROM denoland/deno:distroless-1.38.5
 
 EXPOSE 8080
 
@@ -8,5 +8,4 @@ USER deno
 
 COPY ./ ./
 
-ENTRYPOINT []
-CMD ["deno", "task", "repl"]
+ENTRYPOINT ["deno", "task", "repl"]

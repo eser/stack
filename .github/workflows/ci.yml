@@ -48,11 +48,13 @@ jobs:
       - name: Check formatting, linting, license headers, types and run tests
         run: deno task ok
 
-      - name: Create lcov file
-        run: deno task test:generate-lcov
+      - name: Generate coverage report
+        run: deno task test:coverage-gen
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           name: ${{ matrix.os }}
-          files: _etc/cov_profile.lcov
+          files: ./_etc/coverage.lcov

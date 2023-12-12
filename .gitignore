@@ -24,7 +24,7 @@ Thumbs.db
 
 # coverage files
 /_etc/coverage/*
-/_etc/cov_profile.lcov
+/_etc/coverage.lcov
 
 # package managers
 node_modules/*

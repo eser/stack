@@ -1,17 +1,37 @@
 {
-  "coverage-gutters.coverageBaseDir": "**/_etc/coverage",
-  "coverage-gutters.coverageFileNames": ["cov_profile.lcov"],
+  "coverage-gutters.coverageBaseDir": "./_etc",
+  "coverage-gutters.coverageFileNames": [
+    "coverage.lcov"
+  ],
   "coverage-gutters.showGutterCoverage": true,
   "coverage-gutters.showLineCoverage": true,
   "coverage-gutters.showRulerCoverage": true,
+  "deno.cacheOnSave": true,
+  "deno.codeLens.implementations": true,
+  "deno.codeLens.references": true,
+  "deno.codeLens.referencesAllFunctions": true,
   "deno.codeLens.test": true,
   "deno.enable": true,
   "deno.lint": true,
-  "deno.suggest.autoImports": true,
-  "deno.suggest.completeFunctionCalls": true,
   "deno.suggest.imports.autoDiscover": true,
-  "deno.suggest.names": true,
-  "deno.suggest.paths": true,
+  "deno.unstable": true,
+  "javascript.suggest.autoImports": true,
+  "javascript.suggest.completeFunctionCalls": true,
+  "javascript.suggest.completeJSDocs": true,
+  "javascript.suggest.enabled": true,
+  "javascript.suggest.includeAutomaticOptionalChainCompletions": true,
+  "javascript.suggest.includeCompletionsForImportStatements": true,
+  "javascript.suggest.jsdoc.generateReturns": true,
+  "javascript.suggest.names": true,
+  "javascript.suggest.paths": true,
+  "typescript.suggest.autoImports": true,
+  "typescript.suggest.completeFunctionCalls": true,
+  "typescript.suggest.completeJSDocs": true,
+  "typescript.suggest.enabled": true,
+  "typescript.suggest.includeAutomaticOptionalChainCompletions": true,
+  "typescript.suggest.includeCompletionsForImportStatements": true,
+  "typescript.suggest.jsdoc.generateReturns": true,
+  "typescript.suggest.paths": true,
   "editor.defaultFormatter": "denoland.vscode-deno",
   "yaml.schemas": {
     "https://json.schemastore.org/github-workflow.json": "./.github/workflows/*.yml"
@@ -19,22 +39,7 @@
   "[jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"
   },
-  "[postcss]": {
-    "editor.defaultFormatter": "ronilaukkarinen.vscode-stylefmt"
-  },
-  "[javascriptreact]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "[javascript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "[markdown]": {
+  "[typescript][typescriptreact][javascript][javascriptreact][markdown]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
   }
 }

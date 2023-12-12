@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-run --allow-read --allow-write --allow-net
-// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { metadata } from "https://deno.land/x/cool@0.7.13/mod.ts";
 import { deno } from "https://deno.land/x/cool@0.7.13/deps.ts";

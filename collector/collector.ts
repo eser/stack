@@ -1,7 +1,12 @@
-// Copyright 2023-present the cool authors. All rights reserved. MIT license.
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as path from "$std/path/mod.ts";
-import * as walk from "$std/fs/walk.ts";
+// This file contains code from deno fresh (https://github.com/denoland/fresh),
+// which is a web framework, licensed under the MIT license.
+
+// Copyright (c) 2023 Eser Ozvataf and other contributors
+// Copyright (c) 2021-2023 Luca Casonato
+
+import { path, walk } from "./deps.ts";
 import * as patterns from "../standards/patterns.ts";
 
 export async function* walkFiles(

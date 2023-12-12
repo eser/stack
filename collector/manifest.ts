@@ -1,12 +1,14 @@
-// Copyright 2023-present the cool authors. All rights reserved. MIT license.
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import {
-  isIdentifierChar,
-  isIdentifierStart,
-} from "https://esm.sh/@babel/helper-validator-identifier@7.22.20";
-import * as path from "$std/path/mod.ts";
-import * as posix from "$std/path/posix/mod.ts";
+// This file contains code from deno fresh (https://github.com/denoland/fresh),
+// which is a web framework, licensed under the MIT license.
+
+// Copyright (c) 2023 Eser Ozvataf and other contributors
+// Copyright (c) 2021-2023 Luca Casonato
+
+import { path, posix } from "./deps.ts";
 import * as runtime from "../standards/runtime.ts";
+import * as validatorIdentifier from "./validator-identifier/mod.ts";
 import * as collector from "./collector.ts";
 import * as formatter from "./formatter.ts";
 
@@ -43,12 +45,12 @@ export function specifierToIdentifier(specifier: string, used: Set<string>) {
   let ident = "";
   for (let i = 0; i < specifier.length; i++) {
     const char = specifier.charCodeAt(i);
-    if (i === 0 && !isIdentifierStart(char)) {
+    if (i === 0 && !validatorIdentifier.isIdentifierStart(char)) {
       ident += "_";
-      if (isIdentifierChar(char)) {
+      if (validatorIdentifier.isIdentifierChar(char)) {
         ident += specifier[i];
       }
-    } else if (!isIdentifierChar(char)) {
+    } else if (!validatorIdentifier.isIdentifierChar(char)) {
       if (ident[ident.length - 1] !== "_") {
         ident += "_";
       }

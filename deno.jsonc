@@ -13,8 +13,7 @@
   "lock": false,
   "imports": {
     "$cool/jsx-runtime": "./jsx-runtime/mod.ts",
-    "$cool/": "./",
-    "$std/": "https://deno.land/std@0.208.0/"
+    "$cool/": "./"
   },
   "lint": {
     "rules": {

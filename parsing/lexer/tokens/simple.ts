@@ -1,4 +1,4 @@
-// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { isAlphanumeric } from "../checks/is-alphanumeric.ts";
 import { isNumeric } from "../checks/is-numeric.ts";

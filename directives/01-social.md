@@ -124,7 +124,7 @@ members.
 
 ## 10. Contact info
 
-[the cool authors](https://github.com/eser/cool)
+[Eser Ozvataf and other contributors](https://github.com/eser/cool)
 
 ## 11. License and attribution
 

@@ -1,8 +1,8 @@
-// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 // Copied from $std/_tools/check_license.ts
 
 import * as runtime from "../../standards/runtime.ts";
-import { walk } from "$std/fs/walk.ts";
+import { walk } from "./deps.ts";
 
 const EXTENSIONS = ["*.js", ".ts", "*.jsx", ".tsx"];
 
@@ -10,15 +10,15 @@ const ROOT = new URL("../../", import.meta.url);
 const CHECK = runtime.args.includes("--check");
 const CURRENT_YEAR = new Date().getFullYear();
 const RX_COPYRIGHT = new RegExp(
-  `// Copyright ([0-9]{4})-present the cool authors\\. All rights reserved\\. ([0-9A-Za-z\-\.]+) license\\.\n`,
+  `// Copyright ([0-9]{4})-present Eser Ozvataf and other contributors\\. All rights reserved\\. ([0-9A-Za-z\-\.]+) license\\.\n`,
 );
 const COPYRIGHT =
-  `// Copyright ${CURRENT_YEAR}-present the cool authors. All rights reserved. Apache-2.0 license.`;
+  `// Copyright ${CURRENT_YEAR}-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.`;
 
 let failed = false;
 
 for await (
-  const entry of walk(ROOT, {
+  const entry of walk.walk(ROOT, {
     exts: EXTENSIONS,
     skip: [
       /_etc\/coverage\/*$/,

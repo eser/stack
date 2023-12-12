@@ -1,7 +1,7 @@
-// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as dotenv from "$std/dotenv/mod.ts";
 import * as runtime from "../standards/runtime.ts";
+import { dotenv } from "./deps.ts";
 import { defaultEnvValue, defaultEnvVar, env, type EnvMap } from "./base.ts";
 
 // interface definitions

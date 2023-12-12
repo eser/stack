@@ -1,10 +1,9 @@
-// Copyright 2023-present the cool authors. All rights reserved. Apache-2.0 license.
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /// <reference lib="deno.ns" />
 /// <reference lib="deno.unstable" />
 
-import * as JSONC from "$std/jsonc/mod.ts";
-import * as path from "$std/path/mod.ts";
+import { JSONC, path } from "./deps.ts";
 
 if (globalThis.Deno === undefined) {
   throw new Error("Deno is not defined");

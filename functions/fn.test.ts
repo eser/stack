@@ -9,7 +9,7 @@ bdd.describe("cool/functions/fn", () => {
     const spyFn = mock.spy();
 
     const fns = fn<Result<string>>(
-      function () {
+      () => {
         spyFn();
 
         return Ok("Testing");

@@ -24,11 +24,11 @@ bdd.describe("cool/jsx-runtime", () => {
     const spyFn = mock.spy();
 
     // deno-lint-ignore no-explicit-any
-    function hook(vnode: any) {
+    const hook = (vnode: any) => {
       if (vnode.props["lime-hack"]) {
         spyFn();
       }
-    }
+    };
 
     // @ts-ignore typescript don't recognize this
     jsxRuntimeInternal.options.tagHelperHook = hook;

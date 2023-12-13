@@ -8,6 +8,8 @@ import { type Channel } from "./channel.ts";
 import { type Module } from "./module.ts";
 
 export class AppServer {
+  static default = Symbol("default");
+
   runMode: runModes.RunMode;
   events: typeof events;
   di: typeof di;
@@ -34,6 +36,10 @@ export class AppServer {
     this.channels.set(name, channel);
   }
 
-  execute(_options: unknown) {
+  setAsDefaultAppServer() {
+    this.di.register(AppServer.default, this);
   }
+
+  // execute(_options: unknown) {
+  // }
 }

@@ -3,27 +3,27 @@
 import * as runtime from "../standards/runtime.ts";
 import { semver } from "./deps.ts";
 
-export function compareSemanticVersions(
+export const compareSemanticVersions = (
   currentVersion: semver.SemVer,
   targetVersion: semver.SemVerRange | semver.SemVer,
-) {
+) => {
   if (semver.isSemVerRange(targetVersion)) {
     return semver.testRange(currentVersion, targetVersion);
   }
 
   return !semver.gte(currentVersion, targetVersion);
-}
+};
 
-export function compareTextVersions(
+export const compareTextVersions = (
   currentVersion: string,
   targetVersion: string,
-) {
+) => {
   const currentSemanticVersion = semver.parse(currentVersion);
   const targetSemanticVersion = semver.parseRange(targetVersion);
 
   return compareSemanticVersions(currentSemanticVersion, targetSemanticVersion);
-}
+};
 
-export function checkMinDenoVersion(minimumVersion: string) {
+export const checkMinDenoVersion = (minimumVersion: string) => {
   return compareTextVersions(runtime.version.runtime, minimumVersion);
-}
+};

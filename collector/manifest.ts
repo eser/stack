@@ -19,7 +19,7 @@ const PLACEHOLDER_SUFFIX = "__//!!##";
 /**
  * Import specifiers must have forward slashes
  */
-function toImportSpecifier(file: string) {
+const toImportSpecifier = (file: string) => {
   const specifier = posix.normalize(file).replace(/\\/g, "/");
 
   if (!specifier.startsWith(".")) {
@@ -27,14 +27,14 @@ function toImportSpecifier(file: string) {
   }
 
   return specifier;
-}
+};
 
 // Create a valid JS identifier out of the project relative specifier.
 // Note that we only need to deal with strings that _must_ have been
 // valid file names in Windows, macOS and Linux and every identifier we
 // create here will be prefixed with at least one "$". This greatly
 // simplifies the invalid characters we have to account for.
-export function specifierToIdentifier(specifier: string, used: Set<string>) {
+export const specifierToIdentifier = (specifier: string, used: Set<string>) => {
   // specifier = specifier.replace(/^(?:\.\/pkg)\//, "");
   const ext = path.extname(specifier);
   if (ext) {
@@ -62,29 +62,32 @@ export function specifierToIdentifier(specifier: string, used: Set<string>) {
   if (used.has(ident)) {
     let check = ident;
     let i = 1;
+
     while (used.has(check)) {
       check = `${ident}_${i++}`;
     }
+
     ident = check;
   }
 
   used.add(ident);
-  return ident;
-}
 
-const getSortFn = function () {
+  return ident;
+};
+
+const getSortFn = () => {
   const naturalCollator = new Intl.Collator(undefined, { numeric: true });
 
   return naturalCollator.compare;
 };
 
-const placeholder = function (text: string) {
+const placeholder = (text: string) => {
   return `${PLACEHOLDER_PREFIX}${text}${PLACEHOLDER_SUFFIX}`;
 };
 
-export async function writeManifestToString(
+export const writeManifestToString = async (
   collection: Array<[string, Array<[string, unknown]>]>,
-) {
+) => {
   const sortFn = getSortFn();
 
   const used = new Set<string>();
@@ -102,7 +105,7 @@ export async function writeManifestToString(
       `import * as ${IMPORT_PREFIX}${identifier} from "${specifier}";`,
     );
 
-    const ref = function (target: unknown) {
+    const ref = (target: unknown) => {
       const name = (target as { name: string }).name;
 
       return placeholder(`${IMPORT_PREFIX}${identifier}.${name}`);
@@ -132,9 +135,11 @@ export const manifest = ${manifestSerialized};
   const manifestStr = await formatter.format(output);
 
   return manifestStr;
-}
+};
 
-export async function buildManifest(options: collector.CollectExportsOptions) {
+export const buildManifest = async (
+  options: collector.CollectExportsOptions,
+) => {
   const collection = await collector.collectExports(options);
 
   const manifestStr = await writeManifestToString(collection);
@@ -152,4 +157,4 @@ export async function buildManifest(options: collector.CollectExportsOptions) {
     `%cThe manifest file has been generated for ${exportCount} exports in ${exportModules.length} modules.`,
     "color: blue",
   );
-}
+};

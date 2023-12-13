@@ -6,14 +6,14 @@ export enum RunMode {
   Test = 2,
 }
 
-export function inDevelopmentMode(mode: RunMode): boolean {
+export const inDevelopmentMode = (mode: RunMode) => {
   return (mode & RunMode.Production) !== RunMode.Production;
-}
+};
 
-export function inProductionMode(mode: RunMode): boolean {
+export const inProductionMode = (mode: RunMode) => {
   return (mode & RunMode.Production) === RunMode.Production;
-}
+};
 
-export function inTestMode(mode: RunMode): boolean {
+export const inTestMode = (mode: RunMode) => {
   return (mode & RunMode.Test) === RunMode.Test;
-}
+};

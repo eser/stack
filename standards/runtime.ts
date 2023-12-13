@@ -117,10 +117,10 @@ export interface RuntimeConfig {
   };
 }
 
-export async function locateRuntimeConfig(
+export const locateRuntimeConfig = async (
   directory: string,
   searchParents = false,
-): Promise<string | undefined> {
+): Promise<string | undefined> => {
   let dir = directory;
 
   while (true) {
@@ -146,27 +146,27 @@ export async function locateRuntimeConfig(
   }
 
   return undefined;
-}
+};
 
-export async function readRuntimeConfig(
+export const readRuntimeConfig = async (
   configPath: string,
-): Promise<{ config: RuntimeConfig; path: string }> {
+): Promise<{ config: RuntimeConfig; path: string }> => {
   const file = await Deno.readTextFile(configPath);
 
   return {
     config: JSONC.parse(file) as RuntimeConfig,
     path: configPath,
   };
-}
+};
 
-// function isObject(value: unknown) {
+// const isObject = (value: unknown) => {
 //   return value !== null && typeof value === "object" &&
 //     !Array.isArray(value);
-// }
+// };
 
-export async function locateAndReadRuntimeConfig(
+export const locateAndReadRuntimeConfig = async (
   baseDir: string,
-): Promise<{ config: RuntimeConfig; path: string | undefined }> {
+): Promise<{ config: RuntimeConfig; path: string | undefined }> => {
   const configPath = await locateRuntimeConfig(baseDir, true);
 
   if (configPath === undefined) {
@@ -192,4 +192,4 @@ export async function locateAndReadRuntimeConfig(
   // }
 
   return result;
-}
+};

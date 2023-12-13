@@ -39,7 +39,7 @@ export interface CollectExportsOptions {
   ignoreFilePattern?: RegExp;
 }
 
-export async function collectExports(options: CollectExportsOptions) {
+export const collectExports = async (options: CollectExportsOptions) => {
   const ignoreFilePattern = options.ignoreFilePattern ??
     patterns.JS_TEST_FILE_PATTERN;
 
@@ -76,4 +76,4 @@ export async function collectExports(options: CollectExportsOptions) {
   }
 
   return exports;
-}
+};

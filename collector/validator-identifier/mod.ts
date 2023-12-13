@@ -23,7 +23,7 @@ const nonASCIIidentifier = new RegExp(
 // This has a complexity linear to the value of the code. The
 // assumption is that looking up astral identifier characters is
 // rare.
-function isInAstralSet(code: number, set: readonly number[]): boolean {
+const isInAstralSet = (code: number, set: readonly number[]) => {
   let pos = 0x10000;
 
   for (let i = 0, length = set.length; i < length; i += 2) {
@@ -39,7 +39,7 @@ function isInAstralSet(code: number, set: readonly number[]): boolean {
   }
 
   return false;
-}
+};
 
 // These are a run-length and offset-encoded representation of the
 // >0xffff code points that are a valid part of identifiers. The
@@ -902,53 +902,65 @@ const astralIdentifierCodes = [
 
 // Test whether a given character code starts an identifier.
 
-export function isIdentifierStart(code: number): boolean {
+export const isIdentifierStart = (code: number) => {
   if (code < charCodes.uppercaseA) {
     return code === charCodes.dollarSign;
   }
+
   if (code <= charCodes.uppercaseZ) {
     return true;
   }
+
   if (code < charCodes.lowercaseA) {
     return code === charCodes.underscore;
   }
+
   if (code <= charCodes.lowercaseZ) {
     return true;
   }
+
   if (code <= 0xffff) {
     return (
       code >= 0xaa && nonASCIIidentifierStart.test(String.fromCharCode(code))
     );
   }
+
   return isInAstralSet(code, astralIdentifierStartCodes);
-}
+};
 
 // Test whether a given character is part of an identifier.
 
-export function isIdentifierChar(code: number): boolean {
+export const isIdentifierChar = (code: number) => {
   if (code < charCodes.digit0) {
     return code === charCodes.dollarSign;
   }
+
   if (code < charCodes.colon) {
     return true;
   }
+
   if (code < charCodes.uppercaseA) {
     return false;
   }
+
   if (code <= charCodes.uppercaseZ) {
     return true;
   }
+
   if (code < charCodes.lowercaseA) {
     return code === charCodes.underscore;
   }
+
   if (code <= charCodes.lowercaseZ) {
     return true;
   }
+
   if (code <= 0xffff) {
     return code >= 0xaa && nonASCIIidentifier.test(String.fromCharCode(code));
   }
+
   return (
     isInAstralSet(code, astralIdentifierStartCodes) ||
     isInAstralSet(code, astralIdentifierCodes)
   );
-}
+};

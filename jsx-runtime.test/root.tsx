@@ -2,15 +2,15 @@
 
 // @ts-nocheck: JSX.IntrinsicElements issue.
 
-export function SubComponent() {
+export const SubComponent = () => {
   return <div>sub component</div>;
-}
+};
 
 export interface ComponentProps {
   foo: string;
 }
 
-export function Component(props: ComponentProps) {
+export const Component = (props: ComponentProps) => {
   return (
     <div>
       hello {props.foo}
@@ -18,8 +18,8 @@ export function Component(props: ComponentProps) {
       <SubComponent />
     </div>
   );
-}
+};
 
-export function Root() {
+export const Root = () => {
   return <Component foo="bar" lime-hack />;
-}
+};

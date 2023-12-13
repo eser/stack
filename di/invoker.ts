@@ -7,7 +7,7 @@ import {
   type ServiceValue,
 } from "./primitives.ts";
 
-function getFunctionParametersFromString(fnSerialized: string) {
+const getFunctionParametersFromString = (fnSerialized: string) => {
   const match = fnSerialized.match(/(?:function.*?\(|\()(.*?)(?:\)|=>)/);
 
   if (match && match[1]) {
@@ -15,13 +15,13 @@ function getFunctionParametersFromString(fnSerialized: string) {
   }
 
   return [];
-}
+};
 
-function getFunctionParameters(fn: AnonymousFunction) {
+const getFunctionParameters = (fn: AnonymousFunction) => {
   return getFunctionParametersFromString(fn.toString());
-}
+};
 
-// function analyzeParameter(param: string) {
+// const analyzeParameter = (param: string) => {
 //   const decoratorMatch = param.match(/@(\w+)\(([^)]+)\)/);
 //   const defaultValueMatch = param.match(/(.*?)=(.*)/);
 //   const isRestOrSpread = param.startsWith("...");
@@ -53,7 +53,7 @@ function getFunctionParameters(fn: AnonymousFunction) {
 //       decorators: decorators,
 //     };
 //   }
-// }
+// };
 
 export const invoke = <
   T extends AnonymousFunction,

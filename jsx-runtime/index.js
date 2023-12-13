@@ -42,7 +42,7 @@ let vnodeId = 0;
  * @param {unknown} [__source]
  * @param {unknown} [__self]
  */
-function createVNode(type, props, key, _isStaticChildren, __source, __self) {
+export const jsx = (type, props, key, _isStaticChildren, __source, __self) => {
   // We'll want to preserve `ref` in props to get rid of the need for
   // forwardRef components in the future, but that should happen via
   // a separate PR.
@@ -93,7 +93,10 @@ function createVNode(type, props, key, _isStaticChildren, __source, __self) {
   }
 
   return vnode;
-}
+};
+
+export const jsxs = jsx;
+export const jsxDEV = jsx;
 
 /**
  * Create a template vnode. This function is not expected to be
@@ -102,12 +105,13 @@ function createVNode(type, props, key, _isStaticChildren, __source, __self) {
  * @param  {Array<string | null | VNode>} exprs
  * @returns {VNode}
  */
-function jsxTemplate(templates, ...exprs) {
+export const jsxTemplate = (templates, ...exprs) => {
   const vnode = createVNode(elements.Fragment, { tpl: templates, exprs });
   // Bypass render to string top level Fragment optimization
   vnode.key = vnode._vnode;
+
   return vnode;
-}
+};
 
 const JS_TO_CSS = {};
 const CSS_REGEX = /[A-Z]/g;
@@ -120,7 +124,7 @@ const CSS_REGEX = /[A-Z]/g;
  * @param {*} value The attribute value
  * @returns {string}
  */
-function jsxAttr(name, value) {
+export const jsxAttr = (name, value) => {
   if (options.attr) {
     const result = options.attr(name, value);
 
@@ -174,7 +178,7 @@ function jsxAttr(name, value) {
   }
 
   return `${name}="${encodeEntities(value)}"`;
-}
+};
 
 /**
  * Escape a dynamic child passed to `jsxTemplate`. This function
@@ -183,7 +187,7 @@ function jsxAttr(name, value) {
  * @param {*} value
  * @returns {string | null | VNode | Array<string | null | VNode>}
  */
-function jsxEscape(value) {
+export const jsxEscape = (value) => {
   if (
     value == null ||
     typeof value === "boolean" ||
@@ -208,14 +212,4 @@ function jsxEscape(value) {
   }
 
   return encodeEntities("" + value);
-}
-
-export {
-  createVNode as jsx,
-  createVNode as jsxDEV,
-  createVNode as jsxs,
-  jsxAttr,
-  jsxEscape,
-  // precompiled JSX transform
-  jsxTemplate,
 };

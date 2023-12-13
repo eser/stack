@@ -1,33 +1,19 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as appserver from "../appserver/mod.ts";
+import * as primitives from "./primitives.ts";
+export * from "./primitives.ts";
 
-export class Lime extends appserver.AppServer {
-  constructor() {
-    super();
-  }
+/**
+ * Initializes a new Lime instance and sets it as the default instance.
+ *
+ * @returns {Lime}
+ */
+export const lime = () => {
+  const instance = new primitives.Lime();
+  instance.setAsDefaultAppServer();
 
-  // deno-lint-ignore no-explicit-any
-  manifest(_manifest: any): Lime {
-    return this;
-  }
-
-  // deno-lint-ignore no-explicit-any
-  config(_config: any): Lime {
-    return this;
-  }
-
-  dev(): Lime {
-    return this;
-  }
-
-  start(): void {
-  }
-}
-
-export function lime() {
-  return new Lime();
-}
+  return instance;
+};
 
 /*
 lime()

@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       create_release:
-        description: "Create a release"
+        description: Create a release
         required: false
         type: boolean
 
@@ -77,7 +77,7 @@ jobs:
     name: Delivery
     needs: integration
     runs-on: ubuntu-latest
-    if: github.event_name == "push" # && github.ref == "refs/heads/main"
+    if: github.event_name == 'push' # && github.ref == 'refs/heads/main'
 
     permissions:
       contents: write # Needed to push the repository

@@ -77,7 +77,7 @@ jobs:
     name: Delivery
     needs: integration
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' # && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     permissions:
       contents: write # Needed to push the repository
@@ -99,11 +99,11 @@ jobs:
       - name: Setup Deno (latest)
         uses: denoland/setup-deno@v1
 
-      - name: Build step
-        run: deno task build
+      # - name: Build step
+      #   run: deno task build
 
-      - name: Upload to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: c00l
-          entrypoint: ./main.ts
+      # - name: Upload to Deno Deploy
+      #   uses: denoland/deployctl@v1
+      #   with:
+      #     project: c00l
+      #     entrypoint: ./main.ts

@@ -11,7 +11,7 @@ const CHECK = runtime.args.includes("--check");
 const BASE_YEAR = "2023";
 // const CURRENT_YEAR = new Date().getFullYear();
 const RX_COPYRIGHT = new RegExp(
-  `// Copyright ([0-9]{4})-present Eser Ozvataf and other contributors\\. All rights reserved\\. ([0-9A-Za-z\-\.]+) license\\.\n`,
+  `// Copyright ([0-9]{4})-present Eser Ozvataf and other contributors\\. All rights reserved\\. ([0-9A-Za-z-.]+) license\\.\n`,
 );
 const COPYRIGHT =
   `// Copyright ${BASE_YEAR}-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.`;

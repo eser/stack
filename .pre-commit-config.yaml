@@ -34,6 +34,12 @@ repos:
           (?x)^(
             docs/.*
           )$
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: []
   - repo: local
     hooks:
     - id: local-precommit
@@ -55,6 +61,7 @@ repos:
           .github/ISSUE_TEMPLATE/bug_report.md|
           .github/ISSUE_TEMPLATE/feature_request.md|
           .github/PULL_REQUEST_TEMPLATE.md|
+          .git/COMMIT_EDITMSG|
           appserver/README.md|
           di/README.md|
           directives/README.md|
@@ -67,6 +74,7 @@ repos:
           lime/.*|
           parsing/README.md|
           standards/README.md|
+          CODEOWNERS|
           CODE_OF_CONDUCT.md|
           CONTRIBUTING.md|
           Dockerfile|

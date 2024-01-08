@@ -8,12 +8,13 @@ const EXTENSIONS = ["*.js", ".ts", "*.jsx", ".tsx"];
 
 const ROOT = new URL("../../", import.meta.url);
 const CHECK = runtime.args.includes("--check");
-const CURRENT_YEAR = new Date().getFullYear();
+const BASE_YEAR = "2023";
+// const CURRENT_YEAR = new Date().getFullYear();
 const RX_COPYRIGHT = new RegExp(
   `// Copyright ([0-9]{4})-present Eser Ozvataf and other contributors\\. All rights reserved\\. ([0-9A-Za-z\-\.]+) license\\.\n`,
 );
 const COPYRIGHT =
-  `// Copyright ${CURRENT_YEAR}-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.`;
+  `// Copyright ${BASE_YEAR}-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.`;
 
 let failed = false;
 
@@ -41,7 +42,7 @@ for await (
       await runtime.writeTextFile(entry.path, contentWithCopyright);
       console.log("Copyright header automatically added to " + entry.path);
     }
-  } else if (parseInt(match[1]) !== CURRENT_YEAR) {
+  } else if (match[1] !== BASE_YEAR) {
     if (CHECK) {
       console.error(`Incorrect copyright year: ${entry.path}`);
       failed = true;

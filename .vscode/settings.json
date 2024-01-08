@@ -41,5 +41,9 @@
   },
   "[typescript][typescriptreact][javascript][javascriptreact][markdown]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
+  },
+  "files.associations": {
+    "*.mdoc": "markdown",
+    "*.mdx": "markdown"
   }
 }

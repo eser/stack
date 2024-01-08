@@ -19,6 +19,7 @@ Thumbs.db
 *.tsbuildinfo
 
 # sensitive files
+*.key
 *.pem
 *.swp
 

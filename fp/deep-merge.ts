@@ -52,7 +52,7 @@ export const deepMerge = <
     (acc, itemKey) => {
       const otherValue = other[itemKey];
 
-      // FIXME if key is defined in object, we need to merge it
+      // FIXME(@eser) if key is defined in object, we need to merge it
       // if (otherValue === undefined) {
       //   return acc;
       // }

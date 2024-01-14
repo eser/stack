@@ -93,7 +93,7 @@ export const writeManifestToString = async (
   const used = new Set<string>();
   const imports = [];
   const manifest = {
-    baseUrl: placeholder("import.meta.url"),
+    // baseUrl: placeholder("import.meta.url"),
     exports: [] as Array<string>,
   };
 
@@ -145,7 +145,7 @@ export const buildManifest = async (
   const manifestStr = await writeManifestToString(collection);
   const manifestPath = path.join(options.baseDir, "./manifest.gen.ts");
 
-  await runtime.writeTextFile(manifestPath, manifestStr);
+  await runtime.current.writeTextFile(manifestPath, manifestStr);
 
   const exportModules = Object.values(collection);
   const exportCount = exportModules.reduce((acc, [, moduleFns]) => {

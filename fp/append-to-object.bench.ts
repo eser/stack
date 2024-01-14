@@ -5,19 +5,23 @@ import { appendToObject } from "./append-to-object.ts";
 
 const group = "append-to-object";
 
-runtime.bench("cool/fp/append-to-object", { group, baseline: true }, () => {
-  const obj1 = { a: 1, b: 2 };
+runtime.current.bench(
+  "cool/fp/append-to-object",
+  { group, baseline: true },
+  () => {
+    const obj1 = { a: 1, b: 2 };
 
-  appendToObject(obj1, { c: 3 });
-});
+    appendToObject(obj1, { c: 3 });
+  },
+);
 
-runtime.bench("Object.assign", { group }, () => {
+runtime.current.bench("Object.assign", { group }, () => {
   const obj1 = { a: 1, b: 2 };
 
   Object.assign({}, obj1, { c: 3 });
 });
 
-runtime.bench("spread operator", { group }, () => {
+runtime.current.bench("spread operator", { group }, () => {
   const obj1 = { a: 1, b: 2 };
 
   ({ ...obj1, c: 3 });

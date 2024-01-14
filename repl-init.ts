@@ -7,7 +7,7 @@ import * as mod from "./mod.ts";
 // TODO(@eser) get dependency injection container entries instead of this
 await (async () => {
   const env = await dotenv.load();
-  const kv = await runtime.openKv();
+  const kv = await runtime.current.openKv();
 
   const variables: Record<string, unknown> = {
     ...mod,

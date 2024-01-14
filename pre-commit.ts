@@ -2,13 +2,13 @@
 
 import { posix } from "./deps.ts";
 import * as runtime from "./standards/runtime.ts";
-import metadata from "./metadata.json" assert { type: "json" };
+import metadata from "./metadata.json" with { type: "json" };
 
 const main = async () => {
   const baseUrl = new URL(".", import.meta.url);
   const basePath = posix.fromFileUrl(baseUrl.href);
 
-  await runtime.writeTextFile(
+  await runtime.current.writeTextFile(
     `${basePath}/version.txt`,
     `${metadata.version}\n`,
   );

@@ -1,17 +1,17 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 export enum RunMode {
-  Development = 0,
-  Production = 1,
+  NotSet = 0,
+  Development = 1,
   Test = 2,
 }
 
-export const inDevelopmentMode = (mode: RunMode) => {
-  return (mode & RunMode.Production) !== RunMode.Production;
+export const inProductionMode = (mode: RunMode) => {
+  return (mode & RunMode.Development) !== RunMode.Development;
 };
 
-export const inProductionMode = (mode: RunMode) => {
-  return (mode & RunMode.Production) === RunMode.Production;
+export const inDevelopmentMode = (mode: RunMode) => {
+  return (mode & RunMode.Development) === RunMode.Development;
 };
 
 export const inTestMode = (mode: RunMode) => {

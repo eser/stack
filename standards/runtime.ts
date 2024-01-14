@@ -3,193 +3,205 @@
 /// <reference lib="deno.ns" />
 /// <reference lib="deno.unstable" />
 
-import { JSONC, path } from "./deps.ts";
-
-if (globalThis.Deno === undefined) {
-  throw new Error("Deno is not defined");
+export enum SupportedRuntimes {
+  Unknown = 0,
+  Deno = 1,
 }
 
-export const addSignalListener = Deno.addSignalListener;
-export const args = Deno.args;
-export const bench = Deno.bench;
-export const build = Deno.build;
-export const chdir = Deno.chdir;
-export const ChildProcess = Deno.ChildProcess;
-export const chmod = Deno.chmod;
-export const chown = Deno.chown;
-export const close = Deno.close;
-export const Command = Deno.Command;
-export const connect = Deno.connect;
-export const connectTls = Deno.connectTls;
-export const consoleSize = Deno.consoleSize;
-export const copyFile = Deno.copyFile;
-export const create = Deno.create;
-export const cwd = Deno.cwd;
-export const env = Deno.env;
-export const errors = Deno.errors;
-export const execPath = Deno.execPath;
-export const exit = Deno.exit;
-export const fdatasync = Deno.fdatasync;
-export const FsFile = Deno.FsFile;
-export const fstat = Deno.fstat;
-export const fsync = Deno.fsync;
-export const ftruncate = Deno.ftruncate;
-export const futime = Deno.futime;
-export const gid = Deno.gid;
-export const hostname = Deno.hostname;
-export const inspect = Deno.inspect;
-export const isatty = Deno.isatty;
-export const kill = Deno.kill;
-export const link = Deno.link;
-export const listen = Deno.listen;
-export const listenTls = Deno.listenTls;
-export const loadavg = Deno.loadavg;
-export const lstat = Deno.lstat;
-// export const mainModule = Deno.permissions.querySync({ name: "read" })
-//   ? Deno.mainModule
-//   : undefined;
-export const makeTempDir = Deno.makeTempDir;
-export const makeTempFile = Deno.makeTempFile;
-export const memoryUsage = Deno.memoryUsage;
-export const mkdir = Deno.mkdir;
-export const networkInterfaces = Deno.networkInterfaces;
-export const noColor = Deno.noColor;
-export const open = Deno.open;
-export const openKv = Deno.openKv;
-export const osRelease = Deno.osRelease;
-export const osUptime = Deno.osUptime;
-export const permissions = Deno.permissions;
-export const Permissions = Deno.Permissions;
-export const PermissionStatus = Deno.PermissionStatus;
-export const pid = Deno.pid;
-export const ppid = Deno.ppid;
-export const read = Deno.read;
-export const readDir = Deno.readDir;
-export const readFile = Deno.readFile;
-export const readLink = Deno.readLink;
-export const readTextFile = Deno.readTextFile;
-export const realPath = Deno.realPath;
-export const refTimer = Deno.refTimer;
-export const remove = Deno.remove;
-export const removeSignalListener = Deno.removeSignalListener;
-export const rename = Deno.rename;
-export const resolveDns = Deno.resolveDns;
-export const resources = Deno.resources;
-export const seek = Deno.seek;
-export const SeekMode = Deno.SeekMode;
-export const serve = Deno.serve;
-export const serveHttp = Deno.serveHttp;
-export const shutdown = Deno.shutdown;
-export const startTls = Deno.startTls;
-export const stat = Deno.stat;
-export const stderr = Deno.stderr;
-export const stdin = Deno.stdin;
-export const stdout = Deno.stdout;
-export const symlink = Deno.symlink;
-export const systemMemoryInfo = Deno.systemMemoryInfo;
-export const test = Deno.test;
-export const truncate = Deno.truncate;
-export const uid = Deno.uid;
-export const unrefTimer = Deno.unrefTimer;
-export const upgradeWebSocket = Deno.upgradeWebSocket;
-export const utime = Deno.utime;
-export const version = { ...Deno.version, runtime: Deno.version.deno };
-export const watchFs = Deno.watchFs;
-export const write = Deno.write;
-export const writeFile = Deno.writeFile;
-export const writeTextFile = Deno.writeTextFile;
-
-export interface RuntimeConfig {
-  imports?: Record<string, string>;
-  importMap?: string;
-  tasks?: Record<string, string>;
-  lint?: {
-    rules: { tags?: Array<string> };
-    exclude?: Array<string>;
+export const notImplemented = (name: string) => {
+  return () => {
+    throw new Error(`This feature is not implemented: ${name}`);
   };
-  fmt?: {
-    exclude?: Array<string>;
-  };
-  exclude?: Array<string>;
-  compilerOptions?: {
-    jsx?: string;
-    jsxImportSource?: string;
-  };
-}
-
-export const locateRuntimeConfig = async (
-  directory: string,
-  searchParents = false,
-): Promise<string | undefined> => {
-  let dir = directory;
-
-  while (true) {
-    for (const name of ["deno.jsonc", "deno.json"]) {
-      const filePath = path.join(dir, name);
-      const fileInfo = await Deno.stat(filePath);
-
-      if (fileInfo.isFile) {
-        return filePath;
-      }
-    }
-
-    if (!searchParents) {
-      break;
-    }
-
-    const parent = path.dirname(dir);
-    if (parent === dir) {
-      break;
-    }
-
-    dir = parent;
-  }
-
-  return undefined;
 };
 
-export const readRuntimeConfig = async (
-  configPath: string,
-): Promise<{ config: RuntimeConfig; path: string }> => {
-  const file = await Deno.readTextFile(configPath);
+export const notSupportedRuntime = (name: string) => {
+  return () => {
+    throw new Error(`Runtime is not supported: ${name}`);
+  };
+};
 
+export interface Runtime {
+  runtime: SupportedRuntimes;
+
+  errors: {
+    // deno-lint-ignore no-explicit-any
+    NotFound: any;
+  };
+
+  execPath(): string;
+  getArgs(): Array<string>;
+  getEnv(): { [index: string]: string };
+  stat(path: string | URL): Promise<Deno.FileInfo>;
+  exit(code?: number): never;
+
+  readFile(
+    path: string | URL,
+    options?: Deno.ReadFileOptions,
+  ): Promise<Uint8Array>;
+  readTextFile(
+    path: string | URL,
+    options?: Deno.ReadFileOptions,
+  ): Promise<string>;
+  writeFile(
+    path: string | URL,
+    data: Uint8Array | ReadableStream<Uint8Array>,
+    options?: Deno.WriteFileOptions,
+  ): Promise<void>;
+  writeTextFile(
+    path: string | URL,
+    data: string | ReadableStream<string>,
+    options?: Deno.WriteFileOptions,
+  ): Promise<void>;
+
+  openKv(path?: string): Promise<Deno.Kv>;
+  Command: typeof Deno.Command;
+}
+
+export const createDenoRuntime = (): Runtime => {
+  const denoObjRef = globalThis.Deno;
+
+  const instance = {
+    runtime: SupportedRuntimes.Deno,
+    errors: {
+      NotFound: denoObjRef.errors.NotFound,
+    },
+
+    execPath: denoObjRef.execPath,
+    getArgs: () => denoObjRef.args,
+    getEnv: () => denoObjRef.env.toObject(),
+    stat: denoObjRef.stat,
+    exit: denoObjRef.exit,
+
+    readFile: denoObjRef.readFile,
+    readTextFile: denoObjRef.readTextFile,
+    writeFile: denoObjRef.writeFile,
+    writeTextFile: denoObjRef.writeTextFile,
+
+    openKv: denoObjRef.openKv ?? notImplemented("openKv"),
+    Command: denoObjRef.Command,
+  };
+
+  return instance;
+};
+
+export const createGenericRuntime = (): Runtime => {
   return {
-    config: JSONC.parse(file) as RuntimeConfig,
-    path: configPath,
+    runtime: SupportedRuntimes.Unknown,
+    errors: {
+      NotFound: Error,
+    },
+
+    execPath: notImplemented("execPath"),
+    getArgs: notImplemented("getArgs"),
+    getEnv: notImplemented("getEnv"),
+    stat: notImplemented("stat"),
+    exit: notImplemented("exit"),
+
+    readFile: notImplemented("readFile"),
+    readTextFile: notImplemented("readTextFile"),
+    writeFile: notImplemented("writeFile"),
+    writeTextFile: notImplemented("writeTextFile"),
+
+    openKv: notImplemented("openKv"),
+    // @ts-expect-error Command is not implemented
+    Command: notImplemented("Command"),
   };
 };
 
-// const isObject = (value: unknown) => {
-//   return value !== null && typeof value === "object" &&
-//     !Array.isArray(value);
-// };
-
-export const locateAndReadRuntimeConfig = async (
-  baseDir: string,
-): Promise<{ config: RuntimeConfig; path: string | undefined }> => {
-  const configPath = await locateRuntimeConfig(baseDir, true);
-
-  if (configPath === undefined) {
-    // throw new Error(
-    //   `Could not find a deno.json(c) file in the current directory or any parent directory.`,
-    // );
-    return {
-      config: {},
-      path: undefined,
-    };
+export const createRuntime = (): Runtime => {
+  if (globalThis.Deno !== undefined) {
+    return createDenoRuntime();
   }
 
-  const result = await readRuntimeConfig(baseDir);
-
-  // if (
-  //   typeof result.config.importMap !== "string" &&
-  //   !isObject(result.config.imports)
-  // ) {
-  //   const filename = path.basename(result.path);
-  //   throw new Error(
-  //     `${filename} must contain an 'importMap' or 'imports' property.`,
-  //   );
-  // }
-
-  return result;
+  return createGenericRuntime();
 };
+
+export const current = createRuntime();
+
+// export const addSignalListener = denoObjRef?.addSignalListener ??
+//   notImplemented;
+// // export const args: string[] = denoObjRef?.args ?? []; // FIXME(@eser) throw error if undefined?
+// export const bench = denoObjRef?.bench ?? notImplemented;
+// // export const build: typeof Deno.build = denoObjRef?.build ?? {};
+// export const chdir = denoObjRef?.chdir ?? notImplemented;
+// // export const ChildProcess = denoObjRef?.ChildProcess;
+// // export const chmod = denoObjRef?.chmod ?? notImplemented;
+// // export const chown = denoObjRef?.chown ?? notImplemented;
+// // export const close = denoObjRef?.close ?? notImplemented;
+// // export const Command = denoObjRef?.Command ?? notImplemented;
+// // export const connect = denoObjRef?.connect ?? notImplemented;
+// // export const connectTls = denoObjRef?.connectTls ?? notImplemented;
+// // export const consoleSize = denoObjRef?.consoleSize ?? notImplemented;
+// // export const copyFile = denoObjRef?.copyFile ?? notImplemented;
+// // export const create = denoObjRef?.create ?? notImplemented;
+// // export const cwd = denoObjRef?.cwd ?? notImplemented;
+// // export const env: Deno.Env = denoObjRef?.env;
+// // export const errors = denoObjRef?.errors;
+// // export const execPath = denoObjRef?.execPath;
+// // export const fdatasync = denoObjRef?.fdatasync ?? notImplemented;
+// // export const FsFile = denoObjRef?.FsFile;
+// // export const fstat = denoObjRef?.fstat ?? notImplemented;
+// // export const fsync = denoObjRef?.fsync ?? notImplemented;
+// // export const ftruncate = denoObjRef?.ftruncate ?? notImplemented;
+// // export const futime = denoObjRef?.futime ?? notImplemented;
+// // export const gid = denoObjRef?.gid ?? notImplemented;
+// // export const hostname = denoObjRef?.hostname ?? notImplemented;
+// // export const inspect = denoObjRef?.inspect ?? notImplemented;
+// // export const isatty = denoObjRef?.isatty ?? notImplemented;
+// // export const kill = denoObjRef?.kill ?? notImplemented;
+// // export const link = denoObjRef?.link ?? notImplemented;
+// // export const listen = denoObjRef?.listen ?? notImplemented;
+// // export const listenTls = denoObjRef?.listenTls ?? notImplemented;
+// // export const loadavg = denoObjRef?.loadavg ?? notImplemented;
+// // export const lstat = denoObjRef?.lstat ?? notImplemented;
+// // export const mainModule = denoObj?.permissions.querySync({ name: "read" })
+// //   ? denoObj?.mainModule
+// //   : undefined;
+// // export const makeTempDir = denoObjRef?.makeTempDir ?? notImplemented;
+// // export const makeTempFile = denoObjRef?.makeTempFile ?? notImplemented;
+// // export const memoryUsage = denoObjRef?.memoryUsage ?? notImplemented;
+// // export const mkdir = denoObjRef?.mkdir ?? notImplemented;
+// // export const networkInterfaces = denoObjRef?.networkInterfaces ?? notImplemented;
+// // export const noColor = denoObjRef?.noColor;
+// // export const open = denoObjRef?.open ?? notImplemented;
+// // export const osRelease = denoObjRef?.osRelease ?? notImplemented;
+// // export const osUptime = denoObjRef?.osUptime ?? notImplemented;
+// // export const permissions: Deno.Permissions = denoObjRef?.permissions;
+// // export const Permissions = denoObjRef?.Permissions;
+// // export const PermissionStatus = denoObjRef?.PermissionStatus;
+// // export const pid = denoObjRef?.pid;
+// // export const ppid = denoObjRef?.ppid;
+// // export const read = denoObjRef?.read ?? notImplemented;
+// // export const readDir = denoObjRef?.readDir ?? notImplemented;
+// // export const readFile = denoObjRef?.readFile ?? notImplemented;
+// // export const readLink = denoObjRef?.readLink ?? notImplemented;
+// export const readTextFile = denoObjRef?.readTextFile ?? notImplemented;
+// // export const realPath = denoObjRef?.realPath ?? notImplemented;
+// // export const refTimer = denoObjRef?.refTimer ?? notImplemented;
+// // export const remove = denoObjRef?.remove ?? notImplemented;
+// // export const removeSignalListener = denoObjRef?.removeSignalListener ?? notImplemented;
+// // export const rename = denoObjRef?.rename ?? notImplemented;
+// // export const resolveDns = denoObjRef?.resolveDns ?? notImplemented;
+// // export const resources = denoObjRef?.resources ?? notImplemented;
+// // export const seek = denoObjRef?.seek ?? notImplemented;
+// // export const SeekMode = denoObjRef?.SeekMode;
+// // export const serve = denoObjRef?.serve ?? notImplemented;
+// // export const serveHttp = denoObjRef?.serveHttp ?? notImplemented;
+// // export const shutdown = denoObjRef?.shutdown ?? notImplemented;
+// // export const startTls = denoObjRef?.startTls ?? notImplemented;
+// export const stat = denoObjRef?.stat ?? notImplemented;
+// // export const stderr = denoObjRef?.stderr;
+// // export const stdin = denoObjRef?.stdin;
+// // export const stdout = denoObjRef?.stdout;
+// // export const symlink = denoObjRef?.symlink ?? notImplemented;
+// // export const systemMemoryInfo = denoObjRef?.systemMemoryInfo ?? notImplemented;
+// // export const test = denoObjRef?.test ?? notImplemented;
+// // export const truncate = denoObjRef?.truncate ?? notImplemented;
+// // export const uid = denoObjRef?.uid ?? notImplemented;
+// // export const unrefTimer = denoObjRef?.unrefTimer ?? notImplemented;
+// // export const upgradeWebSocket = denoObjRef?.upgradeWebSocket ?? notImplemented;
+// // export const utime = denoObjRef?.utime ?? notImplemented;
+// // export const version = { ...denoObjRef?.version, runtime: denoObjRef?.version.deno };
+// // export const watchFs = denoObjRef?.watchFs ?? notImplemented;
+// // export const write = denoObjRef?.write ?? notImplemented;
+// // export const writeFile = denoObjRef?.writeFile ?? notImplemented;

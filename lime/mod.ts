@@ -14,11 +14,3 @@ export const lime = () => {
 
   return instance;
 };
-
-/*
-lime()
-  .manifest(manifest)
-  .config(config)
-  .dev() // <!— dev mode
-  .start();
-*/

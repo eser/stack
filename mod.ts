@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import metadata from "./metadata.json" assert { type: "json" };
+import metadata from "./metadata.json" with { type: "json" };
 
 export * as appserver from "./appserver/mod.ts";
 export * as di from "./di/mod.ts";

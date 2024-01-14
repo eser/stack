@@ -6,9 +6,9 @@ import { defaultEnvValue, defaultEnvVar, env, type EnvMap } from "./base.ts";
 
 // interface definitions
 export interface LoaderOptions {
-  baseDir?: string;
-  defaultEnvVar?: string;
-  defaultEnvValue?: string;
+  baseDir: string;
+  defaultEnvVar: string;
+  defaultEnvValue: string;
 }
 
 // public functions
@@ -22,7 +22,7 @@ export const parseEnvFromFile = async (
   filepath: string,
 ): Promise<ReturnType<typeof parseEnvString>> => {
   try {
-    const data = await runtime.readFile(filepath);
+    const data = await runtime.current.readFile(filepath);
     const decoded = new TextDecoder("utf-8").decode(data);
     const escaped = decodeURIComponent(decoded);
 
@@ -30,7 +30,7 @@ export const parseEnvFromFile = async (
 
     return result;
   } catch (e) {
-    if (e instanceof runtime.errors.NotFound) {
+    if (e instanceof runtime.current.errors.NotFound) {
       return {};
     }
 
@@ -39,16 +39,18 @@ export const parseEnvFromFile = async (
 };
 
 export const load = async (
-  options?: LoaderOptions,
+  options?: Partial<LoaderOptions>,
 ): Promise<EnvMap> => {
-  const options_ = {
-    baseDir: ".",
-    defaultEnvVar: defaultEnvVar,
-    defaultEnvValue: defaultEnvValue,
-    ...(options ?? {}),
-  };
+  const options_: LoaderOptions = Object.assign(
+    {
+      baseDir: ".",
+      defaultEnvVar: defaultEnvVar,
+      defaultEnvValue: defaultEnvValue,
+    },
+    options,
+  );
 
-  const sysVars = runtime.env.toObject();
+  const sysVars = runtime.current.getEnv();
   const envName = sysVars[options_.defaultEnvVar] ?? options_.defaultEnvValue;
 
   const vars = new Map<typeof env | string, string>();

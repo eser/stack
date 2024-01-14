@@ -15,9 +15,11 @@ export class AppServer {
   di: typeof di;
   channels: Map<string, Channel>;
   modules: Map<string, Module>;
+  // deno-lint-ignore no-explicit-any
+  awaits: Array<Promise<any>> = [];
 
   constructor() {
-    this.runMode = runModes.RunMode.Development;
+    this.runMode = runModes.RunMode.NotSet;
     this.events = events;
     this.di = di;
     this.channels = new Map<string, Channel>();
@@ -38,6 +40,11 @@ export class AppServer {
 
   setAsDefaultAppServer() {
     this.di.register(AppServer.default, this);
+  }
+
+  async awaitAll() {
+    await Promise.all(this.awaits);
+    this.awaits.splice(0);
   }
 
   // execute(_options: unknown) {

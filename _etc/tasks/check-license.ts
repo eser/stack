@@ -7,7 +7,7 @@ import { walk } from "./deps.ts";
 const EXTENSIONS = ["*.js", ".ts", "*.jsx", ".tsx"];
 
 const ROOT = new URL("../../", import.meta.url);
-const CHECK = runtime.args.includes("--check");
+const CHECK = runtime.current.getArgs().includes("--check");
 const BASE_YEAR = "2023";
 // const CURRENT_YEAR = new Date().getFullYear();
 const RX_COPYRIGHT = new RegExp(
@@ -30,7 +30,7 @@ for await (
     includeDirs: false,
   })
 ) {
-  const content = await runtime.readTextFile(entry.path);
+  const content = await runtime.current.readTextFile(entry.path);
   const match = content.match(RX_COPYRIGHT);
 
   if (!match) {
@@ -39,7 +39,7 @@ for await (
       failed = true;
     } else {
       const contentWithCopyright = COPYRIGHT + "\n" + content;
-      await runtime.writeTextFile(entry.path, contentWithCopyright);
+      await runtime.current.writeTextFile(entry.path, contentWithCopyright);
       console.log("Copyright header automatically added to " + entry.path);
     }
   } else if (match[1] !== BASE_YEAR) {
@@ -51,7 +51,7 @@ for await (
       const contentWithoutCopyright = content.replace(match[0], "");
       const contentWithCopyright = contentWithoutCopyright.substring(0, index) +
         COPYRIGHT + "\n" + contentWithoutCopyright.substring(index);
-      await runtime.writeTextFile(entry.path, contentWithCopyright);
+      await runtime.current.writeTextFile(entry.path, contentWithCopyright);
       console.log("Copyright header automatically updated in " + entry.path);
     }
   }
@@ -59,5 +59,5 @@ for await (
 
 if (failed) {
   console.info(`Copyright header should be "${COPYRIGHT}"`);
-  runtime.exit(1);
+  runtime.current.exit(1);
 }

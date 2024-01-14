@@ -6,7 +6,7 @@ import lodashReject from "npm:lodash.reject";
 
 const group = "wthout";
 
-runtime.bench("cool/fp/wthout", { group, baseline: true }, () => {
+runtime.current.bench("cool/fp/wthout", { group, baseline: true }, () => {
   const student = {
     id: 1,
     name: "John Doe",
@@ -17,7 +17,7 @@ runtime.bench("cool/fp/wthout", { group, baseline: true }, () => {
   wthout(student, "name", "age");
 });
 
-runtime.bench("npm:lodash.reject", { group }, () => {
+runtime.current.bench("npm:lodash.reject", { group }, () => {
   const student = {
     id: 1,
     name: "John Doe",

@@ -13,19 +13,19 @@ class Dummy {
   }
 }
 
-runtime.bench("cool/fp/deep-copy", { group, baseline: true }, () => {
+runtime.current.bench("cool/fp/deep-copy", { group, baseline: true }, () => {
   const obj1 = new Dummy({ value: 5 });
 
   deepCopy(obj1);
 });
 
-runtime.bench("cool/fp/deep-copy-2", { group }, () => {
+runtime.current.bench("cool/fp/deep-copy-2", { group }, () => {
   const obj1 = new Dummy({ value: 5 });
 
   deepCopy2(obj1);
 });
 
-runtime.bench("structuredClone", { group }, () => {
+runtime.current.bench("structuredClone", { group }, () => {
   const obj1 = new Dummy({ value: 5 });
 
   structuredClone(obj1);

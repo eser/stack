@@ -1,12 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as runModes from "../standards/run-modes.ts";
+import * as fileLoader from "../file-loader/mod.ts";
 import * as appserver from "../appserver/mod.ts";
 
 export type LimeExportedSymbol = unknown;
 
 export interface LimeManifest {
-  baseUrl: string;
   exports: Array<[string, Array<[string, LimeExportedSymbol]>]>;
 }
 
@@ -15,44 +15,65 @@ export interface LimeOptions {
 }
 
 export interface LimeState {
-  manifest: LimeManifest | null;
+  baseUrl: string | null;
+  manifests: Array<LimeManifest>;
   options: LimeOptions;
 }
 
 export class Lime extends appserver.AppServer {
   state: LimeState;
 
-  constructor(options: Partial<LimeOptions> = {}) {
+  constructor(options?: Partial<LimeOptions>) {
     super();
 
     this.state = {
-      manifest: null,
-      options: {
-        basePath: ".",
-        ...options,
-      },
+      baseUrl: null,
+      manifests: [],
+      options: Object.assign(
+        { basePath: "" },
+        options,
+      ),
     };
   }
 
-  setManifest(manifest: LimeManifest | null): Lime {
-    this.state.manifest = manifest;
+  setBaseUrl(baseUrl: string | null): Lime {
+    this.state.baseUrl = baseUrl;
 
     return this;
   }
 
-  setOptions(options: LimeOptions): Lime {
-    this.state.options = options;
+  addManifest(manifest: LimeManifest): Lime {
+    this.state.manifests = [...this.state.manifests, manifest];
+
+    return this;
+  }
+
+  loadManifest(baseDir?: string): Lime {
+    const promise = fileLoader.load<LimeManifest>(
+      fileLoader.resolvePath(baseDir ?? ".", this.state.baseUrl),
+      ["manifest.yaml", "manifest.jsonc", "manifest.json", "manifest.toml"],
+    ).then((result) => {
+      if (result.content === undefined) {
+        return;
+      }
+
+      this.addManifest(result.content);
+    });
+    // FIXME(@eser) Handle errors.
+
+    this.awaits.push(promise);
 
     return this;
   }
 
   dev(): Lime {
-    this.runMode = runModes.RunMode.Development;
+    this.runMode |= runModes.RunMode.Development;
 
     return this;
   }
 
-  start(): void {
+  async start(): Promise<void> {
+    await this.awaitAll();
     // this.execute(_options);
   }
 }

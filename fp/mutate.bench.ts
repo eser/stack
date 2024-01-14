@@ -5,7 +5,7 @@ import { mutate } from "./mutate.ts";
 
 const group = "mutate";
 
-runtime.bench("cool/fp/mutate", { group, baseline: true }, () => {
+runtime.current.bench("cool/fp/mutate", { group, baseline: true }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
@@ -15,7 +15,7 @@ runtime.bench("cool/fp/mutate", { group, baseline: true }, () => {
   mutate(obj1, (x) => x.firstName = "Helo");
 });
 
-runtime.bench("Object.assign", { group }, () => {
+runtime.current.bench("Object.assign", { group }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
@@ -25,7 +25,7 @@ runtime.bench("Object.assign", { group }, () => {
   Object.assign({}, obj1, { firstName: "Helo" });
 });
 
-runtime.bench("spread operator", { group }, () => {
+runtime.current.bench("spread operator", { group }, () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",

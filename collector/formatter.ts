@@ -9,7 +9,7 @@
 import * as runtime from "../standards/runtime.ts";
 
 export const format = async (input: string) => {
-  const proc = new runtime.Command(runtime.execPath(), {
+  const proc = new runtime.current.Command(runtime.current.execPath(), {
     args: ["fmt", "-"],
     stdin: "piped",
     stdout: "piped",

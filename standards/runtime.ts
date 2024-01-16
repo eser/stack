@@ -31,6 +31,8 @@ export interface Runtime {
   execPath(): string;
   getArgs(): Array<string>;
   getEnv(): { [index: string]: string };
+
+  open(path: string | URL, options?: Deno.OpenOptions): Promise<Deno.FsFile>;
   stat(path: string | URL): Promise<Deno.FileInfo>;
   exit(code?: number): never;
 
@@ -69,6 +71,8 @@ export const createDenoRuntime = (): Runtime => {
     execPath: denoObjRef.execPath,
     getArgs: () => denoObjRef.args,
     getEnv: () => denoObjRef.env.toObject(),
+
+    open: denoObjRef.open,
     stat: denoObjRef.stat,
     exit: denoObjRef.exit,
 
@@ -94,6 +98,8 @@ export const createGenericRuntime = (): Runtime => {
     execPath: notImplemented("execPath"),
     getArgs: notImplemented("getArgs"),
     getEnv: notImplemented("getEnv"),
+
+    open: notImplemented("open"),
     stat: notImplemented("stat"),
     exit: notImplemented("exit"),
 

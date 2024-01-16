@@ -6,7 +6,7 @@ repos:
         args: ["--maxkb=1024"]
         exclude: |
           (?x)^(
-            lime/build/esbuild_v0.19.2.wasm
+            bundler/esbuild_v0.19.11.wasm
           )$
       - id: check-case-conflict
       - id: check-executables-have-shebangs
@@ -63,15 +63,21 @@ repos:
           .github/PULL_REQUEST_TEMPLATE.md|
           .git/COMMIT_EDITMSG|
           appserver/README.md|
+          bundler/README.md|
+          bundler/esbuild_v0.19.11.wasm|
+          collector/README.md|
           di/README.md|
           directives/README.md|
           docs/.*|
           dotenv/README.md|
           events/README.md|
+          file-loader/README.md|
           fp/README.md|
           functions/README.md|
           jsx-runtime/README.md|
-          lime/.*|
+          jsx-runtime.test/README.md|
+          lime/README.md|
+          lime.test/README.md|
           parsing/README.md|
           standards/README.md|
           CODEOWNERS|

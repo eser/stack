@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { type Promisable } from "../standards/promises.ts";
-import { type AnonymousFunction } from "../standards/functions.ts";
+import { type GenericFunction } from "../standards/functions.ts";
 import {
   type PromisableBuilder,
   type ServiceKey,
@@ -37,7 +37,7 @@ export const factory = <K = ServiceKey, V = ServiceValue>(
 
   di.many = (...tokens: ReadonlyArray<K>) => services.getMany(...tokens);
 
-  di.invoke = <T extends AnonymousFunction>(fn: T): ReturnType<T> =>
+  di.invoke = <T extends GenericFunction>(fn: T): ReturnType<T> =>
     services.invoke(fn);
 
   di.scope = () => services.createScope();

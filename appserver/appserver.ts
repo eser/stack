@@ -19,7 +19,7 @@ export class AppServer {
   awaits: Array<Promise<any>> = [];
 
   constructor() {
-    this.runMode = runModes.RunMode.NotSet;
+    this.runMode = runModes.RunModes.NotSet;
     this.events = events;
     this.di = di;
     this.channels = new Map<string, Channel>();

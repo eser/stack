@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { type Promisable } from "../standards/promises.ts";
-import { type AnonymousFunction } from "../standards/functions.ts";
+import { type GenericFunction } from "../standards/functions.ts";
 import {
   type PromisableBuilder,
   type ServiceDescriptor,
@@ -9,7 +9,7 @@ import {
   type ServiceRegistry,
   type ServiceResolution,
   type ServiceScope,
-  ServiceType,
+  ServiceTypes,
   type ServiceValue,
 } from "./primitives.ts";
 import { invoke } from "./invoker.ts";
@@ -19,25 +19,25 @@ export class Registry<K = ServiceKey, V = ServiceValue>
   descriptors = new Map<K, ServiceDescriptor<V>>();
 
   set(token: K, value: Promisable<V>) {
-    this.descriptors.set(token, [ServiceType.Singleton, value]);
+    this.descriptors.set(token, [ServiceTypes.Singleton, value]);
 
     return this;
   }
 
   setLazy(token: K, value: PromisableBuilder<V>) {
-    this.descriptors.set(token, [ServiceType.Lazy, value]);
+    this.descriptors.set(token, [ServiceTypes.Lazy, value]);
 
     return this;
   }
 
   setScoped(token: K, value: PromisableBuilder<V>) {
-    this.descriptors.set(token, [ServiceType.Scoped, value]);
+    this.descriptors.set(token, [ServiceTypes.Scoped, value]);
 
     return this;
   }
 
   setTransient(token: K, value: PromisableBuilder<V>) {
-    this.descriptors.set(token, [ServiceType.Transient, value]);
+    this.descriptors.set(token, [ServiceTypes.Transient, value]);
 
     return this;
   }
@@ -68,14 +68,15 @@ export class Scope<K = ServiceKey, V = ServiceValue>
       return defaultValue;
     }
 
-    if (descriptor[0] === ServiceType.Singleton) {
+    if (descriptor[0] === ServiceTypes.Singleton) {
       return descriptor[1] as Promisable<V2>;
     }
 
     if (
-      descriptor[0] === ServiceType.Lazy || descriptor[0] === ServiceType.Scoped
+      descriptor[0] === ServiceTypes.Lazy ||
+      descriptor[0] === ServiceTypes.Scoped
     ) {
-      const targetScope = (descriptor[0] === ServiceType.Scoped)
+      const targetScope = (descriptor[0] === ServiceTypes.Scoped)
         ? this
         : this.rootScope;
       const stored = targetScope.items.get(token);
@@ -100,7 +101,7 @@ export class Scope<K = ServiceKey, V = ServiceValue>
       return result as ServiceResolution<V2>;
     }
 
-    // if (descriptor[0] === ServiceType.Transient) {
+    // if (descriptor[0] === ServiceTypes.Transient) {
     const value = descriptor[1] as PromisableBuilder<V>;
     const result = value(this);
 
@@ -112,7 +113,7 @@ export class Scope<K = ServiceKey, V = ServiceValue>
     return tokens.map((token) => this.get(token));
   }
 
-  invoke<T extends AnonymousFunction>(fn: T): ReturnType<T> {
+  invoke<T extends GenericFunction>(fn: T): ReturnType<T> {
     return invoke(this, fn);
   }
 

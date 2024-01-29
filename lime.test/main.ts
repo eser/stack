@@ -14,14 +14,14 @@ import * as lime from "../lime/mod.ts";
 //   ...
 // }
 
-export const instance = lime.lime()
+export const instance = lime.builder()
   .setBaseUrl(import.meta.url)
   .loadManifest();
-// .setOptions(options)
+// .setOptions(options) // (set defaults ... or load from file?)
+// .loadEnvironment() // (deserialize options from env, dev mode vs)
 
 if (import.meta.main) {
-  await instance.dev() // <!— dev mode
-    .start();
+  await instance.execute();
 }
 
 console.log(instance.state.baseUrl);

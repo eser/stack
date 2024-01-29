@@ -8,7 +8,7 @@ export * from "./primitives.ts";
  *
  * @returns {Lime}
  */
-export const lime = () => {
+export const builder = () => {
   const instance = new primitives.Lime();
   instance.setAsDefaultAppServer();
 

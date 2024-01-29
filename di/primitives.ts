@@ -2,21 +2,24 @@
 
 import { type Promisable } from "../standards/promises.ts";
 import {
-  type AnonymousClass,
-  type AnonymousFunction,
+  type GenericClass,
+  type GenericFunction,
 } from "../standards/functions.ts";
 
-export enum ServiceType {
-  Singleton = 0,
-  Lazy = 1,
-  Scoped = 2,
-  Transient = 3,
-}
+export const ServiceTypes = {
+  Singleton: 0,
+  Lazy: 1,
+  Scoped: 2,
+  Transient: 3,
+} as const;
+
+export type ServiceTypeKey = Exclude<keyof typeof ServiceTypes, number>;
+export type ServiceType = typeof ServiceTypes[ServiceTypeKey];
 
 // deno-lint-ignore no-explicit-any
 export type Value = any;
-export type ClassService = AnonymousClass<Value>;
-export type FunctionService = AnonymousFunction<Value>;
+export type ClassService = GenericClass<Value>;
+export type FunctionService = GenericFunction<Value>;
 
 export type ServiceKey = ClassService | FunctionService | symbol | string;
 export type ServiceValue = ClassService | FunctionService | Value;
@@ -48,7 +51,7 @@ export interface ServiceScope<K = ServiceKey, V = ServiceValue> {
 
   get<V2 = V>(token: K, defaultValue?: V2): ServiceResolution<V2>;
   getMany(...tokens: ReadonlyArray<K>): ReadonlyArray<ServiceResolution<V>>;
-  invoke<T extends AnonymousFunction>(fn: T): ReturnType<T>;
+  invoke<T extends GenericFunction>(fn: T): ReturnType<T>;
 
   createScope(): ServiceScope<K, V>;
 }

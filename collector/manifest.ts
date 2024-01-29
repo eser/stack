@@ -8,6 +8,7 @@
 
 import { path, posix } from "./deps.ts";
 import * as runtime from "../standards/runtime.ts";
+import * as logger from "../logging/logger.ts";
 import * as validatorIdentifier from "./validator-identifier/mod.ts";
 import * as collector from "./collector.ts";
 import * as formatter from "./formatter.ts";
@@ -138,14 +139,20 @@ export const manifest = ${manifestSerialized};
 };
 
 export const buildManifest = async (
+  target: WritableStream,
   options: collector.CollectExportsOptions,
 ) => {
   const collection = await collector.collectExports(options);
 
   const manifestStr = await writeManifestToString(collection);
-  const manifestPath = path.join(options.baseDir, "./manifest.gen.ts");
 
-  await runtime.current.writeTextFile(manifestPath, manifestStr);
+  const outputWriter = target.getWriter();
+  await outputWriter.ready;
+
+  const encoded = new TextEncoder().encode(manifestStr);
+  await outputWriter.write(encoded);
+
+  outputWriter.releaseLock();
 
   const exportModules = Object.values(collection);
   const exportCount = exportModules.reduce((acc, [, moduleFns]) => {
@@ -153,8 +160,21 @@ export const buildManifest = async (
     return acc;
   }, 0);
 
-  console.log(
-    `%cThe manifest file has been generated for ${exportCount} exports in ${exportModules.length} modules.`,
-    "color: blue",
+  logger.current.info(
+    `The manifest file has been generated for ${exportCount} exports in ${exportModules.length} modules.`,
   );
+};
+
+export const buildManifestFile = async (
+  filepath: string,
+  options: collector.CollectExportsOptions,
+) => {
+  const target = await runtime.current.open(filepath, {
+    create: true,
+    write: true,
+  });
+
+  await buildManifest(target.writable, options);
+
+  target.close();
 };

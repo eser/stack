@@ -8,6 +8,7 @@
 
 import { path, walk } from "./deps.ts";
 import * as patterns from "../standards/patterns.ts";
+// import { runtime } from "$cool/standards/mod.ts";
 
 export async function* walkFiles(
   baseDir: string,
@@ -35,11 +36,12 @@ export async function* walkFiles(
 export interface CollectExportsOptions {
   baseDir: string;
   globFilter?: string;
-  exportFilter?: (entries: [string, unknown][]) => [string, unknown][];
+  exportFilter?: (entries: [string, unknown][]) => Promise<[string, unknown][]>;
   ignoreFilePattern?: RegExp;
 }
 
 export const collectExports = async (options: CollectExportsOptions) => {
+  // const mainModule = runtime.current.getMainModule();
   const ignoreFilePattern = options.ignoreFilePattern ??
     patterns.JS_TEST_FILE_PATTERN;
 
@@ -55,6 +57,10 @@ export const collectExports = async (options: CollectExportsOptions) => {
     const entryUri = `${options.baseDir}/${entry}`;
 
     try {
+      // if (`file://${entryUri}` === mainModule) {
+      //   continue;
+      // }
+
       const entryModule = await import(entryUri);
       const moduleExports = Object.entries(entryModule);
 
@@ -63,7 +69,7 @@ export const collectExports = async (options: CollectExportsOptions) => {
         continue;
       }
 
-      const selectedExports = options.exportFilter(moduleExports);
+      const selectedExports = await options.exportFilter(moduleExports);
 
       if (selectedExports.length === 0) {
         continue;

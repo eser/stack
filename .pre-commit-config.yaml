@@ -6,7 +6,7 @@ repos:
         args: ["--maxkb=1024"]
         exclude: |
           (?x)^(
-            bundler/esbuild_v0.19.11.wasm
+            bundler/esbuild_v0.20.0.wasm
           )$
       - id: check-case-conflict
       - id: check-executables-have-shebangs
@@ -64,7 +64,7 @@ repos:
           .git/COMMIT_EDITMSG|
           appserver/README.md|
           bundler/README.md|
-          bundler/esbuild_v0.19.11.wasm|
+          bundler/esbuild_v0.20.0.wasm|
           collector/README.md|
           di/README.md|
           directives/README.md|

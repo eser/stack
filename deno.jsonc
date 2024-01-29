@@ -45,7 +45,7 @@
     ]
   },
   "tasks": {
-    "cleanup": "rm -rf ./_etc/coverage/ ./_etc/coverage.lcov ./deno.lock && deno cache --unstable --reload ./mod.ts",
+    "cleanup": "rm -rf ./_etc/coverage/ ./_etc/coverage.lcov ./deno.lock && deno cache --unstable-cron --unstable-kv --unstable-temporal --reload ./mod.ts",
     "check:license": "deno run --allow-read --allow-write ./_etc/tasks/check-license.ts",
     "check:mod": "deno run --check --reload ./mod.ts",
     "doc:lint": "deno doc --lint ./mod.ts",
@@ -55,7 +55,7 @@
     "test:coverage": "deno coverage ./_etc/coverage/ --exclude='\\.(j|t)sx$'",
     "test:coverage-gen": "deno coverage ./_etc/coverage --exclude='\\.(j|t)sx$' --lcov --output=./_etc/coverage.lcov",
     "ok": "deno fmt --check && deno lint && deno task check:license --check && deno task check:mod && deno task test:run",
-    "repl": "deno repl --unstable --allow-all --eval-file=./repl-init.ts",
+    "repl": "deno repl --unstable-cron --unstable-kv --unstable-temporal --allow-all --eval-file=./repl-init.ts",
     "container:build": "docker build -t cool .",
     "container:run": "docker run --interactive --tty --rm cool"
   }

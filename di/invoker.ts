@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { type AnonymousFunction } from "../standards/functions.ts";
+import { type GenericFunction } from "../standards/functions.ts";
 import {
   type ServiceKey,
   type ServiceScope,
@@ -17,7 +17,7 @@ const getFunctionParametersFromString = (fnSerialized: string) => {
   return [];
 };
 
-const getFunctionParameters = (fn: AnonymousFunction) => {
+const getFunctionParameters = (fn: GenericFunction) => {
   return getFunctionParametersFromString(fn.toString());
 };
 
@@ -56,7 +56,7 @@ const getFunctionParameters = (fn: AnonymousFunction) => {
 // };
 
 export const invoke = <
-  T extends AnonymousFunction,
+  T extends GenericFunction,
   K = ServiceKey,
   V = ServiceValue,
 >(

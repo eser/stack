@@ -3,10 +3,16 @@
 /// <reference lib="deno.ns" />
 /// <reference lib="deno.unstable" />
 
-export enum SupportedRuntimes {
-  Unknown = 0,
-  Deno = 1,
-}
+export const SupportedRuntimes = {
+  Unknown: 0,
+  Deno: 1,
+} as const;
+
+export type SupportedRuntimeKey = Exclude<
+  keyof typeof SupportedRuntimes,
+  number
+>;
+export type SupportedRuntime = typeof SupportedRuntimes[SupportedRuntimeKey];
 
 export const notImplemented = (name: string) => {
   return () => {
@@ -21,7 +27,7 @@ export const notSupportedRuntime = (name: string) => {
 };
 
 export interface Runtime {
-  runtime: SupportedRuntimes;
+  runtime: SupportedRuntime;
 
   errors: {
     // deno-lint-ignore no-explicit-any
@@ -31,6 +37,11 @@ export interface Runtime {
   execPath(): string;
   getArgs(): Array<string>;
   getEnv(): { [index: string]: string };
+  getMainModule(): string | undefined;
+
+  getStdin(): ReadableStream;
+  getStdout(): WritableStream;
+  getStderr(): WritableStream;
 
   open(path: string | URL, options?: Deno.OpenOptions): Promise<Deno.FsFile>;
   stat(path: string | URL): Promise<Deno.FileInfo>;
@@ -71,6 +82,11 @@ export const createDenoRuntime = (): Runtime => {
     execPath: denoObjRef.execPath,
     getArgs: () => denoObjRef.args,
     getEnv: () => denoObjRef.env.toObject(),
+    getMainModule: () => denoObjRef.mainModule,
+
+    getStdin: () => denoObjRef.stdin.readable,
+    getStdout: () => denoObjRef.stdout.writable,
+    getStderr: () => denoObjRef.stderr.writable,
 
     open: denoObjRef.open,
     stat: denoObjRef.stat,
@@ -98,6 +114,11 @@ export const createGenericRuntime = (): Runtime => {
     execPath: notImplemented("execPath"),
     getArgs: notImplemented("getArgs"),
     getEnv: notImplemented("getEnv"),
+    getMainModule: notImplemented("getMainModule"),
+
+    getStdin: notImplemented("getStdin"),
+    getStdout: notImplemented("getStdout"),
+    getStderr: notImplemented("getStderr"),
 
     open: notImplemented("open"),
     stat: notImplemented("stat"),

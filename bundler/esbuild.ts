@@ -4,7 +4,7 @@ import {
   type BuildOptions,
   type OnLoadOptions,
   type Plugin,
-} from "https://deno.land/x/esbuild@v0.19.11/mod.js";
+} from "https://deno.land/x/esbuild@v0.20.0/mod.js";
 import * as runtime from "../standards/runtime.ts";
 import { esbuild, path, regexpEscape } from "./deps.ts";
 import { Builder, BuildSnapshot } from "./mod.ts";
@@ -43,12 +43,12 @@ export class EsbuildBuilder implements Builder {
     const portableBuilder = env["LIME_ESBUILD_LOADER"] === "portable";
 
     // Lazily initialize esbuild
-    // @deno-types="https://deno.land/x/esbuild@v0.19.11/mod.d.ts"
+    // @deno-types="https://deno.land/x/esbuild@v0.20.0/mod.d.ts"
     const esbuildInstance = isOnDenoDeploy || portableBuilder
-      ? await import("https://deno.land/x/esbuild@v0.19.11/wasm.js")
-      : await import("https://deno.land/x/esbuild@v0.19.11/mod.js");
+      ? await import("https://deno.land/x/esbuild@v0.20.0/wasm.js")
+      : await import("https://deno.land/x/esbuild@v0.20.0/mod.js");
     const esbuildWasmURL =
-      new URL("./esbuild_v0.19.11.wasm", import.meta.url).href;
+      new URL("./esbuild_v0.20.0.wasm", import.meta.url).href;
 
     if (isOnDenoDeploy) {
       await esbuildInstance.initialize({

@@ -67,13 +67,17 @@ export class Lime extends appserver.AppServer {
   }
 
   dev(): Lime {
-    this.runMode |= runModes.RunMode.Development;
+    this.runMode |= runModes.RunModes.Development;
 
     return this;
   }
 
   async start(): Promise<void> {
     await this.awaitAll();
-    // this.execute(_options);
+    // this.executeOpts(_options);
+  }
+
+  execute(): Promise<void> {
+    return this.start();
   }
 }

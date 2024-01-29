@@ -20,7 +20,9 @@ export const repl = async (_args: Array<string>, _options: ExecuteOptions) => {
     {
       args: [
         "repl",
-        "--unstable",
+        "--unstable-cron",
+        "--unstable-kv",
+        "--unstable-temporal",
         "--allow-all",
         "--eval-file=https://deno.land/x/cool@0.7.13/repl-init.ts",
       ],

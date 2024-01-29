@@ -1,21 +1,37 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { type ArgList } from "./functions.ts";
+import * as functions from "./functions.ts";
 
 // taken from RFC5424 (see: https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.1)
-export enum Severity {
-  Emergency = 0, // system is unusable
-  Alert = 1, // action must be taken immediately
-  Critical = 2, // critical conditions
-  Error = 3, // error conditions
-  Warning = 4, // warning conditions
-  Notice = 5, // normal but significant condition
-  Info = 6, // informational messages
-  Debug = 7, // debug-level messages
-}
+export const Severities = {
+  Emergency: 0, // system is unusable
+  Alert: 1, // action must be taken immediately
+  Critical: 2, // critical conditions
+  Error: 3, // error conditions
+  Warning: 4, // warning conditions
+  Notice: 5, // normal but significant condition
+  Info: 6, // informational messages
+  Debug: 7, // debug-level messages
+} as const;
+
+export type SeverityKey = Exclude<keyof typeof Severities, number>;
+export type Severity = typeof Severities[SeverityKey];
+
+export const SeverityNames = {
+  [Severities.Emergency]: "Emergency",
+  [Severities.Alert]: "Alert",
+  [Severities.Critical]: "Critical",
+  [Severities.Error]: "Error",
+  [Severities.Warning]: "Warning",
+  [Severities.Notice]: "Notice",
+  [Severities.Info]: "Info",
+  [Severities.Debug]: "Debug",
+} as const;
 
 export interface Logger {
-  log(severity: Severity, message: string, ...args: ArgList): void;
+  log<T>(
+    severity: Severity,
+    message: (T extends functions.GenericFunction ? never : T) | (() => T),
+    ...args: functions.ArgList
+  ): Promise<T | undefined>;
 }
-
-export { type Logger as default };

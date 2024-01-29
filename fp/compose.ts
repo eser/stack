@@ -1,11 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import {
-  type AnonymousFunction,
-  type ArgList,
-} from "../standards/functions.ts";
+import { type ArgList, type GenericFunction } from "../standards/functions.ts";
 
-type ComposableFunction = AnonymousFunction;
+type ComposableFunction = GenericFunction;
 
 export const compose = (
   ...funcs: ReadonlyArray<ComposableFunction>

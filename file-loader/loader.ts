@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as runtime from "../standards/runtime.ts";
-import { fs, JSONC, path, TOML, YAML } from "./deps.ts";
+import { fs, jsonc, path, toml, yaml } from "./deps.ts";
 
 // TODO(@eser) introduce strategy pattern for "search parents" and "recursive search" options
 
@@ -50,15 +50,15 @@ export const parse = async <T>(
   }
 
   if (ext === ".jsonc") {
-    return JSONC.parse(file) as T;
+    return jsonc.parse(file) as T;
   }
 
   if (ext === ".yaml" || ext === ".yml") {
-    return YAML.parse(file) as T;
+    return yaml.parse(file) as T;
   }
 
   if (ext === ".toml") {
-    return TOML.parse(file) as T;
+    return toml.parse(file) as T;
   }
 
   throw new Error(`Unsupported file extension: ${ext}`);

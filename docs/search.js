@@ -3,10 +3,12 @@ const Fuse = window.Fuse;
 const searchInput = document.querySelector("#searchbar");
 const mainContentTags = document.getElementsByTagName("main");
 const searchResultsDiv = document.querySelector("#searchResults");
-const currentSymbol =
-  document.querySelector("meta[name='doc-current-symbol']").attributes
+const currentFile =
+  document.querySelector("meta[name='doc-current-file']").attributes
     .getNamedItem("content").value;
-const pathToRoot = currentSymbol.split(".").slice(1).map(() => "../").join("");
+const pathToRoot = "../".repeat(
+  currentFile ? (currentFile.split("/").length + 1) : 0,
+);
 searchInput.removeAttribute("style");
 
 const SEARCH_INDEX = window.DENO_DOC_SEARCH_INDEX;
@@ -15,9 +17,6 @@ const fuse = new Fuse(SEARCH_INDEX.nodes, {
   keys: [{
     name: "name",
     weight: 2,
-  }, {
-    name: "nsQualifiers",
-    weight: 1,
   }],
   isCaseSensitive: false,
   minMatchCharLength: 2,
@@ -121,20 +120,22 @@ function renderResults(results) {
   let html = `<ul>`;
 
   for (const result of results) {
-    // console.log("result", result);
-    const [rustKind, title, symbol] = docNodeKindToStringVariants(result.kind);
-    const label = result.nsQualifiers
-      ? `${result.nsQualifiers}.${result.name}`
-      : result.name;
-    html += `<li>
-<a href="${pathToRoot}${label.split(".").join("/")}.html">
-    <div>
-        <div class="symbol_kind kind_${rustKind}_text kind_${rustKind}_bg" title="${title}">
-            ${symbol}
-        </div>
-        <span>${label}</span>
+    const kind = result.kind.map((kind) => {
+      const [rustKind, title, symbol] = docNodeKindToStringVariants(kind);
+      return `<div class="text-${rustKind} bg-${rustKind}/15 rounded-full size-5 font-medium text-xs leading-5 text-center align-middle shrink-0 select-none font-mono" title="${title}">
+        ${symbol}
+      </div>`;
+    }).join("");
+
+    html += `<li class="block">
+<a href="${pathToRoot}${result.file}/~/${result.name}.html" class="flex rounded-lg gap-4 items-center justify-between py-2 px-3 hover:bg-stone-100">
+    <div class="flex items-center gap-2.5">
+      <div class="flex justify-end compound_types w-[2.125rem] shrink-0">
+        ${kind}
+      </div>
+      <span class="text-sm leading-none">${result.name}</span>
     </div>
-    <div>${result.location.filename}:${result.location.line}</div>
+    <div class="text-xs italic text-stone-400 overflow-hidden whitespace-nowrap text-ellipsis">${result.location.filename}:${result.location.line}</div>
 </a>
 </li>`;
   }

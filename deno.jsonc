@@ -1,4 +1,12 @@
 {
+  "name": "@cool/cool",
+  "version": "0.7.16",
+  "exports": "./mod.ts",
+  "lock": false,
+  "imports": {
+    "$cool/jsx-runtime": "./jsx-runtime/mod.ts",
+    "$cool/": "./"
+  },
   "compilerOptions": {
     "jsx": "precompile",
     "jsxImportSource": "$cool",
@@ -9,11 +17,6 @@
     "noImplicitReturns": true,
 
     "exactOptionalPropertyTypes": false
-  },
-  "lock": false,
-  "imports": {
-    "$cool/jsx-runtime": "./jsx-runtime/mod.ts",
-    "$cool/": "./"
   },
   "lint": {
     "rules": {

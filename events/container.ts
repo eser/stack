@@ -3,13 +3,13 @@
 import { type EventDispatcher, type EventRegistry } from "./primitives.ts";
 
 export class Registry implements EventRegistry {
-  target = new EventTarget();
+  target: EventTarget = new EventTarget();
 
   add(
     type: string,
     listener: EventListener,
     options?: AddEventListenerOptions,
-  ) {
+  ): this {
     this.target.addEventListener(type, listener, options);
 
     return this;
@@ -19,7 +19,7 @@ export class Registry implements EventRegistry {
     type: string,
     listener: EventListener,
     options?: EventListenerOptions,
-  ) {
+  ): this {
     this.target.removeEventListener(type, listener, options);
 
     return this;
@@ -31,13 +31,13 @@ export class Registry implements EventRegistry {
 }
 
 export class Dispatcher implements EventDispatcher {
-  registry;
+  registry: EventRegistry;
 
   constructor(registry: EventRegistry) {
     this.registry = registry;
   }
 
-  dispatch<T>(type: string, eventInitDict?: CustomEventInit<T>) {
+  dispatch<T>(type: string, eventInitDict?: CustomEventInit<T>): boolean {
     return this.registry.target.dispatchEvent(
       new CustomEvent<T>(type, eventInitDict),
     );

@@ -1,8 +1,14 @@
 {
   "name": "@cool/cool",
-  "version": "0.7.16",
+  "version": "0.7.17",
   "exports": "./mod.ts",
   "lock": false,
+  "nodeModulesDir": false,
+  "unstable": [
+    "cron",
+    "kv",
+    "temporal"
+  ],
   "imports": {
     "$cool/jsx-runtime": "./jsx-runtime/mod.ts",
     "$cool/": "./"
@@ -48,7 +54,7 @@
     ]
   },
   "tasks": {
-    "cleanup": "rm -rf ./_etc/coverage/ ./_etc/coverage.lcov ./deno.lock && deno cache --unstable-cron --unstable-kv --unstable-temporal --reload ./mod.ts",
+    "cleanup": "rm -rf ./_etc/coverage/ ./_etc/coverage.lcov ./deno.lock && deno cache --reload ./mod.ts",
     "check:license": "deno run --allow-read --allow-write ./_etc/tasks/check-license.ts",
     "check:mod": "deno run --check --reload ./mod.ts",
     "doc:lint": "deno doc --lint ./mod.ts",

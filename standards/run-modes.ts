@@ -9,14 +9,14 @@ export const RunModes = {
 export type RunModeKey = Exclude<keyof typeof RunModes, number>;
 export type RunMode = typeof RunModes[RunModeKey];
 
-export const inProductionMode = (mode: RunMode) => {
+export const inProductionMode = (mode: RunMode): boolean => {
   return (mode & RunModes.Development) !== RunModes.Development;
 };
 
-export const inDevelopmentMode = (mode: RunMode) => {
+export const inDevelopmentMode = (mode: RunMode): boolean => {
   return (mode & RunModes.Development) === RunModes.Development;
 };
 
-export const inTestMode = (mode: RunMode) => {
+export const inTestMode = (mode: RunMode): boolean => {
   return (mode & RunModes.Test) === RunModes.Test;
 };

@@ -1,12 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import {
-  type BuildOptions,
-  type OnLoadOptions,
-  type Plugin,
-} from "https://deno.land/x/esbuild@v0.20.0/mod.js";
 import * as runtime from "../standards/runtime.ts";
-import { esbuild, path, regexpEscape } from "./deps.ts";
+import { esbuild, esbuildDenoPlugins, path, regexpEscape } from "./deps.ts";
 import { Builder, BuildSnapshot } from "./mod.ts";
 // import { BUNDLE_PUBLIC_PATH } from "../server/constants.ts";
 
@@ -37,34 +32,12 @@ export class EsbuildBuilder implements Builder {
   async build(): Promise<EsbuildSnapshot> {
     const opts = this.#options;
 
-    const env = runtime.current.getEnv();
-
-    const isOnDenoDeploy = env["DENO_DEPLOYMENT_ID"] !== undefined;
-    const portableBuilder = env["LIME_ESBUILD_LOADER"] === "portable";
-
-    // Lazily initialize esbuild
-    // @deno-types="https://deno.land/x/esbuild@v0.20.0/mod.d.ts"
-    const esbuildInstance = isOnDenoDeploy || portableBuilder
-      ? await import("https://deno.land/x/esbuild@v0.20.0/wasm.js")
-      : await import("https://deno.land/x/esbuild@v0.20.0/mod.js");
-    const esbuildWasmURL =
-      new URL("./esbuild_v0.20.0.wasm", import.meta.url).href;
-
-    if (isOnDenoDeploy) {
-      await esbuildInstance.initialize({
-        wasmURL: esbuildWasmURL,
-        worker: false,
-      });
-    } else {
-      await esbuildInstance.initialize({});
-    }
-
     try {
       const absWorkingDir = opts.absoluteWorkingDir;
 
       // In dev-mode we skip identifier minification to be able to show proper
       // component names in React DevTools instead of single characters.
-      const minifyOptions: Partial<BuildOptions> = opts.dev
+      const minifyOptions: Partial<esbuild.BuildOptions> = opts.dev
         ? {
           minifyIdentifiers: false,
           minifySyntax: true,
@@ -72,7 +45,7 @@ export class EsbuildBuilder implements Builder {
         }
         : { minify: true };
 
-      const bundle = await esbuildInstance.build({
+      const bundle = await esbuild.build({
         entryPoints: opts.entrypoints,
 
         platform: "browser",
@@ -103,7 +76,7 @@ export class EsbuildBuilder implements Builder {
         plugins: [
           devClientUrlPlugin(opts.basePath),
           buildIdPlugin(opts.buildID),
-          ...esbuild.denoPlugins({ configPath: opts.configPath }),
+          ...esbuildDenoPlugins({ configPath: opts.configPath }),
         ],
       });
 
@@ -131,12 +104,12 @@ export class EsbuildBuilder implements Builder {
 
       return new EsbuildSnapshot(files, dependencies);
     } finally {
-      esbuildInstance.stop();
+      esbuild.stop();
     }
   }
 }
 
-function devClientUrlPlugin(basePath?: string): Plugin {
+function devClientUrlPlugin(basePath?: string): esbuild.Plugin {
   return {
     name: "dev-client-url",
     setup(build) {
@@ -162,10 +135,10 @@ function devClientUrlPlugin(basePath?: string): Plugin {
   };
 }
 
-function buildIdPlugin(buildId: string): Plugin {
+function buildIdPlugin(buildId: string): esbuild.Plugin {
   const file = import.meta.resolve("../runtime/build-id.ts");
   const url = new URL(file);
-  let options: OnLoadOptions;
+  let options: esbuild.OnLoadOptions;
 
   if (url.protocol === "file:") {
     const pathNormalized = path.fromFileUrl(url);

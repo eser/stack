@@ -1,8 +1,5 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-/// <reference lib="deno.ns" />
-/// <reference lib="deno.unstable" />
-
 export const SupportedRuntimes = {
   Unknown: 0,
   Deno: 1,

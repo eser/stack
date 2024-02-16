@@ -1,13 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-export type Callback = () => unknown;
-export type Pattern = [unknown, Callback];
+export type Callback<T> = () => T;
+export type Pattern<T> = [unknown, Callback<T>];
 
-export const match = (
+export const match = <T>(
   value: unknown,
-  patterns: ReadonlyArray<Pattern>,
-  otherwise?: Callback,
-) => {
+  patterns: ReadonlyArray<Pattern<T>>,
+  otherwise?: Callback<T>,
+): T | undefined => {
   const pattern = patterns.find((x) => value === x[0]);
 
   if (pattern === undefined) {

@@ -16,42 +16,45 @@ import { invoke } from "./invoker.ts";
 
 export class Registry<K = ServiceKey, V = ServiceValue>
   implements ServiceRegistry<K, V> {
-  descriptors = new Map<K, ServiceDescriptor<V>>();
+  descriptors: Map<K, ServiceDescriptor<V>> = new Map<
+    K,
+    ServiceDescriptor<V>
+  >();
 
-  set(token: K, value: Promisable<V>) {
+  set(token: K, value: Promisable<V>): this {
     this.descriptors.set(token, [ServiceTypes.Singleton, value]);
 
     return this;
   }
 
-  setLazy(token: K, value: PromisableBuilder<V>) {
+  setLazy(token: K, value: PromisableBuilder<V>): this {
     this.descriptors.set(token, [ServiceTypes.Lazy, value]);
 
     return this;
   }
 
-  setScoped(token: K, value: PromisableBuilder<V>) {
+  setScoped(token: K, value: PromisableBuilder<V>): this {
     this.descriptors.set(token, [ServiceTypes.Scoped, value]);
 
     return this;
   }
 
-  setTransient(token: K, value: PromisableBuilder<V>) {
+  setTransient(token: K, value: PromisableBuilder<V>): this {
     this.descriptors.set(token, [ServiceTypes.Transient, value]);
 
     return this;
   }
 
-  build() {
+  build(): ServiceScope<K, V> {
     return new Scope<K, V>(this as ServiceRegistry<K, V>);
   }
 }
 
 export class Scope<K = ServiceKey, V = ServiceValue>
   implements ServiceScope<K, V> {
-  registry;
-  rootScope;
-  items = new Map<K, ServiceResolution<V>>();
+  registry: ServiceRegistry<K, V>;
+  rootScope: ServiceScope<K, V>;
+  items: Map<K, ServiceResolution<V>> = new Map<K, ServiceResolution<V>>();
 
   constructor(
     registry: ServiceRegistry<K, V>,

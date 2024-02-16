@@ -1,8 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-export * as colors from "https://deno.land/std@0.216.0/fmt/colors.ts";
-export * as hex from "https://deno.land/std@0.216.0/encoding/hex.ts";
-export * as path from "https://deno.land/std@0.216.0/path/mod.ts";
-export * as regexpEscape from "https://deno.land/std@0.216.0/regexp/escape.ts";
+export * as colors from "jsr:@std/fmt@0.216/colors";
+export * as hex from "jsr:@std/encoding@0.216/hex";
+export * as path from "jsr:@std/path@0.216";
+export * as regexpEscape from "jsr:@std/regexp@0.216/escape";
 
-export * as esbuild from "https://deno.land/x/esbuild_deno_loader@0.8.5/mod.ts";
+export * as esbuild from "npm:esbuild@0.20";
+// Import the WASM build on platforms where running subprocesses is not
+// permitted, such as Deno Deploy, or when running without `--allow-run`.
+// export * as esbuild from "npm:esbuild-wasm@0.20";
+
+export { denoPlugins as esbuildDenoPlugins } from "jsr:@luca/esbuild-deno-loader@0.9";

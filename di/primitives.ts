@@ -31,27 +31,45 @@ export type ServiceDescriptor<T> = readonly [
   Promisable<T> | PromisableBuilder<T>,
 ]; // tuple?
 
-export interface ServiceRegistry<K = ServiceKey, V = ServiceValue> {
-  descriptors: Map<K, ServiceDescriptor<V>>;
-
+export interface ServiceRegistryWritable<K = ServiceKey, V = ServiceValue> {
   set(token: K, value: Promisable<V>): ServiceRegistry<K, V>;
   setLazy(token: K, value: PromisableBuilder<V>): ServiceRegistry<K, V>;
   setScoped(token: K, value: PromisableBuilder<V>): ServiceRegistry<K, V>;
   setTransient(token: K, value: PromisableBuilder<V>): ServiceRegistry<K, V>;
-
-  build(): ServiceScope<K, V>;
 }
+
+export type ServiceRegistry<K = ServiceKey, V = ServiceValue> =
+  & ServiceRegistryWritable<K, V>
+  & {
+    descriptors: Map<K, ServiceDescriptor<V>>;
+
+    build(): ServiceScope<K, V>;
+  };
 
 export type ServiceResolution<T> = Promisable<T | undefined>;
 
-export interface ServiceScope<K = ServiceKey, V = ServiceValue> {
-  registry: ServiceRegistry<K, V>;
-  rootScope: ServiceScope<K, V>;
-  items: Map<K, ServiceResolution<V>>;
-
+export interface ServiceScopeQueryable<K = ServiceKey, V = ServiceValue> {
   get<V2 = V>(token: K, defaultValue?: V2): ServiceResolution<V2>;
   getMany(...tokens: ReadonlyArray<K>): ReadonlyArray<ServiceResolution<V>>;
   invoke<T extends GenericFunction>(fn: T): ReturnType<T>;
 
   createScope(): ServiceScope<K, V>;
 }
+
+export type ServiceScope<K = ServiceKey, V = ServiceValue> =
+  & ServiceScopeQueryable<K, V>
+  & {
+    registry: ServiceRegistry<K, V>;
+    rootScope: ServiceScope<K, V>;
+    items: Map<K, ServiceResolution<V>>;
+  };
+
+export type Factory<K = ServiceKey, V = ServiceValue> =
+  & ServiceScopeQueryable<K, V>
+  & ServiceRegistryWritable<K, V>
+  & {
+    (
+      strings?: TemplateStringsArray,
+      ...others: ReadonlyArray<string>
+    ): ServiceScope<K, V> | ServiceResolution<V> | string;
+  };

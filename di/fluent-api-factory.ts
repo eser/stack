@@ -3,6 +3,7 @@
 import { type Promisable } from "../standards/promises.ts";
 import { type GenericFunction } from "../standards/functions.ts";
 import {
+  type Factory,
   type PromisableBuilder,
   type ServiceKey,
   type ServiceScope,
@@ -11,7 +12,7 @@ import {
 
 export const factory = <K = ServiceKey, V = ServiceValue>(
   services: ServiceScope<K, V>,
-) => {
+): Factory<K, V> => {
   const di = (
     strings?: TemplateStringsArray,
     ...others: ReadonlyArray<string>
@@ -33,25 +34,25 @@ export const factory = <K = ServiceKey, V = ServiceValue>(
     return result;
   };
 
-  di.get = (token: K) => services.get(token);
+  di.get = <V2 = V>(token: K) => services.get<V2>(token);
 
-  di.many = (...tokens: ReadonlyArray<K>) => services.getMany(...tokens);
+  di.getMany = (...tokens: ReadonlyArray<K>) => services.getMany(...tokens);
 
   di.invoke = <T extends GenericFunction>(fn: T): ReturnType<T> =>
     services.invoke(fn);
 
-  di.scope = () => services.createScope();
+  di.createScope = () => services.createScope();
 
-  di.register = (token: K, value: Promisable<V>) =>
+  di.set = (token: K, value: Promisable<V>) =>
     services.registry.set(token, value);
 
-  di.registerLazy = (token: K, value: PromisableBuilder<V>) =>
+  di.setLazy = (token: K, value: PromisableBuilder<V>) =>
     services.registry.setLazy(token, value);
 
-  di.registerScoped = (token: K, value: PromisableBuilder<V>) =>
+  di.setScoped = (token: K, value: PromisableBuilder<V>) =>
     services.registry.setScoped(token, value);
 
-  di.registerTransient = (token: K, value: PromisableBuilder<V>) =>
+  di.setTransient = (token: K, value: PromisableBuilder<V>) =>
     services.registry.setTransient(token, value);
 
   return di;

@@ -6,11 +6,12 @@ export {
   EsbuildSnapshot,
 } from "./esbuild.ts";
 export { AotSnapshot } from "./aot-snapshot.ts";
+
 export interface Builder {
   build(): Promise<BuildSnapshot>;
 }
 
-export interface BuildSnapshot {
+export type BuildSnapshot = {
   /** The list of files contained in this snapshot, not prefixed by a slash. */
   readonly paths: Array<string>;
 
@@ -28,9 +29,9 @@ export interface BuildSnapshot {
    *
    * Returns an empty array if the entrypoint does not exist. */
   dependencies(pathStr: string): Array<string>;
-}
+};
 
-export interface BuildSnapshotJson {
+export type BuildSnapshotJson = {
   build_id: string;
   files: Record<string, Array<string>>;
-}
+};

@@ -7,7 +7,7 @@ export const decorate = <T1, T2>(
   decorator: (
     ...args: readonly [Decorated<T1, T2>, ...ReadonlyArray<T1>]
   ) => T2,
-) => {
+): (...args: ReadonlyArray<T1>) => T2 => {
   return (...args: ReadonlyArray<T1>): T2 => {
     return decorator(target, ...args);
   };

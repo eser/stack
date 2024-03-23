@@ -13,13 +13,13 @@ import * as formatters from "./formatters.ts";
 
 export const DEFAULT_LEVEL = logging.Severities.Info;
 
-export interface LogRecord {
+export type LogRecord = {
   message: string;
   args: functions.ArgList;
   datetime: Date;
   severity: logging.Severity;
   loggerName: string;
-}
+};
 
 export const Logger = class implements logging.Logger {
   readonly loggerName: string;

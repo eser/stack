@@ -94,7 +94,7 @@ Alternatively, retrieve multiple services at once:
 ```js
 import { services } from "$cool/di/mod.ts";
 
-const [dns, mns, db, users] = di.many(
+const [dns, mns, db, users] = di.getMany(
   "mailService",
   "notifyService",
   "dbConnection",
@@ -108,8 +108,8 @@ parameters:
 ```js
 import { registry } from "$cool/di/mod.ts";
 
-di.register("serviceA", () => console.log("Service A"));
-di.register("serviceB", () => console.log("Service B"));
+di.set("serviceA", () => console.log("Service A"));
+di.set("serviceB", () => console.log("Service B"));
 
 function myFunction(serviceA, serviceB) {
   serviceA();
@@ -128,8 +128,8 @@ dependencies.
 ```js
 import { registry } from "$cool/di/mod.ts";
 
-di.register("serviceA", () => console.log("Service A"));
-di.register("serviceB", () => console.log("Service B"));
+di.set("serviceA", () => console.log("Service A"));
+di.set("serviceB", () => console.log("Service B"));
 
 di`first: ${"serviceA"} second: ${"serviceB"}`; // This will log "first: Service A second: Service B"
 ```

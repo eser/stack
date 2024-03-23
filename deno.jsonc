@@ -9,9 +9,20 @@
     "kv",
     "temporal"
   ],
-  "imports": {
-    "$cool/jsx-runtime": "./jsx-runtime/mod.ts",
-    "$cool/": "./"
+  "tasks": {
+    "cleanup": "rm -rf ./_etc/coverage/ ./_etc/coverage.lcov ./deno.lock && deno cache --reload ./mod.ts",
+    "check:license": "deno run --allow-read --allow-write ./_etc/tasks/check-license.ts",
+    "check:mod": "deno run --check --reload ./mod.ts",
+    "doc:lint": "deno doc --lint ./mod.ts",
+    "doc:generate": "rm -rf ./docs/ && deno doc --name='cool' --output=./docs/ --html ./mod.ts",
+    "test": "DENO_KV_PATH=:memory: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --watch",
+    "test:run": "DENO_KV_PATH=:memory: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --trace-ops --coverage=./_etc/coverage/",
+    "test:coverage": "deno coverage ./_etc/coverage/ --exclude='\\.(j|t)sx$'",
+    "test:coverage-gen": "deno coverage ./_etc/coverage --exclude='\\.(j|t)sx$' --lcov --output=./_etc/coverage.lcov",
+    "ok": "deno fmt --check && deno lint && deno task check:license --check && deno task check:mod && deno task test:run",
+    "repl": "deno repl --unstable-cron --unstable-kv --unstable-temporal --allow-all --eval-file=./repl-init.ts",
+    "container:build": "docker build -t cool .",
+    "container:run": "docker run --interactive --tty --rm cool"
   },
   "compilerOptions": {
     "jsx": "precompile",
@@ -29,43 +40,14 @@
       "tags": [
         "recommended"
       ]
-    },
-    "exclude": [
-      "_etc/temp/",
-      "docs/"
-    ]
+    }
   },
-  "fmt": {
-    "exclude": [
-      "_etc/temp/",
-      "docs/"
-    ]
-  },
-  "test": {
-    "exclude": [
-      "_etc/",
-      "docs/"
-    ]
-  },
-  "bench": {
-    "exclude": [
-      "_etc/",
-      "docs/"
-    ]
-  },
-  "tasks": {
-    "cleanup": "rm -rf ./_etc/coverage/ ./_etc/coverage.lcov ./deno.lock && deno cache --reload ./mod.ts",
-    "check:license": "deno run --allow-read --allow-write ./_etc/tasks/check-license.ts",
-    "check:mod": "deno run --check --reload ./mod.ts",
-    "doc:lint": "deno doc --lint ./mod.ts",
-    "doc:generate": "rm -rf ./docs/ && deno doc --name='cool' --output=./docs/ --html ./mod.ts",
-    "test": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --watch",
-    "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --trace-ops --coverage=./_etc/coverage/",
-    "test:coverage": "deno coverage ./_etc/coverage/ --exclude='\\.(j|t)sx$'",
-    "test:coverage-gen": "deno coverage ./_etc/coverage --exclude='\\.(j|t)sx$' --lcov --output=./_etc/coverage.lcov",
-    "ok": "deno fmt --check && deno lint && deno task check:license --check && deno task check:mod && deno task test:run",
-    "repl": "deno repl --unstable-cron --unstable-kv --unstable-temporal --allow-all --eval-file=./repl-init.ts",
-    "container:build": "docker build -t cool .",
-    "container:run": "docker run --interactive --tty --rm cool"
+  "exclude": [
+    "_etc/temp/",
+    "docs/"
+  ],
+  "imports": {
+    "$cool/jsx-runtime": "./jsx-runtime/mod.ts",
+    "$cool/": "./"
   }
 }

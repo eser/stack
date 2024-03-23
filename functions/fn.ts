@@ -24,12 +24,12 @@ export type FnResult<TR = AcceptableResult> =
   | Promise<void>
   | void;
 
-export interface Fn<
+export type Fn<
   TR = AcceptableResult,
   TS extends State = State,
-> {
+> = {
   (context: Context<TR, TS>, ...args: ArgList): FnResult<TR>;
-}
+};
 
 export type Pipeline<
   TR = AcceptableResult,
@@ -44,7 +44,7 @@ export type Pipeline<
 export const fn = function <
   TR = AcceptableResult,
   TS extends State = State,
->(...fns: ReadonlyArray<Fn<TR, TS>>) {
+>(...fns: ReadonlyArray<Fn<TR, TS>>): Pipeline<TR, TS> {
   let target = fns.at(-1);
   const stack = fns.slice(0, -1);
 
@@ -118,7 +118,7 @@ export const fn = function <
     return results;
   };
 
-  return <Pipeline<TR, TS>> {
+  return {
     use,
     set,
     iterate,

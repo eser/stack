@@ -2,10 +2,10 @@
 
 import { type Token } from "./lexer/lexer.ts";
 
-export interface ASTNode {
+export type ASTNode = {
   kind: string;
   [key: string]: unknown;
-}
+};
 
 export type Parser = (t: Iterator<Token>) => Array<ASTNode> | null;
 

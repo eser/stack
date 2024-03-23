@@ -1,8 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { type EventDispatcher } from "./primitives.ts";
+import { type EventDispatcher, type Factory } from "./primitives.ts";
 
-export const factory = (dispatcher: EventDispatcher) => {
+export const factory = (dispatcher: EventDispatcher): Factory => {
   const events = (strings?: TemplateStringsArray) => {
     if (strings === undefined) {
       return dispatcher;

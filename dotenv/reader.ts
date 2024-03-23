@@ -2,9 +2,9 @@
 
 import { defaultEnvValue, env, type EnvMap } from "./base.ts";
 
-// interface definitions
+// type definitions
 export interface EnvReader {
-  [env]: string;
+  getCurrentEnv(): string;
   readString<T extends string>(key: string, defaultValue: T): T;
   readString<T extends string>(key: string): T | undefined;
   readEnum<T extends string>(key: string, values: Array<T>, defaultValue: T): T;
@@ -18,7 +18,7 @@ export interface EnvReader {
 // public functions
 export const createEnvReader = (state: EnvMap): EnvReader => {
   return {
-    [env]: state.get(env) ?? defaultEnvValue,
+    getCurrentEnv: () => state.get(env) ?? defaultEnvValue,
     readString: <T extends string>(
       key: string,
       defaultValue?: T,

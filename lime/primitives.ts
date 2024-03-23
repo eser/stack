@@ -6,19 +6,19 @@ import * as appserver from "../appserver/mod.ts";
 
 export type LimeExportedSymbol = unknown;
 
-export interface LimeManifest {
+export type LimeManifest = {
   exports: Array<[string, Array<[string, LimeExportedSymbol]>]>;
-}
+};
 
-export interface LimeOptions {
+export type LimeOptions = {
   basePath: string;
-}
+};
 
-export interface LimeState {
+export type LimeState = {
   baseUrl: string | null;
   manifests: Array<LimeManifest>;
   options: LimeOptions;
-}
+};
 
 export class Lime extends appserver.AppServer {
   state: LimeState;

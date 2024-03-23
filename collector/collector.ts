@@ -33,12 +33,12 @@ export async function* walkFiles(
   }
 }
 
-export interface CollectExportsOptions {
+export type CollectExportsOptions = {
   baseDir: string;
   globFilter?: string;
   exportFilter?: (entries: [string, unknown][]) => Promise<[string, unknown][]>;
   ignoreFilePattern?: RegExp;
-}
+};
 
 export const collectExports = async (options: CollectExportsOptions) => {
   // const mainModule = runtime.current.getMainModule();

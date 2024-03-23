@@ -6,9 +6,9 @@ export const SubComponent = () => {
   return <div>sub component</div>;
 };
 
-export interface ComponentProps {
+export type ComponentProps = {
   foo: string;
-}
+};
 
 export const Component = (props: ComponentProps) => {
   return (

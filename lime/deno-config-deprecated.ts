@@ -2,7 +2,7 @@
 
 import * as fileLoader from "../file-loader/mod.ts";
 
-export interface DenoConfig {
+export type DenoConfig = {
   imports?: Record<string, string>;
   importMap?: string;
   tasks?: Record<string, string>;
@@ -18,7 +18,7 @@ export interface DenoConfig {
     jsx?: string;
     jsxImportSource?: string;
   };
-}
+};
 
 export const loadDenoConfig = async (
   baseDir: string,

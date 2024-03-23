@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-export interface Module {
+export type Module = {
   name?: string;
 
   manifest: unknown; // TODO(@eser) type this
@@ -9,4 +9,4 @@ export interface Module {
   provides: ReadonlyArray<unknown>; // TODO(@eser) type this
 
   entrypoint: () => void; // TODO(@eser) type this
-}
+};

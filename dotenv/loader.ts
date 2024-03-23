@@ -4,12 +4,12 @@ import * as runtime from "../standards/runtime.ts";
 import { dotenv } from "./deps.ts";
 import { defaultEnvValue, defaultEnvVar, env, type EnvMap } from "./base.ts";
 
-// interface definitions
-export interface LoaderOptions {
+// type definitions
+export type LoaderOptions = {
   baseDir: string;
   defaultEnvVar: string;
   defaultEnvValue: string;
-}
+};
 
 // public functions
 export const parseEnvString = (

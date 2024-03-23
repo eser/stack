@@ -39,7 +39,7 @@ export class AppServer {
   }
 
   setAsDefaultAppServer() {
-    this.di.register(AppServer.default, this);
+    this.di.set(AppServer.default, this);
   }
 
   async awaitAll() {

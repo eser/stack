@@ -11,19 +11,19 @@ export type SupportedRuntimeKey = Exclude<
 >;
 export type SupportedRuntime = typeof SupportedRuntimes[SupportedRuntimeKey];
 
-export const notImplemented = (name: string) => {
+export const notImplemented = (name: string): () => never => {
   return () => {
     throw new Error(`This feature is not implemented: ${name}`);
   };
 };
 
-export const notSupportedRuntime = (name: string) => {
+export const notSupportedRuntime = (name: string): () => never => {
   return () => {
     throw new Error(`Runtime is not supported: ${name}`);
   };
 };
 
-export interface Runtime {
+export type Runtime = {
   runtime: SupportedRuntime;
 
   errors: {
@@ -65,7 +65,7 @@ export interface Runtime {
 
   openKv(path?: string): Promise<Deno.Kv>;
   Command: typeof Deno.Command;
-}
+};
 
 export const createDenoRuntime = (): Runtime => {
   const denoObjRef = globalThis.Deno;
@@ -140,7 +140,7 @@ export const createRuntime = (): Runtime => {
   return createGenericRuntime();
 };
 
-export const current = createRuntime();
+export const current: Runtime = createRuntime();
 
 // export const addSignalListener = denoObjRef?.addSignalListener ??
 //   notImplemented;

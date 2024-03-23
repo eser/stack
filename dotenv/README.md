@@ -86,10 +86,10 @@ const options = await configure(
 ```js
 import { configure, env } from "$cool/dotenv/mod.ts";
 
-interface Options {
+type Options = {
   env: string;
   port: number;
-}
+};
 
 const options = await configure<Options>(
   (reader, acc) => {

@@ -5,7 +5,7 @@ import { esbuild, esbuildDenoPlugins, path, regexpEscape } from "./deps.ts";
 import { Builder, BuildSnapshot } from "./mod.ts";
 // import { BUNDLE_PUBLIC_PATH } from "../server/constants.ts";
 
-export interface EsbuildBuilderOptions {
+export type EsbuildBuilderOptions = {
   /** The build ID. */
   buildID: string;
   /** The entrypoints, mapped from name to URL. */
@@ -20,7 +20,7 @@ export interface EsbuildBuilderOptions {
   target: string | Array<string>;
   absoluteWorkingDir: string;
   basePath?: string;
-}
+};
 
 export class EsbuildBuilder implements Builder {
   #options: EsbuildBuilderOptions;

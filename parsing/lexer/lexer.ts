@@ -5,10 +5,10 @@ import {
   type TokenDefinitions,
 } from "./tokens/definition.ts";
 
-export interface Token {
+export type Token = {
   kind: string;
   value: string | undefined;
-}
+};
 
 export class Tokenizer {
   readonly tokenDefs: TokenDefinitions;
@@ -19,14 +19,14 @@ export class Tokenizer {
     this.tokenDefs = tokenDefs;
   }
 
-  *tokenizeFromString(input: string) {
+  *tokenizeFromString(input: string): Generator<Token> {
     this._reset();
 
     yield* this._tokenizeChunk(input);
     yield* this._tokenizeChunk(null);
   }
 
-  async *tokenize(input: ReadableStream) {
+  async *tokenize(input: ReadableStream): AsyncGenerator<Token> {
     this._reset();
 
     for await (const chunk of input) {
@@ -35,7 +35,7 @@ export class Tokenizer {
     yield* this._tokenizeChunk(null);
   }
 
-  *_tokenizeChunk(input: string | null) {
+  *_tokenizeChunk(input: string | null): Generator<Token> {
     if (input === null) {
       this._isDone = true;
     } else {

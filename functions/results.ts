@@ -3,15 +3,14 @@
 // deno-lint-ignore no-explicit-any
 export type ExtraData = Record<string | symbol, any>;
 
-export interface Result<T> {
+export type Result<T> = {
   error?: Error;
   payload?: T;
   extraData?: ExtraData;
-
   // with: (
   //   extraData: ExtraData,
   // ) => Result<T>;
-}
+};
 
 export const Ok = <T>(result?: T): Result<T> => {
   return {

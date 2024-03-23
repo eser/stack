@@ -5,7 +5,6 @@ export * from "./append-to-object.ts";
 export * from "./associate-array.ts";
 export * from "./associate-object.ts";
 export * from "./compose.ts";
-export * from "./curry-functions.ts";
 export * from "./curry-right.ts";
 export * from "./curry.ts";
 export * from "./decorate.ts";

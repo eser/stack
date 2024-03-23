@@ -5,10 +5,10 @@ import { env } from "./base.ts";
 import { load, type LoaderOptions } from "./loader.ts";
 import { createEnvReader, type EnvReader } from "./reader.ts";
 
-// interface definitions
-export interface BaseEnvVariables {
+// type definitions
+export type BaseEnvVariables = {
   [env]: string;
-}
+};
 
 export type EnvVariables = BaseEnvVariables & Record<string, unknown>;
 

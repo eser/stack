@@ -24,7 +24,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di template strings: singleton value", () => {
     const { di } = create();
 
-    di.register("a", "value");
+    di.set("a", "value");
 
     assert.assertStrictEquals(di`a`, "value");
   });
@@ -32,8 +32,8 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di template strings: literals", () => {
     const { di } = create();
 
-    di.register("b", "c2");
-    di.register("d", "e4");
+    di.set("b", "c2");
+    di.set("d", "e4");
 
     assert.assertStrictEquals(di`${"b"} = ${"d"}.`, "c2 = e4.");
   });
@@ -42,26 +42,26 @@ bdd.describe("cool/di/fluent-api-factory", () => {
     const { di } = create();
 
     const fnKey = () => null;
-    di.register(fnKey, "zz6");
+    di.set(fnKey, "zz6");
 
     const result = di.get(fnKey);
 
     assert.assertStrictEquals(result, "zz6");
   });
 
-  bdd.it("di.many()", () => {
+  bdd.it("di.getMany()", () => {
     const { di } = create();
 
-    di.register("f", "h3");
-    di.register("g", "i5");
+    di.set("f", "h3");
+    di.set("g", "i5");
 
-    assert.assertEquals(di.many("f", "g"), ["h3", "i5"]);
+    assert.assertEquals(di.getMany("f", "g"), ["h3", "i5"]);
   });
 
   bdd.it("di.invoke(): lambda", () => {
     const { di } = create();
 
-    di.register("j", mock.spy());
+    di.set("j", mock.spy());
 
     // deno-fmt-ignore
     const fn: (_: () => void) => void = j => j();
@@ -75,9 +75,9 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): lambda, multiple", () => {
     const { di } = create();
 
-    di.register("k", mock.spy());
-    di.register("l", mock.spy());
-    di.register("m", mock.spy());
+    di.set("k", mock.spy());
+    di.set("l", mock.spy());
+    di.set("m", mock.spy());
 
     const fn = (k: () => void, l: () => void, m: () => void) => {
       k();
@@ -98,7 +98,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): anonymous function", () => {
     const { di } = create();
 
-    di.register("n", mock.spy());
+    di.set("n", mock.spy());
 
     const fn = (n: () => void) => {
       n();
@@ -113,9 +113,9 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): anonymous function, multiple", () => {
     const { di } = create();
 
-    di.register("o", mock.spy());
-    di.register("p", mock.spy());
-    di.register("q", mock.spy());
+    di.set("o", mock.spy());
+    di.set("p", mock.spy());
+    di.set("q", mock.spy());
 
     const fn = (o: () => void, p: () => void, q: () => void) => {
       o();
@@ -136,7 +136,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): named function", () => {
     const { di } = create();
 
-    di.register("r", mock.spy());
+    di.set("r", mock.spy());
 
     const fn = (r: () => void) => {
       r();
@@ -151,9 +151,9 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): named function, multiple", () => {
     const { di } = create();
 
-    di.register("s", mock.spy());
-    di.register("t", mock.spy());
-    di.register("u", mock.spy());
+    di.set("s", mock.spy());
+    di.set("t", mock.spy());
+    di.set("u", mock.spy());
 
     const fn = (s: () => void, t: () => void, u: () => void) => {
       s();
@@ -174,7 +174,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): generator function", () => {
     const { di } = create();
 
-    di.register("v", mock.spy());
+    di.set("v", mock.spy());
 
     const fn = function* (v: () => void) {
       yield v();
@@ -189,9 +189,9 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): generator function, multiple", () => {
     const { di } = create();
 
-    di.register("w", mock.spy());
-    di.register("x", mock.spy());
-    di.register("y", mock.spy());
+    di.set("w", mock.spy());
+    di.set("x", mock.spy());
+    di.set("y", mock.spy());
 
     const fn = function* (w: () => void, x: () => void, y: () => void) {
       yield w();
@@ -212,7 +212,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): async function", async () => {
     const { di } = create();
 
-    di.register("z", mock.spy());
+    di.set("z", mock.spy());
 
     const fn = async (z: () => void) => {
       await Promise.resolve(z());
@@ -227,9 +227,9 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): async function, multiple", async () => {
     const { di } = create();
 
-    di.register("aa", mock.spy());
-    di.register("ab", mock.spy());
-    di.register("ac", mock.spy());
+    di.set("aa", mock.spy());
+    di.set("ab", mock.spy());
+    di.set("ac", mock.spy());
 
     const fn = async (
       aa: () => void,
@@ -256,7 +256,7 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): async generator function", async () => {
     const { di } = create();
 
-    di.register("ad", mock.spy());
+    di.set("ad", mock.spy());
 
     const fn = async function* (ad: () => void) {
       yield await Promise.resolve(ad());
@@ -271,9 +271,9 @@ bdd.describe("cool/di/fluent-api-factory", () => {
   bdd.it("di.invoke(): async generator function, multiple", async () => {
     const { di } = create();
 
-    di.register("ae", mock.spy());
-    di.register("af", mock.spy());
-    di.register("ag", mock.spy());
+    di.set("ae", mock.spy());
+    di.set("af", mock.spy());
+    di.set("ag", mock.spy());
 
     const fn = async function* (
       ae: () => void,

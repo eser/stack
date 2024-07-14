@@ -29,7 +29,7 @@ export const createAppRuntimeState = (): AppRuntimeState => {
 };
 
 export class AppRuntime<S extends AppRuntimeState = AppRuntimeState> {
-  static default = Symbol("default");
+  static readonly default = Symbol("default");
   readonly state: S;
 
   constructor(state?: S) {

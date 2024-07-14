@@ -138,7 +138,7 @@ portable across all these platforms.
 
 ## 🚀 Jumpstart
 
-Ensure that [Deno](https://deno.land/) 1.36 or higher is installed on your
+Ensure that [Deno](https://deno.land/) 1.45 or higher is installed on your
 system first.
 
 First, install `cool cli` globally, then create a new project:
@@ -182,7 +182,7 @@ your fork, and then submit a pull request.
 
 ### Requirements
 
-- Deno 1.36 or higher (https://deno.land/)
+- Deno 1.45 or higher (https://deno.land/)
 
 ### Versioning
 

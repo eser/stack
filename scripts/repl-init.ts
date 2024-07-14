@@ -1,18 +1,25 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as config from "@eser/config";
-import * as jsRuntime from "@eser/standards/js-runtime";
-// import * as mod from "@eser/";
+import * as configFile from "@eser/config/file";
+// import * as jsRuntime from "@eser/standards/js-runtime";
+import * as mod from "./pkg/mod.ts";
 
 // TODO(@eser) get dependency injection container entries instead of this
 await (async () => {
-  const env = await config.dotenv.load();
-  const kv = await jsRuntime.current.openKv();
+  // const env = await config.dotenv.load();
+  // const kv = await jsRuntime.current.openKv();
+
+  const denoConfigLoader = await configFile.load(".", [
+    "deno.jsonc",
+    "deno.json",
+  ]);
+  const denoConfig = denoConfigLoader.content;
 
   const variables: Record<string, unknown> = {
-    // ...mod,
-    env,
-    kv,
+    ...mod,
+    denoConfig,
+    // env,
+    // kv,
   };
 
   const vars = () => {
@@ -36,7 +43,10 @@ await (async () => {
     globalThis[key] = value;
   }
 
-  console.log(`%ccool REPL, version ${mod.metadata.version}`, "color: #00ff00");
+  console.log(
+    `%ccool REPL, version ${denoConfig.version ?? "unknown"}`,
+    "color: #00ff00",
+  );
 
   vars();
 })();

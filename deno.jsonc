@@ -19,7 +19,7 @@
     "test:coverage": "deno coverage ./_etc/coverage/ --exclude='\\.(j|t)sx$'",
     "test:coverage-gen": "deno coverage ./_etc/coverage --exclude='\\.(j|t)sx$' --lcov --output=./_etc/coverage.lcov",
     "ok": "deno fmt --check && deno lint && deno task script:validate-licenses --check && deno task check:mod && deno task test:run",
-    "repl": "deno repl --unstable-cron --unstable-kv --unstable-temporal --allow-all --eval-file=./repl-init.ts",
+    "repl": "deno repl --unstable-cron --unstable-kv --unstable-temporal --allow-all --eval-file=./scripts/repl-init.ts",
     "container:build": "docker build -t cool .",
     "container:run": "docker run --interactive --tty --rm cool"
   },

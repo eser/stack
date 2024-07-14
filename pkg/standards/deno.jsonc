@@ -1,0 +1,15 @@
+{
+  "name": "@eser/standards",
+  "version": "0.7.20",
+  "imports": {},
+  "exports": {
+    ".": "./mod.ts",
+    "./functions": "./functions.ts",
+    "./js-runtime": "./js-runtime.ts",
+    "./logging": "./logging.ts",
+    "./patterns": "./patterns.ts",
+    "./promises": "./promises.ts",
+    "./run-modes": "./run-modes.ts",
+    "./utilities": "./utilities.ts"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@eser/logging",
+  "version": "0.7.20",
+  "imports": {},
+  "exports": {
+    ".": "./mod.ts",
+    "./logger": "./logger.ts"
+  }
+}

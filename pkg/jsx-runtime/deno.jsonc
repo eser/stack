@@ -1,0 +1,10 @@
+{
+  "name": "@eser/jsx-runtime",
+  "version": "0.7.20",
+  "imports": {
+    "react/jsx-runtime": "https://esm.sh/stable/react@19.0.0-rc-df5f2736-20240712/es2022/jsx-runtime.js"
+  },
+  "exports": {
+    ".": "./mod.ts"
+  }
+}

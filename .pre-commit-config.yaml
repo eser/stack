@@ -1,12 +1,12 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: check-added-large-files
         args: ["--maxkb=1024"]
         exclude: |
           (?x)^(
-            bundler/esbuild_v0.20.0.wasm
+            pkg/bundler/esbuild_v0.20.0.wasm
           )$
       - id: check-case-conflict
       - id: check-executables-have-shebangs
@@ -29,18 +29,19 @@ repos:
         args: ["--autofix", "--no-ensure-ascii", "--no-sort-keys"]
       - id: trailing-whitespace
   - repo: https://github.com/crate-ci/typos
-    rev: v1.16.23
+    rev: v1.23.2
     hooks:
       - id: typos
         verbose: true
-        args: [
-        ]
+        args:
+          - "--config"
+          - ".github/typos.toml"
         exclude: |
           (?x)^(
-            docs/.*
+            docs/.*|
           )$
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.0.0
+    rev: v3.3.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
@@ -50,7 +51,7 @@ repos:
     - id: local-precommit
       name: local pre-commit tasks
       description: Runs local pre-commit tasks.
-      entry: bash -c 'deno run -A pre-commit.ts; git add -u' --
+      entry: bash -c 'deno task script:validate-configs; git add -u' --
       always_run: true
       pass_filenames: false
       language: system
@@ -62,36 +63,29 @@ repos:
       exclude: |
         (?x)^(
           _etc/.*|
-          .github/FUNDING.yml|
-          .github/ISSUE_TEMPLATE/bug_report.md|
-          .github/ISSUE_TEMPLATE/feature_request.md|
-          .github/PULL_REQUEST_TEMPLATE.md|
+          .github/.*|
           .git/COMMIT_EDITMSG|
-          appserver/README.md|
-          bundler/README.md|
-          bundler/esbuild_v0.20.0.wasm|
-          collector/README.md|
-          di/README.md|
-          directives/README.md|
           docs/.*|
-          dotenv/README.md|
-          events/README.md|
-          file-loader/README.md|
-          fp/README.md|
-          functions/README.md|
-          jsx-runtime/README.md|
-          jsx-runtime.test/README.md|
-          lime/README.md|
-          lime.test/README.md|
-          parsing/README.md|
-          standards/README.md|
-          CODEOWNERS|
-          CODE_OF_CONDUCT.md|
-          CONTRIBUTING.md|
+          pkg/app-runtime/README.md|
+          pkg/bundler/README.md|
+          pkg/bundler/esbuild_v0.20.0.wasm|
+          pkg/collector/README.md|
+          pkg/config/README.md|
+          pkg/di/README.md|
+          pkg/directives/README.md|
+          pkg/dotenv/README.md|
+          pkg/events/README.md|
+          pkg/fp/README.md|
+          pkg/functions/README.md|
+          pkg/jsx-runtime/README.md|
+          pkg/jsx-runtime.test/README.md|
+          pkg/lime/README.md|
+          pkg/lime.test/README.md|
+          pkg/parsing/README.md|
+          pkg/standards/README.md|
           Dockerfile|
           LICENSE|
-          README.md|
-          SECURITY.md
+          README.md
         )$
     - id: check-integrity
       name: check integrity

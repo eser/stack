@@ -1,0 +1,8 @@
+{
+  "name": "@eser/lime",
+  "version": "0.7.20",
+  "imports": {},
+  "exports": {
+    ".": "./mod.ts"
+  }
+}

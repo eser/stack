@@ -1,0 +1,10 @@
+{
+  "name": "@eser/parsing",
+  "version": "0.7.20",
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0"
+  },
+  "exports": {
+    ".": "./mod.ts"
+  }
+}

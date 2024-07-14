@@ -7,11 +7,6 @@ _etc/
 .gitignore
 .pre-commit-config.yaml
 .tool-versions
-CODE_OF_CONDUCT.md
-CONTRIBUTING.md
 Dockerfile
 LICENSE
-pre-commit.ts
 README.md
-SECURITY.md
-version.txt

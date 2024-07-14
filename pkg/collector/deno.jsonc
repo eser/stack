@@ -1,0 +1,12 @@
+{
+  "name": "@eser/collector",
+  "version": "0.7.20",
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/path": "jsr:@std/path@^1.0.0",
+    "@std/fs": "jsr:@std/fs@^0.229.3"
+  },
+  "exports": {
+    ".": "./mod.ts"
+  }
+}

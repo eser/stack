@@ -1,7 +1,5 @@
 {
-  "name": "@cool/cool",
-  "version": "0.7.17",
-  "exports": "./mod.ts",
+  "version": "0.7.20",
   "lock": false,
   "nodeModulesDir": false,
   "unstable": [
@@ -10,29 +8,29 @@
     "temporal"
   ],
   "tasks": {
-    "cleanup": "rm -rf ./_etc/coverage/ ./_etc/coverage.lcov ./deno.lock && deno cache --reload ./mod.ts",
-    "check:license": "deno run --allow-read --allow-write ./_etc/tasks/check-license.ts",
-    "check:mod": "deno run --check --reload ./mod.ts",
-    "doc:lint": "deno doc --lint ./mod.ts",
-    "doc:generate": "rm -rf ./docs/ && deno doc --name='cool' --output=./docs/ --html ./mod.ts",
+    "cleanup": "rm -rf ./_etc/coverage/ ./_etc/coverage.lcov ./deno.lock && deno task check:mod",
+    "script:validate-licenses": "deno run --allow-read --allow-write ./scripts/validate-licenses.ts",
+    "script:validate-configs": "deno run --allow-net --allow-env --allow-read --allow-write ./scripts/validate-configs.ts",
+    "check:mod": "deno run --check --reload --allow-env --allow-read ./pkg/mod.ts",
+    "doc:lint": "deno doc --lint ./pkg/mod.ts",
+    "doc:generate": "rm -rf ./docs/ && deno doc --name='cool' --output=./docs/ --html ./pkg/mod.ts",
     "test": "DENO_KV_PATH=:memory: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --watch",
-    "test:run": "DENO_KV_PATH=:memory: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --trace-ops --coverage=./_etc/coverage/",
+    "test:run": "DENO_KV_PATH=:memory: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --trace-leaks --coverage=./_etc/coverage/",
     "test:coverage": "deno coverage ./_etc/coverage/ --exclude='\\.(j|t)sx$'",
     "test:coverage-gen": "deno coverage ./_etc/coverage --exclude='\\.(j|t)sx$' --lcov --output=./_etc/coverage.lcov",
-    "ok": "deno fmt --check && deno lint && deno task check:license --check && deno task check:mod && deno task test:run",
+    "ok": "deno fmt --check && deno lint && deno task script:validate-licenses --check && deno task check:mod && deno task test:run",
     "repl": "deno repl --unstable-cron --unstable-kv --unstable-temporal --allow-all --eval-file=./repl-init.ts",
     "container:build": "docker build -t cool .",
     "container:run": "docker run --interactive --tty --rm cool"
   },
   "compilerOptions": {
     "jsx": "precompile",
-    "jsxImportSource": "$cool",
-
+    "jsxImportSource": "@eser",
     "strict": true,
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
-
+    "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false
   },
   "lint": {
@@ -40,14 +38,49 @@
       "tags": [
         "recommended"
       ]
-    }
+    },
+    "include": [
+      "ban-untagged-todo",
+      "camelcase",
+      "default-param-last",
+      "eqeqeq",
+      "no-await-in-loop",
+      "no-console",
+      "no-const-assign",
+      "no-eval",
+      "no-external-import",
+      "no-non-null-asserted-optional-chain",
+      "no-self-compare",
+      "no-sparse-arrays",
+      "no-sync-fn-in-async-fn",
+      "no-throw-literal",
+      "no-top-level-await",
+      "no-undef",
+      "prefer-ascii",
+      "single-var-declarator",
+      "verbatim-module-syntax"
+    ]
   },
   "exclude": [
+    ".git",
     "_etc/temp/",
     "docs/"
   ],
-  "imports": {
-    "$cool/jsx-runtime": "./jsx-runtime/mod.ts",
-    "$cool/": "./"
-  }
+  "workspace": [
+    "./scripts",
+    "./pkg/app-runtime",
+    "./pkg/bundler",
+    "./pkg/collector",
+    "./pkg/config",
+    "./pkg/di",
+    "./pkg/events",
+    "./pkg/fp",
+    "./pkg/functions",
+    "./pkg/jsx-runtime",
+    "./pkg/jsx-runtime.test",
+    "./pkg/lime",
+    "./pkg/logging",
+    "./pkg/parsing",
+    "./pkg/standards"
+  ]
 }

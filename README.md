@@ -61,14 +61,14 @@ strives to offer you an intuitive and delightful development experience.
 
 ### Component Set
 
-| Component                         | Area              | Description                                         |
-| --------------------------------- | ----------------- | --------------------------------------------------- |
-| 📓 [cool/directives](directives/) | Rules             | The ground rules adhered to by the entire ecosystem |
-| 📑 [cool/standards](standards/)   | Abstraction       | Provides common abstraction layers for DI           |
-| ⚙️ [cool/di](di/)                  | Manager           | Dependency injection system                         |
-| 🧱 [cool/fp](fp/)                 | Functions Library | Tools for functional programming                    |
-| 🔐 [cool/dotenv](dotenv/)         | Manager           | Load configurations from environment                |
-| 〰️ [cool/parsing](parsing/)       | Manager           | Parsing tools for various strings and streams       |
+| Component                              | Area              | Description                                         |
+| -------------------------------------- | ----------------- | --------------------------------------------------- |
+| 📓 [@eser/directives](pkg/directives/) | Rules             | The ground rules adhered to by the entire ecosystem |
+| 📑 [@eser/standards](pkg/standards/)   | Abstraction       | Provides common abstraction layers for DI           |
+| ⚙️ [@eser/di](pkg/di/)                  | Manager           | Dependency injection system                         |
+| 🧱 [@eser/fp](pkg/fp/)                 | Functions Library | Tools for functional programming                    |
+| 🔐 [@eser/dotenv](pkg/dotenv/)         | Manager           | Load configurations from environment                |
+| 〰️ [@eser/parsing](pkg/parsing/)       | Manager           | Parsing tools for various strings and streams       |
 
 Visit the respective component page for detailed usage instructions.
 
@@ -78,7 +78,7 @@ We strive to run the following code seamlessly across
 [all platforms we support](#platform-support):
 
 ```js
-import { Runtime, Context } from "$cool/runtime/mod.ts";
+import { Runtime, Context } from "@eser/runtime";
 
 const home = (ctx: Context) => {
   return ctx.results.jsx(<h1>Hello there!</h1>);
@@ -159,7 +159,7 @@ done.
 
 If you're going to report a bug or request a new feature, please ensure first
 that you comply with the conditions found under
-[cool/directives](https://github.com/eser/cool/blob/dev/directives/README.md).
+[@eser/directives](https://github.com/eser/cool/blob/dev/pkg/directives/README.md).
 After that, you can report an issue or request using
 [GitHub Issues](https://github.com/eser/cool/issues). Thanks in advance.
 

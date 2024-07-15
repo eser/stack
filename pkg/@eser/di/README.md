@@ -1,7 +1,7 @@
 # ⚙️ [@eser/di](./)
 
-`@eser/di` is a crucial component of `cool` that provides simple and efficient
-dependency injection solutions.
+`@eser/di` is a crucial component of `eserstack` that provides simple and
+efficient dependency injection solutions.
 
 ## 🚀 Getting Started with Dependency Injection (DI)
 
@@ -191,4 +191,4 @@ their references as if they were never instantiated.
 ---
 
 🔗 For further details such as requirements, licensing and support guide, please
-visit the [main cool repository](https://github.com/eser/cool).
+visit the [main eserstack repository](https://github.com/eser/stack).

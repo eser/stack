@@ -1,8 +1,8 @@
-# Contributing to [cool](./)
+# Contributing to [eserstack](./)
 
 👍🎉 First off, thanks for taking the time to contribute! 🎉👍
 
-The following is a set of guidelines for contributing to `cool` and its
+The following is a set of guidelines for contributing to `eserstack` and its
 packages, which are hosted in GitHub. These are mostly guidelines, not strict
 rules. Use your best judgment and feel free to propose changes to this document
 in a pull request.
@@ -42,11 +42,11 @@ from:
 - Implementing performance improvements
 - Improving documentation
 - Submitting bug fixes
-- Linking to your cool project
+- Linking to your eserstack project
 
 ## Creating an Issue
 
-- Check the [GitHub Issues](https://github.com/eser/cool/issues) first to avoid
+- Check the [GitHub Issues](https://github.com/eser/stack/issues) first to avoid
   duplicating an existing issue.
 - Use the issue tracker to ask questions, report problems or for discussion
   related to the project.

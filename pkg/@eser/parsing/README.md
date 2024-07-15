@@ -102,4 +102,4 @@ Tokenizes the given readable stream and returns an iterator for the tokens.
 ---
 
 🔗 For further details such as requirements, licensing and support guide, please
-visit the [main cool repository](https://github.com/eser/cool).
+visit the [main eserstack repository](https://github.com/eser/stack).

@@ -13,15 +13,15 @@
     "script:validate-configs": "deno run --allow-net --allow-env --allow-read --allow-write ./scripts/validate-configs.ts",
     "check:mod": "deno run --check --reload --allow-env --allow-read ./pkg/mod.ts",
     "doc:lint": "deno doc --lint ./pkg/mod.ts",
-    "doc:generate": "rm -rf ./docs/ && deno doc --name='cool' --output=./docs/ --html ./pkg/mod.ts",
+    "doc:generate": "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html ./pkg/mod.ts",
     "test": "DENO_KV_PATH=:memory: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --watch",
     "test:run": "DENO_KV_PATH=:memory: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --trace-leaks --coverage=./_etc/coverage/",
     "test:coverage": "deno coverage ./_etc/coverage/ --exclude='\\.(j|t)sx$'",
     "test:coverage-gen": "deno coverage ./_etc/coverage --exclude='\\.(j|t)sx$' --lcov --output=./_etc/coverage.lcov",
     "ok": "deno fmt --check && deno lint && deno task script:validate-licenses --check && deno task check:mod && deno task test:run",
     "repl": "deno repl --unstable-cron --unstable-kv --unstable-temporal --allow-all --eval-file=./scripts/repl-init.ts",
-    "container:build": "docker build -t cool .",
-    "container:run": "docker run --interactive --tty --rm cool"
+    "container:build": "docker build -t coolvm .",
+    "container:run": "docker run --interactive --tty --rm coolvm"
   },
   "compilerOptions": {
     "jsx": "precompile",

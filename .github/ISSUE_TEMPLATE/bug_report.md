@@ -27,7 +27,7 @@ If applicable, add screenshots to help explain your problem.
 
 - OS: [e.g. Ubuntu 20.04, MacOS 11]
 - Deno Version:
-- Cool Version:
+- eserstack Component Versions:
 
 **Additional context**\
 Add any other context about the problem here.

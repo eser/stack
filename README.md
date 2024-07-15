@@ -1,58 +1,58 @@
-# `cool` - The Portability Solution for Your Code! 🚀
+# `eserstack` - The Portability Solution for Your Code! 🚀
 
 <p align="center">
   <a href="./">
-    <img alt="cool javascript toolkit" src="./_etc/cover.svg" width="849" />
+    <img alt="eser stack javascript toolkit" src="./_etc/cover.svg" width="849" />
   </a>
 </p>
 
 Step into a world where you never have to deal with portability and platform
 issues. Whether you're targeting **web browsers**, **serverless platforms**,
-**chatbots**, **CLI**, or multiple platforms simultaneously, cool ensures **your
-code runs** flawlessly **everywhere**.
+**chatbots**, **CLI**, or multiple platforms simultaneously, eserstack ensures
+**your code runs** flawlessly **everywhere**.
 
 ## 📖 Overview
 
-`cool` is a JavaScript toolkit designed to uphold best practices and enhance
-portability across different platforms.
+`eserstack` is a JavaScript toolkit designed to uphold best practices and
+enhance portability across different platforms.
 
-Beyond being a toolkit, `cool` advocates for a philosophy that emphasizes
+Beyond being a toolkit, `eserstack` advocates for a philosophy that emphasizes
 writing code driven by algorithms, design and patterns, not by platform-specific
 implementation details.
 
-While `cool` offers you a layer of abstraction that isolates you from the
+While `eserstack` offers you a layer of abstraction that isolates you from the
 platforms, **you can focus on your implementation**. Don't worry about the rest,
 your solution will excel across diverse environments.
 
-Every [component](#component-set) of `cool` is designed to work in harmony,
+Every [component](#component-set) of `eserstack` is designed to work in harmony,
 strives to offer you an intuitive and delightful development experience.
 
-## 🌟 Why choose cool?
+## 🌟 Why choose eserstack?
 
-`cool` is meticulously designed for developers who:
+`eserstack` is meticulously designed for developers who:
 
 - **Seek Portability**: If you've ever felt the need for a JavaScript/TypeScript
   framework that seamlessly works across web browsers, Deno, Supabase, Netlify,
-  AWS Lambda and Cloudflare Workers, `cool` is your answer.
+  AWS Lambda and Cloudflare Workers, `eserstack` is your answer.
   [See the full list of supported platforms](#platform-support)
 
-- **Love Functional Programming**: `cool` not only supports but encourages a
-  functional programming approach. This means you can write your code once and
+- **Love Functional Programming**: `eserstack` not only supports but encourages
+  a functional programming approach. This means you can write your code once and
   run it on various platforms without modifications.
   [Dive into our functional programming tools](./fp/README.md)
 
 - **Want Enhanced Testability**: With the removal of hard-coded dependencies and
-  the promotion of loose coupling, `cool` enhances the testability of your
+  the promotion of loose coupling, `eserstack` enhances the testability of your
   codebase, ensuring that your applications run as expected.
   [Explore our dependency injection system](./di/README.md)
 
 - **Desire a Unified Approach**: Instead of juggling multiple libraries and
-  tools, `cool` provides a unified toolkit where each component works seamlessly
-  with the others, ensuring a smoother development experience.
+  tools, `eserstack` provides a unified toolkit where each component works
+  seamlessly with the others, ensuring a smoother development experience.
   [Check out our component set](#component-set)
 
 - **Prioritize Best Practices**: If you've been struggling with maintaining best
-  practices in your development process, `cool` is here to guide you. With
+  practices in your development process, `eserstack` is here to guide you. With
   built-in support for principles like 12factor and dependency injection, you
   can ensure that your code remains clean, maintainable, and scalable.
   [Learn more about our best practices approach](#best-practices)
@@ -144,11 +144,11 @@ system first.
 First, install `cool cli` globally, then create a new project:
 
 ```sh
-$ deno install -A -n cool https://c00l.deno.dev
+$ deno install -g jsr:@cool/cli
 
-$ cool create my-cool-project
+$ cool create my-project
 
-Creating "cool web project template 0.0.1" on my-cool-project...
+Creating "cool web project template 0.0.1" on my-project...
 ...
 done.
 ```
@@ -159,9 +159,9 @@ done.
 
 If you're going to report a bug or request a new feature, please ensure first
 that you comply with the conditions found under
-[@eser/directives](https://github.com/eser/cool/blob/dev/pkg/directives/README.md).
+[@eser/directives](https://github.com/eser/stack/blob/dev/pkg/directives/README.md).
 After that, you can report an issue or request using
-[GitHub Issues](https://github.com/eser/cool/issues). Thanks in advance.
+[GitHub Issues](https://github.com/eser/stack/issues). Thanks in advance.
 
 ### Want to contribute?
 
@@ -172,7 +172,7 @@ If you're interested in becoming a contributor and enhancing the ecosystem,
 please start by reading through our [CONTRIBUTING.md](CONTRIBUTING.md).
 
 If you're not sure where to begin, take a look at the
-[issues](https://github.com/eser/cool/issues) labeled `good first issue` and
+[issues](https://github.com/eser/stack/issues) labeled `good first issue` and
 `help wanted`. Reviewing closed issues can also give you a sense of the types of
 contributions we're looking for and you can tackle.
 
@@ -188,7 +188,7 @@ your fork, and then submit a pull request.
 
 This project follows [Semantic Versioning](https://semver.org/). For the
 versions available, see the
-[tags on this repository](https://github.com/eser/cool/tags).
+[tags on this repository](https://github.com/eser/stack/tags).
 
 ### License
 

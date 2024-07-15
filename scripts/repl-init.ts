@@ -44,7 +44,7 @@ await (async () => {
   }
 
   console.log(
-    `%ccool REPL, version ${denoConfig.version ?? "unknown"}`,
+    `%ceserstack REPL, version ${denoConfig.version ?? "unknown"}`,
     "color: #00ff00",
   );
 

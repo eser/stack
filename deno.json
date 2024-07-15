@@ -11,6 +11,8 @@
     "cleanup": "rm -rf ./_etc/coverage/ ./_etc/coverage.lcov ./deno.lock && deno task check:mod",
     "script:validate-licenses": "deno run --allow-read --allow-write ./scripts/validate-licenses.ts",
     "script:validate-configs": "deno run --allow-net --allow-env --allow-read --allow-write ./scripts/validate-configs.ts",
+    "script:bump-versions-dry": "deno run --allow-net --allow-env --allow-read --allow-write --allow-run ./scripts/bump-versions.ts --dry-run",
+    "script:bump-versions": "deno run --allow-net --allow-env --allow-read --allow-write --allow-run ./scripts/bump-versions.ts",
     "check:mod": "deno run --check --reload --allow-env --allow-read ./pkg/mod.ts",
     "doc:lint": "deno doc --lint ./pkg/mod.ts",
     "doc:generate": "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html ./pkg/mod.ts",

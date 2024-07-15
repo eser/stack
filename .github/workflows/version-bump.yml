@@ -23,7 +23,7 @@ jobs:
       - name: Run @deno/bump-workspaces
         run: |
           git fetch --unshallow origin
-          deno run -A jsr:@deno/bump-workspaces@^0.1/cli
+          deno task script:bump-versions
         env:
           GITHUB_TOKEN: ${{ secrets.ESERSTACK_PAT }}
           GIT_USER_NAME: ${{ github.actor }}

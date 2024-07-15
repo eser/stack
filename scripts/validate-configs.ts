@@ -36,16 +36,16 @@ const main = async () => {
     "..",
   );
 
-  const rootConfig = await tryLoadJsonFile(`${basePath}/deno.jsonc`);
+  const rootConfig = await tryLoadJsonFile(`${basePath}/deno.json`);
   if (rootConfig === undefined) {
-    console.error("Could not load deno.jsonc");
+    console.error("Could not load deno.json");
     return;
   }
 
   for (const entry of rootConfig.workspace ?? []) {
     console.log(`Processing ${entry}...`);
     const modulePath = posix.join(basePath, entry);
-    const moduleConfigFile = posix.join(modulePath, "deno.jsonc");
+    const moduleConfigFile = posix.join(modulePath, "deno.json");
 
     const moduleConfig = await tryLoadJsonFile(moduleConfigFile);
     if (moduleConfig === undefined) {
@@ -64,7 +64,7 @@ const main = async () => {
 
     const contents = `${JSON.stringify(moduleConfig, null, 2)}\n`;
     await jsRuntime.current.writeTextFile(
-      `${modulePath}/deno.jsonc`,
+      `${modulePath}/deno.json`,
       contents,
     );
   }

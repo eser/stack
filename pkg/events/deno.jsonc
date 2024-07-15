@@ -7,7 +7,7 @@
   },
   "exports": {
     ".": "./mod.ts",
-    "./container": "././container.ts",
-    "./events": "././events.ts"
+    "./container": "./container.ts",
+    "./events": "./events.ts"
   }
 }

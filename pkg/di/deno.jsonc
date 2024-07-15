@@ -7,7 +7,7 @@
   },
   "exports": {
     ".": "./mod.ts",
-    "./container": "././container.ts",
-    "./services": "././services.ts"
+    "./container": "./container.ts",
+    "./services": "./services.ts"
   }
 }

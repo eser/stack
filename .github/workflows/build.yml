@@ -107,3 +107,6 @@ jobs:
       #   with:
       #     project: c00l
       #     entrypoint: ./main.ts
+
+      - name: Publish
+        run: deno publish

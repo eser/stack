@@ -1,5 +1,10 @@
 # `eserstack` - The Portability Solution for Your Code! 🚀
 
+[![JSR @eser](https://jsr.io/badges/@eser)](https://jsr.io/@eser)
+[![codecov](https://codecov.io/gh/eser/stack/branch/main/graph/badge.svg?token=w6s3ODtULz)](https://codecov.io/gh/eser/stack)
+[![Build Pipeline](https://github.com/eser/stack/actions/workflows/build.yml/badge.svg)](https://github.com/eser/stack/actions/workflows/build.yml)
+[![Built with the Deno Standard Library](https://raw.githubusercontent.com/denoland/deno_std/main/badge.svg)](https://deno.land/std)
+
 <p align="center">
   <a href="./">
     <img alt="eser stack javascript toolkit" src="./_etc/cover.svg" width="849" />
@@ -61,14 +66,14 @@ strives to offer you an intuitive and delightful development experience.
 
 ### Component Set
 
-| Component                              | Area              | Description                                         |
-| -------------------------------------- | ----------------- | --------------------------------------------------- |
-| 📓 [@eser/directives](pkg/directives/) | Rules             | The ground rules adhered to by the entire ecosystem |
-| 📑 [@eser/standards](pkg/standards/)   | Abstraction       | Provides common abstraction layers for DI           |
-| ⚙️ [@eser/di](pkg/di/)                  | Manager           | Dependency injection system                         |
-| 🧱 [@eser/fp](pkg/fp/)                 | Functions Library | Tools for functional programming                    |
-| 🔐 [@eser/dotenv](pkg/dotenv/)         | Manager           | Load configurations from environment                |
-| 〰️ [@eser/parsing](pkg/parsing/)       | Manager           | Parsing tools for various strings and streams       |
+| Component                              | Area              | Description                                         | Latest Version                                                                  |
+| -------------------------------------- | ----------------- | --------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 📓 [@eser/directives](pkg/directives/) | Rules             | The ground rules adhered to by the entire ecosystem | -                                                                               |
+| 📑 [@eser/standards](pkg/standards/)   | Abstraction       | Provides common abstraction layers for DI           | [![JSR](https://jsr.io/badges/@eser/standards)](https://jsr.io/@eser/standards) |
+| ⚙️ [@eser/di](pkg/di/)                  | Manager           | Dependency injection system                         | [![JSR](https://jsr.io/badges/@eser/di)](https://jsr.io/@eser/di)               |
+| 🧱 [@eser/fp](pkg/fp/)                 | Functions Library | Tools for functional programming                    | [![JSR](https://jsr.io/badges/@eser/fp)](https://jsr.io/@eser/fp)               |
+| 🔐 [@eser/config](pkg/config/)         | Manager           | Load configurations from environment                | [![JSR](https://jsr.io/badges/@eser/config)](https://jsr.io/@eser/config)       |
+| 〰️ [@eser/parsing](pkg/parsing/)       | Manager           | Parsing tools for various strings and streams       | [![JSR](https://jsr.io/badges/@eser/parsing)](https://jsr.io/@eser/parsing)     |
 
 Visit the respective component page for detailed usage instructions.
 

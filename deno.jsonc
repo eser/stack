@@ -68,19 +68,19 @@
   ],
   "workspace": [
     "./scripts",
-    "./pkg/app-runtime",
-    "./pkg/bundler",
-    "./pkg/collector",
-    "./pkg/config",
-    "./pkg/di",
-    "./pkg/events",
-    "./pkg/fp",
-    "./pkg/functions",
-    "./pkg/jsx-runtime",
-    "./pkg/jsx-runtime.test",
-    "./pkg/lime",
-    "./pkg/logging",
-    "./pkg/parsing",
-    "./pkg/standards"
+    "./pkg/@eser/app-runtime",
+    "./pkg/@eser/bundler",
+    "./pkg/@eser/collector",
+    "./pkg/@eser/config",
+    "./pkg/@eser/di",
+    "./pkg/@eser/events",
+    "./pkg/@eser/fp",
+    "./pkg/@eser/functions",
+    "./pkg/@eser/jsx-runtime",
+    "./pkg/@eser/jsx-runtime.test",
+    "./pkg/@eser/logging",
+    "./pkg/@eser/parsing",
+    "./pkg/@eser/standards",
+    "./pkg/@cool/lime"
   ]
 }

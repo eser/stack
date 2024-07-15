@@ -100,7 +100,7 @@ testable code with no side effects during runtime.
 
 ## 🛠 Usage and API Reference
 
-Here you'll find a list of utility functions provided by `cool/fp` along with
+Here you'll find a list of utility functions provided by `@eser/fp` along with
 brief descriptions and usage examples. Dive in and explore the usage of
 functional programming paradigms.
 

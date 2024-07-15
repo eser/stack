@@ -66,23 +66,23 @@ repos:
           .github/.*|
           .git/COMMIT_EDITMSG|
           docs/.*|
-          pkg/app-runtime/README.md|
-          pkg/bundler/README.md|
-          pkg/bundler/esbuild_v0.20.0.wasm|
-          pkg/collector/README.md|
-          pkg/config/README.md|
-          pkg/di/README.md|
-          pkg/directives/README.md|
-          pkg/dotenv/README.md|
-          pkg/events/README.md|
-          pkg/fp/README.md|
-          pkg/functions/README.md|
-          pkg/jsx-runtime/README.md|
-          pkg/jsx-runtime.test/README.md|
-          pkg/lime/README.md|
-          pkg/lime.test/README.md|
-          pkg/parsing/README.md|
-          pkg/standards/README.md|
+          pkg/@eser/app-runtime/README.md|
+          pkg/@eser/bundler/README.md|
+          pkg/@eser/bundler/esbuild_v0.20.0.wasm|
+          pkg/@eser/collector/README.md|
+          pkg/@eser/config/README.md|
+          pkg/@eser/di/README.md|
+          pkg/@eser/directives/README.md|
+          pkg/@eser/dotenv/README.md|
+          pkg/@eser/events/README.md|
+          pkg/@eser/fp/README.md|
+          pkg/@eser/functions/README.md|
+          pkg/@eser/jsx-runtime/README.md|
+          pkg/@eser/jsx-runtime.test/README.md|
+          pkg/@eser/parsing/README.md|
+          pkg/@eser/standards/README.md|
+          pkg/@cool/lime/README.md|
+          pkg/@cool/lime.test/README.md|
           Dockerfile|
           LICENSE|
           README.md

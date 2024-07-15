@@ -79,8 +79,10 @@ repos:
           pkg/@eser/functions/README.md|
           pkg/@eser/jsx-runtime/README.md|
           pkg/@eser/jsx-runtime.test/README.md|
+          pkg/@eser/logging/README.md|
           pkg/@eser/parsing/README.md|
           pkg/@eser/standards/README.md|
+          pkg/@cool/cli/README.md|
           pkg/@cool/lime/README.md|
           pkg/@cool/lime.test/README.md|
           Dockerfile|

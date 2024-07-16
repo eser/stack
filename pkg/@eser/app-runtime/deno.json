@@ -1,6 +1,6 @@
 {
   "name": "@eser/app-runtime",
-  "version": "0.7.21",
+  "version": "0.7.20",
   "imports": {},
   "exports": {
     ".": "./mod.ts"

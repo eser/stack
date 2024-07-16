@@ -1,6 +1,6 @@
 {
   "name": "@eser/jsx-runtime",
-  "version": "0.7.21",
+  "version": "0.7.20",
   "imports": {
     "react/jsx-runtime": "npm:react@19.0.0-rc-df5f2736-20240712/jsx-runtime",
     "@types/react": "npm:@types/react@^18.3"

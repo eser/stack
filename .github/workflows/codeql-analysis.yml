@@ -12,12 +12,10 @@
 name: "CodeQL"
 
 on:
-  # push:
-  #   branches: ["main", "dev"]
-  # pull_request:
-  #   branches: [ "**" ]
-  # schedule:
-  #   - cron: '18 21 * * 6'
+  push:
+    branches:
+      - main
+
   workflow_dispatch:
     inputs:
       logLevel:

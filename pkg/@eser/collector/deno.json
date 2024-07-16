@@ -1,6 +1,6 @@
 {
   "name": "@eser/collector",
-  "version": "0.7.21",
+  "version": "0.7.20",
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.0",
     "@std/path": "jsr:@std/path@^1.0.0",

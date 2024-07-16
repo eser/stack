@@ -138,6 +138,7 @@ export const DEFAULT_RANGE_REQUIRED = [
 
 export function defaultParseCommitMessage(
   commit: Commit,
+  workspaceModules: WorkspaceModule[],
 ): VersionBump[] | Diagnostic {
   const match = RE_DEFAULT_PATTERN.exec(commit.subject);
   if (match === null) {
@@ -148,7 +149,11 @@ export function defaultParseCommitMessage(
     };
   }
   const [, tag, module, _message] = match;
-  const modules = module ? module.split(/\s*,\s*/) : [];
+  const modules = module === "*"
+    ? workspaceModules.map((x) => x.name)
+    : module
+    ? module.split(/\s*,\s*/)
+    : [];
   if (modules.length === 0) {
     if (DEFAULT_RANGE_REQUIRED.includes(tag)) {
       return {
@@ -526,7 +531,10 @@ export type BumpWorkspaceOptions = {
   start?: string;
   /** The base branch name to compare commits. The default is the current branch. */
   base?: string;
-  parseCommitMessage?: (commit: Commit) => VersionBump[] | Diagnostic;
+  parseCommitMessage?: (
+    commit: Commit,
+    workspaceModules: WorkspaceModule[],
+  ) => VersionBump[] | Diagnostic;
   /** The root directory of the workspace. */
   root?: string;
   /** The git user name which is used for making a commit */
@@ -624,7 +632,7 @@ export async function bumpWorkspaces(
       // Skip if the commit subject is release
       continue;
     }
-    const parsed = parseCommitMessage(commit);
+    const parsed = parseCommitMessage(commit, modules);
     if (Array.isArray(parsed)) {
       for (const versionBump of parsed) {
         const diagnostic = checkModuleName(versionBump, modules);

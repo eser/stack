@@ -1,6 +1,6 @@
 {
   "name": "@eser/fp",
-  "version": "0.7.20",
+  "version": "0.7.21",
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.0"
   },

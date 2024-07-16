@@ -11,6 +11,8 @@ const main = async () => {
     /_etc\/coverage\/*$/,
     /_etc\/temp\/*$/,
     /_etc\/templates\/*$/,
+    /test\/apps\/cf-workers-app\/node_modules\/*$/,
+    /test\/apps\/cf-workers-app\/worker-configuration\.d\.ts$/,
     /manifest\.gen\.ts$/,
   ];
 

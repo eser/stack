@@ -79,10 +79,10 @@
     "./pkg/@eser/fp",
     "./pkg/@eser/functions",
     "./pkg/@eser/jsx-runtime",
-    "./pkg/@eser/jsx-runtime.test",
     "./pkg/@eser/logging",
     "./pkg/@eser/parsing",
     "./pkg/@eser/standards",
-    "./pkg/@cool/lime"
+    "./pkg/@cool/lime",
+    "./test/apps/jsx-runtime-app"
   ]
 }

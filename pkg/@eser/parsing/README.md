@@ -38,7 +38,7 @@ used extensively in compilers and source code analysis tools.
 
 ## 🛠 Usage
 
-Here you'll find a list of features provided by `eser/parsing` along with brief
+Here you'll find a list of features provided by `@eser/parsing` along with brief
 descriptions and usage examples.
 
 ### Tokenizing from source

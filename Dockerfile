@@ -1,4 +1,4 @@
-FROM denoland/deno:distroless-1.46.2
+FROM denoland/deno:distroless-1.46.3
 
 # The port that the application listens to.
 EXPOSE 8080

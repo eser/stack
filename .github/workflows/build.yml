@@ -55,7 +55,7 @@ jobs:
           fetch-depth: 2
 
       - name: Setup Deno ${{ matrix.deno-version }}
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: ${{ matrix.deno-version }}
 
@@ -97,7 +97,7 @@ jobs:
           # token: ${{ secrets.GH_TOKEN }}
 
       - name: Setup Deno (latest)
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
 
       # - name: Build step
       #   run: deno task build

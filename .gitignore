@@ -21,13 +21,12 @@ Thumbs.db
 *.swp
 
 # coverage files
-/_etc/coverage/*
-/_etc/coverage.lcov
+/etc/coverage/*
+/etc/coverage.lcov
 
 # package managers
 node_modules/*
-package-lock.json
 
 # temporary files
-/_etc/temp/*
-!/_etc/temp/.gitkeep
+/etc/temp/*
+!/etc/temp/.gitkeep

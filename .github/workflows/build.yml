@@ -46,7 +46,7 @@ jobs:
           # - windows-latest
           # - macOS-latest
         deno-version:
-          - 1.45.2
+          - 2.4.4
 
     steps:
       - name: Checkout repository
@@ -55,7 +55,7 @@ jobs:
           fetch-depth: 2
 
       - name: Setup Deno ${{ matrix.deno-version }}
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: ${{ matrix.deno-version }}
 
@@ -71,7 +71,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           name: ${{ matrix.os }}
-          files: ./_etc/coverage.lcov
+          files: ./etc/coverage.lcov
 
   delivery:
     name: Delivery
@@ -82,7 +82,7 @@ jobs:
     permissions:
       contents: write # Needed to push the repository
       id-token: write # Needed for auth with Deno Deploy
-      pages: write    # Needed for updating GitHub Pages
+      pages: write # Needed for updating GitHub Pages
 
     env:
       GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID }}
@@ -97,7 +97,7 @@ jobs:
           # token: ${{ secrets.GH_TOKEN }}
 
       - name: Setup Deno (latest)
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
 
       # - name: Build step
       #   run: deno task build

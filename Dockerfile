@@ -1,22 +1,16 @@
-FROM denoland/deno:distroless-1.46.2
-
-# The port that the application listens to.
-EXPOSE 8080
+FROM denoland/deno:2.4.4
 
 # Prefer not to run as root.
 USER deno
 
-WORKDIR /app
+# Set working directory
+WORKDIR /srv/playground
+ENV DENO_DIR=.deno_cache
 
-# # Cache the dependencies as a layer (the following two steps are re-run only when deps.ts is modified).
-# # Ideally cache deps.ts will download and compile _all_ external files used in main.ts.
-# COPY deps.ts .
-# RUN deno cache deps.ts
+RUN mkdir -p .deno_cache
 
-# These steps will be re-run upon each file change in your working directory:
-COPY ./ ./
+# Install dependencies first to improve caching
+COPY --chown=deno:deno . ./
+RUN deno install --allow-scripts --reload --entrypoint ./pkg/mod.ts
 
-# Compile the main app so that it doesn't need to be compiled each startup/entry.
-RUN deno cache ./pkg/mod.ts
-
-ENTRYPOINT ["deno", "task", "repl"]
+CMD ["task", "repl"]

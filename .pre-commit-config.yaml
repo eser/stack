@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-added-large-files
         args: ["--maxkb=1024"]
@@ -38,8 +38,16 @@ repos:
             test/apps/cf-workers-app/tsconfig.json
           )$
       - id: trailing-whitespace
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.2.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: []
+
   - repo: https://github.com/crate-ci/typos
-    rev: v1.23.2
+    rev: v1.35.5
     hooks:
       - id: typos
         verbose: true
@@ -50,58 +58,48 @@ repos:
           (?x)^(
             docs/.*|
           )$
-  - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.3.0
-    hooks:
-      - id: conventional-pre-commit
-        stages: [commit-msg]
-        args: []
+
   - repo: local
     hooks:
-    - id: local-precommit
-      name: local pre-commit tasks
-      description: Runs local pre-commit tasks.
-      entry: bash -c 'deno task script:validate-configs; git add -u' --
-      always_run: true
-      pass_filenames: false
-      language: system
-    - id: kebab-case-files-only
-      name: kebab-case files only
-      entry: filenames must be kebab-case only
-      language: fail
-      files: '(?!\.test\.[jt]sx?$)[^a-z0-9.\/\[\]@-]'
-      exclude: |
-        (?x)^(
-          _etc/.*|
-          .github/.*|
-          .git/COMMIT_EDITMSG|
-          docs/.*|
-          pkg/@eser/app-runtime/README.md|
-          pkg/@eser/bundler/README.md|
-          pkg/@eser/bundler/esbuild_v0.20.0.wasm|
-          pkg/@eser/collector/README.md|
-          pkg/@eser/config/README.md|
-          pkg/@eser/di/README.md|
-          pkg/@eser/directives/README.md|
-          pkg/@eser/dotenv/README.md|
-          pkg/@eser/events/README.md|
-          pkg/@eser/fp/README.md|
-          pkg/@eser/functions/README.md|
-          pkg/@eser/jsx-runtime/README.md|
-          pkg/@eser/logging/README.md|
-          pkg/@eser/parsing/README.md|
-          pkg/@eser/standards/README.md|
-          pkg/@cool/cli/README.md|
-          pkg/@cool/lime/README.md|
-          test/apps/vite-app/README.md|
-          Dockerfile|
-          LICENSE|
-          README.md
-        )$
-    - id: check-integrity
-      name: check integrity
-      description: Check formatting, linting, license headers, types and run tests.
-      entry: deno task ok
-      types_or: [javascript, jsx, ts, tsx, json, markdown]
-      pass_filenames: false
-      language: system
+      - id: local-validation
+        name: local pre-commit validation
+        description: Validate formatting, linting, license headers, types and run tests.
+        entry: bash -c 'deno task validate:fix; git add -u' --
+        always_run: true
+        pass_filenames: false
+        language: system
+
+      - id: kebab-case-files-only
+        name: kebab-case files only
+        entry: filenames must be kebab-case only
+        language: fail
+        files: '(?!\.test\.[jt]sx?$)[^a-z0-9.\/\[\]@-]'
+        exclude: |
+          (?x)^(
+            .github/.*|
+            .git/COMMIT_EDITMSG|
+            docs/.*|
+            etc/coverage/.*|
+            etc/temp/.*|
+            pkg/@eser/app-runtime/README.md|
+            pkg/@eser/bundler/README.md|
+            pkg/@eser/bundler/esbuild_v0.20.0.wasm|
+            pkg/@eser/collector/README.md|
+            pkg/@eser/config/README.md|
+            pkg/@eser/di/README.md|
+            pkg/@eser/directives/README.md|
+            pkg/@eser/dotenv/README.md|
+            pkg/@eser/events/README.md|
+            pkg/@eser/fp/README.md|
+            pkg/@eser/functions/README.md|
+            pkg/@eser/jsx-runtime/README.md|
+            pkg/@eser/logging/README.md|
+            pkg/@eser/parsing/README.md|
+            pkg/@eser/standards/README.md|
+            pkg/@cool/cli/README.md|
+            pkg/@cool/lime/README.md|
+            test/apps/vite-app/README.md|
+            Dockerfile|
+            LICENSE|
+            README.md
+          )$

@@ -8,9 +8,11 @@ import * as jsRuntime from "@eser/standards/js-runtime";
 const main = async () => {
   const EXTENSIONS = ["*.js", ".ts", "*.jsx", ".tsx"];
   const EXCLUDES = [
-    /_etc\/coverage\/*$/,
-    /_etc\/temp\/*$/,
-    /_etc\/templates\/*$/,
+    /docs\/*$/,
+    /etc\/coverage\/*$/,
+    /etc\/temp\/*$/,
+    /etc\/templates\/*$/,
+    /node_modules\/*$/,
     /test\/apps\/cf-workers-app\/node_modules\/*$/,
     /test\/apps\/cf-workers-app\/worker-configuration\.d\.ts$/,
     /manifest\.gen\.ts$/,

@@ -7,7 +7,7 @@ import * as esbuild from "esbuild";
 
 // Import the WASM build on platforms where running subprocesses is not
 // permitted, such as Deno Deploy, or when running without `--allow-run`.
-import { denoPlugins as esbuildDenoPlugins } from "@luca/esbuild-deno-loader";
+import { denoPlugin } from "@deno/esbuild-plugin";
 
 import { Builder, BuildSnapshot } from "./mod.ts";
 // import { BUNDLE_PUBLIC_PATH } from "../server/constants.ts";
@@ -95,7 +95,7 @@ export class EsbuildBuilder implements Builder {
         plugins: [
           devClientUrlPlugin(opts.basePath),
           buildIdPlugin(opts.buildID),
-          ...esbuildDenoPlugins({ configPath: opts.configPath }),
+          denoPlugin({ configPath: opts.configPath }),
         ],
       });
 

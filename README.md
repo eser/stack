@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="./">
-    <img alt="eser stack javascript toolkit" src="./_etc/cover.svg" width="849" />
+    <img alt="eser stack javascript toolkit" src="./etc/cover.svg" width="849" />
   </a>
 </p>
 
@@ -70,7 +70,7 @@ strives to offer you an intuitive and delightful development experience.
 | -------------------------------------- | ----------------- | --------------------------------------------------- | ------------------------------------------------------------------------------- |
 | 📓 [@eser/directives](pkg/directives/) | Rules             | The ground rules adhered to by the entire ecosystem | -                                                                               |
 | 📑 [@eser/standards](pkg/standards/)   | Abstraction       | Provides common abstraction layers for DI           | [![JSR](https://jsr.io/badges/@eser/standards)](https://jsr.io/@eser/standards) |
-| ⚙️ [@eser/di](pkg/di/)                  | Manager           | Dependency injection system                         | [![JSR](https://jsr.io/badges/@eser/di)](https://jsr.io/@eser/di)               |
+| ⚙️ [@eser/di](pkg/di/)                 | Manager           | Dependency injection system                         | [![JSR](https://jsr.io/badges/@eser/di)](https://jsr.io/@eser/di)               |
 | 🧱 [@eser/fp](pkg/fp/)                 | Functions Library | Tools for functional programming                    | [![JSR](https://jsr.io/badges/@eser/fp)](https://jsr.io/@eser/fp)               |
 | 🔐 [@eser/config](pkg/config/)         | Manager           | Load configurations from environment                | [![JSR](https://jsr.io/badges/@eser/config)](https://jsr.io/@eser/config)       |
 | 〰️ [@eser/parsing](pkg/parsing/)       | Manager           | Parsing tools for various strings and streams       | [![JSR](https://jsr.io/badges/@eser/parsing)](https://jsr.io/@eser/parsing)     |

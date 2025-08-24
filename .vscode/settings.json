@@ -1,5 +1,5 @@
 {
-  "coverage-gutters.coverageBaseDir": "./_etc",
+  "coverage-gutters.coverageBaseDir": "./etc",
   "coverage-gutters.coverageFileNames": [
     "coverage.lcov"
   ],
@@ -14,7 +14,9 @@
   "deno.enable": true,
   "deno.lint": true,
   "deno.suggest.imports.autoDiscover": true,
-  "deno.unstable": true,
+  "deno.unstable": [
+    "temporal"
+  ],
   "javascript.suggest.autoImports": true,
   "javascript.suggest.completeFunctionCalls": true,
   "javascript.suggest.completeJSDocs": true,

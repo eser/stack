@@ -99,6 +99,7 @@ repos:
             pkg/@cool/cli/README.md|
             pkg/@cool/lime/README.md|
             test/apps/vite-app/README.md|
+            test/apps/cool-lime-app-multi/README.md|
             Dockerfile|
             LICENSE|
             README.md

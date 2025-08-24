@@ -62,9 +62,13 @@ export const loadAotSnapshot = async (
       return null;
     }
 
-    console.log(
-      `Using snapshot found at ${colors.cyan(snapshotDirPath)}`,
-    );
+    // TODO: Replace with proper logging system
+    // For now, only output in development mode
+    if (Deno.env.get("DENO_ENV") !== "production") {
+      console.log(
+        `Using snapshot found at ${colors.cyan(snapshotDirPath)}`,
+      );
+    }
 
     const snapshotPath = posix.join(snapshotDirPath, "snapshot.json");
     const json = JSON.parse(

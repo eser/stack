@@ -1,0 +1,39 @@
+name: cool-lime-app-multi
+version: 0.1.0
+description: Multi-adapter Lime framework example application
+
+adapters:
+  default: react
+  available:
+    - react
+    - preact
+    - static
+
+features:
+  islands: true
+  serverComponents: true
+  serverActions: true
+  layouts: true
+
+routes:
+  - path: "/"
+    adapter: static
+    layout: base
+  - path: "/dashboard/:userId"
+    adapter: react
+    layout: admin
+  - path: "/blog/:slug"
+    adapter: preact
+    layout: base
+  - path: "/about"
+    adapter: static
+    layout: base
+  - path: "/demo"
+    adapter: react
+    layout: base
+  - path: "/demo/performance"
+    adapter: static
+    layout: base
+  - path: "/demo/comparison"
+    adapter: preact
+    layout: base

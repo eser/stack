@@ -1,0 +1,19 @@
+{
+  "imports": {
+    "@cool/lime": "../../../pkg/@cool/lime/mod.ts",
+    "@eser/collector": "../../../pkg/@eser/collector/mod.ts",
+    "react": "npm:react@19.1.1",
+    "react-dom": "npm:react-dom@19.1.1",
+    "react/jsx-runtime": "npm:react@19.1.1/jsx-runtime",
+    "@preact/signals": "npm:@preact/signals@^2.3.1"
+  },
+  "tasks": {
+    "build": "deno run -A build.ts",
+    "start": "deno run -A main.ts",
+    "dev": "deno run -A --watch main.ts"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  }
+}

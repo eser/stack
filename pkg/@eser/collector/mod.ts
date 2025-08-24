@@ -2,3 +2,5 @@
 
 export * from "./collector.ts";
 export * from "./manifest.ts";
+export * from "./web-manifest.ts";
+export * from "./schemas.ts";

@@ -9,6 +9,7 @@
 import * as posix from "@std/path/posix";
 import * as walk from "@std/fs/walk";
 import * as patterns from "@eser/standards/patterns";
+import * as validatorIdentifier from "./validator-identifier/mod.ts";
 
 export async function* walkFiles(
   baseDir: string,
@@ -41,6 +42,11 @@ export type CollectExportsOptions = {
 };
 
 export type ExportItem = [string, Array<[string, unknown]>];
+
+export type WebExportFilter = {
+  type: "route" | "island" | "layout" | "middleware" | "component";
+  exportName?: string;
+};
 
 export const collectExports = async (
   options: CollectExportsOptions,
@@ -81,9 +87,129 @@ export const collectExports = async (
 
       exports.push([entry, selectedExports]);
     } catch (err) {
-      console.error(err);
+      // Skip modules that fail to import, but in development mode
+      // re-throw for better debugging experience
+      if (Deno.env.get("DENO_ENV") === "development") {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        throw new Error(`Failed to import module ${entryUri}: ${errorMessage}`);
+      }
+      // In production, silently continue with other modules
     }
   }
 
   return exports;
+};
+
+export const createWebExportFilter = (filter: WebExportFilter) => {
+  return async (entries: [string, unknown][]): Promise<[string, unknown][]> => {
+    const filtered: [string, unknown][] = [];
+
+    for (const [exportName, exportValue] of entries) {
+      if (filter.exportName && exportName !== filter.exportName) {
+        continue;
+      }
+
+      switch (filter.type) {
+        case "route":
+        case "layout":
+        case "middleware":
+        case "component":
+          if (
+            exportName === "limeModule" && typeof exportValue === "function"
+          ) {
+            filtered.push([exportName, exportValue]);
+          }
+          break;
+        case "island":
+          if (
+            typeof exportValue === "function" &&
+            (exportName.endsWith("Island") || exportName === "limeModule")
+          ) {
+            filtered.push([exportName, exportValue]);
+          }
+          break;
+      }
+    }
+
+    return filtered;
+  };
+};
+
+export const collectWebModules = async (
+  baseDir: string,
+  type: "route" | "island" | "layout" | "middleware" | "component",
+  globFilter?: string,
+): Promise<Array<ExportItem>> => {
+  return collectExports({
+    baseDir,
+    globFilter,
+    exportFilter: createWebExportFilter({ type }),
+  });
+};
+
+export const collectRouteModules = (
+  baseDir: string,
+  globFilter = "**/*.{ts,tsx,js,jsx}",
+) => collectWebModules(baseDir, "route", globFilter);
+
+export const collectIslandModules = (
+  baseDir: string,
+  globFilter = "**/islands/**/*.{ts,tsx,js,jsx}",
+) => collectWebModules(baseDir, "island", globFilter);
+
+export const collectLayoutModules = (
+  baseDir: string,
+  globFilter = "**/layouts/**/*.{ts,tsx,js,jsx}",
+) => collectWebModules(baseDir, "layout", globFilter);
+
+export const collectMiddlewareModules = (
+  baseDir: string,
+  globFilter = "**/middleware/**/*.{ts,tsx,js,jsx}",
+) => collectWebModules(baseDir, "middleware", globFilter);
+
+export const collectComponentModules = (
+  baseDir: string,
+  globFilter = "**/components/**/*.{ts,tsx,js,jsx}",
+) => collectWebModules(baseDir, "component", globFilter);
+
+// Re-export the specifierToIdentifier function for use in web-manifest.ts
+export const specifierToIdentifier = (
+  specifier: string,
+  used: Set<string>,
+): string => {
+  const ext = posix.extname(specifier);
+  if (ext) {
+    specifier = specifier.slice(0, -ext.length);
+  }
+
+  let ident = "";
+  for (let i = 0; i < specifier.length; i++) {
+    const char = specifier.charCodeAt(i);
+    if (i === 0 && !validatorIdentifier.isIdentifierStart(char)) {
+      ident += "_";
+      if (validatorIdentifier.isIdentifierChar(char)) {
+        ident += specifier[i];
+      }
+    } else if (!validatorIdentifier.isIdentifierChar(char)) {
+      if (ident[ident.length - 1] !== "_") {
+        ident += "_";
+      }
+    } else if (ident[ident.length - 1] !== "_" || specifier[i] !== "_") {
+      ident += specifier[i];
+    }
+  }
+
+  if (used.has(ident)) {
+    let check = ident;
+    let i = 1;
+
+    while (used.has(check)) {
+      check = `${ident}_${i++}`;
+    }
+
+    ident = check;
+  }
+
+  used.add(ident);
+  return ident;
 };

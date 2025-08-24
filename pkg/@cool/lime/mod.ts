@@ -2,6 +2,11 @@
 
 import * as primitives from "./primitives.ts";
 export * from "./primitives.ts";
+export * from "./registry.ts";
+export * from "./router.ts";
+export * from "./adapters/registry.ts";
+export * from "./server-actions.ts";
+export * from "./islands.ts";
 
 /**
  * Initializes a new Lime instance and sets it as the default instance.

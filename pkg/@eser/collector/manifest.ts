@@ -89,6 +89,14 @@ const placeholder = (text: string) => {
   return `${PLACEHOLDER_PREFIX}${text}${PLACEHOLDER_SUFFIX}`;
 };
 
+export type WebManifestOptions = {
+  includeRoutes?: boolean;
+  includeIslands?: boolean;
+  includeLayouts?: boolean;
+  includeMiddleware?: boolean;
+  includeComponents?: boolean;
+};
+
 export const writeManifestToString = async (
   collection: Array<[string, Array<[string, unknown]>]>,
 ): Promise<string> => {
@@ -180,4 +188,64 @@ export const buildManifestFile = async (
   await buildManifest(target.writable, options);
 
   target.close();
+};
+
+export const buildWebManifest = async (
+  baseDir: string,
+  options: WebManifestOptions = {},
+): Promise<string> => {
+  const collections: Array<[string, Array<[string, unknown]>]> = [];
+
+  if (options.includeRoutes !== false) {
+    const routes = await collector.collectRouteModules(baseDir);
+    collections.push(...routes);
+  }
+
+  if (options.includeIslands !== false) {
+    const islands = await collector.collectIslandModules(baseDir);
+    collections.push(...islands);
+  }
+
+  if (options.includeLayouts !== false) {
+    const layouts = await collector.collectLayoutModules(baseDir);
+    collections.push(...layouts);
+  }
+
+  if (options.includeMiddleware !== false) {
+    const middleware = await collector.collectMiddlewareModules(baseDir);
+    collections.push(...middleware);
+  }
+
+  if (options.includeComponents !== false) {
+    const components = await collector.collectComponentModules(baseDir);
+    collections.push(...components);
+  }
+
+  return writeManifestToString(collections);
+};
+
+export const buildWebManifestFile = async (
+  filepath: string,
+  baseDir: string,
+  options: WebManifestOptions = {},
+): Promise<void> => {
+  const target = await jsRuntime.current.open(filepath, {
+    create: true,
+    write: true,
+  });
+
+  const manifestStr = await buildWebManifest(baseDir, options);
+
+  const outputWriter = target.writable.getWriter();
+  await outputWriter.ready;
+
+  const encoded = new TextEncoder().encode(manifestStr);
+  await outputWriter.write(encoded);
+
+  outputWriter.releaseLock();
+  target.close();
+
+  logger.current.info(
+    `Web manifest file has been generated at ${filepath}.`,
+  );
 };

@@ -1,5 +1,4 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
-// Copyright 2024 the Deno authors. All rights reserved. MIT license.
 
 import { parseArgs } from "@std/cli/parse-args";
 import { cyan, magenta, red } from "@std/fmt/colors";
@@ -473,6 +472,7 @@ ${table}
 Please ensure:
 - [ ] Versions in deno.json files are updated correctly
 - [ ] Releases.md is updated correctly
+- [ ] CHANGELOG.md is updated correctly
 
 ${unknownCommitsNotes}
 
@@ -518,6 +518,236 @@ export function createReleaseTitle(d: Date) {
   const month = (d.getUTCMonth() + 1).toString().padStart(2, "0");
   const date = d.getUTCDate().toString().padStart(2, "0");
   return `${year}.${month}.${date}`;
+}
+
+// CHANGELOG GENERATION FUNCTIONS
+
+export interface ChangelogEntry {
+  version: string;
+  date: string;
+  changes: {
+    breaking: string[];
+    features: string[];
+    fixes: string[];
+    docs: string[];
+    refactor: string[];
+    performance: string[];
+    tests: string[];
+    ci: string[];
+    chore: string[];
+    other: string[];
+  };
+}
+
+/**
+ * Groups commits by type for changelog formatting
+ */
+export function groupCommitsByType(
+  commits: Commit[],
+): ChangelogEntry["changes"] {
+  const changes: ChangelogEntry["changes"] = {
+    breaking: [],
+    features: [],
+    fixes: [],
+    docs: [],
+    refactor: [],
+    performance: [],
+    tests: [],
+    ci: [],
+    chore: [],
+    other: [],
+  };
+
+  for (const commit of commits) {
+    let message = commit.subject;
+
+    // Add commit hash link
+    message = `${message} ([${
+      commit.hash.slice(0, 7)
+    }](../../commit/${commit.hash}))`;
+
+    // Check for breaking changes
+    const hasBreaking = commit.body.includes("BREAKING CHANGE") ||
+      commit.subject.includes("!:") ||
+      commit.subject.includes("BREAKING:");
+
+    if (hasBreaking) {
+      changes.breaking.push(`⚠️ BREAKING: ${message}`);
+      continue;
+    }
+
+    // Parse conventional commit format for categorization
+    const match = RE_DEFAULT_PATTERN.exec(commit.subject);
+    if (match) {
+      const [, tag] = match;
+      const tagLower = tag.toLowerCase();
+
+      switch (tagLower) {
+        case "feat":
+        case "feature":
+          changes.features.push(message);
+          break;
+        case "fix":
+          changes.fixes.push(message);
+          break;
+        case "docs":
+          changes.docs.push(message);
+          break;
+        case "refactor":
+          changes.refactor.push(message);
+          break;
+        case "perf":
+        case "performance":
+          changes.performance.push(message);
+          break;
+        case "test":
+        case "tests":
+          changes.tests.push(message);
+          break;
+        case "ci":
+        case "build":
+          changes.ci.push(message);
+          break;
+        case "chore":
+          changes.chore.push(message);
+          break;
+        default:
+          changes.other.push(message);
+          break;
+      }
+    } else {
+      changes.other.push(message);
+    }
+  }
+
+  return changes;
+}
+
+/**
+ * Formats changelog entry as markdown
+ */
+export function formatChangelogEntry(entry: ChangelogEntry): string {
+  let output = `## [${entry.version}] - ${entry.date}\n\n`;
+
+  const sections = [
+    { title: "⚠️ BREAKING CHANGES", items: entry.changes.breaking },
+    { title: "✨ Features", items: entry.changes.features },
+    { title: "🐛 Bug Fixes", items: entry.changes.fixes },
+    { title: "📚 Documentation", items: entry.changes.docs },
+    { title: "♻️ Code Refactoring", items: entry.changes.refactor },
+    { title: "⚡ Performance Improvements", items: entry.changes.performance },
+    { title: "✅ Tests", items: entry.changes.tests },
+    { title: "🔧 Build System", items: entry.changes.ci },
+    { title: "🧹 Chores", items: entry.changes.chore },
+    { title: "📝 Other Changes", items: entry.changes.other },
+  ];
+
+  for (const section of sections) {
+    if (section.items.length > 0) {
+      output += `### ${section.title}\n\n`;
+      for (const item of section.items) {
+        output += `- ${item}\n`;
+      }
+      output += "\n";
+    }
+  }
+
+  return output;
+}
+
+/**
+ * Reads existing changelog content
+ */
+export async function readExistingChangelog(
+  changelogPath: string,
+): Promise<string> {
+  try {
+    return await Deno.readTextFile(changelogPath);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Generates or updates changelog
+ */
+export async function generateChangelog(
+  updates: VersionUpdateResult[],
+  commits: Commit[],
+  date: Date,
+  root: string,
+  dryRun = false,
+): Promise<void> {
+  if (updates.length === 0) {
+    console.log("📋 No version updates, skipping changelog generation");
+    return;
+  }
+
+  console.log("📋 Generating changelog...");
+
+  const changelogPath = join(root, "CHANGELOG.md");
+  const version = createReleaseTitle(date);
+  const today = date.toISOString().split("T")[0];
+
+  const entry: ChangelogEntry = {
+    version,
+    date: today,
+    changes: groupCommitsByType(commits),
+  };
+
+  // Only generate if there are actual changes to document
+  const hasChanges = Object.values(entry.changes).some((arr) => arr.length > 0);
+  if (!hasChanges) {
+    console.log("📋 No notable changes found, skipping changelog generation");
+    return;
+  }
+
+  const newSection = formatChangelogEntry(entry);
+  const existingChangelog = await readExistingChangelog(changelogPath);
+
+  let updatedChangelog = "";
+
+  if (existingChangelog) {
+    // Insert new section after the header
+    const lines = existingChangelog.split("\n");
+    const headerEndIndex = lines.findIndex((line) => line.startsWith("## "));
+
+    if (headerEndIndex === -1) {
+      // No existing entries, add after any header content
+      const emptyLineIndex = lines.findIndex((line, i) =>
+        i > 0 && line.trim() === ""
+      );
+      const insertIndex = emptyLineIndex === -1
+        ? lines.length
+        : emptyLineIndex + 1;
+
+      lines.splice(insertIndex, 0, "", newSection.trim());
+      updatedChangelog = lines.join("\n");
+    } else {
+      lines.splice(headerEndIndex, 0, newSection);
+      updatedChangelog = lines.join("\n");
+    }
+  } else {
+    // Create new changelog
+    updatedChangelog = `# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+${newSection}`;
+  }
+
+  if (dryRun) {
+    console.log("📖 Dry run mode - would write to CHANGELOG.md:");
+    console.log("─".repeat(50));
+    console.log(newSection);
+    console.log("─".repeat(50));
+  } else {
+    await Deno.writeTextFile(changelogPath, updatedChangelog);
+    console.log("✅ CHANGELOG.md updated successfully");
+  }
 }
 
 // MAIN
@@ -681,6 +911,15 @@ export async function bumpWorkspaces(
 
   const releaseNote = createReleaseNote(Object.values(updates), modules, now);
 
+  // Generate changelog alongside release notes
+  await generateChangelog(
+    Object.values(updates),
+    commits,
+    now,
+    root,
+    dryRun === true,
+  );
+
   if (dryRun === true) {
     console.log();
     console.log(cyan("The release note:"));
@@ -699,6 +938,15 @@ export async function bumpWorkspaces(
     );
 
     await $`deno fmt ${releaseNotePath}`;
+
+    // Format CHANGELOG.md if it exists
+    const changelogPath = join(root, "CHANGELOG.md");
+    try {
+      await Deno.stat(changelogPath);
+      await $`deno fmt ${changelogPath}`;
+    } catch {
+      // CHANGELOG.md doesn't exist, skip formatting
+    }
 
     if (dryRun === false) {
       gitUserName ??= Deno.env.get("GIT_USER_NAME");

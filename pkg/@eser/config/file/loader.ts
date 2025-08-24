@@ -8,27 +8,133 @@ import * as yaml from "@std/yaml";
 import * as jsRuntime from "@eser/standards/js-runtime";
 import * as primitives from "./primitives.ts";
 
-// TODO(@eser) introduce strategy pattern for "search parents" and "recursive search" options
+/**
+ * Validates and sanitizes a file path to prevent directory traversal attacks.
+ *
+ * @param filepath The file path to validate
+ * @returns The sanitized path
+ * @throws {Error} If the path is potentially dangerous
+ */
+const validateFilePath = (filepath: string): string => {
+  if (typeof filepath !== "string") {
+    throw new Error("File path must be a string");
+  }
 
-export const locate = async (
+  if (filepath.trim() === "") {
+    throw new Error("File path cannot be empty");
+  }
+
+  // Prevent directory traversal attacks
+  if (filepath.includes("..")) {
+    throw new Error("File path cannot contain '..' (directory traversal)");
+  }
+
+  // Prevent absolute paths outside of the base directory in most cases
+  if (filepath.startsWith("/") && !filepath.startsWith(Deno.cwd())) {
+    throw new Error(
+      "Absolute paths outside the current working directory are not allowed",
+    );
+  }
+
+  // Normalize the path to remove any potential issues
+  return posix.normalize(filepath);
+};
+
+/**
+ * Validates an array of filenames to ensure they are safe.
+ *
+ * @param filenames Array of filenames to validate
+ * @returns The validated filenames
+ * @throws {Error} If any filename is unsafe
+ */
+const validateFilenames = (filenames: Array<string>): Array<string> => {
+  if (!Array.isArray(filenames)) {
+    throw new Error("Filenames must be an array");
+  }
+
+  if (filenames.length === 0) {
+    throw new Error("At least one filename must be provided");
+  }
+
+  return filenames.map((filename) => {
+    if (typeof filename !== "string" || filename.trim() === "") {
+      throw new Error("All filenames must be non-empty strings");
+    }
+
+    // Prevent directory traversal in filenames
+    if (filename.includes("/") || filename.includes("\\")) {
+      throw new Error("Filenames cannot contain path separators");
+    }
+
+    if (filename.includes("..")) {
+      throw new Error("Filenames cannot contain '..'");
+    }
+
+    return filename.trim();
+  });
+};
+
+/**
+ * Search strategy for file location
+ */
+export enum SearchStrategy {
+  /** Only search in the base directory */
+  CurrentDirOnly = "current-dir-only",
+  /** Search in parent directories up to root */
+  SearchParents = "search-parents",
+  /** Recursively search in subdirectories */
+  RecursiveSearch = "recursive-search",
+}
+
+/**
+ * Options for file location
+ */
+export type LocateOptions = {
+  /** Search strategy to use */
+  strategy?: SearchStrategy;
+  /** Maximum depth for recursive search (only applies to RecursiveSearch strategy) */
+  maxDepth?: number;
+};
+
+/**
+ * Locate a file using the current directory only strategy
+ */
+const locateCurrentDirOnly = async (
   baseDir: string,
   filenames: Array<string>,
-  searchParents = false,
+): Promise<string | undefined> => {
+  const validatedBaseDir = validateFilePath(baseDir);
+  const validatedFilenames = validateFilenames(filenames);
+
+  for (const name of validatedFilenames) {
+    const filepath = posix.join(validatedBaseDir, name);
+
+    // Additional security check after joining paths
+    const normalizedPath = validateFilePath(filepath);
+
+    const isExists = await fs.exists(normalizedPath, { isFile: true });
+
+    if (isExists) {
+      return normalizedPath;
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * Locate a file using the search parents strategy
+ */
+const locateSearchParents = async (
+  baseDir: string,
+  filenames: Array<string>,
 ): Promise<string | undefined> => {
   let dir = baseDir;
 
   while (true) {
-    for (const name of filenames) {
-      const filepath = posix.join(dir, name);
-      const isExists = await fs.exists(filepath, { isFile: true });
-
-      if (isExists) {
-        return filepath;
-      }
-    }
-
-    if (!searchParents) {
-      break;
+    const result = await locateCurrentDirOnly(dir, filenames);
+    if (result) {
+      return result;
     }
 
     const parent = posix.dirname(dir);
@@ -40,6 +146,76 @@ export const locate = async (
   }
 
   return undefined;
+};
+
+/**
+ * Locate a file using the recursive search strategy
+ */
+const locateRecursiveSearch = async (
+  baseDir: string,
+  filenames: Array<string>,
+  maxDepth = 5,
+): Promise<string | undefined> => {
+  const searchRecursively = async (
+    dir: string,
+    currentDepth: number,
+  ): Promise<string | undefined> => {
+    if (currentDepth > maxDepth) {
+      return undefined;
+    }
+
+    // Check current directory first
+    const result = await locateCurrentDirOnly(dir, filenames);
+    if (result) {
+      return result;
+    }
+
+    // Search subdirectories
+    try {
+      for await (const entry of Deno.readDir(dir)) {
+        if (entry.isDirectory) {
+          const subdir = posix.join(dir, entry.name);
+          const result = await searchRecursively(subdir, currentDepth + 1);
+          if (result) {
+            return result;
+          }
+        }
+      }
+    } catch {
+      // Ignore permission errors and continue
+    }
+
+    return undefined;
+  };
+
+  return await searchRecursively(baseDir, 0);
+};
+
+export const locate = async (
+  baseDir: string,
+  filenames: Array<string>,
+  options: LocateOptions | boolean = {},
+): Promise<string | undefined> => {
+  // Handle legacy boolean parameter for backward compatibility
+  if (typeof options === "boolean") {
+    const strategy = options
+      ? SearchStrategy.SearchParents
+      : SearchStrategy.CurrentDirOnly;
+    options = { strategy };
+  }
+
+  const { strategy = SearchStrategy.CurrentDirOnly, maxDepth = 5 } = options;
+
+  switch (strategy) {
+    case SearchStrategy.CurrentDirOnly:
+      return await locateCurrentDirOnly(baseDir, filenames);
+    case SearchStrategy.SearchParents:
+      return await locateSearchParents(baseDir, filenames);
+    case SearchStrategy.RecursiveSearch:
+      return await locateRecursiveSearch(baseDir, filenames, maxDepth);
+    default:
+      return await locateCurrentDirOnly(baseDir, filenames);
+  }
 };
 
 export const getFileFormat = (filepath: string): primitives.FileFormat => {
@@ -127,9 +303,9 @@ export const load = async <T>(
   baseDir: string,
   filenames: Array<string>,
   forceFormat?: primitives.FileFormat,
-  searchParents = false,
+  options?: LocateOptions | boolean,
 ): Promise<LoadResult<T>> => {
-  const filepath = await locate(baseDir, filenames, searchParents);
+  const filepath = await locate(baseDir, filenames, options);
 
   if (filepath === undefined) {
     return {

@@ -33,10 +33,32 @@ export class Tokenizer {
     this.state = state;
   }
 
+  /**
+   * Sanitize input string to prevent potential security issues.
+   */
+  private _sanitizeInput(input: string): string {
+    if (typeof input !== "string") {
+      throw new Error("Input must be a string");
+    }
+
+    // Limit input size to prevent DoS attacks
+    const MAX_INPUT_SIZE = 1024 * 1024; // 1MB
+    if (input.length > MAX_INPUT_SIZE) {
+      throw new Error(
+        `Input size exceeds maximum allowed size of ${MAX_INPUT_SIZE} characters`,
+      );
+    }
+
+    // Remove or replace potentially dangerous characters
+    // This is a basic sanitization - adjust based on your specific needs
+    return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  }
+
   *tokenizeFromString(input: string): Generator<Token> {
+    const sanitizedInput = this._sanitizeInput(input);
     this._reset();
 
-    yield* this._tokenizeChunk(input);
+    yield* this._tokenizeChunk(sanitizedInput);
     yield* this._tokenizeChunk(null);
   }
 

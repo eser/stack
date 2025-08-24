@@ -51,12 +51,25 @@ export const deepMerge = <
   const finalMerge = firstMerge.otherKeys.reduce(
     (acc, itemKey) => {
       const otherValue = other[itemKey];
+      const instanceValue = instance[itemKey];
 
-      // FIXME(@eser) if key is defined in object, we need to merge it
-      // if (otherValue === undefined) {
-      //   return acc;
-      // }
+      if (otherValue === undefined) {
+        return acc;
+      }
 
+      // If key exists in both objects and both are objects (not arrays), merge them recursively
+      if (
+        instanceValue instanceof Object &&
+        instanceValue.constructor !== Array &&
+        otherValue instanceof Object &&
+        otherValue.constructor !== Array
+      ) {
+        return Object.assign(acc, {
+          [itemKey]: deepMerge(instanceValue, otherValue),
+        });
+      }
+
+      // Otherwise, use the other value
       return Object.assign(acc, { [itemKey]: otherValue });
     },
     firstMerge.merged,

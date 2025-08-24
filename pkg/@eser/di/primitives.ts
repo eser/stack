@@ -48,7 +48,7 @@ export type ServiceRegistry<K = ServiceKey, V = ServiceValue> =
 export type ServiceResolution<T> = promises.Promisable<T | undefined>;
 
 export interface ServiceScopeQueryable<K = ServiceKey, V = ServiceValue> {
-  get<V2 = V>(token: K, defaultValue?: V2): ServiceResolution<V2>;
+  get<V2 extends V = V>(token: K, defaultValue?: V2): ServiceResolution<V2>;
   getMany(...tokens: ReadonlyArray<K>): ReadonlyArray<ServiceResolution<V>>;
   // deno-lint-ignore no-explicit-any
   invoke<T extends functions.GenericFunction<ReturnType<T>, any>>(
@@ -56,6 +56,12 @@ export interface ServiceScopeQueryable<K = ServiceKey, V = ServiceValue> {
   ): ReturnType<T>;
 
   createScope(): ServiceScope<K, V>;
+
+  // Cache management methods
+  clearCache(token: K): boolean;
+  clearAllCache(): void;
+  getCacheSize(): number;
+  isCached(token: K): boolean;
 }
 
 export type ServiceScope<K = ServiceKey, V = ServiceValue> =

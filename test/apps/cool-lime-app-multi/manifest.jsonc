@@ -1,0 +1,15 @@
+{
+  "name": "cool-lime-app-multi",
+  "version": "0.1.0",
+  "description": "Multi-adapter Lime framework example application",
+  "adapters": {
+    "default": "react",
+    "available": ["react", "preact", "static"]
+  },
+  "features": {
+    "islands": true,
+    "serverComponents": true,
+    "serverActions": true,
+    "layouts": true
+  }
+}

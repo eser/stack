@@ -34,7 +34,7 @@ export const factory = <K = ServiceKey, V = ServiceValue>(
     return result;
   };
 
-  di.get = <V2 = V>(token: K) => services.get<V2>(token);
+  di.get = <V2 extends V = V>(token: K) => services.get<V2>(token);
 
   di.getMany = (...tokens: ReadonlyArray<K>) => services.getMany(...tokens);
 
@@ -44,6 +44,12 @@ export const factory = <K = ServiceKey, V = ServiceValue>(
   ): ReturnType<T> => services.invoke(fn);
 
   di.createScope = () => services.createScope();
+
+  // Cache management methods
+  di.clearCache = (token: K) => services.clearCache(token);
+  di.clearAllCache = () => services.clearAllCache();
+  di.getCacheSize = () => services.getCacheSize();
+  di.isCached = (token: K) => services.isCached(token);
 
   di.set = (token: K, value: promises.Promisable<V>) =>
     services.registry.set(token, value);

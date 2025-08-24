@@ -1,25 +1,29 @@
 version: 2
+
 updates:
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     commit-message:
-      prefix: "deps(docker): "
       include: "scope"
     labels:
       - "dependencies"
-    reviewers:
-      - eser
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     commit-message:
-      prefix: "deps(gh-actions): "
       include: "scope"
     labels:
       - "dependencies"
-    reviewers:
-      - eser
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      include: "scope"
+    labels:
+      - "dependencies"

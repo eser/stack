@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 2
 
       - name: Setup Deno (latest)
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
 
       - name: Run @deno/bump-workspaces
         run: |

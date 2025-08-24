@@ -1,15 +1,19 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as configFile from "@eser/config/file";
+import * as configFile from "./pkg/@eser/config/file/mod.ts";
 // import * as jsRuntime from "@eser/standards/js-runtime";
 import * as mod from "./pkg/mod.ts";
+
+type DenoConfig = {
+  version: string;
+};
 
 // TODO(@eser) get dependency injection container entries instead of this
 await (async () => {
   // const env = await config.dotenv.load();
   // const kv = await jsRuntime.current.openKv();
 
-  const denoConfigLoader = await configFile.load(".", [
+  const denoConfigLoader = await configFile.load<DenoConfig>(".", [
     "deno.jsonc",
     "deno.json",
   ]);
@@ -44,7 +48,7 @@ await (async () => {
   }
 
   console.log(
-    `%ceserstack REPL, version ${denoConfig.version ?? "unknown"}`,
+    `%ceserstack REPL, version ${denoConfig?.version ?? "unknown"}`,
     "color: #00ff00",
   );
 

@@ -1,6 +1,8 @@
-_etc/
 .github/
 .vscode/
+etc/coverage/
+etc/coverage.lcov
+etc/temp/
 .dockerignore
 .editorconfig
 .gitattributes

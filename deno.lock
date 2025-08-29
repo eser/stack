@@ -594,6 +594,7 @@
       "pkg/@eser/bundler": {
         "dependencies": [
           "jsr:@deno/esbuild-plugin@^1.2.0",
+          "jsr:@std/assert@1",
           "jsr:@std/encoding@^1.0.1",
           "jsr:@std/fmt@^1.0.8",
           "jsr:@std/path@1",
@@ -644,8 +645,14 @@
       },
       "pkg/@eser/jsx-runtime": {
         "dependencies": [
+          "jsr:@std/assert@1",
           "npm:@types/react@^19.1.12",
           "npm:react@^19.1.1"
+        ]
+      },
+      "pkg/@eser/logging": {
+        "dependencies": [
+          "jsr:@std/assert@1"
         ]
       },
       "pkg/@eser/parsing": {

@@ -1,7 +1,9 @@
 {
   "name": "@eser/logging",
   "version": "0.7.20",
-  "imports": {},
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0"
+  },
   "exports": {
     ".": "./mod.ts",
     "./logger": "./logger.ts"

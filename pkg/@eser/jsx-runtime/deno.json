@@ -3,6 +3,7 @@
   "version": "0.7.20",
   "imports": {
     "react/jsx-runtime": "npm:react@^19.1.1/jsx-runtime",
+    "@std/assert": "jsr:@std/assert@^1.0.0",
     "@types/react": "npm:@types/react@^19.1.12"
   },
   "exports": {

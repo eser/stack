@@ -3,7 +3,7 @@
   "version": "0.7.20",
   "imports": {
     "react/jsx-runtime": "npm:react@^19.1.1/jsx-runtime",
-    "@types/react": "npm:@types/react@^19.1.10"
+    "@types/react": "npm:@types/react@^19.1.12"
   },
   "exports": {
     ".": "./mod.ts"

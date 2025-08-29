@@ -33,7 +33,7 @@
     "jsr:@std/toml@1": "1.0.9",
     "jsr:@std/yaml@^1.0.9": "1.0.9",
     "npm:@types/node@*": "24.2.0",
-    "npm:@types/react@^19.1.10": "19.1.10",
+    "npm:@types/react@^19.1.12": "19.1.12",
     "npm:esbuild@~0.25.5": "0.25.9",
     "npm:esbuild@~0.25.9": "0.25.9",
     "npm:octokit@^5.0.3": "5.0.3_@octokit+core@7.0.3",
@@ -494,8 +494,8 @@
         "undici-types"
       ]
     },
-    "@types/react@19.1.10": {
-      "integrity": "sha512-EhBeSYX0Y6ye8pNebpKrwFJq7BoQ8J5SO6NlvNwwHjSj6adXJViPQrKlsyPw7hLBLvckEMO1yxeGdR82YBBlDg==",
+    "@types/react@19.1.12": {
+      "integrity": "sha512-cMoR+FoAf/Jyq6+Df2/Z41jISvGZZ2eTlnsaJRptmZ76Caldwy1odD4xTr/gNV9VLj0AWgg/nmkevIyUfIIq5w==",
       "dependencies": [
         "csstype"
       ]
@@ -644,7 +644,7 @@
       },
       "pkg/@eser/jsx-runtime": {
         "dependencies": [
-          "npm:@types/react@^19.1.10",
+          "npm:@types/react@^19.1.12",
           "npm:react@^19.1.1"
         ]
       },

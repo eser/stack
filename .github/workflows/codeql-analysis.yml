@@ -38,6 +38,7 @@ on:
 
 jobs:
   log-the-inputs:
+    permissions: {}
     runs-on: ubuntu-latest
     steps:
       - run: |

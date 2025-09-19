@@ -6,7 +6,7 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2015-present Jason Miller
 
-const ENCODED_ENTITIES = /["&<]/;
+const ENCODED_ENTITIES = /["&<>]/;
 
 export const encodeEntities = (str: string) => {
   // Skip all work for strings with no entities needing encoding:
@@ -30,6 +30,9 @@ export const encodeEntities = (str: string) => {
         break;
       case 60:
         ch = "&lt;";
+        break;
+      case 62:
+        ch = "&gt;";
         break;
       default:
         continue;

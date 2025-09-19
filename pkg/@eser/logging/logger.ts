@@ -69,7 +69,7 @@ export class Logger implements logging.Logger {
     // deno-lint-ignore no-explicit-any
     ...args: functions.ArgList<any>
   ): Promise<T | undefined> {
-    if (this.state.loglevel > severity) {
+    if (severity > this.state.loglevel) {
       return message instanceof Function ? undefined : message;
     }
 
@@ -126,6 +126,10 @@ export class Logger implements logging.Logger {
     }
 
     if (typeof data === "object") {
+      if (Array.isArray(data)) {
+        return JSON.stringify(data);
+      }
+
       return `{${
         Object.entries(data)
           .map(([k, v]) => `"${k}":${this.asString(v, true)}`)

@@ -8,7 +8,7 @@ export const compareSemanticVersions = (
   targetVersion: semver.Range | semver.SemVer,
 ) => {
   if (semver.isRange(targetVersion)) {
-    return semver.testRange(currentVersion, targetVersion);
+    return semver.satisfies(currentVersion, targetVersion);
   }
 
   return !semver.greaterOrEqual(currentVersion, targetVersion);

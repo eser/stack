@@ -46,7 +46,7 @@ Deno.test("jsxEscape() processes arrays recursively", () => {
 
 Deno.test("jsxEscape() escapes string values", () => {
   const result = jsxEscape('Hello <world> & "test"');
-  assert.assertEquals(result, "Hello &lt;world&gt; &amp; &#34;test&#34;");
+  assert.assertEquals(result, "Hello &lt;world&gt; &amp; &quot;test&quot;");
 });
 
 Deno.test("jsxEscape() converts numbers to escaped strings", () => {

@@ -73,6 +73,7 @@
     "./pkg/@eser/bundler",
     "./pkg/@eser/collector",
     "./pkg/@eser/config",
+    "./pkg/@eser/cs",
     "./pkg/@eser/di",
     "./pkg/@eser/events",
     "./pkg/@eser/fp",
@@ -81,6 +82,7 @@
     "./pkg/@eser/logging",
     "./pkg/@eser/parsing",
     "./pkg/@eser/standards",
+    "./pkg/@eser/writer",
     "./pkg/@cool/lime",
     "./test/apps/jsx-runtime-app"
   ]

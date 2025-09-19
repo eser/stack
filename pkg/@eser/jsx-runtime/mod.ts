@@ -38,7 +38,7 @@ export function jsxEscape(value: unknown): string | null | VNode {
     }
   }
 
-  return encodeEntities("" + value);
+  return encodeEntities(String(value));
 }
 
 /**

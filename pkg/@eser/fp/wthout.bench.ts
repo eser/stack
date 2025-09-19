@@ -2,7 +2,7 @@
 
 import * as jsRuntime from "@eser/standards/js-runtime";
 import { wthout } from "./wthout.ts";
-import lodashReject from "npm:lodash.reject";
+import lodashReject from "npm:lodash.reject@^4.6.0";
 
 const group = "wthout";
 

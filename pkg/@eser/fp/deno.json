@@ -2,7 +2,7 @@
   "name": "@eser/fp",
   "version": "0.7.20",
   "imports": {
-    "@std/assert": "jsr:@std/assert@^1.0.0"
+    "@std/assert": "jsr:@std/assert@^1.0.14"
   },
   "exports": {
     ".": "./mod.ts",

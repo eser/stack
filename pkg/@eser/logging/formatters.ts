@@ -29,5 +29,5 @@ export const jsonFormatter: FormatterFn = (
     datetime: logRecord.datetime.getTime(),
     message: logRecord.message,
     args: flattenArgs(logRecord.args),
-  });
+  }) + "\n";
 };

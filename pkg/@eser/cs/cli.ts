@@ -23,8 +23,7 @@ const HELP_TEXT = `
 @eser/cs - Kubernetes ConfigMap/Secret Sync Tool
 
 USAGE:
-  deno run --allow-read --allow-write --allow-env cli.ts [COMMAND] [OPTIONS]
-  deno run --allow-read --allow-write --allow-env --allow-run cli.ts sync [RESOURCE] [OPTIONS]
+  deno run -A jsr:@eser/cs/cli [COMMAND] [OPTIONS]
 
 COMMANDS:
   generate    Generate ConfigMap/Secret YAML/JSON from .env files (default)
@@ -42,19 +41,19 @@ OPTIONS:
 
 EXAMPLES:
   # Generate ConfigMap from .env file
-  deno run --allow-read --allow-write --allow-env cli.ts generate --name my-config --env-file .env
+  deno run -A jsr:@eser/cs/cli generate --name my-config --env-file .env
 
   # Generate Secret with specific namespace and JSON format
-  deno run --allow-read --allow-write --allow-env cli.ts generate --name my-secret -n production --env-file .env.prod --format json
+  deno run -A jsr:@eser/cs/cli generate --name my-secret -n production --env-file .env.prod --format json
 
   # Save to file
-  deno run --allow-read --allow-write --allow-env cli.ts generate --name my-config --env-file .env --output configmap.yaml
+  deno run -A jsr:@eser/cs/cli generate --name my-config --env-file .env --output configmap.yaml
 
   # Sync with existing Kubernetes ConfigMap
-  deno run --allow-read --allow-write --allow-env --allow-run cli.ts sync cm/default -n cp-development
+  deno run -A jsr:@eser/cs/cli sync cm/default -n cp-development
 
   # Sync with existing Kubernetes Secret
-  deno run --allow-read --allow-write --allow-env --allow-run cli.ts sync secret/default -n production --format json
+  deno run -A jsr:@eser/cs/cli sync secret/default -n production --format json
 `;
 
 function showHelp(): void {

@@ -3,5 +3,3 @@
 export * from "./generate.ts";
 export * from "./sync.ts";
 export * from "./types.ts";
-export * from "./config.ts";
-export * from "./builders.ts";

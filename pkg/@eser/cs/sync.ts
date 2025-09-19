@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { write } from "@eser/writer";
-import { load as loadEnv } from "@eser/config/dotenv";
+import { parseEnvFromFile } from "@eser/config/dotenv";
 import type {
   ConfigMap,
   KubectlResourceReference,
@@ -50,21 +50,44 @@ export const executeKubectl = async (
 
 export const readEnvironmentValues = async (
   keys: string[],
-  _envFile?: string,
+  envFile?: string,
 ): Promise<Record<string, string>> => {
-  // Load environment variables using @eser/config
-  const envMap = await loadEnv({ baseDir: "." });
-
   const result: Record<string, string> = {};
 
-  for (const key of keys) {
-    const value = envMap.get(key);
-    if (value !== undefined) {
-      result[key] = value;
-    } else {
-      console.warn(
-        `Warning: Environment variable ${key} not found in environment`,
-      );
+  if (envFile) {
+    // Use @eser/config to load from the specified file
+    const envFileData = await parseEnvFromFile(envFile);
+
+    // Merge with system environment variables (system vars override file vars)
+    const systemEnv = Deno.env.toObject();
+    const mergedEnv = {
+      ...envFileData,
+      ...systemEnv,
+    };
+
+    for (const key of keys) {
+      const value = mergedEnv[key];
+      if (value !== undefined) {
+        result[key] = value;
+      } else {
+        console.warn(
+          `Warning: Environment variable ${key} not found in environment`,
+        );
+      }
+    }
+  } else {
+    // Use only system environment variables (no file loading)
+    const systemEnv = Deno.env.toObject();
+
+    for (const key of keys) {
+      const value = systemEnv[key];
+      if (value !== undefined) {
+        result[key] = value;
+      } else {
+        console.warn(
+          `Warning: Environment variable ${key} not found in environment`,
+        );
+      }
     }
   }
 
@@ -127,30 +150,48 @@ export const sync = async (options: SyncOptions): Promise<string> => {
       return `# No matching environment variables found for ${options.resource.type}/${options.resource.name}`;
     }
 
-    // Build the appropriate resource type
-    let resource: ConfigMap | Secret;
+    // Prepare data for patch
+    let patchData: Record<string, string>;
 
     if (options.resource.type === "secret") {
-      resource = buildSecretFromContext(
-        options.resource.name,
-        options.resource.namespace,
-        envData,
-      );
+      // Base64 encode values for secrets
+      patchData = {};
+      for (const [key, value] of Object.entries(envData)) {
+        patchData[key] = btoa(value);
+      }
     } else {
-      resource = buildConfigMapFromContext(
-        options.resource.name,
-        options.resource.namespace,
-        envData,
-      );
+      // Use values as-is for configmaps
+      patchData = envData;
     }
 
-    // Generate output based on format
-    const format = options.format ?? "yaml";
-    const writeOptions = {
-      pretty: true,
-    };
+    // Generate patch content based on format
+    const format = options.format ?? "json";
+    const patchObject = { data: patchData };
 
-    return write([resource], format, writeOptions);
+    let patchString: string;
+    if (format === "yaml") {
+      patchString = write([patchObject], "yaml", { pretty: true }).trim();
+    } else {
+      patchString = JSON.stringify(patchObject);
+    }
+
+    // Return string-only if requested
+    if (options.stringOnly) {
+      return patchString;
+    }
+
+    // Generate kubectl patch command
+    const resourceType = options.resource.type === "configmap"
+      ? "cm"
+      : "secret";
+    const namespaceFlag = options.resource.namespace
+      ? ` -n ${options.resource.namespace}`
+      : "";
+
+    // Escape the patch for shell usage
+    const escapedPatch = patchString.replace(/'/g, "'\"'\"'");
+
+    return `kubectl patch ${resourceType} ${options.resource.name}${namespaceFlag} --type=merge -p '${escapedPatch}'`;
   } catch (error) {
     throw new Error(
       `Failed to sync with kubectl: ${

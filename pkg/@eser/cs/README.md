@@ -59,25 +59,32 @@ Here you'll find examples of how to use `@eser/cs` for different scenarios.
 **Generate a ConfigMap from an environment file:**
 
 ```bash
-deno run -A jsr:@eser/cs/cli generate --name my-config --env-file .env
+deno run -A jsr:@eser/cs/cli generate cm/my-config -f .env
 ```
 
-**Generate a Secret with namespace and JSON format:**
+**Generate a Secret with specific namespace:**
 
 ```bash
-deno run -A jsr:@eser/cs/cli generate --name my-secret -n production --env-file .env.prod --format json
+deno run -A jsr:@eser/cs/cli generate secret/api-keys -n production -f .env.prod
 ```
 
 **Save output to a file:**
 
 ```bash
-deno run -A jsr:@eser/cs/cli generate --name my-config --env-file .env --output configmap.yaml
+deno run -A jsr:@eser/cs/cli generate cm/my-config -f .env > configmap.yaml
 ```
 
 **Sync with existing Kubernetes resource:**
 
 ```bash
-deno run -A jsr:@eser/cs/cli sync configmap/my-existing-config --env-file .env.update
+deno run -A jsr:@eser/cs/cli sync configmap/my-existing-config -f .env.prod
+```
+
+**Generate patch string only (for saving to file):**
+
+```bash
+deno run -A jsr:@eser/cs/cli sync secret/api-keys -f .env.prod -s > patch.json
+kubectl patch secret api-keys --type=merge --patch-file=patch.json
 ```
 
 ### Programmatic Usage
@@ -88,7 +95,7 @@ deno run -A jsr:@eser/cs/cli sync configmap/my-existing-config --env-file .env.u
 import { generate } from "@eser/cs";
 
 const configMapYaml = await generate({
-  name: "my-app-config",
+  resource: { type: "configmap", name: "my-app-config" },
   namespace: "default",
   envFile: ".env",
   format: "yaml",
@@ -113,31 +120,6 @@ await sync({
 });
 ```
 
-### Configuration File Usage
-
-Create a `k8s.yaml` configuration file:
-
-```yaml
-configMap:
-  name: my-app-config
-  namespace: default
-  envFile: .env
-  labels:
-    app: my-application
-    version: "1.0"
-  annotations:
-    description: "Configuration for my application"
-output:
-  format: yaml
-  pretty: true
-```
-
-Then use it with the CLI:
-
-```bash
-deno run -A jsr:@eser/cs/cli generate --config k8s.yaml
-```
-
 ### Environment File Example
 
 Create a `.env` file:
@@ -158,20 +140,18 @@ key-value pairs.
 
 **generate**
 
-- `--name <name>`: ConfigMap/Secret name (required)
+- `<resource>`: Resource reference (e.g., `cm/name`, `configmap/name`,
+  `secret/name`)
 - `--namespace <ns>`: Kubernetes namespace
-- `--env-file <path>`: Path to environment file
-- `--format <format>`: Output format (yaml/json)
-- `--output <path>`: Output file path
-- `--config <path>`: Configuration file path
+- `--reference-env-file <path>`: Path to environment file
+- `-o, --output <format>`: Output format (yaml/json)
 
 **sync**
 
 - `<resource>`: Resource reference (e.g., `configmap/name`, `secret/name`)
 - `--namespace <ns>`: Kubernetes namespace
-- `--env-file <path>`: Path to environment file
-- `--format <format>`: Output format (yaml/json)
-- `--output <path>`: Output file path
+- `--reference-env-file <path>`: Path to environment file
+- `-o, --output <format>`: Output format (yaml/json)
 
 ### Functions
 

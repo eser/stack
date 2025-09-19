@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   buildConfigMapFromContext,
   buildSecretFromContext,
@@ -32,7 +32,7 @@ function cleanupTestEnv(keys: string[]) {
   }
 }
 
-Deno.test("readEnvironmentValues() should read values from system environment", async () => {
+Deno.test("readEnvironmentValues() should read values from system environment when no envFile specified", async () => {
   const testEnv = setupTestEnv();
   const keys = ["DD_SITE", "DD_API_KEY", "DB_HOST"];
 
@@ -44,6 +44,26 @@ Deno.test("readEnvironmentValues() should read values from system environment", 
     assertEquals(result["DB_HOST"], "localhost");
   } finally {
     cleanupTestEnv(Object.keys(testEnv));
+  }
+});
+
+Deno.test("readEnvironmentValues() should read values from env file when envFile specified", async () => {
+  // Create a temporary .env file
+  const tempEnvFile = "/tmp/test-env-file";
+  await Deno.writeTextFile(
+    tempEnvFile,
+    "TEST_FROM_FILE=file_value\nANOTHER_VAR=another_file_value\n",
+  );
+
+  const keys = ["TEST_FROM_FILE", "ANOTHER_VAR"];
+
+  try {
+    const result = await readEnvironmentValues(keys, tempEnvFile);
+
+    assertEquals(result["TEST_FROM_FILE"], "file_value");
+    assertEquals(result["ANOTHER_VAR"], "another_file_value");
+  } finally {
+    await Deno.remove(tempEnvFile).catch(() => {});
   }
 });
 
@@ -164,7 +184,7 @@ Deno.test("buildSecretFromContext() should handle empty data", () => {
 
   assertEquals(secret.kind, "Secret");
   assertEquals(secret.metadata.name, "empty-secret");
-  assertEquals(Object.keys(secret.data || {}).length, 0);
+  assertEquals(Object.keys(secret.data ?? {}).length, 0);
 });
 
 Deno.test("sync() should handle empty kubectl response", async () => {
@@ -172,7 +192,6 @@ Deno.test("sync() should handle empty kubectl response", async () => {
     // We can't easily mock the import, so we test the expected behavior
     const result = await sync({
       resource: { type: "configmap", name: "empty-config" },
-      format: "yaml",
     });
 
     // Should handle empty result gracefully
@@ -186,7 +205,7 @@ Deno.test("sync() should handle empty kubectl response", async () => {
   }
 });
 
-Deno.test("sync() should generate ConfigMap YAML for configmap type", async () => {
+Deno.test("sync() should generate kubectl patch command for configmap type", async () => {
   const testEnv = setupTestEnv();
 
   try {
@@ -198,15 +217,15 @@ Deno.test("sync() should generate ConfigMap YAML for configmap type", async () =
         name: "test-config",
         namespace: "test-ns",
       },
-      format: "yaml",
     });
 
     // This assertion will only run if kubectl is available
     if (
       !result.includes("No data found") && !result.includes("Failed to sync")
     ) {
-      assertStringIncludes(result, "apiVersion: v1");
-      assertStringIncludes(result, "kind: ConfigMap");
+      assertStringIncludes(result, "kubectl patch cm test-config");
+      assertStringIncludes(result, "-n test-ns");
+      assertStringIncludes(result, "--type=merge");
     }
   } catch (error) {
     // Expected behavior when kubectl is not available
@@ -216,22 +235,21 @@ Deno.test("sync() should generate ConfigMap YAML for configmap type", async () =
   }
 });
 
-Deno.test("sync() should generate Secret YAML for secret type", async () => {
+Deno.test("sync() should generate kubectl patch command for secret type", async () => {
   const testEnv = setupTestEnv();
 
   try {
     const result = await sync({
       resource: { type: "secret", name: "test-secret", namespace: "test-ns" },
-      format: "yaml",
     });
 
     // This assertion will only run if kubectl is available
     if (
       !result.includes("No data found") && !result.includes("Failed to sync")
     ) {
-      assertStringIncludes(result, "apiVersion: v1");
-      assertStringIncludes(result, "kind: Secret");
-      assertStringIncludes(result, "type: Opaque");
+      assertStringIncludes(result, "kubectl patch secret test-secret");
+      assertStringIncludes(result, "-n test-ns");
+      assertStringIncludes(result, "--type=merge");
     }
   } catch (error) {
     // Expected behavior when kubectl is not available
@@ -241,25 +259,72 @@ Deno.test("sync() should generate Secret YAML for secret type", async () => {
   }
 });
 
-Deno.test("sync() should handle JSON format output", async () => {
+Deno.test("sync() should generate proper kubectl patch command format", async () => {
   const testEnv = setupTestEnv();
 
   try {
     const result = await sync({
       resource: { type: "configmap", name: "json-config" },
-      format: "json",
     });
 
     // This assertion will only run if kubectl is available and returns data
     if (
       !result.includes("No data found") && !result.includes("Failed to sync")
     ) {
-      // JSON format should not contain YAML-specific formatting
-      assertStringIncludes(result, '"apiVersion": "v1"');
-      assertStringIncludes(result, '"kind": "ConfigMap"');
+      // Should contain proper kubectl patch format
+      assertStringIncludes(result, "kubectl patch cm json-config");
+      assertStringIncludes(result, "--type=merge");
+      assertStringIncludes(result, '-p \'{"data":');
     }
   } catch (error) {
     // Expected behavior when kubectl is not available
+    assertStringIncludes((error as Error).message, "kubectl");
+  } finally {
+    cleanupTestEnv(Object.keys(testEnv));
+  }
+});
+
+Deno.test("sync() should support YAML format patch commands", async () => {
+  const testEnv = setupTestEnv();
+
+  try {
+    const result = await sync({
+      resource: { type: "configmap", name: "yaml-config" },
+      format: "yaml",
+    });
+
+    if (
+      !result.includes("No data found") && !result.includes("Failed to sync")
+    ) {
+      // Should contain YAML format
+      assertStringIncludes(result, "kubectl patch cm yaml-config");
+      assertStringIncludes(result, "--type=merge");
+      assertStringIncludes(result, "data:");
+    }
+  } catch (error) {
+    assertStringIncludes((error as Error).message, "kubectl");
+  } finally {
+    cleanupTestEnv(Object.keys(testEnv));
+  }
+});
+
+Deno.test("sync() should support string-only output", async () => {
+  const testEnv = setupTestEnv();
+
+  try {
+    const result = await sync({
+      resource: { type: "configmap", name: "string-only-config" },
+      stringOnly: true,
+    });
+
+    if (
+      !result.includes("No data found") && !result.includes("Failed to sync")
+    ) {
+      // Should only contain JSON patch data, no kubectl command
+      assertStringIncludes(result, '{"data":');
+      assert(!result.includes("kubectl"));
+    }
+  } catch (error) {
     assertStringIncludes((error as Error).message, "kubectl");
   } finally {
     cleanupTestEnv(Object.keys(testEnv));
@@ -345,7 +410,6 @@ Deno.test("sync() should handle kubectl command failures", async () => {
   try {
     const result = await sync({
       resource: { type: "configmap", name: "nonexistent-resource" },
-      format: "yaml",
     });
 
     // Should either return a "No data found" message or throw an error
@@ -369,7 +433,7 @@ Deno.test("Full workflow test with mock data", async () => {
     // Simulate the keys that would come from kubectl
     const mockKeys = ["DD_SITE", "DD_API_KEY", "DB_HOST"];
 
-    // Read the environment values
+    // Read the environment values (without envFile, should use system env)
     const envValues = await readEnvironmentValues(mockKeys);
 
     // Build ConfigMap

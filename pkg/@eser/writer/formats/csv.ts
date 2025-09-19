@@ -44,7 +44,7 @@ export const serialize = (data: unknown, options?: FormatOptions): string => {
       csvHeaders = headers;
     } else {
       // Auto-detect headers from first object
-      csvHeaders = Object.keys(objects[0] || {});
+      csvHeaders = Object.keys(objects[0] ?? {});
     }
 
     const csvOptions: csv.StringifyOptions = {

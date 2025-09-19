@@ -13,7 +13,7 @@ export const token = (input: string): Parser => {
   return (t: Iterator<Token>) => {
     const { value, done } = t.next();
 
-    if (done || value.kind !== input) {
+    if (done === true || value.kind !== input) {
       return null;
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "@eser/bundler",
-  "version": "0.7.23",
+  "version": "0.7.24",
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.14",
     "@std/encoding": "jsr:@std/encoding@^1.0.10",

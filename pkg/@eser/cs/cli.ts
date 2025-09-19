@@ -10,7 +10,7 @@ const VERSION = "0.1.0";
 
 interface CliOptions {
   namespace?: string;
-  envFile?: string;
+  env?: string;
   output?: "yaml" | "json";
   stringOnly?: boolean;
   help?: boolean;
@@ -24,37 +24,37 @@ USAGE:
   deno run -A jsr:@eser/cs/cli [COMMAND] [OPTIONS]
 
 COMMANDS:
-  generate    Generate ConfigMap/Secret YAML/JSON from .env files (requires -f flag)
-              Usage: generate [cm|configmap|secret]/name -f <env-file>
+  generate    Generate ConfigMap/Secret YAML/JSON from .env files (requires -e flag)
+              Usage: generate [cm|configmap|secret]/name -e <env-name>
   sync        Generate kubectl patch commands to sync with existing Kubernetes resources
-              Usage: sync [cm|configmap|secret]/name [-f <env-file>]
+              Usage: sync [cm|configmap|secret]/name [-e <env-name>]
 
 OPTIONS:
+  -e, --env <name>                Environment name
   -n, --namespace <ns>            Kubernetes namespace
-  -f, --reference-env-file <path> Path to environment file (required for generate, optional for sync)
   -o, --output <format>           Output format (yaml/json) [default: json]
   -s, --string-only               Output only patch string (no kubectl command)
   -h, --help                      Show this help message
   -v, --version                   Show version information
 
 EXAMPLES:
-  # Generate ConfigMap from .env file
-  deno run -A jsr:@eser/cs/cli generate cm/my-config -f .env
+  # Generate ConfigMap from environment
+  deno run -A jsr:@eser/cs/cli generate cm/my-config -e development
 
   # Generate Secret and save to file
-  deno run -A jsr:@eser/cs/cli generate secret/api-keys -n production -f .env.prod > secret.yaml
+  deno run -A jsr:@eser/cs/cli generate secret/api-keys -n production -e production > secret.yaml
 
   # Generate kubectl patch command for ConfigMap (JSON format)
-  deno run -A jsr:@eser/cs/cli sync cm/default -n development -f .env.dev
+  deno run -A jsr:@eser/cs/cli sync cm/default -n development -e development
 
   # Generate YAML format patch command
-  deno run -A jsr:@eser/cs/cli sync cm/default -n development -f .env.dev -o yaml
+  deno run -A jsr:@eser/cs/cli sync cm/default -n development -e development -o yaml
 
   # Output only patch string for saving to file
-  deno run -A jsr:@eser/cs/cli sync secret/default -f .env.dev -s > patch.json
+  deno run -A jsr:@eser/cs/cli sync secret/default -e development -s > patch.json
 
   # Execute sync command directly
-  eval "$(deno run -A jsr:@eser/cs/cli sync secret/default -n development -f .env.dev)"
+  eval "$(deno run -A jsr:@eser/cs/cli sync secret/default -n development -e development)"
 `;
 
 function showHelp(): void {
@@ -92,16 +92,16 @@ function parseKubectlResource(
 }
 
 function parseCliArgs(): {
-  command: string;
+  command: string | undefined;
   options: CliOptions;
   kubectlResource?: KubectlResourceReference;
 } {
   const args = parseArgs(Deno.args, {
-    string: ["namespace", "reference-env-file", "output"],
+    string: ["namespace", "env", "output"],
     boolean: ["help", "version", "string-only"],
     alias: {
       n: "namespace",
-      f: "reference-env-file",
+      e: "env",
       o: "output",
       s: "string-only",
       h: "help",
@@ -109,7 +109,7 @@ function parseCliArgs(): {
     },
   });
 
-  const command = args._.length > 0 ? String(args._[0]) : "generate";
+  const command = args._.length > 0 ? String(args._[0]) : undefined;
   let kubectlResource: KubectlResourceReference | undefined;
 
   // For sync and generate commands, parse the second argument as resource reference
@@ -120,7 +120,7 @@ function parseCliArgs(): {
 
   const options: CliOptions = {
     namespace: args.namespace,
-    envFile: args["reference-env-file"],
+    env: args.env,
     output: args.output as "yaml" | "json" | undefined,
     stringOnly: args["string-only"],
     help: args.help,
@@ -131,35 +131,24 @@ function parseCliArgs(): {
 }
 
 function validateOptions(
-  command: string,
+  command: string | undefined,
   options: CliOptions,
   kubectlResource?: KubectlResourceReference,
-): void {
+): asserts kubectlResource is KubectlResourceReference {
   // Validate output format
-  if (
-    options.output !== undefined && options.output !== "yaml" &&
-    options.output !== "json"
-  ) {
+  if (![undefined, "yaml", "json"].includes(options.output)) {
     console.error("Error: output format must be 'yaml' or 'json'");
+
     Deno.exit(1);
   }
 
   // Validate required options for specific commands
-  if (command === "generate") {
+  if (command === "generate" || command === "sync") {
     if (kubectlResource === undefined) {
       console.error(
-        `Error: generate command requires a resource (e.g., cm/default, secret/default)`,
+        `Error: ${command} command requires a resource (e.g., cm/default, secret/default)`,
       );
-      Deno.exit(1);
-    }
-  }
 
-  // Validate sync command
-  if (command === "sync") {
-    if (kubectlResource === undefined) {
-      console.error(
-        "Error: sync command requires a resource (e.g., cm/default, secret/default)",
-      );
       Deno.exit(1);
     }
   }
@@ -174,7 +163,7 @@ async function handleGenerate(
       format: options.output ?? "yaml",
       resource: kubectlResource,
       namespace: options.namespace,
-      envFile: options.envFile,
+      env: options.env,
     });
 
     console.log(result);
@@ -198,7 +187,7 @@ async function handleSync(
         name: kubectlResource.name,
         namespace: options.namespace,
       },
-      envFile: options.envFile,
+      env: options.env,
       format: options.output,
       stringOnly: options.stringOnly,
     };
@@ -218,13 +207,13 @@ async function main(): Promise<void> {
   const { command, options, kubectlResource } = parseCliArgs();
 
   // Handle help and version flags
-  if (options.help === true) {
-    showHelp();
+  if (options.version === true) {
+    showVersion();
     return;
   }
 
-  if (options.version === true) {
-    showVersion();
+  if (options.help === true || command === undefined) {
+    showHelp();
     return;
   }
 
@@ -234,22 +223,15 @@ async function main(): Promise<void> {
   // Handle commands
   switch (command) {
     case "generate":
-      if (kubectlResource === undefined) {
-        console.error("Error: generate resource not specified");
-        Deno.exit(1);
-      }
       await handleGenerate(options, kubectlResource);
       break;
+
     case "sync":
-      if (kubectlResource === undefined) {
-        console.error("Error: sync resource not specified");
-        Deno.exit(1);
-      }
       await handleSync(options, kubectlResource);
       break;
+
     default:
       console.error(`Unknown command: ${command}`);
-      console.error("Run 'deno task cli --help' for usage information.");
       Deno.exit(1);
   }
 }

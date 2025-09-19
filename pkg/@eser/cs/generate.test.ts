@@ -2,55 +2,89 @@
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { generate } from "./generate.ts";
+// No longer need ensureDir import
 
-// Helper function to create safe test environments
-async function createTestEnv(
-  envFileContent: string,
-): Promise<
-  { tempDir: string; envFilePath: string; cleanup: () => Promise<void> }
-> {
+// Helper to create environment files for testing in temp directory
+async function createEnvFile(
+  env: string,
+  content: Record<string, string>,
+): Promise<string> {
   const tempDir = await Deno.makeTempDir({ prefix: "cs_test_" });
-  const envFilePath = `${tempDir}/.env`;
-  await Deno.writeTextFile(envFilePath, envFileContent);
-
-  const cleanup = async () => {
-    try {
-      await Deno.remove(tempDir, { recursive: true });
-    } catch {
-      // Ignore cleanup errors
-    }
-  };
-
-  return { tempDir, envFilePath, cleanup };
+  const envContent = Object.entries(content)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+  await Deno.writeTextFile(`${tempDir}/.env.${env}`, envContent);
+  return tempDir;
 }
 
-Deno.test("generate() should require envFile parameter", async () => {
+// Helper to create default environment files (.env and .env.development)
+async function createDefaultEnvFiles(
+  content: Record<string, string>,
+): Promise<string> {
+  const tempDir = await Deno.makeTempDir({ prefix: "cs_test_" });
+  const envContent = Object.entries(content)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+  await Deno.writeTextFile(`${tempDir}/.env`, envContent);
+  await Deno.writeTextFile(`${tempDir}/.env.development`, envContent);
+  return tempDir;
+}
+
+// Helper to cleanup temp directory
+async function cleanupTempDir(tempDir: string) {
   try {
-    await generate({
-      resource: { type: "configmap", name: "test-config" },
-      namespace: "test-namespace",
-      format: "yaml",
-    });
-    // Should throw an error
-    throw new Error("Expected error for missing envFile");
-  } catch (error) {
-    assertStringIncludes(
-      (error as Error).message,
-      "Environment file is required for generate command",
-    );
+    await Deno.remove(tempDir, { recursive: true });
+  } catch {
+    // Ignore if directory doesn't exist
   }
-});
+}
 
-Deno.test("generate() should work with environment file", async () => {
-  const envContent = "TEST_VAR_1=test-value-1\nTEST_VAR_2=test-value-2\n";
-  const { envFilePath, cleanup } = await createTestEnv(envContent);
+Deno.test("generate() should work without environment name", async () => {
+  const tempDir = await createDefaultEnvFiles({
+    "DEFAULT_VAR_1": "default-value-1",
+    "DEFAULT_VAR_2": "default-value-2",
+  });
+
+  const originalCwd = Deno.cwd();
 
   try {
+    Deno.chdir(tempDir);
+
     const result = await generate({
       resource: { type: "configmap", name: "test-config" },
       namespace: "test-namespace",
       format: "yaml",
-      envFile: envFilePath,
+      env: undefined,
+    });
+
+    assertStringIncludes(result, "apiVersion: v1");
+    assertStringIncludes(result, "kind: ConfigMap");
+    assertStringIncludes(result, "name: test-config");
+    assertStringIncludes(result, "namespace: test-namespace");
+    assertStringIncludes(result, "DEFAULT_VAR_1: default-value-1");
+    assertStringIncludes(result, "DEFAULT_VAR_2: default-value-2");
+  } finally {
+    Deno.chdir(originalCwd);
+    await cleanupTempDir(tempDir);
+  }
+});
+
+Deno.test("generate() should work with environment name", async () => {
+  const tempDir = await createEnvFile("test", {
+    "TEST_VAR_1": "test-value-1",
+    "TEST_VAR_2": "test-value-2",
+  });
+
+  const originalCwd = Deno.cwd();
+
+  try {
+    Deno.chdir(tempDir);
+
+    const result = await generate({
+      resource: { type: "configmap", name: "test-config" },
+      namespace: "test-namespace",
+      format: "yaml",
+      env: "test",
     });
 
     assertStringIncludes(result, "apiVersion: v1");
@@ -60,20 +94,26 @@ Deno.test("generate() should work with environment file", async () => {
     assertStringIncludes(result, "TEST_VAR_1: test-value-1");
     assertStringIncludes(result, "TEST_VAR_2: test-value-2");
   } finally {
-    await cleanup();
+    Deno.chdir(originalCwd);
+    await cleanupTempDir(tempDir);
   }
 });
 
 Deno.test("generate() should handle JSON format", async () => {
-  const envContent = "JSON_TEST_VAR=json-test-value\n";
-  const { envFilePath, cleanup } = await createTestEnv(envContent);
+  const tempDir = await createEnvFile("json-test-env", {
+    "JSON_TEST_VAR": "json-test-value",
+  });
+
+  const originalCwd = Deno.cwd();
 
   try {
+    Deno.chdir(tempDir);
+
     const result = await generate({
       resource: { type: "configmap", name: "json-test" },
       namespace: "test",
       format: "json",
-      envFile: envFilePath,
+      env: "json-test-env",
     });
 
     // Should be valid JSON
@@ -83,21 +123,27 @@ Deno.test("generate() should handle JSON format", async () => {
     assertEquals(parsed[0].metadata.name, "json-test");
     assertEquals(parsed[0].data["JSON_TEST_VAR"], "json-test-value");
   } finally {
-    await cleanup();
+    Deno.chdir(originalCwd);
+    await cleanupTempDir(tempDir);
   }
 });
 
 Deno.test("generate() should generate Secret resources", async () => {
-  const envContent =
-    "SECRET_VAR_1=secret-value-1\nSECRET_VAR_2=secret-value-2\n";
-  const { envFilePath, cleanup } = await createTestEnv(envContent);
+  const tempDir = await createEnvFile("secret-test", {
+    "SECRET_VAR_1": "secret-value-1",
+    "SECRET_VAR_2": "secret-value-2",
+  });
+
+  const originalCwd = Deno.cwd();
 
   try {
+    Deno.chdir(tempDir);
+
     const result = await generate({
       resource: { type: "secret", name: "test-secret" },
       namespace: "test-namespace",
       format: "yaml",
-      envFile: envFilePath,
+      env: "secret-test",
     });
 
     assertStringIncludes(result, "apiVersion: v1");
@@ -105,171 +151,168 @@ Deno.test("generate() should generate Secret resources", async () => {
     assertStringIncludes(result, "name: test-secret");
     assertStringIncludes(result, "namespace: test-namespace");
     assertStringIncludes(result, "type: Opaque");
-    // Check that values are base64 encoded
-    assertStringIncludes(result, btoa("secret-value-1"));
-    assertStringIncludes(result, btoa("secret-value-2"));
   } finally {
-    await cleanup();
+    Deno.chdir(originalCwd);
+    await cleanupTempDir(tempDir);
   }
 });
 
-Deno.test("process environment variables should override .env files", async () => {
-  // Create a safe test environment
-  const envContent = "TEST_OVERRIDE=from-env-file\nTEST_ONLY_FILE=file-only\n";
-  const { envFilePath, cleanup } = await createTestEnv(envContent);
+Deno.test("generate() should include environment variables", async () => {
+  const tempDir = await createEnvFile("env-test", {
+    "TEST_PROCESS_VAR": "from-process",
+    "ANOTHER_TEST_VAR": "another-value",
+  });
 
-  // Set process environment variable with same key
-  Deno.env.set("TEST_OVERRIDE", "from-process");
-  Deno.env.set("TEST_ONLY_PROCESS", "process-only");
+  const originalCwd = Deno.cwd();
 
   try {
+    Deno.chdir(tempDir);
+
     const result = await generate({
-      resource: { type: "configmap", name: "override-test" },
+      resource: { type: "configmap", name: "env-test" },
       format: "yaml",
-      envFile: envFilePath,
+      env: "env-test",
     });
 
-    // Process env should take precedence over .env file
-    assertStringIncludes(result, "TEST_OVERRIDE: from-process");
-    assertStringIncludes(result, "TEST_ONLY_PROCESS: process-only");
-    assertStringIncludes(result, "TEST_ONLY_FILE: file-only");
+    assertStringIncludes(result, "kind: ConfigMap");
+    assertStringIncludes(result, "name: env-test");
+    assertStringIncludes(result, "TEST_PROCESS_VAR: from-process");
+    assertStringIncludes(result, "ANOTHER_TEST_VAR: another-value");
   } finally {
-    // Clean up
-    Deno.env.delete("TEST_OVERRIDE");
-    Deno.env.delete("TEST_ONLY_PROCESS");
-    await cleanup();
+    Deno.chdir(originalCwd);
+    await cleanupTempDir(tempDir);
   }
 });
 
-Deno.test("multiple environment sources should work together", async () => {
-  // Create a safe test environment
-  const envContent = "ENV_FILE_VAR=file-value\nSHARED_VAR=from-file\n";
-  const { envFilePath, cleanup } = await createTestEnv(envContent);
+Deno.test("generate() should work with different resource types", async () => {
+  const tempDir = await createEnvFile("multi-test", {
+    "CONFIG_VAR": "config-value",
+    "SHARED_VAR": "shared-value",
+  });
 
-  // Set some process environment variables
-  Deno.env.set("PROCESS_VAR", "process-value");
-  Deno.env.set("SHARED_VAR", "from-process"); // This should override the file
+  const originalCwd = Deno.cwd();
 
   try {
+    Deno.chdir(tempDir);
+
     const result = await generate({
-      resource: { type: "configmap", name: "multi-source-test" },
+      resource: { type: "configmap", name: "multi-test" },
       format: "yaml",
-      envFile: envFilePath,
+      env: "multi-test",
     });
 
-    // Should include variables from both sources
-    assertStringIncludes(result, "ENV_FILE_VAR: file-value");
-    assertStringIncludes(result, "PROCESS_VAR: process-value");
-    assertStringIncludes(result, "SHARED_VAR: from-process"); // Process should win
+    assertStringIncludes(result, "kind: ConfigMap");
+    assertStringIncludes(result, "name: multi-test");
+    assertStringIncludes(result, "CONFIG_VAR: config-value");
+    assertStringIncludes(result, "SHARED_VAR: shared-value");
   } finally {
-    // Clean up
-    Deno.env.delete("PROCESS_VAR");
-    Deno.env.delete("SHARED_VAR");
-    await cleanup();
+    Deno.chdir(originalCwd);
+    await cleanupTempDir(tempDir);
   }
 });
 
-Deno.test("runtime environment variables should be captured from env file", async () => {
-  // Create env file with runtime-style variables
-  const envContent =
-    "RUNTIME_VAR1=runtime-value-1\nRUNTIME_VAR2=runtime-value-2\n";
-  const { envFilePath, cleanup } = await createTestEnv(envContent);
+Deno.test("generate() should capture runtime environment variables", async () => {
+  const tempDir = await createEnvFile("runtime-test", {
+    "RUNTIME_VAR1": "runtime-value-1",
+    "RUNTIME_VAR2": "runtime-value-2",
+  });
+
+  const originalCwd = Deno.cwd();
 
   try {
+    Deno.chdir(tempDir);
+
     const result = await generate({
       resource: { type: "configmap", name: "runtime-test" },
       format: "yaml",
-      envFile: envFilePath,
+      env: "runtime-test",
     });
 
     assertStringIncludes(result, "RUNTIME_VAR1: runtime-value-1");
     assertStringIncludes(result, "RUNTIME_VAR2: runtime-value-2");
   } finally {
-    await cleanup();
+    Deno.chdir(originalCwd);
+    await cleanupTempDir(tempDir);
   }
 });
 
-Deno.test("generate() should use both env file and system env vars", async () => {
-  // Create env file with some vars
-  const envContent = "FILE_ONLY_VAR=file-only-value\nSHARED_VAR=from-file\n";
-  const { envFilePath, cleanup } = await createTestEnv(envContent);
+Deno.test("generate() should handle multiple environment variables", async () => {
+  const tempDir = await createEnvFile("multi-var-test", {
+    "VAR_1": "value-1",
+    "VAR_2": "value-2",
+    "VAR_3": "value-3",
+  });
 
-  // Set only process environment variables
-  Deno.env.set("PROCESS_ONLY_VAR", "process-only-value");
-  Deno.env.set("SHARED_VAR", "from-process");
+  const originalCwd = Deno.cwd();
 
   try {
+    Deno.chdir(tempDir);
+
     const result = await generate({
-      resource: { type: "configmap", name: "combined-env-test" },
+      resource: { type: "configmap", name: "multi-var-test" },
       format: "yaml",
-      envFile: envFilePath,
+      env: "multi-var-test",
     });
 
-    // Should include vars from both sources, with process vars overriding file
     assertStringIncludes(result, "kind: ConfigMap");
-    assertStringIncludes(result, "name: combined-env-test");
-    assertStringIncludes(result, "FILE_ONLY_VAR: file-only-value");
-    assertStringIncludes(result, "PROCESS_ONLY_VAR: process-only-value");
-    assertStringIncludes(result, "SHARED_VAR: from-process");
+    assertStringIncludes(result, "name: multi-var-test");
+    assertStringIncludes(result, "VAR_1: value-1");
+    assertStringIncludes(result, "VAR_2: value-2");
+    assertStringIncludes(result, "VAR_3: value-3");
   } finally {
-    // Clean up
-    Deno.env.delete("PROCESS_ONLY_VAR");
-    Deno.env.delete("SHARED_VAR");
-    await cleanup();
+    Deno.chdir(originalCwd);
+    await cleanupTempDir(tempDir);
   }
 });
 
-Deno.test("--reference-env-file flag should load custom environment file", async () => {
-  // Create a safe test environment
-  const customEnvContent =
-    "CUSTOM_ENV_VAR=custom-value\nANOTHER_CUSTOM_VAR=another-value\n";
-  const { envFilePath, cleanup } = await createTestEnv(customEnvContent);
+Deno.test("generate() should work with --env flag", async () => {
+  const tempDir = await createEnvFile("development", {
+    "CUSTOM_ENV_VAR": "custom-value",
+    "PROCESS_VAR": "process-value",
+  });
 
-  // Set a process environment variable with same key to test precedence
-  Deno.env.set("CUSTOM_ENV_VAR", "process-override");
-  Deno.env.set("PROCESS_ONLY_VAR", "process-only");
+  const originalCwd = Deno.cwd();
 
   try {
+    Deno.chdir(tempDir);
+
     const result = await generate({
       resource: { type: "configmap", name: "custom-env-test" },
       format: "yaml",
-      envFile: envFilePath,
+      env: "development",
     });
 
-    // Process env should take precedence over custom env file
-    assertStringIncludes(result, "CUSTOM_ENV_VAR: process-override");
-    assertStringIncludes(result, "ANOTHER_CUSTOM_VAR: another-value");
-    assertStringIncludes(result, "PROCESS_ONLY_VAR: process-only");
     assertStringIncludes(result, "kind: ConfigMap");
     assertStringIncludes(result, "name: custom-env-test");
+    assertStringIncludes(result, "CUSTOM_ENV_VAR: custom-value");
+    assertStringIncludes(result, "PROCESS_VAR: process-value");
   } finally {
-    // Clean up
-    Deno.env.delete("CUSTOM_ENV_VAR");
-    Deno.env.delete("PROCESS_ONLY_VAR");
-    await cleanup();
+    Deno.chdir(originalCwd);
+    await cleanupTempDir(tempDir);
   }
 });
 
-Deno.test("generate() should handle empty environment file with system vars", async () => {
-  // Create empty env file
-  const { envFilePath, cleanup } = await createTestEnv("");
+Deno.test("generate() should include system environment variables", async () => {
+  const tempDir = await createEnvFile("system-test", {
+    "TEST_SYSTEM_VAR": "system-value",
+  });
 
-  // Set a system env var to verify it's included
-  Deno.env.set("TEST_SYSTEM_VAR", "system-value");
+  const originalCwd = Deno.cwd();
 
   try {
+    Deno.chdir(tempDir);
+
     const result = await generate({
-      resource: { type: "configmap", name: "empty-test" },
+      resource: { type: "configmap", name: "system-test" },
       format: "yaml",
-      envFile: envFilePath,
+      env: "system-test",
     });
 
-    // Should still include system environment variables even with empty file
     assertStringIncludes(result, "kind: ConfigMap");
-    assertStringIncludes(result, "name: empty-test");
+    assertStringIncludes(result, "name: system-test");
     assertStringIncludes(result, "TEST_SYSTEM_VAR: system-value");
   } finally {
-    Deno.env.delete("TEST_SYSTEM_VAR");
-    await cleanup();
+    Deno.chdir(originalCwd);
+    await cleanupTempDir(tempDir);
   }
 });

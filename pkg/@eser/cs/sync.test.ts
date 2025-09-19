@@ -4,7 +4,6 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   buildConfigMapFromContext,
   buildSecretFromContext,
-  readEnvironmentValues,
   sync,
 } from "./sync.ts";
 
@@ -32,66 +31,12 @@ function cleanupTestEnv(keys: string[]) {
   }
 }
 
-Deno.test("readEnvironmentValues() should read values from system environment when no envFile specified", async () => {
-  const testEnv = setupTestEnv();
-  const keys = ["DD_SITE", "DD_API_KEY", "DB_HOST"];
-
-  try {
-    const result = await readEnvironmentValues(keys);
-
-    assertEquals(result["DD_SITE"], "datadoghq.com");
-    assertEquals(result["DD_API_KEY"], "test-api-key");
-    assertEquals(result["DB_HOST"], "localhost");
-  } finally {
-    cleanupTestEnv(Object.keys(testEnv));
-  }
-});
-
-Deno.test("readEnvironmentValues() should read values from env file when envFile specified", async () => {
-  // Create a temporary .env file
-  const tempEnvFile = "/tmp/test-env-file";
-  await Deno.writeTextFile(
-    tempEnvFile,
-    "TEST_FROM_FILE=file_value\nANOTHER_VAR=another_file_value\n",
-  );
-
-  const keys = ["TEST_FROM_FILE", "ANOTHER_VAR"];
-
-  try {
-    const result = await readEnvironmentValues(keys, tempEnvFile);
-
-    assertEquals(result["TEST_FROM_FILE"], "file_value");
-    assertEquals(result["ANOTHER_VAR"], "another_file_value");
-  } finally {
-    await Deno.remove(tempEnvFile).catch(() => {});
-  }
-});
-
-Deno.test("readEnvironmentValues() should warn for missing environment variables", async () => {
-  const testEnv = setupTestEnv();
-  const keys = ["DD_SITE", "MISSING_VAR"];
-
-  try {
-    const result = await readEnvironmentValues(keys);
-
-    assertEquals(result["DD_SITE"], "datadoghq.com");
-    assertEquals(result["MISSING_VAR"], undefined);
-  } finally {
-    cleanupTestEnv(Object.keys(testEnv));
-  }
-});
-
-Deno.test("readEnvironmentValues() should handle empty key list", async () => {
-  const result = await readEnvironmentValues([]);
-  assertEquals(Object.keys(result).length, 0);
-});
-
 Deno.test("buildConfigMapFromContext() should create valid ConfigMap", () => {
-  const data = {
-    "DD_SITE": "datadoghq.com",
-    "DD_API_KEY": "test-api-key",
-    "DB_HOST": "localhost",
-  };
+  const data = new Map([
+    ["DD_SITE", "datadoghq.com"],
+    ["DD_API_KEY", "test-api-key"],
+    ["DB_HOST", "localhost"],
+  ]);
 
   const configMap = buildConfigMapFromContext(
     "test-config",
@@ -109,7 +54,7 @@ Deno.test("buildConfigMapFromContext() should create valid ConfigMap", () => {
 });
 
 Deno.test("buildConfigMapFromContext() should omit default namespace", () => {
-  const data = { "TEST_VAR": "test-value" };
+  const data = new Map([["TEST_VAR", "test-value"]]);
 
   const configMap = buildConfigMapFromContext(
     "default-config",
@@ -122,7 +67,7 @@ Deno.test("buildConfigMapFromContext() should omit default namespace", () => {
 });
 
 Deno.test("buildConfigMapFromContext() should handle undefined namespace", () => {
-  const data = { "TEST_VAR": "test-value" };
+  const data = new Map([["TEST_VAR", "test-value"]]);
 
   const configMap = buildConfigMapFromContext(
     "no-namespace-config",
@@ -135,11 +80,11 @@ Deno.test("buildConfigMapFromContext() should handle undefined namespace", () =>
 });
 
 Deno.test("buildSecretFromContext() should create valid Secret with base64 encoding", () => {
-  const data = {
-    "DD_SITE": "datadoghq.com",
-    "DD_API_KEY": "test-api-key",
-    "DB_PASSWORD": "secret123",
-  };
+  const data = new Map([
+    ["DD_SITE", "datadoghq.com"],
+    ["DD_API_KEY", "test-api-key"],
+    ["DB_PASSWORD", "secret123"],
+  ]);
 
   const secret = buildSecretFromContext("test-secret", "test-namespace", data);
 
@@ -156,10 +101,10 @@ Deno.test("buildSecretFromContext() should create valid Secret with base64 encod
 });
 
 Deno.test("buildSecretFromContext() should handle special characters in values", () => {
-  const data = {
-    "SPECIAL_VAR": "value with spaces & symbols!@#$%",
-    "MULTILINE_VAR": "line1\\nline2\\nline3",
-  };
+  const data = new Map([
+    ["SPECIAL_VAR", "value with spaces & symbols!@#$%"],
+    ["MULTILINE_VAR", "line1\\nline2\\nline3"],
+  ]);
 
   const secret = buildSecretFromContext("special-secret", "test-ns", data);
 
@@ -171,7 +116,7 @@ Deno.test("buildSecretFromContext() should handle special characters in values",
 });
 
 Deno.test("buildSecretFromContext() should omit default namespace", () => {
-  const data = { "TEST_SECRET": "secret-value" };
+  const data = new Map([["TEST_SECRET", "secret-value"]]);
 
   const secret = buildSecretFromContext("default-secret", "default", data);
 
@@ -180,7 +125,7 @@ Deno.test("buildSecretFromContext() should omit default namespace", () => {
 });
 
 Deno.test("buildSecretFromContext() should handle empty data", () => {
-  const secret = buildSecretFromContext("empty-secret", "test-ns", {});
+  const secret = buildSecretFromContext("empty-secret", "test-ns", new Map());
 
   assertEquals(secret.kind, "Secret");
   assertEquals(secret.metadata.name, "empty-secret");
@@ -351,10 +296,14 @@ Deno.test("CLI should handle secret resource format", () => {
 Deno.test("ConfigMap YAML output should be properly formatted", async () => {
   const { write } = await import("@eser/writer");
 
-  const configMap = buildConfigMapFromContext("format-test", "test-ns", {
-    "APP_NAME": "my-app",
-    "APP_VERSION": "1.0.0",
-  });
+  const configMap = buildConfigMapFromContext(
+    "format-test",
+    "test-ns",
+    new Map([
+      ["APP_NAME", "my-app"],
+      ["APP_VERSION", "1.0.0"],
+    ]),
+  );
 
   const yamlOutput = write([configMap], "yaml", { pretty: true });
 
@@ -369,10 +318,14 @@ Deno.test("ConfigMap YAML output should be properly formatted", async () => {
 Deno.test("Secret YAML output should be properly formatted", async () => {
   const { write } = await import("@eser/writer");
 
-  const secret = buildSecretFromContext("secret-format-test", "test-ns", {
-    "API_KEY": "secret123",
-    "DB_PASSWORD": "password456",
-  });
+  const secret = buildSecretFromContext(
+    "secret-format-test",
+    "test-ns",
+    new Map([
+      ["API_KEY", "secret123"],
+      ["DB_PASSWORD", "password456"],
+    ]),
+  );
 
   const yamlOutput = write([secret], "yaml", { pretty: true });
 
@@ -389,9 +342,13 @@ Deno.test("Secret YAML output should be properly formatted", async () => {
 Deno.test("JSON output should be valid JSON", async () => {
   const { write } = await import("@eser/writer");
 
-  const configMap = buildConfigMapFromContext("json-format-test", "test-ns", {
-    "CONFIG_KEY": "config-value",
-  });
+  const configMap = buildConfigMapFromContext(
+    "json-format-test",
+    "test-ns",
+    new Map([
+      ["CONFIG_KEY", "config-value"],
+    ]),
+  );
 
   const jsonOutput = write([configMap], "json", { pretty: true });
 
@@ -430,11 +387,12 @@ Deno.test("Full workflow test with mock data", async () => {
   const testEnv = setupTestEnv();
 
   try {
-    // Simulate the keys that would come from kubectl
-    const mockKeys = ["DD_SITE", "DD_API_KEY", "DB_HOST"];
-
-    // Read the environment values (without envFile, should use system env)
-    const envValues = await readEnvironmentValues(mockKeys);
+    // Simulate environment values for the test
+    const envValues = new Map([
+      ["DD_SITE", "datadoghq.com"],
+      ["DD_API_KEY", "test-api-key"],
+      ["DB_HOST", "localhost"],
+    ]);
 
     // Build ConfigMap
     const configMap = buildConfigMapFromContext(

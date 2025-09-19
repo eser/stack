@@ -22,6 +22,7 @@
     "jsr:@std/fmt@^1.0.8": "1.0.8",
     "jsr:@std/fs@1": "1.0.19",
     "jsr:@std/fs@^1.0.19": "1.0.19",
+    "jsr:@std/fs@^1.0.7": "1.0.19",
     "jsr:@std/internal@^1.0.10": "1.0.10",
     "jsr:@std/internal@^1.0.9": "1.0.10",
     "jsr:@std/io@0.225": "0.225.2",
@@ -657,6 +658,7 @@
         "dependencies": [
           "jsr:@std/assert@^1.0.14",
           "jsr:@std/cli@^1.0.22",
+          "jsr:@std/fs@^1.0.7",
           "jsr:@std/path@^1.1.2",
           "jsr:@std/testing@^1.0.15"
         ]

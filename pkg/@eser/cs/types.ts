@@ -71,7 +71,7 @@ export interface KubectlResourceReference {
 
 export interface SyncOptions {
   resource: KubectlResourceReference;
-  envFile?: string;
+  env?: string;
   format?: "yaml" | "json";
   stringOnly?: boolean;
 }

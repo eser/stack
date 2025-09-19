@@ -2,13 +2,16 @@
 
 import * as dotenv from "@std/dotenv";
 import * as jsRuntime from "@eser/standards/js-runtime";
-import { defaultEnvValue, defaultEnvVar, env, type EnvMap } from "./base.ts";
+import { defaultEnvValue, env, type EnvMap, envVars } from "./base.ts";
 
 // type definitions
 export type LoaderOptions = {
   baseDir: string;
-  defaultEnvVar: string;
+  env: string | undefined;
+  envVars: string[];
   defaultEnvValue: string;
+
+  loadProcessEnv: boolean;
 };
 
 // public functions
@@ -38,20 +41,36 @@ export const parseEnvFromFile = async (
   }
 };
 
+const getEnvVar = (
+  sysVars: Record<string, string>,
+  defaultValue: string,
+): string => {
+  for (const envVar of envVars) {
+    if (envVar in sysVars) {
+      return envVar;
+    }
+  }
+
+  return defaultValue;
+};
+
 export const load = async (
   options?: Partial<LoaderOptions>,
 ): Promise<EnvMap> => {
   const options_: LoaderOptions = Object.assign(
     {
       baseDir: ".",
-      defaultEnvVar: defaultEnvVar,
+      env: undefined,
+      envVars: envVars,
       defaultEnvValue: defaultEnvValue,
+
+      loadProcessEnv: true,
     },
     options,
   );
 
   const sysVars = jsRuntime.current.getEnv();
-  const envName = sysVars[options_.defaultEnvVar] ?? options_.defaultEnvValue;
+  const envName = options_.env ?? getEnvVar(sysVars, options_.defaultEnvValue);
 
   const vars = new Map<typeof env | string, string>();
   vars.set(env, envName);
@@ -72,7 +91,9 @@ export const load = async (
     await parseEnvFromFile(`${options_.baseDir}/.env.${envName}.local`),
   );
 
-  envImport(sysVars);
+  if (options_.loadProcessEnv) {
+    envImport(sysVars);
+  }
 
   return vars;
 };

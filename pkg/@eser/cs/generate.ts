@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { write } from "@eser/writer";
-import { parseEnvFromFile } from "@eser/config/dotenv";
+import { load } from "@eser/config/dotenv";
 import { buildConfigMapFromContext, buildSecretFromContext } from "./sync.ts";
 
 import type { KubectlResourceReference } from "./types.ts";
@@ -10,8 +10,7 @@ export interface GenerateOptions {
   format: "yaml" | "json";
   resource: KubectlResourceReference;
   namespace?: string;
-  envFile?: string;
-  baseDir?: string;
+  env: string | undefined;
 }
 
 export const generate = async (options: GenerateOptions): Promise<string> => {
@@ -20,25 +19,14 @@ export const generate = async (options: GenerateOptions): Promise<string> => {
   const resourceName = options.resource.name;
   const resourceNamespace = options.resource.namespace ?? options.namespace;
 
-  // Require environment file for generate command
-  if (!options.envFile) {
-    throw new Error(
-      "Environment file is required for generate command. Use -f flag to specify the file.",
-    );
-  }
-
-  // Load environment file data using @eser/config
-  const envFileData = await parseEnvFromFile(options.envFile);
-
-  // Merge with system environment variables (system vars override file vars)
-  const systemEnv = Deno.env.toObject();
-  const envData: Record<string, string> = {
-    ...envFileData,
-    ...systemEnv,
-  };
+  // Load environment data using @eser/config
+  const envMap = await load({
+    env: options.env,
+    loadProcessEnv: false,
+  });
 
   // Check if we have any data to generate
-  if (Object.keys(envData).length === 0) {
+  if (envMap.size === 0) {
     return `# No environment data found to generate ${resourceType}/${resourceName}`;
   }
 
@@ -49,13 +37,13 @@ export const generate = async (options: GenerateOptions): Promise<string> => {
     resource = buildSecretFromContext(
       resourceName,
       resourceNamespace,
-      envData,
+      envMap,
     );
   } else {
     resource = buildConfigMapFromContext(
       resourceName,
       resourceNamespace,
-      envData,
+      envMap,
     );
   }
 

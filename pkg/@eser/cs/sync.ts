@@ -1,24 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { write } from "@eser/writer";
-import { parseEnvFromFile } from "@eser/config/dotenv";
+import { type EnvMap, load } from "@eser/config/dotenv";
 import type {
   ConfigMap,
   KubectlResourceReference,
   Secret,
   SyncOptions,
 } from "./types.ts";
-
-interface KubernetesResource {
-  apiVersion: string;
-  kind: string;
-  metadata: {
-    name: string;
-    namespace?: string;
-  };
-  data?: Record<string, string>;
-  stringData?: Record<string, string>;
-}
 
 export const executeKubectl = async (
   resource: KubectlResourceReference,
@@ -48,62 +37,16 @@ export const executeKubectl = async (
   return keys;
 };
 
-export const readEnvironmentValues = async (
-  keys: string[],
-  envFile?: string,
-): Promise<Record<string, string>> => {
-  const result: Record<string, string> = {};
-
-  if (envFile) {
-    // Use @eser/config to load from the specified file
-    const envFileData = await parseEnvFromFile(envFile);
-
-    // Merge with system environment variables (system vars override file vars)
-    const systemEnv = Deno.env.toObject();
-    const mergedEnv = {
-      ...envFileData,
-      ...systemEnv,
-    };
-
-    for (const key of keys) {
-      const value = mergedEnv[key];
-      if (value !== undefined) {
-        result[key] = value;
-      } else {
-        console.warn(
-          `Warning: Environment variable ${key} not found in environment`,
-        );
-      }
-    }
-  } else {
-    // Use only system environment variables (no file loading)
-    const systemEnv = Deno.env.toObject();
-
-    for (const key of keys) {
-      const value = systemEnv[key];
-      if (value !== undefined) {
-        result[key] = value;
-      } else {
-        console.warn(
-          `Warning: Environment variable ${key} not found in environment`,
-        );
-      }
-    }
-  }
-
-  return result;
-};
-
 export const buildSecretFromContext = (
   name: string,
   namespace: string | undefined,
-  data: Record<string, string>,
+  data: EnvMap,
 ): Secret => {
   const encodedData: Record<string, string> = {};
 
   // Encode data to base64 for Secrets
-  for (const [key, value] of Object.entries(data)) {
-    encodedData[key] = btoa(value);
+  for (const [key, value] of data) {
+    encodedData[String(key)] = btoa(value);
   }
 
   return {
@@ -111,7 +54,9 @@ export const buildSecretFromContext = (
     kind: "Secret",
     metadata: {
       name,
-      ...(namespace && namespace !== "default" ? { namespace } : {}),
+      ...(namespace !== undefined && namespace !== "default"
+        ? { namespace }
+        : {}),
     },
     data: encodedData,
     type: "Opaque",
@@ -121,7 +66,7 @@ export const buildSecretFromContext = (
 export const buildConfigMapFromContext = (
   name: string,
   namespace: string | undefined,
-  data: Record<string, string>,
+  data: EnvMap,
 ): ConfigMap => {
   return {
     apiVersion: "v1",
@@ -130,7 +75,7 @@ export const buildConfigMapFromContext = (
       name,
       ...(namespace && namespace !== "default" ? { namespace } : {}),
     },
-    data,
+    data: Object.fromEntries(data.entries()),
   };
 };
 
@@ -143,8 +88,21 @@ export const sync = async (options: SyncOptions): Promise<string> => {
       return `# No data found in ${options.resource.type}/${options.resource.name}`;
     }
 
-    // Read environment variable values
-    const envData = await readEnvironmentValues(keys, options.envFile);
+    // Load environment data using @eser/config
+    const envMap = await load({ env: options.env });
+
+    // Convert Map to Record and filter for the keys we need
+    const envData: Record<string, string> = {};
+    for (const key of keys) {
+      const value = envMap.get(key);
+      if (value !== undefined) {
+        envData[key] = value;
+      } else {
+        console.warn(
+          `Warning: Environment variable ${key} not found in environment`,
+        );
+      }
+    }
 
     if (Object.keys(envData).length === 0) {
       return `# No matching environment variables found for ${options.resource.type}/${options.resource.name}`;

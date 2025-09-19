@@ -4,7 +4,7 @@
 export const env = Symbol("env");
 
 // public constants
-export const defaultEnvVar = "ENV";
+export const envVars = ["ENV", "APP_ENV", "DENO_ENV", "NODE_ENV"];
 export const defaultEnvValue = "development";
 
 // public types

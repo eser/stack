@@ -143,14 +143,14 @@ key-value pairs.
 - `<resource>`: Resource reference (e.g., `cm/name`, `configmap/name`,
   `secret/name`)
 - `--namespace <ns>`: Kubernetes namespace
-- `--reference-env-file <path>`: Path to environment file
+- `-e, --env <name>`: Environment name
 - `-o, --output <format>`: Output format (yaml/json)
 
 **sync**
 
 - `<resource>`: Resource reference (e.g., `configmap/name`, `secret/name`)
 - `--namespace <ns>`: Kubernetes namespace
-- `--reference-env-file <path>`: Path to environment file
+- `-e, --env <name>`: Environment name
 - `-o, --output <format>`: Output format (yaml/json)
 
 ### Functions

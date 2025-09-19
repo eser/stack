@@ -1,6 +1,6 @@
 {
   "name": "@eser/config",
-  "version": "0.7.20",
+  "version": "0.7.22",
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.14",
     "@std/collections": "jsr:@std/collections@^1.1.3",

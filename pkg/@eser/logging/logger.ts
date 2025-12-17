@@ -90,13 +90,16 @@ export class Logger implements logging.Logger {
     };
 
     const outputWriter = this.state.targetStream.getWriter();
-    await outputWriter.ready;
+    try {
+      await outputWriter.ready;
 
-    const formatted = this.state.formatter(record);
-    const encoded = this.state.encoder.encode(formatted);
-    await outputWriter.write(encoded);
-
-    outputWriter.releaseLock();
+      const formatted = this.state.formatter(record);
+      const encoded = this.state.encoder.encode(formatted);
+      await outputWriter.write(encoded);
+    } finally {
+      // Always release the lock, even if write fails
+      outputWriter.releaseLock();
+    }
 
     return message instanceof Function ? fnResult : message;
   }

@@ -150,12 +150,15 @@ export const buildManifest = async (
   const manifestStr = await writeManifestToString(collection);
 
   const outputWriter = target.getWriter();
-  await outputWriter.ready;
+  try {
+    await outputWriter.ready;
 
-  const encoded = new TextEncoder().encode(manifestStr);
-  await outputWriter.write(encoded);
-
-  outputWriter.releaseLock();
+    const encoded = new TextEncoder().encode(manifestStr);
+    await outputWriter.write(encoded);
+  } finally {
+    // Always release the lock, even if write fails
+    outputWriter.releaseLock();
+  }
 
   const exportModules = Object.values(collection);
   const exportCount = exportModules.reduce((acc, [, moduleFns]) => {

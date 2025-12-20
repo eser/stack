@@ -6,15 +6,17 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
-import * as jsRuntime from "@eser/standards/js-runtime";
+import { runtime } from "@eser/standards/runtime";
 
 export const format = async (input: string) => {
-  const proc = new jsRuntime.current.Command(jsRuntime.current.execPath(), {
-    args: ["fmt", "-"],
+  const child = runtime.exec.spawnChild(runtime.process.execPath(), [
+    "fmt",
+    "-",
+  ], {
     stdin: "piped",
     stdout: "piped",
     stderr: "null",
-  }).spawn();
+  });
 
   const raw = new ReadableStream({
     start(controller) {
@@ -22,8 +24,8 @@ export const format = async (input: string) => {
       controller.close();
     },
   });
-  await raw.pipeTo(proc.stdin);
-  const { stdout } = await proc.output();
+  await raw.pipeTo(child.stdin!);
+  const { stdout } = await child.output();
 
   const result = new TextDecoder().decode(stdout);
 

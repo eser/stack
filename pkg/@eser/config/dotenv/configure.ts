@@ -28,5 +28,9 @@ export const configure = async <T>(
 
   const result = await configureFn(reader, target as T);
 
-  return result ?? Promise.resolve(target as T);
+  if (result === undefined || result === null) {
+    return target as T | undefined;
+  }
+
+  return result as T;
 };

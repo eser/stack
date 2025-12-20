@@ -24,10 +24,12 @@ const flattenArgs = (args: functions.ArgList<any>): unknown => {
 export const jsonFormatter: FormatterFn = (
   logRecord: logger.LogRecord,
 ): string => {
-  return JSON.stringify({
-    level: logging.SeverityNames[logRecord.severity],
-    datetime: logRecord.datetime.getTime(),
-    message: logRecord.message,
-    args: flattenArgs(logRecord.args),
-  }) + "\n";
+  return `${
+    JSON.stringify({
+      level: logging.SeverityNames[logRecord.severity],
+      datetime: logRecord.datetime.getTime(),
+      message: logRecord.message,
+      args: flattenArgs(logRecord.args),
+    })
+  }\n`;
 };

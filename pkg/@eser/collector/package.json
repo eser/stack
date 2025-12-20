@@ -1,0 +1,15 @@
+{
+  "name": "@eser/collector",
+  "version": "0.8.0",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "dependencies": {
+    "@std/path": "npm:@jsr/std__path@^1.1.3",
+    "@std/fs": "npm:@jsr/std__fs@^1.0.20"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16"
+  }
+}

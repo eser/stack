@@ -46,9 +46,11 @@ descriptions and usage examples.
 **Basic usage:**
 
 ```js
-import { createTokenizerState. simpleTokens, Tokenizer } from "@eser/parsing";
+import * as parsing from "@eser/parsing";
 
-const lexer = new Tokenizer(createTokenizerState(simpleTokens));
+const lexer = new parsing.Tokenizer(
+  parsing.createTokenizerState(parsing.simpleTokens),
+);
 
 for (const token of lexer.tokenizeFromString("1 + 2")) {
   console.log(token);
@@ -58,9 +60,11 @@ for (const token of lexer.tokenizeFromString("1 + 2")) {
 **Using a different token dictionary:**
 
 ```js
-import { createTokenizerState, extendedTokens, Tokenizer } from "@eser/parsing";
+import * as parsing from "@eser/parsing";
 
-const lexer = new Tokenizer(createTokenizerState(extendedTokens));
+const lexer = new parsing.Tokenizer(
+  parsing.createTokenizerState(parsing.extendedTokens),
+);
 
 const tokens = Array.from(
   lexer.tokenizeFromString("cout << 'hello C++' << endl;"),
@@ -72,11 +76,13 @@ console.log(tokens);
 **Reading from a ReadableStream:**
 
 ```js
-import { createTokenizerState, extendedTokens, Tokenizer } from "@eser/parsing";
+import * as parsing from "@eser/parsing";
 
 const response = await fetch("https://deno.land/x/eser@0.7.13/di/mod.ts");
 
-const lexer = new Tokenizer(createTokenizerState(extendedTokens));
+const lexer = new parsing.Tokenizer(
+  parsing.createTokenizerState(parsing.extendedTokens),
+);
 
 for await (const token of lexer.tokenize(response.body.getReader())) {
   console.log(token);

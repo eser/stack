@@ -5,6 +5,8 @@ import * as reactJsxRuntime from "react/jsx-runtime";
 import { encodeEntities } from "./encoder.ts";
 
 export const jsx = reactJsxRuntime.jsx;
+export const jsxs = reactJsxRuntime.jsxs;
+export const Fragment = reactJsxRuntime.Fragment;
 
 // deno-lint-ignore no-explicit-any
 type VNode = object | any[]; // reactJsxRuntime.JSX.Element;

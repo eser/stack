@@ -50,7 +50,7 @@ class DefaultFormatRegistry implements FormatRegistry {
 
   get(nameOrExtension: string): WriterFormat | undefined {
     const key = nameOrExtension.toLowerCase();
-    return this.formats.get(key) || this.formats.get(`.${key}`);
+    return this.formats.get(key) ?? this.formats.get(`.${key}`);
   }
 
   list(): WriterFormat[] {

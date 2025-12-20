@@ -1,0 +1,24 @@
+{
+  "name": "@eser/standards",
+  "version": "0.8.0",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./functions": "./functions.ts",
+    "./http-error": "./http-error.ts",
+    "./logging": "./logging.ts",
+    "./patterns": "./patterns.ts",
+    "./promises": "./promises.ts",
+    "./run-modes": "./run-modes.ts",
+    "./runtime": "./runtime/mod.ts",
+    "./utilities": "./utilities.ts",
+    "./versions": "./versions.ts"
+  },
+  "dependencies": {
+    "@std/path": "npm:@jsr/std__path@^1.1.3",
+    "@std/semver": "npm:@jsr/std__semver@^1.0.7"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16"
+  }
+}

@@ -1,9 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as hex from "@std/encoding/hex";
-import * as jsRuntime from "@eser/standards/js-runtime";
+import { runtime } from "@eser/standards/runtime";
 
-const env = jsRuntime.current.getEnv();
+const env = runtime.env.toObject();
 
 const deploymentId = env["DENO_DEPLOYMENT_ID"] ||
   // For CI

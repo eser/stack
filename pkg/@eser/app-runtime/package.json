@@ -1,0 +1,11 @@
+{
+  "name": "@eser/app-runtime",
+  "version": "0.8.0",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "dependencies": {
+    "@std/semver": "npm:@jsr/std__semver@^1.0.7"
+  }
+}

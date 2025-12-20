@@ -6,7 +6,7 @@
 // Copyright (c) 2023-2024 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 the Deno authors
 
-import * as jsRuntime from "@eser/standards/js-runtime";
+import { runtime } from "@eser/standards/runtime";
 import * as logging from "@eser/standards/logging";
 import * as functions from "@eser/standards/functions";
 import * as formatters from "./formatters.ts";
@@ -257,7 +257,7 @@ export class Logger implements logging.Logger {
 export const current: Logger = new Logger(
   createLoggerState(
     "default",
-    jsRuntime.current.getStdout(),
+    runtime.process.stdout,
     DEFAULT_LEVEL,
   ),
 );

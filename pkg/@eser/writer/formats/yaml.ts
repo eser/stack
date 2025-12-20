@@ -15,7 +15,7 @@ export const serialize = (data: unknown, options?: FormatOptions): string => {
     // Handle array of documents with separator
     if (Array.isArray(data) && options?.separator !== undefined) {
       const docs = data.map((item) => yaml.stringify(item, yamlOptions).trim());
-      return docs.join(`\n${options.separator}\n`) + "\n";
+      return `${docs.join(`\n${options.separator}\n`)}\n`;
     }
 
     return yaml.stringify(data, yamlOptions);

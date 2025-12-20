@@ -1,38 +1,8 @@
 {
-  "version": "0.8.0",
   "nodeModulesDir": "auto",
   "unstable": [
     "temporal"
   ],
-  "tasks": {
-    "cleanup": "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./deno.lock && deno task check:mod",
-    "script:validate-licenses": "deno run --allow-read --allow-write ./etc/scripts/validate-licenses.ts",
-    "script:validate-configs": "deno run --allow-net --allow-env --allow-read --allow-write ./etc/scripts/validate-configs.ts",
-    "script:bump-versions-dry": "deno run --allow-net --allow-env --allow-read --allow-write --allow-run ./etc/scripts/bump-versions.ts --dry-run",
-    "script:bump-versions": "deno run --allow-net --allow-env --allow-read --allow-write --allow-run ./etc/scripts/bump-versions.ts",
-    "check:mod": "deno run --check --reload --allow-env --allow-read ./pkg/mod.ts",
-    "doc:lint": "deno doc --lint ./pkg/mod.ts",
-    "doc:generate": "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html ./pkg/mod.ts",
-    "test": "DENO_KV_PATH=:memory: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --watch",
-    "test:run": "DENO_KV_PATH=:memory: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --trace-leaks --coverage=./etc/coverage/",
-    "test:coverage": "deno coverage ./etc/coverage/",
-    "test:coverage-gen": "deno coverage ./etc/coverage --lcov --output=./etc/coverage.lcov",
-    "validate:fix": "deno fmt && deno lint --fix && deno task script:validate-licenses && deno task check:mod && deno task test:run",
-    "validate": "deno fmt --check && deno lint && deno task script:validate-licenses --check && deno task check:mod && deno task test:run",
-    "repl": "deno repl --unstable-temporal --allow-all --eval-file=./etc/scripts/repl-init.ts",
-    "container:build": "docker build -t eservm .",
-    "container:run": "docker run --interactive --tty --rm eservm"
-  },
-  "compilerOptions": {
-    "jsx": "precompile",
-    "jsxImportSource": "@eser",
-    "strict": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noImplicitOverride": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": false
-  },
   "lint": {
     "rules": {
       "tags": [
@@ -66,24 +36,5 @@
     "docs/",
     "etc/temp/",
     "node_modules/"
-  ],
-  "workspace": [
-    "./etc/scripts",
-    "./pkg/@eser/app-runtime",
-    "./pkg/@eser/bundler",
-    "./pkg/@eser/collector",
-    "./pkg/@eser/config",
-    "./pkg/@eser/cs",
-    "./pkg/@eser/di",
-    "./pkg/@eser/events",
-    "./pkg/@eser/fp",
-    "./pkg/@eser/functions",
-    "./pkg/@eser/jsx-runtime",
-    "./pkg/@eser/logging",
-    "./pkg/@eser/parsing",
-    "./pkg/@eser/standards",
-    "./pkg/@eser/writer",
-    "./pkg/@cool/lime",
-    "./test/apps/jsx-runtime-app"
   ]
 }

@@ -56,28 +56,28 @@ scenarios.
 **Using the default logger:**
 
 ```js
-import { current } from "@eser/logging";
+import * as logging from "@eser/logging";
 
 // Basic logging
-await current.info("Application started");
-await current.debug("Debug information");
-await current.warn("This is a warning");
-await current.error("An error occurred");
-await current.critical("Critical system failure");
+await logging.current.info("Application started");
+await logging.current.debug("Debug information");
+await logging.current.warn("This is a warning");
+await logging.current.error("An error occurred");
+await logging.current.critical("Critical system failure");
 ```
 
 **Logging with additional context:**
 
 ```js
-import { current } from "@eser/logging";
+import * as logging from "@eser/logging";
 
-await current.info("User logged in", {
+await logging.current.info("User logged in", {
   userId: "12345",
   email: "user@example.com",
   timestamp: new Date().toISOString(),
 });
 
-await current.error("Database connection failed", {
+await logging.current.error("Database connection failed", {
   host: "localhost",
   port: 5432,
   database: "myapp",
@@ -90,8 +90,7 @@ await current.error("Database connection failed", {
 **Create a logger with custom configuration:**
 
 ```js
-import { createLoggerState, Logger } from "@eser/logging";
-import * as logging from "@eser/standards/logging";
+import * as logging from "@eser/logging";
 
 // Create a custom writable stream (file, network, etc.)
 const logStream = new WritableStream({
@@ -102,7 +101,7 @@ const logStream = new WritableStream({
 });
 
 // Create logger state
-const loggerState = createLoggerState(
+const loggerState = logging.createLoggerState(
   "my-app-logger", // Logger name
   logStream, // Target stream
   logging.Severities.Debug, // Log level
@@ -110,7 +109,7 @@ const loggerState = createLoggerState(
 );
 
 // Create logger instance
-const logger = new Logger(loggerState);
+const logger = new logging.Logger(loggerState);
 
 await logger.info("Custom logger message");
 ```
@@ -120,11 +119,10 @@ await logger.info("Custom logger message");
 **Create a custom formatter:**
 
 ```js
-import { Logger, createLoggerState } from "@eser/logging";
-import type { LogRecord, FormatterFn } from "@eser/logging";
+import * as logging from "@eser/logging";
 
 // Custom plain text formatter
-const textFormatter: FormatterFn = (record: LogRecord): string => {
+const textFormatter: logging.FormatterFn = (record: logging.LogRecord): string => {
   const timestamp = record.datetime.toISOString();
   const level = record.severity.toString().padStart(3);
   const logger = record.loggerName.padEnd(15);
@@ -133,14 +131,14 @@ const textFormatter: FormatterFn = (record: LogRecord): string => {
 };
 
 // Create logger with custom formatter
-const loggerState = createLoggerState(
+const loggerState = logging.createLoggerState(
   "text-logger",
   process.stdout,
   logging.Severities.Info,
   textFormatter
 );
 
-const logger = new Logger(loggerState);
+const logger = new logging.Logger(loggerState);
 await logger.info("This will be formatted as plain text");
 // Output: [2023-12-07T10:30:45.123Z]   6 text-logger     | This will be formatted as plain text
 ```
@@ -148,15 +146,17 @@ await logger.info("This will be formatted as plain text");
 **Custom JSON formatter with additional fields:**
 
 ```js
-const customJsonFormatter: FormatterFn = (record: LogRecord): string => {
+import { runtime } from "@eser/standards/runtime";
+
+const customJsonFormatter: logging.FormatterFn = (record: logging.LogRecord): string => {
   return JSON.stringify({
     timestamp: record.datetime.toISOString(),
     level: logging.SeverityNames[record.severity],
     logger: record.loggerName,
     message: record.message,
     args: record.args,
-    hostname: Deno.hostname(),
-    pid: Deno.pid,
+    hostname: runtime.process.hostname(),
+    pid: runtime.process.pid,
     version: "1.0.0"
   }) + "\n";
 };
@@ -167,16 +167,16 @@ const customJsonFormatter: FormatterFn = (record: LogRecord): string => {
 **Use function callbacks for expensive operations:**
 
 ```js
-import { current } from "@eser/logging";
+import * as logging from "@eser/logging";
 
 // This function will only be called if debug level is enabled
-await current.debug(() => {
+await logging.current.debug(() => {
   const expensiveData = computeExpensiveDebugInfo();
   return `Debug data: ${JSON.stringify(expensiveData)}`;
 });
 
 // Function with return value
-const result = await current.info(() => {
+const result = await logging.current.info(() => {
   const data = { user: "john", action: "login" };
   return `User action: ${data.action}`;
 });
@@ -188,17 +188,17 @@ console.log(result); // "User action: login"
 **Logging errors with stack traces:**
 
 ```js
-import { current } from "@eser/logging";
+import * as logging from "@eser/logging";
 
 try {
   throw new Error("Something went wrong");
 } catch (error) {
   // The logger automatically extracts stack traces from Error objects
-  await current.error("Operation failed", error);
+  await logging.current.error("Operation failed", error);
 }
 
 // Custom error context
-await current.error("API request failed", {
+await logging.current.error("API request failed", {
   url: "/api/users",
   method: "POST",
   statusCode: 500,
@@ -211,7 +211,7 @@ await current.error("API request failed", {
 **Log to multiple destinations:**
 
 ```js
-import { createLoggerState, Logger } from "@eser/logging";
+import * as logging from "@eser/logging";
 
 // Create a tee stream that writes to multiple destinations
 class TeeStream extends WritableStream {
@@ -234,7 +234,9 @@ const multiStream = new TeeStream(
   // File stream would go here
 );
 
-const logger = new Logger(createLoggerState("multi-logger", multiStream));
+const logger = new logging.Logger(
+  logging.createLoggerState("multi-logger", multiStream),
+);
 await logger.info("This goes to multiple destinations");
 ```
 
@@ -243,18 +245,17 @@ await logger.info("This goes to multiple destinations");
 **Configure different log levels:**
 
 ```js
-import { createLoggerState, Logger } from "@eser/logging";
-import * as logging from "@eser/standards/logging";
+import * as logging from "@eser/logging";
 
 // Production logger - only warnings and above
-const prodLogger = new Logger(createLoggerState(
+const prodLogger = new logging.Logger(logging.createLoggerState(
   "prod",
   process.stdout,
   logging.Severities.Warning,
 ));
 
 // Development logger - all levels
-const devLogger = new Logger(createLoggerState(
+const devLogger = new logging.Logger(logging.createLoggerState(
   "dev",
   process.stdout,
   logging.Severities.Debug,

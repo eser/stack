@@ -3,6 +3,52 @@
 // deno-lint-ignore no-explicit-any
 type ObjectType = Record<string | number | symbol, any>;
 
+/**
+ * Default maximum recursion depth for deep merge operations.
+ * This prevents stack overflow on deeply nested objects.
+ */
+export const DEEP_MERGE_DEFAULT_MAX_DEPTH = 100;
+
+/**
+ * Error thrown when deep merge encounters a circular reference or exceeds max depth.
+ */
+export class DeepMergeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DeepMergeError";
+  }
+}
+
+/**
+ * Options for deep merge operations.
+ */
+export interface DeepMergeOptions {
+  /**
+   * Maximum recursion depth. Defaults to DEEP_MERGE_DEFAULT_MAX_DEPTH (100).
+   * Set to Infinity to disable depth checking (not recommended).
+   */
+  maxDepth?: number;
+}
+
+/**
+ * Deeply merges two objects, recursively merging nested objects.
+ * Properties from `other` override properties from `instance` at the same path.
+ * For nested objects, the merge is recursive rather than a simple override.
+ *
+ * @param instance - The base object to merge into
+ * @param other - The object to merge from (its values take precedence)
+ * @param options - Optional configuration for the merge operation
+ * @returns A new object with merged properties from both inputs
+ * @throws {DeepMergeError} If a circular reference is detected or max depth is exceeded
+ *
+ * @example
+ * ```typescript
+ * const base = { a: { b: 1, c: 2 } };
+ * const override = { a: { b: 10 } };
+ * const result = deepMerge(base, override);
+ * // result = { a: { b: 10, c: 2 } }
+ * ```
+ */
 export const deepMerge = <
   T1 extends ObjectType,
   T2 extends ObjectType,
@@ -10,59 +56,150 @@ export const deepMerge = <
 >(
   instance: T1,
   other: T2,
+  options?: DeepMergeOptions,
 ): TR => {
-  if (!(instance instanceof Object)) {
-    return instance;
-  }
+  const maxDepth = options?.maxDepth ?? DEEP_MERGE_DEFAULT_MAX_DEPTH;
+  const seenInstance = new WeakSet<object>();
+  const seenOther = new WeakSet<object>();
 
-  const Type = instance.constructor as { new (): TR };
+  const mergeRecursive = <
+    U1 extends ObjectType,
+    U2 extends ObjectType,
+    UR extends U1 & U2,
+  >(
+    inst: U1,
+    oth: U2,
+    currentDepth: number,
+  ): UR => {
+    // Handle non-object instance (primitives)
+    if (!(inst instanceof Object)) {
+      return inst as unknown as UR;
+    }
 
-  const firstMerge = Object.entries(instance).reduce(
-    (acc, [itemKey, recordValue]) => {
-      const otherKeyExists = (other !== undefined) && (itemKey in other);
-      const otherValue = other?.[itemKey];
+    // Check for circular references in instance
+    if (seenInstance.has(inst)) {
+      throw new DeepMergeError(
+        "Circular reference detected in first argument: cannot deep merge objects with circular references",
+      );
+    }
 
-      if (recordValue instanceof Object && recordValue.constructor !== Array) {
-        return {
-          merged: Object.assign(new Type(), acc.merged, {
-            [itemKey]: deepMerge(recordValue, otherValue),
-          }),
-          otherKeys: acc.otherKeys.filter((x) => x !== itemKey),
-        };
+    // Check for circular references in other
+    if (oth instanceof Object && seenOther.has(oth)) {
+      throw new DeepMergeError(
+        "Circular reference detected in second argument: cannot deep merge objects with circular references",
+      );
+    }
+
+    // Check depth limit
+    if (currentDepth > maxDepth) {
+      throw new DeepMergeError(
+        `Maximum recursion depth exceeded (${maxDepth}). Objects are too deeply nested or contain circular references.`,
+      );
+    }
+
+    // Mark objects as seen
+    seenInstance.add(inst);
+    if (oth instanceof Object) {
+      seenOther.add(oth);
+    }
+
+    try {
+      const Type = inst.constructor as { new (): UR };
+
+      const firstMerge = Object.entries(inst).reduce(
+        (acc, [itemKey, recordValue]) => {
+          const otherKeyExists = (oth !== undefined) && (itemKey in oth);
+          const otherValue = oth?.[itemKey];
+
+          if (
+            recordValue instanceof Object && recordValue.constructor !== Array
+          ) {
+            let mergedValue: unknown;
+
+            if (
+              otherKeyExists && otherValue instanceof Object &&
+              otherValue.constructor !== Array
+            ) {
+              // Both are objects - merge recursively
+              mergedValue = mergeRecursive(
+                recordValue,
+                otherValue,
+                currentDepth + 1,
+              );
+            } else if (otherKeyExists) {
+              // Other value takes precedence (even if not an object)
+              mergedValue = otherValue;
+            } else {
+              // No other value - still need to process for circular ref detection
+              // We do this by "merging" with an empty object
+              mergedValue = mergeRecursive(
+                recordValue,
+                {} as U2,
+                currentDepth + 1,
+              );
+            }
+
+            return {
+              merged: Object.assign(new Type(), acc.merged, {
+                [itemKey]: mergedValue,
+              }),
+              otherKeys: acc.otherKeys.filter((x) => x !== itemKey),
+            };
+          }
+
+          return {
+            merged: Object.assign(new Type(), acc.merged, {
+              [itemKey]: otherKeyExists ? otherValue : recordValue,
+            }),
+            otherKeys: acc.otherKeys.filter((x) => x !== itemKey),
+          };
+        },
+        {
+          merged: new Type(),
+          otherKeys: (oth !== undefined) ? Object.keys(oth) : [],
+        },
+      );
+
+      if (oth === undefined) {
+        return firstMerge.merged;
       }
 
-      return {
-        merged: Object.assign(new Type(), acc.merged, {
-          [itemKey]: otherKeyExists ? otherValue : recordValue,
-        }),
-        otherKeys: acc.otherKeys.filter((x) => x !== itemKey),
-      };
-    },
-    {
-      merged: new Type(),
-      otherKeys: (other !== undefined) ? Object.keys(other) : [],
-    },
-  );
+      // Add remaining keys from 'other' that weren't in 'instance'
+      const finalMerge = firstMerge.otherKeys.reduce(
+        (acc, itemKey) => {
+          const otherValue = oth[itemKey];
 
-  if (other === undefined) {
-    return firstMerge.merged;
-  }
+          // For nested objects in 'other', we need to check for circular references
+          if (
+            otherValue instanceof Object && otherValue.constructor !== Array
+          ) {
+            // Process through merge to check for circular refs and depth
+            const processedValue = mergeRecursive(
+              {} as U1,
+              otherValue,
+              currentDepth + 1,
+            );
+            return Object.assign(acc, { [itemKey]: processedValue });
+          }
 
-  const finalMerge = firstMerge.otherKeys.reduce(
-    (acc, itemKey) => {
-      const otherValue = other[itemKey];
+          // Include all keys from other, even if undefined
+          // This allows explicitly setting values to undefined
+          return Object.assign(acc, { [itemKey]: otherValue });
+        },
+        firstMerge.merged,
+      );
 
-      // FIXME(@eser) if key is defined in object, we need to merge it
-      // if (otherValue === undefined) {
-      //   return acc;
-      // }
+      return finalMerge;
+    } finally {
+      // Remove from seen sets after processing
+      seenInstance.delete(inst);
+      if (oth instanceof Object) {
+        seenOther.delete(oth);
+      }
+    }
+  };
 
-      return Object.assign(acc, { [itemKey]: otherValue });
-    },
-    firstMerge.merged,
-  );
-
-  return finalMerge;
+  return mergeRecursive(instance, other, 0);
 };
 
 export { deepMerge as default };

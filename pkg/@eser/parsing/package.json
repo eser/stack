@@ -1,0 +1,11 @@
+{
+  "name": "@eser/parsing",
+  "version": "0.8.0",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16"
+  }
+}

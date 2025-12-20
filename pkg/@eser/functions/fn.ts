@@ -87,11 +87,12 @@ export const fn = <
 
       const nextFn = (index === stack.length) ? target : stack[index];
       const result: FnResult<TR> | undefined = nextFn?.(newContext, ...args);
-      const resultC = result?.constructor;
 
-      if (resultC === undefined) {
+      if (result === undefined || result === null) {
         return;
       }
+
+      const resultC = (result as object).constructor;
 
       if (
         (Symbol.asyncIterator in Object(result)) ||

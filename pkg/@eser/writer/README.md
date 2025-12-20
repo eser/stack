@@ -51,10 +51,10 @@ serialization scenarios.
 **Write JSON data:**
 
 ```js
-import { write } from "@eser/writer";
+import * as writer from "@eser/writer";
 
 const data = { name: "John", age: 30, active: true };
-const jsonString = write(data, "json");
+const jsonString = writer.write(data, "json");
 console.log(jsonString);
 // Output: {"name":"John","age":30,"active":true}
 ```
@@ -62,10 +62,10 @@ console.log(jsonString);
 **Write pretty-formatted JSON:**
 
 ```js
-import { write } from "@eser/writer";
+import * as writer from "@eser/writer";
 
 const data = { name: "John", age: 30, city: "New York" };
-const prettyJson = write(data, "json", { pretty: true, indent: 2 });
+const prettyJson = writer.write(data, "json", { pretty: true, indent: 2 });
 console.log(prettyJson);
 /* Output:
 {
@@ -79,7 +79,7 @@ console.log(prettyJson);
 **Write YAML data:**
 
 ```js
-import { write } from "@eser/writer";
+import * as writer from "@eser/writer";
 
 const config = {
   database: {
@@ -90,7 +90,7 @@ const config = {
   features: ["auth", "logging", "metrics"],
 };
 
-const yamlString = write(config, "yaml");
+const yamlString = writer.write(config, "yaml");
 console.log(yamlString);
 /* Output:
 database:
@@ -107,7 +107,7 @@ features:
 **Write CSV data:**
 
 ```js
-import { write } from "@eser/writer";
+import * as writer from "@eser/writer";
 
 const users = [
   { name: "Alice", email: "alice@example.com", age: 25 },
@@ -115,7 +115,7 @@ const users = [
   { name: "Charlie", email: "charlie@example.com", age: 35 },
 ];
 
-const csvString = write(users, "csv");
+const csvString = writer.write(users, "csv");
 console.log(csvString);
 /* Output:
 name,email,age
@@ -128,7 +128,7 @@ Charlie,charlie@example.com,35
 **Write TOML configuration:**
 
 ```js
-import { write } from "@eser/writer";
+import * as writer from "@eser/writer";
 
 const config = {
   title: "My Application",
@@ -140,7 +140,7 @@ const config = {
   },
 };
 
-const tomlString = write(config, "toml");
+const tomlString = writer.write(config, "toml");
 console.log(tomlString);
 /* Output:
 title = "My Application"
@@ -156,17 +156,17 @@ enabled = true
 ### Format Detection by File Extension
 
 ```js
-import { write } from "@eser/writer";
+import * as writer from "@eser/writer";
 
 const data = { message: "Hello World" };
 
 // These are equivalent:
-write(data, "json");
-write(data, ".json");
+writer.write(data, "json");
+writer.write(data, ".json");
 
 // Detect format from filename
-write(data, "config.yaml"); // Uses YAML format
-write(data, "data.csv"); // Uses CSV format
+writer.write(data, "config.yaml"); // Uses YAML format
+writer.write(data, "data.csv"); // Uses CSV format
 ```
 
 ### Custom Format Registration
@@ -174,7 +174,7 @@ write(data, "data.csv"); // Uses CSV format
 **Create a custom XML format:**
 
 ```js
-import { registerFormat } from "@eser/writer";
+import * as writer from "@eser/writer";
 
 const xmlFormat = {
   name: "xml",
@@ -205,7 +205,7 @@ const xmlFormat = {
 };
 
 // Register the custom format
-registerFormat(xmlFormat);
+writer.registerFormat(xmlFormat);
 
 // Now you can use it
 const data = { user: { name: "John", age: 30 } };
@@ -216,19 +216,19 @@ console.log(xmlString);
 ### Working with Format Registry
 
 ```js
-import { getFormat, hasFormat, listFormats } from "@eser/writer";
+import * as writer from "@eser/writer";
 
 // List all available formats
-console.log(listFormats());
+console.log(writer.listFormats());
 // Output: [{ name: "json", extensions: [".json"], ... }, ...]
 
 // Check if format exists
-console.log(hasFormat("yaml")); // true
-console.log(hasFormat(".csv")); // true
-console.log(hasFormat("pdf")); // false
+console.log(writer.hasFormat("yaml")); // true
+console.log(writer.hasFormat(".csv")); // true
+console.log(writer.hasFormat("pdf")); // false
 
 // Get format details
-const jsonFormat = getFormat("json");
+const jsonFormat = writer.getFormat("json");
 if (jsonFormat) {
   console.log(`Format: ${jsonFormat.name}`);
   console.log(`Extensions: ${jsonFormat.extensions.join(", ")}`);
@@ -238,17 +238,17 @@ if (jsonFormat) {
 ### Error Handling
 
 ```js
-import { FormatNotFoundError, SerializationError, write } from "@eser/writer";
+import * as writer from "@eser/writer";
 
 try {
   const data = { circular: {} };
   data.circular.ref = data; // Create circular reference
 
-  const result = write(data, "json");
+  const result = writer.write(data, "json");
 } catch (error) {
-  if (error instanceof FormatNotFoundError) {
+  if (error instanceof writer.FormatNotFoundError) {
     console.error(`Format not found: ${error.format}`);
-  } else if (error instanceof SerializationError) {
+  } else if (error instanceof writer.SerializationError) {
     console.error(`Serialization failed: ${error.message}`);
     console.error(`Format: ${error.format}`);
   }

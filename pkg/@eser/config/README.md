@@ -48,18 +48,18 @@ descriptions and usage examples.
 **Basic usage:**
 
 ```js
-import { load } from "@eser/config";
+import * as config from "@eser/config";
 
-const vars = await load();
+const vars = await config.load();
 console.log(vars);
 ```
 
 **Load from different directory:**
 
 ```js
-import { load } from "@eser/config";
+import * as config from "@eser/config";
 
-const vars = await load({ baseDir: "./config" });
+const vars = await config.load({ baseDir: "./config" });
 console.log(vars);
 ```
 
@@ -68,11 +68,11 @@ console.log(vars);
 **Basic usage:**
 
 ```js
-import { configure, env } from "@eser/config";
+import * as config from "@eser/config";
 
-const options = await configure(
+const options = await config.configure(
   (reader, acc) => {
-    acc["env"] = reader[env];
+    acc["env"] = reader[config.env];
     acc["port"] = reader.readInt("PORT", 8080);
 
     return acc;
@@ -84,16 +84,16 @@ const options = await configure(
 **With custom interfaces:**
 
 ```js
-import { configure, env } from "@eser/config";
+import * as config from "@eser/config";
 
 type Options = {
   env: string;
   port: number;
 };
 
-const options = await configure<Options>(
+const options = await config.configure<Options>(
   (reader, acc) => {
-    acc.env = reader[env];
+    acc.env = reader[config.env];
     acc.port = reader.readInt("PORT", 8080);
 
     return acc;

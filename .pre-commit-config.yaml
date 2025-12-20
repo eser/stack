@@ -76,6 +76,7 @@ repos:
         files: '(?!\.test\.[jt]sx?$)[^a-z0-9.\/\[\]@-]'
         exclude: |
           (?x)^(
+            .claude/.*|
             .github/.*|
             .git/COMMIT_EDITMSG|
             docs/.*|

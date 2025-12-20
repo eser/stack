@@ -83,13 +83,13 @@ We strive to run the following code seamlessly across
 [all platforms we support](#platform-support):
 
 ```js
-import { Runtime, Context } from "@eser/runtime";
+import * as runtime from "@eser/runtime";
 
-const home = (ctx: Context) => {
+const home = (ctx: runtime.Context) => {
   return ctx.results.jsx(<h1>Hello there!</h1>);
 };
 
-const profile = (ctx: Context) => {
+const profile = (ctx: runtime.Context) => {
   const slug = ctx.input.param("id");
   const db = ctx.di`db`;
 
@@ -98,7 +98,7 @@ const profile = (ctx: Context) => {
   return ctx.results.json(db.query("SELECT * FROM users WHERE slug=:slug", { slug }));
 };
 
-const router = (ctx: Context) => {
+const router = (ctx: runtime.Context) => {
   switch (true) {
     case ctx.route.match("/"):
       return home(ctx);
@@ -109,7 +109,7 @@ const router = (ctx: Context) => {
   }
 };
 
-const runtime = new Runtime();
+const runtime = new runtime.Runtime();
 runtime.ci.register("db", new DatabaseConnection());
 runtime.listen(router); // or runtime.execute(fn);
 ```

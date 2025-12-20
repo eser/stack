@@ -2,6 +2,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { parseArgs } from "@std/cli/parse-args";
+import { runtime } from "@eser/standards/runtime";
 import { generate } from "./generate.ts";
 import { sync } from "./sync.ts";
 import type { KubectlResourceReference, SyncOptions } from "./types.ts";
@@ -96,7 +97,7 @@ function parseCliArgs(): {
   options: CliOptions;
   kubectlResource?: KubectlResourceReference;
 } {
-  const args = parseArgs(Deno.args, {
+  const args = parseArgs([...runtime.process.args], {
     string: ["namespace", "env", "output"],
     boolean: ["help", "version", "string-only"],
     alias: {
@@ -139,7 +140,7 @@ function validateOptions(
   if (![undefined, "yaml", "json"].includes(options.output)) {
     console.error("Error: output format must be 'yaml' or 'json'");
 
-    Deno.exit(1);
+    runtime.process.exit(1);
   }
 
   // Validate required options for specific commands
@@ -149,7 +150,7 @@ function validateOptions(
         `Error: ${command} command requires a resource (e.g., cm/default, secret/default)`,
       );
 
-      Deno.exit(1);
+      runtime.process.exit(1);
     }
   }
 }
@@ -172,7 +173,7 @@ async function handleGenerate(
       "Error generating resource:",
       error instanceof Error ? error.message : String(error),
     );
-    Deno.exit(1);
+    runtime.process.exit(1);
   }
 }
 
@@ -199,7 +200,7 @@ async function handleSync(
       "Error syncing with kubectl:",
       error instanceof Error ? error.message : String(error),
     );
-    Deno.exit(1);
+    runtime.process.exit(1);
   }
 }
 
@@ -232,7 +233,7 @@ async function main(): Promise<void> {
 
     default:
       console.error(`Unknown command: ${command}`);
-      Deno.exit(1);
+      runtime.process.exit(1);
   }
 }
 

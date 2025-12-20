@@ -1,8 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { write } from "@eser/writer";
-import { load } from "@eser/config/dotenv";
-import { buildConfigMapFromContext, buildSecretFromContext } from "./sync.ts";
+import * as writer from "@eser/writer";
+import * as dotenv from "@eser/config/dotenv";
+import * as sync from "./sync.ts";
 
 import type { KubectlResourceReference } from "./types.ts";
 
@@ -14,13 +14,16 @@ export interface GenerateOptions {
 }
 
 export const generate = async (options: GenerateOptions): Promise<string> => {
+  // Register formats lazily when needed
+  writer.registerBuiltinFormats();
+
   // Extract resource information
   const resourceType = options.resource.type;
   const resourceName = options.resource.name;
   const resourceNamespace = options.resource.namespace ?? options.namespace;
 
   // Load environment data using @eser/config
-  const envMap = await load({
+  const envMap = await dotenv.load({
     env: options.env,
     loadProcessEnv: false,
   });
@@ -34,13 +37,13 @@ export const generate = async (options: GenerateOptions): Promise<string> => {
   let resource;
 
   if (resourceType === "secret") {
-    resource = buildSecretFromContext(
+    resource = sync.buildSecretFromContext(
       resourceName,
       resourceNamespace,
       envMap,
     );
   } else {
-    resource = buildConfigMapFromContext(
+    resource = sync.buildConfigMapFromContext(
       resourceName,
       resourceNamespace,
       envMap,
@@ -52,5 +55,5 @@ export const generate = async (options: GenerateOptions): Promise<string> => {
     pretty: true,
   };
 
-  return write([resource], options.format, writeOptions);
+  return writer.write([resource], options.format, writeOptions);
 };

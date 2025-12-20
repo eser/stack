@@ -5,8 +5,8 @@ export const reverseArray = <T>(instance: Iterable<T>): Array<T> => {
     ? <ReadonlyArray<T>> instance
     : [...instance];
 
-  return arrInstance.reduce(
-    (obj: ReadonlyArray<T>, itemValue: T) => [itemValue, ...obj],
+  return arrInstance.reduce<Array<T>>(
+    (obj, itemValue) => [itemValue, ...obj],
     [],
   );
 };

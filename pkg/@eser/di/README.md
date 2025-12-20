@@ -38,21 +38,21 @@ Start by creating a registry and registering your services using the `set`,
 `setLazy`, `setScoped` and `setTransient` methods.
 
 ```js
-import { registry } from "@eser/di";
+import * as di from "@eser/di";
 
 // Register the mailService as a singleton service
-registry.set("mailService", new MailService());
+di.registry.set("mailService", new MailService());
 
 // Register the notifyService as a singleton service
-registry.set("notifyService", new PushNotificationService());
+di.registry.set("notifyService", new PushNotificationService());
 
 // Register the dbConnection as a transient service,
 // which is created anew each time it is called
-registry.setTransient("dbConnection", () => new DatabaseConnection());
+di.registry.setTransient("dbConnection", () => new DatabaseConnection());
 
 // Register the userList as a lazy-loaded service,
 // which is created when first called
-registry.setLazy(
+di.registry.setLazy(
   "userList",
   (container) => container.get("dbConnection").query("SELECT * FROM users"),
 );
@@ -61,9 +61,9 @@ registry.setLazy(
 Alternatively, you can chain the registration methods:
 
 ```js
-import { registry } from "@eser/di";
+import * as di from "@eser/di";
 
-registry
+di.registry
   .set("mailService", new MailService())
   .set("notifyService", new PushNotificationService())
   .setTransient("dbConnection", () => new DatabaseConnection())
@@ -80,21 +80,21 @@ Once you have the services container, you may retrieve your services using the
 literal tag to retrieve services.
 
 ```js
-import { di } from "@eser/di";
+import * as di from "@eser/di";
 
 // Retrieve registered services
-const dns = di`mailService`;
-const mns = di`notifyService`;
-const db = di`dbConnection`;
-const users = di`userList`;
+const dns = di.di`mailService`;
+const mns = di.di`notifyService`;
+const db = di.di`dbConnection`;
+const users = di.di`userList`;
 ```
 
 Alternatively, retrieve multiple services at once:
 
 ```js
-import { services } from "@eser/di";
+import * as di from "@eser/di";
 
-const [dns, mns, db, users] = di.getMany(
+const [dns, mns, db, users] = di.services.getMany(
   "mailService",
   "notifyService",
   "dbConnection",
@@ -106,10 +106,10 @@ You can directly call your functions using the registered services as
 parameters:
 
 ```js
-import { registry } from "@eser/di";
+import * as di from "@eser/di";
 
-di.set("serviceA", () => console.log("Service A"));
-di.set("serviceB", () => console.log("Service B"));
+di.registry.set("serviceA", () => console.log("Service A"));
+di.registry.set("serviceB", () => console.log("Service B"));
 
 function myFunction(serviceA, serviceB) {
   serviceA();
@@ -126,27 +126,27 @@ template strings. This provides a more readable and concise way to access your
 dependencies.
 
 ```js
-import { registry } from "@eser/di";
+import * as di from "@eser/di";
 
-di.set("serviceA", () => console.log("Service A"));
-di.set("serviceB", () => console.log("Service B"));
+di.registry.set("serviceA", () => console.log("Service A"));
+di.registry.set("serviceB", () => console.log("Service B"));
 
-di`first: ${"serviceA"} second: ${"serviceB"}`; // This will log "first: Service A second: Service B"
+di.di`first: ${"serviceA"} second: ${"serviceB"}`; // This will log "first: Service A second: Service B"
 ```
 
 ### Decorators
 
 ```js
-import { di, injectable } from "@eser/di";
+import * as di from "@eser/di";
 
-@injectable()
+@di.injectable()
 class PrinterClass {
   print() {
     console.log("testing");
   }
 }
 
-const test = di`PrinterClass`;
+const test = di.di`PrinterClass`;
 test.print(); // outputs "testing"
 ```
 

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "jsx": "precompile",
+    "jsxImportSource": "@eser",
+    "strict": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true,
+    "exactOptionalPropertyTypes": false
+  }
+}

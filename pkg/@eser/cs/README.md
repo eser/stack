@@ -92,9 +92,9 @@ kubectl patch secret api-keys --type=merge --patch-file=patch.json
 **Generate ConfigMap programmatically:**
 
 ```js
-import { generate } from "@eser/cs";
+import * as cs from "@eser/cs";
 
-const configMapYaml = await generate({
+const configMapYaml = await cs.generate({
   resource: { type: "configmap", name: "my-app-config" },
   namespace: "default",
   envFile: ".env",
@@ -107,9 +107,9 @@ console.log(configMapYaml);
 **Sync with existing resource:**
 
 ```js
-import { sync } from "@eser/cs";
+import * as cs from "@eser/cs";
 
-await sync({
+await cs.sync({
   resource: {
     type: "configmap",
     name: "existing-config",

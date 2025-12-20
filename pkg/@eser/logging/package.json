@@ -1,0 +1,16 @@
+{
+  "name": "@eser/logging",
+  "version": "0.8.0",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./logger": "./logger.ts",
+    "./tracer": "./tracer.ts"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16"
+  }
+}

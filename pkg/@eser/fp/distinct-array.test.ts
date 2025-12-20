@@ -9,7 +9,8 @@ Deno.test("basic", () => {
     { id: 2, name: "bar", parent: 1 },
     { id: 3, name: "baz", parent: 1 },
   ];
-  const func1 = (item: { parent: number }) => item.parent;
+  const func1 = (item: { id: number; name: string; parent: number }) =>
+    item.parent;
 
   const result = distinctArray(arr1, func1);
 

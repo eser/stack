@@ -1,0 +1,17 @@
+{
+  "name": "@eser/writer",
+  "version": "0.8.0",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "dependencies": {
+    "@std/yaml": "npm:@jsr/std__yaml@^1.0.10",
+    "@std/toml": "npm:@jsr/std__toml@^1.0.11",
+    "@std/csv": "npm:@jsr/std__csv@^1.0.6"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
+    "@std/testing": "npm:@jsr/std__testing@^1.0.16"
+  }
+}

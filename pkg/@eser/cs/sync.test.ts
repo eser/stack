@@ -1,10 +1,20 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+  assertThrows,
+} from "@std/assert";
+import { runtime } from "@eser/standards/runtime";
 import {
   buildConfigMapFromContext,
   buildSecretFromContext,
+  KubernetesResourceNameError,
   sync,
+  validateKubernetesResourceName,
+  validateResourceReference,
 } from "./sync.ts";
 
 // Test helper to set up environment variables
@@ -18,7 +28,7 @@ function setupTestEnv(): Record<string, string> {
   };
 
   for (const [key, value] of Object.entries(testEnv)) {
-    Deno.env.set(key, value);
+    runtime.env.set(key, value);
   }
 
   return testEnv;
@@ -27,7 +37,7 @@ function setupTestEnv(): Record<string, string> {
 // Test helper to clean up environment variables
 function cleanupTestEnv(keys: string[]) {
   for (const key of keys) {
-    Deno.env.delete(key);
+    runtime.env.delete(key);
   }
 }
 
@@ -429,4 +439,185 @@ Deno.test("Full workflow test with mock data", async () => {
   } finally {
     cleanupTestEnv(Object.keys(testEnv));
   }
+});
+
+// ============================================================================
+// Kubernetes Resource Name Validation Tests (Security)
+// ============================================================================
+
+Deno.test("validateKubernetesResourceName() should accept valid names", () => {
+  // Valid RFC 1123 DNS subdomain names
+  const validNames = [
+    "a",
+    "my-app",
+    "my-app-v1",
+    "app123",
+    "123app",
+    "a1b2c3",
+    "my.app.name",
+    "my-app.v1.release",
+    "a".repeat(253), // Maximum length
+  ];
+
+  for (const name of validNames) {
+    // Should not throw
+    validateKubernetesResourceName(name);
+  }
+});
+
+Deno.test("validateKubernetesResourceName() should reject empty names", () => {
+  assertThrows(
+    () => validateKubernetesResourceName(""),
+    KubernetesResourceNameError,
+    "cannot be empty",
+  );
+});
+
+Deno.test("validateKubernetesResourceName() should reject names exceeding 253 characters", () => {
+  const longName = "a".repeat(254);
+  assertThrows(
+    () => validateKubernetesResourceName(longName),
+    KubernetesResourceNameError,
+    "253 characters or less",
+  );
+});
+
+Deno.test("validateKubernetesResourceName() should reject names with uppercase letters", () => {
+  assertThrows(
+    () => validateKubernetesResourceName("MyApp"),
+    KubernetesResourceNameError,
+    "lowercase alphanumeric",
+  );
+});
+
+Deno.test("validateKubernetesResourceName() should reject names starting with non-alphanumeric", () => {
+  const invalidStarts = ["-app", ".app", "_app"];
+  for (const name of invalidStarts) {
+    assertThrows(
+      () => validateKubernetesResourceName(name),
+      KubernetesResourceNameError,
+    );
+  }
+});
+
+Deno.test("validateKubernetesResourceName() should reject names ending with non-alphanumeric", () => {
+  const invalidEnds = ["app-", "app.", "app_"];
+  for (const name of invalidEnds) {
+    assertThrows(
+      () => validateKubernetesResourceName(name),
+      KubernetesResourceNameError,
+    );
+  }
+});
+
+Deno.test("validateKubernetesResourceName() should reject names with shell metacharacters", () => {
+  // These characters could be used for command injection
+  const dangerousNames = [
+    "app;ls",
+    "app|cat",
+    "app$HOME",
+    "app`id`",
+    "app$(whoami)",
+    "app&",
+    "app>file",
+    "app<file",
+    "app'test",
+    'app"test',
+    "app\\test",
+    "app\ntest",
+    "app test", // spaces
+  ];
+
+  for (const name of dangerousNames) {
+    assertThrows(
+      () => validateKubernetesResourceName(name),
+      KubernetesResourceNameError,
+    );
+  }
+});
+
+Deno.test("validateKubernetesResourceName() should reject names with consecutive dots or dashes", () => {
+  assertThrows(
+    () => validateKubernetesResourceName("app..name"),
+    KubernetesResourceNameError,
+    "consecutive dots or dashes",
+  );
+
+  assertThrows(
+    () => validateKubernetesResourceName("app--name"),
+    KubernetesResourceNameError,
+    "consecutive dots or dashes",
+  );
+});
+
+Deno.test("validateKubernetesResourceName() should use custom field name in error messages", () => {
+  try {
+    validateKubernetesResourceName("", "namespace");
+    assert(false, "Should have thrown");
+  } catch (error) {
+    assertStringIncludes((error as Error).message, "namespace");
+  }
+});
+
+Deno.test("validateResourceReference() should validate both name and namespace", () => {
+  // Valid reference
+  validateResourceReference({
+    type: "configmap",
+    name: "my-config",
+    namespace: "my-namespace",
+  });
+
+  // Valid reference without namespace
+  validateResourceReference({
+    type: "secret",
+    name: "my-secret",
+  });
+});
+
+Deno.test("validateResourceReference() should reject invalid resource names", () => {
+  assertThrows(
+    () =>
+      validateResourceReference({
+        type: "configmap",
+        name: "Invalid-Name",
+        namespace: "default",
+      }),
+    KubernetesResourceNameError,
+  );
+});
+
+Deno.test("validateResourceReference() should reject invalid namespace", () => {
+  assertThrows(
+    () =>
+      validateResourceReference({
+        type: "configmap",
+        name: "my-config",
+        namespace: "Invalid-Namespace",
+      }),
+    KubernetesResourceNameError,
+  );
+});
+
+Deno.test("sync() should reject invalid resource names", async () => {
+  await assertRejects(
+    () =>
+      sync({
+        resource: { type: "configmap", name: "invalid;name" },
+      }),
+    KubernetesResourceNameError,
+  );
+});
+
+Deno.test("sync() should reject invalid namespace", async () => {
+  await assertRejects(
+    () =>
+      sync({
+        resource: {
+          type: "configmap",
+          name: "valid-name",
+          namespace: "invalid|namespace",
+        },
+      }),
+    KubernetesResourceNameError,
+  );
 });

@@ -2,7 +2,7 @@
 
 import * as colors from "@std/fmt/colors";
 import * as posix from "@std/path/posix";
-import * as jsRuntime from "@eser/standards/js-runtime";
+import { NotFoundError, runtime } from "@eser/standards/runtime";
 import { type BuildSnapshot, type BuildSnapshotSerialized } from "./mod.ts";
 import { setBuildId } from "./build-id.ts";
 
@@ -37,9 +37,14 @@ export class AotSnapshot implements BuildSnapshot {
 
     if (filePath !== undefined) {
       try {
-        const file = await jsRuntime.current.open(filePath, { read: true });
+        const data = await runtime.fs.readFile(filePath);
 
-        return file.readable;
+        return new ReadableStream({
+          start(controller) {
+            controller.enqueue(data);
+            controller.close();
+          },
+        });
       } catch (_err) {
         return null;
       }
@@ -58,7 +63,7 @@ export const loadAotSnapshot = async (
   snapshotDirPath: string,
 ): Promise<BuildSnapshot | null> => {
   try {
-    if (!(await jsRuntime.current.stat(snapshotDirPath)).isDirectory) {
+    if (!(await runtime.fs.stat(snapshotDirPath)).isDirectory) {
       return null;
     }
 
@@ -68,7 +73,7 @@ export const loadAotSnapshot = async (
 
     const snapshotPath = posix.join(snapshotDirPath, "snapshot.json");
     const json = JSON.parse(
-      await jsRuntime.current.readTextFile(snapshotPath),
+      await runtime.fs.readTextFile(snapshotPath),
     ) as BuildSnapshotSerialized;
     setBuildId(json.build_id);
 
@@ -84,7 +89,7 @@ export const loadAotSnapshot = async (
 
     return new AotSnapshot(createAotSnapshotState(files, dependencies));
   } catch (err) {
-    if (!(err instanceof jsRuntime.current.errors.NotFound)) {
+    if (!(err instanceof NotFoundError)) {
       throw err;
     }
 

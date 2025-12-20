@@ -7,7 +7,7 @@
 // Copyright (c) 2021-2023 Luca Casonato
 
 import * as posix from "@std/path/posix";
-import * as jsRuntime from "@eser/standards/js-runtime";
+import { runtime } from "@eser/standards/runtime";
 import * as logger from "@eser/logging/logger";
 import * as validatorIdentifier from "./validator-identifier/mod.ts";
 import * as collector from "./collector.ts";
@@ -175,12 +175,18 @@ export const buildManifestFile = async (
   filepath: string,
   options: collector.CollectExportsOptions,
 ): Promise<void> => {
-  const target = await jsRuntime.current.open(filepath, {
-    create: true,
-    write: true,
-  });
+  const collection = await collector.collectExports(options);
+  const manifestStr = await writeManifestToString(collection);
 
-  await buildManifest(target.writable, options);
+  await runtime.fs.writeTextFile(filepath, manifestStr);
 
-  target.close();
+  const exportModules = Object.values(collection);
+  const exportCount = exportModules.reduce((acc, [, moduleFns]) => {
+    acc += moduleFns.length;
+    return acc;
+  }, 0);
+
+  logger.current.info(
+    `The manifest file has been generated for ${exportCount} exports in ${exportModules.length} modules.`,
+  );
 };

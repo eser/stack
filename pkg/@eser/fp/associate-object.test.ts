@@ -9,7 +9,7 @@ Deno.test("basic", () => {
     b: { id: 2, name: "bar" },
     c: { id: 3, name: "baz" },
   };
-  const func1 = (value: { id: number }) => value.id;
+  const func1 = (value: { id: number; name: string }) => value.id;
 
   const result = associateObject(obj1, func1);
 
@@ -28,7 +28,7 @@ Deno.test("with-value-skipping", () => {
     b: { id: 2, name: "bar", skip: false },
     c: { id: 3, name: "baz", skip: true },
   };
-  const func1 = (value: { id: number; skip: boolean }) =>
+  const func1 = (value: { id: number; name: string; skip: boolean }) =>
     value.skip ? undefined : value.id;
 
   const result = associateObject(obj1, func1);

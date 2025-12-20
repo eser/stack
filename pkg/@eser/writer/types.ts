@@ -31,9 +31,12 @@ export interface FormatRegistry {
 }
 
 export class WriterError extends Error {
-  constructor(message: string, public format?: string) {
+  public format?: string;
+
+  constructor(message: string, format?: string) {
     super(message);
     this.name = "WriterError";
+    this.format = format;
   }
 }
 
@@ -46,17 +49,23 @@ export class FormatNotFoundError extends WriterError {
 }
 
 export class SerializationError extends WriterError {
-  constructor(message: string, format?: string, public override cause?: Error) {
+  public override cause?: Error;
+
+  constructor(message: string, format?: string, cause?: Error) {
     super(message);
     this.name = "SerializationError";
     this.format = format;
+    this.cause = cause;
   }
 }
 
 export class DeserializationError extends WriterError {
-  constructor(message: string, format?: string, public override cause?: Error) {
+  public override cause?: Error;
+
+  constructor(message: string, format?: string, cause?: Error) {
     super(message);
     this.name = "DeserializationError";
     this.format = format;
+    this.cause = cause;
   }
 }

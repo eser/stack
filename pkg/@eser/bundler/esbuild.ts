@@ -2,7 +2,7 @@
 
 import * as posix from "@std/path/posix";
 import * as regexpEscape from "@std/regexp/escape";
-import * as jsRuntime from "@eser/standards/js-runtime";
+import { runtime } from "@eser/standards/runtime";
 import * as esbuild from "esbuild";
 
 // Import the WASM build on platforms where running subprocesses is not
@@ -138,7 +138,7 @@ const devClientUrlPlugin = (basePath?: string): esbuild.Plugin => {
         { filter: /client\.ts$/, namespace: "file" },
         async (args) => {
           // Load the original script
-          const contents = await jsRuntime.current.readTextFile(args.path);
+          const contents = await runtime.fs.readTextFile(args.path);
 
           // Replace the URL
           const modifiedContents = contents.replace(

@@ -1,6 +1,6 @@
 ---
 name: eser-rules-manager
-description: Manages development practice rules. Use when user states a preference, practice, or approach to add as a rule. Also use when user asks to add, modify, or categorize rules covering coding, architecture, tooling, or best practices.
+description: Manages practice rules. Use when user states a preference or approach, or asks to add/modify rules for coding, architecture, tooling, or best practices.
 ---
 
 # eser-rules: Development Practices Manager
@@ -21,25 +21,11 @@ Manages development rules across skills. Before working, apply all rules in
 - **references/**: Detailed rules with Correct/Incorrect examples
 - **Frontmatter**: `name` (kebab-case), `description` (<1024 chars)
 
-## Rule Format (in references/)
-
-```
-## Section Name
-
-Scope: applicable context
-Rule: concise statement
-
-Correct:
-example
-
-Incorrect:
-example
-```
-
 ## Skills by Scope
 
 `architecture-guidelines`, `design-principles`, `coding-practices`,
-`javascript-practices`, `tooling-standards`
+`javascript-practices`, `tooling-standards`, `go-practices`,
+`security-practices`, `workflow-practices`, `ci-cd-practices`
 
 ## References
 

@@ -1,6 +1,6 @@
 ---
 name: coding-practices
-description: Coding practices including error handling, input validation, logging, self-documenting code, and DRY principles. Use when writing code, handling errors, or improving code quality.
+description: Code quality practices: error handling, validation, logging, and DRY. Use when writing or reviewing code.
 ---
 
 # Coding Practices

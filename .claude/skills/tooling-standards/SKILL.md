@@ -18,14 +18,13 @@ deno test       # run tests
 
 ## Key Principles
 
-**Deno:** Use `deno install/test/bench/check/lint/fmt` instead of npm commands
+**Deno:** Use `deno install/fmt/lint/test` instead of npm commands
 
 **Config files:**
 
-- `package.json` for name, version, type, exports, scripts, dependencies (with
-  `"type": "module"`)
+- `package.json` for dependencies and scripts
 - `tsconfig.json` for TypeScript
-- `deno.json` for nodeModulesDir and tooling (fmt/lint/exclude/include) only
+- `deno.json` only for fmt/lint settings
 
 **Registry:** Prefer jsr.io over npm. Use `npm:@jsr/` prefix in package.json
 

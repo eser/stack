@@ -1,6 +1,6 @@
 ---
 name: javascript-practices
-description: JavaScript and TypeScript conventions for syntax, modules, types, and runtime behavior. Use when writing or reviewing JS/TS code, implementing modules, handling types, or working with runtime APIs.
+description: JS/TS conventions for syntax, modules, and types. Use when writing or reviewing JavaScript/TypeScript code.
 ---
 
 # JavaScript/TypeScript Practices

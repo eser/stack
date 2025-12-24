@@ -1,6 +1,6 @@
 ---
 name: architecture-guidelines
-description: High-level system architecture including module systems, project structure, architectural decision records (ADRs), and testing strategies. Use when designing systems, reviewing structure, or discussing architecture.
+description: System architecture: modules, project structure, ADRs, and testing. Use when designing or reviewing systems.
 ---
 
 # Architecture Guidelines

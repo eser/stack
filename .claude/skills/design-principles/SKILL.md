@@ -1,6 +1,6 @@
 ---
 name: design-principles
-description: Code design patterns including pure functions, immutability, composition, single responsibility, and async patterns. Use when designing code structure, writing functions, or discussing design patterns.
+description: Code design patterns: pure functions, immutability, composition, and async. Use when designing code or functions.
 ---
 
 # Code Design Principles

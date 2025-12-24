@@ -33,6 +33,7 @@
   },
   "exclude": [
     ".git",
+    ".claude/",
     "docs/",
     "etc/temp/",
     "node_modules/"

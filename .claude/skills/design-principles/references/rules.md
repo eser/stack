@@ -2,7 +2,9 @@
 
 ## Pure Functions
 
-Scope: All languages Rule: Prefer pure (stateless) functions over stateful ones.
+Scope: All languages
+
+Rule: Prefer pure (stateless) functions over stateful ones.
 Easier to reason about, test, and reuse.
 
 Correct:
@@ -30,7 +32,9 @@ function addToTotal(item: Item) { // modifies external state
 
 ## Immutability
 
-Scope: All languages Rule: Prefer immutable data structures. Prevents unintended
+Scope: All languages
+
+Rule: Prefer immutable data structures. Prevents unintended
 side effects.
 
 Correct:
@@ -58,7 +62,9 @@ items.push(4); // mutation
 
 ## Single Responsibility
 
-Scope: All languages Rule: Keep functions short and focused on single task.
+Scope: All languages
+
+Rule: Keep functions short and focused on single task.
 Easier to understand, test, and reuse.
 
 Correct:
@@ -94,7 +100,9 @@ function processUser(email: string, data: UserData): void {
 
 ## Early Returns
 
-Scope: All languages Rule: Use early returns. Reduces nesting and improves
+Scope: All languages
+
+Rule: Use early returns. Reduces nesting and improves
 readability.
 
 Correct:
@@ -130,7 +138,9 @@ function processPayment(amount: number, balance: number): boolean {
 
 ## Composition Over Inheritance
 
-Scope: All languages Rule: Prefer composition over inheritance. More flexible
+Scope: All languages
+
+Rule: Prefer composition over inheritance. More flexible
 and decoupled.
 
 Correct:
@@ -167,7 +177,9 @@ class UserService extends BaseService { // tight coupling
 
 ## Async Patterns
 
-Scope: JS/TS Rule: Prefer promises over callbacks. Cleaner and more
+Scope: JS/TS
+
+Rule: Prefer promises over callbacks. Cleaner and more
 maintainable.
 
 Correct:
@@ -195,7 +207,9 @@ function fetchUser(id: string, callback: (user: User) => void) {
 
 ## String Formatting
 
-Scope: JS/TS Rule: Prefer template strings over concatenation. More readable,
+Scope: JS/TS
+
+Rule: Prefer template strings over concatenation. More readable,
 allows embedded expressions.
 
 Correct:
@@ -220,7 +234,9 @@ const url = "/api/users/" + userId + "/posts/" + postId;
 
 ## Loop Control Flow
 
-Scope: All languages Rule: Use plain for loops when break/continue needed.
+Scope: All languages
+
+Rule: Use plain for loops when break/continue needed.
 
 Correct:
 
@@ -244,7 +260,9 @@ const processed = items
 
 ## Global Variables
 
-Scope: All languages Rule: Avoid global variables. Lead to unintended side
+Scope: All languages
+
+Rule: Avoid global variables. Lead to unintended side
 effects.
 
 Correct:
@@ -274,7 +292,9 @@ export function setConfig(config: Config) {
 
 ## Class Design
 
-Scope: All languages Rule: Separate data and methods. Use plain objects for
+Scope: All languages
+
+Rule: Separate data and methods. Use plain objects for
 data, classes only for stateful services.
 
 Plain objects (records):
@@ -318,7 +338,9 @@ class UserRepository {
 
 ## Side Effects
 
-Scope: All languages Rule: Avoid side effects in non-pure functions. Store state
+Scope: All languages
+
+Rule: Avoid side effects in non-pure functions. Store state
 closest to where used.
 
 Correct:
@@ -350,7 +372,9 @@ function calculateDiscount(price: number, rate: number): number {
 
 ## Getters/Setters
 
-Scope: All languages Rule: Avoid getter/setters. Can lead to unexpected side
+Scope: All languages
+
+Rule: Avoid getter/setters. Can lead to unexpected side
 effects.
 
 Correct:
@@ -382,163 +406,4 @@ class User {
     this._email = value;
   }
 }
-```
-
----
-
-## State Factory Pattern
-
-Scope: JS/TS Rule: Use `createXState()` factory functions that return class
-instances. Combines factory flexibility with class encapsulation.
-
-Correct:
-
-```typescript
-type WriterState = {
-  buffer: string[];
-  locked: boolean;
-};
-
-class Writer {
-  constructor(private state: WriterState) {}
-
-  write(text: string): void {
-    this.state.buffer.push(text);
-  }
-
-  flush(): string {
-    const content = this.state.buffer.join("");
-    this.state.buffer = [];
-    return content;
-  }
-}
-
-export const createWriterState = (): WriterState => ({
-  buffer: [],
-  locked: false,
-});
-
-export const createWriter = (state?: WriterState): Writer => {
-  return new Writer(state ?? createWriterState());
-};
-```
-
-Incorrect:
-
-```typescript
-// Direct class instantiation without factory
-const writer = new Writer();
-
-// Global state
-let globalBuffer: string[] = [];
-```
-
----
-
-## Builder Pattern
-
-Scope: JS/TS Rule: Use builder pattern with chainable methods returning `this`.
-Enables fluent API design.
-
-Correct:
-
-```typescript
-class QueryBuilder {
-  private query: QueryOptions = {};
-
-  select(fields: string[]): this {
-    this.query.fields = fields;
-    return this;
-  }
-
-  where(condition: string): this {
-    this.query.where = condition;
-    return this;
-  }
-
-  limit(count: number): this {
-    this.query.limit = count;
-    return this;
-  }
-
-  build(): Query {
-    return new Query(this.query);
-  }
-}
-
-// Usage
-const query = new QueryBuilder()
-  .select(["id", "name"])
-  .where("active = true")
-  .limit(10)
-  .build();
-```
-
-Incorrect:
-
-```typescript
-class QueryBuilder {
-  select(fields: string[]): void { // returns void, not chainable
-    this.query.fields = fields;
-  }
-}
-
-// Requires multiple statements
-const builder = new QueryBuilder();
-builder.select(["id", "name"]);
-builder.where("active = true");
-const query = builder.build();
-```
-
----
-
-## Registry Pattern
-
-Scope: JS/TS Rule: Use Map-based registries for plugin/handler registration.
-Provides type-safe, dynamic extension points.
-
-Correct:
-
-```typescript
-type Handler<T> = (data: T) => Promise<void>;
-
-class HandlerRegistry<T> {
-  private handlers = new Map<string, Handler<T>>();
-
-  register(name: string, handler: Handler<T>): void {
-    if (this.handlers.has(name)) {
-      throw new Error(`Handler "${name}" already registered`);
-    }
-    this.handlers.set(name, handler);
-  }
-
-  get(name: string): Handler<T> | undefined {
-    return this.handlers.get(name);
-  }
-
-  has(name: string): boolean {
-    return this.handlers.has(name);
-  }
-
-  all(): IterableIterator<[string, Handler<T>]> {
-    return this.handlers.entries();
-  }
-}
-
-// Usage
-const eventHandlers = new HandlerRegistry<Event>();
-eventHandlers.register("click", async (e) => {});
-eventHandlers.register("submit", async (e) => {});
-```
-
-Incorrect:
-
-```typescript
-// Object-based (no type safety for values)
-const handlers: Record<string, Function> = {};
-handlers["click"] = () => {};
-
-// Array-based (no name lookup)
-const handlerList: Function[] = [];
-handlerList.push(() => {});
 ```

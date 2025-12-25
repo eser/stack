@@ -1,20 +1,16 @@
+# Dependabot configuration
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
 version: 2
 
 updates:
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    commit-message:
-      include: "scope"
-    labels:
-      - "dependencies"
-
+  # GitHub Actions - recommended for all repos
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
     commit-message:
+      prefix: "ci"
       include: "scope"
     labels:
       - "dependencies"
@@ -22,8 +18,19 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
     commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
       include: "scope"
     labels:
       - "dependencies"

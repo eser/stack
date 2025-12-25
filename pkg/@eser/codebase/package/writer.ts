@@ -27,6 +27,28 @@ export class PackageUpdateError extends Error {
 }
 
 /**
+ * Gets a nested property value from an object using a dot-separated path.
+ */
+const getPropertyByPath = (
+  obj: Record<string, unknown>,
+  path: string,
+): unknown => {
+  const parts = path.split(".");
+  let current: unknown = obj;
+
+  for (const part of parts) {
+    if (
+      current === null || current === undefined || typeof current !== "object"
+    ) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[part];
+  }
+
+  return current;
+};
+
+/**
  * Sets a nested property value in an object using a dot-separated path.
  */
 const setPropertyByPath = (
@@ -171,6 +193,13 @@ export const updateField = async <T>(
     const propertyPath = DEFAULT_FIELD_MAPPINGS[fieldName]?.[file.fileType];
 
     if (!propertyPath) {
+      skipped.push(file.filepath);
+      continue;
+    }
+
+    // Skip if value already matches
+    const currentValue = getPropertyByPath(file.content, propertyPath);
+    if (currentValue === value) {
       skipped.push(file.filepath);
       continue;
     }

@@ -868,12 +868,14 @@
       "pkg/@eser/cli": {
         "dependencies": [
           "jsr:@std/cli@^1.0.25",
-          "jsr:@std/fmt@^1.0.8"
+          "jsr:@std/fmt@^1.0.8",
+          "jsr:@std/path@^1.1.4"
         ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__cli@^1.0.25",
-            "npm:@jsr/std__fmt@^1.0.8"
+            "npm:@jsr/std__fmt@^1.0.8",
+            "npm:@jsr/std__path@^1.1.4"
           ]
         }
       },

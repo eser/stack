@@ -175,7 +175,8 @@ export const versions = async (
 
   // Update root config
   const rootNeedsUpdate = rootVersion !== targetVersion;
-  if (rootNeedsUpdate && !dryRun) {
+  // Always call updateVersion to sync all files (including templates)
+  if (!dryRun) {
     await pkg.updateVersion(rootConfig, targetVersion);
   }
   updates.push({
@@ -189,7 +190,8 @@ export const versions = async (
   for (const module of modules) {
     const needsUpdate = module.version !== targetVersion;
 
-    if (needsUpdate && !dryRun) {
+    // Always call updateVersion to sync all files (including templates)
+    if (!dryRun) {
       await pkg.updateVersion(module.config, targetVersion);
     }
 

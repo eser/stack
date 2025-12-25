@@ -31,6 +31,23 @@ export class PackageLoadError extends Error {
 }
 
 /**
+ * Parses JSON/JSONC content from text.
+ */
+const parseJsonContent = (
+  rawText: string,
+): Record<string, unknown> | undefined => {
+  try {
+    // Remove JSONC-style comments if present
+    const jsonText = rawText
+      .replace(/\/\/.*$/gm, "") // Remove single-line comments
+      .replace(/\/\*[\s\S]*?\*\//g, ""); // Remove multi-line comments
+    return JSON.parse(jsonText);
+  } catch {
+    return undefined;
+  }
+};
+
+/**
  * Attempts to load a single config file.
  */
 const tryLoadConfigFile = async (
@@ -48,25 +65,38 @@ const tryLoadConfigFile = async (
     return undefined;
   }
 
-  // Use the existing file loader for parsing
-  const parseResult = await fileLoader.parse<Record<string, unknown>>(filepath);
-  if (!parseResult.content) {
-    return undefined;
+  // Read raw text
+  const rawText = await runtime.fs.readTextFile(filepath);
+
+  // For template files, parse directly as JSON (file loader doesn't recognize .template)
+  const isTemplate = filepath.endsWith(".template");
+  let content: Record<string, unknown> | undefined;
+
+  if (isTemplate) {
+    content = parseJsonContent(rawText);
+  } else {
+    // Use the existing file loader for parsing
+    const parseResult = await fileLoader.parse<Record<string, unknown>>(
+      filepath,
+    );
+    content = parseResult.content;
   }
 
-  // Read raw text separately for writer compatibility
-  const rawText = await runtime.fs.readTextFile(filepath);
+  if (content === undefined) {
+    return undefined;
+  }
 
   return {
     filepath,
     fileType,
-    content: parseResult.content,
+    content,
     rawText,
   };
 };
 
 /**
  * Finds all config files in the specified directory.
+ * Also checks for template versions (e.g., package.json.template).
  */
 const findConfigFiles = async (
   baseDir: string,
@@ -75,10 +105,18 @@ const findConfigFiles = async (
   const results: RawConfigFile[] = [];
 
   for (const fileType of includeFiles) {
+    // Load main file
     const filepath = posix.join(baseDir, fileType);
     const loaded = await tryLoadConfigFile(filepath, fileType);
     if (loaded) {
       results.push(loaded);
+    }
+
+    // Also load template version if it exists
+    const templatePath = posix.join(baseDir, `${fileType}.template`);
+    const templateLoaded = await tryLoadConfigFile(templatePath, fileType);
+    if (templateLoaded) {
+      results.push(templateLoaded);
     }
   }
 

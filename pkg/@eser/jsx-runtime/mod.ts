@@ -18,7 +18,8 @@ type VNode = object | any[]; // reactJsxRuntime.JSX.Element;
  */
 export function jsxEscape(value: unknown): string | null | VNode {
   if (
-    value == null ||
+    value === null ||
+    value === undefined ||
     typeof value === "boolean" ||
     typeof value === "function"
   ) {

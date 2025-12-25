@@ -1,0 +1,8 @@
+{
+  "name": "@eser/cs",
+  "version": "0.8.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./cli": "./cli.ts"
+  }
+}

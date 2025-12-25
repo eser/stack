@@ -6,12 +6,10 @@
     ".": "./mod.ts"
   },
   "dependencies": {
+    "@eser/standards": "workspace:*",
     "@std/encoding": "npm:@jsr/std__encoding@^1.0.10",
     "@std/fmt": "npm:@jsr/std__fmt@^1.0.8",
-    "@std/path": "npm:@jsr/std__path@^1.1.3",
-    "@std/regexp": "npm:@jsr/std__regexp@^1.0.1",
-    "@deno/esbuild-plugin": "npm:@jsr/deno__esbuild-plugin@^1.2.1",
-    "esbuild": "^0.25.12"
+    "@std/path": "npm:@jsr/std__path@^1.1.4"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.16"

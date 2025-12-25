@@ -1,5 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import type { MiddlewareFn } from "../types.ts";
+
 /**
  * Configuration options for CORS middleware.
  */
@@ -52,14 +54,6 @@ const DEFAULT_OPTIONS:
     allowedHeaders: [],
     credentials: false,
   };
-
-/**
- * Middleware function type.
- */
-export type MiddlewareFn = (
-  req: Request,
-  next: () => Response | Promise<Response>,
-) => Response | Promise<Response>;
 
 /**
  * Determines the allowed origin based on the request and configuration.

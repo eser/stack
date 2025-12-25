@@ -23,11 +23,6 @@ const normalizeSlashes = (path: string): string => {
 };
 
 /**
- * Check if a character is a path separator.
- */
-const isSep = (char: string): boolean => char === "/" || char === "\\";
-
-/**
  * Join path segments with the POSIX separator.
  */
 const join = (...paths: string[]): string => {
@@ -68,7 +63,7 @@ const resolve = (...paths: string[]): string => {
     resolvedPath = resolvedPath.slice(0, -1);
   }
 
-  return normalize(resolvedPath) || ".";
+  return normalize(resolvedPath) ?? ".";
 };
 
 /**
@@ -174,7 +169,7 @@ const normalize = (path: string): string => {
     normalized += "/";
   }
 
-  return normalized || ".";
+  return normalized ?? ".";
 };
 
 /**
@@ -229,7 +224,7 @@ const relative = (from: string, to: string): string => {
     ...remaining,
   ];
 
-  return result.join("/") || ".";
+  return result.join("/") ?? ".";
 };
 
 /**

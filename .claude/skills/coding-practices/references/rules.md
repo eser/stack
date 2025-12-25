@@ -2,8 +2,10 @@
 
 ## Self-Documenting Code
 
-Scope: All languages Rule: Use meaningful variable, class, and function names.
-Makes code easier to understand and maintain.
+Scope: All languages
+
+Rule: Use meaningful variable, class, and function names. Makes code easier to
+understand and maintain.
 
 Correct:
 
@@ -40,8 +42,9 @@ class UAS { // unclear abbreviation
 
 ## Comments
 
-Scope: All languages Rule: Use comments to explain 'why' and 'how' if code is
-not self-explanatory.
+Scope: All languages
+
+Rule: Use comments to explain 'why' and 'how' if code is not self-explanatory.
 
 Correct:
 
@@ -78,8 +81,9 @@ Good practices:
 
 ## Don't Repeat Yourself
 
-Scope: All languages Rule: Abstract common functionality into reusable modules
-or functions.
+Scope: All languages
+
+Rule: Abstract common functionality into reusable modules or functions.
 
 Correct:
 
@@ -119,8 +123,10 @@ When to abstract:
 
 ## Input Validation
 
-Scope: All languages Rule: Validate input data. Ensures robustness and prevents
-bugs or security vulnerabilities.
+Scope: All languages
+
+Rule: Validate input data. Ensures robustness and prevents bugs or security
+vulnerabilities.
 
 Correct:
 
@@ -144,8 +150,10 @@ function createUser(email: string, age: number): User {
 
 ## Error Handling
 
-Scope: All languages Rule: Handle all possible error cases. Ensures graceful
-recovery and better user experience.
+Scope: All languages
+
+Rule: Handle all possible error cases. Ensures graceful recovery and better
+user experience.
 
 Correct:
 
@@ -175,7 +183,9 @@ async function fetchUser(id: string): Promise<User> {
 
 ## Error Objects
 
-Scope: All languages Rule: Use proper error objects. Include context via
+Scope: All languages
+
+Rule: Use proper error objects. Include context via
 properties/cause. Avoid string concatenation in messages.
 
 Correct:
@@ -201,109 +211,68 @@ throw "Payment failed"; // not an Error object
 
 ---
 
-## Custom Error Classes (IO/Resource Errors)
+## Specific Error Types
 
-Scope: JS/TS Rule: Use custom Error classes with ES2022 `cause` property for
-IO/resource errors only. These are situations where something is genuinely
-broken and operation must abort (network failures, database connection errors,
-file system errors).
+Scope: All languages
+
+Rule: Throw specific error types, not generic errors.
+Provides better context.
 
 Correct:
 
 ```typescript
-class DbConnectionError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    options?: ErrorOptions,
-  ) {
-    super(message, options);
-    this.name = "DbConnectionError";
+class ValidationError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = "ValidationError";
   }
 }
 
-// Usage with cause chaining for IO errors
-try {
-  await connectToDatabase();
-} catch (originalError) {
-  throw new DbConnectionError(
-    "Failed to connect to database",
-    "DB_CONNECTION_FAILED",
-    { cause: originalError },
-  );
-}
+throw new ValidationError("Invalid email", "email");
 ```
 
-When to use Error classes:
+Incorrect:
 
-- Network connection failures
-- Database connection errors
-- File system errors (permission denied, disk full)
-- External service unavailable
-
-When NOT to use Error classes:
-
-- User not found (expected application state)
-- Validation failures (expected input handling)
-- Business rule violations (normal flow control)
+```typescript
+throw new Error("Something went wrong"); // too generic
+```
 
 ---
 
-## Result Pattern (Application/Business Logic)
+## Result Objects
 
-Scope: JS/TS Rule: Use Result pattern for application logic and business errors.
-Forces explicit handling of both success and failure cases.
+Scope: All languages
+
+Rule: Consider result objects instead of throwing errors.
+More predictable.
 
 Correct:
 
 ```typescript
-type Result<T, E = Error> =
-  | { ok: true; value: T }
-  | { ok: false; error: E };
+type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 
-class ParseError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "ParseError";
-  }
-}
-
-function parseConfig(raw: string): Result<Config, ParseError> {
+function parseData(input: string): Result<Data, string> {
+  if (!input) return { ok: false, error: "Empty input" };
   try {
-    return { ok: true, value: JSON.parse(raw) };
-  } catch (e) {
-    return { ok: false, error: new ParseError("Invalid JSON", { cause: e }) };
+    return { ok: true, value: JSON.parse(input) };
+  } catch {
+    return { ok: false, error: "Invalid JSON" };
   }
 }
 
-// Forces you to handle both cases
-const result = parseConfig(input);
-if (!result.ok) {
-  console.error(result.error.message);
-  return;
-}
-// result.value is now typed as Config
-
-function findUser(id: string): Result<User, "NOT_FOUND"> {
-  const user = users.get(id);
-  if (!user) return { ok: false, error: "NOT_FOUND" };
-  return { ok: true, value: user };
+const result = parseData(input);
+if (result.ok) {
+  process(result.value);
 }
 ```
-
-When to use Result pattern:
-
-- User/entity not found
-- Validation failures
-- Parsing errors
-- Business rule violations
-- Any expected failure that's part of normal application flow
 
 ---
 
 ## Ignored Errors
 
-Scope: All languages Rule: Never ignore returned errors. Handle appropriately.
+Scope: All languages
+
+Rule: Never ignore returned errors. Handle appropriately.
 
 Correct:
 
@@ -330,7 +299,9 @@ try {
 
 ## Assertions
 
-Scope: All languages Rule: Use assertions to verify pre/post-conditions and
+Scope: All languages
+
+Rule: Use assertions to verify pre/post-conditions and
 invariants. Documents assumptions.
 
 Correct:
@@ -347,7 +318,9 @@ function divide(a: number, b: number): number {
 
 ## Logging
 
-Scope: All languages Rule: Use logging for tracing and debugging. Helps
+Scope: All languages
+
+Rule: Use logging for tracing and debugging. Helps
 understand program flow.
 
 Correct:
@@ -370,7 +343,9 @@ function processOrder(order: Order) {
 
 ## Circular Dependencies
 
-Scope: All languages Rule: Avoid circular dependencies. Leads to unexpected
+Scope: All languages
+
+Rule: Avoid circular dependencies. Leads to unexpected
 behavior.
 
 Incorrect:
@@ -393,7 +368,9 @@ export function funcB() {
 
 ## Magic Values
 
-Scope: All languages Rule: Avoid magic numbers or strings. Use named constants.
+Scope: All languages
+
+Rule: Avoid magic numbers or strings. Use named constants.
 
 Correct:
 
@@ -414,79 +391,89 @@ setTimeout(callback, 5000); // what is 5000?
 
 ---
 
-## Resource Cleanup
+## Structured Logging
 
-Scope: All languages Rule: Use try/finally for resource cleanup. Ensures
-resources are released even when errors occur.
+Scope: All logging statements
+
+Rule: Use appropriate log levels by layer and
+include correlation context.
+
+**Layer Guidelines:**
+
+- Repository/data layer: Only `warn`, `debug`, `trace` levels
+- Service/business layer: Log successful operations at `info` level
+- Always include context (trace IDs, user IDs, operation IDs)
+- Log errors with full context before propagating
 
 Correct:
 
 ```typescript
-const lock = await mutex.acquire();
-try {
-  await performCriticalOperation();
-} finally {
-  lock.release();
-}
+// Service layer - info for successful operations
+logger.info("user created", { userId, traceId, operation: "createUser" });
 
-const file = await Deno.open("data.txt");
-try {
-  await processFile(file);
-} finally {
-  file.close();
-}
+// Repository layer - debug for data operations
+logger.debug("fetching user from db", { userId, traceId });
+
+// Error with full context
+logger.error("failed to create user", {
+  userId,
+  traceId,
+  error: err.message,
+  stack: err.stack,
+});
+throw err;
 ```
 
 Incorrect:
 
 ```typescript
-const lock = await mutex.acquire();
-await performCriticalOperation();
-lock.release(); // never reached if operation throws
+console.log("user created"); // no structure, no context
+logger.info("db query executed"); // wrong level for repository layer
+logger.error("error"); // no context
 ```
 
 ---
 
-## File Organization Order
+## Error Wrapping
 
-Scope: JS/TS Rule: Organize file contents in consistent order: Types/Interfaces
-→ Constants → Helper functions → Main implementation → Exports.
+Scope: All error handling
+
+Rule: Wrap errors with context for traceability.
+Define domain-specific error types.
 
 Correct:
 
 ```typescript
-// 1. Types and interfaces
-type UserData = {
-  id: string;
-  name: string;
-};
-
-// 2. Constants
-const DEFAULT_TIMEOUT = 5000;
-const MAX_RETRIES = 3;
-
-// 3. Helper functions (private/internal)
-const validateInput = (data: UserData): boolean => {
-  return data.id.length > 0;
-};
-
-// 4. Main implementation
-export const createUser = (data: UserData): User => {
-  if (!validateInput(data)) {
-    throw new Error("Invalid input");
+class UserNotFoundError extends Error {
+  constructor(public userId: string) {
+    super(`User not found: ${userId}`);
+    this.name = "UserNotFoundError";
   }
-  return new User(data);
-};
+}
 
-// 5. Additional exports at end if needed
-export { UserData };
+class PaymentError extends Error {
+  constructor(
+    message: string,
+    public transactionId: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+    this.name = "PaymentError";
+  }
+}
+
+// Wrap with cause for traceability
+try {
+  await processPayment(data);
+} catch (error) {
+  throw new PaymentError("Failed to process payment", txId, { cause: error });
+}
 ```
 
 Incorrect:
 
 ```typescript
-export const createUser = () => {}; // export before types
-const helper = () => {}; // helper after export
-type UserData = {}; // type after implementation
-const CONSTANT = 5; // constant mixed in
+throw new Error("Something went wrong"); // no context
+throw originalError; // no wrapping, loses context
+throw new Error(originalError.message); // loses stack trace
 ```

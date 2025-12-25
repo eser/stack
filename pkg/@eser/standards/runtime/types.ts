@@ -23,6 +23,37 @@ export type RuntimeName =
   | "unknown";
 
 // =============================================================================
+// Platform Types
+// =============================================================================
+
+/**
+ * Operating system platform.
+ * Uses Go-style naming conventions for consistency.
+ */
+export type Platform = "darwin" | "linux" | "windows";
+
+/**
+ * CPU architecture.
+ * Uses Go-style naming conventions (amd64 instead of x86_64, arm64 instead of aarch64).
+ */
+export type Arch = "amd64" | "arm64";
+
+/**
+ * Complete platform information.
+ * Contains OS, architecture, and common directory paths.
+ */
+export interface PlatformInfo {
+  /** Operating system platform */
+  readonly platform: Platform;
+  /** CPU architecture */
+  readonly arch: Arch;
+  /** User's home directory */
+  readonly homedir: string;
+  /** System temporary directory */
+  readonly tmpdir: string;
+}
+
+// =============================================================================
 // Capability Flags
 // =============================================================================
 

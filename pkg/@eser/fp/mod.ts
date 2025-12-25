@@ -12,6 +12,7 @@ export * from "./deep-copy.ts";
 export * from "./deep-merge.ts";
 export * from "./dispatcher.ts";
 export * from "./distinct-array.ts";
+export * from "./ensure-array.ts";
 export * from "./distinct-object.ts";
 export * from "./drop-from-array.ts";
 export * from "./drop-from-object.ts";

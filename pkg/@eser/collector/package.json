@@ -6,7 +6,7 @@
     ".": "./mod.ts"
   },
   "dependencies": {
-    "@std/path": "npm:@jsr/std__path@^1.1.3",
+    "@std/path": "npm:@jsr/std__path@^1.1.4",
     "@std/fs": "npm:@jsr/std__fs@^1.0.20"
   },
   "devDependencies": {

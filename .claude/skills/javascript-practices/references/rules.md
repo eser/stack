@@ -4,7 +4,9 @@
 
 ### Exports
 
-Scope: JS/TS Rule: Always use direct named exports with export keyword. Avoid
+Scope: JS/TS
+
+Rule: Always use direct named exports with export keyword. Avoid
 default exports.
 
 Correct:
@@ -28,7 +30,9 @@ export default buildCommand; // default export
 
 ### Imports
 
-Scope: JS/TS Rule: Prefer namespace imports to prevent naming collisions.
+Scope: JS/TS
+
+Rule: Prefer namespace imports to prevent naming collisions.
 
 Correct:
 
@@ -57,7 +61,9 @@ import { assertEquals } from "@std/assert";
 
 ### Import Paths
 
-Scope: JS/TS Rule: Use explicit file extensions and paths. Avoid sloppy imports.
+Scope: JS/TS
+
+Rule: Use explicit file extensions and paths. Avoid sloppy imports.
 
 Correct:
 
@@ -80,7 +86,9 @@ import { ConsoleLogger } from "./loggers"; // ambiguous directory import
 
 ### Module Paths
 
-Scope: JS/TS ES Modules (Node 20.11+, Deno, Bun) Rule: Use import.meta.dirname
+Scope: JS/TS ES Modules (Node 20.11+, Deno, Bun)
+
+Rule: Use import.meta.dirname
 over dirname(fromFileUrl(import.meta.url))
 
 Correct:
@@ -99,7 +107,9 @@ const root = dirname(fromFileUrl(import.meta.url));
 
 ### Path Context Distinction
 
-Scope: JS/TS (Deno, Node, Bun) Rule: Use import.meta for module paths, cwd() for
+Scope: JS/TS (Deno, Node, Bun)
+
+Rule: Use import.meta for module paths, cwd() for
 user context
 
 Module-relative (package internals):
@@ -120,7 +130,9 @@ export function buildCommand(options: { projectRoot?: string }) {
 
 ### Optional Path Parameters
 
-Scope: JS/TS (CLI tools, build systems, test utilities) Rule: Add optional
+Scope: JS/TS (CLI tools, build systems, test utilities)
+
+Rule: Add optional
 projectRoot?: string parameter. Enables testing without global state changes.
 
 Correct:
@@ -144,7 +156,9 @@ export async function analyzeComponents(srcDir: string): Promise<Component[]> {
 
 ### Global Object
 
-Scope: JS/TS (Browser, Deno, Node, Bun) Rule: Use globalThis instead of window.
+Scope: JS/TS (Browser, Deno, Node, Bun)
+
+Rule: Use globalThis instead of window.
 Works across all runtimes.
 
 Correct:
@@ -166,7 +180,9 @@ const isDefined = typeof window.localStorage !== "undefined"; // fails in Node/D
 
 ### Variable Declaration
 
-Scope: JS/TS Rule: Prefer const over let. Use const by default, only use let
+Scope: JS/TS
+
+Rule: Prefer const over let. Use const by default, only use let
 when reassignment required.
 
 Correct:
@@ -186,7 +202,9 @@ let userName = "John"; // never reassigned
 
 ### Semicolons
 
-Scope: JS/TS Rule: Add semicolons always. Reduces bugs from automatic semicolon
+Scope: JS/TS
+
+Rule: Add semicolons always. Reduces bugs from automatic semicolon
 insertion.
 
 Correct:
@@ -199,7 +217,9 @@ return name;
 
 ### Equality Checking
 
-Scope: JS/TS Rule: Use strict equality (===). Avoids implicit type coercion.
+Scope: JS/TS
+
+Rule: Use strict equality (===). Avoids implicit type coercion.
 
 Correct:
 
@@ -216,7 +236,9 @@ if (value == 0) {} // matches 0, "0", false, ""
 
 ### Operators
 
-Scope: JS/TS Rule: Use ?? for defaults. Coalesces only on null/undefined, not
+Scope: JS/TS
+
+Rule: Use ?? for defaults. Coalesces only on null/undefined, not
 falsy values.
 
 Correct:
@@ -235,7 +257,9 @@ const port = config.port || 8000; // fails if port is 0
 
 ### String Methods
 
-Scope: JS/TS Rule: Use slice() instead of substring() or substr(). substr()
+Scope: JS/TS
+
+Rule: Use slice() instead of substring() or substr(). substr()
 deprecated.
 
 Correct:
@@ -248,7 +272,9 @@ const last = text.slice(-5); // "World"
 
 ### String Formatting
 
-Scope: JS/TS Rule: Prefer template strings over concatenation.
+Scope: JS/TS
+
+Rule: Prefer template strings over concatenation.
 
 Correct:
 
@@ -265,7 +291,9 @@ const greeting = "Hello, " + user.name + "!";
 
 ### Delete Operator
 
-Scope: JS/TS Rule: Use delete for object properties only.
+Scope: JS/TS
+
+Rule: Use delete for object properties only.
 
 Correct:
 
@@ -283,7 +311,9 @@ arr.splice(1, 1); // removes element
 
 ### Function Arguments
 
-Scope: JS/TS Rule: Use rest operator instead of arguments object.
+Scope: JS/TS
+
+Rule: Use rest operator instead of arguments object.
 
 Correct:
 
@@ -295,7 +325,9 @@ function sum(...numbers: number[]): number {
 
 ### Array Iteration
 
-Scope: JS/TS Rule: Prefer for..of for array values.
+Scope: JS/TS
+
+Rule: Prefer for..of for array values.
 
 Correct:
 
@@ -313,7 +345,9 @@ Exception: Use for loop when break/continue or index manipulation needed.
 
 ### Dangerous Features
 
-Scope: JS/TS Rule: Avoid eval, prototype manipulation, Object.defineProperty.
+Scope: JS/TS
+
+Rule: Avoid eval, prototype manipulation, Object.defineProperty.
 
 Incorrect:
 
@@ -326,62 +360,11 @@ Array.prototype.myMethod = function () {}; // pollutes global
 
 ## Types
 
-### Interface vs Type
-
-Scope: TypeScript Rule: Use `interface` only for function-only types (behavior
-contracts). Use `type` for data shapes with values/states/members. Similar to
-Go's interface approach.
-
-Correct:
-
-```typescript
-// Interface: pure behavior contracts (functions only)
-export interface Logger {
-  log(message: string): void;
-  warn(message: string): void;
-  error(message: string): void;
-}
-
-export interface Serializer<T> {
-  serialize(value: T): string;
-  deserialize(data: string): T;
-}
-
-// Type: data shapes with values/members
-export type UserConfig = {
-  name: string;
-  port: number;
-  debug: boolean;
-};
-
-export type ProcessOutput = {
-  readonly success: boolean;
-  readonly code: number;
-  readonly stdout: Uint8Array;
-};
-
-export type RuntimeName = "deno" | "node" | "bun";
-```
-
-Incorrect:
-
-```typescript
-// Wrong: interface for data shape
-export interface UserConfig {
-  name: string;
-  port: number;
-}
-
-// Wrong: type for pure function contract
-export type Logger = {
-  log(message: string): void;
-  warn(message: string): void;
-};
-```
-
 ### String to Number Conversion
 
-Scope: JS/TS Rule: Use Number() for conversions. Makes intent clearer than
+Scope: JS/TS
+
+Rule: Use Number() for conversions. Makes intent clearer than
 unary + operator.
 
 Correct:
@@ -399,7 +382,9 @@ const value = +userInput; // unclear intent
 
 ### Type Checking
 
-Scope: JS/TS Rule: Avoid typeof operator. Use instanceof or .constructor.
+Scope: JS/TS
+
+Rule: Avoid typeof operator. Use instanceof or .constructor.
 
 Correct:
 
@@ -423,7 +408,9 @@ if (typeof someVar === "undefined") {} // acceptable
 
 ### Null vs Undefined
 
-Scope: JS/TS Rule: Prefer null over undefined. Makes intent explicit.
+Scope: JS/TS
+
+Rule: Prefer null over undefined. Makes intent explicit.
 
 Correct:
 
@@ -437,7 +424,9 @@ function findUser(id: string): User | null {
 
 ### Truthy/Falsy Checks
 
-Scope: JS/TS Rule: Avoid truthy/falsy checks unless boolean type. Use full
+Scope: JS/TS
+
+Rule: Avoid truthy/falsy checks unless boolean type. Use full
 conditions.
 
 Correct:
@@ -455,3 +444,53 @@ Incorrect:
 if (!array.length) {} // false for length 0
 if (user) {} // false for null, undefined, 0, ""
 ```
+
+---
+
+## Async
+
+### Consistent Async Returns
+
+Scope: JS/TS
+
+Rule: Use `return await` consistently in async functions. Prefer explicit
+awaiting over implicit promise returns.
+
+Correct:
+
+```typescript
+async function fetchUser(id: string): Promise<User> {
+  return await userRepository.findById(id);
+}
+
+async function processData(): Promise<Result> {
+  try {
+    return await riskyOperation();
+  } catch (error) {
+    return await fallbackOperation();
+  }
+}
+```
+
+Incorrect:
+
+```typescript
+async function fetchUser(id: string): Promise<User> {
+  return userRepository.findById(id); // implicit return, worse stack trace
+}
+
+async function processData(): Promise<Result> {
+  try {
+    return riskyOperation(); // BUG: rejection bypasses catch block!
+  } catch (error) {
+    return fallbackOperation();
+  }
+}
+```
+
+Rationale:
+- Better stack traces for debugging
+- Correct error handling in try-catch (without await, rejections bypass catch)
+- No performance penalty (ECMA-262 updated)
+- Deno's require-await lint rule compatibility
+- ESLint's no-return-await is now deprecated

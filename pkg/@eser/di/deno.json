@@ -1,0 +1,9 @@
+{
+  "name": "@eser/di",
+  "version": "0.8.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./container": "./container.ts",
+    "./services": "./services.ts"
+  }
+}

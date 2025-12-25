@@ -140,7 +140,9 @@ See [rules.md](references/rules.md) for complete guidelines.
 ````markdown
 ## Section Name
 
-Scope: applicable context Rule: concise statement
+Scope: applicable context
+
+Rule: concise statement
 
 Correct:
 

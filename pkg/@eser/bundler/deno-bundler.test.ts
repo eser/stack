@@ -2,13 +2,13 @@
 
 import * as assert from "@std/assert";
 import {
-  createEsbuildBuilderState,
-  EsbuildBuilder,
-  type EsbuildBuilderOptions,
-} from "./esbuild.ts";
+  createDenoBundlerState,
+  DenoBundler,
+  type DenoBundlerOptions,
+} from "./deno-bundler.ts";
 
-Deno.test("createEsbuildBuilderState() creates valid state", () => {
-  const options: EsbuildBuilderOptions = {
+Deno.test("createDenoBundlerState() creates valid state", () => {
+  const options: DenoBundlerOptions = {
     buildID: "test-build-123",
     entrypoints: {
       "main": "./src/main.ts",
@@ -23,7 +23,7 @@ Deno.test("createEsbuildBuilderState() creates valid state", () => {
     basePath: "/static",
   };
 
-  const state = createEsbuildBuilderState(options);
+  const state = createDenoBundlerState(options);
 
   assert.assertEquals(state.options, options);
   assert.assertEquals(state.options.buildID, "test-build-123");
@@ -31,8 +31,8 @@ Deno.test("createEsbuildBuilderState() creates valid state", () => {
   assert.assertEquals(state.options.target, "es2022");
 });
 
-Deno.test("EsbuildBuilder constructor initializes with state", () => {
-  const options: EsbuildBuilderOptions = {
+Deno.test("DenoBundler constructor initializes with state", () => {
+  const options: DenoBundlerOptions = {
     buildID: "test-build",
     entrypoints: { "main": "./main.ts" },
     dev: false,
@@ -41,15 +41,15 @@ Deno.test("EsbuildBuilder constructor initializes with state", () => {
     absoluteWorkingDir: "/test",
   };
 
-  const state = createEsbuildBuilderState(options);
-  const builder = new EsbuildBuilder(state);
+  const state = createDenoBundlerState(options);
+  const bundler = new DenoBundler(state);
 
-  assert.assertEquals(builder.state, state);
-  assert.assertEquals(builder.state.options.buildID, "test-build");
+  assert.assertEquals(bundler.state, state);
+  assert.assertEquals(bundler.state.options.buildID, "test-build");
 });
 
-Deno.test("EsbuildBuilderOptions supports string target", () => {
-  const options: EsbuildBuilderOptions = {
+Deno.test("DenoBundlerOptions supports string target", () => {
+  const options: DenoBundlerOptions = {
     buildID: "test",
     entrypoints: {},
     dev: false,
@@ -61,8 +61,8 @@ Deno.test("EsbuildBuilderOptions supports string target", () => {
   assert.assertEquals(options.target, "es2022");
 });
 
-Deno.test("EsbuildBuilderOptions supports array target", () => {
-  const options: EsbuildBuilderOptions = {
+Deno.test("DenoBundlerOptions supports array target", () => {
+  const options: DenoBundlerOptions = {
     buildID: "test",
     entrypoints: {},
     dev: false,
@@ -76,8 +76,8 @@ Deno.test("EsbuildBuilderOptions supports array target", () => {
   assert.assertEquals(options.target[0], "es2022");
 });
 
-Deno.test("EsbuildBuilderOptions handles empty entrypoints", () => {
-  const options: EsbuildBuilderOptions = {
+Deno.test("DenoBundlerOptions handles empty entrypoints", () => {
+  const options: DenoBundlerOptions = {
     buildID: "test",
     entrypoints: {},
     dev: false,
@@ -86,18 +86,18 @@ Deno.test("EsbuildBuilderOptions handles empty entrypoints", () => {
     absoluteWorkingDir: "/test",
   };
 
-  const state = createEsbuildBuilderState(options);
+  const state = createDenoBundlerState(options);
   assert.assertEquals(Object.keys(state.options.entrypoints).length, 0);
 });
 
-Deno.test("EsbuildBuilderOptions handles multiple entrypoints", () => {
+Deno.test("DenoBundlerOptions handles multiple entrypoints", () => {
   const entrypoints = {
     "main": "./src/main.ts",
     "admin": "./src/admin.ts",
     "worker": "./src/worker.ts",
   };
 
-  const options: EsbuildBuilderOptions = {
+  const options: DenoBundlerOptions = {
     buildID: "test",
     entrypoints,
     dev: false,
@@ -106,15 +106,15 @@ Deno.test("EsbuildBuilderOptions handles multiple entrypoints", () => {
     absoluteWorkingDir: "/test",
   };
 
-  const state = createEsbuildBuilderState(options);
+  const state = createDenoBundlerState(options);
   assert.assertEquals(Object.keys(state.options.entrypoints).length, 3);
   assert.assertEquals(state.options.entrypoints["main"], "./src/main.ts");
   assert.assertEquals(state.options.entrypoints["admin"], "./src/admin.ts");
   assert.assertEquals(state.options.entrypoints["worker"], "./src/worker.ts");
 });
 
-Deno.test("EsbuildBuilderOptions jsx configuration", () => {
-  const options: EsbuildBuilderOptions = {
+Deno.test("DenoBundlerOptions jsx configuration", () => {
+  const options: DenoBundlerOptions = {
     buildID: "test",
     entrypoints: {},
     dev: false,
@@ -129,8 +129,8 @@ Deno.test("EsbuildBuilderOptions jsx configuration", () => {
   assert.assertEquals(options.jsxImportSource, "react");
 });
 
-Deno.test("EsbuildBuilderOptions optional jsx fields", () => {
-  const options: EsbuildBuilderOptions = {
+Deno.test("DenoBundlerOptions optional jsx fields", () => {
+  const options: DenoBundlerOptions = {
     buildID: "test",
     entrypoints: {},
     dev: false,
@@ -143,8 +143,8 @@ Deno.test("EsbuildBuilderOptions optional jsx fields", () => {
   assert.assertEquals(options.jsxImportSource, undefined);
 });
 
-Deno.test("EsbuildBuilderOptions basePath configuration", () => {
-  const options: EsbuildBuilderOptions = {
+Deno.test("DenoBundlerOptions basePath configuration", () => {
+  const options: DenoBundlerOptions = {
     buildID: "test",
     entrypoints: {},
     dev: false,
@@ -157,8 +157,8 @@ Deno.test("EsbuildBuilderOptions basePath configuration", () => {
   assert.assertEquals(options.basePath, "/static/assets");
 });
 
-Deno.test("EsbuildBuilderOptions dev flag affects behavior", () => {
-  const devOptions: EsbuildBuilderOptions = {
+Deno.test("DenoBundlerOptions dev flag affects behavior", () => {
+  const devOptions: DenoBundlerOptions = {
     buildID: "test",
     entrypoints: {},
     dev: true,
@@ -167,7 +167,7 @@ Deno.test("EsbuildBuilderOptions dev flag affects behavior", () => {
     absoluteWorkingDir: "/test",
   };
 
-  const prodOptions: EsbuildBuilderOptions = {
+  const prodOptions: DenoBundlerOptions = {
     buildID: "test",
     entrypoints: {},
     dev: false,
@@ -180,8 +180,8 @@ Deno.test("EsbuildBuilderOptions dev flag affects behavior", () => {
   assert.assertEquals(prodOptions.dev, false);
 });
 
-Deno.test("EsbuildBuilder state is readonly", () => {
-  const options: EsbuildBuilderOptions = {
+Deno.test("DenoBundler state is readonly", () => {
+  const options: DenoBundlerOptions = {
     buildID: "test",
     entrypoints: {},
     dev: false,
@@ -190,13 +190,13 @@ Deno.test("EsbuildBuilder state is readonly", () => {
     absoluteWorkingDir: "/test",
   };
 
-  const state = createEsbuildBuilderState(options);
-  const builder = new EsbuildBuilder(state);
+  const state = createDenoBundlerState(options);
+  const bundler = new DenoBundler(state);
 
   // Verify state is readonly by checking if it's the same reference
-  assert.assertEquals(builder.state, state);
+  assert.assertEquals(bundler.state, state);
 
   // Try to verify readonly nature (TypeScript would catch this, but test the runtime behavior)
-  const originalState = builder.state;
-  assert.assertEquals(builder.state, originalState);
+  const originalState = bundler.state;
+  assert.assertEquals(bundler.state, originalState);
 });

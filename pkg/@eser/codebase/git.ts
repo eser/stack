@@ -2,12 +2,12 @@
 
 /**
  * Git utility functions for working with git repositories.
- * Uses @david/dax for shell command execution.
+ * Uses @eser/standards/runtime for cross-runtime command execution.
  *
  * @module
  */
 
-import { $ } from "@david/dax";
+import { runtime } from "@eser/standards/runtime";
 
 /**
  * Represents a git commit with its metadata.
@@ -69,7 +69,7 @@ const parseCommitLog = (text: string): Commit[] => {
  * ```
  */
 export const getLatestTag = async (): Promise<string> => {
-  return await $`git describe --tags --abbrev=0`.text();
+  return await runtime.exec.exec("git", ["describe", "--tags", "--abbrev=0"]);
 };
 
 /**
@@ -85,7 +85,7 @@ export const getLatestTag = async (): Promise<string> => {
  * ```
  */
 export const getCurrentBranch = async (): Promise<string> => {
-  return await $`git branch --show-current`.text();
+  return await runtime.exec.exec("git", ["branch", "--show-current"]);
 };
 
 /**
@@ -101,7 +101,7 @@ export const getCurrentBranch = async (): Promise<string> => {
  * ```
  */
 export const checkout = async (ref: string): Promise<void> => {
-  await $`git checkout ${ref}`;
+  await runtime.exec.spawn("git", ["checkout", ref]);
 };
 
 /**
@@ -115,7 +115,7 @@ export const checkout = async (ref: string): Promise<void> => {
  * ```
  */
 export const checkoutPrevious = async (): Promise<void> => {
-  await $`git checkout -`;
+  await runtime.exec.spawn("git", ["checkout", "-"]);
 };
 
 /**
@@ -129,7 +129,7 @@ export const checkoutPrevious = async (): Promise<void> => {
  * ```
  */
 export const createAndCheckoutBranch = async (name: string): Promise<void> => {
-  await $`git checkout -b ${name}`;
+  await runtime.exec.spawn("git", ["checkout", "-b", name]);
 };
 
 /**
@@ -151,9 +151,12 @@ export const getCommitsBetween = async (
   start: string,
   end: string,
 ): Promise<Commit[]> => {
-  const text =
-    await $`git --no-pager log --pretty=format:${COMMIT_SEPARATOR}%H%B ${start}..${end}`
-      .text();
+  const text = await runtime.exec.exec("git", [
+    "--no-pager",
+    "log",
+    `--pretty=format:${COMMIT_SEPARATOR}%H%B`,
+    `${start}..${end}`,
+  ]);
 
   return parseCommitLog(text);
 };
@@ -178,9 +181,12 @@ export const getCommitsSinceDate = async (
   // Convert YYYY.MM.DD to YYYY-MM-DD if needed
   const gitDate = date.replace(/\./g, "-");
 
-  const text =
-    await $`git --no-pager log --after=${gitDate} --pretty=format:${COMMIT_SEPARATOR}%H%B`
-      .text();
+  const text = await runtime.exec.exec("git", [
+    "--no-pager",
+    "log",
+    `--after=${gitDate}`,
+    `--pretty=format:${COMMIT_SEPARATOR}%H%B`,
+  ]);
 
   return parseCommitLog(text);
 };
@@ -194,7 +200,7 @@ export const getCommitsSinceDate = async (
  * ```
  */
 export const stageAll = async (): Promise<void> => {
-  await $`git add .`;
+  await runtime.exec.spawn("git", ["add", "."]);
 };
 
 /**
@@ -215,7 +221,15 @@ export const commit = async (
   message: string,
   user: CommitUser,
 ): Promise<void> => {
-  await $`git -c ${`user.name=${user.name}`} -c ${`user.email=${user.email}`} commit -m ${message}`;
+  await runtime.exec.spawn("git", [
+    "-c",
+    `user.name=${user.name}`,
+    "-c",
+    `user.email=${user.email}`,
+    "commit",
+    "-m",
+    message,
+  ]);
 };
 
 /**
@@ -230,5 +244,5 @@ export const commit = async (
  * ```
  */
 export const push = async (remote: string, branch: string): Promise<void> => {
-  await $`git push ${remote} ${branch}`;
+  await runtime.exec.spawn("git", ["push", remote, branch]);
 };

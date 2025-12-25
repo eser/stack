@@ -1,6 +1,6 @@
 ---
 name: javascript-practices
-description: JavaScript and TypeScript conventions for syntax, modules, types, and runtime behavior. Use when writing or reviewing JS/TS code, implementing modules, handling types, or working with runtime APIs.
+description: JS/TS conventions for syntax, modules, and types. Use when writing or reviewing JavaScript/TypeScript code.
 ---
 
 # JavaScript/TypeScript Practices
@@ -29,6 +29,9 @@ over `||`
 
 **Runtime:** `import.meta.dirname`, `globalThis` over `window`, optional
 `projectRoot` params
+
+**Async:** Use `return await` consistently for better stack traces and correct
+error handling
 
 **Avoid:** `eval`, prototype mutation, truthy/falsy checks on non-booleans
 

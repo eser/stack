@@ -45,7 +45,9 @@ export class AotSnapshot implements BuildSnapshot {
             controller.close();
           },
         });
-      } catch (_err) {
+      } catch {
+        // File read failed - file may have been deleted or is inaccessible
+        // This is expected in some scenarios, so we return null to indicate unavailability
         return null;
       }
     }

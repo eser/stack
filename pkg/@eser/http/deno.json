@@ -1,0 +1,10 @@
+{
+  "name": "@eser/http",
+  "version": "0.8.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./middlewares/cors": "./middlewares/cors.ts",
+    "./middlewares/csp": "./middlewares/csp.ts",
+    "./middlewares/csrf": "./middlewares/csrf.ts"
+  }
+}

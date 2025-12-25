@@ -2,7 +2,7 @@
 
 import * as assert from "@std/assert";
 import * as mock from "@std/testing/mock";
-import { Ok, type Result } from "./results.ts";
+import { Fail, Ok, type Result } from "./results.ts";
 import { fn } from "./fn.ts";
 
 Deno.test("simple fn().run()", async () => {
@@ -120,4 +120,31 @@ Deno.test("alias fn()", async () => {
 
   mock.assertSpyCalls(spyFn, 1);
   assert.assertEquals(result[0]?.payload, "Testing");
+});
+
+// Results Tests
+Deno.test("Ok() returns result with payload", () => {
+  const result = Ok("test-value");
+  assert.assertEquals(result.payload, "test-value");
+  assert.assertEquals(result.error, undefined);
+});
+
+Deno.test("Ok() returns result with undefined payload when called without args", () => {
+  const result = Ok();
+  assert.assertEquals(result.payload, undefined);
+  assert.assertEquals(result.error, undefined);
+});
+
+Deno.test("Fail() returns result with error", () => {
+  const error = new Error("test error");
+  const result = Fail(error);
+  assert.assertEquals(result.error, error);
+  assert.assertEquals(result.payload, undefined);
+});
+
+Deno.test("Fail() returns result with error and payload", () => {
+  const error = new Error("test error");
+  const result = Fail(error, "fallback-value");
+  assert.assertEquals(result.error, error);
+  assert.assertEquals(result.payload, "fallback-value");
 });

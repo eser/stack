@@ -1,6 +1,6 @@
 ---
 name: design-principles
-description: Code design patterns including pure functions, immutability, composition, single responsibility, and async patterns. Use when designing code structure, writing functions, or discussing design patterns.
+description: Code design patterns: pure functions, immutability, composition, and async. Use when designing code or functions.
 ---
 
 # Code Design Principles
@@ -27,6 +27,7 @@ function updateUser(user: User, age: number): User {
 - Template strings over concatenation
 - Plain objects for data, classes only for stateful services
 - Avoid global variables and getters/setters
+- Lazy initialization: no module-level side effects, wrap in getter functions
 
 ## References
 

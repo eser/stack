@@ -1,5 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import type { MiddlewareFn } from "../types.ts";
+
 /**
  * Configuration options for CSRF middleware.
  */
@@ -46,6 +48,8 @@ export interface CsrfOptions {
   };
 }
 
+const CSRF_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60; // 24 hours
+
 const DEFAULT_OPTIONS: Required<Omit<CsrfOptions, "excludePaths">> = {
   cookie: "csrf_token",
   header: "X-CSRF-Token",
@@ -56,7 +60,7 @@ const DEFAULT_OPTIONS: Required<Omit<CsrfOptions, "excludePaths">> = {
     secure: true,
     sameSite: "Strict",
     path: "/",
-    maxAge: 86400, // 24 hours
+    maxAge: CSRF_TOKEN_MAX_AGE_SECONDS,
   },
 };
 
@@ -82,11 +86,11 @@ export const generateToken = (): string => {
  */
 const parseCookies = (cookieHeader: string): Map<string, string> => {
   const cookies = new Map<string, string>();
-  if (!cookieHeader) return cookies;
+  if (cookieHeader === "") return cookies;
 
   for (const part of cookieHeader.split(";")) {
     const [name, ...valueParts] = part.trim().split("=");
-    if (name) {
+    if (name !== undefined && name !== "") {
       cookies.set(name, valueParts.join("="));
     }
   }
@@ -135,14 +139,6 @@ const isPathExcluded = (
 };
 
 /**
- * Middleware function type.
- */
-export type MiddlewareFn = (
-  req: Request,
-  next: () => Response | Promise<Response>,
-) => Response | Promise<Response>;
-
-/**
  * Creates a CSRF protection middleware using the double-submit cookie pattern.
  *
  * The middleware:
@@ -189,7 +185,7 @@ export const csrf = (options: CsrfOptions = {}): MiddlewareFn => {
 
     // Check if path is excluded
     if (isPathExcluded(path, options.excludePaths)) {
-      return next();
+      return await next();
     }
 
     // Parse existing cookies
@@ -202,7 +198,7 @@ export const csrf = (options: CsrfOptions = {}): MiddlewareFn => {
       const response = await next();
 
       // Set token cookie if not present
-      if (!cookieToken) {
+      if (cookieToken === undefined) {
         const newToken = generateToken();
         const headers = new Headers(response.headers);
         headers.append(
@@ -225,14 +221,15 @@ export const csrf = (options: CsrfOptions = {}): MiddlewareFn => {
 
     // Try to get token from form data if not in header
     let formToken: string | undefined;
-    if (!headerToken) {
+    if (headerToken === null) {
       const contentType = req.headers.get("Content-Type");
       if (contentType?.includes("application/x-www-form-urlencoded")) {
         try {
           const body = await req.clone().formData();
           formToken = body.get(opts.formField)?.toString();
         } catch {
-          // Ignore form parsing errors
+          // Form data parsing failed - request may not contain form data or is malformed
+          // This is expected for non-form requests, so we skip token extraction from form
         }
       }
     }
@@ -240,7 +237,11 @@ export const csrf = (options: CsrfOptions = {}): MiddlewareFn => {
     const submittedToken = headerToken ?? formToken;
 
     // Validate token
-    if (!cookieToken || !submittedToken || cookieToken !== submittedToken) {
+    if (
+      cookieToken === undefined ||
+      submittedToken === undefined ||
+      cookieToken !== submittedToken
+    ) {
       return new Response(
         JSON.stringify({
           error: "CSRF token mismatch",

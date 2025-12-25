@@ -81,7 +81,9 @@ export const collectExports = async (
 
       exports.push([entry, selectedExports]);
     } catch (err) {
-      console.error(err);
+      // Log import failure with context for debugging
+      // Callers should be aware that some modules may fail to import
+      console.error(`Failed to import module: ${entryUri}`, err);
     }
   }
 

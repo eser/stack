@@ -1,6 +1,6 @@
 {
   "name": "@eser/codebase",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "type": "module",
   "exports": {
     "./git": "./git.ts",
@@ -20,7 +20,7 @@
     "@eser/standards": "workspace:*",
     "@std/cli": "npm:@jsr/std__cli@^1.0.25",
     "@std/fmt": "npm:@jsr/std__fmt@^1.0.8",
-    "@std/fs": "npm:@jsr/std__fs@^1.0.20",
+    "@std/fs": "npm:@jsr/std__fs@^1.0.21",
     "@std/path": "npm:@jsr/std__path@^1.1.4",
     "@std/semver": "npm:@jsr/std__semver@^1.0.7",
     "octokit": "^5.0.5"

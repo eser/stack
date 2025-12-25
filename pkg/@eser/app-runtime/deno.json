@@ -1,7 +1,10 @@
 {
   "name": "@eser/app-runtime",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "exports": {
     ".": "./mod.ts"
+  },
+  "imports": {
+    "@std/semver": "jsr:@std/semver@^1.0.7"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@eser/codebase",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "exports": {
     "./git": "./git.ts",
     "./package": "./package/mod.ts",
@@ -13,5 +13,13 @@
     "./check-package-configs": "./check-package-configs.ts",
     "./versions": "./versions.ts",
     "./lint-plugin": "./lint-plugin.ts"
+  },
+  "imports": {
+    "@std/cli": "jsr:@std/cli@^1.0.25",
+    "@std/fmt": "jsr:@std/fmt@^1.0.8",
+    "@std/fs": "jsr:@std/fs@^1.0.21",
+    "@std/path": "jsr:@std/path@^1.1.4",
+    "@std/semver": "jsr:@std/semver@^1.0.7",
+    "octokit": "npm:octokit@^5.0.5"
   }
 }

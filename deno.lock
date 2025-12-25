@@ -1,6 +1,29 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@std/assert@^1.0.15": "1.0.16",
+    "jsr:@std/assert@^1.0.16": "1.0.16",
+    "jsr:@std/async@^1.0.15": "1.0.15",
+    "jsr:@std/bytes@^1.0.6": "1.0.6",
+    "jsr:@std/cli@^1.0.25": "1.0.25",
+    "jsr:@std/collections@^1.1.3": "1.1.3",
+    "jsr:@std/csv@^1.0.6": "1.0.6",
+    "jsr:@std/data-structures@^1.0.9": "1.0.9",
+    "jsr:@std/dotenv@~0.225.6": "0.225.6",
+    "jsr:@std/encoding@^1.0.10": "1.0.10",
+    "jsr:@std/fmt@^1.0.8": "1.0.8",
+    "jsr:@std/fs@^1.0.19": "1.0.21",
+    "jsr:@std/fs@^1.0.21": "1.0.21",
+    "jsr:@std/internal@^1.0.12": "1.0.12",
+    "jsr:@std/json@^1.0.2": "1.0.2",
+    "jsr:@std/jsonc@^1.0.2": "1.0.2",
+    "jsr:@std/path@^1.1.2": "1.1.4",
+    "jsr:@std/path@^1.1.4": "1.1.4",
+    "jsr:@std/semver@^1.0.7": "1.0.7",
+    "jsr:@std/streams@^1.0.9": "1.0.14",
+    "jsr:@std/testing@^1.0.16": "1.0.16",
+    "jsr:@std/toml@^1.0.11": "1.0.11",
+    "jsr:@std/yaml@^1.0.10": "1.0.10",
     "npm:@jsr/std__assert@^1.0.16": "1.0.16",
     "npm:@jsr/std__cli@^1.0.25": "1.0.25",
     "npm:@jsr/std__collections@^1.1.3": "1.1.3",
@@ -8,7 +31,7 @@
     "npm:@jsr/std__dotenv@~0.225.6": "0.225.6",
     "npm:@jsr/std__encoding@^1.0.10": "1.0.10",
     "npm:@jsr/std__fmt@^1.0.8": "1.0.8",
-    "npm:@jsr/std__fs@^1.0.20": "1.0.20",
+    "npm:@jsr/std__fs@^1.0.21": "1.0.21",
     "npm:@jsr/std__jsonc@^1.0.2": "1.0.2",
     "npm:@jsr/std__path@^1.1.4": "1.1.4",
     "npm:@jsr/std__semver@^1.0.7": "1.0.7",
@@ -17,9 +40,103 @@
     "npm:@jsr/std__yaml@^1.0.10": "1.0.10",
     "npm:@opentelemetry/api@^1.9.0": "1.9.0",
     "npm:@types/react@^19.2.7": "19.2.7",
-    "npm:lodash.reject@^4.6.0": "4.6.0",
     "npm:octokit@^5.0.5": "5.0.5_@octokit+core@7.0.6",
     "npm:react@^19.2.3": "19.2.3"
+  },
+  "jsr": {
+    "@std/assert@1.0.16": {
+      "integrity": "6a7272ed1eaa77defe76e5ff63ca705d9c495077e2d5fd0126d2b53fc5bd6532",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/async@1.0.15": {
+      "integrity": "55d1d9d04f99403fe5730ab16bdcc3c47f658a6bf054cafb38a50f046238116e"
+    },
+    "@std/bytes@1.0.6": {
+      "integrity": "f6ac6adbd8ccd99314045f5703e23af0a68d7f7e58364b47d2c7f408aeb5820a"
+    },
+    "@std/cli@1.0.25": {
+      "integrity": "1f85051b370c97a7a9dfc6ba626e7ed57a91bea8c081597276d1e78d929d8c91",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/collections@1.1.3": {
+      "integrity": "bf8b0818886df6a32b64c7d3b037a425111f28278d69fd0995aeb62777c986b0"
+    },
+    "@std/csv@1.0.6": {
+      "integrity": "52ef0e62799a0028d278fa04762f17f9bd263fad9a8e7f98c14fbd371d62d9fd",
+      "dependencies": [
+        "jsr:@std/streams"
+      ]
+    },
+    "@std/data-structures@1.0.9": {
+      "integrity": "033d6e17e64bf1f84a614e647c1b015fa2576ae3312305821e1a4cb20674bb4d"
+    },
+    "@std/dotenv@0.225.6": {
+      "integrity": "1d6f9db72f565bd26790fa034c26e45ecb260b5245417be76c2279e5734c421b"
+    },
+    "@std/encoding@1.0.10": {
+      "integrity": "8783c6384a2d13abd5e9e87a7ae0520a30e9f56aeeaa3bdf910a3eaaf5c811a1"
+    },
+    "@std/fmt@1.0.8": {
+      "integrity": "71e1fc498787e4434d213647a6e43e794af4fd393ef8f52062246e06f7e372b7"
+    },
+    "@std/fs@1.0.21": {
+      "integrity": "d720fe1056d78d43065a4d6e0eeb2b19f34adb8a0bc7caf3a4dbf1d4178252cd",
+      "dependencies": [
+        "jsr:@std/internal",
+        "jsr:@std/path@^1.1.4"
+      ]
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    },
+    "@std/json@1.0.2": {
+      "integrity": "d9e5497801c15fb679f55a2c01c7794ad7a5dfda4dd1bebab5e409cb5e0d34d4"
+    },
+    "@std/jsonc@1.0.2": {
+      "integrity": "909605dae3af22bd75b1cbda8d64a32cf1fd2cf6efa3f9e224aba6d22c0f44c7",
+      "dependencies": [
+        "jsr:@std/json"
+      ]
+    },
+    "@std/path@1.1.4": {
+      "integrity": "1d2d43f39efb1b42f0b1882a25486647cb851481862dc7313390b2bb044314b5",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/semver@1.0.7": {
+      "integrity": "7d5f65391762dc4358abde80fc3354086ddb40101f140295e60f290c138887d0"
+    },
+    "@std/streams@1.0.14": {
+      "integrity": "c0df6cdd73bd4bbcbe4baa89e323b88418c90ceb2d926f95aa99bdcdbfca2411",
+      "dependencies": [
+        "jsr:@std/bytes"
+      ]
+    },
+    "@std/testing@1.0.16": {
+      "integrity": "a917ffdeb5924c9be436dc78bc32e511760e14d3a96e49c607fc5ecca86d0092",
+      "dependencies": [
+        "jsr:@std/assert@^1.0.15",
+        "jsr:@std/async",
+        "jsr:@std/data-structures",
+        "jsr:@std/fs@^1.0.19",
+        "jsr:@std/internal",
+        "jsr:@std/path@^1.1.2"
+      ]
+    },
+    "@std/toml@1.0.11": {
+      "integrity": "e084988b872ca4bad6aedfb7350f6eeed0e8ba88e9ee5e1590621c5b5bb8f715",
+      "dependencies": [
+        "jsr:@std/collections"
+      ]
+    },
+    "@std/yaml@1.0.10": {
+      "integrity": "245706ea3511cc50c8c6d00339c23ea2ffa27bd2c7ea5445338f8feff31fa58e"
+    }
   },
   "npm": {
     "@jsr/std__assert@1.0.16": {
@@ -29,9 +146,9 @@
       ],
       "tarball": "https://npm.jsr.io/~/11/@jsr/std__assert/1.0.16.tgz"
     },
-    "@jsr/std__async@1.0.15": {
-      "integrity": "sha512-GW6tMWwF79kKKVths4SWcju1cFykhcE+jiV6/k2IOW45611ji+Yomm0MZuW7JR4Oug+GXF0POrsAiSqL8k/9PQ==",
-      "tarball": "https://npm.jsr.io/~/11/@jsr/std__async/1.0.15.tgz"
+    "@jsr/std__async@1.0.16": {
+      "integrity": "sha512-WoYmNEPSh+Bs09HvVceERknVX813wQjSb2D9Z0KdxGTMYl5Pm13e5xqa3mYu9QBRlxIxpTivGhIQYaslEezrhw==",
+      "tarball": "https://npm.jsr.io/~/11/@jsr/std__async/1.0.16.tgz"
     },
     "@jsr/std__bytes@1.0.6": {
       "integrity": "sha512-St6yKggjFGhxS52IFLJWvkchRFbAKg2Xh8UxA4S1EGz7GJ2Ui+ssDDldj/w2c8vCxvl6qgR0HaYbKeFJNqujmA==",
@@ -74,13 +191,13 @@
       "integrity": "sha512-miZHzj9OgjuajrcMKzpqNVwFb9O71UHZzV/FHVq0E0Uwmv/1JqXgmXAoBNPrn+MP0fHT3mMgaZ6XvQO7dam67Q==",
       "tarball": "https://npm.jsr.io/~/11/@jsr/std__fmt/1.0.8.tgz"
     },
-    "@jsr/std__fs@1.0.20": {
-      "integrity": "sha512-wBw/Y+EfWVgZq6qlqD8M84q0kSuPwLmjnXy97KGfdrkorvzTZCs5AbHElsed/Yi90PuH39tvNhLCHeRGObUwPA==",
+    "@jsr/std__fs@1.0.21": {
+      "integrity": "sha512-k/agrcKGm6KD89ci3AEyRmu3wRWf9JZNliOF4ZUxagTHiySmxjiKU3Lk+d2ksRtwEi7oWlLGS0AVM9Lciwc/xg==",
       "dependencies": [
         "@jsr/std__internal",
-        "@jsr/std__path@1.1.3"
+        "@jsr/std__path"
       ],
-      "tarball": "https://npm.jsr.io/~/11/@jsr/std__fs/1.0.20.tgz"
+      "tarball": "https://npm.jsr.io/~/11/@jsr/std__fs/1.0.21.tgz"
     },
     "@jsr/std__internal@1.0.12": {
       "integrity": "sha512-6xReMW9p+paJgqoFRpOE2nogJFvzPfaLHLIlyADYjKMUcwDyjKZxryIbgcU+gxiTygn8yCjld1HoI0ET4/iZeA==",
@@ -100,13 +217,6 @@
       ],
       "tarball": "https://npm.jsr.io/~/11/@jsr/std__jsonc/1.0.2.tgz"
     },
-    "@jsr/std__path@1.1.3": {
-      "integrity": "sha512-7HAc3nOGizbIunNCUQ4mrF7XY/SpAEIlq5pBR0sOzkcLB7520baEqnOmXTFiIUTp/umKE5ArEegMM1F39N51Rg==",
-      "dependencies": [
-        "@jsr/std__internal"
-      ],
-      "tarball": "https://npm.jsr.io/~/11/@jsr/std__path/1.1.3.tgz"
-    },
     "@jsr/std__path@1.1.4": {
       "integrity": "sha512-SK4u9H6NVTfolhPdlvdYXfNFefy1W04AEHWJydryYbk+xqzNiVmr5o7TLJLJFqwHXuwMRhwrn+mcYeUfS0YFaA==",
       "dependencies": [
@@ -118,12 +228,12 @@
       "integrity": "sha512-/WpDSNegE6lI50L1+VnItLkuuQlZK8e8QbxrjV1sH+3YqiH+sQ/Tx3yYvewkKVVSwcidQUlqSIHSPrhay1zLCg==",
       "tarball": "https://npm.jsr.io/~/11/@jsr/std__semver/1.0.7.tgz"
     },
-    "@jsr/std__streams@1.0.14": {
-      "integrity": "sha512-GMVeAQ8jJ0d5hCbqnQRLvA59dpP+fe+ugr1ge3cfEEFUaAh8zGnZuePOWioJ26Mor0925xKag6A6SDEgUDR1XA==",
+    "@jsr/std__streams@1.0.16": {
+      "integrity": "sha512-8vQHEDIpAr5m9upZEcF1UO2ylZCJsOs5mlsXaJNehQmSm8Iiz/XaKtb73Fh6fj8Ybc2jNw2zyi9CLfqd3Ph6mA==",
       "dependencies": [
         "@jsr/std__bytes"
       ],
-      "tarball": "https://npm.jsr.io/~/11/@jsr/std__streams/1.0.14.tgz"
+      "tarball": "https://npm.jsr.io/~/11/@jsr/std__streams/1.0.16.tgz"
     },
     "@jsr/std__testing@1.0.16": {
       "integrity": "sha512-suPk2iMICErQVuRcNj7HweRbFYsBLjqnrI0NgNEXzBAJYv8lA+/87IXMgv/rvyqSABHn3X4ciynFZgpyPCI32A==",
@@ -133,7 +243,7 @@
         "@jsr/std__data-structures",
         "@jsr/std__fs",
         "@jsr/std__internal",
-        "@jsr/std__path@1.1.3"
+        "@jsr/std__path"
       ],
       "tarball": "https://npm.jsr.io/~/11/@jsr/std__testing/1.0.16.tgz"
     },
@@ -363,9 +473,6 @@
     },
     "fast-content-type-parse@3.0.0": {
       "integrity": "sha512-ZvLdcY8P+N8mGQJahJV5G4U88CSvT1rP8ApL6uETe88MBXrBHAkZlSEySdUlyztF7ccb+Znos3TFqaepHxdhBg=="
-    },
-    "lodash.reject@4.6.0": {
-      "integrity": "sha512-qkTuvgEzYdyhiJBx42YPzPo71R1aEr0z79kAv7Ixg8wPFEjgRgJdUsGMG3Hf3OYSF/kHI79XhNlt+5Ar6OzwxQ=="
     },
     "octokit@5.0.5_@octokit+core@7.0.6": {
       "integrity": "sha512-4+/OFSqOjoyULo7eN7EA97DE0Xydj/PW5aIckxqQIoFjFwqXKuFCvXUJObyJfBF9Khu4RL/jlDRI9FPaMGfPnw==",
@@ -723,6 +830,9 @@
   "workspace": {
     "members": {
       "pkg/@eser/app-runtime": {
+        "dependencies": [
+          "jsr:@std/semver@^1.0.7"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__semver@^1.0.7"
@@ -730,6 +840,12 @@
         }
       },
       "pkg/@eser/bundler": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "jsr:@std/encoding@^1.0.10",
+          "jsr:@std/fmt@^1.0.8",
+          "jsr:@std/path@^1.1.4"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
@@ -740,6 +856,9 @@
         }
       },
       "pkg/@eser/cache": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16"
@@ -747,6 +866,10 @@
         }
       },
       "pkg/@eser/cli": {
+        "dependencies": [
+          "jsr:@std/cli@^1.0.25",
+          "jsr:@std/fmt@^1.0.8"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__cli@^1.0.25",
@@ -755,11 +878,19 @@
         }
       },
       "pkg/@eser/codebase": {
+        "dependencies": [
+          "jsr:@std/cli@^1.0.25",
+          "jsr:@std/fmt@^1.0.8",
+          "jsr:@std/fs@^1.0.21",
+          "jsr:@std/path@^1.1.4",
+          "jsr:@std/semver@^1.0.7",
+          "npm:octokit@^5.0.5"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__cli@^1.0.25",
             "npm:@jsr/std__fmt@^1.0.8",
-            "npm:@jsr/std__fs@^1.0.20",
+            "npm:@jsr/std__fs@^1.0.21",
             "npm:@jsr/std__path@^1.1.4",
             "npm:@jsr/std__semver@^1.0.7",
             "npm:octokit@^5.0.5"
@@ -767,21 +898,36 @@
         }
       },
       "pkg/@eser/collector": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "jsr:@std/fs@^1.0.21",
+          "jsr:@std/path@^1.1.4"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
-            "npm:@jsr/std__fs@^1.0.20",
+            "npm:@jsr/std__fs@^1.0.21",
             "npm:@jsr/std__path@^1.1.4"
           ]
         }
       },
       "pkg/@eser/config": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "jsr:@std/collections@^1.1.3",
+          "jsr:@std/dotenv@~0.225.6",
+          "jsr:@std/fs@^1.0.21",
+          "jsr:@std/jsonc@^1.0.2",
+          "jsr:@std/path@^1.1.4",
+          "jsr:@std/toml@^1.0.11",
+          "jsr:@std/yaml@^1.0.10"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
             "npm:@jsr/std__collections@^1.1.3",
             "npm:@jsr/std__dotenv@~0.225.6",
-            "npm:@jsr/std__fs@^1.0.20",
+            "npm:@jsr/std__fs@^1.0.21",
             "npm:@jsr/std__jsonc@^1.0.2",
             "npm:@jsr/std__path@^1.1.4",
             "npm:@jsr/std__toml@^1.0.11",
@@ -790,17 +936,28 @@
         }
       },
       "pkg/@eser/cs": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "jsr:@std/cli@^1.0.25",
+          "jsr:@std/fs@^1.0.21",
+          "jsr:@std/path@^1.1.4",
+          "jsr:@std/testing@^1.0.16"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
             "npm:@jsr/std__cli@^1.0.25",
-            "npm:@jsr/std__fs@^1.0.20",
+            "npm:@jsr/std__fs@^1.0.21",
             "npm:@jsr/std__path@^1.1.4",
             "npm:@jsr/std__testing@^1.0.16"
           ]
         }
       },
       "pkg/@eser/di": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "jsr:@std/testing@^1.0.16"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
@@ -809,6 +966,10 @@
         }
       },
       "pkg/@eser/events": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "jsr:@std/testing@^1.0.16"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
@@ -817,6 +978,9 @@
         }
       },
       "pkg/@eser/fp": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16"
@@ -824,6 +988,10 @@
         }
       },
       "pkg/@eser/functions": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "jsr:@std/testing@^1.0.16"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
@@ -832,6 +1000,9 @@
         }
       },
       "pkg/@eser/http": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16"
@@ -839,6 +1010,11 @@
         }
       },
       "pkg/@eser/jsx-runtime": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "npm:@types/react@^19.2.7",
+          "npm:react@^19.2.3"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
@@ -848,6 +1024,10 @@
         }
       },
       "pkg/@eser/logging": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "npm:@opentelemetry/api@^1.9.0"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
@@ -856,6 +1036,9 @@
         }
       },
       "pkg/@eser/parsing": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16"
@@ -863,6 +1046,11 @@
         }
       },
       "pkg/@eser/standards": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "jsr:@std/path@^1.1.4",
+          "jsr:@std/semver@^1.0.7"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
@@ -872,6 +1060,9 @@
         }
       },
       "pkg/@eser/testing": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16"
@@ -879,6 +1070,13 @@
         }
       },
       "pkg/@eser/writer": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "jsr:@std/csv@^1.0.6",
+          "jsr:@std/testing@^1.0.16",
+          "jsr:@std/toml@^1.0.11",
+          "jsr:@std/yaml@^1.0.10"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",

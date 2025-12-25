@@ -33,6 +33,22 @@ import { ConfigFileTypes } from "./package/types.ts";
 export type ConsistencyField = "name" | "version" | "exports";
 
 /**
+ * Represents a dependency inconsistency between files.
+ */
+export type DependencyInconsistency = {
+  /** Package name */
+  readonly packageName: string;
+  /** Dependency name */
+  readonly dependencyName: string;
+  /** Issue type */
+  readonly issue: "missing_in_deno" | "missing_in_package" | "version_mismatch";
+  /** Expected value */
+  readonly expected?: string;
+  /** Actual value */
+  readonly actual?: string;
+};
+
+/**
  * Represents a configuration inconsistency between files.
  */
 export type ConfigInconsistency = {
@@ -64,6 +80,8 @@ export type CheckPackageConfigsResult = {
   readonly isConsistent: boolean;
   /** Found inconsistencies */
   readonly inconsistencies: ReadonlyArray<ConfigInconsistency>;
+  /** Found dependency inconsistencies */
+  readonly dependencyInconsistencies: ReadonlyArray<DependencyInconsistency>;
   /** Number of packages checked */
   readonly packagesChecked: number;
 };
@@ -99,13 +117,151 @@ const getFieldValue = (
 };
 
 /**
+ * Checks if a specifier is in npm JSR format (npm:@jsr/scope__name).
+ */
+const isNpmJsrSpec = (spec: string): boolean => {
+  return spec.startsWith("npm:@jsr/");
+};
+
+/**
+ * Converts npm JSR format to deno JSR format.
+ * npm:@jsr/scope__name@version -> jsr:@scope/name@version
+ */
+const fromNpmJsrToDeno = (spec: string): string => {
+  // Remove 'npm:@jsr/' prefix
+  const remaining = spec.slice(9); // "npm:@jsr/".length = 9
+
+  // Find the double underscore separator
+  const underscoreIndex = remaining.indexOf("__");
+  if (underscoreIndex === -1) {
+    throw new Error(`Invalid npm JSR format: ${spec}`);
+  }
+
+  const scope = remaining.slice(0, underscoreIndex);
+
+  // Find version separator (@ after the package name)
+  const afterUnderscore = remaining.slice(underscoreIndex + 2);
+  const versionIndex = afterUnderscore.indexOf("@");
+
+  let packageName: string;
+  let versionSuffix: string;
+
+  if (versionIndex === -1) {
+    packageName = afterUnderscore;
+    versionSuffix = "";
+  } else {
+    packageName = afterUnderscore.slice(0, versionIndex);
+    versionSuffix = afterUnderscore.slice(versionIndex);
+  }
+
+  return `jsr:@${scope}/${packageName}${versionSuffix}`;
+};
+
+/**
+ * Converts a package.json dependency to expected deno.json import format.
+ */
+const convertPkgDepToDenoImport = (depName: string, spec: string): string => {
+  if (isNpmJsrSpec(spec)) {
+    return fromNpmJsrToDeno(spec);
+  }
+  // Regular npm package - format as npm:packagename@version
+  if (spec.startsWith("npm:")) {
+    return spec;
+  }
+  return `npm:${depName}@${spec}`;
+};
+
+/**
+ * Checks if a dependency should be treated as a workspace dependency.
+ */
+const isWorkspaceDep = (spec: string): boolean => {
+  return spec === "workspace:*" || spec.startsWith("workspace:");
+};
+
+/**
+ * Checks dependencies between package.json and deno.json.
+ */
+const checkDependencies = (
+  packageName: string,
+  pkgContent: Record<string, unknown>,
+  denoContent: Record<string, unknown>,
+): DependencyInconsistency[] => {
+  const inconsistencies: DependencyInconsistency[] = [];
+
+  // Get dependencies from package.json
+  const pkgDeps = (pkgContent["dependencies"] ?? {}) as Record<string, string>;
+  const pkgDevDeps = (pkgContent["devDependencies"] ?? {}) as Record<
+    string,
+    string
+  >;
+  const allPkgDeps = { ...pkgDeps, ...pkgDevDeps };
+
+  // Get imports from deno.json
+  const denoImports = (denoContent["imports"] ?? {}) as Record<string, string>;
+
+  // Check each package.json dependency exists in deno.json imports
+  for (const [depName, depSpec] of Object.entries(allPkgDeps)) {
+    // Skip workspace dependencies
+    if (isWorkspaceDep(depSpec)) {
+      continue;
+    }
+
+    const expectedDenoSpec = convertPkgDepToDenoImport(depName, depSpec);
+    const actualDenoSpec = denoImports[depName];
+
+    if (actualDenoSpec === undefined) {
+      inconsistencies.push({
+        packageName,
+        dependencyName: depName,
+        issue: "missing_in_deno",
+        expected: expectedDenoSpec,
+      });
+    } else if (actualDenoSpec !== expectedDenoSpec) {
+      inconsistencies.push({
+        packageName,
+        dependencyName: depName,
+        issue: "version_mismatch",
+        expected: expectedDenoSpec,
+        actual: actualDenoSpec,
+      });
+    }
+  }
+
+  // Check for extra imports in deno.json that aren't in package.json
+  for (const [importName, _importSpec] of Object.entries(denoImports)) {
+    // Skip if it exists in package.json dependencies
+    if (allPkgDeps[importName] !== undefined) {
+      continue;
+    }
+
+    inconsistencies.push({
+      packageName,
+      dependencyName: importName,
+      issue: "missing_in_package",
+      actual: denoImports[importName],
+    });
+  }
+
+  return inconsistencies;
+};
+
+/**
+ * Result of checking a single package.
+ */
+type PackageCheckResult = {
+  inconsistencies: ConfigInconsistency[];
+  dependencyInconsistencies: DependencyInconsistency[];
+};
+
+/**
  * Checks a single package for config inconsistencies.
  */
 const checkPackage = async (
   packagePath: string,
   packageName: string,
-): Promise<ConfigInconsistency[]> => {
+): Promise<PackageCheckResult> => {
   const inconsistencies: ConfigInconsistency[] = [];
+  const dependencyInconsistencies: DependencyInconsistency[] = [];
 
   // Load config with both file types
   const config = await pkg.load({
@@ -123,7 +279,7 @@ const checkPackage = async (
 
   // Skip if either file is missing
   if (denoFile === undefined || pkgFile === undefined) {
-    return [];
+    return { inconsistencies: [], dependencyInconsistencies: [] };
   }
 
   // Check each field
@@ -149,7 +305,15 @@ const checkPackage = async (
     }
   }
 
-  return inconsistencies;
+  // Check dependencies
+  const depIssues = checkDependencies(
+    packageName,
+    pkgFile.content,
+    denoFile.content,
+  );
+  dependencyInconsistencies.push(...depIssues);
+
+  return { inconsistencies, dependencyInconsistencies };
 };
 
 /**
@@ -165,25 +329,35 @@ export const checkPackageConfigs = async (
 
   const [_rootConfig, modules] = await pkg.getWorkspaceModules(root);
   const allInconsistencies: ConfigInconsistency[] = [];
+  const allDependencyInconsistencies: DependencyInconsistency[] = [];
   let packagesChecked = 0;
 
   for (const module of modules) {
     const packagePath = pkg.getBaseDir(module.config);
 
     try {
-      const inconsistencies = await checkPackage(packagePath, module.name);
+      const result = await checkPackage(packagePath, module.name);
       packagesChecked++;
 
-      if (inconsistencies.length > 0) {
-        allInconsistencies.push(...inconsistencies);
+      if (result.inconsistencies.length > 0) {
+        allInconsistencies.push(...result.inconsistencies);
+      }
 
-        if (failFast) {
-          return {
-            isConsistent: false,
-            inconsistencies: allInconsistencies,
-            packagesChecked,
-          };
-        }
+      if (result.dependencyInconsistencies.length > 0) {
+        allDependencyInconsistencies.push(...result.dependencyInconsistencies);
+      }
+
+      if (
+        failFast &&
+        (result.inconsistencies.length > 0 ||
+          result.dependencyInconsistencies.length > 0)
+      ) {
+        return {
+          isConsistent: false,
+          inconsistencies: allInconsistencies,
+          dependencyInconsistencies: allDependencyInconsistencies,
+          packagesChecked,
+        };
       }
     } catch {
       // Skip packages that can't be loaded
@@ -191,9 +365,13 @@ export const checkPackageConfigs = async (
     }
   }
 
+  const hasIssues = allInconsistencies.length > 0 ||
+    allDependencyInconsistencies.length > 0;
+
   return {
-    isConsistent: allInconsistencies.length === 0,
+    isConsistent: !hasIssues,
     inconsistencies: allInconsistencies,
+    dependencyInconsistencies: allDependencyInconsistencies,
     packagesChecked,
   };
 };
@@ -209,6 +387,20 @@ const formatValue = (value: unknown): string => {
 };
 
 /**
+ * Formats a dependency issue for display.
+ */
+const formatDepIssue = (inc: DependencyInconsistency): string => {
+  switch (inc.issue) {
+    case "missing_in_deno":
+      return `Missing in deno.json imports. Expected: ${inc.expected}`;
+    case "missing_in_package":
+      return `Extra in deno.json imports (not in package.json): ${inc.actual}`;
+    case "version_mismatch":
+      return `Version mismatch. Expected: ${inc.expected}, Actual: ${inc.actual}`;
+  }
+};
+
+/**
  * CLI main function for standalone usage.
  */
 const main = async (): Promise<void> => {
@@ -219,28 +411,57 @@ const main = async (): Promise<void> => {
   console.log(`Checked ${result.packagesChecked} packages.`);
 
   if (!result.isConsistent) {
-    console.log(
-      fmtColors.red(
-        `\nFound ${result.inconsistencies.length} inconsistencies:\n`,
-      ),
-    );
+    // Show field inconsistencies
+    if (result.inconsistencies.length > 0) {
+      console.log(
+        fmtColors.red(
+          `\nFound ${result.inconsistencies.length} field inconsistencies:\n`,
+        ),
+      );
 
-    // Group by package
-    const byPackage = new Map<string, ConfigInconsistency[]>();
-    for (const inc of result.inconsistencies) {
-      const existing = byPackage.get(inc.packageName) ?? [];
-      existing.push(inc);
-      byPackage.set(inc.packageName, existing);
+      // Group by package
+      const byPackage = new Map<string, ConfigInconsistency[]>();
+      for (const inc of result.inconsistencies) {
+        const existing = byPackage.get(inc.packageName) ?? [];
+        existing.push(inc);
+        byPackage.set(inc.packageName, existing);
+      }
+
+      for (const [pkgName, inconsistencies] of byPackage) {
+        console.log(fmtColors.yellow(`${pkgName}:`));
+        for (const inc of inconsistencies) {
+          console.log(fmtColors.red(`  ⚠ ${inc.field} mismatch:`));
+          console.log(`    deno.json:    ${formatValue(inc.denoValue)}`);
+          console.log(`    package.json: ${formatValue(inc.packageValue)}`);
+        }
+        console.log();
+      }
     }
 
-    for (const [pkgName, inconsistencies] of byPackage) {
-      console.log(fmtColors.yellow(`${pkgName}:`));
-      for (const inc of inconsistencies) {
-        console.log(fmtColors.red(`  ⚠ ${inc.field} mismatch:`));
-        console.log(`    deno.json:    ${formatValue(inc.denoValue)}`);
-        console.log(`    package.json: ${formatValue(inc.packageValue)}`);
+    // Show dependency inconsistencies
+    if (result.dependencyInconsistencies.length > 0) {
+      console.log(
+        fmtColors.red(
+          `\nFound ${result.dependencyInconsistencies.length} dependency inconsistencies:\n`,
+        ),
+      );
+
+      // Group by package
+      const byPackage = new Map<string, DependencyInconsistency[]>();
+      for (const inc of result.dependencyInconsistencies) {
+        const existing = byPackage.get(inc.packageName) ?? [];
+        existing.push(inc);
+        byPackage.set(inc.packageName, existing);
       }
-      console.log();
+
+      for (const [pkgName, inconsistencies] of byPackage) {
+        console.log(fmtColors.yellow(`${pkgName}:`));
+        for (const inc of inconsistencies) {
+          console.log(fmtColors.red(`  ⚠ ${inc.dependencyName}:`));
+          console.log(`    ${formatDepIssue(inc)}`);
+        }
+        console.log();
+      }
     }
 
     standardsRuntime.runtime.process.exit(1);

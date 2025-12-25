@@ -4,16 +4,24 @@
   "type": "module",
   "exports": {
     "./git": "./git.ts",
-    "./package": "./package/mod.ts"
+    "./package": "./package/mod.ts",
+    "./workspace-discovery": "./workspace-discovery.ts",
+    "./check-circular-deps": "./check-circular-deps.ts",
+    "./check-mod-exports": "./check-mod-exports.ts",
+    "./check-export-names": "./check-export-names.ts",
+    "./check-docs": "./check-docs.ts",
+    "./check-licenses": "./check-licenses.ts",
+    "./check-package-configs": "./check-package-configs.ts",
+    "./versions": "./versions.ts",
+    "./lint-plugin": "./lint-plugin.ts"
   },
   "dependencies": {
-    "@david/dax": "npm:@jsr/david__dax@^0.43.2",
     "@eser/config": "workspace:*",
     "@eser/standards": "workspace:*",
-    "@std/cli": "npm:@jsr/std__cli@^1.0.24",
+    "@std/cli": "npm:@jsr/std__cli@^1.0.25",
     "@std/fmt": "npm:@jsr/std__fmt@^1.0.8",
     "@std/fs": "npm:@jsr/std__fs@^1.0.20",
-    "@std/path": "npm:@jsr/std__path@^1.1.3",
+    "@std/path": "npm:@jsr/std__path@^1.1.4",
     "@std/semver": "npm:@jsr/std__semver@^1.0.7",
     "octokit": "^5.0.5"
   }

@@ -1,0 +1,9 @@
+{
+  "name": "@eser/jsx-runtime",
+  "version": "0.8.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./jsx-runtime": "./mod.ts",
+    "./jsx-dev-runtime": "./mod.ts"
+  }
+}

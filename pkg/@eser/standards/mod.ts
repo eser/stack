@@ -6,6 +6,7 @@ export * as patterns from "./patterns.ts";
 export * as promises from "./promises.ts";
 export * as runModes from "./run-modes.ts";
 export * as runtime from "./runtime/mod.ts";
-export * as utilities from "./utilities.ts";
+export * as typeGuards from "./type-guards.ts";
+export * as typeSlices from "./type-slices.ts";
 export * as httpError from "./http-error.ts";
 export * as versions from "./versions.ts";

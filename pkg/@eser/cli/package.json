@@ -1,0 +1,15 @@
+{
+  "name": "@eser/cli",
+  "version": "0.8.0",
+  "type": "module",
+  "exports": "./main.ts",
+  "bin": {
+    "eser": "./main.ts"
+  },
+  "dependencies": {
+    "@eser/codebase": "workspace:*",
+    "@eser/standards": "workspace:*",
+    "@std/cli": "npm:@jsr/std__cli@^1.0.25",
+    "@std/fmt": "npm:@jsr/std__fmt@^1.0.8"
+  }
+}

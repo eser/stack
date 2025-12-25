@@ -2,6 +2,14 @@
 
 import type { FormatRegistry, WriterFormat } from "./types.ts";
 
+/**
+ * Normalizes a file extension to always start with a dot and be lowercase.
+ */
+const normalizeExtension = (ext: string): string =>
+  ext.toLowerCase().startsWith(".")
+    ? ext.toLowerCase()
+    : `.${ext.toLowerCase()}`;
+
 class DefaultFormatRegistry implements FormatRegistry {
   private formats = new Map<string, WriterFormat>();
 
@@ -23,10 +31,7 @@ class DefaultFormatRegistry implements FormatRegistry {
 
     // Register by extensions
     for (const ext of format.extensions) {
-      const normalizedExt = ext.toLowerCase().startsWith(".")
-        ? ext.toLowerCase()
-        : `.${ext.toLowerCase()}`;
-      this.formats.set(normalizedExt, format);
+      this.formats.set(normalizeExtension(ext), format);
     }
   }
 
@@ -41,10 +46,7 @@ class DefaultFormatRegistry implements FormatRegistry {
 
     // Remove by extensions
     for (const ext of format.extensions) {
-      const normalizedExt = ext.toLowerCase().startsWith(".")
-        ? ext.toLowerCase()
-        : `.${ext.toLowerCase()}`;
-      this.formats.delete(normalizedExt);
+      this.formats.delete(normalizeExtension(ext));
     }
   }
 

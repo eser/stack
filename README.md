@@ -1,7 +1,7 @@
 # `eserstack` - The Portability Solution for Your Code! 🚀
 
 [![JSR @eser](https://jsr.io/badges/@eser)](https://jsr.io/@eser)
-[![codecov](https://codecov.io/gh/eser/stack/branch/main/graph/badge.svg?token=w6s3ODtULz)](https://codecov.io/gh/eser/stack)
+[![codecov](https://codecov.io/gh/eser/stack/branch/main/graph/badge.svg?token=7TIL2XPJB6)](https://codecov.io/gh/eser/stack)
 [![Build Pipeline](https://github.com/eser/stack/actions/workflows/build.yml/badge.svg)](https://github.com/eser/stack/actions/workflows/build.yml)
 [![Built with the Deno Standard Library](https://raw.githubusercontent.com/denoland/deno_std/main/badge.svg)](https://deno.land/std)
 

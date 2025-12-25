@@ -1,12 +1,10 @@
-name: Build Pipeline
+name: Publish
 
 on:
   push:
     branches:
       - main
       - dev
-    # tags:
-    #   - v[0-9]+.[0-9]+.[0-9]+
 
   pull_request:
     types:
@@ -15,19 +13,8 @@ on:
     branches:
       - "**"
 
-  # schedule:
-  #   - cron: "18 21 * * 6"
-
-  # Allows you to run this workflow manually from the Actions tab on GitHub.
-  workflow_dispatch:
-    inputs:
-      create_release:
-        description: Create a release
-        required: false
-        type: boolean
-
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.ref }}-build
   cancel-in-progress: true
 
 jobs:
@@ -46,7 +33,7 @@ jobs:
           # - windows-latest
           # - macOS-latest
         deno-version:
-          - 2.5.1
+          - 2.6.3
 
     steps:
       - name: Checkout repository
@@ -80,33 +67,17 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     permissions:
-      contents: write # Needed to push the repository
-      id-token: write # Needed for auth with Deno Deploy
-      pages: write # Needed for updating GitHub Pages
-
-    env:
-      GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID }}
-      GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET }}
+      contents: read
+      id-token: write # The OIDC ID token is used for authentication with JSR.
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 2
-          # ref: main
-          # token: ${{ secrets.GH_TOKEN }}
 
-      - name: Setup Deno (latest)
+      - name: Setup Deno
         uses: denoland/setup-deno@v2
-
-      # - name: Build step
-      #   run: deno task build
-
-      # - name: Upload to Deno Deploy
-      #   uses: denoland/deployctl@v1
-      #   with:
-      #     project: c00l
-      #     entrypoint: ./main.ts
 
       - name: Publish
         run: deno publish

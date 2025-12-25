@@ -39,6 +39,9 @@ const setPropertyByPath = (
 
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i];
+    if (part === undefined) {
+      continue;
+    }
     if (
       !(part in current) ||
       typeof current[part] !== "object" ||
@@ -50,7 +53,9 @@ const setPropertyByPath = (
   }
 
   const lastPart = parts[parts.length - 1];
-  current[lastPart] = value;
+  if (lastPart !== undefined) {
+    current[lastPart] = value;
+  }
 };
 
 /**
@@ -101,8 +106,9 @@ const resolveTargetFiles = (
   const field = config[fieldName] as TrackedField<unknown> | undefined;
 
   if (targetFiles === "origin") {
-    if (!field) {
-      return createIfMissing ? [config._loadedFiles[0]].filter(Boolean) : [];
+    if (field === undefined) {
+      const firstFile = config._loadedFiles[0];
+      return createIfMissing && firstFile !== undefined ? [firstFile] : [];
     }
     const originFile = config._loadedFiles.find((f) =>
       f.filepath === field.origin.filepath
@@ -260,7 +266,7 @@ export const updateVersion = async (
   newVersion: string,
   options?: Omit<UpdateOptions, "targetFiles">,
 ): Promise<UpdateResult> => {
-  return updateField(config, "version", newVersion, {
+  return await updateField(config, "version", newVersion, {
     ...options,
     targetFiles: "all", // Always update all files for version
   });
@@ -276,11 +282,11 @@ export const syncField = async (
 ): Promise<UpdateResult> => {
   const field = config[fieldName] as TrackedField<unknown> | undefined;
 
-  if (!field) {
+  if (field === undefined) {
     return { updated: [], failed: [], skipped: [] };
   }
 
-  return updateField(config, fieldName, field.value, {
+  return await updateField(config, fieldName, field.value, {
     targetFiles: "all",
     createIfMissing: false,
   });

@@ -30,6 +30,9 @@ over `||`
 **Runtime:** `import.meta.dirname`, `globalThis` over `window`, optional
 `projectRoot` params
 
+**Async:** Use `return await` consistently for better stack traces and correct
+error handling
+
 **Avoid:** `eval`, prototype mutation, truthy/falsy checks on non-booleans
 
 ## References

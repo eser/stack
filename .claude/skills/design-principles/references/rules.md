@@ -407,3 +407,95 @@ class User {
   }
 }
 ```
+
+---
+
+## Module-Level Side Effects
+
+Scope: All languages
+
+Rule: Avoid code executed at module scope. Wrap in lazy
+initialization functions instead.
+
+Problems with module-level code:
+- Runs on import, not when needed (wastes resources)
+- Errors cause entire module import to fail
+- Top-level await blocks module graph resolution
+- Hard to test (can't control execution timing)
+- Prevents tree-shaking
+- Creates import order dependencies
+
+Correct (lazy initialization):
+
+```typescript
+import { loadConfig } from "./config.ts";
+
+let cachedSettings: Settings | null = null;
+let initPromise: Promise<Settings> | null = null;
+
+export const getSettings = async (): Promise<Settings> => {
+  if (cachedSettings !== null) return cachedSettings;
+
+  if (initPromise === null) {
+    initPromise = loadConfig().then((config) => {
+      cachedSettings = processConfig(config);
+      return cachedSettings;
+    });
+  }
+
+  return initPromise;
+};
+```
+
+Correct (sync lazy initialization):
+
+```typescript
+let cachedValue: string | null = null;
+
+export const getValue = (): string => {
+  if (cachedValue === null) {
+    cachedValue = computeExpensiveValue();
+  }
+  return cachedValue;
+};
+```
+
+Incorrect (module-level side effects):
+
+```typescript
+// Runs on import - can fail, blocks loading
+const config = await loadConfig();
+export const settings = processConfig(config);
+
+// I/O at module level
+const envVars = Deno.env.toObject();
+const fileContent = await Deno.readTextFile("./data.json");
+
+// Complex computation on import
+const processedData = heavyComputation(rawData);
+```
+
+Acceptable module-level code:
+
+```typescript
+// Pure constants
+const MAX_RETRIES = 3;
+const API_VERSION = "v1";
+
+// Type definitions
+interface Config {
+  apiUrl: string;
+}
+
+// Function/class declarations (no invocation)
+function processData(data: Data): Result {
+  return transform(data);
+}
+
+// Simple object literals without side effects
+const defaultOptions = { timeout: 5000, retries: 3 };
+```
+
+Refactoring approach: When encountering module-level side
+effects, wrap in getter functions that compute on first
+call and cache the result. Use promises for async operations.

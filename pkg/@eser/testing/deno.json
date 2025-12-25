@@ -1,0 +1,10 @@
+{
+  "name": "@eser/testing",
+  "version": "0.8.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./fake-server": "./fake-server.ts",
+    "./fake-fs": "./fake-fs.ts",
+    "./temp-dir": "./temp-dir.ts"
+  }
+}

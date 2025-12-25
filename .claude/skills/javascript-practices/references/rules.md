@@ -444,3 +444,53 @@ Incorrect:
 if (!array.length) {} // false for length 0
 if (user) {} // false for null, undefined, 0, ""
 ```
+
+---
+
+## Async
+
+### Consistent Async Returns
+
+Scope: JS/TS
+
+Rule: Use `return await` consistently in async functions. Prefer explicit
+awaiting over implicit promise returns.
+
+Correct:
+
+```typescript
+async function fetchUser(id: string): Promise<User> {
+  return await userRepository.findById(id);
+}
+
+async function processData(): Promise<Result> {
+  try {
+    return await riskyOperation();
+  } catch (error) {
+    return await fallbackOperation();
+  }
+}
+```
+
+Incorrect:
+
+```typescript
+async function fetchUser(id: string): Promise<User> {
+  return userRepository.findById(id); // implicit return, worse stack trace
+}
+
+async function processData(): Promise<Result> {
+  try {
+    return riskyOperation(); // BUG: rejection bypasses catch block!
+  } catch (error) {
+    return fallbackOperation();
+  }
+}
+```
+
+Rationale:
+- Better stack traces for debugging
+- Correct error handling in try-catch (without await, rejections bypass catch)
+- No performance penalty (ECMA-262 updated)
+- Deno's require-await lint rule compatibility
+- ESLint's no-return-await is now deprecated

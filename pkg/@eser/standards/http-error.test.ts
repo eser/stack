@@ -61,63 +61,86 @@ Deno.test("isHttpError should correctly identify HttpError instances", () => {
   assert.assertEquals(isHttpError(nullValue), false);
 });
 
-Deno.test("badRequest helper should create 400 error", () => {
-  const error = badRequest("Invalid input");
-  assert.assertEquals(error.status, 400);
-  assert.assertEquals(error.message, "Invalid input");
+// Table-driven tests for HTTP error helper functions
+const helperTestCases = [
+  {
+    helper: badRequest,
+    status: 400,
+    message: "Invalid input",
+    defaultMsg: "Bad Request",
+    name: "badRequest",
+  },
+  {
+    helper: unauthorized,
+    status: 401,
+    message: "Login required",
+    defaultMsg: "Unauthorized",
+    name: "unauthorized",
+  },
+  {
+    helper: forbidden,
+    status: 403,
+    message: "Access denied",
+    defaultMsg: "Forbidden",
+    name: "forbidden",
+  },
+  {
+    helper: notFound,
+    status: 404,
+    message: "Resource not found",
+    defaultMsg: "Not Found",
+    name: "notFound",
+  },
+  {
+    helper: conflict,
+    status: 409,
+    message: "Resource conflict",
+    defaultMsg: "Conflict",
+    name: "conflict",
+  },
+  {
+    helper: unprocessableEntity,
+    status: 422,
+    message: "Validation failed",
+    defaultMsg: "Unprocessable Entity",
+    name: "unprocessableEntity",
+  },
+  {
+    helper: tooManyRequests,
+    status: 429,
+    message: "Rate limit exceeded",
+    defaultMsg: "Too Many Requests",
+    name: "tooManyRequests",
+  },
+  {
+    helper: internalServerError,
+    status: 500,
+    message: "Something went wrong",
+    defaultMsg: "Internal Server Error",
+    name: "internalServerError",
+  },
+  {
+    helper: serviceUnavailable,
+    status: 503,
+    message: "Service is down",
+    defaultMsg: "Service Unavailable",
+    name: "serviceUnavailable",
+  },
+] as const;
 
-  const defaultError = badRequest();
-  assert.assertEquals(defaultError.status, 400);
-  assert.assertEquals(defaultError.message, "Bad Request");
-});
+for (const { helper, status, message, defaultMsg, name } of helperTestCases) {
+  Deno.test(`${name} helper should create ${status} error with custom message`, () => {
+    const error = helper(message);
+    assert.assertEquals(error.status, status);
+    assert.assertEquals(error.message, message);
+  });
 
-Deno.test("unauthorized helper should create 401 error", () => {
-  const error = unauthorized("Login required");
-  assert.assertEquals(error.status, 401);
-  assert.assertEquals(error.message, "Login required");
-});
-
-Deno.test("forbidden helper should create 403 error", () => {
-  const error = forbidden("Access denied");
-  assert.assertEquals(error.status, 403);
-  assert.assertEquals(error.message, "Access denied");
-});
-
-Deno.test("notFound helper should create 404 error", () => {
-  const error = notFound("Resource not found");
-  assert.assertEquals(error.status, 404);
-  assert.assertEquals(error.message, "Resource not found");
-});
-
-Deno.test("conflict helper should create 409 error", () => {
-  const error = conflict("Resource conflict");
-  assert.assertEquals(error.status, 409);
-  assert.assertEquals(error.message, "Resource conflict");
-});
-
-Deno.test("unprocessableEntity helper should create 422 error", () => {
-  const error = unprocessableEntity("Validation failed");
-  assert.assertEquals(error.status, 422);
-  assert.assertEquals(error.message, "Validation failed");
-});
-
-Deno.test("tooManyRequests helper should create 429 error", () => {
-  const error = tooManyRequests("Rate limit exceeded");
-  assert.assertEquals(error.status, 429);
-  assert.assertEquals(error.message, "Rate limit exceeded");
-});
-
-Deno.test("internalServerError helper should create 500 error", () => {
-  const error = internalServerError("Something went wrong");
-  assert.assertEquals(error.status, 500);
-  assert.assertEquals(error.message, "Something went wrong");
-});
-
-Deno.test("serviceUnavailable helper should create 503 error", () => {
-  const error = serviceUnavailable("Service is down");
-  assert.assertEquals(error.status, 503);
-  assert.assertEquals(error.message, "Service is down");
-});
+  Deno.test(`${name} helper should use default message when none provided`, () => {
+    const error = helper();
+    assert.assertEquals(error.status, status);
+    assert.assertEquals(error.message, defaultMsg);
+  });
+}
 
 Deno.test("HttpError can be caught and inspected", () => {
   const throwAndCatch = (): { status: number; message: string } | null => {

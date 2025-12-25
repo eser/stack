@@ -1,6 +1,5 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as fs from "@std/fs";
 import * as posix from "@std/path/posix";
 import * as fileLoader from "@eser/config/file";
 import { runtime } from "@eser/standards/runtime";
@@ -38,8 +37,14 @@ const tryLoadConfigFile = async (
   filepath: string,
   fileType: ConfigFileType,
 ): Promise<RawConfigFile | undefined> => {
-  const exists = await fs.exists(filepath, { isFile: true });
-  if (!exists) {
+  const exists = await runtime.fs.exists(filepath);
+  if (exists === false) {
+    return undefined;
+  }
+
+  // Verify it's a file, not a directory
+  const stat = await runtime.fs.stat(filepath);
+  if (stat.isFile === false) {
     return undefined;
   }
 
@@ -117,7 +122,7 @@ const extractField = <T>(
   // Files are already in priority order
   for (const file of loadedFiles) {
     const propertyPath = fieldMappings[fieldName]?.[file.fileType];
-    if (!propertyPath) {
+    if (propertyPath === undefined) {
       continue;
     }
 
@@ -157,7 +162,7 @@ const extractField = <T>(
 const mergeFieldMappings = (
   customMappings?: Partial<FieldMapping>,
 ): FieldMapping => {
-  if (!customMappings) {
+  if (customMappings === undefined) {
     return DEFAULT_FIELD_MAPPINGS;
   }
 

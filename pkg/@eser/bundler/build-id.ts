@@ -3,19 +3,41 @@
 import * as hex from "@std/encoding/hex";
 import { runtime } from "@eser/standards/runtime";
 
-const env = runtime.env.toObject();
+// Lazy initialization state - computed on first getBuildId() call
+const buildIdState: { current: string | null } = { current: null };
+let initPromise: Promise<string> | null = null;
 
-const deploymentId = env["DENO_DEPLOYMENT_ID"] ||
-  // For CI
-  env["GITHUB_SHA"] ||
-  crypto.randomUUID();
-const buildIdHash = await crypto.subtle.digest(
-  "SHA-1",
-  new TextEncoder().encode(deploymentId),
-);
+const computeBuildId = async (): Promise<string> => {
+  const env = runtime.env.toObject();
+  const deploymentId = env["DENO_DEPLOYMENT_ID"] ??
+    // For CI
+    env["GITHUB_SHA"] ??
+    crypto.randomUUID();
 
-export let BUILD_ID = hex.encodeHex(buildIdHash);
+  const buildIdHash = await crypto.subtle.digest(
+    "SHA-1",
+    new TextEncoder().encode(deploymentId),
+  );
 
-export const setBuildId = (buildId: string) => {
-  BUILD_ID = buildId;
+  return hex.encodeHex(buildIdHash);
+};
+
+export const getBuildId = (): Promise<string> => {
+  if (buildIdState.current !== null) {
+    return Promise.resolve(buildIdState.current);
+  }
+
+  if (initPromise === null) {
+    initPromise = computeBuildId().then((id) => {
+      buildIdState.current = id;
+      return id;
+    });
+  }
+
+  return initPromise;
+};
+
+export const setBuildId = (buildId: string): void => {
+  buildIdState.current = buildId;
+  initPromise = Promise.resolve(buildId);
 };

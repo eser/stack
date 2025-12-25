@@ -1,12 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import {
-  assert,
-  assertEquals,
-  assertRejects,
-  assertStringIncludes,
-  assertThrows,
-} from "@std/assert";
+import * as assert from "@std/assert";
 import { runtime } from "@eser/standards/runtime";
 import {
   buildConfigMapFromContext,
@@ -54,13 +48,13 @@ Deno.test("buildConfigMapFromContext() should create valid ConfigMap", () => {
     data,
   );
 
-  assertEquals(configMap.apiVersion, "v1");
-  assertEquals(configMap.kind, "ConfigMap");
-  assertEquals(configMap.metadata.name, "test-config");
-  assertEquals(configMap.metadata.namespace, "test-namespace");
-  assertEquals(configMap.data?.["DD_SITE"], "datadoghq.com");
-  assertEquals(configMap.data?.["DD_API_KEY"], "test-api-key");
-  assertEquals(configMap.data?.["DB_HOST"], "localhost");
+  assert.assertEquals(configMap.apiVersion, "v1");
+  assert.assertEquals(configMap.kind, "ConfigMap");
+  assert.assertEquals(configMap.metadata.name, "test-config");
+  assert.assertEquals(configMap.metadata.namespace, "test-namespace");
+  assert.assertEquals(configMap.data?.["DD_SITE"], "datadoghq.com");
+  assert.assertEquals(configMap.data?.["DD_API_KEY"], "test-api-key");
+  assert.assertEquals(configMap.data?.["DB_HOST"], "localhost");
 });
 
 Deno.test("buildConfigMapFromContext() should omit default namespace", () => {
@@ -72,8 +66,8 @@ Deno.test("buildConfigMapFromContext() should omit default namespace", () => {
     data,
   );
 
-  assertEquals(configMap.metadata.name, "default-config");
-  assertEquals(configMap.metadata.namespace, undefined);
+  assert.assertEquals(configMap.metadata.name, "default-config");
+  assert.assertEquals(configMap.metadata.namespace, undefined);
 });
 
 Deno.test("buildConfigMapFromContext() should handle undefined namespace", () => {
@@ -85,8 +79,8 @@ Deno.test("buildConfigMapFromContext() should handle undefined namespace", () =>
     data,
   );
 
-  assertEquals(configMap.metadata.name, "no-namespace-config");
-  assertEquals(configMap.metadata.namespace, undefined);
+  assert.assertEquals(configMap.metadata.name, "no-namespace-config");
+  assert.assertEquals(configMap.metadata.namespace, undefined);
 });
 
 Deno.test("buildSecretFromContext() should create valid Secret with base64 encoding", () => {
@@ -98,16 +92,16 @@ Deno.test("buildSecretFromContext() should create valid Secret with base64 encod
 
   const secret = buildSecretFromContext("test-secret", "test-namespace", data);
 
-  assertEquals(secret.apiVersion, "v1");
-  assertEquals(secret.kind, "Secret");
-  assertEquals(secret.metadata.name, "test-secret");
-  assertEquals(secret.metadata.namespace, "test-namespace");
-  assertEquals(secret.type, "Opaque");
+  assert.assertEquals(secret.apiVersion, "v1");
+  assert.assertEquals(secret.kind, "Secret");
+  assert.assertEquals(secret.metadata.name, "test-secret");
+  assert.assertEquals(secret.metadata.namespace, "test-namespace");
+  assert.assertEquals(secret.type, "Opaque");
 
   // Verify base64 encoding
-  assertEquals(secret.data?.["DD_SITE"], btoa("datadoghq.com"));
-  assertEquals(secret.data?.["DD_API_KEY"], btoa("test-api-key"));
-  assertEquals(secret.data?.["DB_PASSWORD"], btoa("secret123"));
+  assert.assertEquals(secret.data?.["DD_SITE"], btoa("datadoghq.com"));
+  assert.assertEquals(secret.data?.["DD_API_KEY"], btoa("test-api-key"));
+  assert.assertEquals(secret.data?.["DB_PASSWORD"], btoa("secret123"));
 });
 
 Deno.test("buildSecretFromContext() should handle special characters in values", () => {
@@ -118,11 +112,14 @@ Deno.test("buildSecretFromContext() should handle special characters in values",
 
   const secret = buildSecretFromContext("special-secret", "test-ns", data);
 
-  assertEquals(
+  assert.assertEquals(
     secret.data?.["SPECIAL_VAR"],
     btoa("value with spaces & symbols!@#$%"),
   );
-  assertEquals(secret.data?.["MULTILINE_VAR"], btoa("line1\\nline2\\nline3"));
+  assert.assertEquals(
+    secret.data?.["MULTILINE_VAR"],
+    btoa("line1\\nline2\\nline3"),
+  );
 });
 
 Deno.test("buildSecretFromContext() should omit default namespace", () => {
@@ -130,16 +127,16 @@ Deno.test("buildSecretFromContext() should omit default namespace", () => {
 
   const secret = buildSecretFromContext("default-secret", "default", data);
 
-  assertEquals(secret.metadata.name, "default-secret");
-  assertEquals(secret.metadata.namespace, undefined);
+  assert.assertEquals(secret.metadata.name, "default-secret");
+  assert.assertEquals(secret.metadata.namespace, undefined);
 });
 
 Deno.test("buildSecretFromContext() should handle empty data", () => {
   const secret = buildSecretFromContext("empty-secret", "test-ns", new Map());
 
-  assertEquals(secret.kind, "Secret");
-  assertEquals(secret.metadata.name, "empty-secret");
-  assertEquals(Object.keys(secret.data ?? {}).length, 0);
+  assert.assertEquals(secret.kind, "Secret");
+  assert.assertEquals(secret.metadata.name, "empty-secret");
+  assert.assertEquals(Object.keys(secret.data ?? {}).length, 0);
 });
 
 Deno.test("sync() should handle empty kubectl response", async () => {
@@ -150,10 +147,10 @@ Deno.test("sync() should handle empty kubectl response", async () => {
     });
 
     // Should handle empty result gracefully
-    assertStringIncludes(result, "No data found");
+    assert.assertStringIncludes(result, "No data found");
   } catch (error) {
     // Expected if kubectl is not available in test environment
-    assertStringIncludes(
+    assert.assertStringIncludes(
       (error as Error).message,
       "kubectl",
     );
@@ -178,13 +175,13 @@ Deno.test("sync() should generate kubectl patch command for configmap type", asy
     if (
       !result.includes("No data found") && !result.includes("Failed to sync")
     ) {
-      assertStringIncludes(result, "kubectl patch cm test-config");
-      assertStringIncludes(result, "-n test-ns");
-      assertStringIncludes(result, "--type=merge");
+      assert.assertStringIncludes(result, "kubectl patch cm test-config");
+      assert.assertStringIncludes(result, "-n test-ns");
+      assert.assertStringIncludes(result, "--type=merge");
     }
   } catch (error) {
     // Expected behavior when kubectl is not available
-    assertStringIncludes((error as Error).message, "kubectl");
+    assert.assertStringIncludes((error as Error).message, "kubectl");
   } finally {
     cleanupTestEnv(Object.keys(testEnv));
   }
@@ -202,13 +199,13 @@ Deno.test("sync() should generate kubectl patch command for secret type", async 
     if (
       !result.includes("No data found") && !result.includes("Failed to sync")
     ) {
-      assertStringIncludes(result, "kubectl patch secret test-secret");
-      assertStringIncludes(result, "-n test-ns");
-      assertStringIncludes(result, "--type=merge");
+      assert.assertStringIncludes(result, "kubectl patch secret test-secret");
+      assert.assertStringIncludes(result, "-n test-ns");
+      assert.assertStringIncludes(result, "--type=merge");
     }
   } catch (error) {
     // Expected behavior when kubectl is not available
-    assertStringIncludes((error as Error).message, "kubectl");
+    assert.assertStringIncludes((error as Error).message, "kubectl");
   } finally {
     cleanupTestEnv(Object.keys(testEnv));
   }
@@ -227,13 +224,13 @@ Deno.test("sync() should generate proper kubectl patch command format", async ()
       !result.includes("No data found") && !result.includes("Failed to sync")
     ) {
       // Should contain proper kubectl patch format
-      assertStringIncludes(result, "kubectl patch cm json-config");
-      assertStringIncludes(result, "--type=merge");
-      assertStringIncludes(result, '-p \'{"data":');
+      assert.assertStringIncludes(result, "kubectl patch cm json-config");
+      assert.assertStringIncludes(result, "--type=merge");
+      assert.assertStringIncludes(result, '-p \'{"data":');
     }
   } catch (error) {
     // Expected behavior when kubectl is not available
-    assertStringIncludes((error as Error).message, "kubectl");
+    assert.assertStringIncludes((error as Error).message, "kubectl");
   } finally {
     cleanupTestEnv(Object.keys(testEnv));
   }
@@ -252,12 +249,12 @@ Deno.test("sync() should support YAML format patch commands", async () => {
       !result.includes("No data found") && !result.includes("Failed to sync")
     ) {
       // Should contain YAML format
-      assertStringIncludes(result, "kubectl patch cm yaml-config");
-      assertStringIncludes(result, "--type=merge");
-      assertStringIncludes(result, "data:");
+      assert.assertStringIncludes(result, "kubectl patch cm yaml-config");
+      assert.assertStringIncludes(result, "--type=merge");
+      assert.assertStringIncludes(result, "data:");
     }
   } catch (error) {
-    assertStringIncludes((error as Error).message, "kubectl");
+    assert.assertStringIncludes((error as Error).message, "kubectl");
   } finally {
     cleanupTestEnv(Object.keys(testEnv));
   }
@@ -276,11 +273,11 @@ Deno.test("sync() should support string-only output", async () => {
       !result.includes("No data found") && !result.includes("Failed to sync")
     ) {
       // Should only contain JSON patch data, no kubectl command
-      assertStringIncludes(result, '{"data":');
-      assert(!result.includes("kubectl"));
+      assert.assertStringIncludes(result, '{"data":');
+      assert.assert(!result.includes("kubectl"));
     }
   } catch (error) {
-    assertStringIncludes((error as Error).message, "kubectl");
+    assert.assertStringIncludes((error as Error).message, "kubectl");
   } finally {
     cleanupTestEnv(Object.keys(testEnv));
   }
@@ -290,16 +287,19 @@ Deno.test("sync() should support string-only output", async () => {
 Deno.test("CLI should handle configmap resource format", () => {
   // Test that our resource type mapping works correctly
   const configMapType = "configmap";
-  assertEquals(configMapType, "configmap");
+  assert.assertEquals(configMapType, "configmap");
 
   const cmShortType = "cm";
   // In the actual implementation, "cm" gets mapped to "configmap"
-  assertEquals(cmShortType === "cm" ? "configmap" : cmShortType, "configmap");
+  assert.assertEquals(
+    cmShortType === "cm" ? "configmap" : cmShortType,
+    "configmap",
+  );
 });
 
 Deno.test("CLI should handle secret resource format", () => {
   const secretType = "secret";
-  assertEquals(secretType, "secret");
+  assert.assertEquals(secretType, "secret");
 });
 
 // Test integration with @eser/writer for YAML/JSON output
@@ -317,12 +317,12 @@ Deno.test("ConfigMap YAML output should be properly formatted", async () => {
 
   const yamlOutput = write([configMap], "yaml", { pretty: true });
 
-  assertStringIncludes(yamlOutput, "apiVersion: v1");
-  assertStringIncludes(yamlOutput, "kind: ConfigMap");
-  assertStringIncludes(yamlOutput, "name: format-test");
-  assertStringIncludes(yamlOutput, "namespace: test-ns");
-  assertStringIncludes(yamlOutput, "APP_NAME: my-app");
-  assertStringIncludes(yamlOutput, "APP_VERSION: 1.0.0");
+  assert.assertStringIncludes(yamlOutput, "apiVersion: v1");
+  assert.assertStringIncludes(yamlOutput, "kind: ConfigMap");
+  assert.assertStringIncludes(yamlOutput, "name: format-test");
+  assert.assertStringIncludes(yamlOutput, "namespace: test-ns");
+  assert.assertStringIncludes(yamlOutput, "APP_NAME: my-app");
+  assert.assertStringIncludes(yamlOutput, "APP_VERSION: 1.0.0");
 });
 
 Deno.test("Secret YAML output should be properly formatted", async () => {
@@ -339,14 +339,14 @@ Deno.test("Secret YAML output should be properly formatted", async () => {
 
   const yamlOutput = write([secret], "yaml", { pretty: true });
 
-  assertStringIncludes(yamlOutput, "apiVersion: v1");
-  assertStringIncludes(yamlOutput, "kind: Secret");
-  assertStringIncludes(yamlOutput, "name: secret-format-test");
-  assertStringIncludes(yamlOutput, "namespace: test-ns");
-  assertStringIncludes(yamlOutput, "type: Opaque");
+  assert.assertStringIncludes(yamlOutput, "apiVersion: v1");
+  assert.assertStringIncludes(yamlOutput, "kind: Secret");
+  assert.assertStringIncludes(yamlOutput, "name: secret-format-test");
+  assert.assertStringIncludes(yamlOutput, "namespace: test-ns");
+  assert.assertStringIncludes(yamlOutput, "type: Opaque");
   // Data should be base64 encoded
-  assertStringIncludes(yamlOutput, btoa("secret123"));
-  assertStringIncludes(yamlOutput, btoa("password456"));
+  assert.assertStringIncludes(yamlOutput, btoa("secret123"));
+  assert.assertStringIncludes(yamlOutput, btoa("password456"));
 });
 
 Deno.test("JSON output should be valid JSON", async () => {
@@ -364,11 +364,11 @@ Deno.test("JSON output should be valid JSON", async () => {
 
   // Should be parseable as JSON
   const parsed = JSON.parse(jsonOutput);
-  assertEquals(Array.isArray(parsed), true);
-  assertEquals(parsed[0].apiVersion, "v1");
-  assertEquals(parsed[0].kind, "ConfigMap");
-  assertEquals(parsed[0].metadata.name, "json-format-test");
-  assertEquals(parsed[0].data["CONFIG_KEY"], "config-value");
+  assert.assertEquals(Array.isArray(parsed), true);
+  assert.assertEquals(parsed[0].apiVersion, "v1");
+  assert.assertEquals(parsed[0].kind, "ConfigMap");
+  assert.assertEquals(parsed[0].metadata.name, "json-format-test");
+  assert.assertEquals(parsed[0].data["CONFIG_KEY"], "config-value");
 });
 
 // Error handling tests
@@ -384,11 +384,11 @@ Deno.test("sync() should handle kubectl command failures", async () => {
       !result.includes("No data found") && !result.includes("Failed to sync")
     ) {
       // If it doesn't contain expected messages, kubectl was not available
-      assertStringIncludes(result, "ConfigMap");
+      assert.assertStringIncludes(result, "ConfigMap");
     }
   } catch (error) {
     // Expected behavior when kubectl fails
-    assertStringIncludes((error as Error).message, "kubectl");
+    assert.assertStringIncludes((error as Error).message, "kubectl");
   }
 });
 
@@ -416,11 +416,11 @@ Deno.test("Full workflow test with mock data", async () => {
     const yamlOutput = write([configMap], "yaml", { pretty: true });
 
     // Verify the complete workflow
-    assertStringIncludes(yamlOutput, "kind: ConfigMap");
-    assertStringIncludes(yamlOutput, "name: workflow-test");
-    assertStringIncludes(yamlOutput, "DD_SITE: datadoghq.com");
-    assertStringIncludes(yamlOutput, "DD_API_KEY: test-api-key");
-    assertStringIncludes(yamlOutput, "DB_HOST: localhost");
+    assert.assertStringIncludes(yamlOutput, "kind: ConfigMap");
+    assert.assertStringIncludes(yamlOutput, "name: workflow-test");
+    assert.assertStringIncludes(yamlOutput, "DD_SITE: datadoghq.com");
+    assert.assertStringIncludes(yamlOutput, "DD_API_KEY: test-api-key");
+    assert.assertStringIncludes(yamlOutput, "DB_HOST: localhost");
 
     // Test Secret workflow
     const secret = buildSecretFromContext(
@@ -430,12 +430,12 @@ Deno.test("Full workflow test with mock data", async () => {
     );
     const secretYaml = write([secret], "yaml", { pretty: true });
 
-    assertStringIncludes(secretYaml, "kind: Secret");
-    assertStringIncludes(secretYaml, "name: workflow-secret");
-    assertStringIncludes(secretYaml, "type: Opaque");
+    assert.assertStringIncludes(secretYaml, "kind: Secret");
+    assert.assertStringIncludes(secretYaml, "name: workflow-secret");
+    assert.assertStringIncludes(secretYaml, "type: Opaque");
     // Verify base64 encoding
-    assertStringIncludes(secretYaml, btoa("datadoghq.com"));
-    assertStringIncludes(secretYaml, btoa("test-api-key"));
+    assert.assertStringIncludes(secretYaml, btoa("datadoghq.com"));
+    assert.assertStringIncludes(secretYaml, btoa("test-api-key"));
   } finally {
     cleanupTestEnv(Object.keys(testEnv));
   }
@@ -466,7 +466,7 @@ Deno.test("validateKubernetesResourceName() should accept valid names", () => {
 });
 
 Deno.test("validateKubernetesResourceName() should reject empty names", () => {
-  assertThrows(
+  assert.assertThrows(
     () => validateKubernetesResourceName(""),
     KubernetesResourceNameError,
     "cannot be empty",
@@ -475,7 +475,7 @@ Deno.test("validateKubernetesResourceName() should reject empty names", () => {
 
 Deno.test("validateKubernetesResourceName() should reject names exceeding 253 characters", () => {
   const longName = "a".repeat(254);
-  assertThrows(
+  assert.assertThrows(
     () => validateKubernetesResourceName(longName),
     KubernetesResourceNameError,
     "253 characters or less",
@@ -483,7 +483,7 @@ Deno.test("validateKubernetesResourceName() should reject names exceeding 253 ch
 });
 
 Deno.test("validateKubernetesResourceName() should reject names with uppercase letters", () => {
-  assertThrows(
+  assert.assertThrows(
     () => validateKubernetesResourceName("MyApp"),
     KubernetesResourceNameError,
     "lowercase alphanumeric",
@@ -493,7 +493,7 @@ Deno.test("validateKubernetesResourceName() should reject names with uppercase l
 Deno.test("validateKubernetesResourceName() should reject names starting with non-alphanumeric", () => {
   const invalidStarts = ["-app", ".app", "_app"];
   for (const name of invalidStarts) {
-    assertThrows(
+    assert.assertThrows(
       () => validateKubernetesResourceName(name),
       KubernetesResourceNameError,
     );
@@ -503,7 +503,7 @@ Deno.test("validateKubernetesResourceName() should reject names starting with no
 Deno.test("validateKubernetesResourceName() should reject names ending with non-alphanumeric", () => {
   const invalidEnds = ["app-", "app.", "app_"];
   for (const name of invalidEnds) {
-    assertThrows(
+    assert.assertThrows(
       () => validateKubernetesResourceName(name),
       KubernetesResourceNameError,
     );
@@ -529,7 +529,7 @@ Deno.test("validateKubernetesResourceName() should reject names with shell metac
   ];
 
   for (const name of dangerousNames) {
-    assertThrows(
+    assert.assertThrows(
       () => validateKubernetesResourceName(name),
       KubernetesResourceNameError,
     );
@@ -537,13 +537,13 @@ Deno.test("validateKubernetesResourceName() should reject names with shell metac
 });
 
 Deno.test("validateKubernetesResourceName() should reject names with consecutive dots or dashes", () => {
-  assertThrows(
+  assert.assertThrows(
     () => validateKubernetesResourceName("app..name"),
     KubernetesResourceNameError,
     "consecutive dots or dashes",
   );
 
-  assertThrows(
+  assert.assertThrows(
     () => validateKubernetesResourceName("app--name"),
     KubernetesResourceNameError,
     "consecutive dots or dashes",
@@ -553,9 +553,9 @@ Deno.test("validateKubernetesResourceName() should reject names with consecutive
 Deno.test("validateKubernetesResourceName() should use custom field name in error messages", () => {
   try {
     validateKubernetesResourceName("", "namespace");
-    assert(false, "Should have thrown");
+    assert.assert(false, "Should have thrown");
   } catch (error) {
-    assertStringIncludes((error as Error).message, "namespace");
+    assert.assertStringIncludes((error as Error).message, "namespace");
   }
 });
 
@@ -575,7 +575,7 @@ Deno.test("validateResourceReference() should validate both name and namespace",
 });
 
 Deno.test("validateResourceReference() should reject invalid resource names", () => {
-  assertThrows(
+  assert.assertThrows(
     () =>
       validateResourceReference({
         type: "configmap",
@@ -587,7 +587,7 @@ Deno.test("validateResourceReference() should reject invalid resource names", ()
 });
 
 Deno.test("validateResourceReference() should reject invalid namespace", () => {
-  assertThrows(
+  assert.assertThrows(
     () =>
       validateResourceReference({
         type: "configmap",
@@ -599,7 +599,7 @@ Deno.test("validateResourceReference() should reject invalid namespace", () => {
 });
 
 Deno.test("sync() should reject invalid resource names", async () => {
-  await assertRejects(
+  await assert.assertRejects(
     () =>
       sync({
         resource: { type: "configmap", name: "invalid;name" },
@@ -609,7 +609,7 @@ Deno.test("sync() should reject invalid resource names", async () => {
 });
 
 Deno.test("sync() should reject invalid namespace", async () => {
-  await assertRejects(
+  await assert.assertRejects(
     () =>
       sync({
         resource: {

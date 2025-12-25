@@ -178,19 +178,29 @@ Deno.test("Logger convenience methods work correctly", async () => {
   assert.assert(output[4]!.includes("critical message"));
 });
 
-Deno.test("Logger.asString() converts values to strings", () => {
-  const { stream } = createTestStream();
-  const state = createLoggerState("test-logger", stream);
-  const logger = new Logger(state);
+// Table-driven tests for Logger.asString()
+const asStringTestCases = [
+  { input: "hello", expected: "hello", name: "string value" },
+  { input: 123, expected: "123", name: "number value" },
+  { input: true, expected: "true", name: "boolean value" },
+  {
+    input: { key: "value" },
+    expected: '{"key":"value"}',
+    name: "object value",
+  },
+  { input: [1, 2, 3], expected: "[1,2,3]", name: "array value" },
+  { input: null, expected: "null", name: "null value" },
+  { input: undefined, expected: "undefined", name: "undefined value" },
+];
 
-  assert.assertEquals(logger.asString("hello"), "hello");
-  assert.assertEquals(logger.asString(123), "123");
-  assert.assertEquals(logger.asString(true), "true");
-  assert.assertEquals(logger.asString({ key: "value" }), '{"key":"value"}');
-  assert.assertEquals(logger.asString([1, 2, 3]), "[1,2,3]");
-  assert.assertEquals(logger.asString(null), "null");
-  assert.assertEquals(logger.asString(undefined), "undefined");
-});
+for (const { input, expected, name } of asStringTestCases) {
+  Deno.test(`Logger.asString() handles ${name}`, () => {
+    const { stream } = createTestStream();
+    const state = createLoggerState("test-logger", stream);
+    const logger = new Logger(state);
+    assert.assertEquals(logger.asString(input), expected);
+  });
+}
 
 Deno.test("Logger creates proper LogRecord", async () => {
   const { stream, output } = createTestStream();

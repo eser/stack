@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as posix from "@std/path/posix";
-import { expandGlob } from "@std/fs/expand-glob";
+import * as fs from "@std/fs/expand-glob";
 import { runtime } from "@eser/standards/runtime";
 import type { PackageConfig, WorkspaceModule } from "./types.ts";
 import { getBaseDir, load, PackageLoadError, tryLoad } from "./loader.ts";
@@ -43,7 +43,7 @@ const expandWorkspacePaths = async (
     if (pattern.includes("*") || pattern.includes("?")) {
       // Expand glob pattern
       for await (
-        const entry of expandGlob(fullPattern, { includeDirs: true })
+        const entry of fs.expandGlob(fullPattern, { includeDirs: true })
       ) {
         if (entry.isDirectory) {
           paths.push(entry.path);
@@ -95,7 +95,7 @@ export const getWorkspaceModules = async (
   for (const workspacePath of workspacePaths) {
     const workspaceConfig = await tryLoad({ baseDir: workspacePath });
 
-    if (!workspaceConfig) {
+    if (workspaceConfig === undefined) {
       continue;
     }
 
@@ -103,7 +103,7 @@ export const getWorkspaceModules = async (
     const version = workspaceConfig.version?.value;
     const isPrivate = workspaceConfig.private?.value;
 
-    if (!name) {
+    if (name === undefined) {
       continue;
     }
 

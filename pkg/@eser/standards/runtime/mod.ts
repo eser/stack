@@ -28,6 +28,7 @@
 
 // Re-export types
 export type {
+  Arch,
   ChildProcess,
   CreateRuntimeOptions,
   DirEntry,
@@ -36,6 +37,8 @@ export type {
   MakeTempOptions,
   MkdirOptions,
   ParsedPath,
+  Platform,
+  PlatformInfo,
   ProcessOutput,
   ProcessStatus,
   RemoveOptions,
@@ -72,6 +75,15 @@ export {
   isWorkerd,
 } from "./detect.ts";
 
+// Re-export platform utilities
+export {
+  getArch,
+  getHomedir,
+  getPlatform,
+  getPlatformInfo,
+  getTmpdir,
+} from "./platform.ts";
+
 // Re-export capabilities
 export {
   BROWSER_CAPABILITIES,
@@ -87,6 +99,12 @@ export {
 
 // Re-export polyfills
 export { posixPath } from "./polyfills/path.ts";
+
+// Re-export file search utilities
+export {
+  searchFileHierarchy,
+  type SearchFileHierarchyOptions,
+} from "./file-search.ts";
 
 // Re-export Workers-specific utilities
 export {

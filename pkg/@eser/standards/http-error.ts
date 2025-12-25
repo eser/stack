@@ -87,55 +87,40 @@ export const isHttpError = (error: unknown): error is HttpError => {
 };
 
 /**
- * Creates an HttpError for a 400 Bad Request response.
+ * Factory function type for creating HTTP errors.
  */
-export const badRequest = (message?: string): HttpError =>
-  new HttpError(400, message);
+export type HttpErrorFactory = (message?: string) => HttpError;
 
 /**
- * Creates an HttpError for a 401 Unauthorized response.
+ * Creates an error factory function for a specific HTTP status code.
  */
-export const unauthorized = (message?: string): HttpError =>
-  new HttpError(401, message);
+const createErrorFactory =
+  (status: ErrorStatus): HttpErrorFactory => (message?: string): HttpError =>
+    new HttpError(status, message);
 
-/**
- * Creates an HttpError for a 403 Forbidden response.
- */
-export const forbidden = (message?: string): HttpError =>
-  new HttpError(403, message);
+/** Creates an HttpError for a 400 Bad Request response. */
+export const badRequest: HttpErrorFactory = createErrorFactory(400);
 
-/**
- * Creates an HttpError for a 404 Not Found response.
- */
-export const notFound = (message?: string): HttpError =>
-  new HttpError(404, message);
+/** Creates an HttpError for a 401 Unauthorized response. */
+export const unauthorized: HttpErrorFactory = createErrorFactory(401);
 
-/**
- * Creates an HttpError for a 409 Conflict response.
- */
-export const conflict = (message?: string): HttpError =>
-  new HttpError(409, message);
+/** Creates an HttpError for a 403 Forbidden response. */
+export const forbidden: HttpErrorFactory = createErrorFactory(403);
 
-/**
- * Creates an HttpError for a 422 Unprocessable Entity response.
- */
-export const unprocessableEntity = (message?: string): HttpError =>
-  new HttpError(422, message);
+/** Creates an HttpError for a 404 Not Found response. */
+export const notFound: HttpErrorFactory = createErrorFactory(404);
 
-/**
- * Creates an HttpError for a 429 Too Many Requests response.
- */
-export const tooManyRequests = (message?: string): HttpError =>
-  new HttpError(429, message);
+/** Creates an HttpError for a 409 Conflict response. */
+export const conflict: HttpErrorFactory = createErrorFactory(409);
 
-/**
- * Creates an HttpError for a 500 Internal Server Error response.
- */
-export const internalServerError = (message?: string): HttpError =>
-  new HttpError(500, message);
+/** Creates an HttpError for a 422 Unprocessable Entity response. */
+export const unprocessableEntity: HttpErrorFactory = createErrorFactory(422);
 
-/**
- * Creates an HttpError for a 503 Service Unavailable response.
- */
-export const serviceUnavailable = (message?: string): HttpError =>
-  new HttpError(503, message);
+/** Creates an HttpError for a 429 Too Many Requests response. */
+export const tooManyRequests: HttpErrorFactory = createErrorFactory(429);
+
+/** Creates an HttpError for a 500 Internal Server Error response. */
+export const internalServerError: HttpErrorFactory = createErrorFactory(500);
+
+/** Creates an HttpError for a 503 Service Unavailable response. */
+export const serviceUnavailable: HttpErrorFactory = createErrorFactory(503);

@@ -1,5 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import type { MiddlewareFn } from "../types.ts";
+
 /**
  * CSP directive names as defined by the Content Security Policy specification.
  */
@@ -96,14 +98,6 @@ const buildCspHeader = (
     })
     .join("; ");
 };
-
-/**
- * Middleware function type.
- */
-export type MiddlewareFn = (
-  req: Request,
-  next: () => Response | Promise<Response>,
-) => Response | Promise<Response>;
 
 /**
  * Creates a Content Security Policy middleware.

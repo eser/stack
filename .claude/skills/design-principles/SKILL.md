@@ -27,6 +27,7 @@ function updateUser(user: User, age: number): User {
 - Template strings over concatenation
 - Plain objects for data, classes only for stateful services
 - Avoid global variables and getters/setters
+- Lazy initialization: no module-level side effects, wrap in getter functions
 
 ## References
 

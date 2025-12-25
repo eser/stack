@@ -1,11 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as fs from "@std/fs";
 import * as jsonc from "@std/jsonc";
 import * as posix from "@std/path/posix";
 import * as toml from "@std/toml";
 import * as yaml from "@std/yaml";
-import { runtime } from "@eser/standards/runtime";
+import { runtime, searchFileHierarchy } from "@eser/standards/runtime";
 import * as primitives from "./primitives.ts";
 
 /**
@@ -40,38 +39,20 @@ export class ConfigParseError extends Error {
   }
 }
 
-// TODO(@eser) introduce strategy pattern for "search parents" and "recursive search" options
-
+/**
+ * Locates a configuration file in a directory hierarchy.
+ *
+ * @param baseDir - The directory to start searching from
+ * @param filenames - Array of filenames to search for (in priority order)
+ * @param searchParents - Whether to search parent directories
+ * @returns The path to the first found file, or undefined if not found
+ */
 export const locate = async (
   baseDir: string,
   filenames: Array<string>,
   searchParents = false,
 ): Promise<string | undefined> => {
-  let dir = baseDir;
-
-  while (true) {
-    for (const name of filenames) {
-      const filepath = posix.join(dir, name);
-      const isExists = await fs.exists(filepath, { isFile: true });
-
-      if (isExists) {
-        return filepath;
-      }
-    }
-
-    if (!searchParents) {
-      break;
-    }
-
-    const parent = posix.dirname(dir);
-    if (parent === dir) {
-      break;
-    }
-
-    dir = parent;
-  }
-
-  return undefined;
+  return await searchFileHierarchy(baseDir, filenames, { searchParents });
 };
 
 export const getFileFormat = (filepath: string): primitives.FileFormat => {

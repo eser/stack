@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-env --allow-run
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { parseArgs } from "@std/cli/parse-args";
+import * as cli from "@std/cli/parse-args";
 import { runtime } from "@eser/standards/runtime";
 import { generate } from "./generate.ts";
 import { sync } from "./sync.ts";
@@ -97,7 +97,7 @@ function parseCliArgs(): {
   options: CliOptions;
   kubectlResource?: KubectlResourceReference;
 } {
-  const args = parseArgs([...runtime.process.args], {
+  const args = cli.parseArgs([...runtime.process.args], {
     string: ["namespace", "env", "output"],
     boolean: ["help", "version", "string-only"],
     alias: {

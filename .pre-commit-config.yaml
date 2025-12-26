@@ -85,6 +85,7 @@ repos:
             pkg/@eser/app-runtime/README.md|
             pkg/@eser/bundler/README.md|
             pkg/@eser/cache/README.md|
+            pkg/@eser/cli/README.md|
             pkg/@eser/collector/README.md|
             pkg/@eser/config/README.md|
             pkg/@eser/cs/README.md|

@@ -36,6 +36,7 @@
     ".claude/",
     "docs/",
     "etc/temp/",
-    "node_modules/"
+    "node_modules/",
+    "pkg/@eser/cli/dist/"
   ]
 }

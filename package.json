@@ -1,6 +1,6 @@
 {
   "name": "@eser/stack",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -17,8 +17,7 @@
     "container:run": "docker run --interactive --tty --rm eservm",
     "doc:generate": "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts",
     "doc:lint": "deno doc --lint ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts",
-    "npm-publish:prepare": "deno run -A pkg/@eser/cli/scripts/npm-publish-prepare.ts",
-    "npm-publish:revert": "deno run -A pkg/@eser/cli/scripts/npm-publish-revert.ts",
+    "npm-build": "deno run -A pkg/@eser/cli/scripts/npm-build.ts",
     "repl": "deno repl --unstable-temporal --allow-all --eval-file=./repl-init.ts",
     "test:coverage-gen": "deno coverage ./etc/coverage --lcov --output=./etc/coverage.lcov",
     "test:coverage": "deno coverage ./etc/coverage/",

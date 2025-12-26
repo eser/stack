@@ -1,7 +1,8 @@
 {
   "name": "@eser/codebase",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "exports": {
+    ".": "./mod.ts",
     "./git": "./git.ts",
     "./package": "./package/mod.ts",
     "./workspace-discovery": "./workspace-discovery.ts",

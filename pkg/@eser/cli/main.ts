@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * eser - Versatile development CLI
+ * eser - Eser Ozvataf's command-line tooling to access things
  *
  * A multi-purpose command-line tool for development workflows.
  * Similar in design to `gh` (GitHub CLI) or `wrangler` (Cloudflare).
@@ -19,7 +19,7 @@
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as standardsRuntime from "@eser/standards/runtime";
 import { codebaseCommand } from "./commands/codebase/mod.ts";
-import config from "./deno.json" with { type: "json" };
+import config from "./package.json" with { type: "json" };
 
 type CommandHandler = (
   args: string[],
@@ -31,7 +31,7 @@ const commands: Record<string, CommandHandler> = {
 };
 
 const showHelp = (): void => {
-  console.log("eser - Versatile development CLI\n");
+  console.log("eser - Eser Ozvataf's command-line tooling to access things\n");
   console.log("Usage: eser <command> [subcommand] [options]\n");
   console.log("Commands:");
   console.log("  codebase    Codebase validation and management tools");

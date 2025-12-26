@@ -22,6 +22,10 @@ type PackageJson = {
   version: string;
   type?: string;
   bin?: Record<string, string>;
+  repository?: {
+    type: string;
+    url: string;
+  };
 };
 
 type SourcePackageJson = {
@@ -99,6 +103,10 @@ const main = async (): Promise<void> => {
     version: sourcePackageJson.version,
     type: "module",
     bin: { eser: "./eser.js" },
+    repository: {
+      type: "git",
+      url: "https://github.com/eser/stack",
+    },
   };
 
   const distPackageJsonPath = path.join(distDir, "package.json");

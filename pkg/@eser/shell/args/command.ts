@@ -137,7 +137,17 @@ export class Command implements CommandLike {
     return this;
   }
 
-  /** Get all flags including inherited persistent flags */
+  /** Built-in flags available to all commands */
+  static readonly #builtInFlags: FlagDef[] = [
+    {
+      name: "help",
+      short: "h",
+      type: "boolean",
+      description: "Show help for this command",
+    },
+  ];
+
+  /** Get all flags including inherited persistent flags and built-in flags */
   #getAllFlags(): FlagDef[] {
     const inherited: FlagDef[] = [];
     let current: Command | undefined = this.#parent;
@@ -145,7 +155,12 @@ export class Command implements CommandLike {
       inherited.push(...current.#persistentFlags);
       current = current.#parent;
     }
-    return [...inherited, ...this.#persistentFlags, ...this.#flags];
+    return [
+      ...Command.#builtInFlags,
+      ...inherited,
+      ...this.#persistentFlags,
+      ...this.#flags,
+    ];
   }
 
   /** Get the root command */

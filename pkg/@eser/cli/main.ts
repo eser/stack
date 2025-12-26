@@ -21,7 +21,11 @@
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as standardsRuntime from "@eser/standards/runtime";
-import type { CommandContext, CommandLike } from "@eser/shell/args";
+import {
+  Command,
+  type CommandContext,
+  type CommandLike,
+} from "@eser/shell/args";
 import { codebaseCommand } from "./commands/codebase/mod.ts";
 import { systemCommand } from "./commands/system.ts";
 import { installHandler, updateHandler } from "./commands/handlers/mod.ts";
@@ -62,11 +66,30 @@ const wrapHandler = (
   };
 };
 
+const versionCommand = new Command("version")
+  .description("Show version number")
+  .flag({
+    name: "bare",
+    type: "boolean",
+    description: "Output version number only, without 'eser' prefix",
+  })
+  .run((ctx) => {
+    if (ctx.flags["bare"] === true) {
+      // deno-lint-ignore no-console
+      console.log(config.version);
+    } else {
+      // deno-lint-ignore no-console
+      console.log(`eser ${config.version}`);
+    }
+    return Promise.resolve();
+  });
+
 const commands: Record<string, CommandHandler> = {
   codebase: codebaseCommand,
   system: wrapCommand(systemCommand),
   install: wrapHandler(installHandler, "install"),
   update: wrapHandler(updateHandler, "update"),
+  version: wrapCommand(versionCommand),
 };
 
 const showHelp = (): void => {
@@ -89,11 +112,11 @@ const showHelp = (): void => {
     "  update      Update eser CLI to latest version (alias for system update)",
   );
   // deno-lint-ignore no-console
+  console.log("  version     Show version number");
+  // deno-lint-ignore no-console
   console.log("\nOptions:");
   // deno-lint-ignore no-console
-  console.log("  -h, --help     Show this help message");
-  // deno-lint-ignore no-console
-  console.log("  -v, --version  Show version number");
+  console.log("  -h, --help  Show this help message");
   // deno-lint-ignore no-console
   console.log("\nRun 'eser <command> --help' for command-specific help.");
 };
@@ -101,16 +124,10 @@ const showHelp = (): void => {
 export const main = async (): Promise<void> => {
   // @ts-ignore parseArgs doesn't mutate the array, readonly is safe
   const args = cliParseArgs.parseArgs(standardsRuntime.runtime.process.args, {
-    boolean: ["help", "version"],
-    alias: { h: "help", v: "version" },
+    boolean: ["help"],
+    alias: { h: "help" },
     stopEarly: true, // Stop parsing at first non-option to pass rest to subcommand
   });
-
-  if (args.version) {
-    // deno-lint-ignore no-console
-    console.log(`eser ${config.version}`);
-    return;
-  }
 
   const command = args._[0] as string | undefined;
 

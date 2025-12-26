@@ -19,16 +19,25 @@ type UpdateConfig = {
 const UPDATE_CONFIGS: Record<string, UpdateConfig> = {
   deno: {
     cmd: "deno",
-    // Deno doesn't have an update command, so we reinstall with -f (force)
-    args: ["install", "-g", "-A", "-f", "--name", "eser", "jsr:@eser/cli"],
+    // Deno doesn't have an update command, so we reinstall with -r (reload) and -f (force)
+    args: [
+      "install",
+      "-r",
+      "-g",
+      "-A",
+      "-f",
+      "--name",
+      "eser",
+      "jsr:@eser/cli",
+    ],
   },
   node: {
     cmd: "npm",
-    args: ["update", "-g", "eser"],
+    args: ["update", "-g", "-f", "eser"],
   },
   bun: {
     cmd: "bun",
-    args: ["update", "-g", "eser"],
+    args: ["update", "-g", "-f", "eser"],
   },
 };
 

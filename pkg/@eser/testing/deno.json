@@ -1,6 +1,6 @@
 {
   "name": "@eser/testing",
-  "version": "4.0.3",
+  "version": "4.0.4",
   "exports": {
     ".": "./mod.ts",
     "./fake-server": "./fake-server.ts",

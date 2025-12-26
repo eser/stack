@@ -25,15 +25,15 @@ type InstallConfig = {
 const INSTALL_CONFIGS: Record<string, InstallConfig> = {
   deno: {
     cmd: "deno",
-    args: ["install", "-g", "-A", "--name", "eser", "jsr:@eser/cli"],
+    args: ["install", "-r", "-g", "-A", "--name", "eser", "jsr:@eser/cli"],
   },
   node: {
     cmd: "npm",
-    args: ["install", "-g", "eser"],
+    args: ["install", "-g", "-f", "eser"],
   },
   bun: {
     cmd: "bun",
-    args: ["install", "-g", "eser"],
+    args: ["install", "-g", "-f", "eser"],
   },
 };
 

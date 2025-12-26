@@ -1,0 +1,18 @@
+{
+  "name": "@eser/shell",
+  "version": "4.0.3",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./completions": "./completions/mod.ts",
+    "./args": "./args/mod.ts",
+    "./exec": "./exec/mod.ts"
+  },
+  "dependencies": {
+    "@eser/standards": "workspace:*"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
+    "@std/cli": "npm:@jsr/std__cli@^1.0.25"
+  }
+}

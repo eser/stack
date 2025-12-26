@@ -1,8 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { runtime } from "@eser/standards/runtime";
 import * as writer from "@eser/writer";
 import * as dotenv from "@eser/config/dotenv";
+import { exec } from "@eser/shell/exec";
 import type {
   ConfigMap,
   KubectlResourceReference,
@@ -120,14 +120,11 @@ export const executeKubectl = async (
   args.push("-o", "json");
 
   // Execute kubectl directly without shell wrapper
-  const { success, stdout, stderr } = await runtime.exec.spawn(
-    "kubectl",
-    args,
-    {
-      stdout: "piped",
-      stderr: "piped",
-    },
-  );
+  const result = await exec`kubectl ${args}`
+    .noThrow()
+    .spawn();
+
+  const { success, stdout, stderr } = result;
 
   if (!success) {
     const errorMessage = new TextDecoder().decode(stderr);

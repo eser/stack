@@ -1,6 +1,6 @@
 {
   "name": "@eser/fp",
-  "version": "4.0.2",
+  "version": "4.0.3",
   "exports": {
     ".": "./mod.ts",
     "./append-to-array": "./append-to-array.ts",

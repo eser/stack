@@ -12,13 +12,19 @@
  *
  * Commands:
  *   codebase    Codebase validation and management tools
+ *   system      System management and setup tools
+ *   install     Install eser CLI globally (alias for system install)
+ *   update      Update eser CLI to latest version (alias for system update)
  *
  * @module
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as standardsRuntime from "@eser/standards/runtime";
+import type { CommandContext, CommandLike } from "@eser/shell/args";
 import { codebaseCommand } from "./commands/codebase/mod.ts";
+import { systemCommand } from "./commands/system.ts";
+import { installHandler, updateHandler } from "./commands/handlers/mod.ts";
 import config from "./package.json" with { type: "json" };
 
 type CommandHandler = (
@@ -26,18 +32,69 @@ type CommandHandler = (
   flags: Record<string, unknown>,
 ) => Promise<void>;
 
+// Wrapper to adapt Command.parse() to the old handler signature
+const wrapCommand = (
+  cmd: { parse: (args: string[]) => Promise<void> },
+): CommandHandler => {
+  return async (args: string[], _flags: Record<string, unknown>) => {
+    await cmd.parse(args);
+  };
+};
+
+// Wrapper to adapt new handler to old signature
+const wrapHandler = (
+  handler: (ctx: CommandContext) => Promise<void>,
+  commandName: string,
+): CommandHandler => {
+  return async (_args: string[], flags: Record<string, unknown>) => {
+    // Create a minimal CommandLike for the root
+    const mockRoot: CommandLike = {
+      name: "eser",
+      completions: () => "",
+      help: () => "",
+    };
+    await handler({
+      args: [],
+      flags,
+      root: mockRoot,
+      commandPath: ["eser", commandName],
+    });
+  };
+};
+
 const commands: Record<string, CommandHandler> = {
   codebase: codebaseCommand,
+  system: wrapCommand(systemCommand),
+  install: wrapHandler(installHandler, "install"),
+  update: wrapHandler(updateHandler, "update"),
 };
 
 const showHelp = (): void => {
+  // deno-lint-ignore no-console
   console.log("eser - Eser Ozvataf's command-line tooling to access things\n");
+  // deno-lint-ignore no-console
   console.log("Usage: eser <command> [subcommand] [options]\n");
+  // deno-lint-ignore no-console
   console.log("Commands:");
+  // deno-lint-ignore no-console
   console.log("  codebase    Codebase validation and management tools");
+  // deno-lint-ignore no-console
+  console.log("  system      System management and setup tools");
+  // deno-lint-ignore no-console
+  console.log(
+    "  install     Install eser CLI globally (alias for system install)",
+  );
+  // deno-lint-ignore no-console
+  console.log(
+    "  update      Update eser CLI to latest version (alias for system update)",
+  );
+  // deno-lint-ignore no-console
   console.log("\nOptions:");
+  // deno-lint-ignore no-console
   console.log("  -h, --help     Show this help message");
+  // deno-lint-ignore no-console
   console.log("  -v, --version  Show version number");
+  // deno-lint-ignore no-console
   console.log("\nRun 'eser <command> --help' for command-specific help.");
 };
 
@@ -50,6 +107,7 @@ export const main = async (): Promise<void> => {
   });
 
   if (args.version) {
+    // deno-lint-ignore no-console
     console.log(`eser ${config.version}`);
     return;
   }
@@ -64,7 +122,9 @@ export const main = async (): Promise<void> => {
 
   const handler = commands[command];
   if (handler === undefined) {
+    // deno-lint-ignore no-console
     console.error(`Unknown command: ${command}`);
+    // deno-lint-ignore no-console
     console.log("");
     showHelp();
     standardsRuntime.runtime.process.exit(1);

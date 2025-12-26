@@ -98,6 +98,7 @@ repos:
             pkg/@eser/jsx-runtime/README.md|
             pkg/@eser/logging/README.md|
             pkg/@eser/parsing/README.md|
+            pkg/@eser/shell/README.md|
             pkg/@eser/standards/README.md|
             pkg/@eser/testing/README.md|
             pkg/@eser/writer/README.md|

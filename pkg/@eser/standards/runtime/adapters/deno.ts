@@ -223,23 +223,28 @@ const createDenoExec = (): RuntimeExec => {
       args: string[] = [],
       options?: SpawnOptions,
     ): Promise<ProcessOutput> {
+      const stdoutMode = options?.stdout ?? "piped";
+      const stderrMode = options?.stderr ?? "piped";
+
       const command = new Deno.Command(cmd, {
         args,
         cwd: options?.cwd,
         env: options?.env,
         stdin: options?.stdin ?? "null",
-        stdout: options?.stdout ?? "piped",
-        stderr: options?.stderr ?? "piped",
+        stdout: stdoutMode,
+        stderr: stderrMode,
         signal: options?.signal,
       });
 
       const result = await command.output();
 
+      // When stdout/stderr are "inherit" or "null", Deno doesn't provide the streams
+      // Return empty Uint8Array to satisfy the ProcessOutput interface
       return {
         success: result.success,
         code: result.code,
-        stdout: result.stdout,
-        stderr: result.stderr,
+        stdout: stdoutMode === "piped" ? result.stdout : new Uint8Array(),
+        stderr: stderrMode === "piped" ? result.stderr : new Uint8Array(),
       };
     },
 

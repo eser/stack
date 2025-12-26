@@ -13,93 +13,72 @@ import {
   ValueType,
 } from "https://deno.land/x/cool@0.7.5/hex/cli/mod.ts";
 import { create } from "https://deno.land/x/cool@0.7.5/hex/generator/create.ts";
+import { exec } from "@eser/shell/exec";
 
 export const repl = async (_args: Array<string>, _options: ExecuteOptions) => {
-  const p = new deno.Command(
-    deno.execPath(),
-    {
-      args: [
-        "repl",
-        "--unstable-cron",
-        "--unstable-kv",
-        "--unstable-temporal",
-        "--allow-all",
-        "--eval-file=https://deno.land/x/cool@0.7.13/repl-init.ts",
-      ],
-      stdout: "inherit",
-      stderr: "inherit",
-      stdin: "inherit",
-    },
-  );
+  const denoPath = deno.execPath();
+  const replArgs = [
+    "repl",
+    "--unstable-cron",
+    "--unstable-kv",
+    "--unstable-temporal",
+    "--allow-all",
+    "--eval-file=https://deno.land/x/cool@0.7.13/repl-init.ts",
+  ];
 
-  await (p.spawn()).status;
+  await exec`${denoPath} ${replArgs}`
+    .stdout("inherit")
+    .stderr("inherit")
+    .spawn();
 };
 
 export const upgradeCli = async (
   _args: Array<string>,
   _options: ExecuteOptions,
 ) => {
-  const p = new deno.Command(
-    deno.execPath(),
-    {
-      args: [
-        "install",
-        "--allow-all",
-        "--reload",
-        "--force",
-        "--name",
-        "cool",
-        "https://deno.land/x/cool/cool.ts",
-      ],
-      stdout: "inherit",
-      stderr: "inherit",
-      stdin: "null",
-    },
-  );
+  const denoPath = deno.execPath();
+  const installArgs = [
+    "install",
+    "--allow-all",
+    "--reload",
+    "--force",
+    "--name",
+    "cool",
+    "https://deno.land/x/cool/cool.ts",
+  ];
 
-  await (p.spawn()).status;
+  await exec`${denoPath} ${installArgs}`
+    .stdin("null")
+    .stdout("inherit")
+    .stderr("inherit")
+    .spawn();
 };
 
 export const run = async (_args: Array<string>, _options: ExecuteOptions) => {
-  const p = new deno.Command(
-    deno.execPath(),
-    {
-      args: ["task", "start"],
-      stdout: "inherit",
-      stderr: "inherit",
-      stdin: "null",
-    },
-  );
-
-  await (p.spawn()).status;
+  const denoPath = deno.execPath();
+  await exec`${denoPath} task start`
+    .stdin("null")
+    .stdout("inherit")
+    .stderr("inherit")
+    .spawn();
 };
 
 const runDev = async (_args: Array<string>, _options: ExecuteOptions) => {
-  const p = new deno.Command(
-    deno.execPath(),
-    {
-      args: ["task", "dev"],
-      stdout: "inherit",
-      stderr: "inherit",
-      stdin: "null",
-    },
-  );
-
-  await (p.spawn()).status;
+  const denoPath = deno.execPath();
+  await exec`${denoPath} task dev`
+    .stdin("null")
+    .stdout("inherit")
+    .stderr("inherit")
+    .spawn();
 };
 
 export const test = async (_args: Array<string>, _options: ExecuteOptions) => {
-  const p = new deno.Command(
-    deno.execPath(),
-    {
-      args: ["task", "test"],
-      stdout: "inherit",
-      stderr: "inherit",
-      stdin: "null",
-    },
-  );
-
-  await (p.spawn()).status;
+  const denoPath = deno.execPath();
+  await exec`${denoPath} task test`
+    .stdin("null")
+    .stdout("inherit")
+    .stderr("inherit")
+    .spawn();
 };
 
 export const main = () => {

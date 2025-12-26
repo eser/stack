@@ -16,6 +16,7 @@
  */
 
 import * as path from "@std/path";
+import { exec } from "@eser/shell/exec";
 
 type PackageJson = {
   name: string;
@@ -59,18 +60,9 @@ const main = async (): Promise<void> => {
   // Step 2: Bundle with deno bundle
   // deno-lint-ignore no-console
   console.log("2. Bundling with deno bundle...");
-  const bundleCmd = new Deno.Command("deno", {
-    args: [
-      "bundle",
-      mainTsPath,
-      "-o",
-      bundlePath,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-  });
-
-  const bundleResult = await bundleCmd.output();
+  const bundleResult = await exec`deno bundle ${mainTsPath} -o ${bundlePath}`
+    .noThrow()
+    .spawn();
 
   if (!bundleResult.success) {
     const stderr = new TextDecoder().decode(bundleResult.stderr);

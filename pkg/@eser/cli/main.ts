@@ -19,6 +19,7 @@
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as standardsRuntime from "@eser/standards/runtime";
 import { codebaseCommand } from "./commands/codebase/mod.ts";
+import config from "./deno.json" with { type: "json" };
 
 type CommandHandler = (
   args: string[],
@@ -40,7 +41,7 @@ const showHelp = (): void => {
   console.log("\nRun 'eser <command> --help' for command-specific help.");
 };
 
-const main = async (): Promise<void> => {
+export const main = async (): Promise<void> => {
   // @ts-ignore parseArgs doesn't mutate the array, readonly is safe
   const args = cliParseArgs.parseArgs(standardsRuntime.runtime.process.args, {
     boolean: ["help", "version"],
@@ -49,7 +50,7 @@ const main = async (): Promise<void> => {
   });
 
   if (args.version) {
-    console.log("eser 0.8.0");
+    console.log(`eser ${config.version}`);
     return;
   }
 

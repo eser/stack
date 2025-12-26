@@ -84,6 +84,7 @@ repos:
             etc/temp/.*|
             pkg/@eser/app-runtime/README.md|
             pkg/@eser/bundler/README.md|
+            pkg/@eser/cache/README.md|
             pkg/@eser/collector/README.md|
             pkg/@eser/config/README.md|
             pkg/@eser/cs/README.md|
@@ -92,10 +93,12 @@ repos:
             pkg/@eser/events/README.md|
             pkg/@eser/fp/README.md|
             pkg/@eser/functions/README.md|
+            pkg/@eser/http/README.md|
             pkg/@eser/jsx-runtime/README.md|
             pkg/@eser/logging/README.md|
             pkg/@eser/parsing/README.md|
             pkg/@eser/standards/README.md|
+            pkg/@eser/testing/README.md|
             pkg/@eser/writer/README.md|
             pkg/@cool/cli/README.md|
             pkg/@cool/lime/README.md|

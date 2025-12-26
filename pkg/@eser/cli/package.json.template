@@ -4,7 +4,7 @@
   "type": "module",
   "exports": "./main.ts",
   "bin": {
-    "eser": "./main.ts"
+    "eser": "./bin.ts"
   },
   "dependencies": {
     "@eser/codebase": "workspace:*",

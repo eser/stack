@@ -216,3 +216,63 @@ Deno.test("getMany", () => {
   mock.assertSpyCalls(lazySpyFn, 1);
   mock.assertSpyCalls(transientSpyFn, 2);
 });
+
+// Decorator tests
+import { inject, injectable } from "./decorators.ts";
+import { services } from "./services.ts";
+
+Deno.test("@injectable() should register class with class name", () => {
+  @injectable()
+  class TestService {}
+
+  const instance = services.get("TestService");
+
+  assert.assertExists(instance);
+  assert.assertInstanceOf(instance, TestService);
+});
+
+Deno.test("@injectable() with custom key should register with custom key", () => {
+  @injectable("customKey")
+  class TestServiceCustom {}
+
+  const instance = services.get("customKey");
+
+  assert.assertExists(instance);
+  assert.assertInstanceOf(instance, TestServiceCustom);
+});
+
+Deno.test("@injectable() creates new instance each time from lazy", () => {
+  @injectable("lazyService")
+  class LazyService {
+    value = Math.random();
+  }
+
+  const instance1 = services.get("lazyService");
+  const instance2 = services.get("lazyService");
+
+  // Lazy services are cached, should be same instance
+  assert.assertStrictEquals(instance1, instance2);
+});
+
+Deno.test("@inject() decorator can be applied", () => {
+  // @inject is currently a no-op but should not throw
+  class Service {
+    @inject("someKey")
+    dependency: unknown;
+  }
+
+  const service = new Service();
+  assert.assertExists(service);
+});
+
+Deno.test("injectable with source.name fallback", () => {
+  // Test calling injectable directly without decorator context
+  const TestClass = class NamedClass {};
+
+  const decorator = injectable();
+  decorator(TestClass, undefined);
+
+  const instance = services.get("NamedClass");
+
+  assert.assertExists(instance);
+});

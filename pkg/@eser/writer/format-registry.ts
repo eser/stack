@@ -22,10 +22,6 @@ class DefaultFormatRegistry implements FormatRegistry {
       throw new Error("Format must define at least one extension");
     }
 
-    if (format.serialize?.constructor !== Function) {
-      throw new Error("Format must implement serialize function");
-    }
-
     // Register by name
     this.formats.set(format.name.toLowerCase(), format);
 

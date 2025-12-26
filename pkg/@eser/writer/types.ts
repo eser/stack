@@ -14,7 +14,9 @@ export type FormatOptions = {
 export interface WriterFormat {
   name: string;
   extensions: string[];
-  serialize: (data: unknown, options?: FormatOptions) => string;
+  writeStart?: (options?: FormatOptions) => string;
+  writeItem: (data: unknown, options?: FormatOptions) => string;
+  writeEnd?: (options?: FormatOptions) => string;
 }
 
 export type WriteOptions = FormatOptions & {
@@ -28,6 +30,7 @@ export interface FormatRegistry {
   get: (nameOrExtension: string) => WriterFormat | undefined;
   list: () => WriterFormat[];
   has: (nameOrExtension: string) => boolean;
+  clear: () => void;
 }
 
 export class WriterError extends Error {
@@ -69,3 +72,26 @@ export class DeserializationError extends WriterError {
     this.cause = cause;
   }
 }
+
+export type WriterOptions = {
+  readonly type: string;
+  readonly name?: string;
+  readonly options?: FormatOptions;
+};
+
+export type WriterInstance = {
+  readonly name?: string;
+  readonly start: () => void;
+  readonly write: (data: unknown) => void;
+  readonly end: () => void;
+  readonly clear: () => void;
+
+  // String/bytes output
+  readonly string: () => string;
+  readonly bytes: () => Uint8Array;
+
+  // Stream output (Web Streams API)
+  readonly readable: () => ReadableStream<string>;
+  readonly pipeTo: (dest: WritableStream<string>) => Promise<void>;
+  readonly pipeToStdout: () => Promise<void>;
+};

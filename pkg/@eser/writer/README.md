@@ -46,26 +46,88 @@ programmatic and filename-based format detection.
 Here you'll find examples of how to use `@eser/writer` for different data
 serialization scenarios.
 
-### Basic Usage
+### Writer Factory (Streaming Pattern)
 
-**Write JSON data:**
+The `writer()` factory creates a writer instance that accumulates data and
+supports multiple output methods including Web Streams API:
 
 ```js
-import * as writer from "@eser/writer";
+import { writer } from "@eser/writer";
+
+// Create a writer for JSON format
+const logger = writer({ type: "json", name: "app-logger" });
+
+// Accumulate data
+logger.write({ event: "startup", timestamp: Date.now() });
+logger.write({ event: "ready", timestamp: Date.now() });
+
+// Output options:
+const output = logger.string(); // Get as string
+const bytes = logger.bytes(); // Get as Uint8Array
+await logger.pipeToStdout(); // Pipe to stdout
+
+// Stream to any WritableStream
+const file = await Deno.open("output.json", { write: true, create: true });
+await logger.pipeTo(file.writable);
+
+// Get as ReadableStream for further processing
+const stream = logger.readable();
+
+// Clear buffer for reuse
+logger.clear();
+```
+
+**Forward-only streaming:** The writer uses a streaming architecture that
+serializes each item immediately on `write()`, without buffering raw objects.
+This provides:
+
+- Constant memory usage regardless of item count
+- Immediate serialization (no batch processing)
+- Streaming-ready output
+
+**Structured streaming:** For explicit document boundaries, use `start()` and
+`end()`:
+
+```js
+const w = writer({ type: "json" });
+w.start(); // outputs: [
+w.write({ a: 1 }); // outputs: {"a":1}
+w.write({ b: 2 }); // outputs: ,{"b":2}
+w.end(); // outputs: ]
+// Result: [{"a":1},{"b":2}]
+```
+
+**Multi-document output:** When using only `write()` without `start()`/`end()`,
+each format uses its standard multi-document convention:
+
+- **JSON**: JSONL (one object per line): `{"a":1}\n{"b":2}\n`
+- **JSONL**: Explicit JSONL format (one object per line)
+- **YAML**: Documents separated by `---`
+- **CSV**: Appends rows (single header, detected from first item)
+- **TOML**: Documents separated by `+++`
+
+### One-Shot Serialization
+
+For simple, one-off serialization, use the `serialize()` function:
+
+**Serialize JSON data:**
+
+```js
+import { serialize } from "@eser/writer";
 
 const data = { name: "John", age: 30, active: true };
-const jsonString = writer.write(data, "json");
+const jsonString = serialize(data, "json");
 console.log(jsonString);
 // Output: {"name":"John","age":30,"active":true}
 ```
 
-**Write pretty-formatted JSON:**
+**Pretty-formatted JSON:**
 
 ```js
-import * as writer from "@eser/writer";
+import { serialize } from "@eser/writer";
 
 const data = { name: "John", age: 30, city: "New York" };
-const prettyJson = writer.write(data, "json", { pretty: true, indent: 2 });
+const prettyJson = serialize(data, "json", { pretty: true, indent: 2 });
 console.log(prettyJson);
 /* Output:
 {
@@ -76,10 +138,10 @@ console.log(prettyJson);
 */
 ```
 
-**Write YAML data:**
+**YAML data:**
 
 ```js
-import * as writer from "@eser/writer";
+import { serialize } from "@eser/writer";
 
 const config = {
   database: {
@@ -90,7 +152,7 @@ const config = {
   features: ["auth", "logging", "metrics"],
 };
 
-const yamlString = writer.write(config, "yaml");
+const yamlString = serialize(config, "yaml");
 console.log(yamlString);
 /* Output:
 database:
@@ -104,10 +166,10 @@ features:
 */
 ```
 
-**Write CSV data:**
+**CSV data:**
 
 ```js
-import * as writer from "@eser/writer";
+import { serialize } from "@eser/writer";
 
 const users = [
   { name: "Alice", email: "alice@example.com", age: 25 },
@@ -115,7 +177,7 @@ const users = [
   { name: "Charlie", email: "charlie@example.com", age: 35 },
 ];
 
-const csvString = writer.write(users, "csv");
+const csvString = serialize(users, "csv");
 console.log(csvString);
 /* Output:
 name,email,age
@@ -125,10 +187,10 @@ Charlie,charlie@example.com,35
 */
 ```
 
-**Write TOML configuration:**
+**TOML configuration:**
 
 ```js
-import * as writer from "@eser/writer";
+import { serialize } from "@eser/writer";
 
 const config = {
   title: "My Application",
@@ -140,7 +202,7 @@ const config = {
   },
 };
 
-const tomlString = writer.write(config, "toml");
+const tomlString = serialize(config, "toml");
 console.log(tomlString);
 /* Output:
 title = "My Application"
@@ -156,17 +218,17 @@ enabled = true
 ### Format Detection by File Extension
 
 ```js
-import * as writer from "@eser/writer";
+import { serialize } from "@eser/writer";
 
 const data = { message: "Hello World" };
 
 // These are equivalent:
-writer.write(data, "json");
-writer.write(data, ".json");
+serialize(data, "json");
+serialize(data, ".json");
 
 // Detect format from filename
-writer.write(data, "config.yaml"); // Uses YAML format
-writer.write(data, "data.csv"); // Uses CSV format
+serialize(data, "config.yaml"); // Uses YAML format
+serialize(data, "data.csv"); // Uses CSV format
 ```
 
 ### Custom Format Registration
@@ -174,12 +236,12 @@ writer.write(data, "data.csv"); // Uses CSV format
 **Create a custom XML format:**
 
 ```js
-import * as writer from "@eser/writer";
+import { registerFormat, serialize } from "@eser/writer";
 
 const xmlFormat = {
   name: "xml",
   extensions: [".xml"],
-  serialize: (data, options) => {
+  writeItem: (data, options) => {
     // Simple XML serialization (you'd want a more robust implementation)
     const toXML = (obj, indent = 0) => {
       const spaces = " ".repeat(indent);
@@ -205,30 +267,30 @@ const xmlFormat = {
 };
 
 // Register the custom format
-writer.registerFormat(xmlFormat);
+registerFormat(xmlFormat);
 
 // Now you can use it
 const data = { user: { name: "John", age: 30 } };
-const xmlString = write(data, "xml");
+const xmlString = serialize(data, "xml");
 console.log(xmlString);
 ```
 
 ### Working with Format Registry
 
 ```js
-import * as writer from "@eser/writer";
+import { getFormat, hasFormat, listFormats } from "@eser/writer";
 
 // List all available formats
-console.log(writer.listFormats());
+console.log(listFormats());
 // Output: [{ name: "json", extensions: [".json"], ... }, ...]
 
 // Check if format exists
-console.log(writer.hasFormat("yaml")); // true
-console.log(writer.hasFormat(".csv")); // true
-console.log(writer.hasFormat("pdf")); // false
+console.log(hasFormat("yaml")); // true
+console.log(hasFormat(".csv")); // true
+console.log(hasFormat("pdf")); // false
 
 // Get format details
-const jsonFormat = writer.getFormat("json");
+const jsonFormat = getFormat("json");
 if (jsonFormat) {
   console.log(`Format: ${jsonFormat.name}`);
   console.log(`Extensions: ${jsonFormat.extensions.join(", ")}`);
@@ -238,17 +300,21 @@ if (jsonFormat) {
 ### Error Handling
 
 ```js
-import * as writer from "@eser/writer";
+import {
+  FormatNotFoundError,
+  SerializationError,
+  serialize,
+} from "@eser/writer";
 
 try {
   const data = { circular: {} };
   data.circular.ref = data; // Create circular reference
 
-  const result = writer.write(data, "json");
+  const result = serialize(data, "json");
 } catch (error) {
-  if (error instanceof writer.FormatNotFoundError) {
+  if (error instanceof FormatNotFoundError) {
     console.error(`Format not found: ${error.format}`);
-  } else if (error instanceof writer.SerializationError) {
+  } else if (error instanceof SerializationError) {
     console.error(`Serialization failed: ${error.message}`);
     console.error(`Format: ${error.format}`);
   }
@@ -257,9 +323,31 @@ try {
 
 ## 📕 API Reference
 
+### Writer Factory
+
+**writer(options: WriterOptions): WriterInstance** Creates a writer instance
+that accumulates data. Options:
+
+- `type`: Format name (e.g., "json", "yaml")
+- `name`: Optional name for the writer instance
+- `options`: Format-specific options
+
+**WriterInstance** methods:
+
+- `start(): void` - Begin document structure (e.g., `[` for JSON arrays)
+- `write(data: unknown): void` - Accumulate data
+- `end(): void` - End document structure (e.g., `]` for JSON arrays)
+- `clear(): void` - Reset the buffer
+- `string(): string` - Get accumulated output as string
+- `bytes(): Uint8Array` - Get output as bytes (via TextEncoder)
+- `readable(): ReadableStream<string>` - Get as ReadableStream
+- `pipeTo(dest: WritableStream<string>): Promise<void>` - Pipe to WritableStream
+- `pipeToStdout(): Promise<void>` - Pipe to stdout
+- `name?: string` - Optional writer name
+
 ### Core Functions
 
-**write(data: unknown, format: string, options?: WriteOptions): string**
+**serialize(data: unknown, format: string, options?: WriteOptions): string**
 Serializes data using the specified format. The format can be a format name
 (e.g., "json") or file extension (e.g., ".json").
 
@@ -288,26 +376,36 @@ instance.
 
 - Extensions: `.json`
 - Options: `pretty`, `indent`
+- Multi-document: JSONL format (one JSON object per line)
 
 **YAML**
 
 - Extensions: `.yaml`, `.yml`
-- Options: `pretty`, `indent`
+- Options: `pretty`, `indent`, `separator`
+- Multi-document: Uses `---` separator between documents
 
 **CSV**
 
 - Extensions: `.csv`
 - Options: `delimiter`, `quote`, `headers`
+- Multi-document: Appends rows (single header, multiple data rows)
 
 **TOML**
 
 - Extensions: `.toml`
-- Options: `pretty`
+- Options: `pretty`, `separator`
+- Multi-document: Uses `+++` separator between documents
 
 ### Types
 
+**WriterOptions** Options for creating a writer instance with `type`, `name`,
+and format `options`.
+
+**WriterInstance** The writer instance with `write`, `pipe`, `string`, `clear`
+methods.
+
 **WriterFormat** Interface for format implementations with `name`, `extensions`,
-and `serialize` function.
+`writeStart`, `writeItem`, and `writeEnd` functions for structured streaming.
 
 **WriteOptions** Configuration options including format-specific options like
 `pretty`, `indent`, `delimiter`, etc.

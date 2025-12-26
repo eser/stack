@@ -294,3 +294,56 @@ Deno.test("di.invoke(): async generator function, multiple", async () => {
   mock.assertSpyCalls(di`af`, 2);
   mock.assertSpyCalls(di`ag`, 3);
 });
+
+Deno.test("di() with no arguments returns services", () => {
+  const { di, services } = create();
+
+  const result = di();
+
+  assert.assertStrictEquals(result, services);
+});
+
+Deno.test("di.createScope() creates new scope", () => {
+  const { di } = create();
+
+  di.set("ah", "original");
+  const scope = di.createScope();
+
+  assert.assertExists(scope);
+  assert.assertStrictEquals(scope.get("ah"), "original");
+});
+
+Deno.test("di.setLazy() registers lazy value", () => {
+  const { di } = create();
+
+  let counter = 0;
+  di.setLazy("ai", () => ++counter);
+
+  assert.assertStrictEquals(di`ai`, 1);
+  assert.assertStrictEquals(di`ai`, 1); // Same value on second call (cached)
+});
+
+Deno.test("di.setScoped() registers scoped value", () => {
+  const { di } = create();
+
+  let counter = 0;
+  di.setScoped("aj", () => ++counter);
+
+  assert.assertStrictEquals(di`aj`, 1);
+  assert.assertStrictEquals(di`aj`, 1);
+
+  const scope = di.createScope();
+  assert.assertStrictEquals(scope.get("aj"), 2); // New value in new scope
+  assert.assertStrictEquals(scope.get("aj"), 2); // Same value in same scope
+});
+
+Deno.test("di.setTransient() registers transient value", () => {
+  const { di } = create();
+
+  let counter = 0;
+  di.setTransient("ak", () => ++counter);
+
+  assert.assertStrictEquals(di`ak`, 1);
+  assert.assertStrictEquals(di`ak`, 2); // New value each time
+  assert.assertStrictEquals(di`ak`, 3);
+});

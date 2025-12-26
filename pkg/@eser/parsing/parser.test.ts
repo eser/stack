@@ -44,3 +44,47 @@ Deno.test("sequence", () => {
     ],
   );
 });
+
+Deno.test("token returns null on kind mismatch", () => {
+  const parser = token("T_PLUS");
+
+  const tokenizer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenGenerator = tokenizer.tokenizeFromString("5");
+  const result = parser(tokenGenerator);
+
+  assert.assertEquals(result, null);
+});
+
+Deno.test("token returns null on empty iterator", () => {
+  const parser = token("T_NUMERIC");
+
+  const tokenizer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenGenerator = tokenizer.tokenizeFromString("");
+  const result = parser(tokenGenerator);
+
+  assert.assertEquals(result, null);
+});
+
+Deno.test("sequence returns null when middle parser fails", () => {
+  const parser = sequence(
+    token("T_NUMERIC"),
+    token("T_PLUS"), // This will fail because there's whitespace first
+    token("T_NUMERIC"),
+  );
+
+  const tokenizer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenGenerator = tokenizer.tokenizeFromString("1 + 2");
+  const result = parser(tokenGenerator);
+
+  assert.assertEquals(result, null);
+});
+
+Deno.test("sequence with empty parsers array returns empty result", () => {
+  const parser = sequence();
+
+  const tokenizer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenGenerator = tokenizer.tokenizeFromString("5");
+  const result = parser(tokenGenerator);
+
+  assert.assertEquals(result, []);
+});

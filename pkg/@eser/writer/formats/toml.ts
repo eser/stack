@@ -4,21 +4,29 @@ import * as toml from "@std/toml";
 import type { FormatOptions, WriterFormat } from "../types.ts";
 import { SerializationError } from "../types.ts";
 
-export const serialize = (data: unknown, options?: FormatOptions): string => {
+export const writeStart = (_options?: FormatOptions): string => {
+  return "";
+};
+
+export const writeItem = (
+  data: unknown,
+  options?: FormatOptions,
+): string => {
   try {
-    // TOML requires the root to be an object
-    if (typeof data !== "object" || data === null || Array.isArray(data)) {
-      throw new Error("TOML format requires the root value to be an object");
+    if (typeof data !== "object" || data === null) {
+      throw new Error("TOML format requires each document to be an object");
     }
 
     const tomlOptions: toml.StringifyOptions = {};
 
     if (options?.pretty !== false) {
-      // TOML is naturally pretty formatted, but we can control some aspects
       tomlOptions.keyAlignment = true;
     }
 
-    return toml.stringify(data as Record<string, unknown>, tomlOptions);
+    const separator = options?.separator === "" ? "+++" : (options?.separator ??
+      "+++");
+    return toml.stringify(data as Record<string, unknown>, tomlOptions).trim() +
+      "\n" + separator + "\n";
   } catch (error) {
     throw new SerializationError(
       `Failed to serialize TOML: ${
@@ -30,8 +38,14 @@ export const serialize = (data: unknown, options?: FormatOptions): string => {
   }
 };
 
+export const writeEnd = (_options?: FormatOptions): string => {
+  return "";
+};
+
 export const tomlFormat: WriterFormat = {
   name: "toml",
   extensions: [".toml"],
-  serialize,
+  writeStart,
+  writeItem,
+  writeEnd,
 };

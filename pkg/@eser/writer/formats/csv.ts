@@ -4,56 +4,67 @@ import * as csv from "@std/csv";
 import type { FormatOptions, WriterFormat } from "../types.ts";
 import { SerializationError } from "../types.ts";
 
-const normalizeToObjects = (data: unknown): Record<string, unknown>[] => {
+const normalizeToObject = (
+  data: unknown,
+): Record<string, unknown> | undefined => {
   if (Array.isArray(data)) {
-    if (data.length === 0) return [];
+    if (data.length === 0) return undefined;
 
-    // If array contains objects, return as is
+    // If array contains objects, return first
     if (
       typeof data[0] === "object" && data[0] !== null && !Array.isArray(data[0])
     ) {
-      return data as Record<string, unknown>[];
+      return data[0] as Record<string, unknown>;
     }
 
-    // If array contains primitives, create objects with index
-    return data.map((item, index) => ({ index, value: item }));
+    // If array contains primitives, create object with value
+    return { value: data[0] };
   }
 
-  // If single object, wrap in array
+  // If single object, return as is
   if (typeof data === "object" && data !== null) {
-    return [data as Record<string, unknown>];
+    return data as Record<string, unknown>;
   }
 
   // For primitives, create single object
-  return [{ value: data }];
+  return { value: data };
 };
 
-export const serialize = (data: unknown, options?: FormatOptions): string => {
+export const writeStart = (options?: FormatOptions): string => {
+  // If headers are explicitly provided, output them
+  const headers = options?.headers;
+  if (headers !== undefined && headers.length > 0) {
+    const delimiter = options?.delimiter ?? ",";
+    return headers.join(delimiter) + "\n";
+  }
+  return "";
+};
+
+export const writeItem = (
+  data: unknown,
+  options?: FormatOptions,
+): string => {
   try {
-    const objects = normalizeToObjects(data);
-    if (objects.length === 0) {
+    const obj = normalizeToObject(data);
+    if (obj === undefined) {
       return "";
     }
 
     const delimiter = options?.delimiter ?? ",";
-    const headers = options?.headers;
+    const headers = options?.headers ?? Object.keys(obj);
 
-    let csvHeaders: string[];
-
-    if (headers) {
-      csvHeaders = headers;
-    } else {
-      // Auto-detect headers from first object
-      csvHeaders = Object.keys(objects[0] ?? {});
-    }
+    // Include header row if _isFirst and headers weren't output by writeStart
+    const headersInStart = options?.headers !== undefined &&
+      options.headers.length > 0;
+    const includeHeader = options?.["_isFirst"] === true && !headersInStart;
 
     const csvOptions: csv.StringifyOptions = {
       separator: delimiter,
-      headers: true,
-      columns: csvHeaders,
+      headers: includeHeader,
+      columns: headers,
     };
 
-    return csv.stringify(objects, csvOptions);
+    return csv.stringify([obj], csvOptions);
   } catch (error) {
     throw new SerializationError(
       `Failed to serialize CSV: ${
@@ -64,8 +75,15 @@ export const serialize = (data: unknown, options?: FormatOptions): string => {
     );
   }
 };
+
+export const writeEnd = (_options?: FormatOptions): string => {
+  return "";
+};
+
 export const csvFormat: WriterFormat = {
   name: "csv",
   extensions: [".csv"],
-  serialize,
+  writeStart,
+  writeItem,
+  writeEnd,
 };

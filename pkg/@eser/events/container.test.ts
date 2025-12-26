@@ -71,3 +71,69 @@ Deno.test("no parameters", () => {
   const arg = spyFn.calls[0]?.args[0] as CustomEvent;
   assert.assertStrictEquals(arg.detail, undefined);
 });
+
+Deno.test("remove listener", () => {
+  const spyFn = mock.spy();
+  const listener = () => spyFn();
+
+  const registry = new Registry();
+  registry.add("ev", listener);
+  registry.remove("ev", listener);
+
+  const dispatcher = registry.build();
+  dispatcher.dispatch("ev");
+
+  mock.assertSpyCalls(spyFn, 0);
+});
+
+Deno.test("add returns this for chaining", () => {
+  const registry = new Registry();
+
+  const result = registry.add("ev1", () => {}).add("ev2", () => {});
+
+  assert.assertStrictEquals(result, registry);
+});
+
+Deno.test("remove returns this for chaining", () => {
+  const listener = () => {};
+  const registry = new Registry();
+  registry.add("ev", listener);
+
+  const result = registry.remove("ev", listener);
+
+  assert.assertStrictEquals(result, registry);
+});
+
+Deno.test("dispatch returns boolean", () => {
+  const registry = new Registry();
+  registry.add("ev", () => {});
+
+  const dispatcher = registry.build();
+  const result = dispatcher.dispatch("ev");
+
+  assert.assertStrictEquals(typeof result, "boolean");
+  assert.assertStrictEquals(result, true);
+});
+
+Deno.test("dispatch with preventDefault returns false", () => {
+  const registry = new Registry();
+  registry.add("ev", (e) => e.preventDefault());
+
+  const dispatcher = registry.build();
+  const result = dispatcher.dispatch("ev", { cancelable: true });
+
+  assert.assertStrictEquals(result, false);
+});
+
+Deno.test("Registry with custom EventTarget", () => {
+  const spyFn = mock.spy();
+  const customTarget = new EventTarget();
+
+  const registry = new Registry({ target: customTarget });
+  registry.add("ev", () => spyFn());
+
+  const dispatcher = registry.build();
+  dispatcher.dispatch("ev");
+
+  mock.assertSpyCalls(spyFn, 1);
+});

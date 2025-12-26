@@ -55,5 +55,5 @@ export const generate = async (options: GenerateOptions): Promise<string> => {
     pretty: true,
   };
 
-  return writer.write([resource], options.format, writeOptions);
+  return writer.serialize([resource], options.format, writeOptions);
 };

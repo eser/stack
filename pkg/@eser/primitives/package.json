@@ -1,0 +1,12 @@
+{
+  "name": "@eser/primitives",
+  "version": "4.0.6",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./functions": "./functions.ts",
+    "./promises": "./promises.ts",
+    "./type-guards": "./type-guards.ts",
+    "./type-slices": "./type-slices.ts"
+  }
+}

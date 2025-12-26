@@ -6,16 +6,18 @@ export const wthout = <T>(
   instance: Record<Key, T>,
   ...fields: ReadonlyArray<Key>
 ): Record<Key, T> => {
-  return Object.entries(instance).reduce<Record<Key, T>>(
-    (obj, [itemKey, value]) => {
-      if (fields.indexOf(itemKey) === -1) {
-        obj[itemKey] = value;
-      }
+  const exclude = new Set(fields);
+  const keys = Object.keys(instance);
+  const result: Record<Key, T> = {};
 
-      return obj;
-    },
-    {},
-  );
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i]!;
+    if (!exclude.has(key)) {
+      result[key] = instance[key] as T;
+    }
+  }
+
+  return result;
 };
 
 export { wthout as default };

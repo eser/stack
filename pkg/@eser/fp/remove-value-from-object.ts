@@ -4,16 +4,19 @@ export const removeValueFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   ...values: ReadonlyArray<T>
 ): Record<string | number | symbol, T> => {
-  return Object.entries(instance).reduce(
-    (obj, [itemKey, value]) => {
-      if (values.indexOf(value) === -1) {
-        return { ...obj, [itemKey]: value };
-      }
+  const exclude = new Set(values);
+  const keys = Object.keys(instance);
+  const result: Record<string | number | symbol, T> = {};
 
-      return obj;
-    },
-    {},
-  );
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i]!;
+    const value = instance[key] as T;
+    if (!exclude.has(value)) {
+      result[key] = value;
+    }
+  }
+
+  return result;
 };
 
 export { removeValueFromObject as default };

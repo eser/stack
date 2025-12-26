@@ -3,10 +3,15 @@
 export const reverseObject = <T>(
   instance: Record<string | number | symbol, T>,
 ): Record<string | number | symbol, T> => {
-  return Object.entries(instance).reduce(
-    (obj, [itemKey, value]) => ({ [itemKey]: value, ...obj }),
-    {},
-  );
+  const keys = Object.keys(instance);
+  const result: Record<string | number | symbol, T> = {};
+
+  for (let i = keys.length - 1; i >= 0; i--) {
+    const key = keys[i]!;
+    result[key] = instance[key] as T;
+  }
+
+  return result;
 };
 
 export { reverseObject as default };

@@ -1,6 +1,6 @@
 {
   "name": "@eser/fp",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "type": "module",
   "exports": {
     ".": "./mod.ts",
@@ -48,6 +48,9 @@
     "./take-from-object": "./take-from-object.ts",
     "./wth": "./wth.ts",
     "./wthout": "./wthout.ts"
+  },
+  "dependencies": {
+    "@eser/primitives": "workspace:*"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.16"

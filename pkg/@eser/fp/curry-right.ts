@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as functions from "@eser/standards/functions";
-import * as typeSlices from "@eser/standards/type-slices";
+import * as functions from "@eser/primitives/functions";
+import * as typeSlices from "@eser/primitives/type-slices";
 
 export const curryRight = <
   // deno-lint-ignore no-explicit-any

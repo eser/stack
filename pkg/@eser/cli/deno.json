@@ -1,11 +1,10 @@
 {
   "name": "@eser/cli",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "exports": "./main.ts",
   "imports": {
     "@std/cli": "jsr:@std/cli@^1.0.25",
     "@std/fmt": "jsr:@std/fmt@^1.0.8",
-    "@std/path": "jsr:@std/path@^1.1.4",
-    "@eser/shell": "jsr:@eser/shell@^4.0.2"
+    "@std/path": "jsr:@std/path@^1.1.4"
   }
 }

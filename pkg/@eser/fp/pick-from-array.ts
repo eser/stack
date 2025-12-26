@@ -9,27 +9,20 @@ export const pickFromArray = <T>(
   items: Iterable<T>,
 ): PickFromArrayResult<T> => {
   const arrInstance = ensureArray(instance);
-  const arrItems = ensureArray(items);
+  const include = new Set(items);
+  const picked: Array<T> = [];
+  const rest: Array<T> = [];
 
-  return arrInstance.reduce(
-    (obj: PickFromArrayResult<T>, itemValue: T) => {
-      if (arrItems.indexOf(itemValue) !== -1) {
-        return {
-          items: [...obj.items, itemValue],
-          rest: obj.rest,
-        };
-      }
+  for (let i = 0, len = arrInstance.length; i < len; i++) {
+    const value = arrInstance[i]!;
+    if (include.has(value)) {
+      picked.push(value);
+    } else {
+      rest.push(value);
+    }
+  }
 
-      return {
-        items: obj.items,
-        rest: [...obj.rest, itemValue],
-      };
-    },
-    {
-      items: [],
-      rest: [],
-    },
-  );
+  return { items: picked, rest };
 };
 
 export { pickFromArray as default };

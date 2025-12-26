@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { isString, isPlainObject, isDefined } from "@eser/standards/type-guards";
+ * import { isString, isPlainObject, isDefined } from "@eser/primitives/type-guards";
  *
  * if (isString(value)) {
  *   console.log(value.toUpperCase());

@@ -9,25 +9,21 @@ export const pickFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   keys: ReadonlyArray<string | number | symbol>,
 ): PickFromObjectResult<T> => {
-  return Object.entries(instance).reduce(
-    (obj, [itemKey, value]) => {
-      if (keys.indexOf(itemKey) !== -1) {
-        return {
-          items: { ...obj.items, [itemKey]: value },
-          rest: obj.rest,
-        };
-      }
+  const include = new Set(keys);
+  const instanceKeys = Object.keys(instance);
+  const items: Record<string | number | symbol, T> = {};
+  const rest: Record<string | number | symbol, T> = {};
 
-      return {
-        items: obj.items,
-        rest: { ...obj.rest, [itemKey]: value },
-      };
-    },
-    {
-      items: {},
-      rest: {},
-    },
-  );
+  for (let i = 0, len = instanceKeys.length; i < len; i++) {
+    const key = instanceKeys[i]!;
+    if (include.has(key)) {
+      items[key] = instance[key] as T;
+    } else {
+      rest[key] = instance[key] as T;
+    }
+  }
+
+  return { items, rest };
 };
 
 export { pickFromObject as default };

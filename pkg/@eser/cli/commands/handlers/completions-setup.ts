@@ -83,8 +83,8 @@ export const addCompletions = async (shell: Shell): Promise<void> => {
       const fishScript = `# eser CLI completions
 # This file is auto-generated. Run 'eser system completions --shell fish' to regenerate.
 complete -c eser -f
-complete -c eser -n "__fish_use_subcommand" -a "codebase" -d "Codebase validation and management tools"
-complete -c eser -n "__fish_use_subcommand" -a "system" -d "System management and setup tools"
+complete -c eser -n "__fish_use_subcommand" -a "codebase" -d "Codebase management tools"
+complete -c eser -n "__fish_use_subcommand" -a "system" -d "Commands related with this CLI"
 complete -c eser -n "__fish_use_subcommand" -a "install" -d "Install eser CLI globally"
 complete -c eser -n "__fish_use_subcommand" -a "update" -d "Update eser CLI to latest version"
 complete -c eser -n "__fish_seen_subcommand_from system" -a "install" -d "Install eser CLI globally"

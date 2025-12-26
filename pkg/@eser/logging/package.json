@@ -1,6 +1,6 @@
 {
   "name": "@eser/logging",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "type": "module",
   "exports": {
     ".": "./mod.ts",
@@ -8,6 +8,7 @@
     "./tracer": "./tracer.ts"
   },
   "dependencies": {
+    "@eser/primitives": "workspace:*",
     "@opentelemetry/api": "^1.9.0"
   },
   "devDependencies": {

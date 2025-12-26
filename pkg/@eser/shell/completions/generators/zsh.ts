@@ -120,7 +120,5 @@ export const generate = (appName: string, tree: CompletionNode): string => {
 
   output += generateCommandFunction(appName, tree, []);
 
-  output += `_${appName} "$@"\n`;
-
   return output;
 };

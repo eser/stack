@@ -8,18 +8,18 @@ export const mapObject = <T1, T2>(
     instance: Record<string | number | symbol, T1>,
   ) => Record<string | number | symbol, T2> | null,
 ): Record<string | number | symbol, T2> => {
-  return Object.entries(instance).reduce(
-    (obj, [itemKey, itemValue]) => {
-      const value = predicate(itemValue, itemKey, obj);
+  const keys = Object.keys(instance);
+  const result: Record<string | number | symbol, T2> = {};
 
-      if (value !== null) {
-        return { ...obj, ...value };
-      }
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i]!;
+    const mapped = predicate(instance[key] as T1, key, instance);
+    if (mapped !== null) {
+      Object.assign(result, mapped);
+    }
+  }
 
-      return obj;
-    },
-    {},
-  );
+  return result;
 };
 
 export { mapObject as default };

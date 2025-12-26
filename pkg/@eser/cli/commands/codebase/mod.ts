@@ -4,13 +4,9 @@
  * Codebase command group - validation and management tools
  *
  * Subcommands:
- *   check-circular-deps   Detect circular package dependencies
- *   check-mod-exports     Validate mod.ts exports all files
- *   check-export-names    Validate export naming conventions
- *   check-docs            Validate JSDoc documentation
- *   check-licenses        Validate license headers
- *   check-package-configs Validate deno.json/package.json consistency
- *   versions              Manage workspace versions
+ *   init      Initialize project from template
+ *   validate  Run all applicable codebase validations
+ *   versions  Manage workspace versions
  *
  * @module
  */
@@ -18,13 +14,9 @@
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as fmtColors from "@std/fmt/colors";
 import * as standardsRuntime from "@eser/standards/runtime";
-import * as checkCircularDeps from "@eser/codebase/check-circular-deps";
-import * as checkModExports from "@eser/codebase/check-mod-exports";
-import * as checkExportNames from "@eser/codebase/check-export-names";
-import * as checkDocs from "@eser/codebase/check-docs";
-import * as checkLicenses from "@eser/codebase/check-licenses";
-import * as checkPackageConfigs from "@eser/codebase/check-package-configs";
+import * as validation from "@eser/codebase/validation";
 import * as versions from "@eser/codebase/versions";
+import * as scaffolding from "@eser/codebase/scaffolding";
 
 type SubcommandDef = {
   description: string;
@@ -45,259 +37,221 @@ const showSubcommandHelp = (name: string, def: SubcommandDef): void => {
 };
 
 const subcommands: Record<string, SubcommandDef> = {
-  "check-circular-deps": {
-    description: "Detect circular package dependencies",
-    usage: "eser codebase check-circular-deps [options]",
+  init: {
+    description: "Initialize project from template",
+    usage: "eser codebase init <specifier> [options]",
     options: [
       {
-        flag: "--root <path>",
-        description: "Root directory (default: current)",
+        flag: "-p, --path <dir>",
+        description: "Target directory (default: current)",
+      },
+      { flag: "-f, --force", description: "Overwrite existing files" },
+      {
+        flag: "--var <name=value>",
+        description: "Set template variable (can be used multiple times)",
+      },
+      {
+        flag: "--skip-post-install",
+        description: "Skip post-install commands",
+      },
+      {
+        flag: "-i, --interactive",
+        description: "Prompt for missing variables",
       },
       { flag: "-h, --help", description: "Show this help message" },
     ],
-    handler: async (_args, flags) => {
-      const root = flags["root"] as string | undefined;
-      console.log("Checking for circular dependencies...\n");
+    handler: async (args, flags) => {
+      const specifier = args[0];
 
-      const result = await checkCircularDeps.checkCircularDeps({ root });
-
-      console.log(`Checked ${result.packagesChecked} packages.`);
-
-      if (result.hasCycles) {
-        console.log(
-          fmtColors.red(
-            `\nFound ${result.cycles.length} circular dependencies:\n`,
-          ),
-        );
-        for (const cycle of result.cycles) {
-          console.log(fmtColors.yellow(`  ${cycle.join(" → ")}`));
-        }
+      if (specifier === undefined) {
+        console.error(fmtColors.red("Error: Template specifier is required"));
+        console.log("\nUsage: eser codebase init <specifier> [options]");
+        console.log("\nExamples:");
+        console.log("  eser codebase init eser/ajan");
+        console.log("  eser codebase init gh:eser/ajan#v1.0");
+        console.log("  eser codebase init eser/ajan -p ./my-project");
         standardsRuntime.runtime.process.exit(1);
-      } else {
-        console.log(fmtColors.green("\nNo circular dependencies found."));
-      }
-    },
-  },
-
-  "check-mod-exports": {
-    description: "Validate mod.ts exports all public files",
-    usage: "eser codebase check-mod-exports [options]",
-    options: [
-      {
-        flag: "--root <path>",
-        description: "Root directory (default: current)",
-      },
-      { flag: "-h, --help", description: "Show this help message" },
-    ],
-    handler: async (_args, flags) => {
-      const root = flags["root"] as string | undefined;
-      console.log("Checking mod.ts exports...\n");
-
-      const result = await checkModExports.checkModExports({ root });
-
-      console.log(`Checked ${result.packagesChecked} packages.`);
-
-      if (!result.isComplete) {
-        console.log(
-          fmtColors.red(
-            `\nFound ${result.missingExports.length} missing exports:\n`,
-          ),
-        );
-        for (const missing of result.missingExports) {
-          console.log(
-            fmtColors.yellow(`  ${missing.packageName}: ${missing.file}`),
-          );
-        }
-        standardsRuntime.runtime.process.exit(1);
-      } else {
-        console.log(fmtColors.green("\nAll mod.ts exports are complete."));
-      }
-    },
-  },
-
-  "check-export-names": {
-    description: "Validate export naming conventions",
-    usage: "eser codebase check-export-names [options]",
-    options: [
-      {
-        flag: "--root <path>",
-        description: "Root directory (default: current)",
-      },
-      { flag: "-h, --help", description: "Show this help message" },
-    ],
-    handler: async (_args, flags) => {
-      const root = flags["root"] as string | undefined;
-      console.log("Checking export naming conventions...\n");
-
-      const result = await checkExportNames.checkExportNames({ root });
-
-      console.log(`Checked ${result.packagesChecked} packages.`);
-
-      if (!result.isValid) {
-        console.log(
-          fmtColors.red(
-            `\nFound ${result.violations.length} naming violations:\n`,
-          ),
-        );
-        for (const violation of result.violations) {
-          console.log(fmtColors.yellow(`  ${violation.packageName}:`));
-          console.log(`    Export: ${violation.exportPath}`);
-          console.log(`    Suggestion: ${violation.suggestion}`);
-        }
-        standardsRuntime.runtime.process.exit(1);
-      } else {
-        console.log(fmtColors.green("\nAll export names follow conventions."));
-      }
-    },
-  },
-
-  "check-docs": {
-    description: "Validate JSDoc documentation",
-    usage: "eser codebase check-docs [options]",
-    options: [
-      {
-        flag: "--root <path>",
-        description: "Root directory (default: current)",
-      },
-      { flag: "-h, --help", description: "Show this help message" },
-    ],
-    handler: async (_args, flags) => {
-      const root = flags["root"] as string | undefined;
-      console.log("Checking documentation...\n");
-
-      const result = await checkDocs.checkDocs({ root });
-
-      console.log(
-        `Checked ${result.filesChecked} files, ${result.symbolsChecked} symbols.`,
-      );
-
-      if (!result.isValid) {
-        console.log(
-          fmtColors.red(
-            `\nFound ${result.issues.length} documentation issues:\n`,
-          ),
-        );
-
-        // Group by file
-        const byFile = new Map<string, checkDocs.DocIssue[]>();
-        for (const issue of result.issues) {
-          const existing = byFile.get(issue.file) ?? [];
-          existing.push(issue);
-          byFile.set(issue.file, existing);
-        }
-
-        for (const [file, fileIssues] of byFile) {
-          console.log(fmtColors.yellow(`\n${file}:`));
-          for (const issue of fileIssues) {
-            const lineInfo = issue.line !== undefined ? `:${issue.line}` : "";
-            console.log(`  ${issue.symbol}${lineInfo}: ${issue.issue}`);
-          }
-        }
-
-        standardsRuntime.runtime.process.exit(1);
-      } else {
-        console.log(fmtColors.green("\nAll documentation is valid."));
-      }
-    },
-  },
-
-  "check-licenses": {
-    description: "Validate license headers in source files",
-    usage: "eser codebase check-licenses [options]",
-    options: [
-      { flag: "--fix", description: "Auto-fix missing or incorrect headers" },
-      { flag: "-h, --help", description: "Show this help message" },
-    ],
-    handler: async (_args, flags) => {
-      const fix = flags["fix"] as boolean | undefined;
-      console.log("Validating license headers...\n");
-
-      const result = await checkLicenses.validateLicenses({ fix });
-
-      if (result.issues.length === 0) {
-        console.log(
-          `Checked ${result.checked} files. All licenses are valid.`,
-        );
         return;
       }
 
-      if (fix) {
-        for (const issue of result.issues) {
-          if (issue.fixed) {
-            console.log(`Fixed ${issue.issue} header: ${issue.path}`);
+      const targetDir = (flags["path"] as string | undefined) ?? ".";
+      const force = flags["force"] as boolean | undefined ?? false;
+      const skipPostInstall =
+        flags["skip-post-install"] as boolean | undefined ?? false;
+      const interactive = flags["interactive"] as boolean | undefined ?? false;
+
+      // Parse --var flags into variables object
+      const varFlags = flags["var"];
+      const variables: Record<string, string> = {};
+
+      if (typeof varFlags === "string") {
+        const [key, ...valueParts] = varFlags.split("=");
+        if (key !== undefined) {
+          variables[key] = valueParts.join("=");
+        }
+      } else if (Array.isArray(varFlags)) {
+        for (const v of varFlags) {
+          const [key, ...valueParts] = String(v).split("=");
+          if (key !== undefined) {
+            variables[key] = valueParts.join("=");
           }
         }
-        console.log(`Fixed ${result.fixedCount} files.`);
-      } else {
-        for (const issue of result.issues) {
-          console.error(
-            fmtColors.red(
-              `${
-                issue.issue === "missing" ? "Missing" : "Incorrect"
-              } copyright header: ${issue.path}`,
-            ),
-          );
-        }
+      }
+
+      console.log(`Scaffolding from ${fmtColors.cyan(specifier)}...`);
+
+      try {
+        const result = await scaffolding.scaffold({
+          specifier,
+          targetDir,
+          variables,
+          force,
+          skipPostInstall,
+          interactive,
+        });
+
         console.log(
-          fmtColors.yellow(
-            `\nCopyright header should be "// Copyright YYYY-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license."`,
+          fmtColors.green(
+            `\nScaffolded ${result.templateName} to ${result.targetDir}`,
           ),
+        );
+
+        if (Object.keys(result.variables).length > 0) {
+          console.log("\nVariables applied:");
+          for (const [key, value] of Object.entries(result.variables)) {
+            console.log(`  ${fmtColors.dim(key)}: ${value}`);
+          }
+        }
+
+        if (result.postInstallCommands.length > 0) {
+          console.log("\nPost-install commands executed:");
+          for (const cmd of result.postInstallCommands) {
+            console.log(`  ${fmtColors.dim(cmd)}`);
+          }
+        }
+      } catch (error) {
+        console.error(
+          fmtColors.red(`\nScaffolding failed: ${(error as Error).message}`),
         );
         standardsRuntime.runtime.process.exit(1);
       }
     },
   },
 
-  "check-package-configs": {
-    description: "Validate deno.json and package.json consistency",
-    usage: "eser codebase check-package-configs [options]",
+  validate: {
+    description: "Run all applicable codebase validations",
+    usage: "eser codebase validate [options]",
     options: [
       {
         flag: "--root <path>",
         description: "Root directory (default: current)",
       },
+      {
+        flag: "--only <validators>",
+        description: "Run only specific validators (comma-separated)",
+      },
+      {
+        flag: "--skip <validators>",
+        description: "Skip specific validators (comma-separated)",
+      },
+      { flag: "--fix", description: "Auto-fix issues where supported" },
       { flag: "-h, --help", description: "Show this help message" },
     ],
     handler: async (_args, flags) => {
       const root = flags["root"] as string | undefined;
-      console.log("Checking package config consistency...\n");
+      const fix = flags["fix"] as boolean | undefined;
 
-      const result = await checkPackageConfigs.checkPackageConfigs({ root });
+      // Parse comma-separated validator lists
+      const onlyRaw = flags["only"] as string | undefined;
+      const skipRaw = flags["skip"] as string | undefined;
+      const only = onlyRaw !== undefined
+        ? onlyRaw.split(",").map((s) => s.trim())
+        : undefined;
+      const skip = skipRaw !== undefined
+        ? skipRaw.split(",").map((s) => s.trim())
+        : undefined;
 
-      console.log(`Checked ${result.packagesChecked} packages.`);
+      // Load project config to show stack info
+      const config = await validation.loadProjectConfig(root ?? ".");
+      const stackInfo = config?.stack?.join(", ") ?? "all (no .eser.yml)";
 
-      if (!result.isConsistent) {
+      console.log("Validating codebase...\n");
+      console.log(`Stack: ${fmtColors.cyan(stackInfo)}\n`);
+
+      const result = await validation.validate({ root, only, skip, fix });
+
+      // Print results
+      for (const validatorResult of result.results) {
+        const status = validatorResult.passed
+          ? fmtColors.green("PASS")
+          : fmtColors.red("FAIL");
+
+        const stats = Object.entries(validatorResult.stats)
+          .map(([key, value]) => `${value} ${key}`)
+          .join(", ");
+
+        console.log(
+          `  ${validatorResult.name.padEnd(18)} ${status}  (${stats})`,
+        );
+      }
+
+      // Print skipped validators
+      if (result.skipped.length > 0) {
+        console.log(fmtColors.dim("\nSkipped (stack not configured):"));
+        for (const skipped of result.skipped) {
+          console.log(fmtColors.dim(`  - ${skipped.name}: ${skipped.reason}`));
+        }
+      }
+
+      // Print disabled validators
+      if (result.disabled.length > 0) {
+        console.log(fmtColors.dim("\nDisabled:"));
+        for (const disabled of result.disabled) {
+          console.log(fmtColors.dim(`  - ${disabled}`));
+        }
+      }
+
+      // Print issues grouped by location (file or validator)
+      const allIssues = result.results.flatMap((r) =>
+        r.issues.map((i) => ({ validator: r.name, ...i }))
+      );
+
+      if (allIssues.length > 0) {
+        console.log(fmtColors.red(`\nIssues (${allIssues.length}):\n`));
+
+        // Group issues by location (file path or validator name)
+        const grouped = new Map<string, typeof allIssues>();
+        for (const issue of allIssues) {
+          const location = issue.file ?? issue.validator;
+          const existing = grouped.get(location) ?? [];
+          existing.push(issue);
+          grouped.set(location, existing);
+        }
+
+        for (const [location, issues] of grouped) {
+          console.log(`  ${fmtColors.dim(location)}`);
+          for (const issue of issues) {
+            const severity = issue.severity === "error"
+              ? fmtColors.red("error")
+              : fmtColors.yellow("warning");
+            const lineInfo = issue.line !== undefined ? `:${issue.line}` : "";
+            console.log(`    ${severity}${lineInfo}: ${issue.message}`);
+          }
+          console.log();
+        }
+      }
+
+      // Summary
+      const failedCount = result.results.filter((r) => !r.passed).length;
+      if (failedCount > 0) {
         console.log(
           fmtColors.red(
-            `\nFound ${result.inconsistencies.length} inconsistencies:\n`,
+            `\n${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
           ),
         );
-
-        // Group by package
-        const byPackage = new Map<
-          string,
-          checkPackageConfigs.ConfigInconsistency[]
-        >();
-        for (const inc of result.inconsistencies) {
-          const existing = byPackage.get(inc.packageName) ?? [];
-          existing.push(inc);
-          byPackage.set(inc.packageName, existing);
-        }
-
-        for (const [pkgName, inconsistencies] of byPackage) {
-          console.log(fmtColors.yellow(`${pkgName}:`));
-          for (const inc of inconsistencies) {
-            console.log(fmtColors.red(`  ⚠ ${inc.field} mismatch:`));
-            console.log(`    deno.json:    ${JSON.stringify(inc.denoValue)}`);
-            console.log(
-              `    package.json: ${JSON.stringify(inc.packageValue)}`,
-            );
-          }
-        }
-
         standardsRuntime.runtime.process.exit(1);
       } else {
-        console.log(fmtColors.green("\nAll package configs are consistent."));
+        console.log(fmtColors.green("\nAll checks passed!"));
       }
     },
   },
@@ -357,18 +311,12 @@ const subcommands: Record<string, SubcommandDef> = {
 };
 
 const showHelp = (): void => {
-  console.log("eser codebase - Codebase validation tools\n");
+  console.log("eser codebase - Codebase management tools\n");
   console.log("Usage: eser codebase <subcommand> [options]\n");
   console.log("Subcommands:");
-  console.log("  check-circular-deps   Detect circular package dependencies");
-  console.log("  check-mod-exports     Validate mod.ts exports all files");
-  console.log("  check-export-names    Validate export naming conventions");
-  console.log("  check-docs            Validate JSDoc documentation");
-  console.log("  check-licenses        Validate license headers");
-  console.log(
-    "  check-package-configs Validate deno.json/package.json consistency",
-  );
-  console.log("  versions              Manage workspace versions");
+  console.log("  init      Initialize project from template");
+  console.log("  validate  Run all applicable codebase validations");
+  console.log("  versions  Manage workspace versions");
   console.log(
     "\nRun 'eser codebase <subcommand> --help' for subcommand options.",
   );
@@ -380,9 +328,17 @@ export const codebaseCommand = async (
 ): Promise<void> => {
   // Parse all flags (don't use stopEarly so --help is always captured)
   const parsed = cliParseArgs.parseArgs(rawArgs, {
-    boolean: ["help", "dry-run", "fix"],
-    string: ["root"],
-    alias: { h: "help" },
+    boolean: [
+      "help",
+      "dry-run",
+      "fix",
+      "force",
+      "interactive",
+      "skip-post-install",
+    ],
+    string: ["root", "path", "var", "only", "skip"],
+    alias: { h: "help", p: "path", f: "force", i: "interactive" },
+    collect: ["var"],
   });
 
   const subcommand = parsed._[0] as string | undefined;

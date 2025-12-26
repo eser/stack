@@ -8,28 +8,21 @@ export const distinctArray = <T>(
     ? <ReadonlyArray<T>> instance
     : [...instance];
 
-  const predicateValue = predicate ?? ((value) => value);
+  const predicateValue = predicate ?? ((value: T) => value);
+  const result: Array<T> = [];
+  const seen = new Set<unknown>();
 
-  const result = arrInstance.reduce(
-    (obj, itemValue, itemIndex) => {
-      const key = predicateValue(itemValue, itemIndex, obj.items);
+  for (let i = 0, len = arrInstance.length; i < len; i++) {
+    const value = arrInstance[i]!;
+    const key = predicateValue(value, i, result);
 
-      if (obj.dict.has(key)) {
-        return obj;
-      }
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(value);
+    }
+  }
 
-      return {
-        items: [...obj.items, itemValue],
-        dict: new Set<unknown>([...obj.dict, key]),
-      };
-    },
-    {
-      items: <Array<T>> [],
-      dict: new Set<unknown>(),
-    },
-  );
-
-  return result.items;
+  return result;
 };
 
 export { distinctArray as default };

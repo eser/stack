@@ -1,6 +1,6 @@
 {
   "name": "@eser/config",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "type": "module",
   "exports": {
     ".": "./mod.ts",
@@ -8,6 +8,7 @@
     "./dotenv": "./dotenv/mod.ts"
   },
   "dependencies": {
+    "@eser/primitives": "workspace:*",
     "@std/collections": "npm:@jsr/std__collections@^1.1.3",
     "@std/dotenv": "npm:@jsr/std__dotenv@^0.225.6",
     "@std/fs": "npm:@jsr/std__fs@^1.0.21",

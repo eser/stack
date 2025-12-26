@@ -8,28 +8,23 @@ export const distinctObject = <T>(
     instance: Record<string | number | symbol, T>,
   ) => unknown,
 ): Record<string | number | symbol, T> => {
-  const predicateValue = predicate ?? ((value) => value);
+  const predicateValue = predicate ?? ((value: T) => value);
+  const keys = Object.keys(instance);
+  const result: Record<string | number | symbol, T> = {};
+  const seen = new Set<unknown>();
 
-  const result = Object.entries(instance).reduce(
-    (obj, [itemKey, value]) => {
-      const key = predicateValue(value, itemKey, obj.items);
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const itemKey = keys[i]!;
+    const value = instance[itemKey] as T;
+    const key = predicateValue(value, itemKey, result);
 
-      if (obj.dict.has(key)) {
-        return obj;
-      }
+    if (!seen.has(key)) {
+      seen.add(key);
+      result[itemKey] = value;
+    }
+  }
 
-      return {
-        items: { ...obj.items, [itemKey]: value },
-        dict: new Set<unknown>([...obj.dict, key]),
-      };
-    },
-    {
-      items: {},
-      dict: new Set<unknown>(),
-    },
-  );
-
-  return result.items;
+  return result;
 };
 
 export { distinctObject as default };

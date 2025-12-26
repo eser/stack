@@ -11,8 +11,8 @@
  *   dx jsr:@eser/cli <command> [subcommand] [options]
  *
  * Commands:
- *   codebase    Codebase validation and management tools
- *   system      System management and setup tools
+ *   codebase    Codebase management tools
+ *   system      Commands related with this CLI
  *   install     Install eser CLI globally (alias for system install)
  *   update      Update eser CLI to latest version (alias for system update)
  *
@@ -100,9 +100,9 @@ const showHelp = (): void => {
   // deno-lint-ignore no-console
   console.log("Commands:");
   // deno-lint-ignore no-console
-  console.log("  codebase    Codebase validation and management tools");
+  console.log("  codebase    Codebase management tools");
   // deno-lint-ignore no-console
-  console.log("  system      System management and setup tools");
+  console.log("  system      Commands related with this CLI");
   // deno-lint-ignore no-console
   console.log(
     "  install     Install eser CLI globally (alias for system install)",

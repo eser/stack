@@ -105,91 +105,82 @@ export const deepMerge = <
 
     try {
       const Type = inst.constructor as { new (): UR };
+      // deno-lint-ignore no-explicit-any
+      const result: Record<string, any> = new Type();
+      const instKeys = Object.keys(inst);
+      const processedKeys = new Set<string>();
 
-      const firstMerge = Object.entries(inst).reduce(
-        (acc, [itemKey, recordValue]) => {
-          const otherKeyExists = (oth !== undefined) && (itemKey in oth);
-          const otherValue = oth?.[itemKey];
+      // Process keys from instance
+      for (let i = 0, len = instKeys.length; i < len; i++) {
+        const itemKey = instKeys[i]!;
+        const recordValue = inst[itemKey];
+        const otherKeyExists = (oth !== undefined) && (itemKey in oth);
+        const otherValue = oth?.[itemKey];
+
+        processedKeys.add(itemKey);
+
+        if (
+          recordValue instanceof Object && recordValue.constructor !== Array
+        ) {
+          let mergedValue: unknown;
 
           if (
-            recordValue instanceof Object && recordValue.constructor !== Array
+            otherKeyExists && otherValue instanceof Object &&
+            otherValue.constructor !== Array
           ) {
-            let mergedValue: unknown;
-
-            if (
-              otherKeyExists && otherValue instanceof Object &&
-              otherValue.constructor !== Array
-            ) {
-              // Both are objects - merge recursively
-              mergedValue = mergeRecursive(
-                recordValue,
-                otherValue,
-                currentDepth + 1,
-              );
-            } else if (otherKeyExists) {
-              // Other value takes precedence (even if not an object)
-              mergedValue = otherValue;
-            } else {
-              // No other value - still need to process for circular ref detection
-              // We do this by "merging" with an empty object
-              mergedValue = mergeRecursive(
-                recordValue,
-                {} as U2,
-                currentDepth + 1,
-              );
-            }
-
-            return {
-              merged: Object.assign(new Type(), acc.merged, {
-                [itemKey]: mergedValue,
-              }),
-              otherKeys: acc.otherKeys.filter((x) => x !== itemKey),
-            };
-          }
-
-          return {
-            merged: Object.assign(new Type(), acc.merged, {
-              [itemKey]: otherKeyExists ? otherValue : recordValue,
-            }),
-            otherKeys: acc.otherKeys.filter((x) => x !== itemKey),
-          };
-        },
-        {
-          merged: new Type(),
-          otherKeys: (oth !== undefined) ? Object.keys(oth) : [],
-        },
-      );
-
-      if (oth === undefined) {
-        return firstMerge.merged;
-      }
-
-      // Add remaining keys from 'other' that weren't in 'instance'
-      const finalMerge = firstMerge.otherKeys.reduce(
-        (acc, itemKey) => {
-          const otherValue = oth[itemKey];
-
-          // For nested objects in 'other', we need to check for circular references
-          if (
-            otherValue instanceof Object && otherValue.constructor !== Array
-          ) {
-            // Process through merge to check for circular refs and depth
-            const processedValue = mergeRecursive(
-              {} as U1,
+            // Both are objects - merge recursively
+            mergedValue = mergeRecursive(
+              recordValue,
               otherValue,
               currentDepth + 1,
             );
-            return Object.assign(acc, { [itemKey]: processedValue });
+          } else if (otherKeyExists) {
+            // Other value takes precedence (even if not an object)
+            mergedValue = otherValue;
+          } else {
+            // No other value - still need to process for circular ref detection
+            mergedValue = mergeRecursive(
+              recordValue,
+              {} as U2,
+              currentDepth + 1,
+            );
           }
 
-          // Include all keys from other, even if undefined
-          // This allows explicitly setting values to undefined
-          return Object.assign(acc, { [itemKey]: otherValue });
-        },
-        firstMerge.merged,
-      );
+          result[itemKey] = mergedValue;
+        } else {
+          result[itemKey] = otherKeyExists ? otherValue : recordValue;
+        }
+      }
 
-      return finalMerge;
+      if (oth === undefined) {
+        return result as UR;
+      }
+
+      // Add remaining keys from 'other' that weren't in 'instance'
+      const otherKeys = Object.keys(oth);
+      for (let i = 0, len = otherKeys.length; i < len; i++) {
+        const itemKey = otherKeys[i]!;
+        if (processedKeys.has(itemKey)) {
+          continue;
+        }
+
+        const otherValue = oth[itemKey];
+
+        // For nested objects in 'other', we need to check for circular references
+        if (
+          otherValue instanceof Object && otherValue.constructor !== Array
+        ) {
+          result[itemKey] = mergeRecursive(
+            {} as U1,
+            otherValue,
+            currentDepth + 1,
+          );
+        } else {
+          result[itemKey] = otherValue;
+        }
+      }
+
+      return result as UR;
     } finally {
       // Remove from seen sets after processing
       seenInstance.delete(inst);

@@ -8,7 +8,7 @@
 
 import { runtime } from "@eser/standards/runtime";
 import * as logging from "@eser/standards/logging";
-import * as functions from "@eser/standards/functions";
+import * as functions from "@eser/primitives/functions";
 import * as formatters from "./formatters.ts";
 
 export const DEFAULT_LEVEL = logging.Severities.Info;

@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as functions from "./functions.ts";
+import * as functions from "@eser/primitives/functions";
 
 // taken from RFC5424 (see: https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.1)
 export const Severities = {

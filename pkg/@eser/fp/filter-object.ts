@@ -8,16 +8,18 @@ export const filterObject = <T>(
     instance: Record<string | number | symbol, T>,
   ) => boolean,
 ): Record<string | number | symbol, T> => {
-  return Object.entries(instance).reduce(
-    (obj, [itemKey, value]) => {
-      if (predicate(value, itemKey, obj)) {
-        return { ...obj, [itemKey]: value };
-      }
+  const keys = Object.keys(instance);
+  const result: Record<string | number | symbol, T> = {};
 
-      return obj;
-    },
-    {},
-  );
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i]!;
+    const value = instance[key] as T;
+    if (predicate(value, key, instance)) {
+      result[key] = value;
+    }
+  }
+
+  return result;
 };
 
 export { filterObject as default };

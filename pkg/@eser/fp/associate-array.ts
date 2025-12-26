@@ -12,21 +12,17 @@ export const associateArray = <T>(
     ? <ReadonlyArray<T>> instance
     : [...instance];
 
-  return arrInstance.reduce(
-    (obj, itemValue, itemIndex) => {
-      const key = predicate(itemValue, itemIndex, obj);
+  const result: Record<string | number | symbol, T> = {};
 
-      if (key !== undefined) {
-        return {
-          ...obj,
-          [key]: itemValue,
-        };
-      }
+  for (let i = 0, len = arrInstance.length; i < len; i++) {
+    const value = arrInstance[i]!;
+    const key = predicate(value, i, result);
+    if (key !== undefined) {
+      result[key] = value;
+    }
+  }
 
-      return obj;
-    },
-    {},
-  );
+  return result;
 };
 
 export { associateArray as default };

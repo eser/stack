@@ -8,21 +8,19 @@ export const associateObject = <T>(
     instance: Record<string | number | symbol, T>,
   ) => string | number | symbol | undefined,
 ): Record<string | number | symbol, T> => {
-  return Object.entries(instance).reduce(
-    (obj, [itemKey, value]) => {
-      const key = predicate(value, itemKey, obj);
+  const keys = Object.keys(instance);
+  const result: Record<string | number | symbol, T> = {};
 
-      if (key !== undefined) {
-        return {
-          ...obj,
-          [key]: value,
-        };
-      }
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const itemKey = keys[i]!;
+    const value = instance[itemKey] as T;
+    const key = predicate(value, itemKey, instance);
+    if (key !== undefined) {
+      result[key] = value;
+    }
+  }
 
-      return obj;
-    },
-    {},
-  );
+  return result;
 };
 
 export { associateObject as default };

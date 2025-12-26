@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * System command - system management and setup tools
+ * System command - Commands related with this CLI
  *
  * @module
  */
@@ -15,7 +15,7 @@ import {
 } from "./handlers/mod.ts";
 
 export const systemCommand = new Command("system")
-  .description("System management and setup tools")
+  .description("Commands related with this CLI")
   .command(
     new Command("install")
       .description("Install eser CLI globally")

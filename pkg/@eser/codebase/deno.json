@@ -1,10 +1,12 @@
 {
   "name": "@eser/codebase",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "exports": {
     ".": "./mod.ts",
     "./git": "./git.ts",
     "./package": "./package/mod.ts",
+    "./scaffolding": "./scaffolding/mod.ts",
+    "./validation": "./validation/mod.ts",
     "./workspace-discovery": "./workspace-discovery.ts",
     "./check-circular-deps": "./check-circular-deps.ts",
     "./check-mod-exports": "./check-mod-exports.ts",
@@ -21,6 +23,8 @@
     "@std/fs": "jsr:@std/fs@^1.0.21",
     "@std/path": "jsr:@std/path@^1.1.4",
     "@std/semver": "jsr:@std/semver@^1.0.7",
+    "@std/tar": "jsr:@std/tar@^0.1.9",
+    "@std/yaml": "jsr:@std/yaml@^1.0.10",
     "octokit": "npm:octokit@^5.0.5"
   }
 }

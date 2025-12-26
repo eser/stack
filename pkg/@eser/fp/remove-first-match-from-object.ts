@@ -8,20 +8,23 @@ export const removeFirstMatchFromObject = <T>(
     instance: Record<string | number | symbol, T>,
   ) => boolean,
 ): Record<string | number | symbol, T> => {
-  let notFound = true;
+  const keys = Object.keys(instance);
+  const result: Record<string | number | symbol, T> = {};
+  let removed = false;
 
-  return Object.entries(instance).reduce(
-    (obj, [itemKey, value]) => {
-      if (notFound && predicate(value, itemKey, obj)) {
-        notFound = false;
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i]!;
+    const value = instance[key] as T;
 
-        return obj;
-      }
+    if (!removed && predicate(value, key, instance)) {
+      removed = true;
+      continue;
+    }
 
-      return { ...obj, [itemKey]: value };
-    },
-    {},
-  );
+    result[key] = value;
+  }
+
+  return result;
 };
 
 export { removeFirstMatchFromObject as default };

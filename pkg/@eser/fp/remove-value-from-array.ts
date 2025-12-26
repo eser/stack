@@ -6,9 +6,18 @@ export const removeValueFromArray = <T>(
   instance: Iterable<T>,
   ...values: ReadonlyArray<T>
 ): Array<T> => {
-  return ensureArray(instance).filter(
-    (item) => values.indexOf(item) === -1,
-  );
+  const exclude = new Set(values);
+  const arr = ensureArray(instance);
+  const result: Array<T> = [];
+
+  for (let i = 0, len = arr.length; i < len; i++) {
+    const item = arr[i]!;
+    if (!exclude.has(item)) {
+      result.push(item);
+    }
+  }
+
+  return result;
 };
 
 export { removeValueFromArray as default };

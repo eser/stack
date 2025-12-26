@@ -18,29 +18,20 @@ export const splitObject = <T>(
   instance: Record<string | number | symbol, T>,
   n: number,
 ): SplitObjectResult<T> => {
-  let index = 0;
+  const keys = Object.keys(instance);
+  const items: Record<string | number | symbol, T> = {};
+  const rest: Record<string | number | symbol, T> = {};
 
-  return Object.keys(instance).reduce(
-    (obj, itemKey) => {
-      if (index < n) {
-        index += 1;
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i]!;
+    if (i < n) {
+      items[key] = instance[key] as T;
+    } else {
+      rest[key] = instance[key] as T;
+    }
+  }
 
-        return {
-          items: { ...obj.items, [itemKey]: instance[itemKey] },
-          rest: obj.rest,
-        };
-      }
-
-      return {
-        items: obj.items,
-        rest: { ...obj.rest, [itemKey]: instance[itemKey] },
-      };
-    },
-    {
-      items: {},
-      rest: {},
-    },
-  );
+  return { items, rest };
 };
 
 export { splitObject as default };

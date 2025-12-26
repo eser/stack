@@ -7,7 +7,7 @@
 // Copyright (c) 2021-2023 the Deno authors
 
 import * as logging from "@eser/standards/logging";
-import * as functions from "@eser/standards/functions";
+import * as functions from "@eser/primitives/functions";
 import * as logger from "./logger.ts";
 
 export type FormatterFn = (logRecord: logger.LogRecord) => string;

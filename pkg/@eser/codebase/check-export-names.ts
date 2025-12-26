@@ -22,6 +22,7 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
+import * as pathPosix from "@std/path/posix";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 
@@ -85,7 +86,17 @@ const isKebabCase = (str: string, ignoreWords: string[] = []): boolean => {
 
   for (const segment of segments) {
     // Skip the leading dot for relative paths
-    const cleanSegment = segment.startsWith(".") ? segment.slice(1) : segment;
+    let cleanSegment = segment.startsWith(".") ? segment.slice(1) : segment;
+
+    if (cleanSegment.length === 0) {
+      continue;
+    }
+
+    // Strip file extension using path helpers (language-agnostic)
+    const ext = pathPosix.extname(cleanSegment);
+    if (ext.length > 0) {
+      cleanSegment = cleanSegment.slice(0, -ext.length);
+    }
 
     if (cleanSegment.length === 0) {
       continue;

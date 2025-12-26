@@ -23,6 +23,7 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
+import { groupBy } from "@eser/fp/group-by";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as pkg from "./package/mod.ts";
 import { ConfigFileTypes } from "./package/types.ts";
@@ -420,14 +421,12 @@ const main = async (): Promise<void> => {
       );
 
       // Group by package
-      const byPackage = new Map<string, ConfigInconsistency[]>();
-      for (const inc of result.inconsistencies) {
-        const existing = byPackage.get(inc.packageName) ?? [];
-        existing.push(inc);
-        byPackage.set(inc.packageName, existing);
-      }
+      const byPackage = groupBy(
+        result.inconsistencies,
+        (inc) => inc.packageName,
+      );
 
-      for (const [pkgName, inconsistencies] of byPackage) {
+      for (const [pkgName, inconsistencies] of Object.entries(byPackage)) {
         console.log(fmtColors.yellow(`${pkgName}:`));
         for (const inc of inconsistencies) {
           console.log(fmtColors.red(`  ⚠ ${inc.field} mismatch:`));
@@ -447,14 +446,12 @@ const main = async (): Promise<void> => {
       );
 
       // Group by package
-      const byPackage = new Map<string, DependencyInconsistency[]>();
-      for (const inc of result.dependencyInconsistencies) {
-        const existing = byPackage.get(inc.packageName) ?? [];
-        existing.push(inc);
-        byPackage.set(inc.packageName, existing);
-      }
+      const byPackage = groupBy(
+        result.dependencyInconsistencies,
+        (inc) => inc.packageName,
+      );
 
-      for (const [pkgName, inconsistencies] of byPackage) {
+      for (const [pkgName, inconsistencies] of Object.entries(byPackage)) {
         console.log(fmtColors.yellow(`${pkgName}:`));
         for (const inc of inconsistencies) {
           console.log(fmtColors.red(`  ⚠ ${inc.dependencyName}:`));

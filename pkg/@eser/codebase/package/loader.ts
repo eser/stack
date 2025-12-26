@@ -2,6 +2,8 @@
 
 import * as posix from "@std/path/posix";
 import * as fileLoader from "@eser/config/file";
+import { get } from "@eser/fp/get";
+import { deepMerge } from "@eser/fp/deep-merge";
 import { runtime } from "@eser/standards/runtime";
 import {
   baseDirProp,
@@ -91,24 +93,13 @@ const findConfigFiles = async (
 
 /**
  * Gets a nested property value from an object using a dot-separated path.
+ * Uses @eser/fp's get() with array path for performance.
  */
 const getPropertyByPath = (
   obj: Record<string, unknown>,
   path: string,
 ): unknown => {
-  const parts = path.split(".");
-  let current: unknown = obj;
-
-  for (const part of parts) {
-    if (
-      current === null || current === undefined || typeof current !== "object"
-    ) {
-      return undefined;
-    }
-    current = (current as Record<string, unknown>)[part];
-  }
-
-  return current;
+  return get(obj, path.split("."));
 };
 
 /**
@@ -161,7 +152,7 @@ const extractField = <T>(
 };
 
 /**
- * Merges custom field mappings with defaults.
+ * Merges custom field mappings with defaults using deepMerge.
  */
 const mergeFieldMappings = (
   customMappings?: Partial<FieldMapping>,
@@ -170,16 +161,7 @@ const mergeFieldMappings = (
     return DEFAULT_FIELD_MAPPINGS;
   }
 
-  const merged: FieldMapping = { ...DEFAULT_FIELD_MAPPINGS };
-
-  for (const [field, mapping] of Object.entries(customMappings)) {
-    merged[field as PackageFieldName] = {
-      ...merged[field as PackageFieldName],
-      ...mapping,
-    };
-  }
-
-  return merged;
+  return deepMerge(DEFAULT_FIELD_MAPPINGS, customMappings) as FieldMapping;
 };
 
 /**

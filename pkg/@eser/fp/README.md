@@ -83,6 +83,16 @@ an alternative.
   [removeValueFromObject](#removevaluefromobjectsource-values) help in
   selecting, removing or filtering specific items.
 
+- **Collection Utilities**: [chunk](#chunkarray-size) splits arrays into groups,
+  [groupBy](#groupbyarray-iteratee) groups elements by key, and
+  [keyBy](#keybyarray-iteratee) creates lookup objects from arrays.
+
+- **Object Access**: [get](#getobject-path-defaultvalue) provides safe deep
+  property access with default values.
+
+- **Function Optimization**: [memoize](#memoizefn-resolver) caches function
+  results for performance optimization.
+
 ... and more!
 
 ## 🚀 Getting Started with Functional Programming (FP)
@@ -188,6 +198,21 @@ const result = associateObject(categories, (category) => category.id);
 //   "3": { id: 3, name: "baz" }
 // }
 console.dir(result);
+```
+
+### chunk(array, size)
+
+splits an array into groups of the specified size. if the array can't be split
+evenly, the final chunk will contain the remaining elements.
+
+```js
+import { chunk } from "@eser/fp/chunk";
+
+const source = [1, 2, 3, 4, 5];
+const result = chunk(source, 2);
+
+// output: Result: [[1,2],[3,4],[5]]
+console.log(`Result: ${JSON.stringify(result)}`);
 ```
 
 ### compose(...functionsForComposition)
@@ -513,6 +538,50 @@ console.log(`Result: ${JSON.stringify(newOne)}`);
 console.log(`Is Same: ${source === newOne}`);
 ```
 
+### get(object, path, defaultValue)
+
+gets the value at path of object. if the resolved value is undefined, the
+defaultValue is returned in its place. uses array path syntax for performance.
+
+```js
+import { get } from "@eser/fp/get";
+
+const config = {
+  database: {
+    host: "localhost",
+    port: 5432,
+  },
+};
+
+// output: Result: localhost
+console.log(`Result: ${get(config, ["database", "host"])}`);
+
+// output: Result: 3000 (default value)
+console.log(`Result: ${get(config, ["server", "port"], 3000)}`);
+```
+
+### groupBy(array, iteratee)
+
+groups elements of an array by the result of an iteratee function.
+
+```js
+import { groupBy } from "@eser/fp/group-by";
+
+const users = [
+  { name: "Alice", role: "admin" },
+  { name: "Bob", role: "user" },
+  { name: "Charlie", role: "admin" },
+];
+
+const result = groupBy(users, (user) => user.role);
+
+// output: {
+//   admin: [{ name: "Alice", role: "admin" }, { name: "Charlie", role: "admin" }],
+//   user: [{ name: "Bob", role: "user" }]
+// }
+console.dir(result);
+```
+
 ### iterate(iterable, fn) (awaitable)
 
 iterates over an iterable (like a generator) and applies a function (`fn`) to
@@ -550,6 +619,34 @@ iterate(
   generator(),
   compose(fetchUrl, add5, printToConsole),
 );
+```
+
+### keyBy(array, iteratee)
+
+creates an object composed of keys generated from the results of running each
+element through iteratee. the corresponding value of each key is the last
+element responsible for generating the key.
+
+```js
+import { keyBy } from "@eser/fp/key-by";
+
+const users = [
+  { id: "a1", name: "Alice" },
+  { id: "b2", name: "Bob" },
+  { id: "c3", name: "Charlie" },
+];
+
+const result = keyBy(users, (user) => user.id);
+
+// output: {
+//   a1: { id: "a1", name: "Alice" },
+//   b2: { id: "b2", name: "Bob" },
+//   c3: { id: "c3", name: "Charlie" }
+// }
+console.dir(result);
+
+// O(1) lookup
+console.log(result["b2"].name); // "Bob"
 ```
 
 ### mapArray(instance, predicate)
@@ -618,6 +715,34 @@ const newOne = mergeObjects(source1, source2);
 console.log(`Result: ${JSON.stringify(newOne)}`);
 // output: Is Same: false
 console.log(`Is Same: ${source === newOne}`);
+```
+
+### memoize(fn, resolver)
+
+creates a function that memoizes the result of fn. by default, the first
+argument is used as the cache key. provide a resolver function to use a custom
+cache key.
+
+```js
+import { memoize } from "@eser/fp/memoize";
+
+// expensive computation
+const fibonacci = memoize((n) => {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+});
+
+console.log(fibonacci(40)); // fast due to memoization
+
+// with custom resolver
+const fetchUser = memoize(
+  (id, options) => fetch(`/api/users/${id}`),
+  (id, _options) => id, // only use id as cache key
+);
+
+// access cache directly
+fibonacci.cache.clear(); // clear all cached values
+fibonacci.cache.delete(40); // delete specific cached value
 ```
 
 ### mutate(source, mutatorFn)

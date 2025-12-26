@@ -1,6 +1,6 @@
 {
   "name": "@eser/codebase",
-  "version": "4.0.6",
+  "version": "4.0.7",
   "type": "module",
   "exports": {
     "./git": "./git.ts",
@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@eser/config": "workspace:*",
+    "@eser/fp": "workspace:*",
     "@eser/shell": "workspace:*",
     "@eser/standards": "workspace:*",
     "@std/cli": "npm:@jsr/std__cli@^1.0.25",

@@ -79,5 +79,18 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
 
-      - name: Publish
+      - name: Publish to JSR
         run: deno publish
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "latest"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Build npm package
+        run: deno task npm-build
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        working-directory: ./pkg/@eser/cli/dist

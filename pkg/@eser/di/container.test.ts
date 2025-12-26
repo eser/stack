@@ -243,7 +243,7 @@ Deno.test("@injectable() with custom key should register with custom key", () =>
 
 Deno.test("@injectable() creates new instance each time from lazy", () => {
   @injectable("lazyService")
-  class LazyService {
+  class _LazyService {
     value = Math.random();
   }
 

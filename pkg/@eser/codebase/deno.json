@@ -1,6 +1,6 @@
 {
   "name": "@eser/codebase",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "exports": {
     "./git": "./git.ts",
     "./package": "./package/mod.ts",

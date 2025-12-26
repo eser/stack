@@ -1,6 +1,6 @@
 {
   "name": "@eser/cli",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "exports": "./main.ts",
   "imports": {
     "@std/cli": "jsr:@std/cli@^1.0.25",

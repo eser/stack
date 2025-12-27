@@ -20,7 +20,21 @@ import type {
   RuntimeProcess,
 } from "../types.ts";
 import { RuntimeCapabilityError } from "../types.ts";
-import { WORKERD_CAPABILITIES } from "../capabilities.ts";
+
+/**
+ * Cloudflare Workers capabilities - very limited.
+ * No filesystem, no process execution, env is handler-scoped.
+ */
+export const WORKERD_CAPABILITIES: RuntimeCapabilities = {
+  fs: false,
+  fsSync: false,
+  exec: false,
+  process: false,
+  env: true, // Available via handler context
+  stdin: false,
+  stdout: false,
+  kv: true, // Cloudflare KV bindings
+} as const;
 import { posixPath } from "../polyfills/path.ts";
 
 // =============================================================================
@@ -130,8 +144,8 @@ export const populateEnvFromContext = (
   env: Record<string, unknown>,
 ): void => {
   for (const [key, value] of Object.entries(env)) {
-    if (typeof value === "string") {
-      envStorage.set(key, value);
+    if (value !== null && value !== undefined && value.constructor === String) {
+      envStorage.set(key, value as string);
     }
   }
 };

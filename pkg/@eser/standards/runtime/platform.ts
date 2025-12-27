@@ -18,6 +18,13 @@
  */
 
 import type { Arch, Platform, PlatformInfo } from "./types.ts";
+import {
+  getFirstEnvVar,
+  getNavigator,
+  getProcess,
+  type NodeOsModule,
+  tryRequire,
+} from "./helpers.ts";
 
 /**
  * Detects the current operating system platform.
@@ -33,28 +40,27 @@ import type { Arch, Platform, PlatformInfo } from "./types.ts";
  * }
  * ```
  */
+const PLATFORM_MAP: Record<string, Platform> = {
+  darwin: "darwin",
+  linux: "linux",
+  windows: "windows",
+  win32: "windows",
+};
+
 export const getPlatform = (): Platform => {
   // Deno
   if (typeof Deno !== "undefined" && Deno.build?.os) {
-    const os = Deno.build.os;
-    if (os === "darwin") return "darwin";
-    if (os === "linux") return "linux";
-    if (os === "windows") return "windows";
+    return PLATFORM_MAP[Deno.build.os] ?? "linux";
   }
 
-  // Node.js / Bun (check for process.platform)
-  // deno-lint-ignore no-explicit-any
-  const proc = (globalThis as any).process;
+  // Node.js / Bun
+  const proc = getProcess();
   if (proc?.platform) {
-    const platform = proc.platform;
-    if (platform === "darwin") return "darwin";
-    if (platform === "linux") return "linux";
-    if (platform === "win32") return "windows";
+    return PLATFORM_MAP[proc.platform] ?? "linux";
   }
 
-  // Browser detection via userAgent (best effort)
-  // deno-lint-ignore no-explicit-any
-  const nav = (globalThis as any).navigator;
+  // Browser detection via userAgent
+  const nav = getNavigator();
   if (nav?.userAgent) {
     const ua = nav.userAgent.toLowerCase();
     if (ua.includes("mac")) return "darwin";
@@ -62,7 +68,6 @@ export const getPlatform = (): Platform => {
     if (ua.includes("linux")) return "linux";
   }
 
-  // Default to linux as most common server OS
   return "linux";
 };
 
@@ -80,32 +85,32 @@ export const getPlatform = (): Platform => {
  * }
  * ```
  */
+const ARCH_MAP: Record<string, Arch> = {
+  x86_64: "amd64",
+  x64: "amd64",
+  aarch64: "arm64",
+  arm64: "arm64",
+};
+
 export const getArch = (): Arch => {
   // Deno
   if (typeof Deno !== "undefined" && Deno.build?.arch) {
-    const arch = Deno.build.arch;
-    if (arch === "x86_64") return "amd64";
-    if (arch === "aarch64") return "arm64";
+    return ARCH_MAP[Deno.build.arch] ?? "amd64";
   }
 
-  // Node.js / Bun (check for process.arch)
-  // deno-lint-ignore no-explicit-any
-  const proc = (globalThis as any).process;
+  // Node.js / Bun
+  const proc = getProcess();
   if (proc?.arch) {
-    const arch = proc.arch;
-    if (arch === "x64") return "amd64";
-    if (arch === "arm64") return "arm64";
+    return ARCH_MAP[proc.arch] ?? "amd64";
   }
 
-  // Browser detection via userAgent (best effort)
-  // deno-lint-ignore no-explicit-any
-  const nav = (globalThis as any).navigator;
+  // Browser detection via userAgent
+  const nav = getNavigator();
   if (nav?.userAgent) {
     const ua = nav.userAgent.toLowerCase();
     if (ua.includes("arm64") || ua.includes("aarch64")) return "arm64";
   }
 
-  // Default to amd64 as most common
   return "amd64";
 };
 
@@ -121,37 +126,18 @@ export const getArch = (): Arch => {
  * ```
  */
 export const getHomedir = (): string => {
-  // Deno
-  if (typeof Deno !== "undefined" && Deno.env?.get) {
-    const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE");
-    if (home) return home;
-  }
-
-  // Node.js / Bun
-  // deno-lint-ignore no-explicit-any
-  const proc = (globalThis as any).process;
-  if (proc?.env) {
-    const home = proc.env.HOME ?? proc.env.USERPROFILE;
-    if (home) return home;
-  }
+  // Try env vars first (works in Deno, Node, Bun)
+  const home = getFirstEnvVar("HOME", "USERPROFILE");
+  if (home) return home;
 
   // Try os.homedir() for Node.js
-  try {
-    // deno-lint-ignore no-explicit-any
-    const os = (globalThis as any).require?.("os");
-    if (os?.homedir) {
-      return os.homedir();
-    }
-  } catch {
-    // Ignore
+  const os = tryRequire<NodeOsModule>("os");
+  if (os?.homedir) {
+    return os.homedir();
   }
 
   // Default fallback
-  const platform = getPlatform();
-  if (platform === "windows") {
-    return "C:\\Users\\Default";
-  }
-  return "/home";
+  return getPlatform() === "windows" ? "C:\\Users\\Default" : "/home";
 };
 
 /**
@@ -166,38 +152,18 @@ export const getHomedir = (): string => {
  * ```
  */
 export const getTmpdir = (): string => {
-  // Deno
-  if (typeof Deno !== "undefined" && Deno.env?.get) {
-    const tmp = Deno.env.get("TMPDIR") ?? Deno.env.get("TMP") ??
-      Deno.env.get("TEMP");
-    if (tmp) return tmp;
-  }
-
-  // Node.js / Bun
-  // deno-lint-ignore no-explicit-any
-  const proc = (globalThis as any).process;
-  if (proc?.env) {
-    const tmp = proc.env.TMPDIR ?? proc.env.TMP ?? proc.env.TEMP;
-    if (tmp) return tmp;
-  }
+  // Try env vars first (works in Deno, Node, Bun)
+  const tmp = getFirstEnvVar("TMPDIR", "TMP", "TEMP");
+  if (tmp) return tmp;
 
   // Try os.tmpdir() for Node.js
-  try {
-    // deno-lint-ignore no-explicit-any
-    const os = (globalThis as any).require?.("os");
-    if (os?.tmpdir) {
-      return os.tmpdir();
-    }
-  } catch {
-    // Ignore
+  const os = tryRequire<NodeOsModule>("os");
+  if (os?.tmpdir) {
+    return os.tmpdir();
   }
 
   // Default fallback
-  const platform = getPlatform();
-  if (platform === "windows") {
-    return "C:\\Windows\\Temp";
-  }
-  return "/tmp";
+  return getPlatform() === "windows" ? "C:\\Windows\\Temp" : "/tmp";
 };
 
 /**

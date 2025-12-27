@@ -15,6 +15,26 @@ declare const process:
   | { versions?: { node?: string; bun?: string }; version?: string }
   | undefined;
 
+// deno-lint-ignore no-explicit-any
+const globalRef = globalThis as any;
+
+/**
+ * Check if running in Cloudflare Workers environment.
+ */
+const isWorkerdEnv = (): boolean =>
+  typeof globalRef.caches !== "undefined" &&
+  typeof globalRef.Request !== "undefined" &&
+  typeof globalRef.Response !== "undefined" &&
+  typeof globalRef.window === "undefined" &&
+  typeof globalRef.document === "undefined";
+
+/**
+ * Check if running in browser environment.
+ */
+const isBrowserEnv = (): boolean =>
+  typeof globalRef.window !== "undefined" ||
+  typeof globalRef.document !== "undefined";
+
 /**
  * Detects the current JavaScript runtime environment.
  *
@@ -29,45 +49,32 @@ declare const process:
  * @returns The detected runtime name
  */
 export const detectRuntime = (): RuntimeName => {
+  if (typeof globalThis === "undefined") return "unknown";
+
   // Bun check must come first - Bun sets process.versions.node for compatibility
-  if (typeof globalThis !== "undefined") {
-    // deno-lint-ignore no-explicit-any
-    if (typeof (globalThis as any).Bun !== "undefined") {
-      return "bun";
-    }
+  if (typeof globalRef.Bun !== "undefined") return "bun";
+  if (typeof globalRef.Deno !== "undefined") return "deno";
 
-    // deno-lint-ignore no-explicit-any
-    if (typeof (globalThis as any).Deno !== "undefined") {
-      return "deno";
-    }
+  // Node.js - has process.versions.node but we already excluded Bun
+  const proc = globalRef.process;
+  if (proc?.versions?.node && !proc?.versions?.bun) return "node";
 
-    // Node.js - has process.versions.node but we already excluded Bun
-    // deno-lint-ignore no-explicit-any
-    const proc = (globalThis as any).process;
-    if (proc?.versions?.node && !proc?.versions?.bun) {
-      return "node";
-    }
-
-    // Cloudflare Workers - has caches API and Request/Response but no window
-    // deno-lint-ignore no-explicit-any
-    const g = globalThis as any;
-    if (
-      typeof g.caches !== "undefined" &&
-      typeof g.Request !== "undefined" &&
-      typeof g.Response !== "undefined" &&
-      typeof g.window === "undefined" &&
-      typeof g.document === "undefined"
-    ) {
-      return "workerd";
-    }
-
-    // Browser - has window or document
-    if (typeof g.window !== "undefined" || typeof g.document !== "undefined") {
-      return "browser";
-    }
-  }
+  if (isWorkerdEnv()) return "workerd";
+  if (isBrowserEnv()) return "browser";
 
   return "unknown";
+};
+
+/**
+ * Version getters by runtime.
+ */
+const versionGetters: Record<RuntimeName, () => string> = {
+  deno: () => globalRef.Deno?.version?.deno ?? "unknown",
+  bun: () => globalRef.Bun?.version ?? "unknown",
+  node: () => globalRef.process?.versions?.node ?? "unknown",
+  workerd: () => "unknown",
+  browser: () => globalRef.navigator?.userAgent ?? "unknown",
+  unknown: () => "unknown",
 };
 
 /**
@@ -75,35 +82,8 @@ export const detectRuntime = (): RuntimeName => {
  *
  * @returns Version string or "unknown"
  */
-export const getRuntimeVersion = (): string => {
-  const runtime = detectRuntime();
-
-  switch (runtime) {
-    case "deno": {
-      // deno-lint-ignore no-explicit-any
-      return (globalThis as any).Deno?.version?.deno ?? "unknown";
-    }
-    case "bun": {
-      // deno-lint-ignore no-explicit-any
-      return (globalThis as any).Bun?.version ?? "unknown";
-    }
-    case "node": {
-      // deno-lint-ignore no-explicit-any
-      return (globalThis as any).process?.versions?.node ?? "unknown";
-    }
-    case "workerd": {
-      // Cloudflare Workers doesn't expose version
-      return "unknown";
-    }
-    case "browser": {
-      // deno-lint-ignore no-explicit-any
-      return (globalThis as any).navigator?.userAgent ?? "unknown";
-    }
-    default: {
-      return "unknown";
-    }
-  }
-};
+export const getRuntimeVersion = (): string =>
+  versionGetters[detectRuntime()]();
 
 /**
  * Check if running in Deno.
@@ -131,17 +111,20 @@ export const isWorkerd = (): boolean => detectRuntime() === "workerd";
 export const isBrowser = (): boolean => detectRuntime() === "browser";
 
 /**
+ * Server-side runtime names.
+ */
+const SERVER_RUNTIMES: ReadonlySet<RuntimeName> = new Set([
+  "deno",
+  "node",
+  "bun",
+]);
+
+/**
  * Check if running in a server-side runtime (Deno, Node, Bun).
  */
-export const isServer = (): boolean => {
-  const rt = detectRuntime();
-  return rt === "deno" || rt === "node" || rt === "bun";
-};
+export const isServer = (): boolean => SERVER_RUNTIMES.has(detectRuntime());
 
 /**
  * Check if running in an edge runtime (Workers, Deno Deploy).
  */
-export const isEdge = (): boolean => {
-  const rt = detectRuntime();
-  return rt === "workerd";
-};
+export const isEdge = (): boolean => detectRuntime() === "workerd";

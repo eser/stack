@@ -37,7 +37,21 @@ import type {
   WriteFileOptions,
 } from "../types.ts";
 import { NotFoundError, ProcessError } from "../types.ts";
-import { NODE_CAPABILITIES } from "../capabilities.ts";
+import { getNodeStdioArray } from "./shared.ts";
+
+/**
+ * Node.js capabilities - full capabilities, no native KV.
+ */
+export const NODE_CAPABILITIES: RuntimeCapabilities = {
+  fs: true,
+  fsSync: true,
+  exec: true,
+  process: true,
+  env: true,
+  stdin: true,
+  stdout: true,
+  kv: false,
+} as const;
 
 // =============================================================================
 // Filesystem Adapter
@@ -243,48 +257,23 @@ const createNodeExec = (): RuntimeExec => {
           env: options?.env
             ? { ...nodeProcess.env, ...options.env }
             : undefined,
-          stdio: [
-            options?.stdin === "inherit"
-              ? "inherit"
-              : options?.stdin === "piped"
-              ? "pipe"
-              : "ignore",
-            options?.stdout === "inherit"
-              ? "inherit"
-              : options?.stdout === "null"
-              ? "ignore"
-              : "pipe",
-            options?.stderr === "inherit"
-              ? "inherit"
-              : options?.stderr === "null"
-              ? "ignore"
-              : "pipe",
-          ],
+          stdio: getNodeStdioArray(options),
           signal: options?.signal,
         });
 
         const stdoutChunks: Buffer[] = [];
         const stderrChunks: Buffer[] = [];
 
-        proc.stdout?.on("data", (chunk: Buffer) => {
-          stdoutChunks.push(chunk);
-        });
-
-        proc.stderr?.on("data", (chunk: Buffer) => {
-          stderrChunks.push(chunk);
-        });
+        proc.stdout?.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
+        proc.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
 
         proc.on("error", reject);
-
         proc.on("close", (code) => {
-          const stdout = new Uint8Array(Buffer.concat(stdoutChunks));
-          const stderr = new Uint8Array(Buffer.concat(stderrChunks));
-
           resolve({
             success: code === 0,
             code: code ?? 1,
-            stdout,
-            stderr,
+            stdout: new Uint8Array(Buffer.concat(stdoutChunks)),
+            stderr: new Uint8Array(Buffer.concat(stderrChunks)),
           });
         });
       });
@@ -319,40 +308,18 @@ const createNodeExec = (): RuntimeExec => {
       args: string[] = [],
       options?: SpawnOptions,
     ): ChildProcess {
-      const mapStdio = (
-        value: "inherit" | "piped" | "null" | undefined,
-      ): "inherit" | "pipe" | "ignore" => {
-        if (value === "inherit") {
-          return "inherit";
-        }
-        if (value === "piped") {
-          return "pipe";
-        }
-        return "ignore";
-      };
-
       const proc = nodeChildProcess.spawn(cmd, args, {
         cwd: options?.cwd,
         env: options?.env ? { ...nodeProcess.env, ...options.env } : undefined,
-        stdio: [
-          mapStdio(options?.stdin),
-          mapStdio(options?.stdout ?? "piped"),
-          mapStdio(options?.stderr ?? "piped"),
-        ],
+        stdio: getNodeStdioArray(options),
         signal: options?.signal,
       });
 
-      // Collect output for the output() method
       const stdoutChunks: Buffer[] = [];
       const stderrChunks: Buffer[] = [];
 
-      proc.stdout?.on("data", (chunk: Buffer) => {
-        stdoutChunks.push(chunk);
-      });
-
-      proc.stderr?.on("data", (chunk: Buffer) => {
-        stderrChunks.push(chunk);
-      });
+      proc.stdout?.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
+      proc.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
 
       const statusPromise = new Promise<ProcessStatus>((resolve, reject) => {
         proc.on("error", reject);

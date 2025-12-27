@@ -20,21 +20,65 @@ export type HelpCommandMeta = {
   readonly children: readonly HelpCommandMeta[];
 };
 
-const padRight = (str: string, len: number): string => {
-  return str + " ".repeat(Math.max(0, len - str.length));
-};
+const padRight = (str: string, len: number): string =>
+  str + " ".repeat(Math.max(0, len - str.length));
 
 const formatFlag = (flag: FlagDef): string => {
-  let name = `--${flag.name}`;
-  if (flag.short !== undefined) {
-    name = `-${flag.short}, ${name}`;
+  const short = flag.short !== undefined ? `-${flag.short}, ` : "";
+  const typeSuffix = flag.type !== "boolean" ? ` <${flag.type}>` : "";
+  return `${short}--${flag.name}${typeSuffix}`;
+};
+
+const generateTitle = (
+  meta: HelpCommandMeta,
+  fullName: string,
+): string[] => {
+  const title = meta.description !== undefined
+    ? `${fullName} - ${meta.description}`
+    : fullName;
+  return [title, ""];
+};
+
+const generateUsage = (
+  meta: HelpCommandMeta,
+  fullName: string,
+): string[] => {
+  if (meta.usage !== undefined) {
+    return ["Usage:", `  ${meta.usage}`, ""];
   }
 
-  if (flag.type !== "boolean") {
-    name += ` <${flag.type}>`;
-  }
+  const commands = meta.children.length > 0 ? " <command>" : "";
+  const options = meta.flags.length > 0 ? " [options]" : "";
+  return ["Usage:", `  ${fullName}${commands}${options}`, ""];
+};
 
-  return name;
+const generateCommands = (children: readonly HelpCommandMeta[]): string[] => {
+  if (children.length === 0) return [];
+
+  const maxLen = Math.max(...children.map((c) => c.name.length));
+  const lines = children.map(
+    (c) => `  ${padRight(c.name, maxLen + 2)}${c.description ?? ""}`,
+  );
+  return ["Commands:", ...lines, ""];
+};
+
+const generateOptions = (flags: readonly FlagDef[]): string[] => {
+  if (flags.length === 0) return [];
+
+  const formatted = flags.map((f) => ({
+    flag: formatFlag(f),
+    desc: f.description,
+  }));
+  const maxLen = Math.max(...formatted.map((f) => f.flag.length));
+  const lines = formatted.map(
+    ({ flag, desc }) => `  ${padRight(flag, maxLen + 2)}${desc}`,
+  );
+  return ["Options:", ...lines, ""];
+};
+
+const generateExamples = (examples?: readonly string[]): string[] => {
+  if (!examples?.length) return [];
+  return ["Examples:", ...examples.map((e) => `  ${e}`), ""];
 };
 
 /**
@@ -44,74 +88,21 @@ export const generateHelp = (
   meta: HelpCommandMeta,
   commandPath: readonly string[],
 ): string => {
-  const lines: string[] = [];
-
-  // Title and description
   const fullName = commandPath.join(" ");
-  if (meta.description !== undefined) {
-    lines.push(`${fullName} - ${meta.description}`);
-  } else {
-    lines.push(fullName);
-  }
-  lines.push("");
 
-  // Usage
-  if (meta.usage !== undefined) {
-    lines.push("Usage:");
-    lines.push(`  ${meta.usage}`);
-  } else {
-    let usage = fullName;
-    if (meta.children.length > 0) {
-      usage += " <command>";
-    }
-    if (meta.flags.length > 0) {
-      usage += " [options]";
-    }
-    lines.push("Usage:");
-    lines.push(`  ${usage}`);
-  }
-  lines.push("");
+  const sections = [
+    ...generateTitle(meta, fullName),
+    ...generateUsage(meta, fullName),
+    ...generateCommands(meta.children),
+    ...generateOptions(meta.flags),
+    ...generateExamples(meta.examples),
+  ];
 
-  // Commands
   if (meta.children.length > 0) {
-    lines.push("Commands:");
-    const maxLen = Math.max(...meta.children.map((c) => c.name.length));
-    for (const child of meta.children) {
-      const desc = child.description ?? "";
-      lines.push(`  ${padRight(child.name, maxLen + 2)}${desc}`);
-    }
-    lines.push("");
-  }
-
-  // Options
-  if (meta.flags.length > 0) {
-    lines.push("Options:");
-    const formatted = meta.flags.map((f) => ({
-      flag: formatFlag(f),
-      desc: f.description,
-    }));
-    const maxLen = Math.max(...formatted.map((f) => f.flag.length));
-    for (const { flag, desc } of formatted) {
-      lines.push(`  ${padRight(flag, maxLen + 2)}${desc}`);
-    }
-    lines.push("");
-  }
-
-  // Examples
-  if (meta.examples !== undefined && meta.examples.length > 0) {
-    lines.push("Examples:");
-    for (const example of meta.examples) {
-      lines.push(`  ${example}`);
-    }
-    lines.push("");
-  }
-
-  // Footer hint
-  if (meta.children.length > 0) {
-    lines.push(
+    sections.push(
       `Run '${fullName} <command> --help' for more information on a command.`,
     );
   }
 
-  return lines.join("\n");
+  return sections.join("\n");
 };

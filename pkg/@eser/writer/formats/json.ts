@@ -3,11 +3,13 @@
 import type { FormatOptions, WriterFormat } from "../types.ts";
 import { SerializationError } from "../types.ts";
 
+const getIndent = (options?: FormatOptions): number | undefined => {
+  if (!options?.pretty) return undefined;
+  return options.indent ?? 2;
+};
+
 export const writeStart = (options?: FormatOptions): string => {
-  const indent = options?.pretty
-    ? (options?.indent !== undefined ? options.indent : 2)
-    : undefined;
-  return indent !== undefined ? "[\n" : "[";
+  return getIndent(options) !== undefined ? "[\n" : "[";
 };
 
 export const writeItem = (
@@ -15,21 +17,16 @@ export const writeItem = (
   options?: FormatOptions,
 ): string => {
   try {
-    const indent = options?.pretty
-      ? (options?.indent !== undefined ? options.indent : 2)
-      : undefined;
-    const inArray = options?.["_inArray"] === true;
+    const indent = getIndent(options);
     const json = JSON.stringify(data, null, indent);
 
-    if (inArray) {
-      // Array mode: prefix with comma (except first item)
-      const prefix = options?.["_isFirst"] === true ? "" : ",";
-      const spacing = indent !== undefined ? "\n" : "";
-      return prefix + spacing + json;
+    if (options?.["_inArray"] !== true) {
+      return json + "\n";
     }
 
-    // Standalone mode: JSONL style (one object per line)
-    return json + "\n";
+    const prefix = options?.["_isFirst"] === true ? "" : ",";
+    const spacing = indent !== undefined ? "\n" : "";
+    return prefix + spacing + json;
   } catch (error) {
     throw new SerializationError(
       `Failed to serialize JSON: ${
@@ -42,10 +39,7 @@ export const writeItem = (
 };
 
 export const writeEnd = (options?: FormatOptions): string => {
-  const indent = options?.pretty
-    ? (options?.indent !== undefined ? options.indent : 2)
-    : undefined;
-  return indent !== undefined ? "\n]\n" : "]\n";
+  return getIndent(options) !== undefined ? "\n]\n" : "]\n";
 };
 
 export const jsonFormat: WriterFormat = {

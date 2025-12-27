@@ -1,6 +1,6 @@
 {
   "name": "@eser/config",
-  "version": "4.0.7",
+  "version": "4.0.8",
   "exports": {
     ".": "./mod.ts",
     "./file": "./file/mod.ts",

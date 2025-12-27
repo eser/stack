@@ -37,7 +37,21 @@ import type {
   WriteFileOptions,
 } from "../types.ts";
 import { NotFoundError, ProcessError } from "../types.ts";
-import { BUN_CAPABILITIES } from "../capabilities.ts";
+import { getNodeStdioArray } from "./shared.ts";
+
+/**
+ * Bun capabilities - full capabilities, no native KV.
+ */
+export const BUN_CAPABILITIES: RuntimeCapabilities = {
+  fs: true,
+  fsSync: true,
+  exec: true,
+  process: true,
+  env: true,
+  stdin: true,
+  stdout: true,
+  kv: false,
+} as const;
 
 // Bun global type
 declare const Bun: {
@@ -289,25 +303,13 @@ const createBunExec = (): RuntimeExec => {
       args: string[] = [],
       options?: SpawnOptions,
     ): Promise<ProcessOutput> {
-      // Use Bun.spawn which is more efficient
+      const [stdinMode, stdoutMode, stderrMode] = getNodeStdioArray(options);
       const proc = Bun.spawn([cmd, ...args], {
         cwd: options?.cwd,
         env: options?.env,
-        stdin: options?.stdin === "inherit"
-          ? "inherit"
-          : options?.stdin === "piped"
-          ? "pipe"
-          : "ignore",
-        stdout: options?.stdout === "inherit"
-          ? "inherit"
-          : options?.stdout === "null"
-          ? "ignore"
-          : "pipe",
-        stderr: options?.stderr === "inherit"
-          ? "inherit"
-          : options?.stderr === "null"
-          ? "ignore"
-          : "pipe",
+        stdin: stdinMode,
+        stdout: stdoutMode,
+        stderr: stderrMode,
       });
 
       const [exitCode, stdout, stderr] = await Promise.all([
@@ -353,24 +355,13 @@ const createBunExec = (): RuntimeExec => {
       args: string[] = [],
       options?: SpawnOptions,
     ): ChildProcess {
+      const [stdinMode, stdoutMode, stderrMode] = getNodeStdioArray(options);
       const proc = Bun.spawn([cmd, ...args], {
         cwd: options?.cwd,
         env: options?.env,
-        stdin: options?.stdin === "inherit"
-          ? "inherit"
-          : options?.stdin === "piped"
-          ? "pipe"
-          : "ignore",
-        stdout: options?.stdout === "inherit"
-          ? "inherit"
-          : options?.stdout === "null"
-          ? "ignore"
-          : "pipe",
-        stderr: options?.stderr === "inherit"
-          ? "inherit"
-          : options?.stderr === "null"
-          ? "ignore"
-          : "pipe",
+        stdin: stdinMode,
+        stdout: stdoutMode,
+        stderr: stderrMode,
       });
 
       const statusPromise = proc.exited.then(

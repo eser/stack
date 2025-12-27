@@ -30,7 +30,21 @@ import type {
   WriteFileOptions,
 } from "../types.ts";
 import { NotFoundError, ProcessError } from "../types.ts";
-import { DENO_CAPABILITIES } from "../capabilities.ts";
+import { getStdioModes } from "./shared.ts";
+
+/**
+ * Deno capabilities - full capabilities plus KV.
+ */
+export const DENO_CAPABILITIES: RuntimeCapabilities = {
+  fs: true,
+  fsSync: true,
+  exec: true,
+  process: true,
+  env: true,
+  stdin: true,
+  stdout: true,
+  kv: true,
+} as const;
 
 // =============================================================================
 // Filesystem Adapter
@@ -223,28 +237,25 @@ const createDenoExec = (): RuntimeExec => {
       args: string[] = [],
       options?: SpawnOptions,
     ): Promise<ProcessOutput> {
-      const stdoutMode = options?.stdout ?? "piped";
-      const stderrMode = options?.stderr ?? "piped";
+      const modes = getStdioModes(options);
 
       const command = new Deno.Command(cmd, {
         args,
         cwd: options?.cwd,
         env: options?.env,
-        stdin: options?.stdin ?? "null",
-        stdout: stdoutMode,
-        stderr: stderrMode,
+        stdin: modes.stdin,
+        stdout: modes.stdout,
+        stderr: modes.stderr,
         signal: options?.signal,
       });
 
       const result = await command.output();
 
-      // When stdout/stderr are "inherit" or "null", Deno doesn't provide the streams
-      // Return empty Uint8Array to satisfy the ProcessOutput interface
       return {
         success: result.success,
         code: result.code,
-        stdout: stdoutMode === "piped" ? result.stdout : new Uint8Array(),
-        stderr: stderrMode === "piped" ? result.stderr : new Uint8Array(),
+        stdout: modes.stdout === "piped" ? result.stdout : new Uint8Array(),
+        stderr: modes.stderr === "piped" ? result.stderr : new Uint8Array(),
       };
     },
 
@@ -277,28 +288,37 @@ const createDenoExec = (): RuntimeExec => {
       args: string[] = [],
       options?: SpawnOptions,
     ): ChildProcess {
-      const stdinMode = options?.stdin ?? "null";
-      const stdoutMode = options?.stdout ?? "piped";
-      const stderrMode = options?.stderr ?? "piped";
+      const modes = getStdioModes(options);
 
       const command = new Deno.Command(cmd, {
         args,
         cwd: options?.cwd,
         env: options?.env,
-        stdin: stdinMode,
-        stdout: stdoutMode,
-        stderr: stderrMode,
+        stdin: modes.stdin,
+        stdout: modes.stdout,
+        stderr: modes.stderr,
         signal: options?.signal,
       });
 
       const process = command.spawn();
 
+      const collectStream = (
+        stream: ReadableStream<Uint8Array> | null,
+        mode: string,
+      ): Promise<Uint8Array> => {
+        if (mode !== "piped" || !stream) {
+          return Promise.resolve(new Uint8Array());
+        }
+        return new Response(stream).arrayBuffer().then((b) =>
+          new Uint8Array(b)
+        );
+      };
+
       return {
         pid: process.pid,
-        // Only access streams if they were configured as "piped"
-        stdin: stdinMode === "piped" ? process.stdin : null,
-        stdout: stdoutMode === "piped" ? process.stdout : null,
-        stderr: stderrMode === "piped" ? process.stderr : null,
+        stdin: modes.stdin === "piped" ? process.stdin : null,
+        stdout: modes.stdout === "piped" ? process.stdout : null,
+        stderr: modes.stderr === "piped" ? process.stderr : null,
         status: process.status.then(
           (status): ProcessStatus => ({
             success: status.success,
@@ -307,19 +327,12 @@ const createDenoExec = (): RuntimeExec => {
           }),
         ),
         output: async (): Promise<ProcessOutput> => {
-          // Collect streams manually to handle non-piped cases
+          const stdoutStream = modes.stdout === "piped" ? process.stdout : null;
+          const stderrStream = modes.stderr === "piped" ? process.stderr : null;
           const [status, stdout, stderr] = await Promise.all([
             process.status,
-            stdoutMode === "piped"
-              ? new Response(process.stdout).arrayBuffer().then((b) =>
-                new Uint8Array(b)
-              )
-              : Promise.resolve(new Uint8Array()),
-            stderrMode === "piped"
-              ? new Response(process.stderr).arrayBuffer().then((b) =>
-                new Uint8Array(b)
-              )
-              : Promise.resolve(new Uint8Array()),
+            collectStream(stdoutStream, modes.stdout),
+            collectStream(stderrStream, modes.stderr),
           ]);
           return {
             success: status.success,

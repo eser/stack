@@ -3,13 +3,26 @@
 /**
  * Runtime capability definitions.
  *
+ * Platform-agnostic capabilities are defined here.
+ * Runtime-specific capabilities are defined in their respective adapters.
+ *
  * @module
  */
 
 import type { RuntimeCapabilities, RuntimeName } from "./types.ts";
+import { DENO_CAPABILITIES } from "./adapters/deno.ts";
+import { NODE_CAPABILITIES } from "./adapters/node.ts";
+import { BUN_CAPABILITIES } from "./adapters/bun.ts";
+import { WORKERD_CAPABILITIES } from "./adapters/workerd.ts";
+
+// Re-export runtime-specific capabilities for backward compatibility
+export { DENO_CAPABILITIES } from "./adapters/deno.ts";
+export { NODE_CAPABILITIES } from "./adapters/node.ts";
+export { BUN_CAPABILITIES } from "./adapters/bun.ts";
+export { WORKERD_CAPABILITIES } from "./adapters/workerd.ts";
 
 /**
- * Full capabilities - available on Deno, Node.js, and Bun.
+ * Full capabilities - template for full-featured runtimes.
  */
 export const FULL_CAPABILITIES: RuntimeCapabilities = {
   fs: true,
@@ -20,63 +33,6 @@ export const FULL_CAPABILITIES: RuntimeCapabilities = {
   stdin: true,
   stdout: true,
   kv: false,
-} as const;
-
-/**
- * Deno capabilities - full capabilities plus KV.
- */
-export const DENO_CAPABILITIES: RuntimeCapabilities = {
-  fs: true,
-  fsSync: true,
-  exec: true,
-  process: true,
-  env: true,
-  stdin: true,
-  stdout: true,
-  kv: true,
-} as const;
-
-/**
- * Node.js capabilities - full capabilities, no native KV.
- */
-export const NODE_CAPABILITIES: RuntimeCapabilities = {
-  fs: true,
-  fsSync: true,
-  exec: true,
-  process: true,
-  env: true,
-  stdin: true,
-  stdout: true,
-  kv: false,
-} as const;
-
-/**
- * Bun capabilities - full capabilities, no native KV.
- */
-export const BUN_CAPABILITIES: RuntimeCapabilities = {
-  fs: true,
-  fsSync: true,
-  exec: true,
-  process: true,
-  env: true,
-  stdin: true,
-  stdout: true,
-  kv: false,
-} as const;
-
-/**
- * Cloudflare Workers capabilities - very limited.
- * No filesystem, no process execution, env is handler-scoped.
- */
-export const WORKERD_CAPABILITIES: RuntimeCapabilities = {
-  fs: false,
-  fsSync: false,
-  exec: false,
-  process: false,
-  env: true, // Available via handler context
-  stdin: false,
-  stdout: false,
-  kv: true, // Cloudflare KV bindings
 } as const;
 
 /**

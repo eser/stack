@@ -4,29 +4,22 @@ import * as csv from "@std/csv";
 import type { FormatOptions, WriterFormat } from "../types.ts";
 import { SerializationError } from "../types.ts";
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && value !== undefined && value.constructor === Object;
+
 const normalizeToObject = (
   data: unknown,
 ): Record<string, unknown> | undefined => {
+  if (isPlainObject(data)) {
+    return data;
+  }
+
   if (Array.isArray(data)) {
     if (data.length === 0) return undefined;
-
-    // If array contains objects, return first
-    if (
-      typeof data[0] === "object" && data[0] !== null && !Array.isArray(data[0])
-    ) {
-      return data[0] as Record<string, unknown>;
-    }
-
-    // If array contains primitives, create object with value
+    if (isPlainObject(data[0])) return data[0];
     return { value: data[0] };
   }
 
-  // If single object, return as is
-  if (typeof data === "object" && data !== null) {
-    return data as Record<string, unknown>;
-  }
-
-  // For primitives, create single object
   return { value: data };
 };
 
@@ -44,27 +37,19 @@ export const writeItem = (
   data: unknown,
   options?: FormatOptions,
 ): string => {
+  const obj = normalizeToObject(data);
+  if (obj === undefined) return "";
+
   try {
-    const obj = normalizeToObject(data);
-    if (obj === undefined) {
-      return "";
-    }
-
-    const delimiter = options?.delimiter ?? ",";
     const headers = options?.headers ?? Object.keys(obj);
-
-    // Include header row if _isFirst and headers weren't output by writeStart
-    const headersInStart = options?.headers !== undefined &&
-      options.headers.length > 0;
+    const headersInStart = (options?.headers?.length ?? 0) > 0;
     const includeHeader = options?.["_isFirst"] === true && !headersInStart;
 
-    const csvOptions: csv.StringifyOptions = {
-      separator: delimiter,
+    return csv.stringify([obj], {
+      separator: options?.delimiter ?? ",",
       headers: includeHeader,
       columns: headers,
-    };
-
-    return csv.stringify([obj], csvOptions);
+    });
   } catch (error) {
     throw new SerializationError(
       `Failed to serialize CSV: ${

@@ -128,84 +128,157 @@ import { createNodeRuntime } from "./adapters/node.ts";
 import { createBunRuntime } from "./adapters/bun.ts";
 import { createWorkerdRuntime } from "./adapters/workerd.ts";
 
+import type { RuntimeCapabilities as Caps, RuntimeName } from "./types.ts";
+
+/**
+ * Creates a throw function for a specific capability.
+ */
+const createThrowFn = (
+  capability: keyof Caps,
+  runtimeName: RuntimeName,
+): () => never => {
+  return () => {
+    throw new RuntimeCapabilityError(capability, runtimeName);
+  };
+};
+
+/**
+ * Creates a stub filesystem adapter that throws on all operations.
+ */
+const createStubFs = (runtimeName: RuntimeName): Runtime["fs"] => {
+  const throwFs = createThrowFn("fs", runtimeName);
+  return {
+    readFile: throwFs,
+    readTextFile: throwFs,
+    writeFile: throwFs,
+    writeTextFile: throwFs,
+    exists: throwFs,
+    stat: throwFs,
+    lstat: throwFs,
+    mkdir: throwFs,
+    remove: throwFs,
+    readDir: throwFs,
+    copyFile: throwFs,
+    rename: throwFs,
+    makeTempDir: throwFs,
+  };
+};
+
+/**
+ * Creates a stub exec adapter that throws on all operations.
+ */
+const createStubExec = (runtimeName: RuntimeName): Runtime["exec"] => {
+  const throwExec = createThrowFn("exec", runtimeName);
+  return {
+    spawn: throwExec,
+    exec: throwExec,
+    execJson: throwExec,
+    spawnChild: throwExec,
+  };
+};
+
+/**
+ * Creates a stub process adapter that throws on all operations.
+ */
+const createStubProcess = (runtimeName: RuntimeName): Runtime["process"] => {
+  const throwProcess = createThrowFn("process", runtimeName);
+  return {
+    exit: throwProcess,
+    cwd: throwProcess,
+    chdir: throwProcess,
+    hostname: throwProcess,
+    execPath: throwProcess,
+    get args(): readonly string[] {
+      throw new RuntimeCapabilityError("process", runtimeName);
+    },
+    get pid(): number {
+      throw new RuntimeCapabilityError("process", runtimeName);
+    },
+    get stdin(): ReadableStream<Uint8Array> {
+      throw new RuntimeCapabilityError("process", runtimeName);
+    },
+    get stdout(): WritableStream<Uint8Array> {
+      throw new RuntimeCapabilityError("process", runtimeName);
+    },
+    get stderr(): WritableStream<Uint8Array> {
+      throw new RuntimeCapabilityError("process", runtimeName);
+    },
+  };
+};
+
+/**
+ * Creates a no-op env adapter for environments without env access.
+ */
+const createStubEnv = (): Runtime["env"] => ({
+  get: () => undefined,
+  set: () => {},
+  delete: () => {},
+  has: () => false,
+  toObject: () => ({}),
+});
+
 /**
  * Create a minimal runtime for unknown/browser environments.
  */
 const createMinimalRuntime = (
   name: Runtime["name"],
   capabilities: RuntimeCapabilities = UNKNOWN_CAPABILITIES,
-): Runtime => {
-  const throwFs = (): never => {
-    throw new RuntimeCapabilityError("fs", name);
-  };
+): Runtime => ({
+  name,
+  version: "unknown",
+  capabilities,
+  fs: createStubFs(name),
+  path: posixPath,
+  exec: createStubExec(name),
+  env: createStubEnv(),
+  process: createStubProcess(name),
+});
 
-  const throwExec = (): never => {
-    throw new RuntimeCapabilityError("exec", name);
-  };
-
-  const throwProcess = (): never => {
-    throw new RuntimeCapabilityError("process", name);
-  };
-
-  return {
-    name,
-    version: "unknown",
-    capabilities,
-    fs: {
-      readFile: throwFs,
-      readTextFile: throwFs,
-      writeFile: throwFs,
-      writeTextFile: throwFs,
-      exists: throwFs,
-      stat: throwFs,
-      lstat: throwFs,
-      mkdir: throwFs,
-      remove: throwFs,
-      readDir: () => {
-        throw new RuntimeCapabilityError("fs", name);
-      },
-      copyFile: throwFs,
-      rename: throwFs,
-      makeTempDir: throwFs,
-    },
-    path: posixPath,
-    exec: {
-      spawn: throwExec,
-      exec: throwExec,
-      execJson: throwExec,
-      spawnChild: throwExec,
-    },
-    env: {
-      get: () => undefined,
-      set: () => {},
-      delete: () => {},
-      has: () => false,
-      toObject: () => ({}),
-    },
-    process: {
-      exit: throwProcess,
-      cwd: throwProcess,
-      chdir: throwProcess,
-      hostname: throwProcess,
-      execPath: throwProcess,
-      get args(): readonly string[] {
-        throw new RuntimeCapabilityError("process", name);
-      },
-      get pid(): number {
-        throw new RuntimeCapabilityError("process", name);
-      },
-      get stdin(): ReadableStream<Uint8Array> {
-        throw new RuntimeCapabilityError("process", name);
-      },
-      get stdout(): WritableStream<Uint8Array> {
-        throw new RuntimeCapabilityError("process", name);
-      },
-      get stderr(): WritableStream<Uint8Array> {
-        throw new RuntimeCapabilityError("process", name);
-      },
-    },
-  };
+/**
+ * Runtime factory lookup table.
+ */
+const runtimeFactories: Partial<Record<RuntimeName, () => Runtime>> = {
+  deno: createDenoRuntime,
+  node: createNodeRuntime,
+  bun: createBunRuntime,
+  workerd: createWorkerdRuntime,
 };
+
+/**
+ * Keys that can be overridden in runtime options.
+ */
+const overrideKeys: readonly (keyof CreateRuntimeOptions)[] = [
+  "fs",
+  "exec",
+  "env",
+  "path",
+  "process",
+];
+
+/**
+ * Check if options contain any overrides.
+ */
+const hasOverrides = (options?: CreateRuntimeOptions): boolean =>
+  options !== undefined &&
+  overrideKeys.some((key) => options[key] !== undefined);
+
+/**
+ * Merge base runtime with overrides.
+ */
+const mergeRuntime = (
+  base: Runtime,
+  options: CreateRuntimeOptions,
+  capabilities: RuntimeCapabilities,
+): Runtime => ({
+  name: base.name,
+  version: base.version,
+  capabilities,
+  fs: options.fs ?? base.fs,
+  path: options.path ?? base.path,
+  exec: options.exec ?? base.exec,
+  env: options.env ?? base.env,
+  process: options.process ?? base.process,
+});
 
 /**
  * Creates a runtime instance for the detected or specified runtime.
@@ -220,45 +293,12 @@ export const createRuntime = (options?: CreateRuntimeOptions): Runtime => {
     ...options?.capabilities,
   };
 
-  // Get base runtime
-  let baseRuntime: Runtime;
+  const factory = runtimeFactories[runtimeName];
+  const baseRuntime = factory?.() ??
+    createMinimalRuntime(runtimeName, capabilities);
 
-  switch (runtimeName) {
-    case "deno":
-      baseRuntime = createDenoRuntime();
-      break;
-
-    case "node":
-      baseRuntime = createNodeRuntime();
-      break;
-
-    case "bun":
-      baseRuntime = createBunRuntime();
-      break;
-
-    case "workerd":
-      baseRuntime = createWorkerdRuntime();
-      break;
-
-    default:
-      baseRuntime = createMinimalRuntime(runtimeName, capabilities);
-  }
-
-  // If overrides are provided, merge them
-  if (
-    options?.fs || options?.exec || options?.env || options?.path ||
-    options?.process
-  ) {
-    return {
-      name: baseRuntime.name,
-      version: baseRuntime.version,
-      capabilities,
-      fs: options.fs ?? baseRuntime.fs,
-      path: options.path ?? baseRuntime.path,
-      exec: options.exec ?? baseRuntime.exec,
-      env: options.env ?? baseRuntime.env,
-      process: options.process ?? baseRuntime.process,
-    };
+  if (options !== undefined && hasOverrides(options)) {
+    return mergeRuntime(baseRuntime, options, capabilities);
   }
 
   return baseRuntime;

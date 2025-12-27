@@ -50,31 +50,28 @@ export const buildParseOptions = (
 };
 
 /**
+ * Type coercion functions by flag type
+ */
+const isString = (value: unknown): value is string =>
+  value !== null && value !== undefined && value.constructor === String;
+
+const coercers: Record<FlagType, (value: unknown) => unknown> = {
+  boolean: (value) => Boolean(value),
+  number: (value) => (isString(value) ? Number(value) : value),
+  string: (value) => String(value),
+  "string[]": (value) =>
+    Array.isArray(value) ? value.map(String) : [String(value)],
+};
+
+/**
  * Convert parsed value to the expected type
  */
 export const coerceValue = (
   value: unknown,
   type: FlagType,
 ): unknown => {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  switch (type) {
-    case "boolean":
-      return Boolean(value);
-    case "number":
-      return typeof value === "string" ? Number(value) : value;
-    case "string":
-      return String(value);
-    case "string[]":
-      if (Array.isArray(value)) {
-        return value.map(String);
-      }
-      return value !== undefined ? [String(value)] : [];
-    default:
-      return value;
-  }
+  if (value === undefined) return undefined;
+  return coercers[type]?.(value) ?? value;
 };
 
 /**

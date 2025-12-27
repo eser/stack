@@ -52,27 +52,34 @@ export const createBitmapMatcher = <K extends string>(
 ): BitmapMatcher<K> => {
   const toBitmap = (keys: readonly string[]): Bitmap => {
     let bitmap = 0;
+
     for (const key of keys) {
       const bit = mapping[key as K];
+
       if (bit !== undefined) {
         bitmap |= bit;
       }
     }
+
     return bitmap;
   };
 
   const match = (required: Bitmap, available: Bitmap): boolean => {
     // No requirements = matches all
-    if (required === 0) return true;
     // No available = match all (legacy behavior for optional filtering)
-    if (available === 0) return true;
+    if (required === 0 || available === 0) {
+      return true;
+    }
+
     // Check intersection (any bit matches)
     return (required & available) !== 0;
   };
 
   const matchAll = (required: Bitmap, available: Bitmap): boolean => {
-    if (required === 0) return true;
-    if (available === 0) return true;
+    if (required === 0 || available === 0) {
+      return true;
+    }
+
     // Check all required bits are present
     return (required & available) === required;
   };
@@ -120,18 +127,39 @@ export const getFunctionParameters = (fn: Function): readonly string[] => {
   const fnString = fn.toString();
   const match = PARAM_REGEX.exec(fnString);
 
-  const params: readonly string[] = match?.[1]
-    ? Object.freeze(
-      match[1]
-        .split(",")
-        .map((p) => p.trim())
-        // Remove default values and destructuring
-        .map((p) => p.split("=")[0]?.trim() ?? "")
-        .map((p) => p.replace(/^\{.*\}$/, "").trim())
-        .map((p) => p.replace(/^\[.*\]$/, "").trim())
-        .filter((p) => p.length > 0 && !p.startsWith("...")),
-    )
-    : Object.freeze([]);
+  if (match === null || !match[1]) {
+    const empty = Object.freeze([]) as readonly string[];
+    parameterCache.set(fn, empty);
+
+    return empty;
+  }
+
+  const params: readonly string[] = Object.freeze(
+    match[1].split(",").reduce<string[]>((acc, p) => {
+      let param = p.trim();
+
+      // Remove default value
+      const eqIdx = param.indexOf("=");
+      if (eqIdx !== -1) {
+        param = param.slice(0, eqIdx).trim();
+      }
+
+      // Skip destructuring patterns
+      if (
+        (param.startsWith("{") && param.endsWith("}")) ||
+        (param.startsWith("[") && param.endsWith("]"))
+      ) {
+        return acc;
+      }
+
+      // Skip empty and rest params
+      if (param.length > 0 && !param.startsWith("...")) {
+        acc.push(param);
+      }
+
+      return acc;
+    }, []),
+  );
 
   parameterCache.set(fn, params);
   return params;
@@ -171,9 +199,11 @@ export const parallelImport = async <T>(
 
   return imports.map(([, exportName], index) => {
     const module = modules[index];
+
     if (!(exportName in module)) {
       throw new Error(`Export "${exportName}" not found in module`);
     }
+
     return module[exportName] as T;
   });
 };
@@ -208,6 +238,7 @@ export const freezeArray = <T>(arr: readonly T[]): readonly T[] => {
   if (Object.isFrozen(arr)) {
     return arr;
   }
+
   return Object.freeze([...arr]);
 };
 
@@ -234,6 +265,7 @@ export const memoizeArray = <T, A extends unknown[]>(
     const result = fn(...args);
     cached = freezeArray(result);
     lastArgs = args;
+
     return cached;
   };
 };
@@ -262,6 +294,7 @@ export const lazy = <T>(factory: () => T): () => T => {
       cached = factory();
       computed = true;
     }
+
     return cached as T;
   };
 };

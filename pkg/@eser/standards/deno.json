@@ -11,12 +11,7 @@
     "./registry": "./registry/mod.ts",
     "./routes": "./routes/mod.ts",
     "./run-modes": "./run-modes.ts",
-    "./runtime": {
-      "browser": "./runtime/browser.ts",
-      "deno": "./runtime/deno.ts",
-      "node": "./runtime/node.ts",
-      "default": "./runtime/mod.ts"
-    },
+    "./runtime": "./runtime/mod.ts",
     "./runtime/browser": "./runtime/browser.ts",
     "./runtime/bun": "./runtime/bun.ts",
     "./runtime/deno": "./runtime/deno.ts",

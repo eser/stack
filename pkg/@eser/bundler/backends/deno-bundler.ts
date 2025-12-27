@@ -128,6 +128,7 @@ export class DenoBundlerBackend implements Bundler {
       stop: () => {
         running = false;
         watcher.close();
+        return Promise.resolve();
       },
     });
   }

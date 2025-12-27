@@ -84,19 +84,6 @@ export {
   getTmpdir,
 } from "./platform.ts";
 
-// Re-export capabilities
-export {
-  BROWSER_CAPABILITIES,
-  BUN_CAPABILITIES,
-  DENO_CAPABILITIES,
-  FULL_CAPABILITIES,
-  getCapabilities,
-  hasCapability,
-  NODE_CAPABILITIES,
-  UNKNOWN_CAPABILITIES,
-  WORKERD_CAPABILITIES,
-} from "./capabilities.ts";
-
 // Re-export polyfills
 export { posixPath } from "./polyfills/path.ts";
 
@@ -119,7 +106,6 @@ import type {
 } from "./types.ts";
 import { RuntimeCapabilityError } from "./types.ts";
 import { detectRuntime } from "./detect.ts";
-import { getCapabilities, UNKNOWN_CAPABILITIES } from "./capabilities.ts";
 import { posixPath } from "./polyfills/path.ts";
 
 // Import adapters - bundlers/tree-shaking will eliminate unused ones
@@ -127,6 +113,7 @@ import { createDenoRuntime } from "./adapters/deno.ts";
 import { createNodeRuntime } from "./adapters/node.ts";
 import { createBunRuntime } from "./adapters/bun.ts";
 import { createWorkerdRuntime } from "./adapters/workerd.ts";
+import { createBrowserRuntime } from "./adapters/browser.ts";
 
 import type { RuntimeCapabilities as Caps, RuntimeName } from "./types.ts";
 
@@ -218,15 +205,21 @@ const createStubEnv = (): Runtime["env"] => ({
 });
 
 /**
- * Create a minimal runtime for unknown/browser environments.
+ * Create a minimal runtime for unknown environments.
  */
-const createMinimalRuntime = (
-  name: Runtime["name"],
-  capabilities: RuntimeCapabilities = UNKNOWN_CAPABILITIES,
-): Runtime => ({
+const createMinimalRuntime = (name: Runtime["name"]): Runtime => ({
   name,
   version: "unknown",
-  capabilities,
+  capabilities: {
+    fs: false,
+    fsSync: false,
+    exec: false,
+    process: false,
+    env: false,
+    stdin: false,
+    stdout: false,
+    kv: false,
+  },
   fs: createStubFs(name),
   path: posixPath,
   exec: createStubExec(name),
@@ -242,6 +235,7 @@ const runtimeFactories: Partial<Record<RuntimeName, () => Runtime>> = {
   node: createNodeRuntime,
   bun: createBunRuntime,
   workerd: createWorkerdRuntime,
+  browser: createBrowserRuntime,
 };
 
 /**
@@ -288,17 +282,21 @@ const mergeRuntime = (
  */
 export const createRuntime = (options?: CreateRuntimeOptions): Runtime => {
   const runtimeName = detectRuntime();
-  const capabilities = {
-    ...getCapabilities(runtimeName),
-    ...options?.capabilities,
-  };
-
   const factory = runtimeFactories[runtimeName];
-  const baseRuntime = factory?.() ??
-    createMinimalRuntime(runtimeName, capabilities);
+  const baseRuntime = factory?.() ?? createMinimalRuntime(runtimeName);
+
+  // Apply capability overrides if provided
+  const capabilities = options?.capabilities
+    ? { ...baseRuntime.capabilities, ...options.capabilities }
+    : baseRuntime.capabilities;
 
   if (options !== undefined && hasOverrides(options)) {
     return mergeRuntime(baseRuntime, options, capabilities);
+  }
+
+  // Return base runtime with potentially updated capabilities
+  if (options?.capabilities) {
+    return { ...baseRuntime, capabilities };
   }
 
   return baseRuntime;

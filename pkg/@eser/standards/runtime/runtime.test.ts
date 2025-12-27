@@ -3,11 +3,8 @@
 import * as assert from "@std/assert";
 import {
   createRuntime,
-  DENO_CAPABILITIES,
   detectRuntime,
-  getCapabilities,
   getRuntimeVersion,
-  hasCapability,
   isBrowser,
   isBun,
   isDeno,
@@ -55,32 +52,6 @@ Deno.test("isBrowser() should return false in Deno", () => {
 
 Deno.test("isServer() should return true in Deno", () => {
   assert.assertEquals(isServer(), true);
-});
-
-// =============================================================================
-// Capabilities Tests
-// =============================================================================
-
-Deno.test("getCapabilities() should return Deno capabilities", () => {
-  const caps = getCapabilities("deno");
-  assert.assertEquals(caps, DENO_CAPABILITIES);
-  assert.assertEquals(caps.fs, true);
-  assert.assertEquals(caps.exec, true);
-  assert.assertEquals(caps.kv, true);
-});
-
-Deno.test("getCapabilities() should return limited Workers capabilities", () => {
-  const caps = getCapabilities("workerd");
-  assert.assertEquals(caps.fs, false);
-  assert.assertEquals(caps.exec, false);
-  assert.assertEquals(caps.kv, true);
-});
-
-Deno.test("hasCapability() should check capabilities correctly", () => {
-  assert.assertEquals(hasCapability("deno", "fs"), true);
-  assert.assertEquals(hasCapability("deno", "exec"), true);
-  assert.assertEquals(hasCapability("workerd", "fs"), false);
-  assert.assertEquals(hasCapability("workerd", "exec"), false);
 });
 
 // =============================================================================

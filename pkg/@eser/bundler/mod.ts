@@ -3,3 +3,5 @@
 export * from "./primitives.ts";
 export * from "./deno-bundler.ts";
 export * from "./aot-snapshot.ts";
+export * from "./module-map.ts";
+export * from "./chunk-manifest.ts";

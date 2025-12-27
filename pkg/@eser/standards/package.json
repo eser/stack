@@ -1,14 +1,19 @@
 {
   "name": "@eser/standards",
-  "version": "4.0.8",
+  "version": "4.0.9",
   "type": "module",
   "exports": {
     ".": "./mod.ts",
+    "./datetimes": "./datetimes/mod.ts",
     "./http-error": "./http-error.ts",
+    "./i18n": "./i18n/mod.ts",
     "./logging": "./logging.ts",
     "./patterns": "./patterns.ts",
+    "./registry": "./registry/mod.ts",
+    "./routes": "./routes/mod.ts",
     "./run-modes": "./run-modes.ts",
     "./runtime": "./runtime/mod.ts",
+    "./strings": "./strings/mod.ts",
     "./versions": "./versions.ts"
   },
   "dependencies": {

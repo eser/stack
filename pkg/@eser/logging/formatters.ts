@@ -282,12 +282,12 @@ export const jsonLinesFormatter: FormatterFn = (record: LogRecord): string => {
 /**
  * Default text formatter instance.
  */
-export const defaultTextFormatter = textFormatter();
+export const defaultTextFormatter: FormatterFn = textFormatter();
 
 /**
  * Default ANSI color formatter instance.
  */
-export const defaultAnsiColorFormatter = ansiColorFormatter();
+export const defaultAnsiColorFormatter: FormatterFn = ansiColorFormatter();
 
 // Re-export FormatterFn type
 export type { FormatterFn } from "./types.ts";

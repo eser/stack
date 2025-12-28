@@ -34,3 +34,4 @@
 export * as cors from "./cors.ts";
 export * as csp from "./csp.ts";
 export * as csrf from "./csrf.ts";
+export * as rateLimiter from "./rate-limiter.ts";

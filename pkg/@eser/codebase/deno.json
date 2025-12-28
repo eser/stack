@@ -1,6 +1,6 @@
 {
   "name": "@eser/codebase",
-  "version": "4.0.10",
+  "version": "4.0.11",
   "exports": {
     ".": "./mod.ts",
     "./directive-analysis": "./directive-analysis.ts",

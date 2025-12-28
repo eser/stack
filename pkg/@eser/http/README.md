@@ -1,6 +1,7 @@
 # 🌐 [@eser/http](./)
 
-HTTP utilities with security middleware for CORS, CSP, and CSRF protection.
+HTTP utilities with security middleware for CORS, CSP, CSRF protection, and rate
+limiting.
 
 ## Features
 
@@ -8,6 +9,7 @@ HTTP utilities with security middleware for CORS, CSP, and CSRF protection.
   control
 - **CSP Middleware**: Content Security Policy with nonce support
 - **CSRF Middleware**: Double-submit cookie pattern for CSRF protection
+- **Rate Limiter**: Instance-based rate limiting with automatic cleanup
 
 ## Quick Start
 
@@ -29,6 +31,11 @@ const cspMiddleware = middlewares.csp({
 
 const csrfMiddleware = middlewares.csrf({
   excludePaths: ["/api/webhooks/*"],
+});
+
+const rateLimiter = middlewares.createRateLimiter({
+  maxRequests: 100,
+  windowMs: 60_000, // 1 minute
 });
 ```
 
@@ -93,6 +100,61 @@ const csrf = middlewares.csrf({
 // fetch("/api/data", { headers: { "X-CSRF-Token": tokenFromCookie } })
 ```
 
+## Rate Limiter
+
+Instance-based rate limiting with automatic cleanup and SSRF protection.
+
+```typescript
+import { middlewares } from "@eser/http";
+
+// Create a rate limiter instance
+const limiter = middlewares.createRateLimiter({
+  maxRequests: 100, // Max requests per window
+  windowMs: 60_000, // 1 minute window
+  skipPaths: ["/health", "/api/public"],
+  trustProxy: true, // Trust X-Forwarded-For header
+});
+
+// In your request handler
+function handleRequest(request: Request) {
+  const url = new URL(request.url);
+
+  // Check rate limit
+  const rateLimitResponse = limiter.check(request, url.pathname);
+  if (rateLimitResponse) {
+    return rateLimitResponse; // 429 Too Many Requests
+  }
+
+  // Process request...
+  const response = new Response("OK");
+
+  // Add rate limit headers to response
+  const clientIp = middlewares.getClientIp(request, true);
+  const headers = limiter.getHeaders(clientIp, url.pathname);
+  for (const [key, value] of Object.entries(headers)) {
+    response.headers.set(key, value);
+  }
+
+  return response;
+}
+
+// Cleanup on server shutdown
+process.on("SIGTERM", () => {
+  limiter.stop();
+});
+```
+
+### Response Headers
+
+The rate limiter adds these headers to responses:
+
+| Header                  | Description                        |
+| ----------------------- | ---------------------------------- |
+| `X-RateLimit-Limit`     | Maximum requests per window        |
+| `X-RateLimit-Remaining` | Requests remaining in window       |
+| `X-RateLimit-Reset`     | Unix timestamp when window resets  |
+| `Retry-After`           | Seconds until retry (when limited) |
+
 ## API Reference
 
 ### `cors(options?)`
@@ -119,6 +181,27 @@ const csrf = middlewares.csrf({
 | `cookie`       | `string`   | `"csrf_token"`   | Cookie name              |
 | `header`       | `string`   | `"X-CSRF-Token"` | Header name              |
 | `excludePaths` | `string[]` | -                | Paths to skip validation |
+
+### `createRateLimiter(options?)`
+
+| Option         | Type                        | Default                  | Description                     |
+| -------------- | --------------------------- | ------------------------ | ------------------------------- |
+| `maxRequests`  | `number`                    | `100`                    | Maximum requests per window     |
+| `windowMs`     | `number`                    | `60000`                  | Time window in milliseconds     |
+| `message`      | `string`                    | `"Too many requests..."` | Rate limit error message        |
+| `skipPaths`    | `string[]`                  | `[]`                     | Paths to skip rate limiting     |
+| `skipIps`      | `string[]`                  | `["127.0.0.1", "::1"]`   | IPs to skip rate limiting       |
+| `trustProxy`   | `boolean`                   | `false`                  | Trust X-Forwarded-For header    |
+| `keyGenerator` | `(req, pathname) => string` | IP-based                 | Custom rate limit key generator |
+
+#### Rate Limiter Instance Methods
+
+| Method                       | Description                             |
+| ---------------------------- | --------------------------------------- |
+| `check(request, pathname)`   | Returns 429 Response or null            |
+| `getHeaders(clientIp, path)` | Get rate limit headers for response     |
+| `stop()`                     | Stop cleanup interval                   |
+| `getStoreSize()`             | Get current store size (for monitoring) |
 
 ---
 

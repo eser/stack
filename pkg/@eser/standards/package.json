@@ -1,10 +1,11 @@
 {
   "name": "@eser/standards",
-  "version": "4.0.10",
+  "version": "4.0.11",
   "type": "module",
   "exports": {
     ".": "./mod.ts",
     "./datetimes": "./datetimes/mod.ts",
+    "./formatters": "./formatters/mod.ts",
     "./http-error": "./http-error.ts",
     "./i18n": "./i18n/mod.ts",
     "./logging": "./logging.ts",

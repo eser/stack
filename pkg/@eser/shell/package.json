@@ -1,12 +1,14 @@
 {
   "name": "@eser/shell",
-  "version": "4.0.10",
+  "version": "4.0.11",
   "type": "module",
   "exports": {
     ".": "./mod.ts",
     "./completions": "./completions/mod.ts",
     "./args": "./args/mod.ts",
-    "./exec": "./exec/mod.ts"
+    "./exec": "./exec/mod.ts",
+    "./env": "./env/mod.ts",
+    "./formatting": "./formatting/mod.ts"
   },
   "dependencies": {
     "@eser/standards": "workspace:*"

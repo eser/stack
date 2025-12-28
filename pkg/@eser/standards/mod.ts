@@ -1,6 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 export * as datetimes from "./datetimes/mod.ts";
+export * as formatters from "./formatters/mod.ts";
 export * as httpError from "./http-error.ts";
 export * as i18n from "./i18n/mod.ts";
 export * as logging from "./logging.ts";

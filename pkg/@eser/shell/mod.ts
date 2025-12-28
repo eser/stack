@@ -3,10 +3,11 @@
 /**
  * @eser/shell - Shell utilities for CLI applications
  *
- * Provides three submodules:
+ * Provides submodules:
  * - `@eser/shell/completions` - Shell completion script generators (bash, zsh, fish)
  * - `@eser/shell/args` - Cobra-like CLI framework with command trees
  * - `@eser/shell/exec` - dax-like shell command execution
+ * - `@eser/shell/formatting` - Terminal formatting, colors, and output utilities
  *
  * @module
  */
@@ -14,3 +15,4 @@
 export * as completions from "./completions/mod.ts";
 export * as args from "./args/mod.ts";
 export * as exec from "./exec/mod.ts";
+export * as formatting from "./formatting/mod.ts";

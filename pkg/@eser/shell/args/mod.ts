@@ -40,10 +40,6 @@
  */
 
 export * from "./types.ts";
-export { Command } from "./command.ts";
-export {
-  buildParseOptions,
-  extractFlags,
-  validateRequiredFlags,
-} from "./flags.ts";
-export { generateHelp, type HelpCommandMeta } from "./help.ts";
+export * from "./command.ts";
+export * from "./flags.ts";
+export * from "./help.ts";

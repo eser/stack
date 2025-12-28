@@ -2,103 +2,134 @@
 
 import * as assert from "@std/assert";
 import * as logging from "@eser/standards/logging";
-import {
-  createLoggerState,
-  DEFAULT_LEVEL,
-  Logger,
-  type LogRecord,
-} from "./logger.ts";
-import * as formatters from "./formatters.ts";
+import * as log from "./mod.ts";
 
-// Helper to create a writable stream that captures output
-function createTestStream(): {
-  stream: WritableStream<Uint8Array>;
-  output: string[];
-} {
-  const output: string[] = [];
-  const stream = new WritableStream<Uint8Array>({
-    write(chunk) {
-      const text = new TextDecoder().decode(chunk);
-      output.push(text);
-    },
+// Destructure for convenience within tests
+const { configure, reset } = log.config;
+const { DEFAULT_LEVEL, getLogger, Logger } = log.logger;
+const { getTestSink } = log.sinks;
+
+// Reset state before each test
+const beforeEach = async () => {
+  await reset();
+};
+
+Deno.test("Logger constructor creates logger with category", async () => {
+  await beforeEach();
+
+  const logger = new Logger(["test", "logger"]);
+
+  assert.assertEquals(logger.category, ["test", "logger"]);
+  assert.assertEquals(logger.loggerName, "test.logger");
+  assert.assertEquals(logger.parent, null);
+});
+
+Deno.test("Logger constructor accepts string category", async () => {
+  await beforeEach();
+
+  const logger = new Logger("test.logger");
+
+  assert.assertEquals(logger.category, ["test", "logger"]);
+  assert.assertEquals(logger.loggerName, "test.logger");
+});
+
+Deno.test("Logger.getChild() creates child logger", async () => {
+  await beforeEach();
+
+  const parent = new Logger(["app"]);
+  const child = parent.getChild("http");
+
+  assert.assertEquals(child.category, ["app", "http"]);
+  assert.assertEquals(child.parent, parent);
+});
+
+Deno.test("Logger.getChild() with array subcategory", async () => {
+  await beforeEach();
+
+  const parent = new Logger(["app"]);
+  const child = parent.getChild(["http", "request"]);
+
+  assert.assertEquals(child.category, ["app", "http", "request"]);
+});
+
+Deno.test("Logger.with() creates logger with properties", async () => {
+  await beforeEach();
+  const { sink, records } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    }],
   });
-  return { stream, output };
-}
 
-Deno.test("createLoggerState() creates valid initial state", () => {
-  const { stream } = createTestStream();
-  const state = createLoggerState("test-logger", stream);
+  const logger = getLogger(["app"]);
+  const loggerWithProps = logger.with({ requestId: "abc-123" });
 
-  assert.assertEquals(state.loggerName, "test-logger");
-  assert.assertEquals(state.targetStream, stream);
-  assert.assertEquals(state.loglevel, DEFAULT_LEVEL);
-  assert.assertEquals(state.formatter, formatters.jsonFormatter);
-  assert.assertInstanceOf(state.encoder, TextEncoder);
+  await loggerWithProps.info("test message");
+
+  assert.assertEquals(records.length, 1);
+  assert.assertEquals(records[0]!.properties["requestId"], "abc-123");
 });
 
-Deno.test("createLoggerState() with custom log level and formatter", () => {
-  const { stream } = createTestStream();
-  const customFormatter = (record: LogRecord) => `CUSTOM: ${record.message}`;
+Deno.test("Logger.log() sends to configured sinks", async () => {
+  await beforeEach();
+  const { sink, records } = getTestSink();
 
-  const state = createLoggerState(
-    "custom-logger",
-    stream,
-    logging.Severities.Error,
-    customFormatter,
-  );
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    }],
+  });
 
-  assert.assertEquals(state.loggerName, "custom-logger");
-  assert.assertEquals(state.loglevel, logging.Severities.Error);
-  assert.assertEquals(state.formatter, customFormatter);
-});
+  const logger = getLogger(["app"]);
+  await logger.info("test message");
 
-Deno.test("Logger constructor initializes with state", () => {
-  const { stream } = createTestStream();
-  const state = createLoggerState("test-logger", stream);
-  const logger = new Logger(state);
-
-  assert.assertEquals(logger.state, state);
-});
-
-Deno.test("Logger.log() logs message when level is sufficient", async () => {
-  const { stream, output } = createTestStream();
-  const state = createLoggerState(
-    "test-logger",
-    stream,
-    logging.Severities.Debug,
-  );
-  const logger = new Logger(state);
-
-  const result = await logger.log(logging.Severities.Info, "test message");
-
-  assert.assertEquals(result, "test message");
-  assert.assertEquals(output.length, 1);
-  assert.assert(output[0]!.includes("test message"));
+  assert.assertEquals(records.length, 1);
+  assert.assertEquals(records[0]!.message, "test message");
+  assert.assertEquals(records[0]!.severity, logging.Severities.Info);
+  assert.assertEquals(records[0]!.category, ["app"]);
 });
 
 Deno.test("Logger.log() skips logging when level is insufficient", async () => {
-  const { stream, output } = createTestStream();
-  const state = createLoggerState(
-    "test-logger",
-    stream,
-    logging.Severities.Error,
-  );
-  const logger = new Logger(state);
+  await beforeEach();
+  const { sink, records } = getTestSink();
 
-  const result = await logger.log(logging.Severities.Info, "test message");
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Error,
+    }],
+  });
+
+  const logger = getLogger(["app"]);
+  const result = await logger.info("test message");
 
   assert.assertEquals(result, "test message");
-  assert.assertEquals(output.length, 0);
+  assert.assertEquals(records.length, 0);
 });
 
 Deno.test("Logger.log() with function message calls function only when logging", async () => {
-  const { stream, output } = createTestStream();
-  const state = createLoggerState(
-    "test-logger",
-    stream,
-    logging.Severities.Info,
-  );
-  const logger = new Logger(state);
+  await beforeEach();
+  const { sink, records } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    }],
+  });
+
+  const logger = getLogger(["app"]);
 
   let called = false;
   const messageFunction = () => {
@@ -106,22 +137,28 @@ Deno.test("Logger.log() with function message calls function only when logging",
     return "function result";
   };
 
-  const result = await logger.log(logging.Severities.Info, messageFunction);
+  const result = await logger.info(messageFunction);
 
   assert.assertEquals(result, "function result");
   assert.assertEquals(called, true);
-  assert.assertEquals(output.length, 1);
-  assert.assert(output[0]!.includes("function result"));
+  assert.assertEquals(records.length, 1);
+  assert.assertEquals(records[0]!.message, "function result");
 });
 
 Deno.test("Logger.log() with function message skips function when level insufficient", async () => {
-  const { stream, output } = createTestStream();
-  const state = createLoggerState(
-    "test-logger",
-    stream,
-    logging.Severities.Error,
-  );
-  const logger = new Logger(state);
+  await beforeEach();
+  const { sink, records } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Error,
+    }],
+  });
+
+  const logger = getLogger(["app"]);
 
   let called = false;
   const messageFunction = () => {
@@ -129,40 +166,48 @@ Deno.test("Logger.log() with function message skips function when level insuffic
     return "function result";
   };
 
-  const result = await logger.log(logging.Severities.Info, messageFunction);
+  const result = await logger.info(messageFunction);
 
   assert.assertEquals(result, undefined);
   assert.assertEquals(called, false);
-  assert.assertEquals(output.length, 0);
+  assert.assertEquals(records.length, 0);
 });
 
 Deno.test("Logger.log() with additional arguments", async () => {
-  const { stream, output } = createTestStream();
-  const state = createLoggerState(
-    "test-logger",
-    stream,
-    logging.Severities.Debug,
-  );
-  const logger = new Logger(state);
+  await beforeEach();
+  const { sink, records } = getTestSink();
 
-  await logger.log(logging.Severities.Info, "test message", "arg1", 42, {
-    key: "value",
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    }],
   });
 
-  assert.assertEquals(output.length, 1);
-  const loggedData = JSON.parse(output[0]!);
-  assert.assertEquals(loggedData.message, "test message");
-  assert.assertEquals(loggedData.args, ["arg1", 42, { key: "value" }]);
+  const logger = getLogger(["app"]);
+  await logger.info("test message", "arg1", 42, { key: "value" });
+
+  assert.assertEquals(records.length, 1);
+  assert.assertEquals(records[0]!.message, "test message");
+  assert.assertEquals(records[0]!.args, ["arg1", 42, { key: "value" }]);
 });
 
 Deno.test("Logger convenience methods work correctly", async () => {
-  const { stream, output } = createTestStream();
-  const state = createLoggerState(
-    "test-logger",
-    stream,
-    logging.Severities.Debug,
-  );
-  const logger = new Logger(state);
+  await beforeEach();
+  const { sink, records } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    }],
+  });
+
+  const logger = getLogger(["app"]);
 
   await logger.debug("debug message");
   await logger.info("info message");
@@ -170,12 +215,17 @@ Deno.test("Logger convenience methods work correctly", async () => {
   await logger.error("error message");
   await logger.critical("critical message");
 
-  assert.assertEquals(output.length, 5);
-  assert.assert(output[0]!.includes("debug message"));
-  assert.assert(output[1]!.includes("info message"));
-  assert.assert(output[2]!.includes("warn message"));
-  assert.assert(output[3]!.includes("error message"));
-  assert.assert(output[4]!.includes("critical message"));
+  assert.assertEquals(records.length, 5);
+  assert.assertEquals(records[0]!.message, "debug message");
+  assert.assertEquals(records[0]!.severity, logging.Severities.Debug);
+  assert.assertEquals(records[1]!.message, "info message");
+  assert.assertEquals(records[1]!.severity, logging.Severities.Info);
+  assert.assertEquals(records[2]!.message, "warn message");
+  assert.assertEquals(records[2]!.severity, logging.Severities.Warning);
+  assert.assertEquals(records[3]!.message, "error message");
+  assert.assertEquals(records[3]!.severity, logging.Severities.Error);
+  assert.assertEquals(records[4]!.message, "critical message");
+  assert.assertEquals(records[4]!.severity, logging.Severities.Critical);
 });
 
 // Table-driven tests for Logger.asString()
@@ -195,37 +245,35 @@ const asStringTestCases = [
 
 for (const { input, expected, name } of asStringTestCases) {
   Deno.test(`Logger.asString() handles ${name}`, () => {
-    const { stream } = createTestStream();
-    const state = createLoggerState("test-logger", stream);
-    const logger = new Logger(state);
+    const logger = new Logger(["test"]);
     assert.assertEquals(logger.asString(input), expected);
   });
 }
 
 Deno.test("Logger creates proper LogRecord", async () => {
-  const { stream, output } = createTestStream();
-  const customFormatter = (record: LogRecord) => {
-    // Verify record structure
-    assert.assertEquals(record.loggerName, "test-logger");
-    assert.assertEquals(record.message, "test message");
-    assert.assertEquals(record.severity, logging.Severities.Info);
-    assert.assertInstanceOf(record.datetime, Date);
-    assert.assertEquals(record.args, ["arg1", 42]);
+  await beforeEach();
+  const { sink, records } = getTestSink();
 
-    return JSON.stringify(record);
-  };
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["test-logger"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    }],
+  });
 
-  const state = createLoggerState(
-    "test-logger",
-    stream,
-    logging.Severities.Debug,
-    customFormatter,
-  );
-  const logger = new Logger(state);
+  const logger = getLogger(["test-logger"]);
+  await logger.info("test message", "arg1", 42);
 
-  await logger.log(logging.Severities.Info, "test message", "arg1", 42);
+  assert.assertEquals(records.length, 1);
+  const record = records[0]!;
 
-  assert.assertEquals(output.length, 1);
+  assert.assertEquals(record.category, ["test-logger"]);
+  assert.assertEquals(record.message, "test message");
+  assert.assertEquals(record.severity, logging.Severities.Info);
+  assert.assertInstanceOf(record.datetime, Date);
+  assert.assertEquals(record.args, ["arg1", 42]);
 });
 
 Deno.test("Default log level is Info", () => {
@@ -233,25 +281,110 @@ Deno.test("Default log level is Info", () => {
 });
 
 Deno.test("Logger handles non-string messages correctly", async () => {
-  const { stream, output } = createTestStream();
-  const state = createLoggerState(
-    "test-logger",
-    stream,
-    logging.Severities.Debug,
-  );
-  const logger = new Logger(state);
+  await beforeEach();
+  const { sink, records } = getTestSink();
 
-  await logger.log(logging.Severities.Info, 42);
-  await logger.log(logging.Severities.Info, { key: "value" });
-  await logger.log(logging.Severities.Info, [1, 2, 3]);
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    }],
+  });
 
-  assert.assertEquals(output.length, 3);
+  const logger = getLogger(["app"]);
 
-  const log1 = JSON.parse(output[0]!);
-  const log2 = JSON.parse(output[1]!);
-  const log3 = JSON.parse(output[2]!);
+  await logger.info(42);
+  await logger.info({ key: "value" });
+  await logger.info([1, 2, 3]);
 
-  assert.assertEquals(log1.message, "42");
-  assert.assertEquals(log2.message, '{"key":"value"}');
-  assert.assertEquals(log3.message, "[1,2,3]");
+  assert.assertEquals(records.length, 3);
+  assert.assertEquals(records[0]!.message, "42");
+  assert.assertEquals(records[1]!.message, '{"key":"value"}');
+  assert.assertEquals(records[2]!.message, "[1,2,3]");
+});
+
+Deno.test("getLogger() returns same instance for same category", async () => {
+  await beforeEach();
+  const { sink } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{ category: ["app"], sinks: ["test"] }],
+  });
+
+  const logger1 = getLogger(["app", "http"]);
+  const logger2 = getLogger(["app", "http"]);
+
+  assert.assertStrictEquals(logger1, logger2);
+});
+
+Deno.test("getLogger() accepts string category", async () => {
+  await beforeEach();
+  const { sink } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{ category: "app", sinks: ["test"] }],
+  });
+
+  const logger = getLogger("app.http");
+
+  assert.assertEquals(logger.category, ["app", "http"]);
+});
+
+Deno.test("Child loggers inherit parent sinks", async () => {
+  await beforeEach();
+  const { sink, records } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    }],
+  });
+
+  const logger = getLogger(["app", "http", "handler"]);
+  await logger.info("child message");
+
+  assert.assertEquals(records.length, 1);
+  assert.assertEquals(records[0]!.category, ["app", "http", "handler"]);
+});
+
+Deno.test("Logger RFC 5424 severity levels", async () => {
+  await beforeEach();
+  const { sink, records } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    }],
+  });
+
+  const logger = getLogger(["app"]);
+
+  await logger.emergency("emergency");
+  await logger.alert("alert");
+  await logger.critical("critical");
+  await logger.error("error");
+  await logger.warn("warning");
+  await logger.notice("notice");
+  await logger.info("info");
+  await logger.debug("debug");
+
+  assert.assertEquals(records.length, 8);
+  assert.assertEquals(records[0]!.severity, logging.Severities.Emergency);
+  assert.assertEquals(records[1]!.severity, logging.Severities.Alert);
+  assert.assertEquals(records[2]!.severity, logging.Severities.Critical);
+  assert.assertEquals(records[3]!.severity, logging.Severities.Error);
+  assert.assertEquals(records[4]!.severity, logging.Severities.Warning);
+  assert.assertEquals(records[5]!.severity, logging.Severities.Notice);
+  assert.assertEquals(records[6]!.severity, logging.Severities.Info);
+  assert.assertEquals(records[7]!.severity, logging.Severities.Debug);
 });

@@ -50,6 +50,6 @@
 
 export * from "./types.ts";
 export type { ChildProcess } from "@eser/standards/runtime";
-export { CommandBuilder } from "./command.ts";
-export { parseCommand } from "./parser.ts";
-export { exec } from "./exec.ts";
+export * from "./command.ts";
+export * from "./parser.ts";
+export * from "./exec.ts";

@@ -1,6 +1,6 @@
 {
   "name": "@eser/http",
-  "version": "4.0.12",
+  "version": "4.0.13",
   "exports": {
     ".": "./mod.ts",
     "./middlewares/cors": "./middlewares/cors.ts",

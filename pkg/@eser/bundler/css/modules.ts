@@ -51,13 +51,14 @@ export async function processCssModule(
 
   // Check if CSS contains @apply directives (Tailwind)
   if (cssContent.includes("@apply") && projectRoot !== undefined) {
-    // Calculate reference file path
+    // Calculate reference file path (absolute for temp directory processing)
     let referenceFile: string | undefined;
     if (autoInjectReference) {
-      const cssDir = posix.dirname(cssPath);
       const globalPath = globalCssPath ??
         posix.resolve(projectRoot, "src/app/styles/global.css");
-      referenceFile = posix.relative(cssDir, globalPath);
+
+      // Use absolute path since @apply expansion happens in temp directory
+      referenceFile = globalPath;
     }
 
     cssContent = await expandTailwindApply(

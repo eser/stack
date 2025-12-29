@@ -1,6 +1,6 @@
 {
   "name": "@eser/collector",
-  "version": "4.0.12",
+  "version": "4.0.13",
   "type": "module",
   "exports": {
     ".": "./mod.ts"

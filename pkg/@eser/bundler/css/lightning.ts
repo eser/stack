@@ -163,9 +163,7 @@ export function transformWithLightningCss(
 
   return {
     code: decodeBufferToString(result.code),
-    map: result.map !== undefined
-      ? decodeBufferToString(result.map)
-      : undefined,
+    map: result.map != null ? decodeBufferToString(result.map) : undefined,
     exports,
   };
 }

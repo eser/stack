@@ -15,7 +15,8 @@ TypeScript/JavaScript applications.
   destinations
 - **Filters** - Filter logs by severity, category, properties, or custom logic
 - **OpenTelemetry Integration** - Automatic correlation with distributed traces
-- **RFC 5424 Severity Levels** - 8 standard severity levels (Emergency to Debug)
+- **OpenTelemetry Severity Levels** - 9 standard severity levels (Trace to
+  Emergency)
 - **Lazy Evaluation** - Expensive log messages only computed when needed
 - **Namespace Exports** - Clean API with `logging.config`, `logging.sinks`, etc.
 - **TypeScript First** - Full type safety with proper type definitions
@@ -50,18 +51,21 @@ const requestLogger = logger.getChild("request");
 await requestLogger.debug("Processing request");
 ```
 
-## Severity Levels (RFC 5424)
+## Severity Levels (OpenTelemetry)
 
-| Level     | Value | Description                      |
-| --------- | ----- | -------------------------------- |
-| Emergency | 0     | System is unusable               |
-| Alert     | 1     | Action must be taken immediately |
-| Critical  | 2     | Critical conditions              |
-| Error     | 3     | Error conditions                 |
-| Warning   | 4     | Warning conditions               |
-| Notice    | 5     | Normal but significant condition |
-| Info      | 6     | Informational messages           |
-| Debug     | 7     | Debug-level messages             |
+| Level     | Value | Description                        |
+| --------- | ----- | ---------------------------------- |
+| Trace     | 1     | Most fine-grained diagnostic info  |
+| Debug     | 5     | Detailed troubleshooting data      |
+| Info      | 9     | Normal operational messages        |
+| Notice    | 10    | Normal but significant condition   |
+| Warning   | 13    | Potential issues needing attention |
+| Error     | 17    | Functionality-breaking problems    |
+| Critical  | 21    | Non-recoverable critical failures  |
+| Alert     | 22    | Action must be taken immediately   |
+| Emergency | 23    | System is unusable (most severe)   |
+
+> Higher severity numbers indicate more severe conditions (OpenTelemetry model).
 
 ## Usage Examples
 
@@ -291,6 +295,7 @@ Gets or creates a logger for the given category.
 #### Methods
 
 - `log(severity, message, ...args)` - Log at specified severity
+- `trace(message, ...args)` - Log trace message (most verbose)
 - `debug(message, ...args)` - Log debug message
 - `info(message, ...args)` - Log info message
 - `notice(message, ...args)` - Log notice message

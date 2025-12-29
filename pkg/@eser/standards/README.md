@@ -6,7 +6,7 @@ portable applications.
 
 ## Features
 
-- **Logging Standards**: RFC 5424 severity levels
+- **Logging Standards**: OpenTelemetry severity levels
 - **Date/Time Utilities**: Formatting, relative time, date comparisons
 - **String Interpolation**: Template-based string formatting
 - **Value Formatters**: Duration, size, number, and percentage formatting
@@ -19,22 +19,25 @@ portable applications.
 
 ### Logging Standards
 
-RFC 5424 severity levels for consistent logging across applications.
+OpenTelemetry severity levels for consistent logging across applications.
 
 ```typescript
 import { Severities, SeverityNames } from "@eser/standards/logging";
 
-Severities.Emergency; // 0 - System is unusable
-Severities.Alert; // 1 - Immediate action required
-Severities.Critical; // 2 - Critical conditions
-Severities.Error; // 3 - Error conditions
-Severities.Warning; // 4 - Warning conditions
-Severities.Notice; // 5 - Normal but significant
-Severities.Info; // 6 - Informational messages
-Severities.Debug; // 7 - Debug-level messages
+Severities.Trace; // 1  - Most fine-grained diagnostic
+Severities.Debug; // 5  - Detailed troubleshooting
+Severities.Info; // 9  - Normal operational messages
+Severities.Notice; // 10 - Normal but significant
+Severities.Warning; // 13 - Potential issues
+Severities.Error; // 17 - Functionality-breaking
+Severities.Critical; // 21 - Non-recoverable failures
+Severities.Alert; // 22 - Immediate action required
+Severities.Emergency; // 23 - System is unusable
 
-SeverityNames[Severities.Error]; // "error"
+SeverityNames[Severities.Error]; // "Error"
 ```
+
+> Higher severity numbers indicate more severe conditions (OpenTelemetry model).
 
 ### Date/Time Utilities
 

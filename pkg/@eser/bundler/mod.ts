@@ -4,8 +4,7 @@
 export * from "./types.ts";
 export * from "./primitives.ts";
 
-// Legacy bundler (backward compatibility)
-export * from "./deno-bundler.ts";
+// Snapshot utilities
 export * from "./aot-snapshot.ts";
 
 // Manifest types

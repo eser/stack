@@ -10,16 +10,16 @@ import {
 
 /**
  * Creates a filter that passes records at or above a given severity level.
- * Lower severity numbers are more severe (Emergency=0, Debug=7).
+ * Higher severity numbers are more severe (Trace=1, Emergency=23) per OpenTelemetry.
  *
  * @example
  * const filter = getLevelFilter(logging.Severities.Warning);
- * filter(infoRecord) // false (Info=6 > Warning=4)
- * filter(errorRecord) // true (Error=3 < Warning=4)
+ * filter(infoRecord) // false (Info=9 < Warning=13)
+ * filter(errorRecord) // true (Error=17 >= Warning=13)
  */
 export const getLevelFilter = (level: logging.Severity): Filter => {
   return (record: LogRecord): boolean => {
-    return record.severity <= level;
+    return record.severity >= level;
   };
 };
 

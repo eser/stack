@@ -354,7 +354,7 @@ Deno.test("Child loggers inherit parent sinks", async () => {
   assert.assertEquals(records[0]!.category, ["app", "http", "handler"]);
 });
 
-Deno.test("Logger RFC 5424 severity levels", async () => {
+Deno.test("Logger OpenTelemetry severity levels", async () => {
   await beforeEach();
   const { sink, records } = getTestSink();
 
@@ -363,28 +363,87 @@ Deno.test("Logger RFC 5424 severity levels", async () => {
     loggers: [{
       category: ["app"],
       sinks: ["test"],
-      lowestLevel: logging.Severities.Debug,
+      lowestLevel: logging.Severities.Trace,
     }],
   });
 
   const logger = getLogger(["app"]);
 
-  await logger.emergency("emergency");
-  await logger.alert("alert");
-  await logger.critical("critical");
-  await logger.error("error");
-  await logger.warn("warning");
-  await logger.notice("notice");
-  await logger.info("info");
+  // Log from most verbose to most severe (OpenTelemetry order)
+  await logger.trace("trace");
   await logger.debug("debug");
+  await logger.info("info");
+  await logger.notice("notice");
+  await logger.warn("warning");
+  await logger.error("error");
+  await logger.critical("critical");
+  await logger.alert("alert");
+  await logger.emergency("emergency");
 
-  assert.assertEquals(records.length, 8);
-  assert.assertEquals(records[0]!.severity, logging.Severities.Emergency);
-  assert.assertEquals(records[1]!.severity, logging.Severities.Alert);
-  assert.assertEquals(records[2]!.severity, logging.Severities.Critical);
-  assert.assertEquals(records[3]!.severity, logging.Severities.Error);
+  assert.assertEquals(records.length, 9);
+  assert.assertEquals(records[0]!.severity, logging.Severities.Trace);
+  assert.assertEquals(records[1]!.severity, logging.Severities.Debug);
+  assert.assertEquals(records[2]!.severity, logging.Severities.Info);
+  assert.assertEquals(records[3]!.severity, logging.Severities.Notice);
   assert.assertEquals(records[4]!.severity, logging.Severities.Warning);
-  assert.assertEquals(records[5]!.severity, logging.Severities.Notice);
-  assert.assertEquals(records[6]!.severity, logging.Severities.Info);
-  assert.assertEquals(records[7]!.severity, logging.Severities.Debug);
+  assert.assertEquals(records[5]!.severity, logging.Severities.Error);
+  assert.assertEquals(records[6]!.severity, logging.Severities.Critical);
+  assert.assertEquals(records[7]!.severity, logging.Severities.Alert);
+  assert.assertEquals(records[8]!.severity, logging.Severities.Emergency);
+});
+
+Deno.test("OpenTelemetry severity values are correct", () => {
+  // Verify OpenTelemetry severity number ranges
+  // TRACE: 1-4, DEBUG: 5-8, INFO: 9-12, WARN: 13-16, ERROR: 17-20, FATAL: 21-24
+  assert.assertEquals(logging.Severities.Trace, 1);
+  assert.assertEquals(logging.Severities.Debug, 5);
+  assert.assertEquals(logging.Severities.Info, 9);
+  assert.assertEquals(logging.Severities.Notice, 10);
+  assert.assertEquals(logging.Severities.Warning, 13);
+  assert.assertEquals(logging.Severities.Error, 17);
+  assert.assertEquals(logging.Severities.Critical, 21);
+  assert.assertEquals(logging.Severities.Alert, 22);
+  assert.assertEquals(logging.Severities.Emergency, 23);
+});
+
+Deno.test("Logger.trace() logs at trace level", async () => {
+  await beforeEach();
+  const { sink, records } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Trace,
+    }],
+  });
+
+  const logger = getLogger(["app"]);
+  await logger.trace("trace message");
+
+  assert.assertEquals(records.length, 1);
+  assert.assertEquals(records[0]!.message, "trace message");
+  assert.assertEquals(records[0]!.severity, logging.Severities.Trace);
+});
+
+Deno.test("Logger.trace() is filtered when lowestLevel is Debug", async () => {
+  await beforeEach();
+  const { sink, records } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug, // Debug=5, Trace=1
+    }],
+  });
+
+  const logger = getLogger(["app"]);
+  await logger.trace("trace message"); // Should be filtered (1 < 5)
+  await logger.debug("debug message"); // Should pass (5 >= 5)
+
+  assert.assertEquals(records.length, 1);
+  assert.assertEquals(records[0]!.message, "debug message");
 });

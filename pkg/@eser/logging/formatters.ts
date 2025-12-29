@@ -29,31 +29,33 @@ const ANSI = {
 } as const;
 
 /**
- * Severity level abbreviations.
+ * Severity level abbreviations (OpenTelemetry order: Trace=1 to Emergency=23).
  */
 const SEVERITY_ABBR: Record<logging.Severity, string> = {
-  [logging.Severities.Emergency]: "EMRG",
-  [logging.Severities.Alert]: "ALRT",
-  [logging.Severities.Critical]: "CRIT",
-  [logging.Severities.Error]: "ERRO",
-  [logging.Severities.Warning]: "WARN",
-  [logging.Severities.Notice]: "NOTC",
-  [logging.Severities.Info]: "INFO",
+  [logging.Severities.Trace]: "TRCE",
   [logging.Severities.Debug]: "DBUG",
+  [logging.Severities.Info]: "INFO",
+  [logging.Severities.Notice]: "NOTC",
+  [logging.Severities.Warning]: "WARN",
+  [logging.Severities.Error]: "ERRO",
+  [logging.Severities.Critical]: "CRIT",
+  [logging.Severities.Alert]: "ALRT",
+  [logging.Severities.Emergency]: "EMRG",
 };
 
 /**
- * ANSI colors for each severity level.
+ * ANSI colors for each severity level (OpenTelemetry order: Trace=1 to Emergency=23).
  */
 const SEVERITY_COLORS: Record<logging.Severity, string> = {
-  [logging.Severities.Emergency]: `${ANSI.bgRed}${ANSI.white}${ANSI.bold}`,
-  [logging.Severities.Alert]: `${ANSI.bgRed}${ANSI.white}`,
-  [logging.Severities.Critical]: `${ANSI.red}${ANSI.bold}`,
-  [logging.Severities.Error]: ANSI.red,
-  [logging.Severities.Warning]: ANSI.yellow,
-  [logging.Severities.Notice]: ANSI.cyan,
-  [logging.Severities.Info]: ANSI.green,
+  [logging.Severities.Trace]: `${ANSI.dim}${ANSI.magenta}`,
   [logging.Severities.Debug]: ANSI.gray,
+  [logging.Severities.Info]: ANSI.green,
+  [logging.Severities.Notice]: ANSI.cyan,
+  [logging.Severities.Warning]: ANSI.yellow,
+  [logging.Severities.Error]: ANSI.red,
+  [logging.Severities.Critical]: `${ANSI.red}${ANSI.bold}`,
+  [logging.Severities.Alert]: `${ANSI.bgRed}${ANSI.white}`,
+  [logging.Severities.Emergency]: `${ANSI.bgRed}${ANSI.white}${ANSI.bold}`,
 };
 
 /**
@@ -243,10 +245,8 @@ export const ansiColorFormatter = (
       parts.push(`${ANSI.cyan}[${cat}]${ANSI.reset}`);
     }
 
-    // Message (colored for errors/warnings)
-    if (
-      record.severity <= logging.Severities.Error
-    ) {
+    // Message (colored for errors and above - higher = more severe in OpenTelemetry)
+    if (record.severity >= logging.Severities.Error) {
       parts.push(`${color}${record.message}${ANSI.reset}`);
     } else {
       parts.push(record.message);

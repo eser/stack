@@ -164,7 +164,7 @@ export const fingersCrossedSink = (
     maxBufferSize?: number;
   } = {},
 ): Sink & { flush: () => Promise<void>; clear: () => void } => {
-  const { triggerLevel = 3, maxBufferSize = 1000 } = options; // Default: Error level
+  const { triggerLevel = 17, maxBufferSize = 1000 } = options; // Default: Error level (OpenTelemetry)
   let buffer: LogRecord[] = [];
   let triggered = false;
 
@@ -188,8 +188,8 @@ export const fingersCrossedSink = (
       return;
     }
 
-    // Check if this record triggers the flush
-    if (record.severity <= triggerLevel) {
+    // Check if this record triggers the flush (higher = more severe in OpenTelemetry)
+    if (record.severity >= triggerLevel) {
       buffer.push(record);
       await flush();
       return;

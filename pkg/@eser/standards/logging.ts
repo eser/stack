@@ -2,30 +2,33 @@
 
 import * as functions from "@eser/primitives/functions";
 
-// taken from RFC5424 (see: https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.1)
+// OpenTelemetry severity levels (see: https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber)
+// Higher numbers = more severe (opposite of RFC 5424)
 export const Severities = {
-  Emergency: 0, // system is unusable
-  Alert: 1, // action must be taken immediately
-  Critical: 2, // critical conditions
-  Error: 3, // error conditions
-  Warning: 4, // warning conditions
-  Notice: 5, // normal but significant condition
-  Info: 6, // informational messages
-  Debug: 7, // debug-level messages
+  Trace: 1, // 1-4: most fine-grained diagnostic information
+  Debug: 5, // 5-8: detailed troubleshooting data
+  Info: 9, // 9-12: normal operational messages
+  Notice: 10, // within INFO range: normal but significant condition
+  Warning: 13, // 13-16: potential issues needing attention
+  Error: 17, // 17-20: functionality-breaking problems
+  Critical: 21, // 21-24: non-recoverable critical failures
+  Alert: 22, // within FATAL range: action must be taken immediately
+  Emergency: 23, // within FATAL range: system is unusable (most severe)
 } as const;
 
 export type SeverityKey = Exclude<keyof typeof Severities, number>;
 export type Severity = typeof Severities[SeverityKey];
 
 export const SeverityNames = {
-  [Severities.Emergency]: "Emergency",
-  [Severities.Alert]: "Alert",
-  [Severities.Critical]: "Critical",
-  [Severities.Error]: "Error",
-  [Severities.Warning]: "Warning",
-  [Severities.Notice]: "Notice",
-  [Severities.Info]: "Info",
+  [Severities.Trace]: "Trace",
   [Severities.Debug]: "Debug",
+  [Severities.Info]: "Info",
+  [Severities.Notice]: "Notice",
+  [Severities.Warning]: "Warning",
+  [Severities.Error]: "Error",
+  [Severities.Critical]: "Critical",
+  [Severities.Alert]: "Alert",
+  [Severities.Emergency]: "Emergency",
 } as const;
 
 /**

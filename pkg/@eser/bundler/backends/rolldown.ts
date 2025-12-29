@@ -354,7 +354,7 @@ export class RolldownBundlerBackend implements Bundler {
 
   private async processRolldownOutput(
     result: RolldownWriteResult,
-    _config: BundlerConfig,
+    config: BundlerConfig,
   ): Promise<BundleResult> {
     const outputs = new Map<string, BundleOutput>();
     const metaOutputs: Record<string, OutputMetadata> = {};
@@ -364,7 +364,16 @@ export class RolldownBundlerBackend implements Bundler {
 
     for (const output of result.output) {
       if (output.type === "chunk") {
-        const code = new TextEncoder().encode(output.code);
+        // Post-process: Replace URL paths (matches DenoBundler behavior)
+        let processedCode = output.code;
+        if (config.basePath !== undefined) {
+          processedCode = processedCode.replace(
+            /\/_lime\/alive/g,
+            `${config.basePath}/_lime/alive`,
+          );
+        }
+
+        const code = new TextEncoder().encode(processedCode);
         const hash = await this.computeHash(code);
 
         const bundleOutput: BundleOutput = {

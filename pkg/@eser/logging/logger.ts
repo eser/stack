@@ -158,8 +158,8 @@ export class Logger implements logging.Logger {
   ): Promise<T | undefined> {
     const config = this.#getEffectiveConfig();
 
-    // Check severity threshold
-    if (severity > config.lowestLevel) {
+    // Check severity threshold (higher numbers = more severe in OpenTelemetry model)
+    if (severity < config.lowestLevel) {
       return message instanceof Function ? undefined : message;
     }
 
@@ -386,6 +386,31 @@ export class Logger implements logging.Logger {
     ...args: functions.ArgList<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Notice, message, ...args);
+  }
+
+  /**
+   * Logs a trace message (most verbose level).
+   */
+  trace<T>(
+    message: () => T,
+    // deno-lint-ignore no-explicit-any
+    ...args: functions.ArgList<any>
+  ): Promise<T | undefined>;
+  trace<T>(
+    // deno-lint-ignore no-explicit-any
+    message: T extends functions.GenericFunction<any, any> ? never : T,
+    // deno-lint-ignore no-explicit-any
+    ...args: functions.ArgList<any>
+  ): Promise<T>;
+  trace<T>(
+    message:
+      // deno-lint-ignore no-explicit-any
+      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (() => T),
+    // deno-lint-ignore no-explicit-any
+    ...args: functions.ArgList<any>
+  ): Promise<T | undefined> {
+    return this.log(logging.Severities.Trace, message, ...args);
   }
 }
 

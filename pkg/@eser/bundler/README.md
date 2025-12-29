@@ -115,6 +115,33 @@ const bundler = createDenoBundlerBackend({
 });
 ```
 
+### Backend Comparison
+
+| Feature              | Rolldown              | Deno Bundler  |
+| -------------------- | --------------------- | ------------- |
+| **Performance**      | 10-30x faster         | Native Deno   |
+| **Format**           | ESM, CJS, IIFE        | ESM only      |
+| **External Modules** | ✓                     | ✓             |
+| **Plugins**          | ✓ (Rollup-compatible) | ✗             |
+| **Code Splitting**   | ✓ (Advanced)          | ✓             |
+| **Watch Mode**       | ✓                     | ✓             |
+| **Sourcemaps**       | ✓                     | ✓             |
+| **basePath Rewrite** | ✓                     | ✓             |
+| **Dependencies**     | npm:rolldown          | None (native) |
+
+**When to use Rolldown:**
+
+- Production builds requiring maximum performance
+- Need CJS or IIFE output format
+- Advanced code splitting with vendor chunking
+- Plugin support (e.g., custom transformations)
+
+**When to use Deno Bundler:**
+
+- Simple builds without external dependencies
+- Native Deno integration preferred
+- Fallback when Rolldown is unavailable
+
 ## CSS Processing
 
 ### Tailwind CSS

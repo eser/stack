@@ -20,7 +20,7 @@ export type LogRecord = {
   readonly args: readonly unknown[];
   /** Timestamp of the log entry */
   readonly datetime: Date;
-  /** Severity level (RFC 5424) */
+  /** Severity level (OpenTelemetry) */
   readonly severity: logging.Severity;
   /** Hierarchical category of the logger */
   readonly category: Category;

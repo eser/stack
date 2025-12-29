@@ -31,6 +31,8 @@ import { createErrorResult, createSuccessResult } from "../types.ts";
 export interface DenoBundlerBackendOptions {
   /** Build ID for cache busting. */
   buildId?: string;
+  /** Custom entry point name (default: "main"). */
+  entryName?: string;
 }
 
 /**
@@ -67,6 +69,14 @@ export class DenoBundlerBackend implements Bundler {
       // Deno.bundle only supports "browser" platform
       const platform = config.platform === "browser" ? "browser" : "browser";
 
+      // Convert sourcemap config to Deno.bundle format
+      // Deno.bundle accepts "external" | "inline" | undefined
+      const sourcemapValue = config.sourcemap === true
+        ? "external"
+        : config.sourcemap === false
+        ? undefined
+        : config.sourcemap;
+
       const result = await Deno.bundle({
         entrypoints: allEntrypoints,
         outputDir: tempDir,
@@ -74,6 +84,10 @@ export class DenoBundlerBackend implements Bundler {
         codeSplitting: config.codeSplitting,
         minify: config.minify,
         platform,
+        sourcemap: sourcemapValue,
+        ...(config.external !== undefined && config.external.length > 0
+          ? { external: [...config.external] }
+          : {}),
       });
 
       if (!result.success) {
@@ -142,9 +156,10 @@ export class DenoBundlerBackend implements Bundler {
   }
 
   private async processOutput(
-    outputDir: string,
+    tempDir: string,
     config: BundlerConfig,
   ): Promise<BundleResult> {
+    const entryName = this.options.entryName ?? "main";
     const outputs = new Map<string, BundleOutput>();
     const metaOutputs: Record<string, OutputMetadata> = {};
     const entrypointManifest: Record<string, string[]> = {};
@@ -152,8 +167,8 @@ export class DenoBundlerBackend implements Bundler {
     let totalSize = 0;
 
     // Deno.bundle() creates a nested dist/ directory
-    const nestedDistDir = posix.join(outputDir, "dist");
-    let scanDir = outputDir;
+    const nestedDistDir = posix.join(tempDir, "dist");
+    let scanDir = tempDir;
 
     try {
       const nestedStat = await runtime.fs.stat(nestedDistDir);
@@ -164,11 +179,14 @@ export class DenoBundlerBackend implements Bundler {
       // No nested dir, use outputDir
     }
 
-    // Collect all output files
+    // Collect all output files (both .js and .map files)
     const outputFiles: Array<{ name: string; path: string }> = [];
 
     for await (const entry of runtime.fs.readDir(scanDir)) {
-      if (entry.isFile && entry.name.endsWith(".js")) {
+      if (
+        entry.isFile &&
+        (entry.name.endsWith(".js") || entry.name.endsWith(".map"))
+      ) {
         outputFiles.push({
           name: entry.name,
           path: posix.join(scanDir, entry.name),
@@ -176,15 +194,15 @@ export class DenoBundlerBackend implements Bundler {
       }
     }
 
-    // Also check root outputDir for chunk files if we scanned nested
-    if (scanDir !== outputDir) {
-      for await (const entry of runtime.fs.readDir(outputDir)) {
+    // Also check root tempDir for chunk files if we scanned nested
+    if (scanDir !== tempDir) {
+      for await (const entry of runtime.fs.readDir(tempDir)) {
         if (
           entry.isFile &&
-          entry.name.endsWith(".js") &&
-          entry.name.startsWith("chunk-")
+          (entry.name.endsWith(".js") || entry.name.endsWith(".map")) &&
+          (entry.name.startsWith("chunk-") || entry.name.endsWith(".map"))
         ) {
-          const path = posix.join(outputDir, entry.name);
+          const path = posix.join(tempDir, entry.name);
           if (!outputFiles.some((f) => f.path === path)) {
             outputFiles.push({ name: entry.name, path });
           }
@@ -192,11 +210,28 @@ export class DenoBundlerBackend implements Bundler {
       }
     }
 
-    // Map to track original entrypoint paths to their generated proxy files
-    const entrypointPaths = Object.values(config.entrypoints);
+    // Track source map content to attach to JS outputs
+    const sourceMaps = new Map<string, Uint8Array>();
 
-    // Process each output file
+    // First pass: collect source maps
     for (const file of outputFiles) {
+      if (file.name.endsWith(".map")) {
+        const mapContent = await runtime.fs.readFile(file.path);
+        // Normalize the map file name to match JS file naming
+        let normalizedMapName = file.name;
+        if (file.name.startsWith("_client-entry")) {
+          normalizedMapName = `${entryName}.js.map`;
+        } else if (file.name.startsWith("_build-id-entry")) {
+          normalizedMapName = "build-id.js.map";
+        }
+        sourceMaps.set(normalizedMapName, mapContent);
+      }
+    }
+
+    // Second pass: process JS files
+    for (const file of outputFiles) {
+      if (file.name.endsWith(".map")) continue; // Skip maps, already processed
+
       let content = await runtime.fs.readTextFile(file.path);
 
       // Post-process: Replace URL paths
@@ -223,19 +258,35 @@ export class DenoBundlerBackend implements Bundler {
       let normalizedName = file.name;
       const isMainEntry = normalizedName.startsWith("_client-entry");
       if (isMainEntry) {
-        normalizedName = "main.js";
-        mainEntrypoint = "main.js";
+        normalizedName = `${entryName}.js`;
+        mainEntrypoint = `${entryName}.js`;
       } else if (normalizedName.startsWith("_build-id-entry")) {
         normalizedName = "build-id.js";
+      }
+
+      // Add or update sourcemap reference for entry files
+      if (isMainEntry && sourceMaps.has(`${entryName}.js.map`)) {
+        content = content.replace(
+          /\/\/# sourceMappingURL=.*$/m,
+          `//# sourceMappingURL=${entryName}.js.map`,
+        );
+        if (!content.includes("//# sourceMappingURL=")) {
+          content += `\n//# sourceMappingURL=${entryName}.js.map`;
+        }
       }
 
       const encoded = new TextEncoder().encode(content);
       const hash = await this.computeHash(encoded);
       const imports = this.parseImports(content);
 
+      // Get associated source map
+      const mapFileName = `${normalizedName}.map`;
+      const mapContent = sourceMaps.get(mapFileName);
+
       outputs.set(normalizedName, {
         path: normalizedName,
         code: encoded,
+        map: mapContent,
         size: encoded.length,
         hash,
         isEntry: !normalizedName.startsWith("chunk-"),
@@ -253,22 +304,49 @@ export class DenoBundlerBackend implements Bundler {
       };
     }
 
+    // Also add standalone source map files to outputs (for external sourcemaps)
+    for (const [mapName, mapContent] of sourceMaps) {
+      if (!outputs.has(mapName)) {
+        const hash = await this.computeHash(mapContent);
+        outputs.set(mapName, {
+          path: mapName,
+          code: mapContent,
+          size: mapContent.length,
+          hash,
+          isEntry: false,
+        });
+        totalSize += mapContent.length;
+      }
+    }
+
+    // Write outputs to final output directory if specified
+    if (config.outputDir !== undefined) {
+      await runtime.fs.mkdir(config.outputDir, { recursive: true });
+      for (const [fileName, output] of outputs) {
+        const outputPath = posix.join(config.outputDir, fileName);
+        await runtime.fs.writeFile(outputPath, output.code);
+      }
+    }
+
     // Build entrypoint manifest by analyzing proxy files
     // Proxy files are generated by Deno.bundle for each entrypoint
-    for (let i = 0; i < entrypointPaths.length; i++) {
-      const entrypointPath = entrypointPaths[i];
-      if (entrypointPath === undefined) continue;
+    // Use entrypoint keys (relative paths) to find proxy files, and values (full paths) for manifest keys
+    for (const [entryKey, entryValue] of Object.entries(config.entrypoints)) {
+      // Skip main entry - it doesn't have a proxy file
+      if (entryKey === "client" || entryKey === "main") continue;
 
       // Find the corresponding proxy file for this entrypoint
+      // entryKey is the relative path like "src/app/counter.tsx"
       const chunks = await this.findEntrypointChunks(
-        entrypointPath,
+        entryKey,
         scanDir,
-        outputDir,
+        tempDir,
         outputs,
       );
 
       if (chunks.length > 0) {
-        entrypointManifest[entrypointPath] = chunks;
+        // Use the full path (entryValue) as the manifest key for compatibility
+        entrypointManifest[entryValue] = chunks;
       }
     }
 
@@ -297,7 +375,7 @@ export class DenoBundlerBackend implements Bundler {
     outputs: Map<string, BundleOutput>,
   ): Promise<string[]> {
     // Convert entrypoint path to expected proxy file path
-    // e.g., "/path/to/counter.tsx" -> proxy file at "path/to/counter.js"
+    // e.g., "src/app/counter.tsx" -> proxy file at "src/app/counter.js"
     const relativePath = entrypointPath.replace(/\.tsx?$/, ".js");
     const proxyFilePath = posix.join(scanDir, relativePath);
 

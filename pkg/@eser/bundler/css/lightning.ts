@@ -12,6 +12,8 @@
  */
 
 import { transform } from "lightningcss";
+import { Buffer } from "node:buffer";
+import { isNode } from "@eser/standards/runtime";
 import type {
   BrowserTargets,
   CssModuleExportData,
@@ -63,6 +65,44 @@ function convertTargets(targets?: BrowserTargets): LightningTargets {
   }
 
   return result;
+}
+
+/**
+ * Safely decode buffer data to string.
+ * - Uses Buffer.toString() for Node.js (idiomatic)
+ * - Uses TextDecoder for Deno/Browser
+ * - Validates input to prevent null/undefined errors
+ *
+ * @see https://github.com/denoland/deno/issues/7178 - TextDecoder throws on null/undefined
+ */
+function decodeBufferToString(data: unknown): string {
+  // Validate input - this is the actual bug fix
+  if (data === null || data === undefined) {
+    throw new TypeError(
+      `Expected Uint8Array from Lightning CSS, got ${
+        data === null ? "null" : "undefined"
+      }`,
+    );
+  }
+
+  // Node.js Buffer (most idiomatic)
+  if (isNode() && typeof Buffer !== "undefined" && Buffer.isBuffer(data)) {
+    return data.toString("utf-8");
+  }
+
+  // Uint8Array (works for both Buffer and Uint8Array)
+  if (data instanceof Uint8Array) {
+    return new TextDecoder().decode(data);
+  }
+
+  // Fallback for string (defensive, shouldn't happen per official types)
+  if (typeof data === "string") {
+    return data;
+  }
+
+  throw new TypeError(
+    `Expected Uint8Array from Lightning CSS, got ${typeof data}`,
+  );
 }
 
 /**
@@ -122,9 +162,9 @@ export function transformWithLightningCss(
   }
 
   return {
-    code: new TextDecoder().decode(result.code),
+    code: decodeBufferToString(result.code),
     map: result.map !== undefined
-      ? new TextDecoder().decode(result.map)
+      ? decodeBufferToString(result.map)
       : undefined,
     exports,
   };

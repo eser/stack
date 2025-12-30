@@ -9,7 +9,7 @@
     "./backends/rolldown": "./backends/rolldown.ts",
     "./utils": "./utils/mod.ts",
     "./css": "./css/mod.ts",
-    "./css/tailwind": "./css/tailwind.ts",
+    "./css/tailwind": "./css/tailwind-plugin.ts",
     "./css/lightning": "./css/lightning.ts",
     "./css/modules": "./css/modules.ts",
     "./css/fonts": "./css/fonts.ts"

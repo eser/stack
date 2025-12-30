@@ -163,7 +163,7 @@ export class DenoBundlerBackend implements Bundler {
     const outputs = new Map<string, BundleOutput>();
     const metaOutputs: Record<string, OutputMetadata> = {};
     const entrypointManifest: Record<string, string[]> = {};
-    let mainEntrypoint = "";
+    let mainEntrypoint = null;
     let totalSize = 0;
 
     // Deno.bundle() creates a nested dist/ directory
@@ -358,7 +358,7 @@ export class DenoBundlerBackend implements Bundler {
     const options: SuccessResultOptions = {
       metafile,
       entrypointManifest,
-      entrypoint: mainEntrypoint || "main.js",
+      entrypoint: mainEntrypoint ?? "main.js",
       totalSize,
     };
 

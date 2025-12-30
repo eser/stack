@@ -1,6 +1,6 @@
 {
   "name": "@eser/primitives",
-  "version": "4.0.17",
+  "version": "4.0.18",
   "exports": {
     ".": "./mod.ts",
     "./functions": "./functions.ts",

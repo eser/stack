@@ -84,6 +84,8 @@ export interface AdvancedChunksConfig {
  * Backend options specific to Rolldown.
  */
 export interface RolldownBundlerBackendOptions {
+  /** Custom entry point name (default: "main"). */
+  entryName?: string;
   /** Advanced chunking configuration. */
   advancedChunks?: AdvancedChunksConfig;
   /** Enable tree shaking (default: true). */
@@ -356,10 +358,12 @@ export class RolldownBundlerBackend implements Bundler {
     result: RolldownWriteResult,
     config: BundlerConfig,
   ): Promise<BundleResult> {
+    const entryName = this.options.entryName ?? "main";
+    const expectedEntryFile = `${entryName}.js`;
     const outputs = new Map<string, BundleOutput>();
     const metaOutputs: Record<string, OutputMetadata> = {};
     const entrypointManifest: Record<string, string[]> = {};
-    let mainEntrypoint = "";
+    let mainEntrypoint = null;
     let totalSize = 0;
 
     for (const output of result.output) {
@@ -390,9 +394,13 @@ export class RolldownBundlerBackend implements Bundler {
         outputs.set(output.fileName, bundleOutput);
         totalSize += code.length;
 
-        // Track main entrypoint
-        if (output.isEntry && mainEntrypoint === "") {
-          mainEntrypoint = output.fileName;
+        // Track main entrypoint - prefer the configured entryName
+        if (output.isEntry) {
+          if (output.fileName === expectedEntryFile) {
+            mainEntrypoint = output.fileName;
+          } else if (mainEntrypoint === null) {
+            mainEntrypoint = output.fileName;
+          }
         }
 
         // Build entrypoint manifest from Rolldown's facadeModuleId
@@ -444,7 +452,7 @@ export class RolldownBundlerBackend implements Bundler {
     const options: SuccessResultOptions = {
       metafile,
       entrypointManifest,
-      entrypoint: mainEntrypoint,
+      entrypoint: mainEntrypoint ?? expectedEntryFile,
       totalSize,
     };
 

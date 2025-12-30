@@ -1,6 +1,6 @@
 {
   "name": "@eser/di",
-  "version": "4.0.17",
+  "version": "4.0.18",
   "exports": {
     ".": "./mod.ts",
     "./container": "./container.ts",

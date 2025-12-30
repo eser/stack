@@ -7,30 +7,6 @@
  */
 
 /**
- * Options for processing CSS with Tailwind.
- */
-export interface TailwindProcessOptions {
-  /** Input CSS file path. */
-  readonly input: string;
-  /** Output CSS file path. */
-  readonly output: string;
-  /** Whether to minify the output. */
-  readonly minify?: boolean;
-  /** Project root directory for Tailwind config. */
-  readonly projectRoot: string;
-  /** Tailwind CSS version to use. */
-  readonly version?: string;
-}
-
-/**
- * Options for Tailwind watch mode.
- */
-export interface TailwindWatchOptions extends TailwindProcessOptions {
-  /** Callback when CSS changes. */
-  readonly onChange?: (output: string) => void | Promise<void>;
-}
-
-/**
  * Browser targeting configuration for Lightning CSS.
  */
 export interface BrowserTargets {
@@ -107,21 +83,53 @@ export interface CssModuleResult {
 }
 
 /**
+ * Tailwind compiler root interface.
+ * Import from "@eser/bundler/css/tailwind-plugin" for the full implementation.
+ */
+export interface TailwindRoot {
+  /** Compile CSS content with Tailwind. Returns null if no Tailwind features detected. */
+  compile(content: string, id: string): Promise<TailwindCompileResult | null>;
+  /** Dispose resources and clear caches. */
+  dispose(): void;
+}
+
+/**
+ * Result of Tailwind CSS compilation.
+ */
+export interface TailwindCompileResult {
+  /** Compiled CSS with @apply and @tailwind directives expanded. */
+  readonly code: string;
+  /** Source map (if sourceMaps enabled). */
+  readonly map?: string;
+  /** Files that should trigger recompilation when changed. */
+  readonly dependencies: readonly string[];
+}
+
+/**
  * Options for CSS Module processing.
  */
 export interface CssModuleOptions {
   /** Whether to generate TypeScript .d.ts file. */
   readonly generateDts?: boolean;
-  /** Project root directory for Tailwind processing. */
-  readonly projectRoot?: string;
-  /** Whether to auto-inject @reference directive for Tailwind. */
-  readonly autoInjectReference?: boolean;
-  /** Path to global CSS file for @reference. */
-  readonly globalCssPath?: string;
   /** Whether to minify output. */
   readonly minify?: boolean;
   /** Browser targets. */
   readonly targets?: BrowserTargets;
+  /**
+   * Tailwind compiler root for @apply support.
+   * When provided, CSS files with @apply, @tailwind, or @theme directives
+   * will be processed through Tailwind before Lightning CSS.
+   *
+   * @example
+   * ```ts
+   * import { createTailwindRoot } from "@eser/bundler/css/tailwind-plugin";
+   *
+   * const tailwind = createTailwindRoot({ base: "." });
+   * const result = await processCssModule("button.module.css", { tailwind });
+   * tailwind.dispose();
+   * ```
+   */
+  readonly tailwind?: TailwindRoot;
 }
 
 /**

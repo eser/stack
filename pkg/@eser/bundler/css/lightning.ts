@@ -148,7 +148,7 @@ export function transformWithLightningCss(
 
   // Build exports map if CSS Modules enabled
   let exports: Record<string, CssModuleExportData> | undefined;
-  if (result.exports !== undefined) {
+  if (result.exports !== undefined && result.exports !== null) {
     exports = {};
     for (const [className, exportData] of Object.entries(result.exports)) {
       exports[className] = {

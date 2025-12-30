@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals } from "@std/assert";
+import * as assert from "@std/assert";
 import { extractExports, hasDirective } from "./directive-analysis.ts";
 
 Deno.test("hasDirective - finds use client with double quotes", () => {
@@ -8,7 +8,7 @@ Deno.test("hasDirective - finds use client with double quotes", () => {
 
 export function Button() {}
 `;
-  assertEquals(hasDirective(content, "use client"), true);
+  assert.assertEquals(hasDirective(content, "use client"), true);
 });
 
 Deno.test("hasDirective - finds use client with single quotes", () => {
@@ -16,7 +16,7 @@ Deno.test("hasDirective - finds use client with single quotes", () => {
 
 export function Button() {}
 `;
-  assertEquals(hasDirective(content, "use client"), true);
+  assert.assertEquals(hasDirective(content, "use client"), true);
 });
 
 Deno.test("hasDirective - finds use server", () => {
@@ -24,7 +24,7 @@ Deno.test("hasDirective - finds use server", () => {
 
 export async function submitForm() {}
 `;
-  assertEquals(hasDirective(content, "use server"), true);
+  assert.assertEquals(hasDirective(content, "use server"), true);
 });
 
 Deno.test("hasDirective - ignores directive after code", () => {
@@ -33,7 +33,7 @@ Deno.test("hasDirective - ignores directive after code", () => {
 
 export function Button() {}
 `;
-  assertEquals(hasDirective(content, "use client"), false);
+  assert.assertEquals(hasDirective(content, "use client"), false);
 });
 
 Deno.test("hasDirective - handles comments before directive", () => {
@@ -42,12 +42,12 @@ Deno.test("hasDirective - handles comments before directive", () => {
 
 export function Button() {}
 `;
-  assertEquals(hasDirective(content, "use client"), true);
+  assert.assertEquals(hasDirective(content, "use client"), true);
 });
 
 Deno.test("hasDirective - returns false when directive not present", () => {
   const content = `export function Button() {}`;
-  assertEquals(hasDirective(content, "use client"), false);
+  assert.assertEquals(hasDirective(content, "use client"), false);
 });
 
 Deno.test("hasDirective - case insensitive", () => {
@@ -55,7 +55,7 @@ Deno.test("hasDirective - case insensitive", () => {
 
 export function Button() {}
 `;
-  assertEquals(hasDirective(content, "use client"), true);
+  assert.assertEquals(hasDirective(content, "use client"), true);
 });
 
 Deno.test("extractExports - finds named function exports", () => {
@@ -63,14 +63,14 @@ Deno.test("extractExports - finds named function exports", () => {
 export function Input() {}
 `;
   const exports = extractExports(content);
-  assertEquals(exports.includes("Button"), true);
-  assertEquals(exports.includes("Input"), true);
+  assert.assertEquals(exports.includes("Button"), true);
+  assert.assertEquals(exports.includes("Input"), true);
 });
 
 Deno.test("extractExports - finds async function exports", () => {
   const content = `export async function fetchData() {}`;
   const exports = extractExports(content);
-  assertEquals(exports.includes("fetchData"), true);
+  assert.assertEquals(exports.includes("fetchData"), true);
 });
 
 Deno.test("extractExports - finds const exports", () => {
@@ -78,20 +78,20 @@ Deno.test("extractExports - finds const exports", () => {
 export const theme = { color: "blue" };
 `;
   const exports = extractExports(content);
-  assertEquals(exports.includes("Button"), true);
-  assertEquals(exports.includes("theme"), true);
+  assert.assertEquals(exports.includes("Button"), true);
+  assert.assertEquals(exports.includes("theme"), true);
 });
 
 Deno.test("extractExports - finds class exports", () => {
   const content = `export class UserService {}`;
   const exports = extractExports(content);
-  assertEquals(exports.includes("UserService"), true);
+  assert.assertEquals(exports.includes("UserService"), true);
 });
 
 Deno.test("extractExports - finds default export", () => {
   const content = `export default function Button() {}`;
   const exports = extractExports(content);
-  assertEquals(exports.includes("default"), true);
+  assert.assertEquals(exports.includes("default"), true);
 });
 
 Deno.test("extractExports - finds named export block", () => {
@@ -100,8 +100,8 @@ const b = 2;
 export { a, b };
 `;
   const exports = extractExports(content);
-  assertEquals(exports.includes("a"), true);
-  assertEquals(exports.includes("b"), true);
+  assert.assertEquals(exports.includes("a"), true);
+  assert.assertEquals(exports.includes("b"), true);
 });
 
 Deno.test("extractExports - handles export with alias", () => {
@@ -109,11 +109,11 @@ Deno.test("extractExports - handles export with alias", () => {
 export { internalName as publicName };
 `;
   const exports = extractExports(content);
-  assertEquals(exports.includes("publicName"), true);
+  assert.assertEquals(exports.includes("publicName"), true);
 });
 
 Deno.test("extractExports - returns empty array for no exports", () => {
   const content = `const x = 1;`;
   const exports = extractExports(content);
-  assertEquals(exports.length, 0);
+  assert.assertEquals(exports.length, 0);
 });

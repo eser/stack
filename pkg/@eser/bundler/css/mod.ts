@@ -4,7 +4,7 @@
  * CSS processing utilities for bundler.
  *
  * Provides a complete CSS processing pipeline including:
- * - Tailwind CSS processing with standalone binary
+ * - Tailwind CSS processing via @tailwindcss/node (pluggable)
  * - Lightning CSS for advanced optimization
  * - CSS Modules with scoped styling
  * - Google Fonts optimization for self-hosting
@@ -14,25 +14,24 @@
  * @example
  * ```ts
  * import {
- *   processTailwindCss,
+ *   createTailwindRoot,
  *   processCssModule,
  *   optimizeGoogleFonts,
  * } from "@eser/bundler/css";
  *
- * // Process global CSS with Tailwind
- * await processTailwindCss({
- *   input: "src/styles/global.css",
- *   output: "dist/styles.css",
- *   projectRoot: ".",
- *   minify: true,
- * });
- *
- * // Process CSS Module
+ * // Process CSS Module with Tailwind @apply support
+ * const tailwind = createTailwindRoot({ base: "." });
  * const result = await processCssModule("src/Button.module.css", {
+ *   tailwind,
  *   generateDts: true,
- *   projectRoot: ".",
  * });
  * console.log(result.exports); // { button: "button_abc123" }
+ * tailwind.dispose();
+ *
+ * // Process CSS Module without Tailwind (pure Lightning CSS)
+ * const plainResult = await processCssModule("src/Card.module.css", {
+ *   generateDts: true,
+ * });
  *
  * // Optimize Google Fonts
  * const fonts = await optimizeGoogleFonts(
@@ -53,22 +52,19 @@ export type {
   FontOptimizationResult,
   LightningCssOptions,
   LightningCssResult,
-  TailwindProcessOptions,
-  TailwindWatchOptions,
+  TailwindCompileResult,
+  TailwindRoot,
 } from "./types.ts";
 
 export { DEFAULT_BROWSER_TARGETS } from "./types.ts";
 
-// Tailwind
+// Tailwind Plugin (@tailwindcss/node-based API)
 export {
-  DEFAULT_TAILWIND_VERSION,
-  ensureTailwindBinary,
-  expandTailwindApply,
-  getTailwindBinaryName,
-  getTailwindDownloadUrl,
-  processTailwindCss,
-  watchTailwindCss,
-} from "./tailwind.ts";
+  createTailwindRoot,
+  hasTailwindDirectives,
+  TailwindFeatures,
+  type TailwindPluginOptions,
+} from "./tailwind-plugin.ts";
 
 // Lightning CSS
 export {

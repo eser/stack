@@ -1,6 +1,6 @@
 {
   "name": "@eser/stack",
-  "version": "4.0.16",
+  "version": "4.0.17",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -21,8 +21,8 @@
     "repl": "deno repl --unstable-temporal --allow-all --eval-file=./repl-init.ts",
     "test:coverage-gen": "deno coverage ./etc/coverage --lcov --output=./etc/coverage.lcov",
     "test:coverage": "deno coverage ./etc/coverage/",
-    "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --trace-leaks --coverage=./etc/coverage/",
-    "test": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --parallel --watch",
+    "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --trace-leaks --coverage=./etc/coverage/",
+    "test": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --watch",
     "validate:fix": "deno fmt && deno lint --fix && deno task cli codebase validate --only licenses --fix && deno task check:mod && deno task test:run && deno publish --dry-run --allow-dirty",
     "validate": "deno fmt --check && deno lint && deno task cli codebase validate --only licenses && deno task check:mod && deno task test:run && deno publish --dry-run --allow-dirty"
   }

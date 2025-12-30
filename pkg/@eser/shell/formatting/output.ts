@@ -37,9 +37,9 @@ export const printSuccess = (
   message: string,
   details: string | null = null,
 ): void => {
-  console.log(c.success("✓") + " " + message);
+  console.log(`${c.success("✓")} ${message}`);
   if (details !== null) {
-    console.log(c.dim("  " + details));
+    console.log(c.dim(`  ${details}`));
   }
 };
 
@@ -53,9 +53,9 @@ export const printError = (
   message: string,
   details: string | null = null,
 ): void => {
-  console.error(c.error("✗") + " " + message);
+  console.error(`${c.error("✗")} ${message}`);
   if (details !== null) {
-    console.error(c.dim("  " + details));
+    console.error(c.dim(`  ${details}`));
   }
 };
 
@@ -69,9 +69,9 @@ export const printWarning = (
   message: string,
   details: string | null = null,
 ): void => {
-  console.warn(c.warning("⚠") + " " + message);
+  console.warn(`${c.warning("⚠")} ${message}`);
   if (details !== null) {
-    console.warn(c.dim("  " + details));
+    console.warn(c.dim(`  ${details}`));
   }
 };
 
@@ -85,9 +85,9 @@ export const printInfo = (
   message: string,
   details: string | null = null,
 ): void => {
-  console.log(c.info("ℹ") + " " + message);
+  console.log(`${c.info("ℹ")} ${message}`);
   if (details !== null) {
-    console.log(c.dim("  " + details));
+    console.log(c.dim(`  ${details}`));
   }
 };
 
@@ -151,12 +151,12 @@ export const boxText = (
   const maxLength = lengths.length > 0 ? Math.max(...lengths) : 0;
   const border = "─".repeat(maxLength + 2);
 
-  console.log(color("╭" + border + "╮"));
+  console.log(color(`╭${border}╮`));
   lines.forEach((line) => {
     const padding = " ".repeat(maxLength - line.length);
-    console.log(color("│") + " " + line + padding + " " + color("│"));
+    console.log(`${color("│")} ${line}${padding} ${color("│")}`);
   });
-  console.log(color("╰" + border + "╯"));
+  console.log(color(`╰${border}╯`));
 };
 
 /**

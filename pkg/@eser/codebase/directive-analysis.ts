@@ -9,7 +9,7 @@
  * @module
  */
 
-import { walk } from "@std/fs/walk";
+import * as fsWalk from "@std/fs/walk";
 import * as path from "@std/path";
 
 /**
@@ -134,12 +134,14 @@ export const extractExports = (content: string): readonly string[] => {
   }
 
   // Named exports from declaration: export { a, b, c }
-  const namedExportBlocks = content.matchAll(/export\s*\{([^}]+)\}/g);
+  // Use specific character class to prevent ReDoS (avoid unbounded [^}]+)
+  const namedExportBlocks = content.matchAll(/export\s*\{([\w\s,]+)\}/g);
   for (const match of namedExportBlocks) {
     if (match[1] !== undefined) {
       const names = match[1].split(",").map((n) => {
         // Handle "name as alias" syntax - take the exported name (after "as")
-        const parts = n.trim().split(/\s+as\s+/);
+        // Use specific word boundary pattern instead of \s+ to prevent ReDoS
+        const parts = n.trim().split(/ +as +/);
         return (parts[1] ?? parts[0])?.trim();
       });
       for (const name of names) {
@@ -185,7 +187,7 @@ export const analyzeDirectives = async (
   const matches: DirectiveMatch[] = [];
 
   for await (
-    const entry of walk(scanDir, {
+    const entry of fsWalk.walk(scanDir, {
       exts: [...extensions],
       skip: [...skip],
     })

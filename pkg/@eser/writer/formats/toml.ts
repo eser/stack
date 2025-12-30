@@ -25,8 +25,9 @@ export const writeItem = (
 
     const separator = options?.separator === "" ? "+++" : (options?.separator ??
       "+++");
-    return toml.stringify(data as Record<string, unknown>, tomlOptions).trim() +
-      "\n" + separator + "\n";
+    return `${
+      toml.stringify(data as Record<string, unknown>, tomlOptions).trim()
+    }\n${separator}\n`;
   } catch (error) {
     throw new SerializationError(
       `Failed to serialize TOML: ${

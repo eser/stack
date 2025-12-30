@@ -16,7 +16,11 @@ comprehensive CSS processing utilities.
 
 ```typescript
 import { createBundler } from "@eser/bundler";
-import { optimizeGoogleFonts, processTailwindCss } from "@eser/bundler/css";
+import {
+  createTailwindRoot,
+  optimizeGoogleFonts,
+  processCssModule,
+} from "@eser/bundler/css";
 ```
 
 ## Quick Start
@@ -146,35 +150,37 @@ const bundler = createDenoBundlerBackend({
 
 ### Tailwind CSS
 
-Process CSS with Tailwind using the standalone binary (auto-downloaded).
+Process CSS with Tailwind using `@tailwindcss/node` (same pattern as
+`@tailwindcss/vite`).
 
 ```typescript
 import {
-  DEFAULT_TAILWIND_VERSION,
-  processTailwindCss,
-  watchTailwindCss,
+  createTailwindRoot,
+  hasTailwindDirectives,
+  processCssModule,
 } from "@eser/bundler/css";
 
-// One-time processing
-await processTailwindCss({
-  input: "src/styles/global.css",
-  output: "dist/styles.css",
-  projectRoot: ".",
+// Create a Tailwind compiler root (reuse across files)
+const tailwind = createTailwindRoot({
+  base: ".",
   minify: true,
 });
 
-// Watch mode for development
-const watcher = await watchTailwindCss({
-  input: "src/styles/global.css",
-  output: "dist/styles.css",
-  projectRoot: ".",
-  onChange: (outputPath) => {
-    console.log(`CSS rebuilt: ${outputPath}`);
-  },
+// Process CSS modules with @apply support
+const result = await processCssModule("src/Button.module.css", {
+  tailwind,
+  generateDts: true,
 });
 
-// Stop watching
-watcher.stop();
+console.log(result.exports); // { button: "button_abc123" }
+
+// Clean up when done
+tailwind.dispose();
+
+// Check if CSS contains Tailwind directives
+if (hasTailwindDirectives(cssContent)) {
+  // Process with Tailwind
+}
 ```
 
 ### Lightning CSS
@@ -219,14 +225,14 @@ Process `.module.css` files with scoped class names and TypeScript definitions.
 ```typescript
 import {
   buildCssModules,
+  createTailwindRoot,
   generateTypeScriptDefinition,
   processCssModule,
 } from "@eser/bundler/css";
 
-// Process single module
+// Process single module (without Tailwind)
 const result = await processCssModule("src/Button.module.css", {
   generateDts: true,
-  projectRoot: ".",
   minify: true,
 });
 
@@ -240,19 +246,26 @@ console.log(result.dts);
 // Build all CSS modules in a directory
 const results = await buildCssModules("src", "dist", {
   generateDts: true,
-  projectRoot: ".",
 });
 ```
 
 CSS Modules with Tailwind `@apply`:
 
 ```typescript
+// Create Tailwind compiler (reuse across files)
+const tailwind = createTailwindRoot({ base: "." });
+
+// Process CSS module with @apply support
 const result = await processCssModule("src/Card.module.css", {
-  projectRoot: ".",
-  autoInjectReference: true, // Auto-adds @reference directive
-  globalCssPath: "src/styles/global.css",
+  tailwind,
+  generateDts: true,
 });
+
+tailwind.dispose();
 ```
+
+Note: CSS files using `@apply` need `@reference "tailwindcss";` directive
+(Tailwind v4 requirement).
 
 ### Google Fonts Optimization
 

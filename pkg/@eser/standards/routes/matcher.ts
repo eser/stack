@@ -15,6 +15,14 @@ import type {
 } from "./types.ts";
 
 /**
+ * Escape special regex characters in a string.
+ */
+const escapeRegex = (str: string): string => {
+  // Escape all regex metacharacters
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
+/**
  * Compile a route pattern to a regex and extract parameter names.
  * Supports [param] for single segments and [...param] for catch-all.
  *
@@ -29,18 +37,45 @@ export const compilePattern = (pattern: string): CompiledPattern => {
   const paramNames: string[] = [];
   const catchAllParams = new Set<string>();
 
-  // Handle catch-all routes [...slug] first, then dynamic segments [slug]
-  const regexPattern = pattern
-    .replace(/\[\.\.\.(\w+)\]/g, (_match, paramName: string) => {
+  // Build regex by processing each segment
+  // Match bracket patterns and process the rest as literals
+  let regexPattern = "";
+  let remaining = pattern;
+
+  // Pattern for catch-all [...param] and regular [param]
+  const bracketPattern = /\[(\.\.\.)?(\w+)\]/;
+
+  while (remaining.length > 0) {
+    const match = bracketPattern.exec(remaining);
+
+    if (match === null) {
+      // No more bracket patterns - escape and append the rest
+      regexPattern += escapeRegex(remaining);
+      break;
+    }
+
+    // Escape literal part before the match
+    if (match.index > 0) {
+      regexPattern += escapeRegex(remaining.slice(0, match.index));
+    }
+
+    const isCatchAll = match[1] === "...";
+    const paramName = match[2];
+
+    if (paramName !== undefined) {
       paramNames.push(paramName);
-      catchAllParams.add(paramName);
-      return "(.*)";
-    })
-    .replace(/\[(\w+)\]/g, (_match, paramName: string) => {
-      paramNames.push(paramName);
-      return "([^/]+)";
-    })
-    .replace(/\//g, "\\/");
+
+      if (isCatchAll) {
+        catchAllParams.add(paramName);
+        regexPattern += "(.*)";
+      } else {
+        regexPattern += "([^/]+)";
+      }
+    }
+
+    // Move past this match
+    remaining = remaining.slice(match.index + match[0].length);
+  }
 
   return {
     regex: new RegExp(`^${regexPattern}$`),

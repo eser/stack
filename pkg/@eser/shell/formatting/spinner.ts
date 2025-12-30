@@ -100,7 +100,7 @@ export class Spinner {
    */
   succeed(message?: string): void {
     this.stop();
-    console.log(c.success("✓") + " " + (message ?? this.message));
+    console.log(`${c.success("✓")} ${message ?? this.message}`);
   }
 
   /**
@@ -108,7 +108,7 @@ export class Spinner {
    */
   fail(message?: string): void {
     this.stop();
-    console.log(c.error("✗") + " " + (message ?? this.message));
+    console.log(`${c.error("✗")} ${message ?? this.message}`);
   }
 
   /**
@@ -116,7 +116,7 @@ export class Spinner {
    */
   warn(message?: string): void {
     this.stop();
-    console.log(c.warning("⚠") + " " + (message ?? this.message));
+    console.log(`${c.warning("⚠")} ${message ?? this.message}`);
   }
 
   /**
@@ -124,7 +124,7 @@ export class Spinner {
    */
   info(message?: string): void {
     this.stop();
-    console.log(c.info("ℹ") + " " + (message ?? this.message));
+    console.log(`${c.info("ℹ")} ${message ?? this.message}`);
   }
 
   /**
@@ -133,7 +133,7 @@ export class Spinner {
   stop(): void {
     if (this.intervalId) {
       clearInterval(this.intervalId);
-      writeStdout("\r" + " ".repeat(this.message.length + 4) + "\r");
+      writeStdout(`\r${" ".repeat(this.message.length + 4)}\r`);
     }
   }
 }

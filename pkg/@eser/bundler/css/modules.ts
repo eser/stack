@@ -1,11 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * CSS Modules processor with Lightning CSS and Tailwind support.
+ * CSS Modules processor with Lightning CSS and optional Tailwind support.
  *
  * Provides utilities for:
  * - Processing .module.css files with scoped styling
- * - Expanding Tailwind @apply directives
+ * - Optional Tailwind @apply support via pluggable TailwindRoot
  * - Generating TypeScript .d.ts definitions
  *
  * @module
@@ -15,7 +15,6 @@ import * as posix from "@std/path/posix";
 import * as fs from "@std/fs";
 import type { CssModuleOptions, CssModuleResult } from "./types.ts";
 import { transformCssModules } from "./lightning.ts";
-import { expandTailwindApply } from "./tailwind.ts";
 
 /**
  * Process a single CSS module file.
@@ -26,11 +25,20 @@ import { expandTailwindApply } from "./tailwind.ts";
  *
  * @example
  * ```ts
+ * // Without Tailwind (pure Lightning CSS)
  * const result = await processCssModule("/path/to/button.module.css", {
  *   generateDts: true,
- *   projectRoot: "/project",
  * });
  * console.log(result.exports); // { container: "container_abc123" }
+ *
+ * // With Tailwind (@apply support)
+ * import { createTailwindRoot } from "@eser/bundler/css/tailwind-plugin";
+ * const tailwind = createTailwindRoot({ base: "." });
+ * const result = await processCssModule("/path/to/button.module.css", {
+ *   tailwind,
+ *   generateDts: true,
+ * });
+ * tailwind.dispose();
  * ```
  */
 export async function processCssModule(
@@ -39,39 +47,27 @@ export async function processCssModule(
 ): Promise<CssModuleResult> {
   const {
     generateDts = false,
-    projectRoot,
-    autoInjectReference = true,
-    globalCssPath,
     minify = true,
     targets,
+    tailwind,
   } = options;
 
   // Read CSS file
   let cssContent = await Deno.readTextFile(cssPath);
 
-  // Check if CSS contains @apply directives (Tailwind)
-  if (cssContent.includes("@apply") && projectRoot !== undefined) {
-    // Calculate reference file path (absolute for temp directory processing)
-    let referenceFile: string | undefined;
-    if (autoInjectReference) {
-      const globalPath = globalCssPath ??
-        posix.resolve(projectRoot, "src/app/styles/global.css");
-
-      // Use absolute path since @apply expansion happens in temp directory
-      referenceFile = globalPath;
+  // Process with Tailwind first if provided (handles @apply, @tailwind, @theme)
+  // This follows the same pattern as @tailwindcss/vite
+  if (tailwind !== undefined) {
+    const tailwindResult = await tailwind.compile(cssContent, cssPath);
+    if (tailwindResult !== null) {
+      cssContent = tailwindResult.code;
     }
-
-    cssContent = await expandTailwindApply(
-      cssContent,
-      projectRoot,
-      referenceFile,
-    );
   }
 
   // Get filename for scoped class generation
   const filename = posix.basename(cssPath);
 
-  // Process with Lightning CSS
+  // Process with Lightning CSS for CSS Modules (class scoping)
   const result = transformCssModules(cssContent, filename, {
     minify,
     targets,

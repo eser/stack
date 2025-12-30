@@ -21,7 +21,7 @@ export const writeItem = (
 
     const separator = options?.separator === "" ? "---" : (options?.separator ??
       "---");
-    return yaml.stringify(data, yamlOptions).trim() + "\n" + separator + "\n";
+    return `${yaml.stringify(data, yamlOptions).trim()}\n${separator}\n`;
   } catch (error) {
     throw new SerializationError(
       `Failed to serialize YAML: ${

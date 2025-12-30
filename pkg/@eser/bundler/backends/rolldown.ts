@@ -12,7 +12,7 @@
  * @module
  */
 
-import { encodeHex } from "@std/encoding/hex";
+import * as hex from "@std/encoding/hex";
 import type {
   BundleMetafile,
   BundleOutput,
@@ -456,7 +456,7 @@ export class RolldownBundlerBackend implements Bundler {
       "SHA-256",
       content as BufferSource,
     );
-    return encodeHex(new Uint8Array(hashBuffer)).slice(0, 16);
+    return hex.encodeHex(new Uint8Array(hashBuffer)).slice(0, 16);
   }
 }
 

@@ -8,7 +8,10 @@ import {
 } from "./primitives.ts";
 
 const getFunctionParametersFromString = (fnSerialized: string) => {
-  const match = fnSerialized.match(/(?:function.*?\(|\()(.*?)(?:\)|=>)/);
+  // Use specific character class to prevent ReDoS (avoid unbounded .*? patterns)
+  const match = fnSerialized.match(
+    /(?:function[\w\s]*\(|\()([\w\s,=:'"{}[\].|?<>]*)(?:\)|=>)/,
+  );
 
   if (match && match[1]) {
     return match[1].split(",").map((p) => p.trim());

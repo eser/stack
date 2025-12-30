@@ -10,7 +10,7 @@
  */
 
 import * as posix from "@std/path/posix";
-import { encodeHex } from "@std/encoding/hex";
+import * as hex from "@std/encoding/hex";
 import { runtime } from "@eser/standards/runtime";
 import type {
   BundleError,
@@ -481,9 +481,11 @@ export class DenoBundlerBackend implements Bundler {
     const chunks: string[] = [];
 
     // Pattern: import{...}from"../../chunk-HASH.js" or import"../../chunk-HASH.js"
+    // Use specific character classes to prevent ReDoS (avoid unbounded [^X]* patterns)
     const chunkImportPattern =
-      /import(?:\{[^}]*\})?\s*from\s*["']([^"']*chunk-[A-Z0-9]+\.js)["']/gi;
-    const sideEffectPattern = /import\s*["']([^"']*chunk-[A-Z0-9]+\.js)["']/gi;
+      /import(?:\{[\w\s,]*\})?\s*from\s*["']([\w./-]*chunk-[A-Z0-9]+\.js)["']/gi;
+    const sideEffectPattern =
+      /import\s*["']([\w./-]*chunk-[A-Z0-9]+\.js)["']/gi;
 
     let match: RegExpExecArray | null;
 
@@ -511,7 +513,8 @@ export class DenoBundlerBackend implements Bundler {
 
     // Determine main chunk by finding which chunk actually exports the symbol
     // IMPORTANT: Search ALL chunks in the bundle, not just the ones imported by proxy
-    const exportMatch = content.match(/export\s*\{([^}]+)\}/);
+    // Use specific character class to prevent ReDoS
+    const exportMatch = content.match(/export\s*\{([\w\s,]+)\}/);
     if (exportMatch !== null) {
       const exportStatement = exportMatch[1];
       // Match either "Symbol as ExportName" or just "Symbol"
@@ -578,14 +581,16 @@ export class DenoBundlerBackend implements Bundler {
       "SHA-256",
       content as BufferSource,
     );
-    return encodeHex(new Uint8Array(hashBuffer)).slice(0, 16);
+    return hex.encodeHex(new Uint8Array(hashBuffer)).slice(0, 16);
   }
 
   private parseImports(content: string): string[] {
     const imports: string[] = [];
 
     // Match static imports: import ... from "..."
-    const staticImportRegex = /import\s+(?:[^;]+)\s+from\s*["']([^"']+)["']/g;
+    // Use specific character class to prevent ReDoS (avoid unbounded [^;]+ pattern)
+    const staticImportRegex =
+      /import\s+(?:[\w\s{},*]+)\s+from\s*["']([\w./@-]+)["']/g;
     let match: RegExpExecArray | null;
 
     while ((match = staticImportRegex.exec(content)) !== null) {

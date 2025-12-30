@@ -11,7 +11,7 @@ export {
   computeHash,
   computeStringHash,
   type HashAlgorithm,
-} from "./hash.ts";
+} from "@eser/crypto";
 
 export {
   type ClientComponentInfo,

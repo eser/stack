@@ -1,6 +1,6 @@
 {
   "name": "@cool/lime",
-  "version": "4.0.15",
+  "version": "4.0.16",
   "type": "module",
   "exports": {
     ".": "./mod.ts"

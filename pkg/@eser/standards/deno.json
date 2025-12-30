@@ -1,6 +1,6 @@
 {
   "name": "@eser/standards",
-  "version": "4.0.15",
+  "version": "4.0.16",
   "exports": {
     ".": "./mod.ts",
     "./datetimes": "./datetimes/mod.ts",

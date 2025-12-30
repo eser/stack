@@ -367,6 +367,7 @@ export class DenoBundlerBackend implements Bundler {
 
   /**
    * Find which chunks an entrypoint depends on by analyzing proxy files.
+   * Also searches all chunks to find where the component is actually exported.
    */
   private async findEntrypointChunks(
     entrypointPath: string,
@@ -379,28 +380,103 @@ export class DenoBundlerBackend implements Bundler {
     const relativePath = entrypointPath.replace(/\.tsx?$/, ".js");
     const proxyFilePath = posix.join(scanDir, relativePath);
 
+    // Try to read proxy file
+    let proxyContent: string | null = null;
     try {
-      const content = await runtime.fs.readTextFile(proxyFilePath);
-      return this.extractChunksFromProxyFile(content, outputs);
+      proxyContent = await runtime.fs.readTextFile(proxyFilePath);
     } catch {
       // Try in the nested directory structure
       try {
         const nestedProxyPath = posix.join(outputDir, "dist", relativePath);
-        const content = await runtime.fs.readTextFile(nestedProxyPath);
-        return this.extractChunksFromProxyFile(content, outputs);
+        proxyContent = await runtime.fs.readTextFile(nestedProxyPath);
       } catch {
-        // No proxy file found - this might be the main entry
-        return [];
+        // No proxy file found
       }
     }
+
+    // If we have a proxy file, use it
+    if (proxyContent !== null) {
+      return this.extractChunksFromProxyFile(proxyContent, outputs);
+    }
+
+    // No proxy file - search all chunks for the component export
+    // This handles cases where Deno.bundle doesn't create proxy files
+    return this.findChunksForComponentName(entrypointPath, outputs);
+  }
+
+  /**
+   * Find chunks containing a component by searching all chunk exports.
+   * Used when no proxy file exists for an entrypoint.
+   */
+  private findChunksForComponentName(
+    entrypointPath: string,
+    outputs: Map<string, BundleOutput>,
+  ): string[] {
+    const chunks: string[] = [];
+
+    // Extract expected export name from file path
+    // e.g., "src/app/icon.tsx" -> "Icon" (PascalCase of basename)
+    const basename = posix.basename(entrypointPath).replace(/\.[^.]+$/, "");
+    const expectedExport = basename.charAt(0).toUpperCase() +
+      basename.slice(1).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+
+    // Search all chunks for the exported component
+    for (const [chunkFile, chunkOutput] of outputs) {
+      // Only check chunk files
+      if (!chunkFile.startsWith("chunk-") || !chunkFile.endsWith(".js")) {
+        continue;
+      }
+
+      const chunkContent = new TextDecoder().decode(chunkOutput.code);
+
+      // Check if this chunk exports the expected symbol
+      const exportPatterns = [
+        // export { Symbol } or export { Symbol, ... } or export { X as Symbol }
+        new RegExp(`export\\s*\\{[^}]*\\b${expectedExport}\\b[^}]*\\}`),
+        // export function Symbol or export const Symbol
+        new RegExp(
+          `export\\s+(?:function|const|let|var|class)\\s+${expectedExport}\\b`,
+        ),
+        // minified pattern: Symbol2 as Symbol
+        new RegExp(`\\b\\w+\\s+as\\s+${expectedExport}\\b`),
+      ];
+
+      const exportsSymbol = exportPatterns.some((pattern) =>
+        pattern.test(chunkContent)
+      );
+
+      if (exportsSymbol) {
+        // Found the main chunk - add it to the front
+        chunks.unshift(chunkFile);
+
+        // Also find dependency chunks by looking at what this chunk imports
+        const importPattern =
+          /from\s*["']\.?\/?([^"']*chunk-[A-Z0-9]+\.js)["']/gi;
+        let match: RegExpExecArray | null;
+        while ((match = importPattern.exec(chunkContent)) !== null) {
+          const depChunk = posix.basename(match[1] ?? "");
+          if (depChunk && !chunks.includes(depChunk)) {
+            chunks.push(depChunk);
+          }
+        }
+        break;
+      }
+    }
+
+    return chunks;
   }
 
   /**
    * Extract chunk dependencies from a proxy file's import statements.
+   * Returns chunks with the main chunk (containing the exported symbol) first.
+   *
+   * IMPORTANT: Due to code splitting, the proxy file may not import from the chunk
+   * that actually contains the exported component. We must search ALL chunks to find
+   * the one that exports the symbol.
    */
   private extractChunksFromProxyFile(
     content: string,
-    _outputs: Map<string, BundleOutput>,
+    outputs: Map<string, BundleOutput>,
   ): string[] {
     const chunks: string[] = [];
 
@@ -411,7 +487,7 @@ export class DenoBundlerBackend implements Bundler {
 
     let match: RegExpExecArray | null;
 
-    // Find all chunk imports
+    // Find all chunk imports from proxy file
     while ((match = chunkImportPattern.exec(content)) !== null) {
       const importPath = match[1];
       if (importPath !== undefined) {
@@ -433,31 +509,63 @@ export class DenoBundlerBackend implements Bundler {
       }
     }
 
-    // Determine main chunk (the one that exports the component)
+    // Determine main chunk by finding which chunk actually exports the symbol
+    // IMPORTANT: Search ALL chunks in the bundle, not just the ones imported by proxy
     const exportMatch = content.match(/export\s*\{([^}]+)\}/);
-    if (exportMatch !== null && chunks.length > 0) {
+    if (exportMatch !== null) {
       const exportStatement = exportMatch[1];
-      const symbolMatch = exportStatement?.match(/(\w+)\s+as\s+/);
-      const exportedSymbol = symbolMatch !== null && symbolMatch !== undefined
-        ? symbolMatch[1]
-        : null;
+      // Match either "Symbol as ExportName" or just "Symbol"
+      const symbolMatch = exportStatement?.match(/(\w+)(?:\s+as\s+\w+)?/);
+      const exportedSymbol = symbolMatch?.[1] ?? null;
 
       if (exportedSymbol !== null) {
-        // Find which chunk exports this symbol
-        for (const chunkFile of chunks) {
-          const chunkName = chunkFile.replace(/\.js$/, "");
-          const importPattern = new RegExp(
-            `import\\s*\\{[^}]*\\b${exportedSymbol}\\b[^}]*\\}\\s*from\\s*["'][^"']*${chunkName}`,
+        // Search ALL chunks in the bundle to find which one exports the symbol
+        // This handles code splitting where the actual component ends up in a shared chunk
+        let mainChunkFile: string | null = null;
+
+        for (const [chunkFile, chunkOutput] of outputs) {
+          // Only check chunk files (not main entry or other files)
+          if (!chunkFile.startsWith("chunk-") || !chunkFile.endsWith(".js")) {
+            continue;
+          }
+
+          const chunkContent = new TextDecoder().decode(chunkOutput.code);
+
+          // Check if this chunk exports the symbol directly
+          const exportPatterns = [
+            // export { Symbol } or export { Symbol, ... } or export { X as Symbol }
+            new RegExp(`export\\s*\\{[^}]*\\b${exportedSymbol}\\b[^}]*\\}`),
+            // export function Symbol or export const Symbol
+            new RegExp(
+              `export\\s+(?:function|const|let|var|class)\\s+${exportedSymbol}\\b`,
+            ),
+            // minified pattern: Symbol2 as Symbol (common in bundled code)
+            new RegExp(`\\b\\w+\\s+as\\s+${exportedSymbol}\\b`),
+          ];
+
+          const exportsSymbol = exportPatterns.some((pattern) =>
+            pattern.test(chunkContent)
           );
-          if (importPattern.test(content)) {
-            // Move main chunk to front
-            const mainIndex = chunks.indexOf(chunkFile);
-            if (mainIndex > 0) {
-              chunks.splice(mainIndex, 1);
-              chunks.unshift(chunkFile);
-            }
+
+          if (exportsSymbol) {
+            mainChunkFile = chunkFile;
             break;
           }
+        }
+
+        if (mainChunkFile !== null) {
+          // Ensure main chunk is in the list and at the front
+          const mainIndex = chunks.indexOf(mainChunkFile);
+          if (mainIndex > 0) {
+            // Already in list but not first - move to front
+            chunks.splice(mainIndex, 1);
+            chunks.unshift(mainChunkFile);
+          } else if (mainIndex === -1) {
+            // Not in list from proxy imports - add to front
+            // This happens when code splitting puts the component in a shared chunk
+            chunks.unshift(mainChunkFile);
+          }
+          // mainIndex === 0 means already first, no change needed
         }
       }
     }

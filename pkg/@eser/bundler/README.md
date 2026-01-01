@@ -340,9 +340,6 @@ interface BundlerConfig {
 
   // Optional: Base path for URL rewriting
   basePath?: string;
-
-  // Optional: Development mode
-  dev?: boolean;
 }
 ```
 
@@ -443,7 +440,6 @@ const watcher = await bundler.watch(
     codeSplitting: false,
     minify: false,
     sourcemap: "inline",
-    dev: true,
   },
   (result) => {
     if (result.success) {

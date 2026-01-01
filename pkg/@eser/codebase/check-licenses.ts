@@ -30,6 +30,7 @@
 
 import * as pathPosix from "@std/path/posix";
 import * as fsWalk from "@std/fs/walk";
+import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import * as standardsRuntime from "@eser/standards/runtime";
 
 /**
@@ -68,7 +69,6 @@ export type ValidateLicensesResult = {
   readonly fixedCount: number;
 };
 
-const EXTENSIONS = ["*.js", ".ts", "*.jsx", ".tsx"];
 const EXCLUDES = [
   /docs\/*$/,
   /etc\/coverage\/*$/,
@@ -109,7 +109,7 @@ export const validateLicenses = async (
 
   for await (
     const entry of fsWalk.walk(root, {
-      exts: EXTENSIONS,
+      exts: JS_FILE_EXTENSIONS,
       skip: EXCLUDES,
       includeDirs: false,
     })

@@ -10,14 +10,14 @@
  * @module
  */
 
-import type { BundleMetafile, BundleResult } from "../types.ts";
+import type { BundleMetafile, BundleResult } from "./types.ts";
 import type {
   ChunkInfo,
   ChunkInfoWithMeta,
   ChunkManifest,
   ChunkManifestWithMeta,
-} from "../chunk-manifest.ts";
-import type { ModuleEntry, ModuleMap } from "../module-map.ts";
+} from "./chunk-manifest.ts";
+import type { ModuleEntry, ModuleMap } from "./module-map.ts";
 
 /**
  * Client component info for module map generation.

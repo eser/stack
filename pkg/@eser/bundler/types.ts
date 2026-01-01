@@ -29,6 +29,8 @@ export interface BundlerConfig {
   readonly sourcemap: boolean | "inline" | "external";
   /** Target environments (e.g., ["chrome100", "firefox100"]). */
   readonly target?: readonly string[];
+  /** Global replacements (e.g., process.env.NODE_ENV). */
+  readonly define?: Readonly<Record<string, string>>;
   /** External modules to exclude from bundle. */
   readonly external?: readonly string[];
   /** Bundler plugins. */
@@ -37,8 +39,6 @@ export interface BundlerConfig {
   readonly configPath?: string;
   /** Base path for URL rewriting. */
   readonly basePath?: string;
-  /** Development mode flag. */
-  readonly dev?: boolean;
 }
 
 /**

@@ -49,7 +49,7 @@ export class CommandBuilder {
 
     if (typeof keyOrVars === "string" && value !== undefined) {
       newEnv = { ...currentEnv, [keyOrVars]: value };
-    } else if (typeof keyOrVars === "object") {
+    } else if (keyOrVars !== null && typeof keyOrVars === "object") {
       newEnv = { ...currentEnv, ...keyOrVars };
     } else {
       newEnv = currentEnv;

@@ -25,6 +25,7 @@
 
 import * as pathPosix from "@std/path/posix";
 import * as fsWalk from "@std/fs/walk";
+import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import * as pkg from "./package/mod.ts";
 import type { PackageConfig, WorkspaceModule } from "./package/types.ts";
 
@@ -83,7 +84,7 @@ export const extractEntrypoints = (config: PackageConfig): string[] => {
     return [exports];
   }
 
-  if (typeof exports === "object") {
+  if (exports !== null && typeof exports === "object") {
     const paths: string[] = [];
     for (const value of Object.values(exports)) {
       if (typeof value === "string") {
@@ -129,7 +130,7 @@ export const getPackageFiles = async (
 
   for await (
     const entry of fsWalk.walk(packagePath, {
-      exts: [".ts", ".tsx"],
+      exts: JS_FILE_EXTENSIONS,
       includeDirs: false,
       skip: [/node_modules/, /\.git/],
     })

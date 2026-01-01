@@ -61,12 +61,12 @@ Deno.test("createFakeFs should walk directory", async () => {
 Deno.test("createFakeFs should identify directories", () => {
   const fs = createFakeFs({
     "/app/src/main.ts": "code",
-    "/app/src/utils/helper.ts": "helper",
+    "/app/src/component/component.ts": "component",
   });
 
   assert.assertEquals(fs.isDirectory("/app"), true);
   assert.assertEquals(fs.isDirectory("/app/src"), true);
-  assert.assertEquals(fs.isDirectory("/app/src/utils"), true);
+  assert.assertEquals(fs.isDirectory("/app/src/component"), true);
   assert.assertEquals(fs.isDirectory("/app/src/main.ts"), false);
   assert.assertEquals(fs.isDirectory("/nonexistent"), false);
 });

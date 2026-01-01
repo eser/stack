@@ -13,7 +13,7 @@ import {
   getEntryPoints,
   getTotalBundleSize,
 } from "./manifest.ts";
-import type { BundleMetafile, BundleOutput, BundleResult } from "../types.ts";
+import type { BundleMetafile, BundleOutput, BundleResult } from "./types.ts";
 
 // ============================================================================
 // Test helpers

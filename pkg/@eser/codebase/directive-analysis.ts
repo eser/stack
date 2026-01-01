@@ -11,6 +11,7 @@
 
 import * as fsWalk from "@std/fs/walk";
 import * as path from "@std/path";
+import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 
 /**
  * Common JavaScript/TypeScript directives.
@@ -41,7 +42,7 @@ export interface DirectiveMatch {
  * Options for directive analysis.
  */
 export interface DirectiveAnalysisOptions {
-  /** File extensions to scan (default: [".ts", ".tsx", ".js", ".jsx"]). */
+  /** File extensions to scan */
   readonly extensions?: readonly string[];
   /** Patterns to skip (default: [/node_modules/, /\.test\./, /\.spec\./]). */
   readonly skip?: readonly RegExp[];
@@ -49,7 +50,6 @@ export interface DirectiveAnalysisOptions {
   readonly projectRoot?: string;
 }
 
-const DEFAULT_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"] as const;
 const DEFAULT_SKIP = [/node_modules/, /\.test\./, /\.spec\./] as const;
 
 /**
@@ -180,7 +180,7 @@ export const analyzeDirectives = async (
   directive: string,
   options: DirectiveAnalysisOptions = {},
 ): Promise<readonly DirectiveMatch[]> => {
-  const extensions = options.extensions ?? DEFAULT_EXTENSIONS;
+  const extensions = options.extensions ?? JS_FILE_EXTENSIONS;
   const skip = options.skip ?? DEFAULT_SKIP;
   const projectRoot = options.projectRoot ?? scanDir;
 

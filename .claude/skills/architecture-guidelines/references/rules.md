@@ -42,8 +42,7 @@ Example structure:
 project/
 ├── src/
 │   ├── app/           # Application code
-│   ├── components/    # Reusable components
-│   └── utils/         # Utility functions
+│   └── components/    # Reusable components
 ├── tests/             # Test files
 ├── docs/              # Documentation
 ├── public/            # Static assets

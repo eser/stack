@@ -1,6 +1,6 @@
 {
   "name": "@eser/writer",
-  "version": "4.0.18",
+  "version": "4.0.19",
   "exports": {
     ".": "./mod.ts"
   },

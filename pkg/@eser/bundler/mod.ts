@@ -13,6 +13,3 @@ export * from "./chunk-manifest.ts";
 
 // New bundler backends
 export * from "./backends/mod.ts";
-
-// Utilities
-export * from "./utils/mod.ts";

@@ -149,7 +149,7 @@ export const checkExportNames = async (
       continue;
     }
 
-    if (typeof exports === "object") {
+    if (exports !== null && typeof exports === "object") {
       for (const [key, value] of Object.entries(exports)) {
         // Check the export key (e.g., "./myModule")
         if (!isKebabCase(key, ignoreWords)) {

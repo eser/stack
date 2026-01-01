@@ -123,6 +123,7 @@ export class RolldownBundlerBackend implements Bundler {
         input: config.entrypoints as Record<string, string>,
         external: config.external as string[] | undefined,
         plugins: this.adaptPlugins(config.plugins),
+        define: config.define as Record<string, string> | undefined,
       });
 
       const sourcemapValue: boolean | "inline" | undefined =
@@ -643,6 +644,7 @@ interface RolldownInputOptions {
   input: Record<string, string>;
   external?: string[];
   plugins?: RollupPlugin[];
+  define?: Record<string, string>;
 }
 
 interface RolldownOutputOptions {

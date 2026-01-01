@@ -77,7 +77,7 @@ export class DenoBundlerBackend implements Bundler {
         ? undefined
         : config.sourcemap;
 
-      const result = await Deno.bundle({
+      const options: Deno.bundle.Options = {
         entrypoints: allEntrypoints,
         outputDir: tempDir,
         format: "esm",
@@ -85,10 +85,18 @@ export class DenoBundlerBackend implements Bundler {
         minify: config.minify,
         platform,
         sourcemap: sourcemapValue,
-        ...(config.external !== undefined && config.external.length > 0
-          ? { external: [...config.external] }
-          : {}),
-      });
+      };
+
+      // TODO(@eser) needs implementation
+      // if (config.define !== undefined) {
+      //   options.define = config.define;
+      // }
+
+      if (config.external !== undefined) {
+        options.external = config.external as string[];
+      }
+
+      const result = await Deno.bundle(options);
 
       if (!result.success) {
         const diagnostics = (result as unknown as { diagnostics?: unknown[] })
@@ -136,7 +144,9 @@ export class DenoBundlerBackend implements Bundler {
       }
     };
 
-    watchLoop().catch(() => {});
+    watchLoop().catch((error) => {
+      console.error("Watch loop error:", error);
+    });
 
     return Promise.resolve({
       stop: () => {
@@ -176,7 +186,7 @@ export class DenoBundlerBackend implements Bundler {
         scanDir = nestedDistDir;
       }
     } catch {
-      // No nested dir, use outputDir
+      // FIXME(@eser) expected: directory doesn't exist, use outputDir
     }
 
     // Collect all output files (both .js and .map files)

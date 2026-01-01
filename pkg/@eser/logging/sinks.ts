@@ -127,7 +127,9 @@ export const getBufferedSink = (
     if (flushTimer === null) {
       flushTimer = setTimeout(() => {
         flushTimer = null;
-        flush();
+        flush().catch(() => {
+          // Flush errors are already handled in the flush function
+        });
       }, flushIntervalMs);
     }
   };

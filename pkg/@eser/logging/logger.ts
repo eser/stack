@@ -129,7 +129,7 @@ export class Logger implements logging.Logger {
       return data.stack!;
     }
 
-    if (typeof data === "object") {
+    if (data !== null && typeof data === "object") {
       if (Array.isArray(data)) {
         return JSON.stringify(data);
       }

@@ -5,10 +5,7 @@
   "type": "module",
   "workspaces": [
     "pkg/@eser/*",
-    "pkg/@cool/*",
-    "etc/templates/vanilla-app",
-    "etc/templates/jsx-runtime-app",
-    "etc/templates/laroux-app"
+    "pkg/@cool/*"
   ],
   "scripts": {
     "check:mod": "deno check ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts",

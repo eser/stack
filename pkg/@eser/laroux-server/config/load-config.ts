@@ -19,6 +19,34 @@ export type { AppConfig, LogLevel };
 const configLogger = logging.logger.getLogger(["laroux-server", "config"]);
 
 /**
+ * Convert a filesystem path to a proper file:// URL
+ * Handles both Unix and Windows paths correctly
+ */
+function pathToFileUrl(filePath: string): string {
+  // Ensure the path is absolute
+  const absolutePath = runtime.path.isAbsolute(filePath)
+    ? filePath
+    : runtime.path.resolve(filePath);
+
+  // On Windows, paths start with drive letter (C:\...)
+  // On Unix, paths start with / (/Users/...)
+  // file:// URLs need three slashes for absolute paths on Unix: file:///path
+  // and two slashes + drive on Windows: file:///C:/path
+
+  // Use Deno's pathToFileUrl if available, otherwise construct manually
+  if (typeof Deno !== "undefined" && Deno.build) {
+    // Use URL constructor with file: protocol
+    return new URL(
+      `file://${absolutePath.startsWith("/") ? "" : "/"}${absolutePath}`,
+    ).href;
+  }
+
+  // Fallback: construct file URL manually
+  const normalizedPath = absolutePath.replace(/\\/g, "/");
+  return `file://${normalizedPath.startsWith("/") ? "" : "/"}${normalizedPath}`;
+}
+
+/**
  * Load user configuration file if it exists
  */
 async function loadUserConfig(
@@ -28,8 +56,9 @@ async function loadUserConfig(
 
   if (await runtime.fs.exists(configPath)) {
     try {
-      // Dynamic import the config file
-      const mod = await import(`file://${configPath}`);
+      // Dynamic import the config file using proper file:// URL
+      const fileUrl = pathToFileUrl(configPath);
+      const mod = await import(fileUrl);
       return mod.default ?? {};
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

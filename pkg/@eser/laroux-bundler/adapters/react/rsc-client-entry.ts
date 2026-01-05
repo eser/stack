@@ -11,30 +11,106 @@ import { runtime } from "@eser/standards/runtime";
 import { copy } from "@std/fs"; // copy not available in runtime
 import type { ClientComponent } from "./rsc-analyze.ts";
 
+/**
+ * Bootstrap files that need to be copied to the dist directory.
+ * These are the client-side files from @eser/laroux-react/client/bootstrap/
+ */
+const BOOTSTRAP_FILES = [
+  "entry.tsx",
+  "error-boundary.tsx",
+  "error-overlay.tsx",
+  "globals.d.ts",
+  "hmr-client.tsx",
+  "index.ts",
+  "lazy-loader.ts",
+  "smart-refresh.tsx",
+] as const;
+
+/**
+ * Check if a path/URL is a remote URL (JSR, HTTP, etc.)
+ */
+function isRemoteUrl(url: string): boolean {
+  return url.startsWith("https://") || url.startsWith("http://");
+}
+
+/**
+ * Convert a URL to a filesystem path if it's a file:// URL
+ */
+function urlToPath(url: string): string {
+  if (url.startsWith("file://")) {
+    // Remove file:// prefix and decode URI components
+    return decodeURIComponent(url.slice(7));
+  }
+  return url;
+}
+
+/**
+ * Get the bootstrap directory path using import.meta.resolve
+ * Works with both local workspace and installed packages (JSR/npm)
+ */
+function getBootstrapDir(): { isRemote: boolean; baseUrl: string } {
+  // Use import.meta.resolve to get the proper path to the bootstrap index
+  // This works regardless of whether we're running from workspace or installed packages
+  const bootstrapIndexUrl = import.meta.resolve(
+    "@eser/laroux-react/client/bootstrap",
+  );
+
+  // Get the directory by removing the trailing filename if present
+  // The resolve gives us the path to index.ts, we need the directory
+  const baseUrl = bootstrapIndexUrl.replace(/\/index\.ts$/, "");
+
+  return {
+    isRemote: isRemoteUrl(baseUrl),
+    baseUrl,
+  };
+}
+
+/**
+ * Copy bootstrap files from source to destination.
+ * Handles both local filesystem and remote (JSR/HTTP) sources.
+ */
+async function copyBootstrapFiles(distDir: string): Promise<void> {
+  const { isRemote, baseUrl } = getBootstrapDir();
+
+  for (const filename of BOOTSTRAP_FILES) {
+    const destPath = runtime.path.resolve(distDir, filename);
+    const sourceUrl = `${baseUrl}/${filename}`;
+
+    if (isRemote) {
+      // Fetch from remote URL (JSR, etc.)
+      try {
+        const response = await fetch(sourceUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const content = await response.text();
+        await runtime.fs.writeTextFile(destPath, content);
+      } catch (err) {
+        throw new Error(
+          `Failed to fetch bootstrap file ${filename} from ${sourceUrl}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    } else {
+      // Copy from local filesystem (file:// URL or path)
+      const sourcePath = urlToPath(sourceUrl);
+      await copy(sourcePath, destPath, { overwrite: true });
+    }
+  }
+}
+
 export async function createClientEntry(
   clientComponents: ClientComponent[],
   _projectRoot: string,
   distDir: string,
 ): Promise<string> {
   const entryPath = runtime.path.resolve(distDir, "_client-entry.tsx");
-  // Resolve client bootstrap directory relative to laroux-react package
-  // The bootstrap files are in @eser/laroux-react/client/bootstrap/
-  // Path: adapters/react/ -> adapters/ -> laroux-bundler/ -> @eser/ -> pkg/ -> @eser/laroux-react/client/bootstrap
-  const sourceClientDir = runtime.path.resolve(
-    import.meta.dirname ?? ".",
-    "../../../../@eser/laroux-react/client/bootstrap",
-  );
 
   await runtime.fs.ensureDir(distDir);
 
-  // Copy all client files to dist to avoid workspace package.json resolution issues
-  for await (const entry of runtime.fs.readDir(sourceClientDir)) {
-    if (entry.isFile) {
-      const sourcePath = runtime.path.resolve(sourceClientDir, entry.name);
-      const destPath = runtime.path.resolve(distDir, entry.name);
-      await copy(sourcePath, destPath, { overwrite: true });
-    }
-  }
+  // Copy all client bootstrap files to dist
+  await copyBootstrapFiles(distDir);
 
   // Generate import statements for all client components
   const componentImports = clientComponents.map((component, index) => {

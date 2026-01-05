@@ -29,10 +29,10 @@ export {
 export {
   type AdvancedChunksConfig,
   type ChunkGroup,
-  createRolldownBundlerBackend,
+  createRolldownBackend,
   createRolldownWithPreset,
-  RolldownBundlerBackend,
-  type RolldownBundlerBackendOptions,
+  RolldownBackend,
+  type RolldownBackendOptions,
   RolldownPresets,
 } from "./rolldown.ts";
 
@@ -42,8 +42,8 @@ import {
   type DenoBundlerBackendOptions,
 } from "./deno-bundler.ts";
 import {
-  createRolldownBundlerBackend,
-  type RolldownBundlerBackendOptions,
+  createRolldownBackend,
+  type RolldownBackendOptions,
 } from "./rolldown.ts";
 
 /**
@@ -51,7 +51,7 @@ import {
  */
 export type CreateBundlerOptions =
   | { backend: "deno-bundler"; options?: DenoBundlerBackendOptions }
-  | { backend: "rolldown"; options?: RolldownBundlerBackendOptions };
+  | { backend: "rolldown"; options?: RolldownBackendOptions };
 
 /**
  * Create a bundler backend by name.
@@ -80,11 +80,11 @@ export type CreateBundlerOptions =
 export function createBundler(config: CreateBundlerOptions): Bundler;
 export function createBundler(
   backend?: BundlerBackend,
-  options?: DenoBundlerBackendOptions | RolldownBundlerBackendOptions,
+  options?: DenoBundlerBackendOptions | RolldownBackendOptions,
 ): Bundler;
 export function createBundler(
   backendOrConfig?: BundlerBackend | CreateBundlerOptions,
-  options?: DenoBundlerBackendOptions | RolldownBundlerBackendOptions,
+  options?: DenoBundlerBackendOptions | RolldownBackendOptions,
 ): Bundler {
   // Handle config object form
   if (
@@ -100,8 +100,8 @@ export function createBundler(
 
   switch (backend) {
     case "rolldown":
-      return createRolldownBundlerBackend(
-        options as RolldownBundlerBackendOptions,
+      return createRolldownBackend(
+        options as RolldownBackendOptions,
       );
     case "deno-bundler":
       return createDenoBundlerBackend(options as DenoBundlerBackendOptions);

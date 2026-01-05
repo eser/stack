@@ -2,31 +2,31 @@
 
 import * as assert from "@std/assert";
 import {
-  createRolldownBundlerBackend,
+  createRolldownBackend,
   createRolldownWithPreset,
-  RolldownBundlerBackend,
-  type RolldownBundlerBackendOptions,
+  RolldownBackend,
+  type RolldownBackendOptions,
   RolldownPresets,
 } from "./rolldown.ts";
 
 // ============================================================================
-// RolldownBundlerBackend constructor tests
+// RolldownBackend constructor tests
 // ============================================================================
 
-Deno.test("RolldownBundlerBackend has correct name", () => {
-  const backend = new RolldownBundlerBackend();
+Deno.test("RolldownBackend has correct name", () => {
+  const backend = new RolldownBackend();
 
   assert.assertEquals(backend.name, "rolldown");
 });
 
-Deno.test("RolldownBundlerBackend accepts empty options", () => {
-  const backend = new RolldownBundlerBackend({});
+Deno.test("RolldownBackend accepts empty options", () => {
+  const backend = new RolldownBackend({});
 
   assert.assertEquals(backend.name, "rolldown");
 });
 
-Deno.test("RolldownBundlerBackend accepts full options", () => {
-  const options: RolldownBundlerBackendOptions = {
+Deno.test("RolldownBackend accepts full options", () => {
+  const options: RolldownBackendOptions = {
     treeshake: true,
     preserveEntrySignatures: "strict",
     moduleSideEffects: false,
@@ -43,31 +43,31 @@ Deno.test("RolldownBundlerBackend accepts full options", () => {
     },
   };
 
-  const backend = new RolldownBundlerBackend(options);
+  const backend = new RolldownBackend(options);
 
   assert.assertEquals(backend.name, "rolldown");
 });
 
 // ============================================================================
-// createRolldownBundlerBackend factory tests
+// createRolldownBackend factory tests
 // ============================================================================
 
-Deno.test("createRolldownBundlerBackend creates backend instance", () => {
-  const backend = createRolldownBundlerBackend();
+Deno.test("createRolldownBackend creates backend instance", () => {
+  const backend = createRolldownBackend();
 
-  assert.assertInstanceOf(backend, RolldownBundlerBackend);
+  assert.assertInstanceOf(backend, RolldownBackend);
   assert.assertEquals(backend.name, "rolldown");
 });
 
-Deno.test("createRolldownBundlerBackend accepts options", () => {
-  const backend = createRolldownBundlerBackend({
+Deno.test("createRolldownBackend accepts options", () => {
+  const backend = createRolldownBackend({
     treeshake: false,
     advancedChunks: {
       minSize: 5000,
     },
   });
 
-  assert.assertInstanceOf(backend, RolldownBundlerBackend);
+  assert.assertInstanceOf(backend, RolldownBackend);
 });
 
 // ============================================================================
@@ -161,35 +161,35 @@ Deno.test("RolldownPresets.performance returns performance-optimized configurati
 Deno.test("createRolldownWithPreset creates backend with default preset", () => {
   const backend = createRolldownWithPreset("default");
 
-  assert.assertInstanceOf(backend, RolldownBundlerBackend);
+  assert.assertInstanceOf(backend, RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset creates backend with react preset", () => {
   const backend = createRolldownWithPreset("react");
 
-  assert.assertInstanceOf(backend, RolldownBundlerBackend);
+  assert.assertInstanceOf(backend, RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset creates backend with library preset", () => {
   const backend = createRolldownWithPreset("library");
 
-  assert.assertInstanceOf(backend, RolldownBundlerBackend);
+  assert.assertInstanceOf(backend, RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset creates backend with ssr preset", () => {
   const backend = createRolldownWithPreset("ssr");
 
-  assert.assertInstanceOf(backend, RolldownBundlerBackend);
+  assert.assertInstanceOf(backend, RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset creates backend with performance preset", () => {
   const backend = createRolldownWithPreset("performance");
 
-  assert.assertInstanceOf(backend, RolldownBundlerBackend);
+  assert.assertInstanceOf(backend, RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset accepts custom options instead of preset name", () => {
-  const customOptions: RolldownBundlerBackendOptions = {
+  const customOptions: RolldownBackendOptions = {
     treeshake: false,
     advancedChunks: {
       minSize: 1000,
@@ -198,7 +198,7 @@ Deno.test("createRolldownWithPreset accepts custom options instead of preset nam
 
   const backend = createRolldownWithPreset(customOptions);
 
-  assert.assertInstanceOf(backend, RolldownBundlerBackend);
+  assert.assertInstanceOf(backend, RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset merges overrides with preset", () => {
@@ -210,7 +210,7 @@ Deno.test("createRolldownWithPreset merges overrides with preset", () => {
     },
   });
 
-  assert.assertInstanceOf(backend, RolldownBundlerBackend);
+  assert.assertInstanceOf(backend, RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset preserves groups when overriding advancedChunks", () => {
@@ -222,7 +222,7 @@ Deno.test("createRolldownWithPreset preserves groups when overriding advancedChu
     },
   });
 
-  assert.assertInstanceOf(backend, RolldownBundlerBackend);
+  assert.assertInstanceOf(backend, RolldownBackend);
 });
 
 // ============================================================================

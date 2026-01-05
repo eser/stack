@@ -1,6 +1,6 @@
 {
   "name": "@eser/logging",
-  "version": "4.0.20",
+  "version": "4.0.21",
   "exports": {
     ".": "./mod.ts",
     "./logger": "./logger.ts",

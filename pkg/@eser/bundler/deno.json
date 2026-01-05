@@ -1,6 +1,6 @@
 {
   "name": "@eser/bundler",
-  "version": "4.0.20",
+  "version": "4.0.21",
   "exports": {
     ".": "./mod.ts",
     "./types": "./types.ts",

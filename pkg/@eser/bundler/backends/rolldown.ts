@@ -83,7 +83,7 @@ export interface AdvancedChunksConfig {
 /**
  * Backend options specific to Rolldown.
  */
-export interface RolldownBundlerBackendOptions {
+export interface RolldownBackendOptions {
   /** Custom entry point name (default: "main"). */
   entryName?: string;
   /** Advanced chunking configuration. */
@@ -168,12 +168,12 @@ function createDefinePlugin(defines: Record<string, string>): RollupPlugin {
  * Uses the Rolldown bundler via npm/WASM.
  * Best for: Performance-critical builds, advanced code splitting.
  */
-export class RolldownBundlerBackend implements Bundler {
+export class RolldownBackend implements Bundler {
   readonly name = "rolldown";
-  private readonly options: RolldownBundlerBackendOptions;
+  private readonly options: RolldownBackendOptions;
   private rolldownModule: RolldownModule | null = null;
 
-  constructor(options: RolldownBundlerBackendOptions = {}) {
+  constructor(options: RolldownBackendOptions = {}) {
     this.options = options;
   }
 
@@ -543,9 +543,9 @@ export class RolldownBundlerBackend implements Bundler {
 /**
  * Create a Rolldown bundler backend instance.
  */
-export const createRolldownBundlerBackend = (
-  options: RolldownBundlerBackendOptions = {},
-): RolldownBundlerBackend => new RolldownBundlerBackend(options);
+export const createRolldownBackend = (
+  options: RolldownBackendOptions = {},
+): RolldownBackend => new RolldownBackend(options);
 
 /**
  * Preset configurations for common use cases.
@@ -554,7 +554,7 @@ export const RolldownPresets = {
   /**
    * Default preset with sensible defaults for web applications.
    */
-  default: (): RolldownBundlerBackendOptions => ({
+  default: (): RolldownBackendOptions => ({
     treeshake: true,
     advancedChunks: {
       minSize: 20000,
@@ -566,7 +566,7 @@ export const RolldownPresets = {
    * Preset for React applications with vendor splitting.
    * Separates React, React DOM, and other node_modules into separate chunks.
    */
-  react: (): RolldownBundlerBackendOptions => ({
+  react: (): RolldownBackendOptions => ({
     treeshake: true,
     advancedChunks: {
       minSize: 10000,
@@ -588,7 +588,7 @@ export const RolldownPresets = {
   /**
    * Preset for libraries with minimal chunking.
    */
-  library: (): RolldownBundlerBackendOptions => ({
+  library: (): RolldownBackendOptions => ({
     treeshake: true,
     preserveEntrySignatures: "strict",
     advancedChunks: {
@@ -600,7 +600,7 @@ export const RolldownPresets = {
   /**
    * Preset for server-side rendering with aggressive code splitting.
    */
-  ssr: (): RolldownBundlerBackendOptions => ({
+  ssr: (): RolldownBackendOptions => ({
     treeshake: true,
     moduleSideEffects: "no-external",
     advancedChunks: {
@@ -629,7 +629,7 @@ export const RolldownPresets = {
   /**
    * Preset for maximum performance with aggressive optimization.
    */
-  performance: (): RolldownBundlerBackendOptions => ({
+  performance: (): RolldownBackendOptions => ({
     treeshake: true,
     moduleSideEffects: false,
     advancedChunks: {
@@ -681,14 +681,14 @@ export const RolldownPresets = {
  * ```
  */
 export function createRolldownWithPreset(
-  preset: keyof typeof RolldownPresets | RolldownBundlerBackendOptions,
-  overrides?: Partial<RolldownBundlerBackendOptions>,
-): RolldownBundlerBackend {
+  preset: keyof typeof RolldownPresets | RolldownBackendOptions,
+  overrides?: Partial<RolldownBackendOptions>,
+): RolldownBackend {
   const baseOptions = typeof preset === "string"
     ? RolldownPresets[preset]()
     : preset;
 
-  const mergedOptions: RolldownBundlerBackendOptions = {
+  const mergedOptions: RolldownBackendOptions = {
     ...baseOptions,
     ...overrides,
     advancedChunks: overrides?.advancedChunks !== undefined
@@ -701,7 +701,7 @@ export function createRolldownWithPreset(
       : baseOptions.advancedChunks,
   };
 
-  return new RolldownBundlerBackend(mergedOptions);
+  return new RolldownBackend(mergedOptions);
 }
 
 // Type definitions for Rolldown module (external dependency)

@@ -285,7 +285,7 @@ export interface BundlerPlugin {
 /**
  * Unified bundler interface.
  *
- * Implementations: DenoBundlerBackend, RolldownBundlerBackend
+ * Implementations: DenoBundlerBackend, RolldownBackend
  */
 export interface Bundler {
   /** Backend name for logging and debugging. */

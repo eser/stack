@@ -82,16 +82,16 @@ Rollup-compatible plugin API.
 
 ```typescript
 import {
-  createRolldownBundlerBackend,
+  createRolldownBackend,
   createRolldownWithPreset,
   RolldownPresets,
 } from "@eser/bundler";
 
 // Basic usage
-const bundler = createRolldownBundlerBackend();
+const bundler = createRolldownBackend();
 
 // With advanced chunking
-const bundler = createRolldownBundlerBackend({
+const bundler = createRolldownBackend({
   treeshake: true,
   advancedChunks: {
     minSize: 20000,

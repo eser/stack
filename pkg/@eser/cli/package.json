@@ -1,6 +1,6 @@
 {
   "name": "@eser/cli",
-  "version": "4.0.20",
+  "version": "4.0.21",
   "type": "module",
   "exports": "./main.ts",
   "bin": {
@@ -14,5 +14,8 @@
     "@eser/standards": "workspace:*",
     "@std/cli": "npm:@jsr/std__cli@^1.0.25",
     "@std/fmt": "npm:@jsr/std__fmt@^1.0.8"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2"
   }
 }

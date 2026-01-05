@@ -148,14 +148,22 @@ export function transformWithLightningCss(
 
   // Build exports map if CSS Modules enabled
   let exports: Record<string, CssModuleExportData> | undefined;
-  if (result.exports !== undefined && result.exports !== null) {
+  // Explicit null/undefined check: lightningcss types define exports as CSSModuleExports | void
+  if (result.exports !== null && result.exports !== undefined) {
     exports = {};
-    for (const [className, exportData] of Object.entries(result.exports)) {
+    for (
+      const [className, exportData] of Object.entries(
+        result.exports as Record<
+          string,
+          { name: string; composes?: Array<{ name: string; from?: unknown }> }
+        >,
+      )
+    ) {
       exports[className] = {
         name: exportData.name,
         composes: exportData.composes?.map((c) => ({
           name: c.name,
-          from: "from" in c ? String(c.from) : undefined,
+          from: c.from !== undefined ? String(c.from) : undefined,
         })),
       };
     }

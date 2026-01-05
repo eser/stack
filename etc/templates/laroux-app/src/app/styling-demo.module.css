@@ -1,0 +1,22 @@
+/**
+ * CSS Modules Example
+ * Demonstrates scoped class names with Tailwind @apply directives
+ * Note: @reference directive is auto-injected by the build system
+ */
+
+.exampleBox {
+  @apply p-6 mb-5 border-2 border-primary-200 rounded-lg bg-primary-50
+    transition-all duration-200;
+
+  &:hover {
+    @apply border-primary-400 bg-primary-100 -translate-y-0.5;
+  }
+}
+
+.boxTitle {
+  @apply font-semibold text-primary-900 mb-2;
+}
+
+.boxContent {
+  @apply text-primary-800 text-[15px];
+}

@@ -236,6 +236,12 @@ export interface RuntimeFs {
   mkdir(path: string, options?: MkdirOptions): Promise<void>;
 
   /**
+   * Ensure a directory exists, creating it and parent directories if needed.
+   * Unlike mkdir, this does not throw if the directory already exists.
+   */
+  ensureDir(path: string): Promise<void>;
+
+  /**
    * Remove a file or directory.
    * @throws {NotFoundError} If path doesn't exist
    */

@@ -1,0 +1,31 @@
+{
+  "name": "@eser/laroux-bundler",
+  "version": "4.0.20",
+  "description": "Framework-agnostic bundler for the laroux.js framework with hexagonal architecture",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./adapters": "./adapters/mod.ts",
+    "./adapters/react": "./adapters/react/mod.ts",
+    "./adapters/tailwindcss": "./adapters/tailwindcss/mod.ts",
+    "./adapters/lightningcss": "./adapters/lightningcss/mod.ts",
+    "./adapters/sharp": "./adapters/sharp/mod.ts",
+    "./adapters/fonts": "./adapters/fonts/mod.ts",
+    "./adapters/runtime-bundler": "./adapters/runtime-bundler/mod.ts",
+    "./adapters/prebuilt-bundler": "./adapters/prebuilt-bundler/mod.ts",
+    "./system": "./system.ts",
+    "./config": "./config.ts",
+    "./types": "./types.ts"
+  },
+  "dependencies": {
+    "@eser/bundler": "workspace:*",
+    "@eser/crypto": "workspace:*",
+    "@eser/laroux": "workspace:*",
+    "@eser/logging": "workspace:*",
+    "@eser/standards": "workspace:*",
+    "@std/fs": "npm:@jsr/std__fs@^1.0.21",
+    "@std/ulid": "npm:@jsr/std__ulid@^1.0.0",
+    "lightningcss": "^1.30.2"
+  }
+}

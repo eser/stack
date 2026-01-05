@@ -6,7 +6,6 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
-import * as posix from "@std/path/posix";
 import { runtime } from "@eser/standards/runtime";
 import * as logger from "@eser/logging/logger";
 import * as validatorIdentifier from "./validator-identifier/mod.ts";
@@ -21,7 +20,7 @@ const PLACEHOLDER_SUFFIX = "__//!!##";
  * Import specifiers must have forward slashes
  */
 const toImportSpecifier = (file: string) => {
-  const specifier = posix.normalize(file).replace(/\\/g, "/");
+  const specifier = runtime.path.normalize(file).replace(/\\/g, "/");
 
   if (!specifier.startsWith(".")) {
     return `./${specifier}`;
@@ -40,7 +39,7 @@ export const specifierToIdentifier = (
   used: Set<string>,
 ): string => {
   // specifier = specifier.replace(/^(?:\.\/pkg)\//, "");
-  const ext = posix.extname(specifier);
+  const ext = runtime.path.extname(specifier);
   if (ext) {
     specifier = specifier.slice(0, -ext.length);
   }

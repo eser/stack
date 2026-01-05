@@ -1,6 +1,5 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as posix from "@std/path/posix";
 import * as fileLoader from "@eser/config/file";
 import { get } from "@eser/fp/get";
 import { deepMerge } from "@eser/fp/deep-merge";
@@ -81,7 +80,7 @@ const findConfigFiles = async (
   const results: RawConfigFile[] = [];
 
   for (const fileType of includeFiles) {
-    const filepath = posix.join(baseDir, fileType);
+    const filepath = runtime.path.join(baseDir, fileType);
     const loaded = await tryLoadConfigFile(filepath, fileType);
     if (loaded) {
       results.push(loaded);
@@ -202,7 +201,7 @@ export const load = async (
   const sortedFiles = sortByPriority(includeFiles);
 
   // Find and load all config files
-  let searchDir = posix.resolve(baseDir);
+  let searchDir = runtime.path.resolve(baseDir);
   let loadedFiles: RawConfigFile[] = [];
 
   while (true) {
@@ -212,7 +211,7 @@ export const load = async (
       break;
     }
 
-    const parent = posix.dirname(searchDir);
+    const parent = runtime.path.dirname(searchDir);
     if (parent === searchDir) {
       break;
     }

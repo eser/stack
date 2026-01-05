@@ -23,9 +23,9 @@
  * @module
  */
 
-import * as pathPosix from "@std/path/posix";
-import * as fsWalk from "@std/fs/walk";
+import { walk } from "@std/fs/walk";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
+import { runtime } from "@eser/standards/runtime";
 import * as pkg from "./package/mod.ts";
 import type { PackageConfig, WorkspaceModule } from "./package/types.ts";
 
@@ -108,11 +108,11 @@ export const resolveModulePath = (
   specifier: string,
   basePath: string,
 ): string => {
-  if (pathPosix.isAbsolute(specifier)) {
+  if (runtime.path.isAbsolute(specifier)) {
     return specifier;
   }
 
-  return pathPosix.resolve(basePath, specifier);
+  return runtime.path.resolve(basePath, specifier);
 };
 
 /**
@@ -129,14 +129,14 @@ export const getPackageFiles = async (
   const files: string[] = [];
 
   for await (
-    const entry of fsWalk.walk(packagePath, {
+    const entry of walk(packagePath, {
       exts: JS_FILE_EXTENSIONS,
       includeDirs: false,
       skip: [/node_modules/, /\.git/],
     })
   ) {
-    const relativePath = pathPosix.relative(packagePath, entry.path);
-    const fileName = pathPosix.basename(relativePath);
+    const relativePath = runtime.path.relative(packagePath, entry.path);
+    const fileName = runtime.path.basename(relativePath);
 
     // Skip test files
     if (fileName.endsWith("_test.ts") || fileName.endsWith("_bench.ts")) {

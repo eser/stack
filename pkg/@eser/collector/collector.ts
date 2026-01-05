@@ -6,16 +6,17 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
-import * as posix from "@std/path/posix";
-import * as walk from "@std/fs/walk";
+import { globToRegExp } from "@std/path/posix";
+import { walk } from "@std/fs/walk";
 import * as patterns from "@eser/standards/patterns";
+import { runtime } from "@eser/standards/runtime";
 
 export async function* walkFiles(
   baseDir: string,
   globFilter: string | undefined,
   ignoreFilePattern: RegExp,
 ): AsyncGenerator<string> {
-  const routesFolder = walk.walk(baseDir, {
+  const routesFolder = walk(baseDir, {
     includeDirs: false,
     includeFiles: true,
     exts: patterns.JS_FILE_EXTENSIONS,
@@ -23,9 +24,9 @@ export async function* walkFiles(
   });
 
   for await (const entry of routesFolder) {
-    const rel = posix.relative(baseDir, entry.path);
+    const rel = runtime.path.relative(baseDir, entry.path);
 
-    if (globFilter !== undefined && !posix.globToRegExp(globFilter).test(rel)) {
+    if (globFilter !== undefined && !globToRegExp(globFilter).test(rel)) {
       continue;
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "@eser/cli",
-  "version": "4.0.19",
+  "version": "4.0.20",
   "type": "module",
   "exports": "./main.ts",
   "bin": {
@@ -8,9 +8,11 @@
   },
   "dependencies": {
     "@eser/codebase": "workspace:*",
+    "@eser/laroux-server": "workspace:*",
+    "@eser/logging": "workspace:*",
+    "@eser/shell": "workspace:*",
     "@eser/standards": "workspace:*",
     "@std/cli": "npm:@jsr/std__cli@^1.0.25",
-    "@std/fmt": "npm:@jsr/std__fmt@^1.0.8",
-    "@std/path": "npm:@jsr/std__path@^1.1.4"
+    "@std/fmt": "npm:@jsr/std__fmt@^1.0.8"
   }
 }

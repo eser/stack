@@ -1,7 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as colors from "@std/fmt/colors";
-import * as posix from "@std/path/posix";
 import { NotFoundError, runtime } from "@eser/standards/runtime";
 import { type BuildSnapshot, type BuildSnapshotSerialized } from "./mod.ts";
 import { setBuildId } from "./build-id.ts";
@@ -73,7 +72,7 @@ export const loadAotSnapshot = async (
       `Using snapshot found at ${colors.cyan(snapshotDirPath)}`,
     );
 
-    const snapshotPath = posix.join(snapshotDirPath, "snapshot.json");
+    const snapshotPath = runtime.path.join(snapshotDirPath, "snapshot.json");
     const json = JSON.parse(
       await runtime.fs.readTextFile(snapshotPath),
     ) as BuildSnapshotSerialized;
@@ -85,7 +84,7 @@ export const loadAotSnapshot = async (
 
     const files = new Map<string, string>();
     Object.keys(json.files).forEach((name) => {
-      const filePath = posix.join(snapshotDirPath, name);
+      const filePath = runtime.path.join(snapshotDirPath, name);
       files.set(name, filePath);
     });
 

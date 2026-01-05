@@ -2,6 +2,7 @@
 
 import * as assert from "@std/assert";
 import { runtime } from "@eser/standards/runtime";
+import { serialize } from "@eser/writer";
 import {
   buildConfigMapFromContext,
   buildSecretFromContext,
@@ -303,9 +304,7 @@ Deno.test("CLI should handle secret resource format", () => {
 });
 
 // Test integration with @eser/writer for YAML/JSON output
-Deno.test("ConfigMap YAML output should be properly formatted", async () => {
-  const { serialize } = await import("@eser/writer");
-
+Deno.test("ConfigMap YAML output should be properly formatted", () => {
   const configMap = buildConfigMapFromContext(
     "format-test",
     "test-ns",
@@ -325,9 +324,7 @@ Deno.test("ConfigMap YAML output should be properly formatted", async () => {
   assert.assertStringIncludes(yamlOutput, "APP_VERSION: 1.0.0");
 });
 
-Deno.test("Secret YAML output should be properly formatted", async () => {
-  const { serialize } = await import("@eser/writer");
-
+Deno.test("Secret YAML output should be properly formatted", () => {
   const secret = buildSecretFromContext(
     "secret-format-test",
     "test-ns",
@@ -349,9 +346,7 @@ Deno.test("Secret YAML output should be properly formatted", async () => {
   assert.assertStringIncludes(yamlOutput, btoa("password456"));
 });
 
-Deno.test("JSON output should be valid JSON", async () => {
-  const { serialize } = await import("@eser/writer");
-
+Deno.test("JSON output should be valid JSON", () => {
   const configMap = buildConfigMapFromContext(
     "json-format-test",
     "test-ns",
@@ -393,7 +388,7 @@ Deno.test("sync() should handle kubectl command failures", async () => {
 });
 
 // Test that demonstrates the full workflow
-Deno.test("Full workflow test with mock data", async () => {
+Deno.test("Full workflow test with mock data", () => {
   const testEnv = setupTestEnv();
 
   try {
@@ -412,7 +407,6 @@ Deno.test("Full workflow test with mock data", async () => {
     );
 
     // Generate YAML output
-    const { serialize } = await import("@eser/writer");
     const yamlOutput = serialize([configMap], "yaml", { pretty: true });
 
     // Verify the complete workflow

@@ -1,0 +1,22 @@
+{
+  "name": "@eser/laroux-server",
+  "version": "4.0.20",
+  "description": "Server runtime for the laroux.js framework",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./main.ts",
+    "./config": "./config/load-config.ts",
+    "./adapters/react": "./adapters/react/mod.ts"
+  },
+  "dependencies": {
+    "@eser/http": "workspace:*",
+    "@eser/laroux": "workspace:*",
+    "@eser/laroux-bundler": "workspace:*",
+    "@eser/laroux-react": "workspace:*",
+    "@eser/logging": "workspace:*",
+    "@eser/standards": "workspace:*",
+    "@std/cli": "npm:@jsr/std__cli@^1.0.25",
+    "@std/media-types": "npm:@jsr/std__media-types@^1.1.0"
+  }
+}

@@ -7,8 +7,7 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import * as stdPath from "@std/path";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/runtime";
 import {
   detectShell,
   getCompletionEvalLine,
@@ -26,7 +25,6 @@ const APP_NAME = "eser";
  * Read file contents, returns empty string if file doesn't exist
  */
 const readFileOrEmpty = async (path: string): Promise<string> => {
-  const { runtime } = standardsRuntime;
   try {
     return await runtime.fs.readTextFile(path);
   } catch {
@@ -38,7 +36,6 @@ const readFileOrEmpty = async (path: string): Promise<string> => {
  * Check if a file exists
  */
 const fileExists = async (path: string): Promise<boolean> => {
-  const { runtime } = standardsRuntime;
   try {
     await runtime.fs.stat(path);
     return true;
@@ -66,13 +63,12 @@ export const hasCompletions = async (shell: Shell): Promise<boolean> => {
  * Add completions to shell configuration
  */
 export const addCompletions = async (shell: Shell): Promise<void> => {
-  const { runtime } = standardsRuntime;
   const config = getShellConfig(shell, APP_NAME);
 
   try {
     if (config.completionType === "file") {
       const fishPath = config.completionsFile!;
-      const dir = stdPath.dirname(fishPath);
+      const dir = runtime.path.dirname(fishPath);
 
       try {
         await runtime.fs.mkdir(dir, { recursive: true });
@@ -126,7 +122,6 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Ge
  * Remove completions from shell configuration
  */
 export const removeCompletions = async (shell: Shell): Promise<void> => {
-  const { runtime } = standardsRuntime;
   const config = getShellConfig(shell, APP_NAME);
 
   try {

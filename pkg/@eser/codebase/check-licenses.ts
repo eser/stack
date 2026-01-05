@@ -28,10 +28,10 @@
  * @module
  */
 
-import * as pathPosix from "@std/path/posix";
-import * as fsWalk from "@std/fs/walk";
+import { walk } from "@std/fs/walk";
+import { fromFileUrl } from "@std/path/posix";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/runtime";
 
 /**
  * Options for license validation.
@@ -75,8 +75,8 @@ const EXCLUDES = [
   /etc\/temp\/*$/,
   /etc\/templates\/*$/,
   /node_modules\/*$/,
-  /test\/apps\/cf-workers-app\/node_modules\/*$/,
-  /test\/apps\/cf-workers-app\/worker-configuration\.d\.ts$/,
+  /etc\/templates\/cf-workers-app\/node_modules\/*$/,
+  /etc\/templates\/cf-workers-app\/worker-configuration\.d\.ts$/,
   /manifest\.gen\.ts$/,
 ];
 
@@ -100,7 +100,7 @@ export const validateLicenses = async (
 
   // Default to parent directory of codebase package
   const baseUrl = new URL(".", import.meta.url);
-  const defaultRoot = pathPosix.join(pathPosix.fromFileUrl(baseUrl.href), "..");
+  const defaultRoot = runtime.path.join(fromFileUrl(baseUrl.href), "..");
   const root = options.root ?? defaultRoot;
 
   const issues: LicenseIssue[] = [];
@@ -108,14 +108,14 @@ export const validateLicenses = async (
   let fixedCount = 0;
 
   for await (
-    const entry of fsWalk.walk(root, {
+    const entry of walk(root, {
       exts: JS_FILE_EXTENSIONS,
       skip: EXCLUDES,
       includeDirs: false,
     })
   ) {
     checked++;
-    const content = await standardsRuntime.runtime.fs.readTextFile(entry.path);
+    const content = await runtime.fs.readTextFile(entry.path);
     const match = content.match(RX_COPYRIGHT);
 
     if (match !== null) {
@@ -136,7 +136,7 @@ export const validateLicenses = async (
       const contentWithCopyright = `${
         contentWithoutCopyright.substring(0, index)
       }${COPYRIGHT}\n${contentWithoutCopyright.substring(index)}`;
-      await standardsRuntime.runtime.fs.writeTextFile(
+      await runtime.fs.writeTextFile(
         entry.path,
         contentWithCopyright,
       );
@@ -153,7 +153,7 @@ export const validateLicenses = async (
 
     // Add missing header
     const contentWithCopyright = `${COPYRIGHT}\n${content}`;
-    await standardsRuntime.runtime.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       entry.path,
       contentWithCopyright,
     );
@@ -173,7 +173,7 @@ export const validateLicenses = async (
  * CLI main function for standalone usage.
  */
 const main = async (): Promise<void> => {
-  const fix = standardsRuntime.runtime.process.args.includes("--fix");
+  const fix = runtime.process.args.includes("--fix");
 
   const result = await validateLicenses({ fix });
 
@@ -198,7 +198,7 @@ const main = async (): Promise<void> => {
       );
     }
     console.info(`Copyright header should be "${COPYRIGHT}"`);
-    standardsRuntime.runtime.process.exit(1);
+    runtime.process.exit(1);
   }
 };
 

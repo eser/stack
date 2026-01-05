@@ -1,6 +1,6 @@
 {
   "name": "@eser/config",
-  "version": "4.0.19",
+  "version": "4.0.20",
   "exports": {
     ".": "./mod.ts",
     "./file": "./file/mod.ts",
@@ -12,7 +12,6 @@
     "@std/dotenv": "jsr:@std/dotenv@^0.225.6",
     "@std/fs": "jsr:@std/fs@^1.0.21",
     "@std/jsonc": "jsr:@std/jsonc@^1.0.2",
-    "@std/path": "jsr:@std/path@^1.1.4",
     "@std/toml": "jsr:@std/toml@^1.0.11",
     "@std/yaml": "jsr:@std/yaml@^1.0.10"
   }

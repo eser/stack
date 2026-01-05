@@ -156,6 +156,17 @@ const createDenoFs = (): RuntimeFs => {
       });
     },
 
+    async ensureDir(path: string): Promise<void> {
+      try {
+        await Deno.mkdir(path, { recursive: true });
+      } catch (error) {
+        // Ignore AlreadyExists - directory exists, which is fine
+        if (!(error instanceof Deno.errors.AlreadyExists)) {
+          throw error;
+        }
+      }
+    },
+
     async remove(path: string, options?: RemoveOptions): Promise<void> {
       try {
         await Deno.remove(path, {

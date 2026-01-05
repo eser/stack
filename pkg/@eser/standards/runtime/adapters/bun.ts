@@ -188,6 +188,11 @@ const createBunFs = (): RuntimeFs => {
       });
     },
 
+    async ensureDir(path: string): Promise<void> {
+      // Bun's mkdir with recursive: true doesn't throw if directory exists
+      await nodeFsPromises.mkdir(path, { recursive: true });
+    },
+
     async remove(path: string, options?: RemoveOptions): Promise<void> {
       try {
         await nodeFsPromises.rm(path, {

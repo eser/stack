@@ -56,6 +56,7 @@ const createBrowserFs = (): RuntimeFs => {
     stat: throwFs,
     lstat: throwFs,
     mkdir: throwFs,
+    ensureDir: throwFs,
     remove: throwFs,
     readDir: throwFs,
     copyFile: throwFs,

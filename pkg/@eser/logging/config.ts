@@ -14,7 +14,11 @@ import {
   findMatchingConfigs,
   normalizeCategory,
 } from "./category.ts";
-import { setCategoryPrefixStorage, setContextStorage } from "./context.ts";
+import {
+  clearDefaultStorages,
+  setCategoryPrefixStorage,
+  setContextStorage,
+} from "./context.ts";
 
 /**
  * External callback to clear logger cache (set by logger.ts to avoid circular imports).
@@ -167,6 +171,7 @@ export const reset = async (): Promise<void> => {
   clearLoggerCacheCallback?.();
   setContextStorage(undefined);
   setCategoryPrefixStorage(undefined);
+  clearDefaultStorages();
 };
 
 /**
@@ -191,6 +196,7 @@ export const resetSync = (): void => {
   clearLoggerCacheCallback?.();
   setContextStorage(undefined);
   setCategoryPrefixStorage(undefined);
+  clearDefaultStorages();
 };
 
 /**

@@ -24,6 +24,9 @@ export function processFile() {}
 - Document architectural decisions with ADRs including trade-offs
 - Write automated tests with CI (target 80%+ coverage for critical paths)
 - Use naming conventions: PascalCase for components, camelCase for utilities
+- Hexagonal architecture: domain + ports together, adapters separate
+- Explicit composition only: import adapters directly, pass as parameters (no
+  magic config strings, no convenience factories)
 
 ## References
 

@@ -11,8 +11,7 @@
  * @module
  */
 
-import * as posix from "@std/path/posix";
-import * as fs from "@std/fs";
+import { runtime } from "@eser/standards/runtime";
 import type {
   FontFile,
   FontOptimizationOptions,
@@ -51,12 +50,12 @@ export async function downloadFont(
     ? urlFilename
     : `${urlFilename}.woff2`;
 
-  const localPath = posix.join(outputDir, filename);
+  const localPath = runtime.path.join(outputDir, filename);
 
   // Download and save font file
   const fontData = await response.arrayBuffer();
-  await fs.ensureDir(outputDir);
-  await Deno.writeFile(localPath, new Uint8Array(fontData));
+  await runtime.fs.ensureDir(outputDir);
+  await runtime.fs.writeFile(localPath, new Uint8Array(fontData));
 
   // Determine format from extension
   const format = filename.endsWith(".woff2")
@@ -261,7 +260,7 @@ export async function optimizeGoogleFonts(
   let totalSize = 0;
   for (const file of fontFiles) {
     try {
-      const stat = await Deno.stat(file.localPath);
+      const stat = await runtime.fs.stat(file.localPath);
       totalSize += stat.size;
     } catch {
       // Ignore stat errors

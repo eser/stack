@@ -1,6 +1,6 @@
 {
   "name": "@eser/bundler",
-  "version": "4.0.19",
+  "version": "4.0.20",
   "exports": {
     ".": "./mod.ts",
     "./types": "./types.ts",
@@ -14,12 +14,10 @@
     "./css/fonts": "./css/fonts.ts"
   },
   "imports": {
-    "@eser/crypto": "jsr:@eser/crypto@^4.0.16",
     "@std/assert": "jsr:@std/assert@^1.0.16",
     "@std/encoding": "jsr:@std/encoding@^1.0.10",
     "@std/fmt": "jsr:@std/fmt@^1.0.8",
-    "@std/fs": "jsr:@std/fs@^1.0.18",
-    "@std/path": "jsr:@std/path@^1.1.4",
-    "lightningcss": "npm:lightningcss@^1.29.1"
+    "@std/fs": "jsr:@std/fs@^1.0.21",
+    "lightningcss": "npm:lightningcss@^1.30.2"
   }
 }

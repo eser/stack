@@ -1,6 +1,6 @@
 {
   "name": "@eser/shell",
-  "version": "4.0.19",
+  "version": "4.0.20",
   "exports": {
     ".": "./mod.ts",
     "./completions": "./completions/mod.ts",
@@ -10,7 +10,6 @@
     "./formatting": "./formatting/mod.ts"
   },
   "imports": {
-    "@std/cli": "jsr:@std/cli@^1.0.25",
-    "@std/path": "jsr:@std/path@^1.1.4"
+    "@std/cli": "jsr:@std/cli@^1.0.25"
   }
 }

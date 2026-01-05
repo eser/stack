@@ -235,3 +235,128 @@ Incorrect:
 - No date/status in headers
 - Vague filenames like `notes.md` or `stuff.md`
 - Missing code examples
+
+---
+
+## Hexagonal Architecture (Double-Layered)
+
+Scope: All projects with external dependencies
+
+Rule: Use double-layered hexagonal architecture. Domain layer contains both
+business logic AND port interfaces/types together (no separate ports directory).
+Adapters implement domain interfaces. Composition happens at call site via
+explicit imports.
+
+**Structure:**
+
+```
+package/
+├── domain/                    # Business logic + port interfaces
+│   ├── mod.ts                 # Re-exports all domain types
+│   ├── bundler.ts             # Bundler interface + BundleData type
+│   ├── framework-plugin.ts    # FrameworkPlugin interface + related types
+│   └── build-cache.ts         # BuildCache interface + implementation
+│
+├── adapters/                  # All adapter implementations
+│   ├── react/                 # implements FrameworkPlugin
+│   ├── tailwindcss/           # implements CssPlugin
+│   ├── lightningcss/          # implements CssTransformer
+│   └── prebuilt-bundler/      # implements Bundler
+│
+└── mod.ts                     # Main entry, exports bundle function
+```
+
+**Composition via Explicit Imports:**
+
+Correct:
+
+```typescript
+// User explicitly imports what they need
+import { bundle } from "@eser/laroux-bundler";
+import { reactPlugin } from "@eser/laroux-bundler/adapters/react";
+import { tailwindPlugin } from "@eser/laroux-bundler/adapters/tailwindcss";
+import { PrebuiltBundler } from "@eser/laroux-bundler/adapters/prebuilt-bundler";
+
+// Pass adapters as parameters
+await bundle(config, {
+  framework: reactPlugin,
+  css: tailwindPlugin,
+  bundler: new PrebuiltBundler(bundlerConfig),
+});
+```
+
+Incorrect:
+
+```typescript
+// Magic config strings - avoid
+const config = {
+  framework: "react",  // String-based selection
+  css: "tailwindcss",
+  bundler: "prebuilt",
+};
+await bundle(config);  // Dynamic imports inside
+
+// Convenience factory functions - avoid
+const plugins = await createReactTailwindPlugins();  // Hides adapter selection
+await bundle(config, plugins);                        // User doesn't control what loads
+
+// Separate ports directory - avoid
+import type { Plugin } from "./ports/plugin.ts";  // Don't separate ports
+import { logic } from "./domain/logic.ts";        // from domain
+```
+
+**Why Avoid Convenience Factories:**
+
+- Hide which adapters are loaded (opaque dependency graph)
+- Require dynamic imports that break tree-shaking
+- Make it harder to swap individual adapters
+- Add unnecessary abstraction layer
+- Users should always know exactly what they're importing
+
+**Benefits:**
+
+- Tree-shaking works naturally (unused adapters not bundled)
+- Type-safe: TypeScript validates plugin interfaces at compile time
+- User controls exactly what gets loaded
+- Easy to swap adapters (Vue instead of React, UnoCSS instead of Tailwind)
+- No runtime magic or dynamic imports
+- Clear dependency graph
+
+**Domain Layer Design:**
+
+Domain files contain both interfaces and business logic:
+
+```typescript
+// domain/framework-plugin.ts
+export type ClientComponent = {
+  filePath: string;
+  relativePath: string;
+  exportNames: string[];
+};
+
+export type FrameworkPlugin = {
+  name: string;
+  analyzeClientComponents?: (srcDir: string) => Promise<ClientComponent[]>;
+  transformClientComponents?: (components: ClientComponent[]) => Promise<void>;
+};
+
+// Noop implementation for when no framework is configured
+export const noopPlugin: FrameworkPlugin = {
+  name: "noop",
+  analyzeClientComponents: () => Promise.resolve([]),
+};
+```
+
+**Adapter Implementation:**
+
+```typescript
+// adapters/react/plugin.ts
+import type { FrameworkPlugin } from "../../domain/framework-plugin.ts";
+
+export const reactPlugin: FrameworkPlugin = {
+  name: "react",
+  analyzeClientComponents: async (srcDir) => {
+    // React-specific implementation
+  },
+};
+```

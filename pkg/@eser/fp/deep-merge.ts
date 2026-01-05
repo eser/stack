@@ -22,21 +22,36 @@ export class DeepMergeError extends Error {
 /**
  * Options for deep merge operations.
  */
-export interface DeepMergeOptions {
+export type DeepMergeOptions = {
   /**
    * Maximum recursion depth. Defaults to DEEP_MERGE_DEFAULT_MAX_DEPTH (100).
    * Set to Infinity to disable depth checking (not recommended).
    */
   maxDepth?: number;
-}
+
+  /**
+   * When false (default), source properties that are `undefined` are skipped,
+   * preserving the destination value. This matches lodash's _.merge behavior
+   * and is ideal for merging user config into defaults.
+   *
+   * When true, `undefined` values in source will override destination values.
+   *
+   * @default false
+   */
+  noSkipUndefined?: boolean;
+};
 
 /**
  * Deeply merges two objects, recursively merging nested objects.
  * Properties from `other` override properties from `instance` at the same path.
  * For nested objects, the merge is recursive rather than a simple override.
  *
+ * By default (matching lodash's _.merge behavior), source properties that are
+ * `undefined` are skipped, preserving the destination value. This is ideal for
+ * merging user config (with optional properties) into defaults.
+ *
  * @param instance - The base object to merge into
- * @param other - The object to merge from (its values take precedence)
+ * @param other - The object to merge from (its values take precedence). Can be undefined/null.
  * @param options - Optional configuration for the merge operation
  * @returns A new object with merged properties from both inputs
  * @throws {DeepMergeError} If a circular reference is detected or max depth is exceeded
@@ -48,17 +63,46 @@ export interface DeepMergeOptions {
  * const result = deepMerge(base, override);
  * // result = { a: { b: 10, c: 2 } }
  * ```
+ *
+ * @example
+ * ```typescript
+ * // Config merging - undefined values are skipped by default
+ * const defaults = { port: 8000, host: "localhost" };
+ * const userConfig = { port: undefined, host: "0.0.0.0" };
+ * const result = deepMerge(defaults, userConfig);
+ * // result = { port: 8000, host: "0.0.0.0" }
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Undefined source returns instance unchanged
+ * const defaults = { port: 8000 };
+ * const result = deepMerge(defaults, undefined);
+ * // result = { port: 8000 }
+ * ```
  */
 export const deepMerge = <
   T1 extends ObjectType,
-  T2 extends ObjectType,
-  TR extends T1 & T2,
+  T2 extends ObjectType | undefined | null,
+  TR extends T2 extends ObjectType ? T1 & T2 : T1,
 >(
   instance: T1,
   other: T2,
   options?: DeepMergeOptions,
 ): TR => {
+  // Early return if other is undefined or null - return a shallow copy of instance
+  if (other === undefined || other === null) {
+    // Still need to deep copy to maintain immutability
+    const Type = instance.constructor as { new (): TR };
+    const result = new Type();
+    for (const key of Object.keys(instance)) {
+      (result as Record<string, unknown>)[key] = instance[key];
+    }
+    return result;
+  }
+
   const maxDepth = options?.maxDepth ?? DEEP_MERGE_DEFAULT_MAX_DEPTH;
+  const noSkipUndefined = options?.noSkipUndefined ?? false;
   const seenInstance = new WeakSet<object>();
   const seenOther = new WeakSet<object>();
 
@@ -119,12 +163,24 @@ export const deepMerge = <
 
         processedKeys.add(itemKey);
 
+        // Skip undefined values in source unless noSkipUndefined is true
+        const shouldSkipOther = otherKeyExists &&
+          otherValue === undefined &&
+          !noSkipUndefined;
+
         if (
           recordValue instanceof Object && recordValue.constructor !== Array
         ) {
           let mergedValue: unknown;
 
-          if (
+          if (shouldSkipOther) {
+            // Skip undefined - process instance value for circular ref detection
+            mergedValue = mergeRecursive(
+              recordValue,
+              {} as U2,
+              currentDepth + 1,
+            );
+          } else if (
             otherKeyExists && otherValue instanceof Object &&
             otherValue.constructor !== Array
           ) {
@@ -148,7 +204,12 @@ export const deepMerge = <
 
           result[itemKey] = mergedValue;
         } else {
-          result[itemKey] = otherKeyExists ? otherValue : recordValue;
+          // For primitives: use other value unless it should be skipped
+          if (shouldSkipOther) {
+            result[itemKey] = recordValue;
+          } else {
+            result[itemKey] = otherKeyExists ? otherValue : recordValue;
+          }
         }
       }
 
@@ -165,6 +226,11 @@ export const deepMerge = <
         }
 
         const otherValue = oth[itemKey];
+
+        // Skip undefined values unless noSkipUndefined is true
+        if (otherValue === undefined && !noSkipUndefined) {
+          continue;
+        }
 
         // For nested objects in 'other', we need to check for circular references
         if (

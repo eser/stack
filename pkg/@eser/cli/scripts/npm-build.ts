@@ -15,7 +15,7 @@
  * @module
  */
 
-import * as path from "@std/path";
+import { runtime } from "@eser/standards/runtime";
 import { exec } from "@eser/shell/exec";
 
 type PackageJson = {
@@ -39,10 +39,10 @@ const main = async (): Promise<void> => {
     throw new Error("Cannot determine script directory");
   }
 
-  const pkgDir = path.dirname(scriptDir);
-  const distDir = path.join(pkgDir, "dist");
-  const mainTsPath = path.join(pkgDir, "main.ts");
-  const bundlePath = path.join(distDir, "eser.js");
+  const pkgDir = runtime.path.dirname(scriptDir);
+  const distDir = runtime.path.join(pkgDir, "dist");
+  const mainTsPath = runtime.path.join(pkgDir, "main.ts");
+  const bundlePath = runtime.path.join(distDir, "eser.js");
 
   // deno-lint-ignore no-console
   console.log("Building @eser/cli for npm...\n");
@@ -87,7 +87,7 @@ const main = async (): Promise<void> => {
 
   // Read version from source package.json
   const sourcePackageJson = JSON.parse(
-    await Deno.readTextFile(path.join(pkgDir, "package.json")),
+    await Deno.readTextFile(runtime.path.join(pkgDir, "package.json")),
   ) as SourcePackageJson;
 
   const pkg: PackageJson = {
@@ -101,7 +101,7 @@ const main = async (): Promise<void> => {
     },
   };
 
-  const distPackageJsonPath = path.join(distDir, "package.json");
+  const distPackageJsonPath = runtime.path.join(distDir, "package.json");
   await Deno.writeTextFile(
     distPackageJsonPath,
     JSON.stringify(pkg, null, 2) + "\n",
@@ -117,8 +117,8 @@ const main = async (): Promise<void> => {
   // Step 5: Copy README.md
   // deno-lint-ignore no-console
   console.log("5. Copying README.md...");
-  const readmePath = path.join(pkgDir, "README.md");
-  const distReadmePath = path.join(distDir, "README.md");
+  const readmePath = runtime.path.join(pkgDir, "README.md");
+  const distReadmePath = runtime.path.join(distDir, "README.md");
   await Deno.copyFile(readmePath, distReadmePath);
 
   // deno-lint-ignore no-console

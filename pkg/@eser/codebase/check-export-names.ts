@@ -22,8 +22,7 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import * as pathPosix from "@std/path/posix";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/runtime";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 
 /**
@@ -93,7 +92,7 @@ const isKebabCase = (str: string, ignoreWords: string[] = []): boolean => {
     }
 
     // Strip file extension using path helpers (language-agnostic)
-    const ext = pathPosix.extname(cleanSegment);
+    const ext = runtime.path.extname(cleanSegment);
     if (ext.length > 0) {
       cleanSegment = cleanSegment.slice(0, -ext.length);
     }
@@ -198,7 +197,7 @@ const main = async (): Promise<void> => {
       console.log(`    Export: ${violation.exportPath}`);
       console.log(`    Suggestion: ${violation.suggestion}`);
     }
-    standardsRuntime.runtime.process.exit(1);
+    runtime.process.exit(1);
   } else {
     console.log(fmtColors.green("\nAll export names follow conventions."));
   }

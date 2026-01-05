@@ -8,8 +8,6 @@
  * @module
  */
 
-import * as fs from "@std/fs";
-import * as path from "@std/path";
 import { exec } from "@eser/shell/exec";
 import { runtime } from "@eser/standards/runtime";
 import { fetchTemplate } from "./providers/mod.ts";
@@ -40,9 +38,9 @@ export const scaffold = async (
   } = options;
 
   // Resolve target directory to absolute path
-  const absoluteTargetDir = path.isAbsolute(targetDir)
+  const absoluteTargetDir = runtime.path.isAbsolute(targetDir)
     ? targetDir
-    : path.join(runtime.process.cwd(), targetDir);
+    : runtime.path.join(runtime.process.cwd(), targetDir);
 
   // Check if target directory exists and has content
   try {
@@ -65,7 +63,7 @@ export const scaffold = async (
   }
 
   // Ensure target directory exists
-  await fs.ensureDir(absoluteTargetDir);
+  await runtime.fs.ensureDir(absoluteTargetDir);
 
   // Fetch template from provider
   await fetchTemplate(specifier, absoluteTargetDir);

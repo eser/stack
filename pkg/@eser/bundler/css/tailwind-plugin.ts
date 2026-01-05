@@ -35,7 +35,7 @@
  * ```
  */
 
-import * as posix from "@std/path/posix";
+import { runtime } from "@eser/standards/runtime";
 
 // Lazily loaded Tailwind dependencies
 let tailwindNode: typeof import("npm:@tailwindcss/node@4") | null = null;
@@ -238,7 +238,7 @@ export function createTailwindRoot(
         processedContent = `@reference "tailwindcss";\n\n${content}`;
       }
 
-      const inputBase = posix.dirname(posix.resolve(id));
+      const inputBase = runtime.path.dirname(runtime.path.resolve(id));
       const dependencies: string[] = [];
 
       // Initialize or reinitialize compiler if dependencies changed

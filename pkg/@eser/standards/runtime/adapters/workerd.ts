@@ -55,6 +55,7 @@ const createWorkerdFs = (): RuntimeFs => {
     stat: throwNotAvailable,
     lstat: throwNotAvailable,
     mkdir: throwNotAvailable,
+    ensureDir: throwNotAvailable,
     remove: throwNotAvailable,
     readDir: () => {
       throw new RuntimeCapabilityError("fs", "workerd");

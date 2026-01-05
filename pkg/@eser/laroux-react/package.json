@@ -1,0 +1,21 @@
+{
+  "name": "@eser/laroux-react",
+  "version": "4.0.20",
+  "description": "React adapter for the laroux.js framework",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./client": "./client.ts",
+    "./protocol": "./protocol.ts",
+    "./client/bootstrap": "./client/bootstrap/index.ts"
+  },
+  "dependencies": {
+    "@eser/laroux": "workspace:*",
+    "@eser/laroux-bundler": "workspace:*",
+    "@eser/logging": "workspace:*",
+    "@eser/standards": "workspace:*",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  }
+}

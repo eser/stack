@@ -1,0 +1,58 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+/**
+ * @eser/laroux-bundler
+ *
+ * Framework-agnostic build system with hexagonal architecture.
+ *
+ * ## Architecture
+ *
+ * - **Domain**: Core interfaces and business logic (`./domain/mod.ts`)
+ * - **Adapters**: Framework/tool implementations (`./adapters/mod.ts`)
+ *
+ * ## Usage - Explicit Composition
+ *
+ * Import adapters explicitly and pass to build functions.
+ * This ensures tree-shaking works, dependencies are visible, and types are checked.
+ *
+ * ```typescript
+ * import { createBuildContext, build } from "@eser/laroux-bundler";
+ * import { reactPlugin } from "@eser/laroux-bundler/adapters/react";
+ * import { createTailwindPlugin } from "@eser/laroux-bundler/adapters/tailwindcss";
+ *
+ * const context = createBuildContext(config, {
+ *   framework: reactPlugin,
+ *   css: createTailwindPlugin({ globalCssPath: "src/styles/global.css" }),
+ *   bundlerBackend: "deno-bundler",
+ * });
+ *
+ * await build(context);
+ * ```
+ *
+ * ## Available Adapters
+ *
+ * - `@eser/laroux-bundler/adapters/react` - React Server Components
+ * - `@eser/laroux-bundler/adapters/tailwindcss` - Tailwind CSS v4
+ * - `@eser/laroux-bundler/adapters/lightningcss` - LightningCSS processor
+ * - `@eser/laroux-bundler/adapters/sharp` - Image optimization
+ * - `@eser/laroux-bundler/adapters/fonts` - Font optimization
+ * - `@eser/laroux-bundler/adapters/runtime-bundler` - Dev mode runtime bundler
+ * - `@eser/laroux-bundler/adapters/prebuilt-bundler` - Production prebuilt bundler
+ */
+
+// Re-export domain types and interfaces
+export * from "./domain/mod.ts";
+
+// Re-export build system
+export {
+  build,
+  type BuildContext,
+  type BuildPlugins,
+  type BuildResult,
+  createBuildContext,
+  ensureBuildIsReady,
+  watch,
+} from "./system.ts";
+
+// Re-export configuration
+export * from "./config.ts";
+export * from "./types.ts";

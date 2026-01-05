@@ -8,6 +8,7 @@ import {
   createAotSnapshotState,
   loadAotSnapshot,
 } from "./aot-snapshot.ts";
+import { getBuildId } from "./build-id.ts";
 
 // ============================================================================
 // Test helpers
@@ -287,7 +288,6 @@ Deno.test("loadAotSnapshot sets build ID from snapshot", async () => {
     assert.assertExists(snapshot);
 
     // The build ID should be set - we can verify by checking getBuildId
-    const { getBuildId } = await import("./build-id.ts");
     const buildId = await getBuildId();
     assert.assertEquals(buildId, expectedBuildId);
   } finally {

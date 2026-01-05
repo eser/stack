@@ -80,6 +80,17 @@ export const setCategoryPrefixStorage = (
 };
 
 /**
+ * Clears default storage instances to allow clean process exit.
+ *
+ * AsyncLocalStorage keeps the event loop alive even when idle.
+ * Call this during reset() to ensure the process can exit cleanly.
+ */
+export const clearDefaultStorages = (): void => {
+  defaultContextStorage = undefined;
+  defaultCategoryPrefixStorage = undefined;
+};
+
+/**
  * Gets the active context storage.
  */
 export const getContextStorage = (): ContextLocalStorage | undefined => {

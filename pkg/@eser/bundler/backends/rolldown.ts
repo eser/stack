@@ -101,6 +101,68 @@ export interface RolldownBundlerBackendOptions {
 }
 
 /**
+ * Create a define plugin for Rolldown.
+ * Replaces global identifiers with constant values (like esbuild's define).
+ *
+ * @param defines - Map of identifiers to replacement values
+ * @returns Rollup-compatible plugin
+ */
+function createDefinePlugin(defines: Record<string, string>): RollupPlugin {
+  // Build regex pattern to match all define keys
+  // Escape special regex characters in keys and sort by length (longest first)
+  // to ensure longer matches are tried before shorter ones
+  const keys = Object.keys(defines).sort((a, b) => b.length - a.length);
+  if (keys.length === 0) {
+    return { name: "define" };
+  }
+
+  const escapedKeys = keys.map((key) =>
+    key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  );
+
+  // Match whole words only using word boundaries for simple identifiers
+  // For member expressions like process.env.NODE_ENV, match the full expression
+  const pattern = new RegExp(
+    `\\b(${escapedKeys.join("|")})\\b`,
+    "g",
+  );
+
+  return {
+    name: "define",
+    transform(code: string, id: string) {
+      // Skip node_modules for performance (they should already be built)
+      if (id.includes("node_modules")) {
+        return null;
+      }
+
+      // Check if any define key exists in the code before doing replacements
+      let hasMatch = false;
+      for (const key of keys) {
+        if (code.includes(key)) {
+          hasMatch = true;
+          break;
+        }
+      }
+
+      if (!hasMatch) {
+        return null;
+      }
+
+      // Perform replacements
+      const newCode = code.replace(pattern, (match) => {
+        return defines[match] ?? match;
+      });
+
+      if (newCode === code) {
+        return null;
+      }
+
+      return { code: newCode };
+    },
+  };
+}
+
+/**
  * Rolldown bundler backend implementation.
  *
  * Uses the Rolldown bundler via npm/WASM.
@@ -119,11 +181,20 @@ export class RolldownBundlerBackend implements Bundler {
     try {
       const rolldown = await this.loadRolldown();
 
+      // Build plugins array, including define plugin if defines are provided
+      const plugins = this.adaptPlugins(config.plugins);
+      if (
+        config.define !== undefined && Object.keys(config.define).length > 0
+      ) {
+        plugins.push(
+          createDefinePlugin(config.define as Record<string, string>),
+        );
+      }
+
       const bundle = await rolldown.rolldown({
         input: config.entrypoints as Record<string, string>,
         external: config.external as string[] | undefined,
-        plugins: this.adaptPlugins(config.plugins),
-        define: config.define as Record<string, string> | undefined,
+        plugins,
       });
 
       const sourcemapValue: boolean | "inline" | undefined =
@@ -644,7 +715,8 @@ interface RolldownInputOptions {
   input: Record<string, string>;
   external?: string[];
   plugins?: RollupPlugin[];
-  define?: Record<string, string>;
+  // Note: `define` is not supported as an input option in Rolldown.
+  // Use a plugin like @rollup/plugin-replace instead.
 }
 
 interface RolldownOutputOptions {

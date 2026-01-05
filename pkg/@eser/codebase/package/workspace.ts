@@ -1,7 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as posix from "@std/path/posix";
-import * as fs from "@std/fs/expand-glob";
+import { expandGlob } from "@std/fs/expand-glob";
 import { runtime } from "@eser/standards/runtime";
 import type { PackageConfig, WorkspaceModule } from "./types.ts";
 import { getBaseDir, load, PackageLoadError, tryLoad } from "./loader.ts";
@@ -20,7 +19,9 @@ export const loadPackageConfig = async (
     return await load({ baseDir: path });
   } catch (e) {
     if (e instanceof PackageLoadError) {
-      console.log(`No package config file found in ${posix.resolve(path)}`);
+      console.log(
+        `No package config file found in ${runtime.path.resolve(path)}`,
+      );
       runtime.process.exit(1);
     }
     throw e;
@@ -37,13 +38,13 @@ const expandWorkspacePaths = async (
   const paths: string[] = [];
 
   for (const pattern of patterns) {
-    const fullPattern = posix.join(root, pattern);
+    const fullPattern = runtime.path.join(root, pattern);
 
     // Check if pattern contains glob characters
     if (pattern.includes("*") || pattern.includes("?")) {
       // Expand glob pattern
       for await (
-        const entry of fs.expandGlob(fullPattern, { includeDirs: true })
+        const entry of expandGlob(fullPattern, { includeDirs: true })
       ) {
         if (entry.isDirectory) {
           paths.push(entry.path);

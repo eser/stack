@@ -6,7 +6,6 @@
  * @module
  */
 
-import * as path from "@std/path";
 import * as yaml from "@std/yaml";
 import { NotFoundError, runtime } from "@eser/standards/runtime";
 import type { ProjectConfig } from "./types.ts";
@@ -26,7 +25,7 @@ export const loadProjectConfig = async (
   dir: string,
 ): Promise<ProjectConfig | null> => {
   for (const filename of CONFIG_FILENAMES) {
-    const filepath = path.join(dir, filename);
+    const filepath = runtime.path.join(dir, filename);
 
     try {
       const content = await runtime.fs.readTextFile(filepath);
@@ -55,7 +54,7 @@ export const getProjectConfigPath = async (
   dir: string,
 ): Promise<string | null> => {
   for (const filename of CONFIG_FILENAMES) {
-    const filepath = path.join(dir, filename);
+    const filepath = runtime.path.join(dir, filename);
 
     try {
       await runtime.fs.stat(filepath);

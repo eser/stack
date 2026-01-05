@@ -1,7 +1,10 @@
 {
   "nodeModulesDir": "auto",
   "unstable": [
-    "temporal"
+    "temporal",
+    "unsafe-proto",
+    "sloppy-imports",
+    "bundle"
   ],
   "lint": {
     "rules": {
@@ -37,6 +40,7 @@
     "docs/",
     "etc/temp/",
     "node_modules/",
-    "pkg/@eser/cli/dist/"
+    "pkg/@eser/cli/dist/",
+    "etc/templates/laroux-app/dist/"
   ]
 }

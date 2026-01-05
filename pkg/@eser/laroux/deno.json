@@ -1,0 +1,22 @@
+{
+  "name": "@eser/laroux",
+  "version": "4.0.20",
+  "exports": {
+    ".": "./mod.ts",
+    "./navigation": "./navigation/mod.ts",
+    "./image": "./image/mod.ts",
+    "./router": "./router/mod.ts",
+    "./config": "./config/mod.ts"
+  },
+  "publish": {
+    "include": [
+      "mod.ts",
+      "navigation/**/*.ts",
+      "image/**/*.ts",
+      "router/**/*.ts",
+      "config/**/*.ts",
+      "README.md",
+      "LICENSE"
+    ]
+  }
+}

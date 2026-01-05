@@ -268,3 +268,91 @@ Deno.test("deepMerge() should handle arrays as values (not merged)", () => {
   // Arrays should be replaced, not merged
   assert.assertEquals(result.arr, [4, 5]);
 });
+
+// ============================================================================
+// Undefined Value Handling Tests
+// ============================================================================
+
+Deno.test("deepMerge() should skip undefined values by default", () => {
+  const defaults = { port: 8000, host: "localhost", debug: false };
+  const userConfig: Partial<typeof defaults> = {
+    port: undefined,
+    host: "0.0.0.0",
+    debug: undefined,
+  };
+
+  const result = deepMerge(defaults, userConfig);
+
+  // undefined values should be skipped, keeping defaults
+  assert.assertEquals(result.port, 8000);
+  assert.assertEquals(result.host, "0.0.0.0");
+  assert.assertEquals(result.debug, false);
+});
+
+Deno.test("deepMerge() should skip undefined in nested objects by default", () => {
+  const defaults = { server: { port: 8000, host: "localhost" } };
+  const userConfig: { server: Partial<typeof defaults.server> } = {
+    server: { port: undefined, host: "0.0.0.0" },
+  };
+
+  const result = deepMerge(defaults, userConfig);
+
+  assert.assertEquals(result.server.port, 8000);
+  assert.assertEquals(result.server.host, "0.0.0.0");
+});
+
+Deno.test("deepMerge() should not add undefined-only keys from source by default", () => {
+  const obj1 = { a: 1 };
+  const obj2: Partial<typeof obj1> & { b?: undefined } = { a: 1, b: undefined };
+
+  const result = deepMerge(obj1, obj2);
+
+  // b should not be added since it's undefined
+  assert.assertEquals(result, { a: 1 });
+  assert.assertFalse("b" in result);
+});
+
+Deno.test("deepMerge() with noSkipUndefined: true should override with undefined", () => {
+  const defaults = { port: 8000, host: "localhost" };
+  const userConfig: Partial<typeof defaults> = {
+    port: undefined,
+    host: "0.0.0.0",
+  };
+
+  const result = deepMerge(defaults, userConfig, { noSkipUndefined: true });
+
+  // undefined should override the default
+  assert.assertEquals(result.port, undefined);
+  assert.assertEquals(result.host, "0.0.0.0");
+});
+
+Deno.test("deepMerge() with noSkipUndefined: true should add undefined keys", () => {
+  const obj1 = { a: 1 };
+  // deno-lint-ignore no-explicit-any
+  const obj2: any = { b: undefined };
+
+  const result = deepMerge(obj1, obj2, { noSkipUndefined: true });
+
+  assert.assertEquals(result.a, 1);
+  assert.assert("b" in result);
+  // deno-lint-ignore no-explicit-any
+  assert.assertEquals((result as any).b, undefined);
+});
+
+Deno.test("deepMerge() should return copy of instance when other is undefined", () => {
+  const defaults = { port: 8000, nested: { host: "localhost" } };
+
+  const result = deepMerge(defaults, undefined);
+
+  assert.assertEquals(result, defaults);
+  assert.assertNotStrictEquals(result, defaults); // Should be a copy
+});
+
+Deno.test("deepMerge() should return copy of instance when other is null", () => {
+  const defaults = { port: 8000, nested: { host: "localhost" } };
+
+  const result = deepMerge(defaults, null);
+
+  assert.assertEquals(result, defaults);
+  assert.assertNotStrictEquals(result, defaults); // Should be a copy
+});

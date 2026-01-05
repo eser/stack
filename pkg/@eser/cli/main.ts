@@ -27,6 +27,7 @@ import {
   type CommandLike,
 } from "@eser/shell/args";
 import { codebaseCommand } from "./commands/codebase/mod.ts";
+import { larouxCommand } from "./commands/laroux/mod.ts";
 import { systemCommand } from "./commands/system.ts";
 import { installHandler, updateHandler } from "./commands/handlers/mod.ts";
 import config from "./package.json" with { type: "json" };
@@ -86,6 +87,7 @@ const versionCommand = new Command("version")
 
 const commands: Record<string, CommandHandler> = {
   codebase: codebaseCommand,
+  laroux: wrapCommand(larouxCommand),
   system: wrapCommand(systemCommand),
   install: wrapHandler(installHandler, "install"),
   update: wrapHandler(updateHandler, "update"),
@@ -101,6 +103,10 @@ const showHelp = (): void => {
   console.log("Commands:");
   // deno-lint-ignore no-console
   console.log("  codebase    Codebase management tools");
+  // deno-lint-ignore no-console
+  console.log(
+    "  laroux      laroux.js framework commands (init, dev, build, serve)",
+  );
   // deno-lint-ignore no-console
   console.log("  system      Commands related with this CLI");
   // deno-lint-ignore no-console

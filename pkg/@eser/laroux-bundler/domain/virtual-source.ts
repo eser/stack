@@ -1,0 +1,278 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+/**
+ * Virtual Source Directory Handler
+ *
+ * Creates a temporary copy of source files for bundling.
+ * This allows CSS module imports to be rewritten without modifying original source.
+ *
+ * The virtual source is created in dist/_bundle_src/ and cleaned up after bundling.
+ */
+
+import { runtime } from "@eser/standards/runtime";
+import { copy, emptyDir, ensureDir, walk } from "@std/fs"; // emptyDir, copy, walk not available in runtime
+import * as logging from "@eser/logging";
+
+// Pattern to ignore node_modules and hidden files
+const IGNORE_PATTERN = /(?:node_modules|\/\.|^\.|\\\.)/;
+
+const vsLogger = logging.logger.getLogger(["laroux-bundler", "virtual-source"]);
+
+export const VIRTUAL_SRC_DIR = "_bundle_src";
+
+export interface VirtualSourceOptions {
+  projectRoot: string;
+  distDir: string;
+  srcDir: string;
+  /** Changed files for incremental update (absolute paths) */
+  changedFiles?: Set<string>;
+}
+
+export interface VirtualSourceResult {
+  virtualSrcDir: string;
+  cleanup: () => Promise<void>;
+}
+
+/**
+ * Create a virtual source directory by copying src/ to dist/_bundle_src/src/
+ *
+ * This creates an isolated copy where CSS imports can be rewritten
+ * without modifying the original source files.
+ *
+ * The virtual source maintains the same directory structure as the original project:
+ * - dist/_bundle_src/src/app/...  (mirrors src/app/...)
+ *
+ * This allows functions that expect projectRoot/src/ to work correctly.
+ *
+ * @param options - Virtual source options
+ * @returns Virtual source result with cleanup function (virtualSrcDir is the virtual "project root")
+ */
+export async function createVirtualSource(
+  options: VirtualSourceOptions,
+): Promise<VirtualSourceResult> {
+  const { projectRoot, distDir, srcDir, changedFiles } = options;
+  // virtualSrcDir acts as the "project root" for the virtual source
+  const virtualSrcDir = runtime.path.resolve(distDir, VIRTUAL_SRC_DIR);
+  // virtualSrcSubdir is where files are actually copied (maintains src/ structure)
+  const virtualSrcSubdir = runtime.path.resolve(virtualSrcDir, "src");
+
+  vsLogger.debug(`Creating virtual source: ${virtualSrcDir}`);
+  vsLogger.debug(`  Virtual src subdir: ${virtualSrcSubdir}`);
+
+  // Check if virtual source already exists for incremental update
+  const virtualSourceExists = await runtime.fs.exists(virtualSrcSubdir);
+
+  if (changedFiles && changedFiles.size > 0 && virtualSourceExists) {
+    // INCREMENTAL MODE: Only update changed files
+    vsLogger.debug(`Incremental update: ${changedFiles.size} file(s) changed`);
+    await incrementalCopySourceFiles(changedFiles, srcDir, virtualSrcSubdir);
+    vsLogger.debug(
+      `Virtual source updated incrementally: ${changedFiles.size} file(s)`,
+    );
+  } else {
+    // FULL COPY MODE: First build or no changed files specified
+    // Clean any existing virtual source
+    try {
+      await emptyDir(virtualSrcDir);
+    } catch {
+      // Directory may not exist yet
+    }
+
+    // Copy src/ to virtual source's src/ subdirectory
+    // This maintains the same structure as original project
+    await copySourceFiles(srcDir, virtualSrcSubdir, projectRoot);
+    vsLogger.debug(`Virtual source created: ${virtualSrcDir}`);
+  }
+
+  return {
+    virtualSrcDir,
+    cleanup: async () => {
+      vsLogger.debug(`Cleaning up virtual source: ${virtualSrcDir}`);
+      try {
+        await Deno.remove(virtualSrcDir, { recursive: true });
+        vsLogger.debug("Virtual source cleaned up");
+      } catch (error) {
+        vsLogger.warn("Failed to clean up virtual source:", { error });
+      }
+    },
+  };
+}
+
+/**
+ * Incrementally copy only changed source files to virtual directory
+ * Used for fast rebuilds in watch mode
+ */
+async function incrementalCopySourceFiles(
+  changedFiles: Set<string>,
+  srcDir: string,
+  virtualDir: string,
+): Promise<void> {
+  const relevantExtensions = [
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".mts",
+    ".json",
+    ".css",
+  ];
+
+  let copiedCount = 0;
+  let deletedCount = 0;
+
+  for (const filePath of changedFiles) {
+    // Only process files within srcDir
+    if (!filePath.startsWith(srcDir)) {
+      continue;
+    }
+
+    // Check if file has relevant extension
+    const ext = runtime.path.extname(filePath);
+    if (!relevantExtensions.includes(ext)) {
+      continue;
+    }
+
+    // Calculate target path
+    const relativePath = runtime.path.relative(srcDir, filePath);
+    const targetPath = runtime.path.resolve(virtualDir, relativePath);
+
+    // Check if source file exists
+    try {
+      await Deno.stat(filePath);
+      // File exists - copy it
+      await ensureDir(runtime.path.dirname(targetPath));
+      await copy(filePath, targetPath, { overwrite: true });
+      copiedCount++;
+    } catch {
+      // File was deleted - remove from virtual source
+      try {
+        await Deno.remove(targetPath);
+        deletedCount++;
+      } catch {
+        // Target doesn't exist, that's fine
+      }
+    }
+  }
+
+  if (copiedCount > 0 || deletedCount > 0) {
+    vsLogger.debug(
+      `Incremental update: ${copiedCount} copied, ${deletedCount} deleted`,
+    );
+  }
+}
+
+/**
+ * Copy source files to virtual directory
+ * Preserves directory structure, only copies relevant files
+ */
+async function copySourceFiles(
+  srcDir: string,
+  virtualDir: string,
+  _projectRoot: string,
+): Promise<void> {
+  let copiedCount = 0;
+
+  // Extensions to include (including CSS modules)
+  const validExtensions = [
+    ".tsx",
+    ".ts",
+    ".jsx",
+    ".js",
+    ".mjs",
+    ".mts",
+    ".json",
+    ".css",
+  ];
+
+  // Use @std/fs walk to include all file types (walkFiles only supports JS files)
+  for await (const entry of walk(srcDir, { includeDirs: false })) {
+    // Check extension
+    const ext = runtime.path.extname(entry.path);
+    if (!validExtensions.includes(ext)) {
+      continue;
+    }
+
+    // Check ignore pattern
+    const relativePath = runtime.path.relative(srcDir, entry.path);
+    if (IGNORE_PATTERN.test(relativePath)) {
+      continue;
+    }
+
+    // Calculate target path
+    const targetPath = runtime.path.resolve(virtualDir, relativePath);
+
+    // Ensure directory exists
+    await runtime.fs.ensureDir(runtime.path.dirname(targetPath));
+
+    // Copy file
+    await copy(entry.path, targetPath);
+    copiedCount++;
+  }
+
+  vsLogger.debug(`Copied ${copiedCount} source file(s) to virtual source`);
+}
+
+/**
+ * Translate a path from original source to virtual source
+ *
+ * @param originalPath - Path in original src/ (e.g., /project/src/app/page.tsx)
+ * @param srcDir - Original src directory (e.g., /project/src)
+ * @param virtualSrcDir - Virtual "project root" (e.g., /project/dist/_bundle_src)
+ * @returns Path in virtual source (e.g., /project/dist/_bundle_src/src/app/page.tsx)
+ */
+export function translateToVirtualPath(
+  originalPath: string,
+  srcDir: string,
+  virtualSrcDir: string,
+): string {
+  const relativePath = runtime.path.relative(srcDir, originalPath);
+  // Files are in virtualSrcDir/src/ to maintain project structure
+  return runtime.path.resolve(virtualSrcDir, "src", relativePath);
+}
+
+/**
+ * Translate a path from virtual source back to original source
+ *
+ * @param virtualPath - Path in virtual source (e.g., /project/dist/_bundle_src/src/app/page.tsx)
+ * @param srcDir - Original src directory (e.g., /project/src)
+ * @param virtualSrcDir - Virtual "project root" (e.g., /project/dist/_bundle_src)
+ * @returns Path in original src/ (e.g., /project/src/app/page.tsx)
+ */
+export function translateFromVirtualPath(
+  virtualPath: string,
+  srcDir: string,
+  virtualSrcDir: string,
+): string {
+  // Files are in virtualSrcDir/src/
+  const virtualSrcSubdir = runtime.path.resolve(virtualSrcDir, "src");
+  const relativePath = runtime.path.relative(virtualSrcSubdir, virtualPath);
+  return runtime.path.resolve(srcDir, relativePath);
+}
+
+/**
+ * Translate client component paths to use virtual source
+ * Also updates relativePath to match the virtual source structure
+ */
+export function translateClientComponents<
+  T extends { filePath: string; relativePath: string },
+>(
+  components: T[],
+  srcDir: string,
+  virtualSrcDir: string,
+): T[] {
+  return components.map((component) => {
+    const newFilePath = translateToVirtualPath(
+      component.filePath,
+      srcDir,
+      virtualSrcDir,
+    );
+    // Update relativePath to include _bundle_src prefix
+    // Original: src/app/icon.tsx -> New: _bundle_src/src/app/icon.tsx
+    const newRelativePath = `${VIRTUAL_SRC_DIR}/${component.relativePath}`;
+    return {
+      ...component,
+      filePath: newFilePath,
+      relativePath: newRelativePath,
+    };
+  });
+}

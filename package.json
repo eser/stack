@@ -1,13 +1,14 @@
 {
   "name": "@eser/stack",
-  "version": "4.0.19",
+  "version": "4.0.20",
   "private": true,
   "type": "module",
   "workspaces": [
     "pkg/@eser/*",
     "pkg/@cool/*",
-    "test/apps/vanilla-app",
-    "test/apps/jsx-runtime-app"
+    "etc/templates/vanilla-app",
+    "etc/templates/jsx-runtime-app",
+    "etc/templates/laroux-app"
   ],
   "scripts": {
     "check:mod": "deno check ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts",

@@ -445,6 +445,53 @@ if (!array.length) {} // false for length 0
 if (user) {} // false for null, undefined, 0, ""
 ```
 
+### Iteration Over Optional Values
+
+Scope: JS/TS
+
+Rule: Use explicit undefined checks before iterating. Avoid nullish
+coalescing that creates empty objects just to iterate over nothing.
+
+Correct:
+
+```typescript
+const props: Record<string, unknown> | undefined = getProps();
+
+if (props !== undefined) {
+  for (const [key, value] of Object.entries(props)) {
+    process(key, value);
+  }
+}
+
+// Also acceptable for arrays
+if (items !== undefined) {
+  for (const item of items) {
+    handle(item);
+  }
+}
+```
+
+Incorrect:
+
+```typescript
+// Creates empty object just to iterate nothing
+for (const [key, value] of Object.entries(props ?? {})) {
+  process(key, value);
+}
+
+// Same issue with arrays
+for (const item of items ?? []) {
+  handle(item);
+}
+```
+
+Rationale:
+
+- More efficient: avoids creating temporary empty objects/arrays
+- More explicit: makes the conditional nature of iteration clear
+- More readable: intent is obvious at a glance
+- Better for debugging: easier to add logging or breakpoints
+
 ---
 
 ## Async

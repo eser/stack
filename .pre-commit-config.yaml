@@ -13,8 +13,8 @@ repos:
       - id: check-json
         exclude: |
           (?x)^(
-            test/apps/vite-app/tsconfig.app.json|
-            test/apps/cf-workers-app/tsconfig.json
+            etc/templates/vite-app/tsconfig.app.json|
+            etc/templates/cf-workers-app/tsconfig.json
           )$
       - id: check-merge-conflict
       - id: check-shebang-scripts-are-executable
@@ -34,8 +34,8 @@ repos:
         args: ["--autofix", "--no-ensure-ascii", "--no-sort-keys"]
         exclude: |
           (?x)^(
-            test/apps/vite-app/tsconfig.app.json|
-            test/apps/cf-workers-app/tsconfig.json
+            etc/templates/vite-app/tsconfig.app.json|
+            etc/templates/cf-workers-app/tsconfig.json
           )$
       - id: trailing-whitespace
 
@@ -96,6 +96,9 @@ repos:
             pkg/@eser/functions/README.md|
             pkg/@eser/http/README.md|
             pkg/@eser/jsx-runtime/README.md|
+            pkg/@eser/laroux-bundler/README.md|
+            pkg/@eser/laroux-react/README.md|
+            pkg/@eser/laroux-server/README.md|
             pkg/@eser/logging/README.md|
             pkg/@eser/parsing/README.md|
             pkg/@eser/primitives/README.md|
@@ -105,7 +108,7 @@ repos:
             pkg/@eser/writer/README.md|
             pkg/@cool/cli/README.md|
             pkg/@cool/lime/README.md|
-            test/apps/vite-app/README.md|
+            etc/templates/vite-app/README.md|
             Dockerfile|
             LICENSE|
             README.md

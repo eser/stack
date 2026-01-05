@@ -1,7 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as jsonc from "@std/jsonc";
-import * as posix from "@std/path/posix";
 import * as toml from "@std/toml";
 import * as yaml from "@std/yaml";
 import { runtime, searchFileHierarchy } from "@eser/standards/runtime";
@@ -56,7 +55,7 @@ export const locate = async (
 };
 
 export const getFileFormat = (filepath: string): primitives.FileFormat => {
-  const ext = posix.extname(filepath);
+  const ext = runtime.path.extname(filepath);
 
   if (ext === ".json") {
     return primitives.FileFormats.Json;

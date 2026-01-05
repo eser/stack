@@ -22,9 +22,8 @@
  * @module
  */
 
-import * as pathPosix from "@std/path/posix";
 import * as fmtColors from "@std/fmt/colors";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/runtime";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 
 /**
@@ -151,12 +150,12 @@ export const checkModExports = async (
   const missingExports: MissingExport[] = [];
 
   for (const pkg of packages) {
-    const modPath = pathPosix.join(pkg.path, "mod.ts");
+    const modPath = runtime.path.join(pkg.path, "mod.ts");
 
     // Check if mod.ts exists
     let modContent: string;
     try {
-      modContent = await standardsRuntime.runtime.fs.readTextFile(modPath);
+      modContent = await runtime.fs.readTextFile(modPath);
     } catch {
       // No mod.ts, skip this package
       continue;
@@ -171,7 +170,7 @@ export const checkModExports = async (
     const files = await workspaceDiscovery.getPackageFiles(pkg.path);
 
     for (const file of files) {
-      const fileName = pathPosix.basename(file);
+      const fileName = runtime.path.basename(file);
 
       if (!shouldBeExported(fileName)) {
         continue;
@@ -224,7 +223,7 @@ const main = async (): Promise<void> => {
         fmtColors.yellow(`  ${missing.packageName}: ${missing.file}`),
       );
     }
-    standardsRuntime.runtime.process.exit(1);
+    runtime.process.exit(1);
   } else {
     console.log(fmtColors.green("\nAll mod.ts exports are complete."));
   }

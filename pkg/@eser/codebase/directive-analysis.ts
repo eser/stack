@@ -9,9 +9,9 @@
  * @module
  */
 
-import * as fsWalk from "@std/fs/walk";
-import * as path from "@std/path";
+import { walk } from "@std/fs/walk";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
+import { runtime } from "@eser/standards/runtime";
 
 /**
  * Common JavaScript/TypeScript directives.
@@ -187,7 +187,7 @@ export const analyzeDirectives = async (
   const matches: DirectiveMatch[] = [];
 
   for await (
-    const entry of fsWalk.walk(scanDir, {
+    const entry of walk(scanDir, {
       exts: [...extensions],
       skip: [...skip],
     })
@@ -198,7 +198,7 @@ export const analyzeDirectives = async (
     if (content === null) continue;
 
     if (hasDirective(content, directive)) {
-      const relativePath = path.relative(projectRoot, entry.path);
+      const relativePath = runtime.path.relative(projectRoot, entry.path);
       const exports = extractExports(content);
 
       matches.push({

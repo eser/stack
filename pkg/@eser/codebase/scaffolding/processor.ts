@@ -8,8 +8,7 @@
  * @module
  */
 
-import * as path from "@std/path";
-import * as walk from "@std/fs/walk";
+import { walk } from "@std/fs/walk";
 import { runtime } from "@eser/standards/runtime";
 
 /** Variable placeholder pattern: {{.variable_name}} (Go template style) */
@@ -57,7 +56,7 @@ const BINARY_EXTENSIONS = new Set([
  * Check if a file should be treated as binary
  */
 const isBinaryFile = (filepath: string): boolean => {
-  const ext = path.extname(filepath).toLowerCase();
+  const ext = runtime.path.extname(filepath).toLowerCase();
   return BINARY_EXTENSIONS.has(ext);
 };
 
@@ -153,8 +152,8 @@ export const processTemplate = async (
   const filesToProcess: string[] = [];
   const dirsToRename: string[] = [];
 
-  for await (const entry of walk.walk(dir, { includeDirs: true })) {
-    const relativePath = path.relative(dir, entry.path);
+  for await (const entry of walk(dir, { includeDirs: true })) {
+    const relativePath = runtime.path.relative(dir, entry.path);
 
     // Skip root
     if (relativePath === "") {
@@ -178,8 +177,8 @@ export const processTemplate = async (
 
   // Process files
   for (const filepath of filesToProcess) {
-    const filename = path.basename(filepath);
-    const dirPath = path.dirname(filepath);
+    const filename = runtime.path.basename(filepath);
+    const dirPath = runtime.path.dirname(filepath);
 
     // Process file content (skip binary files)
     if (!isBinaryFile(filepath)) {
@@ -202,7 +201,7 @@ export const processTemplate = async (
     // Rename file if name contains variables
     if (hasVariables(filename)) {
       const newFilename = substituteVariables(filename, variables);
-      const newPath = path.join(dirPath, newFilename);
+      const newPath = runtime.path.join(dirPath, newFilename);
 
       if (newPath !== filepath) {
         await Deno.rename(filepath, newPath);
@@ -212,14 +211,14 @@ export const processTemplate = async (
 
   // Rename directories (process deepest first to avoid path issues)
   dirsToRename.sort((a, b) =>
-    b.split(path.SEPARATOR).length - a.split(path.SEPARATOR).length
+    b.split(runtime.path.sep).length - a.split(runtime.path.sep).length
   );
 
   for (const dirPath of dirsToRename) {
-    const dirname = path.basename(dirPath);
-    const parentDir = path.dirname(dirPath);
+    const dirname = runtime.path.basename(dirPath);
+    const parentDir = runtime.path.dirname(dirPath);
     const newDirname = substituteVariables(dirname, variables);
-    const newPath = path.join(parentDir, newDirname);
+    const newPath = runtime.path.join(parentDir, newDirname);
 
     if (newPath !== dirPath) {
       await Deno.rename(dirPath, newPath);

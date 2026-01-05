@@ -143,6 +143,7 @@ const createStubFs = (runtimeName: RuntimeName): Runtime["fs"] => {
     stat: throwFs,
     lstat: throwFs,
     mkdir: throwFs,
+    ensureDir: throwFs,
     remove: throwFs,
     readDir: throwFs,
     copyFile: throwFs,

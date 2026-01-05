@@ -7,6 +7,12 @@
  */
 
 import type { Validator } from "./types.ts";
+import { circularDepsValidator } from "./validators/circular-deps.ts";
+import { modExportsValidator } from "./validators/mod-exports.ts";
+import { exportNamesValidator } from "./validators/export-names.ts";
+import { docsValidator } from "./validators/docs.ts";
+import { licensesValidator } from "./validators/licenses.ts";
+import { packageConfigsValidator } from "./validators/package-configs.ts";
 
 // Registry state (lazy initialized)
 type RegistryState = {
@@ -19,19 +25,8 @@ const state: RegistryState = {
   initialized: false,
 };
 
-// Import validators lazily to avoid circular dependencies
-const initializeBuiltinValidators = async (): Promise<void> => {
-  const { circularDepsValidator } = await import(
-    "./validators/circular-deps.ts"
-  );
-  const { modExportsValidator } = await import("./validators/mod-exports.ts");
-  const { exportNamesValidator } = await import("./validators/export-names.ts");
-  const { docsValidator } = await import("./validators/docs.ts");
-  const { licensesValidator } = await import("./validators/licenses.ts");
-  const { packageConfigsValidator } = await import(
-    "./validators/package-configs.ts"
-  );
-
+// Initialize built-in validators
+const initializeBuiltinValidators = (): void => {
   registerValidator(circularDepsValidator);
   registerValidator(modExportsValidator);
   registerValidator(exportNamesValidator);
@@ -43,12 +38,12 @@ const initializeBuiltinValidators = async (): Promise<void> => {
 /**
  * Ensure the registry is initialized with built-in validators
  */
-const ensureInitialized = async (): Promise<void> => {
+const ensureInitialized = (): void => {
   if (state.initialized) {
     return;
   }
   state.initialized = true;
-  await initializeBuiltinValidators();
+  initializeBuiltinValidators();
 };
 
 /**
@@ -66,8 +61,8 @@ export const registerValidator = (validator: Validator): void => {
  * @param name - The validator name
  * @returns The validator or null if not found
  */
-export const getValidator = async (name: string): Promise<Validator | null> => {
-  await ensureInitialized();
+export const getValidator = (name: string): Validator | null => {
+  ensureInitialized();
   return state.validators.get(name) ?? null;
 };
 
@@ -76,8 +71,8 @@ export const getValidator = async (name: string): Promise<Validator | null> => {
  *
  * @returns Array of all validators
  */
-export const getValidators = async (): Promise<readonly Validator[]> => {
-  await ensureInitialized();
+export const getValidators = (): readonly Validator[] => {
+  ensureInitialized();
   return [...state.validators.values()];
 };
 
@@ -86,7 +81,7 @@ export const getValidators = async (): Promise<readonly Validator[]> => {
  *
  * @returns Array of validator names
  */
-export const getValidatorNames = async (): Promise<readonly string[]> => {
-  await ensureInitialized();
+export const getValidatorNames = (): readonly string[] => {
+  ensureInitialized();
   return [...state.validators.keys()];
 };

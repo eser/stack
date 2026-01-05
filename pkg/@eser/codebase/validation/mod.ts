@@ -87,7 +87,7 @@ export const validate = async (
   const onlyList = options.only ?? [];
 
   // Get all validators
-  const validators = await getValidators();
+  const validators = getValidators();
   const results: ValidatorResult[] = [];
   const skipped: SkippedValidator[] = [];
   const disabled: string[] = [];

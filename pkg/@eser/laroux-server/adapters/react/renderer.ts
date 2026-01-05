@@ -149,4 +149,4 @@ export function createReactRenderer(): Renderer {
 /**
  * Default React renderer instance
  */
-export const reactRenderer = createReactRenderer();
+export const reactRenderer: Renderer = createReactRenderer();

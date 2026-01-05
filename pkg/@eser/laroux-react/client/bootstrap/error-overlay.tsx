@@ -16,7 +16,7 @@ interface ErrorInfo {
   column?: number;
 }
 
-export function ErrorOverlay() {
+export function ErrorOverlay(): React.ReactElement | null {
   const [error, setError] = useState<ErrorInfo | null>(null);
 
   useEffect(() => {

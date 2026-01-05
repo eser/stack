@@ -197,10 +197,18 @@ export function isWithinOutputDir(
 }
 
 /**
+ * Isolated writer interface for build output
+ */
+export type IsolatedWriter = {
+  writeTextFile(filePath: string, content: string): Promise<void>;
+  copy(src: string, dest: string): Promise<void>;
+};
+
+/**
  * Create a safe write function that only allows writes to dist/
  * Use this to wrap file writes for strict isolation
  */
-export function createIsolatedWriter(distDir: string) {
+export function createIsolatedWriter(distDir: string): IsolatedWriter {
   const resolvedDistDir = runtime.path.resolve(distDir);
 
   return {

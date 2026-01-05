@@ -69,12 +69,12 @@ export class ErrorBoundary extends Component<Props, State> {
     });
   }
 
-  handleRetry = () => {
+  handleRetry = (): void => {
     // Reload the page to retry
     globalThis.location.reload();
   };
 
-  render() {
+  render(): React.ReactNode {
     if (this.state.hasError) {
       // For network errors, don't show visible error UI - just return null
       // This keeps SSR content visible and prevents Lighthouse score penalty

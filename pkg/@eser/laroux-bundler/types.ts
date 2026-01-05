@@ -91,7 +91,7 @@ export class BuildError extends Error {
  */
 export const buildErrors = {
   /** CSS processing error */
-  cssError: (reason: string) =>
+  cssError: (reason: string): BuildError =>
     new BuildError(
       `CSS processing failed: ${reason}`,
       "BUILD104",
@@ -99,7 +99,7 @@ export const buildErrors = {
     ),
 
   /** Module not found */
-  moduleNotFound: (modulePath: string) =>
+  moduleNotFound: (modulePath: string): BuildError =>
     new BuildError(
       `Module not found: ${modulePath}`,
       "BUILD100",
@@ -107,7 +107,7 @@ export const buildErrors = {
     ),
 
   /** Build failed */
-  buildFailed: (reason: string) =>
+  buildFailed: (reason: string): BuildError =>
     new BuildError(
       `Build failed: ${reason}`,
       "BUILD101",

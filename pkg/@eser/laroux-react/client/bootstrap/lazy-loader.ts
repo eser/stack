@@ -336,7 +336,12 @@ export class LazyChunkLoader {
   /**
    * Get loading statistics (for debugging)
    */
-  getStats() {
+  getStats(): {
+    totalChunks: number;
+    loadedChunks: number;
+    loadingChunks: number;
+    cachedModules: number;
+  } {
     return {
       totalChunks: Object.keys(this.manifest.files).length,
       loadedChunks: this.loadedChunks.size,

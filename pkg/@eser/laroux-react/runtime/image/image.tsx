@@ -37,7 +37,7 @@ export { ImageSizes };
  * - Decoding async for better performance
  * - fetchpriority for above-the-fold images
  */
-export function Image(props: ImageProps) {
+export function Image(props: ImageProps): React.ReactElement {
   const {
     src,
     fallback,
@@ -113,7 +113,9 @@ export function Image(props: ImageProps) {
  * Server Component - Responsive image with aspect ratio container
  * Prevents layout shift with CSS aspect-ratio
  */
-export function ResponsiveImage(props: ResponsiveImageProps) {
+export function ResponsiveImage(
+  props: ResponsiveImageProps,
+): React.ReactElement {
   const {
     src,
     alt,

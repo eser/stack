@@ -95,14 +95,17 @@ export function errorResponse(
  * Standard HTTP error responses
  */
 export const HttpError = {
-  badRequest: (message = "Bad Request") => errorResponse(message, 400),
-  unauthorized: (message = "Unauthorized") => errorResponse(message, 401),
-  forbidden: (message = "Forbidden") => errorResponse(message, 403),
-  notFound: (message = "Not Found") => errorResponse(message, 404),
-  methodNotAllowed: (message = "Method Not Allowed") =>
+  badRequest: (message = "Bad Request"): Response =>
+    errorResponse(message, 400),
+  unauthorized: (message = "Unauthorized"): Response =>
+    errorResponse(message, 401),
+  forbidden: (message = "Forbidden"): Response => errorResponse(message, 403),
+  notFound: (message = "Not Found"): Response => errorResponse(message, 404),
+  methodNotAllowed: (message = "Method Not Allowed"): Response =>
     errorResponse(message, 405),
-  conflict: (message = "Conflict") => errorResponse(message, 409),
-  unprocessable: (message = "Unprocessable Entity") =>
+  conflict: (message = "Conflict"): Response => errorResponse(message, 409),
+  unprocessable: (message = "Unprocessable Entity"): Response =>
     errorResponse(message, 422),
-  internal: (message = "Internal Server Error") => errorResponse(message, 500),
+  internal: (message = "Internal Server Error"): Response =>
+    errorResponse(message, 500),
 };

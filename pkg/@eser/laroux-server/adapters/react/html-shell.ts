@@ -150,4 +150,5 @@ export function createReactHtmlShellBuilder(): HtmlShellBuilder {
 /**
  * Default React HTML shell builder instance
  */
-export const reactHtmlShellBuilder = createReactHtmlShellBuilder();
+export const reactHtmlShellBuilder: HtmlShellBuilder =
+  createReactHtmlShellBuilder();

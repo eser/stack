@@ -1,10 +1,10 @@
 {
   "nodeModulesDir": "auto",
   "unstable": [
-    "temporal",
-    "unsafe-proto",
+    "bundle",
     "sloppy-imports",
-    "bundle"
+    "temporal",
+    "unsafe-proto"
   ],
   "lint": {
     "rules": {
@@ -35,12 +35,12 @@
     ]
   },
   "exclude": [
-    ".git",
     ".claude/",
+    ".git",
     "docs/",
     "etc/temp/",
+    "etc/templates/",
     "node_modules/",
-    "pkg/@eser/cli/dist/",
-    "etc/templates/laroux-app/dist/"
+    "pkg/@eser/cli/dist/"
   ]
 }

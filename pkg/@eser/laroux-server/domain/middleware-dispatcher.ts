@@ -126,14 +126,13 @@ export class MiddlewareDispatcher {
         // type === "next" - continue to next proxy
       } catch (error) {
         proxyLogger.error(`Proxy error: ${proxy.pathPrefix}`, { error });
-        // Return error response
+        // Don't expose error details to client - only log server-side
         return {
           result: {
             type: "response",
             response: new Response(
               JSON.stringify({
                 error: "Proxy Error",
-                message: error instanceof Error ? error.message : String(error),
               }),
               {
                 status: 500,

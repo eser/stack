@@ -101,10 +101,10 @@ const parameterCache = new WeakMap<Function, readonly string[]>();
 /**
  * Regex for extracting function parameters (compiled once).
  * Matches: function name(...) or (...) => or async function(...) etc.
- * Uses specific character class to prevent ReDoS (avoid unbounded [^)]*).
+ * Uses bounded quantifiers to prevent ReDoS.
  */
 const PARAM_REGEX =
-  /(?:async\s+)?(?:function\s*\w*\s*)?\(([\w\s,=:'"{}[\].|?<>]*)\)/;
+  /(?:async\s{1,10})?(?:function\s{0,10}\w{0,100}\s{0,10})?\(([^)]{0,2000})\)/;
 
 /**
  * Get function parameter names with caching.

@@ -459,10 +459,10 @@ export function createHandler(deps: ServerDependencies) {
               error instanceof Error ? error.message : String(error)
             }`,
           );
+          // Don't expose error details to client - only log server-side
           return new Response(
             JSON.stringify({
               error: "Server action failed",
-              message: error instanceof Error ? error.message : String(error),
             }),
             {
               status: 500,
@@ -541,11 +541,11 @@ export function createHandler(deps: ServerDependencies) {
         }`,
       );
 
+      // Don't expose error details to client - only log server-side
       return withSecurityHeaders(
         new Response(
           JSON.stringify({
             error: "Internal Server Error",
-            message: error instanceof Error ? error.message : String(error),
           }),
           {
             status: 500,

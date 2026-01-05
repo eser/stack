@@ -140,8 +140,8 @@ export const extractExports = (content: string): readonly string[] => {
     if (match[1] !== undefined) {
       const names = match[1].split(",").map((n) => {
         // Handle "name as alias" syntax - take the exported name (after "as")
-        // Use specific word boundary pattern instead of \s+ to prevent ReDoS
-        const parts = n.trim().split(/ +as +/);
+        // Use bounded pattern {1,10} to prevent ReDoS on pathological inputs
+        const parts = n.trim().split(/ {1,10}as {1,10}/);
         return (parts[1] ?? parts[0])?.trim();
       });
       for (const name of names) {

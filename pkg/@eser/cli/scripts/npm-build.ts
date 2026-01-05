@@ -46,6 +46,45 @@ const EXTERNAL_PACKAGES = [
 ];
 
 /**
+ * Creates an esbuild plugin that removes import.meta.main checks.
+ * This prevents bundled modules from executing their CLI entry points.
+ * Skips the actual entry file so the CLI main() is still called.
+ */
+const createImportMetaMainPlugin = (entryPath: string): esbuild.Plugin => ({
+  name: "import-meta-main",
+  setup(build) {
+    // Transform all .ts/.tsx/.js files to replace import.meta.main with false
+    build.onLoad({ filter: /\.[tj]sx?$/ }, async (args) => {
+      // Skip the actual entry file - it should keep import.meta.main
+      if (args.path === entryPath) {
+        return undefined;
+      }
+
+      const source = await Deno.readTextFile(args.path);
+
+      // Skip files that don't use import.meta.main
+      if (!source.includes("import.meta.main")) {
+        return undefined;
+      }
+
+      // Replace import.meta.main with false
+      const transformed = source.replace(/import\.meta\.main/g, "false");
+
+      return {
+        contents: transformed,
+        loader: args.path.endsWith(".tsx")
+          ? "tsx"
+          : args.path.endsWith(".ts")
+          ? "ts"
+          : args.path.endsWith(".jsx")
+          ? "jsx"
+          : "js",
+      };
+    });
+  },
+});
+
+/**
  * Creates an esbuild plugin that resolves Deno workspace packages.
  * This is needed because esbuild doesn't understand Deno's workspace configuration.
  */
@@ -142,7 +181,10 @@ const main = async (): Promise<void> => {
       target: "node18",
       minify: true,
       external: [...EXTERNAL_PACKAGES, "npm:*"],
-      plugins: [createDenoWorkspacePlugin(projectRoot)],
+      plugins: [
+        createImportMetaMainPlugin(mainTsPath),
+        createDenoWorkspacePlugin(projectRoot),
+      ],
       logLevel: "warning",
     });
 
@@ -188,6 +230,7 @@ const main = async (): Promise<void> => {
     type: "module",
     bin: { eser: "./eser.js" },
     dependencies: {
+      lightningcss: "^1.30.0",
       tailwindcss: "^4.1.8",
     },
     repository: {

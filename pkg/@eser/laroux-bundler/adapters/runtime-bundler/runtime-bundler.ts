@@ -261,10 +261,21 @@ class RuntimeCache {
       }
 
       // Fallback: return error code and empty manifest
+      // Properly escape for HTML context to prevent XSS
+      const escapeHtml = (str: string): string =>
+        str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;")
+          .replace(/\n/g, "\\n")
+          .replace(/\r/g, "\\r");
+
       const errorCode = `
 console.error("Runtime bundling failed:", ${JSON.stringify(errorMessage)});
 document.getElementById("root").innerHTML = '<div class="error"><h2>Bundle Error</h2><pre>${
-        errorMessage.replace(/'/g, "\\'")
+        escapeHtml(errorMessage)
       }</pre></div>';
 `;
 

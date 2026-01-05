@@ -8,12 +8,16 @@ import {
 } from "./primitives.ts";
 
 const getFunctionParametersFromString = (fnSerialized: string) => {
-  // Use specific character class to prevent ReDoS (avoid unbounded .*? patterns)
-  const match = fnSerialized.match(
-    /(?:function[\w\s]*\(|\()([\w\s,=:'"{}[\].|?<>]*)(?:\)|=>)/,
+  // Limit input length to prevent ReDoS on pathological inputs
+  const limitedInput = fnSerialized.slice(0, 10000);
+
+  // Use bounded quantifiers to prevent ReDoS
+  // Match function parameters: function name(...) or (...) =>
+  const match = limitedInput.match(
+    /(?:function\s*\w{0,100}\s*\(|\()([^)]{0,2000})(?:\)|=>)/,
   );
 
-  if (match && match[1]) {
+  if (match?.[1]) {
     return match[1].split(",").map((p) => p.trim());
   }
 

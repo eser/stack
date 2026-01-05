@@ -28,10 +28,12 @@ function pathToRegex(path: string): { regex: RegExp; paramNames: string[] } {
   const paramNames: string[] = [];
 
   // Handle catch-all routes [...slug]
+  // Use [^?#]* instead of .* to prevent matching query strings/fragments
+  // and avoid issues with incomplete URL sanitization
   const regexPattern = path
     .replace(/\[\.\.\.(\w+)\]/g, (_match, paramName) => {
       paramNames.push(paramName);
-      return "(.*)";
+      return "([^?#]*)";
     })
     // Handle dynamic segments [slug]
     .replace(/\[(\w+)\]/g, (_match, paramName) => {
@@ -157,10 +159,10 @@ export class ApiRouteHandler {
           return response;
         } catch (error) {
           apiLogger.error(`API route error: ${route.path}`, { error });
+          // Don't expose error details to client - only log server-side
           return new Response(
             JSON.stringify({
               error: "Internal Server Error",
-              message: error instanceof Error ? error.message : String(error),
             }),
             {
               status: 500,

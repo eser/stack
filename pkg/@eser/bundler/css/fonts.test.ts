@@ -189,9 +189,12 @@ Deno.test("rewriteFontFaceCss replaces CDN URLs with local paths", () => {
   const rewritten = rewriteFontFaceCss(originalCss, fontFiles, "/fonts");
 
   assert.assert(rewritten.includes("/fonts/font.woff2"));
+  // Check that no external URLs remain by verifying no http(s):// protocol prefixes
+  // Using regex for proper URL detection instead of simple substring check
   assert.assertEquals(
-    rewritten.includes("https://fonts.gstatic.com"),
+    /https?:\/\//.test(rewritten),
     false,
+    "External URLs should be rewritten to local paths",
   );
 });
 

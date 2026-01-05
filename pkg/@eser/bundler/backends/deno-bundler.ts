@@ -657,9 +657,9 @@ export class DenoBundlerBackend implements Bundler {
     const imports: string[] = [];
 
     // Match static imports: import ... from "..."
-    // Use specific character class to prevent ReDoS (avoid unbounded [^;]+ pattern)
+    // Use bounded quantifiers to prevent ReDoS
     const staticImportRegex =
-      /import\s+(?:[\w\s{},*]+)\s+from\s*["']([\w./@-]+)["']/g;
+      /import\s{1,10}(?:[\w\s{},*]{1,500})\s{1,10}from\s{0,10}["']([\w./@-]+)["']/g;
     let match: RegExpExecArray | null;
 
     while ((match = staticImportRegex.exec(content)) !== null) {

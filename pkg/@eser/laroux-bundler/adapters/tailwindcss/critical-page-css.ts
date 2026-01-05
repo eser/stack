@@ -87,6 +87,66 @@ function extractLayerBlockAt(
 }
 
 /**
+ * Extract @keyframes blocks from CSS safely without ReDoS-prone regex
+ * Uses character-by-character parsing to handle nested braces
+ */
+function extractKeyframes(css: string): Array<{ name: string; block: string }> {
+  const results: Array<{ name: string; block: string }> = [];
+  const keyframesMarker = "@keyframes";
+  let searchPos = 0;
+
+  while (searchPos < css.length) {
+    const keyframesStart = css.indexOf(keyframesMarker, searchPos);
+    if (keyframesStart === -1) break;
+
+    // Extract animation name (after @keyframes and before {)
+    let nameStart = keyframesStart + keyframesMarker.length;
+    while (nameStart < css.length && /\s/.test(css[nameStart] ?? "")) {
+      nameStart++;
+    }
+
+    let nameEnd = nameStart;
+    while (
+      nameEnd < css.length &&
+      css[nameEnd] !== "{" &&
+      !/\s/.test(css[nameEnd] ?? "")
+    ) {
+      nameEnd++;
+    }
+
+    const name = css.slice(nameStart, nameEnd);
+
+    // Find opening brace
+    let braceStart = nameEnd;
+    while (braceStart < css.length && css[braceStart] !== "{") {
+      braceStart++;
+    }
+
+    if (braceStart >= css.length) {
+      searchPos = css.length;
+      break;
+    }
+
+    // Find matching closing brace using brace counting
+    let braceCount = 1;
+    let pos = braceStart + 1;
+
+    while (pos < css.length && braceCount > 0) {
+      if (css[pos] === "{") braceCount++;
+      else if (css[pos] === "}") braceCount--;
+      pos++;
+    }
+
+    const block = css.slice(keyframesStart, pos);
+    results.push({ name, block });
+
+    searchPos = pos;
+  }
+
+  return results;
+}
+
+/**
  * Extract all @layer blocks from CSS
  * Handles multiple blocks with the same layer name by combining their content
  */
@@ -319,14 +379,18 @@ export function extractCriticalPageCss(
   }
 
   // Extract @layer order declaration (must be first)
-  const layerOrderMatch = css.match(/@layer\s+[a-zA-Z_,-\s]+;/);
+  // Use bounded pattern to prevent ReDoS - layer names are limited to 200 chars
+  const layerOrderMatch = css.match(
+    /@layer\s+[\w,-]{1,200}(?:\s+[\w,-]{1,50})*\s*;/,
+  );
   if (layerOrderMatch) {
     criticalParts.push(layerOrderMatch[0]);
   }
 
   // Extract @property rules (CSS Houdini - needed for gradients, transforms, etc.)
   // These MUST be in critical CSS for gradient text and other effects to work
-  const propertyRegex = /@property\s+--[\w-]+\s*\{[^}]*\}/g;
+  // Use bounded pattern [^}]{0,5000} to prevent ReDoS
+  const propertyRegex = /@property\s+--[\w-]+\s*\{[^}]{0,5000}\}/g;
   const propertyRules = css.match(propertyRegex) ?? [];
   if (propertyRules.length > 0) {
     criticalParts.push(propertyRules.join("\n"));
@@ -381,7 +445,8 @@ export function extractCriticalPageCss(
   }
 
   // Handle @font-face (always critical)
-  const fontFaceRegex = /@font-face\s*\{[^}]*\}/gi;
+  // Use bounded pattern [^}]{0,10000} to prevent ReDoS
+  const fontFaceRegex = /@font-face\s*\{[^}]{0,10000}\}/gi;
   const fontFaces = css.match(fontFaceRegex) ?? [];
   for (const fontFace of fontFaces) {
     criticalParts.push(fontFace);
@@ -389,16 +454,14 @@ export function extractCriticalPageCss(
   }
 
   // Handle @keyframes (critical if animation name is used in HTML)
-  const keyframeRegex =
-    /@keyframes\s+([^\s{]+)\s*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/gi;
-  let keyframeMatch: RegExpExecArray | null;
-  while ((keyframeMatch = keyframeRegex.exec(css)) !== null) {
-    const animationName = keyframeMatch[1];
-    if (animationName && html.includes(animationName)) {
-      criticalParts.push(keyframeMatch[0]);
+  // Use a safer extraction approach to prevent ReDoS
+  const keyframes = extractKeyframes(css);
+  for (const keyframe of keyframes) {
+    if (keyframe.name && html.includes(keyframe.name)) {
+      criticalParts.push(keyframe.block);
       criticalRuleCount++;
     } else {
-      deferredParts.push(keyframeMatch[0]);
+      deferredParts.push(keyframe.block);
       deferredRuleCount++;
     }
   }

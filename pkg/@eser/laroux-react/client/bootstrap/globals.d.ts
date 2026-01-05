@@ -13,6 +13,7 @@ export type ChunkManifest = {
 
 /**
  * Laroux global runtime state
+ * Use `globalThis as LarouxGlobalThis` for typed access
  */
 export type LarouxGlobals = {
   /** Chunk manifest injected by bundler */
@@ -35,20 +36,12 @@ export type LarouxGlobals = {
 
   /** Refresh RSC root component */
   __refreshRSCRoot__?: (changedModules?: string[]) => Promise<void>;
+
+  /** Runtime modules registry for HMR mode */
+  __RUNTIME_MODULES__?: Record<string, unknown>;
 };
 
-declare global {
-  var __CHUNK_MANIFEST__: ChunkManifest | undefined;
-  var __SMART_REFRESH_ENABLED__: boolean | undefined;
-  var __REFRESH_PENDING__: boolean | undefined;
-  var __LAST_CHANGED_MODULES__: string[] | undefined;
-  var __performSmartRefresh__:
-    | ((changedModules?: string[]) => Promise<void>)
-    | undefined;
-  var __clearRSCCache__: ((changedModules?: string[]) => void) | undefined;
-  var __refreshRSCRoot__:
-    | ((changedModules?: string[]) => Promise<void>)
-    | undefined;
-  /** Runtime modules registry for HMR mode */
-  var __RUNTIME_MODULES__: Record<string, unknown> | undefined;
-}
+/**
+ * Typed globalThis with Laroux runtime properties
+ */
+export type LarouxGlobalThis = typeof globalThis & LarouxGlobals;

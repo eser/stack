@@ -6,7 +6,7 @@
 
 export {
   createRateLimiter,
-  getRateLimitHeaders,
+  getClientIp,
   type RateLimitConfig,
-  stopRateLimiter,
+  type RateLimiterInstance,
 } from "@eser/http/middlewares/rate-limiter";

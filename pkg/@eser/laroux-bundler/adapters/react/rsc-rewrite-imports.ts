@@ -74,6 +74,11 @@ function parseImports(
   while ((match = importRegex.exec(content)) !== null) {
     const importPath = match[1];
 
+    // Skip if no import path captured
+    if (!importPath) {
+      continue;
+    }
+
     // Skip if this import is inside a string literal (e.g., code samples)
     if (isInsideStringLiteral(content, match.index)) {
       continue;

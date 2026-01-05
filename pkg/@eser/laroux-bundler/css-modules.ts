@@ -142,7 +142,7 @@ export async function processCSSModules(
             const fileMtime = fileStat.mtime?.getTime() ?? 0;
             const cached = cache.getCssModuleResult(cssPath, fileMtime);
 
-            if (cached !== undefined) {
+            if (cached !== undefined && cached !== null) {
               cacheHits++;
               return [cssPath, {
                 code: cached.code,

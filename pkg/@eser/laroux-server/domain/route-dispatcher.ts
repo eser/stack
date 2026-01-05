@@ -21,27 +21,55 @@ export type ApiRouteEntry = {
 };
 
 /**
+ * Escapes a string for use in a regular expression.
+ * Escapes all regex metacharacters including backslashes.
+ */
+function escapeRegexString(str: string): string {
+  // Escape backslashes first, then all other regex metacharacters
+  return str.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+}
+
+/**
  * Converts a route path pattern to a regex pattern
  * Reuses the same logic as page route matching
  */
 function pathToRegex(path: string): { regex: RegExp; paramNames: string[] } {
   const paramNames: string[] = [];
 
-  // Handle catch-all routes [...slug]
-  // Use [^?#]* instead of .* to prevent matching query strings/fragments
-  // and avoid issues with incomplete URL sanitization
-  const regexPattern = path
+  // First, temporarily replace parameter patterns with placeholders
+  // to avoid escaping their brackets
+  const CATCH_ALL_PLACEHOLDER = "\x00CATCH_ALL\x00";
+  const DYNAMIC_PLACEHOLDER = "\x00DYNAMIC\x00";
+  const catchAllParams: string[] = [];
+  const dynamicParams: string[] = [];
+
+  let processed = path
     .replace(/\[\.\.\.(\w+)\]/g, (_match, paramName) => {
-      paramNames.push(paramName);
+      catchAllParams.push(paramName);
+      return CATCH_ALL_PLACEHOLDER;
+    })
+    .replace(/\[(\w+)\]/g, (_match, paramName) => {
+      dynamicParams.push(paramName);
+      return DYNAMIC_PLACEHOLDER;
+    });
+
+  // Escape all regex metacharacters in the path (including backslashes)
+  processed = escapeRegexString(processed);
+
+  // Restore parameter patterns with proper regex capture groups
+  let catchAllIndex = 0;
+  let dynamicIndex = 0;
+
+  const regexPattern = processed
+    .replace(new RegExp(escapeRegexString(CATCH_ALL_PLACEHOLDER), "g"), () => {
+      paramNames.push(catchAllParams[catchAllIndex++]!);
+      // Use [^?#]* to prevent matching query strings/fragments
       return "([^?#]*)";
     })
-    // Handle dynamic segments [slug]
-    .replace(/\[(\w+)\]/g, (_match, paramName) => {
-      paramNames.push(paramName);
+    .replace(new RegExp(escapeRegexString(DYNAMIC_PLACEHOLDER), "g"), () => {
+      paramNames.push(dynamicParams[dynamicIndex++]!);
       return "([^/]+)";
-    })
-    // Escape forward slashes
-    .replace(/\//g, "\\/");
+    });
 
   return {
     regex: new RegExp(`^${regexPattern}$`),

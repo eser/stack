@@ -1852,14 +1852,14 @@
       },
       "etc/templates/laroux-app": {
         "dependencies": [
-          "jsr:@eser/bundler@^4.0.21",
-          "jsr:@eser/codebase@^4.0.21",
-          "jsr:@eser/collector@^4.0.21",
-          "jsr:@eser/crypto@^4.0.21",
-          "jsr:@eser/http@^4.0.21",
-          "jsr:@eser/logging@^4.0.21",
-          "jsr:@eser/shell@^4.0.21",
-          "jsr:@eser/standards@^4.0.21",
+          "jsr:@eser/bundler@^4.0.22",
+          "jsr:@eser/codebase@^4.0.22",
+          "jsr:@eser/collector@^4.0.22",
+          "jsr:@eser/crypto@^4.0.22",
+          "jsr:@eser/http@^4.0.22",
+          "jsr:@eser/logging@^4.0.22",
+          "jsr:@eser/shell@^4.0.22",
+          "jsr:@eser/standards@^4.0.22",
           "jsr:@std/assert@^1.0.16",
           "jsr:@std/cli@^1.0.25",
           "jsr:@std/encoding@^1.0.10",
@@ -2113,9 +2113,12 @@
         ],
         "packageJson": {
           "dependencies": [
+            "npm:@jsr/std__assert@^1.0.16",
             "npm:@jsr/std__fs@^1.0.21",
             "npm:@jsr/std__ulid@1",
-            "npm:lightningcss@^1.30.2"
+            "npm:@tailwindcss/oxide@^4.1.18",
+            "npm:lightningcss@^1.30.2",
+            "npm:tailwindcss@^4.1.18"
           ]
         }
       },
@@ -2127,6 +2130,7 @@
         ],
         "packageJson": {
           "dependencies": [
+            "npm:@jsr/std__assert@^1.0.16",
             "npm:react-dom@^19.2.3",
             "npm:react@^19.2.3"
           ]
@@ -2142,8 +2146,11 @@
         ],
         "packageJson": {
           "dependencies": [
+            "npm:@jsr/std__assert@^1.0.16",
             "npm:@jsr/std__cli@^1.0.25",
-            "npm:@jsr/std__media-types@^1.1.0"
+            "npm:@jsr/std__media-types@^1.1.0",
+            "npm:react-dom@^19.2.3",
+            "npm:react@^19.2.3"
           ]
         }
       },

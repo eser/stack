@@ -32,6 +32,11 @@ function isInsideStringLiteral(content: string, position: number): boolean {
   for (let i = 0; i < position; i++) {
     const char = content[i];
 
+    // Safety check (shouldn't happen since i < position <= content.length)
+    if (char === undefined) {
+      break;
+    }
+
     // Skip escaped quotes
     if (prevChar === "\\") {
       prevChar = char;

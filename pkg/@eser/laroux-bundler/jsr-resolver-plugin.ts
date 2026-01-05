@@ -78,7 +78,7 @@ export function createJsrResolverPlugin(
               error instanceof Error ? error.message : String(error)
             }`,
           );
-          return undefined; // Let other resolvers handle it
+          return {}; // Let other resolvers handle it
         }
       });
 
@@ -107,7 +107,7 @@ export function createJsrResolverPlugin(
         if (contents !== undefined) {
           return { contents, loader: "js" };
         }
-        return undefined;
+        return {}; // Let other loaders handle it
       });
 
       // Match explicit jsr: specifiers
@@ -140,7 +140,7 @@ export function createJsrResolverPlugin(
               error instanceof Error ? error.message : String(error)
             }`,
           );
-          return undefined;
+          return {}; // Let other resolvers handle it
         }
       });
     },

@@ -47,15 +47,14 @@ export const buildHandler = async (ctx: CommandContext): Promise<void> => {
   const { runtime } = await import("@eser/standards/runtime");
 
   // Map log level names to @eser/logging severity values
-  // See logging.Severities: Trace=1, Debug=5, Info=9, Warning=13, Error=17, Critical=21
-  const logLevelMap: Record<LogLevel, number> = {
-    trace: 1, // Severities.Trace
-    debug: 5, // Severities.Debug
-    info: 9, // Severities.Info
-    warn: 13, // Severities.Warning
-    error: 17, // Severities.Error
-    fatal: 21, // Severities.Critical
-  };
+  const logLevelMap = {
+    trace: logging.Severities.Trace,
+    debug: logging.Severities.Debug,
+    info: logging.Severities.Info,
+    warn: logging.Severities.Warning,
+    error: logging.Severities.Error,
+    fatal: logging.Severities.Critical,
+  } as const;
 
   await logging.config.configure({
     sinks: {

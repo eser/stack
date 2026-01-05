@@ -31,8 +31,9 @@ async function loadUserConfig(
       // Dynamic import the config file
       const mod = await import(`file://${configPath}`);
       return mod.default ?? {};
-    } catch (error) {
-      configLogger.warn(`Failed to load laroux.config.ts: ${error.message}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      configLogger.warn(`Failed to load laroux.config.ts: ${message}`);
       return null;
     }
   }

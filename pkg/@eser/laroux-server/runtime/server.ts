@@ -90,7 +90,7 @@ function createStreamingOptimalResponse(
         if (
           chunk.value &&
           typeof chunk.value === "object" &&
-          (chunk.value as Record<string, unknown>).__rsc_pending
+          (chunk.value as Record<string, unknown>)["__rsc_pending"]
         ) {
           return false;
         }

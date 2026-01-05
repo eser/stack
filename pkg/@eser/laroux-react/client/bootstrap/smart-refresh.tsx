@@ -151,3 +151,18 @@ export function initializeSmartRefresh(): void {
   // Export flag for HMR client
   globalThis.__SMART_REFRESH_ENABLED__ = true;
 }
+
+/**
+ * Trigger a smart refresh with optional module list
+ * @param changedModules - List of changed module paths
+ */
+export async function triggerSmartRefresh(
+  changedModules?: string[],
+): Promise<void> {
+  if (globalThis.__performSmartRefresh__) {
+    await globalThis.__performSmartRefresh__(changedModules);
+  } else {
+    // Fallback: full reload if not initialized
+    globalThis.location.reload();
+  }
+}

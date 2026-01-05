@@ -206,8 +206,10 @@ async function isBuildUpToDate(config: AppConfig): Promise<boolean> {
     );
     const manifestStat = await runtime.fs.stat(manifestPath);
     const srcStat = await runtime.fs.stat(config.srcDir);
-    return manifestStat.mtime && srcStat.mtime &&
-      manifestStat.mtime > srcStat.mtime;
+    if (manifestStat.mtime === null || srcStat.mtime === null) {
+      return false;
+    }
+    return manifestStat.mtime > srcStat.mtime;
   } catch {
     return false;
   }
@@ -320,7 +322,7 @@ async function initializeServer(
 
         bundlerLogger.info(`✓ Compiled in ${result.duration.toFixed(0)}ms`);
 
-        if (hmrManager !== null) {
+        if (hmrManager !== null && hmrManager !== undefined) {
           hmrManager.notifyUpdate(Date.now(), result.changedFiles);
         }
       });
@@ -482,7 +484,7 @@ function openBrowser(url: string): void {
   const os = Deno.build.os as keyof typeof commands;
   const command = commands[os];
 
-  if (command) {
+  if (command && command[0]) {
     const cmd = new Deno.Command(command[0], {
       args: [...command.slice(1), url],
       stdout: "null",

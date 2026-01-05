@@ -802,7 +802,9 @@ export async function watch(
         event.kind === "modify" || event.kind === "create" ||
         event.kind === "remove"
       ) {
-        const changedFile = runtime.path.relative(projectRoot, event.paths[0]);
+        const eventPath = event.paths[0];
+        if (!eventPath) continue;
+        const changedFile = runtime.path.relative(projectRoot, eventPath);
 
         // Skip non-source files (tsx/jsx/css)
         if (!changedFile.match(/\.(tsx?|jsx?|css)$/)) continue;
@@ -883,6 +885,10 @@ async function bundleClient(
     const define: Record<string, string> = {
       ...PRODUCTION_SETTINGS.define,
     };
+
+    if (!context.bundlerBackend) {
+      throw new Error("Bundler backend is required for client bundling");
+    }
 
     const bundleResult = await bundle(
       {
@@ -1355,7 +1361,8 @@ async function optimizeFonts(
 ): Promise<void> {
   const fontUrls = getFontUrls(fonts);
 
-  if (fontUrls.length === 0) {
+  const firstFontUrl = fontUrls[0];
+  if (!firstFontUrl) {
     buildLogger.debug("✓ No fonts configured, skipping font optimization");
     return;
   }
@@ -1364,7 +1371,11 @@ async function optimizeFonts(
   const publicPath = "/fonts";
 
   try {
-    const result = await optimizeGoogleFonts(fontUrls[0], fontsDir, publicPath);
+    const result = await optimizeGoogleFonts(
+      firstFontUrl,
+      fontsDir,
+      publicPath,
+    );
 
     // Save font CSS to a file that can be inlined in HTML
     const fontCssPath = runtime.path.resolve(distDir, "fonts.css");

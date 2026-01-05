@@ -69,7 +69,7 @@ function matchRoutePath(
     if (routePath.includes(`[...${name}]`)) {
       params[name] = value ? value.split("/").filter(Boolean) : [];
     } else {
-      params[name] = value;
+      params[name] = value ?? "";
     }
   });
 

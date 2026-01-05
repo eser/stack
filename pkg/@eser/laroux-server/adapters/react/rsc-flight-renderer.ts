@@ -180,8 +180,9 @@ async function renderElement(
       try {
         const result = type.render(props, null);
         return await renderElement(result, context);
-      } catch (error) {
+      } catch (err) {
         const id = context.nextId++;
+        const error = err instanceof Error ? err : new Error(String(err));
         addChunk(context, {
           type: "E",
           id,
@@ -240,8 +241,9 @@ async function renderElement(
 
         // Sync server component - render result directly
         return await renderElement(result, context);
-      } catch (error) {
+      } catch (err) {
         const id = context.nextId++;
+        const error = err instanceof Error ? err : new Error(String(err));
         addChunk(context, {
           type: "E",
           id,

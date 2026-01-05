@@ -2,7 +2,7 @@
 // Route scanner for file-based routing
 // Scans src/app/routes for page.tsx, layout.tsx, route.ts, and proxy.ts files
 
-import { runtime } from "@eser/standards/runtime";
+import { runtime, toPosix } from "@eser/standards/runtime";
 import { walkFiles } from "@eser/collector";
 import * as logging from "@eser/logging";
 
@@ -244,11 +244,8 @@ function directoryToRoutePath(relativePath: string): string {
     return "/";
   }
 
-  // Normalize path separators
-  const normalizedPath = relativePath.replace(/\\/g, "/");
-
-  // Add leading slash
-  return `/${normalizedPath}`;
+  // Convert to POSIX format and add leading slash
+  return `/${toPosix(relativePath)}`;
 }
 
 /**

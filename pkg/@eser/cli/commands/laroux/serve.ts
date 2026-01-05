@@ -10,7 +10,8 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import type { CommandContext } from "@eser/shell/args";
+import { ok } from "@eser/functions/results";
+import { type CliResult, type CommandContext } from "@eser/shell/args";
 
 // Valid log levels
 const VALID_LOG_LEVELS = [
@@ -23,7 +24,9 @@ const VALID_LOG_LEVELS = [
 ] as const;
 type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 
-export const serveHandler = async (ctx: CommandContext): Promise<void> => {
+export const serveHandler = async (
+  ctx: CommandContext,
+): Promise<CliResult<void>> => {
   // deno-lint-ignore no-console
   console.log(fmtColors.cyan("\n🚀 Serving production build...\n"));
 
@@ -65,4 +68,6 @@ export const serveHandler = async (ctx: CommandContext): Promise<void> => {
       globalCssPath: "src/app/styles/global.css",
     }),
   });
+
+  return ok(undefined);
 };

@@ -90,6 +90,52 @@ function jsrSpecifierToUrl(specifier: string): string {
 }
 
 /**
+ * Transform JSR-published imports back to bare imports for bundling.
+ * When files are fetched from JSR, they contain full specifiers like:
+ * - "jsr:@eser/logging@^4.0.25" -> "@eser/logging"
+ * - "npm:react@^19.2.3" -> "react"
+ * - "npm:/react-dom@^19.2.3/client" -> "react-dom/client" (also fixes extra /)
+ *
+ * This is necessary because rolldown doesn't understand jsr:/npm: protocols.
+ */
+function transformJsrImports(content: string): string {
+  return (
+    content
+      // Remove JSX import source pragmas that have npm: specifiers
+      // e.g., /** @jsxImportSource npm:react@^19.2.3 */ -> /** @jsxImportSource react */
+      .replace(
+        /@jsxImportSource\s+npm:react@[^\s*]+/g,
+        "@jsxImportSource react",
+      )
+      .replace(
+        /@jsxImportSourceTypes\s+npm:react@[^\s*]+/g,
+        "@jsxImportSourceTypes react",
+      )
+      // Transform jsr: imports to bare specifiers
+      // "jsr:@eser/package@^X.Y.Z/path" -> "@eser/package/path"
+      .replace(
+        /from\s+["']jsr:(@[^@]+)@[^"'/]+([^"']*)["']/g,
+        'from "$1$2"',
+      )
+      .replace(
+        /import\s*\(\s*["']jsr:(@[^@]+)@[^"'/]+([^"']*)["']\s*\)/g,
+        'import("$1$2")',
+      )
+      // Transform npm: imports to bare specifiers
+      // "npm:react@^X.Y.Z" -> "react"
+      // "npm:/react-dom@^X.Y.Z/client" -> "react-dom/client" (note: also handles extra /)
+      .replace(
+        /from\s+["']npm:\/?([^@]+)@[^"'/]+([^"']*)["']/g,
+        'from "$1$2"',
+      )
+      .replace(
+        /import\s*\(\s*["']npm:\/?([^@]+)@[^"'/]+([^"']*)["']\s*\)/g,
+        'import("$1$2")',
+      )
+  );
+}
+
+/**
  * Get the bootstrap directory URL/path using import.meta.resolve.
  * Works with both local workspace and installed packages (JSR/npm).
  */
@@ -122,7 +168,10 @@ async function copyBootstrapFiles(distDir: string): Promise<void> {
 
   for (const filename of BOOTSTRAP_FILES) {
     const destPath = runtime.path.resolve(distDir, filename);
-    const sourceUrl = `${baseUrl}/${filename}`;
+    // Use URL API for proper URL path joining
+    const sourceUrl = baseUrl.endsWith("/")
+      ? new URL(filename, baseUrl).href
+      : new URL(`${baseUrl}/${filename}`).href;
 
     if (isRemote) {
       // Fetch from remote URL (JSR, etc.)
@@ -131,7 +180,13 @@ async function copyBootstrapFiles(distDir: string): Promise<void> {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        const content = await response.text();
+        let content = await response.text();
+
+        // Transform JSR-published imports back to bare imports for bundling
+        // JSR rewrites imports like "@eser/logging" to "jsr:@eser/logging@^4.0.25"
+        // We need to reverse this so rolldown can resolve them
+        content = transformJsrImports(content);
+
         await runtime.fs.writeTextFile(destPath, content);
       } catch (err) {
         throw new Error(

@@ -86,24 +86,10 @@ export const getRuntimeVersion = (): string =>
   versionGetters[detectRuntime()]();
 
 /**
- * Check if running in Deno.
+ * Check if running in the specified runtime.
  */
-export const isDeno = (): boolean => detectRuntime() === "deno";
-
-/**
- * Check if running in Node.js.
- */
-export const isNode = (): boolean => detectRuntime() === "node";
-
-/**
- * Check if running in Bun.
- */
-export const isBun = (): boolean => detectRuntime() === "bun";
-
-/**
- * Check if running in Cloudflare Workers.
- */
-export const isWorkerd = (): boolean => detectRuntime() === "workerd";
+export const isRuntime = (runtime: RuntimeName): boolean =>
+  detectRuntime() === runtime;
 
 /**
  * Check if running in a browser.

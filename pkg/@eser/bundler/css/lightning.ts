@@ -13,7 +13,7 @@
 
 import { transform } from "lightningcss";
 import { Buffer } from "node:buffer";
-import { isNode } from "@eser/standards/runtime";
+import { isRuntime, runtime } from "@eser/standards/runtime";
 import type {
   BrowserTargets,
   CssModuleExportData,
@@ -86,7 +86,9 @@ function decodeBufferToString(data: unknown): string {
   }
 
   // Node.js Buffer (most idiomatic)
-  if (isNode() && typeof Buffer !== "undefined" && Buffer.isBuffer(data)) {
+  if (
+    isRuntime("node") && typeof Buffer !== "undefined" && Buffer.isBuffer(data)
+  ) {
     return data.toString("utf-8");
   }
 
@@ -189,7 +191,7 @@ export async function transformCssFile(
   outputPath?: string,
   options: LightningCssOptions = {},
 ): Promise<LightningCssResult> {
-  const css = await Deno.readTextFile(inputPath);
+  const css = await runtime.fs.readTextFile(inputPath);
 
   const result = transformWithLightningCss(css, {
     ...options,
@@ -197,7 +199,7 @@ export async function transformCssFile(
   });
 
   const output = outputPath ?? inputPath;
-  await Deno.writeTextFile(output, result.code);
+  await runtime.fs.writeTextFile(output, result.code);
 
   return result;
 }

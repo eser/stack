@@ -6,14 +6,12 @@ import {
   detectRuntime,
   getRuntimeVersion,
   isBrowser,
-  isBun,
-  isDeno,
-  isNode,
+  isRuntime,
   isServer,
-  isWorkerd,
   posixPath,
   runtime,
   RuntimeCapabilityError,
+  toPosix,
 } from "./mod.ts";
 
 // =============================================================================
@@ -30,20 +28,12 @@ Deno.test("getRuntimeVersion() should return Deno version", () => {
   assert.assertEquals(version, Deno.version.deno);
 });
 
-Deno.test("isDeno() should return true in Deno", () => {
-  assert.assertEquals(isDeno(), true);
+Deno.test("isRuntime() should return true in Deno", () => {
+  assert.assertEquals(isRuntime("deno"), true);
 });
 
-Deno.test("isNode() should return false in Deno", () => {
-  assert.assertEquals(isNode(), false);
-});
-
-Deno.test("isBun() should return false in Deno", () => {
-  assert.assertEquals(isBun(), false);
-});
-
-Deno.test("isWorkerd() should return false in Deno", () => {
-  assert.assertEquals(isWorkerd(), false);
+Deno.test("isRuntime() should return false in Deno", () => {
+  assert.assertEquals(isRuntime("node"), false);
 });
 
 Deno.test("isBrowser() should return false in Deno", () => {
@@ -283,4 +273,48 @@ Deno.test("RuntimeCapabilityError should have correct properties", () => {
   assert.assertEquals(error.runtimeName, "workerd");
   assert.assertEquals(error.name, "RuntimeCapabilityError");
   assert.assertExists(error.message);
+});
+
+// =============================================================================
+// toPosix Tests
+// =============================================================================
+
+Deno.test("toPosix() should convert backslashes to forward slashes", () => {
+  assert.assertEquals(
+    toPosix("src\\components\\Button.tsx"),
+    "src/components/Button.tsx",
+  );
+  assert.assertEquals(toPosix("a\\b\\c\\d"), "a/b/c/d");
+});
+
+Deno.test("toPosix() should normalize redundant slashes", () => {
+  assert.assertEquals(
+    toPosix("src//components///Button.tsx"),
+    "src/components/Button.tsx",
+  );
+  assert.assertEquals(toPosix("./src//utils/"), "./src/utils/");
+});
+
+Deno.test("toPosix() should handle mixed separators", () => {
+  assert.assertEquals(
+    toPosix("src\\components//Button.tsx"),
+    "src/components/Button.tsx",
+  );
+});
+
+Deno.test("toPosix() should preserve relative paths", () => {
+  assert.assertEquals(toPosix("./utils.ts"), "./utils.ts");
+  assert.assertEquals(toPosix("../lib/index.ts"), "../lib/index.ts");
+});
+
+Deno.test("toPosix() should handle empty string", () => {
+  assert.assertEquals(toPosix(""), "");
+});
+
+Deno.test("toPosix() should handle paths already in POSIX format", () => {
+  assert.assertEquals(
+    toPosix("src/components/Button.tsx"),
+    "src/components/Button.tsx",
+  );
+  assert.assertEquals(toPosix("/absolute/path"), "/absolute/path");
 });

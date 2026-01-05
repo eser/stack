@@ -88,7 +88,7 @@ export async function createVirtualSource(
     cleanup: async () => {
       vsLogger.debug(`Cleaning up virtual source: ${virtualSrcDir}`);
       try {
-        await Deno.remove(virtualSrcDir, { recursive: true });
+        await runtime.fs.remove(virtualSrcDir, { recursive: true });
         vsLogger.debug("Virtual source cleaned up");
       } catch (error) {
         vsLogger.warn("Failed to clean up virtual source:", { error });
@@ -138,7 +138,7 @@ async function incrementalCopySourceFiles(
 
     // Check if source file exists
     try {
-      await Deno.stat(filePath);
+      await runtime.fs.stat(filePath);
       // File exists - copy it
       await ensureDir(runtime.path.dirname(targetPath));
       await copy(filePath, targetPath, { overwrite: true });
@@ -146,7 +146,7 @@ async function incrementalCopySourceFiles(
     } catch {
       // File was deleted - remove from virtual source
       try {
-        await Deno.remove(targetPath);
+        await runtime.fs.remove(targetPath);
         deletedCount++;
       } catch {
         // Target doesn't exist, that's fine

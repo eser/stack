@@ -1,9 +1,12 @@
 {
   "name": "@eser/functions",
-  "version": "4.0.25",
+  "version": "4.0.26",
   "type": "module",
   "exports": {
-    ".": "./mod.ts"
+    ".": "./mod.ts",
+    "./results": "./results.ts",
+    "./options": "./options.ts",
+    "./resources": "./resources.ts"
   },
   "dependencies": {
     "@eser/primitives": "workspace:*"

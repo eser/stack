@@ -23,8 +23,10 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
+import { fail, match, ok } from "@eser/functions/results";
 import { groupBy } from "@eser/fp/group-by";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/runtime";
+import { type CliResult } from "@eser/shell/args";
 import * as pkg from "./package/mod.ts";
 import { ConfigFileTypes } from "./package/types.ts";
 
@@ -404,7 +406,7 @@ const formatDepIssue = (inc: DependencyInconsistency): string => {
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<void> => {
+const main = async (): Promise<CliResult<void>> => {
   console.log("Checking package config consistency...\n");
 
   const result = await checkPackageConfigs();
@@ -461,14 +463,22 @@ const main = async (): Promise<void> => {
       }
     }
 
-    standardsRuntime.runtime.process.exit(1);
-  } else {
-    console.log(
-      fmtColors.green("\nAll package configs are consistent."),
-    );
+    return fail({ exitCode: 1 });
   }
+
+  console.log(fmtColors.green("\nAll package configs are consistent."));
+  return ok(undefined);
 };
 
 if (import.meta.main) {
-  await main();
+  const result = await main();
+  match(result, {
+    ok: () => {},
+    fail: (error) => {
+      if (error.message !== undefined) {
+        console.error(error.message);
+      }
+      runtime.process.setExitCode(error.exitCode);
+    },
+  });
 }

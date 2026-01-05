@@ -60,7 +60,7 @@ const createImportMetaMainPlugin = (entryPath: string): esbuild.Plugin => ({
         return undefined;
       }
 
-      const source = await Deno.readTextFile(args.path);
+      const source = await runtime.fs.readTextFile(args.path);
 
       // Skip files that don't use import.meta.main
       if (!source.includes("import.meta.main")) {
@@ -126,7 +126,7 @@ const createDenoWorkspacePlugin = (projectRoot: string): esbuild.Plugin => ({
               pkgName,
               exportPath.replace(/^\.\//, ""),
             );
-            const realPath = await Deno.realPath(fullPath);
+            const realPath = await runtime.fs.realPath(fullPath);
             return { path: realPath };
           }
         } catch {

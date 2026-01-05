@@ -69,7 +69,7 @@ export async function processCss(options: CssProcessOptions): Promise<void> {
     }
 
     // Write output
-    await Deno.writeTextFile(output, cssContent);
+    await runtime.fs.writeTextFile(output, cssContent);
 
     cssLogger.debug(`✓ CSS processed successfully: ${output}`);
   } catch (error) {

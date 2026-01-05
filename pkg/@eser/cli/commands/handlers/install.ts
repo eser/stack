@@ -8,7 +8,8 @@
 
 import * as fmtColors from "@std/fmt/colors";
 import * as standardsRuntime from "@eser/standards/runtime";
-import type { CommandContext } from "@eser/shell/args";
+import { fail, ok } from "@eser/functions/results";
+import { type CliResult, type CommandContext } from "@eser/shell/args";
 import { exec } from "@eser/shell/exec";
 import { getShellConfig } from "@eser/shell/env";
 import {
@@ -37,8 +38,9 @@ const INSTALL_CONFIGS: Record<string, InstallConfig> = {
   },
 };
 
-export const installHandler = async (_ctx: CommandContext): Promise<void> => {
-  const { runtime } = standardsRuntime;
+export const installHandler = async (
+  _ctx: CommandContext,
+): Promise<CliResult<void>> => {
   const runtimeName = standardsRuntime.detectRuntime();
 
   // deno-lint-ignore no-console
@@ -47,24 +49,17 @@ export const installHandler = async (_ctx: CommandContext): Promise<void> => {
   const config = INSTALL_CONFIGS[runtimeName];
 
   if (config === undefined) {
-    // deno-lint-ignore no-console
-    console.error(
-      fmtColors.red(`\nUnsupported runtime: ${runtimeName}`),
-    );
-    // deno-lint-ignore no-console
-    console.error(
-      "Global installation is only supported for Deno, Node.js, and Bun.",
-    );
-    runtime.process.exit(1);
-    return; // Unreachable but helps TypeScript narrow the type
+    return fail({
+      message: `${fmtColors.red(`\nUnsupported runtime: ${runtimeName}`)}\n` +
+        "Global installation is only supported for Deno, Node.js, and Bun.",
+      exitCode: 1,
+    });
   }
 
   const { cmd, args } = config;
 
   // deno-lint-ignore no-console
-  console.log(
-    fmtColors.dim(`Running: ${cmd} ${args.join(" ")}`),
-  );
+  console.log(fmtColors.dim(`Running: ${cmd} ${args.join(" ")}`));
   // deno-lint-ignore no-console
   console.log("");
 
@@ -74,39 +69,38 @@ export const installHandler = async (_ctx: CommandContext): Promise<void> => {
     .noThrow()
     .spawn();
 
-  if (result.success) {
-    // deno-lint-ignore no-console
-    console.log(fmtColors.green("\nInstallation complete!"));
-    // deno-lint-ignore no-console
-    console.log(
-      `You can now use ${
-        fmtColors.cyan("eser")
-      } from anywhere in your terminal.`,
-    );
-
-    // Setup shell completions
-    const shell = detectShell();
-    const alreadyHasCompletions = await hasCompletions(shell);
-
-    if (!alreadyHasCompletions) {
-      // deno-lint-ignore no-console
-      console.log(`\nSetting up ${fmtColors.cyan(shell)} completions...`);
-      await addCompletions(shell);
-
-      const shellConfig = getShellConfig(shell);
-      if (shellConfig.completionType === "eval") {
-        // deno-lint-ignore no-console
-        console.log(
-          fmtColors.dim(
-            `  Restart your shell or run 'source ${shellConfig.rcFile}' to enable completions.`,
-          ),
-        );
-      }
-    }
-  } else {
+  if (!result.success) {
     // deno-lint-ignore no-console
     console.error(fmtColors.red("\nInstallation failed."));
+    return fail({ exitCode: result.code });
   }
 
-  runtime.process.exit(result.code);
+  // deno-lint-ignore no-console
+  console.log(fmtColors.green("\nInstallation complete!"));
+  // deno-lint-ignore no-console
+  console.log(
+    `You can now use ${fmtColors.cyan("eser")} from anywhere in your terminal.`,
+  );
+
+  // Setup shell completions
+  const shell = detectShell();
+  const alreadyHasCompletions = await hasCompletions(shell);
+
+  if (!alreadyHasCompletions) {
+    // deno-lint-ignore no-console
+    console.log(`\nSetting up ${fmtColors.cyan(shell)} completions...`);
+    await addCompletions(shell);
+
+    const shellConfig = getShellConfig(shell);
+    if (shellConfig.completionType === "eval") {
+      // deno-lint-ignore no-console
+      console.log(
+        fmtColors.dim(
+          `  Restart your shell or run 'source ${shellConfig.rcFile}' to enable completions.`,
+        ),
+      );
+    }
+  }
+
+  return ok(undefined);
 };

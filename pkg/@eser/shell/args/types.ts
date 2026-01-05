@@ -6,6 +6,8 @@
  * @module
  */
 
+import type { Result } from "@eser/functions/results";
+
 /**
  * Supported flag value types
  */
@@ -48,9 +50,12 @@ export type CommandContext = {
 };
 
 /**
- * Handler function for command execution
+ * Handler function for command execution.
+ * Returns CliResult to make success/failure explicit in the type system.
  */
-export type CommandHandler = (ctx: CommandContext) => void | Promise<void>;
+export type CommandHandler = (
+  ctx: CommandContext,
+) => CliResult<void> | Promise<CliResult<void>>;
 
 /**
  * Argument validation modes
@@ -81,3 +86,33 @@ export interface CommandLike {
   completions(shell: "bash" | "zsh" | "fish"): string;
   help(): string;
 }
+
+/**
+ * CLI error type - pure data representing a CLI failure.
+ *
+ * Instead of throwing exceptions which break determinism, CLI functions
+ * return Result<T, CliError> to make the error path explicit in the type system.
+ */
+export type CliError = {
+  /** Error message to display */
+  readonly message?: string;
+  /** Exit code for the process */
+  readonly exitCode: number;
+};
+
+/**
+ * Result type specialized for CLI operations.
+ * Success contains the value, failure contains CliError.
+ *
+ * @example
+ * ```ts
+ * import { ok, fail } from "@eser/functions/results";
+ *
+ * // Success
+ * return ok(undefined);
+ *
+ * // Failure
+ * return fail({ message: "Invalid argument", exitCode: 1 });
+ * ```
+ */
+export type CliResult<T> = Result<T, CliError>;

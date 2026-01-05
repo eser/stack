@@ -16,11 +16,28 @@ const POSIX_DELIMITER = ":";
 
 /**
  * Normalizes path separators and removes redundant slashes.
+ * Converts Windows-style backslashes to POSIX forward slashes.
  */
 const normalizeSlashes = (path: string): string => {
   // Convert backslashes to forward slashes for consistency
   return path.replace(/\\/g, "/").replace(/\/+/g, "/");
 };
+
+/**
+ * Convert a path to POSIX format.
+ * Converts backslashes to forward slashes and normalizes redundant slashes.
+ * Useful for creating import specifiers, URLs, or cross-platform path comparisons.
+ *
+ * @param path - The path to convert
+ * @returns The path with forward slashes and normalized slashes
+ *
+ * @example
+ * ```typescript
+ * toPosix("src\\components\\Button.tsx") // "src/components/Button.tsx"
+ * toPosix("./src//utils/") // "./src/utils/"
+ * ```
+ */
+export const toPosix = (path: string): string => normalizeSlashes(path);
 
 /**
  * Join path segments with the POSIX separator.

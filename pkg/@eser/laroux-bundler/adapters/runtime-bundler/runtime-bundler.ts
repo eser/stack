@@ -110,7 +110,7 @@ class RuntimeCache {
     clientComponents: ClientComponent[],
   ): Promise<{ code: string; manifest: ChunkManifest }> {
     const { plugin } = this.config;
-    const projectRoot = Deno.cwd();
+    const projectRoot = runtime.process.cwd();
 
     // Create a temporary directory for this bundling process inside project root
     // This allows Deno.bundle() to resolve node_modules correctly

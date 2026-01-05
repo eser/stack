@@ -1,6 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
+import { NotFoundError } from "@eser/standards/runtime";
 import { createFakeFs } from "./fake-fs.ts";
 
 Deno.test("createFakeFs should read text files", async () => {
@@ -16,14 +17,14 @@ Deno.test("createFakeFs should read text files", async () => {
   assert.assertEquals(readme, "Hello World");
 });
 
-Deno.test("createFakeFs should throw NotFound for missing files", async () => {
+Deno.test("createFakeFs should throw NotFoundError for missing files", async () => {
   const fs = createFakeFs({
     "/app/config.json": '{"port": 3000}',
   });
 
   await assert.assertRejects(
     () => fs.readTextFile("/app/missing.json"),
-    Deno.errors.NotFound,
+    NotFoundError,
   );
 });
 

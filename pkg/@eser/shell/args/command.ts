@@ -7,14 +7,16 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
+import { fail, ok } from "@eser/functions/results";
 import * as standardsRuntime from "@eser/standards/runtime";
-import type {
-  ArgsConfig,
-  ArgsValidation,
-  CommandContext,
-  CommandHandler,
-  CommandLike,
-  FlagDef,
+import {
+  type ArgsConfig,
+  type ArgsValidation,
+  type CliResult,
+  type CommandContext,
+  type CommandHandler,
+  type CommandLike,
+  type FlagDef,
 } from "./types.ts";
 import {
   buildParseOptions,
@@ -219,16 +221,16 @@ export class Command implements CommandLike {
     return undefined;
   }
 
-  /** Parse and execute the command */
-  async parse(argv?: readonly string[]): Promise<void> {
+  /** Parse and execute the command, returning Result */
+  async parse(argv?: readonly string[]): Promise<CliResult<void>> {
     const inputArgs = argv ?? standardsRuntime.runtime.process.args;
-    await this.#execute(inputArgs as string[], []);
+    return await this.#execute(inputArgs as string[], []);
   }
 
   async #execute(
     argv: string[],
     parentPath: string[],
-  ): Promise<void> {
+  ): Promise<CliResult<void>> {
     const allFlags = this.#getAllFlags();
     const parseOptions = buildParseOptions(allFlags);
 
@@ -244,14 +246,14 @@ export class Command implements CommandLike {
     if (this.#version !== undefined && flags["version"] === true) {
       // deno-lint-ignore no-console
       console.log(`${this.#name} ${this.#version}`);
-      return;
+      return ok(undefined);
     }
 
     // Handle --help
     if (flags["help"] === true) {
       // deno-lint-ignore no-console
       console.log(this.help());
-      return;
+      return ok(undefined);
     }
 
     // Check for subcommand
@@ -260,8 +262,10 @@ export class Command implements CommandLike {
       const child = this.#findChild(firstArg);
 
       if (child !== undefined) {
-        await child.#execute(positional.slice(1), [...parentPath, this.#name]);
-        return;
+        return await child.#execute(positional.slice(1), [
+          ...parentPath,
+          this.#name,
+        ]);
       }
     }
 
@@ -269,23 +273,19 @@ export class Command implements CommandLike {
     if (this.#handler === undefined) {
       // deno-lint-ignore no-console
       console.log(this.help());
-      return;
+      return ok(undefined);
     }
 
     // Validate required flags
     const flagErrors = validateRequiredFlags(flags, allFlags);
     if (flagErrors.length > 0) {
-      // deno-lint-ignore no-console
-      console.error(flagErrors.join("\n"));
-      standardsRuntime.runtime.process.exit(1);
+      return fail({ message: flagErrors.join("\n"), exitCode: 1 });
     }
 
     // Validate args
     const argsError = this.#validateArgs(positional);
     if (argsError !== undefined) {
-      // deno-lint-ignore no-console
-      console.error(argsError);
-      standardsRuntime.runtime.process.exit(1);
+      return fail({ message: argsError, exitCode: 1 });
     }
 
     // Build context and run handler
@@ -297,7 +297,7 @@ export class Command implements CommandLike {
       commandPath,
     };
 
-    await this.#handler(ctx);
+    return await this.#handler(ctx);
   }
 
   /** Generate help text */

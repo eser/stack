@@ -13,7 +13,8 @@
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as fmtColors from "@std/fmt/colors";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { fail, isFail, ok, tryCatchAsync } from "@eser/functions/results";
+import { type CliResult } from "@eser/shell/args";
 import * as validation from "@eser/codebase/validation";
 import * as versions from "@eser/codebase/versions";
 import * as scaffolding from "@eser/codebase/scaffolding";
@@ -22,7 +23,10 @@ type SubcommandDef = {
   description: string;
   usage: string;
   options: Array<{ flag: string; description: string }>;
-  handler: (args: string[], flags: Record<string, unknown>) => Promise<void>;
+  handler: (
+    args: string[],
+    flags: Record<string, unknown>,
+  ) => Promise<CliResult<void>>;
 };
 
 const showSubcommandHelp = (name: string, def: SubcommandDef): void => {
@@ -64,14 +68,16 @@ const subcommands: Record<string, SubcommandDef> = {
       const specifier = args[0];
 
       if (specifier === undefined) {
-        console.error(fmtColors.red("Error: Template specifier is required"));
-        console.log("\nUsage: eser codebase init <specifier> [options]");
-        console.log("\nExamples:");
-        console.log("  eser codebase init eser/ajan");
-        console.log("  eser codebase init gh:eser/ajan#v1.0");
-        console.log("  eser codebase init eser/ajan -p ./my-project");
-        standardsRuntime.runtime.process.exit(1);
-        return;
+        return fail({
+          message:
+            `${fmtColors.red("Error: Template specifier is required")}\n` +
+            "\nUsage: eser codebase init <specifier> [options]\n" +
+            "\nExamples:\n" +
+            "  eser codebase init eser/ajan\n" +
+            "  eser codebase init gh:eser/ajan#v1.0\n" +
+            "  eser codebase init eser/ajan -p ./my-project",
+          exitCode: 1,
+        });
       }
 
       const targetDir = (flags["path"] as string | undefined) ?? ".";
@@ -100,41 +106,51 @@ const subcommands: Record<string, SubcommandDef> = {
 
       console.log(`Scaffolding from ${fmtColors.cyan(specifier)}...`);
 
-      try {
-        const result = await scaffolding.scaffold({
-          specifier,
-          targetDir,
-          variables,
-          force,
-          skipPostInstall,
-          interactive,
-        });
+      const scaffoldResult = await tryCatchAsync(
+        () =>
+          scaffolding.scaffold({
+            specifier,
+            targetDir,
+            variables,
+            force,
+            skipPostInstall,
+            interactive,
+          }),
+        (error) => ({ message: (error as Error).message }),
+      );
 
-        console.log(
-          fmtColors.green(
-            `\nScaffolded ${result.templateName} to ${result.targetDir}`,
+      if (isFail(scaffoldResult)) {
+        return fail({
+          message: fmtColors.red(
+            `\nScaffolding failed: ${scaffoldResult.error.message}`,
           ),
-        );
-
-        if (Object.keys(result.variables).length > 0) {
-          console.log("\nVariables applied:");
-          for (const [key, value] of Object.entries(result.variables)) {
-            console.log(`  ${fmtColors.dim(key)}: ${value}`);
-          }
-        }
-
-        if (result.postInstallCommands.length > 0) {
-          console.log("\nPost-install commands executed:");
-          for (const cmd of result.postInstallCommands) {
-            console.log(`  ${fmtColors.dim(cmd)}`);
-          }
-        }
-      } catch (error) {
-        console.error(
-          fmtColors.red(`\nScaffolding failed: ${(error as Error).message}`),
-        );
-        standardsRuntime.runtime.process.exit(1);
+          exitCode: 1,
+        });
       }
+
+      const result = scaffoldResult.value;
+
+      console.log(
+        fmtColors.green(
+          `\nScaffolded ${result.templateName} to ${result.targetDir}`,
+        ),
+      );
+
+      if (Object.keys(result.variables).length > 0) {
+        console.log("\nVariables applied:");
+        for (const [key, value] of Object.entries(result.variables)) {
+          console.log(`  ${fmtColors.dim(key)}: ${value}`);
+        }
+      }
+
+      if (result.postInstallCommands.length > 0) {
+        console.log("\nPost-install commands executed:");
+        for (const cmd of result.postInstallCommands) {
+          console.log(`  ${fmtColors.dim(cmd)}`);
+        }
+      }
+
+      return ok(undefined);
     },
   },
 
@@ -244,15 +260,16 @@ const subcommands: Record<string, SubcommandDef> = {
       // Summary
       const failedCount = result.results.filter((r) => !r.passed).length;
       if (failedCount > 0) {
-        console.log(
-          fmtColors.red(
+        return fail({
+          message: fmtColors.red(
             `\n${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
           ),
-        );
-        standardsRuntime.runtime.process.exit(1);
-      } else {
-        console.log(fmtColors.green("\nAll checks passed!"));
+          exitCode: 1,
+        });
       }
+
+      console.log(fmtColors.green("\nAll checks passed!"));
+      return ok(undefined);
     },
   },
 
@@ -274,16 +291,16 @@ const subcommands: Record<string, SubcommandDef> = {
       if (command === undefined) {
         const result = await versions.showVersions();
         console.table(result.packages);
-        return;
+        return ok(undefined);
       }
 
       const validCommands = ["sync", "patch", "minor", "major"];
       if (!validCommands.includes(command)) {
-        console.error(fmtColors.red(`Invalid command: ${command}`));
-        console.error(
-          "Usage: eser codebase versions [sync|patch|minor|major] [--dry-run]",
-        );
-        standardsRuntime.runtime.process.exit(1);
+        return fail({
+          message: `${fmtColors.red(`Invalid command: ${command}`)}\n` +
+            "Usage: eser codebase versions [sync|patch|minor|major] [--dry-run]",
+          exitCode: 1,
+        });
       }
 
       if (command === "sync") {
@@ -306,6 +323,8 @@ const subcommands: Record<string, SubcommandDef> = {
       } else {
         console.log(`Done. Updated ${result.changedCount} packages.`);
       }
+
+      return ok(undefined);
     },
   },
 };
@@ -325,7 +344,7 @@ const showHelp = (): void => {
 export const codebaseCommand = async (
   rawArgs: string[],
   _parentFlags: Record<string, unknown>,
-): Promise<void> => {
+): Promise<CliResult<void>> => {
   // Parse all flags (don't use stopEarly so --help is always captured)
   const parsed = cliParseArgs.parseArgs(rawArgs, {
     boolean: [
@@ -346,22 +365,25 @@ export const codebaseCommand = async (
   // Show main help if no subcommand or help without subcommand
   if (subcommand === undefined) {
     showHelp();
-    return;
+    return ok(undefined);
   }
 
   const def = subcommands[subcommand];
   if (def === undefined) {
-    console.error(fmtColors.red(`Unknown subcommand: ${subcommand}`));
+    // deno-lint-ignore no-console
     console.log("");
     showHelp();
-    standardsRuntime.runtime.process.exit(1);
+    return fail({
+      message: fmtColors.red(`Unknown subcommand: ${subcommand}`),
+      exitCode: 1,
+    });
   }
 
   // Show subcommand help if --help flag
   if (parsed.help) {
     showSubcommandHelp(subcommand, def);
-    return;
+    return ok(undefined);
   }
 
-  await def.handler(parsed._.slice(1) as string[], parsed);
+  return await def.handler(parsed._.slice(1) as string[], parsed);
 };

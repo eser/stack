@@ -23,7 +23,9 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
+import { fail, match, ok } from "@eser/functions/results";
 import * as standardsRuntime from "@eser/standards/runtime";
+import { type CliResult } from "@eser/shell/args";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 
 /**
@@ -255,7 +257,7 @@ const formatIssue = (issue: DocIssueType): string => {
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<void> => {
+const main = async (): Promise<CliResult<void>> => {
   console.log("Checking documentation...\n");
 
   const result = await checkDocs();
@@ -287,12 +289,22 @@ const main = async (): Promise<void> => {
       }
     }
 
-    standardsRuntime.runtime.process.exit(1);
-  } else {
-    console.log(fmtColors.green("\nAll documentation is valid."));
+    return fail({ exitCode: 1 });
   }
+
+  console.log(fmtColors.green("\nAll documentation is valid."));
+  return ok(undefined);
 };
 
 if (import.meta.main) {
-  await main();
+  const result = await main();
+  match(result, {
+    ok: () => {},
+    fail: (error) => {
+      if (error.message !== undefined) {
+        console.error(error.message);
+      }
+      standardsRuntime.runtime.process.setExitCode(error.exitCode);
+    },
+  });
 }

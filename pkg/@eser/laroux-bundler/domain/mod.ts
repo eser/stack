@@ -30,8 +30,15 @@ export type {
   BundleOutput,
   Bundler,
   BundleResult,
+  ServerBundleOptions,
+  ServerBundleResult,
 } from "./bundler.ts";
-export { analyzeBundleResult, bundle, logBundleStats } from "./bundler.ts";
+export {
+  analyzeBundleResult,
+  bundle,
+  bundleServerComponents,
+  logBundleStats,
+} from "./bundler.ts";
 
 // Domain types
 export type {
@@ -96,3 +103,11 @@ export {
   isWithinOutputDir,
   validateBuildIsolation,
 } from "./build-validator.ts";
+
+export type { ImportMap, ImportMapEntry } from "./import-map.ts";
+export {
+  getExternals,
+  isExternal,
+  loadImportMap,
+  resolveSpecifier,
+} from "./import-map.ts";

@@ -22,12 +22,9 @@ export {
   detectRuntime,
   getRuntimeVersion,
   isBrowser,
-  isBun,
-  isDeno,
   isEdge,
-  isNode,
+  isRuntime,
   isServer,
-  isWorkerd,
 } from "./detect.ts";
 
 // Browser adapter

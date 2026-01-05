@@ -5,9 +5,9 @@
  *
  * @example
  * ```typescript
- * import { isWorkerd, createWorkerdRuntime } from "@eser/standards/runtime/workerd";
+ * import { isRuntime, createWorkerdRuntime } from "@eser/standards/runtime/workerd";
  *
- * if (isWorkerd()) {
+ * if (isRuntime("workerd")) {
  *   const runtime = createWorkerdRuntime();
  *   // Use limited capabilities available in Workers
  * }
@@ -21,12 +21,9 @@ export {
   detectRuntime,
   getRuntimeVersion,
   isBrowser,
-  isBun,
-  isDeno,
   isEdge,
-  isNode,
+  isRuntime,
   isServer,
-  isWorkerd,
 } from "./detect.ts";
 
 // Workerd adapter

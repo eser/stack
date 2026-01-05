@@ -129,7 +129,7 @@ async function addBuildDependency(
   path: string,
 ): Promise<void> {
   try {
-    const stat = await Deno.stat(path);
+    const stat = await runtime.fs.stat(path);
     deps.set(path, stat.mtime?.getTime() ?? null);
   } catch {
     deps.set(path, null);
@@ -147,7 +147,7 @@ async function requiresRebuild(
       return true;
     }
     try {
-      const stat = await Deno.stat(path);
+      const stat = await runtime.fs.stat(path);
       if ((stat.mtime?.getTime() ?? 0) > mtime) {
         return true;
       }

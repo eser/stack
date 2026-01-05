@@ -7,7 +7,7 @@
  */
 
 import * as yaml from "@std/yaml";
-import { runtime } from "@eser/standards/runtime";
+import { NotFoundError, runtime } from "@eser/standards/runtime";
 import type { TemplateConfig, TemplateVariable } from "./types.ts";
 
 /** Default config filenames to look for */
@@ -39,7 +39,7 @@ export const loadTemplateConfig = async (
       return config;
     } catch (error) {
       // File doesn't exist or can't be read - try next filename
-      if (error instanceof Deno.errors.NotFound) {
+      if (error instanceof NotFoundError) {
         continue;
       }
       throw error;

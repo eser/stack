@@ -173,5 +173,5 @@ official API specifications.
 
 ---
 
-🔗 For further details such as requirements, licensing and support guide, please
-visit the [main eserstack repository](https://github.com/eser/stack).
+🔗 For further details, visit the
+[eserstack repository](https://github.com/eser/stack).

@@ -32,7 +32,9 @@
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as fmtColors from "@std/fmt/colors";
 import * as stdSemver from "@std/semver";
+import { fail, match, ok } from "@eser/functions/results";
 import * as standardsRuntime from "@eser/standards/runtime";
+import { type CliResult } from "@eser/shell/args";
 import * as pkg from "./package/mod.ts";
 
 /**
@@ -217,7 +219,7 @@ export const versions = async (
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<void> => {
+const main = async (): Promise<CliResult<void>> => {
   // @ts-ignore parseArgs doesn't mutate the array, readonly is safe
   const args = cliParseArgs.parseArgs(standardsRuntime.runtime.process.args, {
     boolean: ["dry-run"],
@@ -230,15 +232,17 @@ const main = async (): Promise<void> => {
   if (command === undefined) {
     const result = await showVersions();
     console.table(result.packages);
-    return;
+    return ok(undefined);
   }
 
   // Validate command
   const validCommands = ["sync", "patch", "minor", "major"];
   if (!validCommands.includes(command)) {
-    console.error(`Invalid command: ${command}`);
-    console.error(`Usage: versions.ts [sync|patch|minor|major] [--dry-run]`);
-    standardsRuntime.runtime.process.exit(1);
+    return fail({
+      message: `Invalid command: ${command}\n` +
+        `Usage: versions.ts [sync|patch|minor|major] [--dry-run]`,
+      exitCode: 1,
+    });
   }
 
   // Execute command
@@ -262,8 +266,19 @@ const main = async (): Promise<void> => {
   } else {
     console.log(`Done. Updated ${result.changedCount} packages.`);
   }
+
+  return ok(undefined);
 };
 
 if (import.meta.main) {
-  await main();
+  const result = await main();
+  match(result, {
+    ok: () => {},
+    fail: (error) => {
+      if (error.message !== undefined) {
+        console.error(error.message);
+      }
+      standardsRuntime.runtime.process.setExitCode(error.exitCode);
+    },
+  });
 }

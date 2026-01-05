@@ -2,7 +2,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as cli from "@std/cli/parse-args";
+import { fail, isFail, match, ok } from "@eser/functions/results";
 import { runtime } from "@eser/standards/runtime";
+import { type CliResult } from "@eser/shell/args";
 import { generate } from "./generate.ts";
 import { sync } from "./sync.ts";
 import type { KubectlResourceReference, SyncOptions } from "./types.ts";
@@ -135,30 +137,34 @@ function validateOptions(
   command: string | undefined,
   options: CliOptions,
   kubectlResource?: KubectlResourceReference,
-): asserts kubectlResource is KubectlResourceReference {
+): CliResult<KubectlResourceReference> {
   // Validate output format
   if (![undefined, "yaml", "json"].includes(options.output)) {
-    console.error("Error: output format must be 'yaml' or 'json'");
-
-    runtime.process.exit(1);
+    return fail({
+      message: "Error: output format must be 'yaml' or 'json'",
+      exitCode: 1,
+    });
   }
 
   // Validate required options for specific commands
   if (command === "generate" || command === "sync") {
     if (kubectlResource === undefined) {
-      console.error(
-        `Error: ${command} command requires a resource (e.g., cm/default, secret/default)`,
-      );
-
-      runtime.process.exit(1);
+      return fail({
+        message:
+          `Error: ${command} command requires a resource (e.g., cm/default, secret/default)`,
+        exitCode: 1,
+      });
     }
   }
+
+  // For commands that require a resource, we've validated it exists above
+  return ok(undefined) as unknown as CliResult<KubectlResourceReference>;
 }
 
 async function handleGenerate(
   options: CliOptions,
   kubectlResource: KubectlResourceReference,
-): Promise<void> {
+): Promise<CliResult<void>> {
   try {
     const result = await generate({
       format: options.output ?? "yaml",
@@ -168,19 +174,21 @@ async function handleGenerate(
     });
 
     console.log(result);
+    return ok(undefined);
   } catch (error) {
-    console.error(
-      "Error generating resource:",
-      error instanceof Error ? error.message : String(error),
-    );
-    runtime.process.exit(1);
+    return fail({
+      message: `Error generating resource: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      exitCode: 1,
+    });
   }
 }
 
 async function handleSync(
   options: CliOptions,
   kubectlResource: KubectlResourceReference,
-): Promise<void> {
+): Promise<CliResult<void>> {
   try {
     const kubectlOptions: SyncOptions = {
       resource: {
@@ -195,49 +203,60 @@ async function handleSync(
 
     const result = await sync(kubectlOptions);
     console.log(result);
+    return ok(undefined);
   } catch (error) {
-    console.error(
-      "Error syncing with kubectl:",
-      error instanceof Error ? error.message : String(error),
-    );
-    runtime.process.exit(1);
+    return fail({
+      message: `Error syncing with kubectl: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      exitCode: 1,
+    });
   }
 }
 
-async function main(): Promise<void> {
+async function main(): Promise<CliResult<void>> {
   const { command, options, kubectlResource } = parseCliArgs();
 
   // Handle help and version flags
   if (options.version === true) {
     showVersion();
-    return;
+    return ok(undefined);
   }
 
   if (options.help === true || command === undefined) {
     showHelp();
-    return;
+    return ok(undefined);
   }
 
   // Validate options
-  validateOptions(command, options, kubectlResource);
+  const validationResult = validateOptions(command, options, kubectlResource);
+  if (isFail(validationResult)) {
+    return validationResult;
+  }
 
   // Handle commands
   switch (command) {
     case "generate":
-      await handleGenerate(options, kubectlResource);
-      break;
+      return await handleGenerate(options, kubectlResource!);
 
     case "sync":
-      await handleSync(options, kubectlResource);
-      break;
+      return await handleSync(options, kubectlResource!);
 
     default:
-      console.error(`Unknown command: ${command}`);
-      runtime.process.exit(1);
+      return fail({ message: `Unknown command: ${command}`, exitCode: 1 });
   }
 }
 
 // Run the CLI if this file is executed directly
 if (import.meta.main) {
-  await main();
+  const result = await main();
+  match(result, {
+    ok: () => {},
+    fail: (error) => {
+      if (error.message !== undefined) {
+        console.error(error.message);
+      }
+      runtime.process.setExitCode(error.exitCode);
+    },
+  });
 }

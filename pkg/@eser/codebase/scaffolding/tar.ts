@@ -106,8 +106,10 @@ export const extractTarball = async (
 
     // Write file content
     if (entry.readable !== undefined) {
-      const file = await Deno.create(outputPath);
-      await entry.readable.pipeTo(file.writable);
+      // Collect stream to Uint8Array and write using runtime.fs
+      const response = new Response(entry.readable);
+      const buffer = new Uint8Array(await response.arrayBuffer());
+      await runtime.fs.writeFile(outputPath, buffer);
     }
   }
 };

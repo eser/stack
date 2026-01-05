@@ -30,8 +30,10 @@
 
 import { walk } from "@std/fs/walk";
 import { fromFileUrl } from "@std/path/posix";
+import { fail, match, ok } from "@eser/functions/results";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import { runtime } from "@eser/standards/runtime";
+import { type CliResult } from "@eser/shell/args";
 
 /**
  * Options for license validation.
@@ -172,14 +174,14 @@ export const validateLicenses = async (
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<void> => {
+const main = async (): Promise<CliResult<void>> => {
   const fix = runtime.process.args.includes("--fix");
 
   const result = await validateLicenses({ fix });
 
   if (result.issues.length === 0) {
     console.log(`Checked ${result.checked} files. All licenses are valid.`);
-    return;
+    return ok(undefined);
   }
 
   if (fix) {
@@ -189,19 +191,29 @@ const main = async (): Promise<void> => {
       }
     }
     console.log(`Fixed ${result.fixedCount} files.`);
-  } else {
-    for (const issue of result.issues) {
-      console.error(
-        `${
-          issue.issue === "missing" ? "Missing" : "Incorrect"
-        } copyright header: ${issue.path}`,
-      );
-    }
-    console.info(`Copyright header should be "${COPYRIGHT}"`);
-    runtime.process.exit(1);
+    return ok(undefined);
   }
+
+  for (const issue of result.issues) {
+    console.error(
+      `${
+        issue.issue === "missing" ? "Missing" : "Incorrect"
+      } copyright header: ${issue.path}`,
+    );
+  }
+  console.info(`Copyright header should be "${COPYRIGHT}"`);
+  return fail({ exitCode: 1 });
 };
 
 if (import.meta.main) {
-  await main();
+  const result = await main();
+  match(result, {
+    ok: () => {},
+    fail: (error) => {
+      if (error.message !== undefined) {
+        console.error(error.message);
+      }
+      runtime.process.setExitCode(error.exitCode);
+    },
+  });
 }

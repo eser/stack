@@ -15,27 +15,35 @@
  * @module
  */
 
-import { Command, type CommandContext } from "@eser/shell/args";
+import { type CliResult, Command, type CommandContext } from "@eser/shell/args";
 
 // Lazy-loaded handlers - dynamically import only when command is invoked
-const lazyBuildHandler = async (ctx: CommandContext): Promise<void> => {
+const lazyBuildHandler = async (
+  ctx: CommandContext,
+): Promise<CliResult<void>> => {
   const { buildHandler } = await import("./build.ts");
-  return buildHandler(ctx);
+  return await buildHandler(ctx);
 };
 
-const lazyDevHandler = async (ctx: CommandContext): Promise<void> => {
+const lazyDevHandler = async (
+  ctx: CommandContext,
+): Promise<CliResult<void>> => {
   const { devHandler } = await import("./dev.ts");
-  return devHandler(ctx);
+  return await devHandler(ctx);
 };
 
-const lazyServeHandler = async (ctx: CommandContext): Promise<void> => {
+const lazyServeHandler = async (
+  ctx: CommandContext,
+): Promise<CliResult<void>> => {
   const { serveHandler } = await import("./serve.ts");
-  return serveHandler(ctx);
+  return await serveHandler(ctx);
 };
 
-const lazyInitHandler = async (ctx: CommandContext): Promise<void> => {
+const lazyInitHandler = async (
+  ctx: CommandContext,
+): Promise<CliResult<void>> => {
   const { initHandler } = await import("./init.ts");
-  return initHandler(ctx);
+  return await initHandler(ctx);
 };
 
 export const larouxCommand = new Command("laroux")

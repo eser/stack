@@ -6,7 +6,7 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
-import { runtime } from "@eser/standards/runtime";
+import { runtime, toPosix } from "@eser/standards/runtime";
 import * as logger from "@eser/logging/logger";
 import * as validatorIdentifier from "./validator-identifier/mod.ts";
 import * as collector from "./collector.ts";
@@ -17,10 +17,11 @@ const PLACEHOLDER_PREFIX = `##!!//__`;
 const PLACEHOLDER_SUFFIX = "__//!!##";
 
 /**
- * Import specifiers must have forward slashes
+ * Convert a file path to an import specifier.
+ * Normalizes to POSIX format and ensures ./ prefix for relative imports.
  */
 const toImportSpecifier = (file: string) => {
-  const specifier = runtime.path.normalize(file).replace(/\\/g, "/");
+  const specifier = toPosix(runtime.path.normalize(file));
 
   if (!specifier.startsWith(".")) {
     return `./${specifier}`;

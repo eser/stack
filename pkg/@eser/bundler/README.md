@@ -1,4 +1,4 @@
-# @eser/bundler
+# 📦 [@eser/bundler](./)
 
 A unified bundler abstraction for Deno with multiple backend support and
 comprehensive CSS processing utilities.
@@ -476,5 +476,5 @@ BrowserTargetPresets.latest(); // Chrome 120+, Firefox 120+, Safari 17+
 
 ---
 
-For further details such as requirements, licensing and support guide, please
-visit the [main eserstack repository](https://github.com/eser/stack).
+🔗 For further details, visit the
+[eserstack repository](https://github.com/eser/stack).

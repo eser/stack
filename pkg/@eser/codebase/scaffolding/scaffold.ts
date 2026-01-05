@@ -9,7 +9,7 @@
  */
 
 import { exec } from "@eser/shell/exec";
-import { runtime } from "@eser/standards/runtime";
+import { NotFoundError, runtime } from "@eser/standards/runtime";
 import { fetchTemplate } from "./providers/mod.ts";
 import {
   getConfigFilePath,
@@ -45,7 +45,7 @@ export const scaffold = async (
   // Check if target directory exists and has content
   try {
     const entries = [];
-    for await (const entry of Deno.readDir(absoluteTargetDir)) {
+    for await (const entry of runtime.fs.readDir(absoluteTargetDir)) {
       entries.push(entry);
       break; // We only need to know if there's at least one entry
     }
@@ -56,7 +56,7 @@ export const scaffold = async (
       );
     }
   } catch (error) {
-    if (!(error instanceof Deno.errors.NotFound)) {
+    if (!(error instanceof NotFoundError)) {
       throw error;
     }
     // Directory doesn't exist, that's fine

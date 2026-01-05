@@ -8,7 +8,7 @@ import {
   type BundlerConfig,
   renderToReadableStream,
 } from "./rsc-flight-renderer.ts";
-import { runtime } from "@eser/standards/runtime";
+import { NotFoundError, runtime } from "@eser/standards/runtime";
 import type { AppConfig } from "@eser/laroux/config";
 import * as logging from "@eser/logging";
 
@@ -44,7 +44,7 @@ export async function loadModuleMap(config: AppConfig): Promise<BundlerConfig> {
     return map;
   } catch (error) {
     rscRenderer.warn("Module map not found, using empty map");
-    if (error instanceof Deno.errors.NotFound) {
+    if (error instanceof NotFoundError) {
       rscRenderer.warn("   Run `deno task build` to generate the module map");
     }
     return {};

@@ -9,16 +9,16 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import * as standardsRuntime from "@eser/standards/runtime";
-import type { CommandContext } from "@eser/shell/args";
+import { fail, ok, tryCatchAsync } from "@eser/functions/results";
+import { type CliResult, type CommandContext } from "@eser/shell/args";
 import * as scaffolding from "@eser/codebase/scaffolding";
 
 const TEMPLATES = ["minimal", "blog", "dashboard", "docs"] as const;
 type TemplateName = typeof TEMPLATES[number];
 
-export const initHandler = async (ctx: CommandContext): Promise<void> => {
-  const { runtime } = standardsRuntime;
-
+export const initHandler = async (
+  ctx: CommandContext,
+): Promise<CliResult<void>> => {
   // Get folder name from args (first positional argument)
   const folder = (ctx.args[0] as string) ?? "my-laroux-app";
 
@@ -27,14 +27,12 @@ export const initHandler = async (ctx: CommandContext): Promise<void> => {
 
   // Validate template
   if (!TEMPLATES.includes(templateName as TemplateName)) {
-    // deno-lint-ignore no-console
-    console.error(
-      fmtColors.red(`\nError: Invalid template "${templateName}"`),
-    );
-    // deno-lint-ignore no-console
-    console.error(`Available templates: ${TEMPLATES.join(", ")}`);
-    runtime.process.exit(1);
-    return;
+    return fail({
+      message:
+        `${fmtColors.red(`\nError: Invalid template "${templateName}"`)}\n` +
+        `Available templates: ${TEMPLATES.join(", ")}`,
+      exitCode: 1,
+    });
   }
 
   // deno-lint-ignore no-console
@@ -53,38 +51,48 @@ export const initHandler = async (ctx: CommandContext): Promise<void> => {
   const skipPostInstall = (ctx.flags["no-install"] as boolean) ?? false;
   const noGit = (ctx.flags["no-git"] as boolean) ?? false;
 
-  try {
-    // deno-lint-ignore no-console
-    console.log(fmtColors.dim(`   Fetching from ${specifier}...\n`));
+  // deno-lint-ignore no-console
+  console.log(fmtColors.dim(`   Fetching from ${specifier}...\n`));
 
-    const result = await scaffolding.scaffold({
-      specifier,
-      targetDir: folder,
-      force,
-      skipPostInstall: skipPostInstall || noGit, // Skip git init if --no-git
-      interactive: true,
-    });
+  const scaffoldResult = await tryCatchAsync(
+    () =>
+      scaffolding.scaffold({
+        specifier,
+        targetDir: folder,
+        force,
+        skipPostInstall: skipPostInstall || noGit, // Skip git init if --no-git
+        interactive: true,
+      }),
+    (error) => ({ message: (error as Error).message }),
+  );
 
-    // deno-lint-ignore no-console
-    console.log(
-      fmtColors.green(
-        `\n🎉 Project created successfully!`,
+  if (scaffoldResult._tag === "Fail") {
+    return fail({
+      message: fmtColors.red(
+        `\nScaffolding failed: ${scaffoldResult.error.message}`,
       ),
-    );
+      exitCode: 1,
+    });
+  }
 
-    // Show applied variables if any
-    if (Object.keys(result.variables).length > 0) {
-      // deno-lint-ignore no-console
-      console.log("\nVariables applied:");
-      for (const [key, value] of Object.entries(result.variables)) {
-        // deno-lint-ignore no-console
-        console.log(`  ${fmtColors.dim(key)}: ${value}`);
-      }
-    }
+  const result = scaffoldResult.value;
 
-    // Print next steps
+  // deno-lint-ignore no-console
+  console.log(fmtColors.green(`\n🎉 Project created successfully!`));
+
+  // Show applied variables if any
+  if (Object.keys(result.variables).length > 0) {
     // deno-lint-ignore no-console
-    console.log(`
+    console.log("\nVariables applied:");
+    for (const [key, value] of Object.entries(result.variables)) {
+      // deno-lint-ignore no-console
+      console.log(`  ${fmtColors.dim(key)}: ${value}`);
+    }
+  }
+
+  // Print next steps
+  // deno-lint-ignore no-console
+  console.log(`
 ${fmtColors.bold("Next steps:")}
 
   cd ${folder}
@@ -94,11 +102,6 @@ Then open ${fmtColors.cyan("http://localhost:8000")} in your browser.
 
 ${fmtColors.dim("Learn more at https://laroux.now/")}
 `);
-  } catch (error) {
-    // deno-lint-ignore no-console
-    console.error(
-      fmtColors.red(`\nScaffolding failed: ${(error as Error).message}`),
-    );
-    runtime.process.exit(1);
-  }
+
+  return ok(undefined);
 };

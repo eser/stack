@@ -7,7 +7,7 @@
  * through the FrameworkPlugin interface.
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { type FsWatcher, runtime, toPosix } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 
 const buildLogger = logging.logger.getLogger(["laroux-bundler", "build"]);
@@ -26,7 +26,7 @@ import type { ChunkManifest } from "./domain/chunk-manifest.ts";
 import { processCss } from "./adapters/lightningcss/mod.ts";
 import type { CssPlugin } from "./domain/css-plugin.ts";
 import type { CSSModuleResult } from "./css-modules.ts";
-import { createJsrResolverPlugin } from "./jsr-resolver-plugin.ts";
+import { createImportMapResolverPlugin } from "./import-map-resolver-plugin.ts";
 import { scanRoutes } from "./domain/route-scanner.ts";
 import {
   generateApiRouteFile,
@@ -680,7 +680,7 @@ async function loadExistingBuild(context: BuildContext): Promise<BuildResult> {
 export async function watch(
   context: BuildContext,
   onChange: (result: BuildResult) => void,
-): Promise<Deno.FsWatcher> {
+): Promise<FsWatcher> {
   const { srcDir, distDir, projectRoot } = context;
   buildLogger.debug(
     "👁️  Watch mode enabled, monitoring for changes...",
@@ -717,7 +717,7 @@ export async function watch(
     // No styles directory yet
   }
 
-  const watcher = Deno.watchFs(watchPaths);
+  const watcher = runtime.fs.watch(watchPaths);
 
   let building = false;
   let pendingRebuild = false;
@@ -810,10 +810,10 @@ export async function watch(
         if (!changedFile.match(/\.(tsx?|jsx?|css)$/)) continue;
 
         // Skip dist directory (build outputs shouldn't trigger rebuilds)
-        // Use normalized path separators for cross-platform compatibility
-        const normalizedChangedFile = changedFile.replace(/\\/g, "/");
-        const normalizedDistDir = relativeDistDir.replace(/\\/g, "/");
-        if (normalizedChangedFile.startsWith(normalizedDistDir + "/")) {
+        // Convert to POSIX format for cross-platform path comparison
+        const normalizedChangedFile = toPosix(changedFile);
+        const normalizedDistDir = toPosix(relativeDistDir);
+        if (normalizedChangedFile.startsWith(`${normalizedDistDir}/`)) {
           continue;
         }
 
@@ -876,8 +876,9 @@ async function bundleClient(
     const componentEntrypoints = clientComponents.map((c) => c.filePath);
     const clientOutputDir = runtime.path.resolve(distDir, CLIENT_DIR);
 
-    // Create JSR resolver plugin for rolldown to handle @eser/* imports
-    const jsrPlugin = createJsrResolverPlugin({
+    // Create import map resolver plugin to handle all bare imports
+    // Uses both deno.json and package.json for import resolution
+    const importMapPlugin = createImportMapResolverPlugin({
       projectRoot,
       browserShims: config.browserShims,
     });
@@ -898,7 +899,7 @@ async function bundleClient(
         splitting: PRODUCTION_SETTINGS.codeSplitting,
         platform: "browser",
         sourcemap: PRODUCTION_SETTINGS.sourceMaps,
-        plugins: [jsrPlugin],
+        plugins: [importMapPlugin],
         define,
       },
       clientComponents,

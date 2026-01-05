@@ -5,9 +5,9 @@
  *
  * @example
  * ```typescript
- * import { isDeno, createDenoRuntime } from "@eser/standards/runtime/deno";
+ * import { isRuntime, createDenoRuntime } from "@eser/standards/runtime/deno";
  *
- * if (isDeno()) {
+ * if (isRuntime("deno")) {
  *   const runtime = createDenoRuntime();
  *   await runtime.fs.readTextFile("config.json");
  * }
@@ -21,12 +21,9 @@ export {
   detectRuntime,
   getRuntimeVersion,
   isBrowser,
-  isBun,
-  isDeno,
   isEdge,
-  isNode,
+  isRuntime,
   isServer,
-  isWorkerd,
 } from "./detect.ts";
 
 // Deno adapter

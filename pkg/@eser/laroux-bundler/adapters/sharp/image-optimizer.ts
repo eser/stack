@@ -235,7 +235,7 @@ export async function optimizeImage(
       }
 
       const outputBuffer = await processedImage.toBuffer();
-      await Deno.writeFile(outputPath, outputBuffer);
+      await runtime.fs.writeFile(outputPath, outputBuffer);
 
       variants.push({
         path: outputPath,
@@ -336,7 +336,10 @@ export async function optimizeImages(
   // Save manifest
   const manifestPath = runtime.path.resolve(outputDir, "image-manifest.json");
   await runtime.fs.ensureDir(runtime.path.dirname(manifestPath));
-  await Deno.writeTextFile(manifestPath, JSON.stringify(manifest, null, 2));
+  await runtime.fs.writeTextFile(
+    manifestPath,
+    JSON.stringify(manifest, null, 2),
+  );
 
   const savedPercent = totalOriginalSize > 0
     ? ((1 - totalOptimizedSize / totalOriginalSize) * 100).toFixed(1)

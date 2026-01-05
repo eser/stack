@@ -17,7 +17,7 @@ import {
   createStreamingHtmlShellEnd,
   createStreamingHtmlShellStart,
 } from "./html-shell.ts";
-import { runtime } from "@eser/standards/runtime";
+import { NotFoundError, runtime } from "@eser/standards/runtime";
 import { contentType } from "@std/media-types";
 import type { AppConfig } from "../config/load-config.ts";
 import type { HMRManager } from "../domain/hmr-manager.ts";
@@ -241,7 +241,7 @@ async function serveStatic(
     return new Response(file as BodyInit, { headers });
   } catch (error) {
     if (
-      error instanceof Deno.errors.NotFound ||
+      error instanceof NotFoundError ||
       (error instanceof Error && error.name === "NotFoundError")
     ) {
       return null;
@@ -287,7 +287,7 @@ async function servePublicAsset(
     });
   } catch (error) {
     if (
-      error instanceof Deno.errors.NotFound ||
+      error instanceof NotFoundError ||
       (error instanceof Error && error.name === "NotFoundError")
     ) {
       return null;

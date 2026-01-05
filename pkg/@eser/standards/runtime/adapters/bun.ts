@@ -20,6 +20,8 @@ import type {
   DirEntry,
   FileInfo,
   FileOptions,
+  FsEvent,
+  FsWatcher,
   MakeTempOptions,
   MkdirOptions,
   ParsedPath,
@@ -34,6 +36,7 @@ import type {
   RuntimePath,
   RuntimeProcess,
   SpawnOptions,
+  WatchOptions,
   WriteFileOptions,
 } from "../types.ts";
 import { NotFoundError, ProcessError } from "../types.ts";
@@ -242,6 +245,93 @@ const createBunFs = (): RuntimeFs => {
       }
       return tempPath;
     },
+
+    async realPath(path: string): Promise<string> {
+      try {
+        return await nodeFsPromises.realpath(path);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "ENOENT"
+        ) {
+          throw new NotFoundError(path);
+        }
+        throw error;
+      }
+    },
+
+    watch(paths: string[], options?: WatchOptions): FsWatcher {
+      // Bun uses Node.js fs.watch compatible API
+      const recursive = options?.recursive ?? true;
+      const watchers: ReturnType<typeof nodeFs.watch>[] = [];
+
+      const events: FsEvent[] = [];
+      let resolvers: ((value: IteratorResult<FsEvent>) => void)[] = [];
+      let closed = false;
+
+      const pushEvent = (event: FsEvent): void => {
+        if (closed) {
+          return;
+        }
+        if (resolvers.length > 0) {
+          const resolver = resolvers.shift()!;
+          resolver({ value: event, done: false });
+        } else {
+          events.push(event);
+        }
+      };
+
+      for (const watchPath of paths) {
+        try {
+          const watcher = nodeFs.watch(
+            watchPath,
+            { recursive },
+            (eventType, filename) => {
+              if (filename === null) {
+                return;
+              }
+              pushEvent({
+                kind: eventType === "rename" ? "create" : "modify",
+                paths: [nodePath.join(watchPath, filename)],
+              });
+            },
+          );
+          watchers.push(watcher);
+        } catch {
+          // Skip paths that can't be watched
+        }
+      }
+
+      return {
+        close: (): void => {
+          closed = true;
+          for (const watcher of watchers) {
+            watcher.close();
+          }
+          for (const resolver of resolvers) {
+            resolver({ value: undefined as unknown as FsEvent, done: true });
+          }
+          resolvers = [];
+        },
+        [Symbol.asyncIterator]: (): AsyncIterator<FsEvent> => ({
+          next: (): Promise<IteratorResult<FsEvent>> => {
+            if (closed) {
+              return Promise.resolve({
+                value: undefined as unknown as FsEvent,
+                done: true,
+              });
+            }
+            if (events.length > 0) {
+              return Promise.resolve({ value: events.shift()!, done: false });
+            }
+            return new Promise((resolve) => {
+              resolvers.push(resolve);
+            });
+          },
+        }),
+      };
+    },
   };
 };
 
@@ -446,6 +536,10 @@ const createBunProcess = (): RuntimeProcess => {
   return {
     exit(code?: number): never {
       nodeProcess.exit(code);
+    },
+
+    setExitCode(code: number): void {
+      nodeProcess.exitCode = code;
     },
 
     cwd(): string {

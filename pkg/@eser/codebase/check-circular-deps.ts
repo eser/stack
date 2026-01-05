@@ -22,7 +22,9 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { fail, match, ok } from "@eser/functions/results";
+import { runtime } from "@eser/standards/runtime";
+import { type CliResult } from "@eser/shell/args";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 
 /**
@@ -161,7 +163,7 @@ export const checkCircularDeps = async (
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<void> => {
+const main = async (): Promise<CliResult<void>> => {
   console.log("Checking for circular dependencies...\n");
 
   const result = await checkCircularDeps();
@@ -175,12 +177,22 @@ const main = async (): Promise<void> => {
     for (const cycle of result.cycles) {
       console.log(fmtColors.yellow(`  ${cycle.join(" → ")}`));
     }
-    standardsRuntime.runtime.process.exit(1);
-  } else {
-    console.log(fmtColors.green("\nNo circular dependencies found."));
+    return fail({ exitCode: 1 });
   }
+
+  console.log(fmtColors.green("\nNo circular dependencies found."));
+  return ok(undefined);
 };
 
 if (import.meta.main) {
-  await main();
+  const result = await main();
+  match(result, {
+    ok: () => {},
+    fail: (error) => {
+      if (error.message !== undefined) {
+        console.error(error.message);
+      }
+      runtime.process.setExitCode(error.exitCode);
+    },
+  });
 }

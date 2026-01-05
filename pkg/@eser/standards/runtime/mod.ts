@@ -34,6 +34,8 @@ export type {
   DirEntry,
   FileInfo,
   FileOptions,
+  FsEvent,
+  FsWatcher,
   MakeTempOptions,
   MkdirOptions,
   ParsedPath,
@@ -51,6 +53,7 @@ export type {
   RuntimePath,
   RuntimeProcess,
   SpawnOptions,
+  WatchOptions,
   WriteFileOptions,
 } from "./types.ts";
 
@@ -67,12 +70,9 @@ export {
   detectRuntime,
   getRuntimeVersion,
   isBrowser,
-  isBun,
-  isDeno,
   isEdge,
-  isNode,
+  isRuntime,
   isServer,
-  isWorkerd,
 } from "./detect.ts";
 
 // Re-export platform utilities
@@ -85,7 +85,7 @@ export {
 } from "./platform.ts";
 
 // Re-export polyfills
-export { posixPath } from "./polyfills/path.ts";
+export { posixPath, toPosix } from "./polyfills/path.ts";
 
 // Re-export file search utilities
 export {
@@ -149,6 +149,8 @@ const createStubFs = (runtimeName: RuntimeName): Runtime["fs"] => {
     copyFile: throwFs,
     rename: throwFs,
     makeTempDir: throwFs,
+    realPath: throwFs,
+    watch: throwFs,
   };
 };
 
@@ -172,6 +174,7 @@ const createStubProcess = (runtimeName: RuntimeName): Runtime["process"] => {
   const throwProcess = createThrowFn("process", runtimeName);
   return {
     exit: throwProcess,
+    setExitCode: throwProcess,
     cwd: throwProcess,
     chdir: throwProcess,
     hostname: throwProcess,

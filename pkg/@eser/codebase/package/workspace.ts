@@ -6,11 +6,22 @@ import type { PackageConfig, WorkspaceModule } from "./types.ts";
 import { getBaseDir, load, PackageLoadError, tryLoad } from "./loader.ts";
 
 /**
+ * Error thrown when workspace configuration is invalid.
+ */
+export class WorkspaceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WorkspaceError";
+  }
+}
+
+/**
  * Loads package configuration from a directory.
- * Exits the process with an error message if no config file is found.
+ * Throws an error if no config file is found.
  *
  * @param path - Directory to load config from
  * @returns PackageConfig with loaded configuration
+ * @throws {WorkspaceError} If no package config file is found
  */
 export const loadPackageConfig = async (
   path: string,
@@ -19,10 +30,9 @@ export const loadPackageConfig = async (
     return await load({ baseDir: path });
   } catch (e) {
     if (e instanceof PackageLoadError) {
-      console.log(
+      throw new WorkspaceError(
         `No package config file found in ${runtime.path.resolve(path)}`,
       );
-      runtime.process.exit(1);
     }
     throw e;
   }
@@ -72,17 +82,15 @@ export const getWorkspaceModules = async (
   const workspaces = rootConfig.workspaces?.value;
 
   if (!Array.isArray(workspaces)) {
-    console.log("Package config doesn't have workspace field.");
-    runtime.process.exit(1);
+    throw new WorkspaceError("Package config doesn't have workspace field.");
   }
 
   // Validate all workspace entries are strings
   for (const workspace of workspaces) {
     if (typeof workspace !== "string") {
-      console.log(
+      throw new WorkspaceError(
         "Package config workspace field should be an array of strings.",
       );
-      runtime.process.exit(1);
     }
   }
 

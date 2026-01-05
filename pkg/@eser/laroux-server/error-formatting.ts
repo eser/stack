@@ -6,6 +6,7 @@
 
 import { c } from "@eser/shell/formatting";
 import * as logging from "@eser/logging";
+import { runtime } from "@eser/standards/runtime";
 
 const errorLogger = logging.logger.getLogger(["laroux-server", "error"]);
 
@@ -189,7 +190,7 @@ export function formatError(error: Error | LarouxError): string {
   }
 
   // Stack trace (in development)
-  if (Deno.env.get("DEBUG") !== "" && error.stack !== undefined) {
+  if (runtime.env.get("DEBUG") !== "" && error.stack !== undefined) {
     lines.push(c.error("│"));
     lines.push(c.error("│ ") + c.dim("Stack trace:"));
     const stackLines = error.stack.split("\n").slice(1, 6); // First 5 lines
@@ -368,12 +369,13 @@ export const errors = {
 
 /**
  * Handle uncaught errors
+ * Logs the error and throws to signal failure
  */
-export function handleUncaughtError(error: Error | LarouxError) {
+export function handleUncaughtError(error: Error | LarouxError): never {
   errorLogger.error(formatError(error));
 
-  // Exit with error code
-  Deno.exit(1);
+  // Re-throw to let the runtime handle the exit code
+  throw error;
 }
 
 /**

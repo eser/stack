@@ -20,8 +20,10 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
+import { fail, match, ok } from "@eser/functions/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import {
+  type CliResult,
   Command,
   type CommandContext,
   type CommandLike,
@@ -35,20 +37,20 @@ import config from "./package.json" with { type: "json" };
 type CommandHandler = (
   args: string[],
   flags: Record<string, unknown>,
-) => Promise<void>;
+) => Promise<CliResult<void>>;
 
-// Wrapper to adapt Command.parse() to the old handler signature
+// Wrapper to adapt Command.parse() to the new Result-based signature
 const wrapCommand = (
-  cmd: { parse: (args: string[]) => Promise<void> },
+  cmd: { parse: (args: string[]) => Promise<CliResult<void>> },
 ): CommandHandler => {
   return async (args: string[], _flags: Record<string, unknown>) => {
-    await cmd.parse(args);
+    return await cmd.parse(args);
   };
 };
 
-// Wrapper to adapt new handler to old signature
+// Wrapper to adapt new handler to Result signature
 const wrapHandler = (
-  handler: (ctx: CommandContext) => Promise<void>,
+  handler: (ctx: CommandContext) => Promise<CliResult<void>>,
   commandName: string,
 ): CommandHandler => {
   return async (_args: string[], flags: Record<string, unknown>) => {
@@ -58,7 +60,7 @@ const wrapHandler = (
       completions: () => "",
       help: () => "",
     };
-    await handler({
+    return await handler({
       args: [],
       flags,
       root: mockRoot,
@@ -82,7 +84,7 @@ const versionCommand = new Command("version")
       // deno-lint-ignore no-console
       console.log(`eser ${config.version}`);
     }
-    return Promise.resolve();
+    return Promise.resolve(ok(undefined));
   });
 
 const commands: Record<string, CommandHandler> = {
@@ -127,7 +129,7 @@ const showHelp = (): void => {
   console.log("\nRun 'eser <command> --help' for command-specific help.");
 };
 
-export const main = async (): Promise<void> => {
+export const main = async (): Promise<CliResult<void>> => {
   // @ts-ignore parseArgs doesn't mutate the array, readonly is safe
   const args = cliParseArgs.parseArgs(standardsRuntime.runtime.process.args, {
     boolean: ["help"],
@@ -140,7 +142,7 @@ export const main = async (): Promise<void> => {
   // Show main help only if no command or help without command
   if (command === undefined) {
     showHelp();
-    return;
+    return ok(undefined);
   }
 
   const handler = commands[command];
@@ -150,13 +152,23 @@ export const main = async (): Promise<void> => {
     // deno-lint-ignore no-console
     console.log("");
     showHelp();
-    standardsRuntime.runtime.process.exit(1);
+    return fail({ exitCode: 1 });
   }
 
   // Pass remaining args to command handler
-  await handler(args._.slice(1) as string[], args);
+  return await handler(args._.slice(1) as string[], args);
 };
 
 if (import.meta.main) {
-  await main();
+  const result = await main();
+  match(result, {
+    ok: () => {},
+    fail: (error) => {
+      if (error.message !== undefined) {
+        // deno-lint-ignore no-console
+        console.error(error.message);
+      }
+      standardsRuntime.runtime.process.setExitCode(error.exitCode);
+    },
+  });
 }

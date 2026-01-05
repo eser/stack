@@ -23,7 +23,9 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
+import { fail, match, ok } from "@eser/functions/results";
 import { runtime } from "@eser/standards/runtime";
+import { type CliResult } from "@eser/shell/args";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 
 /**
@@ -205,7 +207,7 @@ export const checkModExports = async (
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<void> => {
+const main = async (): Promise<CliResult<void>> => {
   console.log("Checking mod.ts exports...\n");
 
   const result = await checkModExports();
@@ -223,12 +225,22 @@ const main = async (): Promise<void> => {
         fmtColors.yellow(`  ${missing.packageName}: ${missing.file}`),
       );
     }
-    runtime.process.exit(1);
-  } else {
-    console.log(fmtColors.green("\nAll mod.ts exports are complete."));
+    return fail({ exitCode: 1 });
   }
+
+  console.log(fmtColors.green("\nAll mod.ts exports are complete."));
+  return ok(undefined);
 };
 
 if (import.meta.main) {
-  await main();
+  const result = await main();
+  match(result, {
+    ok: () => {},
+    fail: (error) => {
+      if (error.message !== undefined) {
+        console.error(error.message);
+      }
+      runtime.process.setExitCode(error.exitCode);
+    },
+  });
 }

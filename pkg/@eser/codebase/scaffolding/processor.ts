@@ -9,7 +9,7 @@
  */
 
 import { walk } from "@std/fs/walk";
-import { runtime } from "@eser/standards/runtime";
+import { NotFoundError, runtime } from "@eser/standards/runtime";
 
 /** Variable placeholder pattern: {{.variable_name}} (Go template style) */
 const VARIABLE_PATTERN = /\{\{\s*\.(\w+)\s*\}\}/g;
@@ -191,10 +191,12 @@ export const processTemplate = async (
         }
       } catch (error) {
         // Log but don't fail on individual file errors
-        if (!(error instanceof Deno.errors.InvalidData)) {
+        // InvalidData usually means binary file detected as text
+        if (
+          !(error instanceof Error && error.name === "InvalidData")
+        ) {
           throw error;
         }
-        // InvalidData usually means binary file detected as text
       }
     }
 
@@ -204,7 +206,7 @@ export const processTemplate = async (
       const newPath = runtime.path.join(dirPath, newFilename);
 
       if (newPath !== filepath) {
-        await Deno.rename(filepath, newPath);
+        await runtime.fs.rename(filepath, newPath);
       }
     }
   }
@@ -221,7 +223,7 @@ export const processTemplate = async (
     const newPath = runtime.path.join(parentDir, newDirname);
 
     if (newPath !== dirPath) {
-      await Deno.rename(dirPath, newPath);
+      await runtime.fs.rename(dirPath, newPath);
     }
   }
 };
@@ -231,9 +233,9 @@ export const processTemplate = async (
  */
 export const removeConfigFile = async (filepath: string): Promise<void> => {
   try {
-    await Deno.remove(filepath);
+    await runtime.fs.remove(filepath);
   } catch (error) {
-    if (!(error instanceof Deno.errors.NotFound)) {
+    if (!(error instanceof NotFoundError)) {
       throw error;
     }
   }

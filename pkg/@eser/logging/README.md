@@ -1,4 +1,4 @@
-# @eser/logging
+# 📝 [@eser/logging](./)
 
 `@eser/logging` is a hierarchical, category-based logging library with context
 propagation, multiple sinks, filters, and OpenTelemetry integration. Inspired by
@@ -383,5 +383,5 @@ Default OpenTelemetry tracer instance.
 
 ---
 
-For further details such as requirements, licensing and support guide, please
-visit the [main eserstack repository](https://github.com/eser/stack).
+🔗 For further details, visit the
+[eserstack repository](https://github.com/eser/stack).

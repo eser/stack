@@ -1,5 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import { NotFoundError } from "@eser/standards/runtime";
+
 /**
  * Entry in a fake filesystem walk operation.
  */
@@ -19,7 +21,7 @@ export interface FakeFs {
    *
    * @param path - The file path to read
    * @returns The file content
-   * @throws {Deno.errors.NotFound} If the file doesn't exist
+   * @throws {NotFoundError} If the file doesn't exist
    */
   readTextFile(path: string): Promise<string>;
 
@@ -28,7 +30,7 @@ export interface FakeFs {
    *
    * @param path - The file path to read
    * @returns The file content as Uint8Array
-   * @throws {Deno.errors.NotFound} If the file doesn't exist
+   * @throws {NotFoundError} If the file doesn't exist
    */
   readFile(path: string): Promise<Uint8Array>;
 
@@ -104,7 +106,7 @@ export const createFakeFs = (files: Record<string, string>): FakeFs => {
         return content;
       }
 
-      throw new Deno.errors.NotFound(`File not found: ${path}`);
+      throw new NotFoundError(path);
     },
 
     // deno-lint-ignore require-await
@@ -114,7 +116,7 @@ export const createFakeFs = (files: Record<string, string>): FakeFs => {
         return encoder.encode(content);
       }
 
-      throw new Deno.errors.NotFound(`File not found: ${path}`);
+      throw new NotFoundError(path);
     },
 
     async *walk(root: string): AsyncIterable<WalkEntry> {

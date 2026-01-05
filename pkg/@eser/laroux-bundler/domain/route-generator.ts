@@ -2,7 +2,7 @@
 // Route generator for file-based routing
 // Generates _generated.ts with scanned route definitions
 
-import { runtime } from "@eser/standards/runtime";
+import { runtime, toPosix } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import type { ScannedRoute, ScanResult } from "./route-scanner.ts";
 
@@ -367,14 +367,12 @@ function toPascalCase(str: string): string {
  * Gets relative import path from output directory to target file
  */
 function getRelativeImportPath(fromDir: string, toFile: string): string {
-  let relativePath = runtime.path.relative(fromDir, toFile);
+  // Get relative path and convert to POSIX format for import specifiers
+  const relativePath = toPosix(runtime.path.relative(fromDir, toFile));
 
-  // Ensure path uses forward slashes
-  relativePath = relativePath.replace(/\\/g, "/");
-
-  // Add ./ prefix if needed
+  // Add ./ prefix if needed for relative imports
   if (!relativePath.startsWith(".")) {
-    relativePath = `./${relativePath}`;
+    return `./${relativePath}`;
   }
 
   return relativePath;

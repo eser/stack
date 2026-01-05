@@ -272,5 +272,5 @@ compareVersions("1.2.0", "1.3.0"); // -1 (less than)
 
 ---
 
-🔗 For further details such as requirements, licensing and support guide, please
-visit the [main eserstack repository](https://github.com/eser/stack).
+🔗 For further details, visit the
+[eserstack repository](https://github.com/eser/stack).

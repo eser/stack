@@ -5,9 +5,9 @@
  *
  * @example
  * ```typescript
- * import { isNode, createNodeRuntime } from "@eser/standards/runtime/node";
+ * import { isRuntime, createNodeRuntime } from "@eser/standards/runtime/node";
  *
- * if (isNode()) {
+ * if (isRuntime("node")) {
  *   const runtime = createNodeRuntime();
  *   await runtime.fs.readTextFile("config.json");
  * }
@@ -21,12 +21,9 @@ export {
   detectRuntime,
   getRuntimeVersion,
   isBrowser,
-  isBun,
-  isDeno,
   isEdge,
-  isNode,
+  isRuntime,
   isServer,
-  isWorkerd,
 } from "./detect.ts";
 
 // Node adapter

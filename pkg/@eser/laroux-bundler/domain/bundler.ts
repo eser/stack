@@ -245,3 +245,122 @@ export async function bundle(
 
   return convertBundleResult(result, manifest);
 }
+
+/**
+ * Options for bundling server components
+ */
+export type ServerBundleOptions = {
+  /** Server component entry points */
+  entrypoints: string[];
+  /** Output directory for bundled files */
+  outputDir: string;
+  /** Project root directory */
+  projectRoot: string;
+  /** External packages to exclude from bundle (loaded at runtime) */
+  externals?: string[];
+  /** Bundler plugins for custom resolution and transformation */
+  plugins?: BundlerPlugin[];
+  /** Enable source maps */
+  sourcemap?: boolean;
+  /** Enable minification (usually false for server code) */
+  minify?: boolean;
+};
+
+/**
+ * Result of server component bundling
+ */
+export type ServerBundleResult = {
+  /** Map of entry point paths to output paths */
+  outputMap: Map<string, string>;
+  /** Total bundle size */
+  totalSize: number;
+  /** Number of files generated */
+  fileCount: number;
+};
+
+/**
+ * Bundle server components with externals.
+ *
+ * This function bundles server components for SSR/RSC runtime.
+ * Key differences from client bundling:
+ * - Platform: "node" (server-side)
+ * - All npm/jsr packages marked as external (not inlined)
+ * - No code splitting (each entry stays separate)
+ * - Resolves imports at build time for runtime compatibility
+ *
+ * @param options - Server bundle options
+ * @param backend - Bundler backend to use
+ * @returns Server bundle result
+ */
+export async function bundleServerComponents(
+  options: ServerBundleOptions,
+  backend: BundlerBackend,
+): Promise<ServerBundleResult> {
+  bundlerLogger.info(`📦 Bundling server components with ${backend}`);
+  bundlerLogger.debug(`   Entrypoints: ${options.entrypoints.length}`);
+  bundlerLogger.debug(`   Output: ${options.outputDir}`);
+  bundlerLogger.debug(`   Externals: ${options.externals?.length ?? 0}`);
+
+  const bundler = createBundler(backend, { entryName: "server" });
+
+  // Build entrypoints map - each server component is a separate entry
+  const entrypoints: Record<string, string> = {};
+  for (const filePath of options.entrypoints) {
+    // Use relative path from project root as entry name
+    const relativePath = filePath.replace(options.projectRoot, "").replace(
+      /^\//,
+      "",
+    );
+    // Normalize the entry name (remove src/ prefix if present)
+    const entryName = relativePath.replace(/^src\//, "");
+    entrypoints[entryName] = filePath;
+  }
+
+  const config: BundlerConfig = {
+    entrypoints,
+    outputDir: options.outputDir,
+    format: "esm",
+    platform: "node", // Server-side platform
+    codeSplitting: false, // Each entry stays separate
+    minify: options.minify ?? false,
+    sourcemap: options.sourcemap ?? false,
+    external: options.externals, // Mark npm/jsr packages as external
+    plugins: options.plugins,
+  };
+
+  // Run bundle
+  const result = await bundler.bundle(config);
+
+  if (!result.success) {
+    const errors = result.errors?.map((e) => e.message).join("\n") ??
+      "Unknown error";
+    throw new Error(`Server bundle failed: ${errors}`);
+  }
+
+  // Build output map
+  const outputMap = new Map<string, string>();
+  for (const [outputPath, output] of result.outputs) {
+    if (output.isEntry && result.entrypointManifest !== undefined) {
+      // Find the original entry point for this output
+      for (
+        const [entryPath, chunks] of Object.entries(result.entrypointManifest)
+      ) {
+        if (chunks.includes(outputPath)) {
+          outputMap.set(entryPath, outputPath);
+          break;
+        }
+      }
+    }
+  }
+
+  bundlerLogger.debug(`   Outputs: ${result.outputs.size} files`);
+  bundlerLogger.debug(
+    `   Total size: ${((result.totalSize ?? 0) / 1024).toFixed(2)} KB`,
+  );
+
+  return {
+    outputMap,
+    totalSize: result.totalSize ?? 0,
+    fileCount: result.outputs.size,
+  };
+}

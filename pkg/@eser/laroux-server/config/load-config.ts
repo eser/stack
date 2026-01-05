@@ -61,7 +61,7 @@ async function loadUserConfig(
  * Load complete configuration from all sources
  */
 export async function loadConfig(projectRoot?: string): Promise<AppConfig> {
-  const root = projectRoot ?? Deno.cwd();
+  const root = projectRoot ?? runtime.process.cwd();
 
   // Load user config and merge with defaults
   const userConfig = await loadUserConfig(root);

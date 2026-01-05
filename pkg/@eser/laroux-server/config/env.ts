@@ -81,7 +81,7 @@ function parseEnvFile(content: string): Record<string, string> {
  * 5. System environment variables (highest priority)
  */
 export async function loadEnvFiles(projectRoot: string): Promise<void> {
-  const mode = Deno.env.get("NODE_ENV") ??
+  const mode = runtime.env.get("NODE_ENV") ??
     "development";
 
   const envFiles = [
@@ -101,8 +101,8 @@ export async function loadEnvFiles(projectRoot: string): Promise<void> {
 
         // Set variables that aren't already set
         for (const [key, value] of Object.entries(vars)) {
-          if (!Deno.env.has(key)) {
-            Deno.env.set(key, value);
+          if (!runtime.env.has(key)) {
+            runtime.env.set(key, value);
           }
         }
       } catch (error) {
@@ -114,10 +114,10 @@ export async function loadEnvFiles(projectRoot: string): Promise<void> {
 
 /**
  * Get a typed environment configuration
- * Uses Deno.env with fallbacks to defaults
+ * Uses runtime.env with fallbacks to defaults
  */
 export function getEnvConfig(): EnvConfig {
-  const getEnv = (key: string): string | undefined => Deno.env.get(key);
+  const getEnv = (key: string): string | undefined => runtime.env.get(key);
 
   const getEnvNumber = (key: string, defaultValue: number): number => {
     const value = getEnv(key);
@@ -170,7 +170,7 @@ export async function initEnvConfig(
  */
 export function getCachedEnvConfig(): EnvConfig {
   if (!cachedConfig) {
-    // Fall back to reading from Deno.env directly
+    // Fall back to reading from runtime.env directly
     cachedConfig = getEnvConfig();
   }
   return cachedConfig;

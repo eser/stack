@@ -13,6 +13,8 @@ import type {
   DirEntry,
   FileInfo,
   FileOptions,
+  FsEvent,
+  FsWatcher,
   MakeTempOptions,
   MkdirOptions,
   ParsedPath,
@@ -27,6 +29,7 @@ import type {
   RuntimePath,
   RuntimeProcess,
   SpawnOptions,
+  WatchOptions,
   WriteFileOptions,
 } from "../types.ts";
 import { NotFoundError, ProcessError } from "../types.ts";
@@ -213,6 +216,39 @@ const createDenoFs = (): RuntimeFs => {
         suffix: options?.suffix,
       });
     },
+
+    async realPath(path: string): Promise<string> {
+      try {
+        return await Deno.realPath(path);
+      } catch (error) {
+        if (error instanceof Deno.errors.NotFound) {
+          throw new NotFoundError(path);
+        }
+        throw error;
+      }
+    },
+
+    watch(paths: string[], options?: WatchOptions): FsWatcher {
+      const recursive = options?.recursive ?? true;
+      const denoWatcher = Deno.watchFs(paths, { recursive });
+
+      const mapEvent = (event: Deno.FsEvent): FsEvent => {
+        return {
+          kind: event.kind,
+          paths: event.paths,
+          flag: event.flag,
+        };
+      };
+
+      return {
+        close: () => denoWatcher.close(),
+        [Symbol.asyncIterator]: async function* () {
+          for await (const event of denoWatcher) {
+            yield mapEvent(event);
+          }
+        },
+      };
+    },
   };
 };
 
@@ -396,6 +432,10 @@ const createDenoProcess = (): RuntimeProcess => {
   return {
     exit(code?: number): never {
       Deno.exit(code);
+    },
+
+    setExitCode(code: number): void {
+      Deno.exitCode = code;
     },
 
     cwd(): string {

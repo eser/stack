@@ -10,7 +10,8 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import type { CommandContext } from "@eser/shell/args";
+import { ok } from "@eser/functions/results";
+import { type CliResult, type CommandContext } from "@eser/shell/args";
 
 // Valid log levels
 const VALID_LOG_LEVELS = [
@@ -23,12 +24,18 @@ const VALID_LOG_LEVELS = [
 ] as const;
 type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 
-export const buildHandler = async (ctx: CommandContext): Promise<void> => {
+export const buildHandler = async (
+  ctx: CommandContext,
+): Promise<CliResult<void>> => {
   // deno-lint-ignore no-console
   console.log(fmtColors.cyan("\n📦 Building for production...\n"));
 
+  // Configure logging FIRST (before importing bundler modules that create loggers)
+  const logging = await import("@eser/logging");
+  const { runtime } = await import("@eser/standards/runtime");
+
   // Get flags with defaults
-  const projectRoot = Deno.cwd();
+  const projectRoot = runtime.process.cwd();
   const outDir = (ctx.flags["out-dir"] as string) ?? "dist";
   const minify = !(ctx.flags["no-minify"] as boolean);
   const clean = (ctx.flags["clean"] as boolean) ?? false;
@@ -41,10 +48,6 @@ export const buildHandler = async (ctx: CommandContext): Promise<void> => {
     )
     ? (logLevelInput.toLowerCase() as LogLevel)
     : "info";
-
-  // Configure logging FIRST (before importing bundler modules that create loggers)
-  const logging = await import("@eser/logging");
-  const { runtime } = await import("@eser/standards/runtime");
 
   // Map log level names to @eser/logging severity values
   const logLevelMap = {
@@ -139,6 +142,8 @@ export const buildHandler = async (ctx: CommandContext): Promise<void> => {
   if (analyze) {
     await analyzeBuild(runtime, outDir);
   }
+
+  return ok(undefined);
 };
 
 async function analyzeBuild(

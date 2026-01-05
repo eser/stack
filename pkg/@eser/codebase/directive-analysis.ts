@@ -160,7 +160,7 @@ export const extractExports = (content: string): readonly string[] => {
  */
 const readFileContent = async (filePath: string): Promise<string | null> => {
   try {
-    return await Deno.readTextFile(filePath);
+    return await runtime.fs.readTextFile(filePath);
   } catch {
     return null;
   }

@@ -158,7 +158,7 @@ export async function getAllComponents(srcDir: string): Promise<string[]> {
 
 // CLI usage
 if (import.meta.main) {
-  const projectRoot = Deno.cwd();
+  const projectRoot = runtime.process.cwd();
   const srcDir = runtime.path.resolve(projectRoot, "src");
   const clientComponents = await analyzeClientComponents(srcDir, projectRoot);
 

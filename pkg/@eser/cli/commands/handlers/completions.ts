@@ -7,8 +7,8 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import * as standardsRuntime from "@eser/standards/runtime";
-import type { CommandContext } from "@eser/shell/args";
+import { fail, ok } from "@eser/functions/results";
+import { type CliResult, type CommandContext } from "@eser/shell/args";
 import {
   detectShell,
   getCompletionEvalLine,
@@ -39,18 +39,17 @@ To install, add the following to your ${fmtColors.cyan(config.rcFile)}:
 `;
 };
 
-export const completionsHandler = (ctx: CommandContext): void => {
-  const { runtime } = standardsRuntime;
+export const completionsHandler = (ctx: CommandContext): CliResult<void> => {
   const shellFlag = ctx.flags["shell"] as string | undefined;
 
   let shell: Shell;
   if (shellFlag !== undefined) {
     if (!["bash", "zsh", "fish"].includes(shellFlag)) {
-      // deno-lint-ignore no-console
-      console.error(fmtColors.red(`Invalid shell: ${shellFlag}`));
-      // deno-lint-ignore no-console
-      console.error("Supported shells: bash, zsh, fish");
-      runtime.process.exit(1);
+      return fail({
+        message: `${fmtColors.red(`Invalid shell: ${shellFlag}`)}\n` +
+          "Supported shells: bash, zsh, fish",
+        exitCode: 1,
+      });
     }
     shell = shellFlag as Shell;
   } else {
@@ -73,4 +72,6 @@ export const completionsHandler = (ctx: CommandContext): void => {
 
   // deno-lint-ignore no-console
   console.log(script);
+
+  return ok(undefined);
 };

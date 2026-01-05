@@ -176,6 +176,35 @@ export interface MakeTempOptions {
 }
 
 /**
+ * Options for watch operation.
+ */
+export interface WatchOptions {
+  /** Watch subdirectories recursively (default: true) */
+  recursive?: boolean;
+}
+
+/**
+ * Filesystem event from watcher.
+ */
+export interface FsEvent {
+  /** Type of event */
+  kind: "create" | "modify" | "remove" | "access" | "rename" | "any" | "other";
+  /** Paths affected by the event */
+  paths: string[];
+  /** Additional flag (runtime-specific) */
+  flag?: unknown;
+}
+
+/**
+ * Filesystem watcher handle.
+ * Implements AsyncIterable for event consumption.
+ */
+export interface FsWatcher extends AsyncIterable<FsEvent> {
+  /** Close the watcher and release resources */
+  close(): void;
+}
+
+/**
  * Filesystem abstraction interface.
  * Check `runtime.capabilities.fs` before using.
  */
@@ -267,6 +296,28 @@ export interface RuntimeFs {
    * @returns Path to the created directory
    */
   makeTempDir(options?: MakeTempOptions): Promise<string>;
+
+  /**
+   * Resolve a path to its real absolute path (resolving symlinks).
+   * @throws {NotFoundError} If path doesn't exist
+   */
+  realPath(path: string): Promise<string>;
+
+  /**
+   * Watch for filesystem changes.
+   * @param paths - Paths to watch (files or directories)
+   * @param options - Watch options
+   * @returns Filesystem watcher that yields events
+   *
+   * @example
+   * ```typescript
+   * const watcher = runtime.fs.watch(["src"], { recursive: true });
+   * for await (const event of watcher) {
+   *   console.log(event.kind, event.paths);
+   * }
+   * ```
+   */
+  watch(paths: string[], options?: WatchOptions): FsWatcher;
 }
 
 // =============================================================================
@@ -589,6 +640,13 @@ export interface RuntimeProcess {
    * @param code - Exit code (default: 0)
    */
   exit(code?: number): never;
+
+  /**
+   * Set the exit code for when the process terminates naturally.
+   * Unlike exit(), this does not immediately terminate the process.
+   * @param code - Exit code to set
+   */
+  setExitCode(code: number): void;
 
   /**
    * Get the current working directory.

@@ -5,9 +5,9 @@
  *
  * @example
  * ```typescript
- * import { isBun, createBunRuntime } from "@eser/standards/runtime/bun";
+ * import { isRuntime, createBunRuntime } from "@eser/standards/runtime/bun";
  *
- * if (isBun()) {
+ * if (isRuntime("bun")) {
  *   const runtime = createBunRuntime();
  *   await runtime.fs.readTextFile("config.json");
  * }
@@ -21,12 +21,9 @@ export {
   detectRuntime,
   getRuntimeVersion,
   isBrowser,
-  isBun,
-  isDeno,
   isEdge,
-  isNode,
+  isRuntime,
   isServer,
-  isWorkerd,
 } from "./detect.ts";
 
 // Bun adapter

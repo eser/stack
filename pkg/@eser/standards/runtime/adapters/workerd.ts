@@ -63,6 +63,8 @@ const createWorkerdFs = (): RuntimeFs => {
     copyFile: throwNotAvailable,
     rename: throwNotAvailable,
     makeTempDir: throwNotAvailable,
+    realPath: throwNotAvailable,
+    watch: throwNotAvailable,
   };
 };
 
@@ -170,6 +172,7 @@ const createWorkerdProcess = (): RuntimeProcess => {
 
   return {
     exit: throwNotAvailable,
+    setExitCode: throwNotAvailable,
     cwd: throwNotAvailable,
     chdir: throwNotAvailable,
     hostname: throwNotAvailable,

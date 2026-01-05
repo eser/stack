@@ -8,7 +8,7 @@
  */
 
 import * as logging from "@eser/logging";
-import { runtime } from "@eser/standards/runtime";
+import { getPlatform, runtime } from "@eser/standards/runtime";
 import {
   build,
   type BuildResult,
@@ -362,7 +362,7 @@ async function initializeServer(
  * @param options - Server options (with optional plugin injection)
  */
 export async function startServer(options: ServerOptions): Promise<void> {
-  const projectRoot = options.projectRoot ?? Deno.cwd();
+  const projectRoot = options.projectRoot ?? runtime.process.cwd();
   const logLevel = options.logLevel ?? "info";
   const isDev = options.mode === "dev";
   const { renderer, htmlShell, frameworkPlugin, cssPlugin } = options;
@@ -481,15 +481,13 @@ function openBrowser(url: string): void {
     windows: ["cmd", "/c", "start"],
   };
 
-  const os = Deno.build.os as keyof typeof commands;
-  const command = commands[os];
+  const platform = getPlatform();
+  const command = commands[platform];
 
   if (command && command[0]) {
-    const cmd = new Deno.Command(command[0], {
-      args: [...command.slice(1), url],
+    runtime.exec.spawnChild(command[0], [...command.slice(1), url], {
       stdout: "null",
       stderr: "null",
     });
-    cmd.spawn();
   }
 }

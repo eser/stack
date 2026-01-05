@@ -62,6 +62,8 @@ const createBrowserFs = (): RuntimeFs => {
     copyFile: throwFs,
     rename: throwFs,
     makeTempDir: throwFs,
+    realPath: throwFs,
+    watch: throwFs,
   };
 };
 
@@ -85,6 +87,7 @@ const createBrowserProcess = (): RuntimeProcess => {
   const throwProcess = createThrowFn("process");
   return {
     exit: throwProcess,
+    setExitCode: throwProcess,
     cwd: throwProcess,
     chdir: throwProcess,
     hostname: throwProcess,

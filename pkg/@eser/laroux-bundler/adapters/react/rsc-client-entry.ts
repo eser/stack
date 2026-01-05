@@ -27,40 +27,88 @@ const BOOTSTRAP_FILES = [
 ] as const;
 
 /**
- * Check if a path/URL is a remote URL (JSR, HTTP, etc.)
+ * Check if a URL string represents a remote source (HTTP/HTTPS/JSR).
+ * Uses URL.canParse() for standard protocols, falls back to prefix check for JSR.
  */
-function isRemoteUrl(url: string): boolean {
-  return url.startsWith("https://") || url.startsWith("http://");
-}
-
-/**
- * Convert a URL to a filesystem path if it's a file:// URL
- */
-function urlToPath(url: string): string {
-  if (url.startsWith("file://")) {
-    // Remove file:// prefix and decode URI components
-    return decodeURIComponent(url.slice(7));
+function isRemoteSource(urlString: string): boolean {
+  // JSR specifiers are not valid URLs but are remote sources
+  if (urlString.startsWith("jsr:")) {
+    return true;
   }
-  return url;
+
+  // Use URL API to check if it's a valid HTTP/HTTPS URL
+  if (URL.canParse(urlString)) {
+    const url = new URL(urlString);
+    return url.protocol === "https:" || url.protocol === "http:";
+  }
+
+  return false;
 }
 
 /**
- * Get the bootstrap directory path using import.meta.resolve
- * Works with both local workspace and installed packages (JSR/npm)
+ * Convert a file:// URL to a filesystem path using URL API.
+ * Returns the pathname from the URL, properly decoded.
+ */
+function fileUrlToPath(urlString: string): string {
+  // Use URL API to parse file:// URLs
+  if (URL.canParse(urlString) && urlString.startsWith("file://")) {
+    const url = new URL(urlString);
+    // pathname is already decoded by URL API
+    return url.pathname;
+  }
+  // Return as-is if not a file:// URL
+  return urlString;
+}
+
+/**
+ * Convert a JSR specifier to an HTTPS URL.
+ * JSR specifiers are not standard URLs, so we parse them manually.
+ * e.g., "jsr:@eser/laroux-react@^4.0.24/client/bootstrap"
+ *    -> "https://jsr.io/@eser/laroux-react/4.0.24/client/bootstrap"
+ */
+function jsrSpecifierToUrl(specifier: string): string {
+  // Parse: jsr:@scope/package@version/path
+  const match = specifier.match(
+    /^jsr:@([^/]+)\/([^@]+)@[\^~]?([^/]+)(.*)$/,
+  );
+  if (match) {
+    const [, scope, pkg, version, subpath] = match;
+    // Construct URL using URL API for proper encoding
+    const baseUrl = new URL(`https://jsr.io/@${scope}/${pkg}/${version}`);
+    return `${baseUrl.href}${subpath}`;
+  }
+
+  // Try simpler format: jsr:@scope/package/path (no version)
+  const simpleMatch = specifier.match(/^jsr:@([^/]+)\/([^/]+)(.*)$/);
+  if (simpleMatch) {
+    const [, scope, pkg, subpath] = simpleMatch;
+    const baseUrl = new URL(`https://jsr.io/@${scope}/${pkg}`);
+    return `${baseUrl.href}${subpath}`;
+  }
+
+  throw new Error(`Cannot parse JSR specifier: ${specifier}`);
+}
+
+/**
+ * Get the bootstrap directory URL/path using import.meta.resolve.
+ * Works with both local workspace and installed packages (JSR/npm).
  */
 function getBootstrapDir(): { isRemote: boolean; baseUrl: string } {
   // Use import.meta.resolve to get the proper path to the bootstrap index
   // This works regardless of whether we're running from workspace or installed packages
-  const bootstrapIndexUrl = import.meta.resolve(
-    "@eser/laroux-react/client/bootstrap",
-  );
+  const resolved = import.meta.resolve("@eser/laroux-react/client/bootstrap");
 
   // Get the directory by removing the trailing filename if present
   // The resolve gives us the path to index.ts, we need the directory
-  const baseUrl = bootstrapIndexUrl.replace(/\/index\.ts$/, "");
+  let baseUrl = resolved.replace(/\/index\.ts$/, "");
+
+  // Check if it's a JSR specifier and convert to HTTPS URL
+  if (baseUrl.startsWith("jsr:")) {
+    baseUrl = jsrSpecifierToUrl(baseUrl);
+  }
 
   return {
-    isRemote: isRemoteUrl(baseUrl),
+    isRemote: isRemoteSource(baseUrl),
     baseUrl,
   };
 }
@@ -94,7 +142,7 @@ async function copyBootstrapFiles(distDir: string): Promise<void> {
       }
     } else {
       // Copy from local filesystem (file:// URL or path)
-      const sourcePath = urlToPath(sourceUrl);
+      const sourcePath = fileUrlToPath(sourceUrl);
       await copy(sourcePath, destPath, { overwrite: true });
     }
   }

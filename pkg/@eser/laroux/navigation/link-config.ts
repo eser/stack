@@ -8,6 +8,29 @@
 import type { LinkConfig, ModifierKeys, NavigationAnalysis } from "./types.ts";
 
 /**
+ * Get the protocol from a URL string, returning empty string for relative URLs.
+ */
+function getUrlProtocol(href: string): string {
+  // Hash-only and relative URLs don't have protocols
+  if (href.startsWith("#") || href.startsWith("/") || href.startsWith(".")) {
+    return "";
+  }
+
+  // Use URL API to parse absolute URLs
+  if (URL.canParse(href)) {
+    return new URL(href).protocol;
+  }
+
+  // Fallback for protocol-like strings (mailto:, tel:, etc.)
+  const colonIndex = href.indexOf(":");
+  if (colonIndex > 0 && colonIndex < 10) {
+    return href.slice(0, colonIndex + 1);
+  }
+
+  return "";
+}
+
+/**
  * Analyze whether a navigation should be handled by the router
  *
  * @param href - The target URL
@@ -28,24 +51,27 @@ export function analyzeNavigation(
     return { shouldHandle: false, reason: "modifier-key" };
   }
 
-  // External links
-  if (href.startsWith("http://") || href.startsWith("https://")) {
+  // Hash-only links
+  if (href.startsWith("#")) {
+    return { shouldHandle: false, reason: "hash" };
+  }
+
+  // Check protocol for non-relative URLs
+  const protocol = getUrlProtocol(href);
+
+  // External links (HTTP/HTTPS)
+  if (protocol === "http:" || protocol === "https:") {
     return { shouldHandle: false, reason: "external" };
   }
 
   // mailto links
-  if (href.startsWith("mailto:")) {
+  if (protocol === "mailto:") {
     return { shouldHandle: false, reason: "mailto" };
   }
 
   // tel links
-  if (href.startsWith("tel:")) {
+  if (protocol === "tel:") {
     return { shouldHandle: false, reason: "tel" };
-  }
-
-  // Hash-only links
-  if (href.startsWith("#")) {
-    return { shouldHandle: false, reason: "hash" };
   }
 
   return { shouldHandle: true };
@@ -75,7 +101,8 @@ export function buildLinkConfig(
  * @returns True if the URL is external
  */
 export function isExternalUrl(href: string): boolean {
-  return href.startsWith("http://") || href.startsWith("https://");
+  const protocol = getUrlProtocol(href);
+  return protocol === "http:" || protocol === "https:";
 }
 
 /**
@@ -85,5 +112,6 @@ export function isExternalUrl(href: string): boolean {
  * @returns True if the URL uses a special protocol
  */
 export function isSpecialProtocol(href: string): boolean {
-  return href.startsWith("mailto:") || href.startsWith("tel:");
+  const protocol = getUrlProtocol(href);
+  return protocol === "mailto:" || protocol === "tel:";
 }

@@ -10,6 +10,7 @@
 import { runtime } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import { deepMerge } from "@eser/fp/deep-merge";
+import { toFileUrl } from "@std/path/to-file-url";
 import type { AppConfig, LogLevel, UserConfig } from "@eser/laroux/config";
 import { DEFAULT_CONFIG } from "@eser/laroux/config";
 
@@ -19,8 +20,8 @@ export type { AppConfig, LogLevel };
 const configLogger = logging.logger.getLogger(["laroux-server", "config"]);
 
 /**
- * Convert a filesystem path to a proper file:// URL
- * Handles both Unix and Windows paths correctly
+ * Convert a filesystem path to a proper file:// URL using @std/path.
+ * Handles both Unix and Windows paths correctly.
  */
 function pathToFileUrl(filePath: string): string {
   // Ensure the path is absolute
@@ -28,22 +29,8 @@ function pathToFileUrl(filePath: string): string {
     ? filePath
     : runtime.path.resolve(filePath);
 
-  // On Windows, paths start with drive letter (C:\...)
-  // On Unix, paths start with / (/Users/...)
-  // file:// URLs need three slashes for absolute paths on Unix: file:///path
-  // and two slashes + drive on Windows: file:///C:/path
-
-  // Use Deno's pathToFileUrl if available, otherwise construct manually
-  if (typeof Deno !== "undefined" && Deno.build) {
-    // Use URL constructor with file: protocol
-    return new URL(
-      `file://${absolutePath.startsWith("/") ? "" : "/"}${absolutePath}`,
-    ).href;
-  }
-
-  // Fallback: construct file URL manually
-  const normalizedPath = absolutePath.replace(/\\/g, "/");
-  return `file://${normalizedPath.startsWith("/") ? "" : "/"}${normalizedPath}`;
+  // Use @std/path's toFileUrl for cross-platform file:// URL generation
+  return toFileUrl(absolutePath).href;
 }
 
 /**

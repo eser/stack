@@ -21,87 +21,61 @@ export type ApiRouteEntry = {
 };
 
 /**
- * Escapes a string for use in a regular expression.
- * Escapes all regex metacharacters including backslashes.
+ * Convert Next.js style route pattern to URLPattern syntax.
+ * - [param] -> :param (dynamic segment)
+ * - [...param] -> :param* (catch-all segment, matches zero or more)
+ *
+ * Also tracks parameter names and whether they're catch-all for post-processing.
  */
-function escapeRegexString(str: string): string {
-  // Escape backslashes first, then all other regex metacharacters
-  return str.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
-}
+function convertToUrlPattern(
+  routePath: string,
+): { pattern: string; catchAllParams: Set<string> } {
+  const catchAllParams = new Set<string>();
 
-/**
- * Converts a route path pattern to a regex pattern
- * Reuses the same logic as page route matching
- */
-function pathToRegex(path: string): { regex: RegExp; paramNames: string[] } {
-  const paramNames: string[] = [];
-
-  // First, temporarily replace parameter patterns with placeholders
-  // to avoid escaping their brackets
-  const CATCH_ALL_PLACEHOLDER = "\x00CATCH_ALL\x00";
-  const DYNAMIC_PLACEHOLDER = "\x00DYNAMIC\x00";
-  const catchAllParams: string[] = [];
-  const dynamicParams: string[] = [];
-
-  let processed = path
+  const pattern = routePath
+    // First convert catch-all segments [...param] to :param*
     .replace(/\[\.\.\.(\w+)\]/g, (_match, paramName) => {
-      catchAllParams.push(paramName);
-      return CATCH_ALL_PLACEHOLDER;
+      catchAllParams.add(paramName);
+      return `:${paramName}*`;
     })
+    // Then convert dynamic segments [param] to :param
     .replace(/\[(\w+)\]/g, (_match, paramName) => {
-      dynamicParams.push(paramName);
-      return DYNAMIC_PLACEHOLDER;
+      return `:${paramName}`;
     });
 
-  // Escape all regex metacharacters in the path (including backslashes)
-  processed = escapeRegexString(processed);
-
-  // Restore parameter patterns with proper regex capture groups
-  let catchAllIndex = 0;
-  let dynamicIndex = 0;
-
-  const regexPattern = processed
-    .replace(new RegExp(escapeRegexString(CATCH_ALL_PLACEHOLDER), "g"), () => {
-      paramNames.push(catchAllParams[catchAllIndex++]!);
-      // Use [^?#]* to prevent matching query strings/fragments
-      return "([^?#]*)";
-    })
-    .replace(new RegExp(escapeRegexString(DYNAMIC_PLACEHOLDER), "g"), () => {
-      paramNames.push(dynamicParams[dynamicIndex++]!);
-      return "([^/]+)";
-    });
-
-  return {
-    regex: new RegExp(`^${regexPattern}$`),
-    paramNames,
-  };
+  return { pattern, catchAllParams };
 }
 
 /**
- * Matches a pathname against a route pattern
+ * Matches a pathname against a route pattern using URLPattern API.
+ * Returns extracted route parameters or null if no match.
  */
 function matchRoutePath(
   pathname: string,
   routePath: string,
 ): RouteParams | null {
-  const { regex, paramNames } = pathToRegex(routePath);
-  const match = pathname.match(regex);
+  const { pattern, catchAllParams } = convertToUrlPattern(routePath);
+
+  // URLPattern for pathname matching only
+  const urlPattern = new URLPattern({ pathname: pattern });
+  const match = urlPattern.exec({ pathname });
 
   if (!match) {
     return null;
   }
 
   const params: RouteParams = {};
-  paramNames.forEach((name, index) => {
-    const value = match[index + 1];
+  const groups = match.pathname.groups;
 
-    // Handle catch-all routes (split by /)
-    if (routePath.includes(`[...${name}]`)) {
+  for (const [name, value] of Object.entries(groups)) {
+    if (catchAllParams.has(name)) {
+      // Catch-all params: split by "/" and filter empty segments
       params[name] = value ? value.split("/").filter(Boolean) : [];
     } else {
+      // Regular params: use value directly (already decoded by URLPattern)
       params[name] = value ?? "";
     }
-  });
+  }
 
   return params;
 }

@@ -22,7 +22,7 @@ import type { BundlerBackend } from "../config.ts";
 
 const bundlerLogger = logging.logger.getLogger([
   "laroux-bundler",
-  "deno-bundler",
+  "bundler",
 ]);
 
 export type BundleOutput = {

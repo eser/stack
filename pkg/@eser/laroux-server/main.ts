@@ -293,15 +293,17 @@ async function initializeServer(
   const { config, bundler, hmrManager } = deps;
   const { frameworkPlugin, cssPlugin } = pluginOptions;
 
-  // Load server actions
+  // Load server actions from bundled output
   try {
-    const actionsPath = runtime.path.resolve(
-      config.srcDir,
-      "app",
-      "actions.ts",
-    );
-    await import(`file://${actionsPath}`);
-    serverLogger.debug("Server actions loaded");
+    const actionsPath = await resolveServerComponentPath(config, "actions.ts");
+    const actionsExists = await runtime.fs.exists(actionsPath);
+    if (actionsExists) {
+      const timestamp = Date.now();
+      await import(`file://${actionsPath}?t=${timestamp}`);
+      serverLogger.debug("Server actions loaded");
+    } else {
+      serverLogger.debug("No server actions file found (optional)");
+    }
   } catch (error) {
     serverLogger.warn("Failed to load server actions:", { error });
   }

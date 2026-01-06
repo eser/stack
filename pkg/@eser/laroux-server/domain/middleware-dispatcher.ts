@@ -41,7 +41,8 @@ export class MiddlewareDispatcher {
    */
   async loadProxies(distDir: string): Promise<void> {
     try {
-      const registryPath = `${distDir}/server/proxy-registry.ts`;
+      // NOTE: Must use variable + file:// - deno publish rewrites analyzable dynamic imports
+      const registryPath = `file://${distDir}/server/proxy-registry.ts`;
       this.registryDir = runtime.path.resolve(distDir, "server");
       const registry = await import(registryPath);
       this.proxies = registry.proxyRegistry || [];
@@ -83,7 +84,9 @@ export class MiddlewareDispatcher {
         // Load module (with caching)
         let module = this.moduleCache.get(resolvedPath);
         if (!module) {
-          module = await import(resolvedPath) as { default: Proxy };
+          // NOTE: Must use variable + file:// - deno publish rewrites analyzable dynamic imports
+          const moduleImportPath = `file://${resolvedPath}`;
+          module = await import(moduleImportPath) as { default: Proxy };
           this.moduleCache.set(resolvedPath, module);
         }
 

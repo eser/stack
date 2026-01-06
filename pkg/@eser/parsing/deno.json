@@ -1,6 +1,6 @@
 {
   "name": "@eser/parsing",
-  "version": "4.0.31",
+  "version": "4.0.32",
   "exports": {
     ".": "./mod.ts"
   },

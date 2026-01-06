@@ -604,9 +604,6 @@ export async function build(
             plugins: bundlerPlugins,
             sourcemap: false,
             minify: false,
-            // Mark action-registry as external so it uses the server's shared registry
-            // This prevents the bundler from inlining a local copy of the registry
-            externals: ["@eser/laroux-server/action-registry"],
           },
           // Always use rolldown for server bundling - deno-bundler doesn't support
           // custom resolver plugins needed for npm:/jsr: specifiers

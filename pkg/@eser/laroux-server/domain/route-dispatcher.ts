@@ -94,7 +94,8 @@ export class ApiRouteHandler {
    */
   async loadRoutes(distDir: string): Promise<void> {
     try {
-      const registryPath = `${distDir}/server/api-routes.ts`;
+      // NOTE: Must use variable + file:// - deno publish rewrites analyzable dynamic imports
+      const registryPath = `file://${distDir}/server/api-routes.ts`;
       this.registryDir = runtime.path.resolve(distDir, "server");
       const registry = await import(registryPath);
       this.routes = registry.apiRoutes || [];
@@ -135,7 +136,9 @@ export class ApiRouteHandler {
           // Load module (with caching)
           let module = this.moduleCache.get(resolvedPath);
           if (!module) {
-            module = await import(resolvedPath) as ApiRouteModule;
+            // NOTE: Must use variable + file:// - deno publish rewrites analyzable dynamic imports
+            const moduleImportPath = `file://${resolvedPath}`;
+            module = await import(moduleImportPath) as ApiRouteModule;
             this.moduleCache.set(resolvedPath, module);
           }
 

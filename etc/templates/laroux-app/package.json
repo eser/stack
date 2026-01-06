@@ -9,10 +9,10 @@
     "serve": "deno run -A --unstable-bundle jsr:@eser/cli laroux serve"
   },
   "dependencies": {
-    "@eser/laroux-server": "npm:@jsr/eser__laroux-server@^4.0.29",
-    "@eser/laroux": "npm:@jsr/eser__laroux@^4.0.29",
-    "@eser/laroux-react": "npm:@jsr/eser__laroux-react@^4.0.29",
-    "@eser/logging": "npm:@jsr/eser__logging@^4.0.29",
+    "@eser/laroux-server": "npm:@jsr/eser__laroux-server@^4.0.30",
+    "@eser/laroux": "npm:@jsr/eser__laroux@^4.0.30",
+    "@eser/laroux-react": "npm:@jsr/eser__laroux-react@^4.0.30",
+    "@eser/logging": "npm:@jsr/eser__logging@^4.0.30",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "tailwindcss": "^4.1.18",

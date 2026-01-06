@@ -1,10 +1,10 @@
 {
   "nodeModulesDir": "auto",
   "imports": {
-    "@eser/laroux-server": "jsr:@eser/laroux-server@^4.0.29",
-    "@eser/laroux": "jsr:@eser/laroux@^4.0.29",
-    "@eser/laroux-react": "jsr:@eser/laroux-react@^4.0.29",
-    "@eser/logging": "jsr:@eser/logging@^4.0.29",
+    "@eser/laroux-server": "jsr:@eser/laroux-server@^4.0.30",
+    "@eser/laroux": "jsr:@eser/laroux@^4.0.30",
+    "@eser/laroux-react": "jsr:@eser/laroux-react@^4.0.30",
+    "@eser/logging": "jsr:@eser/logging@^4.0.30",
     "react": "npm:react@^19.2.3",
     "react-dom": "npm:react-dom@^19.2.3",
     "tailwindcss": "npm:tailwindcss@^4.1.18",

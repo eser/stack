@@ -299,7 +299,9 @@ async function initializeServer(
     const actionsExists = await runtime.fs.exists(actionsPath);
     if (actionsExists) {
       const timestamp = Date.now();
-      await import(`file://${actionsPath}?t=${timestamp}`);
+      // NOTE: Must assign to variable - deno publish rewrites analyzable dynamic imports
+      const actionsImportPath = `file://${actionsPath}?t=${timestamp}`;
+      await import(actionsImportPath);
       serverLogger.debug("Server actions loaded");
     } else {
       serverLogger.debug("No server actions file found (optional)");

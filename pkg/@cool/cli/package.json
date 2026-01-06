@@ -1,6 +1,6 @@
 {
   "name": "@cool/cli",
-  "version": "4.0.29",
+  "version": "4.0.30",
   "type": "module",
   "exports": {
     ".": "./mod.ts"

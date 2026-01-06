@@ -235,6 +235,13 @@ export const load = async (
     private: extractField("private", loadedFiles, mergedMappings),
     exports: extractField("exports", loadedFiles, mergedMappings),
     workspaces: extractField("workspaces", loadedFiles, mergedMappings),
+    imports: extractField("imports", loadedFiles, mergedMappings),
+    dependencies: extractField("dependencies", loadedFiles, mergedMappings),
+    devDependencies: extractField(
+      "devDependencies",
+      loadedFiles,
+      mergedMappings,
+    ),
     [baseDirProp]: searchDir,
     _loadedFiles: loadedFiles,
   };

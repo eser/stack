@@ -9,6 +9,7 @@
 
 import { type FsWatcher, runtime, toPosix } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
+import * as pkg from "@eser/codebase/package";
 
 const buildLogger = logging.logger.getLogger(["laroux-bundler", "build"]);
 
@@ -544,54 +545,12 @@ export async function build(
       projectRoot,
     );
 
-    // Step 5.9: Copy import map to dist/server for dev mode dynamic imports
+    // Step 5.9: Copy import maps to dist/server for dev mode dynamic imports
     // In dev mode, Deno dynamically imports files from dist/server.
     // These files have bare imports (e.g., "lucide-react") that need resolution.
-    // Copying the project's deno.json ensures the import map applies.
+    // Copying the project's config files ensures import maps apply.
     const serverOutputDir = runtime.path.resolve(distDir, SERVER_DIR);
-    try {
-      const denoJsonPath = runtime.path.join(projectRoot, "deno.json");
-      const denoJsonExists = await runtime.fs.exists(denoJsonPath);
-      if (denoJsonExists) {
-        const denoJsonContent = await runtime.fs.readTextFile(denoJsonPath);
-        const denoJson = JSON.parse(denoJsonContent) as Record<string, unknown>;
-
-        // Adjust relative paths in imports based on actual directory depth
-        // Compute how many levels serverOutputDir is from projectRoot
-        const relativePath = runtime.path.relative(
-          serverOutputDir,
-          projectRoot,
-        );
-
-        if (
-          denoJson.imports !== undefined &&
-          typeof denoJson.imports === "object"
-        ) {
-          const imports = denoJson.imports as Record<string, string>;
-          for (const [key, value] of Object.entries(imports)) {
-            if (value.startsWith("./") || value.startsWith("../")) {
-              // Prepend relative path to project root
-              imports[key] = runtime.path.join(relativePath, value);
-            }
-          }
-        }
-
-        const destPath = runtime.path.join(serverOutputDir, "deno.json");
-        await runtime.fs.writeTextFile(
-          destPath,
-          JSON.stringify(denoJson, null, 2),
-        );
-        buildLogger.info(
-          "   📋 Copied deno.json to dist/server for import resolution",
-        );
-      }
-    } catch (error) {
-      buildLogger.debug(
-        `Failed to copy deno.json to dist/server: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
+    await copyConfigFilesWithImportMaps(projectRoot, serverOutputDir);
 
     // Step 5.95: Bundle server components
     // This resolves all bare specifiers (react, lucide-react, etc.) via the bundler
@@ -1045,6 +1004,93 @@ async function bundleClient(
       // Ignore cleanup errors
     }
     throw error;
+  }
+}
+
+/**
+ * Adjust relative paths in a record of string values
+ * Prepends relativePath to values that start with "./" or "../"
+ */
+function adjustRelativePaths(
+  record: Record<string, string>,
+  relativePath: string,
+): void {
+  for (const [key, value] of Object.entries(record)) {
+    if (
+      typeof value === "string" &&
+      (value.startsWith("./") || value.startsWith("../"))
+    ) {
+      record[key] = runtime.path.join(relativePath, value);
+    }
+  }
+}
+
+/**
+ * Copy config files to output directory using @eser/codebase/package
+ * Handles deno.json, deno.jsonc, and package.json
+ * - deno.json/deno.jsonc: adjusts relative paths in "imports"
+ * - package.json: copies as-is (dependencies use npm: specifiers)
+ * @param projectRoot - Project root directory
+ * @param outputDir - Output directory (e.g., dist/server)
+ */
+async function copyConfigFilesWithImportMaps(
+  projectRoot: string,
+  outputDir: string,
+): Promise<void> {
+  // Load all config files using @eser/codebase/package
+  const config = await pkg.tryLoad({ baseDir: projectRoot });
+
+  if (config === undefined) {
+    buildLogger.debug("No config files found to copy");
+    return;
+  }
+
+  // Compute relative path from outputDir back to projectRoot
+  const relativePath = runtime.path.relative(outputDir, projectRoot);
+  let copiedCount = 0;
+
+  // Process each loaded config file
+  for (const file of config._loadedFiles) {
+    try {
+      // Clone the content to avoid mutating the original
+      const content = JSON.parse(JSON.stringify(file.content)) as Record<
+        string,
+        unknown
+      >;
+
+      // Adjust relative paths in "imports" field (deno.json/deno.jsonc)
+      if (
+        content["imports"] !== undefined &&
+        typeof content["imports"] === "object" &&
+        content["imports"] !== null
+      ) {
+        adjustRelativePaths(
+          content["imports"] as Record<string, string>,
+          relativePath,
+        );
+      }
+
+      // Write to output directory
+      const destPath = runtime.path.join(outputDir, file.fileType);
+      await runtime.fs.writeTextFile(
+        destPath,
+        JSON.stringify(content, null, 2),
+      );
+      copiedCount++;
+    } catch (error) {
+      buildLogger.debug(
+        `Failed to copy ${file.fileType}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  if (copiedCount > 0) {
+    const fileList = copiedCount === 1 ? "config file" : "config files";
+    buildLogger.info(
+      `   📋 Copied ${copiedCount} ${fileList} to dist/server for import resolution`,
+    );
   }
 }
 

@@ -40,7 +40,10 @@ export type PackageFieldName =
   | "license"
   | "private"
   | "exports"
-  | "workspaces";
+  | "workspaces"
+  | "imports"
+  | "dependencies"
+  | "devDependencies";
 
 /**
  * Field mapping - maps common field names to their property path
@@ -92,6 +95,16 @@ export const DEFAULT_FIELD_MAPPINGS: FieldMapping = {
     "deno.json": "workspace",
     "deno.jsonc": "workspace",
     "package.json": "workspaces",
+  },
+  imports: {
+    "deno.json": "imports",
+    "deno.jsonc": "imports",
+  },
+  dependencies: {
+    "package.json": "dependencies",
+  },
+  devDependencies: {
+    "package.json": "devDependencies",
   },
 };
 
@@ -146,6 +159,12 @@ export type PackageConfig = {
   exports?: TrackedField<Record<string, string> | string>;
   /** Workspace members */
   workspaces?: TrackedField<ReadonlyArray<string>>;
+  /** Import map (deno.json/deno.jsonc) */
+  imports?: TrackedField<Record<string, string>>;
+  /** Dependencies (package.json) */
+  dependencies?: TrackedField<Record<string, string>>;
+  /** Dev dependencies (package.json) */
+  devDependencies?: TrackedField<Record<string, string>>;
 
   /** Base directory where config was loaded from */
   [baseDirProp]: string;

@@ -10,6 +10,7 @@
 import { type FsWatcher, runtime, toPosix } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import * as pkg from "@eser/codebase/package";
+import { analyzeServerActions } from "@eser/codebase/directive-analysis";
 
 const buildLogger = logging.logger.getLogger(["laroux-bundler", "build"]);
 
@@ -579,6 +580,24 @@ export async function build(
         const exists = await runtime.fs.exists(distPath);
         if (exists) {
           serverEntrypoints.push(distPath);
+        }
+      }
+
+      // IMPORTANT: Include files with "use server" directive in server bundling
+      // Server action files (.ts) are not components (.tsx) so they're not in serverComponentPaths,
+      // but they need to be bundled with proper import resolution for JSR to work.
+      // Scan the copied source directory for files with "use server" directive.
+      const serverActionScanDir = runtime.path.join(
+        serverOutputDir,
+        srcDirName,
+      );
+      const serverActionFiles = await analyzeServerActions(serverActionScanDir);
+      for (const actionFile of serverActionFiles) {
+        if (!serverEntrypoints.includes(actionFile.filePath)) {
+          serverEntrypoints.push(actionFile.filePath);
+          buildLogger.debug(
+            `   Including server action file: ${actionFile.relativePath}`,
+          );
         }
       }
 

@@ -348,79 +348,73 @@ export class RolldownBackend implements Bundler {
         },
       });
 
-      // Handle async setup
+      // Handle async setup - must wait for it in buildStart before hooks run
       if (setupResult instanceof Promise) {
         rollupPlugin.buildStart = async function () {
           await setupResult;
         };
       }
 
-      // Add resolveId hook if any resolvers were registered
-      if (pluginBuild.resolvers.length > 0) {
-        rollupPlugin.resolveId = async (
-          source: string,
-          importer: string | undefined,
-        ) => {
-          for (const resolver of pluginBuild.resolvers) {
-            if (resolver.options.filter.test(source)) {
-              const result = await resolver.callback({
-                path: source,
-                importer: importer ?? "",
-                namespace: resolver.options.namespace ?? "file",
-                kind: "import-statement",
-              });
-              if (result?.path !== undefined) {
-                return {
-                  id: result.path,
-                  external: result.external,
-                };
-              }
+      // Always add hooks - check resolvers/loaders/transformers dynamically
+      // This is necessary because async setup functions register hooks AFTER
+      // this code runs, so we can't check .length here
+      rollupPlugin.resolveId = async (
+        source: string,
+        importer: string | undefined,
+      ) => {
+        for (const resolver of pluginBuild.resolvers) {
+          if (resolver.options.filter.test(source)) {
+            const result = await resolver.callback({
+              path: source,
+              importer: importer ?? "",
+              namespace: resolver.options.namespace ?? "file",
+              kind: "import-statement",
+            });
+            if (result?.path !== undefined) {
+              return {
+                id: result.path,
+                external: result.external,
+              };
             }
           }
-          return null;
-        };
-      }
+        }
+        return null;
+      };
 
-      // Add load hook if any loaders were registered
-      if (pluginBuild.loaders.length > 0) {
-        rollupPlugin.load = async (id: string) => {
-          for (const loader of pluginBuild.loaders) {
-            if (loader.options.filter.test(id)) {
-              const result = await loader.callback({
-                path: id,
-                namespace: loader.options.namespace ?? "file",
-              });
-              if (result?.contents !== undefined) {
-                return {
-                  code: typeof result.contents === "string"
-                    ? result.contents
-                    : new TextDecoder().decode(result.contents),
-                };
-              }
+      rollupPlugin.load = async (id: string) => {
+        for (const loader of pluginBuild.loaders) {
+          if (loader.options.filter.test(id)) {
+            const result = await loader.callback({
+              path: id,
+              namespace: loader.options.namespace ?? "file",
+            });
+            if (result?.contents !== undefined) {
+              return {
+                code: typeof result.contents === "string"
+                  ? result.contents
+                  : new TextDecoder().decode(result.contents),
+              };
             }
           }
-          return null;
-        };
-      }
+        }
+        return null;
+      };
 
-      // Add transform hook if any transformers were registered
-      if (pluginBuild.transformers.length > 0) {
-        rollupPlugin.transform = async (code: string, id: string) => {
-          let currentCode = code;
-          for (const transformer of pluginBuild.transformers) {
-            if (transformer.options.filter.test(id)) {
-              const result = await transformer.callback({
-                path: id,
-                code: currentCode,
-              });
-              if (result?.code !== undefined) {
-                currentCode = result.code;
-              }
+      rollupPlugin.transform = async (code: string, id: string) => {
+        let currentCode = code;
+        for (const transformer of pluginBuild.transformers) {
+          if (transformer.options.filter.test(id)) {
+            const result = await transformer.callback({
+              path: id,
+              code: currentCode,
+            });
+            if (result?.code !== undefined) {
+              currentCode = result.code;
             }
           }
-          return currentCode !== code ? { code: currentCode } : null;
-        };
-      }
+        }
+        return currentCode !== code ? { code: currentCode } : null;
+      };
 
       return rollupPlugin;
     });

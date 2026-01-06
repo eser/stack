@@ -39,7 +39,11 @@ import {
   translateToVirtualPath,
 } from "./domain/virtual-source.ts";
 import { type BuildCache, getGlobalBuildCache } from "./domain/build-cache.ts";
-import { bundle, logBundleStats } from "./domain/bundler.ts";
+import {
+  bundle,
+  bundleServerComponents,
+  logBundleStats,
+} from "./domain/bundler.ts";
 import {
   generateChunkManifest,
   logManifest,
@@ -196,7 +200,7 @@ export async function build(
       const cssModulePaths = await scanCssModuleFiles(srcDir);
 
       // Only process CSS files
-      await processCssFiles(cssPlugin, projectRoot, clientOutputDir);
+      await processCssFiles(cssPlugin, srcDir, projectRoot, clientOutputDir);
 
       // Process CSS Modules (pass pre-scanned paths and cache)
       if (cssModulePaths.length > 0) {
@@ -235,7 +239,7 @@ export async function build(
     buildLogger.debug(
       "🔍 Step 1.5: Parallel scanning (routes, components, CSS modules)...",
     );
-    const routesDir = runtime.path.resolve(projectRoot, "src/app/routes");
+    const routesDir = runtime.path.resolve(srcDir, "app/routes");
     const { plugin } = context;
     const [scanResult, clientComponents, cssModulePaths] = await Promise.all([
       scanRoutes(routesDir, projectRoot),
@@ -252,7 +256,14 @@ export async function build(
       serverDir,
       "_generated-routes.ts",
     );
-    await generateRouteFile(scanResult, generatedRoutesPath, projectRoot);
+    // Get srcDir name relative to project root (e.g., "src")
+    const srcDirName = runtime.path.relative(projectRoot, srcDir);
+    await generateRouteFile({
+      scanResult,
+      outputPath: generatedRoutesPath,
+      projectRoot,
+      srcDirName,
+    });
     buildLogger.debug(
       `✓ Generated ${scanResult.routes.length} page route(s) to dist/`,
     );
@@ -359,7 +370,7 @@ export async function build(
       buildLogger.debug(
         "🎨 Step 4.5: Processing CSS with CSS plugin + Lightning CSS...",
       );
-      await processCssFiles(cssPlugin, projectRoot, clientOutputDir);
+      await processCssFiles(cssPlugin, srcDir, projectRoot, clientOutputDir);
     } else if (!cssPlugin) {
       buildLogger.debug("⏭️  No CSS plugin provided, skipping CSS processing");
     } else {
@@ -410,7 +421,8 @@ export async function build(
       // Translate virtual paths back to original paths for reuse in appendCssModulesToStyles
       // This avoids duplicate CSS module processing
       cssModuleResults = new Map();
-      const virtualSrcSubdir = runtime.path.join(virtualSrcDir, "src");
+      // Use srcDirName computed from config (e.g., "src") for virtual path translation
+      const virtualSrcSubdir = runtime.path.join(virtualSrcDir, srcDirName);
       for (const [virtualPath, result] of virtualResults) {
         // Convert virtual path back to original path
         const relativePath = runtime.path.relative(
@@ -527,12 +539,123 @@ export async function build(
     // Step 5.9: Copy translation JSON files to server directory
     buildLogger.debug("🌐 Step 5.9: Copying translation files...");
     await copyTranslationFiles(
-      projectRoot,
+      srcDir,
       runtime.path.resolve(distDir, SERVER_DIR),
+      projectRoot,
     );
 
-    // Step 5.5 removed: Deno bundler handles code splitting automatically
-    // Step 5.6 removed: Deno bundler bundles npm packages with --packages bundle
+    // Step 5.9: Copy import map to dist/server for dev mode dynamic imports
+    // In dev mode, Deno dynamically imports files from dist/server.
+    // These files have bare imports (e.g., "lucide-react") that need resolution.
+    // Copying the project's deno.json ensures the import map applies.
+    const serverOutputDir = runtime.path.resolve(distDir, SERVER_DIR);
+    try {
+      const denoJsonPath = runtime.path.join(projectRoot, "deno.json");
+      const denoJsonExists = await runtime.fs.exists(denoJsonPath);
+      if (denoJsonExists) {
+        const denoJsonContent = await runtime.fs.readTextFile(denoJsonPath);
+        const denoJson = JSON.parse(denoJsonContent) as Record<string, unknown>;
+
+        // Adjust relative paths in imports based on actual directory depth
+        // Compute how many levels serverOutputDir is from projectRoot
+        const relativePath = runtime.path.relative(
+          serverOutputDir,
+          projectRoot,
+        );
+
+        if (
+          denoJson.imports !== undefined &&
+          typeof denoJson.imports === "object"
+        ) {
+          const imports = denoJson.imports as Record<string, string>;
+          for (const [key, value] of Object.entries(imports)) {
+            if (value.startsWith("./") || value.startsWith("../")) {
+              // Prepend relative path to project root
+              imports[key] = runtime.path.join(relativePath, value);
+            }
+          }
+        }
+
+        const destPath = runtime.path.join(serverOutputDir, "deno.json");
+        await runtime.fs.writeTextFile(
+          destPath,
+          JSON.stringify(denoJson, null, 2),
+        );
+        buildLogger.info(
+          "   📋 Copied deno.json to dist/server for import resolution",
+        );
+      }
+    } catch (error) {
+      buildLogger.debug(
+        `Failed to copy deno.json to dist/server: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    // Step 5.95: Bundle server components
+    // This resolves all bare specifiers (react, lucide-react, etc.) via the bundler
+    // instead of manual rewriting to npm: specifiers (which breaks Node.js)
+    // NOTE: Always use rolldown for server bundling because deno-bundler doesn't support
+    // custom resolver plugins needed for npm: specifiers
+    buildLogger.info(
+      `📦 Step 5.95: Server bundling check - components: ${serverComponentPaths.length}`,
+    );
+    if (serverComponentPaths.length > 0) {
+      buildLogger.info(
+        `📦 Step 5.95: Bundling ${serverComponentPaths.length} server component(s) with rolldown...`,
+      );
+
+      // Get server component files from dist/server (already copied with rewrites)
+      // Files are in dist/server/src/... (preserving source directory structure)
+      const serverEntrypoints: string[] = [];
+      for (const srcPath of serverComponentPaths) {
+        // Get path relative to project root (e.g., "src/app/page.tsx")
+        const relativePath = runtime.path.relative(projectRoot, srcPath);
+        // Join with serverOutputDir (e.g., "dist/server/src/app/page.tsx")
+        const distPath = runtime.path.join(serverOutputDir, relativePath);
+        const exists = await runtime.fs.exists(distPath);
+        if (exists) {
+          serverEntrypoints.push(distPath);
+        }
+      }
+
+      buildLogger.info(
+        `   Found ${serverEntrypoints.length} server entrypoints to bundle`,
+      );
+
+      if (serverEntrypoints.length > 0) {
+        // Get bundler plugins for import resolution
+        // Server-side bundling doesn't need browser shims
+        const bundlerPlugins = [
+          createImportMapResolverPlugin({
+            projectRoot,
+            browserShims: { jsr: {}, nodeBuiltins: {} },
+          }),
+          ...(plugin.getServerBundlerPlugins?.(projectRoot) ?? []),
+        ];
+
+        const serverBundleResult = await bundleServerComponents(
+          {
+            entrypoints: serverEntrypoints,
+            outputDir: serverOutputDir,
+            // Use serverOutputDir as projectRoot for entry name calculation
+            // Entry files are in dist/server/, so relative names should be like "src/app/page.tsx"
+            projectRoot: serverOutputDir,
+            plugins: bundlerPlugins,
+            sourcemap: false,
+            minify: false,
+          },
+          // Always use rolldown for server bundling - deno-bundler doesn't support
+          // custom resolver plugins needed for npm:/jsr: specifiers
+          "rolldown",
+        );
+
+        buildLogger.info(
+          `   ✅ Bundled ${serverBundleResult.fileCount} server file(s)`,
+        );
+      }
+    }
 
     // Step 6: Copy public assets to dist root (server expects them there)
     await copyPublicAssets(projectRoot, distDir);
@@ -675,12 +798,12 @@ async function loadExistingBuild(context: BuildContext): Promise<BuildResult> {
  * Monitors source files and rebuilds on changes
  * @param context - Build context
  * @param onChange - Callback invoked when rebuild completes
- * @returns Promise resolving to file system watcher
+ * @returns File system watcher
  */
-export async function watch(
+export function watch(
   context: BuildContext,
   onChange: (result: BuildResult) => void,
-): Promise<FsWatcher> {
+): FsWatcher {
   const { srcDir, distDir, projectRoot } = context;
   buildLogger.debug(
     "👁️  Watch mode enabled, monitoring for changes...",
@@ -695,27 +818,6 @@ export async function watch(
 
   // Build list of paths to watch
   const watchPaths: string[] = [srcDir];
-
-  // Watch framework bundler client code if it exists (for framework development)
-  const bundlerClientPath = runtime.path.resolve(
-    projectRoot,
-    "packages/laroux-bundler/client",
-  );
-  try {
-    await runtime.fs.stat(bundlerClientPath);
-    watchPaths.push(bundlerClientPath);
-  } catch {
-    // Path doesn't exist - likely a user project, not framework development
-  }
-
-  // Watch styles directory if it exists
-  const stylesPath = runtime.path.resolve(projectRoot, "src/styles");
-  try {
-    await runtime.fs.stat(stylesPath);
-    watchPaths.push(stylesPath);
-  } catch {
-    // No styles directory yet
-  }
 
   const watcher = runtime.fs.watch(watchPaths);
 
@@ -839,7 +941,7 @@ export async function watch(
     }
   })();
 
-  return Promise.resolve(watcher);
+  return watcher;
 }
 
 /**
@@ -971,25 +1073,30 @@ async function copyPublicAssets(
 
 /**
  * Copy translation JSON files to server directory
- * Copies src/app/messages/*.json to dist/server/src/app/messages/
- * Also copies src/lib/i18n/messages/*.json to dist/server/src/lib/i18n/messages/
- * @param projectRoot - Project root directory
+ * Copies {srcDir}/app/messages/*.json to dist/server/{srcDirName}/app/messages/
+ * Also copies {srcDir}/lib/i18n/messages/*.json to dist/server/{srcDirName}/lib/i18n/messages/
+ * @param srcDir - Source directory (absolute path)
  * @param serverDistDir - Server distribution directory (dist/server)
+ * @param projectRoot - Project root directory for computing srcDirName
  */
 async function copyTranslationFiles(
-  projectRoot: string,
+  srcDir: string,
   serverDistDir: string,
+  projectRoot: string,
 ): Promise<void> {
   let totalCopied = 0;
+  // Get srcDir name relative to project root (e.g., "src")
+  const srcDirName = runtime.path.relative(projectRoot, srcDir);
 
-  // Copy from src/app/messages/ (legacy location)
+  // Copy from {srcDir}/app/messages/ (legacy location)
   const appMessagesSourceDir = runtime.path.resolve(
-    projectRoot,
-    "src/app/messages",
+    srcDir,
+    "app/messages",
   );
   const appMessagesDestDir = runtime.path.resolve(
     serverDistDir,
-    "src/app/messages",
+    srcDirName,
+    "app/messages",
   );
 
   if (await runtime.fs.exists(appMessagesSourceDir)) {
@@ -1007,14 +1114,15 @@ async function copyTranslationFiles(
     }
   }
 
-  // Copy from src/lib/i18n/messages/ (loader.ts location)
+  // Copy from {srcDir}/lib/i18n/messages/ (loader.ts location)
   const i18nMessagesSourceDir = runtime.path.resolve(
-    projectRoot,
-    "src/lib/i18n/messages",
+    srcDir,
+    "lib/i18n/messages",
   );
   const i18nMessagesDestDir = runtime.path.resolve(
     serverDistDir,
-    "src/lib/i18n/messages",
+    srcDirName,
+    "lib/i18n/messages",
   );
 
   if (await runtime.fs.exists(i18nMessagesSourceDir)) {
@@ -1044,17 +1152,20 @@ async function copyTranslationFiles(
 /**
  * Process CSS files using @eser/bundler's Tailwind processing
  * @param plugin - CSS plugin to use for processing
+ * @param srcDir - Source directory (absolute path)
  * @param projectRoot - Project root directory
  * @param distDir - Distribution directory
  */
 async function processCssFiles(
   plugin: CssPlugin,
+  srcDir: string,
   projectRoot: string,
   distDir: string,
 ): Promise<void> {
+  // CSS input path relative to srcDir
   const cssInput = runtime.path.resolve(
-    projectRoot,
-    "src/app/styles/global.css",
+    srcDir,
+    "app/styles/global.css",
   );
   const cssOutput = runtime.path.resolve(distDir, "styles.css");
 
@@ -1557,10 +1668,9 @@ async function processCssModulesFiles(
     cache?: BuildCache;
   },
 ): Promise<Map<string, CSSModuleResult>> {
-  // Use pre-scanned paths if provided, otherwise scan
-  const srcDir = runtime.path.resolve(projectRoot, "src");
+  // Use pre-scanned paths if provided, otherwise scan using config.srcDir
   const cssModuleFiles = options?.cssModulePaths ??
-    await scanCssModuleFiles(srcDir);
+    await scanCssModuleFiles(config.srcDir);
 
   if (cssModuleFiles.length === 0) {
     buildLogger.debug("No CSS modules found, skipping CSS module processing");

@@ -143,10 +143,12 @@ export class DenoBundlerBackend implements Bundler {
       const result = await Deno.bundle(options);
 
       if (!result.success) {
-        const diagnostics = (result as unknown as { diagnostics?: unknown[] })
-          .diagnostics ?? [];
-        const errors: BundleError[] = diagnostics.map((e: unknown) => ({
-          message: this.extractErrorMessage(e),
+        // result.errors contains the actual errors from Deno.bundle
+        const bundleErrors =
+          (result as unknown as { errors?: Array<{ text: string }> })
+            .errors ?? [];
+        const errors: BundleError[] = bundleErrors.map((e) => ({
+          message: e.text ?? this.extractErrorMessage(e),
           severity: "error" as const,
         }));
         return createErrorResult(errors);

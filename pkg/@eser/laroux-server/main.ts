@@ -106,28 +106,61 @@ export function clearRoutesCache(): void {
 }
 
 /**
- * Load routes from the generated routes file
+ * Load routes from the generated routes file.
+ * Routes are generated at build time to ${distDir}/server/_generated-routes.ts
  */
 async function loadRoutes(config: AppConfig): Promise<RouteDefinition[]> {
   if (cachedRoutes !== null) {
     return cachedRoutes;
   }
 
-  const timestamp = Date.now();
-  const routesPath = runtime.path.resolve(
+  // Load directly from the generated routes file
+  // Path is constructed from config - no hardcoded directory names
+  const generatedRoutesPath = runtime.path.join(
+    config.distDir,
+    "server",
+    "_generated-routes.ts",
+  );
+
+  // Cache-bust for HMR
+  const routesImportPath = `file://${generatedRoutesPath}?t=${Date.now()}`;
+
+  // @ts-ignore - Dynamic import
+  const { generatedRoutes } = await import(routesImportPath);
+  cachedRoutes = generatedRoutes;
+  return generatedRoutes;
+}
+
+/**
+ * Resolve server component import path.
+ * Prefers bundled .js files (dist/server/app/*.js) over source .tsx files (dist/server/src/app/*.tsx).
+ * Bundled files have all imports resolved, while source files may have bare imports.
+ */
+async function resolveServerComponentPath(
+  config: AppConfig,
+  relativePath: string,
+): Promise<string> {
+  // Try bundled path first (e.g., dist/server/app/layout.tsx.js)
+  const bundledPath = runtime.path.resolve(
+    config.distDir,
+    "server",
+    "app",
+    `${relativePath}.js`,
+  );
+
+  const bundledExists = await runtime.fs.exists(bundledPath);
+  if (bundledExists) {
+    return bundledPath;
+  }
+
+  // Fall back to source file (e.g., dist/server/src/app/layout.tsx)
+  return runtime.path.resolve(
     config.distDir,
     "server",
     "src",
     "app",
-    "routes",
-    "index.ts",
+    relativePath,
   );
-  const routesImportPath = `file://${routesPath}?t=${timestamp}`;
-
-  // @ts-ignore - Dynamic import
-  const { routes } = await import(routesImportPath);
-  cachedRoutes = routes;
-  return routes;
 }
 
 /**
@@ -139,14 +172,8 @@ async function loadAppComponents(
 ): Promise<AppComponents> {
   const timestamp = Date.now();
 
-  // Load Layout component
-  const layoutPath = runtime.path.resolve(
-    config.distDir,
-    "server",
-    "src",
-    "app",
-    "layout.tsx",
-  );
+  // Load Layout component - prefer bundled file
+  const layoutPath = await resolveServerComponentPath(config, "layout.tsx");
   const layoutImportPath = `file://${layoutPath}?t=${timestamp}`;
   // @ts-ignore - Dynamic import
   const { Layout } = await import(layoutImportPath);
@@ -156,11 +183,8 @@ async function loadAppComponents(
   const match = findMatchingRoute(pathname, routes);
 
   if (match === null) {
-    const notFoundPath = runtime.path.resolve(
-      config.distDir,
-      "server",
-      "src",
-      "app",
+    const notFoundPath = await resolveServerComponentPath(
+      config,
       "not-found.tsx",
     );
     const notFoundImportPath = `file://${notFoundPath}?t=${timestamp}`;

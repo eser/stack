@@ -18,7 +18,6 @@
     "jsr:@std/json@^1.0.2": "1.0.2",
     "jsr:@std/jsonc@^1.0.2": "1.0.2",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
-    "jsr:@std/path@^1.1.1": "1.1.4",
     "jsr:@std/path@^1.1.2": "1.1.4",
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@std/semver@^1.0.7": "1.0.7",
@@ -1832,7 +1831,7 @@
           "jsr:@std/assert@^1.0.16",
           "jsr:@std/cli@^1.0.25",
           "jsr:@std/media-types@^1.1.0",
-          "jsr:@std/path@^1.1.1",
+          "jsr:@std/path@^1.1.4",
           "npm:react-dom@^19.2.3",
           "npm:react@^19.2.3"
         ],

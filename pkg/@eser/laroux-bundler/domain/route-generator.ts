@@ -12,16 +12,26 @@ const generatorLogger = logging.logger.getLogger([
 ]);
 
 /**
+ * Options for generating route files
+ */
+export type GenerateRouteOptions = {
+  /** Result from scanning routes */
+  scanResult: ScanResult;
+  /** Path to output the generated file */
+  outputPath: string;
+  /** Project root directory for relative path calculation */
+  projectRoot: string;
+  /** Source directory name relative to project root (e.g., "src") */
+  srcDirName: string;
+};
+
+/**
  * Generates the _generated.ts file with route definitions
- * @param scanResult - Result from scanning routes
- * @param outputPath - Path to output the generated file
- * @param projectRoot - Project root directory for relative path calculation
  */
 export async function generateRouteFile(
-  scanResult: ScanResult,
-  outputPath: string,
-  projectRoot: string,
+  options: GenerateRouteOptions,
 ): Promise<void> {
+  const { scanResult, outputPath, projectRoot, srcDirName } = options;
   const { routes } = scanResult;
 
   generatorLogger.debug(`Generating routes file: ${outputPath}`);
@@ -32,10 +42,16 @@ export async function generateRouteFile(
   // Track unique imports to avoid duplicates
   const importedComponents = new Map<string, string>();
 
+  // Create regex to strip srcDir prefix (e.g., "src/" -> "")
+  const srcDirPrefix = new RegExp(`^${srcDirName}/`);
+
   for (const route of routes) {
     // The component path is relative like "src/app/routes/home/page.tsx"
-    // We want to import from "./src/app/routes/home/page.tsx" (relative to dist/server/)
-    const componentImportPath = `./${route.componentPath}`;
+    // We want to import from the bundled file "./app/routes/home/page.tsx.js"
+    // Bundled files are in dist/server/app/* (not dist/server/src/app/*)
+    const componentImportPath = `./${
+      route.componentPath.replace(srcDirPrefix, "")
+    }.js`;
 
     // Full path to original source file (for reading export names)
     const componentFullPath = runtime.path.join(
@@ -71,8 +87,10 @@ export async function generateRouteFile(
 
     // Add layout import if exists
     if (route.layoutPath && layoutName) {
-      // Import from transformed files in dist/server/src/ (not original src/)
-      const layoutImportPath = `./${route.layoutPath}`;
+      // Import from bundled files in dist/server/app/ (not dist/server/src/)
+      const layoutImportPath = `./${
+        route.layoutPath.replace(srcDirPrefix, "")
+      }.js`;
 
       if (!importedComponents.has(route.layoutPath)) {
         imports.push(

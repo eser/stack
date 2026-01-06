@@ -18,10 +18,12 @@
 
 import type { BundlerPlugin } from "@eser/bundler/backends";
 import * as logging from "@eser/logging";
+import { runtime } from "@eser/standards/runtime";
 import {
   type ImportMap,
   isBareSpecifier,
   isExternal,
+  isPathSpecifier,
   loadImportMap,
   resolveSpecifier,
 } from "./domain/import-map.ts";
@@ -113,6 +115,18 @@ export function createImportMapResolverPlugin(
 
           // Try to resolve to a local file
           try {
+            // Handle relative paths - resolve from project root, not from plugin file
+            if (isPathSpecifier(resolved)) {
+              const filePath = runtime.path.resolve(
+                importMap!.projectRoot,
+                resolved,
+              );
+              cache.set(specifier, filePath);
+              resolverLogger.debug(`Resolved ${specifier} → ${filePath}`);
+              return { path: filePath };
+            }
+
+            // Use import.meta.resolve for non-relative paths
             const resolvedUrl = import.meta.resolve(resolved);
 
             if (resolvedUrl.startsWith("file://")) {

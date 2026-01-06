@@ -61,6 +61,7 @@ function isInsideStringLiteral(content: string, position: number): boolean {
  * Parse imports from TypeScript/JSX file
  * Matches: import Foo from "./Foo.tsx"
  *          import { Bar } from "../Bar.tsx"
+ *          import type { X } from "./types.ts"
  */
 function parseImports(
   content: string,
@@ -72,8 +73,9 @@ function parseImports(
   > = [];
 
   // Match import statements with various patterns
+  // Handles: import X from "y", import { X } from "y", import type { X } from "y", import * as X from "y"
   const importRegex =
-    /import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)(?:\s*,\s*(?:\{[^}]*\}|\*\s+as\s+\w+|\w+))*\s+from\s+)?["']([^"']+)["'];?/g;
+    /import\s+(?:type\s+)?(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)(?:\s*,\s*(?:\{[^}]*\}|\*\s+as\s+\w+|\w+))*\s+from\s+)?["']([^"']+)["'];?/g;
 
   let match;
   while ((match = importRegex.exec(content)) !== null) {

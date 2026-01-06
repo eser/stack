@@ -27,6 +27,15 @@ export interface VirtualSourceOptions {
   changedFiles?: Set<string>;
 }
 
+/**
+ * Get the srcDir name relative to projectRoot
+ * e.g., if srcDir is "/project/src", returns "src"
+ * e.g., if srcDir is "/project/source", returns "source"
+ */
+function getSrcDirName(srcDir: string, projectRoot: string): string {
+  return runtime.path.relative(projectRoot, srcDir);
+}
+
 export interface VirtualSourceResult {
   virtualSrcDir: string;
   cleanup: () => Promise<void>;
@@ -50,10 +59,12 @@ export async function createVirtualSource(
   options: VirtualSourceOptions,
 ): Promise<VirtualSourceResult> {
   const { projectRoot, distDir, srcDir, changedFiles } = options;
+  // Get the srcDir name relative to projectRoot (e.g., "src" or "source")
+  const srcDirName = getSrcDirName(srcDir, projectRoot);
   // virtualSrcDir acts as the "project root" for the virtual source
   const virtualSrcDir = runtime.path.resolve(distDir, VIRTUAL_SRC_DIR);
-  // virtualSrcSubdir is where files are actually copied (maintains src/ structure)
-  const virtualSrcSubdir = runtime.path.resolve(virtualSrcDir, "src");
+  // virtualSrcSubdir is where files are actually copied (maintains srcDir structure)
+  const virtualSrcSubdir = runtime.path.resolve(virtualSrcDir, srcDirName);
 
   vsLogger.debug(`Creating virtual source: ${virtualSrcDir}`);
   vsLogger.debug(`  Virtual src subdir: ${virtualSrcSubdir}`);
@@ -218,16 +229,20 @@ async function copySourceFiles(
  * @param originalPath - Path in original src/ (e.g., /project/src/app/page.tsx)
  * @param srcDir - Original src directory (e.g., /project/src)
  * @param virtualSrcDir - Virtual "project root" (e.g., /project/dist/_bundle_src)
+ * @param srcDirName - Name of src directory relative to project (e.g., "src")
  * @returns Path in virtual source (e.g., /project/dist/_bundle_src/src/app/page.tsx)
  */
 export function translateToVirtualPath(
   originalPath: string,
   srcDir: string,
   virtualSrcDir: string,
+  srcDirName?: string,
 ): string {
   const relativePath = runtime.path.relative(srcDir, originalPath);
-  // Files are in virtualSrcDir/src/ to maintain project structure
-  return runtime.path.resolve(virtualSrcDir, "src", relativePath);
+  // Files are in virtualSrcDir/{srcDirName}/ to maintain project structure
+  // If srcDirName not provided, derive from srcDir basename
+  const actualSrcDirName = srcDirName ?? runtime.path.basename(srcDir);
+  return runtime.path.resolve(virtualSrcDir, actualSrcDirName, relativePath);
 }
 
 /**
@@ -236,15 +251,22 @@ export function translateToVirtualPath(
  * @param virtualPath - Path in virtual source (e.g., /project/dist/_bundle_src/src/app/page.tsx)
  * @param srcDir - Original src directory (e.g., /project/src)
  * @param virtualSrcDir - Virtual "project root" (e.g., /project/dist/_bundle_src)
+ * @param srcDirName - Name of src directory relative to project (e.g., "src")
  * @returns Path in original src/ (e.g., /project/src/app/page.tsx)
  */
 export function translateFromVirtualPath(
   virtualPath: string,
   srcDir: string,
   virtualSrcDir: string,
+  srcDirName?: string,
 ): string {
-  // Files are in virtualSrcDir/src/
-  const virtualSrcSubdir = runtime.path.resolve(virtualSrcDir, "src");
+  // Files are in virtualSrcDir/{srcDirName}/
+  // If srcDirName not provided, derive from srcDir basename
+  const actualSrcDirName = srcDirName ?? runtime.path.basename(srcDir);
+  const virtualSrcSubdir = runtime.path.resolve(
+    virtualSrcDir,
+    actualSrcDirName,
+  );
   const relativePath = runtime.path.relative(virtualSrcSubdir, virtualPath);
   return runtime.path.resolve(srcDir, relativePath);
 }

@@ -1,6 +1,6 @@
 {
   "name": "@eser/laroux",
-  "version": "4.0.32",
+  "version": "4.0.33",
   "exports": {
     ".": "./mod.ts",
     "./navigation": "./navigation/mod.ts",

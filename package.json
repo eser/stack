@@ -1,6 +1,6 @@
 {
   "name": "@eser/stack",
-  "version": "4.0.30",
+  "version": "4.0.31",
   "private": true,
   "type": "module",
   "workspaces": [

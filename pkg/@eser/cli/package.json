@@ -1,6 +1,6 @@
 {
   "name": "@eser/cli",
-  "version": "4.0.30",
+  "version": "4.0.31",
   "type": "module",
   "exports": "./main.ts",
   "bin": {

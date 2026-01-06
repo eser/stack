@@ -32,6 +32,7 @@
       "css-modules.ts",
       "jsr-resolver-plugin.ts",
       "import-map-resolver-plugin.ts",
+      "server-externals-plugin.ts",
       "domain/**/*.ts",
       "adapters/**/*.ts",
       "README.md",

@@ -65,6 +65,13 @@ export type BuildConfig = {
 
   /** Browser shims for client-side bundling */
   browserShims: ResolvedBrowserShimsConfig;
+
+  /**
+   * Server-side external packages (not bundled into server components).
+   * These packages resolve from the app's node_modules at runtime.
+   * Default: ["@eser/laroux", "@eser/laroux-server"]
+   */
+  serverExternals: string[];
 };
 
 // ============================================================================

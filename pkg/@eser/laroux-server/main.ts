@@ -140,12 +140,14 @@ async function resolveServerComponentPath(
   config: AppConfig,
   relativePath: string,
 ): Promise<string> {
-  // Try bundled path first (e.g., dist/server/app/layout.tsx.js)
+  // Strip .tsx/.ts extension and add .js for bundled path
+  // e.g., "layout.tsx" -> "layout.js", "actions.ts" -> "actions.js"
+  const bundledName = relativePath.replace(/\.(tsx?|ts)$/, ".js");
   const bundledPath = runtime.path.resolve(
     config.distDir,
     "server",
     "app",
-    `${relativePath}.js`,
+    bundledName,
   );
 
   const bundledExists = await runtime.fs.exists(bundledPath);
@@ -253,6 +255,7 @@ function toBuildConfig(config: AppConfig): BuildConfig {
     cssModuleTypes: config.cssModuleTypes,
     noCssModuleAutoReference: config.noCssModuleAutoReference,
     browserShims: config.browserShims,
+    serverExternals: config.build.serverExternals,
   };
 }
 

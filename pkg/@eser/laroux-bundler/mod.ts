@@ -56,3 +56,13 @@ export {
 // Re-export configuration
 export * from "./config.ts";
 export * from "./types.ts";
+
+// Re-export bundler plugins
+export {
+  createServerExternalsPlugin,
+  type ServerExternalsPluginOptions,
+} from "./server-externals-plugin.ts";
+export {
+  createImportMapResolverPlugin,
+  type ImportMapResolverOptions,
+} from "./import-map-resolver-plugin.ts";

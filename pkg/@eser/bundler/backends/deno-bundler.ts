@@ -52,7 +52,10 @@ declare namespace Deno {
 }
 
 import * as hex from "@std/encoding/hex";
+import * as logging from "@eser/logging";
 import { runtime } from "@eser/standards/runtime";
+
+const bundlerLogger = logging.logger.getLogger(["bundler", "deno-bundler"]);
 import type {
   BundleError,
   BundleMetafile,
@@ -140,7 +143,20 @@ export class DenoBundlerBackend implements Bundler {
         options.external = config.external as string[];
       }
 
+      bundlerLogger.debug("Calling Deno.bundle", {
+        entrypoints: allEntrypoints.slice(0, 3),
+        outputDir: tempDir,
+        external: options.external,
+        platform: options.platform,
+      });
+
       const result = await Deno.bundle(options);
+
+      bundlerLogger.debug("Deno.bundle result", {
+        success: result.success,
+        errors: (result as unknown as { errors?: unknown[] }).errors?.length ??
+          0,
+      });
 
       if (!result.success) {
         // result.errors contains the actual errors from Deno.bundle
@@ -238,17 +254,32 @@ export class DenoBundlerBackend implements Bundler {
     // Collect all output files (both .js and .map files)
     const outputFiles: Array<{ name: string; path: string }> = [];
 
-    for await (const entry of runtime.fs.readDir(scanDir)) {
-      if (
-        entry.isFile &&
-        (entry.name.endsWith(".js") || entry.name.endsWith(".map"))
-      ) {
-        outputFiles.push({
-          name: entry.name,
-          path: runtime.path.join(scanDir, entry.name),
-        });
+    bundlerLogger.debug(`Scanning output dir: ${scanDir}`);
+
+    // Recursively collect all .js and .map files from output directory
+    const collectFiles = async (dir: string, basePath: string = "") => {
+      for await (const entry of runtime.fs.readDir(dir)) {
+        const fullPath = runtime.path.join(dir, entry.name);
+        const relativeName = basePath
+          ? `${basePath}/${entry.name}`
+          : entry.name;
+
+        if (entry.isDirectory) {
+          // Recursively scan subdirectories
+          await collectFiles(fullPath, relativeName);
+        } else if (
+          entry.isFile &&
+          (entry.name.endsWith(".js") || entry.name.endsWith(".map"))
+        ) {
+          outputFiles.push({
+            name: relativeName,
+            path: fullPath,
+          });
+        }
       }
-    }
+    };
+
+    await collectFiles(scanDir);
 
     // Also check root tempDir for chunk files if we scanned nested
     if (scanDir !== tempDir) {
@@ -265,6 +296,11 @@ export class DenoBundlerBackend implements Bundler {
         }
       }
     }
+
+    bundlerLogger.debug(
+      `Found ${outputFiles.length} output files`,
+      outputFiles.map((f) => f.name),
+    );
 
     // Track source map content to attach to JS outputs
     const sourceMaps = new Map<string, Uint8Array>();
@@ -388,6 +424,11 @@ export class DenoBundlerBackend implements Bundler {
       await runtime.fs.mkdir(config.outputDir, { recursive: true });
       for (const [fileName, output] of outputs) {
         const outputPath = runtime.path.join(config.outputDir, fileName);
+        // Create parent directories for nested files (e.g., app/sidebar.js)
+        const parentDir = runtime.path.dirname(outputPath);
+        if (parentDir !== config.outputDir) {
+          await runtime.fs.mkdir(parentDir, { recursive: true });
+        }
         await runtime.fs.writeFile(outputPath, output.code);
       }
     }

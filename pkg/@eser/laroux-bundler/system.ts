@@ -53,6 +53,7 @@ import {
 import { PRODUCTION_SETTINGS } from "./config.ts";
 import { getFontUrls, optimizeGoogleFonts } from "./adapters/fonts/mod.ts";
 import { processCSSModules, saveCSSModuleOutputs } from "./css-modules.ts";
+import { createServerExternalsPlugin } from "./server-externals-plugin.ts";
 
 // Constants
 const MANIFEST_FILENAME = "manifest.json";
@@ -226,19 +227,19 @@ export async function build(
       };
     }
 
-    // Step 0: Clean if requested (preserve CSS files when skipCss is true)
+    // Step 1: Clean if requested (preserve CSS files when skipCss is true)
     await cleanBuildDir(distDir, options?.skipCss);
 
-    // Step 1: Ensure dist directory exists
+    // Step 2: Ensure dist directory exists
     await runtime.fs.ensureDir(distDir);
 
     // Build timestamp will be written to chunk manifest at the end
     const buildTimestamp = Date.now();
 
-    // Step 1.5: Parallel scan - routes, client components, and CSS modules
+    // Step 3: Parallel scan - routes, client components, and CSS modules
     // These operations are independent and can run concurrently for faster builds
     buildLogger.debug(
-      "🔍 Step 1.5: Parallel scanning (routes, components, CSS modules)...",
+      "🔍 Step 3: Parallel scanning (routes, components, CSS modules)...",
     );
     const routesDir = runtime.path.resolve(srcDir, "app/routes");
     const { plugin } = context;
@@ -301,8 +302,8 @@ export async function build(
       buildLogger.warn("⚠️  Warning: No client components found!");
     }
 
-    // Step 2: Transform client components (proxies)
-    buildLogger.debug("🔄 Step 2: Transforming client components...");
+    // Step 4: Transform client components (proxies)
+    buildLogger.debug("🔄 Step 4: Transforming client components...");
     const transformResults = plugin.transformClientComponents
       ? await plugin.transformClientComponents(
         clientComponents,
@@ -320,9 +321,9 @@ export async function build(
       );
     }
 
-    // Step 3.5: Rewrite server component imports
+    // Step 5: Rewrite server component imports
     buildLogger.debug(
-      "✏️  Step 3: Rewriting server component imports...",
+      "✏️  Step 5: Rewriting server component imports...",
     );
     const allComponents = plugin.getAllComponents
       ? await plugin.getAllComponents(srcDir)
@@ -344,8 +345,8 @@ export async function build(
       );
     }
 
-    // Step 4: Generate module map
-    buildLogger.debug("🗺️  Step 4: Generating module map...");
+    // Step 6: Generate module map
+    buildLogger.debug("🗺️  Step 6: Generating module map...");
     const clientOutputDir = runtime.path.resolve(distDir, CLIENT_DIR);
     await runtime.fs.ensureDir(clientOutputDir);
 
@@ -366,10 +367,10 @@ export async function build(
     // Use provided CSS plugin (or skip CSS if none)
     const cssPlugin = context.cssPlugin;
 
-    // Step 4.5: Process global CSS with CSS plugin (skippable for JS-only changes)
+    // Step 7: Process global CSS with CSS plugin (skippable for JS-only changes)
     if (!options?.skipCss && cssPlugin) {
       buildLogger.debug(
-        "🎨 Step 4.5: Processing CSS with CSS plugin + Lightning CSS...",
+        "🎨 Step 7: Processing CSS with CSS plugin + Lightning CSS...",
       );
       await processCssFiles(cssPlugin, srcDir, projectRoot, clientOutputDir);
     } else if (!cssPlugin) {
@@ -378,10 +379,10 @@ export async function build(
       buildLogger.debug("⏭️  Skipping CSS processing (JS-only change)");
     }
 
-    // Step 4.6: Create virtual source for bundling (build isolation)
+    // Step 8: Create virtual source for bundling (build isolation)
     // This copies src/ to dist/_bundle_src/ so we can modify imports without touching original source
     // In watch mode, only copy changed files for faster rebuilds
-    buildLogger.debug("📁 Step 4.6: Creating virtual source for bundling...");
+    buildLogger.debug("📁 Step 8: Creating virtual source for bundling...");
     const virtualSource = await createVirtualSource({
       projectRoot,
       distDir,
@@ -390,14 +391,14 @@ export async function build(
     });
     const virtualSrcDir = virtualSource.virtualSrcDir;
 
-    // Step 4.7: Process CSS Modules to virtual source (NOT original src/)
+    // Step 9: Process CSS Modules to virtual source (NOT original src/)
     // Generate JSON files in the virtual source directory
     // Map to store pre-processed CSS module results (translated to original paths)
     let cssModuleResults: Map<string, CSSModuleResult> | undefined;
 
     if (!options?.skipCss) {
       buildLogger.debug(
-        "🎨 Step 4.7: Processing CSS Modules to virtual source...",
+        "🎨 Step 9: Processing CSS Modules to virtual source...",
       );
 
       // Translate CSS module paths to virtual source
@@ -437,7 +438,7 @@ export async function build(
       // Rewrite CSS imports in virtual source (NOT original src/)
       if (virtualCssModulePaths.length > 0) {
         buildLogger.debug(
-          "✏️  Step 4.8: Rewriting CSS module imports in virtual source...",
+          "✏️  Step 10: Rewriting CSS module imports in virtual source...",
         );
         if (plugin.rewriteCssModuleImports) {
           await plugin.rewriteCssModuleImports(
@@ -449,9 +450,11 @@ export async function build(
       }
     }
 
-    // Step 5: Bundle client code from virtual source
+    // Step 11: Bundle client code from virtual source
     // Translate component paths to use virtual source
-    buildLogger.debug("📦 Step 5: Bundling client code from virtual source...");
+    buildLogger.debug(
+      "📦 Step 11: Bundling client code from virtual source...",
+    );
     const virtualClientComponents = translateClientComponents(
       clientComponents,
       srcDir,
@@ -464,11 +467,11 @@ export async function build(
       buildTimestamp,
     );
 
-    // Step 5.5: Copy CSS Module JSON files from virtual source to dist/
+    // Step 12: Copy CSS Module JSON files from virtual source to dist/
     if (!options?.skipCss && cssModulePaths.length > 0) {
       // Copy JSON files from virtual source to dist/client/
       buildLogger.debug(
-        `📋 Step 5.5: Copying ${cssModulePaths.length} CSS Module JSON file(s) to client/...`,
+        `📋 Step 12: Copying ${cssModulePaths.length} CSS Module JSON file(s) to client/...`,
       );
       await copyCssModuleJsonFilesFromSrc(
         cssModulePaths.map((p) =>
@@ -480,7 +483,7 @@ export async function build(
 
       // Copy JSON files from virtual source to dist/server/
       buildLogger.debug(
-        `📋 Step 5.6: Copying ${cssModulePaths.length} CSS Module JSON file(s) to server/...`,
+        `📋 Step 13: Copying ${cssModulePaths.length} CSS Module JSON file(s) to server/...`,
       );
       await copyCssModuleJsonFilesFromSrc(
         cssModulePaths.map((p) =>
@@ -492,7 +495,7 @@ export async function build(
 
       // Append CSS module styles to main styles.css bundle
       // Pass pre-processed results to avoid duplicate processing
-      buildLogger.debug("🎨 Step 5.7: Appending CSS modules to styles.css...");
+      buildLogger.debug("🎨 Step 14: Appending CSS modules to styles.css...");
       await appendCssModulesToStyles(
         cssModulePaths,
         projectRoot,
@@ -501,13 +504,13 @@ export async function build(
       );
     }
 
-    // Step 5.75: Clean up virtual source
-    buildLogger.debug("🧹 Step 5.75: Cleaning up virtual source...");
+    // Step 15: Clean up virtual source
+    buildLogger.debug("🧹 Step 15: Cleaning up virtual source...");
     await virtualSource.cleanup();
 
-    // Step 5.76: Extract critical CSS for faster initial render (requires CSS plugin)
+    // Step 16: Extract critical CSS for faster initial render (requires CSS plugin)
     if (cssPlugin) {
-      buildLogger.debug("✨ Step 5.76: Extracting critical CSS...");
+      buildLogger.debug("✨ Step 16: Extracting critical CSS...");
       const criticalCssResult = await extractCriticalPageCssFiles(
         cssPlugin,
         clientOutputDir,
@@ -518,8 +521,8 @@ export async function build(
         );
       }
 
-      // Step 5.77: Generate universal CSS (base/theme styles)
-      buildLogger.debug("🎨 Step 5.77: Generating universal CSS...");
+      // Step 17: Generate universal CSS (base/theme styles)
+      buildLogger.debug("🎨 Step 17: Generating universal CSS...");
       const universalCssPath = await generateCriticalUniversalCssFile(
         cssPlugin,
         clientOutputDir,
@@ -529,40 +532,40 @@ export async function build(
       }
     }
 
-    // Step 5.8: Optimize fonts for self-hosting (output to client/)
-    buildLogger.debug("🔤 Step 5.8: Optimizing Fonts...");
+    // Step 18: Optimize fonts for self-hosting (output to client/)
+    buildLogger.debug("🔤 Step 18: Optimizing Fonts...");
     await optimizeFonts(clientOutputDir, context.config.fonts);
 
-    // Step 5.85: Optimize images (WebP, AVIF, responsive variants)
-    buildLogger.debug("🖼️  Step 5.85: Optimizing Images...");
+    // Step 19: Optimize images (WebP, AVIF, responsive variants)
+    buildLogger.debug("🖼️  Step 19: Optimizing Images...");
     await optimizeImagesStep(projectRoot, clientOutputDir, context.config);
 
-    // Step 5.9: Copy translation JSON files to server directory
-    buildLogger.debug("🌐 Step 5.9: Copying translation files...");
+    // Step 20: Copy translation JSON files to server directory
+    buildLogger.debug("🌐 Step 20: Copying translation files...");
     await copyTranslationFiles(
       srcDir,
       runtime.path.resolve(distDir, SERVER_DIR),
       projectRoot,
     );
 
-    // Step 5.9: Copy import maps to dist/server for dev mode dynamic imports
+    // Step 21: Copy import maps to dist/server for dev mode dynamic imports
     // In dev mode, Deno dynamically imports files from dist/server.
     // These files have bare imports (e.g., "lucide-react") that need resolution.
     // Copying the project's config files ensures import maps apply.
     const serverOutputDir = runtime.path.resolve(distDir, SERVER_DIR);
     await copyConfigFilesWithImportMaps(projectRoot, serverOutputDir);
 
-    // Step 5.95: Bundle server components
+    // Step 22: Bundle server components
     // This resolves all bare specifiers (react, lucide-react, etc.) via the bundler
     // instead of manual rewriting to npm: specifiers (which breaks Node.js)
     // NOTE: Always use rolldown for server bundling because deno-bundler doesn't support
     // custom resolver plugins needed for npm: specifiers
     buildLogger.info(
-      `📦 Step 5.95: Server bundling check - components: ${serverComponentPaths.length}`,
+      `📦 Step 22: Server bundling check - components: ${serverComponentPaths.length}`,
     );
     if (serverComponentPaths.length > 0) {
       buildLogger.info(
-        `📦 Step 5.95: Bundling ${serverComponentPaths.length} server component(s) with rolldown...`,
+        `📦 Step 22: Bundling ${serverComponentPaths.length} server component(s) with rolldown...`,
       );
 
       // Get server component files from dist/server (already copied with rewrites)
@@ -584,40 +587,35 @@ export async function build(
       );
 
       if (serverEntrypoints.length > 0) {
-        // Get bundler plugins for import resolution
-        // Server-side bundling doesn't need browser shims
-        // autoMarkExternal=false: don't auto-mark npm/jsr as external, use explicit externals array
+        // Server externals from config (default: @eser/laroux, @eser/laroux-server)
+        // These resolve from the app's node_modules at runtime.
+        // Everything else (react, lucide-react, etc.) gets bundled.
         // See ADR: 0002-bundler-external-import-specifiers.md
-        // Keep @eser/laroux-server external - resolves from node_modules at runtime
-        // This ensures module instance sharing (e.g., action-registry singleton)
-        const serverExternals = ["@eser/laroux-server"];
+        const serverExternals = context.config.serverExternals;
 
-        const bundlerPlugins = [
-          createImportMapResolverPlugin({
-            projectRoot,
-            browserShims: { jsr: {}, nodeBuiltins: {} },
-            autoMarkExternal: false,
-            externals: serverExternals,
-          }),
-          ...(plugin.getServerBundlerPlugins?.(projectRoot) ?? []),
-        ];
+        // Create server externals plugin with prefix matching for subpath imports
+        // e.g., "@eser/laroux-server" matches "@eser/laroux-server/action-registry"
+        // This ensures singleton modules like action-registry are shared between
+        // bundled server components and the laroux-server runtime.
+        const serverExternalsPlugin = createServerExternalsPlugin({
+          externals: serverExternals,
+        });
 
+        // Use the same bundler backend as client bundling
+        // - rolldown for production (prebuilt bundler)
+        // - deno-bundler for dev mode (runtime bundler)
         const serverBundleResult = await bundleServerComponents(
           {
             entrypoints: serverEntrypoints,
             outputDir: serverOutputDir,
-            // Use serverOutputDir as projectRoot for entry name calculation
-            // Entry files are in dist/server/, so relative names should be like "src/app/page.tsx"
             projectRoot: serverOutputDir,
-            plugins: bundlerPlugins,
+            srcDirName, // Pass source directory name for output path transformation
             sourcemap: false,
             minify: false,
-            // See ADR: 0002-bundler-external-import-specifiers.md
             externals: serverExternals,
+            plugins: [serverExternalsPlugin],
           },
-          // Always use rolldown for server bundling - deno-bundler doesn't support
-          // custom resolver plugins needed for npm:/jsr: specifiers
-          "rolldown",
+          context.bundlerBackend ?? "deno-bundler",
         );
 
         buildLogger.info(
@@ -626,7 +624,7 @@ export async function build(
       }
     }
 
-    // Step 6: Copy public assets to dist root (server expects them there)
+    // Step 23: Copy public assets to dist root (server expects them there)
     await copyPublicAssets(projectRoot, distDir);
 
     const duration = performance.now() - startTime;
@@ -949,9 +947,12 @@ async function bundleClient(
 
     // Create import map resolver plugin to handle all bare imports
     // Uses both deno.json and package.json for import resolution
+    // autoMarkExternal: false ensures npm packages are bundled inline for browsers
+    // (browsers can't resolve bare specifiers without an import map)
     const importMapPlugin = createImportMapResolverPlugin({
       projectRoot,
       browserShims: config.browserShims,
+      autoMarkExternal: false,
     });
 
     const define: Record<string, string> = {

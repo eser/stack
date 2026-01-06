@@ -81,69 +81,57 @@ import { y } from "lodash";
 
 ## Implementation
 
-### In Rolldown Backend (`@eser/bundler`)
+### Server Bundling with Deno Bundler
 
-Convert external package names to regex patterns for prefix matching:
+Server components use deno-bundler (lightweight, esbuild-based) with native
+externals support:
 
 ```typescript
-// In rolldown.ts - bundle() and watch()
-const externalPatterns = config.external?.map((pkg) => {
-  const escaped = pkg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^${escaped}(\\/.*)?$`);
-});
+// In system.ts - server bundling
+const serverExternals = context.config.serverExternals;
+// Default: ["@eser/laroux", "@eser/laroux-server"]
 
-const bundle = await rolldown.rolldown({
-  input: config.entrypoints,
-  external: externalPatterns, // Regex patterns, not strings
-  plugins,
-});
+await bundleServerComponents(
+  {
+    entrypoints: serverEntrypoints,
+    outputDir: serverOutputDir,
+    externals: serverExternals,
+  },
+  "deno-bundler", // Lightweight, uses esbuild under the hood
+);
 ```
 
-This ensures `"@eser/laroux-server"` matches both:
+Deno's native resolution with `nodeModulesDir: "auto"` handles npm package
+resolution from `node_modules`.
 
-- `@eser/laroux-server` (exact)
-- `@eser/laroux-server/action-registry` (subpath)
+### Client Bundling with Import Map Resolver
 
-### In Import Map Resolver Plugin
-
-Handle `{ external: true }` without a path in the resolveId hook:
-
-```typescript
-// In rolldown.ts - adaptPlugins()
-if (result?.path !== undefined || result?.external === true) {
-  return {
-    id: result.path ?? source, // Keep original specifier if no path
-    external: result.external,
-  };
-}
-```
-
-Use `autoMarkExternal` option to control automatic external marking:
+Client bundling uses the import-map-resolver plugin for browser shims and
+external marking:
 
 ```typescript
-// For client bundling (default): autoMarkExternal = true
-// For server bundling: autoMarkExternal = false (use explicit externals)
 createImportMapResolverPlugin({
   projectRoot,
-  browserShims: { jsr: {}, nodeBuiltins: {} },
-  autoMarkExternal: false, // Don't auto-mark npm/jsr as external
+  browserShims: config.browserShims,
+  autoMarkExternal: true, // Auto-mark npm/jsr as external for client
 });
 ```
 
-### In Bundler Configuration
+### Configuration via laroux.config.ts
 
-When specifying externals, use the package name (not subpaths):
+Users can extend server externals in their config:
 
 ```typescript
-// CORRECT - package name covers all subpath imports via regex
-externals: ["@eser/laroux-server", "react", "lodash"];
-
-// The output will have:
-// import { registerAction } from "@eser/laroux-server/action-registry";
-// import { something } from "@eser/laroux-server/other";
-// import React from "react";
-// import _ from "lodash";
+// laroux.config.ts
+export default {
+  build: {
+    // Additional packages to keep external (merged with defaults)
+    serverExternals: ["some-shared-lib"],
+  },
+};
 ```
+
+Default externals: `["@eser/laroux", "@eser/laroux-server"]`
 
 ## How Bare Specifiers Resolve at Runtime
 
@@ -212,12 +200,13 @@ This policy applies to ALL bundling operations in the stack:
 
 ## Related Files
 
-- `pkg/@eser/bundler/backends/rolldown.ts` - Rolldown backend (external regex
-  patterns)
+- `pkg/@eser/bundler/backends/deno-bundler.ts` - Deno bundler backend (server
+  bundling)
+- `pkg/@eser/bundler/backends/rolldown.ts` - Rolldown backend (client bundling)
 - `pkg/@eser/laroux-bundler/import-map-resolver-plugin.ts` - Import resolution
-  (autoMarkExternal)
+  for client bundling
 - `pkg/@eser/laroux-bundler/system.ts` - Build system (server bundling config)
-- `pkg/@eser/laroux-bundler/domain/bundler.ts` - Bundler functions
+- `pkg/@eser/laroux/config/defaults.ts` - Default server externals list
 
 ## Links
 

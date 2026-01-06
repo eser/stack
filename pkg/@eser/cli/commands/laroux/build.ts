@@ -103,6 +103,7 @@ export const buildHandler = async (
     cssModuleTypes: baseConfig.cssModuleTypes,
     noCssModuleAutoReference: baseConfig.noCssModuleAutoReference,
     browserShims: baseConfig.browserShims,
+    serverExternals: baseConfig.build.serverExternals,
     build: {
       ...baseConfig.build,
       minify,

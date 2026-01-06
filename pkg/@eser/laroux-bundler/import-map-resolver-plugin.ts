@@ -170,12 +170,22 @@ export function createImportMapResolverPlugin(
               return { path: filePath };
             }
 
-            // Remote URL (https://) - mark as external
-            cache.set(specifier, "external");
+            // Remote URL (npm:, jsr:, https:) - mark as external only if autoMarkExternal is enabled
+            // For browser bundles (autoMarkExternal: false), let bundler handle npm resolution from node_modules
+            if (autoMarkExternal) {
+              cache.set(specifier, "external");
+              resolverLogger.debug(
+                `Marking ${specifier} as external (remote: ${resolvedUrl})`,
+              );
+              return { external: true };
+            }
+
+            // For browser bundles, return empty to let bundler's default npm resolution handle it
+            // Rolldown will resolve npm packages from node_modules just like deno-bundler does
             resolverLogger.debug(
-              `Marking ${specifier} as external (remote: ${resolvedUrl})`,
+              `Letting bundler resolve ${specifier} from node_modules`,
             );
-            return { external: true };
+            return {};
           } catch (error) {
             resolverLogger.debug(
               `Failed to resolve ${resolved}: ${

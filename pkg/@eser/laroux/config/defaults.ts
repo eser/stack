@@ -30,11 +30,21 @@ export const DEFAULT_SERVER: ResolvedServerConfig = {
   open: false,
 };
 
+/**
+ * Default server externals - packages that should NOT be bundled into server components.
+ * These resolve from the app's node_modules at runtime, ensuring shared module instances.
+ */
+export const DEFAULT_SERVER_EXTERNALS: string[] = [
+  "@eser/laroux",
+  "@eser/laroux-server",
+];
+
 export const DEFAULT_BUILD: ResolvedBuildConfig = {
   minify: true,
   sourcemap: true,
   target: ["es2022"],
   external: [],
+  serverExternals: DEFAULT_SERVER_EXTERNALS,
 };
 
 export const DEFAULT_SSR: ResolvedSSRConfig = {

@@ -256,6 +256,12 @@ export type ServerBundleOptions = {
   outputDir: string;
   /** Project root directory */
   projectRoot: string;
+  /**
+   * Source directory name relative to project root (e.g., "src", "app").
+   * Used to strip the source directory prefix from output paths.
+   * If not provided, no prefix stripping is done beyond projectRoot.
+   */
+  srcDirName?: string;
   /** External packages to exclude from bundle (loaded at runtime) */
   externals?: string[];
   /** Bundler plugins for custom resolution and transformation */
@@ -307,13 +313,20 @@ export async function bundleServerComponents(
   const entrypoints: Record<string, string> = {};
   for (const filePath of options.entrypoints) {
     // Use relative path from project root as entry name
-    const relativePath = filePath.replace(options.projectRoot, "").replace(
-      /^\//,
-      "",
-    );
-    // Normalize the entry name (remove src/ prefix if present)
-    const entryName = relativePath.replace(/^src\//, "");
-    entrypoints[entryName] = filePath;
+    // Strip the srcDirName prefix and .tsx/.ts extension
+    // This ensures output files are like "app/layout.js" not "src/app/layout.tsx.js"
+    let relativePath = filePath.replace(options.projectRoot, "")
+      .replace(/^\//, "");
+
+    // Strip source directory prefix if provided (e.g., "src/", "app/")
+    if (options.srcDirName) {
+      const srcPrefix = new RegExp(`^${options.srcDirName}/`);
+      relativePath = relativePath.replace(srcPrefix, "");
+    }
+
+    // Strip file extension
+    relativePath = relativePath.replace(/\.tsx?$/, "");
+    entrypoints[relativePath] = filePath;
   }
 
   const config: BundlerConfig = {

@@ -45,6 +45,7 @@ export {
   DEFAULT_INTERNAL,
   DEFAULT_MODE,
   DEFAULT_SERVER,
+  DEFAULT_SERVER_EXTERNALS,
   DEFAULT_SSR,
   type DefaultConfigShape,
 } from "./defaults.ts";

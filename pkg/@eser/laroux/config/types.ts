@@ -224,6 +224,13 @@ export type UserConfig = {
 
     /** External dependencies (don't bundle) */
     external?: string[];
+
+    /**
+     * Additional server-side external packages.
+     * These are merged with the defaults: ["@eser/laroux", "@eser/laroux-server"]
+     * Server externals resolve from the app's node_modules at runtime.
+     */
+    serverExternals?: string[];
   };
 
   /** Path aliases */
@@ -272,6 +279,12 @@ export type ResolvedBuildConfig = {
   sourcemap: boolean;
   target: string[];
   external: string[];
+  /**
+   * Server-side external packages (not bundled into server components).
+   * These packages resolve from the app's node_modules at runtime.
+   * Default: ["@eser/laroux", "@eser/laroux-server"]
+   */
+  serverExternals: string[];
 };
 
 /** Resolved SSR configuration */

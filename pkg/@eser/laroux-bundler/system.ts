@@ -586,10 +586,18 @@ export async function build(
       if (serverEntrypoints.length > 0) {
         // Get bundler plugins for import resolution
         // Server-side bundling doesn't need browser shims
+        // autoMarkExternal=false: don't auto-mark npm/jsr as external, use explicit externals array
+        // See ADR: 0002-bundler-external-import-specifiers.md
+        // Keep @eser/laroux-server external - resolves from node_modules at runtime
+        // This ensures module instance sharing (e.g., action-registry singleton)
+        const serverExternals = ["@eser/laroux-server"];
+
         const bundlerPlugins = [
           createImportMapResolverPlugin({
             projectRoot,
             browserShims: { jsr: {}, nodeBuiltins: {} },
+            autoMarkExternal: false,
+            externals: serverExternals,
           }),
           ...(plugin.getServerBundlerPlugins?.(projectRoot) ?? []),
         ];
@@ -604,8 +612,8 @@ export async function build(
             plugins: bundlerPlugins,
             sourcemap: false,
             minify: false,
-            // Keep action-registry as external so bundled actions share the server's registry
-            externals: ["@eser/laroux-server/action-registry"],
+            // See ADR: 0002-bundler-external-import-specifiers.md
+            externals: serverExternals,
           },
           // Always use rolldown for server bundling - deno-bundler doesn't support
           // custom resolver plugins needed for npm:/jsr: specifiers

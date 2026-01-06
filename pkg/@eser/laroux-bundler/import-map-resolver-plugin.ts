@@ -43,6 +43,17 @@ export type ImportMapResolverOptions = {
   importMap?: ImportMap;
   /** Cache for resolved paths */
   cache?: Map<string, string>;
+  /**
+   * Automatically mark npm/jsr packages as external (default: true).
+   * Set to false for server bundling where externals are specified explicitly.
+   * See ADR: 0002-bundler-external-import-specifiers.md
+   */
+  autoMarkExternal?: boolean;
+  /**
+   * Explicit list of external packages (supports prefix matching).
+   * e.g., ["@eser/laroux-server"] matches "@eser/laroux-server/action-registry"
+   */
+  externals?: string[];
 };
 
 /**
@@ -60,6 +71,18 @@ export function createImportMapResolverPlugin(
 ): BundlerPlugin {
   const cache = options.cache ?? new Map<string, string>();
   let importMap: ImportMap | null = options.importMap ?? null;
+  const autoMarkExternal = options.autoMarkExternal ?? true;
+  const externals = options.externals ?? [];
+
+  // Check if specifier matches any explicit external (supports prefix matching)
+  const isExplicitExternal = (specifier: string): boolean => {
+    for (const pkg of externals) {
+      if (specifier === pkg || specifier.startsWith(`${pkg}/`)) {
+        return true;
+      }
+    }
+    return false;
+  };
 
   // Merge jsr and nodeBuiltins shims into a single lookup map
   const browserShims: Record<string, string> = {
@@ -96,6 +119,14 @@ export function createImportMapResolverPlugin(
           return { path: cached };
         }
 
+        // Check explicit externals first (supports prefix matching)
+        // See ADR: 0002-bundler-external-import-specifiers.md
+        if (isExplicitExternal(specifier)) {
+          cache.set(specifier, "external");
+          resolverLogger.debug(`Marking ${specifier} as external (explicit)`);
+          return { external: true };
+        }
+
         // Check if we have a browser shim for this specifier
         if (browserShims[specifier] !== undefined) {
           resolverLogger.debug(`Using browser shim for ${specifier}`);
@@ -106,10 +137,13 @@ export function createImportMapResolverPlugin(
         const resolved = resolveSpecifier(specifier, importMap!);
 
         if (resolved !== null) {
-          // Check if it's an external package
-          if (isExternal(specifier, importMap!)) {
+          // Check if it's an external package (only if autoMarkExternal is enabled)
+          // For server bundling, autoMarkExternal=false and externals are specified explicitly
+          // See ADR: 0002-bundler-external-import-specifiers.md
+          if (autoMarkExternal && isExternal(specifier, importMap!)) {
             cache.set(specifier, "external");
             resolverLogger.debug(`Marking ${specifier} as external`);
+            // Keep bare specifier - do NOT rewrite to jsr:/npm: as those break Node.js/Bun
             return { external: true };
           }
 
@@ -153,9 +187,8 @@ export function createImportMapResolverPlugin(
         }
 
         // Not in import map - check if it looks like an npm package
-        // and should be marked as external
-        if (isBareSpecifier(specifier)) {
-          // Common npm packages that should be external
+        // and should be marked as external (only if autoMarkExternal is enabled)
+        if (autoMarkExternal && isBareSpecifier(specifier)) {
           cache.set(specifier, "external");
           resolverLogger.debug(
             `Marking ${specifier} as external (bare import not in import map)`,
@@ -163,7 +196,8 @@ export function createImportMapResolverPlugin(
           return { external: true };
         }
 
-        return {}; // Let other resolvers handle it
+        // Let other resolvers or bundler's default resolution handle it
+        return {};
       });
 
       // Match explicit jsr: specifiers

@@ -370,9 +370,12 @@ export class RolldownBackend implements Bundler {
               namespace: resolver.options.namespace ?? "file",
               kind: "import-statement",
             });
-            if (result?.path !== undefined) {
+            // Handle both path resolution and external marking
+            // External without path keeps original specifier (bare import from node_modules)
+            // See ADR: 0002-bundler-external-import-specifiers.md
+            if (result?.path !== undefined || result?.external === true) {
               return {
-                id: result.path,
+                id: result.path ?? source,
                 external: result.external,
               };
             }

@@ -1,0 +1,25 @@
+# laroux.js Application
+
+> A React Server Components application built with laroux.js on Deno 2.x
+
+## Tech Stack
+
+- laroux.js: Zero-configuration RSC framework
+- React 19: UI library with Server Components
+- Deno 2.x: Runtime
+- Tailwind CSS 4.x: Styling
+
+## Project Structure
+
+- /src/app/routes/ - Page components
+- /src/app/layout.tsx - Root layout
+- /src/components/ - Reusable components
+- /public/ - Static assets
+
+## Getting Started
+
+```bash
+deno task dev    # Start development server
+deno task build  # Build for production
+deno task serve  # Serve production build
+```

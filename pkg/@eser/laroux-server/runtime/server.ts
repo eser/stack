@@ -410,7 +410,9 @@ export function createHandler(deps: ServerDependencies) {
             );
 
             rscLogger.debug(`Loading action module: ${actionModulePath}`);
-            const actionModule = await import(`file://${actionModulePath}`);
+            // Assign to variable first to prevent JSR from rewriting the import path
+            const actionImportUrl = `file://${actionModulePath}`;
+            const actionModule = await import(actionImportUrl);
 
             const actionFn = actionModule[exportName];
             if (typeof actionFn !== "function") {

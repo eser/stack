@@ -206,29 +206,6 @@ export function createImportMapResolverPlugin(
           return { external: true };
         }
 
-        // For browser bundles, try to resolve npm transitive dependencies
-        // Deno's nodeModulesDir doesn't symlink transitive deps to top-level
-        // Use import.meta.resolve to find the package in Deno's .deno directory
-        if (!autoMarkExternal && isBareSpecifier(specifier)) {
-          try {
-            const npmSpecifier = `npm:${specifier}`;
-            const resolvedUrl = import.meta.resolve(npmSpecifier);
-            if (resolvedUrl.startsWith("file://")) {
-              const filePath = new URL(resolvedUrl).pathname;
-              cache.set(specifier, filePath);
-              resolverLogger.debug(
-                `Resolved transitive npm dependency ${specifier} → ${filePath}`,
-              );
-              return { path: filePath };
-            }
-          } catch {
-            // Package not found via npm - let bundler handle it
-            resolverLogger.debug(
-              `Could not resolve ${specifier} as npm package, falling through`,
-            );
-          }
-        }
-
         // Let other resolvers or bundler's default resolution handle it
         return {};
       });

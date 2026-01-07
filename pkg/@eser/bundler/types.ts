@@ -17,6 +17,8 @@ export interface BundlerConfig {
   readonly entrypoints: Readonly<Record<string, string>>;
   /** Output directory for bundled files. */
   readonly outputDir: string;
+  /** Project root directory for module resolution. */
+  readonly projectRoot?: string;
   /** Output format. */
   readonly format: "esm" | "cjs" | "iife";
   /** Target platform. */

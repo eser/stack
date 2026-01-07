@@ -191,10 +191,23 @@ export class RolldownBackend implements Bundler {
         );
       }
 
+      // Configure resolve paths to include project's node_modules
+      // This ensures transitive dependencies (like scheduler) are found
+      // regardless of where source files are located (e.g., npm cache)
+      const resolveModules = config.projectRoot !== undefined
+        ? [
+          `${config.projectRoot}/node_modules`,
+          "node_modules",
+        ]
+        : ["node_modules"];
+
       const bundle = await rolldown.rolldown({
         input: config.entrypoints as Record<string, string>,
         external: config.external as string[] | undefined,
         plugins,
+        resolve: {
+          modules: resolveModules,
+        },
       });
 
       const sourcemapValue: boolean | "inline" | undefined =
@@ -712,6 +725,9 @@ interface RolldownInputOptions {
   input: Record<string, string>;
   external?: string[];
   plugins?: RollupPlugin[];
+  resolve?: {
+    modules?: string[];
+  };
   // Note: `define` is not supported as an input option in Rolldown.
   // Use a plugin like @rollup/plugin-replace instead.
 }

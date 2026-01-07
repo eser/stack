@@ -43,6 +43,8 @@ export type BundleResult = {
 export type BundleOptions = {
   entrypoints: string[];
   outputDir: string;
+  /** Project root directory for module resolution */
+  projectRoot?: string;
   minify?: boolean;
   splitting?: boolean;
   platform?: "browser" | "deno";
@@ -211,6 +213,7 @@ export async function bundle(
   const config: BundlerConfig = {
     entrypoints,
     outputDir: options.outputDir,
+    projectRoot: options.projectRoot,
     format: "esm",
     platform: options.platform === "deno" ? "node" : "browser",
     codeSplitting: options.splitting !== false,

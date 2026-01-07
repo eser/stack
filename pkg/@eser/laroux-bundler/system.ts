@@ -1034,6 +1034,7 @@ async function bundleClient(
       {
         entrypoints: [generatedEntry, ...componentEntrypoints],
         outputDir: clientOutputDir,
+        projectRoot,
         minify: PRODUCTION_SETTINGS.minify,
         splitting: PRODUCTION_SETTINGS.codeSplitting,
         platform: "browser",

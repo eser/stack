@@ -18,6 +18,7 @@ import type {
   ChunkManifestWithMeta,
 } from "./chunk-manifest.ts";
 import type { ModuleEntry, ModuleMap } from "./module-map.ts";
+import { replaceJsExtension } from "@eser/standards/patterns";
 
 /**
  * Client component info for module map generation.
@@ -58,7 +59,7 @@ export function generateModuleMap(
     // Convert chunk filenames to bundle paths
     const bundleChunks = chunks.length > 0
       ? [...chunks]
-      : [component.relativePath.replace(/\.tsx?$/, ".js")];
+      : [replaceJsExtension(component.relativePath, ".js")];
 
     modules[key] = {
       id: key,

@@ -11,6 +11,8 @@ import { type FsWatcher, runtime, toPosix } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import * as pkg from "@eser/codebase/package";
 import { analyzeServerActions } from "@eser/codebase/directive-analysis";
+import { JS_FILE_PATTERN, replaceJsExtension } from "@eser/standards/patterns";
+import { transformServerActions } from "./domain/server-action-transform.ts";
 
 const buildLogger = logging.logger.getLogger(["laroux-bundler", "build"]);
 
@@ -346,6 +348,23 @@ export async function build(
       );
     }
 
+    // Step 5b: Transform server actions to inject registerAction calls
+    // This must happen AFTER server components are copied but BEFORE bundling
+    buildLogger.debug(
+      "🔄 Step 5b: Transforming server actions for auto-registration...",
+    );
+    const serverDistDir = runtime.path.resolve(distDir, SERVER_DIR);
+    const serverActionResults = await transformServerActions(serverDistDir);
+    if (serverActionResults.length > 0) {
+      const totalActions = serverActionResults.reduce(
+        (sum, r) => sum + r.registeredActions.length,
+        0,
+      );
+      buildLogger.info(
+        `   ✅ Transformed ${serverActionResults.length} file(s) with ${totalActions} action(s)`,
+      );
+    }
+
     // Step 6: Generate module map
     buildLogger.debug("🗺️  Step 6: Generating module map...");
     const clientOutputDir = runtime.path.resolve(distDir, CLIENT_DIR);
@@ -583,24 +602,6 @@ export async function build(
         }
       }
 
-      // IMPORTANT: Include files with "use server" directive in server bundling
-      // Server action files (.ts) are not components (.tsx) so they're not in serverComponentPaths,
-      // but they need to be bundled with proper import resolution for JSR to work.
-      // Scan the copied source directory for files with "use server" directive.
-      const serverActionScanDir = runtime.path.join(
-        serverOutputDir,
-        srcDirName,
-      );
-      const serverActionFiles = await analyzeServerActions(serverActionScanDir);
-      for (const actionFile of serverActionFiles) {
-        if (!serverEntrypoints.includes(actionFile.filePath)) {
-          serverEntrypoints.push(actionFile.filePath);
-          buildLogger.debug(
-            `   Including server action file: ${actionFile.relativePath}`,
-          );
-        }
-      }
-
       buildLogger.info(
         `   Found ${serverEntrypoints.length} server entrypoints to bundle`,
       );
@@ -620,15 +621,14 @@ export async function build(
           externals: serverExternals,
         });
 
-        // Use the same bundler backend as client bundling
-        // - rolldown for production (prebuilt bundler)
-        // - deno-bundler for dev mode (runtime bundler)
+        // Use the configured bundler backend for server bundling
+        // - deno-bundler: outputs browser-targeted ESM, but works in Deno runtime
+        // - rolldown: supports platform: "node" for Node.js-compatible output
         const serverBundleResult = await bundleServerComponents(
           {
             entrypoints: serverEntrypoints,
             outputDir: serverOutputDir,
             projectRoot: serverOutputDir,
-            srcDirName, // Pass source directory name for output path transformation
             sourcemap: false,
             minify: false,
             externals: serverExternals,
@@ -642,6 +642,32 @@ export async function build(
         );
       }
     }
+
+    // Step 22b: Generate server actions manifest
+    // Use analyzeServerActions which scans ALL files for "use server" directive
+    // This finds action files regardless of naming (not just actions.ts)
+    buildLogger.debug("📋 Step 22b: Generating server actions manifest...");
+    const serverActionMatches = await analyzeServerActions(srcDir, {
+      projectRoot,
+    });
+    // Convert source paths to bundled output paths:
+    // Preserves full path structure (src/app/actions.ts → src/app/actions.js)
+    const actionFiles = serverActionMatches.map((match) =>
+      replaceJsExtension(match.relativePath, ".js")
+    );
+
+    // Write actions manifest
+    const actionsManifestPath = runtime.path.resolve(
+      serverOutputDir,
+      "actions-manifest.json",
+    );
+    await runtime.fs.writeTextFile(
+      actionsManifestPath,
+      JSON.stringify({ actions: actionFiles }, null, 2),
+    );
+    buildLogger.debug(
+      `✓ Generated actions manifest: ${actionFiles.length} action file(s)`,
+    );
 
     // Step 23: Copy public assets to dist root (server expects them there)
     await copyPublicAssets(projectRoot, distDir);
@@ -723,10 +749,7 @@ async function needsRebuild(context: BuildContext): Promise<boolean> {
   // Check if any source file is newer than build
   const sourceFiles = [];
   for await (const entry of runtime.fs.readDir(srcDir)) {
-    if (
-      entry.isFile &&
-      (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts"))
-    ) {
+    if (entry.isFile && JS_FILE_PATTERN.test(entry.name)) {
       sourceFiles.push(runtime.path.resolve(srcDir, entry.name));
     }
   }

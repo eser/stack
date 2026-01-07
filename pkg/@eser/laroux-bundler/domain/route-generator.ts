@@ -4,6 +4,7 @@
 
 import { runtime, toPosix } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
+import { replaceJsExtension } from "@eser/standards/patterns";
 import type { ScannedRoute, ScanResult } from "./route-scanner.ts";
 
 const generatorLogger = logging.logger.getLogger([
@@ -49,9 +50,9 @@ export async function generateRouteFile(
     // The component path is relative like "src/app/routes/home/page.tsx"
     // We want to import from the bundled file "./app/routes/home/page.js"
     // Bundled files are in dist/server/app/* (not dist/server/src/app/*)
-    // Strip .tsx/.ts extension before adding .js
+    // Strip source extension before adding .js
     const componentImportPath = `./${
-      route.componentPath.replace(srcDirPrefix, "").replace(/\.tsx?$/, "")
+      replaceJsExtension(route.componentPath.replace(srcDirPrefix, ""), "")
     }.js`;
 
     // Full path to original source file (for reading export names)
@@ -89,9 +90,9 @@ export async function generateRouteFile(
     // Add layout import if exists
     if (route.layoutPath && layoutName) {
       // Import from bundled files in dist/server/app/ (not dist/server/src/)
-      // Strip .tsx/.ts extension before adding .js
+      // Strip source extension before adding .js
       const layoutImportPath = `./${
-        route.layoutPath.replace(srcDirPrefix, "").replace(/\.tsx?$/, "")
+        replaceJsExtension(route.layoutPath.replace(srcDirPrefix, ""), "")
       }.js`;
 
       if (!importedComponents.has(route.layoutPath)) {

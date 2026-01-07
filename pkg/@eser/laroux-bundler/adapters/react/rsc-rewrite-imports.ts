@@ -5,6 +5,7 @@
  */
 
 import { runtime } from "@eser/standards/runtime";
+import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import { walkFiles } from "@eser/collector";
 import type { TransformResult } from "./rsc-transform.ts";
 import * as logging from "@eser/logging";
@@ -141,8 +142,8 @@ function findClientComponentMatch(
     return clientComponentMap.get(resolvedPath)!;
   }
 
-  // Try with common extensions
-  const extensions = [".tsx", ".ts", ".jsx", ".js"];
+  // Try with JS/TS extensions
+  const extensions = JS_FILE_EXTENSIONS.map((ext) => `.${ext}`);
   for (const ext of extensions) {
     const withExt = resolvedPath.endsWith(ext)
       ? resolvedPath

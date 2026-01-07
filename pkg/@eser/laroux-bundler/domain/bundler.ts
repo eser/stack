@@ -12,6 +12,7 @@ import type { ChunkManifest } from "./chunk-manifest.ts";
 import type { ClientComponent, ModuleMap } from "./framework-plugin.ts";
 
 import * as logging from "@eser/logging";
+import { replaceJsExtension } from "@eser/standards/patterns";
 import {
   type BundlerConfig,
   type BundleResult as EserBundleResult,
@@ -256,12 +257,6 @@ export type ServerBundleOptions = {
   outputDir: string;
   /** Project root directory */
   projectRoot: string;
-  /**
-   * Source directory name relative to project root (e.g., "src", "app").
-   * Used to strip the source directory prefix from output paths.
-   * If not provided, no prefix stripping is done beyond projectRoot.
-   */
-  srcDirName?: string;
   /** External packages to exclude from bundle (loaded at runtime) */
   externals?: string[];
   /** Bundler plugins for custom resolution and transformation */
@@ -310,22 +305,15 @@ export async function bundleServerComponents(
   const bundler = createBundler(backend, { entryName: "server" });
 
   // Build entrypoints map - each server component is a separate entry
+  // Output preserves the full path structure (e.g., src/app/layout.ts → src/app/layout.js)
   const entrypoints: Record<string, string> = {};
   for (const filePath of options.entrypoints) {
     // Use relative path from project root as entry name
-    // Strip the srcDirName prefix and .tsx/.ts extension
-    // This ensures output files are like "app/layout.js" not "src/app/layout.tsx.js"
     let relativePath = filePath.replace(options.projectRoot, "")
       .replace(/^\//, "");
 
-    // Strip source directory prefix if provided (e.g., "src/", "app/")
-    if (options.srcDirName) {
-      const srcPrefix = new RegExp(`^${options.srcDirName}/`);
-      relativePath = relativePath.replace(srcPrefix, "");
-    }
-
-    // Strip file extension
-    relativePath = relativePath.replace(/\.tsx?$/, "");
+    // Strip file extension (src/app/layout.tsx → src/app/layout)
+    relativePath = replaceJsExtension(relativePath, "");
     entrypoints[relativePath] = filePath;
   }
 
@@ -333,7 +321,7 @@ export async function bundleServerComponents(
     entrypoints,
     outputDir: options.outputDir,
     format: "esm",
-    platform: "node", // Server-side platform
+    platform: "node", // Server-side target
     codeSplitting: false, // Each entry stays separate
     minify: options.minify ?? false,
     sourcemap: options.sourcemap ?? false,

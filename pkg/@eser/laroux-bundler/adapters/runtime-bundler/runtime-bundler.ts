@@ -21,6 +21,7 @@ import { runtime } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import type { BundleData, Bundler } from "../../domain/bundler.ts";
 import { DEVELOPMENT_SETTINGS } from "../../config.ts";
+import { type BundlerConfig, createBundler } from "@eser/bundler/backends";
 
 const runtimeLogger = logging.logger.getLogger([
   "laroux-bundler",
@@ -113,7 +114,7 @@ class RuntimeCache {
     const projectRoot = runtime.process.cwd();
 
     // Create a temporary directory for this bundling process inside project root
-    // This allows Deno.bundle() to resolve node_modules correctly
+    // This allows the bundler to resolve node_modules correctly
     const tempDir = await runtime.fs.makeTempDir({
       prefix: "rsc-runtime-",
       dir: projectRoot, // Create temp dir in project root so node_modules can be found
@@ -130,96 +131,48 @@ class RuntimeCache {
         tempDir,
       );
 
-      // Bundle using Deno.bundle() - writes to tempDir
-      // Now that temp dir is in project root, Deno.bundle can resolve node_modules
-      const result = await Deno.bundle({
-        entrypoints: [
-          generatedEntry,
-          ...clientComponents.map((c) => c.filePath),
-        ],
+      // Bundle using @eser/bundler with deno-bundler backend
+      // Create bundler instance - uses same abstraction as prebuilt bundler
+      const bundler = createBundler("deno-bundler", { entryName: "client" });
+
+      // Build entrypoints map - BundlerConfig expects Record<string, string>
+      const entrypoints: Record<string, string> = {
+        client: generatedEntry,
+      };
+      for (const component of clientComponents) {
+        // Use relative path as key for component entrypoints
+        entrypoints[component.relativePath] = component.filePath;
+      }
+
+      const bundlerConfig: BundlerConfig = {
+        entrypoints,
         outputDir: tempDir,
         format: "esm",
+        platform: "browser",
         codeSplitting: DEVELOPMENT_SETTINGS.codeSplitting,
         minify: DEVELOPMENT_SETTINGS.minify,
-        platform: "browser",
-      });
+        sourcemap: false,
+      };
+
+      const result = await bundler.bundle(bundlerConfig);
 
       if (!result.success) {
-        const errorMsg = result.errors?.map((e: unknown) => {
-          if (typeof e === "string") return e;
-          if (e !== null && typeof e === "object" && "message" in e) {
-            return String(e.message);
-          }
-          return JSON.stringify(e);
-        }).join(", ") ?? "Unknown error";
+        const errorMsg = result.errors?.map((e) => e.message).join(", ") ??
+          "Unknown error";
         throw new Error(`Bundle failed: ${errorMsg}`);
       }
 
-      // Find the generated bundle file
-      // Deno.bundle() creates files in tempDir/dist/ or tempDir/
-      let bundlePath: string | null = null;
-
-      // Check for nested dist/ directory first
-      const nestedDistDir = runtime.path.resolve(tempDir, "dist");
-      try {
-        for await (const entry of runtime.fs.readDir(nestedDistDir)) {
-          if (
-            entry.isFile && entry.name.endsWith(".js") &&
-            entry.name.startsWith("_client-entry")
-          ) {
-            bundlePath = runtime.path.resolve(nestedDistDir, entry.name);
-            break;
-          }
-        }
-      } catch {
-        // nested dist doesn't exist, try root
-      }
-
-      // If not found, check root tempDir
-      if (!bundlePath) {
-        for await (const entry of runtime.fs.readDir(tempDir)) {
-          // Check if there's a nested directory with the same name (Deno.bundle output structure)
-          if (entry.isDirectory && entry.name.startsWith("rsc-runtime-")) {
-            const nestedTempDir = runtime.path.resolve(tempDir, entry.name);
-            for await (const nestedEntry of runtime.fs.readDir(nestedTempDir)) {
-              if (nestedEntry.isFile && nestedEntry.name.endsWith(".js")) {
-                bundlePath = runtime.path.resolve(
-                  nestedTempDir,
-                  nestedEntry.name,
-                );
-                break;
-              }
-            }
-            if (bundlePath) break;
-          }
-          if (
-            entry.isFile && entry.name.endsWith(".js") &&
-            entry.name.startsWith("_client-entry")
-          ) {
-            bundlePath = runtime.path.resolve(tempDir, entry.name);
-            break;
-          }
-        }
-      }
-
-      if (!bundlePath) {
+      // Get the main bundle from outputs
+      // The deno-bundler backend normalizes the entry name to "client.js"
+      const mainOutput = result.outputs.get("client.js");
+      if (!mainOutput) {
         throw new Error(
-          "Bundle output file not found in runtime cache directory",
+          "Bundle output 'client.js' not found in bundle result",
         );
       }
 
-      // Read the generated bundle
-      let bundleCode = await runtime.fs.readTextFile(bundlePath);
-
-      // Fix import paths if necessary (change ../chunk-* to ./chunk-*)
-      bundleCode = bundleCode.replace(
-        /from\s+["']\.\.\/chunk-/g,
-        'from "./chunk-',
-      );
-      bundleCode = bundleCode.replace(
-        /import\s*\(["']\.\.\/chunk-/g,
-        'import("./chunk-',
-      );
+      // Decode bundle code from Uint8Array
+      const bundleCode = new TextDecoder().decode(mainOutput.code);
 
       // Generate chunk manifest for runtime mode
       // In runtime mode, all components are bundled together

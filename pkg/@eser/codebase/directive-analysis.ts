@@ -224,11 +224,62 @@ export const analyzeClientComponents = (
   analyzeDirectives(scanDir, DIRECTIVES.USE_CLIENT, options);
 
 /**
+ * Check if file content contains a directive ANYWHERE in the file.
+ * Unlike hasDirective which only checks the top, this scans the entire content.
+ * Used for "use server" which can appear at function level.
+ */
+export const containsDirective = (
+  content: string,
+  directive: string,
+): boolean => {
+  const doubleQuote = `"${directive}"`;
+  const singleQuote = `'${directive}'`;
+  return content.includes(doubleQuote) || content.includes(singleQuote);
+};
+
+/**
  * Analyze for "use server" directive specifically.
  * Convenience function for React Server Actions.
+ *
+ * NOTE: Unlike "use client" which must be at file top, "use server" can appear:
+ * - At file top (all exports become server actions)
+ * - At function body top (that function becomes a server action)
+ * This function scans for "use server" ANYWHERE in the file.
  */
-export const analyzeServerActions = (
+export const analyzeServerActions = async (
   scanDir: string,
   options: DirectiveAnalysisOptions = {},
-): Promise<readonly DirectiveMatch[]> =>
-  analyzeDirectives(scanDir, DIRECTIVES.USE_SERVER, options);
+): Promise<readonly DirectiveMatch[]> => {
+  const extensions = options.extensions ?? JS_FILE_EXTENSIONS;
+  const skip = options.skip ?? DEFAULT_SKIP;
+  const projectRoot = options.projectRoot ?? scanDir;
+
+  const matches: DirectiveMatch[] = [];
+
+  for await (
+    const entry of walk(scanDir, {
+      exts: [...extensions],
+      skip: [...skip],
+    })
+  ) {
+    if (!entry.isFile) continue;
+
+    const content = await readFileContent(entry.path);
+    if (content === null) continue;
+
+    // Check for "use server" ANYWHERE in file (file-level or function-level)
+    if (containsDirective(content, DIRECTIVES.USE_SERVER)) {
+      const relativePath = runtime.path.relative(projectRoot, entry.path);
+      const exports = extractExports(content);
+
+      matches.push({
+        filePath: entry.path,
+        relativePath,
+        directive: DIRECTIVES.USE_SERVER,
+        exports,
+      });
+    }
+  }
+
+  return matches;
+};

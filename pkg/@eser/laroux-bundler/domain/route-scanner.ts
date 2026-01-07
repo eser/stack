@@ -3,6 +3,7 @@
 // Scans src/app/routes for page.tsx, layout.tsx, route.ts, and proxy.ts files
 
 import { runtime, toPosix } from "@eser/standards/runtime";
+import { JS_FILE_EXTENSIONS, JS_FILE_PATTERN } from "@eser/standards/patterns";
 import { walkFiles } from "@eser/collector";
 import * as logging from "@eser/logging";
 
@@ -42,10 +43,29 @@ type DirectoryEntry = {
 };
 
 // Pattern to ignore private directories and test files
-const IGNORE_PATTERN = /(?:^|[/\\])(?:_[^/\\]*|.*\.test\.tsx?)$/;
+const IGNORE_PATTERN = /(?:^|[/\\])(?:_[^/\\]*|.*\.test\.(?:[cm]?[jt]sx?))$/;
 
-// Route file names we're looking for
-const ROUTE_FILES = new Set(["page.tsx", "layout.tsx", "route.ts", "proxy.ts"]);
+// Route file base names (without extension)
+const ROUTE_FILE_BASES = ["page", "layout", "route", "proxy"];
+
+// Generate all valid route file names with supported extensions
+const ROUTE_FILES = new Set(
+  ROUTE_FILE_BASES.flatMap((base) =>
+    JS_FILE_EXTENSIONS.map((ext) => `${base}.${ext}`)
+  ),
+);
+
+/**
+ * Get the base name of a route file (without extension)
+ */
+function getRouteFileBase(fileName: string): string | null {
+  for (const base of ROUTE_FILE_BASES) {
+    if (fileName.startsWith(`${base}.`) && JS_FILE_PATTERN.test(fileName)) {
+      return base;
+    }
+  }
+  return null;
+}
 
 /**
  * Invalidate the route cache
@@ -107,13 +127,14 @@ export async function scanRoutes(
 
     const fullPath = runtime.path.join(routesDir, relativePath);
 
-    if (fileName === "page.tsx") {
+    const base = getRouteFileBase(fileName);
+    if (base === "page") {
       dirEntry.pagePath = fullPath;
-    } else if (fileName === "layout.tsx") {
+    } else if (base === "layout") {
       dirEntry.layoutPath = fullPath;
-    } else if (fileName === "route.ts") {
+    } else if (base === "route") {
       dirEntry.routePath = fullPath;
-    } else if (fileName === "proxy.ts") {
+    } else if (base === "proxy") {
       dirEntry.proxyPath = fullPath;
     }
 

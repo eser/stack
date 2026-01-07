@@ -7,6 +7,7 @@
  */
 
 import { runtime } from "@eser/standards/runtime";
+import { replaceJsExtension } from "@eser/standards/patterns";
 import type {
   ModuleEntry as BaseModuleEntry,
   ModuleMap as BaseModuleMap,
@@ -51,7 +52,7 @@ export function generateModuleMap(
     const key = `./${component.relativePath}`;
 
     // Convert to bundle path: "./src/app/counter.tsx" → "src/app/counter.js"
-    const bundlePath = component.relativePath.replace(/\.tsx?$/, ".js");
+    const bundlePath = replaceJsExtension(component.relativePath, ".js");
 
     // Value: module reference with proper bundle path
     // Use first export name as fallback (server.ts will use the actual export name from client reference)

@@ -111,3 +111,9 @@ export {
   loadImportMap,
   resolveSpecifier,
 } from "./import-map.ts";
+
+export type { ServerActionTransformResult } from "./server-action-transform.ts";
+export {
+  transformServerActionFile,
+  transformServerActions,
+} from "./server-action-transform.ts";

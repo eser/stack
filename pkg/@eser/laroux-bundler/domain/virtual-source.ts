@@ -9,6 +9,7 @@
  */
 
 import { runtime } from "@eser/standards/runtime";
+import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import { copy, emptyDir, ensureDir, walk } from "@std/fs"; // emptyDir, copy, walk not available in runtime
 import * as logging from "@eser/logging";
 
@@ -117,13 +118,9 @@ async function incrementalCopySourceFiles(
   srcDir: string,
   virtualDir: string,
 ): Promise<void> {
+  // JS/TS extensions from standards + json and css for bundling
   const relevantExtensions = [
-    ".ts",
-    ".tsx",
-    ".js",
-    ".jsx",
-    ".mjs",
-    ".mts",
+    ...JS_FILE_EXTENSIONS.map((ext) => `.${ext}`),
     ".json",
     ".css",
   ];
@@ -183,14 +180,9 @@ async function copySourceFiles(
 ): Promise<void> {
   let copiedCount = 0;
 
-  // Extensions to include (including CSS modules)
+  // JS/TS extensions from standards + json and css for bundling
   const validExtensions = [
-    ".tsx",
-    ".ts",
-    ".jsx",
-    ".js",
-    ".mjs",
-    ".mts",
+    ...JS_FILE_EXTENSIONS.map((ext) => `.${ext}`),
     ".json",
     ".css",
   ];

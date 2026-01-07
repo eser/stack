@@ -9,6 +9,7 @@
 
 import * as logging from "@eser/logging";
 import { getPlatform, runtime } from "@eser/standards/runtime";
+import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import {
   build,
   type BuildResult,
@@ -133,21 +134,23 @@ async function loadRoutes(config: AppConfig): Promise<RouteDefinition[]> {
 
 /**
  * Resolve server component import path.
- * Prefers bundled .js files (dist/server/app/*.js) over source .tsx files (dist/server/src/app/*.tsx).
+ * Prefers bundled .js files (dist/server/app/*.js) over source files (dist/server/src/app/*).
  * Bundled files have all imports resolved, while source files may have bare imports.
+ *
+ * @param config - App configuration
+ * @param baseName - Base file name without extension (e.g., "layout", "not-found")
+ * @returns Resolved path to the component file
  */
 async function resolveServerComponentPath(
   config: AppConfig,
-  relativePath: string,
+  baseName: string,
 ): Promise<string> {
-  // Strip .tsx/.ts extension and add .js for bundled path
-  // e.g., "layout.tsx" -> "layout.js", "actions.ts" -> "actions.js"
-  const bundledName = relativePath.replace(/\.(tsx?|ts)$/, ".js");
+  // First try bundled .js file
   const bundledPath = runtime.path.resolve(
     config.distDir,
     "server",
     "app",
-    bundledName,
+    `${baseName}.js`,
   );
 
   const bundledExists = await runtime.fs.exists(bundledPath);
@@ -155,14 +158,23 @@ async function resolveServerComponentPath(
     return bundledPath;
   }
 
-  // Fall back to source file (e.g., dist/server/src/app/layout.tsx)
-  return runtime.path.resolve(
-    config.distDir,
-    "server",
-    "src",
-    "app",
-    relativePath,
-  );
+  // Fall back to source file - try each extension
+  for (const ext of JS_FILE_EXTENSIONS) {
+    const sourcePath = runtime.path.resolve(
+      config.distDir,
+      "server",
+      "src",
+      "app",
+      `${baseName}.${ext}`,
+    );
+    const sourceExists = await runtime.fs.exists(sourcePath);
+    if (sourceExists) {
+      return sourcePath;
+    }
+  }
+
+  // Return the bundled path as default (will fail with clear error)
+  return bundledPath;
 }
 
 /**
@@ -175,7 +187,7 @@ async function loadAppComponents(
   const timestamp = Date.now();
 
   // Load Layout component - prefer bundled file
-  const layoutPath = await resolveServerComponentPath(config, "layout.tsx");
+  const layoutPath = await resolveServerComponentPath(config, "layout");
   const layoutImportPath = `file://${layoutPath}?t=${timestamp}`;
   // @ts-ignore - Dynamic import
   const { Layout } = await import(layoutImportPath);
@@ -187,7 +199,7 @@ async function loadAppComponents(
   if (match === null) {
     const notFoundPath = await resolveServerComponentPath(
       config,
-      "not-found.tsx",
+      "not-found",
     );
     const notFoundImportPath = `file://${notFoundPath}?t=${timestamp}`;
     // @ts-ignore - Dynamic import
@@ -296,18 +308,46 @@ async function initializeServer(
   const { config, bundler, hmrManager } = deps;
   const { frameworkPlugin, cssPlugin } = pluginOptions;
 
-  // Load server actions from bundled output
+  // Load server actions from manifest (generated during build)
+  // The manifest lists all files with "use server" directive
   try {
-    const actionsPath = await resolveServerComponentPath(config, "actions.ts");
-    const actionsExists = await runtime.fs.exists(actionsPath);
-    if (actionsExists) {
+    const manifestPath = runtime.path.resolve(
+      config.distDir,
+      "server",
+      "actions-manifest.json",
+    );
+    const manifestExists = await runtime.fs.exists(manifestPath);
+    if (manifestExists) {
+      const manifestContent = await runtime.fs.readTextFile(manifestPath);
+      const manifest: { actions: string[] } = JSON.parse(manifestContent);
       const timestamp = Date.now();
-      // NOTE: Must assign to variable - deno publish rewrites analyzable dynamic imports
-      const actionsImportPath = `file://${actionsPath}?t=${timestamp}`;
-      await import(actionsImportPath);
-      serverLogger.debug("Server actions loaded");
+      let loadedCount = 0;
+
+      for (const actionPath of manifest.actions) {
+        try {
+          // Action paths preserve full structure like "src/app/actions.js"
+          // Bundler outputs to dist/server/src/app/actions.js (no path stripping)
+          const fullPath = runtime.path.resolve(
+            config.distDir,
+            "server",
+            actionPath,
+          );
+          const actionExists = await runtime.fs.exists(fullPath);
+          if (actionExists) {
+            const actionImportPath = `file://${fullPath}?t=${timestamp}`;
+            await import(actionImportPath);
+            loadedCount++;
+          }
+        } catch (error) {
+          serverLogger.warn(`Failed to load action ${actionPath}:`, { error });
+        }
+      }
+
+      if (loadedCount > 0) {
+        serverLogger.debug(`Server actions loaded: ${loadedCount} file(s)`);
+      }
     } else {
-      serverLogger.debug("No server actions file found (optional)");
+      serverLogger.debug("No actions manifest found (optional)");
     }
   } catch (error) {
     serverLogger.warn("Failed to load server actions:", { error });

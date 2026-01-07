@@ -21,7 +21,7 @@ declare namespace Deno {
       format?: "esm";
       codeSplitting?: boolean;
       minify?: boolean;
-      platform?: "browser";
+      platform?: "browser" | "deno";
       sourcemap?: "external" | "inline";
       external?: string[];
     }
@@ -54,6 +54,7 @@ declare namespace Deno {
 import * as hex from "@std/encoding/hex";
 import * as logging from "@eser/logging";
 import { runtime } from "@eser/standards/runtime";
+import { replaceJsExtension } from "@eser/standards/patterns";
 
 const bundlerLogger = logging.logger.getLogger(["bundler", "deno-bundler"]);
 import type {
@@ -113,8 +114,12 @@ export class DenoBundlerBackend implements Bundler {
         allEntrypoints.unshift(buildIdEntryPath);
       }
 
-      // Deno.bundle only supports "browser" platform
-      const platform = config.platform === "browser" ? "browser" : "browser";
+      // Deno.bundle supports "browser" and "deno" platforms
+      // Map the unified platform config to Deno.bundle's platform options:
+      // - "browser" → "browser"
+      // - "node" → "deno" (server-side)
+      // - "neutral" → "deno" (default to server-side)
+      const platform = config.platform === "browser" ? "browser" : "deno";
 
       // Convert sourcemap config to Deno.bundle format
       // Deno.bundle accepts "external" | "inline" | undefined
@@ -482,7 +487,7 @@ export class DenoBundlerBackend implements Bundler {
   ): Promise<string[]> {
     // Convert entrypoint path to expected proxy file path
     // e.g., "src/app/counter.tsx" -> proxy file at "src/app/counter.js"
-    const relativePath = entrypointPath.replace(/\.tsx?$/, ".js");
+    const relativePath = replaceJsExtension(entrypointPath, ".js");
     const proxyFilePath = runtime.path.join(scanDir, relativePath);
 
     // Try to read proxy file

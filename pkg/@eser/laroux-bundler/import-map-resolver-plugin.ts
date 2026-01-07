@@ -112,8 +112,8 @@ async function resolveFromDenoModules(
                 mainEntry = dotExport;
               } else if (typeof dotExport === "object") {
                 const conditional = dotExport as Record<string, string>;
-                mainEntry = conditional.import ?? conditional.module ??
-                  conditional.default ?? conditional.require;
+                mainEntry = conditional["import"] ?? conditional["module"] ??
+                  conditional["default"] ?? conditional["require"];
               }
             }
           }
@@ -121,9 +121,9 @@ async function resolveFromDenoModules(
           // 2. Fallback to module/main from raw config content (any loaded file)
           if (mainEntry === undefined) {
             for (const loadedFile of pkgConfig._loadedFiles) {
-              const rawContent = loadedFile.content as Record<string, unknown>;
-              const moduleField = rawContent.module as string | undefined;
-              const mainField = rawContent.main as string | undefined;
+              const rawContent = loadedFile.content;
+              const moduleField = rawContent["module"] as string | undefined;
+              const mainField = rawContent["main"] as string | undefined;
               mainEntry = moduleField ?? mainField;
               if (mainEntry !== undefined) break;
             }

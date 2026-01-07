@@ -3,12 +3,14 @@
 /**
  * Server Action Transform
  *
- * Transforms files with "use server" directive to automatically register
- * their exported functions with the action registry.
+ * Transforms files with "use server" directive to mark exported functions
+ * with React's native server reference symbols.
  *
  * This module injects:
- * 1. Import statement for registerAction
- * 2. Registration calls for each exported function
+ * 1. Server reference symbol markers ($$typeof, $$id, $$bound)
+ *
+ * React recognizes these markers and treats the functions as server actions,
+ * enabling native <form action={fn}> and useActionState(fn, state) support.
  *
  * @module
  */
@@ -34,27 +36,50 @@ export interface ServerActionTransformResult {
   filePath: string;
   /** Relative path from project root */
   relativePath: string;
-  /** List of registered action names */
-  registeredActions: string[];
+  /** List of transformed action names */
+  transformedActions: string[];
 }
 
 /**
  * Generate a unique action ID from file path and export name.
  *
- * Format: "relativePath#exportName" (e.g., "app/actions#addComment")
+ * Action ID format: `path/to/file#exportName`
+ * Example: `src/app/actions#addComment`
+ *
+ * This ensures unique IDs even when multiple files export functions with the same name.
  */
 function generateActionId(relativePath: string, exportName: string): string {
-  // Remove extension and normalize path
-  const pathWithoutExt = relativePath.replace(/\.[^.]+$/, "");
+  // Strip file extension for cleaner IDs
+  const pathWithoutExt = relativePath.replace(/\.[cm]?[jt]sx?$/, "");
   return `${pathWithoutExt}#${exportName}`;
 }
 
 /**
- * Transform a single server action file by injecting registration code.
+ * Generate code to mark a function with React's server reference symbols.
+ *
+ * This adds $$typeof, $$id, and $$bound properties that React uses to
+ * identify and serialize server action references.
+ */
+function generateServerReferenceMarker(
+  relativePath: string,
+  exportName: string,
+): string {
+  const actionId = generateActionId(relativePath, exportName);
+
+  // Use Object.defineProperties to add non-enumerable React symbols
+  return `Object.defineProperties(${exportName}, {
+  $$typeof: { value: Symbol.for("react.server.reference"), enumerable: false },
+  $$id: { value: "${actionId}", enumerable: false },
+  $$bound: { value: null, enumerable: false, writable: true }
+});`;
+}
+
+/**
+ * Transform a single server action file by adding React server reference markers.
  *
  * @param filePath - Path to the file to transform
- * @param relativePath - Relative path for action ID generation (without srcDirName)
- * @returns List of registered action names, or null if file doesn't need transformation
+ * @param relativePath - Relative path for action ID generation
+ * @returns List of transformed action names, or null if file doesn't need transformation
  */
 export async function transformServerActionFile(
   filePath: string,
@@ -94,47 +119,25 @@ export async function transformServerActionFile(
     `Transforming ${filePath} with ${namedExports.length} export(s)`,
   );
 
-  // Build the injection code
-  const registrationImport =
-    `import { registerAction } from "@eser/laroux-server/action-registry";`;
-
-  const registrationCalls = namedExports
-    .map((exportName) => {
-      const actionId = generateActionId(relativePath, exportName);
-      return `registerAction("${actionId}", ${exportName});`;
-    })
+  // Build the server reference markers
+  const markers = namedExports
+    .map((exportName) =>
+      generateServerReferenceMarker(relativePath, exportName)
+    )
     .join("\n");
 
-  // Find where to inject the import (after "use server" directive)
+  // Append markers at the end of the file
   const lines = content.split("\n");
-  let insertImportIndex = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]?.trim() ?? "";
-    // Find the "use server" directive line
-    if (
-      line === '"use server";' ||
-      line === "'use server';"
-    ) {
-      insertImportIndex = i + 1;
-      break;
-    }
-  }
-
-  // Insert the import after "use server" directive
-  lines.splice(insertImportIndex, 0, registrationImport);
-
-  // Append registration calls at the end of the file
   lines.push("");
-  lines.push("// Auto-generated server action registration");
-  lines.push(registrationCalls);
+  lines.push("// Auto-generated React server reference markers");
+  lines.push(markers);
 
   // Write transformed content
   const transformedContent = lines.join("\n");
   await runtime.fs.writeTextFile(filePath, transformedContent);
 
   transformLogger.debug(
-    `Transformed ${filePath}: registered ${namedExports.length} action(s)`,
+    `Transformed ${filePath}: marked ${namedExports.length} action(s) with server reference symbols`,
   );
 
   return namedExports;
@@ -143,7 +146,7 @@ export async function transformServerActionFile(
 /**
  * Transform all server action files in a directory.
  *
- * Scans for files with "use server" directive and injects registration code.
+ * Scans for files with "use server" directive and adds React server reference markers.
  *
  * @param serverOutputDir - Directory containing server files (e.g., dist/server)
  * @returns Array of transform results
@@ -179,16 +182,16 @@ export async function transformServerActions(
 
   for (const match of actionMatches) {
     // Use relativePath directly for action IDs (e.g., "src/app/actions#addComment")
-    const registeredActions = await transformServerActionFile(
+    const transformedActions = await transformServerActionFile(
       match.filePath,
       match.relativePath,
     );
 
-    if (registeredActions !== null && registeredActions.length > 0) {
+    if (transformedActions !== null && transformedActions.length > 0) {
       results.push({
         filePath: match.filePath,
         relativePath: match.relativePath,
-        registeredActions,
+        transformedActions,
       });
     }
   }

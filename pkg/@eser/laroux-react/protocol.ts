@@ -32,6 +32,24 @@ export type ClientReference = {
 };
 
 /**
+ * Server reference marker - used by RSC to identify server actions
+ * These are functions marked with "use server" directive
+ */
+export type ServerReference = {
+  $$typeof: symbol;
+  $$id: string;
+  $$bound: unknown[] | null;
+};
+
+/**
+ * Server action reference value in S chunks
+ */
+export type ServerActionReference = {
+  id: string;
+  bound: unknown[] | null;
+};
+
+/**
  * RSC Chunk - A unit of data in the RSC stream
  */
 export type RSCChunk =
@@ -40,7 +58,7 @@ export type RSCChunk =
   | { type: "J"; id: number; value: any } // JSON value can be any serializable type
   | { type: "E"; id: number; value: { message: string; stack?: string } }
   | { type: "P"; id: number; value: number } // Promise ID
-  | { type: "S"; id: number; value: string }; // Symbol
+  | { type: "S"; id: number; value: string | ServerActionReference }; // Symbol or Server Action
 
 /**
  * Serialize an RSC chunk to wire format
@@ -85,6 +103,17 @@ export function isClientReference(value: unknown): value is ClientReference {
     typeof value === "object" &&
     (value as ClientReference).$$typeof ===
       Symbol.for("react.client.reference")
+  );
+}
+
+/**
+ * Check if a value is a server reference (server action)
+ */
+export function isServerReference(value: unknown): value is ServerReference {
+  return (
+    typeof value === "function" &&
+    (value as unknown as ServerReference).$$typeof ===
+      Symbol.for("react.server.reference")
   );
 }
 

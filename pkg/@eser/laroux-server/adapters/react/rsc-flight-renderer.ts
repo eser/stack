@@ -20,9 +20,11 @@ import type { ReactElement } from "react";
 import {
   type createClientReference as _createClientReference,
   isClientReference,
+  isServerReference,
   type ModuleReference,
   type RSCChunk,
   serializeChunk,
+  type ServerReference,
 } from "@eser/laroux-react/protocol";
 import * as logging from "@eser/logging";
 
@@ -350,8 +352,18 @@ async function renderProps(
         // Not a React element - inline it
         renderedProps[key] = value;
       }
+    } else if (isServerReference(value)) {
+      // Server action reference - emit S chunk with action ID
+      const actionChunkId = context.nextId++;
+      const serverRef = value as unknown as ServerReference;
+      addChunk(context, {
+        type: "S",
+        id: actionChunkId,
+        value: { id: serverRef.$$id, bound: serverRef.$$bound },
+      });
+      renderedProps[key] = `$F${actionChunkId}`;
     } else if (typeof value === "function") {
-      // Skip functions - they can't be serialized
+      // Skip regular functions - they can't be serialized
       continue;
     } else {
       // Inline other values directly

@@ -26,6 +26,7 @@ import {
   type ModuleReference,
   parseChunk,
   type RSCChunk,
+  type ServerActionReference,
 } from "./protocol.ts";
 
 // Build-time define - bundler replaces process.env.DEBUG with "false" at build time
@@ -577,16 +578,22 @@ function parseModel(model: any, context: ClientContext): any {
 /**
  * Parse a $ reference - read chunk value
  *
- * @param ref The $ reference string (e.g., "$79")
+ * @param ref The $ reference string (e.g., "$79", "$M123", "$F456")
  * @param context The client context
  * @returns The chunk value
  */
 function parseReference(ref: string, context: ClientContext): any {
-  // Handle module references ($M123) vs regular references ($123)
+  // Handle different reference types:
+  // - $M123: Module reference
+  // - $F123: Server action (function) reference
+  // - $123: Regular JSON reference
   let id: number;
 
   if (ref.startsWith("$M")) {
     // Module reference: $M123
+    id = parseInt(ref.slice(2), 10);
+  } else if (ref.startsWith("$F")) {
+    // Server action (function) reference: $F123
     id = parseInt(ref.slice(2), 10);
   } else if (ref.startsWith("$")) {
     // Regular reference: $123
@@ -1026,6 +1033,95 @@ async function processChunk(
             error.message,
           );
         }
+      }
+      break;
+    }
+
+    case "S": {
+      // Server action reference chunk - create bound action function
+      // Value can be a string (symbol reference) or ServerActionReference object
+      if (typeof value === "object" && value !== null && "id" in value) {
+        const actionRef = value as ServerActionReference;
+
+        if (DEBUG) {
+          console.log(
+            `[CLIENT] 🎯 Server action chunk: ${actionRef.id} (bound: ${
+              actionRef.bound !== null
+            })`,
+          );
+        }
+
+        // Create a bound action function that calls __callServer
+        const boundAction = async (...args: unknown[]) => {
+          if (typeof (globalThis as any).__callServer !== "function") {
+            throw new Error(
+              "Server actions not initialized. Ensure client bootstrap provides __callServer.",
+            );
+          }
+          // If bound args exist, prepend them
+          const allArgs = actionRef.bound
+            ? [...actionRef.bound, ...args]
+            : args;
+          return await (globalThis as any).__callServer(actionRef.id, allArgs);
+        };
+
+        // Mark with React server reference symbols
+        Object.assign(boundAction, {
+          $$typeof: Symbol.for("react.server.reference"),
+          $$id: actionRef.id,
+          $$bound: actionRef.bound,
+        });
+
+        if (existingChunk && existingChunk._status !== PENDING) {
+          console.warn(
+            `[CLIENT] ⚠️ Server action chunk ${id} already exists with status ${existingChunk._status}`,
+          );
+          return;
+        }
+
+        if (existingChunk) {
+          // Update existing PENDING chunk to INITIALIZED
+          const initializedChunk = existingChunk as any as InitializedChunk;
+          initializedChunk._status = INITIALIZED;
+          initializedChunk.value = boundAction;
+
+          if (DEBUG) {
+            console.log(
+              `[CLIENT] ✅ Server action chunk ${id} resolved (PENDING → INITIALIZED)`,
+            );
+          }
+
+          // Wake listeners
+          wakeChunkListeners(existingChunk as PendingChunk, boundAction);
+        } else {
+          // Create new INITIALIZED chunk with bound action
+          const initializedChunk: InitializedChunk = {
+            _status: INITIALIZED,
+            value: boundAction,
+            reason: null,
+            _response: context,
+          };
+          context.chunks.set(id, initializedChunk);
+
+          if (DEBUG) {
+            console.log(
+              `[CLIENT] ✅ Server action chunk ${id} stored as INITIALIZED`,
+            );
+          }
+        }
+      } else {
+        // Symbol reference (original S chunk behavior) - store as string
+        if (DEBUG) {
+          console.log(`[CLIENT] 🔣 Symbol chunk ${id}: ${value}`);
+        }
+
+        const initializedChunk: InitializedChunk = {
+          _status: INITIALIZED,
+          value: typeof value === "string" ? Symbol.for(value) : value,
+          reason: null,
+          _response: context,
+        };
+        context.chunks.set(id, initializedChunk);
       }
       break;
     }

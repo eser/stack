@@ -1,12 +1,27 @@
 /**
  * Server Actions
- * These functions run on the server and can be called from client components
+ * These functions run on the server and can be called from client components.
+ *
+ * The bundler automatically:
+ * 1. Marks these functions with React's server reference symbols
+ * 2. Generates client stubs that call the server via RSC protocol
+ * 3. Action IDs are generated as: `path/to/file#exportName`
+ *
+ * Usage in client components:
+ * ```tsx
+ * import { addComment } from "./actions";
+ * import { useActionState } from "react";
+ *
+ * function Comments() {
+ *   const [state, formAction, isPending] = useActionState(addComment, null);
+ *   return <form action={formAction}>...</form>;
+ * }
+ * ```
  */
 
 "use server";
 
 import * as logging from "@eser/logging";
-import { registerAction } from "@eser/laroux-server/action-registry";
 
 const actionsLogger = logging.logger.getLogger(["app", "actions"]);
 
@@ -49,11 +64,4 @@ export async function incrementCounter(amount: number = 1): Promise<number> {
 
   // In real app, this would read from/write to database
   return Date.now() + amount;
-}
-
-// Register actions manually for now (until bundler transformation is complete)
-// This will be automated by the bundler later
-if (typeof Deno !== "undefined") {
-  registerAction("addComment", addComment);
-  registerAction("incrementCounter", incrementCounter);
 }

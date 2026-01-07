@@ -32,7 +32,7 @@ export type GenerateRouteOptions = {
 export async function generateRouteFile(
   options: GenerateRouteOptions,
 ): Promise<void> {
-  const { scanResult, outputPath, projectRoot, srcDirName } = options;
+  const { scanResult, outputPath, projectRoot } = options;
   const { routes } = scanResult;
 
   generatorLogger.debug(`Generating routes file: ${outputPath}`);
@@ -43,16 +43,13 @@ export async function generateRouteFile(
   // Track unique imports to avoid duplicates
   const importedComponents = new Map<string, string>();
 
-  // Create regex to strip srcDir prefix (e.g., "src/" -> "")
-  const srcDirPrefix = new RegExp(`^${srcDirName}/`);
-
   for (const route of routes) {
     // The component path is relative like "src/app/routes/home/page.tsx"
-    // We want to import from the bundled file "./app/routes/home/page.js"
-    // Bundled files are in dist/server/app/* (not dist/server/src/app/*)
+    // We want to import from the bundled file "./src/app/routes/home/page.js"
+    // Bundled files are in dist/server/src/app/* (rolldown preserves src/ structure)
     // Strip source extension before adding .js
     const componentImportPath = `./${
-      replaceJsExtension(route.componentPath.replace(srcDirPrefix, ""), "")
+      replaceJsExtension(route.componentPath, "")
     }.js`;
 
     // Full path to original source file (for reading export names)
@@ -89,10 +86,10 @@ export async function generateRouteFile(
 
     // Add layout import if exists
     if (route.layoutPath && layoutName) {
-      // Import from bundled files in dist/server/app/ (not dist/server/src/)
+      // Import from bundled files in dist/server/src/app/ (rolldown preserves src/ structure)
       // Strip source extension before adding .js
       const layoutImportPath = `./${
-        replaceJsExtension(route.layoutPath.replace(srcDirPrefix, ""), "")
+        replaceJsExtension(route.layoutPath, "")
       }.js`;
 
       if (!importedComponents.has(route.layoutPath)) {

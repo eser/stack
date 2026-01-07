@@ -55,17 +55,36 @@ const DEFAULT_SKIP = [/node_modules/, /\.test\./, /\.spec\./] as const;
 /**
  * Check if file content contains a specific directive at the top.
  * Directives must appear before any actual code.
+ * Handles multi-line JSDoc comments properly.
  */
 export const hasDirective = (content: string, directive: string): boolean => {
   const lines = content.split("\n");
   const normalizedDirective = directive.toLowerCase();
 
-  // Check first few lines (directives must be at the top)
-  for (let i = 0; i < Math.min(10, lines.length); i++) {
+  let inMultiLineComment = false;
+
+  // Check up to 50 lines to handle long JSDoc comments
+  for (let i = 0; i < Math.min(50, lines.length); i++) {
     const line = lines[i]?.trim() ?? "";
 
-    // Skip empty lines and comments
-    if (line === "" || line.startsWith("//") || line.startsWith("/*")) {
+    // Track multi-line comment state
+    if (inMultiLineComment) {
+      if (line.includes("*/")) {
+        inMultiLineComment = false;
+      }
+      continue;
+    }
+
+    // Skip empty lines and single-line comments
+    if (line === "" || line.startsWith("//")) {
+      continue;
+    }
+
+    // Start of multi-line comment
+    if (line.startsWith("/*")) {
+      if (!line.includes("*/")) {
+        inMultiLineComment = true;
+      }
       continue;
     }
 

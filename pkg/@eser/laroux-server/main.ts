@@ -145,10 +145,11 @@ async function resolveServerComponentPath(
   config: AppConfig,
   baseName: string,
 ): Promise<string> {
-  // First try bundled .js file
+  // First try bundled .js file in src/app (rolldown outputs here)
   const bundledPath = runtime.path.resolve(
     config.distDir,
     "server",
+    "src",
     "app",
     `${baseName}.js`,
   );

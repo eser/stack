@@ -21,7 +21,6 @@ import { NotFoundError, runtime } from "@eser/standards/runtime";
 import { contentType } from "@std/media-types";
 import type { AppConfig } from "../config/load-config.ts";
 import type { HMRManager } from "../domain/hmr-manager.ts";
-import { invokeAction } from "../domain/action-registry.ts";
 import type { Bundler } from "@eser/laroux-bundler";
 import type { ApiRouteHandler } from "../domain/route-dispatcher.ts";
 import type { MiddlewareDispatcher } from "../domain/middleware-dispatcher.ts";
@@ -370,6 +369,92 @@ export function createHandler(deps: ServerDependencies) {
         return await handlePageRequest(req, "/", deps);
       }
 
+      // Route: /_rsc POST with RSC-Action header -> Server Action (React 19 native)
+      if (pathname === "/_rsc" && req.method === "POST") {
+        const actionId = req.headers.get("RSC-Action");
+
+        if (actionId) {
+          rscLogger.debug(`RSC Server Action invoked: ${actionId}`);
+
+          try {
+            // Parse args based on content type
+            const contentType = req.headers.get("Content-Type") ?? "";
+            let args: unknown[];
+
+            if (contentType.includes("multipart/form-data")) {
+              // FormData - pass as first arg
+              args = [await req.formData()];
+            } else {
+              // JSON args
+              args = await req.json();
+            }
+
+            // Parse action ID: "path/to/file#exportName"
+            const [modulePath, exportName] = actionId.split("#");
+            if (!modulePath || !exportName) {
+              return new Response(
+                JSON.stringify({ error: "Invalid action ID format" }),
+                {
+                  status: 400,
+                  headers: { "Content-Type": "application/json" },
+                },
+              );
+            }
+
+            // Import the action module dynamically
+            // Actions are in dist/server/<modulePath>.js
+            const actionModulePath = runtime.path.resolve(
+              config.distDir,
+              "server",
+              `${modulePath}.js`,
+            );
+
+            rscLogger.debug(`Loading action module: ${actionModulePath}`);
+            const actionModule = await import(`file://${actionModulePath}`);
+
+            const actionFn = actionModule[exportName];
+            if (typeof actionFn !== "function") {
+              rscLogger.error(
+                `Action not found: ${exportName} in ${modulePath}`,
+              );
+              return new Response(
+                JSON.stringify({ error: `Action not found: ${actionId}` }),
+                {
+                  status: 404,
+                  headers: { "Content-Type": "application/json" },
+                },
+              );
+            }
+
+            // Call the action
+            const result = await actionFn(...args);
+
+            rscLogger.debug(`Action ${actionId} completed successfully`);
+
+            // Return result as JSON (can enhance to full RSC encoding later)
+            return new Response(JSON.stringify(result), {
+              headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": CACHE_CONTROL_DYNAMIC,
+              },
+            });
+          } catch (error) {
+            rscLogger.error(
+              `RSC Server Action failed: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+            return new Response(
+              JSON.stringify({ error: "Server action failed" }),
+              {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+              },
+            );
+          }
+        }
+      }
+
       // Route: /rsc -> React Server Components payload
       if (pathname === "/rsc") {
         rscLogger.debug("Rendering RSC payload...");
@@ -428,49 +513,8 @@ export function createHandler(deps: ServerDependencies) {
         return new Response("Not Found", { status: 404 });
       }
 
-      // Route: /action -> Server Actions
-      if (pathname === "/action" && req.method === "POST") {
-        try {
-          const body = await req.json();
-          const { actionId, args } = body;
-
-          if (!actionId || typeof actionId !== "string") {
-            return new Response(
-              JSON.stringify({ error: "Invalid action ID" }),
-              {
-                status: 400,
-                headers: { "Content-Type": "application/json" },
-              },
-            );
-          }
-
-          serverLogger.debug(`Server action invoked: ${actionId}`);
-          const result = await invokeAction(actionId, args ?? []);
-
-          return new Response(JSON.stringify({ result }), {
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": CACHE_CONTROL_DYNAMIC,
-            },
-          });
-        } catch (error) {
-          serverLogger.error(
-            `Server action failed: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          );
-          // Don't expose error details to client - only log server-side
-          return new Response(
-            JSON.stringify({
-              error: "Server action failed",
-            }),
-            {
-              status: 500,
-              headers: { "Content-Type": "application/json" },
-            },
-          );
-        }
-      }
+      // Note: Old /action endpoint removed - use /_rsc with RSC-Action header instead
+      // This is React 19's native server actions mechanism
 
       // Route: /dist/* -> Static assets
       if (pathname.startsWith("/dist/")) {

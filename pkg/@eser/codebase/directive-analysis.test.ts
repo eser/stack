@@ -58,6 +58,35 @@ export function Button() {}
   assert.assertEquals(hasDirective(content, "use client"), true);
 });
 
+Deno.test("hasDirective - handles multi-line JSDoc comments", () => {
+  const content = `/**
+ * Server Actions
+ * These functions run on the server and can be called from client components.
+ *
+ * The bundler automatically:
+ * 1. Marks these functions with React's server reference symbols
+ * 2. Generates client stubs that call the server via RSC protocol
+ * 3. Action IDs are generated as: path/to/file#exportName
+ *
+ * Usage in client components:
+ * import { addComment } from "./actions";
+ * import { useActionState } from "react";
+ *
+ * function Comments() {
+ *   const [state, formAction, isPending] = useActionState(addComment, null);
+ *   return <form action={formAction}>...</form>;
+ * }
+ */
+
+"use server";
+
+import * as logging from "@eser/logging";
+
+export async function addComment() {}
+`;
+  assert.assertEquals(hasDirective(content, "use server"), true);
+});
+
 Deno.test("extractExports - finds named function exports", () => {
   const content = `export function Button() {}
 export function Input() {}

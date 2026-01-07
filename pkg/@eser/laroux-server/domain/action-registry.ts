@@ -2,6 +2,37 @@
 /**
  * Server Action Registry
  * Manages registration and invocation of server actions
+ *
+ * @deprecated This module is deprecated. Use React 19's native server actions instead.
+ *
+ * With the new system:
+ * 1. Add "use server" directive at the top of your action file
+ * 2. Export async functions directly
+ * 3. Import and use them in client components - the bundler handles everything
+ *
+ * Example:
+ * ```typescript
+ * // actions.ts
+ * "use server";
+ *
+ * export async function addComment(formData: FormData) {
+ *   const comment = formData.get("comment");
+ *   // ... save to database
+ *   return { success: true };
+ * }
+ * ```
+ *
+ * ```tsx
+ * // component.tsx
+ * "use client";
+ * import { useActionState } from "react";
+ * import { addComment } from "./actions";
+ *
+ * function Comments() {
+ *   const [state, formAction] = useActionState(addComment, null);
+ *   return <form action={formAction}>...</form>;
+ * }
+ * ```
  */
 
 import * as logging from "@eser/logging";

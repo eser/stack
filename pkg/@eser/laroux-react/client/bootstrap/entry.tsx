@@ -78,6 +78,110 @@ const clientLogger = getLogger(["laroux-bundler", "client"]);
 const rscClientLogger = getLogger(["laroux-bundler", "rsc-client"]);
 const loaderLogger = getLogger(["laroux-bundler", "loader"]);
 const bootstrapLogger = getLogger(["laroux-bundler", "bootstrap"]);
+const actionsLogger = getLogger(["laroux-bundler", "actions"]);
+
+/**
+ * Global __callServer function for server actions
+ *
+ * This is the React-native way to invoke server actions:
+ * 1. Client stubs call __callServer(actionId, args)
+ * 2. We POST to /_rsc with RSC-Action header
+ * 3. Server executes the action and returns RSC-encoded result
+ * 4. We parse and return the result
+ *
+ * This enables native `<form action={fn}>` and `useActionState(fn, state)` support.
+ */
+async function callServer(actionId: string, args: unknown[]): Promise<unknown> {
+  actionsLogger.debug(`🎯 Calling server action: ${actionId}`);
+
+  try {
+    // Determine content type based on args
+    // If first arg is FormData, send as multipart/form-data
+    // Otherwise send as JSON
+    const isFormData = args.length > 0 && args[0] instanceof FormData;
+
+    let body: BodyInit;
+    const headers: HeadersInit = {
+      "Accept": "text/x-component",
+      "RSC-Action": actionId,
+    };
+
+    if (isFormData) {
+      // For FormData, browser sets Content-Type with boundary automatically
+      body = args[0] as FormData;
+      actionsLogger.debug(`📤 Sending FormData to action ${actionId}`);
+    } else {
+      // For regular args, send as JSON
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(args);
+      actionsLogger.debug(`📤 Sending JSON args to action ${actionId}:`, {
+        args,
+      });
+    }
+
+    const response = await fetch("/_rsc", {
+      method: "POST",
+      headers,
+      body,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      actionsLogger.error(`❌ Server action failed: ${actionId}`, {
+        errorText,
+      });
+      throw new Error(
+        `Server action failed: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    // Parse RSC response
+    // For now, we expect JSON response (can enhance to full RSC parsing later)
+    const contentType = response.headers.get("Content-Type");
+
+    if (contentType?.includes("application/json")) {
+      const result = await response.json();
+      actionsLogger.debug(`✅ Action ${actionId} returned:`, { result });
+      return result;
+    }
+
+    // RSC response (text/x-component) - for now just parse as JSON
+    // TODO: Full RSC response parsing for complex return values
+    const text = await response.text();
+
+    // Try to extract JSON from RSC format (J0:{"result":...})
+    const jsonMatch = text.match(/^J\d+:(.+)$/m);
+    if (jsonMatch) {
+      const result = JSON.parse(jsonMatch[1]);
+      actionsLogger.debug(`✅ Action ${actionId} returned (RSC format):`, {
+        result,
+      });
+      return result;
+    }
+
+    // Fallback: try parsing entire response as JSON
+    try {
+      const result = JSON.parse(text);
+      actionsLogger.debug(`✅ Action ${actionId} returned:`, { result });
+      return result;
+    } catch {
+      actionsLogger.warn(
+        `⚠️ Could not parse action response as JSON, returning raw text`,
+      );
+      return text;
+    }
+  } catch (error) {
+    actionsLogger.error(`❌ Server action error: ${actionId}`, { error });
+    throw error;
+  }
+}
+
+// Register global __callServer for server action stubs
+if (typeof globalThis !== "undefined") {
+  (globalThis as unknown as { __callServer: typeof callServer }).__callServer =
+    callServer;
+  actionsLogger.debug("✅ __callServer registered globally");
+}
 
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import {

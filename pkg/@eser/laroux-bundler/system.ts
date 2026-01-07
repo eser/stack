@@ -13,6 +13,7 @@ import * as pkg from "@eser/codebase/package";
 import { analyzeServerActions } from "@eser/codebase/directive-analysis";
 import { JS_FILE_PATTERN, replaceJsExtension } from "@eser/standards/patterns";
 import { transformServerActions } from "./domain/server-action-transform.ts";
+import { generateClientActionStubs } from "./domain/client-action-stub.ts";
 
 const buildLogger = logging.logger.getLogger(["laroux-bundler", "build"]);
 
@@ -348,16 +349,16 @@ export async function build(
       );
     }
 
-    // Step 5b: Transform server actions to inject registerAction calls
+    // Step 5b: Transform server actions to add React server reference symbols
     // This must happen AFTER server components are copied but BEFORE bundling
     buildLogger.debug(
-      "🔄 Step 5b: Transforming server actions for auto-registration...",
+      "🔄 Step 5b: Transforming server actions with React symbols...",
     );
     const serverDistDir = runtime.path.resolve(distDir, SERVER_DIR);
     const serverActionResults = await transformServerActions(serverDistDir);
     if (serverActionResults.length > 0) {
       const totalActions = serverActionResults.reduce(
-        (sum, r) => sum + r.registeredActions.length,
+        (sum, r) => sum + r.transformedActions.length,
         0,
       );
       buildLogger.info(
@@ -410,6 +411,30 @@ export async function build(
       changedFiles: options?.changedFiles,
     });
     const virtualSrcDir = virtualSource.virtualSrcDir;
+
+    // Step 8b: Generate client stubs for "use server" files in virtual source
+    // This replaces server action files with client-side stubs that call /action
+    // Must happen BEFORE client bundling so imports resolve to stubs
+    buildLogger.debug(
+      "🔌 Step 8b: Generating client action stubs in virtual source...",
+    );
+    const virtualSrcSubdirForStubs = runtime.path.join(
+      virtualSrcDir,
+      srcDirName,
+    );
+    const clientStubResults = await generateClientActionStubs(
+      virtualSrcSubdirForStubs,
+      virtualSrcDir,
+    );
+    if (clientStubResults.length > 0) {
+      const totalActions = clientStubResults.reduce(
+        (sum, r) => sum + r.exportedActions.length,
+        0,
+      );
+      buildLogger.info(
+        `   ✅ Generated ${clientStubResults.length} stub file(s) with ${totalActions} action(s)`,
+      );
+    }
 
     // Step 9: Process CSS Modules to virtual source (NOT original src/)
     // Generate JSON files in the virtual source directory

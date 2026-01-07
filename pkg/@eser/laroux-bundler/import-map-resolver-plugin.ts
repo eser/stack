@@ -17,6 +17,7 @@
  */
 
 import type { BundlerPlugin } from "@eser/bundler/backends";
+import { tryLoad as tryLoadPackage } from "@eser/codebase/package";
 import * as logging from "@eser/logging";
 import { runtime } from "@eser/standards/runtime";
 import {
@@ -28,6 +29,126 @@ import {
   resolveSpecifier,
 } from "./domain/import-map.ts";
 import type { ResolvedBrowserShimsConfig } from "./types.ts";
+
+/**
+ * Resolve npm package from Deno's .deno directory structure.
+ * Fallback for transitive dependencies not symlinked to top-level node_modules.
+ * Returns null if not running in Deno or package not found.
+ */
+async function resolveFromDenoModules(
+  specifier: string,
+  projectRoot: string,
+): Promise<string | null> {
+  const denoDir = runtime.path.join(projectRoot, "node_modules", ".deno");
+
+  try {
+    // Check if .deno directory exists (indicates Deno environment)
+    const stat = await runtime.fs.stat(denoDir).catch(() => null);
+    if (!stat?.isDirectory) {
+      return null;
+    }
+
+    // Extract package name (handle scoped packages like @scope/pkg)
+    const parts = specifier.split("/");
+    const packageName = specifier.startsWith("@")
+      ? parts.slice(0, 2).join("/")
+      : parts[0] ?? specifier;
+    const subpath = specifier.startsWith("@")
+      ? parts.slice(2).join("/")
+      : parts.slice(1).join("/");
+
+    // Scan .deno for matching package directory
+    for await (const entry of runtime.fs.readDir(denoDir)) {
+      if (entry.isDirectory && entry.name.startsWith(`${packageName}@`)) {
+        const pkgDir = runtime.path.join(
+          denoDir,
+          entry.name,
+          "node_modules",
+          packageName,
+        );
+
+        // Check if this package directory exists
+        const pkgStat = await runtime.fs.stat(pkgDir).catch(() => null);
+        if (!pkgStat?.isDirectory) continue;
+
+        // If there's a subpath, resolve it directly
+        if (subpath) {
+          const subpathFile = runtime.path.join(pkgDir, subpath);
+          const subpathStat = await runtime.fs.stat(subpathFile).catch(
+            () => null,
+          );
+          if (subpathStat) {
+            return subpathFile;
+          }
+          // Try with .js extension
+          const subpathJs = `${subpathFile}.js`;
+          const subpathJsStat = await runtime.fs.stat(subpathJs).catch(
+            () => null,
+          );
+          if (subpathJsStat) {
+            return subpathJs;
+          }
+          continue;
+        }
+
+        // Load package config using @eser/codebase (handles deno.json, jsr.json, package.json)
+        const pkgConfig = await tryLoadPackage({ baseDir: pkgDir });
+
+        if (pkgConfig !== undefined) {
+          let mainEntry: string | undefined;
+
+          // 1. Check exports field first (modern standard across all config types)
+          if (pkgConfig.exports !== undefined) {
+            const exportsValue = pkgConfig.exports.value;
+            if (typeof exportsValue === "string") {
+              mainEntry = exportsValue;
+            } else if (
+              typeof exportsValue === "object" &&
+              exportsValue["."] !== undefined
+            ) {
+              const dotExport = exportsValue["."];
+              // Handle conditional exports: { ".": { "import": "./index.mjs" } }
+              if (typeof dotExport === "string") {
+                mainEntry = dotExport;
+              } else if (typeof dotExport === "object") {
+                const conditional = dotExport as Record<string, string>;
+                mainEntry = conditional.import ?? conditional.module ??
+                  conditional.default ?? conditional.require;
+              }
+            }
+          }
+
+          // 2. Fallback to module/main from raw config content (any loaded file)
+          if (mainEntry === undefined) {
+            for (const loadedFile of pkgConfig._loadedFiles) {
+              const rawContent = loadedFile.content as Record<string, unknown>;
+              const moduleField = rawContent.module as string | undefined;
+              const mainField = rawContent.main as string | undefined;
+              mainEntry = moduleField ?? mainField;
+              if (mainEntry !== undefined) break;
+            }
+          }
+
+          // 3. Default to index.js
+          mainEntry ??= "index.js";
+
+          return runtime.path.join(pkgDir, mainEntry);
+        }
+
+        // Final fallback: try index.js directly
+        const indexPath = runtime.path.join(pkgDir, "index.js");
+        const indexStat = await runtime.fs.stat(indexPath).catch(() => null);
+        if (indexStat) {
+          return indexPath;
+        }
+      }
+    }
+  } catch {
+    // Not in Deno environment or other error - silently fail
+  }
+
+  return null;
+}
 
 const resolverLogger = logging.logger.getLogger([
   "laroux-bundler",
@@ -102,7 +223,7 @@ export function createImportMapResolverPlugin(
       }
 
       // Match ALL bare specifiers
-      build.onResolve({ filter: /^[^./]/ }, (args) => {
+      build.onResolve({ filter: /^[^./]/ }, async (args) => {
         const specifier = args.path;
 
         // Skip if not a bare specifier
@@ -204,6 +325,22 @@ export function createImportMapResolverPlugin(
             `Marking ${specifier} as external (bare import not in import map)`,
           );
           return { external: true };
+        }
+
+        // For browser bundles, try to resolve from Deno's .deno directory as fallback
+        // This handles transitive npm dependencies that aren't symlinked to top-level
+        if (!autoMarkExternal && isBareSpecifier(specifier)) {
+          const resolved = await resolveFromDenoModules(
+            specifier,
+            options.projectRoot,
+          );
+          if (resolved !== null) {
+            cache.set(specifier, resolved);
+            resolverLogger.debug(
+              `Resolved npm transitive dependency ${specifier} → ${resolved}`,
+            );
+            return { path: resolved };
+          }
         }
 
         // Let other resolvers or bundler's default resolution handle it

@@ -46,7 +46,7 @@ export async function generateRouteFile(
   for (const route of routes) {
     // The component path is relative like "src/app/routes/home/page.tsx"
     // We want to import from the bundled file "./src/app/routes/home/page.js"
-    // Bundled files are in dist/server/src/app/* (rolldown preserves src/ structure)
+    // Both bundlers output to dist/server/src/app/* (preserves src/ structure)
     // Strip source extension before adding .js
     const componentImportPath = `./${
       replaceJsExtension(route.componentPath, "")
@@ -86,7 +86,7 @@ export async function generateRouteFile(
 
     // Add layout import if exists
     if (route.layoutPath && layoutName) {
-      // Import from bundled files in dist/server/src/app/ (rolldown preserves src/ structure)
+      // Import from bundled files in dist/server/src/app/ (both bundlers preserve src/ structure)
       // Strip source extension before adding .js
       const layoutImportPath = `./${
         replaceJsExtension(route.layoutPath, "")

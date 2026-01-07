@@ -134,8 +134,8 @@ async function loadRoutes(config: AppConfig): Promise<RouteDefinition[]> {
 
 /**
  * Resolve server component import path.
- * Prefers bundled .js files (dist/server/app/*.js) over source files (dist/server/src/app/*).
- * Bundled files have all imports resolved, while source files may have bare imports.
+ * Bundled .js files are at dist/server/src/app/*.js (both bundlers output here).
+ * Falls back to source files for compatibility.
  *
  * @param config - App configuration
  * @param baseName - Base file name without extension (e.g., "layout", "not-found")
@@ -145,7 +145,7 @@ async function resolveServerComponentPath(
   config: AppConfig,
   baseName: string,
 ): Promise<string> {
-  // First try bundled .js file in src/app (rolldown outputs here)
+  // Try bundled .js file in src/app (both bundlers output here)
   const bundledPath = runtime.path.resolve(
     config.distDir,
     "server",
@@ -154,8 +154,7 @@ async function resolveServerComponentPath(
     `${baseName}.js`,
   );
 
-  const bundledExists = await runtime.fs.exists(bundledPath);
-  if (bundledExists) {
+  if (await runtime.fs.exists(bundledPath)) {
     return bundledPath;
   }
 
@@ -168,13 +167,12 @@ async function resolveServerComponentPath(
       "app",
       `${baseName}.${ext}`,
     );
-    const sourceExists = await runtime.fs.exists(sourcePath);
-    if (sourceExists) {
+    if (await runtime.fs.exists(sourcePath)) {
       return sourcePath;
     }
   }
 
-  // Return the bundled path as default (will fail with clear error)
+  // Return bundled path as default (will fail with clear error)
   return bundledPath;
 }
 

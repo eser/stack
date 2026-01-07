@@ -98,7 +98,9 @@ export class DenoBundlerBackend implements Bundler {
     const tempDir = await runtime.fs.makeTempDir({ prefix: "deno-bundle-" });
 
     try {
+      // Preserve entry keys for output path mapping
       const entrypointPaths = Object.values(config.entrypoints);
+      const entryKeys = Object.keys(config.entrypoints);
 
       // Create build ID entry if provided
       const allEntrypoints = [...entrypointPaths];
@@ -175,7 +177,12 @@ export class DenoBundlerBackend implements Bundler {
         return createErrorResult(errors);
       }
 
-      return await this.processOutput(tempDir, config);
+      return await this.processOutput(
+        tempDir,
+        config,
+        entryKeys,
+        entrypointPaths,
+      );
     } catch (error) {
       return createErrorResult([{
         message: error instanceof Error ? error.message : String(error),
@@ -235,6 +242,8 @@ export class DenoBundlerBackend implements Bundler {
   private async processOutput(
     tempDir: string,
     config: BundlerConfig,
+    entryKeys: string[],
+    entrypointPaths: string[],
   ): Promise<BundleResult> {
     const entryName = this.options.entryName ?? "main";
     const outputs = new Map<string, BundleOutput>();
@@ -242,6 +251,29 @@ export class DenoBundlerBackend implements Bundler {
     const entrypointManifest: Record<string, string[]> = {};
     let mainEntrypoint = null;
     let totalSize = 0;
+
+    // Build mapping from entry path patterns to entry keys
+    // This maps Deno.bundle output names back to desired entry key paths
+    // We store both basename and full key for flexible matching
+    const pathToKeyMap = new Map<string, string>();
+    const entryKeysByPath = new Map<string, string>();
+    for (let i = 0; i < entrypointPaths.length; i++) {
+      const entryPath = entrypointPaths[i];
+      const entryKey = entryKeys[i];
+      if (entryPath !== undefined && entryKey !== undefined) {
+        // Map the entry path basename (without extension) to the entry key
+        const basename = runtime.path.basename(entryPath).replace(
+          /\.[^.]+$/,
+          "",
+        );
+        pathToKeyMap.set(basename, entryKey);
+        // Also store by path suffix for more accurate matching
+        entryKeysByPath.set(
+          replaceJsExtension(entryPath, ".js"),
+          entryKey,
+        );
+      }
+    }
 
     // Deno.bundle() creates a nested dist/ directory
     const nestedDistDir = runtime.path.join(tempDir, "dist");
@@ -367,6 +399,28 @@ export class DenoBundlerBackend implements Bundler {
         mainEntrypoint = `${entryName}.js`;
       } else if (normalizedName.startsWith("_build-id-entry")) {
         normalizedName = "build-id.js";
+      } else if (!normalizedName.startsWith("chunk-")) {
+        // For entry files (not chunks), map output name back to entry key
+        // This preserves directory structure like src/app/page.js
+        // First try to match by path suffix (more accurate)
+        let entryKey: string | undefined;
+        for (const [entryPath, key] of entryKeysByPath) {
+          if (entryPath.endsWith(normalizedName)) {
+            entryKey = key;
+            break;
+          }
+        }
+        // Fall back to basename matching
+        if (entryKey === undefined) {
+          const fileBasename = runtime.path.basename(normalizedName).replace(
+            /\.js$/,
+            "",
+          );
+          entryKey = pathToKeyMap.get(fileBasename);
+        }
+        if (entryKey !== undefined) {
+          normalizedName = `${entryKey}.js`;
+        }
       }
 
       // Add or update sourcemap reference for entry files

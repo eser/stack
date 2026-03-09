@@ -1,0 +1,55 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement! Please describe what you'd like.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this feature solve? Is it related to a frustration?
+      placeholder: I'm always frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Related Package
+      description: Which package does this relate to?
+      options:
+        - "@eser/fp"
+        - "@eser/di"
+        - "@eser/events"
+        - "@eser/config"
+        - "@eser/cli"
+        - "@eser/standards"
+        - "@eser/laroux"
+        - "@eser/shell"
+        - "@eser/http"
+        - "Go services"
+        - "Other / Multiple"
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, mockups, or examples.

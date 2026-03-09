@@ -37,7 +37,8 @@ Correct: `javascript-practices`, `eser-rules-manager` Incorrect:
 
 - Max 1024 characters (target <200 for efficiency)
 - Must include WHAT the skill does AND WHEN to use it
-- Include trigger keywords for discovery
+- Start with action, follow with "Use when..." trigger phrase
+- Include keywords: error messages, symptoms, tool names, synonyms
 
 Correct:
 
@@ -45,10 +46,18 @@ Correct:
 description: JavaScript and TypeScript conventions for syntax, modules, types, and runtime behavior. Use when writing or reviewing JS/TS code, implementing modules, handling types, or working with runtime APIs.
 ```
 
+```yaml
+description: Conventions for adding routes, middleware, and handlers. Use when adding new endpoints, modifying routing, or implementing API handlers.
+```
+
 Incorrect:
 
 ```yaml
 description: JavaScript stuff # Too vague, no trigger context
+```
+
+```yaml
+description: Helps with routing stuff # Missing "Use when..." trigger, too vague
 ```
 
 ---
@@ -214,15 +223,82 @@ references/ files
 
 ---
 
-## Skills in This Project
+## Anti-Rationalization Sections
 
-| Skill                     | Scope                                     |
-| ------------------------- | ----------------------------------------- |
-| `architecture-guidelines` | System design, ADRs, testing              |
-| `design-principles`       | Pure functions, immutability, composition |
-| `coding-practices`        | Error handling, validation, DRY           |
-| `javascript-practices`    | JS/TS syntax, modules, types, runtime     |
-| `tooling-standards`       | Deno, JSR registry, config files          |
-| `eser-rules-manager`      | Managing all skills above                 |
+Bulletproof discipline-enforcing skills by adding explicit counters.
 
-Create new skills for: `ui/`, `security/` when needed.
+### Pattern
+
+```markdown
+## Anti-Patterns
+
+**"This is a special case"**
+No. The rule applies to ALL cases. Ask for explicit exception approval.
+
+**"I already tested it manually"**
+Manual testing doesn't replace automated tests. Run the test suite.
+
+**"Being pragmatic means adapting"**
+Pragmatism doesn't mean skipping quality gates. Follow the process.
+```
+
+### Red Flags List
+
+Include warning signs that indicate rule-breaking temptation:
+
+```markdown
+## Red Flags
+
+Stop and reconsider if you're thinking:
+- "Just this once..."
+- "The user won't notice..."
+- "I can fix it later..."
+- "It's close enough..."
+```
+
+---
+
+## Terminology Consistency
+
+Pick one term per concept; use throughout the skill.
+
+| Concept       | Pick ONE | Avoid mixing                |
+| ------------- | -------- | --------------------------- |
+| API paths     | endpoint | URL, route, path            |
+| Form elements | field    | input, box, element         |
+| Data action   | extract  | pull, get, fetch, retrieve  |
+| Error action  | return   | throw, raise, emit          |
+
+---
+
+## Degrees of Freedom
+
+Match instruction specificity to task fragility.
+
+**High Freedom** (multiple valid approaches):
+
+```
+Choose an appropriate data structure for the use case.
+```
+
+**Medium Freedom** (preferred patterns with flexibility):
+
+```
+1. Validate input
+2. Transform data
+3. Return result or error
+```
+
+**Low Freedom** (exact steps required):
+
+```
+Run exactly: `make lint && make test`
+Do not modify or skip steps.
+```
+
+---
+
+## Skills Inventory
+
+See the `eser-rules-manager` SKILL.md for the full skill table.
+Create new skills for: `ui/`, `testing/` when needed.

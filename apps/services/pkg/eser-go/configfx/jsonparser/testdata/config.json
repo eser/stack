@@ -1,0 +1,12 @@
+{
+  "test": "env",
+  "test2": {
+    "test3": "env!"
+  },
+  "test4": {},
+  "test5": [
+    "a",
+    "b"
+  ],
+  "test6": 6
+}

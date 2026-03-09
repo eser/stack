@@ -239,3 +239,136 @@ test("user creation", () => { // non-standard test function
 - Unit tests: `*.test.ts` (colocated with source)
 - Integration tests: `*.integration.test.ts`
 - Schema tests: `schema.test.ts`
+
+---
+
+## Go Tooling
+
+### Make Commands
+
+Scope: Go services
+
+Rule: Use Makefile commands for all Go operations. Don't run go commands
+directly for common tasks.
+
+```bash
+# In /apps/services directory
+make restart         # Restart services after changes
+make check           # Run static analysis tools
+make lint            # Run linting (golangci-lint)
+make fix             # Fix formatting and linting issues
+make test            # Run tests
+make build           # Build binaries
+```
+
+Correct:
+
+```bash
+cd apps/services && make lint
+cd apps/services && make test
+```
+
+Incorrect:
+
+```bash
+cd apps/services && go fmt ./...
+cd apps/services && go test ./...
+```
+
+---
+
+### Code Generation
+
+Scope: Go services with SQLC
+
+Rule: Use SQLC for database query generation. SQL queries live in
+`etc/data/{datasource}/queries/`.
+
+**Structure:**
+
+```
+apps/services/
+├── etc/data/default/
+│   ├── migrations/     # Database migrations
+│   ├── queries/        # SQL queries for SQLC
+│   │   ├── profiles.sql
+│   │   ├── users.sql
+│   │   └── sessions.sql
+│   └── seed/           # Seed data
+├── pkg/api/adapters/storage/
+│   ├── *_gen.go        # Generated SQLC code
+│   └── repository.go   # Repository wrapper
+└── sqlc.yaml           # SQLC configuration
+```
+
+Regenerate after SQL changes:
+
+```bash
+cd apps/services && make generate
+```
+
+---
+
+## Monorepo Commands
+
+Scope: Root-level operations
+
+Rule: Use root Makefile for cross-project operations.
+
+```bash
+# In monorepo root
+make ok              # Run all quality checks
+make build           # Build all containers
+make up              # Start all services
+make down            # Stop all services
+make logs            # View service logs
+```
+
+**Workflow:**
+
+```bash
+# After making changes
+make ok              # Ensure all checks pass
+git add . && git commit -m "..."
+```
+
+---
+
+## Editor Configuration
+
+Scope: Development environment
+
+Rule: Use project-level editor configuration for consistent formatting.
+
+**.editorconfig:**
+
+```ini
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_size = 2
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.go]
+indent_size = 4
+indent_style = tab
+
+[Makefile]
+indent_style = tab
+```
+
+**VS Code Settings (.vscode/settings.json):**
+
+```json
+{
+  "editor.formatOnSave": true,
+  "deno.enable": true,
+  "deno.lint": true,
+  "go.lintTool": "golangci-lint",
+  "go.lintOnSave": "workspace"
+}
+```

@@ -1,6 +1,6 @@
 ---
 name: architecture-guidelines
-description: System architecture: modules, project structure, ADRs, and testing. Use when designing or reviewing systems.
+description: "System architecture: ES modules, hexagonal architecture, project structure, ADRs, and testing strategy. Use when designing systems, planning directory layout, writing ADRs, or reviewing architecture."
 ---
 
 # Architecture Guidelines

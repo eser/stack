@@ -174,8 +174,11 @@ export const validateLicenses = async (
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<CliResult<void>> => {
-  const fix = runtime.process.args.includes("--fix");
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<CliResult<void>> => {
+  const effectiveArgs = cliArgs ?? runtime.process.args;
+  const fix = effectiveArgs.includes("--fix");
 
   const result = await validateLicenses({ fix });
 

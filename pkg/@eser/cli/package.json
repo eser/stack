@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "@eser/codebase": "workspace:*",
+    "@eser/functions": "workspace:*",
+    "@eser/laroux-bundler": "workspace:*",
     "@eser/laroux-server": "workspace:*",
     "@eser/logging": "workspace:*",
     "@eser/shell": "workspace:*",

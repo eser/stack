@@ -98,44 +98,6 @@ function processUser(email: string, data: UserData): void {
 
 ---
 
-## Early Returns
-
-Scope: All languages
-
-Rule: Use early returns. Reduces nesting and improves
-readability.
-
-Correct:
-
-```typescript
-function processPayment(amount: number, balance: number): boolean {
-  if (amount <= 0) return false;
-  if (balance < amount) return false;
-  if (!isValidTransaction(amount)) return false;
-
-  deductBalance(amount);
-  return true;
-}
-```
-
-Incorrect:
-
-```typescript
-function processPayment(amount: number, balance: number): boolean {
-  if (amount > 0) {
-    if (balance >= amount) {
-      if (isValidTransaction(amount)) {
-        deductBalance(amount);
-        return true;
-      }
-    }
-  }
-  return false;
-}
-```
-
----
-
 ## Composition Over Inheritance
 
 Scope: All languages

@@ -1,29 +1,37 @@
-name: Publish
+name: Integrity Pipeline
 
 on:
   push:
     branches:
-      - main
-      - dev
+      - "**"
 
   pull_request:
     types:
       - opened
+      - edited
       - synchronize
     branches:
       - "**"
 
+  workflow_dispatch:
+    inputs:
+      run_checks:
+        description: Run integrity checks
+        required: false
+        type: boolean
+
 concurrency:
-  group: ${{ github.ref }}-build
+  group: ${{ github.ref }}-integrity
   cancel-in-progress: true
 
 jobs:
   integration:
     name: Integration
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
 
     permissions:
-      contents: read # Needed to clone the repository
+      contents: read
 
     strategy:
       fail-fast: false
@@ -33,7 +41,7 @@ jobs:
           # - windows-latest
           # - macOS-latest
         deno-version:
-          - 2.6.4
+          - v2.x
 
     steps:
       - name: Checkout repository
@@ -41,13 +49,24 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
       - name: Setup Deno ${{ matrix.deno-version }}
         uses: denoland/setup-deno@v2
         with:
           deno-version: ${{ matrix.deno-version }}
 
-      - name: Check formatting, linting, license headers, types and run tests
-        run: deno task validate
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: apps/services/go.sum
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
 
       - name: Generate coverage report
         run: deno task test:coverage-gen
@@ -59,38 +78,3 @@ jobs:
         with:
           name: ${{ matrix.os }}
           files: ./etc/coverage.lcov
-
-  delivery:
-    name: Delivery
-    needs: integration
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    permissions:
-      contents: read
-      id-token: write # The OIDC ID token is used for authentication with JSR.
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 2
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-
-      - name: Publish to JSR
-        run: deno publish
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "latest"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Build npm package
-        run: deno task npm-build
-
-      - name: Publish to npm
-        run: npm publish --provenance --access public
-        working-directory: ./pkg/@eser/cli/dist

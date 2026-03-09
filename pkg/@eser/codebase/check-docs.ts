@@ -257,7 +257,9 @@ const formatIssue = (issue: DocIssueType): string => {
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<CliResult<void>> => {
+export const main = async (
+  _cliArgs?: readonly string[],
+): Promise<CliResult<void>> => {
   console.log("Checking documentation...\n");
 
   const result = await checkDocs();

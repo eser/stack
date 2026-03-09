@@ -16,6 +16,8 @@
     "./check-licenses": "./check-licenses.ts",
     "./check-package-configs": "./check-package-configs.ts",
     "./versions": "./versions.ts",
+    "./release-tag": "./release-tag.ts",
+    "./release-notes": "./release-notes.ts",
     "./lint-plugin": "./lint-plugin.ts"
   },
   "imports": {

@@ -28,4 +28,6 @@ export * from "./check-docs.ts";
 export * from "./check-licenses.ts";
 export * from "./check-package-configs.ts";
 export * from "./versions.ts";
+export * from "./release-tag.ts";
+export * from "./release-notes.ts";
 export * from "./directive-analysis.ts";

@@ -22,6 +22,9 @@
     "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --trace-leaks --coverage=./etc/coverage/",
     "test": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --watch",
     "validate:fix": "deno fmt && deno lint --fix && deno task cli codebase validate --only licenses --fix && deno task check:mod && deno task test:run && deno publish --dry-run --allow-dirty",
-    "validate": "deno fmt --check && deno lint && deno task cli codebase validate --only licenses && deno task check:mod && deno task test:run && deno publish --dry-run --allow-dirty"
+    "validate": "deno fmt --check && deno lint && deno task cli codebase validate --only licenses && deno task check:mod && deno task test:run && deno publish --dry-run --allow-dirty",
+    "version:bump-patch": "deno run -A pkg/@eser/codebase/versions.ts patch",
+    "version:bump-minor": "deno run -A pkg/@eser/codebase/versions.ts minor",
+    "version:bump-major": "deno run -A pkg/@eser/codebase/versions.ts major"
   }
 }

@@ -50,6 +50,40 @@ User renames userId to id -> "I'll change this back to userId for consistency"
 
 ---
 
+## Never Use Git to Revert File Contents
+
+Scope: All code modifications
+
+Rule: NEVER use `git checkout`, `git restore`, or any git command to revert
+file contents. Parallel tasks run with parallel agents, so git-based reverting
+can destroy work from other agents. Always undo changes using Edit operations.
+
+**Critical Rules:**
+
+- NEVER use `git checkout -- <file>` to revert changes
+- NEVER use `git restore <file>` to revert changes
+- NEVER use `git stash` to discard or shelve changes
+- If you need to undo edits you just made, use the Edit tool to manually revert
+  each change
+- This protects parallel agent workflows from losing each other's work
+
+Correct:
+
+```
+# Undo a change you just made using Edit tool
+Edit: old_string="new code" new_string="original code"
+```
+
+Incorrect:
+
+```
+git checkout -- path/to/file
+git restore path/to/file
+git checkout HEAD -- path/to/file
+```
+
+---
+
 ## Git Commit Policy
 
 Scope: Version control
@@ -249,3 +283,175 @@ export async function registerUser(input: any) {
   return db.user.create(input);
 }
 ```
+
+---
+
+## Quality Gates (MANDATORY)
+
+Scope: All code changes
+
+Rule: ALWAYS run tests and linters when making changes. Fix linter errors
+immediately. Never commit without passing all quality gates.
+
+**Before Committing Checklist:**
+
+- [ ] All linters pass (`deno lint`, `make lint`)
+- [ ] All formatters pass (`deno fmt --check`, `make fix`)
+- [ ] TypeScript compilation successful
+- [ ] All tests pass (unit + integration)
+- [ ] No TODO comments or placeholders left
+- [ ] Endpoints tested with curl/manual testing
+
+**Frontend Quality Gates:**
+
+```bash
+# In /apps/webclient directory
+deno task lint         # Run Deno linter
+deno fmt --check       # Check formatting
+deno task build        # Build for production
+```
+
+**Backend Quality Gates:**
+
+```bash
+# In /apps/services directory
+make check            # Run static analysis tools
+make lint             # Run linting
+make fix              # Fix formatting and linting issues
+make test             # Run tests
+```
+
+**Root Quality Gates:**
+
+```bash
+# In monorepo root
+make ok               # Run all quality checks
+```
+
+Correct:
+
+```bash
+# Full quality check before committing
+make lint && make test && make check
+```
+
+Incorrect:
+
+```bash
+# Skipping quality gates
+git add . && git commit -m "Quick fix"
+```
+
+---
+
+## Testing Requirements
+
+Scope: All code changes
+
+Rule: Business logic MUST have unit tests. Adapters should have integration
+tests. Use dependency injection for testable code.
+
+**Test Structure:**
+
+- Unit tests: Test business logic with mock adapters
+- Integration tests: Test adapters with real dependencies
+- Test files co-located with `_test` suffix (Go) or `.test.ts` (JS/TS)
+
+Correct:
+
+```go
+// profiles_test.go - Unit test with mock
+type mockRepository struct{}
+
+func (m *mockRepository) GetProfile(ctx context.Context, id string) (*Profile, error) {
+    return &Profile{ID: id, Title: "Test"}, nil
+}
+
+func TestProfileService_GetProfile(t *testing.T) {
+    service := &Service{repo: &mockRepository{}}
+    profile, err := service.GetProfile(context.Background(), "test-id")
+    // Assert results
+}
+```
+
+```typescript
+// user-service.test.ts - Unit test with mock
+const mockRepo = {
+  findUser: async (id: string) => ({ id, name: "Test" }),
+};
+
+Deno.test("UserService.getUser - returns user", async () => {
+  const service = new UserService(mockRepo);
+  const user = await service.getUser("test-id");
+  assertEquals(user.name, "Test");
+});
+```
+
+Incorrect:
+
+```typescript
+// No tests for business logic
+export function calculateDiscount(price: number, percent: number): number {
+  return price * (1 - percent / 100);
+}
+```
+
+---
+
+## Avoid Over-Engineering
+
+Scope: All code changes
+
+Rule: Only make changes that are directly requested or clearly necessary. Keep
+solutions simple and focused.
+
+**Anti-patterns to Avoid:**
+
+- Don't add features beyond what was asked
+- Don't refactor code that wasn't part of the request
+- Don't add docstrings/comments to unchanged code
+- Don't add error handling for scenarios that can't happen
+- Don't create abstractions for one-time operations
+- Don't design for hypothetical future requirements
+
+Correct:
+
+```typescript
+// User asked: "Fix the null check in getUserName"
+function getUserName(user: User | null): string {
+  if (user === null) {
+    return "Unknown";
+  }
+  return user.name;
+}
+```
+
+Incorrect:
+
+```typescript
+// User asked: "Fix the null check in getUserName"
+// But developer added unnecessary complexity
+
+/** Gets the user's display name with fallback support */
+type GetUserNameOptions = {
+  fallback?: string;
+  includeTitle?: boolean;
+};
+
+function getUserName(user: User | null, options: GetUserNameOptions = {}): string {
+  const { fallback = "Unknown", includeTitle = false } = options;
+  if (user === null) {
+    return fallback;
+  }
+  return includeTitle && user.title
+    ? `${user.title} ${user.name}`
+    : user.name;
+}
+```
+
+**Guidelines:**
+
+- Three similar lines of code is better than a premature abstraction
+- A bug fix doesn't need surrounding code cleaned up
+- A simple feature doesn't need extra configurability
+- Trust internal code and framework guarantees

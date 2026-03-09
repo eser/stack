@@ -1,9 +1,9 @@
 ---
 name: security-practices
-description: Security practices including secrets management, input validation, SSRF prevention, and production hardening. Use for security-sensitive code.
+description: "Security practices: secrets in env vars, input validation, SSRF prevention, error sanitization, and production hardening. Use when handling authentication, secrets, user input, or preparing production deployments."
 ---
 
-# security-practices
+# Security Practices
 
 ## Quick Start
 
@@ -18,6 +18,17 @@ description: Security practices including secrets management, input validation, 
 - SSRF prevention (block internal IP ranges)
 - Development vs Production mode separation
 - Rigorous input validation
+
+## Anti-Patterns
+
+**"I'll use --allow-all for convenience"**
+No. Only broad permissions in test files and scripts, never production.
+
+**"I'll hardcode the API key for now"**
+No. All secrets go in environment variables. No exceptions.
+
+**"I'll skip the pre-commit hook this once"**
+No. Never bypass hooks with `--no-verify`.
 
 ## References
 

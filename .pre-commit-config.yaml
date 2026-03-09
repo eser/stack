@@ -1,6 +1,8 @@
+default_install_hook_types: [pre-commit, commit-msg]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
         args: ["--maxkb=1024"]
@@ -24,6 +26,9 @@ repos:
       - id: check-yaml
         args: [--allow-multiple-documents]
       - id: destroyed-symlinks
+      - id: check-illegal-windows-names
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: fix-byte-order-marker
@@ -38,16 +43,18 @@ repos:
             etc/templates/cf-workers-app/tsconfig.json
           )$
       - id: trailing-whitespace
+      - id: no-commit-to-branch
+        args: ["--branch", "main"]
 
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v4.2.0
+    rev: v4.4.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
-        args: []
+        args: ["--force-scope"]
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.35.5
+    rev: v1.44.0
     hooks:
       - id: typos
         verbose: true
@@ -64,7 +71,7 @@ repos:
       - id: local-validation
         name: local pre-commit validation
         description: Validate formatting, linting, license headers, types and run tests.
-        entry: bash -c 'deno task validate:fix; git add -u' --
+        entry: bash -c 'deno task validate:fix; if [ -f apps/services/Makefile ]; then cd apps/services && make ok; fi; git add -u' --
         always_run: true
         pass_filenames: false
         language: system
@@ -79,9 +86,17 @@ repos:
             .claude/.*|
             .github/.*|
             .git/COMMIT_EDITMSG|
+            AGENTS.md|
+            CHANGELOG.md|
+            CLAUDE.md|
+            Makefile|
+            VERSION|
+            apps/services/.*|
             docs/.*|
             etc/coverage/.*|
             etc/temp/.*|
+            etc/templates/.*/Makefile|
+            etc/templates/.*/README.md|
             pkg/@eser/app-runtime/README.md|
             pkg/@eser/bundler/README.md|
             pkg/@eser/cache/README.md|

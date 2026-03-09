@@ -1,0 +1,35 @@
+version: "2"
+
+run:
+  go: "1.25"
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gocritic
+    - misspell
+    - unconvert
+    - unparam
+    - nakedret
+    - prealloc
+    - errorlint
+    - gosec
+
+  settings:
+    gosec:
+      excludes:
+        - G115
+
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 10
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

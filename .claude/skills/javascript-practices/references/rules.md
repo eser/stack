@@ -541,3 +541,561 @@ Rationale:
 - No performance penalty (ECMA-262 updated)
 - Deno's require-await lint rule compatibility
 - ESLint's no-return-await is now deprecated
+
+---
+
+## String Prefix Extraction
+
+### Extract Value After Known Prefix
+
+Scope: JS/TS (HTTP headers, URIs, file paths, protocol strings)
+
+Rule: When extracting a value after a known prefix, use `startsWith()` to validate
+and `slice()` to extract. Never use `replace(prefix, "")` which can modify content
+in the middle or at unexpected positions.
+
+Correct:
+
+```typescript
+// Generic helper for any prefix extraction
+function extractAfterPrefix(
+  value: string | null | undefined,
+  prefix: string,
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (!value.startsWith(prefix)) {
+    return null;
+  }
+
+  const extracted = value.slice(prefix.length);
+  return extracted.length > 0 ? extracted : null;
+}
+
+// Usage examples
+const BEARER_PREFIX = "Bearer ";
+const token = extractAfterPrefix(authHeader, BEARER_PREFIX);
+
+const DATA_URI_PREFIX = "data:image/png;base64,";
+const base64Data = extractAfterPrefix(uri, DATA_URI_PREFIX);
+
+const FILE_PROTOCOL = "file://";
+const filePath = extractAfterPrefix(url, FILE_PROTOCOL);
+```
+
+Incorrect:
+
+```typescript
+// ❌ Using replace - doesn't validate prefix position
+const token = authHeader?.replace("Bearer ", "") ?? null;
+// "xBearer token" → "xtoken" (wrong!)
+
+// ❌ Using optional chaining with replace
+const path = uri?.replace("file://", "") ?? null;
+// "s3://file://bucket" → "s3://bucket" (wrong!)
+
+// ❌ Hardcoded slice without prefix validation
+const token = authHeader?.slice(7) ?? null;
+// Doesn't check if "Bearer " actually exists
+```
+
+Rationale:
+- `replace()` replaces first occurrence anywhere in the string, not just at start
+- `startsWith()` + `slice()` is explicit about the expected format
+- Validates the prefix is present before extracting
+- Empty values after prefix are explicitly handled
+
+---
+
+## Deno Project Scripting
+
+### Scripts Location
+
+Scope: Deno projects with package.json
+
+Rule: Keep scripts in `package.json` when project has one. Don't duplicate in
+`deno.json` tasks.
+
+Correct:
+
+```json
+// package.json
+{
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "build": "vite build",
+    "start": "deno run -A .output/server/index.mjs"
+  }
+}
+
+// deno.json - minimal, no tasks
+{
+  "name": "@scope/project",
+  "imports": { "@/": "./src/" }
+}
+```
+
+Incorrect:
+
+```json
+// deno.json - duplicating package.json scripts
+{
+  "tasks": {
+    "dev": "deno run -A npm:vite dev --port 3000",
+    "build": "deno run -A npm:vite build"
+  }
+}
+```
+
+### Avoid Redundant Scripts
+
+Scope: Deno projects
+
+Rule: Don't add wrapper scripts for built-in Deno commands. Use `deno lint`,
+`deno fmt`, `deno install --allow-scripts` directly.
+
+Correct:
+
+```bash
+deno lint
+deno fmt
+deno install --allow-scripts
+```
+
+Incorrect:
+
+```json
+{
+  "scripts": {
+    "lint": "deno lint",
+    "fmt": "deno fmt",
+    "install:deps": "deno install --allow-scripts"
+  }
+}
+```
+
+### Use Package Aliases
+
+Scope: Deno projects with npm dependencies
+
+Rule: When a package is aliased in dependencies, use the alias directly instead
+of `deno run -A npm:package-name`.
+
+Correct:
+
+```json
+// package.json
+{
+  "devDependencies": {
+    "vite": "npm:rolldown-vite@^7.3.1"
+  },
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "build": "vite build"
+  }
+}
+```
+
+Incorrect:
+
+```json
+{
+  "scripts": {
+    "dev": "deno run -A npm:rolldown-vite dev --port 3000",
+    "build": "deno run -A npm:rolldown-vite build"
+  }
+}
+```
+
+### Workspace Configuration
+
+Scope: Deno workspaces
+
+Rule: Only root `deno.json` can have workspace-level keys like `nodeModulesDir`,
+`compilerOptions`, `lint`, `fmt`. Member projects have minimal config.
+
+Correct:
+
+```json
+// Root deno.json
+{
+  "nodeModulesDir": "auto",
+  "workspace": ["./apps/webclient"],
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  },
+  "lint": { "rules": { "tags": ["recommended"] } },
+  "fmt": { "lineWidth": 120 }
+}
+
+// apps/webclient/deno.json - minimal
+{
+  "name": "@aya/webclient",
+  "version": "1.0.0",
+  "imports": { "@/": "./src/" }
+}
+```
+
+Incorrect:
+
+```json
+// apps/webclient/deno.json - workspace member with root-only keys
+{
+  "name": "@aya/webclient",
+  "nodeModulesDir": "auto",
+  "compilerOptions": { "jsx": "react-jsx" }
+}
+```
+
+---
+
+## React Component Patterns
+
+### CSS Modules with @apply
+
+Scope: React components with Tailwind CSS
+
+Rule: Use CSS Modules with Tailwind `@apply` directive as primary styling
+approach. Each component should have a co-located `*.module.css` file with
+semantic class names. Direct Tailwind classes should be used sparingly.
+
+Correct:
+
+```css
+/* product-card.module.css */
+.product-card {
+  @apply border rounded-lg p-4 shadow-md flex flex-col gap-2;
+
+  & .title {
+    @apply text-xl font-bold mb-2;
+  }
+
+  & .description {
+    @apply text-sm text-gray-600;
+  }
+}
+```
+
+```typescript
+// ProductCard.tsx
+import styles from "./product-card.module.css";
+
+type ProductCardProps = {
+  product: { name: string; description: string };
+};
+
+function ProductCard(props: ProductCardProps) {
+  return (
+    <div className={styles["product-card"]}>
+      <h3 className={styles.title}>{props.product.name}</h3>
+      <p className={styles.description}>{props.product.description}</p>
+    </div>
+  );
+}
+```
+
+Incorrect:
+
+```typescript
+// ❌ Inline Tailwind classes everywhere
+function ProductCard(props: ProductCardProps) {
+  return (
+    <div className="border rounded-lg p-4 shadow-md flex flex-col gap-2">
+      <h3 className="text-xl font-bold mb-2">{props.product.name}</h3>
+      <p className="text-sm text-gray-600">{props.product.description}</p>
+    </div>
+  );
+}
+
+// ❌ Inline styles
+function ProductCard(props: ProductCardProps) {
+  return (
+    <div style={{ border: "1px solid", padding: "16px" }}>
+      {props.product.name}
+    </div>
+  );
+}
+```
+
+**When Direct Tailwind is Acceptable:**
+
+- Very simple, non-reusable micro-adjustments
+- Global layout containers in top-level pages
+- Use `cn` utility when combining: `className={cn(styles.button, "mt-2")}`
+
+---
+
+### Single Props Object Pattern
+
+Scope: React components
+
+Rule: Accept single props object instead of destructuring in function signature.
+Access via `props.propertyName` for better readability and refactoring.
+
+Correct:
+
+```typescript
+type UserProfileProps = {
+  userId: string;
+  showActions: boolean;
+};
+
+function UserProfile(props: UserProfileProps) {
+  return (
+    <div>
+      <h1>User: {props.userId}</h1>
+      {props.showActions && <button type="button">Edit</button>}
+    </div>
+  );
+}
+```
+
+Incorrect:
+
+```typescript
+// ❌ Destructured props in signature
+function UserProfile({ userId, showActions }: UserProfileProps) {
+  return (
+    <div>
+      <h1>User: {userId}</h1>
+      {showActions && <button type="button">Edit</button>}
+    </div>
+  );
+}
+```
+
+---
+
+### Named Exports for Components
+
+Scope: React components
+
+Rule: Prefer named exports for React components. Default exports only for
+framework-required files (page.tsx, layout.tsx).
+
+Correct:
+
+```typescript
+// UserProfile.tsx
+export function UserProfile(props: UserProfileProps) {
+  return <div>{props.name}</div>;
+}
+
+// page.tsx (framework required)
+export default function HomePage() {
+  return <main>...</main>;
+}
+```
+
+Incorrect:
+
+```typescript
+// ❌ Default export for regular component
+function UserProfile(props: UserProfileProps) {
+  return <div>{props.name}</div>;
+}
+export default UserProfile;
+
+// ❌ Re-export as default
+export { UserProfile as default };
+```
+
+---
+
+### React v19 Compiler Compatibility
+
+Scope: React v19+ projects
+
+Rule: Write compiler-friendly code. Minimize manual memoization. The React
+compiler handles optimization automatically.
+
+Correct:
+
+```typescript
+// ✅ Let compiler optimize
+function ExpensiveList(props: { items: Item[] }) {
+  const sorted = props.items.toSorted((a, b) => a.name.localeCompare(b.name));
+  return (
+    <ul>
+      {sorted.map((item) => (
+        <li key={item.id}>{item.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+Incorrect:
+
+```typescript
+// ❌ Manual memoization without profiling evidence
+function ExpensiveList(props: { items: Item[] }) {
+  const sorted = useMemo(
+    () => props.items.toSorted((a, b) => a.name.localeCompare(b.name)),
+    [props.items],
+  );
+  return (
+    <ul>
+      {sorted.map((item) => (
+        <li key={item.id}>{item.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+**Guidelines:**
+
+- Favor idiomatic React patterns
+- Only add `useMemo`/`useCallback` after profiling shows benefit
+- React Strict Mode enabled for better development experience
+
+---
+
+## Testability
+
+### Pure Function Extraction
+
+Scope: JS/TS (Deno-tested frontend utilities)
+
+Rule: Pure functions should be kept free of environment/framework dependencies
+(like `import.meta.env`, Vite-specific APIs, React context) to enable direct
+testing with Deno's test runner. When a utility file needs both pure logic and
+environment config, extract the pure logic into a separate file.
+
+Correct:
+
+```typescript
+// locale-utils.ts — pure functions, no import.meta.env
+export const SUPPORTED_LOCALES = ["en", "tr", "fr"] as const;
+export function isValidLocale(locale: string): boolean {
+  return SUPPORTED_LOCALES.includes(locale as any);
+}
+
+// config.ts — re-exports pure functions + adds env-dependent config
+export { SUPPORTED_LOCALES, isValidLocale } from "@/lib/locale-utils.ts";
+export const siteConfig = {
+  host: import.meta.env.VITE_SITE_URL,
+};
+```
+
+```typescript
+// seo-utils.ts — pure functions with explicit parameters
+export function generateMetaTags(
+  meta: SeoMeta,
+  defaults: { host: string; name: string; defaultImage: string },
+): MetaTag[] { /* ... */ }
+
+// seo.ts — thin wrapper injecting siteConfig
+import { generateMetaTags as generateMetaTagsPure } from "@/lib/seo-utils.ts";
+import { siteConfig } from "@/config.ts";
+const DEFAULTS = { host: siteConfig.host, name: siteConfig.name, defaultImage: `${siteConfig.host}/og-image.png` };
+export function generateMetaTags(meta: SeoMeta) {
+  return generateMetaTagsPure(meta, DEFAULTS);
+}
+```
+
+Incorrect:
+
+```typescript
+// ❌ Pure logic mixed with env dependency — untestable with Deno
+import { siteConfig } from "@/config.ts"; // transitively imports import.meta.env
+export function buildUrl(locale: string, ...segments: string[]) {
+  return `${siteConfig.host}/${locale}/${segments.join("/")}`;
+}
+```
+
+Naming convention: `foo-utils.ts` for pure functions, `foo.ts` for the
+config-aware wrapper that re-exports and/or delegates to the utils file.
+
+### Snapshot Testing Pattern
+
+Scope: Deno test files (`*.test.ts`)
+
+Rule: Use `assertSnapshot` from `@std/testing/snapshot` for anti-regression
+tests. Test files need `/// <reference lib="deno.ns" />` since the project
+tsconfig targets Vite/React. Use `--no-check` flag when Deno's type checker
+conflicts with Vite-compatible types (e.g., Zod v4).
+
+Correct:
+
+```typescript
+/// <reference lib="deno.ns" />
+import { assertSnapshot } from "@std/testing/snapshot";
+import { myFunction } from "./my-utils.ts";
+
+Deno.test("myFunction - descriptive case name", async (t) => {
+  await assertSnapshot(t, myFunction("input"));
+});
+```
+
+Test commands (in package.json):
+
+```json
+{
+  "test": "deno test --no-check --allow-read --allow-write=. src/",
+  "test:update": "deno test --no-check --allow-read --allow-write=. -- --update src/",
+  "test:ci": "deno test --no-check --allow-read src/"
+}
+```
+
+---
+
+## Translation System
+
+### Translation Key Format
+
+Scope: Internationalized React applications
+
+Rule: Use English text as translation keys. Add translations to ALL language
+files. Use fallbacks for missing translations.
+
+Correct:
+
+```typescript
+// ✅ English text as key
+t("Auth", "Login with GitHub")
+t("Home", "AYA the Open Source Network")
+
+// ✅ With fallback
+t("Section", "Key") || "Fallback text"
+```
+
+Incorrect:
+
+```typescript
+// ❌ Snake case keys
+t("Auth.login_with_github")
+t("Home.main_title")
+```
+
+### Server vs Client Components
+
+Scope: Next.js/React Server Components
+
+Rule: Use `getTranslations` for Server Components, `useTranslations` hook for
+Client Components.
+
+Correct:
+
+```typescript
+// ✅ React Server Component
+import { getTranslations } from "@/modules/i18n/get-translations.tsx";
+
+async function MyServerComponent() {
+  const { t, locale } = await getTranslations();
+  return <h1>{t("Home", "Welcome")}</h1>;
+}
+
+// ✅ Client Component
+"use client";
+import { useTranslations } from "@/modules/i18n/use-translations.tsx";
+
+function MyClientComponent() {
+  const { t, locale } = useTranslations();
+  return <button type="button">{t("Layout", "Change theme")}</button>;
+}
+```

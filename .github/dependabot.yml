@@ -4,7 +4,6 @@
 version: 2
 
 updates:
-  # GitHub Actions - recommended for all repos
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -14,6 +13,25 @@ updates:
       include: "scope"
     labels:
       - "dependencies"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "gomod"
+    directory: "/apps/services"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "go"
+    groups:
+      go-deps:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/"
@@ -24,6 +42,10 @@ updates:
       include: "scope"
     labels:
       - "dependencies"
+    groups:
+      npm-deps:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/"

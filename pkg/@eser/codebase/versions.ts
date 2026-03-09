@@ -31,8 +31,9 @@
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as fmtColors from "@std/fmt/colors";
+import * as stdPath from "@std/path";
 import * as stdSemver from "@std/semver";
-import { fail, match, ok } from "@eser/functions/results";
+import { match, ok } from "@eser/functions/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import { type CliResult } from "@eser/shell/args";
 import * as pkg from "./package/mod.ts";
@@ -40,7 +41,7 @@ import * as pkg from "./package/mod.ts";
 /**
  * Valid version commands.
  */
-export type VersionCommand = "sync" | "patch" | "minor" | "major";
+export type VersionCommand = "sync" | "patch" | "minor" | "major" | "explicit";
 
 /**
  * Options for version operations.
@@ -50,6 +51,10 @@ export type VersionOptions = {
   readonly root?: string;
   /** Preview changes without applying */
   readonly dryRun?: boolean;
+  /** Update the VERSION file in root (default: true) */
+  readonly updateVersionFile?: boolean;
+  /** Explicit version string (used when command is "explicit") */
+  readonly explicitVersion?: string;
 };
 
 /**
@@ -85,6 +90,20 @@ export type ShowVersionsResult = {
 };
 
 /**
+ * Update information for a standalone file (e.g., VERSION).
+ */
+export type FileUpdate = {
+  /** File path relative to root */
+  readonly path: string;
+  /** Version before update */
+  readonly from: string;
+  /** Version after update */
+  readonly to: string;
+  /** Whether the file was updated */
+  readonly changed: boolean;
+};
+
+/**
  * Result of a version operation.
  */
 export type VersionsResult = {
@@ -94,10 +113,47 @@ export type VersionsResult = {
   readonly targetVersion: string;
   /** All package updates */
   readonly updates: VersionUpdate[];
+  /** Standalone file updates (e.g., VERSION file) */
+  readonly fileUpdates: FileUpdate[];
   /** Number of packages that changed */
   readonly changedCount: number;
   /** Whether this was a dry run */
   readonly dryRun: boolean;
+};
+
+/**
+ * Reads the current version from the VERSION file.
+ *
+ * @param options - Options with root directory
+ * @returns The version string, or undefined if the file doesn't exist
+ */
+export const readVersionFile = async (
+  options: VersionOptions = {},
+): Promise<string | undefined> => {
+  const { root = "." } = options;
+  const versionFilePath = stdPath.join(root, "VERSION");
+  try {
+    const content = await standardsRuntime.runtime.fs.readTextFile(
+      versionFilePath,
+    );
+    return content.trim();
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Writes a version string to the VERSION file.
+ */
+const writeVersionFile = async (
+  root: string,
+  version: string,
+): Promise<void> => {
+  const versionFilePath = stdPath.join(root, "VERSION");
+  await standardsRuntime.runtime.fs.writeTextFile(
+    versionFilePath,
+    version + "\n",
+  );
 };
 
 /**
@@ -149,19 +205,31 @@ export const versions = async (
   command: VersionCommand,
   options: VersionOptions = {},
 ): Promise<VersionsResult> => {
-  const { root = ".", dryRun = false } = options;
+  const {
+    root = ".",
+    dryRun = false,
+    updateVersionFile: shouldUpdateVersionFile = true,
+  } = options;
 
   const [rootConfig, modules] = await pkg.getWorkspaceModules(root);
 
   const rootVersion = rootConfig.version?.value ?? "0.0.0";
   const rootName = rootConfig.name?.value ?? "(root)";
 
-  // Calculate target version (including root)
+  // Calculate target version
   const allVersions = [rootVersion, ...modules.map((m) => m.version)];
   const highestVersion = findHighestVersion(allVersions);
   let targetVersion: string;
 
-  if (command === "sync") {
+  if (command === "explicit") {
+    if (options.explicitVersion === undefined) {
+      throw new Error(
+        'explicitVersion is required when command is "explicit".',
+      );
+    }
+    stdSemver.parse(options.explicitVersion); // validate format
+    targetVersion = options.explicitVersion;
+  } else if (command === "sync") {
     targetVersion = highestVersion;
   } else {
     targetVersion = stdSemver.format(
@@ -172,12 +240,11 @@ export const versions = async (
     );
   }
 
-  // Apply updates (including root)
+  // Apply package updates (including root)
   const updates: VersionUpdate[] = [];
 
   // Update root config
   const rootNeedsUpdate = rootVersion !== targetVersion;
-  // Always call updateVersion to sync all config files
   if (!dryRun) {
     await pkg.updateVersion(rootConfig, targetVersion);
   }
@@ -192,7 +259,6 @@ export const versions = async (
   for (const module of modules) {
     const needsUpdate = module.version !== targetVersion;
 
-    // Always call updateVersion to sync all config files
     if (!dryRun) {
       await pkg.updateVersion(module.config, targetVersion);
     }
@@ -205,12 +271,32 @@ export const versions = async (
     });
   }
 
+  // Update VERSION file
+  const fileUpdates: FileUpdate[] = [];
+
+  if (shouldUpdateVersionFile) {
+    const currentFileVersion = await readVersionFile({ root });
+    const fileChanged = currentFileVersion !== targetVersion;
+
+    if (!dryRun && fileChanged) {
+      await writeVersionFile(root, targetVersion);
+    }
+
+    fileUpdates.push({
+      path: "VERSION",
+      from: currentFileVersion ?? "",
+      to: targetVersion,
+      changed: fileChanged,
+    });
+  }
+
   const changedCount = updates.filter((u) => u.changed).length;
 
   return {
     command,
     targetVersion,
     updates,
+    fileUpdates,
     changedCount,
     dryRun,
   };
@@ -219,43 +305,57 @@ export const versions = async (
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<CliResult<void>> => {
-  // @ts-ignore parseArgs doesn't mutate the array, readonly is safe
-  const args = cliParseArgs.parseArgs(standardsRuntime.runtime.process.args, {
-    boolean: ["dry-run"],
-  });
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<CliResult<void>> => {
+  const args = cliParseArgs.parseArgs(
+    (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
+    { boolean: ["dry-run"] },
+  );
 
-  const command = args._[0] as VersionCommand | undefined;
+  const input = args._[0] as string | undefined;
   const dryRun = args["dry-run"] as boolean;
 
   // No command: show versions table
-  if (command === undefined) {
+  if (input === undefined) {
     const result = await showVersions();
     console.table(result.packages);
     return ok(undefined);
   }
 
-  // Validate command
+  // Determine command and options
   const validCommands = ["sync", "patch", "minor", "major"];
-  if (!validCommands.includes(command)) {
-    return fail({
-      message: `Invalid command: ${command}\n` +
-        `Usage: versions.ts [sync|patch|minor|major] [--dry-run]`,
-      exitCode: 1,
-    });
+  let command: VersionCommand;
+  let explicitVersion: string | undefined;
+
+  if (validCommands.includes(input)) {
+    command = input as VersionCommand;
+  } else {
+    command = "explicit";
+    explicitVersion = input;
   }
 
   // Execute command
   if (command === "sync") {
     console.log(`Syncing all versions...`);
+  } else if (command === "explicit") {
+    console.log(`Setting all versions to ${explicitVersion}...`);
   } else {
     console.log(`Bumping all versions (${command})...`);
   }
 
-  const result = await versions(command, { dryRun });
+  const result = await versions(command, { dryRun, explicitVersion });
 
   console.log(`Target version: ${result.targetVersion}`);
   console.table(result.updates);
+
+  for (const fileUpdate of result.fileUpdates) {
+    if (fileUpdate.changed) {
+      console.log(
+        `  ${fileUpdate.path} (${fileUpdate.from} → ${fileUpdate.to})`,
+      );
+    }
+  }
 
   if (dryRun) {
     console.log(

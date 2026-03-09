@@ -163,7 +163,9 @@ export const checkCircularDeps = async (
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<CliResult<void>> => {
+export const main = async (
+  _cliArgs?: readonly string[],
+): Promise<CliResult<void>> => {
   console.log("Checking for circular dependencies...\n");
 
   const result = await checkCircularDeps();

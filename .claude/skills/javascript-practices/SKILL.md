@@ -19,7 +19,8 @@ const port = config.port ?? 8000; // nullish coalescing
 
 ## Key Principles
 
-**Modules:** Direct named exports, namespace imports, explicit `.ts` extensions
+**Modules:** Direct named exports, namespace imports, explicit `.ts` extensions,
+avoid `export *` re-exports (use direct imports from specific modules)
 
 **Syntax:** `const` over `let`, always semicolons, `===` strict equality, `??`
 over `||`

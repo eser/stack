@@ -22,7 +22,7 @@
  * ```
  */
 
-export * from "./format-duration.ts";
-export * from "./format-number.ts";
-export * from "./format-percent.ts";
-export * from "./format-size.ts";
+export { formatDuration } from "./format-duration.ts";
+export { formatNumber } from "./format-number.ts";
+export { formatPercent } from "./format-percent.ts";
+export { formatSize } from "./format-size.ts";

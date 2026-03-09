@@ -33,7 +33,25 @@
  * @module
  */
 
-export * from "./types.ts";
+export type {
+  ConfigFileType,
+  FieldMapping,
+  FieldOrigin,
+  LoadOptions,
+  PackageConfig,
+  PackageFieldName,
+  RawConfigFile,
+  TrackedField,
+  UpdateOptions,
+  UpdateResult,
+  WorkspaceModule,
+} from "./types.ts";
+export {
+  baseDirProp,
+  CONFIG_FILE_PRIORITY,
+  ConfigFileTypes,
+  DEFAULT_FIELD_MAPPINGS,
+} from "./types.ts";
 export {
   getBaseDir,
   getFilesWithField,

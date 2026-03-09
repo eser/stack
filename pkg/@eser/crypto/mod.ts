@@ -6,4 +6,9 @@
  * @module
  */
 
-export * from "./hash.ts";
+export {
+  computeCombinedHash,
+  computeHash,
+  computeStringHash,
+  type HashAlgorithm,
+} from "./hash.ts";

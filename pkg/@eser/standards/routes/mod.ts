@@ -29,5 +29,16 @@
  * @module
  */
 
-export * from "./types.ts";
-export * from "./matcher.ts";
+export {
+  type CompiledPattern,
+  type RouteDefinition,
+  type RouteMatch,
+  type RouteParams,
+} from "./types.ts";
+export {
+  compilePattern,
+  findMatchingRoute,
+  matchPattern,
+  matchRoute,
+  normalizePath,
+} from "./matcher.ts";

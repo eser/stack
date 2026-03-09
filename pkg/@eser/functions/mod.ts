@@ -35,6 +35,34 @@ export * as options from "./options.ts";
 export * as resources from "./resources.ts";
 
 // Utility types - direct export for convenience
-export * from "./types.ts";
+export {
+  type AsyncPredicateFn,
+  type AsyncUnaryFn,
+  type Awaited,
+  type BinaryFn,
+  type Brand,
+  type ComparatorFn,
+  type DeepReadonly,
+  type Head,
+  isNonEmpty,
+  type Lazy,
+  type NonEmptyArray,
+  type OptionalKeys,
+  type PredicateFn,
+  type Promisable,
+  type RequiredKeys,
+  type Tail,
+  type UnaryFn,
+  unwrapLazy,
+} from "./types.ts";
 
-export * from "./fn.ts";
+export {
+  collect,
+  type CollectResult,
+  type Context,
+  type Middleware,
+  type Pipeline,
+  run,
+  runSync,
+  type State,
+} from "./fn.ts";

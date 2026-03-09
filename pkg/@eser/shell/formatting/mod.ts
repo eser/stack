@@ -35,6 +35,52 @@
  * ```
  */
 
-export * from "./colors.ts";
-export * from "./output.ts";
-export * from "./spinner.ts";
+export {
+  bgBlack,
+  bgBlue,
+  bgCyan,
+  bgGreen,
+  bgMagenta,
+  bgRed,
+  bgWhite,
+  bgYellow,
+  black,
+  blue,
+  bold,
+  brightBlue,
+  brightCyan,
+  brightGreen,
+  brightMagenta,
+  brightRed,
+  brightWhite,
+  brightYellow,
+  c,
+  cyan,
+  dim,
+  gray,
+  green,
+  italic,
+  magenta,
+  red,
+  strikethrough,
+  stripAnsi,
+  supportsColor,
+  underline,
+  white,
+  yellow,
+} from "./colors.ts";
+export {
+  blank,
+  boxText,
+  clearTerminal,
+  printError,
+  printInfo,
+  printItem,
+  printNextSteps,
+  printRule,
+  printSection,
+  printSuccess,
+  printTable,
+  printWarning,
+} from "./output.ts";
+export { Spinner, type SpinnerOptions } from "./spinner.ts";

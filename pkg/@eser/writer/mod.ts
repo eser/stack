@@ -1,7 +1,26 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-export * from "./types.ts";
-export * from "./format-registry.ts";
+export {
+  DeserializationError,
+  FormatNotFoundError,
+  type FormatOptions,
+  type FormatRegistry,
+  SerializationError,
+  type WriteOptions,
+  WriterError,
+  type WriterFormat,
+  type WriterInstance,
+  type WriterOptions,
+} from "./types.ts";
+export {
+  createRegistry,
+  formatRegistry,
+  getFormat,
+  hasFormat,
+  listFormats,
+  registerFormat,
+  unregisterFormat,
+} from "./format-registry.ts";
 
 // Core: one-shot serialization
 export { serialize } from "./serializer.ts";

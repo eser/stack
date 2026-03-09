@@ -28,7 +28,12 @@
  * @module
  */
 
-export * from "./types.ts";
+export {
+  type CompletionFlag,
+  type CompletionGenerator,
+  type CompletionNode,
+  type Shell,
+} from "./types.ts";
 export * as generators from "./generators/mod.ts";
 
 import type { CompletionNode, Shell } from "./types.ts";

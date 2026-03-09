@@ -80,6 +80,47 @@ import { add } from "./math/add"; // missing extension
 import { ConsoleLogger } from "./loggers"; // ambiguous directory import
 ```
 
+### Avoid Re-exports
+
+Scope: JS/TS barrel files (mod.ts, index.ts)
+
+Rule: Avoid `export *` barrel re-exports. They cause name collisions (TS2308),
+break tree-shaking, and obscure the public API surface. Consumers should import
+directly from the specific module they need. If a barrel file is necessary for a
+public API, use explicit named re-exports for a curated subset only.
+
+Correct:
+
+```typescript
+// Consumer imports directly from the specific module
+import { getCommits } from "@eser/codebase/git";
+import { discoverPackages } from "@eser/codebase/workspace-discovery";
+```
+
+```typescript
+// If a barrel is needed, use explicit named re-exports (curated API)
+export { getCommits, getTaggedVersions } from "./git.ts";
+export { discoverPackages } from "./workspace-discovery.ts";
+```
+
+Incorrect:
+
+```typescript
+// Wildcard re-exports — collisions when multiple modules export same name
+export * from "./git.ts";
+export * from "./check-circular-deps.ts";
+export * from "./check-docs.ts";
+export * from "./versions.ts";
+// TS2308: each module exports `main`, causing name collision
+```
+
+```typescript
+// Re-exporting everything when consumers only need specific modules
+export * from "./utils.ts";
+export * from "./helpers.ts";
+export * from "./constants.ts";
+```
+
 ---
 
 ## Runtime

@@ -1,5 +1,39 @@
 # Security Practices - Detailed Rules
 
+## Project-Specific Security Warnings (CRITICAL)
+
+Scope: eserstack monorepo
+
+Rule: These are absolute prohibitions for this project. No exceptions.
+
+- **NEVER** commit `.env` files or secrets to the repository
+- **NEVER** use `--allow-all` in production code (only acceptable in `scripts/` and `*.test.ts`)
+- **NEVER** bypass pre-commit hooks with `--no-verify`
+- **NEVER** push directly to `main` — always use the PR workflow
+- **NEVER** modify `deno.lock` manually — let Deno manage it
+
+Correct:
+
+```bash
+# Development scripts and tests can use broad permissions
+deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi
+
+# Production code uses minimal permissions
+deno run --allow-net=api.example.com --allow-env=API_KEY src/server.ts
+```
+
+Incorrect:
+
+```bash
+# Production with --allow-all
+deno run --allow-all src/server.ts
+
+# Skipping hooks
+git commit --no-verify -m "quick fix"
+```
+
+---
+
 ## Environment Variables for Secrets
 
 Scope: All secrets and sensitive configuration

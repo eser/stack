@@ -1,0 +1,122 @@
+# Issue types
+- name: bug
+  color: "d73a4a"
+  description: Something isn't working
+
+- name: enhancement
+  color: "a2eeef"
+  description: New feature or request
+
+- name: documentation
+  color: "0075ca"
+  description: Improvements or additions to documentation
+
+- name: question
+  color: "d876e3"
+  description: Further information is requested
+
+# Priority
+- name: priority/high
+  color: "b60205"
+  description: High priority
+
+- name: priority/low
+  color: "c5def5"
+  description: Low priority
+
+# Status
+- name: triage
+  color: "fbca04"
+  description: Needs triage
+
+- name: wontfix
+  color: "ffffff"
+  description: This will not be worked on
+
+- name: duplicate
+  color: "cfd3d7"
+  description: This issue or pull request already exists
+
+# Maintenance
+- name: chore
+  color: "fef2c0"
+  description: Maintenance tasks
+
+- name: dependencies
+  color: "0366d6"
+  description: Dependency updates
+
+# Release
+- name: breaking
+  color: "b60205"
+  description: Breaking change
+
+- name: skip-changelog
+  color: "e4e669"
+  description: Exclude from changelog
+
+# Package labels
+- name: "pkg:fp"
+  color: "6f42c1"
+  description: "Changes to @eser/fp"
+
+- name: "pkg:di"
+  color: "6f42c1"
+  description: "Changes to @eser/di"
+
+- name: "pkg:cli"
+  color: "6f42c1"
+  description: "Changes to @eser/cli"
+
+- name: "pkg:events"
+  color: "6f42c1"
+  description: "Changes to @eser/events"
+
+- name: "pkg:config"
+  color: "6f42c1"
+  description: "Changes to @eser/config"
+
+- name: "pkg:http"
+  color: "6f42c1"
+  description: "Changes to @eser/http"
+
+- name: "pkg:shell"
+  color: "6f42c1"
+  description: "Changes to @eser/shell"
+
+- name: "pkg:standards"
+  color: "6f42c1"
+  description: "Changes to @eser/standards"
+
+- name: "pkg:laroux"
+  color: "6f42c1"
+  description: "Changes to @eser/laroux and related packages"
+
+- name: "pkg:bundler"
+  color: "6f42c1"
+  description: "Changes to @eser/bundler"
+
+- name: "pkg:jsx-runtime"
+  color: "6f42c1"
+  description: "Changes to @eser/jsx-runtime"
+
+# Areas
+- name: go
+  color: "00ADD8"
+  description: "Go service changes"
+
+- name: ci/cd
+  color: "0e8a16"
+  description: CI/CD pipeline changes
+
+- name: claude-code
+  color: "1d76db"
+  description: Claude Code configuration changes
+
+- name: templates
+  color: "c2e0c6"
+  description: Project template changes
+
+- name: cool
+  color: "bfdadc"
+  description: "Changes to @cool/* packages"

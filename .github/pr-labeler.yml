@@ -1,0 +1,126 @@
+# Labeler configuration for actions/labeler
+# Auto-label PRs based on changed file paths
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.md"
+          - "docs/**"
+
+ci/cd:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+
+claude-code:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".claude/**"
+          - "CLAUDE.md"
+          - "AGENTS.md"
+
+templates:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "etc/templates/**"
+
+pkg:fp:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/fp/**"
+
+pkg:di:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/di/**"
+
+pkg:cli:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/cli/**"
+
+pkg:events:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/events/**"
+
+pkg:config:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/config/**"
+
+pkg:http:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/http/**"
+
+pkg:shell:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/shell/**"
+
+pkg:standards:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/standards/**"
+
+pkg:testing:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/testing/**"
+
+pkg:bundler:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/bundler/**"
+
+pkg:laroux:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/laroux/**"
+          - "pkg/@eser/laroux-*/**"
+
+pkg:jsx-runtime:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/jsx-runtime/**"
+
+pkg:cache:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/cache/**"
+
+pkg:logging:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/logging/**"
+
+pkg:primitives:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/primitives/**"
+
+pkg:parsing:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/parsing/**"
+
+pkg:crypto:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/crypto/**"
+
+pkg:writer:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@eser/writer/**"
+
+go:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/services/**"
+
+cool:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/@cool/**"

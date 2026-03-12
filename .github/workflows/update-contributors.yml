@@ -1,0 +1,40 @@
+name: Update Contributors
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Every Monday at 3 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-contributors:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Update contributor list
+        uses: contrib-rocks/action@v1
+        with:
+          readme-path: README.md
+          columns-per-row: 8
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet README.md; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add README.md
+          git commit -m "docs: update contributors list"
+          git push

@@ -22,4 +22,8 @@
  * @module
  */
 
-export * from "./interpolate.ts";
+export {
+  createInterpolator,
+  extractPlaceholders,
+  interpolate,
+} from "./interpolate.ts";

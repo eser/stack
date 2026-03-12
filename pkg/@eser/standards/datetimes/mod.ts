@@ -26,4 +26,11 @@
  * @module
  */
 
-export * from "./format.ts";
+export {
+  getRelativeTime,
+  isFuture,
+  isPast,
+  isToday,
+  toISODate,
+  toISODateTime,
+} from "./format.ts";

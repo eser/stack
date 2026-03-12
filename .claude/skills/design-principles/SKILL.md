@@ -1,6 +1,6 @@
 ---
 name: design-principles
-description: Code design patterns: pure functions, immutability, composition, and async. Use when designing code or functions.
+description: "Code design patterns: pure functions, immutability, composition, lazy initialization, and side-effect management. Use when designing function signatures, structuring modules, or choosing between mutable and immutable patterns."
 ---
 
 # Code Design Principles
@@ -21,7 +21,7 @@ function updateUser(user: User, age: number): User {
 - Pure functions: no side effects, same input = same output
 - Immutability: create new objects/arrays instead of mutating
 - Single responsibility: one function = one task
-- Early returns: reduce nesting, improve readability
+- Early returns: see `coding-practices` for details
 - Composition over inheritance: inject dependencies
 - Promises over callbacks for async code
 - Template strings over concatenation

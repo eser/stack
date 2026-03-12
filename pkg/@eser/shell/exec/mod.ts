@@ -48,8 +48,13 @@
  * @module
  */
 
-export * from "./types.ts";
+export {
+  CommandError,
+  type CommandOptions,
+  type CommandResult,
+  type StdioOption,
+} from "./types.ts";
 export type { ChildProcess } from "@eser/standards/runtime";
-export * from "./command.ts";
-export * from "./parser.ts";
-export * from "./exec.ts";
+export { CommandBuilder } from "./command.ts";
+export { parseCommand } from "./parser.ts";
+export { exec } from "./exec.ts";

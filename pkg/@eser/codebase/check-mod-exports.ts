@@ -207,7 +207,9 @@ export const checkModExports = async (
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<CliResult<void>> => {
+export const main = async (
+  _cliArgs?: readonly string[],
+): Promise<CliResult<void>> => {
   console.log("Checking mod.ts exports...\n");
 
   const result = await checkModExports();

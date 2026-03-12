@@ -183,7 +183,9 @@ export const checkExportNames = async (
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<CliResult<void>> => {
+export const main = async (
+  _cliArgs?: readonly string[],
+): Promise<CliResult<void>> => {
   console.log("Checking export naming conventions...\n");
 
   const result = await checkExportNames();

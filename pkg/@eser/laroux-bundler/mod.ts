@@ -40,7 +40,79 @@
  */
 
 // Re-export domain types and interfaces
-export * from "./domain/mod.ts";
+export type {
+  BaseChunkInfo,
+  BaseChunkManifest,
+  BuildIsolationReport,
+  BundleData,
+  BundleOptions,
+  BundleOutput,
+  Bundler,
+  BundleResult,
+  ChunkManifest,
+  ClientComponent,
+  ClientComponentCacheEntry,
+  ComponentChunkInfo,
+  CriticalCssResult,
+  CSSModuleCacheEntry,
+  CssPlugin,
+  CssPluginContext,
+  CssPluginOptions,
+  FileInfo,
+  FileViolation,
+  FrameworkPlugin,
+  ImportMap,
+  ImportMapEntry,
+  ModuleMap,
+  ModuleMapEntry,
+  RouteCacheEntry,
+  ScannedProxy,
+  ScannedRoute,
+  ScanResult,
+  ServerActionTransformResult,
+  ServerBundleOptions,
+  ServerBundleResult,
+  TransformResult,
+  UniversalCssResult,
+  VirtualSourceOptions,
+  VirtualSourceResult,
+} from "./domain/mod.ts";
+export {
+  analyzeBundleResult,
+  BuildCache,
+  bundle,
+  bundleServerComponents,
+  cleanSrcArtifacts,
+  createIsolatedWriter,
+  createVirtualSource,
+  generateApiRouteFile,
+  generateChunkManifest,
+  generateProxyFile,
+  generateRouteFile,
+  getComponentName,
+  getExternals,
+  getGlobalBuildCache,
+  getLayoutName,
+  invalidateRouteCache,
+  isExternal,
+  isWithinOutputDir,
+  loadChunkManifest,
+  loadImportMap,
+  logBundleStats,
+  logManifest,
+  noopPlugin,
+  resetGlobalBuildCache,
+  resolveSpecifier,
+  saveChunkManifest,
+  scanRoutes,
+  transformServerActionFile,
+  transformServerActions,
+  translateClientComponents,
+  translateFromVirtualPath,
+  translateToVirtualPath,
+  validateBuildIsolation,
+  VIRTUAL_SRC_DIR,
+} from "./domain/mod.ts";
 
 // Re-export build system
 export {
@@ -54,8 +126,25 @@ export {
 } from "./system.ts";
 
 // Re-export configuration
-export * from "./config.ts";
-export * from "./types.ts";
+export type { BuildSettings, BundlerBackend } from "./config.ts";
+export { DEVELOPMENT_SETTINGS, PRODUCTION_SETTINGS } from "./config.ts";
+
+export type { BuildConfig } from "./types.ts";
+export type {
+  FontDefinition,
+  FontDisplay,
+  FontProvider,
+  FontStyle,
+  FontWeight,
+  ImageFormat,
+  ImageOutputFormat,
+  ImagePlaceholder,
+  LogLevel,
+  ResolvedBrowserShimsConfig,
+  ResolvedImageConfig,
+  ResolvedImageQuality,
+} from "./types.ts";
+export { BuildError, buildErrors } from "./types.ts";
 
 // Re-export bundler plugins
 export {

@@ -30,5 +30,20 @@
  * @module
  */
 
-export * from "./types.ts";
-export * from "./locales.ts";
+export {
+  type LocaleInfo,
+  type Messages,
+  type TextDirection,
+  type TranslateFn,
+} from "./types.ts";
+export {
+  COMMON_LOCALES,
+  type CommonLocaleCode,
+  DEFAULT_LOCALE,
+  getLanguageCode,
+  getTextDirection,
+  isCommonLocale,
+  isRtlLocale,
+  parseLocale,
+  RTL_LOCALES,
+} from "./locales.ts";

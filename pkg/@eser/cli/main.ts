@@ -3,15 +3,15 @@
 /**
  * eser - Eser Ozvataf's command-line tooling to access things
  *
- * A multi-purpose command-line tool for development workflows.
- * Similar in design to `gh` (GitHub CLI) or `wrangler` (Cloudflare).
+ * A multi-purpose command-line tool that dispatches to library modules.
  *
  * Usage:
  *   deno run -A ./main.ts <command> [subcommand] [options]
- *   dx jsr:@eser/cli <command> [subcommand] [options]
+ *   npx eser <command> [subcommand] [options]
  *
  * Commands:
- *   codebase    Codebase management tools
+ *   codebase    Codebase management tools (versions, validation, scaffolding, ...)
+ *   laroux      laroux.js framework commands (init, dev, build, serve)
  *   system      Commands related with this CLI
  *   install     Install eser CLI globally (alias for system install)
  *   update      Update eser CLI to latest version (alias for system update)
@@ -24,14 +24,11 @@ import { fail, match, ok } from "@eser/functions/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import {
   type CliResult,
-  Command,
   type CommandContext,
   type CommandLike,
 } from "@eser/shell/args";
-import { codebaseCommand } from "./commands/codebase/mod.ts";
-import { larouxCommand } from "./commands/laroux/mod.ts";
-import { systemCommand } from "./commands/system.ts";
-import { installHandler, updateHandler } from "./commands/handlers/mod.ts";
+import { dispatch, showPackageHelp } from "./dispatch.ts";
+import { registry } from "./registry.ts";
 import config from "./package.json" with { type: "json" };
 
 type CommandHandler = (
@@ -39,7 +36,7 @@ type CommandHandler = (
   flags: Record<string, unknown>,
 ) => Promise<CliResult<void>>;
 
-// Wrapper to adapt Command.parse() to the new Result-based signature
+// Wrapper to adapt Command.parse() to CommandHandler signature
 const wrapCommand = (
   cmd: { parse: (args: string[]) => Promise<CliResult<void>> },
 ): CommandHandler => {
@@ -48,13 +45,12 @@ const wrapCommand = (
   };
 };
 
-// Wrapper to adapt new handler to Result signature
+// Wrapper to adapt handler to CommandHandler signature
 const wrapHandler = (
   handler: (ctx: CommandContext) => Promise<CliResult<void>>,
   commandName: string,
 ): CommandHandler => {
   return async (_args: string[], flags: Record<string, unknown>) => {
-    // Create a minimal CommandLike for the root
     const mockRoot: CommandLike = {
       name: "eser",
       completions: () => "",
@@ -69,94 +65,107 @@ const wrapHandler = (
   };
 };
 
-const versionCommand = new Command("version")
-  .description("Show version number")
-  .flag({
-    name: "bare",
-    type: "boolean",
-    description: "Output version number only, without 'eser' prefix",
-  })
-  .run((ctx) => {
-    if (ctx.flags["bare"] === true) {
-      // deno-lint-ignore no-console
-      console.log(config.version);
-    } else {
-      // deno-lint-ignore no-console
-      console.log(`eser ${config.version}`);
-    }
-    return Promise.resolve(ok(undefined));
-  });
-
-const commands: Record<string, CommandHandler> = {
-  codebase: codebaseCommand,
-  laroux: wrapCommand(larouxCommand),
-  system: wrapCommand(systemCommand),
-  install: wrapHandler(installHandler, "install"),
-  update: wrapHandler(updateHandler, "update"),
-  version: wrapCommand(versionCommand),
+// Tier 2 & 3: Lazy-loaded intrinsic commands (orchestration + CLI-specific)
+const intrinsicCommands: Record<
+  string,
+  () => Promise<CommandHandler>
+> = {
+  laroux: async () => {
+    const { larouxCommand } = await import("./commands/laroux/mod.ts");
+    return wrapCommand(larouxCommand);
+  },
+  system: async () => {
+    const { systemCommand } = await import("./commands/system.ts");
+    return wrapCommand(systemCommand);
+  },
+  install: async () => {
+    const { installHandler } = await import("./commands/handlers/mod.ts");
+    return wrapHandler(installHandler, "install");
+  },
+  update: async () => {
+    const { updateHandler } = await import("./commands/handlers/mod.ts");
+    return wrapHandler(updateHandler, "update");
+  },
+  version: () => {
+    const handler: CommandHandler = (_args, flags) => {
+      if (flags["bare"] === true) {
+        console.log(config.version);
+      } else {
+        console.log(`eser ${config.version}`);
+      }
+      return Promise.resolve(ok(undefined));
+    };
+    return Promise.resolve(handler);
+  },
 };
 
 const showHelp = (): void => {
-  // deno-lint-ignore no-console
   console.log("eser - Eser Ozvataf's command-line tooling to access things\n");
-  // deno-lint-ignore no-console
   console.log("Usage: eser <command> [subcommand] [options]\n");
-  // deno-lint-ignore no-console
   console.log("Commands:");
-  // deno-lint-ignore no-console
-  console.log("  codebase    Codebase management tools");
-  // deno-lint-ignore no-console
+
+  // Registry-based commands (Tier 1)
+  for (const [name, pkg] of Object.entries(registry)) {
+    console.log(`  ${name.padEnd(14)} ${pkg.description}`);
+  }
+
+  // Intrinsic commands (Tier 2 & 3)
   console.log(
-    "  laroux      laroux.js framework commands (init, dev, build, serve)",
+    "  laroux        laroux.js framework commands (init, dev, build, serve)",
   );
-  // deno-lint-ignore no-console
-  console.log("  system      Commands related with this CLI");
-  // deno-lint-ignore no-console
+  console.log("  system        Commands related with this CLI");
   console.log(
-    "  install     Install eser CLI globally (alias for system install)",
+    "  install       Install eser CLI globally (alias for system install)",
   );
-  // deno-lint-ignore no-console
   console.log(
-    "  update      Update eser CLI to latest version (alias for system update)",
+    "  update        Update eser CLI to latest version (alias for system update)",
   );
-  // deno-lint-ignore no-console
-  console.log("  version     Show version number");
-  // deno-lint-ignore no-console
+  console.log("  version       Show version number");
+
   console.log("\nOptions:");
-  // deno-lint-ignore no-console
-  console.log("  -h, --help  Show this help message");
-  // deno-lint-ignore no-console
+  console.log("  -h, --help    Show this help message");
   console.log("\nRun 'eser <command> --help' for command-specific help.");
 };
 
 export const main = async (): Promise<CliResult<void>> => {
   // @ts-ignore parseArgs doesn't mutate the array, readonly is safe
   const args = cliParseArgs.parseArgs(standardsRuntime.runtime.process.args, {
-    boolean: ["help"],
+    boolean: ["help", "bare"],
     alias: { h: "help" },
-    stopEarly: true, // Stop parsing at first non-option to pass rest to subcommand
+    stopEarly: true,
   });
 
   const command = args._[0] as string | undefined;
 
-  // Show main help only if no command or help without command
   if (command === undefined) {
     showHelp();
     return ok(undefined);
   }
 
-  const handler = commands[command];
-  if (handler === undefined) {
-    // deno-lint-ignore no-console
-    console.error(`Unknown command: ${command}`);
-    // deno-lint-ignore no-console
-    console.log("");
-    showHelp();
-    return fail({ exitCode: 1 });
+  // Tier 1: Registry-based dispatch (dynamic import → module main())
+  if (command in registry) {
+    const moduleName = args._[1] as string | undefined;
+
+    if (moduleName === undefined || args.help === true) {
+      showPackageHelp(command);
+      return ok(undefined);
+    }
+
+    const remainingArgs = args._.slice(2) as string[];
+    return await dispatch(command, moduleName, remainingArgs);
   }
 
-  // Pass remaining args to command handler
-  return await handler(args._.slice(1) as string[], args);
+  // Tier 2 & 3: Intrinsic commands (lazy-loaded)
+  if (command in intrinsicCommands) {
+    const loader = intrinsicCommands[command]!;
+    const handler = await loader();
+    return await handler(args._.slice(1) as string[], args);
+  }
+
+  console.error(`Unknown command: ${command}`);
+  console.log("");
+  showHelp();
+  return fail({ exitCode: 1 });
 };
 
 if (import.meta.main) {
@@ -165,7 +174,6 @@ if (import.meta.main) {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {
-        // deno-lint-ignore no-console
         console.error(error.message);
       }
       standardsRuntime.runtime.process.setExitCode(error.exitCode);

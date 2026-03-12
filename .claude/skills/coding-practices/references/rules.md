@@ -477,3 +477,158 @@ throw new Error("Something went wrong"); // no context
 throw originalError; // no wrapping, loses context
 throw new Error(originalError.message); // loses stack trace
 ```
+
+---
+
+## Explicit Checks (CRITICAL)
+
+Scope: All languages
+
+Rule: NEVER use implicit/truthy/falsy checks except for boolean values. Always
+use explicit comparisons for null, undefined, empty strings, and zero values.
+
+Correct:
+
+```typescript
+// Explicit null/undefined checks
+if (value === null) {}
+if (value !== undefined) {}
+
+// Explicit string checks
+if (string === "") {}
+if (string.length === 0) {}
+
+// Explicit array checks
+if (array.length === 0) {}
+if (items.length > 0) {}
+
+// Explicit number checks
+if (count === 0) {}
+if (index !== -1) {}
+
+// Boolean values can use implicit checks
+if (!response.ok) {}
+if (isValid) {}
+if (user.isActive) {}
+
+// Ternary with explicit checks
+const result = value !== null ? value : defaultValue;
+```
+
+Incorrect:
+
+```typescript
+// ❌ Implicit truthy/falsy checks
+if (!value) {}           // Fails for 0, "", false
+if (!string) {}          // Fails for ""
+if (!array.length) {}    // Fails for 0
+if (user) {}             // Ambiguous
+
+// ❌ Implicit ternary
+const result = value || defaultValue;  // Fails if value is 0 or ""
+```
+
+**Why This Matters:**
+
+- `0`, `""`, `false`, `null`, `undefined` are all falsy in JavaScript
+- Implicit checks can cause subtle bugs when these are valid values
+- Explicit checks document intent and prevent ambiguity
+- Makes code review easier - intent is clear
+
+---
+
+## Identity Comparison
+
+Scope: All languages
+
+Rule: Always compare entities by their stable unique identifiers (IDs), never by
+display strings like slugs, usernames, emails, or titles. Strings are mutable,
+can be duplicated, and may have formatting differences (whitespace, casing).
+IDs are immutable and guaranteed unique.
+
+Correct:
+
+```typescript
+// Compare by ID — stable and unambiguous
+const isAuthorProfile = story.author_profile?.id === profile.id;
+const isSameUser = comment.user_id === currentUser.id;
+const isOwnProfile = membership.profile_id === userProfile.id;
+```
+
+```go
+// Go — same principle
+if story.AuthorProfileID == profile.ID {
+    // author's own profile
+}
+```
+
+Incorrect:
+
+```typescript
+// ❌ Comparing by slug — can change, may have formatting issues
+const isAuthorProfile = story.author_profile?.slug === slug;
+
+// ❌ Comparing by username — can change, case-sensitive issues
+const isSameUser = comment.username === currentUser.username;
+
+// ❌ Comparing by email — can change, normalization issues
+const isOwner = member.email === user.email;
+```
+
+**Why This Matters:**
+
+- Slugs, usernames, and emails can be renamed or reformatted
+- String comparisons are vulnerable to whitespace, casing, and encoding issues
+- IDs are immutable, unique, and indexed for performance
+- Using IDs makes refactoring safer — renaming a slug won't break logic
+
+---
+
+## Early Returns
+
+Scope: All languages
+
+Rule: Use early returns to reduce nesting and improve readability. Handle error
+cases first, then proceed with the happy path.
+
+Correct:
+
+```typescript
+function processUser(user: User | null): Result {
+  if (user === null) {
+    return { error: "User not found" };
+  }
+
+  if (!user.isActive) {
+    return { error: "User is inactive" };
+  }
+
+  // Happy path - no nesting
+  const profile = loadProfile(user.id);
+  return { data: profile };
+}
+```
+
+Incorrect:
+
+```typescript
+function processUser(user: User | null): Result {
+  if (user !== null) {
+    if (user.isActive) {
+      const profile = loadProfile(user.id);
+      return { data: profile };
+    } else {
+      return { error: "User is inactive" };
+    }
+  } else {
+    return { error: "User not found" };
+  }
+}
+```
+
+**Benefits:**
+
+- Reduces cognitive load from nested conditionals
+- Error handling is visible at the top
+- Main logic flows naturally without indentation
+- Easier to add new validation checks

@@ -1,6 +1,6 @@
 ---
 name: coding-practices
-description: Code quality practices: error handling, validation, logging, and DRY. Use when writing or reviewing code.
+description: "Code quality: error handling, validation, logging, DRY, and self-documenting code. Use when writing or reviewing code quality, handling errors, or validating inputs. Do NOT use for language-specific syntax (use javascript-practices or go-practices)."
 ---
 
 # Coding Practices
@@ -20,14 +20,24 @@ function createUser(email: string, age: number): User {
 
 ## Key Principles
 
+- Compare entities by IDs, never by slugs/usernames/strings
 - Use meaningful names (self-documenting code)
 - Comments explain "why", not "what"
 - DRY: abstract when used 3+ times
 - Validate all input data
 - Handle all error cases with proper Error objects
-- Never ignore errors
+- Never ignore errors — handle or propagate with context
 - Use named constants instead of magic values
-- Avoid circular dependencies
+- Explicit checks only — never use truthy/falsy for non-booleans
+- Early returns to reduce nesting (guard clauses first)
+
+## Anti-Patterns
+
+**"I'll add a quick `if (!value)` check"**
+No. Use explicit comparisons: `value === null`, `value === undefined`, `str === ""`.
+
+**"I'll just throw `new Error('failed')`"**
+No. Include context: domain-specific error types, `{ cause: error }`, correlation IDs.
 
 ## References
 

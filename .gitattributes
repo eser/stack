@@ -1,3 +1,16 @@
 # Set the default behavior as unix line endings for all text files,
 # in case people don't have core.autocrlf set.
 * text=auto eol=lf
+
+# Treat lock files as binary (don't diff)
+*.lock binary
+go.sum linguist-generated
+deno.lock linguist-generated
+
+# Prevent lock files from skewing GitHub language statistics
+*.lock linguist-vendored
+*.wasm linguist-vendored
+
+# Documentation overrides
+*.md linguist-documentation
+*.yml linguist-documentation=false

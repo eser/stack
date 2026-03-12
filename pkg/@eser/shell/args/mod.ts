@@ -39,7 +39,22 @@
  * @module
  */
 
-export * from "./types.ts";
-export * from "./command.ts";
-export * from "./flags.ts";
-export * from "./help.ts";
+export {
+  type ArgsConfig,
+  type ArgsValidation,
+  type CliError,
+  type CliResult,
+  type CommandContext,
+  type CommandHandler,
+  type CommandLike,
+  type FlagDef,
+  type FlagType,
+} from "./types.ts";
+export { Command } from "./command.ts";
+export {
+  buildParseOptions,
+  coerceValue,
+  extractFlags,
+  validateRequiredFlags,
+} from "./flags.ts";
+export { generateHelp, type HelpCommandMeta } from "./help.ts";

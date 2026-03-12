@@ -1,6 +1,6 @@
 ---
 name: javascript-practices
-description: JS/TS conventions for syntax, modules, and types. Use when writing or reviewing JavaScript/TypeScript code.
+description: "JavaScript/TypeScript conventions: ES modules, Deno runtime, React patterns, async/await, and type handling. Use when writing .ts, .tsx, or .js files, configuring imports, or building React components."
 ---
 
 # JavaScript/TypeScript Practices
@@ -19,7 +19,8 @@ const port = config.port ?? 8000; // nullish coalescing
 
 ## Key Principles
 
-**Modules:** Direct named exports, namespace imports, explicit `.ts` extensions
+**Modules:** Direct named exports, namespace imports, explicit `.ts` extensions,
+avoid `export *` re-exports (use direct imports from specific modules)
 
 **Syntax:** `const` over `let`, always semicolons, `===` strict equality, `??`
 over `||`
@@ -32,6 +33,9 @@ over `||`
 
 **Async:** Use `return await` consistently for better stack traces and correct
 error handling
+
+**Deno:** Scripts in `package.json` (not deno.json tasks), use package aliases
+directly, no wrapper scripts for built-in commands
 
 **Avoid:** `eval`, prototype mutation, truthy/falsy checks on non-booleans
 

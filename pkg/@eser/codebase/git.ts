@@ -234,3 +234,36 @@ export const commit = async (
 export const push = async (remote: string, branch: string): Promise<void> => {
   await exec`git push ${remote} ${branch}`.spawn();
 };
+
+/**
+ * Creates an annotated git tag.
+ *
+ * @param tag - The tag name (e.g., "v1.0.0")
+ * @param message - The tag annotation message
+ *
+ * @example
+ * ```typescript
+ * await createTag("v1.0.0", "Release v1.0.0");
+ * ```
+ */
+export const createTag = async (
+  tag: string,
+  message: string,
+): Promise<void> => {
+  await exec`git tag -a ${tag} -m ${message}`.spawn();
+};
+
+/**
+ * Pushes a tag to a remote repository.
+ *
+ * @param remote - The remote name (e.g., "origin")
+ * @param tag - The tag name to push
+ *
+ * @example
+ * ```typescript
+ * await pushTag("origin", "v1.0.0");
+ * ```
+ */
+export const pushTag = async (remote: string, tag: string): Promise<void> => {
+  await exec`git push ${remote} ${tag}`.spawn();
+};

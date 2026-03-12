@@ -1,9 +1,9 @@
 ---
 name: go-practices
-description: Go conventions for hexagonal architecture, project structure, error handling, testing, and observability. Use when writing Go services.
+description: "Go service conventions: hexagonal architecture, snake_case files, error wrapping with fmt.Errorf, table-driven tests, and OpenTelemetry. Use when writing .go files or creating Go services."
 ---
 
-# go-practices
+# Go Practices
 
 ## Quick Start
 

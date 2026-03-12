@@ -360,3 +360,123 @@ export const reactPlugin: FrameworkPlugin = {
   },
 };
 ```
+
+---
+
+## Centralized Backend Object Pattern
+
+Scope: Frontend applications communicating with backend APIs
+
+Rule: Use a centralized backend object as single entry point for all API
+communication. Import the backend object, not individual functions. Type imports
+only from submodules.
+
+**Structure:**
+
+```
+src/modules/backend/
+├── backend.ts              # Main entry - exports backend object
+├── fetcher.ts              # HTTP client utilities
+├── types.ts                # Shared types
+├── profiles/
+│   ├── get-profile.ts      # Individual function
+│   ├── list-profiles.ts
+│   └── types.ts            # Profile-specific types
+└── users/
+    ├── get-user.ts
+    └── types.ts
+```
+
+Correct:
+
+```typescript
+// ✅ Import via centralized backend object
+import { backend } from "@/modules/backend/backend.ts";
+import type { Profile } from "@/modules/backend/types.ts";
+
+async function UserProfile(props: { profileId: string }) {
+  const profile = await backend.getProfile("en", props.profileId);
+  return <div>{profile.title}</div>;
+}
+```
+
+Incorrect:
+
+```typescript
+// ❌ Direct function imports bypass abstraction
+import { getProfile } from "@/modules/backend/profiles/get-profile.ts";
+
+async function UserProfile(props: { profileId: string }) {
+  const profile = await getProfile("en", props.profileId);
+  return <div>{profile.title}</div>;
+}
+
+// ❌ Inline fetch logic in components
+async function UserProfile(props: { profileId: string }) {
+  const response = await fetch(`/api/profiles/${props.profileId}`);
+  const profile = await response.json();
+  return <div>{profile.title}</div>;
+}
+```
+
+**Backend Object Implementation:**
+
+```typescript
+// backend.ts
+import { getProfile } from "./profiles/get-profile.ts";
+import { listProfiles } from "./profiles/list-profiles.ts";
+import { getUser } from "./users/get-user.ts";
+
+export const backend = {
+  // Profiles
+  getProfile,
+  listProfiles,
+
+  // Users
+  getUser,
+} as const;
+```
+
+**Benefits:**
+
+- Single source of truth for all backend functionality
+- Clear contract between frontend and backend
+- Easier to mock in tests
+- Simplified refactoring when API changes
+- Type safety across the application
+
+---
+
+## Monorepo Structure
+
+Scope: Large projects with multiple applications
+
+Rule: Organize code into apps/ for deployable applications and packages/ for
+shared libraries. Each app follows domain-specific patterns.
+
+**Structure:**
+
+```
+project/
+├── apps/
+│   ├── webclient/                # Frontend application
+│   │   └── src/
+│   │       ├── routes/           # File-based routing
+│   │       ├── components/       # UI components
+│   │       ├── modules/          # Feature modules
+│   │       └── lib/              # Utilities
+│   └── services/                 # Backend services
+│       └── pkg/
+│           ├── api/
+│           │   ├── business/     # Pure business logic
+│           │   └── adapters/     # External implementations
+│           └── lib/              # Shared libraries
+└── packages/                     # Shared packages (future)
+```
+
+**Rules:**
+
+- Frontend apps use file-based routing when framework supports it
+- Backend services follow hexagonal architecture
+- Shared code goes in packages/ with clear dependencies
+- Each app has its own build configuration

@@ -37,6 +37,7 @@
   "exclude": [
     ".claude/",
     ".git",
+    "apps/",
     "docs/",
     "etc/temp/",
     "etc/templates/",

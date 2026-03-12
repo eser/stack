@@ -13,7 +13,7 @@ separation of concerns.
   dependencies
 - **Adapters** (`pkg/api/adapters/`) - External integrations (HTTP, Redis, LLM
   providers)
-- **Framework** (`pkg/ajan/`) - Shared infrastructure components
+- **Framework** (`pkg/eser-go/`) - Shared infrastructure components
 - **Applications** (`cmd/`) - Entry points (serve, cli)
 
 **Key Rules:**
@@ -76,7 +76,7 @@ apps/go-project/
 ├── docs/                # Project-specific documentation
 ├── ops/                 # Dockerfiles, Grafana dashboards, k8s configs
 └── pkg/                 # Core application logic
-    ├── ajan/            # Shared framework (processfx, logfx, etc.)
+    ├── eser-go/         # Shared framework (processfx, logfx, etc.)
     └── api/
         ├── adapters/    # External integrations
         └── business/    # Ports and business logic
@@ -155,7 +155,7 @@ log sensitive information.
 
 - Repository layer: Only `warn`, `debug`, `trace` levels
 - Service layer: Log successful operations at `info` level
-- Use structured logging via `pkg/ajan/logfx`
+- Use structured logging via `pkg/eser-go/logfx`
 - Include trace IDs and context for correlation
 
 Correct:
@@ -363,6 +363,46 @@ type EverythingInterface interface {
     Delete() error
     Update() error
     // Too many methods
+}
+```
+
+---
+
+## JSON Encoding (jsonv2)
+
+Scope: All Go JSON operations
+
+Rule: Prefer `encoding/json/v2` (jsonv2) over `encoding/json`
+wherever possible for JSON marshaling/unmarshaling.
+
+**Guidelines:**
+
+- Import `encoding/json/v2` instead of `encoding/json`
+- Use jsonv2 struct tags and features (e.g., `omitzero`, `inline`, format options)
+- Leverage jsonv2's stricter and more correct default behavior
+- Use `json.Marshal` / `json.Unmarshal` from the v2 package
+
+Correct:
+
+```go
+import "encoding/json/v2"
+
+type User struct {
+    Name  string `json:"name"`
+    Email string `json:"email,omitzero"`
+}
+
+data, err := json.Marshal(user)
+```
+
+Incorrect:
+
+```go
+import "encoding/json"  // Use v2 instead
+
+type User struct {
+    Name  string `json:"name"`
+    Email string `json:"email,omitempty"`
 }
 ```
 

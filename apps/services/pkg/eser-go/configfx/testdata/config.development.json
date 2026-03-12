@@ -1,0 +1,11 @@
+{
+  "max_retry": 20,
+  "dict": {
+    "key2": "value2"
+  },
+  "arr": [
+    {
+      "name2": "eser2"
+    }
+  ]
+}

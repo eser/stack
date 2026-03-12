@@ -118,10 +118,13 @@ export const validateLicenses = async (
   ) {
     checked++;
     const content = await runtime.fs.readTextFile(entry.path);
-    const match = content.match(RX_COPYRIGHT);
+    const hasShebang = content.startsWith("#!");
+    const shebangEnd = hasShebang ? content.indexOf("\n") + 1 : 0;
+    const contentAfterShebang = content.slice(shebangEnd);
+    const copyrightMatch = contentAfterShebang.match(RX_COPYRIGHT);
 
-    if (match !== null) {
-      if (match[1] === BASE_YEAR) {
+    if (copyrightMatch !== null) {
+      if (copyrightMatch[1] === BASE_YEAR) {
         // Everything is fine
         continue;
       }
@@ -132,12 +135,14 @@ export const validateLicenses = async (
         continue;
       }
 
-      // Fix incorrect year
-      const index = match.index ?? 0;
-      const contentWithoutCopyright = content.replace(match[0], "");
-      const contentWithCopyright = `${
-        contentWithoutCopyright.substring(0, index)
-      }${COPYRIGHT}\n${contentWithoutCopyright.substring(index)}`;
+      // Fix incorrect year — replace in full content to preserve shebang
+      const shebangPart = content.slice(0, shebangEnd);
+      const restWithoutCopyright = contentAfterShebang.replace(
+        copyrightMatch[0],
+        "",
+      );
+      const contentWithCopyright =
+        `${shebangPart}${COPYRIGHT}\n${restWithoutCopyright}`;
       await runtime.fs.writeTextFile(
         entry.path,
         contentWithCopyright,
@@ -153,8 +158,10 @@ export const validateLicenses = async (
       continue;
     }
 
-    // Add missing header
-    const contentWithCopyright = `${COPYRIGHT}\n${content}`;
+    // Add missing header — insert after shebang if present
+    const contentWithCopyright = hasShebang
+      ? `${content.slice(0, shebangEnd)}${COPYRIGHT}\n${contentAfterShebang}`
+      : `${COPYRIGHT}\n${content}`;
     await runtime.fs.writeTextFile(
       entry.path,
       contentWithCopyright,
@@ -174,8 +181,11 @@ export const validateLicenses = async (
 /**
  * CLI main function for standalone usage.
  */
-const main = async (): Promise<CliResult<void>> => {
-  const fix = runtime.process.args.includes("--fix");
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<CliResult<void>> => {
+  const effectiveArgs = cliArgs ?? runtime.process.args;
+  const fix = effectiveArgs.includes("--fix");
 
   const result = await validateLicenses({ fix });
 

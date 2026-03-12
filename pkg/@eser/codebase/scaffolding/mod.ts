@@ -6,7 +6,9 @@
  * A degit-like system for downloading and processing templates from various sources.
  * Supports variable substitution using Go template syntax ({{.variable_name}}).
  *
- * @example
+ * Can be used as a library or as a standalone script.
+ *
+ * Library usage:
  * ```typescript
  * import { scaffold } from "@eser/codebase/scaffolding";
  *
@@ -17,23 +19,30 @@
  * });
  * ```
  *
- * @example
- * ```typescript
- * import { scaffold } from "@eser/codebase/scaffolding";
- *
- * // With explicit provider prefix
- * await scaffold({
- *   specifier: "gh:eser/ajan#v1.0.0",  // GitHub with version
- *   targetDir: "./my-project",
- *   interactive: true,  // Prompt for missing variables
- * });
- * ```
+ * CLI usage:
+ *   deno -A scaffolding/mod.ts eser/ajan
+ *   deno -A scaffolding/mod.ts eser/ajan -p ./my-project
+ *   deno -A scaffolding/mod.ts gh:eser/ajan#v1.0 --force
+ *   deno -A scaffolding/mod.ts eser/ajan --var name=my-app --var author=me
  *
  * @module
  */
 
+import * as cliParseArgs from "@std/cli/parse-args";
+import * as fmtColors from "@std/fmt/colors";
+import {
+  fail,
+  isFail,
+  match,
+  ok,
+  tryCatchAsync,
+} from "@eser/functions/results";
+import * as standardsRuntime from "@eser/standards/runtime";
+import { type CliResult } from "@eser/shell/args";
+
 // Main scaffold function
 export { scaffold } from "./scaffold.ts";
+import { scaffold } from "./scaffold.ts";
 
 // Types
 export type {
@@ -64,3 +73,132 @@ export { loadTemplateConfig, resolveVariables } from "./config.ts";
 
 // Processing utilities
 export { hasVariables, substituteVariables } from "./processor.ts";
+
+/**
+ * CLI main function for standalone usage.
+ */
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<CliResult<void>> => {
+  const args = cliParseArgs.parseArgs(
+    (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
+    {
+      string: ["path", "var"],
+      boolean: ["force", "interactive", "skip-post-install", "help"],
+      alias: { p: "path", f: "force", i: "interactive", h: "help" },
+      collect: ["var"],
+    },
+  );
+
+  if (args["help"]) {
+    console.log(
+      "Usage: scaffold <specifier> [options]\n" +
+        "\nOptions:\n" +
+        "  -p, --path <dir>       Target directory (default: .)\n" +
+        "  -f, --force            Overwrite existing files\n" +
+        "  -i, --interactive      Prompt for missing variables\n" +
+        "  --var key=value        Set a template variable (repeatable)\n" +
+        "  --skip-post-install    Skip post-install commands\n" +
+        "  -h, --help             Show this help message\n" +
+        "\nExamples:\n" +
+        "  scaffold eser/ajan\n" +
+        "  scaffold gh:eser/ajan#v1.0 -p ./my-project\n" +
+        "  scaffold eser/ajan --var name=my-app --var author=me",
+    );
+    return ok(undefined);
+  }
+
+  const specifier = args._[0] as string | undefined;
+
+  if (specifier === undefined) {
+    return fail({
+      message: `${fmtColors.red("Error: Template specifier is required")}\n` +
+        "\nUsage: scaffold <specifier> [options]\n" +
+        "\nExamples:\n" +
+        "  scaffold eser/ajan\n" +
+        "  scaffold gh:eser/ajan#v1.0\n" +
+        "  scaffold eser/ajan -p ./my-project",
+      exitCode: 1,
+    });
+  }
+
+  const targetDir = (args["path"] as string | undefined) ?? ".";
+  const force = args["force"] as boolean | undefined ?? false;
+  const skipPostInstall = args["skip-post-install"] as boolean | undefined ??
+    false;
+  const interactive = args["interactive"] as boolean | undefined ?? false;
+
+  // Parse --var flags into variables object
+  const varFlags = args["var"] as string[];
+  const variables: Record<string, string> = {};
+
+  if (varFlags !== undefined) {
+    for (const v of varFlags) {
+      const [key, ...valueParts] = String(v).split("=");
+      if (key !== undefined) {
+        variables[key] = valueParts.join("=");
+      }
+    }
+  }
+
+  console.log(`Scaffolding from ${fmtColors.cyan(specifier)}...`);
+
+  const scaffoldResult = await tryCatchAsync(
+    () =>
+      scaffold({
+        specifier,
+        targetDir,
+        variables,
+        force,
+        skipPostInstall,
+        interactive,
+      }),
+    (error) => ({ message: (error as Error).message }),
+  );
+
+  if (isFail(scaffoldResult)) {
+    return fail({
+      message: fmtColors.red(
+        `\nScaffolding failed: ${scaffoldResult.error.message}`,
+      ),
+      exitCode: 1,
+    });
+  }
+
+  const result = scaffoldResult.value;
+
+  console.log(
+    fmtColors.green(
+      `\nScaffolded ${result.templateName} to ${result.targetDir}`,
+    ),
+  );
+
+  if (Object.keys(result.variables).length > 0) {
+    console.log("\nVariables applied:");
+    for (const [key, value] of Object.entries(result.variables)) {
+      console.log(`  ${fmtColors.dim(key)}: ${value}`);
+    }
+  }
+
+  if (result.postInstallCommands.length > 0) {
+    console.log("\nPost-install commands executed:");
+    for (const cmd of result.postInstallCommands) {
+      console.log(`  ${fmtColors.dim(cmd)}`);
+    }
+  }
+
+  return ok(undefined);
+};
+
+if (import.meta.main) {
+  const result = await main();
+  match(result, {
+    ok: () => {},
+    fail: (error) => {
+      if (error.message !== undefined) {
+        console.error(error.message);
+      }
+      standardsRuntime.runtime.process.setExitCode(error.exitCode);
+    },
+  });
+}

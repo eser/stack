@@ -1,20 +1,22 @@
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
         args: ["--maxkb=1024"]
-        exclude: |
-          (?x)^(
-            pkg/bundler/esbuild_v0.20.0.wasm
-          )$
       - id: check-case-conflict
+      - id: check-illegal-windows-names
       - id: check-executables-have-shebangs
       - id: check-json
         exclude: |
           (?x)^(
             etc/templates/vite-app/tsconfig.app.json|
-            etc/templates/cf-workers-app/tsconfig.json
+            etc/templates/cf-workers-app/tsconfig.json|
+            tsconfig.json
           )$
       - id: check-merge-conflict
       - id: check-shebang-scripts-are-executable
@@ -24,6 +26,8 @@ repos:
       - id: check-yaml
         args: [--allow-multiple-documents]
       - id: destroyed-symlinks
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: fix-byte-order-marker
@@ -35,42 +39,58 @@ repos:
         exclude: |
           (?x)^(
             etc/templates/vite-app/tsconfig.app.json|
-            etc/templates/cf-workers-app/tsconfig.json
+            etc/templates/cf-workers-app/tsconfig.json|
+            tsconfig.json
           )$
       - id: trailing-whitespace
+      - id: no-commit-to-branch
+        args: ["--branch", "main"]
 
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v4.2.0
+    rev: v4.4.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
-        args: []
-
-  - repo: https://github.com/crate-ci/typos
-    rev: v1.35.5
-    hooks:
-      - id: typos
-        verbose: true
-        args:
-          - "--config"
-          - ".github/typos.toml"
-        exclude: |
-          (?x)^(
-            docs/.*|
-          )$
+        args: [
+          "--force-scope",
+          "--strict",
+          "--verbose",
+          "ci",
+          "chore",
+          "docs",
+          "feat",
+          "fix",
+          "perf",
+          "refactor",
+          "revert",
+          "test",
+        ]
 
   - repo: local
     hooks:
       - id: local-validation
         name: local pre-commit validation
         description: Validate formatting, linting, license headers, types and run tests.
-        entry: bash -c 'deno task validate:fix; git add -u' --
+        entry: bash -c 'make ok; git add -u' --
+        # types_or: [javascript, jsx, ts, tsx, json, markdown]
         always_run: true
         pass_filenames: false
         language: system
 
-      - id: kebab-case-files-only
-        name: kebab-case files only
+      - id: esergo-snake-case-files-only
+        name: esergo snake_case files only
+        entry: filenames must be snake_case only
+        language: fail
+        files: 'apps/services/(?!\.test\.[jt]sx?$)[^a-z0-9_\.\/\[\]@]'
+        exclude: |
+          (?x)^(
+            apps/services/Dockerfile|
+            apps/services/Makefile|
+            apps/services/README.md
+          )$
+
+      - id: rest-kebab-case-files-only
+        name: rest kebab-case files only
         entry: filenames must be kebab-case only
         language: fail
         files: '(?!\.test\.[jt]sx?$)[^a-z0-9.\/\[\]@-]'
@@ -79,9 +99,17 @@ repos:
             .claude/.*|
             .github/.*|
             .git/COMMIT_EDITMSG|
+            AGENTS.md|
+            CHANGELOG.md|
+            CLAUDE.md|
+            Makefile|
+            VERSION|
+            apps/services/.*|
             docs/.*|
             etc/coverage/.*|
             etc/temp/.*|
+            etc/templates/.*/Makefile|
+            etc/templates/.*/README.md|
             pkg/@eser/app-runtime/README.md|
             pkg/@eser/bundler/README.md|
             pkg/@eser/cache/README.md|

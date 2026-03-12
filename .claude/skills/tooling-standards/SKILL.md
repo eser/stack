@@ -1,6 +1,6 @@
 ---
 name: tooling-standards
-description: Development tooling standards including Deno runtime, JSR package registry, and configuration files. Use when setting up projects, managing dependencies, or configuring build tools.
+description: "Development tooling: Deno runtime, JSR package registry, deno.json and package.json configuration, and editor settings. Use when setting up projects, choosing packages, or configuring build tools."
 ---
 
 # Tooling Standards

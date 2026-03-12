@@ -17,8 +17,12 @@ middleware pipelines, lazy computation, and resource lifecycle management.
   do-notation — `yield*` unwraps Results, short-circuiting on failure.
 - **Middleware pipelines.** `collect()` provides Koa-style middleware chains
   with `ctx.next()` delegation.
-- **Lazy computation.** `Task<T, E>` wraps `() => Promise<Result<T, E>>` —
-  nothing executes until you call `runTask()`.
+- **Lazy computation.** `Task<T, E, R>` wraps
+  `(ctx: R) => Promise<Result<T, E>>` — nothing executes until you call
+  `runTask()`. The `R` parameter enables context threading (Reader monad
+  pattern).
+- **Trigger adapters.** `Handler` + `Adapter` implements the Ports & Adapters
+  pattern — define business logic once, invoke from HTTP, queue, CLI, or cron.
 - **Safe resource management.** `bracket`, `scoped`, and `acquireRelease`
   guarantee cleanup with LIFO finalizer ordering.
 
@@ -33,8 +37,9 @@ middleware pipelines, lazy computation, and resource lifecycle management.
 
 - **vs `@eser/fp`**: fp is `map(result, fn)` — one step. Functions is
   `run(function*() { ... })` — many steps composed into workflows.
-- **vs Effect.ts**: Lightweight, no runtime, no DI, no fibers. 80% of the value
-  at 5% of the complexity.
+- **vs Effect.ts**: Lightweight, no runtime, no fibers. Our `Task<T, E, R>`
+  mirrors Effect's `Effect<A, E, R>` three-parameter design for context
+  threading, but at 5% of the complexity.
 
 ## Quick Start
 
@@ -129,8 +134,11 @@ const withRecovery = functions.collect<number, string>()
 
 ## functions.task.* — Lazy Computation
 
-`Task<T, E>` wraps a `() => Promise<Result<T, E>>` — the computation doesn't
-execute until you call `runTask()`. Composable with retry and timeout bridges.
+`Task<T, E, R>` wraps a `(ctx: R) => Promise<Result<T, E>>` — the computation
+doesn't execute until you call `runTask()`. Composable with retry, timeout,
+cancellation, and observability. See also:
+[Context-Aware Tasks](#-context-aware-tasks-reader-pattern) for dependency
+injection and cancellation.
 
 ```typescript
 import * as functions from "@eser/functions";
@@ -161,6 +169,164 @@ const allData = task.allPar([task1, task2, task3]);
 // Execute
 const result = await task.runTask(resilient);
 ```
+
+### 🧩 Context-Aware Tasks (Reader Pattern)
+
+Tasks can declare **requirements** — services, signals, or configuration they
+need to run. This is the [Reader monad](https://wiki.haskell.org/Reader_monad)
+pattern, also used by [Effect.ts](https://effect.website/) as `Effect<A, E, R>`.
+
+#### Why Context?
+
+Instead of passing dependencies through every function call:
+
+```typescript
+// ❌ Manual threading — verbose, error-prone
+const getUser = (id: string, db: Database, logger: Logger) => ...
+const getOrder = (userId: string, db: Database, logger: Logger) => ...
+```
+
+Declare requirements in the type and provide them once:
+
+```typescript
+// ✅ Context threading — clean, composable
+import * as functions from "@eser/functions";
+import * as results from "@eser/primitives/results";
+
+const { task } = functions;
+
+type AppCtx = { readonly db: Database; readonly logger: Logger };
+
+const getUser = (id: string): task.Task<User, AppError, AppCtx> =>
+  task.task((ctx) => {
+    ctx.logger.info("Fetching user", { id });
+    const user = ctx.db.users.find(id);
+    return Promise.resolve(results.ok(user));
+  });
+
+// Provide context once at the edge
+const result = await task.runTask(getUser("123"), {
+  db: postgres,
+  logger: console,
+});
+```
+
+#### Cancellation
+
+```typescript
+import * as functions from "@eser/functions";
+import * as results from "@eser/primitives/results";
+
+const { task } = functions;
+
+const fetchData = task.task<Data, FetchError, task.Cancellable>(
+  async (ctx) => {
+    const resp = await fetch("/api/data", { signal: ctx.signal });
+    return results.ok(await resp.json());
+  },
+);
+
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 5000);
+const result = await task.runTask(fetchData, { signal: controller.signal });
+```
+
+#### Observability
+
+```typescript
+const traced = task.withLogging(fetchData, "fetch-data");
+// Automatically logs: "[fetch-data] started" and "[fetch-data] completed/failed"
+```
+
+#### Providing Context (Dependency Injection)
+
+```typescript
+// Satisfy requirements upfront → returns a context-free Task
+const ready = task.provideContext(getUser("123"), {
+  db: postgres,
+  logger: console,
+});
+
+// Now runs without context
+const result = await task.runTask(ready);
+```
+
+> **FP note:** `provideContext` is analogous to Haskell's `runReaderT` or
+> Effect.ts's `Effect.provideService()`. It "eliminates" the R parameter by
+> closing over the environment.
+
+### 🔌 Trigger Adapters (Ports & Adapters)
+
+Define business logic once, invoke it from any source — HTTP, queue, CLI, or
+cron. This implements the
+[Ports & Adapters](https://alistair.cockburn.us/hexagonal-architecture/)
+(hexagonal architecture) pattern for function invocation. See also:
+[Context-Aware Tasks](#-context-aware-tasks-reader-pattern) for the underlying
+context system.
+
+#### Define a Handler
+
+A `Handler<I, O, E, R>` is a function from typed input to a context-aware Task:
+
+```typescript
+import * as functions from "@eser/functions";
+import * as results from "@eser/primitives/results";
+
+const { handler, task } = functions;
+
+type OrderInput = { readonly customerId: string };
+
+const createOrder: handler.Handler<OrderInput, Order, OrderError, AppCtx> = (
+  input,
+) =>
+  task.task(async (ctx) => {
+    const order = await ctx.db.orders.insert(input);
+    return results.ok(order);
+  });
+```
+
+#### Write Adapters for Each Trigger
+
+```typescript
+const { triggers } = functions;
+
+// HTTP adapter
+const fromHttp: handler.Adapter<triggers.HttpEvent, OrderInput> = (event) => {
+  if (event.method !== "POST") {
+    return results.fail(handler.adaptError("Method not allowed"));
+  }
+  return results.ok(event.body as OrderInput);
+};
+
+// Queue adapter
+const fromQueue: handler.Adapter<triggers.QueueEvent, OrderInput> = (event) =>
+  results.ok(JSON.parse(event.body as string) as OrderInput);
+
+// CLI adapter
+const fromCli: handler.Adapter<triggers.CliEvent, OrderInput> = (event) =>
+  results.ok({ customerId: event.flags["customer"] as string });
+```
+
+#### Bind and Run
+
+```typescript
+const httpHandler = handler.bind(createOrder, fromHttp);
+const queueHandler = handler.bind(createOrder, fromQueue);
+const cliHandler = handler.bind(createOrder, fromCli);
+
+// All share the same context requirements
+const ctx = { db: postgres, logger: console };
+await task.runTask(httpHandler(httpEvent), ctx);
+await task.runTask(queueHandler(queueEvent), ctx);
+```
+
+> **FP note:** `bind()` is a contravariant map on the input side — it maps over
+> the Handler's input type in reverse. The adapter can fail, so the error type
+> naturally widens: `E | AdaptError`.
+>
+> **AWS Lambda comparison:** Lambda uses untyped `event: any`. Our adapters
+> provide full type safety: `Adapter<HttpEvent, OrderInput>` ensures the
+> transformation is checked at compile time.
 
 ## functions.resources.* — Resource Management
 
@@ -224,6 +390,8 @@ const slow = await resources.withTimeout(
 | HTTP middleware          | `functions.collect()`   | Before/after hooks, delegation                       |
 | Streaming results        | `functions.collect()`   | Emit multiple values                                 |
 | Deferred computation     | `functions.task.*`      | Lazy evaluation, composable retry/timeout            |
+| Dependency injection     | `functions.task.*`      | Context threading via Reader pattern                 |
+| Multi-source invocation  | `functions.handler.*`   | Same logic, different triggers (HTTP/queue/CLI/cron) |
 | File/connection handling | `functions.resources.*` | Guaranteed cleanup                                   |
 
 ## API Reference
@@ -250,20 +418,43 @@ const slow = await resources.withTimeout(
 
 ### functions.task.*
 
-| Function                     | Description                              |
-| ---------------------------- | ---------------------------------------- |
-| `task(execute)`              | Create from `() => Promise<Result<T,E>>` |
-| `succeed(value)`             | Task that always succeeds                |
-| `failTask(error)`            | Task that always fails                   |
-| `fromPromise(fn)`            | Wrap a Promise-returning function        |
-| `map(task, fn)`              | Transform success value                  |
-| `flatMap(task, fn)`          | Chain tasks                              |
-| `flatMapW(task, fn)`         | Chain with error type widening           |
-| `runTask(task)`              | Execute and get `Promise<Result<T,E>>`   |
-| `all(tasks)`                 | Sequential execution, fail-fast          |
-| `allPar(tasks)`              | Parallel execution, fail-fast            |
-| `withRetry(task, n, delay)`  | Retry on failure                         |
-| `withTimeout(task, ms, err)` | Add timeout                              |
+| Function                       | Description                                      |
+| ------------------------------ | ------------------------------------------------ |
+| `task(execute)`                | Create from `(ctx: R) => Promise<Result<T,E>>`   |
+| `succeed(value)`               | Task that always succeeds                        |
+| `failTask(error)`              | Task that always fails                           |
+| `fromPromise(fn)`              | Wrap a Promise-returning function                |
+| `map(task, fn)`                | Transform success value (propagates R)           |
+| `flatMap(task, fn)`            | Chain tasks (widens R via MergeContext)          |
+| `flatMapW(task, fn)`           | Chain with error + context widening              |
+| `runTask(task)` / `(task,ctx)` | Execute with optional context                    |
+| `provideContext(task, ctx)`    | Satisfy requirements → context-free Task         |
+| `withAbort(task, timeoutMs)`   | Add cancellation (requires Cancellable context)  |
+| `withLogging(task, label)`     | Add structured logging (requires Observable ctx) |
+| `validate(predicate, message)` | Create validation step returning Task            |
+| `all(tasks)`                   | Sequential execution, fail-fast (propagates R)   |
+| `allPar(tasks)`                | Parallel execution, fail-fast (propagates R)     |
+| `withRetry(task, n, delay)`    | Retry on failure (propagates R)                  |
+| `withTimeout(task, ms, err)`   | Add timeout (propagates R)                       |
+
+### functions.handler.*
+
+| Function                 | Description                                     |
+| ------------------------ | ----------------------------------------------- |
+| `bind(handler, adapter)` | Bind adapter to handler (contravariant map)     |
+| `createTrigger(binding)` | Create full round-trip trigger (input + output) |
+| `adaptError(message)`    | Create an AdaptError                            |
+
+### functions.triggers.*
+
+| Type           | Description                               |
+| -------------- | ----------------------------------------- |
+| `HttpEvent`    | HTTP request (method, path, headers, etc) |
+| `QueueEvent`   | Queue message (messageId, body, etc)      |
+| `CliEvent`     | CLI invocation (command, args, flags)     |
+| `CronEvent`    | Scheduled trigger (scheduledTime, name)   |
+| `HttpResponse` | HTTP response (status, headers, body)     |
+| `QueueAction`  | Queue result (ack / nack)                 |
 
 ### functions.resources.*
 
@@ -277,6 +468,28 @@ const slow = await resources.withTimeout(
 | `retryWithBackoff(fn, options)`           | Retry with exponential backoff |
 | `withTimeout(fn, ms, error)`              | Add timeout to operation       |
 | `ensure(fn, finalizer)`                   | Guaranteed finalizer execution |
+
+## 📚 Further Reading
+
+### Context & Dependencies
+
+- [Reader Monad](https://wiki.haskell.org/Reader_monad) — Haskell wiki on the
+  Reader pattern
+- [Wadler (1992)](https://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf)
+  — "Monads for functional programming"
+- [Effect.ts](https://effect.website/) — TypeScript library using
+  `Effect<A, E, R>` with the same three-parameter design
+- [fp-ts ReaderTaskEither](https://gcanti.github.io/fp-ts/modules/ReaderTaskEither.ts.html)
+  — fp-ts equivalent combining Reader + Task + Either
+
+### Adapters & Architecture
+
+- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+  — Alistair Cockburn's original Ports & Adapters pattern
+- [AWS Lambda Event Sources](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventsourcemapping.html)
+  — Lambda's trigger adapter model
+- [Contravariant Functor](https://hackage.haskell.org/package/contravariant) —
+  The FP pattern behind input adaptation
 
 ---
 

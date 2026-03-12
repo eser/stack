@@ -6,7 +6,9 @@
     ".": "./mod.ts",
     "./results": "./results.ts",
     "./options": "./options.ts",
-    "./resources": "./resources.ts"
+    "./resources": "./resources.ts",
+    "./handler": "./handler.ts",
+    "./triggers": "./triggers.ts"
   },
   "dependencies": {
     "@eser/primitives": "workspace:*"

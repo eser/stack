@@ -40,5 +40,11 @@ export {
 // Lazy computation
 export * as task from "./task.ts";
 
+// Trigger adapters
+export * as handler from "./handler.ts";
+
+// Trigger event types
+export * as triggers from "./triggers.ts";
+
 // Resource management
 export * as resources from "./resources.ts";

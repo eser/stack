@@ -80,3 +80,38 @@ jobs:
         with:
           name: ${{ matrix.os }}
           files: ./etc/coverage.lcov
+
+  delivery:
+    name: Delivery
+    needs: integration
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      id-token: write # The OIDC ID token is used for authentication with JSR.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+
+      - name: Publish to JSR
+        run: deno publish
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "latest"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Build npm package
+        run: deno task npm-build
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        working-directory: ./pkg/@eser/cli/dist

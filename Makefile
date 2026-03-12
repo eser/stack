@@ -60,8 +60,8 @@ release: ## Sync CHANGELOG to GitHub Releases
 go-ok: ## Run Go validation (fmt, vet, lint, tests)
 	cd apps/services && $(MAKE) ok
 
-go-test: ## Run Go tests with race detector
-	cd apps/services && $(MAKE) test
+go-test: ## Run Go tests with race detector and coverage
+	cd apps/services && $(MAKE) test-coverage
 
 go-lint: ## Run Go linter (golangci-lint)
 	cd apps/services && $(MAKE) lint

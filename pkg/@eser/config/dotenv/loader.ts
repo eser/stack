@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as dotenv from "@std/dotenv";
-import { NotFoundError, runtime } from "@eser/standards/runtime";
+import { current, NotFoundError } from "@eser/standards/runtime";
 import { defaultEnvValue, env, type EnvMap, envVars } from "./base.ts";
 
 /**
@@ -70,13 +70,13 @@ export const parseEnvFromFile = async (
 ): Promise<ReturnType<typeof parseEnvString>> => {
   try {
     // Check file size before reading to prevent memory exhaustion
-    const stat = await runtime.fs.stat(filepath);
+    const stat = await current.fs.stat(filepath);
 
     if (stat.size > maxFileSize) {
       throw new EnvFileTooLargeError(filepath, stat.size, maxFileSize);
     }
 
-    const data = await runtime.fs.readFile(filepath);
+    const data = await current.fs.readFile(filepath);
     const decoded = new TextDecoder("utf-8").decode(data);
     const escaped = decodeURIComponent(decoded);
 
@@ -135,7 +135,7 @@ export const load = async (
     options,
   );
 
-  const sysVars = runtime.env.toObject();
+  const sysVars = current.env.toObject();
   const envName = options_.env ?? getEnvVar(sysVars, options_.defaultEnvValue);
 
   const vars = new Map<typeof env | string, string>();

@@ -5,7 +5,7 @@
  * Uses adapters/tailwindcss for @reference injection and @apply expansion.
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import {
   type CssModuleResult as EserCssModuleResult,
@@ -56,11 +56,11 @@ export async function processCSSModule(
   cssModulesLogger.debug(`Processing CSS module: ${cssPath}`);
 
   // Read CSS content
-  const cssContent = await runtime.fs.readTextFile(cssPath);
+  const cssContent = await current.fs.readTextFile(cssPath);
 
   // Create context for plugin
   const context = {
-    projectRoot: projectRoot ?? runtime.process.cwd(),
+    projectRoot: projectRoot ?? current.process.cwd(),
     cssPath,
     isModule: true,
   };
@@ -79,7 +79,7 @@ export async function processCSSModule(
 
   // Write preprocessed content to temp file for eserProcessCssModule
   const tempPath = cssPath.replace(/\.module\.css$/, ".temp.module.css");
-  await runtime.fs.writeTextFile(tempPath, processedContent);
+  await current.fs.writeTextFile(tempPath, processedContent);
 
   try {
     // Use @eser/bundler's processCssModule (no Tailwind root needed - plugin handled @apply)
@@ -89,7 +89,7 @@ export async function processCSSModule(
       // No tailwind option - plugin's preprocess already expanded @apply
     });
 
-    const filename = runtime.path.basename(cssPath);
+    const filename = current.path.basename(cssPath);
     cssModulesLogger.debug(
       `Processed ${
         Object.keys(result.exports).length
@@ -99,7 +99,7 @@ export async function processCSSModule(
     return result;
   } finally {
     // Clean up temp file
-    await runtime.fs.remove(tempPath).catch(() => {});
+    await current.fs.remove(tempPath).catch(() => {});
   }
 }
 
@@ -138,7 +138,7 @@ export async function processCSSModules(
         // Check cache first if available
         if (cache !== undefined) {
           try {
-            const fileStat = await runtime.fs.stat(cssPath);
+            const fileStat = await current.fs.stat(cssPath);
             const fileMtime = fileStat.mtime?.getTime() ?? 0;
             const cached = cache.getCssModuleResult(cssPath, fileMtime);
 
@@ -167,7 +167,7 @@ export async function processCSSModules(
         // Cache the result
         if (cache !== undefined) {
           try {
-            const fileStat = await runtime.fs.stat(cssPath);
+            const fileStat = await current.fs.stat(cssPath);
             const fileMtime = fileStat.mtime?.getTime() ?? 0;
             cache.setCssModuleResult(
               cssPath,
@@ -205,48 +205,48 @@ export async function saveCSSModuleOutputs(
   outputDir: string,
   options?: { skipCss?: boolean; projectRoot?: string },
 ): Promise<void> {
-  const basename = runtime.path.basename(cssPath, ".module.css");
+  const basename = current.path.basename(cssPath, ".module.css");
 
   // Determine the correct base directory for relative path calculation
   // If cssPath is under outputDir, use outputDir as base (virtual source case)
   // Otherwise, use projectRoot (real source case)
   const baseDir = cssPath.startsWith(outputDir)
     ? outputDir
-    : (options?.projectRoot ?? runtime.process.cwd());
+    : (options?.projectRoot ?? current.process.cwd());
 
-  const relativePath = runtime.path.relative(baseDir, cssPath);
-  const relativeDir = runtime.path.dirname(relativePath);
+  const relativePath = current.path.relative(baseDir, cssPath);
+  const relativeDir = current.path.dirname(relativePath);
 
   // Create output directory structure mirroring source
-  const moduleOutputDir = runtime.path.resolve(outputDir, relativeDir);
-  await runtime.fs.mkdir(moduleOutputDir, { recursive: true });
+  const moduleOutputDir = current.path.resolve(outputDir, relativeDir);
+  await current.fs.mkdir(moduleOutputDir, { recursive: true });
 
   // Save processed CSS (skip if only JSON is needed)
   if (options?.skipCss !== true) {
-    const cssOutputPath = runtime.path.resolve(
+    const cssOutputPath = current.path.resolve(
       moduleOutputDir,
       `${basename}.module.css`,
     );
-    await runtime.fs.writeTextFile(cssOutputPath, result.code);
+    await current.fs.writeTextFile(cssOutputPath, result.code);
   }
 
   // Save exports JSON
-  const jsonOutputPath = runtime.path.resolve(
+  const jsonOutputPath = current.path.resolve(
     moduleOutputDir,
     `${basename}.module.css.json`,
   );
-  await runtime.fs.writeTextFile(
+  await current.fs.writeTextFile(
     jsonOutputPath,
     JSON.stringify(result.exports, null, 2),
   );
 
   // Save .d.ts if generated
   if (result.dts !== undefined) {
-    const dtsOutputPath = runtime.path.resolve(
+    const dtsOutputPath = current.path.resolve(
       moduleOutputDir,
       `${basename}.module.css.d.ts`,
     );
-    await runtime.fs.writeTextFile(dtsOutputPath, result.dts);
+    await current.fs.writeTextFile(dtsOutputPath, result.dts);
   }
 
   cssModulesLogger.debug(`Saved CSS module outputs to ${moduleOutputDir}`);

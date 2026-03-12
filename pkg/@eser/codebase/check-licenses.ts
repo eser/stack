@@ -31,15 +31,13 @@
 import { walk } from "@std/fs/walk";
 import { fromFileUrl } from "@std/path/posix";
 import * as cliParseArgs from "@std/cli/parse-args";
-import * as results from "@eser/primitives/results";
-import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
-import { runtime } from "@eser/standards/runtime";
-import * as handler from "@eser/functions/handler";
-import type { CliEvent } from "@eser/functions/triggers";
-import { fromPromise } from "@eser/functions/task";
-import type * as shellArgs from "@eser/shell/args";
-import * as fmt from "@eser/shell/formatting";
+import * as primitives from "@eser/primitives";
+import * as standards from "@eser/standards";
+import * as functions from "@eser/functions";
+import * as shell from "@eser/shell";
 import { runCliMain, toCliEvent } from "./cli-support.ts";
+
+const output = shell.formatting.createOutput();
 
 /**
  * Options for license validation.
@@ -108,7 +106,10 @@ export const validateLicenses = async (
 
   // Default to parent directory of codebase package
   const baseUrl = new URL(".", import.meta.url);
-  const defaultRoot = runtime.path.join(fromFileUrl(baseUrl.href), "..");
+  const defaultRoot = standards.runtime.current.path.join(
+    fromFileUrl(baseUrl.href),
+    "..",
+  );
   const root = options.root ?? defaultRoot;
 
   const issues: LicenseIssue[] = [];
@@ -117,13 +118,13 @@ export const validateLicenses = async (
 
   for await (
     const entry of walk(root, {
-      exts: JS_FILE_EXTENSIONS,
+      exts: standards.patterns.JS_FILE_EXTENSIONS,
       skip: EXCLUDES,
       includeDirs: false,
     })
   ) {
     checked++;
-    const content = await runtime.fs.readTextFile(entry.path);
+    const content = await standards.runtime.current.fs.readTextFile(entry.path);
     const hasShebang = content.startsWith("#!");
     const shebangEnd = hasShebang ? content.indexOf("\n") + 1 : 0;
     const contentAfterShebang = content.slice(shebangEnd);
@@ -149,7 +150,7 @@ export const validateLicenses = async (
       );
       const contentWithCopyright =
         `${shebangPart}${COPYRIGHT}\n${restWithoutCopyright}`;
-      await runtime.fs.writeTextFile(
+      await standards.runtime.current.fs.writeTextFile(
         entry.path,
         contentWithCopyright,
       );
@@ -168,7 +169,7 @@ export const validateLicenses = async (
     const contentWithCopyright = hasShebang
       ? `${content.slice(0, shebangEnd)}${COPYRIGHT}\n${contentAfterShebang}`
       : `${COPYRIGHT}\n${content}`;
-    await runtime.fs.writeTextFile(
+    await standards.runtime.current.fs.writeTextFile(
       entry.path,
       contentWithCopyright,
     );
@@ -187,72 +188,75 @@ export const validateLicenses = async (
 // --- Handler ---
 
 /** Handler: wraps validateLicenses as a Task via fromPromise. */
-export const validateLicensesHandler: handler.Handler<
+export const validateLicensesHandler: functions.handler.Handler<
   ValidateLicensesOptions,
   ValidateLicensesResult,
   Error
-> = (input) => fromPromise(() => validateLicenses(input));
+> = (input) => functions.task.fromPromise(() => validateLicenses(input));
 
 // --- CLI Adapter ---
 
-/** Adapter: CliEvent → ValidateLicensesOptions (extracts --fix flag). */
-const cliAdapter: handler.Adapter<CliEvent, ValidateLicensesOptions> = (
+/** Adapter: functions.triggers.CliEvent → ValidateLicensesOptions (extracts --fix flag). */
+const cliAdapter: functions.handler.Adapter<
+  functions.triggers.CliEvent,
+  ValidateLicensesOptions
+> = (
   event,
-) => results.ok({ fix: event.flags["fix"] === true });
+) => primitives.results.ok({ fix: event.flags["fix"] === true });
 
 // --- CLI ResponseMapper ---
 
 /** ResponseMapper: formats ValidateLicensesResult for CLI output. */
-const cliResponseMapper: handler.ResponseMapper<
+const cliResponseMapper: functions.handler.ResponseMapper<
   ValidateLicensesResult,
-  Error | handler.AdaptError,
-  shellArgs.CliResult<void>
+  Error | functions.handler.AdaptError,
+  shell.args.CliResult<void>
 > = (result) => {
-  if (results.isFail(result)) {
-    fmt.printError(
+  if (primitives.results.isFail(result)) {
+    output.printError(
       result.error instanceof Error
         ? result.error.message
         : String(result.error),
     );
-    return results.fail({ exitCode: 1 });
+    return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (value.issues.length === 0) {
-    fmt.printSuccess(
+    output.printSuccess(
       `Checked ${value.checked} files. All licenses are valid.`,
     );
-    return results.ok(undefined);
+    return primitives.results.ok(undefined);
   }
 
   if (value.issues.some((i) => i.fixed)) {
     for (const issue of value.issues) {
       if (issue.fixed) {
-        fmt.printInfo(`Fixed ${issue.issue} header: ${issue.path}`);
+        output.printInfo(`Fixed ${issue.issue} header: ${issue.path}`);
       }
     }
-    fmt.printSuccess(`Fixed ${value.fixedCount} files.`);
-    return results.ok(undefined);
+    output.printSuccess(`Fixed ${value.fixedCount} files.`);
+    return primitives.results.ok(undefined);
   }
 
   for (const issue of value.issues) {
-    fmt.printError(
+    output.printError(
       `${
         issue.issue === "missing" ? "Missing" : "Incorrect"
       } copyright header: ${issue.path}`,
     );
   }
-  fmt.printInfo(`Copyright header should be "${COPYRIGHT}"`);
-  return results.fail({ exitCode: 1 });
+  output.printInfo(`Copyright header should be "${COPYRIGHT}"`);
+  return primitives.results.fail({ exitCode: 1 });
 };
 
 // --- CLI Trigger ---
 
 /** Runnable CLI trigger for check-licenses. */
 export const handleCli: (
-  event: CliEvent,
-) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  event: functions.triggers.CliEvent,
+) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
   handler: validateLicensesHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -261,7 +265,7 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
+): Promise<shell.args.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     { boolean: ["fix"] },
@@ -271,5 +275,5 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  runCliMain(await main(runtime.process.args as string[]));
+  runCliMain(await main(standards.runtime.current.process.args as string[]));
 }

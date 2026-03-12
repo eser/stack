@@ -11,7 +11,7 @@
  * @module
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import type {
   FontFile,
   FontOptimizationOptions,
@@ -50,12 +50,12 @@ export async function downloadFont(
     ? urlFilename
     : `${urlFilename}.woff2`;
 
-  const localPath = runtime.path.join(outputDir, filename);
+  const localPath = current.path.join(outputDir, filename);
 
   // Download and save font file
   const fontData = await response.arrayBuffer();
-  await runtime.fs.ensureDir(outputDir);
-  await runtime.fs.writeFile(localPath, new Uint8Array(fontData));
+  await current.fs.ensureDir(outputDir);
+  await current.fs.writeFile(localPath, new Uint8Array(fontData));
 
   // Determine format from extension
   const format = filename.endsWith(".woff2")
@@ -260,7 +260,7 @@ export async function optimizeGoogleFonts(
   let totalSize = 0;
   for (const file of fontFiles) {
     try {
-      const stat = await runtime.fs.stat(file.localPath);
+      const stat = await current.fs.stat(file.localPath);
       totalSize += stat.size;
     } catch {
       // Ignore stat errors

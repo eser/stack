@@ -61,18 +61,18 @@ export const createCacheManager = (
   const getCacheDir = (): string => {
     if (baseDir) {
       if (app.org) {
-        return standardsRuntime.runtime.path.join(baseDir, app.org, app.name);
+        return standardsRuntime.current.path.join(baseDir, app.org, app.name);
       }
-      return standardsRuntime.runtime.path.join(baseDir, app.name);
+      return standardsRuntime.current.path.join(baseDir, app.name);
     }
     return xdg.getAppCacheDir(app);
   };
 
   const resolvePath = (path: string): string => {
-    if (standardsRuntime.runtime.path.isAbsolute(path)) {
+    if (standardsRuntime.current.path.isAbsolute(path)) {
       return path;
     }
-    return standardsRuntime.runtime.path.join(getCacheDir(), path);
+    return standardsRuntime.current.path.join(getCacheDir(), path);
   };
 
   const getVersionedPath = (version: string, name: string): string => {
@@ -81,7 +81,7 @@ export const createCacheManager = (
       const normalizedVersion = version.startsWith("v")
         ? version
         : `v${version}`;
-      return standardsRuntime.runtime.path.join(
+      return standardsRuntime.current.path.join(
         getCacheDir(),
         normalizedVersion,
         name,
@@ -92,12 +92,12 @@ export const createCacheManager = (
 
   const exists = async (path: string): Promise<boolean> => {
     const resolvedPath = resolvePath(path);
-    return await standardsRuntime.runtime.fs.exists(resolvedPath);
+    return await standardsRuntime.current.fs.exists(resolvedPath);
   };
 
   const ensureDir = async (path: string): Promise<void> => {
     const resolvedPath = resolvePath(path);
-    await standardsRuntime.runtime.fs.mkdir(resolvedPath, { recursive: true });
+    await standardsRuntime.current.fs.mkdir(resolvedPath, { recursive: true });
   };
 
   const list = async (): Promise<CacheEntry[]> => {
@@ -105,13 +105,13 @@ export const createCacheManager = (
     const entries: CacheEntry[] = [];
 
     try {
-      const dirExists = await standardsRuntime.runtime.fs.exists(cacheDir);
+      const dirExists = await standardsRuntime.current.fs.exists(cacheDir);
       if (!dirExists) {
         return entries;
       }
 
-      for await (const entry of standardsRuntime.runtime.fs.readDir(cacheDir)) {
-        const entryPath = standardsRuntime.runtime.path.join(
+      for await (const entry of standardsRuntime.current.fs.readDir(cacheDir)) {
+        const entryPath = standardsRuntime.current.path.join(
           cacheDir,
           entry.name,
         );
@@ -120,7 +120,7 @@ export const createCacheManager = (
         let mtime: Date | null = null;
 
         try {
-          const stat = await standardsRuntime.runtime.fs.stat(entryPath);
+          const stat = await standardsRuntime.current.fs.stat(entryPath);
           size = stat.size;
           mtime = stat.mtime;
         } catch {
@@ -146,7 +146,7 @@ export const createCacheManager = (
     const resolvedPath = resolvePath(path);
 
     try {
-      await standardsRuntime.runtime.fs.remove(resolvedPath, {
+      await standardsRuntime.current.fs.remove(resolvedPath, {
         recursive: true,
       });
     } catch {
@@ -158,7 +158,7 @@ export const createCacheManager = (
     const cacheDir = getCacheDir();
 
     try {
-      await standardsRuntime.runtime.fs.remove(cacheDir, { recursive: true });
+      await standardsRuntime.current.fs.remove(cacheDir, { recursive: true });
     } catch {
       // Ignore if directory doesn't exist
     }

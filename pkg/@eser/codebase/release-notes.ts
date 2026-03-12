@@ -30,15 +30,13 @@
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as stdPath from "@std/path";
-import * as results from "@eser/primitives/results";
-import { runtime } from "@eser/standards/runtime";
-import * as handler from "@eser/functions/handler";
-import type { CliEvent } from "@eser/functions/triggers";
-import { fromPromise } from "@eser/functions/task";
-import type * as shellArgs from "@eser/shell/args";
-import * as fmt from "@eser/shell/formatting";
-import * as shellExec from "@eser/shell/exec";
+import * as primitives from "@eser/primitives";
+import * as standards from "@eser/standards";
+import * as functions from "@eser/functions";
+import * as shell from "@eser/shell";
 import { runCliMain, toCliEvent } from "./cli-support.ts";
+
+const output = shell.formatting.createOutput();
 
 /**
  * A parsed entry from a CHANGELOG.md file.
@@ -193,7 +191,7 @@ export const parseChangelog = async (
 ): Promise<ParseChangelogResult> => {
   const { changelogPath = "CHANGELOG.md", root = "." } = options;
   const fullPath = stdPath.resolve(root, changelogPath);
-  const text = await runtime.fs.readTextFile(fullPath);
+  const text = await standards.runtime.current.fs.readTextFile(fullPath);
   const entries = parseChangelogText(text);
 
   return { entries };
@@ -211,7 +209,7 @@ export const hasGitHubRelease = async (
   repo: string,
 ): Promise<boolean> => {
   try {
-    await shellExec.exec`gh release view ${tag} --repo ${repo}`.quiet().text();
+    await shell.exec.exec`gh release view ${tag} --repo ${repo}`.quiet().text();
     return true;
   } catch {
     return false;
@@ -256,13 +254,13 @@ export const syncReleaseNotes = async (
   // Write notes to a temp file for gh CLI
   const tempDir = await Deno.makeTempDir({ prefix: "eserstack-release-" });
   const notesPath = stdPath.join(tempDir, `${targetTag}-notes.md`);
-  await runtime.fs.writeTextFile(notesPath, entry.notes);
+  await standards.runtime.current.fs.writeTextFile(notesPath, entry.notes);
 
   try {
     const exists = await hasGitHubRelease(targetTag, repo);
 
     if (exists) {
-      await shellExec
+      await shell.exec
         .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
         .spawn();
       return { tag: targetTag, entry, action: "updated" };
@@ -275,13 +273,13 @@ export const syncReleaseNotes = async (
     const title = releaseTitle.replace("{tag}", targetTag);
 
     try {
-      await shellExec
+      await shell.exec
         .exec`gh release create ${targetTag} --repo ${repo} --title ${title} --notes-file ${notesPath} --verify-tag`
         .spawn();
       return { tag: targetTag, entry, action: "created" };
     } catch {
       // Race condition: release may have been created between check and create
-      await shellExec
+      await shell.exec
         .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
         .spawn();
       return { tag: targetTag, entry, action: "updated" };
@@ -294,30 +292,33 @@ export const syncReleaseNotes = async (
 // --- Handler ---
 
 /** Handler: wraps syncReleaseNotes as a Task via fromPromise. */
-export const syncReleaseNotesHandler: handler.Handler<
+export const syncReleaseNotesHandler: functions.handler.Handler<
   SyncReleaseNotesOptions,
   SyncReleaseNotesResult,
   Error
-> = (input) => fromPromise(() => syncReleaseNotes(input));
+> = (input) => functions.task.fromPromise(() => syncReleaseNotes(input));
 
 // --- CLI Adapter ---
 
-/** Adapter: CliEvent → SyncReleaseNotesOptions (extracts --repo, --tag, --create-if-missing flags). */
-const cliAdapter: handler.Adapter<CliEvent, SyncReleaseNotesOptions> = (
+/** Adapter: functions.triggers.CliEvent → SyncReleaseNotesOptions (extracts --repo, --tag, --create-if-missing flags). */
+const cliAdapter: functions.handler.Adapter<
+  functions.triggers.CliEvent,
+  SyncReleaseNotesOptions
+> = (
   event,
 ) => {
   const repo = (event.flags["repo"] as string | undefined) ??
     Deno.env.get("GITHUB_REPOSITORY") ?? "";
 
   if (repo === "") {
-    return results.fail(
-      handler.adaptError(
+    return primitives.results.fail(
+      functions.handler.adaptError(
         "Missing repository. Pass --repo or set GITHUB_REPOSITORY.",
       ),
     );
   }
 
-  return results.ok({
+  return primitives.results.ok({
     repo,
     tag: (event.flags["tag"] as string | undefined) ?? undefined,
     createIfMissing: event.flags["create-if-missing"] === true,
@@ -327,45 +328,45 @@ const cliAdapter: handler.Adapter<CliEvent, SyncReleaseNotesOptions> = (
 // --- CLI ResponseMapper ---
 
 /** ResponseMapper: formats SyncReleaseNotesResult for CLI output. */
-const cliResponseMapper: handler.ResponseMapper<
+const cliResponseMapper: functions.handler.ResponseMapper<
   SyncReleaseNotesResult,
-  Error | handler.AdaptError,
-  shellArgs.CliResult<void>
+  Error | functions.handler.AdaptError,
+  shell.args.CliResult<void>
 > = (result) => {
-  if (results.isFail(result)) {
+  if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
       ? err.message
-      : (err as handler.AdaptError).message ?? String(err);
-    fmt.printError(message);
-    return results.fail({ exitCode: 1 });
+      : (err as functions.handler.AdaptError).message ?? String(err);
+    output.printError(message);
+    return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   switch (value.action) {
     case "created":
-      fmt.printSuccess(`Created release ${value.tag} with changelog notes.`);
+      output.printSuccess(`Created release ${value.tag} with changelog notes.`);
       break;
     case "updated":
-      fmt.printSuccess(`Updated release notes for ${value.tag}.`);
+      output.printSuccess(`Updated release notes for ${value.tag}.`);
       break;
     case "skipped":
-      fmt.printWarning(
+      output.printWarning(
         `Release ${value.tag} not found. Skipping (pass --create-if-missing to create).`,
       );
       break;
   }
 
-  return results.ok(undefined);
+  return primitives.results.ok(undefined);
 };
 
 // --- CLI Trigger ---
 
 /** Runnable CLI trigger for release-notes. */
 export const handleCli: (
-  event: CliEvent,
-) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  event: functions.triggers.CliEvent,
+) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
   handler: syncReleaseNotesHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -374,7 +375,7 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
+): Promise<shell.args.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     {
@@ -388,5 +389,5 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  runCliMain(await main(runtime.process.args as string[]));
+  runCliMain(await main(standards.runtime.current.process.args as string[]));
 }

@@ -6,7 +6,7 @@
  * Uses @eser/bundler for base types and utilities.
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import { replaceJsExtension } from "@eser/standards/patterns";
 import type {
   ModuleEntry as BaseModuleEntry,
@@ -91,7 +91,7 @@ export async function saveModuleMap(
   outputPath: string,
 ): Promise<void> {
   const json = JSON.stringify(moduleMap, null, 2);
-  await runtime.fs.writeTextFile(outputPath, json);
+  await current.fs.writeTextFile(outputPath, json);
   moduleMapLogger.debug(`📝 Module map saved to: ${outputPath}`);
 }
 
@@ -99,7 +99,7 @@ export async function saveModuleMap(
  * Load module map from a JSON file
  */
 export async function loadModuleMap(filePath: string): Promise<ModuleMap> {
-  const json = await runtime.fs.readTextFile(filePath);
+  const json = await current.fs.readTextFile(filePath);
   return JSON.parse(json);
 }
 
@@ -126,8 +126,8 @@ export function createClientManifest(
 
 // CLI usage
 if (import.meta.main) {
-  const projectRoot = runtime.process.cwd();
-  const srcDir = runtime.path.resolve(projectRoot, "src");
+  const projectRoot = current.process.cwd();
+  const srcDir = current.path.resolve(projectRoot, "src");
   const clientComponents = await analyzeClientComponents(srcDir, projectRoot);
 
   const moduleMap = generateModuleMap(clientComponents);
@@ -135,6 +135,6 @@ if (import.meta.main) {
 
   await saveModuleMap(
     moduleMap,
-    runtime.path.resolve(projectRoot, "dist/module-map.json"),
+    current.path.resolve(projectRoot, "dist/module-map.json"),
   );
 }

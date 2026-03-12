@@ -8,7 +8,7 @@ import {
   type BundlerConfig,
   renderToReadableStream,
 } from "./rsc-flight-renderer.ts";
-import { NotFoundError, runtime } from "@eser/standards/runtime";
+import { current, NotFoundError } from "@eser/standards/runtime";
 import type { AppConfig } from "@eser/laroux/config";
 import * as logging from "@eser/logging";
 
@@ -31,12 +31,12 @@ const MODULE_MAP_FILENAME = "module-map.json";
  */
 export async function loadModuleMap(config: AppConfig): Promise<BundlerConfig> {
   try {
-    const moduleMapPath = runtime.path.resolve(
+    const moduleMapPath = current.path.resolve(
       config.distDir,
       "client",
       MODULE_MAP_FILENAME,
     );
-    const content = await runtime.fs.readTextFile(moduleMapPath);
+    const content = await current.fs.readTextFile(moduleMapPath);
     const map: BundlerConfig = JSON.parse(content);
     rscRenderer.debug(
       `Loaded module map with ${Object.keys(map).length} entries`,
@@ -62,7 +62,7 @@ export async function loadModuleMap(config: AppConfig): Promise<BundlerConfig> {
  *
  * @param config - Application configuration
  * @param component - Root React element to render
- * @param moduleMap - Optional pre-loaded module map (for runtime mode)
+ * @param moduleMap - Optional pre-loaded module map (for current mode)
  * @returns ReadableStream of RSC wire format chunks
  */
 export async function renderRSC(
@@ -131,7 +131,7 @@ export function streamToResponse(stream: ReadableStream): Response {
  * Render RSC and return as HTTP Response (convenience method)
  * @param config - Application configuration
  * @param component - Root React element to render
- * @param moduleMap - Optional pre-loaded module map (for runtime mode)
+ * @param moduleMap - Optional pre-loaded module map (for current mode)
  * @returns HTTP Response with RSC stream
  */
 export async function renderRSCResponse(

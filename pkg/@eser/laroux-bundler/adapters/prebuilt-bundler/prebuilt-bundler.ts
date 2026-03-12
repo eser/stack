@@ -4,7 +4,7 @@
  * Reads pre-built bundles from dist/ directory
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import type { BundleData, Bundler } from "../../domain/bundler.ts";
 import type { ChunkManifest } from "../../domain/chunk-manifest.ts";
@@ -35,23 +35,23 @@ export class PrebuiltBundler implements Bundler {
     prebuiltLogger.debug("📦 Loading prebuilt bundle from disk...");
 
     // Load chunk manifest from client directory
-    const manifestPath = runtime.path.resolve(
+    const manifestPath = current.path.resolve(
       this.config.distDir,
       "client",
       "manifest.json",
     );
-    const manifestContent = await runtime.fs.readTextFile(manifestPath);
+    const manifestContent = await current.fs.readTextFile(manifestPath);
     const chunkManifest: ChunkManifest = JSON.parse(manifestContent);
 
     // Load module map for SSR (required for client component resolution)
-    const moduleMapPath = runtime.path.resolve(
+    const moduleMapPath = current.path.resolve(
       this.config.distDir,
       "client",
       "module-map.json",
     );
     let moduleMap: ModuleMap = {};
     try {
-      const moduleMapContent = await runtime.fs.readTextFile(moduleMapPath);
+      const moduleMapContent = await current.fs.readTextFile(moduleMapPath);
       moduleMap = JSON.parse(moduleMapContent);
       prebuiltLogger.debug(
         `✅ Loaded module map with ${Object.keys(moduleMap).length} entries`,

@@ -3,7 +3,7 @@
 // Handles file-based proxy/middleware (proxy.ts files)
 
 import * as logging from "@eser/logging";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import type { Proxy, ProxyResult } from "../proxy/types.ts";
 
 const proxyLogger = logging.logger.getLogger([
@@ -43,7 +43,7 @@ export class MiddlewareDispatcher {
     try {
       // NOTE: Must use variable + file:// - deno publish rewrites analyzable dynamic imports
       const registryPath = `file://${distDir}/server/proxy-registry.ts`;
-      this.registryDir = runtime.path.resolve(distDir, "server");
+      this.registryDir = current.path.resolve(distDir, "server");
       const registry = await import(registryPath);
       this.proxies = registry.proxyRegistry || [];
       proxyLogger.debug(`Loaded ${this.proxies.length} proxy definition(s)`);
@@ -76,7 +76,7 @@ export class MiddlewareDispatcher {
 
       try {
         // Resolve module path relative to the registry directory
-        const resolvedPath = runtime.path.resolve(
+        const resolvedPath = current.path.resolve(
           this.registryDir,
           proxy.modulePath,
         );

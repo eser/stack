@@ -6,26 +6,31 @@
  * Terminal formatting utilities for CLI applications.
  * Cross-runtime compatible - works in Deno, Node.js, and Bun.
  *
+ * Output is target-agnostic — use `createOutput()` to bind formatting
+ * to any destination (console, WritableStream, test buffer, etc.).
+ *
  * For value formatters (formatDuration, formatSize, etc.), see @eser/standards/formatters.
  *
  * @example
  * ```typescript
  * import {
  *   c,
- *   printSection,
- *   printSuccess,
- *   printError,
+ *   createOutput,
+ *   getStreamTarget,
  *   Spinner,
  * } from "@eser/shell/formatting";
  *
  * // Colors and styles
  * console.log(c.success("Operation completed!"));
- * console.log(c.error("Something went wrong"));
  * console.log(c.brand("My CLI Tool"));
  *
- * // Formatted output
- * printSection("Configuration");
- * printSuccess("Config loaded", "from ./config.json");
+ * // Formatted output (default: console)
+ * const fmt = createOutput();
+ * fmt.printSuccess("Config loaded", "from ./config.json");
+ *
+ * // Formatted output to a stream
+ * const streamFmt = createOutput(getStreamTarget(responseStream));
+ * streamFmt.printSuccess("Streamed!");
  *
  * // Spinner for async operations
  * const spinner = new Spinner("Loading...");
@@ -35,6 +40,7 @@
  * ```
  */
 
+// Colors and styles
 export {
   bgBlack,
   bgBlue,
@@ -69,18 +75,37 @@ export {
   white,
   yellow,
 } from "./colors.ts";
-export {
-  blank,
-  boxText,
-  clearTerminal,
-  printError,
-  printInfo,
-  printItem,
-  printNextSteps,
-  printRule,
-  printSection,
-  printSuccess,
-  printTable,
-  printWarning,
-} from "./output.ts";
+
+// Spinner
 export { Spinner, type SpinnerOptions } from "./spinner.ts";
+
+// Output target types and factory
+export { createOutput } from "./output.ts";
+export type { FormattingOutput, OutputChannel, OutputTarget } from "./types.ts";
+
+// Output targets (sink factories)
+export {
+  emitLines,
+  getConsoleTarget,
+  getMultiplexTarget,
+  getStreamTarget,
+  getTestTarget,
+  nullTarget,
+} from "./targets.ts";
+
+// Pure formatters (return structured data, no side effects)
+export {
+  formatBlank,
+  formatBox,
+  formatClearTerminal,
+  formatError,
+  formatInfo,
+  formatItem,
+  formatNextSteps,
+  formatRule,
+  formatSection,
+  formatSuccess,
+  formatTable,
+  type FormattedLine,
+  formatWarning,
+} from "./formatters.ts";

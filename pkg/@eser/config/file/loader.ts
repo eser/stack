@@ -3,7 +3,7 @@
 import * as jsonc from "@std/jsonc";
 import * as toml from "@std/toml";
 import * as yaml from "@std/yaml";
-import { runtime, searchFileHierarchy } from "@eser/standards/runtime";
+import { current, searchFileHierarchy } from "@eser/standards/runtime";
 import * as primitives from "./primitives.ts";
 
 /**
@@ -55,7 +55,7 @@ export const locate = async (
 };
 
 export const getFileFormat = (filepath: string): primitives.FileFormat => {
-  const ext = runtime.path.extname(filepath);
+  const ext = current.path.extname(filepath);
 
   if (ext === ".json") {
     return primitives.FileFormats.Json;
@@ -100,7 +100,7 @@ export const parse = async <T>(
 ): Promise<ParseResult<T>> => {
   const formatFinal = format ?? getFileFormat(filepath);
 
-  const textContent = await runtime.fs.readTextFile(filepath);
+  const textContent = await current.fs.readTextFile(filepath);
 
   try {
     if (formatFinal === primitives.FileFormats.Json) {

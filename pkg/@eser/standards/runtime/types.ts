@@ -63,8 +63,8 @@ export interface PlatformInfo {
  *
  * @example
  * ```typescript
- * if (runtime.capabilities.fs) {
- *   await runtime.fs.readTextFile("config.json");
+ * if (current.capabilities.fs) {
+ *   await current.fs.readTextFile("config.json");
  * }
  * ```
  */
@@ -206,7 +206,7 @@ export interface FsWatcher extends AsyncIterable<FsEvent> {
 
 /**
  * Filesystem abstraction interface.
- * Check `runtime.capabilities.fs` before using.
+ * Check `current.capabilities.fs` before using.
  */
 export interface RuntimeFs {
   /**
@@ -311,7 +311,7 @@ export interface RuntimeFs {
    *
    * @example
    * ```typescript
-   * const watcher = runtime.fs.watch(["src"], { recursive: true });
+   * const watcher = current.fs.watch(["src"], { recursive: true });
    * for await (const event of watcher) {
    *   console.log(event.kind, event.paths);
    * }
@@ -488,7 +488,7 @@ export interface ChildProcess {
 
 /**
  * Process execution interface.
- * Check `runtime.capabilities.exec` before using.
+ * Check `current.capabilities.exec` before using.
  */
 export interface RuntimeExec {
   /**
@@ -501,7 +501,7 @@ export interface RuntimeExec {
    *
    * @example
    * ```typescript
-   * const result = await runtime.exec.spawn("git", ["status"]);
+   * const result = await current.exec.spawn("git", ["status"]);
    * if (result.success) {
    *   console.log(new TextDecoder().decode(result.stdout));
    * }
@@ -523,7 +523,7 @@ export interface RuntimeExec {
    *
    * @example
    * ```typescript
-   * const branch = await runtime.exec.exec("git", ["branch", "--show-current"]);
+   * const branch = await current.exec.exec("git", ["branch", "--show-current"]);
    * ```
    */
   exec(cmd: string, args?: string[], options?: SpawnOptions): Promise<string>;
@@ -538,7 +538,7 @@ export interface RuntimeExec {
    *
    * @example
    * ```typescript
-   * const pkg = await runtime.exec.execJson<PackageJson>("cat", ["package.json"]);
+   * const pkg = await current.exec.execJson<PackageJson>("cat", ["package.json"]);
    * ```
    */
   execJson<T = unknown>(
@@ -558,7 +558,7 @@ export interface RuntimeExec {
    *
    * @example Piped I/O (streaming pattern)
    * ```typescript
-   * const child = runtime.exec.spawnChild("deno", ["fmt", "-"], {
+   * const child = current.exec.spawnChild("deno", ["fmt", "-"], {
    *   stdin: "piped",
    *   stdout: "piped",
    *   stderr: "null",
@@ -575,7 +575,7 @@ export interface RuntimeExec {
    *
    * @example Interactive (REPL pattern)
    * ```typescript
-   * const child = runtime.exec.spawnChild("deno", ["repl"], {
+   * const child = current.exec.spawnChild("deno", ["repl"], {
    *   stdin: "inherit",
    *   stdout: "inherit",
    *   stderr: "inherit",
@@ -632,7 +632,7 @@ export interface RuntimeEnv {
 
 /**
  * Process control interface.
- * Check `runtime.capabilities.process` before using.
+ * Check `current.capabilities.process` before using.
  */
 export interface RuntimeProcess {
   /**
@@ -704,15 +704,15 @@ export interface RuntimeProcess {
  *
  * @example
  * ```typescript
- * import { runtime } from "@eser/standards/runtime";
+ * import { current } from "@eser/standards/runtime";
  *
  * // Check capabilities before use
- * if (runtime.capabilities.fs) {
- *   const config = await runtime.fs.readTextFile("config.json");
+ * if (current.capabilities.fs) {
+ *   const config = await current.fs.readTextFile("config.json");
  * }
  *
  * // Path is always available
- * const fullPath = runtime.path.join("src", "lib", "utils.ts");
+ * const fullPath = current.path.join("src", "lib", "utils.ts");
  * ```
  */
 export interface Runtime {

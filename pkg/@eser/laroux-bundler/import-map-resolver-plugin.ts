@@ -19,7 +19,7 @@
 import type { BundlerPlugin } from "@eser/bundler/backends";
 import { tryLoad as tryLoadPackage } from "@eser/codebase/package";
 import * as logging from "@eser/logging";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import {
   type ImportMap,
   isBareSpecifier,
@@ -39,11 +39,11 @@ async function resolveFromDenoModules(
   specifier: string,
   projectRoot: string,
 ): Promise<string | null> {
-  const denoDir = runtime.path.join(projectRoot, "node_modules", ".deno");
+  const denoDir = current.path.join(projectRoot, "node_modules", ".deno");
 
   try {
     // Check if .deno directory exists (indicates Deno environment)
-    const stat = await runtime.fs.stat(denoDir).catch(() => null);
+    const stat = await current.fs.stat(denoDir).catch(() => null);
     if (!stat?.isDirectory) {
       return null;
     }
@@ -58,9 +58,9 @@ async function resolveFromDenoModules(
       : parts.slice(1).join("/");
 
     // Scan .deno for matching package directory
-    for await (const entry of runtime.fs.readDir(denoDir)) {
+    for await (const entry of current.fs.readDir(denoDir)) {
       if (entry.isDirectory && entry.name.startsWith(`${packageName}@`)) {
-        const pkgDir = runtime.path.join(
+        const pkgDir = current.path.join(
           denoDir,
           entry.name,
           "node_modules",
@@ -68,13 +68,13 @@ async function resolveFromDenoModules(
         );
 
         // Check if this package directory exists
-        const pkgStat = await runtime.fs.stat(pkgDir).catch(() => null);
+        const pkgStat = await current.fs.stat(pkgDir).catch(() => null);
         if (!pkgStat?.isDirectory) continue;
 
         // If there's a subpath, resolve it directly
         if (subpath) {
-          const subpathFile = runtime.path.join(pkgDir, subpath);
-          const subpathStat = await runtime.fs.stat(subpathFile).catch(
+          const subpathFile = current.path.join(pkgDir, subpath);
+          const subpathStat = await current.fs.stat(subpathFile).catch(
             () => null,
           );
           if (subpathStat) {
@@ -82,7 +82,7 @@ async function resolveFromDenoModules(
           }
           // Try with .js extension
           const subpathJs = `${subpathFile}.js`;
-          const subpathJsStat = await runtime.fs.stat(subpathJs).catch(
+          const subpathJsStat = await current.fs.stat(subpathJs).catch(
             () => null,
           );
           if (subpathJsStat) {
@@ -132,12 +132,12 @@ async function resolveFromDenoModules(
           // 3. Default to index.js
           mainEntry ??= "index.js";
 
-          return runtime.path.join(pkgDir, mainEntry);
+          return current.path.join(pkgDir, mainEntry);
         }
 
         // Final fallback: try index.js directly
-        const indexPath = runtime.path.join(pkgDir, "index.js");
-        const indexStat = await runtime.fs.stat(indexPath).catch(() => null);
+        const indexPath = current.path.join(pkgDir, "index.js");
+        const indexStat = await current.fs.stat(indexPath).catch(() => null);
         if (indexStat) {
           return indexPath;
         }
@@ -272,7 +272,7 @@ export function createImportMapResolverPlugin(
           try {
             // Handle relative paths - resolve from project root, not from plugin file
             if (isPathSpecifier(resolved)) {
-              const filePath = runtime.path.resolve(
+              const filePath = current.path.resolve(
                 importMap!.projectRoot,
                 resolved,
               );

@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { assertEquals, assertExists } from "@std/assert";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import {
   getExternals,
   getProtocol,
@@ -14,7 +14,7 @@ import {
 
 Deno.test("import-map", async (t) => {
   // Create a temp directory for test fixtures
-  const tempDir = await runtime.fs.makeTempDir({ prefix: "import-map-test-" });
+  const tempDir = await current.fs.makeTempDir({ prefix: "import-map-test-" });
 
   await t.step("loadImportMap - deno.json only", async () => {
     // Create test deno.json
@@ -26,8 +26,8 @@ Deno.test("import-map", async (t) => {
         "@/": "./src/",
       },
     };
-    await runtime.fs.writeTextFile(
-      runtime.path.join(tempDir, "deno.json"),
+    await current.fs.writeTextFile(
+      current.path.join(tempDir, "deno.json"),
       JSON.stringify(denoJson, null, 2),
     );
 
@@ -65,7 +65,7 @@ Deno.test("import-map", async (t) => {
     assertEquals(importMap.externals.includes("@/"), false);
 
     // Cleanup
-    await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
+    await current.fs.remove(current.path.join(tempDir, "deno.json"));
   });
 
   await t.step("loadImportMap - package.json only", async () => {
@@ -79,8 +79,8 @@ Deno.test("import-map", async (t) => {
         "typescript": "^5.0.0",
       },
     };
-    await runtime.fs.writeTextFile(
-      runtime.path.join(tempDir, "package.json"),
+    await current.fs.writeTextFile(
+      current.path.join(tempDir, "package.json"),
       JSON.stringify(packageJson, null, 2),
     );
 
@@ -104,7 +104,7 @@ Deno.test("import-map", async (t) => {
     assertEquals(importMap.externals.includes("typescript"), true);
 
     // Cleanup
-    await runtime.fs.remove(runtime.path.join(tempDir, "package.json"));
+    await current.fs.remove(current.path.join(tempDir, "package.json"));
   });
 
   await t.step(
@@ -124,12 +124,12 @@ Deno.test("import-map", async (t) => {
         },
       };
 
-      await runtime.fs.writeTextFile(
-        runtime.path.join(tempDir, "deno.json"),
+      await current.fs.writeTextFile(
+        current.path.join(tempDir, "deno.json"),
         JSON.stringify(denoJson, null, 2),
       );
-      await runtime.fs.writeTextFile(
-        runtime.path.join(tempDir, "package.json"),
+      await current.fs.writeTextFile(
+        current.path.join(tempDir, "package.json"),
         JSON.stringify(packageJson, null, 2),
       );
 
@@ -152,8 +152,8 @@ Deno.test("import-map", async (t) => {
       assertEquals(lucideEntry.source, "package.json");
 
       // Cleanup
-      await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
-      await runtime.fs.remove(runtime.path.join(tempDir, "package.json"));
+      await current.fs.remove(current.path.join(tempDir, "deno.json"));
+      await current.fs.remove(current.path.join(tempDir, "package.json"));
     },
   );
 
@@ -164,8 +164,8 @@ Deno.test("import-map", async (t) => {
         "lucide-react": "npm:lucide-react@^0.500.0",
       },
     };
-    await runtime.fs.writeTextFile(
-      runtime.path.join(tempDir, "deno.json"),
+    await current.fs.writeTextFile(
+      current.path.join(tempDir, "deno.json"),
       JSON.stringify(denoJson, null, 2),
     );
 
@@ -182,7 +182,7 @@ Deno.test("import-map", async (t) => {
     assertEquals(resolveSpecifier("nonexistent", importMap), null);
 
     // Cleanup
-    await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
+    await current.fs.remove(current.path.join(tempDir, "deno.json"));
   });
 
   await t.step("resolveSpecifier - subpath imports", async () => {
@@ -192,8 +192,8 @@ Deno.test("import-map", async (t) => {
         "@/": "./src/",
       },
     };
-    await runtime.fs.writeTextFile(
-      runtime.path.join(tempDir, "deno.json"),
+    await current.fs.writeTextFile(
+      current.path.join(tempDir, "deno.json"),
       JSON.stringify(denoJson, null, 2),
     );
 
@@ -212,7 +212,7 @@ Deno.test("import-map", async (t) => {
     );
 
     // Cleanup
-    await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
+    await current.fs.remove(current.path.join(tempDir, "deno.json"));
   });
 
   await t.step("isExternal - checks external packages", async () => {
@@ -223,8 +223,8 @@ Deno.test("import-map", async (t) => {
         "@/": "./src/",
       },
     };
-    await runtime.fs.writeTextFile(
-      runtime.path.join(tempDir, "deno.json"),
+    await current.fs.writeTextFile(
+      current.path.join(tempDir, "deno.json"),
       JSON.stringify(denoJson, null, 2),
     );
 
@@ -247,7 +247,7 @@ Deno.test("import-map", async (t) => {
     assertEquals(isExternal("node:fs", importMap), true);
 
     // Cleanup
-    await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
+    await current.fs.remove(current.path.join(tempDir, "deno.json"));
   });
 
   await t.step("getExternals - returns external package list", async () => {
@@ -259,8 +259,8 @@ Deno.test("import-map", async (t) => {
         "@/": "./src/",
       },
     };
-    await runtime.fs.writeTextFile(
-      runtime.path.join(tempDir, "deno.json"),
+    await current.fs.writeTextFile(
+      current.path.join(tempDir, "deno.json"),
       JSON.stringify(denoJson, null, 2),
     );
 
@@ -276,11 +276,11 @@ Deno.test("import-map", async (t) => {
     assertEquals(externals.includes("@/"), false);
 
     // Cleanup
-    await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
+    await current.fs.remove(current.path.join(tempDir, "deno.json"));
   });
 
   await t.step("loadImportMap - empty directory", async () => {
-    const emptyDir = await runtime.fs.makeTempDir({
+    const emptyDir = await current.fs.makeTempDir({
       prefix: "import-map-empty-",
     });
 
@@ -293,11 +293,11 @@ Deno.test("import-map", async (t) => {
     assertEquals(importMap.externals.length, 0);
 
     // Cleanup
-    await runtime.fs.remove(emptyDir, { recursive: true });
+    await current.fs.remove(emptyDir, { recursive: true });
   });
 
   // Cleanup temp directory
-  await runtime.fs.remove(tempDir, { recursive: true });
+  await current.fs.remove(tempDir, { recursive: true });
 });
 
 Deno.test("getProtocol", async (t) => {

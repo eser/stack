@@ -9,7 +9,7 @@
 import { globToRegExp } from "@std/path/posix";
 import { walk } from "@std/fs/walk";
 import * as patterns from "@eser/standards/patterns";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 
 export async function* walkFiles(
   baseDir: string,
@@ -24,7 +24,7 @@ export async function* walkFiles(
   });
 
   for await (const entry of routesFolder) {
-    const rel = runtime.path.relative(baseDir, entry.path);
+    const rel = current.path.relative(baseDir, entry.path);
 
     if (globFilter !== undefined && !globToRegExp(globFilter).test(rel)) {
       continue;

@@ -17,7 +17,7 @@ import type {
   ComponentChunkInfo,
   FileInfo,
 } from "../../domain/chunk-manifest.ts";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import type { BundleData, Bundler } from "../../domain/bundler.ts";
 import { DEVELOPMENT_SETTINGS } from "../../config.ts";
@@ -111,11 +111,11 @@ class RuntimeCache {
     clientComponents: ClientComponent[],
   ): Promise<{ code: string; manifest: ChunkManifest }> {
     const { plugin } = this.config;
-    const projectRoot = runtime.process.cwd();
+    const projectRoot = current.process.cwd();
 
     // Create a temporary directory for this bundling process inside project root
     // This allows the bundler to resolve node_modules correctly
-    const tempDir = await runtime.fs.makeTempDir({
+    const tempDir = await current.fs.makeTempDir({
       prefix: "rsc-runtime-",
       dir: projectRoot, // Create temp dir in project root so node_modules can be found
     });
@@ -250,7 +250,7 @@ document.getElementById("root").innerHTML = '<div class="error"><h2>Bundle Error
     } finally {
       // Clean up temporary directory
       try {
-        await runtime.fs.remove(tempDir, { recursive: true });
+        await current.fs.remove(tempDir, { recursive: true });
       } catch (cleanupError) {
         // Cleanup failure is non-critical - temp files will be cleaned on next run
         runtimeLogger.debug("Temp directory cleanup failed", {

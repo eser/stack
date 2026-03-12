@@ -32,10 +32,10 @@ export const buildHandler = async (
 
   // Configure logging FIRST (before importing bundler modules that create loggers)
   const logging = await import("@eser/logging");
-  const { runtime } = await import("@eser/standards/runtime");
+  const { current } = await import("@eser/standards/runtime");
 
   // Get flags with defaults
-  const projectRoot = runtime.process.cwd();
+  const projectRoot = current.process.cwd();
   const outDir = (ctx.flags["out-dir"] as string) ?? "dist";
   const minify = !(ctx.flags["no-minify"] as boolean);
   const clean = (ctx.flags["clean"] as boolean) ?? false;
@@ -95,8 +95,8 @@ export const buildHandler = async (
   // Build config (only what bundler needs)
   const buildConfig = {
     projectRoot,
-    srcDir: runtime.path.resolve(projectRoot, baseConfig.srcDir),
-    distDir: runtime.path.resolve(projectRoot, outDir),
+    srcDir: current.path.resolve(projectRoot, baseConfig.srcDir),
+    distDir: current.path.resolve(projectRoot, outDir),
     logLevel,
     fonts: baseConfig.fonts,
     images: baseConfig.images,
@@ -113,7 +113,7 @@ export const buildHandler = async (
   // Clean dist directory if requested
   if (clean) {
     try {
-      await runtime.fs.remove(buildConfig.distDir, { recursive: true });
+      await current.fs.remove(buildConfig.distDir, { recursive: true });
       bundlerLogger.debug(`Cleaned ${buildConfig.distDir}`);
     } catch {
       // Directory may not exist
@@ -122,7 +122,7 @@ export const buildHandler = async (
 
   // Create plugins
   const tailwindPlugin = createTailwindPlugin({
-    globalCssPath: runtime.path.resolve(
+    globalCssPath: current.path.resolve(
       projectRoot,
       "src/app/styles/global.css",
     ),
@@ -141,7 +141,7 @@ export const buildHandler = async (
 
   // Analyze bundle if requested
   if (analyze) {
-    await analyzeBuild(runtime, outDir);
+    await analyzeBuild(current, outDir);
   }
 
   return results.ok(undefined);

@@ -15,7 +15,7 @@
  * @module
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import {
   analyzeServerActions,
@@ -123,7 +123,7 @@ export async function generateClientStub(
   // Read file content
   let content: string;
   try {
-    content = await runtime.fs.readTextFile(filePath);
+    content = await current.fs.readTextFile(filePath);
   } catch (error) {
     stubLogger.warn(`Failed to read file: ${filePath}`, { error });
     return null;
@@ -156,7 +156,7 @@ export async function generateClientStub(
   const stubContent = generateStubContent(relativePath, namedExports);
 
   // Overwrite the file with stubs (in virtual source, not original)
-  await runtime.fs.writeTextFile(filePath, stubContent);
+  await current.fs.writeTextFile(filePath, stubContent);
 
   stubLogger.debug(
     `Generated client stubs: ${namedExports.join(", ")}`,
@@ -182,7 +182,7 @@ export async function generateClientActionStubs(
   stubLogger.debug(`Scanning for server actions in: ${virtualSrcDir}`);
 
   // Check if directory exists
-  const exists = await runtime.fs.exists(virtualSrcDir);
+  const exists = await current.fs.exists(virtualSrcDir);
   if (!exists) {
     stubLogger.debug(`Directory does not exist: ${virtualSrcDir}`);
     return [];

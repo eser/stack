@@ -11,7 +11,7 @@
 
 import { walk } from "@std/fs/walk";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 
 /**
  * Common JavaScript/TypeScript directives.
@@ -179,7 +179,7 @@ export const extractExports = (content: string): readonly string[] => {
  */
 const readFileContent = async (filePath: string): Promise<string | null> => {
   try {
-    return await runtime.fs.readTextFile(filePath);
+    return await current.fs.readTextFile(filePath);
   } catch {
     return null;
   }
@@ -217,7 +217,7 @@ export const analyzeDirectives = async (
     if (content === null) continue;
 
     if (hasDirective(content, directive)) {
-      const relativePath = runtime.path.relative(projectRoot, entry.path);
+      const relativePath = current.path.relative(projectRoot, entry.path);
       const exports = extractExports(content);
 
       matches.push({
@@ -288,7 +288,7 @@ export const analyzeServerActions = async (
 
     // Check for "use server" ANYWHERE in file (file-level or function-level)
     if (containsDirective(content, DIRECTIVES.USE_SERVER)) {
-      const relativePath = runtime.path.relative(projectRoot, entry.path);
+      const relativePath = current.path.relative(projectRoot, entry.path);
       const exports = extractExports(content);
 
       matches.push({

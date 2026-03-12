@@ -7,7 +7,7 @@
  */
 
 import * as yaml from "@std/yaml";
-import { NotFoundError, runtime } from "@eser/standards/runtime";
+import { current, NotFoundError } from "@eser/standards/runtime";
 import type { TemplateConfig, TemplateVariable } from "./types.ts";
 
 /** Default config filenames to look for */
@@ -23,10 +23,10 @@ export const loadTemplateConfig = async (
   dir: string,
 ): Promise<TemplateConfig | null> => {
   for (const filename of CONFIG_FILENAMES) {
-    const filepath = runtime.path.join(dir, filename);
+    const filepath = current.path.join(dir, filename);
 
     try {
-      const content = await runtime.fs.readTextFile(filepath);
+      const content = await current.fs.readTextFile(filepath);
       const config = yaml.parse(content) as TemplateConfig;
 
       // Validate required fields
@@ -172,10 +172,10 @@ export const getConfigFilePath = async (
   dir: string,
 ): Promise<string | null> => {
   for (const filename of CONFIG_FILENAMES) {
-    const filepath = runtime.path.join(dir, filename);
+    const filepath = current.path.join(dir, filename);
 
     try {
-      await runtime.fs.stat(filepath);
+      await current.fs.stat(filepath);
       return filepath;
     } catch {
       continue;

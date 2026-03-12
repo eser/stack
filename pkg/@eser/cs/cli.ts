@@ -3,7 +3,7 @@
 
 import * as cli from "@std/cli/parse-args";
 import * as results from "@eser/primitives/results";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import * as shellArgs from "@eser/shell/args";
 import { generate } from "./generate.ts";
 import { sync } from "./sync.ts";
@@ -99,7 +99,7 @@ function parseCliArgs(): {
   options: CliOptions;
   kubectlResource?: KubectlResourceReference;
 } {
-  const args = cli.parseArgs([...runtime.process.args], {
+  const args = cli.parseArgs([...current.process.args], {
     string: ["namespace", "env", "output"],
     boolean: ["help", "version", "string-only"],
     alias: {
@@ -261,7 +261,7 @@ if (import.meta.main) {
       if (error.message !== undefined) {
         console.error(error.message);
       }
-      runtime.process.setExitCode(error.exitCode);
+      current.process.setExitCode(error.exitCode);
     },
   });
 }

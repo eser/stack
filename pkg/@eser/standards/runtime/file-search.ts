@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { runtime } from "./mod.ts";
+import { current } from "./mod.ts";
 
 /**
  * Options for file hierarchy search.
@@ -45,12 +45,12 @@ export const searchFileHierarchy = async (
 
   while (true) {
     for (const name of filenames) {
-      const filepath = runtime.path.join(dir, name);
-      const exists = await runtime.fs.exists(filepath);
+      const filepath = current.path.join(dir, name);
+      const exists = await current.fs.exists(filepath);
 
       if (exists) {
         // Verify it's a file, not a directory
-        const stat = await runtime.fs.stat(filepath);
+        const stat = await current.fs.stat(filepath);
         if (stat.isFile) {
           return filepath;
         }
@@ -61,7 +61,7 @@ export const searchFileHierarchy = async (
       break;
     }
 
-    const parent = runtime.path.dirname(dir);
+    const parent = current.path.dirname(dir);
     if (parent === dir) {
       // Reached root
       break;

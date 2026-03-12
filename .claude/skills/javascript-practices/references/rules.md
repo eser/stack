@@ -32,28 +32,64 @@ export default buildCommand; // default export
 
 Scope: JS/TS
 
-Rule: Prefer namespace imports to prevent naming collisions.
+Rule: **ALWAYS use namespace imports (`import * as`)** to prevent naming
+collisions and make the source of every symbol explicit. This is a strict
+convention — violations will be caught in review.
 
 Correct:
 
 ```typescript
 import * as path from "@std/path";
 import * as fs from "@std/fs";
+import * as shellFormatting from "@eser/shell/formatting";
 
 const filePath = path.join(dir, "config.ts");
 const exists = await fs.exists(filePath);
+const output = shellFormatting.createOutput();
 ```
 
 Incorrect:
 
 ```typescript
-import { join, resolve } from "@std/path";
-import { copy, exists } from "@std/fs";
+import { join, resolve } from "@std/path";        // ❌ named import
+import { copy, exists } from "@std/fs";            // ❌ named import
+import { createOutput } from "@eser/shell/formatting"; // ❌ named import
 
 const filePath = join(dir, "config.ts"); // potential collision with other 'join'
 ```
 
-Exception: Single function imports from small modules:
+**Consolidated package imports:**
+When a package has namespace sub-module exports in its `mod.ts` (like `@eser/shell`,
+`@eser/primitives`, `@eser/functions`, `@eser/standards`), import the top-level
+package and access sub-modules via dot notation:
+
+```typescript
+import * as shell from "@eser/shell";
+import * as primitives from "@eser/primitives";
+import * as functions from "@eser/functions";
+import * as standards from "@eser/standards";
+
+const output = shell.formatting.createOutput();
+const result = primitives.results.ok(value);
+const tag: functions.triggers.CliEvent = event;
+const version = standards.runtime.current.process.args;
+```
+
+Do NOT import sub-modules individually when the root exports them:
+
+```typescript
+// ❌ Separate sub-module imports
+import * as shellFormatting from "@eser/shell/formatting";
+import * as shellExec from "@eser/shell/exec";
+import type * as shellArgs from "@eser/shell/args";
+```
+
+**Naming convention for namespace aliases:**
+- Standard library: short name matching the module (`path`, `fs`, `semver`)
+- Workspace packages: use the package's short name (`shell`, `primitives`,
+  `functions`, `standards`, `fp`)
+
+Exception: Single function imports from test assertion modules only:
 
 ```typescript
 import { assertEquals } from "@std/assert";

@@ -21,15 +21,14 @@
  * @module
  */
 
-import * as results from "@eser/primitives/results";
-import * as handler from "@eser/functions/handler";
-import type { CliEvent } from "@eser/functions/triggers";
-import { fromPromise } from "@eser/functions/task";
-import { runtime } from "@eser/standards/runtime";
-import type * as shellArgs from "@eser/shell/args";
-import * as fmt from "@eser/shell/formatting";
+import * as primitives from "@eser/primitives";
+import * as functions from "@eser/functions";
+import * as standards from "@eser/standards";
+import * as shell from "@eser/shell";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 import { runCliMain } from "./cli-support.ts";
+
+const output = shell.formatting.createOutput();
 
 /**
  * Options for export name checking.
@@ -98,7 +97,7 @@ const isKebabCase = (str: string, ignoreWords: string[] = []): boolean => {
     }
 
     // Strip file extension using path helpers (language-agnostic)
-    const ext = runtime.path.extname(cleanSegment);
+    const ext = standards.runtime.current.path.extname(cleanSegment);
     if (ext.length > 0) {
       cleanSegment = cleanSegment.slice(0, -ext.length);
     }
@@ -189,54 +188,57 @@ export const checkExportNames = async (
 /**
  * Handler wrapping checkExportNames as a Task.
  */
-export const checkExportNamesHandler: handler.Handler<
+export const checkExportNamesHandler: functions.handler.Handler<
   CheckExportNamesOptions,
   CheckExportNamesResult,
   Error
-> = (input) => fromPromise(() => checkExportNames(input));
+> = (input) => functions.task.fromPromise(() => checkExportNames(input));
 
 // --- CLI Adapter ---
 
 /**
  * Adapter that produces default CheckExportNamesOptions from a CLI event.
  */
-const cliAdapter: handler.Adapter<CliEvent, CheckExportNamesOptions> = (
+const cliAdapter: functions.handler.Adapter<
+  functions.triggers.CliEvent,
+  CheckExportNamesOptions
+> = (
   _event,
-) => results.ok({ root: "." });
+) => primitives.results.ok({ root: "." });
 
 // --- CLI ResponseMapper ---
 
 /**
  * Maps the handler result to CLI output.
  */
-const cliResponseMapper: handler.ResponseMapper<
+const cliResponseMapper: functions.handler.ResponseMapper<
   CheckExportNamesResult,
-  Error | handler.AdaptError,
-  shellArgs.CliResult<void>
+  Error | functions.handler.AdaptError,
+  shell.args.CliResult<void>
 > = (result) => {
-  if (results.isFail(result)) {
-    fmt.printError(String(result.error));
-    return results.fail({ exitCode: 1 });
+  if (primitives.results.isFail(result)) {
+    output.printError(String(result.error));
+    return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
-  fmt.printInfo(`Checked ${value.packagesChecked} packages.`);
+  output.printInfo(`Checked ${value.packagesChecked} packages.`);
 
   if (!value.isValid) {
-    fmt.printError(
+    output.printError(
       `Found ${value.violations.length} naming violations:`,
     );
     for (const violation of value.violations) {
-      fmt.printWarning(violation.packageName);
-      fmt.printInfo(`  Export: ${violation.exportPath}`);
-      fmt.printInfo(`  Suggestion: ${violation.suggestion}`);
+      output.printWarning(violation.packageName);
+      output.printInfo(`  Export: ${violation.exportPath}`);
+      output.printInfo(`  Suggestion: ${violation.suggestion}`);
     }
-    return results.fail({ exitCode: 1 });
+    return primitives.results.fail({ exitCode: 1 });
   }
 
-  fmt.printSuccess("All export names follow conventions.");
-  return results.ok(undefined);
+  output.printSuccess("All export names follow conventions.");
+  return primitives.results.ok(undefined);
 };
 
 // --- CLI Trigger ---
@@ -245,8 +247,8 @@ const cliResponseMapper: handler.ResponseMapper<
  * CLI trigger for check-export-names.
  */
 export const handleCli: (
-  event: CliEvent,
-) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  event: functions.triggers.CliEvent,
+) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
   handler: checkExportNamesHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -255,7 +257,7 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   _cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> =>
+): Promise<shell.args.CliResult<void>> =>
   await handleCli({ command: "check-export-names", args: [], flags: {} });
 
 if (import.meta.main) {

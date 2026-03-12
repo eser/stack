@@ -8,15 +8,15 @@
  *
  * @example
  * ```typescript
- * import { runtime } from "@eser/standards/runtime";
+ * import { current } from "@eser/standards/runtime";
  *
  * // Check capabilities before use
- * if (runtime.capabilities.fs) {
- *   const config = await runtime.fs.readTextFile("config.json");
+ * if (current.capabilities.fs) {
+ *   const config = await current.fs.readTextFile("config.json");
  * }
  *
  * // Path is always available
- * const fullPath = runtime.path.join("src", "lib", "utils.ts");
+ * const fullPath = current.path.join("src", "lib", "utils.ts");
  *
  * // For testing - use factory with mocks
  * import { createRuntime } from "@eser/standards/runtime";
@@ -316,11 +316,11 @@ export const createRuntime = (options?: CreateRuntimeOptions): Runtime => {
  *
  * @example
  * ```typescript
- * import { runtime } from "@eser/standards/runtime";
+ * import { current } from "@eser/standards/runtime";
  *
- * if (runtime.capabilities.fs) {
- *   const data = await runtime.fs.readTextFile("config.json");
+ * if (current.capabilities.fs) {
+ *   const data = await current.fs.readTextFile("config.json");
  * }
  * ```
  */
-export const runtime: Runtime = createRuntime();
+export const current: Runtime = createRuntime();

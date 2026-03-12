@@ -35,7 +35,7 @@
  * ```
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 
 // Lazily loaded Tailwind dependencies
 let tailwindNode: typeof import("npm:@tailwindcss/node@4") | null = null;
@@ -129,7 +129,7 @@ async function addBuildDependency(
   path: string,
 ): Promise<void> {
   try {
-    const stat = await runtime.fs.stat(path);
+    const stat = await current.fs.stat(path);
     deps.set(path, stat.mtime?.getTime() ?? null);
   } catch {
     deps.set(path, null);
@@ -147,7 +147,7 @@ async function requiresRebuild(
       return true;
     }
     try {
-      const stat = await runtime.fs.stat(path);
+      const stat = await current.fs.stat(path);
       if ((stat.mtime?.getTime() ?? 0) > mtime) {
         return true;
       }
@@ -238,7 +238,7 @@ export function createTailwindRoot(
         processedContent = `@reference "tailwindcss";\n\n${content}`;
       }
 
-      const inputBase = runtime.path.dirname(runtime.path.resolve(id));
+      const inputBase = current.path.dirname(current.path.resolve(id));
       const dependencies: string[] = [];
 
       // Initialize or reinitialize compiler if dependencies changed

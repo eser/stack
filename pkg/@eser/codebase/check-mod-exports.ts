@@ -22,15 +22,14 @@
  * @module
  */
 
-import * as results from "@eser/primitives/results";
-import * as handler from "@eser/functions/handler";
-import type { CliEvent } from "@eser/functions/triggers";
-import { fromPromise } from "@eser/functions/task";
-import { runtime } from "@eser/standards/runtime";
-import type * as shellArgs from "@eser/shell/args";
-import * as fmt from "@eser/shell/formatting";
+import * as primitives from "@eser/primitives";
+import * as functions from "@eser/functions";
+import * as standards from "@eser/standards";
+import * as shell from "@eser/shell";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 import { runCliMain } from "./cli-support.ts";
+
+const output = shell.formatting.createOutput();
 
 /**
  * Options for mod.ts export checking.
@@ -156,12 +155,12 @@ export const checkModExports = async (
   const missingExports: MissingExport[] = [];
 
   for (const pkg of packages) {
-    const modPath = runtime.path.join(pkg.path, "mod.ts");
+    const modPath = standards.runtime.current.path.join(pkg.path, "mod.ts");
 
     // Check if mod.ts exists
     let modContent: string;
     try {
-      modContent = await runtime.fs.readTextFile(modPath);
+      modContent = await standards.runtime.current.fs.readTextFile(modPath);
     } catch {
       // No mod.ts, skip this package
       continue;
@@ -176,7 +175,7 @@ export const checkModExports = async (
     const files = await workspaceDiscovery.getPackageFiles(pkg.path);
 
     for (const file of files) {
-      const fileName = runtime.path.basename(file);
+      const fileName = standards.runtime.current.path.basename(file);
 
       if (!shouldBeExported(fileName)) {
         continue;
@@ -213,52 +212,55 @@ export const checkModExports = async (
 /**
  * Handler wrapping checkModExports as a Task.
  */
-export const checkModExportsHandler: handler.Handler<
+export const checkModExportsHandler: functions.handler.Handler<
   CheckModExportsOptions,
   CheckModExportsResult,
   Error
-> = (input) => fromPromise(() => checkModExports(input));
+> = (input) => functions.task.fromPromise(() => checkModExports(input));
 
 // --- CLI Adapter ---
 
 /**
  * Adapter that produces default CheckModExportsOptions from a CLI event.
  */
-const cliAdapter: handler.Adapter<CliEvent, CheckModExportsOptions> = (
+const cliAdapter: functions.handler.Adapter<
+  functions.triggers.CliEvent,
+  CheckModExportsOptions
+> = (
   _event,
-) => results.ok({ root: "." });
+) => primitives.results.ok({ root: "." });
 
 // --- CLI ResponseMapper ---
 
 /**
  * Maps the handler result to CLI output.
  */
-const cliResponseMapper: handler.ResponseMapper<
+const cliResponseMapper: functions.handler.ResponseMapper<
   CheckModExportsResult,
-  Error | handler.AdaptError,
-  shellArgs.CliResult<void>
+  Error | functions.handler.AdaptError,
+  shell.args.CliResult<void>
 > = (result) => {
-  if (results.isFail(result)) {
-    fmt.printError(String(result.error));
-    return results.fail({ exitCode: 1 });
+  if (primitives.results.isFail(result)) {
+    output.printError(String(result.error));
+    return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
-  fmt.printInfo(`Checked ${value.packagesChecked} packages.`);
+  output.printInfo(`Checked ${value.packagesChecked} packages.`);
 
   if (!value.isComplete) {
-    fmt.printError(
+    output.printError(
       `Found ${value.missingExports.length} missing exports:`,
     );
     for (const missing of value.missingExports) {
-      fmt.printWarning(`${missing.packageName}: ${missing.file}`);
+      output.printWarning(`${missing.packageName}: ${missing.file}`);
     }
-    return results.fail({ exitCode: 1 });
+    return primitives.results.fail({ exitCode: 1 });
   }
 
-  fmt.printSuccess("All mod.ts exports are complete.");
-  return results.ok(undefined);
+  output.printSuccess("All mod.ts exports are complete.");
+  return primitives.results.ok(undefined);
 };
 
 // --- CLI Trigger ---
@@ -267,8 +269,8 @@ const cliResponseMapper: handler.ResponseMapper<
  * CLI trigger for check-mod-exports.
  */
 export const handleCli: (
-  event: CliEvent,
-) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  event: functions.triggers.CliEvent,
+) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
   handler: checkModExportsHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -277,7 +279,7 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   _cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> =>
+): Promise<shell.args.CliResult<void>> =>
   await handleCli({ command: "check-mod-exports", args: [], flags: {} });
 
 if (import.meta.main) {

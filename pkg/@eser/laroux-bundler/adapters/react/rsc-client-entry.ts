@@ -7,7 +7,7 @@
  * 3. A global module registry for RSC client
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import { copy } from "@std/fs"; // copy not available in runtime
 import type { ClientComponent } from "./rsc-analyze.ts";
 
@@ -167,7 +167,7 @@ async function copyBootstrapFiles(distDir: string): Promise<void> {
   const { isRemote, baseUrl } = getBootstrapDir();
 
   for (const filename of BOOTSTRAP_FILES) {
-    const destPath = runtime.path.resolve(distDir, filename);
+    const destPath = current.path.resolve(distDir, filename);
     // Use URL API for proper URL path joining
     const sourceUrl = baseUrl.endsWith("/")
       ? new URL(filename, baseUrl).href
@@ -187,7 +187,7 @@ async function copyBootstrapFiles(distDir: string): Promise<void> {
         // We need to reverse this so rolldown can resolve them
         content = transformJsrImports(content);
 
-        await runtime.fs.writeTextFile(destPath, content);
+        await current.fs.writeTextFile(destPath, content);
       } catch (err) {
         throw new Error(
           `Failed to fetch bootstrap file ${filename} from ${sourceUrl}: ${
@@ -208,9 +208,9 @@ export async function createClientEntry(
   _projectRoot: string,
   distDir: string,
 ): Promise<string> {
-  const entryPath = runtime.path.resolve(distDir, "_client-entry.tsx");
+  const entryPath = current.path.resolve(distDir, "_client-entry.tsx");
 
-  await runtime.fs.ensureDir(distDir);
+  await current.fs.ensureDir(distDir);
 
   // Copy all client bootstrap files to dist
   await copyBootstrapFiles(distDir);
@@ -252,7 +252,7 @@ ${componentRegistry}
 import "./entry.tsx";
 `;
 
-  await runtime.fs.writeTextFile(entryPath, content);
+  await current.fs.writeTextFile(entryPath, content);
 
   return entryPath;
 }

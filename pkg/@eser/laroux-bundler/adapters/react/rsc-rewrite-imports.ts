@@ -4,7 +4,7 @@
  * Automatically rewrites imports in server components to point to transformed client components
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import { walkFiles } from "@eser/collector";
 import type { TransformResult } from "./rsc-transform.ts";
@@ -121,12 +121,12 @@ function resolveImportPath(
   // Handle @/ path alias (resolves to src/)
   if (importPath.startsWith("@/")) {
     const pathWithoutAlias = importPath.slice(2); // Remove "@/"
-    return runtime.path.join(projectRoot, "src", pathWithoutAlias);
+    return current.path.join(projectRoot, "src", pathWithoutAlias);
   }
 
   // Handle relative imports
-  const importerDir = runtime.path.dirname(importerPath);
-  const resolved = runtime.path.resolve(importerDir, importPath);
+  const importerDir = current.path.dirname(importerPath);
+  const resolved = current.path.resolve(importerDir, importPath);
   return resolved;
 }
 
@@ -189,7 +189,7 @@ export async function rewriteServerComponentImports(
   outputDir: string,
   projectRoot: string,
 ): Promise<ImportRewriteResult> {
-  const content = await runtime.fs.readTextFile(serverComponentPath);
+  const content = await current.fs.readTextFile(serverComponentPath);
   const imports = parseImports(content);
 
   let rewrittenContent = content;
@@ -261,15 +261,15 @@ export async function rewriteServerComponentImports(
 
     if (transformedPath) {
       // Calculate output path for this server component
-      const relativeToRoot = runtime.path.relative(
+      const relativeToRoot = current.path.relative(
         projectRoot,
         serverComponentPath,
       );
-      const outputPath = runtime.path.join(outputDir, relativeToRoot);
+      const outputPath = current.path.join(outputDir, relativeToRoot);
 
       // Calculate relative path from the OUTPUT location to transformed component
-      const relativePath = runtime.path.relative(
-        runtime.path.dirname(outputPath),
+      const relativePath = current.path.relative(
+        current.path.dirname(outputPath),
         transformedPath,
       );
 
@@ -299,14 +299,14 @@ export async function rewriteServerComponentImports(
     } else if (importInfo.path.startsWith("@/")) {
       // Rewrite @/ path alias to relative path (for non-client-component imports)
       // e.g., @/lib/backend/backend.ts -> ../../../lib/backend/backend.ts
-      const relativeToRoot = runtime.path.relative(
+      const relativeToRoot = current.path.relative(
         projectRoot,
         serverComponentPath,
       );
-      const outputPath = runtime.path.join(outputDir, relativeToRoot);
+      const outputPath = current.path.join(outputDir, relativeToRoot);
 
       // Convert @/ to src/ and resolve the target path
-      const targetPath = runtime.path.join(
+      const targetPath = current.path.join(
         projectRoot,
         "dist",
         "server",
@@ -315,8 +315,8 @@ export async function rewriteServerComponentImports(
       );
 
       // Calculate relative path from current file to target
-      const relativePath = runtime.path.relative(
-        runtime.path.dirname(outputPath),
+      const relativePath = current.path.relative(
+        current.path.dirname(outputPath),
         targetPath,
       );
 
@@ -347,14 +347,14 @@ export async function rewriteServerComponentImports(
   }
 
   // Write the rewritten file to dist/server
-  const relativeToRoot = runtime.path.relative(
+  const relativeToRoot = current.path.relative(
     projectRoot,
     serverComponentPath,
   );
-  const outputPath = runtime.path.join(outputDir, relativeToRoot);
+  const outputPath = current.path.join(outputDir, relativeToRoot);
 
-  await runtime.fs.ensureDir(runtime.path.dirname(outputPath));
-  await runtime.fs.writeTextFile(outputPath, rewrittenContent);
+  await current.fs.ensureDir(current.path.dirname(outputPath));
+  await current.fs.writeTextFile(outputPath, rewrittenContent);
 
   return {
     originalPath: serverComponentPath,
@@ -439,13 +439,13 @@ export async function rewriteAllServerComponents(
     if (result.importsRewritten > 0) {
       rewriteLogger.debug(
         `  ✓ ${
-          runtime.path.relative(projectRoot, componentPath)
+          current.path.relative(projectRoot, componentPath)
         } (${result.importsRewritten} import(s) rewritten)`,
       );
     } else {
       rewriteLogger.debug(
         `  ✓ ${
-          runtime.path.relative(projectRoot, componentPath)
+          current.path.relative(projectRoot, componentPath)
         } (no client imports)`,
       );
     }
@@ -466,7 +466,7 @@ async function rewriteClientComponentCSSImports(
   cssModuleMap: Map<string, string>,
   projectRoot: string,
 ): Promise<{ importsRewritten: number }> {
-  const content = await runtime.fs.readTextFile(clientComponentPath);
+  const content = await current.fs.readTextFile(clientComponentPath);
   const imports = parseImports(content);
 
   let rewrittenContent = content;
@@ -530,7 +530,7 @@ async function rewriteClientComponentCSSImports(
 
   // Write back the rewritten content if changes were made
   if (importsRewritten > 0) {
-    await runtime.fs.writeTextFile(clientComponentPath, rewrittenContent);
+    await current.fs.writeTextFile(clientComponentPath, rewrittenContent);
   }
 
   return { importsRewritten };
@@ -567,7 +567,7 @@ export async function rewriteAllClientComponentCSSImports(
     if (result.importsRewritten > 0) {
       rewriteLogger.debug(
         `  ✓ ${
-          runtime.path.relative(projectRoot, component.filePath)
+          current.path.relative(projectRoot, component.filePath)
         } (${result.importsRewritten} CSS import(s) rewritten)`,
       );
       totalRewritten += result.importsRewritten;
@@ -604,7 +604,7 @@ export async function rewriteAllSrcCSSModuleImports(
   for await (
     const relPath of walkFiles(srcDir, "**/*.{tsx,ts}", /node_modules/)
   ) {
-    srcFiles.push(runtime.path.join(srcDir, relPath));
+    srcFiles.push(current.path.join(srcDir, relPath));
   }
 
   rewriteLogger.debug(
@@ -623,7 +623,7 @@ export async function rewriteAllSrcCSSModuleImports(
     if (result.importsRewritten > 0) {
       rewriteLogger.debug(
         `  ✓ ${
-          runtime.path.relative(projectRoot, filePath)
+          current.path.relative(projectRoot, filePath)
         } (${result.importsRewritten} CSS import(s) rewritten)`,
       );
       totalRewritten += result.importsRewritten;

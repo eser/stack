@@ -4,7 +4,7 @@
  * Loads product metadata from product.json
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 
 export type ProductInfo = {
   name: string;
@@ -30,11 +30,11 @@ export async function getProductInfo(): Promise<ProductInfo> {
 
   try {
     // Try to load from project root
-    const productJsonPath = runtime.path.resolve(
+    const productJsonPath = current.path.resolve(
       new URL(".", import.meta.url).pathname,
       "../../product.json",
     );
-    const content = await runtime.fs.readTextFile(productJsonPath);
+    const content = await current.fs.readTextFile(productJsonPath);
     cachedProductInfo = JSON.parse(content);
     return cachedProductInfo!;
   } catch {
@@ -59,11 +59,11 @@ export async function getProductInfo(): Promise<ProductInfo> {
  */
 export async function getProductVersion(): Promise<string> {
   try {
-    const productJsonPath = runtime.path.resolve(
+    const productJsonPath = current.path.resolve(
       new URL(".", import.meta.url).pathname,
       "../../product.json",
     );
-    const content = await runtime.fs.readTextFile(productJsonPath);
+    const content = await current.fs.readTextFile(productJsonPath);
     const product = JSON.parse(content);
     return product.version;
   } catch {

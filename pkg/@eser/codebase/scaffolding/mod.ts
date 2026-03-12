@@ -75,7 +75,7 @@ export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const args = cliParseArgs.parseArgs(
-    (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
+    (cliArgs ?? standardsRuntime.current.process.args) as string[],
     {
       string: ["path", "var"],
       boolean: ["force", "interactive", "skip-post-install", "help"],
@@ -192,7 +192,7 @@ if (import.meta.main) {
       if (error.message !== undefined) {
         console.error(error.message);
       }
-      standardsRuntime.runtime.process.setExitCode(error.exitCode);
+      standardsRuntime.current.process.setExitCode(error.exitCode);
     },
   });
 }

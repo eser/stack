@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import type { FormatOptions, WriterInstance, WriterOptions } from "./types.ts";
 import { FormatNotFoundError } from "./types.ts";
 import { getFormat } from "./format-registry.ts";
@@ -103,7 +103,7 @@ export const writer = (opts: WriterOptions): WriterInstance => {
 
     pipeToStdout: async (): Promise<void> => {
       const bytes = getEncoder().encode(getOutput());
-      const stdoutWriter = runtime.process.stdout.getWriter();
+      const stdoutWriter = current.process.stdout.getWriter();
       try {
         await stdoutWriter.write(bytes);
       } finally {

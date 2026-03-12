@@ -2,7 +2,7 @@
 import * as runtime from "@eser/standards/runtime";
 
 export function main() {
-  console.log(runtime.runtime.name);
+  console.log(runtime.current.name);
 }
 
 // Learn more at https://docs.deno.com/runtime/manual/examples/module_metadata#concepts

@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import { generate } from "./generate.ts";
 // No longer need ensureDir import
 
@@ -10,11 +10,11 @@ async function createEnvFile(
   env: string,
   content: Record<string, string>,
 ): Promise<string> {
-  const tempDir = await runtime.fs.makeTempDir({ prefix: "cs_test_" });
+  const tempDir = await current.fs.makeTempDir({ prefix: "cs_test_" });
   const envContent = Object.entries(content)
     .map(([key, value]) => `${key}=${value}`)
     .join("\n");
-  await runtime.fs.writeTextFile(`${tempDir}/.env.${env}`, envContent);
+  await current.fs.writeTextFile(`${tempDir}/.env.${env}`, envContent);
   return tempDir;
 }
 
@@ -22,19 +22,19 @@ async function createEnvFile(
 async function createDefaultEnvFiles(
   content: Record<string, string>,
 ): Promise<string> {
-  const tempDir = await runtime.fs.makeTempDir({ prefix: "cs_test_" });
+  const tempDir = await current.fs.makeTempDir({ prefix: "cs_test_" });
   const envContent = Object.entries(content)
     .map(([key, value]) => `${key}=${value}`)
     .join("\n");
-  await runtime.fs.writeTextFile(`${tempDir}/.env`, envContent);
-  await runtime.fs.writeTextFile(`${tempDir}/.env.development`, envContent);
+  await current.fs.writeTextFile(`${tempDir}/.env`, envContent);
+  await current.fs.writeTextFile(`${tempDir}/.env.development`, envContent);
   return tempDir;
 }
 
 // Helper to cleanup temp directory
 async function cleanupTempDir(tempDir: string) {
   try {
-    await runtime.fs.remove(tempDir, { recursive: true });
+    await current.fs.remove(tempDir, { recursive: true });
   } catch {
     // Ignore if directory doesn't exist
   }
@@ -46,10 +46,10 @@ Deno.test("generate() should work without environment name", async () => {
     "DEFAULT_VAR_2": "default-value-2",
   });
 
-  const originalCwd = runtime.process.cwd();
+  const originalCwd = current.process.cwd();
 
   try {
-    runtime.process.chdir(tempDir);
+    current.process.chdir(tempDir);
 
     const result = await generate({
       resource: { type: "configmap", name: "test-config" },
@@ -65,7 +65,7 @@ Deno.test("generate() should work without environment name", async () => {
     assert.assertStringIncludes(result, "DEFAULT_VAR_1: default-value-1");
     assert.assertStringIncludes(result, "DEFAULT_VAR_2: default-value-2");
   } finally {
-    runtime.process.chdir(originalCwd);
+    current.process.chdir(originalCwd);
     await cleanupTempDir(tempDir);
   }
 });
@@ -76,10 +76,10 @@ Deno.test("generate() should work with environment name", async () => {
     "TEST_VAR_2": "test-value-2",
   });
 
-  const originalCwd = runtime.process.cwd();
+  const originalCwd = current.process.cwd();
 
   try {
-    runtime.process.chdir(tempDir);
+    current.process.chdir(tempDir);
 
     const result = await generate({
       resource: { type: "configmap", name: "test-config" },
@@ -95,7 +95,7 @@ Deno.test("generate() should work with environment name", async () => {
     assert.assertStringIncludes(result, "TEST_VAR_1: test-value-1");
     assert.assertStringIncludes(result, "TEST_VAR_2: test-value-2");
   } finally {
-    runtime.process.chdir(originalCwd);
+    current.process.chdir(originalCwd);
     await cleanupTempDir(tempDir);
   }
 });
@@ -105,10 +105,10 @@ Deno.test("generate() should handle JSON format", async () => {
     "JSON_TEST_VAR": "json-test-value",
   });
 
-  const originalCwd = runtime.process.cwd();
+  const originalCwd = current.process.cwd();
 
   try {
-    runtime.process.chdir(tempDir);
+    current.process.chdir(tempDir);
 
     const result = await generate({
       resource: { type: "configmap", name: "json-test" },
@@ -124,7 +124,7 @@ Deno.test("generate() should handle JSON format", async () => {
     assert.assertEquals(parsed[0].metadata.name, "json-test");
     assert.assertEquals(parsed[0].data["JSON_TEST_VAR"], "json-test-value");
   } finally {
-    runtime.process.chdir(originalCwd);
+    current.process.chdir(originalCwd);
     await cleanupTempDir(tempDir);
   }
 });
@@ -135,10 +135,10 @@ Deno.test("generate() should generate Secret resources", async () => {
     "SECRET_VAR_2": "secret-value-2",
   });
 
-  const originalCwd = runtime.process.cwd();
+  const originalCwd = current.process.cwd();
 
   try {
-    runtime.process.chdir(tempDir);
+    current.process.chdir(tempDir);
 
     const result = await generate({
       resource: { type: "secret", name: "test-secret" },
@@ -153,7 +153,7 @@ Deno.test("generate() should generate Secret resources", async () => {
     assert.assertStringIncludes(result, "namespace: test-namespace");
     assert.assertStringIncludes(result, "type: Opaque");
   } finally {
-    runtime.process.chdir(originalCwd);
+    current.process.chdir(originalCwd);
     await cleanupTempDir(tempDir);
   }
 });
@@ -164,10 +164,10 @@ Deno.test("generate() should include environment variables", async () => {
     "ANOTHER_TEST_VAR": "another-value",
   });
 
-  const originalCwd = runtime.process.cwd();
+  const originalCwd = current.process.cwd();
 
   try {
-    runtime.process.chdir(tempDir);
+    current.process.chdir(tempDir);
 
     const result = await generate({
       resource: { type: "configmap", name: "env-test" },
@@ -180,7 +180,7 @@ Deno.test("generate() should include environment variables", async () => {
     assert.assertStringIncludes(result, "TEST_PROCESS_VAR: from-process");
     assert.assertStringIncludes(result, "ANOTHER_TEST_VAR: another-value");
   } finally {
-    runtime.process.chdir(originalCwd);
+    current.process.chdir(originalCwd);
     await cleanupTempDir(tempDir);
   }
 });
@@ -191,10 +191,10 @@ Deno.test("generate() should work with different resource types", async () => {
     "SHARED_VAR": "shared-value",
   });
 
-  const originalCwd = runtime.process.cwd();
+  const originalCwd = current.process.cwd();
 
   try {
-    runtime.process.chdir(tempDir);
+    current.process.chdir(tempDir);
 
     const result = await generate({
       resource: { type: "configmap", name: "multi-test" },
@@ -207,7 +207,7 @@ Deno.test("generate() should work with different resource types", async () => {
     assert.assertStringIncludes(result, "CONFIG_VAR: config-value");
     assert.assertStringIncludes(result, "SHARED_VAR: shared-value");
   } finally {
-    runtime.process.chdir(originalCwd);
+    current.process.chdir(originalCwd);
     await cleanupTempDir(tempDir);
   }
 });
@@ -218,10 +218,10 @@ Deno.test("generate() should capture runtime environment variables", async () =>
     "RUNTIME_VAR2": "runtime-value-2",
   });
 
-  const originalCwd = runtime.process.cwd();
+  const originalCwd = current.process.cwd();
 
   try {
-    runtime.process.chdir(tempDir);
+    current.process.chdir(tempDir);
 
     const result = await generate({
       resource: { type: "configmap", name: "runtime-test" },
@@ -232,7 +232,7 @@ Deno.test("generate() should capture runtime environment variables", async () =>
     assert.assertStringIncludes(result, "RUNTIME_VAR1: runtime-value-1");
     assert.assertStringIncludes(result, "RUNTIME_VAR2: runtime-value-2");
   } finally {
-    runtime.process.chdir(originalCwd);
+    current.process.chdir(originalCwd);
     await cleanupTempDir(tempDir);
   }
 });
@@ -244,10 +244,10 @@ Deno.test("generate() should handle multiple environment variables", async () =>
     "VAR_3": "value-3",
   });
 
-  const originalCwd = runtime.process.cwd();
+  const originalCwd = current.process.cwd();
 
   try {
-    runtime.process.chdir(tempDir);
+    current.process.chdir(tempDir);
 
     const result = await generate({
       resource: { type: "configmap", name: "multi-var-test" },
@@ -261,7 +261,7 @@ Deno.test("generate() should handle multiple environment variables", async () =>
     assert.assertStringIncludes(result, "VAR_2: value-2");
     assert.assertStringIncludes(result, "VAR_3: value-3");
   } finally {
-    runtime.process.chdir(originalCwd);
+    current.process.chdir(originalCwd);
     await cleanupTempDir(tempDir);
   }
 });
@@ -272,10 +272,10 @@ Deno.test("generate() should work with --env flag", async () => {
     "PROCESS_VAR": "process-value",
   });
 
-  const originalCwd = runtime.process.cwd();
+  const originalCwd = current.process.cwd();
 
   try {
-    runtime.process.chdir(tempDir);
+    current.process.chdir(tempDir);
 
     const result = await generate({
       resource: { type: "configmap", name: "custom-env-test" },
@@ -288,7 +288,7 @@ Deno.test("generate() should work with --env flag", async () => {
     assert.assertStringIncludes(result, "CUSTOM_ENV_VAR: custom-value");
     assert.assertStringIncludes(result, "PROCESS_VAR: process-value");
   } finally {
-    runtime.process.chdir(originalCwd);
+    current.process.chdir(originalCwd);
     await cleanupTempDir(tempDir);
   }
 });
@@ -298,10 +298,10 @@ Deno.test("generate() should include system environment variables", async () => 
     "TEST_SYSTEM_VAR": "system-value",
   });
 
-  const originalCwd = runtime.process.cwd();
+  const originalCwd = current.process.cwd();
 
   try {
-    runtime.process.chdir(tempDir);
+    current.process.chdir(tempDir);
 
     const result = await generate({
       resource: { type: "configmap", name: "system-test" },
@@ -313,7 +313,7 @@ Deno.test("generate() should include system environment variables", async () => 
     assert.assertStringIncludes(result, "name: system-test");
     assert.assertStringIncludes(result, "TEST_SYSTEM_VAR: system-value");
   } finally {
-    runtime.process.chdir(originalCwd);
+    current.process.chdir(originalCwd);
     await cleanupTempDir(tempDir);
   }
 });

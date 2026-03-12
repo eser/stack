@@ -31,7 +31,7 @@ import * as fmtColors from "@std/fmt/colors";
 import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as shellArgs from "@eser/shell/args";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import { loadProjectConfig } from "./config.ts";
 import { getValidators } from "./registry.ts";
 import type {
@@ -80,7 +80,7 @@ export {
 export const validate = async (
   options: ValidateOptions = {},
 ): Promise<ValidateResult> => {
-  const root = options.root ?? runtime.process.cwd();
+  const root = options.root ?? current.process.cwd();
 
   // Load project config
   const config = await loadProjectConfig(root);
@@ -153,7 +153,7 @@ export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const args = cliParseArgs.parseArgs(
-    (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
+    (cliArgs ?? standardsRuntime.current.process.args) as string[],
     {
       string: ["root", "only", "skip"],
       boolean: ["fix", "help"],
@@ -283,7 +283,7 @@ if (import.meta.main) {
       if (error.message !== undefined) {
         console.error(error.message);
       }
-      standardsRuntime.runtime.process.setExitCode(error.exitCode);
+      standardsRuntime.current.process.setExitCode(error.exitCode);
     },
   });
 }

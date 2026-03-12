@@ -9,7 +9,7 @@
  */
 
 import * as shellExec from "@eser/shell/exec";
-import { NotFoundError, runtime } from "@eser/standards/runtime";
+import { current, NotFoundError } from "@eser/standards/runtime";
 import { fetchTemplate } from "./providers/mod.ts";
 import {
   getConfigFilePath,
@@ -38,14 +38,14 @@ export const scaffold = async (
   } = options;
 
   // Resolve target directory to absolute path
-  const absoluteTargetDir = runtime.path.isAbsolute(targetDir)
+  const absoluteTargetDir = current.path.isAbsolute(targetDir)
     ? targetDir
-    : runtime.path.join(runtime.process.cwd(), targetDir);
+    : current.path.join(current.process.cwd(), targetDir);
 
   // Check if target directory exists and has content
   try {
     const entries = [];
-    for await (const entry of runtime.fs.readDir(absoluteTargetDir)) {
+    for await (const entry of current.fs.readDir(absoluteTargetDir)) {
       entries.push(entry);
       break; // We only need to know if there's at least one entry
     }
@@ -63,7 +63,7 @@ export const scaffold = async (
   }
 
   // Ensure target directory exists
-  await runtime.fs.ensureDir(absoluteTargetDir);
+  await current.fs.ensureDir(absoluteTargetDir);
 
   // Fetch template from provider
   await fetchTemplate(specifier, absoluteTargetDir);

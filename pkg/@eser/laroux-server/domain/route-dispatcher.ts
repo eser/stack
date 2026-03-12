@@ -3,7 +3,7 @@
 // Handles file-based API routes (route.ts files)
 
 import * as logging from "@eser/logging";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import type {
   ApiRouteModule,
   HttpMethod,
@@ -96,7 +96,7 @@ export class ApiRouteHandler {
     try {
       // NOTE: Must use variable + file:// - deno publish rewrites analyzable dynamic imports
       const registryPath = `file://${distDir}/server/api-routes.ts`;
-      this.registryDir = runtime.path.resolve(distDir, "server");
+      this.registryDir = current.path.resolve(distDir, "server");
       const registry = await import(registryPath);
       this.routes = registry.apiRoutes || [];
       apiLogger.debug(`Loaded ${this.routes.length} API route(s)`);
@@ -128,7 +128,7 @@ export class ApiRouteHandler {
 
         try {
           // Resolve module path relative to the registry directory
-          const resolvedPath = runtime.path.resolve(
+          const resolvedPath = current.path.resolve(
             this.registryDir,
             route.modulePath,
           );

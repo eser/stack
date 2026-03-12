@@ -255,14 +255,14 @@ Deno.test("minifyCss accepts browser targets", () => {
 // ============================================================================
 
 const createTestContext = async () => {
-  const tempDir = await standardsRuntime.runtime.fs.makeTempDir({
+  const tempDir = await standardsRuntime.current.fs.makeTempDir({
     prefix: "lightning-test-",
   });
   return {
     tempDir,
     cleanup: async () => {
       try {
-        await standardsRuntime.runtime.fs.remove(tempDir, { recursive: true });
+        await standardsRuntime.current.fs.remove(tempDir, { recursive: true });
       } catch {
         // Ignore cleanup errors
       }
@@ -274,12 +274,12 @@ Deno.test("transformCssFile reads, transforms, and writes CSS file", async () =>
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const inputPath = standardsRuntime.runtime.path.join(tempDir, "input.css");
-    const outputPath = standardsRuntime.runtime.path.join(
+    const inputPath = standardsRuntime.current.path.join(tempDir, "input.css");
+    const outputPath = standardsRuntime.current.path.join(
       tempDir,
       "output.css",
     );
-    await standardsRuntime.runtime.fs.writeTextFile(
+    await standardsRuntime.current.fs.writeTextFile(
       inputPath,
       ".foo { color: red; }",
     );
@@ -287,7 +287,7 @@ Deno.test("transformCssFile reads, transforms, and writes CSS file", async () =>
     const result = await transformCssFile(inputPath, outputPath);
 
     assert.assertExists(result.code);
-    const outputContent = await standardsRuntime.runtime.fs.readTextFile(
+    const outputContent = await standardsRuntime.current.fs.readTextFile(
       outputPath,
     );
     assert.assertEquals(outputContent, result.code);
@@ -300,13 +300,13 @@ Deno.test("transformCssFile overwrites input when no output specified", async ()
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const inputPath = standardsRuntime.runtime.path.join(tempDir, "style.css");
+    const inputPath = standardsRuntime.current.path.join(tempDir, "style.css");
     const originalContent = ".bar {\n  display: block;\n}";
-    await standardsRuntime.runtime.fs.writeTextFile(inputPath, originalContent);
+    await standardsRuntime.current.fs.writeTextFile(inputPath, originalContent);
 
     await transformCssFile(inputPath, undefined, { minify: true });
 
-    const updatedContent = await standardsRuntime.runtime.fs.readTextFile(
+    const updatedContent = await standardsRuntime.current.fs.readTextFile(
       inputPath,
     );
     // Content should be minified (no newlines)
@@ -320,19 +320,19 @@ Deno.test("transformCssFile applies options", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const inputPath = standardsRuntime.runtime.path.join(tempDir, "opts.css");
-    const outputPath = standardsRuntime.runtime.path.join(
+    const inputPath = standardsRuntime.current.path.join(tempDir, "opts.css");
+    const outputPath = standardsRuntime.current.path.join(
       tempDir,
       "opts-out.css",
     );
-    await standardsRuntime.runtime.fs.writeTextFile(
+    await standardsRuntime.current.fs.writeTextFile(
       inputPath,
       ".test {\n  padding: 10px;\n}",
     );
 
     await transformCssFile(inputPath, outputPath, { minify: true });
 
-    const output = await standardsRuntime.runtime.fs.readTextFile(outputPath);
+    const output = await standardsRuntime.current.fs.readTextFile(outputPath);
     assert.assertEquals(output.includes("\n"), false);
   } finally {
     await cleanup();

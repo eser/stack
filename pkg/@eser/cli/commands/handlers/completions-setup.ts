@@ -7,7 +7,7 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import * as shellEnv from "@eser/shell/env";
 
 export { detectShell, type Shell } from "@eser/shell/env";
@@ -20,7 +20,7 @@ const APP_NAME = "eser";
  */
 const readFileOrEmpty = async (path: string): Promise<string> => {
   try {
-    return await runtime.fs.readTextFile(path);
+    return await current.fs.readTextFile(path);
   } catch {
     return "";
   }
@@ -31,7 +31,7 @@ const readFileOrEmpty = async (path: string): Promise<string> => {
  */
 const fileExists = async (path: string): Promise<boolean> => {
   try {
-    await runtime.fs.stat(path);
+    await current.fs.stat(path);
     return true;
   } catch {
     return false;
@@ -64,10 +64,10 @@ export const addCompletions = async (shell: shellEnv.Shell): Promise<void> => {
   try {
     if (config.completionType === "file") {
       const fishPath = config.completionsFile!;
-      const dir = runtime.path.dirname(fishPath);
+      const dir = current.path.dirname(fishPath);
 
       try {
-        await runtime.fs.mkdir(dir, { recursive: true });
+        await current.fs.mkdir(dir, { recursive: true });
       } catch {
         // Directory might already exist
       }
@@ -84,7 +84,7 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "uninstall" -d "Unin
 complete -c eser -n "__fish_seen_subcommand_from system" -a "update" -d "Update eser CLI to latest version"
 complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Generate shell completion scripts"
 `;
-      await runtime.fs.writeTextFile(fishPath, fishScript);
+      await current.fs.writeTextFile(fishPath, fishScript);
       // deno-lint-ignore no-console
       console.log(`  ${fmtColors.dim("Created")} ${fmtColors.cyan(fishPath)}`);
     } else {
@@ -93,7 +93,7 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Ge
 
       if (!content.includes(line)) {
         const addition = `\n${COMPLETION_MARKER}\n${line}\n`;
-        await runtime.fs.writeTextFile(config.rcFile, content + addition);
+        await current.fs.writeTextFile(config.rcFile, content + addition);
         // deno-lint-ignore no-console
         console.log(
           `  ${fmtColors.dim("Added completions to")} ${
@@ -126,7 +126,7 @@ export const removeCompletions = async (
     if (config.completionType === "file") {
       const fishPath = config.completionsFile!;
       if (await fileExists(fishPath)) {
-        await runtime.fs.remove(fishPath);
+        await current.fs.remove(fishPath);
         // deno-lint-ignore no-console
         console.log(
           `  ${fmtColors.dim("Removed")} ${fmtColors.cyan(fishPath)}`,
@@ -150,7 +150,7 @@ export const removeCompletions = async (
         .join("\n")
         .replace(/\n{3,}/g, "\n\n");
 
-      await runtime.fs.writeTextFile(config.rcFile, filtered);
+      await current.fs.writeTextFile(config.rcFile, filtered);
       // deno-lint-ignore no-console
       console.log(
         `  ${fmtColors.dim("Removed completions from")} ${

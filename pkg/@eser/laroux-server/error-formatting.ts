@@ -6,7 +6,7 @@
 
 import { c } from "@eser/shell/formatting";
 import * as logging from "@eser/logging";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 
 const errorLogger = logging.logger.getLogger(["laroux-server", "error"]);
 
@@ -190,7 +190,7 @@ export function formatError(error: Error | LarouxError): string {
   }
 
   // Stack trace (in development)
-  if (runtime.env.get("DEBUG") !== "" && error.stack !== undefined) {
+  if (current.env.get("DEBUG") !== "" && error.stack !== undefined) {
     lines.push(c.error("│"));
     lines.push(c.error("│ ") + c.dim("Stack trace:"));
     const stackLines = error.stack.split("\n").slice(1, 6); // First 5 lines

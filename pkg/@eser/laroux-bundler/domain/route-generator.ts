@@ -2,7 +2,7 @@
 // Route generator for file-based routing
 // Generates _generated.ts with scanned route definitions
 
-import { runtime, toPosix } from "@eser/standards/runtime";
+import { current, toPosix } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import { replaceJsExtension } from "@eser/standards/patterns";
 import type { ScannedRoute, ScanResult } from "./route-scanner.ts";
@@ -53,7 +53,7 @@ export async function generateRouteFile(
     }.js`;
 
     // Full path to original source file (for reading export names)
-    const componentFullPath = runtime.path.join(
+    const componentFullPath = current.path.join(
       projectRoot,
       route.componentPath,
     );
@@ -68,7 +68,7 @@ export async function generateRouteFile(
     // Get layout name if exists
     let layoutName: string | undefined;
     if (route.layoutPath) {
-      const layoutFullPath = runtime.path.join(projectRoot, route.layoutPath);
+      const layoutFullPath = current.path.join(projectRoot, route.layoutPath);
       const fallbackLayoutName = generateLayoutName(route.layoutPath);
       layoutName = await getLayoutExportName(
         layoutFullPath,
@@ -122,7 +122,7 @@ ${routeDefinitions.map((r) => `  ${r}`).join(",\n")},
 ];
 `;
 
-  await runtime.fs.writeTextFile(outputPath, content);
+  await current.fs.writeTextFile(outputPath, content);
   generatorLogger.debug(`Generated ${routes.length} route(s)`);
 }
 
@@ -147,10 +147,10 @@ export async function generateApiRouteFile(
 
   for (const route of apiRoutes) {
     // Calculate import path relative to output directory
-    const outputDir = runtime.path.dirname(outputPath);
+    const outputDir = current.path.dirname(outputPath);
     const modulePath = getRelativeImportPath(
       outputDir,
-      runtime.path.join(projectRoot, route.componentPath),
+      current.path.join(projectRoot, route.componentPath),
     );
 
     routeEntries.push(
@@ -174,7 +174,7 @@ ${routeEntries.join(",\n")},
 ];
 `;
 
-  await runtime.fs.writeTextFile(outputPath, content);
+  await current.fs.writeTextFile(outputPath, content);
   generatorLogger.debug(`Generated ${apiRoutes.length} API route(s)`);
 }
 
@@ -199,10 +199,10 @@ export async function generateProxyFile(
 
   for (const proxy of proxies) {
     // Calculate import path relative to output directory
-    const outputDir = runtime.path.dirname(outputPath);
+    const outputDir = current.path.dirname(outputPath);
     const modulePath = getRelativeImportPath(
       outputDir,
-      runtime.path.join(projectRoot, proxy.modulePath),
+      current.path.join(projectRoot, proxy.modulePath),
     );
 
     proxyEntries.push(
@@ -227,7 +227,7 @@ ${proxyEntries.join(",\n")},
 ];
 `;
 
-  await runtime.fs.writeTextFile(outputPath, content);
+  await current.fs.writeTextFile(outputPath, content);
   generatorLogger.debug(`Generated ${proxies.length} proxy definition(s)`);
 }
 
@@ -237,7 +237,7 @@ ${proxyEntries.join(",\n")},
  */
 async function extractExportNames(filePath: string): Promise<string[]> {
   try {
-    const content = await runtime.fs.readTextFile(filePath);
+    const content = await current.fs.readTextFile(filePath);
     const exportNames: string[] = [];
 
     // Match all: export function ComponentName() or export async function ComponentName()
@@ -337,7 +337,7 @@ async function getLayoutExportName(
  */
 function generateComponentName(componentPath: string): string {
   // Get directory name (e.g., "stories", "[slug]", "home")
-  const dirName = runtime.path.basename(runtime.path.dirname(componentPath));
+  const dirName = current.path.basename(current.path.dirname(componentPath));
 
   // Convert to PascalCase
   const baseName = toPascalCase(cleanDynamicSegment(dirName));
@@ -349,7 +349,7 @@ function generateComponentName(componentPath: string): string {
  * Generates a PascalCase layout name from file path (fallback)
  */
 function generateLayoutName(layoutPath: string): string {
-  const dirName = runtime.path.basename(runtime.path.dirname(layoutPath));
+  const dirName = current.path.basename(current.path.dirname(layoutPath));
   const baseName = toPascalCase(cleanDynamicSegment(dirName));
   return `${baseName}Layout`;
 }
@@ -386,7 +386,7 @@ function toPascalCase(str: string): string {
  */
 function getRelativeImportPath(fromDir: string, toFile: string): string {
   // Get relative path and convert to POSIX format for import specifiers
-  const relativePath = toPosix(runtime.path.relative(fromDir, toFile));
+  const relativePath = toPosix(current.path.relative(fromDir, toFile));
 
   // Add ./ prefix if needed for relative imports
   if (!relativePath.startsWith(".")) {

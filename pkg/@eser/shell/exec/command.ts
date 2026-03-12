@@ -120,9 +120,9 @@ export class CommandBuilder {
 
   /** Execute command and return result */
   async spawn(): Promise<CommandResult> {
-    const { runtime } = standardsRuntime;
+    const { current } = standardsRuntime;
 
-    const result = await runtime.exec.spawn(this.#cmd, this.#args, {
+    const result = await current.exec.spawn(this.#cmd, this.#args, {
       cwd: this.#options.cwd,
       env: this.#options.env,
       stdin: this.#options.stdin,
@@ -203,9 +203,9 @@ export class CommandBuilder {
    * ```
    */
   child(): standardsRuntime.ChildProcess {
-    const { runtime } = standardsRuntime;
+    const { current } = standardsRuntime;
 
-    return runtime.exec.spawnChild(this.#cmd, this.#args, {
+    return current.exec.spawnChild(this.#cmd, this.#args, {
       cwd: this.#options.cwd,
       env: this.#options.env,
       stdin: this.#options.stdin ?? "piped",

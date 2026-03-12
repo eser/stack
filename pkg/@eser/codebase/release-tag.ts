@@ -20,16 +20,15 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import * as results from "@eser/primitives/results";
-import { runtime } from "@eser/standards/runtime";
-import * as handler from "@eser/functions/handler";
-import type { CliEvent } from "@eser/functions/triggers";
-import { fromPromise } from "@eser/functions/task";
-import type * as shellArgs from "@eser/shell/args";
-import * as fmt from "@eser/shell/formatting";
+import * as primitives from "@eser/primitives";
+import * as standards from "@eser/standards";
+import * as functions from "@eser/functions";
+import * as shell from "@eser/shell";
 import { createTag, pushTag } from "./git.ts";
 import { readVersionFile } from "./versions.ts";
 import { runCliMain, toCliEvent } from "./cli-support.ts";
+
+const output = shell.formatting.createOutput();
 
 /**
  * Options for pushing a release tag.
@@ -102,54 +101,57 @@ export const pushReleaseTag = async (
 // --- Handler ---
 
 /** Handler: wraps pushReleaseTag as a Task via fromPromise. */
-export const pushReleaseTagHandler: handler.Handler<
+export const pushReleaseTagHandler: functions.handler.Handler<
   PushReleaseTagOptions,
   PushReleaseTagResult,
   Error
-> = (input) => fromPromise(() => pushReleaseTag(input));
+> = (input) => functions.task.fromPromise(() => pushReleaseTag(input));
 
 // --- CLI Adapter ---
 
-/** Adapter: CliEvent → PushReleaseTagOptions (extracts --dry-run flag). */
-const cliAdapter: handler.Adapter<CliEvent, PushReleaseTagOptions> = (
+/** Adapter: functions.triggers.CliEvent → PushReleaseTagOptions (extracts --dry-run flag). */
+const cliAdapter: functions.handler.Adapter<
+  functions.triggers.CliEvent,
+  PushReleaseTagOptions
+> = (
   event,
-) => results.ok({ dryRun: event.flags["dry-run"] === true });
+) => primitives.results.ok({ dryRun: event.flags["dry-run"] === true });
 
 // --- CLI ResponseMapper ---
 
 /** ResponseMapper: formats PushReleaseTagResult for CLI output. */
-const cliResponseMapper: handler.ResponseMapper<
+const cliResponseMapper: functions.handler.ResponseMapper<
   PushReleaseTagResult,
-  Error | handler.AdaptError,
-  shellArgs.CliResult<void>
+  Error | functions.handler.AdaptError,
+  shell.args.CliResult<void>
 > = (result) => {
-  if (results.isFail(result)) {
-    fmt.printError(
+  if (primitives.results.isFail(result)) {
+    output.printError(
       result.error instanceof Error
         ? result.error.message
         : String(result.error),
     );
-    return results.fail({ exitCode: 1 });
+    return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (value.dryRun) {
-    fmt.printWarning(`[DRY RUN] Would create and push tag ${value.tag}`);
+    output.printWarning(`[DRY RUN] Would create and push tag ${value.tag}`);
   } else {
-    fmt.printSuccess(`Created tag ${value.tag}`);
-    fmt.printInfo(`Pushed tag ${value.tag} to ${value.remote}`);
+    output.printSuccess(`Created tag ${value.tag}`);
+    output.printInfo(`Pushed tag ${value.tag} to ${value.remote}`);
   }
 
-  return results.ok(undefined);
+  return primitives.results.ok(undefined);
 };
 
 // --- CLI Trigger ---
 
 /** Runnable CLI trigger for release-tag. */
 export const handleCli: (
-  event: CliEvent,
-) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  event: functions.triggers.CliEvent,
+) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
   handler: pushReleaseTagHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -158,7 +160,7 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
+): Promise<shell.args.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     { boolean: ["dry-run"], alias: { n: "dry-run" } },
@@ -168,5 +170,5 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  runCliMain(await main(runtime.process.args as string[]));
+  runCliMain(await main(standards.runtime.current.process.args as string[]));
 }

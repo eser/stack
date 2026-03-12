@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { expandGlob } from "@std/fs/expand-glob";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import type { PackageConfig, WorkspaceModule } from "./types.ts";
 import { getBaseDir, load, PackageLoadError, tryLoad } from "./loader.ts";
 
@@ -31,7 +31,7 @@ export const loadPackageConfig = async (
   } catch (e) {
     if (e instanceof PackageLoadError) {
       throw new WorkspaceError(
-        `No package config file found in ${runtime.path.resolve(path)}`,
+        `No package config file found in ${current.path.resolve(path)}`,
       );
     }
     throw e;
@@ -48,7 +48,7 @@ const expandWorkspacePaths = async (
   const paths: string[] = [];
 
   for (const pattern of patterns) {
-    const fullPattern = runtime.path.join(root, pattern);
+    const fullPattern = current.path.join(root, pattern);
 
     // Check if pattern contains glob characters
     if (pattern.includes("*") || pattern.includes("?")) {

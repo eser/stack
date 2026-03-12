@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as colors from "@std/fmt/colors";
-import { NotFoundError, runtime } from "@eser/standards/runtime";
+import { current, NotFoundError } from "@eser/standards/runtime";
 import { type BuildSnapshot, type BuildSnapshotSerialized } from "./mod.ts";
 import { setBuildId } from "./build-id.ts";
 
@@ -36,7 +36,7 @@ export class AotSnapshot implements BuildSnapshot {
 
     if (filePath !== undefined) {
       try {
-        const data = await runtime.fs.readFile(filePath);
+        const data = await current.fs.readFile(filePath);
 
         return new ReadableStream({
           start(controller) {
@@ -64,7 +64,7 @@ export const loadAotSnapshot = async (
   snapshotDirPath: string,
 ): Promise<BuildSnapshot | null> => {
   try {
-    if (!(await runtime.fs.stat(snapshotDirPath)).isDirectory) {
+    if (!(await current.fs.stat(snapshotDirPath)).isDirectory) {
       return null;
     }
 
@@ -72,9 +72,9 @@ export const loadAotSnapshot = async (
       `Using snapshot found at ${colors.cyan(snapshotDirPath)}`,
     );
 
-    const snapshotPath = runtime.path.join(snapshotDirPath, "snapshot.json");
+    const snapshotPath = current.path.join(snapshotDirPath, "snapshot.json");
     const json = JSON.parse(
-      await runtime.fs.readTextFile(snapshotPath),
+      await current.fs.readTextFile(snapshotPath),
     ) as BuildSnapshotSerialized;
     setBuildId(json.build_id);
 
@@ -84,7 +84,7 @@ export const loadAotSnapshot = async (
 
     const files = new Map<string, string>();
     Object.keys(json.files).forEach((name) => {
-      const filePath = runtime.path.join(snapshotDirPath, name);
+      const filePath = current.path.join(snapshotDirPath, name);
       files.set(name, filePath);
     });
 

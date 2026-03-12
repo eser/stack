@@ -15,7 +15,7 @@
  * @module
  */
 
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import * as logging from "@eser/logging";
 import {
   analyzeServerActions,
@@ -88,7 +88,7 @@ export async function transformServerActionFile(
   // Read file content
   let content: string;
   try {
-    content = await runtime.fs.readTextFile(filePath);
+    content = await current.fs.readTextFile(filePath);
   } catch (error) {
     transformLogger.warn(`Failed to read file: ${filePath}`, { error });
     return null;
@@ -134,7 +134,7 @@ export async function transformServerActionFile(
 
   // Write transformed content
   const transformedContent = lines.join("\n");
-  await runtime.fs.writeTextFile(filePath, transformedContent);
+  await current.fs.writeTextFile(filePath, transformedContent);
 
   transformLogger.debug(
     `Transformed ${filePath}: marked ${namedExports.length} action(s) with server reference symbols`,
@@ -157,7 +157,7 @@ export async function transformServerActions(
   transformLogger.debug(`Scanning for server actions in: ${serverOutputDir}`);
 
   // Check if directory exists
-  const exists = await runtime.fs.exists(serverOutputDir);
+  const exists = await current.fs.exists(serverOutputDir);
   if (!exists) {
     transformLogger.debug(`Directory does not exist: ${serverOutputDir}`);
     return [];

@@ -21,9 +21,9 @@
  * const config = await fs.readTextFile("/app/config.json");
  *
  * // Temporary directory with auto-cleanup
- * import { runtime } from "@eser/standards/runtime";
+ * import { current } from "@eser/standards/runtime";
  * await using temp = await testing.tempDir.withTmpDir();
- * await runtime.fs.writeTextFile(`${temp.dir}/test.txt`, "hello");
+ * await current.fs.writeTextFile(`${temp.dir}/test.txt`, "hello");
  * ```
  */
 

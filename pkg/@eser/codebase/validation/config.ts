@@ -7,7 +7,7 @@
  */
 
 import * as yaml from "@std/yaml";
-import { NotFoundError, runtime } from "@eser/standards/runtime";
+import { current, NotFoundError } from "@eser/standards/runtime";
 import type { ProjectConfig } from "./types.ts";
 
 /** Config filenames to look for (in order of priority) */
@@ -25,10 +25,10 @@ export const loadProjectConfig = async (
   dir: string,
 ): Promise<ProjectConfig | null> => {
   for (const filename of CONFIG_FILENAMES) {
-    const filepath = runtime.path.join(dir, filename);
+    const filepath = current.path.join(dir, filename);
 
     try {
-      const content = await runtime.fs.readTextFile(filepath);
+      const content = await current.fs.readTextFile(filepath);
       const config = yaml.parse(content) as ProjectConfig;
 
       return config;
@@ -54,10 +54,10 @@ export const getProjectConfigPath = async (
   dir: string,
 ): Promise<string | null> => {
   for (const filename of CONFIG_FILENAMES) {
-    const filepath = runtime.path.join(dir, filename);
+    const filepath = current.path.join(dir, filename);
 
     try {
-      await runtime.fs.stat(filepath);
+      await current.fs.stat(filepath);
       return filepath;
     } catch {
       continue;

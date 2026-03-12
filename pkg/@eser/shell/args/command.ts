@@ -223,7 +223,7 @@ export class Command implements CommandLike {
 
   /** Parse and execute the command, returning Result */
   async parse(argv?: readonly string[]): Promise<CliResult<void>> {
-    const inputArgs = argv ?? standardsRuntime.runtime.process.args;
+    const inputArgs = argv ?? standardsRuntime.current.process.args;
     return await this.#execute(inputArgs as string[], []);
   }
 

@@ -49,11 +49,11 @@ for await (const entry of fs.walk("/app/src")) {
 
 ```typescript
 import { tempDir } from "@eser/testing";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 
 // Automatic cleanup with await using
 await using temp = await tempDir.withTmpDir();
-await runtime.fs.writeTextFile(`${temp.dir}/test.txt`, "hello");
+await current.fs.writeTextFile(`${temp.dir}/test.txt`, "hello");
 // Directory is automatically cleaned up when scope exits
 ```
 

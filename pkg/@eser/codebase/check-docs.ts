@@ -22,15 +22,14 @@
  * @module
  */
 
-import * as results from "@eser/primitives/results";
-import * as handler from "@eser/functions/handler";
-import type { CliEvent } from "@eser/functions/triggers";
-import { fromPromise } from "@eser/functions/task";
-import * as standardsRuntime from "@eser/standards/runtime";
-import type * as shellArgs from "@eser/shell/args";
-import * as fmt from "@eser/shell/formatting";
+import * as primitives from "@eser/primitives";
+import * as functions from "@eser/functions";
+import * as standards from "@eser/standards";
+import * as shell from "@eser/shell";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 import { runCliMain } from "./cli-support.ts";
+
+const output = shell.formatting.createOutput();
 
 /**
  * Options for documentation checking.
@@ -97,7 +96,7 @@ const EXAMPLE_PATTERN = /@example/;
 const extractJSDocAndExports = (
   content: string,
 ): { jsdoc: string | null; symbolName: string; line: number }[] => {
-  const results: { jsdoc: string | null; symbolName: string; line: number }[] =
+  const entries: { jsdoc: string | null; symbolName: string; line: number }[] =
     [];
 
   // Find all export statements
@@ -135,10 +134,10 @@ const extractJSDocAndExports = (
       }
     }
 
-    results.push({ jsdoc, symbolName, line: lineNumber });
+    entries.push({ jsdoc, symbolName, line: lineNumber });
   }
 
-  return results;
+  return entries;
 };
 
 /**
@@ -203,7 +202,7 @@ export const checkDocs = async (
 
       let content: string;
       try {
-        content = await standardsRuntime.runtime.fs.readTextFile(filePath);
+        content = await standards.runtime.current.fs.readTextFile(filePath);
       } catch {
         continue;
       }
@@ -263,44 +262,47 @@ const formatIssue = (issue: DocIssueType): string => {
 /**
  * Handler wrapping checkDocs as a Task.
  */
-export const checkDocsHandler: handler.Handler<
+export const checkDocsHandler: functions.handler.Handler<
   CheckDocsOptions,
   CheckDocsResult,
   Error
-> = (input) => fromPromise(() => checkDocs(input));
+> = (input) => functions.task.fromPromise(() => checkDocs(input));
 
 // --- CLI Adapter ---
 
 /**
  * Adapter that produces default CheckDocsOptions from a CLI event.
  */
-const cliAdapter: handler.Adapter<CliEvent, CheckDocsOptions> = (
+const cliAdapter: functions.handler.Adapter<
+  functions.triggers.CliEvent,
+  CheckDocsOptions
+> = (
   _event,
-) => results.ok({ root: "." });
+) => primitives.results.ok({ root: "." });
 
 // --- CLI ResponseMapper ---
 
 /**
  * Maps the handler result to CLI output.
  */
-const cliResponseMapper: handler.ResponseMapper<
+const cliResponseMapper: functions.handler.ResponseMapper<
   CheckDocsResult,
-  Error | handler.AdaptError,
-  shellArgs.CliResult<void>
+  Error | functions.handler.AdaptError,
+  shell.args.CliResult<void>
 > = (result) => {
-  if (results.isFail(result)) {
-    fmt.printError(String(result.error));
-    return results.fail({ exitCode: 1 });
+  if (primitives.results.isFail(result)) {
+    output.printError(String(result.error));
+    return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
-  fmt.printInfo(
+  output.printInfo(
     `Checked ${value.filesChecked} files, ${value.symbolsChecked} symbols.`,
   );
 
   if (!value.isValid) {
-    fmt.printError(
+    output.printError(
       `Found ${value.issues.length} documentation issues:`,
     );
 
@@ -313,20 +315,20 @@ const cliResponseMapper: handler.ResponseMapper<
     }
 
     for (const [file, fileIssues] of byFile) {
-      fmt.printWarning(file);
+      output.printWarning(file);
       for (const issue of fileIssues) {
         const lineInfo = issue.line !== undefined ? `:${issue.line}` : "";
-        fmt.printInfo(
+        output.printInfo(
           `  ${issue.symbol}${lineInfo}: ${formatIssue(issue.issue)}`,
         );
       }
     }
 
-    return results.fail({ exitCode: 1 });
+    return primitives.results.fail({ exitCode: 1 });
   }
 
-  fmt.printSuccess("All documentation is valid.");
-  return results.ok(undefined);
+  output.printSuccess("All documentation is valid.");
+  return primitives.results.ok(undefined);
 };
 
 // --- CLI Trigger ---
@@ -335,8 +337,8 @@ const cliResponseMapper: handler.ResponseMapper<
  * CLI trigger for check-docs.
  */
 export const handleCli: (
-  event: CliEvent,
-) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  event: functions.triggers.CliEvent,
+) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
   handler: checkDocsHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -345,7 +347,7 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   _cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> =>
+): Promise<shell.args.CliResult<void>> =>
   await handleCli({ command: "check-docs", args: [], flags: {} });
 
 if (import.meta.main) {

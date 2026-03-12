@@ -5,7 +5,7 @@ import * as standardsRuntime from "@eser/standards/runtime";
 import { createCacheManager } from "./cache.ts";
 
 const createTempCacheManager = async () => {
-  const tempDir = await standardsRuntime.runtime.fs.makeTempDir({
+  const tempDir = await standardsRuntime.current.fs.makeTempDir({
     prefix: "cache-test-",
   });
 
@@ -17,7 +17,7 @@ const createTempCacheManager = async () => {
     tempDir,
     cleanup: async () => {
       try {
-        await standardsRuntime.runtime.fs.remove(tempDir, { recursive: true });
+        await standardsRuntime.current.fs.remove(tempDir, { recursive: true });
       } catch {
         // Ignore cleanup errors
       }
@@ -89,14 +89,14 @@ Deno.test("ensureDir creates directory", async () => {
   const { cache, cleanup } = await createTempCacheManager();
 
   try {
-    const testDir = standardsRuntime.runtime.path.join(
+    const testDir = standardsRuntime.current.path.join(
       cache.getCacheDir(),
       "subdir",
     );
 
     await cache.ensureDir(testDir);
 
-    const dirExists = await standardsRuntime.runtime.fs.exists(testDir);
+    const dirExists = await standardsRuntime.current.fs.exists(testDir);
     assert.assert(dirExists, "Directory should exist after ensureDir");
   } finally {
     await cleanup();
@@ -121,10 +121,10 @@ Deno.test("exists returns true for existing path", async () => {
   try {
     // Create a test file
     const testDir = cache.getCacheDir();
-    await standardsRuntime.runtime.fs.mkdir(testDir, { recursive: true });
+    await standardsRuntime.current.fs.mkdir(testDir, { recursive: true });
 
-    const testFile = standardsRuntime.runtime.path.join(testDir, "test-file");
-    await standardsRuntime.runtime.fs.writeTextFile(testFile, "test content");
+    const testFile = standardsRuntime.current.path.join(testDir, "test-file");
+    await standardsRuntime.current.fs.writeTextFile(testFile, "test content");
 
     const result = await cache.exists("test-file");
 
@@ -152,15 +152,15 @@ Deno.test("list returns entries for non-empty cache", async () => {
 
   try {
     const cacheDir = cache.getCacheDir();
-    await standardsRuntime.runtime.fs.mkdir(cacheDir, { recursive: true });
+    await standardsRuntime.current.fs.mkdir(cacheDir, { recursive: true });
 
     // Create test files
-    await standardsRuntime.runtime.fs.writeTextFile(
-      standardsRuntime.runtime.path.join(cacheDir, "file1"),
+    await standardsRuntime.current.fs.writeTextFile(
+      standardsRuntime.current.path.join(cacheDir, "file1"),
       "content1",
     );
-    await standardsRuntime.runtime.fs.mkdir(
-      standardsRuntime.runtime.path.join(cacheDir, "dir1"),
+    await standardsRuntime.current.fs.mkdir(
+      standardsRuntime.current.path.join(cacheDir, "dir1"),
     );
 
     const entries = await cache.list();
@@ -184,10 +184,10 @@ Deno.test("remove deletes file", async () => {
 
   try {
     const cacheDir = cache.getCacheDir();
-    await standardsRuntime.runtime.fs.mkdir(cacheDir, { recursive: true });
+    await standardsRuntime.current.fs.mkdir(cacheDir, { recursive: true });
 
-    const testFile = standardsRuntime.runtime.path.join(cacheDir, "to-remove");
-    await standardsRuntime.runtime.fs.writeTextFile(testFile, "content");
+    const testFile = standardsRuntime.current.path.join(cacheDir, "to-remove");
+    await standardsRuntime.current.fs.writeTextFile(testFile, "content");
 
     // Verify file exists
     assert.assertEquals(await cache.exists("to-remove"), true);
@@ -207,15 +207,15 @@ Deno.test("clear removes all cache contents", async () => {
 
   try {
     const cacheDir = cache.getCacheDir();
-    await standardsRuntime.runtime.fs.mkdir(cacheDir, { recursive: true });
+    await standardsRuntime.current.fs.mkdir(cacheDir, { recursive: true });
 
     // Create some files
-    await standardsRuntime.runtime.fs.writeTextFile(
-      standardsRuntime.runtime.path.join(cacheDir, "file1"),
+    await standardsRuntime.current.fs.writeTextFile(
+      standardsRuntime.current.path.join(cacheDir, "file1"),
       "content",
     );
-    await standardsRuntime.runtime.fs.writeTextFile(
-      standardsRuntime.runtime.path.join(cacheDir, "file2"),
+    await standardsRuntime.current.fs.writeTextFile(
+      standardsRuntime.current.path.join(cacheDir, "file2"),
       "content",
     );
 
@@ -223,7 +223,7 @@ Deno.test("clear removes all cache contents", async () => {
     await cache.clear();
 
     // Verify cache dir is gone
-    const dirExists = await standardsRuntime.runtime.fs.exists(cacheDir);
+    const dirExists = await standardsRuntime.current.fs.exists(cacheDir);
     assert.assertEquals(dirExists, false);
   } finally {
     await cleanup();

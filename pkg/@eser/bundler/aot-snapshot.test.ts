@@ -15,14 +15,14 @@ import { getBuildId } from "./build-id.ts";
 // ============================================================================
 
 const createTestContext = async () => {
-  const tempDir = await standardsRuntime.runtime.fs.makeTempDir({
+  const tempDir = await standardsRuntime.current.fs.makeTempDir({
     prefix: "aot-snapshot-test-",
   });
   return {
     tempDir,
     cleanup: async () => {
       try {
-        await standardsRuntime.runtime.fs.remove(tempDir, { recursive: true });
+        await standardsRuntime.current.fs.remove(tempDir, { recursive: true });
       } catch {
         // Ignore cleanup errors
       }
@@ -97,12 +97,12 @@ Deno.test("AotSnapshot.read returns ReadableStream for existing file", async () 
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const testFilePath = standardsRuntime.runtime.path.join(
+    const testFilePath = standardsRuntime.current.path.join(
       tempDir,
       "test.js",
     );
     const testContent = 'console.log("hello");';
-    await standardsRuntime.runtime.fs.writeTextFile(testFilePath, testContent);
+    await standardsRuntime.current.fs.writeTextFile(testFilePath, testContent);
 
     const files = new Map([["test.js", testFilePath]]);
     const state = createAotSnapshotState(files, new Map());
@@ -137,18 +137,18 @@ Deno.test("AotSnapshot.read returns null when file is deleted", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const testFilePath = standardsRuntime.runtime.path.join(
+    const testFilePath = standardsRuntime.current.path.join(
       tempDir,
       "deleted.js",
     );
-    await standardsRuntime.runtime.fs.writeTextFile(testFilePath, "content");
+    await standardsRuntime.current.fs.writeTextFile(testFilePath, "content");
 
     const files = new Map([["deleted.js", testFilePath]]);
     const state = createAotSnapshotState(files, new Map());
     const snapshot = new AotSnapshot(state);
 
     // Delete the file
-    await standardsRuntime.runtime.fs.remove(testFilePath);
+    await standardsRuntime.current.fs.remove(testFilePath);
 
     const stream = await snapshot.read("deleted.js");
 
@@ -217,18 +217,18 @@ Deno.test("loadAotSnapshot loads valid snapshot from directory", async () => {
         "chunk-a.js": [],
       },
     };
-    await standardsRuntime.runtime.fs.writeTextFile(
-      standardsRuntime.runtime.path.join(tempDir, "snapshot.json"),
+    await standardsRuntime.current.fs.writeTextFile(
+      standardsRuntime.current.path.join(tempDir, "snapshot.json"),
       JSON.stringify(snapshotData),
     );
 
     // Create the actual files
-    await standardsRuntime.runtime.fs.writeTextFile(
-      standardsRuntime.runtime.path.join(tempDir, "main.js"),
+    await standardsRuntime.current.fs.writeTextFile(
+      standardsRuntime.current.path.join(tempDir, "main.js"),
       "// main.js content",
     );
-    await standardsRuntime.runtime.fs.writeTextFile(
-      standardsRuntime.runtime.path.join(tempDir, "chunk-a.js"),
+    await standardsRuntime.current.fs.writeTextFile(
+      standardsRuntime.current.path.join(tempDir, "chunk-a.js"),
       "// chunk-a.js content",
     );
 
@@ -252,8 +252,8 @@ Deno.test("loadAotSnapshot returns null for file path instead of directory", asy
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const filePath = standardsRuntime.runtime.path.join(tempDir, "file.txt");
-    await standardsRuntime.runtime.fs.writeTextFile(filePath, "content");
+    const filePath = standardsRuntime.current.path.join(tempDir, "file.txt");
+    await standardsRuntime.current.fs.writeTextFile(filePath, "content");
 
     const snapshot = await loadAotSnapshot(filePath);
 
@@ -274,12 +274,12 @@ Deno.test("loadAotSnapshot sets build ID from snapshot", async () => {
         "app.js": [],
       },
     };
-    await standardsRuntime.runtime.fs.writeTextFile(
-      standardsRuntime.runtime.path.join(tempDir, "snapshot.json"),
+    await standardsRuntime.current.fs.writeTextFile(
+      standardsRuntime.current.path.join(tempDir, "snapshot.json"),
       JSON.stringify(snapshotData),
     );
-    await standardsRuntime.runtime.fs.writeTextFile(
-      standardsRuntime.runtime.path.join(tempDir, "app.js"),
+    await standardsRuntime.current.fs.writeTextFile(
+      standardsRuntime.current.path.join(tempDir, "app.js"),
       "// app.js",
     );
 
@@ -308,15 +308,15 @@ Deno.test("loadAotSnapshot loads dependencies correctly", async () => {
         "vendor.js": [],
       },
     };
-    await standardsRuntime.runtime.fs.writeTextFile(
-      standardsRuntime.runtime.path.join(tempDir, "snapshot.json"),
+    await standardsRuntime.current.fs.writeTextFile(
+      standardsRuntime.current.path.join(tempDir, "snapshot.json"),
       JSON.stringify(snapshotData),
     );
 
     // Create all files
     for (const file of Object.keys(snapshotData.files)) {
-      await standardsRuntime.runtime.fs.writeTextFile(
-        standardsRuntime.runtime.path.join(tempDir, file),
+      await standardsRuntime.current.fs.writeTextFile(
+        standardsRuntime.current.path.join(tempDir, file),
         `// ${file}`,
       );
     }

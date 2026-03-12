@@ -40,24 +40,24 @@ export const getXdgCacheHome = (): string => {
   const homedir = standardsRuntime.getHomedir();
 
   if (platform === "darwin") {
-    return standardsRuntime.runtime.path.join(homedir, "Library", "Caches");
+    return standardsRuntime.current.path.join(homedir, "Library", "Caches");
   }
 
   if (platform === "windows") {
-    const localAppData = standardsRuntime.runtime.env.get("LOCALAPPDATA");
+    const localAppData = standardsRuntime.current.env.get("LOCALAPPDATA");
     if (localAppData) {
       return localAppData;
     }
-    return standardsRuntime.runtime.path.join(homedir, "AppData", "Local");
+    return standardsRuntime.current.path.join(homedir, "AppData", "Local");
   }
 
   // Linux/Unix: Use XDG_CACHE_HOME or default
-  const xdgCacheHome = standardsRuntime.runtime.env.get("XDG_CACHE_HOME");
+  const xdgCacheHome = standardsRuntime.current.env.get("XDG_CACHE_HOME");
   if (xdgCacheHome) {
     return xdgCacheHome;
   }
 
-  return standardsRuntime.runtime.path.join(homedir, ".cache");
+  return standardsRuntime.current.path.join(homedir, ".cache");
 };
 
 /**
@@ -75,7 +75,7 @@ export const getXdgDataHome = (): string => {
   const homedir = standardsRuntime.getHomedir();
 
   if (platform === "darwin") {
-    return standardsRuntime.runtime.path.join(
+    return standardsRuntime.current.path.join(
       homedir,
       "Library",
       "Application Support",
@@ -83,20 +83,20 @@ export const getXdgDataHome = (): string => {
   }
 
   if (platform === "windows") {
-    const localAppData = standardsRuntime.runtime.env.get("LOCALAPPDATA");
+    const localAppData = standardsRuntime.current.env.get("LOCALAPPDATA");
     if (localAppData) {
       return localAppData;
     }
-    return standardsRuntime.runtime.path.join(homedir, "AppData", "Local");
+    return standardsRuntime.current.path.join(homedir, "AppData", "Local");
   }
 
   // Linux/Unix: Use XDG_DATA_HOME or default
-  const xdgDataHome = standardsRuntime.runtime.env.get("XDG_DATA_HOME");
+  const xdgDataHome = standardsRuntime.current.env.get("XDG_DATA_HOME");
   if (xdgDataHome) {
     return xdgDataHome;
   }
 
-  return standardsRuntime.runtime.path.join(homedir, ".local", "share");
+  return standardsRuntime.current.path.join(homedir, ".local", "share");
 };
 
 /**
@@ -114,7 +114,7 @@ export const getXdgConfigHome = (): string => {
   const homedir = standardsRuntime.getHomedir();
 
   if (platform === "darwin") {
-    return standardsRuntime.runtime.path.join(
+    return standardsRuntime.current.path.join(
       homedir,
       "Library",
       "Preferences",
@@ -122,20 +122,20 @@ export const getXdgConfigHome = (): string => {
   }
 
   if (platform === "windows") {
-    const appData = standardsRuntime.runtime.env.get("APPDATA");
+    const appData = standardsRuntime.current.env.get("APPDATA");
     if (appData) {
       return appData;
     }
-    return standardsRuntime.runtime.path.join(homedir, "AppData", "Roaming");
+    return standardsRuntime.current.path.join(homedir, "AppData", "Roaming");
   }
 
   // Linux/Unix: Use XDG_CONFIG_HOME or default
-  const xdgConfigHome = standardsRuntime.runtime.env.get("XDG_CONFIG_HOME");
+  const xdgConfigHome = standardsRuntime.current.env.get("XDG_CONFIG_HOME");
   if (xdgConfigHome) {
     return xdgConfigHome;
   }
 
-  return standardsRuntime.runtime.path.join(homedir, ".config");
+  return standardsRuntime.current.path.join(homedir, ".config");
 };
 
 /**
@@ -163,10 +163,10 @@ export const getAppCacheDir = (app: AppIdentifier): string => {
   const cacheHome = getXdgCacheHome();
 
   if (app.org) {
-    return standardsRuntime.runtime.path.join(cacheHome, app.org, app.name);
+    return standardsRuntime.current.path.join(cacheHome, app.org, app.name);
   }
 
-  return standardsRuntime.runtime.path.join(cacheHome, app.name);
+  return standardsRuntime.current.path.join(cacheHome, app.name);
 };
 
 /**
@@ -198,7 +198,7 @@ export const getVersionedCachePath = (
   // Normalize version to always have 'v' prefix
   const normalizedVersion = version.startsWith("v") ? version : `v${version}`;
 
-  return standardsRuntime.runtime.path.join(
+  return standardsRuntime.current.path.join(
     appCacheDir,
     normalizedVersion,
     name,

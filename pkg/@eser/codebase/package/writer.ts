@@ -115,7 +115,7 @@ const writeConfigFile = async (
 
   // Write back to file
   const formatted = formatJson(newContent);
-  await runtime.runtime.fs.writeTextFile(file.filepath, formatted);
+  await runtime.current.fs.writeTextFile(file.filepath, formatted);
 
   // Update the in-memory representation
   // Note: We need to cast away readonly for internal mutation

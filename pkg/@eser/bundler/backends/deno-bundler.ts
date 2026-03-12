@@ -53,7 +53,7 @@ declare namespace Deno {
 
 import * as hex from "@std/encoding/hex";
 import * as logging from "@eser/logging";
-import { runtime } from "@eser/standards/runtime";
+import { current } from "@eser/standards/runtime";
 import { replaceJsExtension } from "@eser/standards/patterns";
 
 const bundlerLogger = logging.logger.getLogger(["bundler", "deno-bundler"]);
@@ -95,7 +95,7 @@ export class DenoBundlerBackend implements Bundler {
   }
 
   async bundle(config: BundlerConfig): Promise<BundleResult> {
-    const tempDir = await runtime.fs.makeTempDir({ prefix: "deno-bundle-" });
+    const tempDir = await current.fs.makeTempDir({ prefix: "deno-bundle-" });
 
     try {
       // Preserve entry keys for output path mapping
@@ -105,11 +105,11 @@ export class DenoBundlerBackend implements Bundler {
       // Create build ID entry if provided
       const allEntrypoints = [...entrypointPaths];
       if (this.options.buildId !== undefined) {
-        const buildIdEntryPath = runtime.path.join(
+        const buildIdEntryPath = current.path.join(
           tempDir,
           "_build-id-entry.ts",
         );
-        await runtime.fs.writeTextFile(
+        await current.fs.writeTextFile(
           buildIdEntryPath,
           `export const BUILD_ID = "${this.options.buildId}";\n`,
         );
@@ -190,7 +190,7 @@ export class DenoBundlerBackend implements Bundler {
       }]);
     } finally {
       try {
-        await runtime.fs.remove(tempDir, { recursive: true });
+        await current.fs.remove(tempDir, { recursive: true });
       } catch {
         // Ignore cleanup errors
       }
@@ -203,7 +203,7 @@ export class DenoBundlerBackend implements Bundler {
   ): Promise<BundleWatcher> {
     let running = true;
     const watchPaths = Object.values(config.entrypoints).map((p) =>
-      runtime.path.dirname(p)
+      current.path.dirname(p)
     );
     const uniquePaths = [...new Set(watchPaths)];
 
@@ -262,7 +262,7 @@ export class DenoBundlerBackend implements Bundler {
       const entryKey = entryKeys[i];
       if (entryPath !== undefined && entryKey !== undefined) {
         // Map the entry path basename (without extension) to the entry key
-        const basename = runtime.path.basename(entryPath).replace(
+        const basename = current.path.basename(entryPath).replace(
           /\.[^.]+$/,
           "",
         );
@@ -276,11 +276,11 @@ export class DenoBundlerBackend implements Bundler {
     }
 
     // Deno.bundle() creates a nested dist/ directory
-    const nestedDistDir = runtime.path.join(tempDir, "dist");
+    const nestedDistDir = current.path.join(tempDir, "dist");
     let scanDir = tempDir;
 
     try {
-      const nestedStat = await runtime.fs.stat(nestedDistDir);
+      const nestedStat = await current.fs.stat(nestedDistDir);
       if (nestedStat.isDirectory) {
         scanDir = nestedDistDir;
       }
@@ -295,8 +295,8 @@ export class DenoBundlerBackend implements Bundler {
 
     // Recursively collect all .js and .map files from output directory
     const collectFiles = async (dir: string, basePath: string = "") => {
-      for await (const entry of runtime.fs.readDir(dir)) {
-        const fullPath = runtime.path.join(dir, entry.name);
+      for await (const entry of current.fs.readDir(dir)) {
+        const fullPath = current.path.join(dir, entry.name);
         const relativeName = basePath
           ? `${basePath}/${entry.name}`
           : entry.name;
@@ -320,13 +320,13 @@ export class DenoBundlerBackend implements Bundler {
 
     // Also check root tempDir for chunk files if we scanned nested
     if (scanDir !== tempDir) {
-      for await (const entry of runtime.fs.readDir(tempDir)) {
+      for await (const entry of current.fs.readDir(tempDir)) {
         if (
           entry.isFile &&
           (entry.name.endsWith(".js") || entry.name.endsWith(".map")) &&
           (entry.name.startsWith("chunk-") || entry.name.endsWith(".map"))
         ) {
-          const path = runtime.path.join(tempDir, entry.name);
+          const path = current.path.join(tempDir, entry.name);
           if (!outputFiles.some((f) => f.path === path)) {
             outputFiles.push({ name: entry.name, path });
           }
@@ -345,7 +345,7 @@ export class DenoBundlerBackend implements Bundler {
     // First pass: collect source maps
     for (const file of outputFiles) {
       if (file.name.endsWith(".map")) {
-        const mapContent = await runtime.fs.readFile(file.path);
+        const mapContent = await current.fs.readFile(file.path);
         // Normalize the map file name to match JS file naming
         let normalizedMapName = file.name;
         if (file.name.startsWith("_client-entry")) {
@@ -361,7 +361,7 @@ export class DenoBundlerBackend implements Bundler {
     for (const file of outputFiles) {
       if (file.name.endsWith(".map")) continue; // Skip maps, already processed
 
-      let content = await runtime.fs.readTextFile(file.path);
+      let content = await current.fs.readTextFile(file.path);
 
       // Post-process: Replace URL paths
       if (config.basePath !== undefined) {
@@ -412,7 +412,7 @@ export class DenoBundlerBackend implements Bundler {
         }
         // Fall back to basename matching
         if (entryKey === undefined) {
-          const fileBasename = runtime.path.basename(normalizedName).replace(
+          const fileBasename = current.path.basename(normalizedName).replace(
             /\.js$/,
             "",
           );
@@ -480,15 +480,15 @@ export class DenoBundlerBackend implements Bundler {
 
     // Write outputs to final output directory if specified
     if (config.outputDir !== undefined) {
-      await runtime.fs.mkdir(config.outputDir, { recursive: true });
+      await current.fs.mkdir(config.outputDir, { recursive: true });
       for (const [fileName, output] of outputs) {
-        const outputPath = runtime.path.join(config.outputDir, fileName);
+        const outputPath = current.path.join(config.outputDir, fileName);
         // Create parent directories for nested files (e.g., app/sidebar.js)
-        const parentDir = runtime.path.dirname(outputPath);
+        const parentDir = current.path.dirname(outputPath);
         if (parentDir !== config.outputDir) {
-          await runtime.fs.mkdir(parentDir, { recursive: true });
+          await current.fs.mkdir(parentDir, { recursive: true });
         }
-        await runtime.fs.writeFile(outputPath, output.code);
+        await current.fs.writeFile(outputPath, output.code);
       }
     }
 
@@ -542,21 +542,21 @@ export class DenoBundlerBackend implements Bundler {
     // Convert entrypoint path to expected proxy file path
     // e.g., "src/app/counter.tsx" -> proxy file at "src/app/counter.js"
     const relativePath = replaceJsExtension(entrypointPath, ".js");
-    const proxyFilePath = runtime.path.join(scanDir, relativePath);
+    const proxyFilePath = current.path.join(scanDir, relativePath);
 
     // Try to read proxy file
     let proxyContent: string | null = null;
     try {
-      proxyContent = await runtime.fs.readTextFile(proxyFilePath);
+      proxyContent = await current.fs.readTextFile(proxyFilePath);
     } catch {
       // Try in the nested directory structure
       try {
-        const nestedProxyPath = runtime.path.join(
+        const nestedProxyPath = current.path.join(
           outputDir,
           "dist",
           relativePath,
         );
-        proxyContent = await runtime.fs.readTextFile(nestedProxyPath);
+        proxyContent = await current.fs.readTextFile(nestedProxyPath);
       } catch {
         // No proxy file found
       }
@@ -584,7 +584,7 @@ export class DenoBundlerBackend implements Bundler {
 
     // Extract expected export name from file path
     // e.g., "src/app/icon.tsx" -> "Icon" (PascalCase of basename)
-    const basename = runtime.path.basename(entrypointPath).replace(
+    const basename = current.path.basename(entrypointPath).replace(
       /\.[^.]+$/,
       "",
     );
@@ -625,7 +625,7 @@ export class DenoBundlerBackend implements Bundler {
           /from\s*["']\.?\/?([^"']*chunk-[A-Z0-9]+\.js)["']/gi;
         let match: RegExpExecArray | null;
         while ((match = importPattern.exec(chunkContent)) !== null) {
-          const depChunk = runtime.path.basename(match[1] ?? "");
+          const depChunk = current.path.basename(match[1] ?? "");
           if (depChunk && !chunks.includes(depChunk)) {
             chunks.push(depChunk);
           }
@@ -664,7 +664,7 @@ export class DenoBundlerBackend implements Bundler {
     while ((match = chunkImportPattern.exec(content)) !== null) {
       const importPath = match[1];
       if (importPath !== undefined) {
-        const chunkFile = runtime.path.basename(importPath);
+        const chunkFile = current.path.basename(importPath);
         if (!chunks.includes(chunkFile)) {
           chunks.push(chunkFile);
         }
@@ -675,7 +675,7 @@ export class DenoBundlerBackend implements Bundler {
     while ((match = sideEffectPattern.exec(content)) !== null) {
       const importPath = match[1];
       if (importPath !== undefined) {
-        const chunkFile = runtime.path.basename(importPath);
+        const chunkFile = current.path.basename(importPath);
         if (!chunks.includes(chunkFile)) {
           chunks.push(chunkFile);
         }

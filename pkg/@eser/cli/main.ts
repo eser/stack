@@ -127,7 +127,7 @@ const showHelp = (): void => {
 
 export const main = async (): Promise<shellArgs.CliResult<void>> => {
   // @ts-ignore parseArgs doesn't mutate the array, readonly is safe
-  const args = cliParseArgs.parseArgs(standardsRuntime.runtime.process.args, {
+  const args = cliParseArgs.parseArgs(standardsRuntime.current.process.args, {
     boolean: ["help", "bare"],
     alias: { h: "help" },
     stopEarly: true,
@@ -174,7 +174,7 @@ if (import.meta.main) {
       if (error.message !== undefined) {
         console.error(error.message);
       }
-      standardsRuntime.runtime.process.setExitCode(error.exitCode);
+      standardsRuntime.current.process.setExitCode(error.exitCode);
     },
   });
 }

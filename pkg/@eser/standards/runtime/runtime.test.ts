@@ -3,13 +3,13 @@
 import * as assert from "@std/assert";
 import {
   createRuntime,
+  current,
   detectRuntime,
   getRuntimeVersion,
   isBrowser,
   isRuntime,
   isServer,
   posixPath,
-  runtime,
   RuntimeCapabilityError,
   toPosix,
 } from "./mod.ts";
@@ -48,61 +48,61 @@ Deno.test("isServer() should return true in Deno", () => {
 // Runtime Singleton Tests
 // =============================================================================
 
-Deno.test("runtime singleton should be Deno runtime", () => {
-  assert.assertEquals(runtime.name, "deno");
-  assert.assertExists(runtime.version);
-  assert.assertEquals(runtime.capabilities.fs, true);
-  assert.assertEquals(runtime.capabilities.exec, true);
+Deno.test("current singleton should be Deno runtime", () => {
+  assert.assertEquals(current.name, "deno");
+  assert.assertExists(current.version);
+  assert.assertEquals(current.capabilities.fs, true);
+  assert.assertEquals(current.capabilities.exec, true);
 });
 
-Deno.test("runtime.path should work", () => {
-  const joined = runtime.path.join("src", "lib", "utils.ts");
+Deno.test("current.path should work", () => {
+  const joined = current.path.join("src", "lib", "utils.ts");
   assert.assertEquals(joined, "src/lib/utils.ts");
 
-  const dir = runtime.path.dirname("/home/user/file.txt");
+  const dir = current.path.dirname("/home/user/file.txt");
   assert.assertEquals(dir, "/home/user");
 
-  const base = runtime.path.basename("/home/user/file.txt");
+  const base = current.path.basename("/home/user/file.txt");
   assert.assertEquals(base, "file.txt");
 
-  const ext = runtime.path.extname("file.txt");
+  const ext = current.path.extname("file.txt");
   assert.assertEquals(ext, ".txt");
 });
 
-Deno.test("runtime.env should work", () => {
+Deno.test("current.env should work", () => {
   // Set a test env var
-  runtime.env.set("TEST_VAR", "test_value");
-  assert.assertEquals(runtime.env.get("TEST_VAR"), "test_value");
-  assert.assertEquals(runtime.env.has("TEST_VAR"), true);
+  current.env.set("TEST_VAR", "test_value");
+  assert.assertEquals(current.env.get("TEST_VAR"), "test_value");
+  assert.assertEquals(current.env.has("TEST_VAR"), true);
 
   // Delete it
-  runtime.env.delete("TEST_VAR");
-  assert.assertEquals(runtime.env.get("TEST_VAR"), undefined);
-  assert.assertEquals(runtime.env.has("TEST_VAR"), false);
+  current.env.delete("TEST_VAR");
+  assert.assertEquals(current.env.get("TEST_VAR"), undefined);
+  assert.assertEquals(current.env.has("TEST_VAR"), false);
 });
 
 // =============================================================================
 // Filesystem Tests
 // =============================================================================
 
-Deno.test("runtime.fs.exists() should check file existence", async () => {
-  const exists = await runtime.fs.exists("deno.json");
+Deno.test("current.fs.exists() should check file existence", async () => {
+  const exists = await current.fs.exists("deno.json");
   assert.assertEquals(exists, true);
 
-  const notExists = await runtime.fs.exists("nonexistent-file.xyz");
+  const notExists = await current.fs.exists("nonexistent-file.xyz");
   assert.assertEquals(notExists, false);
 });
 
-Deno.test("runtime.fs.readTextFile() should read files", async () => {
-  const content = await runtime.fs.readTextFile(
+Deno.test("current.fs.readTextFile() should read files", async () => {
+  const content = await current.fs.readTextFile(
     "pkg/@eser/standards/package.json",
   );
   assert.assertExists(content);
   assert.assertEquals(content.includes("@eser/standards"), true);
 });
 
-Deno.test("runtime.fs.stat() should return file info", async () => {
-  const stat = await runtime.fs.stat("deno.json");
+Deno.test("current.fs.stat() should return file info", async () => {
+  const stat = await current.fs.stat("deno.json");
   assert.assertEquals(stat.isFile, true);
   assert.assertEquals(stat.isDirectory, false);
 });
@@ -111,28 +111,28 @@ Deno.test("runtime.fs.stat() should return file info", async () => {
 // Exec Tests
 // =============================================================================
 
-Deno.test("runtime.exec.exec() should execute commands", async () => {
-  const result = await runtime.exec.exec("echo", ["hello"]);
+Deno.test("current.exec.exec() should execute commands", async () => {
+  const result = await current.exec.exec("echo", ["hello"]);
   assert.assertEquals(result, "hello");
 });
 
-Deno.test("runtime.exec.spawn() should return process output", async () => {
-  const result = await runtime.exec.spawn("echo", ["world"]);
+Deno.test("current.exec.spawn() should return process output", async () => {
+  const result = await current.exec.spawn("echo", ["world"]);
   assert.assertEquals(result.success, true);
   assert.assertEquals(result.code, 0);
   assert.assertEquals(new TextDecoder().decode(result.stdout).trim(), "world");
 });
 
-Deno.test("runtime.exec.execJson() should parse JSON output", async () => {
-  const result = await runtime.exec.execJson<{ hello: string }>(
+Deno.test("current.exec.execJson() should parse JSON output", async () => {
+  const result = await current.exec.execJson<{ hello: string }>(
     "echo",
     ['{"hello":"world"}'],
   );
   assert.assertEquals(result.hello, "world");
 });
 
-Deno.test("runtime.exec.spawnChild() should spawn process with piped I/O", async () => {
-  const child = runtime.exec.spawnChild("echo", ["hello from child"]);
+Deno.test("current.exec.spawnChild() should spawn process with piped I/O", async () => {
+  const child = current.exec.spawnChild("echo", ["hello from child"]);
 
   assert.assertExists(child.pid);
   assert.assertExists(child.status);
@@ -148,9 +148,9 @@ Deno.test("runtime.exec.spawnChild() should spawn process with piped I/O", async
   );
 });
 
-Deno.test("runtime.exec.spawnChild() should support piped stdin", async () => {
+Deno.test("current.exec.spawnChild() should support piped stdin", async () => {
   // Use cat to echo back what we write to stdin
-  const child = runtime.exec.spawnChild("cat", [], {
+  const child = current.exec.spawnChild("cat", [], {
     stdin: "piped",
     stdout: "piped",
     stderr: "null",
@@ -172,9 +172,9 @@ Deno.test("runtime.exec.spawnChild() should support piped stdin", async () => {
   );
 });
 
-Deno.test("runtime.exec.spawnChild() should provide status promise", async () => {
+Deno.test("current.exec.spawnChild() should provide status promise", async () => {
   // Use null streams to test status without resource leak issues
-  const child = runtime.exec.spawnChild("echo", ["status test"], {
+  const child = current.exec.spawnChild("echo", ["status test"], {
     stdout: "null",
     stderr: "null",
   });

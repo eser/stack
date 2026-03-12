@@ -160,23 +160,23 @@ const locale = userLocale ?? DEFAULT_LOCALE; // "en"
 Cross-runtime support for Deno, Node.js, Bun, Cloudflare Workers, and browsers.
 
 ```typescript
-import { createRuntime, detectRuntime, runtime } from "@eser/standards/runtime";
+import { createRuntime, current, detectRuntime } from "@eser/standards/runtime";
 
 // Auto-detected runtime singleton
-console.log(runtime.name); // "deno" | "node" | "bun" | "workerd" | "browser"
-console.log(runtime.version); // "1.40.0"
+console.log(current.name); // "deno" | "node" | "bun" | "workerd" | "browser"
+console.log(current.version); // "1.40.0"
 
 // Check capabilities
-if (runtime.capabilities.fs) {
-  const content = await runtime.fs.readTextFile("config.json");
+if (current.capabilities.fs) {
+  const content = await current.fs.readTextFile("config.json");
 }
 
-if (runtime.capabilities.exec) {
-  const result = await runtime.exec.command("ls", ["-la"]);
+if (current.capabilities.exec) {
+  const result = await current.exec.command("ls", ["-la"]);
 }
 
 // Environment variables
-const apiKey = runtime.env.get("API_KEY");
+const apiKey = current.env.get("API_KEY");
 
 // Create runtime with mocks for testing
 const mockRuntime = createRuntime({

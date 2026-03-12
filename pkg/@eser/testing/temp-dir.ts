@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { type MakeTempOptions, runtime } from "@eser/standards/runtime";
+import { current, type MakeTempOptions } from "@eser/standards/runtime";
 
 /**
  * A temporary directory handle with async disposable support.
@@ -23,11 +23,11 @@ export interface TempDir extends AsyncDisposable {
  *
  * @example
  * ```typescript
- * import { runtime } from "@eser/standards/runtime";
+ * import { current } from "@eser/standards/runtime";
  *
  * // Automatic cleanup with await using
  * await using temp = await withTmpDir();
- * await runtime.fs.writeTextFile(`${temp.dir}/test.txt`, "hello");
+ * await current.fs.writeTextFile(`${temp.dir}/test.txt`, "hello");
  * // Directory is automatically cleaned up when scope exits
  *
  * // Manual cleanup
@@ -42,18 +42,18 @@ export interface TempDir extends AsyncDisposable {
 export const withTmpDir = async (
   options?: MakeTempOptions,
 ): Promise<TempDir> => {
-  const dir = await runtime.fs.makeTempDir(options);
+  const dir = await current.fs.makeTempDir(options);
 
   return {
     dir,
     async [Symbol.asyncDispose](): Promise<void> {
       // Skip cleanup in CI for performance
-      if (runtime.env.get("CI")) {
+      if (current.env.get("CI")) {
         return;
       }
 
       try {
-        await runtime.fs.remove(dir, { recursive: true });
+        await current.fs.remove(dir, { recursive: true });
       } catch {
         // Ignore cleanup errors - directory may already be removed
       }
@@ -96,9 +96,9 @@ export const writeFiles = async (
     const dir = path.substring(0, path.lastIndexOf("/"));
     if (dir) {
       // mkdir with recursive: true will not throw if directory exists
-      await runtime.fs.mkdir(dir, { recursive: true });
+      await current.fs.mkdir(dir, { recursive: true });
     }
 
-    await runtime.fs.writeTextFile(path, content);
+    await current.fs.writeTextFile(path, content);
   }
 };

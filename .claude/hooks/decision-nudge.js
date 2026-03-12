@@ -1,5 +1,5 @@
-// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 #!/usr/bin/env node
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 /**
  * decision-nudge.js — Claude Code PostToolUse hook
  *

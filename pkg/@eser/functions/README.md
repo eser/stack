@@ -257,8 +257,8 @@ const result = await task.runTask(ready);
 
 ### 🔌 Trigger Adapters (Ports & Adapters)
 
-Define business logic once, invoke it from any source — HTTP, queue, CLI, or
-cron. This implements the
+Define business logic once, invoke it from any source — HTTP, queue, CLI, cron,
+or **AI tool calls**. This implements the
 [Ports & Adapters](https://alistair.cockburn.us/hexagonal-architecture/)
 (hexagonal architecture) pattern for function invocation. See also:
 [Context-Aware Tasks](#-context-aware-tasks-reader-pattern) for the underlying
@@ -328,6 +328,68 @@ await task.runTask(queueHandler(queueEvent), ctx);
 > provide full type safety: `Adapter<HttpEvent, OrderInput>` ensures the
 > transformation is checked at compile time.
 
+#### AI Tool Calls
+
+In the age of AI agents, functions aren't just triggered by HTTP or CLI —
+they're invoked by LLMs as **tool calls**. The same Handler pattern works
+seamlessly:
+
+```typescript
+const { triggers } = functions;
+
+// AI tool call adapter — validates arguments from the model
+const fromToolCall: handler.Adapter<triggers.ToolCallEvent, OrderInput> = (
+  event,
+) => {
+  const args = event.arguments as { customerId?: string } | null;
+  if (args?.customerId === undefined) {
+    return results.fail(handler.adaptError("Missing customerId"));
+  }
+  return results.ok({ customerId: args.customerId });
+};
+
+// Response mapper — formats result for the model
+const toToolResponse: handler.ResponseMapper<
+  Order,
+  OrderError | handler.AdaptError,
+  triggers.ToolCallResponse
+> = (result) => {
+  if (results.isOk(result)) {
+    return { content: result.value };
+  }
+  return { content: { error: result.error }, isError: true };
+};
+
+// Wire the trigger
+const handleToolCall = handler.createTrigger({
+  handler: createOrder,
+  adaptInput: fromToolCall,
+  adaptOutput: toToolResponse,
+});
+
+// Called when an LLM invokes this as a tool
+const response = await handleToolCall(
+  {
+    name: "create-order",
+    arguments: { customerId: "cust-1" },
+    callId: "call_abc",
+  },
+  ctx,
+);
+// → { content: { id: "order-1", customerId: "cust-1" }, isError: false }
+```
+
+This works with any AI framework — Claude tool use, OpenAI function calling, MCP
+tools, LangChain/LangGraph, Pydantic AI. The `ToolCallEvent` and
+`ToolCallResponse` types align with the Go
+[aifx](../../apps/services/pkg/eser-go/aifx/) package (`ToolCall` / `ToolResult`
+structs) for cross-language consistency.
+
+> **Why it matters:** LLM arguments are loosely typed JSON. The `Adapter`
+> validates them with full type safety — if the model sends malformed arguments,
+> you get `AdaptError`, not a runtime crash. The same handler serves CLI users,
+> HTTP clients, and AI agents without any business logic duplication.
+
 ## functions.resources.* — Resource Management
 
 Safe acquire-use-release patterns with guaranteed cleanup:
@@ -383,16 +445,16 @@ const slow = await resources.withTimeout(
 
 ### When to Use Which?
 
-| Use Case                 | Pattern                 | Why                                                  |
-| ------------------------ | ----------------------- | ---------------------------------------------------- |
-| Sequential async ops     | `functions.run()`       | Access intermediate values, short-circuit on failure |
-| Config parsing           | `functions.runSync()`   | Chain validations synchronously                      |
-| HTTP middleware          | `functions.collect()`   | Before/after hooks, delegation                       |
-| Streaming results        | `functions.collect()`   | Emit multiple values                                 |
-| Deferred computation     | `functions.task.*`      | Lazy evaluation, composable retry/timeout            |
-| Dependency injection     | `functions.task.*`      | Context threading via Reader pattern                 |
-| Multi-source invocation  | `functions.handler.*`   | Same logic, different triggers (HTTP/queue/CLI/cron) |
-| File/connection handling | `functions.resources.*` | Guaranteed cleanup                                   |
+| Use Case                 | Pattern                 | Why                                                               |
+| ------------------------ | ----------------------- | ----------------------------------------------------------------- |
+| Sequential async ops     | `functions.run()`       | Access intermediate values, short-circuit on failure              |
+| Config parsing           | `functions.runSync()`   | Chain validations synchronously                                   |
+| HTTP middleware          | `functions.collect()`   | Before/after hooks, delegation                                    |
+| Streaming results        | `functions.collect()`   | Emit multiple values                                              |
+| Deferred computation     | `functions.task.*`      | Lazy evaluation, composable retry/timeout                         |
+| Dependency injection     | `functions.task.*`      | Context threading via Reader pattern                              |
+| Multi-source invocation  | `functions.handler.*`   | Same logic, different triggers (HTTP/queue/CLI/cron/AI tool call) |
+| File/connection handling | `functions.resources.*` | Guaranteed cleanup                                                |
 
 ## API Reference
 
@@ -447,14 +509,16 @@ const slow = await resources.withTimeout(
 
 ### functions.triggers.*
 
-| Type           | Description                               |
-| -------------- | ----------------------------------------- |
-| `HttpEvent`    | HTTP request (method, path, headers, etc) |
-| `QueueEvent`   | Queue message (messageId, body, etc)      |
-| `CliEvent`     | CLI invocation (command, args, flags)     |
-| `CronEvent`    | Scheduled trigger (scheduledTime, name)   |
-| `HttpResponse` | HTTP response (status, headers, body)     |
-| `QueueAction`  | Queue result (ack / nack)                 |
+| Type               | Description                               |
+| ------------------ | ----------------------------------------- |
+| `HttpEvent`        | HTTP request (method, path, headers, etc) |
+| `QueueEvent`       | Queue message (messageId, body, etc)      |
+| `CliEvent`         | CLI invocation (command, args, flags)     |
+| `CronEvent`        | Scheduled trigger (scheduledTime, name)   |
+| `ToolCallEvent`    | AI tool call (name, arguments, callId)    |
+| `HttpResponse`     | HTTP response (status, headers, body)     |
+| `QueueAction`      | Queue result (ack / nack)                 |
+| `ToolCallResponse` | Tool call result (content, isError)       |
 
 ### functions.resources.*
 
@@ -490,6 +554,17 @@ const slow = await resources.withTimeout(
   — Lambda's trigger adapter model
 - [Contravariant Functor](https://hackage.haskell.org/package/contravariant) —
   The FP pattern behind input adaptation
+
+### AI Tool Calling
+
+- [Claude Tool Use](https://docs.anthropic.com/en/docs/build-with-claude/tool-use)
+  — Anthropic's tool use protocol (`name` + `input` → `content`)
+- [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) — Open
+  standard for AI tool integration
+- [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
+  — OpenAI's function calling API
+- [eser-go aifx](../../apps/services/pkg/eser-go/aifx/) — Go-side AI provider
+  abstraction with matching `ToolCall`/`ToolResult` types
 
 ---
 

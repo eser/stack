@@ -30,10 +30,16 @@
 
 import { walk } from "@std/fs/walk";
 import { fromFileUrl } from "@std/path/posix";
+import * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eser/primitives/results";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import { runtime } from "@eser/standards/runtime";
-import * as shellArgs from "@eser/shell/args";
+import * as handler from "@eser/functions/handler";
+import type { CliEvent } from "@eser/functions/triggers";
+import { fromPromise } from "@eser/functions/task";
+import type * as shellArgs from "@eser/shell/args";
+import * as fmt from "@eser/shell/formatting";
+import { runCliMain, toCliEvent } from "./cli-support.ts";
 
 /**
  * Options for license validation.
@@ -178,52 +184,92 @@ export const validateLicenses = async (
   };
 };
 
-/**
- * CLI main function for standalone usage.
- */
-export const main = async (
-  cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  const effectiveArgs = cliArgs ?? runtime.process.args;
-  const fix = effectiveArgs.includes("--fix");
+// --- Handler ---
 
-  const result = await validateLicenses({ fix });
+/** Handler: wraps validateLicenses as a Task via fromPromise. */
+export const validateLicensesHandler: handler.Handler<
+  ValidateLicensesOptions,
+  ValidateLicensesResult,
+  Error
+> = (input) => fromPromise(() => validateLicenses(input));
 
-  if (result.issues.length === 0) {
-    console.log(`Checked ${result.checked} files. All licenses are valid.`);
+// --- CLI Adapter ---
+
+/** Adapter: CliEvent → ValidateLicensesOptions (extracts --fix flag). */
+const cliAdapter: handler.Adapter<CliEvent, ValidateLicensesOptions> = (
+  event,
+) => results.ok({ fix: event.flags["fix"] === true });
+
+// --- CLI ResponseMapper ---
+
+/** ResponseMapper: formats ValidateLicensesResult for CLI output. */
+const cliResponseMapper: handler.ResponseMapper<
+  ValidateLicensesResult,
+  Error | handler.AdaptError,
+  shellArgs.CliResult<void>
+> = (result) => {
+  if (results.isFail(result)) {
+    fmt.printError(
+      result.error instanceof Error
+        ? result.error.message
+        : String(result.error),
+    );
+    return results.fail({ exitCode: 1 });
+  }
+
+  const { value } = result;
+
+  if (value.issues.length === 0) {
+    fmt.printSuccess(
+      `Checked ${value.checked} files. All licenses are valid.`,
+    );
     return results.ok(undefined);
   }
 
-  if (fix) {
-    for (const issue of result.issues) {
+  if (value.issues.some((i) => i.fixed)) {
+    for (const issue of value.issues) {
       if (issue.fixed) {
-        console.log(`Fixed ${issue.issue} header: ${issue.path}`);
+        fmt.printInfo(`Fixed ${issue.issue} header: ${issue.path}`);
       }
     }
-    console.log(`Fixed ${result.fixedCount} files.`);
+    fmt.printSuccess(`Fixed ${value.fixedCount} files.`);
     return results.ok(undefined);
   }
 
-  for (const issue of result.issues) {
-    console.error(
+  for (const issue of value.issues) {
+    fmt.printError(
       `${
         issue.issue === "missing" ? "Missing" : "Incorrect"
       } copyright header: ${issue.path}`,
     );
   }
-  console.info(`Copyright header should be "${COPYRIGHT}"`);
+  fmt.printInfo(`Copyright header should be "${COPYRIGHT}"`);
   return results.fail({ exitCode: 1 });
 };
 
+// --- CLI Trigger ---
+
+/** Runnable CLI trigger for check-licenses. */
+export const handleCli: (
+  event: CliEvent,
+) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  handler: validateLicensesHandler,
+  adaptInput: cliAdapter,
+  adaptOutput: cliResponseMapper,
+});
+
+/** CLI entry point for dispatcher compatibility. */
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const parsed = cliParseArgs.parseArgs(
+    (cliArgs ?? []) as string[],
+    { boolean: ["fix"] },
+  );
+  const event = toCliEvent("check-licenses", parsed);
+  return await handleCli(event);
+};
+
 if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
-    fail: (error) => {
-      if (error.message !== undefined) {
-        console.error(error.message);
-      }
-      runtime.process.setExitCode(error.exitCode);
-    },
-  });
+  runCliMain(await main(runtime.process.args as string[]));
 }

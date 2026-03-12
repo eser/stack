@@ -17,11 +17,13 @@
     "./check-licenses": "./check-licenses.ts",
     "./check-package-configs": "./check-package-configs.ts",
     "./versions": "./versions.ts",
-    "./lint-plugin": "./lint-plugin.ts"
+    "./lint-plugin": "./lint-plugin.ts",
+    "./cli-support": "./cli-support.ts"
   },
   "dependencies": {
     "@eser/config": "workspace:*",
     "@eser/fp": "workspace:*",
+    "@eser/functions": "workspace:*",
     "@eser/shell": "workspace:*",
     "@eser/standards": "workspace:*",
     "@std/cli": "npm:@jsr/std__cli@^1.0.25",

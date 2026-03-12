@@ -22,11 +22,15 @@
  * @module
  */
 
-import * as fmtColors from "@std/fmt/colors";
 import * as results from "@eser/primitives/results";
+import * as handler from "@eser/functions/handler";
+import type { CliEvent } from "@eser/functions/triggers";
+import { fromPromise } from "@eser/functions/task";
 import * as standardsRuntime from "@eser/standards/runtime";
-import * as shellArgs from "@eser/shell/args";
+import type * as shellArgs from "@eser/shell/args";
+import * as fmt from "@eser/shell/formatting";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
+import { runCliMain } from "./cli-support.ts";
 
 /**
  * Options for documentation checking.
@@ -254,38 +258,65 @@ const formatIssue = (issue: DocIssueType): string => {
   }
 };
 
+// --- Handler ---
+
 /**
- * CLI main function for standalone usage.
+ * Handler wrapping checkDocs as a Task.
  */
-export const main = async (
-  _cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  console.log("Checking documentation...\n");
+export const checkDocsHandler: handler.Handler<
+  CheckDocsOptions,
+  CheckDocsResult,
+  Error
+> = (input) => fromPromise(() => checkDocs(input));
 
-  const result = await checkDocs();
+// --- CLI Adapter ---
 
-  console.log(
-    `Checked ${result.filesChecked} files, ${result.symbolsChecked} symbols.`,
+/**
+ * Adapter that produces default CheckDocsOptions from a CLI event.
+ */
+const cliAdapter: handler.Adapter<CliEvent, CheckDocsOptions> = (
+  _event,
+) => results.ok({ root: "." });
+
+// --- CLI ResponseMapper ---
+
+/**
+ * Maps the handler result to CLI output.
+ */
+const cliResponseMapper: handler.ResponseMapper<
+  CheckDocsResult,
+  Error | handler.AdaptError,
+  shellArgs.CliResult<void>
+> = (result) => {
+  if (results.isFail(result)) {
+    fmt.printError(String(result.error));
+    return results.fail({ exitCode: 1 });
+  }
+
+  const { value } = result;
+
+  fmt.printInfo(
+    `Checked ${value.filesChecked} files, ${value.symbolsChecked} symbols.`,
   );
 
-  if (!result.isValid) {
-    console.log(
-      fmtColors.red(`\nFound ${result.issues.length} documentation issues:\n`),
+  if (!value.isValid) {
+    fmt.printError(
+      `Found ${value.issues.length} documentation issues:`,
     );
 
     // Group by file
     const byFile = new Map<string, DocIssue[]>();
-    for (const issue of result.issues) {
+    for (const issue of value.issues) {
       const existing = byFile.get(issue.file) ?? [];
       existing.push(issue);
       byFile.set(issue.file, existing);
     }
 
     for (const [file, fileIssues] of byFile) {
-      console.log(fmtColors.yellow(`\n${file}:`));
+      fmt.printWarning(file);
       for (const issue of fileIssues) {
         const lineInfo = issue.line !== undefined ? `:${issue.line}` : "";
-        console.log(
+        fmt.printInfo(
           `  ${issue.symbol}${lineInfo}: ${formatIssue(issue.issue)}`,
         );
       }
@@ -294,19 +325,29 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  console.log(fmtColors.green("\nAll documentation is valid."));
+  fmt.printSuccess("All documentation is valid.");
   return results.ok(undefined);
 };
 
+// --- CLI Trigger ---
+
+/**
+ * CLI trigger for check-docs.
+ */
+export const handleCli: (
+  event: CliEvent,
+) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  handler: checkDocsHandler,
+  adaptInput: cliAdapter,
+  adaptOutput: cliResponseMapper,
+});
+
+/** CLI entry point for dispatcher compatibility. */
+export const main = async (
+  _cliArgs?: readonly string[],
+): Promise<shellArgs.CliResult<void>> =>
+  await handleCli({ command: "check-docs", args: [], flags: {} });
+
 if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
-    fail: (error) => {
-      if (error.message !== undefined) {
-        console.error(error.message);
-      }
-      standardsRuntime.runtime.process.setExitCode(error.exitCode);
-    },
-  });
+  runCliMain(await main());
 }

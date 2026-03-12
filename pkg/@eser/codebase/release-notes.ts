@@ -31,9 +31,14 @@
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as stdPath from "@std/path";
 import * as results from "@eser/primitives/results";
-import * as standardsRuntime from "@eser/standards/runtime";
-import * as shellArgs from "@eser/shell/args";
+import { runtime } from "@eser/standards/runtime";
+import * as handler from "@eser/functions/handler";
+import type { CliEvent } from "@eser/functions/triggers";
+import { fromPromise } from "@eser/functions/task";
+import type * as shellArgs from "@eser/shell/args";
+import * as fmt from "@eser/shell/formatting";
 import * as shellExec from "@eser/shell/exec";
+import { runCliMain, toCliEvent } from "./cli-support.ts";
 
 /**
  * A parsed entry from a CHANGELOG.md file.
@@ -188,7 +193,7 @@ export const parseChangelog = async (
 ): Promise<ParseChangelogResult> => {
   const { changelogPath = "CHANGELOG.md", root = "." } = options;
   const fullPath = stdPath.resolve(root, changelogPath);
-  const text = await standardsRuntime.runtime.fs.readTextFile(fullPath);
+  const text = await runtime.fs.readTextFile(fullPath);
   const entries = parseChangelogText(text);
 
   return { entries };
@@ -251,7 +256,7 @@ export const syncReleaseNotes = async (
   // Write notes to a temp file for gh CLI
   const tempDir = await Deno.makeTempDir({ prefix: "eserstack-release-" });
   const notesPath = stdPath.join(tempDir, `${targetTag}-notes.md`);
-  await standardsRuntime.runtime.fs.writeTextFile(notesPath, entry.notes);
+  await runtime.fs.writeTextFile(notesPath, entry.notes);
 
   try {
     const exists = await hasGitHubRelease(targetTag, repo);
@@ -286,58 +291,68 @@ export const syncReleaseNotes = async (
   }
 };
 
-/**
- * CLI main function for standalone usage.
- */
-export const main = async (
-  cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  const args = cliParseArgs.parseArgs(
-    (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
-    {
-      string: ["repo", "tag"],
-      boolean: ["create-if-missing", "help"],
-      alias: { h: "help" },
-    },
-  );
+// --- Handler ---
 
-  if (args.help) {
-    console.log(
-      `Usage: release-notes.ts --repo <owner/repo> [--tag <tag>] [--create-if-missing]
+/** Handler: wraps syncReleaseNotes as a Task via fromPromise. */
+export const syncReleaseNotesHandler: handler.Handler<
+  SyncReleaseNotesOptions,
+  SyncReleaseNotesResult,
+  Error
+> = (input) => fromPromise(() => syncReleaseNotes(input));
 
-Options:
-  --repo <owner/repo>    Repository slug (or set GITHUB_REPOSITORY env var)
-  --tag <tag>            Release tag (defaults to latest changelog entry)
-  --create-if-missing    Create release if it does not exist
-  --help                 Show this help message`,
-    );
-    return results.ok(undefined);
-  }
+// --- CLI Adapter ---
 
-  const repo = args.repo ?? Deno.env.get("GITHUB_REPOSITORY") ?? "";
+/** Adapter: CliEvent → SyncReleaseNotesOptions (extracts --repo, --tag, --create-if-missing flags). */
+const cliAdapter: handler.Adapter<CliEvent, SyncReleaseNotesOptions> = (
+  event,
+) => {
+  const repo = (event.flags["repo"] as string | undefined) ??
+    Deno.env.get("GITHUB_REPOSITORY") ?? "";
+
   if (repo === "") {
-    return results.fail({
-      message: "Missing repository. Pass --repo or set GITHUB_REPOSITORY.",
-      exitCode: 1,
-    });
+    return results.fail(
+      handler.adaptError(
+        "Missing repository. Pass --repo or set GITHUB_REPOSITORY.",
+      ),
+    );
   }
 
-  const result = await syncReleaseNotes({
+  return results.ok({
     repo,
-    tag: args.tag ?? undefined,
-    createIfMissing: args["create-if-missing"] === true,
+    tag: (event.flags["tag"] as string | undefined) ?? undefined,
+    createIfMissing: event.flags["create-if-missing"] === true,
   });
+};
 
-  switch (result.action) {
+// --- CLI ResponseMapper ---
+
+/** ResponseMapper: formats SyncReleaseNotesResult for CLI output. */
+const cliResponseMapper: handler.ResponseMapper<
+  SyncReleaseNotesResult,
+  Error | handler.AdaptError,
+  shellArgs.CliResult<void>
+> = (result) => {
+  if (results.isFail(result)) {
+    const err = result.error;
+    const message = err instanceof Error
+      ? err.message
+      : (err as handler.AdaptError).message ?? String(err);
+    fmt.printError(message);
+    return results.fail({ exitCode: 1 });
+  }
+
+  const { value } = result;
+
+  switch (value.action) {
     case "created":
-      console.log(`Created release ${result.tag} with changelog notes.`);
+      fmt.printSuccess(`Created release ${value.tag} with changelog notes.`);
       break;
     case "updated":
-      console.log(`Updated release notes for ${result.tag}.`);
+      fmt.printSuccess(`Updated release notes for ${value.tag}.`);
       break;
     case "skipped":
-      console.log(
-        `Release ${result.tag} not found. Skipping (pass --create-if-missing to create).`,
+      fmt.printWarning(
+        `Release ${value.tag} not found. Skipping (pass --create-if-missing to create).`,
       );
       break;
   }
@@ -345,15 +360,33 @@ Options:
   return results.ok(undefined);
 };
 
-if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
-    fail: (error) => {
-      if (error.message !== undefined) {
-        console.error(error.message);
-      }
-      standardsRuntime.runtime.process.setExitCode(error.exitCode);
+// --- CLI Trigger ---
+
+/** Runnable CLI trigger for release-notes. */
+export const handleCli: (
+  event: CliEvent,
+) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  handler: syncReleaseNotesHandler,
+  adaptInput: cliAdapter,
+  adaptOutput: cliResponseMapper,
+});
+
+/** CLI entry point for dispatcher compatibility. */
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const parsed = cliParseArgs.parseArgs(
+    (cliArgs ?? []) as string[],
+    {
+      string: ["repo", "tag"],
+      boolean: ["create-if-missing"],
+      alias: { h: "help" },
     },
-  });
+  );
+  const event = toCliEvent("release-notes", parsed);
+  return await handleCli(event);
+};
+
+if (import.meta.main) {
+  runCliMain(await main(runtime.process.args as string[]));
 }

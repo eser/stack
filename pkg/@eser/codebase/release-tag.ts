@@ -21,10 +21,15 @@
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eser/primitives/results";
-import * as standardsRuntime from "@eser/standards/runtime";
-import * as shellArgs from "@eser/shell/args";
+import { runtime } from "@eser/standards/runtime";
+import * as handler from "@eser/functions/handler";
+import type { CliEvent } from "@eser/functions/triggers";
+import { fromPromise } from "@eser/functions/task";
+import type * as shellArgs from "@eser/shell/args";
+import * as fmt from "@eser/shell/formatting";
 import { createTag, pushTag } from "./git.ts";
 import { readVersionFile } from "./versions.ts";
+import { runCliMain, toCliEvent } from "./cli-support.ts";
 
 /**
  * Options for pushing a release tag.
@@ -94,63 +99,74 @@ export const pushReleaseTag = async (
   return { version, tag, remote, dryRun };
 };
 
-/**
- * CLI main function for standalone usage.
- */
-export const main = async (
-  cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  const args = cliParseArgs.parseArgs(
-    (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
-    {
-      boolean: ["dry-run", "help"],
-      alias: { h: "help", n: "dry-run" },
-    },
-  );
+// --- Handler ---
 
-  if (args.help) {
-    console.log(
-      `Usage: release-tag.ts [--dry-run]
+/** Handler: wraps pushReleaseTag as a Task via fromPromise. */
+export const pushReleaseTagHandler: handler.Handler<
+  PushReleaseTagOptions,
+  PushReleaseTagResult,
+  Error
+> = (input) => fromPromise(() => pushReleaseTag(input));
 
-Reads the VERSION file and creates + pushes a git tag.
+// --- CLI Adapter ---
 
-Options:
-  --dry-run   Show what would happen without creating/pushing the tag
-  --help      Show this help message`,
+/** Adapter: CliEvent → PushReleaseTagOptions (extracts --dry-run flag). */
+const cliAdapter: handler.Adapter<CliEvent, PushReleaseTagOptions> = (
+  event,
+) => results.ok({ dryRun: event.flags["dry-run"] === true });
+
+// --- CLI ResponseMapper ---
+
+/** ResponseMapper: formats PushReleaseTagResult for CLI output. */
+const cliResponseMapper: handler.ResponseMapper<
+  PushReleaseTagResult,
+  Error | handler.AdaptError,
+  shellArgs.CliResult<void>
+> = (result) => {
+  if (results.isFail(result)) {
+    fmt.printError(
+      result.error instanceof Error
+        ? result.error.message
+        : String(result.error),
     );
-    return results.ok(undefined);
+    return results.fail({ exitCode: 1 });
   }
 
-  const dryRun = args["dry-run"] === true;
-  const result = await pushReleaseTag({ dryRun });
+  const { value } = result;
 
-  console.log(
-    `${result.dryRun ? "[DRY RUN] " : ""}Tag: ${result.tag}`,
-  );
-
-  if (!result.dryRun) {
-    console.log(`  Created tag ${result.tag}`);
-    console.log(`  Pushed tag ${result.tag} to ${result.remote}`);
+  if (value.dryRun) {
+    fmt.printWarning(`[DRY RUN] Would create and push tag ${value.tag}`);
+  } else {
+    fmt.printSuccess(`Created tag ${value.tag}`);
+    fmt.printInfo(`Pushed tag ${value.tag} to ${value.remote}`);
   }
-
-  console.log(
-    `\n${
-      result.dryRun ? "[DRY RUN] Would create and push" : "Done:"
-    } ${result.tag}`,
-  );
 
   return results.ok(undefined);
 };
 
+// --- CLI Trigger ---
+
+/** Runnable CLI trigger for release-tag. */
+export const handleCli: (
+  event: CliEvent,
+) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  handler: pushReleaseTagHandler,
+  adaptInput: cliAdapter,
+  adaptOutput: cliResponseMapper,
+});
+
+/** CLI entry point for dispatcher compatibility. */
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const parsed = cliParseArgs.parseArgs(
+    (cliArgs ?? []) as string[],
+    { boolean: ["dry-run"], alias: { n: "dry-run" } },
+  );
+  const event = toCliEvent("release-tag", parsed);
+  return await handleCli(event);
+};
+
 if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
-    fail: (error) => {
-      if (error.message !== undefined) {
-        console.error(error.message);
-      }
-      standardsRuntime.runtime.process.setExitCode(error.exitCode);
-    },
-  });
+  runCliMain(await main(runtime.process.args as string[]));
 }

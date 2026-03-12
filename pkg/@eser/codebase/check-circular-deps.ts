@@ -21,11 +21,14 @@
  * @module
  */
 
-import * as fmtColors from "@std/fmt/colors";
 import * as results from "@eser/primitives/results";
-import { runtime } from "@eser/standards/runtime";
-import * as shellArgs from "@eser/shell/args";
+import * as handler from "@eser/functions/handler";
+import type { CliEvent } from "@eser/functions/triggers";
+import { fromPromise } from "@eser/functions/task";
+import type * as shellArgs from "@eser/shell/args";
+import * as fmt from "@eser/shell/formatting";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
+import { runCliMain } from "./cli-support.ts";
 
 /**
  * Options for circular dependency checking.
@@ -160,41 +163,73 @@ export const checkCircularDeps = async (
   };
 };
 
-/**
- * CLI main function for standalone usage.
- */
-export const main = async (
-  _cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  console.log("Checking for circular dependencies...\n");
+// --- Handler ---
 
-  const result = await checkCircularDeps();
+/** Handler: wraps checkCircularDeps as a Task via fromPromise. */
+export const checkCircularDepsHandler: handler.Handler<
+  CheckCircularDepsOptions,
+  CheckCircularDepsResult,
+  Error
+> = (input) => fromPromise(() => checkCircularDeps(input));
 
-  console.log(`Checked ${result.packagesChecked} packages.`);
+// --- CLI Adapter ---
 
-  if (result.hasCycles) {
-    console.log(
-      fmtColors.red(`\nFound ${result.cycles.length} circular dependencies:\n`),
+/** Adapter: CliEvent → CheckCircularDepsOptions (no flags needed). */
+const cliAdapter: handler.Adapter<CliEvent, CheckCircularDepsOptions> = (
+  _event,
+) => results.ok({ root: "." });
+
+// --- CLI ResponseMapper ---
+
+/** ResponseMapper: formats CheckCircularDepsResult for CLI output. */
+const cliResponseMapper: handler.ResponseMapper<
+  CheckCircularDepsResult,
+  Error | handler.AdaptError,
+  shellArgs.CliResult<void>
+> = (result) => {
+  if (results.isFail(result)) {
+    fmt.printError(
+      result.error instanceof Error
+        ? result.error.message
+        : String(result.error),
     );
-    for (const cycle of result.cycles) {
-      console.log(fmtColors.yellow(`  ${cycle.join(" → ")}`));
+    return results.fail({ exitCode: 1 });
+  }
+
+  const { value } = result;
+  fmt.printInfo(`Checked ${value.packagesChecked} packages.`);
+
+  if (value.hasCycles) {
+    fmt.printError(
+      `Found ${value.cycles.length} circular dependencies:`,
+    );
+    for (const cycle of value.cycles) {
+      fmt.printWarning(`${cycle.join(" → ")}`);
     }
     return results.fail({ exitCode: 1 });
   }
 
-  console.log(fmtColors.green("\nNo circular dependencies found."));
+  fmt.printSuccess("No circular dependencies found.");
   return results.ok(undefined);
 };
 
+// --- CLI Trigger ---
+
+/** Runnable CLI trigger for check-circular-deps. */
+export const handleCli: (
+  event: CliEvent,
+) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  handler: checkCircularDepsHandler,
+  adaptInput: cliAdapter,
+  adaptOutput: cliResponseMapper,
+});
+
+/** CLI entry point for dispatcher compatibility. */
+export const main = async (
+  _cliArgs?: readonly string[],
+): Promise<shellArgs.CliResult<void>> =>
+  await handleCli({ command: "check-circular-deps", args: [], flags: {} });
+
 if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
-    fail: (error) => {
-      if (error.message !== undefined) {
-        console.error(error.message);
-      }
-      runtime.process.setExitCode(error.exitCode);
-    },
-  });
+  runCliMain(await main());
 }

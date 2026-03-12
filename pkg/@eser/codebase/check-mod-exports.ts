@@ -22,11 +22,15 @@
  * @module
  */
 
-import * as fmtColors from "@std/fmt/colors";
 import * as results from "@eser/primitives/results";
+import * as handler from "@eser/functions/handler";
+import type { CliEvent } from "@eser/functions/triggers";
+import { fromPromise } from "@eser/functions/task";
 import { runtime } from "@eser/standards/runtime";
-import * as shellArgs from "@eser/shell/args";
+import type * as shellArgs from "@eser/shell/args";
+import * as fmt from "@eser/shell/formatting";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
+import { runCliMain } from "./cli-support.ts";
 
 /**
  * Options for mod.ts export checking.
@@ -204,45 +208,78 @@ export const checkModExports = async (
   };
 };
 
+// --- Handler ---
+
 /**
- * CLI main function for standalone usage.
+ * Handler wrapping checkModExports as a Task.
  */
-export const main = async (
-  _cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  console.log("Checking mod.ts exports...\n");
+export const checkModExportsHandler: handler.Handler<
+  CheckModExportsOptions,
+  CheckModExportsResult,
+  Error
+> = (input) => fromPromise(() => checkModExports(input));
 
-  const result = await checkModExports();
+// --- CLI Adapter ---
 
-  console.log(`Checked ${result.packagesChecked} packages.`);
+/**
+ * Adapter that produces default CheckModExportsOptions from a CLI event.
+ */
+const cliAdapter: handler.Adapter<CliEvent, CheckModExportsOptions> = (
+  _event,
+) => results.ok({ root: "." });
 
-  if (!result.isComplete) {
-    console.log(
-      fmtColors.red(
-        `\nFound ${result.missingExports.length} missing exports:\n`,
-      ),
+// --- CLI ResponseMapper ---
+
+/**
+ * Maps the handler result to CLI output.
+ */
+const cliResponseMapper: handler.ResponseMapper<
+  CheckModExportsResult,
+  Error | handler.AdaptError,
+  shellArgs.CliResult<void>
+> = (result) => {
+  if (results.isFail(result)) {
+    fmt.printError(String(result.error));
+    return results.fail({ exitCode: 1 });
+  }
+
+  const { value } = result;
+
+  fmt.printInfo(`Checked ${value.packagesChecked} packages.`);
+
+  if (!value.isComplete) {
+    fmt.printError(
+      `Found ${value.missingExports.length} missing exports:`,
     );
-    for (const missing of result.missingExports) {
-      console.log(
-        fmtColors.yellow(`  ${missing.packageName}: ${missing.file}`),
-      );
+    for (const missing of value.missingExports) {
+      fmt.printWarning(`${missing.packageName}: ${missing.file}`);
     }
     return results.fail({ exitCode: 1 });
   }
 
-  console.log(fmtColors.green("\nAll mod.ts exports are complete."));
+  fmt.printSuccess("All mod.ts exports are complete.");
   return results.ok(undefined);
 };
 
+// --- CLI Trigger ---
+
+/**
+ * CLI trigger for check-mod-exports.
+ */
+export const handleCli: (
+  event: CliEvent,
+) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  handler: checkModExportsHandler,
+  adaptInput: cliAdapter,
+  adaptOutput: cliResponseMapper,
+});
+
+/** CLI entry point for dispatcher compatibility. */
+export const main = async (
+  _cliArgs?: readonly string[],
+): Promise<shellArgs.CliResult<void>> =>
+  await handleCli({ command: "check-mod-exports", args: [], flags: {} });
+
 if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
-    fail: (error) => {
-      if (error.message !== undefined) {
-        console.error(error.message);
-      }
-      runtime.process.setExitCode(error.exitCode);
-    },
-  });
+  runCliMain(await main());
 }

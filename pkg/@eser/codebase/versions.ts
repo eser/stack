@@ -30,12 +30,16 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import * as fmtColors from "@std/fmt/colors";
 import * as stdPath from "@std/path";
 import * as stdSemver from "@std/semver";
 import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
-import * as shellArgs from "@eser/shell/args";
+import * as handler from "@eser/functions/handler";
+import type { CliEvent } from "@eser/functions/triggers";
+import { fromPromise } from "@eser/functions/task";
+import type * as shellArgs from "@eser/shell/args";
+import * as fmt from "@eser/shell/formatting";
+import { runCliMain, toCliEvent } from "./cli-support.ts";
 import * as pkg from "./package/mod.ts";
 
 /**
@@ -302,83 +306,164 @@ export const versions = async (
   };
 };
 
+// --- Handler / Adapter / ResponseMapper (CLI layer) ---
+
 /**
- * CLI main function for standalone usage.
+ * Discriminated input for the versions handler.
  */
-export const main = async (
-  cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  const args = cliParseArgs.parseArgs(
-    (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
-    { boolean: ["dry-run"] },
-  );
+export type VersionsInput =
+  | { readonly mode: "show" }
+  | {
+    readonly mode: "update";
+    readonly command: VersionCommand;
+    readonly options: VersionOptions;
+  };
 
-  const input = args._[0] as string | undefined;
-  const dryRun = args["dry-run"] as boolean;
+/**
+ * Discriminated output from the versions handler.
+ */
+export type VersionsOutput =
+  | { readonly mode: "show"; readonly result: ShowVersionsResult }
+  | { readonly mode: "update"; readonly result: VersionsResult };
 
-  // No command: show versions table
-  if (input === undefined) {
-    const result = await showVersions();
-    console.table(result.packages);
-    return results.ok(undefined);
+/**
+ * Core handler — wraps existing library functions using `fromPromise`.
+ */
+export const versionsHandler: handler.Handler<
+  VersionsInput,
+  VersionsOutput,
+  Error
+> = (
+  input,
+) => {
+  if (input.mode === "show") {
+    return fromPromise(
+      async () => {
+        const result = await showVersions();
+        return { mode: "show" as const, result };
+      },
+    );
   }
 
-  // Determine command and options
+  return fromPromise(
+    async () => {
+      const result = await versions(input.command, input.options);
+      return { mode: "update" as const, result };
+    },
+  );
+};
+
+/**
+ * CLI Adapter — converts a `CliEvent` into `VersionsInput`.
+ */
+const cliAdapter: handler.Adapter<CliEvent, VersionsInput> = (event) => {
+  const arg = event.args[0] as string | undefined;
+
+  // No args → show mode
+  if (arg === undefined) {
+    return results.ok({ mode: "show" as const });
+  }
+
+  // Has arg → update mode
   const validCommands = ["sync", "patch", "minor", "major"];
   let command: VersionCommand;
   let explicitVersion: string | undefined;
 
-  if (validCommands.includes(input)) {
-    command = input as VersionCommand;
+  if (validCommands.includes(arg)) {
+    command = arg as VersionCommand;
   } else {
     command = "explicit";
-    explicitVersion = input;
+    explicitVersion = arg;
   }
 
-  // Execute command
-  if (command === "sync") {
-    console.log(`Syncing all versions...`);
-  } else if (command === "explicit") {
-    console.log(`Setting all versions to ${explicitVersion}...`);
+  const dryRun = event.flags["dry-run"] === true;
+
+  return results.ok({
+    mode: "update" as const,
+    command,
+    options: { dryRun, explicitVersion },
+  });
+};
+
+/**
+ * CLI ResponseMapper — formats handler output for terminal display.
+ */
+const cliResponseMapper: handler.ResponseMapper<
+  VersionsOutput,
+  Error | handler.AdaptError,
+  shellArgs.CliResult<void>
+> = (result) => {
+  if (results.isFail(result)) {
+    return results.fail({ exitCode: 1, message: String(result.error) });
+  }
+
+  const output = result.value;
+
+  if (output.mode === "show") {
+    console.table(output.result.packages);
+    return results.ok(undefined);
+  }
+
+  // Update mode
+  const { result: updateResult } = output;
+
+  if (updateResult.command === "sync") {
+    fmt.printInfo("Syncing all versions...");
+  } else if (updateResult.command === "explicit") {
+    fmt.printInfo(
+      `Setting all versions to ${updateResult.targetVersion}...`,
+    );
   } else {
-    console.log(`Bumping all versions (${command})...`);
+    fmt.printInfo(`Bumping all versions (${updateResult.command})...`);
   }
 
-  const result = await versions(command, { dryRun, explicitVersion });
+  fmt.printInfo(`Target version: ${updateResult.targetVersion}`);
+  console.table(updateResult.updates);
 
-  console.log(`Target version: ${result.targetVersion}`);
-  console.table(result.updates);
-
-  for (const fileUpdate of result.fileUpdates) {
+  for (const fileUpdate of updateResult.fileUpdates) {
     if (fileUpdate.changed) {
-      console.log(
-        `  ${fileUpdate.path} (${fileUpdate.from} → ${fileUpdate.to})`,
+      fmt.printInfo(
+        `${fileUpdate.path} (${fileUpdate.from} → ${fileUpdate.to})`,
       );
     }
   }
 
-  if (dryRun) {
-    console.log(
-      fmtColors.cyan(
-        `Dry run - ${result.changedCount} packages would be modified.`,
-      ),
+  if (updateResult.dryRun) {
+    fmt.printInfo(
+      `Dry run - ${updateResult.changedCount} packages would be modified.`,
     );
   } else {
-    console.log(`Done. Updated ${result.changedCount} packages.`);
+    fmt.printSuccess(
+      `Done. Updated ${updateResult.changedCount} packages.`,
+    );
   }
 
   return results.ok(undefined);
 };
 
+/**
+ * CLI trigger — wired handler for command-line invocation.
+ */
+export const handleCli: (
+  event: CliEvent,
+) => Promise<shellArgs.CliResult<void>> = handler.createTrigger({
+  handler: versionsHandler,
+  adaptInput: cliAdapter,
+  adaptOutput: cliResponseMapper,
+});
+
+/** CLI entry point for dispatcher compatibility. */
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const parsed = cliParseArgs.parseArgs(
+    (cliArgs ?? []) as string[],
+    { boolean: ["dry-run"] },
+  );
+  const event = toCliEvent("versions", parsed);
+  return await handleCli(event);
+};
+
 if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
-    fail: (error) => {
-      if (error.message !== undefined) {
-        console.error(error.message);
-      }
-      standardsRuntime.runtime.process.setExitCode(error.exitCode);
-    },
-  });
+  runCliMain(await main(standardsRuntime.runtime.process.args as string[]));
 }

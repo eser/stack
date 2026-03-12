@@ -6,7 +6,7 @@
  * @module
  */
 
-import type { Result } from "@eser/functions/results";
+import type * as results from "@eser/primitives/results";
 
 /**
  * Supported flag value types
@@ -106,7 +106,7 @@ export type CliError = {
  *
  * @example
  * ```ts
- * import { ok, fail } from "@eser/functions/results";
+ * import { ok, fail } from "@eser/primitives/results";
  *
  * // Success
  * return ok(undefined);
@@ -115,4 +115,4 @@ export type CliError = {
  * return fail({ message: "Invalid argument", exitCode: 1 });
  * ```
  */
-export type CliResult<T> = Result<T, CliError>;
+export type CliResult<T> = results.Result<T, CliError>;

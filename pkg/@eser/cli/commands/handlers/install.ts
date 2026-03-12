@@ -8,10 +8,10 @@
 
 import * as fmtColors from "@std/fmt/colors";
 import * as standardsRuntime from "@eser/standards/runtime";
-import { fail, ok } from "@eser/functions/results";
-import { type CliResult, type CommandContext } from "@eser/shell/args";
-import { exec } from "@eser/shell/exec";
-import { getShellConfig } from "@eser/shell/env";
+import * as results from "@eser/primitives/results";
+import * as shellArgs from "@eser/shell/args";
+import * as shellExec from "@eser/shell/exec";
+import * as shellEnv from "@eser/shell/env";
 import {
   addCompletions,
   detectShell,
@@ -39,8 +39,8 @@ const INSTALL_CONFIGS: Record<string, InstallConfig> = {
 };
 
 export const installHandler = async (
-  _ctx: CommandContext,
-): Promise<CliResult<void>> => {
+  _ctx: shellArgs.CommandContext,
+): Promise<shellArgs.CliResult<void>> => {
   const runtimeName = standardsRuntime.detectRuntime();
 
   // deno-lint-ignore no-console
@@ -49,7 +49,7 @@ export const installHandler = async (
   const config = INSTALL_CONFIGS[runtimeName];
 
   if (config === undefined) {
-    return fail({
+    return results.fail({
       message: `${fmtColors.red(`\nUnsupported runtime: ${runtimeName}`)}\n` +
         "Global installation is only supported for Deno, Node.js, and Bun.",
       exitCode: 1,
@@ -63,7 +63,7 @@ export const installHandler = async (
   // deno-lint-ignore no-console
   console.log("");
 
-  const result = await exec`${cmd} ${args}`
+  const result = await shellExec.exec`${cmd} ${args}`
     .stdout("inherit")
     .stderr("inherit")
     .noThrow()
@@ -72,7 +72,7 @@ export const installHandler = async (
   if (!result.success) {
     // deno-lint-ignore no-console
     console.error(fmtColors.red("\nInstallation failed."));
-    return fail({ exitCode: result.code });
+    return results.fail({ exitCode: result.code });
   }
 
   // deno-lint-ignore no-console
@@ -91,7 +91,7 @@ export const installHandler = async (
     console.log(`\nSetting up ${fmtColors.cyan(shell)} completions...`);
     await addCompletions(shell);
 
-    const shellConfig = getShellConfig(shell);
+    const shellConfig = shellEnv.getShellConfig(shell);
     if (shellConfig.completionType === "eval") {
       // deno-lint-ignore no-console
       console.log(
@@ -102,5 +102,5 @@ export const installHandler = async (
     }
   }
 
-  return ok(undefined);
+  return results.ok(undefined);
 };

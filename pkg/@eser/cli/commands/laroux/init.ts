@@ -9,16 +9,16 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import { fail, ok, tryCatchAsync } from "@eser/functions/results";
-import { type CliResult, type CommandContext } from "@eser/shell/args";
+import * as results from "@eser/primitives/results";
+import * as shellArgs from "@eser/shell/args";
 import * as scaffolding from "@eser/codebase/scaffolding";
 
 const TEMPLATES = ["minimal", "blog", "dashboard", "docs"] as const;
 type TemplateName = typeof TEMPLATES[number];
 
 export const initHandler = async (
-  ctx: CommandContext,
-): Promise<CliResult<void>> => {
+  ctx: shellArgs.CommandContext,
+): Promise<shellArgs.CliResult<void>> => {
   // Get folder name from args (first positional argument)
   const folder = (ctx.args[0] as string) ?? "my-laroux-app";
 
@@ -27,7 +27,7 @@ export const initHandler = async (
 
   // Validate template
   if (!TEMPLATES.includes(templateName as TemplateName)) {
-    return fail({
+    return results.fail({
       message:
         `${fmtColors.red(`\nError: Invalid template "${templateName}"`)}\n` +
         `Available templates: ${TEMPLATES.join(", ")}`,
@@ -54,7 +54,7 @@ export const initHandler = async (
   // deno-lint-ignore no-console
   console.log(fmtColors.dim(`   Fetching from ${specifier}...\n`));
 
-  const scaffoldResult = await tryCatchAsync(
+  const scaffoldResult = await results.tryCatchAsync(
     () =>
       scaffolding.scaffold({
         specifier,
@@ -67,7 +67,7 @@ export const initHandler = async (
   );
 
   if (scaffoldResult._tag === "Fail") {
-    return fail({
+    return results.fail({
       message: fmtColors.red(
         `\nScaffolding failed: ${scaffoldResult.error.message}`,
       ),
@@ -103,5 +103,5 @@ Then open ${fmtColors.cyan("http://localhost:8000")} in your browser.
 ${fmtColors.dim("Learn more at https://laroux.now/")}
 `);
 
-  return ok(undefined);
+  return results.ok(undefined);
 };

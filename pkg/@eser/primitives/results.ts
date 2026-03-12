@@ -1,8 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Type-safe Result type for explicit error handling.
- * Uses discriminated union for exhaustive pattern matching.
+ * Result type: discriminated union types, constructors, type guards, and combinators.
  * Implements iterator protocol for do-notation support with yield*.
  */
 
@@ -56,6 +55,12 @@ export const flatMap = <T, U, E>(
   f: (value: T) => Result<U, E>,
 ): Result<U, E> => (isOk(result) ? f(result.value) : result);
 
+/** flatMap with error type widening — E1 and E2 are unioned automatically. */
+export const flatMapW = <T, U, E1, E2>(
+  result: Result<T, E1>,
+  f: (value: T) => Result<U, E2>,
+): Result<U, E1 | E2> => (isOk(result) ? f(result.value) : result);
+
 export const mapError = <T, E, E2>(
   result: Result<T, E>,
   f: (error: E) => E2,
@@ -65,6 +70,12 @@ export const flatMapError = <T, E, E2>(
   result: Result<T, E>,
   f: (error: E) => Result<T, E2>,
 ): Result<T, E2> => (isFail(result) ? f(result.error) : result);
+
+/** flatMapError with error type widening. */
+export const flatMapErrorW = <T, E1, E2>(
+  result: Result<T, E1>,
+  f: (error: E1) => Result<T, E2>,
+): Result<T, E1 | E2> => (isFail(result) ? f(result.error) : result);
 
 // Value extraction
 export const getOrElse = <T, E>(
@@ -122,10 +133,10 @@ export const toPromise = <T, E>(result: Result<T, E>): Promise<T> =>
 
 // Collection utilities
 export const all = <T, E>(
-  results: ReadonlyArray<Result<T, E>>,
+  items: ReadonlyArray<Result<T, E>>,
 ): Result<T[], E> => {
   const values: T[] = [];
-  for (const result of results) {
+  for (const result of items) {
     if (isFail(result)) return result;
     values.push(result.value);
   }
@@ -133,17 +144,17 @@ export const all = <T, E>(
 };
 
 export const any = <T, E>(
-  results: ReadonlyArray<Result<T, E>>,
+  items: ReadonlyArray<Result<T, E>>,
 ): Result<T, E[]> => {
   const errors: E[] = [];
-  for (const result of results) {
+  for (const result of items) {
     if (isOk(result)) return result;
     errors.push(result.error);
   }
   return fail(errors);
 };
 
-// Try/catch wrapper
+// Try/catch wrappers
 export const tryCatch = <T, E = Error>(
   fn: () => T,
   onError: (error: unknown) => E = (e) => e as E,

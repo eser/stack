@@ -16,15 +16,15 @@
  * ```
  *
  * CLI usage:
- *   deno -A check-circular-deps.ts
+ *   deno run --allow-all ./check-circular-deps.ts
  *
  * @module
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import { fail, match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import { runtime } from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 
 /**
@@ -165,7 +165,7 @@ export const checkCircularDeps = async (
  */
 export const main = async (
   _cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   console.log("Checking for circular dependencies...\n");
 
   const result = await checkCircularDeps();
@@ -179,16 +179,16 @@ export const main = async (
     for (const cycle of result.cycles) {
       console.log(fmtColors.yellow(`  ${cycle.join(" → ")}`));
     }
-    return fail({ exitCode: 1 });
+    return results.fail({ exitCode: 1 });
   }
 
   console.log(fmtColors.green("\nNo circular dependencies found."));
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

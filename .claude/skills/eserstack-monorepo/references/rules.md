@@ -153,17 +153,17 @@ Rule: All packages share one version. Never manually edit version fields.
 Correct:
 
 ```bash
-deno run -A pkg/@eser/codebase/versions.ts patch    # 4.0.43 → 4.0.44
-deno run -A pkg/@eser/codebase/versions.ts minor    # 4.0.43 → 4.1.0
-make version-bump TYPE=patch                        # Makefile shortcut
-deno task version:bump-patch                        # npm script shortcut
+deno run --allow-all ./pkg/@eser/codebase/versions.ts patch    # 4.0.43 → 4.0.44
+deno run --allow-all ./pkg/@eser/codebase/versions.ts minor    # 4.0.43 → 4.1.0
+make version-bump TYPE=patch                                   # Makefile shortcut
+deno task version:bump-patch                                   # npm script shortcut
 ```
 
 Incorrect:
 
 ```bash
 # Manually editing one deno.json — breaks synchronization
-vim pkg/@eser/fp/deno.json
+vim ./pkg/@eser/fp/deno.json
 ```
 
 ---

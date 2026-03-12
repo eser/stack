@@ -4,7 +4,9 @@
   "exports": {
     ".": "./mod.ts",
     "./functions": "./functions.ts",
+    "./options": "./options.ts",
     "./promises": "./promises.ts",
+    "./results": "./results.ts",
     "./type-guards": "./type-guards.ts",
     "./type-slices": "./type-slices.ts"
   }

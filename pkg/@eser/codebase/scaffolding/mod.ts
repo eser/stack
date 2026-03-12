@@ -20,25 +20,19 @@
  * ```
  *
  * CLI usage:
- *   deno -A scaffolding/mod.ts eser/ajan
- *   deno -A scaffolding/mod.ts eser/ajan -p ./my-project
- *   deno -A scaffolding/mod.ts gh:eser/ajan#v1.0 --force
- *   deno -A scaffolding/mod.ts eser/ajan --var name=my-app --var author=me
+ *   deno run --allow-all ./scaffolding/mod.ts eser/ajan
+ *   deno run --allow-all ./scaffolding/mod.ts eser/ajan -p ./my-project
+ *   deno run --allow-all ./scaffolding/mod.ts gh:eser/ajan#v1.0 --force
+ *   deno run --allow-all ./scaffolding/mod.ts eser/ajan --var name=my-app --var author=me
  *
  * @module
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as fmtColors from "@std/fmt/colors";
-import {
-  fail,
-  isFail,
-  match,
-  ok,
-  tryCatchAsync,
-} from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 
 // Main scaffold function
 export { scaffold } from "./scaffold.ts";
@@ -79,7 +73,7 @@ export { hasVariables, substituteVariables } from "./processor.ts";
  */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const args = cliParseArgs.parseArgs(
     (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
     {
@@ -105,13 +99,13 @@ export const main = async (
         "  scaffold gh:eser/ajan#v1.0 -p ./my-project\n" +
         "  scaffold eser/ajan --var name=my-app --var author=me",
     );
-    return ok(undefined);
+    return results.ok(undefined);
   }
 
   const specifier = args._[0] as string | undefined;
 
   if (specifier === undefined) {
-    return fail({
+    return results.fail({
       message: `${fmtColors.red("Error: Template specifier is required")}\n` +
         "\nUsage: scaffold <specifier> [options]\n" +
         "\nExamples:\n" +
@@ -143,7 +137,7 @@ export const main = async (
 
   console.log(`Scaffolding from ${fmtColors.cyan(specifier)}...`);
 
-  const scaffoldResult = await tryCatchAsync(
+  const scaffoldResult = await results.tryCatchAsync(
     () =>
       scaffold({
         specifier,
@@ -156,8 +150,8 @@ export const main = async (
     (error) => ({ message: (error as Error).message }),
   );
 
-  if (isFail(scaffoldResult)) {
-    return fail({
+  if (results.isFail(scaffoldResult)) {
+    return results.fail({
       message: fmtColors.red(
         `\nScaffolding failed: ${scaffoldResult.error.message}`,
       ),
@@ -187,12 +181,12 @@ export const main = async (
     }
   }
 
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

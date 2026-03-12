@@ -7,7 +7,7 @@
  * @module
  */
 
-import { exec } from "@eser/shell/exec";
+import * as shellExec from "@eser/shell/exec";
 
 /**
  * Represents a git commit with its metadata.
@@ -69,7 +69,7 @@ const parseCommitLog = (text: string): Commit[] => {
  * ```
  */
 export const getLatestTag = async (): Promise<string> => {
-  return await exec`git describe --tags --abbrev=0`.text();
+  return await shellExec.exec`git describe --tags --abbrev=0`.text();
 };
 
 /**
@@ -85,7 +85,7 @@ export const getLatestTag = async (): Promise<string> => {
  * ```
  */
 export const getCurrentBranch = async (): Promise<string> => {
-  return await exec`git branch --show-current`.text();
+  return await shellExec.exec`git branch --show-current`.text();
 };
 
 /**
@@ -101,7 +101,7 @@ export const getCurrentBranch = async (): Promise<string> => {
  * ```
  */
 export const checkout = async (ref: string): Promise<void> => {
-  await exec`git checkout ${ref}`.spawn();
+  await shellExec.exec`git checkout ${ref}`.spawn();
 };
 
 /**
@@ -115,7 +115,7 @@ export const checkout = async (ref: string): Promise<void> => {
  * ```
  */
 export const checkoutPrevious = async (): Promise<void> => {
-  await exec`git checkout -`.spawn();
+  await shellExec.exec`git checkout -`.spawn();
 };
 
 /**
@@ -129,7 +129,7 @@ export const checkoutPrevious = async (): Promise<void> => {
  * ```
  */
 export const createAndCheckoutBranch = async (name: string): Promise<void> => {
-  await exec`git checkout -b ${name}`.spawn();
+  await shellExec.exec`git checkout -b ${name}`.spawn();
 };
 
 /**
@@ -153,7 +153,8 @@ export const getCommitsBetween = async (
 ): Promise<Commit[]> => {
   const format = `--pretty=format:${COMMIT_SEPARATOR}%H%B`;
   const range = `${start}..${end}`;
-  const text = await exec`git --no-pager log ${format} ${range}`.text();
+  const text = await shellExec.exec`git --no-pager log ${format} ${range}`
+    .text();
 
   return parseCommitLog(text);
 };
@@ -180,7 +181,8 @@ export const getCommitsSinceDate = async (
   const after = `--after=${gitDate}`;
   const format = `--pretty=format:${COMMIT_SEPARATOR}%H%B`;
 
-  const text = await exec`git --no-pager log ${after} ${format}`.text();
+  const text = await shellExec.exec`git --no-pager log ${after} ${format}`
+    .text();
 
   return parseCommitLog(text);
 };
@@ -194,7 +196,7 @@ export const getCommitsSinceDate = async (
  * ```
  */
 export const stageAll = async (): Promise<void> => {
-  await exec`git add .`.spawn();
+  await shellExec.exec`git add .`.spawn();
 };
 
 /**
@@ -217,7 +219,8 @@ export const commit = async (
 ): Promise<void> => {
   const userName = `-c user.name=${user.name}`;
   const userEmail = `-c user.email=${user.email}`;
-  await exec`git ${userName} ${userEmail} commit -m ${message}`.spawn();
+  await shellExec.exec`git ${userName} ${userEmail} commit -m ${message}`
+    .spawn();
 };
 
 /**
@@ -232,7 +235,7 @@ export const commit = async (
  * ```
  */
 export const push = async (remote: string, branch: string): Promise<void> => {
-  await exec`git push ${remote} ${branch}`.spawn();
+  await shellExec.exec`git push ${remote} ${branch}`.spawn();
 };
 
 /**
@@ -250,7 +253,7 @@ export const createTag = async (
   tag: string,
   message: string,
 ): Promise<void> => {
-  await exec`git tag -a ${tag} -m ${message}`.spawn();
+  await shellExec.exec`git tag -a ${tag} -m ${message}`.spawn();
 };
 
 /**
@@ -265,5 +268,5 @@ export const createTag = async (
  * ```
  */
 export const pushTag = async (remote: string, tag: string): Promise<void> => {
-  await exec`git push ${remote} ${tag}`.spawn();
+  await shellExec.exec`git push ${remote} ${tag}`.spawn();
 };

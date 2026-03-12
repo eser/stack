@@ -10,7 +10,7 @@
  * @module
  */
 
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 
 /**
  * A module that can be dispatched from the CLI.
@@ -18,7 +18,7 @@ import { type CliResult } from "@eser/shell/args";
 export type DispatchableModule = {
   readonly main: (
     cliArgs?: readonly string[],
-  ) => Promise<CliResult<void>>;
+  ) => Promise<shellArgs.CliResult<void>>;
 };
 
 /**

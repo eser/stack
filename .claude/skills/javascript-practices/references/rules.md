@@ -667,7 +667,7 @@ Correct:
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "start": "deno run -A .output/server/index.mjs"
+    "start": "deno run --allow-all ./.output/server/index.mjs"
   }
 }
 
@@ -684,8 +684,8 @@ Incorrect:
 // deno.json - duplicating package.json scripts
 {
   "tasks": {
-    "dev": "deno run -A npm:vite dev --port 3000",
-    "build": "deno run -A npm:vite build"
+    "dev": "deno run --allow-all npm:vite dev --port 3000",
+    "build": "deno run --allow-all npm:vite build"
   }
 }
 ```
@@ -722,7 +722,7 @@ Incorrect:
 Scope: Deno projects with npm dependencies
 
 Rule: When a package is aliased in dependencies, use the alias directly instead
-of `deno run -A npm:package-name`.
+of `deno run --allow-all npm:package-name`.
 
 Correct:
 
@@ -744,8 +744,8 @@ Incorrect:
 ```json
 {
   "scripts": {
-    "dev": "deno run -A npm:rolldown-vite dev --port 3000",
-    "build": "deno run -A npm:rolldown-vite build"
+    "dev": "deno run --allow-all npm:rolldown-vite dev --port 3000",
+    "build": "deno run --allow-all npm:rolldown-vite build"
   }
 }
 ```

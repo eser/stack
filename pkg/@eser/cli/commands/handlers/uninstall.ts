@@ -8,9 +8,9 @@
 
 import * as fmtColors from "@std/fmt/colors";
 import * as standardsRuntime from "@eser/standards/runtime";
-import { fail, ok } from "@eser/functions/results";
-import { type CliResult, type CommandContext } from "@eser/shell/args";
-import { exec } from "@eser/shell/exec";
+import * as results from "@eser/primitives/results";
+import * as shellArgs from "@eser/shell/args";
+import * as shellExec from "@eser/shell/exec";
 import { detectShell, removeCompletions } from "./completions-setup.ts";
 
 type UninstallConfig = {
@@ -34,8 +34,8 @@ const UNINSTALL_CONFIGS: Record<string, UninstallConfig> = {
 };
 
 export const uninstallHandler = async (
-  _ctx: CommandContext,
-): Promise<CliResult<void>> => {
+  _ctx: shellArgs.CommandContext,
+): Promise<shellArgs.CliResult<void>> => {
   const runtimeName = standardsRuntime.detectRuntime();
 
   // deno-lint-ignore no-console
@@ -44,7 +44,7 @@ export const uninstallHandler = async (
   const config = UNINSTALL_CONFIGS[runtimeName];
 
   if (config === undefined) {
-    return fail({
+    return results.fail({
       message: `${fmtColors.red(`\nUnsupported runtime: ${runtimeName}`)}\n` +
         "Global uninstallation is only supported for Deno, Node.js, and Bun.",
       exitCode: 1,
@@ -64,7 +64,7 @@ export const uninstallHandler = async (
   // deno-lint-ignore no-console
   console.log("");
 
-  const result = await exec`${cmd} ${args}`
+  const result = await shellExec.exec`${cmd} ${args}`
     .stdout("inherit")
     .stderr("inherit")
     .noThrow()
@@ -73,7 +73,7 @@ export const uninstallHandler = async (
   if (!result.success) {
     // deno-lint-ignore no-console
     console.error(fmtColors.red("\nUninstallation failed."));
-    return fail({ exitCode: result.code });
+    return results.fail({ exitCode: result.code });
   }
 
   // deno-lint-ignore no-console
@@ -83,5 +83,5 @@ export const uninstallHandler = async (
     `The ${fmtColors.cyan("eser")} command has been removed from your system.`,
   );
 
-  return ok(undefined);
+  return results.ok(undefined);
 };

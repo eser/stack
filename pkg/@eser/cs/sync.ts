@@ -2,7 +2,7 @@
 
 import * as writer from "@eser/writer";
 import * as dotenv from "@eser/config/dotenv";
-import { exec } from "@eser/shell/exec";
+import * as shellExec from "@eser/shell/exec";
 import type {
   ConfigMap,
   KubectlResourceReference,
@@ -120,7 +120,7 @@ export const executeKubectl = async (
   args.push("-o", "json");
 
   // Execute kubectl directly without shell wrapper
-  const result = await exec`kubectl ${args}`
+  const result = await shellExec.exec`kubectl ${args}`
     .noThrow()
     .spawn();
 

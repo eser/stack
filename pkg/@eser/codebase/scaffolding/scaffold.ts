@@ -8,7 +8,7 @@
  * @module
  */
 
-import { exec } from "@eser/shell/exec";
+import * as shellExec from "@eser/shell/exec";
 import { NotFoundError, runtime } from "@eser/standards/runtime";
 import { fetchTemplate } from "./providers/mod.ts";
 import {
@@ -107,7 +107,7 @@ export const scaffold = async (
   if (!skipPostInstall && postInstallCommands.length > 0) {
     for (const command of postInstallCommands) {
       try {
-        const result = await exec`${command}`
+        const result = await shellExec.exec`${command}`
           .cwd(absoluteTargetDir)
           .stdout("inherit")
           .stderr("inherit")

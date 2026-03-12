@@ -15,41 +15,41 @@
  * @module
  */
 
-import { type CliResult, Command, type CommandContext } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 
 // Lazy-loaded handlers - dynamically import only when command is invoked
 const lazyBuildHandler = async (
-  ctx: CommandContext,
-): Promise<CliResult<void>> => {
+  ctx: shellArgs.CommandContext,
+): Promise<shellArgs.CliResult<void>> => {
   const { buildHandler } = await import("./build.ts");
   return await buildHandler(ctx);
 };
 
 const lazyDevHandler = async (
-  ctx: CommandContext,
-): Promise<CliResult<void>> => {
+  ctx: shellArgs.CommandContext,
+): Promise<shellArgs.CliResult<void>> => {
   const { devHandler } = await import("./dev.ts");
   return await devHandler(ctx);
 };
 
 const lazyServeHandler = async (
-  ctx: CommandContext,
-): Promise<CliResult<void>> => {
+  ctx: shellArgs.CommandContext,
+): Promise<shellArgs.CliResult<void>> => {
   const { serveHandler } = await import("./serve.ts");
   return await serveHandler(ctx);
 };
 
 const lazyInitHandler = async (
-  ctx: CommandContext,
-): Promise<CliResult<void>> => {
+  ctx: shellArgs.CommandContext,
+): Promise<shellArgs.CliResult<void>> => {
   const { initHandler } = await import("./init.ts");
   return await initHandler(ctx);
 };
 
-export const larouxCommand = new Command("laroux")
+export const larouxCommand = new shellArgs.Command("laroux")
   .description("laroux.js framework commands")
   .command(
-    new Command("init")
+    new shellArgs.Command("init")
       .description("Create a new laroux.js project")
       .flag({
         name: "template",
@@ -77,7 +77,7 @@ export const larouxCommand = new Command("laroux")
       .run(lazyInitHandler),
   )
   .command(
-    new Command("dev")
+    new shellArgs.Command("dev")
       .description("Start development server with hot reload")
       .flag({
         name: "port",
@@ -106,7 +106,7 @@ export const larouxCommand = new Command("laroux")
       .run(lazyDevHandler),
   )
   .command(
-    new Command("build")
+    new shellArgs.Command("build")
       .description("Build for production")
       .flag({
         name: "out-dir",
@@ -138,7 +138,7 @@ export const larouxCommand = new Command("laroux")
       .run(lazyBuildHandler),
   )
   .command(
-    new Command("serve")
+    new shellArgs.Command("serve")
       .description("Serve production build locally")
       .flag({
         name: "port",

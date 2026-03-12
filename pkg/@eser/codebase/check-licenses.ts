@@ -22,18 +22,18 @@
  * ```
  *
  * CLI usage:
- *   deno -A check-licenses.ts        # Check licenses
- *   deno -A check-licenses.ts --fix  # Auto-fix missing/incorrect headers
+ *   deno run --allow-all ./check-licenses.ts        # Check licenses
+ *   deno run --allow-all ./check-licenses.ts --fix  # Auto-fix missing/incorrect headers
  *
  * @module
  */
 
 import { walk } from "@std/fs/walk";
 import { fromFileUrl } from "@std/path/posix";
-import { fail, match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import { runtime } from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 
 /**
  * Options for license validation.
@@ -183,7 +183,7 @@ export const validateLicenses = async (
  */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const effectiveArgs = cliArgs ?? runtime.process.args;
   const fix = effectiveArgs.includes("--fix");
 
@@ -191,7 +191,7 @@ export const main = async (
 
   if (result.issues.length === 0) {
     console.log(`Checked ${result.checked} files. All licenses are valid.`);
-    return ok(undefined);
+    return results.ok(undefined);
   }
 
   if (fix) {
@@ -201,7 +201,7 @@ export const main = async (
       }
     }
     console.log(`Fixed ${result.fixedCount} files.`);
-    return ok(undefined);
+    return results.ok(undefined);
   }
 
   for (const issue of result.issues) {
@@ -212,12 +212,12 @@ export const main = async (
     );
   }
   console.info(`Copyright header should be "${COPYRIGHT}"`);
-  return fail({ exitCode: 1 });
+  return results.fail({ exitCode: 1 });
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

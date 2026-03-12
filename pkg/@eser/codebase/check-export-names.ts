@@ -16,15 +16,15 @@
  * ```
  *
  * CLI usage:
- *   deno -A check-export-names.ts
+ *   deno run --allow-all ./check-export-names.ts
  *
  * @module
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import { fail, match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import { runtime } from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 
 /**
@@ -185,7 +185,7 @@ export const checkExportNames = async (
  */
 export const main = async (
   _cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   console.log("Checking export naming conventions...\n");
 
   const result = await checkExportNames();
@@ -201,16 +201,16 @@ export const main = async (
       console.log(`    Export: ${violation.exportPath}`);
       console.log(`    Suggestion: ${violation.suggestion}`);
     }
-    return fail({ exitCode: 1 });
+    return results.fail({ exitCode: 1 });
   }
 
   console.log(fmtColors.green("\nAll export names follow conventions."));
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

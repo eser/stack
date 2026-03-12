@@ -3,7 +3,6 @@
   "unstable": [
     "bundle",
     "sloppy-imports",
-    "temporal",
     "unsafe-proto"
   ],
   "lint": {

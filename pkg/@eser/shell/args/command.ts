@@ -7,7 +7,7 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import { fail, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import {
   type ArgsConfig,
@@ -246,14 +246,14 @@ export class Command implements CommandLike {
     if (this.#version !== undefined && flags["version"] === true) {
       // deno-lint-ignore no-console
       console.log(`${this.#name} ${this.#version}`);
-      return ok(undefined);
+      return results.ok(undefined);
     }
 
     // Handle --help
     if (flags["help"] === true) {
       // deno-lint-ignore no-console
       console.log(this.help());
-      return ok(undefined);
+      return results.ok(undefined);
     }
 
     // Check for subcommand
@@ -273,19 +273,19 @@ export class Command implements CommandLike {
     if (this.#handler === undefined) {
       // deno-lint-ignore no-console
       console.log(this.help());
-      return ok(undefined);
+      return results.ok(undefined);
     }
 
     // Validate required flags
     const flagErrors = validateRequiredFlags(flags, allFlags);
     if (flagErrors.length > 0) {
-      return fail({ message: flagErrors.join("\n"), exitCode: 1 });
+      return results.fail({ message: flagErrors.join("\n"), exitCode: 1 });
     }
 
     // Validate args
     const argsError = this.#validateArgs(positional);
     if (argsError !== undefined) {
-      return fail({ message: argsError, exitCode: 1 });
+      return results.fail({ message: argsError, exitCode: 1 });
     }
 
     // Build context and run handler

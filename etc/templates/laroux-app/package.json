@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "deno run -A --unstable-bundle jsr:@eser/cli laroux dev",
-    "build": "deno run -A --unstable-bundle jsr:@eser/cli laroux build",
-    "serve": "deno run -A --unstable-bundle jsr:@eser/cli laroux serve"
+    "dev": "deno run --allow-all --unstable-bundle jsr:@eser/cli laroux dev",
+    "build": "deno run --allow-all --unstable-bundle jsr:@eser/cli laroux build",
+    "serve": "deno run --allow-all --unstable-bundle jsr:@eser/cli laroux serve"
   },
   "dependencies": {
     "@eser/laroux-server": "npm:@jsr/eser__laroux-server@^4.0.43",

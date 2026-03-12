@@ -10,7 +10,7 @@ Unified release process for 29+ synchronized packages.
 ## Quick Start
 
 1. `deno task validate` — verify clean state
-2. `deno run -A pkg/@eser/codebase/versions.ts <patch|minor|major>` — bump all packages
+2. `deno run --allow-all ./pkg/@eser/codebase/versions.ts <patch|minor|major>` — bump all packages
 3. Update `CHANGELOG.md` — move Unreleased to new version section
 4. PR to main → merge triggers JSR + npm publish
 

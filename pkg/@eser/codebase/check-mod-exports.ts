@@ -17,15 +17,15 @@
  * ```
  *
  * CLI usage:
- *   deno -A check-mod-exports.ts
+ *   deno run --allow-all ./check-mod-exports.ts
  *
  * @module
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import { fail, match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import { runtime } from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 
 /**
@@ -209,7 +209,7 @@ export const checkModExports = async (
  */
 export const main = async (
   _cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   console.log("Checking mod.ts exports...\n");
 
   const result = await checkModExports();
@@ -227,16 +227,16 @@ export const main = async (
         fmtColors.yellow(`  ${missing.packageName}: ${missing.file}`),
       );
     }
-    return fail({ exitCode: 1 });
+    return results.fail({ exitCode: 1 });
   }
 
   console.log(fmtColors.green("\nAll mod.ts exports are complete."));
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

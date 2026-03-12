@@ -10,8 +10,8 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import { ok } from "@eser/functions/results";
-import { type CliResult, type CommandContext } from "@eser/shell/args";
+import * as results from "@eser/primitives/results";
+import * as shellArgs from "@eser/shell/args";
 
 // Valid log levels
 const VALID_LOG_LEVELS = [
@@ -25,8 +25,8 @@ const VALID_LOG_LEVELS = [
 type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 
 export const buildHandler = async (
-  ctx: CommandContext,
-): Promise<CliResult<void>> => {
+  ctx: shellArgs.CommandContext,
+): Promise<shellArgs.CliResult<void>> => {
   // deno-lint-ignore no-console
   console.log(fmtColors.cyan("\n📦 Building for production...\n"));
 
@@ -144,7 +144,7 @@ export const buildHandler = async (
     await analyzeBuild(runtime, outDir);
   }
 
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 async function analyzeBuild(

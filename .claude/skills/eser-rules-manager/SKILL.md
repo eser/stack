@@ -29,6 +29,7 @@ Even 1% probability requires checking skills first. This is not optional.
 | `architecture-guidelines`   | System design, ADRs, testing strategy           |
 | `design-principles`         | Pure functions, immutability, composition       |
 | `coding-practices`          | Error handling, validation, DRY, explicit checks|
+| `documentation-conventions` | READMEs, import patterns in docs, emoji rules   |
 | `javascript-practices`      | JS/TS code, modules, types, React patterns      |
 | `go-practices`              | Go code, hexagonal architecture                 |
 | `tooling-standards`         | Deno, JSR registry, config files                |

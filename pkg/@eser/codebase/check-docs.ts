@@ -17,15 +17,15 @@
  * ```
  *
  * CLI usage:
- *   deno -A check-docs.ts
+ *   deno run --allow-all ./check-docs.ts
  *
  * @module
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import { fail, match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
 
 /**
@@ -259,7 +259,7 @@ const formatIssue = (issue: DocIssueType): string => {
  */
 export const main = async (
   _cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   console.log("Checking documentation...\n");
 
   const result = await checkDocs();
@@ -291,16 +291,16 @@ export const main = async (
       }
     }
 
-    return fail({ exitCode: 1 });
+    return results.fail({ exitCode: 1 });
   }
 
   console.log(fmtColors.green("\nAll documentation is valid."));
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

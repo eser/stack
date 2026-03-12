@@ -49,13 +49,13 @@ container: ## Build Docker image
 	deno task container:build
 
 version-bump: ## Bump version across all packages (usage: make version-bump TYPE=patch)
-	deno run -A pkg/@eser/codebase/versions.ts $(TYPE)
+	deno run --allow-all ./pkg/@eser/codebase/versions.ts $(TYPE)
 
 tag: ## Create and push a release tag from VERSION file
-	deno run -A pkg/@eser/codebase/release-tag.ts
+	deno run --allow-all ./pkg/@eser/codebase/release-tag.ts
 
 release: ## Sync CHANGELOG to GitHub Releases
-	deno run -A pkg/@eser/codebase/release-notes.ts
+	deno run --allow-all ./pkg/@eser/codebase/release-notes.ts
 
 go-ok: ## Run Go validation (fmt, vet, lint, tests)
 	cd apps/services && $(MAKE) ok

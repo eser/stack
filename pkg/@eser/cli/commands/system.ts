@@ -6,7 +6,7 @@
  * @module
  */
 
-import { Command } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 import {
   completionsHandler,
   installHandler,
@@ -14,25 +14,25 @@ import {
   updateHandler,
 } from "./handlers/mod.ts";
 
-export const systemCommand = new Command("system")
+export const systemCommand = new shellArgs.Command("system")
   .description("Commands related with this CLI")
   .command(
-    new Command("install")
+    new shellArgs.Command("install")
       .description("Install eser CLI globally")
       .run(installHandler),
   )
   .command(
-    new Command("uninstall")
+    new shellArgs.Command("uninstall")
       .description("Uninstall eser CLI globally")
       .run(uninstallHandler),
   )
   .command(
-    new Command("update")
+    new shellArgs.Command("update")
       .description("Update eser CLI to the latest version")
       .run(updateHandler),
   )
   .command(
-    new Command("completions")
+    new shellArgs.Command("completions")
       .description("Generate shell completion scripts")
       .flag({
         name: "shell",

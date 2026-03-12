@@ -23,17 +23,17 @@
  * ```
  *
  * CLI usage:
- *   deno -A release-notes.ts --repo owner/repo [--tag v1.0.0] [--create-if-missing]
+ *   deno run --allow-all ./release-notes.ts --repo owner/repo [--tag v1.0.0] [--create-if-missing]
  *
  * @module
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as stdPath from "@std/path";
-import { fail, match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
-import { exec } from "@eser/shell/exec";
+import * as shellArgs from "@eser/shell/args";
+import * as shellExec from "@eser/shell/exec";
 
 /**
  * A parsed entry from a CHANGELOG.md file.
@@ -206,7 +206,7 @@ export const hasGitHubRelease = async (
   repo: string,
 ): Promise<boolean> => {
   try {
-    await exec`gh release view ${tag} --repo ${repo}`.quiet().text();
+    await shellExec.exec`gh release view ${tag} --repo ${repo}`.quiet().text();
     return true;
   } catch {
     return false;
@@ -257,7 +257,8 @@ export const syncReleaseNotes = async (
     const exists = await hasGitHubRelease(targetTag, repo);
 
     if (exists) {
-      await exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
+      await shellExec
+        .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
         .spawn();
       return { tag: targetTag, entry, action: "updated" };
     }
@@ -269,12 +270,14 @@ export const syncReleaseNotes = async (
     const title = releaseTitle.replace("{tag}", targetTag);
 
     try {
-      await exec`gh release create ${targetTag} --repo ${repo} --title ${title} --notes-file ${notesPath} --verify-tag`
+      await shellExec
+        .exec`gh release create ${targetTag} --repo ${repo} --title ${title} --notes-file ${notesPath} --verify-tag`
         .spawn();
       return { tag: targetTag, entry, action: "created" };
     } catch {
       // Race condition: release may have been created between check and create
-      await exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
+      await shellExec
+        .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
         .spawn();
       return { tag: targetTag, entry, action: "updated" };
     }
@@ -288,7 +291,7 @@ export const syncReleaseNotes = async (
  */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const args = cliParseArgs.parseArgs(
     (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
     {
@@ -308,12 +311,12 @@ Options:
   --create-if-missing    Create release if it does not exist
   --help                 Show this help message`,
     );
-    return ok(undefined);
+    return results.ok(undefined);
   }
 
   const repo = args.repo ?? Deno.env.get("GITHUB_REPOSITORY") ?? "";
   if (repo === "") {
-    return fail({
+    return results.fail({
       message: "Missing repository. Pass --repo or set GITHUB_REPOSITORY.",
       exitCode: 1,
     });
@@ -339,12 +342,12 @@ Options:
       break;
   }
 
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

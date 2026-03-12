@@ -14,15 +14,15 @@
  * ```
  *
  * CLI usage:
- *   deno -A release-tag.ts [--dry-run]
+ *   deno run --allow-all ./release-tag.ts [--dry-run]
  *
  * @module
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import { match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 import { createTag, pushTag } from "./git.ts";
 import { readVersionFile } from "./versions.ts";
 
@@ -99,7 +99,7 @@ export const pushReleaseTag = async (
  */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const args = cliParseArgs.parseArgs(
     (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
     {
@@ -118,7 +118,7 @@ Options:
   --dry-run   Show what would happen without creating/pushing the tag
   --help      Show this help message`,
     );
-    return ok(undefined);
+    return results.ok(undefined);
   }
 
   const dryRun = args["dry-run"] === true;
@@ -139,12 +139,12 @@ Options:
     } ${result.tag}`,
   );
 
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

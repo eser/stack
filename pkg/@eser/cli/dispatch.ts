@@ -6,8 +6,8 @@
  * @module
  */
 
-import { fail } from "@eser/functions/results";
-import { type CliResult } from "@eser/shell/args";
+import * as results from "@eser/primitives/results";
+import * as shellArgs from "@eser/shell/args";
 import { registry } from "./registry.ts";
 
 /**
@@ -51,10 +51,10 @@ export const dispatch = async (
   packageName: string,
   moduleName: string,
   remainingArgs: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const pkg = registry[packageName];
   if (pkg === undefined) {
-    return fail({
+    return results.fail({
       message: `Unknown package: ${packageName}`,
       exitCode: 1,
     });
@@ -67,7 +67,7 @@ export const dispatch = async (
   if (entry === undefined) {
     console.error(`Unknown module: ${packageName} ${moduleName}\n`);
     showPackageHelp(packageName);
-    return fail({ exitCode: 1 });
+    return results.fail({ exitCode: 1 });
   }
 
   const mod = await entry.load();

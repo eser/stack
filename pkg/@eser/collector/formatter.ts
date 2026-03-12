@@ -7,11 +7,11 @@
 // Copyright (c) 2021-2023 Luca Casonato
 
 import { runtime } from "@eser/standards/runtime";
-import { exec } from "@eser/shell/exec";
+import * as shellExec from "@eser/shell/exec";
 
 export const format = async (input: string) => {
   const execPath = runtime.process.execPath();
-  const child = exec`${execPath} fmt -`
+  const child = shellExec.exec`${execPath} fmt -`
     .stderr("null")
     .child();
 

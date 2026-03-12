@@ -59,31 +59,31 @@ Here you'll find examples of how to use `@eser/cs` for different scenarios.
 **Generate a ConfigMap from an environment file:**
 
 ```bash
-deno run -A jsr:@eser/cs/cli generate cm/my-config -f .env
+deno run --allow-all jsr:@eser/cs/cli generate cm/my-config -f .env
 ```
 
 **Generate a Secret with specific namespace:**
 
 ```bash
-deno run -A jsr:@eser/cs/cli generate secret/api-keys -n production -f .env.prod
+deno run --allow-all jsr:@eser/cs/cli generate secret/api-keys -n production -f .env.prod
 ```
 
 **Save output to a file:**
 
 ```bash
-deno run -A jsr:@eser/cs/cli generate cm/my-config -f .env > configmap.yaml
+deno run --allow-all jsr:@eser/cs/cli generate cm/my-config -f .env > configmap.yaml
 ```
 
 **Sync with existing Kubernetes resource:**
 
 ```bash
-deno run -A jsr:@eser/cs/cli sync configmap/my-existing-config -f .env.prod
+deno run --allow-all jsr:@eser/cs/cli sync configmap/my-existing-config -f .env.prod
 ```
 
 **Generate patch string only (for saving to file):**
 
 ```bash
-deno run -A jsr:@eser/cs/cli sync secret/api-keys -f .env.prod -s > patch.json
+deno run --allow-all jsr:@eser/cs/cli sync secret/api-keys -f .env.prod -s > patch.json
 kubectl patch secret api-keys --type=merge --patch-file=patch.json
 ```
 

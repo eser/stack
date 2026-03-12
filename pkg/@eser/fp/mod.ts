@@ -53,6 +53,7 @@ export {
   pickFromObject,
   type PickFromObjectResult,
 } from "./pick-from-object.ts";
+export { flow } from "./flow.ts";
 export { pipe } from "./pipe.ts";
 export { prependToArray } from "./prepend-to-array.ts";
 export { prependToObject } from "./prepend-to-object.ts";

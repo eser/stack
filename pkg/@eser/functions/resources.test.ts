@@ -13,7 +13,7 @@ import {
   using,
   withTimeout,
 } from "./resources.ts";
-import { fail, isFail, isOk, ok } from "./results.ts";
+import * as results from "@eser/primitives/results";
 
 // === bracket() Tests ===
 
@@ -23,19 +23,19 @@ Deno.test("bracket() acquires, uses, and releases resource successfully", async 
   const result = await bracket(
     () => {
       log.push("acquire");
-      return ok("resource");
+      return results.ok("resource");
     },
     (resource) => {
       log.push(`use:${resource}`);
-      return ok("result");
+      return results.ok("result");
     },
     (resource) => {
       log.push(`release:${resource}`);
     },
   );
 
-  assert.assertEquals(isOk(result), true);
-  if (isOk(result)) {
+  assert.assertEquals(results.isOk(result), true);
+  if (results.isOk(result)) {
     assert.assertEquals(result.value, "result");
   }
   assert.assertEquals(log, ["acquire", "use:resource", "release:resource"]);
@@ -47,18 +47,18 @@ Deno.test("bracket() releases resource even when use fails", async () => {
   const result = await bracket(
     () => {
       log.push("acquire");
-      return ok("resource");
+      return results.ok("resource");
     },
     (_resource) => {
       log.push("use");
-      return fail<string>("use-error");
+      return results.fail<string>("use-error");
     },
     (resource) => {
       log.push(`release:${resource}`);
     },
   );
 
-  assert.assertEquals(isFail(result), true);
+  assert.assertEquals(results.isFail(result), true);
   assert.assertEquals(log, ["acquire", "use", "release:resource"]);
 });
 
@@ -68,19 +68,19 @@ Deno.test("bracket() returns acquire failure without calling use or release", as
   const result = await bracket(
     () => {
       log.push("acquire");
-      return fail<string>("acquire-error");
+      return results.fail<string>("acquire-error");
     },
     (_resource: string) => {
       log.push("use");
-      return ok("result");
+      return results.ok("result");
     },
     (_resource: string) => {
       log.push("release");
     },
   );
 
-  assert.assertEquals(isFail(result), true);
-  if (isFail(result)) {
+  assert.assertEquals(results.isFail(result), true);
+  if (results.isFail(result)) {
     assert.assertEquals(result.error, "acquire-error");
   }
   assert.assertEquals(log, ["acquire"]);
@@ -90,14 +90,14 @@ Deno.test("bracket() works with async acquire", async () => {
   const result = await bracket(
     async () => {
       await Promise.resolve();
-      return ok("async-resource");
+      return results.ok("async-resource");
     },
-    (resource) => ok(`got:${resource}`),
+    (resource) => results.ok(`got:${resource}`),
     () => {},
   );
 
-  assert.assertEquals(isOk(result), true);
-  if (isOk(result)) {
+  assert.assertEquals(results.isOk(result), true);
+  if (results.isOk(result)) {
     assert.assertEquals(result.value, "got:async-resource");
   }
 });
@@ -106,8 +106,8 @@ Deno.test("bracket() works with async release", async () => {
   let released = false;
 
   await bracket(
-    () => ok("resource"),
-    () => ok("result"),
+    () => results.ok("resource"),
+    () => results.ok("result"),
     async () => {
       await Promise.resolve();
       released = true;
@@ -123,17 +123,17 @@ Deno.test("using() works like bracket with sync release", async () => {
   const log: string[] = [];
 
   const result = await using(
-    () => ok("resource"),
+    () => results.ok("resource"),
     (resource) => {
       log.push(`use:${resource}`);
-      return ok("result");
+      return results.ok("result");
     },
     (resource) => {
       log.push(`release:${resource}`);
     },
   );
 
-  assert.assertEquals(isOk(result), true);
+  assert.assertEquals(results.isOk(result), true);
   assert.assertEquals(log, ["use:resource", "release:resource"]);
 });
 
@@ -141,26 +141,26 @@ Deno.test("using() works like bracket with sync release", async () => {
 
 Deno.test("bracketWithReleaseError() propagates release error", async () => {
   const result = await bracketWithReleaseError(
-    () => ok("resource"),
-    () => ok("result"),
-    () => fail<string>("release-error"),
+    () => results.ok("resource"),
+    () => results.ok("result"),
+    () => results.fail<string>("release-error"),
   );
 
-  assert.assertEquals(isFail(result), true);
-  if (isFail(result)) {
+  assert.assertEquals(results.isFail(result), true);
+  if (results.isFail(result)) {
     assert.assertEquals(result.error, "release-error");
   }
 });
 
 Deno.test("bracketWithReleaseError() returns use result on successful release", async () => {
   const result = await bracketWithReleaseError(
-    () => ok("resource"),
-    () => ok("result"),
-    () => ok(undefined),
+    () => results.ok("resource"),
+    () => results.ok("result"),
+    () => results.ok(undefined),
   );
 
-  assert.assertEquals(isOk(result), true);
-  if (isOk(result)) {
+  assert.assertEquals(results.isOk(result), true);
+  if (results.isOk(result)) {
     assert.assertEquals(result.value, "result");
   }
 });
@@ -196,10 +196,10 @@ Deno.test("createScope() use() closes scope after function completes", async () 
 
   const result = await scope.use(() => {
     log.push("executed");
-    return Promise.resolve(ok("result"));
+    return Promise.resolve(results.ok("result"));
   });
 
-  assert.assertEquals(isOk(result), true);
+  assert.assertEquals(results.isOk(result), true);
   assert.assertEquals(log, ["executed", "finalized"]);
 });
 
@@ -269,10 +269,10 @@ Deno.test("scoped() provides scope and closes it after", async () => {
       log.push("finalized");
     });
     log.push("executed");
-    return Promise.resolve(ok("result"));
+    return Promise.resolve(results.ok("result"));
   });
 
-  assert.assertEquals(isOk(result), true);
+  assert.assertEquals(results.isOk(result), true);
   assert.assertEquals(log, ["executed", "finalized"]);
 });
 
@@ -286,15 +286,15 @@ Deno.test("acquireRelease() registers release with scope", async () => {
       scope,
       () => {
         log.push("acquire");
-        return ok("resource");
+        return results.ok("resource");
       },
       (resource) => {
         log.push(`release:${resource}`);
       },
     );
 
-    log.push(`use:${isOk(result) ? result.value : "error"}`);
-    return ok(undefined);
+    log.push(`use:${results.isOk(result) ? result.value : "error"}`);
+    return results.ok(undefined);
   });
 
   assert.assertEquals(log, ["acquire", "use:resource", "release:resource"]);
@@ -308,15 +308,15 @@ Deno.test("acquireRelease() does not register release on acquire failure", async
       scope,
       () => {
         log.push("acquire");
-        return fail<string>("acquire-error");
+        return results.fail<string>("acquire-error");
       },
       (_resource: string) => {
         log.push("release");
       },
     );
 
-    log.push(`result:${isFail(result) ? result.error : "ok"}`);
-    return ok(undefined);
+    log.push(`result:${results.isFail(result) ? result.error : "ok"}`);
+    return results.ok(undefined);
   });
 
   assert.assertEquals(log, ["acquire", "result:acquire-error"]);
@@ -330,14 +330,14 @@ Deno.test("ensure() runs finalizer on success", async () => {
   const result = await ensure(
     () => {
       log.push("execute");
-      return ok("result");
+      return results.ok("result");
     },
     () => {
       log.push("finalize");
     },
   );
 
-  assert.assertEquals(isOk(result), true);
+  assert.assertEquals(results.isOk(result), true);
   assert.assertEquals(log, ["execute", "finalize"]);
 });
 
@@ -347,14 +347,14 @@ Deno.test("ensure() runs finalizer on failure", async () => {
   const result = await ensure(
     () => {
       log.push("execute");
-      return fail<string>("error");
+      return results.fail<string>("error");
     },
     () => {
       log.push("finalize");
     },
   );
 
-  assert.assertEquals(isFail(result), true);
+  assert.assertEquals(results.isFail(result), true);
   assert.assertEquals(log, ["execute", "finalize"]);
 });
 
@@ -366,12 +366,12 @@ Deno.test("retry() succeeds on first attempt", async () => {
   const result = await retry(
     () => {
       attempts++;
-      return Promise.resolve(ok("success"));
+      return Promise.resolve(results.ok("success"));
     },
     3,
   );
 
-  assert.assertEquals(isOk(result), true);
+  assert.assertEquals(results.isOk(result), true);
   assert.assertEquals(attempts, 1);
 });
 
@@ -382,14 +382,14 @@ Deno.test("retry() retries until success", async () => {
     () => {
       attempts++;
       if (attempts < 3) {
-        return Promise.resolve(fail<string>("not yet"));
+        return Promise.resolve(results.fail<string>("not yet"));
       }
-      return Promise.resolve(ok("success"));
+      return Promise.resolve(results.ok("success"));
     },
     5,
   );
 
-  assert.assertEquals(isOk(result), true);
+  assert.assertEquals(results.isOk(result), true);
   assert.assertEquals(attempts, 3);
 });
 
@@ -399,13 +399,13 @@ Deno.test("retry() returns last failure after all attempts", async () => {
   const result = await retry(
     () => {
       attempts++;
-      return Promise.resolve(fail<string>(`attempt-${attempts}`));
+      return Promise.resolve(results.fail<string>(`attempt-${attempts}`));
     },
     3,
   );
 
-  assert.assertEquals(isFail(result), true);
-  if (isFail(result)) {
+  assert.assertEquals(results.isFail(result), true);
+  if (results.isFail(result)) {
     assert.assertEquals(result.error, "attempt-3");
   }
   assert.assertEquals(attempts, 3);
@@ -419,9 +419,9 @@ Deno.test("retry() respects delay between attempts", async () => {
     () => {
       attempts++;
       if (attempts < 3) {
-        return Promise.resolve(fail<string>("fail"));
+        return Promise.resolve(results.fail<string>("fail"));
       }
-      return Promise.resolve(ok("success"));
+      return Promise.resolve(results.ok("success"));
     },
     3,
     50, // 50ms delay
@@ -448,9 +448,9 @@ Deno.test("retryWithBackoff() uses exponential delay", async () => {
       lastTime = now;
       attempts++;
       if (attempts < 4) {
-        return Promise.resolve(fail<string>("fail"));
+        return Promise.resolve(results.fail<string>("fail"));
       }
-      return Promise.resolve(ok("success"));
+      return Promise.resolve(results.ok("success"));
     },
     {
       maxAttempts: 5,
@@ -481,9 +481,9 @@ Deno.test("retryWithBackoff() respects maxDelay", async () => {
       lastTime = now;
       attempts++;
       if (attempts < 5) {
-        return Promise.resolve(fail<string>("fail"));
+        return Promise.resolve(results.fail<string>("fail"));
       }
-      return Promise.resolve(ok("success"));
+      return Promise.resolve(results.ok("success"));
     },
     {
       maxAttempts: 5,
@@ -505,14 +505,14 @@ Deno.test("withTimeout() returns result for fast operation", async () => {
   const result = await withTimeout(
     async () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
-      return ok("fast");
+      return results.ok("fast");
     },
     100,
     "timeout",
   );
 
-  assert.assertEquals(isOk(result), true);
-  if (isOk(result)) {
+  assert.assertEquals(results.isOk(result), true);
+  if (results.isOk(result)) {
     assert.assertEquals(result.value, "fast");
   }
 });
@@ -533,9 +533,9 @@ Deno.test({
               reject(new Error("Aborted"));
             });
           });
-          return ok("slow");
+          return results.ok("slow");
         } catch {
-          return fail("aborted");
+          return results.fail("aborted");
         }
       },
       50,
@@ -545,8 +545,8 @@ Deno.test({
     // Clean up by aborting the slow operation
     controller.abort();
 
-    assert.assertEquals(isFail(result), true);
-    if (isFail(result)) {
+    assert.assertEquals(results.isFail(result), true);
+    if (results.isFail(result)) {
       assert.assertEquals(result.error, "operation timed out");
     }
   },

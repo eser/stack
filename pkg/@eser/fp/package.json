@@ -23,6 +23,7 @@
     "./emitter": "./emitter.ts",
     "./filter-array": "./filter-array.ts",
     "./filter-object": "./filter-object.ts",
+    "./flow": "./flow.ts",
     "./get": "./get.ts",
     "./group-by": "./group-by.ts",
     "./iterate": "./iterate.ts",

@@ -9,7 +9,7 @@ Eser Ozvataf's command-line tooling to access things.
 npx eser <command>
 
 # Using Deno
-deno run -A jsr:@eser/cli <command>
+deno run --allow-all jsr:@eser/cli <command>
 
 # Global installation via npm
 npm install -g eser

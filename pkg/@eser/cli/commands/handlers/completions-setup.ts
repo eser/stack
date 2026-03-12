@@ -8,15 +8,9 @@
 
 import * as fmtColors from "@std/fmt/colors";
 import { runtime } from "@eser/standards/runtime";
-import {
-  detectShell,
-  getCompletionEvalLine,
-  getShellConfig,
-  type Shell,
-} from "@eser/shell/env";
+import * as shellEnv from "@eser/shell/env";
 
-export { detectShell };
-export type { Shell };
+export { detectShell, type Shell } from "@eser/shell/env";
 
 const COMPLETION_MARKER = "# eser CLI completions";
 const APP_NAME = "eser";
@@ -47,23 +41,25 @@ const fileExists = async (path: string): Promise<boolean> => {
 /**
  * Check if completions are already configured for the shell
  */
-export const hasCompletions = async (shell: Shell): Promise<boolean> => {
-  const config = getShellConfig(shell, APP_NAME);
+export const hasCompletions = async (
+  shell: shellEnv.Shell,
+): Promise<boolean> => {
+  const config = shellEnv.getShellConfig(shell, APP_NAME);
 
   if (config.completionType === "file") {
     return await fileExists(config.completionsFile!);
   }
 
   const content = await readFileOrEmpty(config.rcFile);
-  const line = getCompletionEvalLine(shell, APP_NAME);
+  const line = shellEnv.getCompletionEvalLine(shell, APP_NAME);
   return content.includes(line);
 };
 
 /**
  * Add completions to shell configuration
  */
-export const addCompletions = async (shell: Shell): Promise<void> => {
-  const config = getShellConfig(shell, APP_NAME);
+export const addCompletions = async (shell: shellEnv.Shell): Promise<void> => {
+  const config = shellEnv.getShellConfig(shell, APP_NAME);
 
   try {
     if (config.completionType === "file") {
@@ -93,7 +89,7 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Ge
       console.log(`  ${fmtColors.dim("Created")} ${fmtColors.cyan(fishPath)}`);
     } else {
       const content = await readFileOrEmpty(config.rcFile);
-      const line = getCompletionEvalLine(shell, APP_NAME);
+      const line = shellEnv.getCompletionEvalLine(shell, APP_NAME);
 
       if (!content.includes(line)) {
         const addition = `\n${COMPLETION_MARKER}\n${line}\n`;
@@ -121,8 +117,10 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Ge
 /**
  * Remove completions from shell configuration
  */
-export const removeCompletions = async (shell: Shell): Promise<void> => {
-  const config = getShellConfig(shell, APP_NAME);
+export const removeCompletions = async (
+  shell: shellEnv.Shell,
+): Promise<void> => {
+  const config = shellEnv.getShellConfig(shell, APP_NAME);
 
   try {
     if (config.completionType === "file") {
@@ -140,7 +138,7 @@ export const removeCompletions = async (shell: Shell): Promise<void> => {
         return;
       }
 
-      const line = getCompletionEvalLine(shell, APP_NAME);
+      const line = shellEnv.getCompletionEvalLine(shell, APP_NAME);
       if (!content.includes(line)) {
         return;
       }

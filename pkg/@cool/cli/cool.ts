@@ -13,20 +13,18 @@ import {
   ValueType,
 } from "https://deno.land/x/cool@0.7.5/hex/cli/mod.ts";
 import { create } from "https://deno.land/x/cool@0.7.5/hex/generator/create.ts";
-import { exec } from "@eser/shell/exec";
+import * as shellExec from "@eser/shell/exec";
 
 export const repl = async (_args: Array<string>, _options: ExecuteOptions) => {
   const denoPath = deno.execPath();
   const replArgs = [
     "repl",
-    "--unstable-cron",
-    "--unstable-kv",
-    "--unstable-temporal",
+    "--unstable-bundle",
     "--allow-all",
     "--eval-file=https://deno.land/x/cool@0.7.13/repl-init.ts",
   ];
 
-  await exec`${denoPath} ${replArgs}`
+  await shellExec.exec`${denoPath} ${replArgs}`
     .stdout("inherit")
     .stderr("inherit")
     .spawn();
@@ -47,7 +45,7 @@ export const upgradeCli = async (
     "https://deno.land/x/cool/cool.ts",
   ];
 
-  await exec`${denoPath} ${installArgs}`
+  await shellExec.exec`${denoPath} ${installArgs}`
     .stdin("null")
     .stdout("inherit")
     .stderr("inherit")
@@ -56,7 +54,7 @@ export const upgradeCli = async (
 
 export const run = async (_args: Array<string>, _options: ExecuteOptions) => {
   const denoPath = deno.execPath();
-  await exec`${denoPath} task start`
+  await shellExec.exec`${denoPath} task start`
     .stdin("null")
     .stdout("inherit")
     .stderr("inherit")
@@ -65,7 +63,7 @@ export const run = async (_args: Array<string>, _options: ExecuteOptions) => {
 
 const runDev = async (_args: Array<string>, _options: ExecuteOptions) => {
   const denoPath = deno.execPath();
-  await exec`${denoPath} task dev`
+  await shellExec.exec`${denoPath} task dev`
     .stdin("null")
     .stdout("inherit")
     .stderr("inherit")
@@ -74,7 +72,7 @@ const runDev = async (_args: Array<string>, _options: ExecuteOptions) => {
 
 export const test = async (_args: Array<string>, _options: ExecuteOptions) => {
   const denoPath = deno.execPath();
-  await exec`${denoPath} task test`
+  await shellExec.exec`${denoPath} task test`
     .stdin("null")
     .stdout("inherit")
     .stderr("inherit")

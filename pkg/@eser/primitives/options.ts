@@ -1,12 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import type { Result } from "./results.ts";
-import { fail, ok } from "./results.ts";
-
 /**
- * Type-safe Option type for nullable value handling.
- * Uses discriminated union for exhaustive pattern matching.
+ * Option type: discriminated union types, constructors, type guards, and combinators.
  */
+
+import * as results from "./results.ts";
 
 // Core types
 export type Option<T> = Some<T> | None;
@@ -24,6 +22,13 @@ export interface None {
 export const some = <T>(value: T): Some<T> => ({ _tag: "Some", value });
 export const none: None = { _tag: "None" };
 
+// Type guards
+export const isSome = <T>(option: Option<T>): option is Some<T> =>
+  option._tag === "Some";
+
+export const isNone = <T>(option: Option<T>): option is None =>
+  option._tag === "None";
+
 // From nullable values
 export const fromNullable = <T>(value: T | null | undefined): Option<T> =>
   value == null ? none : some(value);
@@ -31,13 +36,6 @@ export const fromNullable = <T>(value: T | null | undefined): Option<T> =>
 export const fromFalsy = <T>(
   value: T | null | undefined | false | 0 | "",
 ): Option<T> => value ? some(value as T) : none;
-
-// Type guards
-export const isSome = <T>(option: Option<T>): option is Some<T> =>
-  option._tag === "Some";
-
-export const isNone = <T>(option: Option<T>): option is None =>
-  option._tag === "None";
 
 // Combinators
 export const map = <T, U>(option: Option<T>, f: (value: T) => U): Option<U> =>
@@ -88,13 +86,13 @@ export const match = <T, U>(
 export const toResult = <T, E>(
   option: Option<T>,
   error: E | (() => E),
-): Result<T, E> =>
+): results.Result<T, E> =>
   isSome(option)
-    ? ok(option.value)
-    : fail(typeof error === "function" ? (error as () => E)() : error);
+    ? results.ok(option.value)
+    : results.fail(typeof error === "function" ? (error as () => E)() : error);
 
 // From Result
-export const fromResult = <T, E>(result: Result<T, E>): Option<T> =>
+export const fromResult = <T, E>(result: results.Result<T, E>): Option<T> =>
   result._tag === "Ok" ? some(result.value) : none;
 
 // Collection utilities

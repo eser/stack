@@ -14,9 +14,6 @@
   "deno.enable": true,
   "deno.lint": true,
   "deno.suggest.imports.autoDiscover": true,
-  "deno.unstable": [
-    "temporal"
-  ],
   "javascript.suggest.autoImports": true,
   "javascript.suggest.completeFunctionCalls": true,
   "javascript.suggest.completeJSDocs": true,
@@ -38,17 +35,11 @@
   "yaml.schemas": {
     "https://json.schemastore.org/github-workflow.json": "./.github/workflows/*.yml"
   },
-  "[jsonc]": {
-    "editor.defaultFormatter": "vscode.json-language-features"
-  },
   "[typescript][typescriptreact][javascript][javascriptreact][markdown]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
   },
   "files.associations": {
     "*.mdoc": "markdown",
     "*.mdx": "markdown"
-  },
-  "[github-actions-workflow]": {
-    "editor.defaultFormatter": "redhat.vscode-yaml"
   }
 }

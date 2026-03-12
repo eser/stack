@@ -28,9 +28,9 @@
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as fmtColors from "@std/fmt/colors";
-import { fail, match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 import { runtime } from "@eser/standards/runtime";
 import { loadProjectConfig } from "./config.ts";
 import { getValidators } from "./registry.ts";
@@ -151,7 +151,7 @@ export const validate = async (
  */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const args = cliParseArgs.parseArgs(
     (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
     {
@@ -162,7 +162,7 @@ export const main = async (
   );
 
   if (args["help"]) {
-    console.log("Usage: deno -A validation/mod.ts [options]");
+    console.log("Usage: deno run --allow-all ./validation/mod.ts [options]");
     console.log();
     console.log("Options:");
     console.log("  --root <dir>           Root directory (default: cwd)");
@@ -174,7 +174,7 @@ export const main = async (
     );
     console.log("  --fix                  Auto-fix issues where supported");
     console.log("  -h, --help             Show this help message");
-    return ok(undefined);
+    return results.ok(undefined);
   }
 
   const root = args["root"] as string | undefined;
@@ -263,7 +263,7 @@ export const main = async (
   // Summary
   const failedCount = result.results.filter((r) => !r.passed).length;
   if (failedCount > 0) {
-    return fail({
+    return results.fail({
       message: fmtColors.red(
         `\n${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
       ),
@@ -272,12 +272,12 @@ export const main = async (
   }
 
   console.log(fmtColors.green("\nAll checks passed!"));
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

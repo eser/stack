@@ -1,7 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import type { Result } from "./results.ts";
-import { fail, isOk } from "./results.ts";
+import * as results from "@eser/primitives/results";
 
 /**
  * Resource management utilities for safe acquire-use-release patterns.
@@ -14,8 +13,8 @@ export type Scope = {
   readonly addFinalizer: (finalizer: Finalizer) => void;
   readonly close: () => Promise<void>;
   readonly use: <T, E>(
-    fn: () => Promise<Result<T, E>>,
-  ) => Promise<Result<T, E>>;
+    fn: () => Promise<results.Result<T, E>>,
+  ) => Promise<results.Result<T, E>>;
 };
 
 /**
@@ -23,12 +22,12 @@ export type Scope = {
  * Release is guaranteed to run even if use throws.
  */
 export const bracket = async <R, T, E>(
-  acquire: () => Promise<Result<R, E>> | Result<R, E>,
-  use: (resource: R) => Promise<Result<T, E>> | Result<T, E>,
+  acquire: () => Promise<results.Result<R, E>> | results.Result<R, E>,
+  use: (resource: R) => Promise<results.Result<T, E>> | results.Result<T, E>,
   release: (resource: R) => Promise<void> | void,
-): Promise<Result<T, E>> => {
+): Promise<results.Result<T, E>> => {
   const acquired = await acquire();
-  if (!isOk(acquired)) return acquired;
+  if (!results.isOk(acquired)) return acquired;
 
   try {
     return await use(acquired.value);
@@ -41,24 +40,26 @@ export const bracket = async <R, T, E>(
  * Using pattern: simplified bracket for sync release.
  */
 export const using = <R, T, E>(
-  acquire: () => Promise<Result<R, E>> | Result<R, E>,
-  use: (resource: R) => Promise<Result<T, E>> | Result<T, E>,
+  acquire: () => Promise<results.Result<R, E>> | results.Result<R, E>,
+  use: (resource: R) => Promise<results.Result<T, E>> | results.Result<T, E>,
   release: (resource: R) => void,
-): Promise<Result<T, E>> => bracket(acquire, use, release);
+): Promise<results.Result<T, E>> => bracket(acquire, use, release);
 
 /**
  * Bracket with error capture in release.
  * If release fails, the error is captured and can be handled.
  */
 export const bracketWithReleaseError = async <R, T, E>(
-  acquire: () => Promise<Result<R, E>> | Result<R, E>,
-  use: (resource: R) => Promise<Result<T, E>> | Result<T, E>,
-  release: (resource: R) => Promise<Result<void, E>> | Result<void, E>,
-): Promise<Result<T, E>> => {
+  acquire: () => Promise<results.Result<R, E>> | results.Result<R, E>,
+  use: (resource: R) => Promise<results.Result<T, E>> | results.Result<T, E>,
+  release: (
+    resource: R,
+  ) => Promise<results.Result<void, E>> | results.Result<void, E>,
+): Promise<results.Result<T, E>> => {
   const acquired = await acquire();
-  if (!isOk(acquired)) return acquired;
+  if (!results.isOk(acquired)) return acquired;
 
-  let useResult: Result<T, E>;
+  let useResult: results.Result<T, E>;
   try {
     useResult = await use(acquired.value);
   } catch (error) {
@@ -67,7 +68,9 @@ export const bracketWithReleaseError = async <R, T, E>(
   }
 
   const releaseResult = await release(acquired.value);
-  if (!isOk(releaseResult)) return releaseResult as unknown as Result<T, E>;
+  if (!results.isOk(releaseResult)) {
+    return releaseResult as unknown as results.Result<T, E>;
+  }
 
   return useResult;
 };
@@ -109,8 +112,8 @@ export const createScope = (): Scope => {
     close,
 
     use: async <T, E>(
-      fn: () => Promise<Result<T, E>>,
-    ): Promise<Result<T, E>> => {
+      fn: () => Promise<results.Result<T, E>>,
+    ): Promise<results.Result<T, E>> => {
       try {
         return await fn();
       } finally {
@@ -124,8 +127,8 @@ export const createScope = (): Scope => {
  * Run a function within a scope, automatically closing when done.
  */
 export const scoped = async <T, E>(
-  fn: (scope: Scope) => Promise<Result<T, E>>,
-): Promise<Result<T, E>> => {
+  fn: (scope: Scope) => Promise<results.Result<T, E>>,
+): Promise<results.Result<T, E>> => {
   const scope = createScope();
   try {
     return await fn(scope);
@@ -139,11 +142,11 @@ export const scoped = async <T, E>(
  */
 export const acquireRelease = async <R, E>(
   scope: Scope,
-  acquire: () => Promise<Result<R, E>> | Result<R, E>,
+  acquire: () => Promise<results.Result<R, E>> | results.Result<R, E>,
   release: (resource: R) => Promise<void> | void,
-): Promise<Result<R, E>> => {
+): Promise<results.Result<R, E>> => {
   const acquired = await acquire();
-  if (isOk(acquired)) {
+  if (results.isOk(acquired)) {
     scope.addFinalizer(() => release(acquired.value));
   }
   return acquired;
@@ -153,9 +156,9 @@ export const acquireRelease = async <R, E>(
  * Ensure a finalizer runs regardless of success or failure.
  */
 export const ensure = async <T, E>(
-  fn: () => Promise<Result<T, E>> | Result<T, E>,
+  fn: () => Promise<results.Result<T, E>> | results.Result<T, E>,
   finalizer: Finalizer,
-): Promise<Result<T, E>> => {
+): Promise<results.Result<T, E>> => {
   try {
     return await fn();
   } finally {
@@ -167,15 +170,17 @@ export const ensure = async <T, E>(
  * Retry a function with specified attempts.
  */
 export const retry = async <T, E>(
-  fn: () => Promise<Result<T, E>>,
+  fn: () => Promise<results.Result<T, E>>,
   attempts: number,
   delay = 0,
-): Promise<Result<T, E>> => {
-  let lastResult: Result<T, E> = fail(new Error("No attempts made") as E);
+): Promise<results.Result<T, E>> => {
+  let lastResult: results.Result<T, E> = results.fail(
+    new Error("No attempts made") as E,
+  );
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     lastResult = await fn();
-    if (isOk(lastResult)) return lastResult;
+    if (results.isOk(lastResult)) return lastResult;
 
     if (attempt < attempts - 1 && delay > 0) {
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -189,22 +194,24 @@ export const retry = async <T, E>(
  * Retry with exponential backoff.
  */
 export const retryWithBackoff = async <T, E>(
-  fn: () => Promise<Result<T, E>>,
+  fn: () => Promise<results.Result<T, E>>,
   options: {
     maxAttempts: number;
     initialDelay: number;
     maxDelay?: number;
     factor?: number;
   },
-): Promise<Result<T, E>> => {
+): Promise<results.Result<T, E>> => {
   const { maxAttempts, initialDelay, maxDelay = Infinity, factor = 2 } =
     options;
-  let lastResult: Result<T, E> = fail(new Error("No attempts made") as E);
+  let lastResult: results.Result<T, E> = results.fail(
+    new Error("No attempts made") as E,
+  );
   let currentDelay = initialDelay;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     lastResult = await fn();
-    if (isOk(lastResult)) return lastResult;
+    if (results.isOk(lastResult)) return lastResult;
 
     if (attempt < maxAttempts - 1) {
       await new Promise((resolve) => setTimeout(resolve, currentDelay));
@@ -219,14 +226,17 @@ export const retryWithBackoff = async <T, E>(
  * Timeout wrapper for async operations.
  */
 export const withTimeout = async <T, E>(
-  fn: () => Promise<Result<T, E>>,
+  fn: () => Promise<results.Result<T, E>>,
   timeoutMs: number,
   timeoutError: E,
-): Promise<Result<T, E>> => {
+): Promise<results.Result<T, E>> => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  const timeoutPromise = new Promise<Result<T, E>>((resolve) => {
-    timeoutId = setTimeout(() => resolve(fail(timeoutError)), timeoutMs);
+  const timeoutPromise = new Promise<results.Result<T, E>>((resolve) => {
+    timeoutId = setTimeout(
+      () => resolve(results.fail(timeoutError)),
+      timeoutMs,
+    );
   });
 
   try {

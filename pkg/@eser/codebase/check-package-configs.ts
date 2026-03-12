@@ -17,16 +17,16 @@
  * ```
  *
  * CLI usage:
- *   deno -A check-package-configs.ts
+ *   deno run --allow-all ./check-package-configs.ts
  *
  * @module
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import { fail, match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import { groupBy } from "@eser/fp/group-by";
 import { runtime } from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 import * as pkg from "./package/mod.ts";
 import { ConfigFileTypes } from "./package/types.ts";
 
@@ -408,7 +408,7 @@ const formatDepIssue = (inc: DependencyInconsistency): string => {
  */
 export const main = async (
   _cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   console.log("Checking package config consistency...\n");
 
   const result = await checkPackageConfigs();
@@ -465,16 +465,16 @@ export const main = async (
       }
     }
 
-    return fail({ exitCode: 1 });
+    return results.fail({ exitCode: 1 });
   }
 
   console.log(fmtColors.green("\nAll package configs are consistent."));
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

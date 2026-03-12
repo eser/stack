@@ -1917,9 +1917,6 @@
         }
       },
       "pkg/@eser/fp": {
-        "dependencies": [
-          "jsr:@std/assert@^1.0.16"
-        ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16"
@@ -2031,6 +2028,13 @@
         "dependencies": [
           "jsr:@std/assert@^1.0.16"
         ],
+        "packageJson": {
+          "dependencies": [
+            "npm:@jsr/std__assert@^1.0.16"
+          ]
+        }
+      },
+      "pkg/@eser/primitives": {
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16"

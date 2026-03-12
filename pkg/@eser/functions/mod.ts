@@ -1,68 +1,44 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * @eser/functions - Functional programming patterns for pipelines, middleware, and result handling.
+ * @eser/functions - Higher-level workflow compositions.
+ *
+ * Multi-step operations, middleware pipelines, lazy computation,
+ * and resource lifecycle management.
+ *
+ * For Result/Option types and combinators: import from @eser/primitives
  *
  * @example
  * ```typescript
- * import * as functions from "@eser/functions";
+ * import { run } from "@eser/functions";
+ * import * as results from "@eser/primitives/results";
  *
- * // Result type for error handling
- * const divide = (a: number, b: number): functions.results.Result<number, string> =>
- *   b === 0 ? functions.results.fail("Division by zero") : functions.results.ok(a / b);
- *
- * // Option type for nullable values
- * const maybeValue = functions.options.fromNullable(getValue());
- *
- * // collect() for middleware/streaming
- * const pipeline = functions.collect<string, Error>()
- *   .use(loggingMiddleware)
- *   .use(handler);
- *
- * // run() for monadic composition
- * const result = await functions.run(async function* () {
+ * // Monadic do-notation
+ * const result = await run(async function* () {
  *   const user = yield* fetchUser(1);
  *   const posts = yield* fetchPosts(user.id);
- *
  *   return { user, posts };
  * });
  * ```
+ *
+ * @module
  */
 
-// Namespaced exports matching file names
-export * as results from "./results.ts";
-export * as options from "./options.ts";
-export * as resources from "./resources.ts";
+// Monadic do-notation
+export { run, runSync } from "./fn.ts";
 
-// Utility types - direct export for convenience
-export {
-  type AsyncPredicateFn,
-  type AsyncUnaryFn,
-  type Awaited,
-  type BinaryFn,
-  type Brand,
-  type ComparatorFn,
-  type DeepReadonly,
-  type Head,
-  isNonEmpty,
-  type Lazy,
-  type NonEmptyArray,
-  type OptionalKeys,
-  type PredicateFn,
-  type Promisable,
-  type RequiredKeys,
-  type Tail,
-  type UnaryFn,
-  unwrapLazy,
-} from "./types.ts";
-
+// Middleware pipeline
 export {
   collect,
   type CollectResult,
   type Context,
   type Middleware,
   type Pipeline,
-  run,
-  runSync,
   type State,
-} from "./fn.ts";
+} from "./pipeline.ts";
+
+// Lazy computation
+export * as task from "./task.ts";
+
+// Resource management
+export * as resources from "./resources.ts";

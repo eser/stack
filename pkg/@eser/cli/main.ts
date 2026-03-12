@@ -6,7 +6,7 @@
  * A multi-purpose command-line tool that dispatches to library modules.
  *
  * Usage:
- *   deno run -A ./main.ts <command> [subcommand] [options]
+ *   deno run --allow-all ./main.ts <command> [subcommand] [options]
  *   npx eser <command> [subcommand] [options]
  *
  * Commands:
@@ -20,13 +20,9 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import { fail, match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
-import {
-  type CliResult,
-  type CommandContext,
-  type CommandLike,
-} from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 import { dispatch, showPackageHelp } from "./dispatch.ts";
 import { registry } from "./registry.ts";
 import config from "./package.json" with { type: "json" };
@@ -34,11 +30,11 @@ import config from "./package.json" with { type: "json" };
 type CommandHandler = (
   args: string[],
   flags: Record<string, unknown>,
-) => Promise<CliResult<void>>;
+) => Promise<shellArgs.CliResult<void>>;
 
 // Wrapper to adapt Command.parse() to CommandHandler signature
 const wrapCommand = (
-  cmd: { parse: (args: string[]) => Promise<CliResult<void>> },
+  cmd: { parse: (args: string[]) => Promise<shellArgs.CliResult<void>> },
 ): CommandHandler => {
   return async (args: string[], _flags: Record<string, unknown>) => {
     return await cmd.parse(args);
@@ -47,11 +43,13 @@ const wrapCommand = (
 
 // Wrapper to adapt handler to CommandHandler signature
 const wrapHandler = (
-  handler: (ctx: CommandContext) => Promise<CliResult<void>>,
+  handler: (
+    ctx: shellArgs.CommandContext,
+  ) => Promise<shellArgs.CliResult<void>>,
   commandName: string,
 ): CommandHandler => {
   return async (_args: string[], flags: Record<string, unknown>) => {
-    const mockRoot: CommandLike = {
+    const mockRoot: shellArgs.CommandLike = {
       name: "eser",
       completions: () => "",
       help: () => "",
@@ -93,7 +91,7 @@ const intrinsicCommands: Record<
       } else {
         console.log(`eser ${config.version}`);
       }
-      return Promise.resolve(ok(undefined));
+      return Promise.resolve(results.ok(undefined));
     };
     return Promise.resolve(handler);
   },
@@ -127,7 +125,7 @@ const showHelp = (): void => {
   console.log("\nRun 'eser <command> --help' for command-specific help.");
 };
 
-export const main = async (): Promise<CliResult<void>> => {
+export const main = async (): Promise<shellArgs.CliResult<void>> => {
   // @ts-ignore parseArgs doesn't mutate the array, readonly is safe
   const args = cliParseArgs.parseArgs(standardsRuntime.runtime.process.args, {
     boolean: ["help", "bare"],
@@ -139,7 +137,7 @@ export const main = async (): Promise<CliResult<void>> => {
 
   if (command === undefined) {
     showHelp();
-    return ok(undefined);
+    return results.ok(undefined);
   }
 
   // Tier 1: Registry-based dispatch (dynamic import → module main())
@@ -148,7 +146,7 @@ export const main = async (): Promise<CliResult<void>> => {
 
     if (moduleName === undefined || args.help === true) {
       showPackageHelp(command);
-      return ok(undefined);
+      return results.ok(undefined);
     }
 
     const remainingArgs = args._.slice(2) as string[];
@@ -165,12 +163,12 @@ export const main = async (): Promise<CliResult<void>> => {
   console.error(`Unknown command: ${command}`);
   console.log("");
   showHelp();
-  return fail({ exitCode: 1 });
+  return results.fail({ exitCode: 1 });
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

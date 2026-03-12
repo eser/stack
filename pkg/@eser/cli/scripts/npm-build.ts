@@ -10,7 +10,7 @@
  * 4. Generates package.json with dependencies for external packages
  * 5. Copies README.md
  *
- * Usage: deno run -A npm-build.ts
+ * Usage: deno run --allow-all ./npm-build.ts
  *
  * @module
  */

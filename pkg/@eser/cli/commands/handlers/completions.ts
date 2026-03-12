@@ -7,17 +7,12 @@
  */
 
 import * as fmtColors from "@std/fmt/colors";
-import { fail, ok } from "@eser/functions/results";
-import { type CliResult, type CommandContext } from "@eser/shell/args";
-import {
-  detectShell,
-  getCompletionEvalLine,
-  getShellConfig,
-  type Shell,
-} from "@eser/shell/env";
+import * as results from "@eser/primitives/results";
+import * as shellArgs from "@eser/shell/args";
+import * as shellEnv from "@eser/shell/env";
 
-const getInstallInstructions = (shell: Shell): string => {
-  const config = getShellConfig(shell, "eser");
+const getInstallInstructions = (shell: shellEnv.Shell): string => {
+  const config = shellEnv.getShellConfig(shell, "eser");
 
   if (config.completionType === "file") {
     return `
@@ -31,7 +26,7 @@ To install, run:
 `;
   }
 
-  const evalLine = getCompletionEvalLine(shell, "eser");
+  const evalLine = shellEnv.getCompletionEvalLine(shell, "eser");
   return `
 To install, add the following to your ${fmtColors.cyan(config.rcFile)}:
 
@@ -39,21 +34,23 @@ To install, add the following to your ${fmtColors.cyan(config.rcFile)}:
 `;
 };
 
-export const completionsHandler = (ctx: CommandContext): CliResult<void> => {
+export const completionsHandler = (
+  ctx: shellArgs.CommandContext,
+): shellArgs.CliResult<void> => {
   const shellFlag = ctx.flags["shell"] as string | undefined;
 
-  let shell: Shell;
+  let shell: shellEnv.Shell;
   if (shellFlag !== undefined) {
     if (!["bash", "zsh", "fish"].includes(shellFlag)) {
-      return fail({
+      return results.fail({
         message: `${fmtColors.red(`Invalid shell: ${shellFlag}`)}\n` +
           "Supported shells: bash, zsh, fish",
         exitCode: 1,
       });
     }
-    shell = shellFlag as Shell;
+    shell = shellFlag as shellEnv.Shell;
   } else {
-    shell = detectShell();
+    shell = shellEnv.detectShell();
   }
 
   // Get the root command and generate completions from its tree
@@ -73,5 +70,5 @@ export const completionsHandler = (ctx: CommandContext): CliResult<void> => {
   // deno-lint-ignore no-console
   console.log(script);
 
-  return ok(undefined);
+  return results.ok(undefined);
 };

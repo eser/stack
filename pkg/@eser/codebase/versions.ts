@@ -19,12 +19,12 @@
  * ```
  *
  * CLI usage:
- *   deno -A versions.ts              # Show versions table
- *   deno -A versions.ts sync         # Sync all to highest version
- *   deno -A versions.ts patch        # Bump patch, sync all
- *   deno -A versions.ts minor        # Bump minor, sync all
- *   deno -A versions.ts major        # Bump major, sync all
- *   deno -A versions.ts --dry-run    # Preview without changes
+ *   deno run --allow-all ./versions.ts              # Show versions table
+ *   deno run --allow-all ./versions.ts sync         # Sync all to highest version
+ *   deno run --allow-all ./versions.ts patch        # Bump patch, sync all
+ *   deno run --allow-all ./versions.ts minor        # Bump minor, sync all
+ *   deno run --allow-all ./versions.ts major        # Bump major, sync all
+ *   deno run --allow-all ./versions.ts --dry-run    # Preview without changes
  *
  * @module
  */
@@ -33,9 +33,9 @@ import * as cliParseArgs from "@std/cli/parse-args";
 import * as fmtColors from "@std/fmt/colors";
 import * as stdPath from "@std/path";
 import * as stdSemver from "@std/semver";
-import { match, ok } from "@eser/functions/results";
+import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
-import { type CliResult } from "@eser/shell/args";
+import * as shellArgs from "@eser/shell/args";
 import * as pkg from "./package/mod.ts";
 
 /**
@@ -307,7 +307,7 @@ export const versions = async (
  */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const args = cliParseArgs.parseArgs(
     (cliArgs ?? standardsRuntime.runtime.process.args) as string[],
     { boolean: ["dry-run"] },
@@ -320,7 +320,7 @@ export const main = async (
   if (input === undefined) {
     const result = await showVersions();
     console.table(result.packages);
-    return ok(undefined);
+    return results.ok(undefined);
   }
 
   // Determine command and options
@@ -367,12 +367,12 @@ export const main = async (
     console.log(`Done. Updated ${result.changedCount} packages.`);
   }
 
-  return ok(undefined);
+  return results.ok(undefined);
 };
 
 if (import.meta.main) {
   const result = await main();
-  match(result, {
+  results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {

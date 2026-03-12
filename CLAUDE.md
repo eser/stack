@@ -13,6 +13,7 @@ starting any task.
 | Bump versions or publish releases       | `release-management`        |
 | Design system structure or write ADRs   | `architecture-guidelines`   |
 | Write or review code quality            | `coding-practices`          |
+| Write or edit READMEs and docs          | `documentation-conventions` |
 | Apply FP patterns, composition, async   | `design-principles`         |
 | Write JS/TS, modules, React components  | `javascript-practices`      |
 | Write Go services                       | `go-practices`              |

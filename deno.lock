@@ -53,6 +53,7 @@
     "npm:@types/react@^19.2.7": "19.2.14",
     "npm:esbuild@~0.24.2": "0.24.2",
     "npm:esbuild@~0.27.3": "0.27.3",
+    "npm:eser@*": "4.1.0",
     "npm:lightningcss@^1.30.2": "1.31.1",
     "npm:octokit@^5.0.5": "5.0.5",
     "npm:react-dom@^19.2.3": "19.2.4_react@19.2.4",
@@ -1212,6 +1213,15 @@
         "@esbuild/win32-x64@0.27.3"
       ],
       "scripts": true,
+      "bin": true
+    },
+    "eser@4.1.0": {
+      "integrity": "sha512-YZmNzzpmpiTM3nh7JebHoVq0lq+5NjbgDxd5VU0Iyk2GCrQEXRom6mv5m+CT7u3Ru7ugFJdHatI0bAGPmDB3xg==",
+      "dependencies": [
+        "@tailwindcss/oxide",
+        "lightningcss",
+        "tailwindcss"
+      ],
       "bin": true
     },
     "fast-content-type-parse@3.0.0": {

@@ -29,7 +29,6 @@
  */
 
 import { walk } from "@std/fs/walk";
-import { fromFileUrl } from "@std/path/posix";
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
@@ -104,13 +103,7 @@ export const validateLicenses = async (
 ): Promise<ValidateLicensesResult> => {
   const { fix = false } = options;
 
-  // Default to parent directory of codebase package
-  const baseUrl = new URL(".", import.meta.url);
-  const defaultRoot = standards.runtime.current.path.join(
-    fromFileUrl(baseUrl.href),
-    "..",
-  );
-  const root = options.root ?? defaultRoot;
+  const { root = "." } = options;
 
   const issues: LicenseIssue[] = [];
   let checked = 0;

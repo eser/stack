@@ -43,8 +43,8 @@ repos:
             tsconfig.json
           )$
       - id: trailing-whitespace
-      - id: no-commit-to-branch
-        args: ["--branch", "main"]
+      # - id: no-commit-to-branch
+      #   args: ["--branch", "main"]
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0

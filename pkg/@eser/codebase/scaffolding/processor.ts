@@ -8,7 +8,6 @@
  * @module
  */
 
-import { walk } from "@std/fs/walk";
 import { current, NotFoundError } from "@eser/standards/runtime";
 
 /** Variable placeholder pattern: {{.variable_name}} (Go template style) */
@@ -152,7 +151,7 @@ export const processTemplate = async (
   const filesToProcess: string[] = [];
   const dirsToRename: string[] = [];
 
-  for await (const entry of walk(dir, { includeDirs: true })) {
+  for await (const entry of current.fs.walk(dir, { includeDirs: true })) {
     const relativePath = current.path.relative(dir, entry.path);
 
     // Skip root

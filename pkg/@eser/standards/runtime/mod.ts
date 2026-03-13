@@ -53,6 +53,8 @@ export type {
   RuntimePath,
   RuntimeProcess,
   SpawnOptions,
+  WalkEntry,
+  WalkOptions,
   WatchOptions,
   WriteFileOptions,
 } from "./types.ts";
@@ -151,6 +153,7 @@ const createStubFs = (runtimeName: RuntimeName): Runtime["fs"] => {
     makeTempDir: throwFs,
     realPath: throwFs,
     watch: throwFs,
+    walk: throwFs,
   };
 };
 

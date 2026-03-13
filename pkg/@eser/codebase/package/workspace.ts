@@ -1,6 +1,5 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { expandGlob } from "@std/fs/expand-glob";
 import { current } from "@eser/standards/runtime";
 import type { PackageConfig, WorkspaceModule } from "./types.ts";
 import { getBaseDir, load, PackageLoadError, tryLoad } from "./loader.ts";
@@ -40,6 +39,9 @@ export const loadPackageConfig = async (
 
 /**
  * Expands workspace patterns (including globs) to actual directory paths.
+ *
+ * Supports simple trailing `/*` patterns (e.g. `pkg/*`, `apps/*`).
+ * Does NOT depend on `@std/fs/expand-glob`.
  */
 const expandWorkspacePaths = async (
   root: string,
@@ -48,21 +50,60 @@ const expandWorkspacePaths = async (
   const paths: string[] = [];
 
   for (const pattern of patterns) {
-    const fullPattern = current.path.join(root, pattern);
+    // Check if pattern ends with a simple wildcard like "pkg/*"
+    if (pattern.endsWith("/*")) {
+      const parentDir = current.path.join(root, pattern.slice(0, -2));
 
-    // Check if pattern contains glob characters
-    if (pattern.includes("*") || pattern.includes("?")) {
-      // Expand glob pattern
-      for await (
-        const entry of expandGlob(fullPattern, { includeDirs: true })
-      ) {
-        if (entry.isDirectory) {
-          paths.push(entry.path);
+      try {
+        for await (const entry of current.fs.readDir(parentDir)) {
+          if (entry.isDirectory) {
+            paths.push(current.path.join(parentDir, entry.name));
+          }
         }
+      } catch {
+        // Directory doesn't exist — skip silently
+      }
+    } else if (pattern.includes("*") || pattern.includes("?")) {
+      // More complex glob — walk parent and match with regex
+      const parts = pattern.split("/");
+      const staticParts: string[] = [];
+      let globStart = 0;
+
+      for (let i = 0; i < parts.length; i++) {
+        if (parts[i]!.includes("*") || parts[i]!.includes("?")) {
+          globStart = i;
+          break;
+        }
+        staticParts.push(parts[i]!);
+      }
+
+      const parentDir = current.path.join(root, ...staticParts);
+      const globPart = parts.slice(globStart).join("/");
+      const regexPattern = globPart
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/\*\*/g, ".*")
+        .replace(/\*/g, "[^/]*")
+        .replace(/\?/g, "[^/]");
+      const regex = new RegExp(`^${regexPattern}$`);
+
+      try {
+        for await (
+          const entry of current.fs.walk(parentDir, {
+            includeDirs: true,
+            includeFiles: false,
+          })
+        ) {
+          const rel = current.path.relative(parentDir, entry.path);
+          if (rel !== "" && regex.test(rel)) {
+            paths.push(entry.path);
+          }
+        }
+      } catch {
+        // Directory doesn't exist — skip silently
       }
     } else {
-      // Direct path
-      paths.push(fullPattern);
+      // Direct path — no glob
+      paths.push(current.path.join(root, pattern));
     }
   }
 

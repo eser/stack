@@ -9,7 +9,6 @@
  * @module
  */
 
-import { walk } from "@std/fs/walk";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import { current } from "@eser/standards/runtime";
 
@@ -206,7 +205,7 @@ export const analyzeDirectives = async (
   const matches: DirectiveMatch[] = [];
 
   for await (
-    const entry of walk(scanDir, {
+    const entry of current.fs.walk(scanDir, {
       exts: [...extensions],
       skip: [...skip],
     })
@@ -276,7 +275,7 @@ export const analyzeServerActions = async (
   const matches: DirectiveMatch[] = [];
 
   for await (
-    const entry of walk(scanDir, {
+    const entry of current.fs.walk(scanDir, {
       exts: [...extensions],
       skip: [...skip],
     })

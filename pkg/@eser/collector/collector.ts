@@ -6,17 +6,27 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
-import { globToRegExp } from "@std/path/posix";
-import { walk } from "@std/fs/walk";
 import * as patterns from "@eser/standards/patterns";
 import { current } from "@eser/standards/runtime";
+
+/**
+ * Convert a simple glob pattern to a RegExp.
+ * Supports `*` (any non-separator chars) and `**` (any chars including separators).
+ */
+const simpleGlobToRegExp = (glob: string): RegExp => {
+  const escaped = glob
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*\*/g, ".*")
+    .replace(/\*/g, "[^/]*");
+  return new RegExp(`^${escaped}$`);
+};
 
 export async function* walkFiles(
   baseDir: string,
   globFilter: string | undefined,
   ignoreFilePattern: RegExp,
 ): AsyncGenerator<string> {
-  const routesFolder = walk(baseDir, {
+  const routesFolder = current.fs.walk(baseDir, {
     includeDirs: false,
     includeFiles: true,
     exts: patterns.JS_FILE_EXTENSIONS,
@@ -26,7 +36,7 @@ export async function* walkFiles(
   for await (const entry of routesFolder) {
     const rel = current.path.relative(baseDir, entry.path);
 
-    if (globFilter !== undefined && !globToRegExp(globFilter).test(rel)) {
+    if (globFilter !== undefined && !simpleGlobToRegExp(globFilter).test(rel)) {
       continue;
     }
 

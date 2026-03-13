@@ -28,7 +28,6 @@
  * @module
  */
 
-import { walk } from "@std/fs/walk";
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
@@ -110,7 +109,7 @@ export const validateLicenses = async (
   let fixedCount = 0;
 
   for await (
-    const entry of walk(root, {
+    const entry of standards.runtime.current.fs.walk(root, {
       exts: standards.patterns.JS_FILE_EXTENSIONS,
       skip: EXCLUDES,
       includeDirs: false,

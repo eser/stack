@@ -9,7 +9,7 @@
  * @module
  */
 
-import * as fmtColors from "@std/fmt/colors";
+import * as fmtColors from "@eser/shell/formatting/colors";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
 

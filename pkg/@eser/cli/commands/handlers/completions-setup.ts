@@ -6,7 +6,7 @@
  * @module
  */
 
-import * as fmtColors from "@std/fmt/colors";
+import * as fmtColors from "@eser/shell/formatting/colors";
 import { current } from "@eser/standards/runtime";
 import * as shellEnv from "@eser/shell/env";
 

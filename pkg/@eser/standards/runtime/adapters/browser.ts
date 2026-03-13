@@ -64,6 +64,7 @@ const createBrowserFs = (): RuntimeFs => {
     makeTempDir: throwFs,
     realPath: throwFs,
     watch: throwFs,
+    walk: throwFs,
   };
 };
 

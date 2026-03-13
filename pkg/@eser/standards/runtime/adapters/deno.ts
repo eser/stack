@@ -29,6 +29,8 @@ import type {
   RuntimePath,
   RuntimeProcess,
   SpawnOptions,
+  WalkEntry,
+  WalkOptions,
   WatchOptions,
   WriteFileOptions,
 } from "../types.ts";
@@ -248,6 +250,62 @@ const createDenoFs = (): RuntimeFs => {
           }
         },
       };
+    },
+
+    async *walk(
+      root: string,
+      options?: WalkOptions,
+    ): AsyncIterable<WalkEntry> {
+      const includeDirs = options?.includeDirs ?? true;
+      const includeFiles = options?.includeFiles ?? true;
+      const exts = options?.exts;
+      const skip = options?.skip;
+
+      const walkDir = async function* (
+        dir: string,
+      ): AsyncIterable<WalkEntry> {
+        for await (const entry of Deno.readDir(dir)) {
+          const entryPath = denoPath.join(dir, entry.name);
+
+          if (skip?.some((pattern) => pattern.test(entryPath))) {
+            continue;
+          }
+
+          if (entry.isDirectory) {
+            if (includeDirs) {
+              yield {
+                path: entryPath,
+                name: entry.name,
+                isFile: false,
+                isDirectory: true,
+                isSymlink: entry.isSymlink,
+              };
+            }
+            yield* walkDir(entryPath);
+          } else if (entry.isFile || entry.isSymlink) {
+            if (!includeFiles) {
+              continue;
+            }
+            if (
+              exts &&
+              !exts.some((ext) =>
+                entry.name.endsWith(ext.startsWith(".") ? ext : `.${ext}`)
+              )
+            ) {
+              continue;
+            }
+            yield {
+              path: entryPath,
+              name: entry.name,
+              isFile: entry.isFile,
+              isDirectory: false,
+              isSymlink: entry.isSymlink,
+            };
+          }
+        }
+      };
+
+      yield* walkDir(root);
     },
   };
 };

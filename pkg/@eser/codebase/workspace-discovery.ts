@@ -23,7 +23,6 @@
  * @module
  */
 
-import { walk } from "@std/fs/walk";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import { current } from "@eser/standards/runtime";
 import * as pkg from "./package/mod.ts";
@@ -129,7 +128,7 @@ export const getPackageFiles = async (
   const files: string[] = [];
 
   for await (
-    const entry of walk(packagePath, {
+    const entry of current.fs.walk(packagePath, {
       exts: JS_FILE_EXTENSIONS,
       includeDirs: false,
       skip: [/node_modules/, /\.git/],

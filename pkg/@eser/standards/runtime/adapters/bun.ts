@@ -36,6 +36,8 @@ import type {
   RuntimePath,
   RuntimeProcess,
   SpawnOptions,
+  WalkEntry,
+  WalkOptions,
   WatchOptions,
   WriteFileOptions,
 } from "../types.ts";
@@ -331,6 +333,68 @@ const createBunFs = (): RuntimeFs => {
           },
         }),
       };
+    },
+
+    async *walk(
+      root: string,
+      options?: WalkOptions,
+    ): AsyncIterable<WalkEntry> {
+      const includeDirs = options?.includeDirs ?? true;
+      const includeFiles = options?.includeFiles ?? true;
+      const exts = options?.exts;
+      const skip = options?.skip;
+
+      const walkDir = async function* (
+        dir: string,
+      ): AsyncIterable<WalkEntry> {
+        const entries = await nodeFsPromises.readdir(dir, {
+          withFileTypes: true,
+        });
+
+        for (const entry of entries) {
+          const entryPath = nodePath.join(dir, entry.name);
+
+          if (skip?.some((pattern) => pattern.test(entryPath))) {
+            continue;
+          }
+
+          const isSymlink = entry.isSymbolicLink();
+
+          if (entry.isDirectory()) {
+            if (includeDirs) {
+              yield {
+                path: entryPath,
+                name: entry.name,
+                isFile: false,
+                isDirectory: true,
+                isSymlink,
+              };
+            }
+            yield* walkDir(entryPath);
+          } else if (entry.isFile() || isSymlink) {
+            if (!includeFiles) {
+              continue;
+            }
+            if (
+              exts &&
+              !exts.some((ext) =>
+                entry.name.endsWith(ext.startsWith(".") ? ext : `.${ext}`)
+              )
+            ) {
+              continue;
+            }
+            yield {
+              path: entryPath,
+              name: entry.name,
+              isFile: entry.isFile(),
+              isDirectory: false,
+              isSymlink,
+            };
+          }
+        }
+      };
+
+      yield* walkDir(root);
     },
   };
 };

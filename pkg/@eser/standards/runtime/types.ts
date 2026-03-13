@@ -318,6 +318,52 @@ export interface RuntimeFs {
    * ```
    */
   watch(paths: string[], options?: WatchOptions): FsWatcher;
+
+  /**
+   * Recursively walk a directory tree, yielding matching entries.
+   *
+   * @param root - Root directory to walk
+   * @param options - Filtering options
+   * @returns AsyncIterable of walk entries
+   *
+   * @example
+   * ```typescript
+   * for await (const entry of current.fs.walk("src", { exts: [".ts"] })) {
+   *   console.log(entry.path);
+   * }
+   * ```
+   */
+  walk(root: string, options?: WalkOptions): AsyncIterable<WalkEntry>;
+}
+
+/**
+ * Entry yielded by the walk() filesystem operation.
+ */
+export interface WalkEntry {
+  /** Full path to the entry */
+  readonly path: string;
+  /** Entry name (basename only) */
+  readonly name: string;
+  /** True if this is a regular file */
+  readonly isFile: boolean;
+  /** True if this is a directory */
+  readonly isDirectory: boolean;
+  /** True if this is a symbolic link */
+  readonly isSymlink: boolean;
+}
+
+/**
+ * Options for the walk() filesystem operation.
+ */
+export interface WalkOptions {
+  /** Include directories in results (default: true) */
+  readonly includeDirs?: boolean;
+  /** Include files in results (default: true) */
+  readonly includeFiles?: boolean;
+  /** Only include files with these extensions (e.g., [".ts", ".tsx"]) */
+  readonly exts?: readonly string[];
+  /** RegExp patterns — skip entries whose path matches any pattern */
+  readonly skip?: readonly RegExp[];
 }
 
 // =============================================================================

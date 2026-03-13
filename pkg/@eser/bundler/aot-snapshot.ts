@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as colors from "@std/fmt/colors";
+import * as colors from "@eser/shell/formatting/colors";
 import { current, NotFoundError } from "@eser/standards/runtime";
 import { type BuildSnapshot, type BuildSnapshotSerialized } from "./mod.ts";
 import { setBuildId } from "./build-id.ts";

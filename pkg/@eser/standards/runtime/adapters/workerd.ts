@@ -65,6 +65,7 @@ const createWorkerdFs = (): RuntimeFs => {
     makeTempDir: throwNotAvailable,
     realPath: throwNotAvailable,
     watch: throwNotAvailable,
+    walk: throwNotAvailable,
   };
 };
 

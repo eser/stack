@@ -29,7 +29,7 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import * as fmtColors from "@std/fmt/colors";
+import * as fmtColors from "@eser/shell/formatting/colors";
 import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as shellArgs from "@eser/shell/args";

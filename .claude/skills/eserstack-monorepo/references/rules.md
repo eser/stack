@@ -153,10 +153,9 @@ Rule: All packages share one version. Never manually edit version fields.
 Correct:
 
 ```bash
-deno run --allow-all ./pkg/@eser/codebase/versions.ts patch    # 4.0.43 → 4.0.44
-deno run --allow-all ./pkg/@eser/codebase/versions.ts minor    # 4.0.43 → 4.1.0
-make version-bump TYPE=patch                                   # Makefile shortcut
-deno task version:bump-patch                                   # npm script shortcut
+deno task cli codebase versions patch    # 4.0.43 → 4.0.44
+deno task cli codebase versions minor    # 4.0.43 → 4.1.0
+make version-bump TYPE=patch             # Makefile shortcut
 ```
 
 Incorrect:

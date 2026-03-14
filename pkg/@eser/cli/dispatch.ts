@@ -21,10 +21,22 @@ export const showPackageHelp = (packageName: string): void => {
 
   console.log(`eser ${packageName} - ${pkg.description}\n`);
   console.log(`Usage: eser ${packageName} <module> [options]\n`);
-  console.log("Modules:");
 
+  // Group modules by category
+  const grouped = new Map<string, [string, typeof pkg.modules[string]][]>();
   for (const [name, entry] of Object.entries(pkg.modules)) {
-    console.log(`  ${name.padEnd(24)} ${entry.description}`);
+    const category = entry.category ?? "Modules";
+    const group = grouped.get(category) ?? [];
+    group.push([name, entry]);
+    grouped.set(category, group);
+  }
+
+  for (const [category, modules] of grouped) {
+    console.log(`${category}:`);
+    for (const [name, entry] of modules) {
+      console.log(`  ${name.padEnd(24)} ${entry.description}`);
+    }
+    console.log();
   }
 
   if (pkg.aliases !== undefined && Object.keys(pkg.aliases).length > 0) {
@@ -60,7 +72,7 @@ export const dispatch = async (
     });
   }
 
-  // Resolve aliases (e.g., "validate" → "validation")
+  // Resolve aliases (e.g., "init" → "scaffolding")
   const resolvedName = pkg.aliases?.[moduleName] ?? moduleName;
   const entry = pkg.modules[resolvedName];
 

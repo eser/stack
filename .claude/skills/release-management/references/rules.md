@@ -14,7 +14,7 @@ Rule: Complete all steps in order before merging to main.
 
 2. **Bump version:**
    ```bash
-   deno run --allow-all ./pkg/@eser/codebase/versions.ts <patch|minor|major>
+   deno task cli codebase versions <patch|minor|major>
    ```
 
 3. **Update CHANGELOG.md:**
@@ -76,7 +76,7 @@ Rule: Hotfixes branch from main, not dev.
 
 1. Branch from main: `git checkout -b hotfix/<description> main`
 2. Fix the issue
-3. Bump patch version: `deno run --allow-all ./pkg/@eser/codebase/versions.ts patch`
+3. Bump patch version: `deno task cli codebase versions patch`
 4. Update CHANGELOG with hotfix entry
 5. PR directly to main
 6. After merge, cherry-pick or merge back to dev

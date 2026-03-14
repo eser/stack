@@ -22,9 +22,6 @@
     "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --trace-leaks --coverage=./etc/coverage/",
     "test": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --watch",
     "validate:fix": "deno task cli workflows run -e precommit --fix",
-    "validate": "deno task cli workflows run -e precommit",
-    "version:bump-patch": "deno run --allow-all ./pkg/@eser/codebase/versions.ts patch",
-    "version:bump-minor": "deno run --allow-all ./pkg/@eser/codebase/versions.ts minor",
-    "version:bump-major": "deno run --allow-all ./pkg/@eser/codebase/versions.ts major"
+    "validate": "deno task cli workflows run -e precommit"
   }
 }

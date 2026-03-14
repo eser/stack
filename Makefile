@@ -48,10 +48,10 @@ container: ## Build Docker image
 	deno task container:build
 
 version-bump: ## Bump version across all packages (usage: make version-bump TYPE=patch)
-	deno run --allow-all ./pkg/@eser/codebase/versions.ts $(TYPE)
+	deno task cli codebase versions $(TYPE)
 
 tag: ## Create and push a release tag from VERSION file
-	deno run --allow-all ./pkg/@eser/codebase/release-tag.ts
+	deno task cli codebase release-tag
 
 retag: ## Delete and recreate the current version tag (usage: make retag)
 	@VERSION=$$(cat VERSION); \
@@ -78,11 +78,11 @@ release: ## Full release: bump, changelog, commit, tag, push (usage: make releas
 		if [ "$$REPLY" != "y" ] && [ "$$REPLY" != "Y" ]; then exit 1; fi; \
 	fi
 	@if [ "$(TYPE)" != "same" ]; then \
-		deno run --allow-all ./pkg/@eser/codebase/versions.ts $(TYPE); \
+		deno task cli codebase versions $(TYPE); \
 	else \
 		echo "Skipping version bump (TYPE=same), using VERSION: $$(cat VERSION)"; \
 	fi
-	deno run --allow-all ./pkg/@eser/codebase/changelog-gen.ts
+	deno task cli codebase changelog-gen
 	deno fmt CHANGELOG.md
 	@VERSION=$$(cat VERSION); \
 	git add VERSION CHANGELOG.md pkg/*/deno.json pkg/*/package.json package.json && \
@@ -92,10 +92,10 @@ release: ## Full release: bump, changelog, commit, tag, push (usage: make releas
 	echo "Watch: https://github.com/eser/stack/actions"
 
 release-notes: ## Sync CHANGELOG to GitHub Releases
-	deno run --allow-all ./pkg/@eser/codebase/release-notes.ts
+	deno task cli codebase release-notes
 
 changelog: ## Generate CHANGELOG entry from commits (usage: make changelog)
-	deno run --allow-all ./pkg/@eser/codebase/changelog-gen.ts
+	deno task cli codebase changelog-gen
 
 go-ok: ## Run Go validation (fmt, vet, lint, tests)
 	cd apps/services && $(MAKE) ok

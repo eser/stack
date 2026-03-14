@@ -10,7 +10,7 @@ Multi-language monorepo: Deno/TypeScript packages (JSR/npm) + Go services.
 ## Quick Start
 
 1. Each package: `pkg/@eser/<name>/` with `deno.json`, `mod.ts`, `mod.test.ts`
-2. Unified version — use `deno run --allow-all ./pkg/@eser/codebase/versions.ts <patch|minor|major>`
+2. Unified version — use `deno task cli codebase versions <patch|minor|major>`
 3. JSR primary (`deno publish`), npm secondary (only `@eser/cli`)
 4. Run `deno task validate` to check entire monorepo
 

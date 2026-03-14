@@ -144,7 +144,10 @@ export const main = async (): Promise<shellArgs.CliResult<void>> => {
   if (command in registry) {
     const moduleName = args._[1] as string | undefined;
 
-    if (moduleName === undefined || args.help === true) {
+    if (
+      moduleName === undefined || moduleName === "--help" ||
+      moduleName === "-h" || args.help === true
+    ) {
       showPackageHelp(command);
       return results.ok(undefined);
     }

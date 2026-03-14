@@ -68,4 +68,4 @@ jobs:
             args+=(--create-if-missing)
           fi
 
-          deno run --allow-read --allow-write --allow-run=gh --allow-env pkg/@eser/codebase/release-notes.ts "${args[@]}"
+          deno run --allow-read --allow-write --allow-run=gh --allow-env ./pkg/@eser/codebase/release-notes.ts "${args[@]}"

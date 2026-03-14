@@ -61,4 +61,8 @@ jobs:
           git push origin "$TAG"
 
           echo "### ✓ Tagged $TAG" >> $GITHUB_STEP_SUMMARY
-          echo "Deployment pipeline will start automatically." >> $GITHUB_STEP_SUMMARY
+
+      - name: Trigger deployment pipeline
+        run: gh workflow run deployment.yml --ref "v$(cat VERSION)"
+        env:
+          GH_TOKEN: ${{ github.token }}

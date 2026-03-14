@@ -290,7 +290,14 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
         };
       }
 
-      const result = validateCommitMsg.validateCommitMsg(message);
+      const result = validateCommitMsg.validateCommitMsg(message, {
+        allowAsterisk: options["allowAsterisk"] as boolean | undefined,
+        allowMultipleScopes: options["allowMultipleScopes"] as
+          | boolean
+          | undefined,
+        forceScope: options["forceScope"] as boolean | undefined,
+        types: options["types"] as string[] | undefined,
+      });
       return {
         name: "validate-commit-msg",
         passed: result.valid,

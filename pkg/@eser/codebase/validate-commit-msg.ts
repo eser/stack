@@ -4,7 +4,6 @@
  * Commit message checker — validates conventional commit format.
  *
  * Format: `type(scope): message`
- * Required scopes: ci, chore, docs, feat, fix, perf, refactor, revert, test
  *
  * Can be used as a git commit-msg hook or standalone validator.
  *
@@ -23,7 +22,7 @@ const output = shell.formatting.createOutput();
 // Validation logic (pure)
 // =============================================================================
 
-const VALID_TYPES = new Set([
+const DEFAULT_TYPES = [
   "ci",
   "chore",
   "docs",
@@ -33,9 +32,23 @@ const VALID_TYPES = new Set([
   "refactor",
   "revert",
   "test",
-]);
+];
 
 const CONVENTIONAL_PATTERN = /^(\w+)(?:\(([^)]+)\))?!?:\s{1,5}.+$/;
+
+/**
+ * Options for commit message validation.
+ */
+export type CommitMsgOptions = {
+  /** Allow `*` as a scope meaning "all packages". Default: true. */
+  readonly allowAsterisk?: boolean;
+  /** Allow comma-separated scopes like `feat(a,b): msg`. Default: true. */
+  readonly allowMultipleScopes?: boolean;
+  /** Require a scope. Default: false. */
+  readonly forceScope?: boolean;
+  /** Allowed commit types. Default: ci, chore, docs, feat, fix, perf, refactor, revert, test. */
+  readonly types?: readonly string[];
+};
 
 /**
  * Result of validating a commit message.
@@ -48,7 +61,15 @@ export type CommitMsgResult = {
 /**
  * Validate a commit message against conventional commit format.
  */
-export const validateCommitMsg = (message: string): CommitMsgResult => {
+export const validateCommitMsg = (
+  message: string,
+  options: CommitMsgOptions = {},
+): CommitMsgResult => {
+  const allowAsterisk = options.allowAsterisk ?? true;
+  const allowMultipleScopes = options.allowMultipleScopes ?? true;
+  const forceScope = options.forceScope ?? false;
+  const validTypes = new Set(options.types ?? DEFAULT_TYPES);
+
   const issues: string[] = [];
 
   // Take first line only
@@ -74,14 +95,41 @@ export const validateCommitMsg = (message: string): CommitMsgResult => {
   const type = match[1]!.toLowerCase();
   const scope = match[2];
 
-  if (!VALID_TYPES.has(type)) {
+  if (!validTypes.has(type)) {
     issues.push(
-      `invalid type "${type}". Must be one of: ${[...VALID_TYPES].join(", ")}`,
+      `invalid type "${type}". Must be one of: ${[...validTypes].join(", ")}`,
     );
   }
 
-  if (scope === undefined || scope.trim() === "") {
+  if (forceScope && (scope === undefined || scope.trim() === "")) {
     issues.push("scope is required: use type(scope): message");
+  }
+
+  if (scope !== undefined && scope.trim() !== "") {
+    // Check asterisk scope
+    if (scope === "*" && !allowAsterisk) {
+      issues.push(
+        'wildcard scope "*" is not allowed (allowAsterisk is false)',
+      );
+    }
+
+    // Check multiple scopes
+    if (scope.includes(",")) {
+      if (!allowMultipleScopes) {
+        issues.push(
+          "multiple scopes are not allowed (allowMultipleScopes is false)",
+        );
+      } else {
+        // Validate each scope is non-empty
+        const scopes = scope.split(",").map((s) => s.trim());
+        const emptyScopes = scopes.filter((s) => s === "");
+        if (emptyScopes.length > 0) {
+          issues.push(
+            "invalid scope: each comma-separated scope must be non-empty",
+          );
+        }
+      }
+    }
   }
 
   return { valid: issues.length === 0, issues };
@@ -113,7 +161,9 @@ export const main = async (
     );
     console.log("Usage:");
     console.log("  eser codebase validate-commit-msg <commit-msg-file>");
-    console.log("  eser codebase validate-commit-msg --message 'feat(x): msg'");
+    console.log(
+      "  eser codebase validate-commit-msg --message 'feat(x): msg'",
+    );
     return primitives.results.ok(undefined);
   }
 

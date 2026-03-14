@@ -1,4 +1,4 @@
-.PHONY: help init ok fix test test-watch lint fmt check build docs docs-lint clean repl container version-bump tag release release-notes changelog go-ok go-test go-lint go-fmt go-build
+.PHONY: help init ok fix test test-watch lint fmt check build docs docs-lint clean repl container version-bump tag retag release release-notes changelog go-ok go-test go-lint go-fmt go-build
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -54,6 +54,15 @@ version-bump: ## Bump version across all packages (usage: make version-bump TYPE
 tag: ## Create and push a release tag from VERSION file
 	deno run --allow-all ./pkg/@eser/codebase/release-tag.ts
 
+retag: ## Delete and recreate the current version tag (usage: make retag)
+	@VERSION=$$(cat VERSION); \
+	TAG="v$$VERSION"; \
+	echo "Deleting tag $$TAG (local + remote)..."; \
+	git tag -d "$$TAG" 2>/dev/null || true; \
+	git push origin ":refs/tags/$$TAG" 2>/dev/null || true; \
+	$(MAKE) tag; \
+	echo "✓ Re-tagged $$TAG — CI will validate and publish"
+
 release: ## Full release: bump, changelog, commit, tag, push (usage: make release TYPE=patch|minor|major|same)
 	@if [ -z "$(TYPE)" ]; then echo "Usage: make release TYPE=patch|minor|major|same"; exit 1; fi
 	@if [ -n "$$(git status --porcelain)" ]; then \
@@ -75,6 +84,7 @@ release: ## Full release: bump, changelog, commit, tag, push (usage: make releas
 		echo "Skipping version bump (TYPE=same), using VERSION: $$(cat VERSION)"; \
 	fi
 	deno run --allow-all ./pkg/@eser/codebase/changelog-gen.ts
+	deno fmt CHANGELOG.md
 	@VERSION=$$(cat VERSION); \
 	git add VERSION CHANGELOG.md pkg/*/deno.json pkg/*/package.json package.json && \
 	git commit -m "chore(codebase): release v$$VERSION" && \

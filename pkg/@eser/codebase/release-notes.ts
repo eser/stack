@@ -252,7 +252,9 @@ export const syncReleaseNotes = async (
   }
 
   // Write notes to a temp file for gh CLI
-  const tempDir = await Deno.makeTempDir({ prefix: "eserstack-release-" });
+  const tempDir = await standards.runtime.current.fs.makeTempDir({
+    prefix: "eserstack-release-",
+  });
   const notesPath = stdPath.join(tempDir, `${targetTag}-notes.md`);
   await standards.runtime.current.fs.writeTextFile(notesPath, entry.notes);
 
@@ -285,7 +287,7 @@ export const syncReleaseNotes = async (
       return { tag: targetTag, entry, action: "updated" };
     }
   } finally {
-    await Deno.remove(tempDir, { recursive: true });
+    await standards.runtime.current.fs.remove(tempDir, { recursive: true });
   }
 };
 
@@ -308,7 +310,7 @@ const cliAdapter: functions.handler.Adapter<
   event,
 ) => {
   const repo = (event.flags["repo"] as string | undefined) ??
-    Deno.env.get("GITHUB_REPOSITORY") ?? "";
+    standards.runtime.current.env.get("GITHUB_REPOSITORY") ?? "";
 
   if (repo === "") {
     return primitives.results.fail(

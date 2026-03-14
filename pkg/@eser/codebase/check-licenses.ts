@@ -75,6 +75,7 @@ export type ValidateLicensesResult = {
 
 const EXCLUDES = [
   /docs\/*$/,
+  /dist\/*$/,
   /etc\/coverage\/*$/,
   /etc\/temp\/*$/,
   /etc\/templates\/*$/,

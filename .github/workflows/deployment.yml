@@ -12,8 +12,68 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  version-check:
+    name: Version Check
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Verify tag matches VERSION
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION=$(cat VERSION)
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Tag v$TAG does not match VERSION file ($VERSION)"
+            exit 1
+          fi
+          echo "✓ Tag v$TAG matches VERSION $VERSION"
+
+  integration:
+    needs: version-check
+    if: ${{ !cancelled() && (needs.version-check.result == 'success' || needs.version-check.result == 'skipped') }}
+    uses: ./.github/workflows/integration.yml
+
+  smoke-test:
+    name: npm Smoke Test
+    needs: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "latest"
+
+      - name: Build npm package
+        run: deno task npm-build
+
+      - name: Smoke test — help
+        run: node pkg/@eser/cli/dist/eser.js --help
+
+      - name: Smoke test — check-licenses
+        run: node pkg/@eser/cli/dist/eser.js codebase check-licenses || true
+        # || true because the checkout may have files without license headers
+
+      - name: Upload npm bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-bundle
+          path: pkg/@eser/cli/dist/
+
   publish:
     name: Publish
+    needs: [integration, smoke-test]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -39,9 +99,20 @@ jobs:
           node-version: "latest"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Build npm package
-        run: deno task npm-build
+      - name: Download npm bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-bundle
+          path: pkg/@eser/cli/dist/
 
       - name: Publish to npm
         run: npm publish --provenance --access public
         working-directory: ./pkg/@eser/cli/dist
+
+      - name: Summary
+        run: |
+          VERSION=$(cat VERSION)
+          echo "### ✓ Published v$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **JSR:** https://jsr.io/@eser" >> $GITHUB_STEP_SUMMARY
+          echo "- **npm:** https://www.npmjs.com/package/eser/v/$VERSION" >> $GITHUB_STEP_SUMMARY

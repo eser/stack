@@ -90,25 +90,38 @@ Go Services (independent versioning, apps/services/)
 ## Build Pipeline
 
 ```
-Developer pushes code
-        │
-        ├── build.yml — Integrity Pipeline (every push/PR)
-        │   ├── Integration job
-        │   │   ├── Setup: Python + Deno + Go
-        │   │   ├── pre-commit hooks (fmt, lint, typos, kebab-case, license headers)
-        │   │   ├── Deno validation (fmt, lint, license, types, tests)
-        │   │   ├── Go validation (vet, lint, tests) — via make ok chain
-        │   │   └── Coverage generation → Codecov
-        │
-        ├── deployment.yml — Deployment Pipeline (version tags only)
-        │   ├── deno publish → JSR (all TS packages, OIDC auth)
-        │   └── npm-build + npm publish → npm (@eser/cli only)
-        │
-        ├── pr-labeler.yml (PRs only)
-        │   └── Auto-label based on changed file paths
-        │
-        └── codeql-analysis.yml (main branch)
-            └── JavaScript security scanning
+Developer runs:  make release TYPE=patch
+                 ├─ versions.ts (bump VERSION + sync packages)
+                 ├─ changelog-gen.ts (auto-generate CHANGELOG)
+                 ├─ git commit + make tag (reuses release-tag.ts)
+                 │
+                 ▼
+┌─ ANY PUSH ─────────────────────────────┐
+│  build.yml (Integrity Pipeline)        │
+│  ├─ integration.yml (reusable)         │
+│  │   └─ pre-commit/action → make ok   │
+│  └─ coverage → codecov                │
+└────────────────────────────────────────┘
+
+┌─ TAG v*.*.* ───────────────────────────┐
+│  deployment.yml (Deployment Pipeline)  │
+│  ├─ version-check (tag == VERSION)     │
+│  ├─ integration.yml (reusable)         │
+│  ├─ smoke-test (node dist/eser.js)     │
+│  │   └─ uploads npm bundle artifact    │
+│  └─ publish (JSR + npm + summary)      │
+│       └─ downloads npm bundle artifact │
+└────────────────────────────────────────┘
+
+┌─ TAG v* ───────────────────────────────┐
+│  release-notes-sync.yml                │
+│  └─ CHANGELOG.md → GitHub Release      │
+└────────────────────────────────────────┘
+
+┌─ OTHER ────────────────────────────────┐
+│  pr-labeler.yml (PRs only)             │
+│  codeql.yml (main branch + schedule)   │
+└────────────────────────────────────────┘
 ```
 
 ## Design Principles

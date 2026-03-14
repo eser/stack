@@ -21,7 +21,7 @@ on:
         type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ${{ github.ref }}-integrity
@@ -31,3 +31,34 @@ jobs:
   integration:
     uses: ./.github/workflows/integration.yml
     secrets: inherit
+
+  tag-release:
+    name: Tag Release
+    needs: integration
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'chore(codebase): release v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Create and push version tag
+        run: |
+          VERSION=$(cat VERSION)
+          TAG="v$VERSION"
+
+          # Remove existing tag if present (idempotent for re-releases)
+          git tag -d "$TAG" 2>/dev/null || true
+          git push origin ":refs/tags/$TAG" 2>/dev/null || true
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+          echo "### ✓ Tagged $TAG" >> $GITHUB_STEP_SUMMARY
+          echo "Deployment pipeline will start automatically." >> $GITHUB_STEP_SUMMARY

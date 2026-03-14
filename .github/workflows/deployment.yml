@@ -39,14 +39,10 @@ jobs:
           fi
           echo "✓ Tag v$TAG matches VERSION $VERSION"
 
-  integration:
-    needs: version-check
-    if: ${{ !cancelled() && (needs.version-check.result == 'success' || needs.version-check.result == 'skipped') }}
-    uses: ./.github/workflows/integration.yml
-
   smoke-test:
     name: npm Smoke Test
-    needs: integration
+    needs: version-check
+    if: ${{ !cancelled() && (needs.version-check.result == 'success' || needs.version-check.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -83,7 +79,7 @@ jobs:
 
   publish:
     name: Publish
-    needs: [integration, smoke-test]
+    needs: [version-check, smoke-test]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

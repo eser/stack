@@ -93,30 +93,32 @@ Go Services (independent versioning, apps/services/)
 Developer runs:  make release TYPE=patch
                  ├─ versions.ts (bump VERSION + sync packages)
                  ├─ changelog-gen.ts (auto-generate CHANGELOG)
-                 ├─ git commit + make tag (reuses release-tag.ts)
-                 │
-                 ▼
-┌─ ANY PUSH ─────────────────────────────┐
-│  build.yml (Integrity Pipeline)        │
-│  ├─ integration.yml (reusable)         │
-│  │   └─ pre-commit/action → make ok   │
-│  └─ coverage → codecov                │
-└────────────────────────────────────────┘
+                 └─ git commit + git push (commit only, no tag)
+                    │
+                    ▼
+┌─ PUSH TO MAIN ────────────────────────┐
+│  build.yml (Integrity Pipeline)       │
+│  ├─ integration.yml (reusable)        │
+│  │   └─ pre-commit/action → make ok  │
+│  └─ tag-release (if release commit    │
+│      && integration passed)           │
+│      └─ creates + pushes v*.*.* tag   │
+└───────────────────────────────────────┘
+              │ tag push
+              ▼
+┌─ TAG v*.*.* ──────────────────────────┐
+│  deployment.yml (Deployment Pipeline) │
+│  ├─ version-check (tag == VERSION)    │
+│  ├─ smoke-test (node dist/eser.js)    │
+│  │   └─ uploads npm bundle artifact   │
+│  └─ publish (JSR + npm + summary)     │
+│       └─ downloads npm bundle artifact│
+└───────────────────────────────────────┘
 
-┌─ TAG v*.*.* ───────────────────────────┐
-│  deployment.yml (Deployment Pipeline)  │
-│  ├─ version-check (tag == VERSION)     │
-│  ├─ integration.yml (reusable)         │
-│  ├─ smoke-test (node dist/eser.js)     │
-│  │   └─ uploads npm bundle artifact    │
-│  └─ publish (JSR + npm + summary)      │
-│       └─ downloads npm bundle artifact │
-└────────────────────────────────────────┘
-
-┌─ TAG v* ───────────────────────────────┐
-│  release-notes-sync.yml                │
-│  └─ CHANGELOG.md → GitHub Release      │
-└────────────────────────────────────────┘
+┌─ TAG v* ──────────────────────────────┐
+│  release-notes-sync.yml               │
+│  └─ CHANGELOG.md → GitHub Release     │
+└───────────────────────────────────────┘
 
 ┌─ OTHER ────────────────────────────────┐
 │  pr-labeler.yml (PRs only)             │

@@ -88,8 +88,9 @@ release: ## Full release: bump, changelog, commit, tag, push (usage: make releas
 	@VERSION=$$(cat VERSION); \
 	git add VERSION CHANGELOG.md pkg/*/deno.json pkg/*/package.json package.json && \
 	git commit -m "chore(codebase): release v$$VERSION" && \
-	$(MAKE) tag && \
-	echo "✓ Released v$$VERSION — CI will validate and publish"
+	git push origin HEAD && \
+	echo "✓ Pushed release v$$VERSION — CI will validate, tag, and publish" && \
+	echo "Watch: https://github.com/eser/stack/actions"
 
 release-notes: ## Sync CHANGELOG to GitHub Releases
 	deno run --allow-all ./pkg/@eser/codebase/release-notes.ts

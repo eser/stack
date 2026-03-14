@@ -26,6 +26,12 @@ and this project adheres to
 - Updated pre-commit hooks: conventional-pre-commit v4.3.0, typos v1.40.0, added
   no-commit-to-branch
 
+## 4.1.3 - 2026-03-14
+
+### Fixed
+
+- **codebase:** resolved some security issues
+
 ## 4.1.2 - 2026-03-14
 
 ### Added

@@ -26,6 +26,14 @@ and this project adheres to
 - Updated pre-commit hooks: conventional-pre-commit v4.3.0, typos v1.40.0, added
   no-commit-to-branch
 
+## 4.1.5 - 2026-03-14
+
+### Added
+
+- **codebase:** categorized codebase tools.
+- **codebase:** updated validate-commit-msg tool to support multiple and
+  asterisk scope.
+
 ## 4.1.4 - 2026-03-14
 
 ### Added

@@ -1,22 +1,18 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Project configuration loading from .eser.yml
+ * Project configuration loading from .manifest.yml
  *
  * @module
  */
 
-import * as yaml from "@std/yaml";
-import { current, NotFoundError } from "@eser/standards/runtime";
+import * as configManifest from "@eser/config/manifest";
 import type { ProjectConfig } from "./types.ts";
-
-/** Config filenames to look for (in order of priority) */
-const CONFIG_FILENAMES = [".eser.yml", ".eser.yaml"];
 
 /**
  * Load project configuration from a directory
  *
- * Looks for .eser.yml or .eser.yaml in the specified directory.
+ * Looks for .manifest.yml or .manifest.yaml in the specified directory.
  *
  * @param dir - Directory to load config from
  * @returns Project configuration or null if no config file exists
@@ -24,24 +20,9 @@ const CONFIG_FILENAMES = [".eser.yml", ".eser.yaml"];
 export const loadProjectConfig = async (
   dir: string,
 ): Promise<ProjectConfig | null> => {
-  for (const filename of CONFIG_FILENAMES) {
-    const filepath = current.path.join(dir, filename);
-
-    try {
-      const content = await current.fs.readTextFile(filepath);
-      const config = yaml.parse(content) as ProjectConfig;
-
-      return config;
-    } catch (error) {
-      // File doesn't exist or can't be read - try next filename
-      if (error instanceof NotFoundError) {
-        continue;
-      }
-      throw error;
-    }
-  }
-
-  return null;
+  const raw = await configManifest.loadManifest(dir);
+  if (raw === null) return null;
+  return raw as ProjectConfig;
 };
 
 /**
@@ -53,16 +34,5 @@ export const loadProjectConfig = async (
 export const getProjectConfigPath = async (
   dir: string,
 ): Promise<string | null> => {
-  for (const filename of CONFIG_FILENAMES) {
-    const filepath = current.path.join(dir, filename);
-
-    try {
-      await current.fs.stat(filepath);
-      return filepath;
-    } catch {
-      continue;
-    }
-  }
-
-  return null;
+  return await configManifest.getManifestPath(dir);
 };

@@ -7,7 +7,7 @@
  *
  * Library usage:
  * ```typescript
- * import * as circularDeps from "@eser/codebase/check-circular-deps";
+ * import * as circularDeps from "@eser/codebase/validate-circular-deps";
  *
  * const result = await circularDeps.checkCircularDeps();
  * if (result.hasCycles) {
@@ -16,7 +16,7 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./check-circular-deps.ts
+ *   deno run --allow-all ./validate-circular-deps.ts
  *
  * @module
  */
@@ -230,7 +230,7 @@ export const handleCli: (
 export const main = async (
   _cliArgs?: readonly string[],
 ): Promise<shell.args.CliResult<void>> =>
-  await handleCli({ command: "check-circular-deps", args: [], flags: {} });
+  await handleCli({ command: "validate-circular-deps", args: [], flags: {} });
 
 if (import.meta.main) {
   runCliMain(await main());

@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkDocs } from "../../check-docs.ts";
+import { checkDocs } from "../../validate-docs.ts";
 import type { Validator, ValidatorResult } from "../types.ts";
 
 /**
@@ -15,7 +15,7 @@ import type { Validator, ValidatorResult } from "../types.ts";
  * This validator requires the 'javascript' stack (TypeScript specific).
  */
 export const docsValidator: Validator = {
-  name: "docs",
+  name: "validate-docs",
   description: "Validate JSDoc documentation",
   requiredStacks: ["javascript"],
 
@@ -29,7 +29,7 @@ export const docsValidator: Validator = {
     });
 
     return {
-      name: "docs",
+      name: "validate-docs",
       passed: result.isValid,
       issues: result.issues.map((issue) => ({
         severity: "error",

@@ -8,7 +8,7 @@
  *
  * Library usage:
  * ```typescript
- * import * as docs from "@eser/codebase/check-docs";
+ * import * as docs from "@eser/codebase/validate-docs";
  *
  * const result = await docs.checkDocs();
  * if (!result.isValid) {
@@ -17,7 +17,7 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./check-docs.ts
+ *   deno run --allow-all ./validate-docs.ts
  *
  * @module
  */
@@ -348,7 +348,7 @@ export const handleCli: (
 export const main = async (
   _cliArgs?: readonly string[],
 ): Promise<shell.args.CliResult<void>> =>
-  await handleCli({ command: "check-docs", args: [], flags: {} });
+  await handleCli({ command: "validate-docs", args: [], flags: {} });
 
 if (import.meta.main) {
   runCliMain(await main());

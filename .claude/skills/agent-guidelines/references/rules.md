@@ -163,4 +163,4 @@ Rule: Follow this 5-step protocol. Never skip steps.
 | Linting | Deno built-in linter with 23 custom rules |
 | Formatting | Deno built-in formatter |
 | CI/CD | GitHub Actions with Codecov coverage |
-| Pre-commit | 20+ hooks including validation, kebab-case, typos, conventional commits |
+| @eser/codebase | 20+ hooks including validation, kebab-case, typos, conventional commits |

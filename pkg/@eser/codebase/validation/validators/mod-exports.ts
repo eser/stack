@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkModExports } from "../../check-mod-exports.ts";
+import { checkModExports } from "../../validate-mod-exports.ts";
 import type { Validator, ValidatorResult } from "../types.ts";
 
 /**
@@ -15,7 +15,7 @@ import type { Validator, ValidatorResult } from "../types.ts";
  * This validator requires the 'javascript' stack (TypeScript/Deno specific).
  */
 export const modExportsValidator: Validator = {
-  name: "mod-exports",
+  name: "validate-mod-exports",
   description: "Validate mod.ts exports all files",
   requiredStacks: ["javascript"],
 
@@ -23,7 +23,7 @@ export const modExportsValidator: Validator = {
     const result = await checkModExports({ root: options.root });
 
     return {
-      name: "mod-exports",
+      name: "validate-mod-exports",
       passed: result.isComplete,
       issues: result.missingExports.map((missing) => ({
         severity: "error",

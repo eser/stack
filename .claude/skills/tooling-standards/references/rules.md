@@ -372,3 +372,75 @@ indent_style = tab
   "go.lintOnSave": "workspace"
 }
 ```
+
+---
+
+## Codebase File Tools
+
+### File Tool Factory Pattern
+
+Scope: @eser/codebase file check/fix tools
+
+Rule: Use `createFileTool()` factory for all file-based codebase tools. Pure
+`checkFile`/`checkAll` logic returns issues. Fixers return `{path, oldContent, newContent}`
+mutations — never write to disk directly.
+
+Correct:
+```typescript
+export const tool: FileTool = createFileTool({
+  name: "fix-eof",
+  description: "Ensure files end with newline",
+  canFix: true,
+  stacks: [],
+  defaults: {},
+  checkFile(file, content) { /* pure logic */ },
+  fixFile(file, content) { return { path, oldContent, newContent }; },
+});
+```
+
+Incorrect:
+```typescript
+// Don't write files inside check/fix logic
+fixFile(file, content) {
+  await fs.writeTextFile(file.path, fixed); // BAD — side effect
+}
+```
+
+---
+
+### @eser/functions Integration
+
+Scope: All codebase tools and CLI commands
+
+Rule: Tools use Handler/Adapter/ResponseMapper from `@eser/functions`. Handler = pure
+logic, Adapter = input transform (CLI/MCP/agent), ResponseMapper = output format.
+
+---
+
+### Runtime Abstraction
+
+Scope: All @eser/* packages
+
+Rule: Use `@eser/standards/runtime` for all filesystem, exec, and env access. Never use
+`Deno.*` directly. Enables cross-runtime (Deno/Node/Bun) and testability.
+
+Correct:
+```typescript
+import { current } from "@eser/standards/runtime";
+const content = await current.fs.readTextFile(path);
+```
+
+Incorrect:
+```typescript
+const content = await Deno.readTextFile(path); // BAD — Deno-specific
+```
+
+---
+
+### Walk-Once Pipeline
+
+Scope: @eser/codebase validation system
+
+Rule: When running multiple tools via `validate`, walk the filesystem once and pass the
+file list to all validators. Fixers return mutations; the runner applies between tools
+and writes to disk at the end. This enables dry-run and transactional rollback.

@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkPackageConfigs } from "../../check-package-configs.ts";
+import { checkPackageConfigs } from "../../validate-package-configs.ts";
 import type { Validator, ValidatorIssue, ValidatorResult } from "../types.ts";
 
 /**
@@ -15,7 +15,7 @@ import type { Validator, ValidatorIssue, ValidatorResult } from "../types.ts";
  * This validator requires the 'javascript' stack (npm + Deno).
  */
 export const packageConfigsValidator: Validator = {
-  name: "package-configs",
+  name: "validate-package-configs",
   description: "Validate deno.json/package.json consistency",
   requiredStacks: ["javascript"],
 
@@ -48,7 +48,7 @@ export const packageConfigsValidator: Validator = {
     }
 
     return {
-      name: "package-configs",
+      name: "validate-package-configs",
       passed: result.isConsistent,
       issues,
       stats: { packagesChecked: result.packagesChecked },

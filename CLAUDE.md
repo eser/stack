@@ -33,7 +33,8 @@ make go-ok    # Go-only validation
 
 ## Absolute Rules
 
-- Run `make ok` before committing (same as `pre-commit run --all-files`)
+- Run `make ok` before committing (runs
+  `deno task cli workflows run -e precommit`)
 - One package per task — load `agent-guidelines` for cross-package protocol
 - TS packages share one version — load `release-management` for bumping
 - Go modules use independent git-tag versioning (NOT the version-bump script)

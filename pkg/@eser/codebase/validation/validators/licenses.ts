@@ -6,7 +6,7 @@
  * @module
  */
 
-import { validateLicenses } from "../../check-licenses.ts";
+import { validateLicenses } from "../../validate-licenses.ts";
 import type { Validator, ValidatorResult } from "../types.ts";
 
 /**
@@ -15,7 +15,7 @@ import type { Validator, ValidatorResult } from "../types.ts";
  * This validator requires the 'javascript' stack (JS/TS specific).
  */
 export const licensesValidator: Validator = {
-  name: "licenses",
+  name: "validate-licenses",
   description: "Validate license headers",
   requiredStacks: ["javascript"],
 
@@ -27,7 +27,7 @@ export const licensesValidator: Validator = {
     });
 
     return {
-      name: "licenses",
+      name: "validate-licenses",
       passed: result.valid,
       issues: result.issues.map((issue) => ({
         severity: "error",

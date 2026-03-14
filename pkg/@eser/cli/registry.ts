@@ -42,16 +42,47 @@ export type PackageEntry = {
  * Static registry of dispatchable packages and modules.
  */
 export const registry: Record<string, PackageEntry> = {
+  workflows: {
+    description: "Workflow engine — run tool pipelines",
+    modules: {
+      run: {
+        description: "Run workflows by event or id",
+        load: async () => {
+          const [workflowsRun, codebaseValidation] = await Promise.all([
+            import("@eser/workflows/run"),
+            import("@eser/codebase/validation"),
+          ]);
+
+          const tools = codebaseValidation.getWorkflowTools();
+
+          return {
+            main: (args?: readonly string[]) =>
+              workflowsRun.main(args, { tools }),
+          };
+        },
+      },
+      list: {
+        description: "List available workflows and tools",
+        load: async () => {
+          const [workflowsList, codebaseValidation] = await Promise.all([
+            import("@eser/workflows/list"),
+            import("@eser/codebase/validation"),
+          ]);
+          const tools = codebaseValidation.getWorkflowTools();
+          return {
+            main: (args?: readonly string[]) =>
+              workflowsList.main(args, { tools }),
+          };
+        },
+      },
+    },
+  },
   codebase: {
     description: "Codebase management tools",
     modules: {
       versions: {
         description: "Manage workspace package versions",
         load: () => import("@eser/codebase/versions"),
-      },
-      validation: {
-        description: "Run codebase validations",
-        load: () => import("@eser/codebase/validation"),
       },
       scaffolding: {
         description: "Initialize project from template",
@@ -65,33 +96,119 @@ export const registry: Record<string, PackageEntry> = {
         description: "Create and push release git tags",
         load: () => import("@eser/codebase/release-tag"),
       },
-      "check-docs": {
+      "validate-docs": {
         description: "Validate JSDoc documentation",
-        load: () => import("@eser/codebase/check-docs"),
+        load: () => import("@eser/codebase/validate-docs"),
       },
-      "check-circular-deps": {
+      "validate-circular-deps": {
         description: "Detect circular dependencies",
-        load: () => import("@eser/codebase/check-circular-deps"),
+        load: () => import("@eser/codebase/validate-circular-deps"),
       },
-      "check-export-names": {
+      "validate-export-names": {
         description: "Validate export naming conventions",
-        load: () => import("@eser/codebase/check-export-names"),
+        load: () => import("@eser/codebase/validate-export-names"),
       },
-      "check-licenses": {
+      "validate-licenses": {
         description: "Validate license headers",
-        load: () => import("@eser/codebase/check-licenses"),
+        load: () => import("@eser/codebase/validate-licenses"),
       },
-      "check-mod-exports": {
+      "validate-mod-exports": {
         description: "Validate mod.ts export coverage",
-        load: () => import("@eser/codebase/check-mod-exports"),
+        load: () => import("@eser/codebase/validate-mod-exports"),
       },
-      "check-package-configs": {
+      "validate-package-configs": {
         description: "Validate package configurations",
-        load: () => import("@eser/codebase/check-package-configs"),
+        load: () => import("@eser/codebase/validate-package-configs"),
+      },
+      "changelog-gen": {
+        description: "Generate CHANGELOG from commits",
+        load: () => import("@eser/codebase/changelog-gen"),
+      },
+      // File tools
+      "validate-eof": {
+        description: "Ensure files end with newline",
+        load: () => import("@eser/codebase/validate-eof"),
+      },
+      "validate-trailing-whitespace": {
+        description: "Remove trailing whitespace",
+        load: () => import("@eser/codebase/validate-trailing-whitespace"),
+      },
+      "validate-bom": {
+        description: "Remove UTF-8 byte order markers",
+        load: () => import("@eser/codebase/validate-bom"),
+      },
+      "validate-line-endings": {
+        description: "Normalize line endings to LF",
+        load: () => import("@eser/codebase/validate-line-endings"),
+      },
+      "validate-large-files": {
+        description: "Detect files exceeding size limit",
+        load: () => import("@eser/codebase/validate-large-files"),
+      },
+      "validate-case-conflict": {
+        description: "Detect case-conflicting filenames",
+        load: () => import("@eser/codebase/validate-case-conflict"),
+      },
+      "validate-merge-conflict": {
+        description: "Detect merge conflict markers",
+        load: () => import("@eser/codebase/validate-merge-conflict"),
+      },
+      "validate-json": {
+        description: "Validate JSON syntax",
+        load: () => import("@eser/codebase/validate-json"),
+      },
+      "validate-toml": {
+        description: "Validate TOML syntax",
+        load: () => import("@eser/codebase/validate-toml"),
+      },
+      "validate-yaml": {
+        description: "Validate YAML syntax",
+        load: () => import("@eser/codebase/validate-yaml"),
+      },
+      "validate-symlinks": {
+        description: "Detect broken symlinks",
+        load: () => import("@eser/codebase/validate-symlinks"),
+      },
+      "validate-shebangs": {
+        description: "Validate shebang consistency",
+        load: () => import("@eser/codebase/validate-shebangs"),
+      },
+      "validate-secrets": {
+        description: "Detect credentials and private keys",
+        load: () => import("@eser/codebase/validate-secrets"),
+      },
+      "validate-filenames": {
+        description: "Enforce filename conventions",
+        load: () => import("@eser/codebase/validate-filenames"),
+      },
+      "validate-submodules": {
+        description: "Detect git submodules",
+        load: () => import("@eser/codebase/validate-submodules"),
+      },
+      "validate-commit-msg": {
+        description: "Validate conventional commit format",
+        load: () => import("@eser/codebase/validate-commit-msg"),
+      },
+      install: {
+        description: "Install git hooks from .manifest.yml",
+        load: () => import("@eser/codebase/install"),
+      },
+      uninstall: {
+        description: "Remove managed git hooks",
+        load: async () => {
+          const mod = await import("@eser/codebase/install");
+          return { main: mod.uninstallMain };
+        },
+      },
+      status: {
+        description: "Show git hook installation status",
+        load: async () => {
+          const mod = await import("@eser/codebase/install");
+          return { main: mod.statusMain };
+        },
       },
     },
     aliases: {
-      validate: "validation",
       init: "scaffolding",
     },
   },

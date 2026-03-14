@@ -23,7 +23,7 @@ export type TemplateVariable = {
 };
 
 /**
- * Template configuration from .eser.yml
+ * Template configuration from .manifest.yml
  */
 export type TemplateConfig = {
   /** Template name */

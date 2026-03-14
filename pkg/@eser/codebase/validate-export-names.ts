@@ -7,7 +7,7 @@
  *
  * Library usage:
  * ```typescript
- * import * as exportNames from "@eser/codebase/check-export-names";
+ * import * as exportNames from "@eser/codebase/validate-export-names";
  *
  * const result = await exportNames.checkExportNames();
  * if (!result.isValid) {
@@ -16,7 +16,7 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./check-export-names.ts
+ *   deno run --allow-all ./validate-export-names.ts
  *
  * @module
  */
@@ -258,7 +258,7 @@ export const handleCli: (
 export const main = async (
   _cliArgs?: readonly string[],
 ): Promise<shell.args.CliResult<void>> =>
-  await handleCli({ command: "check-export-names", args: [], flags: {} });
+  await handleCli({ command: "validate-export-names", args: [], flags: {} });
 
 if (import.meta.main) {
   runCliMain(await main());

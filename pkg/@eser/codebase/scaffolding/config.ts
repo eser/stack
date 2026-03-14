@@ -11,7 +11,7 @@ import { current, NotFoundError } from "@eser/standards/runtime";
 import type { TemplateConfig, TemplateVariable } from "./types.ts";
 
 /** Default config filenames to look for */
-const CONFIG_FILENAMES = [".eser.yml", ".eser.yaml"];
+const CONFIG_FILENAMES = [".manifest.yml", ".manifest.yaml"];
 
 /**
  * Load template configuration from a directory

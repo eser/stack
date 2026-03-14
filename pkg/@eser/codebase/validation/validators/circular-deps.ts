@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkCircularDeps } from "../../check-circular-deps.ts";
+import { checkCircularDeps } from "../../validate-circular-deps.ts";
 import type { Validator, ValidatorResult } from "../types.ts";
 
 /**
@@ -15,7 +15,7 @@ import type { Validator, ValidatorResult } from "../types.ts";
  * This validator runs for all stacks (language-agnostic).
  */
 export const circularDepsValidator: Validator = {
-  name: "circular-deps",
+  name: "validate-circular-deps",
   description: "Detect circular package dependencies",
   requiredStacks: [], // Runs for all stacks
 
@@ -23,7 +23,7 @@ export const circularDepsValidator: Validator = {
     const result = await checkCircularDeps({ root: options.root });
 
     return {
-      name: "circular-deps",
+      name: "validate-circular-deps",
       passed: !result.hasCycles,
       issues: result.cycles.map((cycle) => ({
         severity: "error",

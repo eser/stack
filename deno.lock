@@ -19,6 +19,8 @@
     "jsr:@std/fs@^1.0.22": "1.0.23",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/json@^1.0.2": "1.0.3",
+    "jsr:@std/jsonc@*": "1.0.2",
+    "jsr:@std/jsonc@^1.0.1": "1.0.2",
     "jsr:@std/jsonc@^1.0.2": "1.0.2",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/path@*": "1.1.4",
@@ -29,6 +31,7 @@
     "jsr:@std/tar@~0.1.9": "0.1.10",
     "jsr:@std/testing@^1.0.16": "1.0.17",
     "jsr:@std/toml@^1.0.11": "1.0.11",
+    "jsr:@std/toml@^1.0.5": "1.0.11",
     "jsr:@std/ulid@1": "1.0.0",
     "jsr:@std/yaml@^1.0.10": "1.0.12",
     "npm:@jsr/std__assert@^1.0.16": "1.0.19",
@@ -1820,9 +1823,11 @@
           "jsr:@std/cli@^1.0.25",
           "jsr:@std/fmt@^1.0.8",
           "jsr:@std/fs@^1.0.21",
+          "jsr:@std/jsonc@^1.0.1",
           "jsr:@std/path@^1.1.4",
           "jsr:@std/semver@^1.0.7",
           "jsr:@std/tar@~0.1.9",
+          "jsr:@std/toml@^1.0.5",
           "jsr:@std/yaml@^1.0.10",
           "npm:octokit@^5.0.5"
         ],
@@ -2088,6 +2093,19 @@
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16"
+          ]
+        }
+      },
+      "pkg/@eser/workflows": {
+        "dependencies": [
+          "jsr:@std/assert@^1.0.16",
+          "jsr:@std/cli@^1.0.25",
+          "jsr:@std/yaml@^1.0.10"
+        ],
+        "packageJson": {
+          "dependencies": [
+            "npm:@jsr/std__cli@^1.0.25",
+            "npm:@jsr/std__yaml@^1.0.10"
           ]
         }
       },

@@ -8,7 +8,7 @@
  *
  * Library usage:
  * ```typescript
- * import * as configCheck from "@eser/codebase/check-package-configs";
+ * import * as configCheck from "@eser/codebase/validate-package-configs";
  *
  * const result = await configCheck.checkPackageConfigs();
  * if (!result.isConsistent) {
@@ -17,7 +17,7 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./check-package-configs.ts
+ *   deno run --allow-all ./validate-package-configs.ts
  *
  * @module
  */
@@ -517,7 +517,7 @@ export const handleCli: (
 export const main = async (
   _cliArgs?: readonly string[],
 ): Promise<shell.args.CliResult<void>> =>
-  await handleCli({ command: "check-package-configs", args: [], flags: {} });
+  await handleCli({ command: "validate-package-configs", args: [], flags: {} });
 
 if (import.meta.main) {
   runCliMain(await main());

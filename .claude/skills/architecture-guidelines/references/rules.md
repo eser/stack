@@ -480,3 +480,31 @@ project/
 - Backend services follow hexagonal architecture
 - Shared code goes in packages/ with clear dependencies
 - Each app has its own build configuration
+
+---
+
+## Multi-Context Tool Design
+
+Scope: @eser/codebase tools
+
+Rule: Codebase tools must be context-agnostic. The same pure check/fix logic runs in
+CLI, MCP server, AI agent SDK, or Go service. The runner (Adapter) determines context;
+the tool never assumes its execution environment.
+
+```
+Pure logic (Handler)     Runner (Adapter)          Output (ResponseMapper)
+─────────────────────    ──────────────────        ─────────────────────────
+checkFile() → issues[]   CLI runner                Terminal colors + exit code
+fixFile() → mutations[]  MCP server (IDE tool)     JSON tool results
+                         AI agent (SDK tool)       Structured for LLM
+```
+
+---
+
+## Mutation-Return Pattern
+
+Scope: @eser/codebase fixers
+
+Rule: Fixers never write to disk directly. They return `{path, oldContent, newContent}`
+mutations (Edit-tool-shaped). The runner decides whether to apply, preview, or pass to
+an AI agent for review.

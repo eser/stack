@@ -632,3 +632,23 @@ function processUser(user: User | null): Result {
 - Error handling is visible at the top
 - Main logic flows naturally without indentation
 - Easier to add new validation checks
+
+---
+
+## File Tool Pure Functions
+
+Scope: @eser/codebase check/fix tools
+
+Rule: Check functions receive data, return issues. Fix functions receive data, return
+mutations. Never read from filesystem or write to disk inside check/fix logic — that's
+the runner's job.
+
+---
+
+## Two-Phase File Loading
+
+Scope: @eser/codebase file tools
+
+Rule: Tools receive metadata `{path, name, stat}` first. Call `loadContent(file)` only
+when text content is needed. Tools like `check-large-files` and `check-case-conflict`
+never need content.

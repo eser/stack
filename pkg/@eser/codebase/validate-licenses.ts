@@ -8,7 +8,7 @@
  *
  * Library usage:
  * ```typescript
- * import * as licenses from "@eser/codebase/check-licenses";
+ * import * as licenses from "@eser/codebase/validate-licenses";
  *
  * // Check licenses
  * const result = await licenses.validateLicenses();
@@ -22,8 +22,8 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./check-licenses.ts        # Check licenses
- *   deno run --allow-all ./check-licenses.ts --fix  # Auto-fix missing/incorrect headers
+ *   deno run --allow-all ./validate-licenses.ts        # Check licenses
+ *   deno run --allow-all ./validate-licenses.ts --fix  # Auto-fix missing/incorrect headers
  *
  * @module
  */
@@ -263,7 +263,7 @@ export const main = async (
     (cliArgs ?? []) as string[],
     { boolean: ["fix"] },
   );
-  const event = toCliEvent("check-licenses", parsed);
+  const event = toCliEvent("validate-licenses", parsed);
   return await handleCli(event);
 };
 

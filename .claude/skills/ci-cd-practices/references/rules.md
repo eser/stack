@@ -385,3 +385,40 @@ v1.0.0-dev.1     # Test/development deployment
 - Automatic environment detection
 - Consistent deployment process
 - Easy rollback by re-tagging
+
+---
+
+## Reusable Workflows
+
+Scope: GitHub Actions CI/CD
+
+Rule: Extract shared CI jobs into `.github/workflows/integration.yml` with
+`workflow_call` trigger. Callers use `uses:` + `secrets: inherit`.
+
+---
+
+## Auto-Tag Pattern
+
+Scope: Release pipeline
+
+Rule: Release commits (`chore(codebase): release v*`) are auto-tagged by the
+`tag-release` job in `build.yml` after integration passes. No manual tagging needed.
+
+---
+
+## Permissions Ceiling
+
+Scope: GitHub Actions workflows
+
+Rule: Workflow-level `permissions` sets the ceiling. Job-level permissions restrict
+down. Never use `permissions: {}` — it blocks reusable workflows from requesting
+any permissions.
+
+---
+
+## npm Provenance
+
+Scope: npm publishing
+
+Rule: Use OIDC (`id-token: write`) for npm publish with `--provenance`. Link the
+npm package to the GitHub repo in npm settings. No `NPM_TOKEN` secret needed.

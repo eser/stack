@@ -10,15 +10,16 @@
     "./scaffolding": "./scaffolding/mod.ts",
     "./validation": "./validation/mod.ts",
     "./workspace-discovery": "./workspace-discovery.ts",
-    "./check-circular-deps": "./check-circular-deps.ts",
-    "./check-mod-exports": "./check-mod-exports.ts",
-    "./check-export-names": "./check-export-names.ts",
-    "./check-docs": "./check-docs.ts",
-    "./check-licenses": "./check-licenses.ts",
-    "./check-package-configs": "./check-package-configs.ts",
+    "./validate-circular-deps": "./validate-circular-deps.ts",
+    "./validate-mod-exports": "./validate-mod-exports.ts",
+    "./validate-export-names": "./validate-export-names.ts",
+    "./validate-docs": "./validate-docs.ts",
+    "./validate-licenses": "./validate-licenses.ts",
+    "./validate-package-configs": "./validate-package-configs.ts",
     "./versions": "./versions.ts",
     "./lint-plugin": "./lint-plugin.ts",
-    "./cli-support": "./cli-support.ts"
+    "./cli-support": "./cli-support.ts",
+    "./install": "./install.ts"
   },
   "dependencies": {
     "@eser/config": "workspace:*",

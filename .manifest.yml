@@ -1,0 +1,121 @@
+stack:
+  - javascript
+  - golang
+
+workflows:
+  - id: default
+    on: [precommit, prepush]
+    steps:
+      # Internal tools
+      - validate-eof
+      - validate-trailing-whitespace
+      - validate-bom
+      - validate-line-endings
+      - validate-large-files:
+          maxKb: 1024
+      - validate-case-conflict
+      - validate-merge-conflict
+      - validate-json:
+          exclude:
+            - "etc/templates/vite-app/tsconfig.app.json"
+            - "etc/templates/cf-workers-app/tsconfig.json"
+            - "tsconfig.json"
+      - validate-toml
+      - validate-yaml:
+          allowMultipleDocuments: true
+      - validate-symlinks
+      - validate-shebangs
+      - validate-secrets:
+          allowMissingCredentials: true
+          exclude:
+            - ".claude/skills/"
+      - validate-filenames:
+          rules:
+            - directory: "apps/services/"
+              convention: "snake_case"
+              exclude:
+                - "Dockerfile"
+                - "Makefile"
+                - "README.md"
+            - directory: "*"
+              convention: "kebab-case"
+              exclude:
+                - ".claude/"
+                - ".github/"
+                - ".git/COMMIT_EDITMSG"
+                - "AGENTS.md"
+                - "CHANGELOG.md"
+                - "CLAUDE.md"
+                - "Makefile"
+                - "VERSION"
+                - "apps/services/"
+                - "docs/"
+                - "etc/coverage/"
+                - "etc/temp/"
+                - "etc/templates/*/Makefile"
+                - "etc/templates/*/README.md"
+                - "Dockerfile"
+                - "LICENSE"
+                - "README.md"
+                - "pkg/*/README.md"
+                - "*_test.ts"
+                - "*_test.go"
+      - validate-submodules
+      - validate-licenses
+
+      # Deno checks
+      - shell:
+          name: deno-formatter
+          command: deno fmt --check
+          fixCommand: deno fmt
+      - shell:
+          name: deno-linter
+          command: deno lint
+          fixCommand: deno lint --fix
+      - shell:
+          name: deno-type-check
+          command: deno task check:mod
+          timeout: 120
+      - shell:
+          name: deno-tests
+          command: deno task test:run
+          timeout: 300
+      - shell:
+          name: deno-publish-check
+          command: deno publish --dry-run --allow-dirty
+          timeout: 120
+
+      # Go checks (apps/services)
+      - shell:
+          name: go-check
+          command: "go vet ./... && go build ./..."
+          workingDirectory: ./apps/services/
+          timeout: 120
+      - shell:
+          name: go-lint
+          command: "go tool golangci-lint run ./..."
+          fixCommand: "gofmt -w . && go tool golangci-lint run --fix ./..."
+          workingDirectory: ./apps/services/
+          timeout: 120
+      - shell:
+          name: go-tests
+          command: "go test -race ./..."
+          workingDirectory: ./apps/services/
+          timeout: 300
+
+  - id: commit-validation
+    on: [commitmsg]
+    steps:
+      - validate-commit-msg:
+          forceScope: true
+          strict: true
+          types:
+            - ci
+            - chore
+            - docs
+            - feat
+            - fix
+            - perf
+            - refactor
+            - revert
+            - test

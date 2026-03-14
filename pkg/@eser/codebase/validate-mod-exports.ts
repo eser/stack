@@ -8,7 +8,7 @@
  *
  * Library usage:
  * ```typescript
- * import * as modExports from "@eser/codebase/check-mod-exports";
+ * import * as modExports from "@eser/codebase/validate-mod-exports";
  *
  * const result = await modExports.checkModExports();
  * if (!result.isComplete) {
@@ -17,7 +17,7 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./check-mod-exports.ts
+ *   deno run --allow-all ./validate-mod-exports.ts
  *
  * @module
  */
@@ -280,7 +280,7 @@ export const handleCli: (
 export const main = async (
   _cliArgs?: readonly string[],
 ): Promise<shell.args.CliResult<void>> =>
-  await handleCli({ command: "check-mod-exports", args: [], flags: {} });
+  await handleCli({ command: "validate-mod-exports", args: [], flags: {} });
 
 if (import.meta.main) {
   runCliMain(await main());

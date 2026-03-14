@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkExportNames } from "../../check-export-names.ts";
+import { checkExportNames } from "../../validate-export-names.ts";
 import type { Validator, ValidatorResult } from "../types.ts";
 
 /**
@@ -15,7 +15,7 @@ import type { Validator, ValidatorResult } from "../types.ts";
  * This validator requires the 'javascript' stack (Deno specific).
  */
 export const exportNamesValidator: Validator = {
-  name: "export-names",
+  name: "validate-export-names",
   description: "Validate export naming conventions",
   requiredStacks: ["javascript"],
 
@@ -23,7 +23,7 @@ export const exportNamesValidator: Validator = {
     const result = await checkExportNames({ root: options.root });
 
     return {
-      name: "export-names",
+      name: "validate-export-names",
       passed: result.isValid,
       issues: result.violations.map((violation) => ({
         severity: "error",

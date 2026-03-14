@@ -7,7 +7,7 @@ etc/temp/
 .editorconfig
 .gitattributes
 .gitignore
-.pre-commit-config.yaml
+.manifest.yml
 .tool-versions
 Dockerfile
 LICENSE

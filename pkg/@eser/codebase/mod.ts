@@ -95,4 +95,4 @@ export {
 
 // CLI scripts are accessed via their own entry points in deno.json exports,
 // not through this barrel. Each exports a `main` function which would collide.
-// Import directly: @eser/codebase/check-circular-deps, @eser/codebase/versions, etc.
+// Import directly: @eser/codebase/validate-circular-deps, @eser/codebase/versions, etc.

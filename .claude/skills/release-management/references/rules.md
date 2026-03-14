@@ -115,3 +115,31 @@ All 29+ packages are versioned together — there are no independent package ver
 - Published with provenance: `npm publish --provenance --access public`
 - Working directory: `pkg/@eser/cli/dist`
 - Requires `NODE_AUTH_TOKEN` secret in CI
+
+---
+
+## Release Flow
+
+Scope: Monorepo releases
+
+Rule: `make release TYPE=patch` bumps version, generates CHANGELOG, commits, and pushes.
+CI auto-tags after integration passes. Deployment pipeline publishes on tag push.
+
+---
+
+## Changelog Generation
+
+Scope: Release automation
+
+Rule: `changelog-gen.ts` parses conventional commits since the last tag, deduplicates
+"take" series (e.g., "feat: x (take II)" collapses with "feat: x"), and groups by
+Keep-a-Changelog sections. Idempotent — replaces existing sections for the same version.
+
+---
+
+## Re-Release
+
+Scope: Failed release recovery
+
+Rule: `make retag` deletes and recreates the current version tag. `make release TYPE=same`
+skips version bump for re-releasing after pipeline fixes.

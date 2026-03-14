@@ -32,7 +32,7 @@ export type ValidatorIssue = {
 export type ValidatorOptions = {
   /** Root directory to validate */
   readonly root: string;
-  /** Validator-specific options from .eser.yml */
+  /** Validator-specific options */
   readonly options?: Record<string, unknown>;
 };
 
@@ -65,25 +65,13 @@ export type Validator = {
 };
 
 /**
- * Validation configuration from .eser.yml
- */
-export type ValidationConfig = {
-  /** Validators to skip */
-  readonly skip?: readonly string[];
-  /** Validator-specific options */
-  readonly options?: Readonly<Record<string, Record<string, unknown>>>;
-};
-
-/**
- * Project configuration from .eser.yml
+ * Project configuration from .manifest.yml
  */
 export type ProjectConfig = {
   /** Template name (for scaffolded projects) */
   readonly name?: string;
   /** Tech stacks used in this project */
   readonly stack?: readonly StackId[];
-  /** Validation configuration */
-  readonly validate?: ValidationConfig;
 };
 
 /**
@@ -104,7 +92,7 @@ export type ValidateOptions = {
   readonly root?: string;
   /** Run only these validators */
   readonly only?: readonly string[];
-  /** Skip these validators (in addition to .eser.yml skip) */
+  /** Skip these validators */
   readonly skip?: readonly string[];
   /** Enable auto-fix where supported */
   readonly fix?: boolean;

@@ -3,17 +3,16 @@
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-init: ## Install dependencies and set up pre-commit hooks
+init: ## Install dependencies and set up git hooks
 	deno install
 	@if [ -f apps/services/go.mod ]; then cd apps/services && go mod download; fi
-	pre-commit install
+	deno task cli codebase install
 
 ok: ## Run full validation — Deno + Go (fmt, lint, types, tests)
-	deno task validate
-	@if [ -f apps/services/Makefile ]; then cd apps/services && $(MAKE) ok; fi
+	deno task cli workflows run -e precommit
 
 fix: ## Run validation with auto-fix
-	deno task validate:fix
+	deno task cli workflows run -e precommit --fix
 
 test: ## Run tests with coverage
 	deno task test:run

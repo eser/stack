@@ -4,13 +4,13 @@
  * Validation system for codebase checks
  *
  * Provides a unified `validate()` function that runs all applicable validators
- * based on the project's stack configuration in `.eser.yml`.
+ * based on the project's stack configuration in `.manifest.yml`.
  *
  * @example
  * ```typescript
  * import { validate } from "@eser/codebase/validation";
  *
- * // Run all validators (defaults to all when no .eser.yml)
+ * // Run all validators (defaults to all when no .manifest.yml)
  * const result = await validate();
  *
  * if (!result.passed) {
@@ -48,7 +48,6 @@ export type {
   StackId,
   ValidateOptions,
   ValidateResult,
-  ValidationConfig,
   Validator,
   ValidatorIssue,
   ValidatorOptions,
@@ -59,20 +58,22 @@ export type {
 export { getProjectConfigPath, loadProjectConfig } from "./config.ts";
 
 // Re-export registry functions
+export type { WorkflowCompatibleTool } from "./registry.ts";
 export {
   getValidator,
   getValidatorNames,
   getValidators,
+  getWorkflowTools,
   registerValidator,
 } from "./registry.ts";
 
 /**
  * Run all applicable validators
  *
- * Loads project configuration from `.eser.yml`, determines which validators
+ * Loads project configuration from `.manifest.yml`, determines which validators
  * to run based on the stack configuration, and returns aggregated results.
  *
- * When no `.eser.yml` exists, all validators are run by default.
+ * When no `.manifest.yml` exists, all validators are run by default.
  *
  * @param options - Validation options
  * @returns Validation result with all validator outputs
@@ -85,10 +86,7 @@ export const validate = async (
   // Load project config
   const config = await loadProjectConfig(root);
   const projectStack = config?.stack ?? [];
-  const skipList = [
-    ...(config?.validate?.skip ?? []),
-    ...(options.skip ?? []),
-  ];
+  const skipList = [...(options.skip ?? [])];
   const onlyList = options.only ?? [];
 
   // Get all validators
@@ -110,7 +108,7 @@ export const validate = async (
     }
 
     // Check if required stack is present
-    // When projectStack is empty (no .eser.yml), run all validators
+    // When projectStack is empty (no .manifest.yml), run all validators
     if (validator.requiredStacks.length > 0 && projectStack.length > 0) {
       const hasStack = validator.requiredStacks.some((s) =>
         projectStack.includes(s)
@@ -125,9 +123,7 @@ export const validate = async (
     }
 
     // Run validator
-    const validatorOptions = config?.validate?.options?.[validator.name] ?? {};
     const mergedOptions = {
-      ...validatorOptions,
       ...(options.fix !== undefined ? { fix: options.fix } : {}),
     };
 
@@ -192,7 +188,7 @@ export const main = async (
 
   // Load project config to show stack info
   const config = await loadProjectConfig(root ?? ".");
-  const stackInfo = config?.stack?.join(", ") ?? "all (no .eser.yml)";
+  const stackInfo = config?.stack?.join(", ") ?? "all (no .manifest.yml)";
 
   console.log("Validating codebase...\n");
   console.log(`Stack: ${fmtColors.cyan(stackInfo)}\n`);

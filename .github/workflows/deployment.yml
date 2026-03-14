@@ -67,8 +67,8 @@ jobs:
       - name: Smoke test — help
         run: node pkg/@eser/cli/dist/eser.js --help
 
-      - name: Smoke test — check-licenses
-        run: node pkg/@eser/cli/dist/eser.js codebase check-licenses || true
+      - name: Smoke test — validate-licenses
+        run: node pkg/@eser/cli/dist/eser.js codebase validate-licenses || true
         # || true because the checkout may have files without license headers
 
       - name: Upload npm bundle

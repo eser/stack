@@ -283,14 +283,42 @@ export const generateChangelogSection = (
 
 /**
  * Insert a new version section into CHANGELOG.md content.
- * Inserts after the `## [Unreleased]` line (and any content below it),
- * before the next `## ` heading.
+ *
+ * If a section for the same version already exists, it is **replaced** (idempotent).
+ * Otherwise, inserts after the `## [Unreleased]` heading, before the next `##`.
+ *
+ * @param version - The version string to check for duplicates (e.g., "4.1.2")
  */
 export const insertIntoChangelog = (
   changelogContent: string,
   newSection: string,
+  version?: string,
 ): string => {
   const lines = changelogContent.split("\n");
+
+  // If version provided, check for an existing section and replace it
+  if (version !== undefined) {
+    const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const versionPattern = new RegExp(`^##\\s+${escapedVersion}\\b`);
+    const existingIdx = lines.findIndex((line) => versionPattern.test(line));
+
+    if (existingIdx !== -1) {
+      // Find the end of this section (next ## heading or EOF)
+      let sectionEnd = lines.length;
+      for (let i = existingIdx + 1; i < lines.length; i++) {
+        if (/^##\s+/.test(lines[i]!)) {
+          sectionEnd = i;
+          break;
+        }
+      }
+
+      // Replace the existing section (keep blank lines before next heading as separators)
+      lines.splice(existingIdx, sectionEnd - existingIdx, newSection);
+      return lines.join("\n");
+    }
+  }
+
+  // No existing section — insert after [Unreleased]
   const unreleased = lines.findIndex((line) =>
     /^##\s+\[Unreleased\]/i.test(line)
   );
@@ -384,7 +412,11 @@ export const generateChangelog = async (
       );
     }
 
-    const updatedContent = insertIntoChangelog(existingContent, content);
+    const updatedContent = insertIntoChangelog(
+      existingContent,
+      content,
+      version,
+    );
     await standards.runtime.current.fs.writeTextFile(
       changelogPath,
       updatedContent,

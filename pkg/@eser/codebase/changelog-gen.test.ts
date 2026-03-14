@@ -290,3 +290,48 @@ Deno.test("insertIntoChangelog - no [Unreleased] section", () => {
   const oldIdx = result.indexOf("## 4.1.1");
   assert.assert(newIdx < oldIdx);
 });
+
+Deno.test("insertIntoChangelog - replaces existing section for same version", () => {
+  const existing = `# Changelog
+
+## [Unreleased]
+
+## 4.1.2 - 2025-03-14
+
+### Added
+
+- old entry from failed release
+
+## 4.1.1 - 2024-07-16
+
+### Fixed
+
+- old fix
+`;
+
+  const newSection = `## 4.1.2 - 2025-03-14
+
+### Added
+
+- updated entry after pipeline fix
+
+### Fixed
+
+- new bug fix`;
+
+  const result = insertIntoChangelog(existing, newSection, "4.1.2");
+
+  // Should contain the new content, not the old
+  assert.assertStringIncludes(result, "updated entry after pipeline fix");
+  assert.assertStringIncludes(result, "new bug fix");
+  assert.assert(!result.includes("old entry from failed release"));
+
+  // Should still have other sections
+  assert.assertStringIncludes(result, "## [Unreleased]");
+  assert.assertStringIncludes(result, "## 4.1.1 - 2024-07-16");
+
+  // Only one 4.1.2 heading
+  const first = result.indexOf("## 4.1.2");
+  const second = result.indexOf("## 4.1.2", first + 1);
+  assert.assertEquals(second, -1);
+});

@@ -54,8 +54,8 @@ version-bump: ## Bump version across all packages (usage: make version-bump TYPE
 tag: ## Create and push a release tag from VERSION file
 	deno run --allow-all ./pkg/@eser/codebase/release-tag.ts
 
-release: ## Full release: bump, changelog, commit, tag, push (usage: make release TYPE=patch)
-	@if [ -z "$(TYPE)" ]; then echo "Usage: make release TYPE=patch|minor|major"; exit 1; fi
+release: ## Full release: bump, changelog, commit, tag, push (usage: make release TYPE=patch|minor|major|same)
+	@if [ -z "$(TYPE)" ]; then echo "Usage: make release TYPE=patch|minor|major|same"; exit 1; fi
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: Working tree is dirty. Commit or stash changes first."; \
 		git status --short; \
@@ -69,7 +69,11 @@ release: ## Full release: bump, changelog, commit, tag, push (usage: make releas
 		read -r REPLY; \
 		if [ "$$REPLY" != "y" ] && [ "$$REPLY" != "Y" ]; then exit 1; fi; \
 	fi
-	deno run --allow-all ./pkg/@eser/codebase/versions.ts $(TYPE)
+	@if [ "$(TYPE)" != "same" ]; then \
+		deno run --allow-all ./pkg/@eser/codebase/versions.ts $(TYPE); \
+	else \
+		echo "Skipping version bump (TYPE=same), using VERSION: $$(cat VERSION)"; \
+	fi
 	deno run --allow-all ./pkg/@eser/codebase/changelog-gen.ts
 	@VERSION=$$(cat VERSION); \
 	git add VERSION CHANGELOG.md pkg/*/deno.json pkg/*/package.json package.json && \

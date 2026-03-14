@@ -36,3 +36,15 @@ jobs:
 
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
+
+      - name: Generate coverage report
+        run: deno task test:coverage-gen
+        continue-on-error: true
+
+      - name: Upload coverage
+        if: hashFiles('etc/coverage.lcov') != ''
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ./etc/coverage.lcov

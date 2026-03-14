@@ -20,6 +20,8 @@ on:
         required: false
         type: boolean
 
+permissions: {}
+
 concurrency:
   group: ${{ github.ref }}-integrity
   cancel-in-progress: true
@@ -27,32 +29,4 @@ concurrency:
 jobs:
   integration:
     uses: ./.github/workflows/integration.yml
-
-  coverage:
-    name: Coverage
-    needs: integration
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Generate coverage report
-        run: deno task test:coverage-gen
-        continue-on-error: true
-
-      - name: Upload coverage
-        if: hashFiles('etc/coverage.lcov') != ''
-        uses: codecov/codecov-action@v5
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          files: ./etc/coverage.lcov
+    secrets: inherit

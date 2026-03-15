@@ -66,6 +66,7 @@ const createWorkerdFs = (): RuntimeFs => {
     realPath: throwNotAvailable,
     watch: throwNotAvailable,
     walk: throwNotAvailable,
+    chmod: throwNotAvailable,
   };
 };
 

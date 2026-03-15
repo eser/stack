@@ -307,6 +307,11 @@ const createDenoFs = (): RuntimeFs => {
 
       yield* walkDir(root);
     },
+
+    async chmod(path: string, mode: number): Promise<void> {
+      const { chmod: fsChmod } = await import("@std/fs/unstable-chmod");
+      await fsChmod(path, mode);
+    },
   };
 };
 

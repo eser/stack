@@ -154,6 +154,7 @@ const createStubFs = (runtimeName: RuntimeName): Runtime["fs"] => {
     realPath: throwFs,
     watch: throwFs,
     walk: throwFs,
+    chmod: throwFs,
   };
 };
 

@@ -65,6 +65,7 @@ const createBrowserFs = (): RuntimeFs => {
     realPath: throwFs,
     watch: throwFs,
     walk: throwFs,
+    chmod: throwFs,
   };
 };
 

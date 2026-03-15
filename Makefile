@@ -54,7 +54,18 @@ tag: ## Create and push a release tag from VERSION file
 	deno task cli codebase release-tag
 
 retag: ## Delete and recreate the current version tag (usage: make retag)
-	@VERSION=$$(cat VERSION); \
+	@UNPUSHED=$$(git log @{u}..HEAD --oneline 2>/dev/null); \
+	if [ -n "$$UNPUSHED" ]; then \
+		echo "Error: You have unpushed commits. Push first, then retag."; \
+		echo "$$UNPUSHED"; \
+		exit 1; \
+	fi; \
+	if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: Working tree is dirty. Commit and push first."; \
+		git status --short; \
+		exit 1; \
+	fi; \
+	VERSION=$$(cat VERSION); \
 	TAG="v$$VERSION"; \
 	echo "Deleting tag $$TAG (local + remote)..."; \
 	git tag -d "$$TAG" 2>/dev/null || true; \

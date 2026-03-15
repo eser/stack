@@ -1,8 +1,10 @@
-# eser
+# 🖥️ [@eser/cli](./)
 
-Eser Ozvataf's command-line tooling to access things.
+Eser Ozvataf's command-line tooling to access things. A multi-purpose CLI that
+dispatches to library modules for codebase management, workflow automation,
+framework scaffolding, and more.
 
-## Installation
+## 🚀 Quick Start
 
 ```bash
 # Using npx (no installation required)
@@ -15,167 +17,203 @@ deno run --allow-all jsr:@eser/cli <command>
 npm install -g eser
 ```
 
-## Commands
+## 🛠 Command Tree
+
+```
+eser
+├── codebase              Codebase management tools
+│   ├── scaffolding       Initialize project from template
+│   ├── install           Install git hooks from .manifest.yml
+│   ├── uninstall         Remove managed git hooks
+│   ├── status            Show git hook installation status
+│   ├── versions          Manage workspace package versions
+│   ├── changelog-gen     Generate CHANGELOG from commits
+│   ├── release-notes     Sync changelog to GitHub Releases
+│   ├── release-tag       Create and push release git tags
+│   ├── validate-eof      Ensure files end with newline
+│   ├── validate-trailing-whitespace
+│   ├── validate-bom      Remove UTF-8 byte order markers
+│   ├── validate-line-endings
+│   ├── validate-large-files
+│   ├── validate-case-conflict
+│   ├── validate-merge-conflict
+│   ├── validate-json     Validate JSON syntax
+│   ├── validate-toml     Validate TOML syntax
+│   ├── validate-yaml     Validate YAML syntax
+│   ├── validate-symlinks
+│   ├── validate-shebangs
+│   ├── validate-secrets  Detect credentials and private keys
+│   ├── validate-filenames
+│   ├── validate-submodules
+│   ├── validate-commit-msg
+│   ├── validate-docs     Validate JSDoc documentation
+│   ├── validate-circular-deps
+│   ├── validate-export-names
+│   ├── validate-licenses
+│   ├── validate-mod-exports
+│   └── validate-package-configs
+├── workflows             Workflow engine — run tool pipelines
+│   ├── run               Run workflows by event or id
+│   └── list              List available workflows and tools
+├── laroux                laroux.js framework commands
+│   ├── init              Create a new laroux.js project
+│   ├── dev               Start development server with hot reload
+│   ├── build             Build for production
+│   └── serve             Serve production build locally
+├── system                Commands related with this CLI
+├── install               Install eser CLI globally
+├── update                Update eser CLI to latest version
+└── version               Show version number
+```
+
+## 📋 Commands
+
+### workflows
+
+Run tool pipelines driven by events (pre-commit, pre-push, etc.).
+
+```bash
+# Run all tools for a specific event
+npx eser workflows run -e precommit
+
+# Run all tools for pre-push
+npx eser workflows run -e prepush
+
+# List available workflows and tools
+npx eser workflows list
+```
+
+### codebase
+
+Codebase management, validation, and release tools.
+
+```bash
+# Initialize a new project from template
+npx eser codebase scaffolding
+npx eser codebase init    # alias for scaffolding
+
+# Install git hooks
+npx eser codebase install
+
+# Check git hook installation status
+npx eser codebase status
+
+# Remove managed git hooks
+npx eser codebase uninstall
+
+# Validate JSON files
+npx eser codebase validate-json
+
+# Validate YAML files
+npx eser codebase validate-yaml
+
+# Detect secrets and credentials
+npx eser codebase validate-secrets
+
+# Run all validation checks
+npx eser codebase validate-eof
+npx eser codebase validate-trailing-whitespace
+npx eser codebase validate-bom
+npx eser codebase validate-line-endings
+
+# Release management
+npx eser codebase versions
+npx eser codebase changelog-gen
+npx eser codebase release-notes
+npx eser codebase release-tag
+```
 
 ### laroux
 
 laroux.js framework commands for building React Server Components applications.
 
 ```bash
-eser laroux <subcommand> [options]
+# Create a new laroux.js project
+npx eser laroux init my-app
+npx eser laroux init my-blog --template blog
+
+# Start development server
+npx eser laroux dev
+npx eser laroux dev --port 3000 --open
+
+# Build for production
+npx eser laroux build
+npx eser laroux build --analyze
+
+# Serve production build
+npx eser laroux serve
+npx eser laroux serve --port 8080
 ```
 
-**Subcommands:**
-
-- `init` - Create a new laroux.js project
-- `dev` - Start development server with hot reload
-- `build` - Build for production
-- `serve` - Serve production build locally
-
-#### init
-
-Create a new laroux.js project from a template.
+#### laroux init
 
 ```bash
 eser laroux init [folder] [options]
 ```
 
-**Options:**
+| Option           | Description                                      |
+| ---------------- | ------------------------------------------------ |
+| `-t, --template` | Project template: minimal, blog, dashboard, docs |
+| `-f, --force`    | Overwrite existing files                         |
+| `--no-git`       | Skip git initialization                          |
+| `--no-install`   | Skip dependency installation                     |
 
-- `-t, --template <name>` - Project template (minimal, blog, dashboard, docs)
-  (default: minimal)
-- `-f, --force` - Overwrite existing files
-- `--no-git` - Skip git initialization
-- `--no-install` - Skip dependency installation
-
-**Examples:**
-
-```bash
-# Create a new project with default template
-eser laroux init my-app
-
-# Create a blog project
-eser laroux init my-blog --template blog
-
-# Create without installing dependencies
-eser laroux init my-app --no-install
-```
-
-#### dev
-
-Start the development server with hot module replacement.
+#### laroux dev
 
 ```bash
 eser laroux dev [options]
 ```
 
-**Options:**
+| Option        | Description                         |
+| ------------- | ----------------------------------- |
+| `-p, --port`  | Server port (default: 8000)         |
+| `-o, --open`  | Open browser automatically          |
+| `--no-hmr`    | Disable hot module replacement      |
+| `--log-level` | Log level: debug, info, warn, error |
 
-- `-p, --port <number>` - Server port (default: 8000)
-- `-o, --open` - Open browser automatically
-- `--no-hmr` - Disable hot module replacement
-- `--log-level <level>` - Log level: debug, info, warn, error (default: info)
-
-**Examples:**
-
-```bash
-# Start dev server on default port
-eser laroux dev
-
-# Start on custom port and open browser
-eser laroux dev --port 3000 --open
-```
-
-#### build
-
-Build the application for production.
+#### laroux build
 
 ```bash
 eser laroux build [options]
 ```
 
-**Options:**
+| Option        | Description                      |
+| ------------- | -------------------------------- |
+| `--out-dir`   | Output directory (default: dist) |
+| `--clean`     | Clean output directory first     |
+| `--no-minify` | Disable minification             |
+| `--analyze`   | Analyze bundle size              |
 
-- `--out-dir <path>` - Output directory (default: dist)
-- `--clean` - Clean output directory first
-- `--no-minify` - Disable minification
-- `--analyze` - Analyze bundle size
-
-**Examples:**
-
-```bash
-# Production build
-eser laroux build
-
-# Build with bundle analysis
-eser laroux build --analyze
-
-# Build to custom directory
-eser laroux build --out-dir ./output --clean
-```
-
-#### serve
-
-Serve the production build locally for testing.
+#### laroux serve
 
 ```bash
 eser laroux serve [options]
 ```
 
-**Options:**
+| Option       | Description                            |
+| ------------ | -------------------------------------- |
+| `-p, --port` | Server port (default: 8000)            |
+| `--dist-dir` | Distribution directory (default: dist) |
 
-- `-p, --port <number>` - Server port (default: 8000)
-- `--dist-dir <path>` - Distribution directory (default: dist)
-
-**Examples:**
-
-```bash
-# Serve production build
-eser laroux serve
-
-# Serve on custom port
-eser laroux serve --port 8080
-```
-
----
-
-### codebase
-
-Codebase validation and management tools.
+### system
 
 ```bash
-eser codebase <subcommand> [options]
-```
+# Install eser CLI globally
+npx eser install
 
-**Subcommands:**
+# Update to the latest version
+npx eser update
 
-- `check` - Run all codebase checks
-- `check-circular-deps` - Check for circular dependencies
-- `check-docs` - Check documentation coverage
-- `check-export-names` - Check export naming conventions
-- `check-licenses` - Check license compliance
-- `check-mod-exports` - Check module exports
-- `check-package-configs` - Check package configurations
-- `init` - Initialize a new project from a template
-
-**Options:**
-
-- `-h, --help` - Show help message
-- `--root <path>` - Root directory (default: current directory)
-
-**Examples:**
-
-```bash
-# Run all checks on current directory
-eser codebase check
-
-# Check for circular dependencies
-eser codebase check-circular-deps
-
-# Run checks on a specific directory
-eser codebase check --root ./my-project
+# Show version
+npx eser version
+npx eser version --bare   # version number only
 ```
 
 ## License
 
 Apache-2.0
+
+---
+
+🔗 For further details, visit the
+[eserstack repository](https://github.com/eser/stack).

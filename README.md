@@ -66,14 +66,58 @@ strives to offer you an intuitive and delightful development experience.
 
 ### Component Set
 
-| Component                              | Area              | Description                                         | Latest Version                                                                  |
-| -------------------------------------- | ----------------- | --------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 📓 [@eser/directives](pkg/directives/) | Rules             | The ground rules adhered to by the entire ecosystem | -                                                                               |
-| 📑 [@eser/standards](pkg/standards/)   | Abstraction       | Provides common abstraction layers for DI           | [![JSR](https://jsr.io/badges/@eser/standards)](https://jsr.io/@eser/standards) |
-| ⚙️ [@eser/di](pkg/di/)                 | Manager           | Dependency injection system                         | [![JSR](https://jsr.io/badges/@eser/di)](https://jsr.io/@eser/di)               |
-| 🧱 [@eser/fp](pkg/fp/)                 | Functions Library | Tools for functional programming                    | [![JSR](https://jsr.io/badges/@eser/fp)](https://jsr.io/@eser/fp)               |
-| 🔐 [@eser/config](pkg/config/)         | Manager           | Load configurations from environment                | [![JSR](https://jsr.io/badges/@eser/config)](https://jsr.io/@eser/config)       |
-| 〰️ [@eser/parsing](pkg/parsing/)       | Manager           | Parsing tools for various strings and streams       | [![JSR](https://jsr.io/badges/@eser/parsing)](https://jsr.io/@eser/parsing)     |
+#### Core
+
+| Component                                    | Description                                                        | Latest Version                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| 🧩 [@eser/primitives](pkg/@eser/primitives/) | Result types, Option, and base constructors                        | [![JSR](https://jsr.io/badges/@eser/primitives)](https://jsr.io/@eser/primitives) |
+| 📑 [@eser/standards](pkg/@eser/standards/)   | Cross-runtime standards, formatters, i18n, and runtime abstraction | [![JSR](https://jsr.io/badges/@eser/standards)](https://jsr.io/@eser/standards)   |
+| ⚡ [@eser/functions](pkg/@eser/functions/)   | Monadic workflows, middleware, tasks, and trigger adapters         | [![JSR](https://jsr.io/badges/@eser/functions)](https://jsr.io/@eser/functions)   |
+| 🧱 [@eser/fp](pkg/@eser/fp/)                 | Functional programming combinators                                 | [![JSR](https://jsr.io/badges/@eser/fp)](https://jsr.io/@eser/fp)                 |
+| ⚙️ [@eser/di](pkg/@eser/di/)                 | Dependency injection container                                     | [![JSR](https://jsr.io/badges/@eser/di)](https://jsr.io/@eser/di)                 |
+| 📓 [@eser/directives](pkg/@eser/directives/) | Ground rules adhered to by the ecosystem                           | -                                                                                 |
+
+#### Infrastructure
+
+| Component                              | Description                                         | Latest Version                                                              |
+| -------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------- |
+| 🔐 [@eser/config](pkg/@eser/config/)   | Load configurations from .env files and environment | [![JSR](https://jsr.io/badges/@eser/config)](https://jsr.io/@eser/config)   |
+| 📢 [@eser/events](pkg/@eser/events/)   | Event bus and pub/sub system                        | [![JSR](https://jsr.io/badges/@eser/events)](https://jsr.io/@eser/events)   |
+| 📝 [@eser/logging](pkg/@eser/logging/) | Hierarchical logging with OpenTelemetry integration | [![JSR](https://jsr.io/badges/@eser/logging)](https://jsr.io/@eser/logging) |
+| 💾 [@eser/cache](pkg/@eser/cache/)     | Caching abstractions                                | [![JSR](https://jsr.io/badges/@eser/cache)](https://jsr.io/@eser/cache)     |
+| 🌐 [@eser/http](pkg/@eser/http/)       | HTTP client and server utilities                    | [![JSR](https://jsr.io/badges/@eser/http)](https://jsr.io/@eser/http)       |
+| 🐚 [@eser/shell](pkg/@eser/shell/)     | Shell execution and CLI argument parsing            | [![JSR](https://jsr.io/badges/@eser/shell)](https://jsr.io/@eser/shell)     |
+| 🔑 [@eser/crypto](pkg/@eser/crypto/)   | Cryptographic hashing via Web Crypto API            | [![JSR](https://jsr.io/badges/@eser/crypto)](https://jsr.io/@eser/crypto)   |
+
+#### Data & Parsing
+
+| Component                                  | Description                                    | Latest Version                                                                  |
+| ------------------------------------------ | ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| 〰️ [@eser/parsing](pkg/@eser/parsing/)     | Parsing tools for strings and streams          | [![JSR](https://jsr.io/badges/@eser/parsing)](https://jsr.io/@eser/parsing)     |
+| ✏️ [@eser/writer](pkg/@eser/writer/)       | Code and text generation writer                | [![JSR](https://jsr.io/badges/@eser/writer)](https://jsr.io/@eser/writer)       |
+| ⚙️ [@eser/collector](pkg/@eser/collector/) | Module export collector and manifest generator | [![JSR](https://jsr.io/badges/@eser/collector)](https://jsr.io/@eser/collector) |
+| 🔬 [@eser/cs](pkg/@eser/cs/)               | Computer science data structures               | [![JSR](https://jsr.io/badges/@eser/cs)](https://jsr.io/@eser/cs)               |
+
+#### Web & UI
+
+| Component                                            | Description                                        | Latest Version                                                                            |
+| ---------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| ⚛️ [@eser/jsx-runtime](pkg/@eser/jsx-runtime/)       | JSX runtime for server-side rendering              | [![JSR](https://jsr.io/badges/@eser/jsx-runtime)](https://jsr.io/@eser/jsx-runtime)       |
+| ⚙️ [@eser/app-runtime](pkg/@eser/app-runtime/)       | Application lifecycle and module management        | [![JSR](https://jsr.io/badges/@eser/app-runtime)](https://jsr.io/@eser/app-runtime)       |
+| 🌐 [@eser/laroux](pkg/@eser/laroux/)                 | Laroux.js framework-agnostic core                  | [![JSR](https://jsr.io/badges/@eser/laroux)](https://jsr.io/@eser/laroux)                 |
+| 🖥️ [@eser/laroux-server](pkg/@eser/laroux-server/)   | Laroux.js HTTP server and SSR runtime              | [![JSR](https://jsr.io/badges/@eser/laroux-server)](https://jsr.io/@eser/laroux-server)   |
+| ⚛️ [@eser/laroux-react](pkg/@eser/laroux-react/)     | Laroux.js React client runtime and hydration       | [![JSR](https://jsr.io/badges/@eser/laroux-react)](https://jsr.io/@eser/laroux-react)     |
+| 📦 [@eser/laroux-bundler](pkg/@eser/laroux-bundler/) | Laroux.js build tooling, CSS, and asset processing | [![JSR](https://jsr.io/badges/@eser/laroux-bundler)](https://jsr.io/@eser/laroux-bundler) |
+| 📦 [@eser/bundler](pkg/@eser/bundler/)               | General-purpose bundler utilities                  | [![JSR](https://jsr.io/badges/@eser/bundler)](https://jsr.io/@eser/bundler)               |
+
+#### Tooling
+
+| Component                                  | Description                                              | Latest Version                                                                  |
+| ------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 🔧 [@eser/codebase](pkg/@eser/codebase/)   | Codebase validation, scaffolding, and release management | [![JSR](https://jsr.io/badges/@eser/codebase)](https://jsr.io/@eser/codebase)   |
+| 🔄 [@eser/workflows](pkg/@eser/workflows/) | Workflow engine for tool pipelines                       | [![JSR](https://jsr.io/badges/@eser/workflows)](https://jsr.io/@eser/workflows) |
+| 🖥️ [@eser/cli](pkg/@eser/cli/)             | Command-line interface for eserstack                     | [![JSR](https://jsr.io/badges/@eser/cli)](https://jsr.io/@eser/cli)             |
+| 🧪 [@eser/testing](pkg/@eser/testing/)     | Testing utilities and helpers                            | [![JSR](https://jsr.io/badges/@eser/testing)](https://jsr.io/@eser/testing)     |
 
 Visit the respective component page for detailed usage instructions.
 

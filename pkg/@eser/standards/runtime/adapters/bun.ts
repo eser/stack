@@ -335,6 +335,10 @@ const createBunFs = (): RuntimeFs => {
       };
     },
 
+    async chmod(path: string, mode: number): Promise<void> {
+      await nodeFsPromises.chmod(path, mode);
+    },
+
     async *walk(
       root: string,
       options?: WalkOptions,

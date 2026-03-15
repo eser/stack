@@ -334,6 +334,14 @@ export interface RuntimeFs {
    * ```
    */
   walk(root: string, options?: WalkOptions): AsyncIterable<WalkEntry>;
+
+  /**
+   * Change file permissions.
+   * @param path - Path to the file
+   * @param mode - Permission mode (e.g., 0o755)
+   * @throws {NotFoundError} If path doesn't exist
+   */
+  chmod(path: string, mode: number): Promise<void>;
 }
 
 /**

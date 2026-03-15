@@ -233,11 +233,11 @@ export const main = async (
 
     await standards.runtime.current.fs.writeTextFile(hookPath, script);
 
-    // chmod +x (non-fatal on platforms that don't support it)
+    // chmod +x (non-fatal on platforms without chmod support)
     try {
-      await Deno.chmod(hookPath, 0o755);
+      await standards.runtime.current.fs.chmod(hookPath, 0o755);
     } catch {
-      // ignore — Windows doesn't support chmod
+      // Windows doesn't support chmod — hook will still work via shebang
     }
 
     if (exists && isManaged) {

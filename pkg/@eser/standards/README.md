@@ -4,7 +4,32 @@ Cross-runtime standards and utilities for TypeScript applications. Provides
 common interfaces, type declarations, and utility functions for building
 portable applications.
 
-## Features
+## 🚀 Quick Start
+
+```typescript
+import * as standards from "@eser/standards";
+
+// Runtime abstraction — works on Deno, Node.js, Bun, and browsers
+const { current } = standards.runtime;
+const content = await current.fs.readTextFile("config.json");
+const joined = current.path.join("src", "utils.ts");
+
+// String interpolation
+const greeting = standards.strings.interpolate("Hello {name}!", {
+  name: "World",
+});
+
+// Formatters
+const size = standards.formatters.formatSize(1048576); // "1.00 MB"
+
+// Date utilities
+const relative = standards.datetimes.getRelativeTime(
+  new Date(Date.now() - 3600000),
+);
+// "1 hour ago"
+```
+
+## 🛠 Features
 
 - **Logging Standards**: OpenTelemetry severity levels
 - **Date/Time Utilities**: Formatting, relative time, date comparisons

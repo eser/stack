@@ -8,6 +8,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+## 4.1.7 - 2026-03-16
+
+### Fixed
+
+- **codebase:** fixed changelog generation scripts.
+
 ## 4.1.6 - 2026-03-16
 
 ### Added

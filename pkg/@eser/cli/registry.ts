@@ -109,6 +109,13 @@ export const registry: Record<string, PackageEntry> = {
         },
       },
 
+      // GitHub
+      gh: {
+        description: "GitHub operations (contributors, releases, tags)",
+        category: "GitHub",
+        load: () => import("@eser/codebase/gh"),
+      },
+
       // Release
       versions: {
         description: "Manage workspace package versions",
@@ -119,16 +126,6 @@ export const registry: Record<string, PackageEntry> = {
         description: "Generate CHANGELOG from commits",
         category: "Release",
         load: () => import("@eser/codebase/changelog-gen"),
-      },
-      "release-notes": {
-        description: "Sync changelog to GitHub Releases",
-        category: "Release",
-        load: () => import("@eser/codebase/release-notes"),
-      },
-      "release-tag": {
-        description: "Create and push release git tags",
-        category: "Release",
-        load: () => import("@eser/codebase/release-tag"),
       },
       release: {
         description: "Create a release (bump, changelog, commit, push)",

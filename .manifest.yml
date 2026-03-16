@@ -162,8 +162,8 @@ scripts:
 
   # Release
   version-bump: eser codebase versions
-  tag: eser codebase release-tag
-  release-notes: eser codebase release-notes
+  tag: eser codebase gh release-tag
+  release-notes: eser codebase gh release-notes
   changelog: eser codebase changelog-gen
 
   # Go shortcuts

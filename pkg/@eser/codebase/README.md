@@ -49,8 +49,14 @@ npx eser codebase validate-commit-msg --message "feat(core): add feature"
 | --------------- | ------------------------------------------ |
 | `versions`      | Bump version across all workspace packages |
 | `changelog-gen` | Generate CHANGELOG entry from commits      |
-| `release-notes` | Sync CHANGELOG to GitHub Releases          |
-| `release-tag`   | Create and push release git tags           |
+
+### GitHub
+
+| Command            | Description                          |
+| ------------------ | ------------------------------------ |
+| `gh contributors`  | Update contributor list in README.md |
+| `gh release-notes` | Sync CHANGELOG to GitHub Releases    |
+| `gh release-tag`   | Create and push release git tags     |
 
 ### Validation
 

@@ -202,6 +202,18 @@ Creating "cool web project template 0.0.1" on my-project...
 done.
 ```
 
+## Contributors
+
+<!-- CONTRIBUTORS:START -->
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/eser"><img src="https://avatars.githubusercontent.com/u/866558?v=4?s=80" width="80" /><br /><sub>eser</sub></a></td>
+    <td align="center"><a href="https://github.com/ayhansipahi"><img src="https://avatars.githubusercontent.com/u/721142?v=4?s=80" width="80" /><br /><sub>ayhansipahi</sub></a></td>
+    <td align="center"><a href="https://github.com/wralith"><img src="https://avatars.githubusercontent.com/u/75392169?v=4?s=80" width="80" /><br /><sub>wralith</sub></a></td>
+  </tr>
+</table>
+<!-- CONTRIBUTORS:END -->
+
 ## 🙋🏻 FAQ
 
 ### Want to report a bug or request a feature?

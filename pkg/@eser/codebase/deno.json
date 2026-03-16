@@ -16,6 +16,8 @@
     "./validate-licenses": "./validate-licenses.ts",
     "./validate-package-configs": "./validate-package-configs.ts",
     "./versions": "./versions.ts",
+    "./gh": "./gh.ts",
+    "./gh-contributors": "./gh-contributors.ts",
     "./release-tag": "./release-tag.ts",
     "./release-notes": "./release-notes.ts",
     "./changelog-gen": "./changelog-gen.ts",

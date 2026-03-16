@@ -276,7 +276,7 @@ export const syncReleaseNotes = async (
 
     try {
       await shell.exec
-        .exec`gh release create ${targetTag} --repo ${repo} --title ${title} --notes-file ${notesPath} --verify-tag`
+        .exec`gh release create ${targetTag} --repo ${repo} --title ${title} --notes-file ${notesPath}`
         .spawn();
       return { tag: targetTag, entry, action: "created" };
     } catch {

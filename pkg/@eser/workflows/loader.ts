@@ -105,6 +105,7 @@ export const parseConfig = (content: string): WorkflowsConfig => {
   const config: WorkflowsConfig = {
     stack: raw["stack"] as string[] | undefined,
     workflows: (raw["workflows"] as WorkflowsConfig["workflows"]) ?? [],
+    scripts: raw["scripts"] as WorkflowsConfig["scripts"] | undefined,
   };
 
   validateConfig(config);
@@ -129,6 +130,7 @@ export const loadFromFile = async (
   const config: WorkflowsConfig = {
     stack: raw["stack"] as string[] | undefined,
     workflows: (raw["workflows"] as WorkflowsConfig["workflows"]) ?? [],
+    scripts: raw["scripts"] as WorkflowsConfig["scripts"] | undefined,
   };
 
   validateConfig(config);

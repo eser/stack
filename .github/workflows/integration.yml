@@ -30,7 +30,7 @@ jobs:
           cache-dependency-path: apps/services/go.sum
 
       - name: Run validation
-        run: make ok
+        run: deno task cli ok
 
       - name: Generate coverage report
         run: deno task test:coverage-gen

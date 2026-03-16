@@ -19,6 +19,7 @@
     "./release-tag": "./release-tag.ts",
     "./release-notes": "./release-notes.ts",
     "./changelog-gen": "./changelog-gen.ts",
+    "./release": "./release.ts",
     "./lint-plugin": "./lint-plugin.ts",
     "./cli-support": "./cli-support.ts",
     "./file-tool": "./file-tool.ts",

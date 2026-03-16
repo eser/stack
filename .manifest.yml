@@ -74,11 +74,11 @@ workflows:
           fixCommand: deno lint --fix
       - shell:
           name: deno-type-check
-          command: deno task check:mod
+          command: deno check ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts
           timeout: 120
       - shell:
           name: deno-tests
-          command: deno task test:run
+          command: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --trace-leaks --coverage=./etc/coverage/
           timeout: 300
       - shell:
           name: deno-publish-check
@@ -119,3 +119,66 @@ workflows:
             - refactor
             - revert
             - test
+
+scripts:
+  # Validation
+  ok: eser workflows run -e precommit
+  fix: eser workflows run -e precommit --fix
+
+  # Setup
+  init: deno install && eser codebase install
+
+  # Testing
+  test:
+    command: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --trace-leaks --coverage=./etc/coverage/
+    description: Run tests with coverage
+  test-watch:
+    command: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --watch
+    description: Run tests in watch mode
+
+  # Code quality
+  lint: deno lint
+  fmt: deno fmt
+  check: deno check ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts
+
+  # Build
+  build: deno run --allow-all ./pkg/@eser/cli/scripts/npm-build.ts
+
+  # Documentation
+  docs: "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts"
+  docs-lint: deno doc --lint ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts
+
+  # Docker
+  container-build: docker build -t eservm .
+  container-run: docker run --interactive --tty --rm eservm
+
+  # Maintenance
+  clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./deno.lock && deno check ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts"
+  repl: deno repl --allow-all --unstable-bundle --eval-file=./repl-init.ts
+
+  # Coverage
+  coverage: deno coverage ./etc/coverage/
+  coverage-gen: deno coverage ./etc/coverage --lcov --output=./etc/coverage.lcov
+
+  # Release
+  version-bump: eser codebase versions
+  tag: eser codebase release-tag
+  release-notes: eser codebase release-notes
+  changelog: eser codebase changelog-gen
+
+  # Go shortcuts
+  go-ok:
+    command: make ok
+    workingDirectory: ./apps/services/
+  go-test:
+    command: make test-coverage
+    workingDirectory: ./apps/services/
+  go-lint:
+    command: make lint
+    workingDirectory: ./apps/services/
+  go-fmt:
+    command: make fix
+    workingDirectory: ./apps/services/
+  go-build:
+    command: make build
+    workingDirectory: ./apps/services/

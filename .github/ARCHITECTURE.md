@@ -35,7 +35,6 @@ stack/
 ├── package.json                # npm workspace root + deno task scripts
 ├── CLAUDE.md                   # AI development guidelines (symlink → AGENTS.md)
 ├── AGENTS.md                   # Multi-agent coordination rules
-├── Makefile                    # Unified command interface (Deno + Go)
 └── CHANGELOG.md                # Release history
 ```
 
@@ -90,7 +89,7 @@ Go Services (independent versioning, apps/services/)
 ## Build Pipeline
 
 ```
-Developer runs:  make release TYPE=patch
+Developer runs:  eser codebase release patch
                  ├─ versions.ts (bump VERSION + sync packages)
                  ├─ changelog-gen.ts (auto-generate CHANGELOG)
                  └─ git commit + git push (commit only, no tag)
@@ -99,7 +98,7 @@ Developer runs:  make release TYPE=patch
 ┌─ PUSH TO MAIN ────────────────────────┐
 │  build.yml (Integrity Pipeline)       │
 │  ├─ integration.yml (reusable)        │
-│  │   └─ pre-commit/action → make ok  │
+│  │   └─ deno task cli ok              │
 │  └─ tag-release (if release commit    │
 │      && integration passed)           │
 │      └─ creates + pushes v*.*.* tag   │

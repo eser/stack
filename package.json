@@ -8,20 +8,6 @@
     "pkg/@cool/*"
   ],
   "scripts": {
-    "check:mod": "deno check ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts",
-    "cleanup": "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./deno.lock && deno task check:mod",
-    "cli": "deno run --allow-all ./pkg/@eser/cli/main.ts",
-    "container:build": "docker build -t eservm .",
-    "container:run": "docker run --interactive --tty --rm eservm",
-    "doc:generate": "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts",
-    "doc:lint": "deno doc --lint ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts",
-    "npm-build": "deno run --allow-all ./pkg/@eser/cli/scripts/npm-build.ts",
-    "repl": "deno repl --allow-all --unstable-bundle --eval-file=./repl-init.ts",
-    "test:coverage-gen": "deno coverage ./etc/coverage --lcov --output=./etc/coverage.lcov",
-    "test:coverage": "deno coverage ./etc/coverage/",
-    "test:run": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --trace-leaks --coverage=./etc/coverage/",
-    "test": "deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --watch",
-    "validate:fix": "deno task cli workflows run -e precommit --fix",
-    "validate": "deno task cli workflows run -e precommit"
+    "cli": "deno run --allow-all ./pkg/@eser/cli/main.ts"
   }
 }

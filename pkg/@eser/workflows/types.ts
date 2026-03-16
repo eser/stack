@@ -39,10 +39,21 @@ export type WorkflowDefinition = {
   readonly includes?: readonly string[];
 };
 
+/** A script definition — either a command string or a config object. */
+export type ScriptConfig =
+  | string
+  | {
+    readonly command: string;
+    readonly description?: string;
+    readonly workingDirectory?: string;
+    readonly depends?: readonly string[];
+  };
+
 /** Top-level configuration (can be loaded from .manifest.yml or built programmatically). */
 export type WorkflowsConfig = {
   readonly stack?: readonly string[];
   readonly workflows: readonly WorkflowDefinition[];
+  readonly scripts?: Readonly<Record<string, ScriptConfig>>;
 };
 
 // =============================================================================

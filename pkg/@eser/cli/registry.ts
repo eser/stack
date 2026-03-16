@@ -130,6 +130,27 @@ export const registry: Record<string, PackageEntry> = {
         category: "Release",
         load: () => import("@eser/codebase/release-tag"),
       },
+      release: {
+        description: "Create a release (bump, changelog, commit, push)",
+        category: "Release",
+        load: () => import("@eser/codebase/release"),
+      },
+      rerelease: {
+        description: "Delete and recreate the current version tag",
+        category: "Release",
+        load: async () => {
+          const mod = await import("@eser/codebase/release");
+          return { main: mod.rereleaseMain };
+        },
+      },
+      unrelease: {
+        description: "Delete the current version tag",
+        category: "Release",
+        load: async () => {
+          const mod = await import("@eser/codebase/release");
+          return { main: mod.unreleaseMain };
+        },
+      },
 
       // Validation
       "validate-eof": {

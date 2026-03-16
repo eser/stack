@@ -23,8 +23,10 @@ import * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as shellArgs from "@eser/shell/args";
+import * as configManifest from "@eser/config/manifest";
 import { dispatch, showPackageHelp } from "./dispatch.ts";
 import { registry } from "./registry.ts";
+import { runScript, showScripts } from "./scripts.ts";
 import config from "./package.json" with { type: "json" };
 
 type CommandHandler = (
@@ -97,7 +99,7 @@ const intrinsicCommands: Record<
   },
 };
 
-const showHelp = (): void => {
+const showHelp = async (): Promise<void> => {
   console.log("eser - Eser Ozvataf's command-line tooling to access things\n");
   console.log("Usage: eser <command> [subcommand] [options]\n");
   console.log("Commands:");
@@ -120,6 +122,22 @@ const showHelp = (): void => {
   );
   console.log("  version       Show version number");
 
+  // Tier 4: Scripts from .manifest.yml
+  const manifest = await configManifest.loadManifest(".");
+  const manifestScripts = manifest?.["scripts"];
+  if (
+    manifestScripts !== undefined &&
+    manifestScripts !== null &&
+    typeof manifestScripts === "object"
+  ) {
+    console.log();
+    showScripts(
+      manifestScripts as Readonly<
+        Record<string, import("@eser/workflows").ScriptConfig>
+      >,
+    );
+  }
+
   console.log("\nOptions:");
   console.log("  -h, --help    Show this help message");
   console.log("\nRun 'eser <command> --help' for command-specific help.");
@@ -136,7 +154,7 @@ export const main = async (): Promise<shellArgs.CliResult<void>> => {
   const command = args._[0] as string | undefined;
 
   if (command === undefined) {
-    showHelp();
+    await showHelp();
     return results.ok(undefined);
   }
 
@@ -163,9 +181,27 @@ export const main = async (): Promise<shellArgs.CliResult<void>> => {
     return await handler(args._.slice(1) as string[], args);
   }
 
+  // Tier 4: Scripts from .manifest.yml
+  const manifest = await configManifest.loadManifest(".");
+  const dispatchScripts = manifest?.["scripts"];
+  if (
+    dispatchScripts !== undefined &&
+    dispatchScripts !== null &&
+    typeof dispatchScripts === "object"
+  ) {
+    const scripts = dispatchScripts as Readonly<
+      Record<string, import("@eser/workflows").ScriptConfig>
+    >;
+    if (command in scripts) {
+      const scriptConfig = scripts[command]!;
+      const remainingArgs = args._.slice(1) as string[];
+      return await runScript(command, scriptConfig, scripts, remainingArgs);
+    }
+  }
+
   console.error(`Unknown command: ${command}`);
   console.log("");
-  showHelp();
+  await showHelp();
   return results.fail({ exitCode: 1 });
 };
 

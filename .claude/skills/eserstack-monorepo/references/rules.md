@@ -114,15 +114,15 @@ Rule: Use deno tasks defined in root `package.json`. Makefile targets wrap these
 
 | Command | Purpose |
 |---------|---------|
-| `deno task validate` | Full CI check (fmt, lint, license, types, tests, publish dry-run) |
-| `deno task validate:fix` | Auto-fix version of validate |
-| `deno task test:run` | Run tests with coverage |
-| `deno task test` | Run tests in watch mode |
-| `deno task check:mod` | Type-check all package entry points |
-| `deno task cli` | Run the eser CLI |
-| `deno task npm-build` | Build @eser/cli for npm |
-| `make ok` | Same as `deno task validate` |
-| `make help` | Show all available targets |
+| `eser ok` | Full validation (fmt, lint, tools, types, tests, publish dry-run) |
+| `eser fix` | Auto-fix version of validation |
+| `eser test` | Run tests with coverage |
+| `eser test-watch` | Run tests in watch mode |
+| `eser check` | Type-check all package entry points |
+| `eser lint` | Run linter |
+| `eser fmt` | Run formatter |
+| `eser build` | Build @eser/cli for npm |
+| `eser --help` | Show all available commands and scripts |
 
 ---
 

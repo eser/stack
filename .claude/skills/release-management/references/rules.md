@@ -122,7 +122,7 @@ All 29+ packages are versioned together — there are no independent package ver
 
 Scope: Monorepo releases
 
-Rule: `make release TYPE=patch` bumps version, generates CHANGELOG, commits, and pushes.
+Rule: `eser codebase release patch` bumps version, generates CHANGELOG, commits, and pushes.
 CI auto-tags after integration passes. Deployment pipeline publishes on tag push.
 
 ---
@@ -141,5 +141,5 @@ Keep-a-Changelog sections. Idempotent — replaces existing sections for the sam
 
 Scope: Failed release recovery
 
-Rule: `make retag` deletes and recreates the current version tag. `make release TYPE=same`
+Rule: `eser codebase rerelease` deletes and recreates the current version tag. `eser codebase release same`
 skips version bump for re-releasing after pipeline fixes.

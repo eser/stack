@@ -26,14 +26,14 @@ starting any task.
 ## Essential Commands
 
 ```bash
-make ok       # Full validation (Deno + Go) — run before committing
-make help     # Show all available targets
-make go-ok    # Go-only validation
+deno task cli ok       # Full validation (Deno + Go) — run before committing
+deno task cli --help   # Show all available commands
+deno task cli go-ok    # Go-only validation
 ```
 
 ## Absolute Rules
 
-- Run `make ok` before committing (runs
+- Run `deno task cli ok` before committing (runs
   `deno task cli workflows run -e precommit`)
 - One package per task — load `agent-guidelines` for cross-package protocol
 - TS packages share one version — load `release-management` for bumping

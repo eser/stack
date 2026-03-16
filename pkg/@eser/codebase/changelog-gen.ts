@@ -360,7 +360,7 @@ export const generateChangelog = async (
 ): Promise<GenerateChangelogResult> => {
   const { root = ".", dryRun = false } = options;
 
-  // Read the already-bumped VERSION (versions.ts runs first in make release)
+  // Read the already-bumped VERSION (versions.ts runs first in release flow)
   const version = await readVersionFile({ root });
   if (version === undefined || version === "") {
     throw new Error("VERSION file is missing or empty.");

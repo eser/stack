@@ -22,19 +22,58 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: ${{ github.ref }}-integrity
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  integration:
-    uses: ./.github/workflows/integration.yml
-    secrets: inherit
+  # ── Always runs ─────────────────────────────────────────────────
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
 
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+          cache-dependency-path: apps/services/go.sum
+
+      - name: Run validation
+        run: deno task cli ok
+
+      - name: Generate coverage report
+        run: deno coverage ./etc/coverage --lcov --output=./etc/coverage.lcov
+        continue-on-error: true
+
+      - name: Upload coverage
+        if: hashFiles('etc/coverage.lcov') != ''
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ./etc/coverage.lcov
+
+  # ── Release: tag ────────────────────────────────────────────────
   tag-release:
     name: Tag Release
-    needs: integration
+    needs: validate
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
@@ -42,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -61,9 +100,111 @@ jobs:
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
 
-          echo "### ✓ Tagged $TAG" >> $GITHUB_STEP_SUMMARY
+          echo "### Tagged $TAG" >> $GITHUB_STEP_SUMMARY
 
-      - name: Trigger deployment pipeline
-        run: gh workflow run deployment.yml --ref "v$(cat VERSION)"
+  # ── Release: smoke test ─────────────────────────────────────────
+  smoke-test:
+    name: npm Smoke Test
+    needs: tag-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "latest"
+
+      - name: Build npm package
+        run: deno task cli build
+
+      - name: Smoke test — help
+        run: node pkg/@eser/cli/dist/eser.js --help
+
+      - name: Smoke test — validate-licenses
+        run: node pkg/@eser/cli/dist/eser.js codebase validate-licenses || true
+
+      - name: Upload npm bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-bundle
+          path: pkg/@eser/cli/dist/
+
+  # ── Release: publish ────────────────────────────────────────────
+  publish:
+    name: Publish
+    needs: [tag-release, smoke-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+
+      - name: Publish to JSR
+        run: deno publish
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "latest"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download npm bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-bundle
+          path: pkg/@eser/cli/dist/
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        working-directory: ./pkg/@eser/cli/dist
+
+      - name: Summary
+        run: |
+          VERSION=$(cat VERSION)
+          echo "### Published v$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **JSR:** https://jsr.io/@eser" >> $GITHUB_STEP_SUMMARY
+          echo "- **npm:** https://www.npmjs.com/package/eser/v/$VERSION" >> $GITHUB_STEP_SUMMARY
+
+  # ── Release: sync release notes ────────────────────────────────
+  release-notes:
+    name: Sync Release Notes
+    needs: publish
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+
+      - name: Sync CHANGELOG to GitHub Release
+        run: deno task cli codebase gh release-notes --create-if-missing
         env:
           GH_TOKEN: ${{ github.token }}

@@ -26,6 +26,17 @@ and this project adheres to
 - Updated pre-commit hooks: conventional-pre-commit v4.3.0, typos v1.40.0, added
   no-commit-to-branch
 
+## 4.1.6 - 2026-03-16
+
+### Added
+
+- **codebase:** gh sub-commands
+- **codebase:** release, rerelease and unrelease commands.
+
+### Changed
+
+- ***:** updated documentations.
+
 ## 4.1.5 - 2026-03-14
 
 ### Added

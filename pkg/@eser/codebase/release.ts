@@ -30,7 +30,7 @@ import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
 import * as shell from "@eser/shell";
 import * as shellExec from "@eser/shell/exec";
-import * as git from "./git.ts";
+
 import { readVersionFile } from "./versions.ts";
 import { runCliMain, toCliEvent } from "./cli-support.ts";
 
@@ -311,12 +311,10 @@ export const rerelease = async (
   const tag = `v${version}`;
 
   if (!dryRun) {
-    // Delete existing tag (local + remote)
-    await gitDeleteTag(tag);
-
-    // Recreate tag and push
-    await git.createTag(tag, `Release ${tag}`);
-    await git.pushTag("origin", tag);
+    // Trigger deployment pipeline (handles tag deletion + recreation idempotently)
+    await shellExec.exec`gh workflow run build.yml -f deploy=true`
+      .noThrow()
+      .spawn();
   }
 
   return { version, tag, dryRun };

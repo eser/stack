@@ -129,7 +129,7 @@ jobs:
         run: node pkg/@eser/cli/dist/eser.js codebase validate-licenses || true
 
       - name: Upload npm bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: npm-bundle
           path: pkg/@eser/cli/dist/
@@ -164,7 +164,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Download npm bundle
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: npm-bundle
           path: pkg/@eser/cli/dist/

@@ -311,10 +311,11 @@ export const rerelease = async (
   const tag = `v${version}`;
 
   if (!dryRun) {
-    // Trigger deployment pipeline (handles tag deletion + recreation idempotently)
-    await shellExec.exec`gh workflow run build.yml -f deploy=true`
-      .noThrow()
-      .spawn();
+    // Push an empty commit with the release message format — triggers the
+    // pipeline's existing commit message detection. Pure git, no GitHub API.
+    const msg = `chore(codebase): release v${version}`;
+    await shellExec.exec`git commit --allow-empty -m ${msg}`.spawn();
+    await shellExec.exec`git push origin HEAD`.spawn();
   }
 
   return { version, tag, dryRun };

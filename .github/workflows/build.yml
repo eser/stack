@@ -14,12 +14,6 @@ on:
       - "**"
 
   workflow_dispatch:
-    inputs:
-      deploy:
-        description: "Run deployment pipeline (smoke-test → publish → release-notes)"
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -76,10 +70,9 @@ jobs:
     name: Tag Release
     needs: validate
     if: >-
-      (github.event_name == 'push' &&
-       github.ref == 'refs/heads/main' &&
-       startsWith(github.event.head_commit.message, 'chore(codebase): release v'))
-      || (github.event_name == 'workflow_dispatch' && inputs.deploy == true)
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'chore(codebase): release v')
     runs-on: ubuntu-latest
     permissions:
       contents: write

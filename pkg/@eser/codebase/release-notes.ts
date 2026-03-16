@@ -136,6 +136,11 @@ export const parseChangelogText = (text: string): ChangelogEntry[] => {
       continue;
     }
 
+    // Skip non-version headings like [Unreleased]
+    if (!/^\d/.test(m[1]!)) {
+      continue;
+    }
+
     headings.push({
       version: m[1]!,
       date: m[2] ?? "",

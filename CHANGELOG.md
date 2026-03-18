@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.1.9 - 2026-03-18
+
+### Fixed
+
+- **codebase:** convert validate-licenses to createFileTool factory
+
 ## 4.1.8 - 2026-03-16
 
 ### Fixed

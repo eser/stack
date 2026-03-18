@@ -1,8 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Shebang checker — validates that executable files have shebangs
- * and that files with shebangs are executable.
+ * Shebang checker — placeholder for future shebang/executable validation.
+ *
+ * The previous check flagged any non-.ts/.js file with a shebang, which
+ * produced false positives for shell scripts and other scripting languages.
+ * That check was removed. Cross-platform exec-bit checking is not currently
+ * implemented.
  *
  * @module
  */
@@ -17,24 +21,7 @@ export const tool: FileTool = createFileTool({
   stacks: [],
   defaults: {},
 
-  checkFile(file, content) {
-    if (content === undefined) {
-      return [];
-    }
-
-    const hasShebang = content.startsWith("#!");
-
-    // Files with shebangs should be noted (can't check exec bit cross-platform)
-    if (
-      hasShebang && !file.name.endsWith(".ts") && !file.name.endsWith(".js")
-    ) {
-      // Shebang in non-script file is unusual
-      return [{
-        path: file.path,
-        message: "file has shebang but is not a .ts/.js file",
-      }];
-    }
-
+  checkFile(_file, _content) {
     return [];
   },
 });

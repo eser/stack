@@ -260,9 +260,15 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
   ): Promise<shell.args.CliResult<void>> => {
     const fix = config.canFix && event.flags["fix"] === true;
     const root = (event.flags["root"] as string | undefined) ?? ".";
+    const excludeFlag = event.flags["exclude"];
+    const exclude = excludeFlag !== undefined
+      ? (Array.isArray(excludeFlag)
+        ? excludeFlag as string[]
+        : [excludeFlag as string])
+      : [];
 
     try {
-      const result = await run({ root, fix });
+      const result = await run({ root, fix, exclude });
 
       if (result.mutations.length > 0) {
         // Import writeMutations lazily to avoid circular deps

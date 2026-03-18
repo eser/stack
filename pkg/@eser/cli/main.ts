@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * eser - Eser Ozvataf's command-line tooling to access things
+ * eser - Eser's swiss-army-knife tooling for your terminal
  *
  * A multi-purpose command-line tool that dispatches to library modules.
  *
@@ -15,6 +15,8 @@
  *   system      Commands related with this CLI
  *   install     Install eser CLI globally (alias for system install)
  *   update      Update eser CLI to latest version (alias for system update)
+ *   version     Show version number and check for updates
+ *   doctor      Run diagnostic checks on the environment
  *
  * @module
  */
@@ -27,7 +29,6 @@ import * as configManifest from "@eser/config/manifest";
 import { dispatch, showPackageHelp } from "./dispatch.ts";
 import { registry } from "./registry.ts";
 import { runScript, showScripts } from "./scripts.ts";
-import config from "./package.json" with { type: "json" };
 
 type CommandHandler = (
   args: string[],
@@ -50,15 +51,21 @@ const wrapHandler = (
   ) => Promise<shellArgs.CliResult<void>>,
   commandName: string,
 ): CommandHandler => {
-  return async (_args: string[], flags: Record<string, unknown>) => {
+  return async (subArgs: string[], _flags: Record<string, unknown>) => {
+    // Re-parse the subcommand's own args to capture flags after stopEarly
+    const parsed = cliParseArgs.parseArgs(subArgs, {
+      boolean: ["bare", "help"],
+      string: ["shell"],
+      alias: { h: "help" },
+    });
     const mockRoot: shellArgs.CommandLike = {
       name: "eser",
       completions: () => "",
       help: () => "",
     };
     return await handler({
-      args: [],
-      flags,
+      args: parsed._ as string[],
+      flags: parsed as Record<string, unknown>,
       root: mockRoot,
       commandPath: ["eser", commandName],
     });
@@ -86,21 +93,18 @@ const intrinsicCommands: Record<
     const { updateHandler } = await import("./commands/handlers/mod.ts");
     return wrapHandler(updateHandler, "update");
   },
-  version: () => {
-    const handler: CommandHandler = (_args, flags) => {
-      if (flags["bare"] === true) {
-        console.log(config.version);
-      } else {
-        console.log(`eser ${config.version}`);
-      }
-      return Promise.resolve(results.ok(undefined));
-    };
-    return Promise.resolve(handler);
+  version: async () => {
+    const { versionHandler } = await import("./commands/handlers/mod.ts");
+    return wrapHandler(versionHandler, "version");
+  },
+  doctor: async () => {
+    const { doctorHandler } = await import("./commands/handlers/mod.ts");
+    return wrapHandler(doctorHandler, "doctor");
   },
 };
 
 const showHelp = async (): Promise<void> => {
-  console.log("eser - Eser Ozvataf's command-line tooling to access things\n");
+  console.log("eser - Eser's swiss-army-knife tooling for your terminal\n");
   console.log("Usage: eser <command> [subcommand] [options]\n");
   console.log("Commands:");
 
@@ -121,6 +125,7 @@ const showHelp = async (): Promise<void> => {
     "  update        Update eser CLI to latest version (alias for system update)",
   );
   console.log("  version       Show version number");
+  console.log("  doctor        Run diagnostic checks");
 
   // Tier 4: Scripts from .manifest.yml
   const manifest = await configManifest.loadManifest(".");

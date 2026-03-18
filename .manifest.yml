@@ -57,6 +57,7 @@ workflows:
                 - "Dockerfile"
                 - "LICENSE"
                 - "README.md"
+                - "TODOS.md"
                 - "pkg/*/README.md"
                 - "*_test.ts"
                 - "*_test.go"
@@ -143,6 +144,7 @@ scripts:
 
   # Build
   build: deno run --allow-all ./pkg/@eser/cli/scripts/npm-build.ts
+  compile: deno run --allow-all ./pkg/@eser/cli/scripts/compile.ts
 
   # Documentation
   docs: "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts"

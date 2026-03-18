@@ -203,3 +203,152 @@ jobs:
         run: deno task cli codebase gh release-notes --create-if-missing
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # ── Release: compile standalone binaries ──────────────────────
+  compile-binaries:
+    name: Compile Binaries
+    needs: tag-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Compile for all platforms
+        run: deno run --allow-all ./pkg/@eser/cli/scripts/compile.ts
+
+      - name: Upload binary bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: binary-bundle
+          path: etc/temp/binaries/
+
+  # ── Release: upload assets + sign ─────────────────────────────
+  upload-assets:
+    name: Upload & Sign Assets
+    needs: [compile-binaries, release-notes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Download binary bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: binary-bundle
+          path: binaries/
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign archives
+        run: |
+          cd binaries
+          for f in *.tar.gz *.zip; do
+            [ -f "$f" ] || continue
+            cosign sign-blob --yes --bundle "${f}.bundle" "$f"
+          done
+
+      - name: Upload to GitHub Release
+        run: |
+          VERSION=$(cat VERSION)
+          TAG="v$VERSION"
+          gh release upload "$TAG" --clobber \
+            binaries/*.tar.gz \
+            binaries/*.zip \
+            binaries/*.bundle \
+            binaries/SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Summary
+        run: |
+          VERSION=$(cat VERSION)
+          echo "### Binary assets uploaded for v$VERSION" >> $GITHUB_STEP_SUMMARY
+          ls -lh binaries/*.tar.gz binaries/*.zip 2>/dev/null | while read line; do
+            echo "- $line" >> $GITHUB_STEP_SUMMARY
+          done
+
+  # ── Release: update Homebrew tap ──────────────────────────────
+  update-homebrew:
+    name: Update Homebrew Tap
+    needs: upload-assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.ESER_APP_ID }}
+          private-key: ${{ secrets.ESER_APP_PRIVATE_KEY }}
+          owner: eser
+          repositories: homebrew-tap
+
+      - name: Update formula
+        run: deno run --allow-all ./etc/scripts/update-homebrew-formula.ts
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+  # ── Release: update Nix hashes ────────────────────────────────
+  update-nix-hashes:
+    name: Update Nix Hashes
+    needs: upload-assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.ESER_APP_ID }}
+          private-key: ${{ secrets.ESER_APP_PRIVATE_KEY }}
+          owner: eser
+          repositories: stack
+
+      - name: Update hashes
+        run: deno run --allow-all ./etc/scripts/update-nix-hashes.ts
+
+      - name: Commit and push
+        run: |
+          VERSION=$(cat VERSION)
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add nix/hashes.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(nix): update binary hashes for v$VERSION"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}

@@ -9,9 +9,11 @@
 import * as shellArgs from "@eser/shell/args";
 import {
   completionsHandler,
+  doctorHandler,
   installHandler,
   uninstallHandler,
   updateHandler,
+  versionHandler,
 } from "./handlers/mod.ts";
 
 export const systemCommand = new shellArgs.Command("system")
@@ -40,4 +42,19 @@ export const systemCommand = new shellArgs.Command("system")
         description: "Shell type: bash, zsh, or fish",
       })
       .run(completionsHandler),
+  )
+  .command(
+    new shellArgs.Command("version")
+      .description("Show version and check for updates")
+      .flag({
+        name: "bare",
+        type: "boolean",
+        description: "Print version number only",
+      })
+      .run(versionHandler),
+  )
+  .command(
+    new shellArgs.Command("doctor")
+      .description("Run diagnostic checks")
+      .run(doctorHandler),
   );

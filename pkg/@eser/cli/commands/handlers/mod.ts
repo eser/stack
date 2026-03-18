@@ -10,3 +10,5 @@ export { installHandler } from "./install.ts";
 export { uninstallHandler } from "./uninstall.ts";
 export { updateHandler } from "./update.ts";
 export { completionsHandler } from "./completions.ts";
+export { versionHandler } from "./version.ts";
+export { doctorHandler } from "./doctor.ts";

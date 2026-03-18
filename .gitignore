@@ -33,3 +33,7 @@ node_modules/*
 
 # npm builds
 /pkg/@eser/cli/dist/*
+
+# Nix
+result
+result-*

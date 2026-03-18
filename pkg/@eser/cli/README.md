@@ -1,20 +1,30 @@
 # 🖥️ [@eser/cli](./)
 
-Eser Ozvataf's command-line tooling to access things. A multi-purpose CLI that
+Eser's swiss-army-knife tooling for your terminal. A multi-purpose CLI that
 dispatches to library modules for codebase management, workflow automation,
 framework scaffolding, and more.
 
-## 🚀 Quick Start
+## 🚀 Installation
 
 ```bash
-# Using npx (no installation required)
-npx eser <command>
+# Install script (macOS/Linux)
+curl -fsSL https://eser.run/install | sh
 
-# Using Deno
-deno run --allow-all jsr:@eser/cli <command>
+# Homebrew (macOS/Linux)
+brew install eser/tap/eser
 
-# Global installation via npm
+# Nix
+nix profile install github:eser/stack
+
+# npm (requires Node.js)
 npm install -g eser
+
+# Deno
+deno install -g -A jsr:@eser/cli
+
+# Or run without installing
+npx eser <command>
+deno run --allow-all jsr:@eser/cli <command>
 ```
 
 ## 🛠 Command Tree
@@ -63,7 +73,8 @@ eser
 ├── system                Commands related with this CLI
 ├── install               Install eser CLI globally
 ├── update                Update eser CLI to latest version
-└── version               Show version number
+├── version               Show version number
+└── doctor                Run diagnostic checks
 ```
 
 ## 📋 Commands
@@ -199,14 +210,17 @@ eser laroux serve [options]
 
 ```bash
 # Install eser CLI globally
-npx eser install
+eser install
 
 # Update to the latest version
-npx eser update
+eser update
 
 # Show version
-npx eser version
-npx eser version --bare   # version number only
+eser version
+eser version --bare   # version number only
+
+# Run diagnostic checks
+eser doctor
 ```
 
 ## License

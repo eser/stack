@@ -128,10 +128,13 @@ export const walkSourceFiles = async (
       const fullPath = current.path.join(root, relativePath);
       const name = current.path.basename(relativePath);
 
-      // Apply extension filter
+      // Apply extension filter (normalize bare exts: "ts" → ".ts" to match extname output)
       if (extensions !== undefined && extensions.length > 0) {
         const ext = current.path.extname(relativePath);
-        if (!extensions.includes(ext)) {
+        const normalizedExts = extensions.map((e) =>
+          e.startsWith(".") ? e : `.${e}`
+        );
+        if (!normalizedExts.includes(ext)) {
           continue;
         }
       }

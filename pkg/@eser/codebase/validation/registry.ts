@@ -18,7 +18,6 @@ import * as circularDeps from "./validators/circular-deps.ts";
 import * as modExports from "./validators/mod-exports.ts";
 import * as exportNames from "./validators/export-names.ts";
 import * as docs from "./validators/docs.ts";
-import * as licenses from "./validators/licenses.ts";
 import * as packageConfigs from "./validators/package-configs.ts";
 
 // File tools (factory-generated — import tool objects for full adapter access)
@@ -37,6 +36,7 @@ import * as validateShebangs from "../validate-shebangs.ts";
 import * as validateSecrets from "../validate-secrets.ts";
 import * as validateFilenames from "../validate-filenames.ts";
 import * as validateSubmodules from "../validate-submodules.ts";
+import * as validateLicenses from "../validate-licenses.ts";
 
 // Standalone scripts (not file tools)
 import * as validateCommitMsg from "../validate-commit-msg.ts";
@@ -65,7 +65,6 @@ const initializeBuiltinValidators = (): void => {
   registerValidator(modExports.modExportsValidator);
   registerValidator(exportNames.exportNamesValidator);
   registerValidator(docs.docsValidator);
-  registerValidator(licenses.licensesValidator);
   registerValidator(packageConfigs.packageConfigsValidator);
 
   // File tool validators
@@ -84,6 +83,7 @@ const initializeBuiltinValidators = (): void => {
   registerValidator(validateSecrets.validator);
   registerValidator(validateFilenames.validator);
   registerValidator(validateSubmodules.validator);
+  registerValidator(validateLicenses.validator);
 };
 
 const ensureInitialized = (): void => {
@@ -245,6 +245,7 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
     validateSecrets.tool,
     validateFilenames.tool,
     validateSubmodules.tool,
+    validateLicenses.tool,
   ];
 
   for (const ft of fileTools) {
@@ -257,7 +258,6 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
     modExports.modExportsValidator,
     exportNames.exportNamesValidator,
     docs.docsValidator,
-    licenses.licensesValidator,
     packageConfigs.packageConfigsValidator,
   ];
 

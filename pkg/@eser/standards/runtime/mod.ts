@@ -95,6 +95,23 @@ export {
   type SearchFileHierarchyOptions,
 } from "./file-search.ts";
 
+// Re-export CLI execution context utilities
+export {
+  buildCommand,
+  detectExecutionContext,
+  detectInvoker,
+  getCliCommand,
+  isCommandInPath,
+  resolvePathDirs,
+} from "./execution-context.ts";
+export type {
+  CliCommandOptions,
+  CliExecutionContext,
+  CliInvoker,
+  CliMode,
+  CliRuntime,
+} from "./execution-context.ts";
+
 // Re-export Workers-specific utilities
 export {
   clearEnv as clearWorkerdEnv,

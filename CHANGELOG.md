@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.1.10 - 2026-03-19
+
+### Changed
+
+- **deps:** bump google.golang.org/grpc from 1.79.2 to 1.79.3 in /apps/services
+
 ## 4.1.9 - 2026-03-18
 
 ### Fixed

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.1.12 - 2026-03-19
+
+### Fixed
+
+- **ci:** allow homebrew/nix update jobs to fail when app credentials missing.
+- **ci:** skip homebrew/nix jobs when app credentials not configured.
+
 ## 4.1.11 - 2026-03-19
 
 ### Fixed

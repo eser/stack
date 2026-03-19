@@ -288,9 +288,9 @@ jobs:
   update-homebrew:
     name: Update Homebrew Tap
     needs: upload-assets
-    if: secrets.ESER_APP_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    continue-on-error: true
 
     permissions:
       contents: read
@@ -320,9 +320,9 @@ jobs:
   update-nix-hashes:
     name: Update Nix Hashes
     needs: upload-assets
-    if: secrets.ESER_APP_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    continue-on-error: true
 
     permissions:
       contents: read

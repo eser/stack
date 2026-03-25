@@ -1,0 +1,13 @@
+{
+  "name": "@eser/streams",
+  "version": "4.1.12",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
+    "@std/testing": "npm:@jsr/std__testing@^1.0.16"
+  }
+}

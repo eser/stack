@@ -34,3 +34,21 @@ distribution is stable.
 **Effort:** S per manager (~1 hour each)
 
 **Depends on:** Stable binary distribution pipeline
+
+## P2 — Backpressure-aware web sink defaults
+
+**What:** When web sinks (httpResponse, webSocket) ship for @eser/streams,
+configure sensible timeout and backpressure defaults.
+
+**Why:** Pipeline timeout (in MVP) handles abort, but web sinks need per-sink
+backpressure thresholds and configurable timeout defaults to prevent silent
+hangs in production.
+
+**Context:** The @eser/streams MVP ships with stdout/buffer/null sinks (all
+fast). When web sinks arrive, they face real backpressure from network
+conditions. The pipeline timeout mechanism provides the abort, but each web sink
+needs sensible defaults for buffer size limits and timeout durations.
+
+**Effort:** S (CC: ~15 min per sink)
+
+**Depends on:** @eser/streams MVP (pipeline timeout)

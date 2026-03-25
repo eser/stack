@@ -39,7 +39,7 @@
     "apps/",
     "docs/",
     "etc/temp/",
-    "etc/templates/",
+    "etc/registry/recipes/",
     "node_modules/",
     "pkg/@eser/cli/dist/"
   ]

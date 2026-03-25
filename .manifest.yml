@@ -17,8 +17,7 @@ workflows:
       - validate-merge-conflict
       - validate-json:
           exclude:
-            - "etc/templates/vite-app/tsconfig.app.json"
-            - "etc/templates/cf-workers-app/tsconfig.json"
+            - "etc/registry/recipes/"
             - "tsconfig.json"
       - validate-toml
       - validate-yaml:
@@ -52,8 +51,7 @@ workflows:
                 - "docs/"
                 - "etc/coverage/"
                 - "etc/temp/"
-                - "etc/templates/*/Makefile"
-                - "etc/templates/*/README.md"
+                - "etc/registry/recipes/"
                 - "Dockerfile"
                 - "LICENSE"
                 - "README.md"
@@ -62,7 +60,9 @@ workflows:
                 - "*_test.ts"
                 - "*_test.go"
       - validate-submodules
-      - validate-licenses
+      - validate-licenses:
+          exclude:
+            - "etc/registry/recipes/"
 
       # Deno checks
       - shell:

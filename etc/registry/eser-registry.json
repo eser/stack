@@ -1,0 +1,598 @@
+{
+  "$schema": "https://eser.live/registry/v1.json",
+  "name": "eser",
+  "description": "Eser Ozvataf's personal development ecosystem",
+  "author": "Eser Ozvataf",
+  "registryUrl": "https://raw.githubusercontent.com/eser/stack/main/etc/registry",
+  "recipes": [
+    {
+      "name": "library-pkg",
+      "description": "Deno library package with tests and README",
+      "language": "typescript",
+      "scale": "project",
+      "tags": ["deno", "library", "typescript", "jsr"],
+      "files": [
+        { "source": "recipes/library-pkg/mod.ts", "target": "mod.ts" },
+        {
+          "source": "recipes/library-pkg/mod.test.ts",
+          "target": "mod.test.ts"
+        },
+        { "source": "recipes/library-pkg/deno.json", "target": "deno.json" },
+        { "source": "recipes/library-pkg/README.md", "target": "README.md" }
+      ]
+    },
+    {
+      "name": "fp-pipe",
+      "description": "Functional pipe and compose utilities",
+      "language": "typescript",
+      "scale": "utility",
+      "tags": ["fp", "functional", "pipe", "compose"],
+      "files": [
+        { "source": "recipes/fp-pipe/pipe.ts", "target": "lib/fp/pipe.ts" }
+      ],
+      "dependencies": {
+        "jsr": ["jsr:@eser/fp@^4.1.0"]
+      }
+    },
+    {
+      "name": "laroux-app",
+      "description": "Laroux.js web application with SSR and React",
+      "language": "typescript",
+      "scale": "project",
+      "tags": ["laroux", "react", "ssr", "web"],
+      "variables": [
+        {
+          "name": "project_name",
+          "description": "Project name",
+          "default": "my-laroux-app"
+        }
+      ],
+      "files": [
+        { "source": "recipes/laroux-app/.gitignore", "target": ".gitignore" },
+        { "source": "recipes/laroux-app/.npmrc", "target": ".npmrc" },
+        {
+          "source": "recipes/laroux-app/laroux.config.ts",
+          "target": "laroux.config.ts"
+        },
+        {
+          "source": "recipes/laroux-app/package.json",
+          "target": "package.json"
+        },
+        {
+          "source": "recipes/laroux-app/tsconfig.json",
+          "target": "tsconfig.json"
+        },
+        {
+          "source": "recipes/laroux-app/public/favicon.svg",
+          "target": "public/favicon.svg"
+        },
+        {
+          "source": "recipes/laroux-app/public/llms.txt",
+          "target": "public/llms.txt"
+        },
+        {
+          "source": "recipes/laroux-app/public/robots.txt",
+          "target": "public/robots.txt"
+        },
+        {
+          "source": "recipes/laroux-app/src/app/error.tsx",
+          "target": "src/app/error.tsx"
+        },
+        {
+          "source": "recipes/laroux-app/src/app/layout.tsx",
+          "target": "src/app/layout.tsx"
+        },
+        {
+          "source": "recipes/laroux-app/src/app/not-found.tsx",
+          "target": "src/app/not-found.tsx"
+        },
+        {
+          "source": "recipes/laroux-app/src/app/routes/home/page.tsx",
+          "target": "src/app/routes/home/page.tsx"
+        },
+        {
+          "source": "recipes/laroux-app/src/app/routes/index.ts",
+          "target": "src/app/routes/index.ts"
+        },
+        {
+          "source": "recipes/laroux-app/src/app/styles/global.css",
+          "target": "src/app/styles/global.css"
+        }
+      ],
+      "dependencies": {
+        "npm": ["@eser/laroux", "@eser/laroux-server", "@eser/laroux-react"]
+      }
+    },
+    {
+      "name": "go-service",
+      "description": "Go microservice with hexagonal architecture",
+      "language": "go",
+      "scale": "project",
+      "tags": ["go", "hexagonal", "microservice", "api"],
+      "variables": [
+        {
+          "name": "module_name",
+          "description": "Go module path",
+          "default": "github.com/user/service"
+        }
+      ],
+      "files": [
+        {
+          "source": "recipes/go-service/cmd/serve/main.go",
+          "target": "cmd/serve/main.go"
+        },
+        {
+          "source": "recipes/go-service/pkg/api/adapters/appcontext/appcontext.go",
+          "target": "pkg/api/adapters/appcontext/appcontext.go"
+        },
+        { "source": "recipes/go-service/Makefile", "target": "Makefile" },
+        { "source": "recipes/go-service/README.md", "target": "README.md" },
+        {
+          "source": "recipes/go-service/go.mod.tmpl",
+          "target": "go.mod.tmpl"
+        }
+      ]
+    },
+    {
+      "name": "cf-workers-app",
+      "description": "Cloudflare Workers application with Vitest",
+      "language": "typescript",
+      "scale": "project",
+      "tags": ["cloudflare", "workers", "edge", "serverless"],
+      "files": [
+        {
+          "source": "recipes/cf-workers-app/.gitignore",
+          "target": ".gitignore"
+        },
+        { "source": "recipes/cf-workers-app/.npmrc", "target": ".npmrc" },
+        {
+          "source": "recipes/cf-workers-app/.prettierrc",
+          "target": ".prettierrc"
+        },
+        {
+          "source": "recipes/cf-workers-app/package.json",
+          "target": "package.json"
+        },
+        {
+          "source": "recipes/cf-workers-app/src/index.ts",
+          "target": "src/index.ts"
+        },
+        {
+          "source": "recipes/cf-workers-app/test/index.spec.ts",
+          "target": "test/index.spec.ts"
+        },
+        {
+          "source": "recipes/cf-workers-app/test/tsconfig.json",
+          "target": "test/tsconfig.json"
+        },
+        {
+          "source": "recipes/cf-workers-app/tsconfig.json",
+          "target": "tsconfig.json"
+        },
+        {
+          "source": "recipes/cf-workers-app/vitest.config.mts",
+          "target": "vitest.config.mts"
+        },
+        {
+          "source": "recipes/cf-workers-app/worker-configuration.d.ts",
+          "target": "worker-configuration.d.ts"
+        },
+        {
+          "source": "recipes/cf-workers-app/wrangler.toml",
+          "target": "wrangler.toml"
+        }
+      ],
+      "dependencies": {
+        "npm": ["@cloudflare/workers-types", "wrangler"]
+      }
+    },
+    {
+      "name": "vite-app",
+      "description": "React + Vite single-page application",
+      "language": "typescript",
+      "scale": "project",
+      "tags": ["react", "vite", "spa", "frontend"],
+      "files": [
+        {
+          "source": "recipes/vite-app/.eslintrc.cjs",
+          "target": ".eslintrc.cjs"
+        },
+        { "source": "recipes/vite-app/.gitignore", "target": ".gitignore" },
+        { "source": "recipes/vite-app/README.md", "target": "README.md" },
+        { "source": "recipes/vite-app/index.html", "target": "index.html" },
+        {
+          "source": "recipes/vite-app/package.json",
+          "target": "package.json"
+        },
+        {
+          "source": "recipes/vite-app/public/vite.svg",
+          "target": "public/vite.svg"
+        },
+        { "source": "recipes/vite-app/src/app.css", "target": "src/app.css" },
+        { "source": "recipes/vite-app/src/app.tsx", "target": "src/app.tsx" },
+        {
+          "source": "recipes/vite-app/src/assets/react.svg",
+          "target": "src/assets/react.svg"
+        },
+        {
+          "source": "recipes/vite-app/src/index.css",
+          "target": "src/index.css"
+        },
+        {
+          "source": "recipes/vite-app/src/main.tsx",
+          "target": "src/main.tsx"
+        },
+        {
+          "source": "recipes/vite-app/src/vite-env.d.ts",
+          "target": "src/vite-env.d.ts"
+        },
+        {
+          "source": "recipes/vite-app/tsconfig.app.json",
+          "target": "tsconfig.app.json"
+        },
+        {
+          "source": "recipes/vite-app/tsconfig.json",
+          "target": "tsconfig.json"
+        },
+        {
+          "source": "recipes/vite-app/tsconfig.node.json",
+          "target": "tsconfig.node.json"
+        },
+        {
+          "source": "recipes/vite-app/vite.config.ts",
+          "target": "vite.config.ts"
+        }
+      ],
+      "dependencies": {
+        "npm": ["react", "react-dom", "vite", "@vitejs/plugin-react"]
+      }
+    },
+    {
+      "name": "cool-lime-app",
+      "description": "Cool Lime framework application",
+      "language": "typescript",
+      "scale": "project",
+      "tags": ["lime", "deno", "web"],
+      "files": [
+        {
+          "source": "recipes/cool-lime-app/build.ts",
+          "target": "build.ts"
+        },
+        { "source": "recipes/cool-lime-app/main.ts", "target": "main.ts" },
+        {
+          "source": "recipes/cool-lime-app/manifest.jsonc",
+          "target": "manifest.jsonc"
+        },
+        {
+          "source": "recipes/cool-lime-app/manifest.yaml",
+          "target": "manifest.yaml"
+        },
+        {
+          "source": "recipes/cool-lime-app/pkg/app/mod.tsx",
+          "target": "pkg/app/mod.tsx"
+        }
+      ]
+    },
+    {
+      "name": "jsx-runtime-app",
+      "description": "JSX server-side rendering application",
+      "language": "typescript",
+      "scale": "project",
+      "tags": ["jsx", "ssr", "typescript"],
+      "files": [
+        { "source": "recipes/jsx-runtime-app/.npmrc", "target": ".npmrc" },
+        {
+          "source": "recipes/jsx-runtime-app/package.json",
+          "target": "package.json"
+        },
+        {
+          "source": "recipes/jsx-runtime-app/root.test.tsx",
+          "target": "root.test.tsx"
+        },
+        {
+          "source": "recipes/jsx-runtime-app/root.tsx",
+          "target": "root.tsx"
+        },
+        {
+          "source": "recipes/jsx-runtime-app/tsconfig.json",
+          "target": "tsconfig.json"
+        }
+      ]
+    },
+    {
+      "name": "vanilla-app",
+      "description": "Minimal TypeScript application",
+      "language": "typescript",
+      "scale": "project",
+      "tags": ["minimal", "typescript"],
+      "files": [
+        { "source": "recipes/vanilla-app/main.ts", "target": "main.ts" },
+        {
+          "source": "recipes/vanilla-app/package.json",
+          "target": "package.json"
+        }
+      ]
+    },
+    {
+      "name": "ajan-lib",
+      "description": "Ajan core library utilities",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "core"],
+      "files": [
+        {
+          "source": "lib/",
+          "target": "pkg/ajan/lib",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-results",
+      "description": "Ajan result type utilities",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "results"],
+      "requires": ["ajan-lib"],
+      "files": [
+        {
+          "source": "results/",
+          "target": "pkg/ajan/results",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-types",
+      "description": "Ajan shared type definitions",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "types"],
+      "files": [
+        {
+          "source": "types/",
+          "target": "pkg/ajan/types",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-di",
+      "description": "Ajan dependency injection container",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "di", "dependency-injection"],
+      "files": [
+        {
+          "source": "di/",
+          "target": "pkg/ajan/di",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-configfx",
+      "description": "Ajan configuration management",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "config"],
+      "requires": ["ajan-lib"],
+      "files": [
+        {
+          "source": "configfx/",
+          "target": "pkg/ajan/configfx",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-connfx",
+      "description": "Ajan database connection management",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "database", "connections"],
+      "requires": ["ajan-configfx"],
+      "files": [
+        {
+          "source": "connfx/",
+          "target": "pkg/ajan/connfx",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-datafx",
+      "description": "Ajan data access layer",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "data", "repository"],
+      "requires": ["ajan-configfx", "ajan-connfx"],
+      "files": [
+        {
+          "source": "datafx/",
+          "target": "pkg/ajan/datafx",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-eventsfx",
+      "description": "Ajan event system",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "events", "pubsub"],
+      "requires": ["ajan-configfx"],
+      "files": [
+        {
+          "source": "eventsfx/",
+          "target": "pkg/ajan/eventsfx",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-logfx",
+      "description": "Ajan structured logging",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "logging"],
+      "requires": ["ajan-configfx"],
+      "files": [
+        {
+          "source": "logfx/",
+          "target": "pkg/ajan/logfx",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-metricsfx",
+      "description": "Ajan metrics and observability",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "metrics", "observability"],
+      "requires": ["ajan-configfx"],
+      "files": [
+        {
+          "source": "metricsfx/",
+          "target": "pkg/ajan/metricsfx",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-tracesfx",
+      "description": "Ajan distributed tracing",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "tracing", "opentelemetry"],
+      "requires": ["ajan-configfx"],
+      "files": [
+        {
+          "source": "tracesfx/",
+          "target": "pkg/ajan/tracesfx",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-httpfx",
+      "description": "Ajan HTTP server framework",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "http", "server"],
+      "requires": ["ajan-lib", "ajan-configfx", "ajan-results"],
+      "files": [
+        {
+          "source": "httpfx/",
+          "target": "pkg/ajan/httpfx",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-grpcfx",
+      "description": "Ajan gRPC server framework",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "grpc"],
+      "requires": ["ajan-configfx", "ajan-connfx"],
+      "files": [
+        {
+          "source": "grpcfx/",
+          "target": "pkg/ajan/grpcfx",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-httpclient",
+      "description": "Ajan HTTP client with retry and timeout",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "http", "client"],
+      "requires": ["ajan-configfx"],
+      "files": [
+        {
+          "source": "httpclient/",
+          "target": "pkg/ajan/httpclient",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    },
+    {
+      "name": "ajan-processfx",
+      "description": "Ajan process lifecycle management",
+      "language": "go",
+      "scale": "utility",
+      "tags": ["go", "ajan", "process", "lifecycle"],
+      "files": [
+        {
+          "source": "processfx/",
+          "target": "pkg/ajan/processfx",
+          "kind": "folder",
+          "provider": "github"
+        }
+      ],
+      "dependencies": {
+        "go": ["github.com/eser/ajan"]
+      }
+    }
+  ]
+}

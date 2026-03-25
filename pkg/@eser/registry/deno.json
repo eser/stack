@@ -1,0 +1,11 @@
+{
+  "name": "@eser/registry",
+  "version": "4.1.12",
+  "exports": {
+    ".": "./mod.ts",
+    "./schema": "./registry-schema.ts",
+    "./fetcher": "./registry-fetcher.ts",
+    "./applier": "./recipe-applier.ts",
+    "./resolver": "./dependency-resolver.ts"
+  }
+}

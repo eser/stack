@@ -2,7 +2,7 @@
 
 import * as assert from "@std/assert";
 import { current } from "@eser/standards/runtime";
-import { serialize } from "@eser/writer";
+import * as formats from "@eser/formats";
 import {
   buildConfigMapFromContext,
   buildSecretFromContext,
@@ -303,7 +303,7 @@ Deno.test("CLI should handle secret resource format", () => {
   assert.assertEquals(secretType, "secret");
 });
 
-// Test integration with @eser/writer for YAML/JSON output
+// Test integration with @eser/formats for YAML/JSON output
 Deno.test("ConfigMap YAML output should be properly formatted", () => {
   const configMap = buildConfigMapFromContext(
     "format-test",
@@ -314,7 +314,7 @@ Deno.test("ConfigMap YAML output should be properly formatted", () => {
     ]),
   );
 
-  const yamlOutput = serialize([configMap], "yaml", { pretty: true });
+  const yamlOutput = formats.serialize([configMap], "yaml", { pretty: true });
 
   assert.assertStringIncludes(yamlOutput, "apiVersion: v1");
   assert.assertStringIncludes(yamlOutput, "kind: ConfigMap");
@@ -334,7 +334,7 @@ Deno.test("Secret YAML output should be properly formatted", () => {
     ]),
   );
 
-  const yamlOutput = serialize([secret], "yaml", { pretty: true });
+  const yamlOutput = formats.serialize([secret], "yaml", { pretty: true });
 
   assert.assertStringIncludes(yamlOutput, "apiVersion: v1");
   assert.assertStringIncludes(yamlOutput, "kind: Secret");
@@ -355,7 +355,7 @@ Deno.test("JSON output should be valid JSON", () => {
     ]),
   );
 
-  const jsonOutput = serialize([configMap], "json", { pretty: true });
+  const jsonOutput = formats.serialize([configMap], "json", { pretty: true });
 
   // Should be parseable as JSON
   const parsed = JSON.parse(jsonOutput);
@@ -407,7 +407,7 @@ Deno.test("Full workflow test with mock data", () => {
     );
 
     // Generate YAML output
-    const yamlOutput = serialize([configMap], "yaml", { pretty: true });
+    const yamlOutput = formats.serialize([configMap], "yaml", { pretty: true });
 
     // Verify the complete workflow
     assert.assertStringIncludes(yamlOutput, "kind: ConfigMap");
@@ -422,7 +422,7 @@ Deno.test("Full workflow test with mock data", () => {
       "test-ns",
       envValues,
     );
-    const secretYaml = serialize([secret], "yaml", { pretty: true });
+    const secretYaml = formats.serialize([secret], "yaml", { pretty: true });
 
     assert.assertStringIncludes(secretYaml, "kind: Secret");
     assert.assertStringIncludes(secretYaml, "name: workflow-secret");

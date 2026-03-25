@@ -17,6 +17,7 @@ export * as logging from "./@eser/logging/mod.ts";
 export * as parsing from "./@eser/parsing/mod.ts";
 export * as standards from "./@eser/standards/mod.ts";
 export * as testing from "./@eser/testing/mod.ts";
-export * as writer from "./@eser/writer/mod.ts";
+export * as formats from "./@eser/formats/mod.ts";
+export * as streams from "./@eser/streams/mod.ts";
 
 // export * as lime from "./@cool/lime/mod.ts";

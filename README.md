@@ -91,12 +91,13 @@ strives to offer you an intuitive and delightful development experience.
 
 #### Data & Parsing
 
-| Component                                  | Description                                    | Latest Version                                                                  |
-| ------------------------------------------ | ---------------------------------------------- | ------------------------------------------------------------------------------- |
-| 〰️ [@eser/parsing](pkg/@eser/parsing/)     | Parsing tools for strings and streams          | [![JSR](https://jsr.io/badges/@eser/parsing)](https://jsr.io/@eser/parsing)     |
-| ✏️ [@eser/writer](pkg/@eser/writer/)       | Code and text generation writer                | [![JSR](https://jsr.io/badges/@eser/writer)](https://jsr.io/@eser/writer)       |
-| ⚙️ [@eser/collector](pkg/@eser/collector/) | Module export collector and manifest generator | [![JSR](https://jsr.io/badges/@eser/collector)](https://jsr.io/@eser/collector) |
-| 🔬 [@eser/cs](pkg/@eser/cs/)               | Computer science data structures               | [![JSR](https://jsr.io/badges/@eser/cs)](https://jsr.io/@eser/cs)               |
+| Component                                  | Description                                                    | Latest Version                                                                  |
+| ------------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 〰️ [@eser/parsing](pkg/@eser/parsing/)     | Parsing tools for strings and streams                          | [![JSR](https://jsr.io/badges/@eser/parsing)](https://jsr.io/@eser/parsing)     |
+| 🔄 [@eser/formats](pkg/@eser/formats/)     | Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL) | [![JSR](https://jsr.io/badges/@eser/formats)](https://jsr.io/@eser/formats)     |
+| 🌊 [@eser/streams](pkg/@eser/streams/)     | Universal I/O streaming with composable middleware             | [![JSR](https://jsr.io/badges/@eser/streams)](https://jsr.io/@eser/streams)     |
+| ⚙️ [@eser/collector](pkg/@eser/collector/) | Module export collector and manifest generator                 | [![JSR](https://jsr.io/badges/@eser/collector)](https://jsr.io/@eser/collector) |
+| 🗄️ [@eser/cs](pkg/@eser/cs/)               | Config storage — Kubernetes ConfigMap/Secret sync              | [![JSR](https://jsr.io/badges/@eser/cs)](https://jsr.io/@eser/cs)               |
 
 #### Web & UI
 

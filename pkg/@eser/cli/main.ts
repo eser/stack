@@ -10,6 +10,7 @@
  *   npx eser <command> [subcommand] [options]
  *
  * Commands:
+ *   build       Build & scaffold — recipes, templates, project creation
  *   codebase    Codebase management tools (versions, validation, scaffolding, ...)
  *   laroux      laroux.js framework commands (init, dev, build, serve)
  *   system      Commands related with this CLI

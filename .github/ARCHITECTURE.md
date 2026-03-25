@@ -19,7 +19,7 @@ stack/
 │   ├── @eser/                  # Core packages (29 packages, published to JSR)
 │   └── @cool/                  # Community packages (2 packages, published to JSR)
 ├── etc/
-│   ├── templates/              # Project starter templates (library-pkg, go-service)
+│   ├── registry/               # Recipe registry (24 recipes: project templates + Go components)
 │   ├── scripts/                # Automation scripts (version-bump, release-notes)
 │   └── coverage/               # Test coverage output (gitignored)
 ├── docs/                       # Generated HTML documentation
@@ -49,7 +49,6 @@ Layer 0 — Foundation (no internal deps)
 Layer 1 — Core Utilities (depend on Layer 0)
 ├── @eser/fp                    # Functional programming (116+ modules)
 ├── @eser/crypto                # Cryptographic utilities
-├── @eser/cs                    # Computer science utilities
 └── @eser/parsing               # String/stream parsing
 
 Layer 2 — Infrastructure (depend on Layers 0-1)
@@ -61,9 +60,11 @@ Layer 2 — Infrastructure (depend on Layers 0-1)
 ├── @eser/http                  # HTTP utilities
 ├── @eser/functions             # Function utilities
 ├── @eser/testing               # Testing utilities
-├── @eser/writer                # Output/file writing
+├── @eser/formats               # Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL)
+├── @eser/streams               # Universal I/O streaming with composable middleware
 ├── @eser/shell                 # Shell interaction
 ├── @eser/collector             # Data collection
+├── @eser/cs                    # Config storage (Kubernetes ConfigMap/Secret sync)
 └── @eser/codebase              # Codebase analysis/validation
 
 Layer 3 — Framework (depend on Layers 0-2)

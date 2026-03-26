@@ -2,8 +2,12 @@
   "name": "@eser/ai",
   "version": "4.1.15",
   "exports": {
-    ".": "./mod.ts",
+    ".": "./main.ts",
+    "./mod": "./mod.ts",
+    "./module": "./module.ts",
     "./adapters": "./adapters/mod.ts",
-    "./streams": "./streams/mod.ts"
+    "./streams": "./streams/mod.ts",
+    "./commands/ask": "./commands/ask.ts",
+    "./commands/list": "./commands/list.ts"
   }
 }

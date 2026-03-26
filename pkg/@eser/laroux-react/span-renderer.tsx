@@ -117,13 +117,17 @@ const renderSpan = (
         <table key={key}>
           <thead>
             <tr>
-              {span.headers.map((header, i) => <th key={i}>{header}</th>)}
+              {span.headers.map((header, i) => (
+                <th key={i}>{renderSpan(header, i)}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {span.rows.map((row, rowIdx) => (
               <tr key={rowIdx}>
-                {row.map((cell, cellIdx) => <td key={cellIdx}>{cell}</td>)}
+                {row.map((cell, cellIdx) => (
+                  <td key={cellIdx}>{renderSpan(cell, cellIdx)}</td>
+                ))}
               </tr>
             ))}
           </tbody>

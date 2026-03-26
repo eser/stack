@@ -2,7 +2,9 @@
   "name": "@eser/workflows",
   "version": "4.1.15",
   "exports": {
-    ".": "./mod.ts",
+    ".": "./main.ts",
+    "./mod": "./mod.ts",
+    "./module": "./module.ts",
     "./list": "./list.ts",
     "./loader": "./loader.ts",
     "./run": "./run.ts"

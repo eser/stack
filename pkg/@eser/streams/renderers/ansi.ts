@@ -8,6 +8,7 @@
  */
 
 import type * as spanTypes from "../span.ts";
+import { plainLength } from "../span.ts";
 import type { Renderer } from "./types.ts";
 
 // =============================================================================
@@ -74,10 +75,13 @@ const renderSpan = (span: spanTypes.Span): string => {
     case "table": {
       const widths = span.headers.map((h, i) => {
         const maxRow = span.rows.reduce(
-          (max, row) => Math.max(max, (row[i] ?? "").length),
+          (max, row) => {
+            const cell = row[i];
+            return Math.max(max, cell !== undefined ? plainLength(cell) : 0);
+          },
           0,
         );
-        return Math.max(h.length, maxRow);
+        return Math.max(plainLength(h), maxRow);
       });
 
       const boldOpen = STYLE_CODES["bold"]![0];
@@ -85,14 +89,22 @@ const renderSpan = (span: spanTypes.Span): string => {
       const dimOpen = STYLE_CODES["dim"]![0];
       const dimClose = STYLE_CODES["dim"]![1];
 
+      const padCell = (cell: spanTypes.Span, width: number): string => {
+        const rendered = renderSpan(cell);
+        const textLen = plainLength(cell);
+        return rendered + " ".repeat(Math.max(0, width - textLen));
+      };
+
       const header = span.headers
-        .map((h, i) => `${boldOpen}${h.padEnd(widths[i]!)}${boldClose}`)
+        .map((h, i) => `${boldOpen}${padCell(h, widths[i]!)}${boldClose}`)
         .join("  ");
       const sep = `${dimOpen}${
         widths.map((w) => "─".repeat(w)).join("──")
       }${dimClose}`;
       const rows = span.rows
-        .map((row) => row.map((cell, i) => cell.padEnd(widths[i]!)).join("  "))
+        .map((row) =>
+          row.map((cell, i) => padCell(cell, widths[i]!)).join("  ")
+        )
         .join("\n");
 
       return `${header}\n${sep}\n${rows}\n`;

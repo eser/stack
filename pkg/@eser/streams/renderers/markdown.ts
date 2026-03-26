@@ -33,10 +33,10 @@ const renderSpan = (span: spanTypes.Span): string => {
       return `\`\`\`${lang}\n${span.value}\n\`\`\`\n`;
     }
     case "table": {
-      const header = `| ${span.headers.join(" | ")} |`;
+      const header = `| ${span.headers.map(renderSpan).join(" | ")} |`;
       const sep = `| ${span.headers.map(() => "---").join(" | ")} |`;
       const rows = span.rows
-        .map((row) => `| ${row.join(" | ")} |`)
+        .map((row) => `| ${row.map(renderSpan).join(" | ")} |`)
         .join("\n");
 
       return `${header}\n${sep}\n${rows}\n`;

@@ -18,8 +18,8 @@ import {
   type CommandLike,
   type FallbackHandler,
   type FlagDef,
+  type GroupOptions,
   type LazyCommandOptions,
-  type ModuleGroupOptions,
 } from "./types.ts";
 import {
   buildParseOptions,
@@ -47,8 +47,8 @@ export class Command implements CommandLike {
   #persistentFlags: FlagDef[] = [];
   #children: Command[] = [];
   #lazyChildren: Map<string, LazyCommandOptions> = new Map();
-  #moduleGroups: Map<string, ModuleGroupOptions> = new Map();
-  #moduleOptions?: ModuleGroupOptions;
+  #groups: Map<string, GroupOptions> = new Map();
+  #groupOptions?: GroupOptions;
   #fallbackHandler?: FallbackHandler;
   #handler?: CommandHandler;
   #argsConfig: ArgsConfig = { validation: "none" };
@@ -157,11 +157,11 @@ export class Command implements CommandLike {
   }
 
   /**
-   * Register a module group — a namespace with many lazily-loaded sub-modules.
+   * Register a group — a namespace with many lazily-loaded sub-modules.
    * Used for registry-style dispatch (e.g., `eser codebase <module>`).
    */
-  moduleGroup(name: string, options: ModuleGroupOptions): this {
-    this.#moduleGroups.set(name, options);
+  group(name: string, options: GroupOptions): this {
+    this.#groups.set(name, options);
     return this;
   }
 
@@ -170,14 +170,14 @@ export class Command implements CommandLike {
    * Used by standalone CLIs (e.g., `noskills init` instead of `eser noskills init`).
    * Internally used by Module.toCommand().
    */
-  modules(options: ModuleGroupOptions): this {
-    this.#moduleOptions = options;
+  modules(options: GroupOptions): this {
+    this.#groupOptions = options;
     return this;
   }
 
   /**
    * Set a fallback handler for unrecognized commands.
-   * Called when no child, lazy child, or module group matches.
+   * Called when no child, lazy child, or group matches.
    */
   fallback(handler: FallbackHandler): this {
     this.#fallbackHandler = handler;
@@ -281,8 +281,8 @@ export class Command implements CommandLike {
 
     const hasSubcommands = this.#children.length > 0 ||
       this.#lazyChildren.size > 0 ||
-      this.#moduleGroups.size > 0 ||
-      this.#moduleOptions !== undefined;
+      this.#groups.size > 0 ||
+      this.#groupOptions !== undefined;
 
     const parsed = cliParseArgs.parseArgs(argv, {
       ...parseOptions,
@@ -338,10 +338,10 @@ export class Command implements CommandLike {
       }
 
       // 3. Check direct modules (flat dispatch, no namespace prefix)
-      if (this.#moduleOptions !== undefined) {
-        const resolvedDirect = this.#moduleOptions.aliases?.[firstArg] ??
+      if (this.#groupOptions !== undefined) {
+        const resolvedDirect = this.#groupOptions.aliases?.[firstArg] ??
           firstArg;
-        const directEntry = this.#moduleOptions.modules[resolvedDirect];
+        const directEntry = this.#groupOptions.modules[resolvedDirect];
 
         if (directEntry !== undefined) {
           const mod = await directEntry.load();
@@ -349,8 +349,8 @@ export class Command implements CommandLike {
         }
       }
 
-      // 4. Check module groups
-      for (const [groupName, group] of this.#moduleGroups) {
+      // 4. Check groups
+      for (const [groupName, group] of this.#groups) {
         if (firstArg === groupName) {
           const moduleName = positional[1];
 
@@ -415,10 +415,10 @@ export class Command implements CommandLike {
     return await this.#handler(ctx);
   }
 
-  /** Show help for a module group */
+  /** Show help for a group */
   #showModuleGroupHelp(
     name: string,
-    group: ModuleGroupOptions,
+    group: GroupOptions,
   ): void {
     // deno-lint-ignore no-console
     console.log(`${this.#name} ${name} - ${group.description}\n`);
@@ -478,8 +478,8 @@ export class Command implements CommandLike {
         children: [] as HelpCommandMeta[],
       })),
       // Direct modules (flat dispatch)
-      ...(this.#moduleOptions !== undefined
-        ? Object.entries(this.#moduleOptions.modules).map(
+      ...(this.#groupOptions !== undefined
+        ? Object.entries(this.#groupOptions.modules).map(
           ([name, entry]) => ({
             name,
             description: entry.description,
@@ -488,8 +488,8 @@ export class Command implements CommandLike {
           }),
         )
         : []),
-      // Module groups
-      ...[...this.#moduleGroups.entries()].map(([name, opts]) => ({
+      // Groups
+      ...[...this.#groups.entries()].map(([name, opts]) => ({
         name,
         description: opts.description,
         flags: [] as FlagDef[],
@@ -535,10 +535,10 @@ export class Command implements CommandLike {
       }
 
       // Include direct modules (flat dispatch)
-      if (cmd.#moduleOptions !== undefined) {
+      if (cmd.#groupOptions !== undefined) {
         for (
           const [modName, entry] of Object.entries(
-            cmd.#moduleOptions.modules,
+            cmd.#groupOptions.modules,
           )
         ) {
           children.push({
@@ -552,8 +552,8 @@ export class Command implements CommandLike {
         }
       }
 
-      // Include module groups
-      for (const [name, group] of cmd.#moduleGroups) {
+      // Include groups
+      for (const [name, group] of cmd.#groups) {
         const moduleChildren: CompletionNode[] = Object.entries(group.modules)
           .map(([modName, entry]) => ({
             name: modName,

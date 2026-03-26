@@ -18,23 +18,26 @@ import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import { Command } from "@eser/shell/args";
 import { Module } from "@eser/shell/module";
+import { moduleDef as aiModule } from "@eser/ai/module";
+import { moduleDef as kitModule } from "@eser/kit/module";
+import { moduleDef as codebaseModule } from "@eser/codebase/module";
+import { moduleDef as workflowsModule } from "@eser/workflows/module";
 import { moduleDef as noskillsModule } from "@eser/noskills/module";
 import { moduleDef as larouxModule } from "@eser/laroux/module";
-import { registry } from "./registry.ts";
 import config from "./package.json" with { type: "json" };
 
 const cliModule = new Module({
   description: "Terminal client for Eser's work",
 });
+cliModule.addSubmodule({ name: "ai" }, aiModule);
+cliModule.addSubmodule({ name: "kit" }, kitModule);
+cliModule.addSubmodule({ name: "codebase", aliases: ["cb"] }, codebaseModule);
+cliModule.addSubmodule({ name: "workflows", aliases: ["wf"] }, workflowsModule);
 cliModule.addSubmodule({ name: "noskills", aliases: ["nos"] }, noskillsModule);
 cliModule.addSubmodule({ name: "laroux" }, larouxModule);
 
 const app = cliModule
   .toCommand("eser", config.version)
-  // Remaining inline module groups (future: convert to Module too)
-  .moduleGroup("kit", registry["kit"]!)
-  .moduleGroup("codebase", registry["codebase"]!)
-  .moduleGroup("workflows", registry["workflows"]!)
   .lazyCommand("system", {
     description: "Commands related with this CLI",
     load: async () => {
@@ -42,7 +45,7 @@ const app = cliModule
       return mod.systemCommand;
     },
   })
-  // Tier 3: Convenience aliases (lazy handlers)
+  // Convenience aliases (lazy handlers)
   .lazyCommand("install", {
     description: "Install eser CLI globally (alias for system install)",
     load: async () => {
@@ -77,7 +80,7 @@ const app = cliModule
       return new Command("doctor").run(mod.doctorHandler);
     },
   })
-  // Tier 4: Manifest scripts (loaded only on unrecognized commands)
+  // Manifest scripts (loaded only on unrecognized commands)
   .fallback(async (commandName, args) => {
     const configManifest = await import("@eser/config/manifest");
     const manifest = await configManifest.loadManifest(".");
@@ -89,7 +92,7 @@ const app = cliModule
       typeof scriptEntries === "object"
     ) {
       const scripts = scriptEntries as Readonly<
-        Record<string, import("@eser/workflows").ScriptConfig>
+        Record<string, import("@eser/workflows/mod").ScriptConfig>
       >;
 
       if (commandName in scripts) {

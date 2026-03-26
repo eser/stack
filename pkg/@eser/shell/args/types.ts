@@ -130,7 +130,7 @@ export type LazyCommandOptions = {
 
 /**
  * A module that can be dispatched from the CLI.
- * Used by moduleGroup for registry-style command namespaces.
+ * Used by group for registry-style command namespaces.
  */
 export type DispatchableModule = {
   readonly main: (
@@ -153,7 +153,7 @@ export type ModuleEntry = {
  * A group of lazily-loaded modules under a single namespace.
  * Used for registry-style dispatch (e.g., `eser codebase <module>`).
  */
-export type ModuleGroupOptions = {
+export type GroupOptions = {
   readonly description: string;
   readonly modules: Record<string, ModuleEntry>;
   readonly aliases?: Record<string, string>;

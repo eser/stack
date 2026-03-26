@@ -1,0 +1,9 @@
+{
+  "name": "@eser/kit",
+  "version": "4.1.15",
+  "exports": {
+    ".": "./main.ts",
+    "./mod": "./mod.ts",
+    "./module": "./module.ts"
+  }
+}

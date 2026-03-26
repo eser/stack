@@ -115,10 +115,12 @@ strives to offer you an intuitive and delightful development experience.
 
 | Component                                  | Description                                              | Latest Version                                                                  |
 | ------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 🤖 [@eser/ai](pkg/@eser/ai/)               | AI provider interface — cloud APIs and local agents      | [![JSR](https://jsr.io/badges/@eser/ai)](https://jsr.io/@eser/ai)               |
 | 🔧 [@eser/codebase](pkg/@eser/codebase/)   | Codebase validation, scaffolding, and release management | [![JSR](https://jsr.io/badges/@eser/codebase)](https://jsr.io/@eser/codebase)   |
 | 🔄 [@eser/workflows](pkg/@eser/workflows/) | Workflow engine for tool pipelines                       | [![JSR](https://jsr.io/badges/@eser/workflows)](https://jsr.io/@eser/workflows) |
 | 📦 [@eser/registry](pkg/@eser/registry/)   | Recipe registry, distribution protocol, and handlers     | [![JSR](https://jsr.io/badges/@eser/registry)](https://jsr.io/@eser/registry)   |
-| 🖥️ [@eser/cli](pkg/@eser/cli/)             | Terminal client — kit, codebase, workflows, and more     | [![JSR](https://jsr.io/badges/@eser/cli)](https://jsr.io/@eser/cli)             |
+| 🧰 [@eser/kit](pkg/@eser/kit/)             | Kit — recipes, templates, project creation               | [![JSR](https://jsr.io/badges/@eser/kit)](https://jsr.io/@eser/kit)             |
+| 🖥️ [@eser/cli](pkg/@eser/cli/)             | Terminal client — ai, kit, codebase, workflows, and more | [![JSR](https://jsr.io/badges/@eser/cli)](https://jsr.io/@eser/cli)             |
 | 🧪 [@eser/testing](pkg/@eser/testing/)     | Testing utilities and helpers                            | [![JSR](https://jsr.io/badges/@eser/testing)](https://jsr.io/@eser/testing)     |
 
 Visit the respective component page for detailed usage instructions.

@@ -3,12 +3,15 @@
   "version": "4.1.15",
   "type": "module",
   "exports": {
-    ".": "./mod.ts",
+    ".": "./main.ts",
+    "./mod": "./mod.ts",
+    "./module": "./module.ts",
     "./loader": "./loader.ts",
     "./run": "./run.ts",
     "./list": "./list.ts"
   },
   "dependencies": {
+    "@eser/codebase": "workspace:*",
     "@eser/config": "workspace:*",
     "@eser/primitives": "workspace:*",
     "@eser/shell": "workspace:*",

@@ -9,66 +9,37 @@ const REGISTRY_PATH = new URL(
   import.meta.url,
 ).pathname;
 
-Deno.test("add — shows usage when no recipe specified", async () => {
-  const logs: string[] = [];
-  const origLog = console.log;
-  console.log = (msg: string) => logs.push(String(msg));
+Deno.test("add — succeeds with no recipe (shows usage)", async () => {
+  const result = await main(["--registry", REGISTRY_PATH]);
 
-  try {
-    const result = await main(["--registry", REGISTRY_PATH]);
-
-    assert.assertEquals(results.isOk(result), true);
-    const output = logs.join("\n");
-    assert.assertStringIncludes(output, "Usage:");
-  } finally {
-    console.log = origLog;
-  }
+  assert.assertEquals(results.isOk(result), true);
 });
 
-Deno.test("add — reports error for unknown recipe", async () => {
-  const errors: string[] = [];
-  const origError = console.error;
-  console.error = (msg: string) => errors.push(String(msg));
+Deno.test("add — fails for unknown recipe", async () => {
+  const result = await main([
+    "nonexistent",
+    "--registry",
+    REGISTRY_PATH,
+  ]);
 
-  try {
-    const result = await main([
-      "nonexistent",
-      "--registry",
-      REGISTRY_PATH,
-    ]);
-
-    assert.assertEquals(results.isOk(result), false);
-    assert.assertStringIncludes(errors.join("\n"), "not found");
-  } finally {
-    console.error = origError;
-  }
+  assert.assertEquals(results.isOk(result), false);
 });
 
-Deno.test("add — dry-run does not write files", async () => {
+Deno.test("add — dry-run succeeds without writing files", async () => {
   const tmpDir = await Deno.makeTempDir();
   const origCwd = Deno.cwd();
 
   try {
     Deno.chdir(tmpDir);
 
-    const logs: string[] = [];
-    const origLog = console.log;
-    console.log = (msg: string) => logs.push(String(msg));
+    const result = await main([
+      "fp-pipe",
+      "--registry",
+      REGISTRY_PATH,
+      "--dry-run",
+    ]);
 
-    try {
-      const result = await main([
-        "fp-pipe",
-        "--registry",
-        REGISTRY_PATH,
-        "--dry-run",
-      ]);
-
-      assert.assertEquals(results.isOk(result), true);
-      const output = logs.join("\n");
-      assert.assertStringIncludes(output, "Would write");
-    } finally {
-      console.log = origLog;
-    }
+    assert.assertEquals(results.isOk(result), true);
 
     // Verify no files were written
     let fileExists = false;

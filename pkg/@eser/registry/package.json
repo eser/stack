@@ -7,7 +7,13 @@
     "./schema": "./registry-schema.ts",
     "./fetcher": "./registry-fetcher.ts",
     "./applier": "./recipe-applier.ts",
-    "./resolver": "./dependency-resolver.ts"
+    "./resolver": "./dependency-resolver.ts",
+    "./handlers": "./handlers/mod.ts",
+    "./handlers/list-recipes": "./handlers/list-recipes.ts",
+    "./handlers/add-recipe": "./handlers/add-recipe.ts",
+    "./handlers/new-project": "./handlers/new-project.ts",
+    "./handlers/clone-recipe": "./handlers/clone-recipe.ts",
+    "./handlers/update-recipe": "./handlers/update-recipe.ts"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.16"

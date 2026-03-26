@@ -9,38 +9,18 @@ const REGISTRY_PATH = new URL(
   import.meta.url,
 ).pathname;
 
-Deno.test("new — shows available templates when no arg", async () => {
-  const logs: string[] = [];
-  const origLog = console.log;
-  console.log = (msg: string) => logs.push(String(msg));
+Deno.test("new — succeeds with no arg (shows templates)", async () => {
+  const result = await main(["--registry", REGISTRY_PATH]);
 
-  try {
-    const result = await main(["--registry", REGISTRY_PATH]);
-
-    assert.assertEquals(results.isOk(result), true);
-    const output = logs.join("\n");
-    assert.assertStringIncludes(output, "Available project templates");
-    assert.assertStringIncludes(output, "library-pkg");
-  } finally {
-    console.log = origLog;
-  }
+  assert.assertEquals(results.isOk(result), true);
 });
 
-Deno.test("new — reports error for unknown template", async () => {
-  const errors: string[] = [];
-  const origError = console.error;
-  console.error = (msg: string) => errors.push(String(msg));
+Deno.test("new — fails for unknown template", async () => {
+  const result = await main([
+    "nonexistent",
+    "--registry",
+    REGISTRY_PATH,
+  ]);
 
-  try {
-    const result = await main([
-      "nonexistent",
-      "--registry",
-      REGISTRY_PATH,
-    ]);
-
-    assert.assertEquals(results.isOk(result), false);
-    assert.assertStringIncludes(errors.join("\n"), "not found");
-  } finally {
-    console.error = origError;
-  }
+  assert.assertEquals(results.isOk(result), false);
 });

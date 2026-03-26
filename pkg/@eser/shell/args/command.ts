@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Command class - Cobra-like CLI framework
+ * Command class - CLI framework
  *
  * @module
  */
@@ -16,7 +16,10 @@ import {
   type CommandContext,
   type CommandHandler,
   type CommandLike,
+  type FallbackHandler,
   type FlagDef,
+  type LazyCommandOptions,
+  type ModuleGroupOptions,
 } from "./types.ts";
 import {
   buildParseOptions,
@@ -43,6 +46,9 @@ export class Command implements CommandLike {
   #flags: FlagDef[] = [];
   #persistentFlags: FlagDef[] = [];
   #children: Command[] = [];
+  #lazyChildren: Map<string, LazyCommandOptions> = new Map();
+  #moduleGroups: Map<string, ModuleGroupOptions> = new Map();
+  #fallbackHandler?: FallbackHandler;
   #handler?: CommandHandler;
   #argsConfig: ArgsConfig = { validation: "none" };
   #version?: string;
@@ -136,6 +142,34 @@ export class Command implements CommandLike {
   /** Set the command handler */
   run(handler: CommandHandler): this {
     this.#handler = handler;
+    return this;
+  }
+
+  /**
+   * Register a lazily-loaded subcommand.
+   * The module is only imported when the command is invoked.
+   * Shows in help text using the provided description (no loading needed).
+   */
+  lazyCommand(name: string, options: LazyCommandOptions): this {
+    this.#lazyChildren.set(name, options);
+    return this;
+  }
+
+  /**
+   * Register a module group — a namespace with many lazily-loaded sub-modules.
+   * Used for registry-style dispatch (e.g., `eser codebase <module>`).
+   */
+  moduleGroup(name: string, options: ModuleGroupOptions): this {
+    this.#moduleGroups.set(name, options);
+    return this;
+  }
+
+  /**
+   * Set a fallback handler for unrecognized commands.
+   * Called when no child, lazy child, or module group matches.
+   */
+  fallback(handler: FallbackHandler): this {
+    this.#fallbackHandler = handler;
     return this;
   }
 
@@ -234,9 +268,13 @@ export class Command implements CommandLike {
     const allFlags = this.#getAllFlags();
     const parseOptions = buildParseOptions(allFlags);
 
+    const hasSubcommands = this.#children.length > 0 ||
+      this.#lazyChildren.size > 0 ||
+      this.#moduleGroups.size > 0;
+
     const parsed = cliParseArgs.parseArgs(argv, {
       ...parseOptions,
-      stopEarly: this.#children.length > 0,
+      stopEarly: hasSubcommands,
     });
 
     const flags = extractFlags(parsed, allFlags);
@@ -258,14 +296,67 @@ export class Command implements CommandLike {
 
     // Check for subcommand
     const firstArg = positional[0];
-    if (firstArg !== undefined && this.#children.length > 0) {
+    if (firstArg !== undefined && hasSubcommands) {
+      // 1. Check regular children
       const child = this.#findChild(firstArg);
-
       if (child !== undefined) {
         return await child.#execute(positional.slice(1), [
           ...parentPath,
           this.#name,
         ]);
+      }
+
+      // 2. Check lazy children
+      if (this.#lazyChildren.has(firstArg)) {
+        const lazy = this.#lazyChildren.get(firstArg)!;
+        const loaded = await lazy.load();
+        // loaded implements CommandLike — use its parse() if available
+        if (loaded instanceof Command) {
+          // Set parent so #getRoot() returns the true root
+          loaded.#parent = this;
+          return await loaded.parse(positional.slice(1));
+        }
+        if ("parse" in loaded && typeof loaded.parse === "function") {
+          return await (loaded as Command).parse(positional.slice(1));
+        }
+        // Fallback: call help
+        // deno-lint-ignore no-console
+        console.log(loaded.help());
+        return results.ok(undefined);
+      }
+
+      // 3. Check module groups
+      for (const [groupName, group] of this.#moduleGroups) {
+        if (firstArg === groupName) {
+          const moduleName = positional[1];
+
+          if (
+            moduleName === undefined || moduleName === "--help" ||
+            moduleName === "-h"
+          ) {
+            this.#showModuleGroupHelp(groupName, group);
+            return results.ok(undefined);
+          }
+
+          // Resolve aliases
+          const resolvedName = group.aliases?.[moduleName] ?? moduleName;
+          const entry = group.modules[resolvedName];
+
+          if (entry === undefined) {
+            // deno-lint-ignore no-console
+            console.error(`Unknown module: ${groupName} ${moduleName}\n`);
+            this.#showModuleGroupHelp(groupName, group);
+            return results.fail({ exitCode: 1 });
+          }
+
+          const mod = await entry.load();
+          return await mod.main(positional.slice(2));
+        }
+      }
+
+      // 4. Fallback handler
+      if (this.#fallbackHandler !== undefined) {
+        return await this.#fallbackHandler(firstArg, positional.slice(1));
       }
     }
 
@@ -300,22 +391,84 @@ export class Command implements CommandLike {
     return await this.#handler(ctx);
   }
 
+  /** Show help for a module group */
+  #showModuleGroupHelp(
+    name: string,
+    group: ModuleGroupOptions,
+  ): void {
+    // deno-lint-ignore no-console
+    console.log(`${this.#name} ${name} - ${group.description}\n`);
+    // deno-lint-ignore no-console
+    console.log(`Usage: ${this.#name} ${name} <module> [options]\n`);
+
+    // Group modules by category
+    const grouped = new Map<string, [string, { description: string }][]>();
+    for (const [modName, entry] of Object.entries(group.modules)) {
+      const category = entry.category ?? "Modules";
+      const items = grouped.get(category) ?? [];
+      items.push([modName, entry]);
+      grouped.set(category, items);
+    }
+
+    for (const [category, modules] of grouped) {
+      // deno-lint-ignore no-console
+      console.log(`${category}:`);
+      for (const [modName, entry] of modules) {
+        // deno-lint-ignore no-console
+        console.log(`  ${modName.padEnd(24)} ${entry.description}`);
+      }
+      // deno-lint-ignore no-console
+      console.log();
+    }
+
+    if (
+      group.aliases !== undefined && Object.keys(group.aliases).length > 0
+    ) {
+      // deno-lint-ignore no-console
+      console.log("Aliases:");
+      for (const [alias, target] of Object.entries(group.aliases)) {
+        // deno-lint-ignore no-console
+        console.log(`  ${alias.padEnd(24)} → ${target}`);
+      }
+    }
+  }
+
   /** Generate help text */
   help(): string {
+    // Build children list from all sources
+    const allChildren: HelpCommandMeta[] = [
+      // Regular children
+      ...this.#children.map((c) => ({
+        name: c.#name,
+        description: c.#description,
+        usage: c.#usage,
+        examples: c.#examples,
+        flags: c.#getAllFlags(),
+        children: [] as HelpCommandMeta[],
+      })),
+      // Lazy children (show description without loading)
+      ...[...this.#lazyChildren.entries()].map(([name, opts]) => ({
+        name,
+        description: opts.description,
+        flags: [] as FlagDef[],
+        children: [] as HelpCommandMeta[],
+      })),
+      // Module groups
+      ...[...this.#moduleGroups.entries()].map(([name, opts]) => ({
+        name,
+        description: opts.description,
+        flags: [] as FlagDef[],
+        children: [] as HelpCommandMeta[],
+      })),
+    ];
+
     const meta: HelpCommandMeta = {
       name: this.#name,
       description: this.#description,
       usage: this.#usage,
       examples: this.#examples,
       flags: this.#getAllFlags(),
-      children: this.#children.map((c) => ({
-        name: c.#name,
-        description: c.#description,
-        usage: c.#usage,
-        examples: c.#examples,
-        flags: c.#getAllFlags(),
-        children: [],
-      })),
+      children: allChildren,
     };
     return generateHelp(meta, this.#getPath());
   }
@@ -333,12 +486,46 @@ export class Command implements CommandLike {
       }));
     };
 
-    const buildNode = (cmd: Command): CompletionNode => ({
-      name: cmd.#name,
-      description: cmd.#description,
-      children: cmd.#children.map(buildNode),
-      flags: flagsToCompletionFlags(cmd.#getAllFlags()),
-    });
+    const buildNode = (cmd: Command): CompletionNode => {
+      const children: CompletionNode[] = cmd.#children.map(buildNode);
+
+      // Include lazy children
+      for (const [name, opts] of cmd.#lazyChildren) {
+        children.push({
+          name,
+          description: opts.description,
+          children: [],
+          flags: [],
+        });
+      }
+
+      // Include module groups
+      for (const [name, group] of cmd.#moduleGroups) {
+        const moduleChildren: CompletionNode[] = Object.entries(group.modules)
+          .map(([modName, entry]) => ({
+            name: modName,
+            description: entry.description,
+            children: [],
+            flags: entry.flags !== undefined
+              ? flagsToCompletionFlags(entry.flags)
+              : [],
+          }));
+
+        children.push({
+          name,
+          description: group.description,
+          children: moduleChildren,
+          flags: [],
+        });
+      }
+
+      return {
+        name: cmd.#name,
+        description: cmd.#description,
+        children,
+        flags: flagsToCompletionFlags(cmd.#getAllFlags()),
+      };
+    };
 
     return buildNode(this);
   }

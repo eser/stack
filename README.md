@@ -72,7 +72,7 @@ strives to offer you an intuitive and delightful development experience.
 | -------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
 | 🧩 [@eser/primitives](pkg/@eser/primitives/) | Result types, Option, and base constructors                        | [![JSR](https://jsr.io/badges/@eser/primitives)](https://jsr.io/@eser/primitives) |
 | 📑 [@eser/standards](pkg/@eser/standards/)   | Cross-runtime standards, formatters, i18n, and runtime abstraction | [![JSR](https://jsr.io/badges/@eser/standards)](https://jsr.io/@eser/standards)   |
-| ⚡ [@eser/functions](pkg/@eser/functions/)   | Monadic workflows, middleware, tasks, and trigger adapters         | [![JSR](https://jsr.io/badges/@eser/functions)](https://jsr.io/@eser/functions)   |
+| ⚡ [@eser/functions](pkg/@eser/functions/)   | Monadic workflows, tasks, trigger adapters (CLI, HTTP, MCP)        | [![JSR](https://jsr.io/badges/@eser/functions)](https://jsr.io/@eser/functions)   |
 | 🧱 [@eser/fp](pkg/@eser/fp/)                 | Functional programming combinators                                 | [![JSR](https://jsr.io/badges/@eser/fp)](https://jsr.io/@eser/fp)                 |
 | ⚙️ [@eser/di](pkg/@eser/di/)                 | Dependency injection container                                     | [![JSR](https://jsr.io/badges/@eser/di)](https://jsr.io/@eser/di)                 |
 | 📓 [@eser/directives](pkg/@eser/directives/) | Ground rules adhered to by the ecosystem                           | -                                                                                 |
@@ -86,18 +86,18 @@ strives to offer you an intuitive and delightful development experience.
 | 📝 [@eser/logging](pkg/@eser/logging/) | Hierarchical logging with OpenTelemetry integration | [![JSR](https://jsr.io/badges/@eser/logging)](https://jsr.io/@eser/logging) |
 | 💾 [@eser/cache](pkg/@eser/cache/)     | Caching abstractions                                | [![JSR](https://jsr.io/badges/@eser/cache)](https://jsr.io/@eser/cache)     |
 | 🌐 [@eser/http](pkg/@eser/http/)       | HTTP client and server utilities                    | [![JSR](https://jsr.io/badges/@eser/http)](https://jsr.io/@eser/http)       |
-| 🐚 [@eser/shell](pkg/@eser/shell/)     | Shell execution and CLI argument parsing            | [![JSR](https://jsr.io/badges/@eser/shell)](https://jsr.io/@eser/shell)     |
+| 🐚 [@eser/shell](pkg/@eser/shell/)     | CLI framework, shell execution, and completions     | [![JSR](https://jsr.io/badges/@eser/shell)](https://jsr.io/@eser/shell)     |
 | 🔑 [@eser/crypto](pkg/@eser/crypto/)   | Cryptographic hashing via Web Crypto API            | [![JSR](https://jsr.io/badges/@eser/crypto)](https://jsr.io/@eser/crypto)   |
 
 #### Data & Parsing
 
-| Component                                  | Description                                                    | Latest Version                                                                  |
-| ------------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 〰️ [@eser/parsing](pkg/@eser/parsing/)     | Parsing tools for strings and streams                          | [![JSR](https://jsr.io/badges/@eser/parsing)](https://jsr.io/@eser/parsing)     |
-| 🔄 [@eser/formats](pkg/@eser/formats/)     | Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL) | [![JSR](https://jsr.io/badges/@eser/formats)](https://jsr.io/@eser/formats)     |
-| 🌊 [@eser/streams](pkg/@eser/streams/)     | Universal I/O streaming with composable middleware             | [![JSR](https://jsr.io/badges/@eser/streams)](https://jsr.io/@eser/streams)     |
-| ⚙️ [@eser/collector](pkg/@eser/collector/) | Module export collector and manifest generator                 | [![JSR](https://jsr.io/badges/@eser/collector)](https://jsr.io/@eser/collector) |
-| 🗄️ [@eser/cs](pkg/@eser/cs/)               | Config storage — Kubernetes ConfigMap/Secret sync              | [![JSR](https://jsr.io/badges/@eser/cs)](https://jsr.io/@eser/cs)               |
+| Component                                  | Description                                                     | Latest Version                                                                  |
+| ------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 〰️ [@eser/parsing](pkg/@eser/parsing/)     | Parsing tools for strings and streams                           | [![JSR](https://jsr.io/badges/@eser/parsing)](https://jsr.io/@eser/parsing)     |
+| 🔄 [@eser/formats](pkg/@eser/formats/)     | Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL)  | [![JSR](https://jsr.io/badges/@eser/formats)](https://jsr.io/@eser/formats)     |
+| 🌊 [@eser/streams](pkg/@eser/streams/)     | Composable I/O streams with Span-based formatting and renderers | [![JSR](https://jsr.io/badges/@eser/streams)](https://jsr.io/@eser/streams)     |
+| ⚙️ [@eser/collector](pkg/@eser/collector/) | Module export collector and manifest generator                  | [![JSR](https://jsr.io/badges/@eser/collector)](https://jsr.io/@eser/collector) |
+| 🗄️ [@eser/cs](pkg/@eser/cs/)               | Config storage — Kubernetes ConfigMap/Secret sync               | [![JSR](https://jsr.io/badges/@eser/cs)](https://jsr.io/@eser/cs)               |
 
 #### Web & UI
 
@@ -117,7 +117,8 @@ strives to offer you an intuitive and delightful development experience.
 | ------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | 🔧 [@eser/codebase](pkg/@eser/codebase/)   | Codebase validation, scaffolding, and release management | [![JSR](https://jsr.io/badges/@eser/codebase)](https://jsr.io/@eser/codebase)   |
 | 🔄 [@eser/workflows](pkg/@eser/workflows/) | Workflow engine for tool pipelines                       | [![JSR](https://jsr.io/badges/@eser/workflows)](https://jsr.io/@eser/workflows) |
-| 🖥️ [@eser/cli](pkg/@eser/cli/)             | Command-line interface for eserstack                     | [![JSR](https://jsr.io/badges/@eser/cli)](https://jsr.io/@eser/cli)             |
+| 📦 [@eser/registry](pkg/@eser/registry/)   | Recipe registry, distribution protocol, and handlers     | [![JSR](https://jsr.io/badges/@eser/registry)](https://jsr.io/@eser/registry)   |
+| 🖥️ [@eser/cli](pkg/@eser/cli/)             | Terminal client — kit, codebase, workflows, and more     | [![JSR](https://jsr.io/badges/@eser/cli)](https://jsr.io/@eser/cli)             |
 | 🧪 [@eser/testing](pkg/@eser/testing/)     | Testing utilities and helpers                            | [![JSR](https://jsr.io/badges/@eser/testing)](https://jsr.io/@eser/testing)     |
 
 Visit the respective component page for detailed usage instructions.
@@ -191,16 +192,52 @@ portable across all these platforms.
 Ensure that [Deno](https://deno.land/) 2.4 or higher is installed on your system
 first.
 
-First, install `cool cli` globally, then create a new project:
+### Install the CLI
 
-```sh
-$ deno install -g jsr:@cool/cli
+```bash
+# Install script (macOS/Linux)
+curl -fsSL https://eser.run/install | sh
 
-$ cool create my-project
+# Or via npm
+npm install -g eser
 
-Creating "cool web project template 0.0.1" on my-project...
-...
-done.
+# Or run without installing
+npx eser <command>
+```
+
+### Browse available recipes
+
+```bash
+$ eser kit list
+
+PROJECTS
+  library-pkg          Deno library package with tests and README
+  laroux-app           Laroux.js web application with SSR and React
+  go-service           Go microservice with hexagonal architecture
+  ...
+
+UTILITIES
+  fp-pipe              Functional pipe and compose utilities
+  ajan-httpfx          Ajan HTTP server framework
+  ...
+```
+
+### Create a new project
+
+```bash
+$ eser kit new laroux-app --name my-site
+
+✓ Created my-site with 14 file(s)
+```
+
+### Add a recipe to an existing project
+
+```bash
+$ eser kit add fp-pipe
+
+✓ Added 1 file(s) from fp-pipe
+  → lib/fp/pipe.ts
+  ✓ deno add jsr:@eser/fp@^4.1.0
 ```
 
 ## Contributors

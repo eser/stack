@@ -6,8 +6,8 @@ development:
 
 - **`@eser/shell/completions`** - Shell completion script generation for bash,
   zsh, and fish
-- **`@eser/shell/args`** - Cobra-like CLI framework for building command trees
-- **`@eser/shell/exec`** - Lightweight shell execution with dax-like API
+- **`@eser/shell/args`** - Hierarchical CLI framework for building command trees
+- **`@eser/shell/exec`** - Lightweight shell execution with template-literal API
 - **`@eser/shell/formatting`** - Terminal formatting, colors, and output
   utilities
 
@@ -16,7 +16,7 @@ development:
 - **Multi-Shell Support:** Generate completion scripts for bash, zsh, and fish
   shells.
 
-- **Cobra-like CLI Framework:** Build hierarchical command structures with
+- **Hierarchical CLI Framework:** Build hierarchical command structures with
   flags, subcommands, and automatic help generation.
 
 - **Template Literal Execution:** Execute shell commands using intuitive
@@ -67,7 +67,7 @@ const fishScript = generate("fish", "myapp", tree);
 
 ### @eser/shell/args
 
-A Cobra-like CLI framework for building command trees with flags, subcommands,
+A Hierarchical CLI framework for building command trees with flags, subcommands,
 and automatic help/completion generation.
 
 ```typescript
@@ -144,7 +144,7 @@ await app.parse();
 
 ### @eser/shell/exec
 
-A lightweight dax-like API for shell execution using template literals.
+A lightweight template-literal API for shell execution using template literals.
 
 ```typescript
 import { $ } from "@eser/shell/exec";

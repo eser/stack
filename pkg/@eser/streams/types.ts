@@ -50,13 +50,14 @@ export type ErrorHandler = (context: ErrorContext) => void;
 
 export type OutputOptions = {
   readonly sink?: Sink;
+  readonly renderer?: import("./renderers/types.ts").Renderer;
   readonly layers?: readonly Layer[];
   readonly onError?: ErrorHandler;
 };
 
 export type Output = {
-  readonly write: (...args: unknown[]) => void;
-  readonly writeln: (...args: unknown[]) => void;
+  readonly write: (...args: import("./span.ts").SpanInput[]) => void;
+  readonly writeln: (...args: import("./span.ts").SpanInput[]) => void;
   readonly flush: () => Promise<void>;
   readonly close: () => Promise<void>;
   readonly pipe: (...layers: Layer[]) => Output;

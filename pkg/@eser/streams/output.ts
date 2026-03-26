@@ -9,6 +9,9 @@ import type {
   OutputOptions,
 } from "./types.ts";
 import { createChunk } from "./chunk.ts";
+import { normalize } from "./span.ts";
+import type { SpanInput } from "./span.ts";
+import { plain as plainRenderer } from "./renderers/plain.ts";
 import { buffer as bufferSink } from "./sinks/buffer.ts";
 
 // =============================================================================
@@ -30,6 +33,7 @@ const defaultErrorHandler: ErrorHandler = (context: ErrorContext) => {
 export const output = (options?: OutputOptions): Output => {
   const pendingChunks: Chunk[] = [];
   const onError = options?.onError ?? defaultErrorHandler;
+  const renderer = options?.renderer ?? plainRenderer();
 
   let drainScheduled = false;
   let chunkIndex = 0;
@@ -114,15 +118,16 @@ export const output = (options?: OutputOptions): Output => {
   };
 
   const self: Output = {
-    write: (...args: unknown[]): void => {
-      for (const arg of args) {
-        enqueue(createChunk(arg));
-      }
+    write: (...args: SpanInput[]): void => {
+      const spans = normalize(args);
+      const rendered = renderer.render(spans);
+      enqueue(createChunk(rendered));
     },
 
-    writeln: (...args: unknown[]): void => {
-      const text = args.map(String).join(" ") + "\n";
-      enqueue(createChunk(text));
+    writeln: (...args: SpanInput[]): void => {
+      const spans = normalize(args);
+      const rendered = renderer.render(spans) + "\n";
+      enqueue(createChunk(rendered));
     },
 
     flush: (): Promise<void> => {
@@ -148,6 +153,7 @@ export const output = (options?: OutputOptions): Output => {
     pipe: (...layers: Layer[]): Output => {
       return output({
         sink: options?.sink,
+        renderer: options?.renderer,
         layers: [...(options?.layers ?? []), ...layers],
         onError,
       });

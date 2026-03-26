@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * @eser/registry — Recipe registry for the eser CLI ecosystem.
+ * @eser/registry — Recipe registry for eser stack.
  *
  * Provides a forkable distribution protocol inspired by shadcn's registry
  * model. Recipes are code templates at three scales (project, structure,

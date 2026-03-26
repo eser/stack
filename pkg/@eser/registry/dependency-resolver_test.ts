@@ -175,3 +175,59 @@ Deno.test("getDependencyInstructions — no warning for unknown project type", (
 
   assert.assertEquals(result.warnings.length, 0);
 });
+
+// =============================================================================
+// installDependencies
+// =============================================================================
+
+Deno.test("installDependencies — dry-run returns commands without executing", async () => {
+  const tmpDir = await Deno.makeTempDir();
+
+  try {
+    const installResults = await dependencyResolver.installDependencies(
+      ["echo hello", "echo world"],
+      tmpDir,
+      { dryRun: true },
+    );
+
+    assert.assertEquals(installResults.length, 2);
+    assert.assertEquals(installResults[0]!.success, true);
+    assert.assertEquals(installResults[0]!.command, "echo hello");
+    assert.assertEquals(installResults[1]!.success, true);
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("installDependencies — executes commands successfully", async () => {
+  const tmpDir = await Deno.makeTempDir();
+
+  try {
+    const installResults = await dependencyResolver.installDependencies(
+      ["echo test_output"],
+      tmpDir,
+    );
+
+    assert.assertEquals(installResults.length, 1);
+    assert.assertEquals(installResults[0]!.success, true);
+    assert.assertEquals(installResults[0]!.command, "echo test_output");
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("installDependencies — stops on first failure", async () => {
+  const tmpDir = await Deno.makeTempDir();
+
+  try {
+    const installResults = await dependencyResolver.installDependencies(
+      ["false", "echo should_not_run"],
+      tmpDir,
+    );
+
+    assert.assertEquals(installResults.length, 1);
+    assert.assertEquals(installResults[0]!.success, false);
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});

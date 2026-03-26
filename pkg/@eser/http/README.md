@@ -155,6 +155,28 @@ The rate limiter adds these headers to responses:
 | `X-RateLimit-Reset`     | Unix timestamp when window resets  |
 | `Retry-After`           | Seconds until retry (when limited) |
 
+## Handler Adapter
+
+Bridge between Web `Request`/`Response` and `@eser/functions` handler pattern
+(`HttpEvent`/`HttpResponse`):
+
+```typescript
+import * as httpAdapter from "@eser/http/adapter";
+import * as httpResponse from "@eser/http/response";
+import * as handler from "@eser/functions/handler";
+import * as task from "@eser/functions/task";
+
+// Convert a Web Request to an HttpEvent
+const eventResult = await httpAdapter.fromRequest(request);
+
+// Convert an HttpResponse back to a Web Response
+const webResponse = httpResponse.toWebResponse({
+  status: 200,
+  headers: { "content-type": "application/json" },
+  body: { ok: true },
+});
+```
+
 ## API Reference
 
 ### `cors(options?)`

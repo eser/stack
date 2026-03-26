@@ -5,19 +5,24 @@ propagation, multiple sinks, filters, and OpenTelemetry integration. Inspired by
 logtape, it provides a flexible and powerful logging solution for modern
 TypeScript/JavaScript applications.
 
+Sinks integrate with `@eser/streams` for rendering — choose ANSI, Markdown, or
+plain text output by plugging in the appropriate renderer.
+
 ## Features
 
 - **Hierarchical Categories** - Organize loggers in a tree structure like
   `["app", "http", "request"]`
 - **Context Propagation** - Automatically include request IDs, trace IDs, and
   other context in logs
-- **Multiple Sinks** - Route logs to console, streams, files, or custom
-  destinations
+- **Multiple Sinks** - Route logs to stdout, writable streams, files, or custom
+  destinations via `@eser/streams`
 - **Filters** - Filter logs by severity, category, properties, or custom logic
 - **OpenTelemetry Integration** - Automatic correlation with distributed traces
 - **OpenTelemetry Severity Levels** - 9 standard severity levels (Trace to
   Emergency)
 - **Lazy Evaluation** - Expensive log messages only computed when needed
+- **Span-based Formatting** - Structured `Span[]` output that adapts to any
+  renderer (ANSI, Markdown, plain)
 - **Namespace Exports** - Clean API with `logging.config`, `logging.sinks`, etc.
 - **TypeScript First** - Full type safety with proper type definitions
 
@@ -25,13 +30,18 @@ TypeScript/JavaScript applications.
 
 ```typescript
 import * as logging from "@eser/logging";
+import * as streams from "@eser/streams";
+
+// Create an Output with a renderer and sink
+const out = streams.output({
+  renderer: streams.renderers.ansi(),
+  sink: streams.sinks.stdout(),
+});
 
 // Configure once at app startup
 await logging.config.configure({
   sinks: {
-    console: logging.sinks.getConsoleSink({
-      formatter: logging.formatters.ansiColorFormatter(),
-    }),
+    console: logging.sinks.getOutputSink(out),
   },
   loggers: [
     {
@@ -73,9 +83,15 @@ await requestLogger.debug("Processing request");
 
 ```typescript
 import * as logging from "@eser/logging";
+import * as streams from "@eser/streams";
+
+const out = streams.output({
+  renderer: streams.renderers.ansi(),
+  sink: streams.sinks.stdout(),
+});
 
 await logging.config.configure({
-  sinks: { console: logging.sinks.getConsoleSink() },
+  sinks: { console: logging.sinks.getOutputSink(out) },
   loggers: [
     {
       category: ["app"],
@@ -99,9 +115,15 @@ await queryLogger.debug("Executing query: SELECT * FROM users");
 
 ```typescript
 import * as logging from "@eser/logging";
+import * as streams from "@eser/streams";
+
+const out = streams.output({
+  renderer: streams.renderers.ansi(),
+  sink: streams.sinks.stdout(),
+});
 
 await logging.config.configure({
-  sinks: { console: logging.sinks.getConsoleSink() },
+  sinks: { console: logging.sinks.getOutputSink(out) },
   loggers: [{
     category: ["app"],
     sinks: ["console"],
@@ -141,15 +163,24 @@ await userLogger.warn("Permission denied");
 
 ```typescript
 import * as logging from "@eser/logging";
+import * as streams from "@eser/streams";
+
+// ANSI-colored output for the terminal
+const terminalOut = streams.output({
+  renderer: streams.renderers.ansi(),
+  sink: streams.sinks.stdout(),
+});
+
+// Plain-text output routed to a writable stream (e.g. a file)
+const fileOut = streams.output({
+  renderer: streams.renderers.plain(),
+  sink: streams.sinks.writable(fileStream),
+});
 
 await logging.config.configure({
   sinks: {
-    console: logging.sinks.getConsoleSink({
-      formatter: logging.formatters.ansiColorFormatter(),
-    }),
-    file: logging.sinks.getStreamSink(fileStream, {
-      formatter: logging.formatters.jsonFormatter,
-    }),
+    console: logging.sinks.getOutputSink(terminalOut),
+    file: logging.sinks.getOutputSink(fileOut),
   },
   loggers: [
     {
@@ -170,9 +201,15 @@ await logging.config.configure({
 
 ```typescript
 import * as logging from "@eser/logging";
+import * as streams from "@eser/streams";
+
+const out = streams.output({
+  renderer: streams.renderers.ansi(),
+  sink: streams.sinks.stdout(),
+});
 
 await logging.config.configure({
-  sinks: { console: logging.sinks.getConsoleSink() },
+  sinks: { console: logging.sinks.getOutputSink(out) },
   filters: {
     production: logging.filters.getLevelFilter(logging.Severities.Warning),
     httpOnly: logging.filters.getCategoryFilter(["app", "http"]),
@@ -217,27 +254,52 @@ await logger.debug(() => {
 
 ```typescript
 import * as logging from "@eser/logging";
+import * as streams from "@eser/streams";
 
-// Built-in text formatter with options
+// Use the built-in spanFormatter with a plain renderer
+const out = streams.output({
+  renderer: streams.renderers.plain(),
+  sink: streams.sinks.stdout(),
+});
+
 await logging.config.configure({
   sinks: {
-    console: logging.sinks.getConsoleSink({
-      formatter: logging.formatters.textFormatter({
-        timestamp: "time",
-        categorySeparator: ".",
-        includeLevel: true,
-      }),
-    }),
+    console: logging.sinks.getOutputSink(out),
   },
   loggers: [{ category: ["app"], sinks: ["console"] }],
 });
 
-// Custom formatter
+// Or use a string-based formatter with getOutputSink
 const customFormatter = (record: logging.LogRecord) => {
   return `[${record.datetime.toISOString()}] ${
     record.category.join(".")
   } - ${record.message}\n`;
 };
+```
+
+### Testing with Record Collector
+
+```typescript
+import * as logging from "@eser/logging";
+
+const { sink, records } = logging.sinks.getRecordCollectorSink();
+
+await logging.config.configure({
+  sinks: { test: sink },
+  loggers: [
+    {
+      category: ["app"],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    },
+  ],
+});
+
+const logger = logging.logger.getLogger(["app"]);
+await logger.info("hello");
+
+console.assert(records.length === 1);
+console.assert(records[0].message === "hello");
 ```
 
 ## API Reference
@@ -246,17 +308,17 @@ const customFormatter = (record: logging.LogRecord) => {
 
 The library exports these namespaces:
 
-| Namespace            | Description                                        |
-| -------------------- | -------------------------------------------------- |
-| `logging.config`     | Configuration: `configure()`, `reset()`            |
-| `logging.logger`     | Logger: `getLogger()`, `Logger` class              |
-| `logging.context`    | Context: `withContext()`, `getContext()`           |
-| `logging.sinks`      | Sinks: `getConsoleSink()`, `getStreamSink()`       |
-| `logging.filters`    | Filters: `getLevelFilter()`, `getCategoryFilter()` |
-| `logging.formatters` | Formatters: `jsonFormatter`, `textFormatter()`     |
-| `logging.tracer`     | OpenTelemetry: `withSpan()`                        |
-| `logging.category`   | Category utilities                                 |
-| `logging.types`      | Type definitions                                   |
+| Namespace            | Description                                         |
+| -------------------- | --------------------------------------------------- |
+| `logging.config`     | Configuration: `configure()`, `reset()`             |
+| `logging.logger`     | Logger: `getLogger()`, `Logger` class               |
+| `logging.context`    | Context: `withContext()`, `getContext()`            |
+| `logging.sinks`      | Sinks: `getOutputSink()`, `getBufferedSink()`, etc. |
+| `logging.filters`    | Filters: `getLevelFilter()`, `getCategoryFilter()`  |
+| `logging.formatters` | Formatters: `spanFormatter`, `jsonFormatter`, etc.  |
+| `logging.tracer`     | OpenTelemetry: `withSpan()`                         |
+| `logging.category`   | Category utilities                                  |
+| `logging.types`      | Type definitions                                    |
 
 ### Configuration (`logging.config`)
 
@@ -323,21 +385,44 @@ Runs a function with a category prefix applied to all loggers.
 
 ### Sinks (`logging.sinks`)
 
-#### `getConsoleSink(options?): Sink`
+#### `getOutputSink(output, options?): Sink`
 
-Creates a console sink.
+Creates a sink that writes log records to a `@eser/streams` Output. The Output's
+renderer determines the final format (ANSI, Markdown, plain text).
 
-#### `getStreamSink(stream, options?): Sink`
+```typescript
+import * as streams from "@eser/streams";
 
-Creates a WritableStream sink.
+const out = streams.output({
+  renderer: streams.renderers.ansi(),
+  sink: streams.sinks.stdout(),
+});
+const sink = logging.sinks.getOutputSink(out);
 
-#### `getTestSink(): { sink: Sink; records: LogRecord[] }`
+// Optionally pass a custom span formatter
+const sink2 = logging.sinks.getOutputSink(out, { formatter: mySpanFormatter });
+```
 
-Creates a test sink that captures records.
+#### `getRecordCollectorSink(): { sink: Sink; records: LogRecord[] }`
+
+Creates a sink that collects records into an array (for testing).
+
+#### `getTestSink(): { sink: Sink; records: LogRecord[] }` _(deprecated)_
+
+Alias for `getRecordCollectorSink()`. Use `getRecordCollectorSink()` instead.
+
+#### `getBufferedSink(sink, options?): Sink`
+
+Creates a sink that buffers records and flushes in batches.
 
 #### `fingersCrossedSink(sink, options?): Sink`
 
-Creates a sink that buffers logs and flushes on error.
+Creates a sink that buffers low-severity logs and flushes them all when a
+high-severity log (e.g. Error) occurs.
+
+#### `withFilter(sink, filter): Sink`
+
+Wraps a sink with a filter. Only records passing the filter reach the sink.
 
 ### Filters (`logging.filters`)
 
@@ -355,21 +440,28 @@ Combines filters with AND logic.
 
 ### Formatters (`logging.formatters`)
 
+#### `spanFormatter: SpanFormatterFn`
+
+Default span-based formatter. Returns `Span[]` that adapts to any
+`@eser/streams` renderer (ANSI colors, Markdown, plain text). Used automatically
+by `getOutputSink()`.
+
 #### `jsonFormatter: FormatterFn`
 
-JSON formatter (default).
+JSON formatter — outputs structured JSON log lines.
 
 #### `textFormatter(options?): FormatterFn`
 
-Human-readable text formatter.
-
-#### `ansiColorFormatter(options?): FormatterFn`
-
-Colored terminal formatter.
+Human-readable text formatter with configurable timestamp format, category
+separator, and level display.
 
 #### `jsonLinesFormatter: FormatterFn`
 
-Compact JSON lines formatter.
+Compact JSON Lines formatter (one JSON object per line).
+
+#### `SpanFormatterFn` _(type)_
+
+Type for formatter functions that produce `Span[]` instead of strings.
 
 ### Tracer (`logging.tracer`)
 

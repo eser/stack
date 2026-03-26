@@ -23,11 +23,12 @@
 
 import * as primitives from "@eser/primitives";
 import * as functions from "@eser/functions";
-import * as shell from "@eser/shell";
+import type * as shellArgs from "@eser/shell/args";
+import * as span from "@eser/streams/span";
 import * as workspaceDiscovery from "./workspace-discovery.ts";
-import { runCliMain } from "./cli-support.ts";
+import { createCliOutput, runCliMain } from "./cli-support.ts";
 
-const output = shell.formatting.createOutput();
+const out = createCliOutput();
 
 /**
  * Options for circular dependency checking.
@@ -187,31 +188,47 @@ const cliAdapter: functions.handler.Adapter<
 const cliResponseMapper: functions.handler.ResponseMapper<
   CheckCircularDepsResult,
   Error | functions.handler.AdaptError,
-  shell.args.CliResult<void>
+  shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
-    output.printError(
-      result.error instanceof Error
-        ? result.error.message
-        : String(result.error),
+    out.writeln(
+      span.red("✗"),
+      span.text(
+        " " +
+          (result.error instanceof Error
+            ? result.error.message
+            : String(result.error)),
+      ),
     );
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
-  output.printInfo(`Checked ${value.packagesChecked} packages.`);
+  out.writeln(
+    span.blue("ℹ"),
+    span.text(` Checked ${value.packagesChecked} packages.`),
+  );
 
   if (value.hasCycles) {
-    output.printError(
-      `Found ${value.cycles.length} circular dependencies:`,
+    out.writeln(
+      span.red("✗"),
+      span.text(
+        ` Found ${value.cycles.length} circular dependencies:`,
+      ),
     );
     for (const cycle of value.cycles) {
-      output.printWarning(`${cycle.join(" → ")}`);
+      out.writeln(
+        span.yellow("⚠"),
+        span.text(` ${cycle.join(" → ")}`),
+      );
     }
     return primitives.results.fail({ exitCode: 1 });
   }
 
-  output.printSuccess("No circular dependencies found.");
+  out.writeln(
+    span.green("✓"),
+    span.text(" No circular dependencies found."),
+  );
   return primitives.results.ok(undefined);
 };
 
@@ -220,7 +237,7 @@ const cliResponseMapper: functions.handler.ResponseMapper<
 /** Runnable CLI trigger for check-circular-deps. */
 export const handleCli: (
   event: functions.triggers.CliEvent,
-) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
   handler: checkCircularDepsHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -229,9 +246,9 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   _cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> =>
+): Promise<shellArgs.CliResult<void>> =>
   await handleCli({ command: "validate-circular-deps", args: [], flags: {} });
 
 if (import.meta.main) {
-  runCliMain(await main());
+  runCliMain(await main(), out);
 }

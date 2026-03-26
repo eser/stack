@@ -1,6 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as colors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import { current, NotFoundError } from "@eser/standards/runtime";
 import { type BuildSnapshot, type BuildSnapshotSerialized } from "./mod.ts";
 import { setBuildId } from "./build-id.ts";
@@ -68,9 +69,16 @@ export const loadAotSnapshot = async (
       return null;
     }
 
-    console.log(
-      `Using snapshot found at ${colors.cyan(snapshotDirPath)}`,
+    const out = streams.output({
+      renderer: streams.renderers.ansi(),
+      sink: streams.sinks.stdout(),
+    });
+
+    out.writeln(
+      span.text("Using snapshot found at "),
+      span.cyan(snapshotDirPath),
     );
+    await out.close();
 
     const snapshotPath = current.path.join(snapshotDirPath, "snapshot.json");
     const json = JSON.parse(

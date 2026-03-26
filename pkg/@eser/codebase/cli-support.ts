@@ -13,7 +13,18 @@ import type * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eser/primitives/results";
 import type { CliEvent } from "@eser/functions/triggers";
 import type * as shellArgs from "@eser/shell/args";
+import * as streams from "@eser/streams";
+import * as span from "@eser/streams/span";
 import { current } from "@eser/standards/runtime";
+
+/**
+ * Creates a standard Output wired to stdout with ANSI rendering.
+ */
+export const createCliOutput = (): streams.Output =>
+  streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
 
 /**
  * Convert a `@std/cli/parse-args` result to a `CliEvent`.
@@ -40,13 +51,21 @@ export const toCliEvent = (
  * the process exit code on failure.
  *
  * @param result - The CliResult from a trigger invocation
+ * @param out - Output instance for printing errors
  */
-export const runCliMain = (result: shellArgs.CliResult<void>): void => {
+export const runCliMain = (
+  result: shellArgs.CliResult<void>,
+  out?: streams.Output,
+): void => {
   results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {
-        console.error(error.message);
+        if (out !== undefined) {
+          out.writeln(span.red(error.message));
+        } else {
+          console.error(error.message);
+        }
       }
       current.process.setExitCode(error.exitCode);
     },

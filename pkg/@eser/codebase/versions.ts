@@ -35,11 +35,12 @@ import * as stdSemver from "@std/semver";
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
-import * as shell from "@eser/shell";
-import { runCliMain, toCliEvent } from "./cli-support.ts";
+import type * as shellArgs from "@eser/shell/args";
+import * as span from "@eser/streams/span";
+import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
 import * as pkg from "./package/mod.ts";
 
-const output = shell.formatting.createOutput();
+const out = createCliOutput();
 
 /**
  * Valid version commands.
@@ -393,7 +394,7 @@ const cliAdapter: functions.handler.Adapter<
 const cliResponseMapper: functions.handler.ResponseMapper<
   VersionsOutput,
   Error | functions.handler.AdaptError,
-  shell.args.CliResult<void>
+  shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
     return primitives.results.fail({
@@ -413,33 +414,51 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   const { result: updateResult } = handlerOutput;
 
   if (updateResult.command === "sync") {
-    output.printInfo("Syncing all versions...");
+    out.writeln(span.blue("ℹ"), span.text(" Syncing all versions..."));
   } else if (updateResult.command === "explicit") {
-    output.printInfo(
-      `Setting all versions to ${updateResult.targetVersion}...`,
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(
+        ` Setting all versions to ${updateResult.targetVersion}...`,
+      ),
     );
   } else {
-    output.printInfo(`Bumping all versions (${updateResult.command})...`);
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(` Bumping all versions (${updateResult.command})...`),
+    );
   }
 
-  output.printInfo(`Target version: ${updateResult.targetVersion}`);
+  out.writeln(
+    span.blue("ℹ"),
+    span.text(` Target version: ${updateResult.targetVersion}`),
+  );
   console.table(updateResult.updates);
 
   for (const fileUpdate of updateResult.fileUpdates) {
     if (fileUpdate.changed) {
-      output.printInfo(
-        `${fileUpdate.path} (${fileUpdate.from} → ${fileUpdate.to})`,
+      out.writeln(
+        span.blue("ℹ"),
+        span.text(
+          ` ${fileUpdate.path} (${fileUpdate.from} → ${fileUpdate.to})`,
+        ),
       );
     }
   }
 
   if (updateResult.dryRun) {
-    output.printInfo(
-      `Dry run - ${updateResult.changedCount} packages would be modified.`,
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(
+        ` Dry run - ${updateResult.changedCount} packages would be modified.`,
+      ),
     );
   } else {
-    output.printSuccess(
-      `Done. Updated ${updateResult.changedCount} packages.`,
+    out.writeln(
+      span.green("✓"),
+      span.text(
+        ` Done. Updated ${updateResult.changedCount} packages.`,
+      ),
     );
   }
 
@@ -451,7 +470,7 @@ const cliResponseMapper: functions.handler.ResponseMapper<
  */
 export const handleCli: (
   event: functions.triggers.CliEvent,
-) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
   handler: versionsHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -460,7 +479,7 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     { boolean: ["dry-run"] },
@@ -470,5 +489,8 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.runtime.current.process.args as string[]),
+    out,
+  );
 }

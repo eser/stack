@@ -9,7 +9,8 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
 import type * as shellArgs from "@eser/shell/args";
 import type { WorkflowTool } from "./types.ts";
@@ -51,6 +52,11 @@ export const main = async (
     return results.ok(undefined);
   }
 
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
   const configDir = (parsed.config as string | undefined) ?? ".";
   const config = await loadFromFile(configDir);
 
@@ -63,35 +69,37 @@ export const main = async (
 
   // Print workflows
   if (config !== null && config.workflows.length > 0) {
-    console.log(fmtColors.bold("Workflows:"));
+    out.writeln(span.bold("Workflows:"));
     for (const wf of config.workflows) {
       const events = wf.on.length > 0 ? wf.on.join(", ") : "(no events)";
       const stepCount = wf.steps.length;
       const stepWord = stepCount === 1 ? "step" : "steps";
-      console.log(
-        `  ${wf.id.padEnd(20)} ${
-          fmtColors.dim(events.padEnd(25))
-        } ${stepCount} ${stepWord}`,
+      out.writeln(
+        span.text(`  ${wf.id.padEnd(20)} `),
+        span.dim(events.padEnd(25)),
+        span.text(` ${stepCount} ${stepWord}`),
       );
     }
   } else {
-    console.log(fmtColors.dim("No workflows defined."));
+    out.writeln(span.dim("No workflows defined."));
   }
 
-  console.log();
+  out.writeln();
 
   // Print registered tools
   const tools = registry.getAll();
   if (tools.length > 0) {
-    console.log(fmtColors.bold(`Registered tools (${tools.length}):`));
+    out.writeln(span.bold(`Registered tools (${tools.length}):`));
     for (const tool of tools) {
-      console.log(
-        `  ${tool.name.padEnd(28)} ${fmtColors.dim(tool.description)}`,
+      out.writeln(
+        span.text(`  ${tool.name.padEnd(28)} `),
+        span.dim(tool.description),
       );
     }
   } else {
-    console.log(fmtColors.dim("No tools registered."));
+    out.writeln(span.dim("No tools registered."));
   }
 
+  await out.close();
   return results.ok(undefined);
 };

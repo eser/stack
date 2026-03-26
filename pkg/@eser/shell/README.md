@@ -8,8 +8,8 @@ development:
   zsh, and fish
 - **`@eser/shell/args`** - Hierarchical CLI framework for building command trees
 - **`@eser/shell/exec`** - Lightweight shell execution with template-literal API
-- **`@eser/shell/formatting`** - Terminal formatting, colors, and output
-  utilities
+- **`@eser/shell/formatting`** - TTY detection, ANSI stripping, and progress
+  spinners (colors moved to `@eser/streams`)
 
 ## 💫 Key features
 
@@ -209,115 +209,45 @@ await $`npm install`.quiet().spawn();
 
 ### @eser/shell/formatting
 
-Terminal formatting utilities for CLI applications. Provides ANSI colors, output
-utilities, and progress spinners.
+Lightweight terminal utilities: TTY detection, ANSI stripping, and progress
+spinners.
 
-> **Note:** Value formatters (`formatDuration`, `formatSize`, `formatNumber`,
-> `formatPercent`) have moved to `@eser/standards/formatters`.
+> **Note:** All color functions, semantic color objects, and output formatters
+> have moved to `@eser/streams`. Use `@eser/streams/span` for colors/styles and
+> `@eser/streams` for structured output. Value formatters (`formatDuration`,
+> `formatSize`, `formatNumber`, `formatPercent`) live in
+> `@eser/standards/formatters`.
 
-#### Colors
+#### Utilities
 
 ```typescript
-import {
-  bold,
-  c,
-  cyan,
-  green,
-  red,
-  stripAnsi,
-  supportsColor,
-} from "@eser/shell/formatting";
+import * as formatting from "@eser/shell/formatting";
 
-// Text styles
-console.log(bold("Bold text"));
-console.log(italic("Italic text"));
-console.log(underline("Underlined"));
-
-// Standard colors
-console.log(red("Error message"));
-console.log(green("Success message"));
-console.log(cyan("Info message"));
-
-// Semantic colors (recommended)
-console.log(c.success("✓ Passed"));
-console.log(c.error("✗ Failed"));
-console.log(c.warning("⚠ Warning"));
-console.log(c.info("ℹ Info"));
-console.log(c.code("const x = 5;"));
-console.log(c.path("/path/to/file"));
-console.log(c.url("https://example.com"));
-
-// Utilities
-const plain = stripAnsi(coloredString); // Remove ANSI codes
-if (supportsColor()) {
+// Check if the terminal supports ANSI colors
+if (formatting.supportsColor()) {
   // Terminal supports colors
 }
-```
 
-#### Output Utilities
-
-```typescript
-import {
-  blank,
-  boxText,
-  printError,
-  printInfo,
-  printItem,
-  printNextSteps,
-  printRule,
-  printSection,
-  printSuccess,
-  printTable,
-  printWarning,
-} from "@eser/shell/formatting";
-
-// Section headers
-printSection("Configuration");
-// Outputs:
-// Configuration
-// ─────────────
-
-// Status messages
-printSuccess("Build complete", "2.5s elapsed");
-printError("Build failed", "Missing dependency");
-printWarning("Deprecated API", "Use newApi() instead");
-printInfo("Server started", "http://localhost:3000");
-
-// Key-value items
-printItem("Version", "1.0.0");
-printItem("License", "MIT");
-
-// Tables
-printTable({
-  Name: "my-project",
-  Version: "1.0.0",
-  License: "MIT",
-});
-
-// Next steps
-printNextSteps([
-  "Run 'npm install' to install dependencies",
-  "Run 'npm start' to start the server",
-]);
-
-// Boxed text
-boxText("Important message!");
-// Outputs:
-// ╭────────────────────╮
-// │ Important message! │
-// ╰────────────────────╯
-
-// Utilities
-blank(); // Print empty line
-printRule(40); // Print horizontal rule
+// Strip ANSI escape codes from a string
+const plain = formatting.stripAnsi(coloredString);
 ```
 
 #### Spinner
 
+The `Spinner` class provides a progress indicator for long-running operations.
+It takes a `streams.Output` instance as its first argument for all rendering.
+
 ```typescript
 import { Spinner } from "@eser/shell/formatting";
+import * as streams from "@eser/streams";
 
-const spinner = new Spinner("Loading...");
+// Create an output target
+const out = streams.output({
+  renderer: streams.renderers.ansi(),
+  sink: streams.sinks.stdout(),
+});
+
+const spinner = new Spinner(out, "Loading...");
 spinner.start();
 
 // Update message while running
@@ -331,9 +261,31 @@ spinner.info("Info!"); // ℹ Info!
 spinner.stop(); // Stop without message
 
 // Custom spinner frames
-const customSpinner = new Spinner("Processing", {
+const customSpinner = new Spinner(out, "Processing", {
   frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
   interval: 80,
+});
+```
+
+#### Colors and Formatting (via @eser/streams)
+
+Colors and structured output have moved to `@eser/streams`:
+
+```typescript
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
+
+// Text styles and colors via span
+span.bold("Bold text");
+span.italic("Italic text");
+span.red("Error message");
+span.green("Success message");
+span.cyan("Info message");
+
+// Structured output via streams
+const out = streams.output({
+  renderer: streams.renderers.ansi(),
+  sink: streams.sinks.stdout(),
 });
 ```
 

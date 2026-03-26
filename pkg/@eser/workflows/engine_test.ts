@@ -1,6 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
+import * as task from "@eser/functions/task";
+import * as results from "@eser/primitives/results";
 import type { WorkflowFileMutation, WorkflowTool } from "./types.ts";
 import { resolveStep, runWorkflow } from "./engine.ts";
 import { createRegistry } from "./registry.ts";
@@ -134,8 +136,10 @@ Deno.test({
       steps: ["pass-tool", "pass-tool-2"],
     } as const;
 
-    const result = await runWorkflow(workflow, registry);
+    const taskResult = await task.runTask(runWorkflow(workflow, registry));
+    assert.assert(results.isOk(taskResult));
 
+    const result = taskResult.value;
     assert.assertEquals(result.passed, true);
     assert.assertEquals(result.workflowId, "test-wf");
     assert.assertEquals(result.steps.length, 2);
@@ -158,8 +162,10 @@ Deno.test({
       steps: ["fail-tool"],
     } as const;
 
-    const result = await runWorkflow(workflow, registry);
+    const taskResult = await task.runTask(runWorkflow(workflow, registry));
+    assert.assert(results.isOk(taskResult));
 
+    const result = taskResult.value;
     assert.assertEquals(result.passed, false);
     assert.assertEquals(result.steps.length, 1);
     assert.assertEquals(result.steps[0]!.issues.length, 1);
@@ -171,7 +177,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "runWorkflow — unknown tool throws with descriptive message",
+  name: "runWorkflow — unknown tool returns error result",
+  sanitizeOps: false,
+  sanitizeResources: false,
   fn: async () => {
     const registry = createRegistry();
     registry.register(passingTool);
@@ -182,9 +190,10 @@ Deno.test({
       steps: ["nonexistent-tool"],
     } as const;
 
-    await assert.assertRejects(
-      () => runWorkflow(workflow, registry),
-      Error,
+    const taskResult = await task.runTask(runWorkflow(workflow, registry));
+    assert.assert(results.isFail(taskResult));
+    assert.assertStringIncludes(
+      taskResult.error.message,
       "Unknown tool 'nonexistent-tool'",
     );
   },
@@ -208,8 +217,10 @@ Deno.test({
       ],
     } as const;
 
-    const result = await runWorkflow(workflow, registry);
+    const taskResult = await task.runTask(runWorkflow(workflow, registry));
+    assert.assert(results.isOk(taskResult));
 
+    const result = taskResult.value;
     assert.assertEquals(result.passed, false);
     assert.assertEquals(result.steps.length, 2);
     assert.assertEquals(result.steps[0]!.passed, false);
@@ -238,13 +249,18 @@ Deno.test({
 
     const capturedMutations: WorkflowFileMutation[][] = [];
 
-    const result = await runWorkflow(workflow, registry, {
-      onMutations: (mutations) => {
-        capturedMutations.push([...mutations]);
-        return Promise.resolve();
-      },
-    });
+    const taskResult = await task.runTask(
+      runWorkflow(workflow, registry, {
+        onMutations: (mutations) => {
+          capturedMutations.push([...mutations]);
+          return Promise.resolve();
+        },
+      }),
+    );
 
+    assert.assert(results.isOk(taskResult));
+
+    const result = taskResult.value;
     assert.assertEquals(result.passed, true);
     assert.assertEquals(capturedMutations.length, 1);
     assert.assertEquals(capturedMutations[0]!.length, 1);

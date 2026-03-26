@@ -7,6 +7,9 @@
  * no I/O — mutations are returned in results and the caller decides
  * whether to apply them (via the `onMutations` callback).
  *
+ * Uses `@eser/functions/task` for lazy composition, timeout handling,
+ * and result-based error recovery.
+ *
  * ```
  * runWorkflow(workflow, registry, options)
  *   │
@@ -14,8 +17,8 @@
  *   │   ├─ resolveStep() → { name, options, continueOnError, timeout }
  *   │   ├─ Lookup tool in registry
  *   │   ├─ Merge step options + run options
- *   │   ├─ Run tool with timeout (Promise.race)
- *   │   ├─ On error: if continueOnError → failed step; else re-throw
+ *   │   ├─ Run tool via task.withTimeout()
+ *   │   ├─ On error: if continueOnError → failed step; else propagate error
  *   │   ├─ Call onMutations() if mutations produced
  *   │   └─ Call onStepEnd()
  *   │
@@ -31,17 +34,28 @@
  * @module
  */
 
+import * as task from "@eser/functions/task";
+import * as results from "@eser/primitives/results";
 import type { Registry } from "./registry.ts";
 import type {
   ResolvedStep,
   RunOptions,
   StepResult,
   WorkflowDefinition,
+  WorkflowError,
   WorkflowResult,
   WorkflowsConfig,
   WorkflowStepConfig,
   WorkflowToolResult,
 } from "./types.ts";
+
+/**
+ * Create a WorkflowError value.
+ */
+const workflowError = (message: string): WorkflowError => ({
+  _tag: "WorkflowError",
+  message,
+});
 
 /**
  * Parse a step config into a resolved step with name, options, and engine directives.
@@ -84,141 +98,140 @@ export const resolveStep = (step: WorkflowStepConfig): ResolvedStep => {
 };
 
 /**
- * Run a tool with a timeout. Returns the tool result or throws on timeout.
- * Properly clears the timer to avoid resource leaks.
+ * Create a Task that runs a single tool step with timeout.
+ * Returns a Task<WorkflowToolResult, WorkflowError, void>.
  */
-const runWithTimeout = async (
-  toolRun: Promise<WorkflowToolResult>,
+const createStepTask = (
+  toolRun: () => Promise<WorkflowToolResult>,
   timeoutMs: number,
   stepName: string,
-): Promise<WorkflowToolResult> => {
-  let timerId: ReturnType<typeof setTimeout>;
-
-  const timeoutPromise = new Promise<never>((_resolve, reject) => {
-    timerId = setTimeout(() => {
-      reject(
-        new Error(
-          `Step '${stepName}' timed out after ${
-            (timeoutMs / 1000).toFixed(0)
-          }s`,
+): task.Task<WorkflowToolResult, WorkflowError> =>
+  task.withTimeout(
+    task.fromPromise(
+      toolRun,
+      (error) =>
+        workflowError(
+          error instanceof Error ? error.message : String(error),
         ),
-      );
-    }, timeoutMs);
-  });
-
-  try {
-    return await Promise.race([toolRun, timeoutPromise]);
-  } finally {
-    clearTimeout(timerId!);
-  }
-};
+    ),
+    timeoutMs,
+    workflowError(
+      `Step '${stepName}' timed out after ${(timeoutMs / 1000).toFixed(0)}s`,
+    ),
+  );
 
 /**
  * Run a single workflow definition against a registry of tools.
  *
+ * Returns a `Task<WorkflowResult, WorkflowError>` — the computation is
+ * lazy and does not execute until `task.runTask()` is called.
+ *
  * @param workflow - Workflow to run
  * @param registry - Tool registry
  * @param options - Run options
- * @returns Workflow execution result
+ * @returns Task wrapping the workflow execution
  */
-export const runWorkflow = async (
+export const runWorkflow = (
   workflow: WorkflowDefinition,
   registry: Registry,
   options: RunOptions = {},
-): Promise<WorkflowResult> => {
-  const startTime = performance.now();
-  const stepResults: StepResult[] = [];
-  const defaultTimeout = options.defaultTimeout ?? 60_000;
+): task.Task<WorkflowResult, WorkflowError> =>
+  task.task<WorkflowResult, WorkflowError>(async () => {
+    const startTime = performance.now();
+    const stepResults: StepResult[] = [];
+    const defaultTimeout = options.defaultTimeout ?? 60_000;
 
-  for (const stepConfig of workflow.steps) {
-    const resolved = resolveStep(stepConfig);
+    for (const stepConfig of workflow.steps) {
+      const resolved = resolveStep(stepConfig);
 
-    // Filter by --only flag
-    if (options.only !== undefined && resolved.name !== options.only) {
-      continue;
-    }
+      // Filter by --only flag
+      if (options.only !== undefined && resolved.name !== options.only) {
+        continue;
+      }
 
-    // Resolve tool from registry
-    const tool = registry.get(resolved.name);
-    if (tool === undefined) {
-      throw new Error(
-        `Unknown tool '${resolved.name}' in workflow '${workflow.id}'. ` +
-          `Registered tools: ${registry.names().join(", ") || "(none)"}`,
-      );
-    }
+      // Resolve tool from registry
+      const tool = registry.get(resolved.name);
+      if (tool === undefined) {
+        return results.fail(
+          workflowError(
+            `Unknown tool '${resolved.name}' in workflow '${workflow.id}'. ` +
+              `Registered tools: ${registry.names().join(", ") || "(none)"}`,
+          ),
+        );
+      }
 
-    // Merge step-level options with run-level options (engine directives already stripped)
-    const mergedOptions: Record<string, unknown> = {
-      ...resolved.options,
-      root: options.root ?? ".",
-      fix: options.fix ?? false,
-      _args: options.args ?? [],
-    };
+      // Merge step-level options with run-level options (engine directives already stripped)
+      const mergedOptions: Record<string, unknown> = {
+        ...resolved.options,
+        root: options.root ?? ".",
+        fix: options.fix ?? false,
+        _args: options.args ?? [],
+      };
 
-    // Pass changed files for incremental mode
-    if (options.changedFiles !== undefined) {
-      mergedOptions["_changedFiles"] = options.changedFiles;
-    }
+      // Pass changed files for incremental mode
+      if (options.changedFiles !== undefined) {
+        mergedOptions["_changedFiles"] = options.changedFiles;
+      }
 
-    // Notify step start
-    options.onStepStart?.(resolved.name);
+      // Notify step start
+      options.onStepStart?.(resolved.name);
 
-    const stepStart = performance.now();
-    let toolResult: WorkflowToolResult;
-
-    try {
+      const stepStart = performance.now();
       const timeoutMs = resolved.timeout ?? defaultTimeout;
-      toolResult = await runWithTimeout(
-        tool.run(mergedOptions),
+      const stepTask = createStepTask(
+        () => tool.run(mergedOptions),
         timeoutMs,
         resolved.name,
       );
-    } catch (error) {
-      if (resolved.continueOnError) {
+
+      const stepTaskResult = await task.runTask(stepTask);
+
+      let toolResult: WorkflowToolResult;
+
+      if (results.isOk(stepTaskResult)) {
+        toolResult = stepTaskResult.value;
+      } else if (resolved.continueOnError) {
         // Create a failed step result from the error
         toolResult = {
           name: resolved.name,
           passed: false,
-          issues: [{
-            message: error instanceof Error ? error.message : String(error),
-          }],
+          issues: [{ message: stepTaskResult.error.message }],
           mutations: [],
           stats: {},
         };
       } else {
-        throw error;
+        return stepTaskResult;
       }
+
+      const durationMs = performance.now() - stepStart;
+
+      const stepResult: StepResult = {
+        ...toolResult,
+        durationMs,
+      };
+
+      stepResults.push(stepResult);
+
+      // Apply mutations between steps so subsequent tools see the fixed state
+      if (
+        toolResult.mutations.length > 0 && options.onMutations !== undefined
+      ) {
+        await options.onMutations(toolResult.mutations);
+      }
+
+      // Notify step end
+      options.onStepEnd?.(stepResult);
     }
 
-    const durationMs = performance.now() - stepStart;
+    const totalDurationMs = performance.now() - startTime;
 
-    const stepResult: StepResult = {
-      ...toolResult,
-      durationMs,
-    };
-
-    stepResults.push(stepResult);
-
-    // Apply mutations between steps so subsequent tools see the fixed state
-    if (
-      toolResult.mutations.length > 0 && options.onMutations !== undefined
-    ) {
-      await options.onMutations(toolResult.mutations);
-    }
-
-    // Notify step end
-    options.onStepEnd?.(stepResult);
-  }
-
-  const totalDurationMs = performance.now() - startTime;
-
-  return {
-    workflowId: workflow.id,
-    passed: stepResults.every((s) => s.passed),
-    steps: stepResults,
-    totalDurationMs,
-  };
-};
+    return results.ok({
+      workflowId: workflow.id,
+      passed: stepResults.every((s) => s.passed),
+      steps: stepResults,
+      totalDurationMs,
+    });
+  });
 
 /**
  * Resolve includes by flattening included workflow steps before the current workflow's steps.
@@ -282,27 +295,30 @@ export const resolveIncludes = (
  * @param config - Full workflow configuration
  * @param registry - Tool registry
  * @param options - Run options
- * @returns Workflow execution result
+ * @returns Task wrapping the workflow execution
  */
-export const runWorkflowWithConfig = async (
+export const runWorkflowWithConfig = (
   workflowId: string,
   config: WorkflowsConfig,
   registry: Registry,
   options: RunOptions = {},
-): Promise<WorkflowResult> => {
-  const workflow = config.workflows.find((w) => w.id === workflowId);
-  if (workflow === undefined) {
-    throw new Error(
-      `Workflow '${workflowId}' not found. ` +
-        `Available: ${
-          config.workflows.map((w) => w.id).join(", ") || "(none)"
-        }`,
-    );
-  }
+): task.Task<WorkflowResult, WorkflowError> =>
+  task.task<WorkflowResult, WorkflowError>(async () => {
+    const workflow = config.workflows.find((w) => w.id === workflowId);
+    if (workflow === undefined) {
+      return results.fail(
+        workflowError(
+          `Workflow '${workflowId}' not found. ` +
+            `Available: ${
+              config.workflows.map((w) => w.id).join(", ") || "(none)"
+            }`,
+        ),
+      );
+    }
 
-  const resolved = resolveIncludes(workflow, config.workflows);
-  return await runWorkflow(resolved, registry, options);
-};
+    const resolved = resolveIncludes(workflow, config.workflows);
+    return await task.runTask(runWorkflow(resolved, registry, options));
+  });
 
 /**
  * Run all workflows matching a given event, resolving includes.
@@ -311,32 +327,39 @@ export const runWorkflowWithConfig = async (
  * @param workflows - Available workflow definitions
  * @param registry - Tool registry
  * @param options - Run options
- * @returns Array of workflow results
+ * @returns Task wrapping an array of workflow results
  */
-export const runByEvent = async (
+export const runByEvent = (
   event: string,
   workflows: readonly WorkflowDefinition[],
   registry: Registry,
   options: RunOptions = {},
-): Promise<readonly WorkflowResult[]> => {
-  const matching = workflows.filter((w) => w.on.includes(event));
+): task.Task<readonly WorkflowResult[], WorkflowError> =>
+  task.task<readonly WorkflowResult[], WorkflowError>(async () => {
+    const matching = workflows.filter((w) => w.on.includes(event));
 
-  if (matching.length === 0) {
-    throw new Error(
-      `No workflows found for event '${event}'. ` +
-        `Available: ${
-          workflows.map((w) => `${w.id} (${w.on.join(", ")})`).join("; ") ||
-          "(none)"
-        }`,
-    );
-  }
+    if (matching.length === 0) {
+      return results.fail(
+        workflowError(
+          `No workflows found for event '${event}'. ` +
+            `Available: ${
+              workflows.map((w) => `${w.id} (${w.on.join(", ")})`).join(
+                "; ",
+              ) || "(none)"
+            }`,
+        ),
+      );
+    }
 
-  const results: WorkflowResult[] = [];
-  for (const workflow of matching) {
-    const resolved = resolveIncludes(workflow, workflows);
-    const result = await runWorkflow(resolved, registry, options);
-    results.push(result);
-  }
+    const workflowResults: WorkflowResult[] = [];
+    for (const workflow of matching) {
+      const resolved = resolveIncludes(workflow, workflows);
+      const result = await task.runTask(
+        runWorkflow(resolved, registry, options),
+      );
+      if (results.isFail(result)) return result;
+      workflowResults.push(result.value);
+    }
 
-  return results;
-};
+    return results.ok(workflowResults);
+  });

@@ -66,8 +66,7 @@ export const isConfigured = (): boolean => {
  * @example
  * await configure({
  *   sinks: {
- *     console: getConsoleSink({ formatter: ansiColorFormatter() }),
- *     file: getStreamSink(fileStream),
+ *     console: getOutputSink(out),
  *   },
  *   filters: {
  *     production: getLevelFilter(logging.Severities.Warning),

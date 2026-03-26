@@ -4,108 +4,39 @@
  * @module @eser/shell/formatting
  *
  * Terminal formatting utilities for CLI applications.
- * Cross-runtime compatible - works in Deno, Node.js, and Bun.
  *
- * Output is target-agnostic — use `createOutput()` to bind formatting
- * to any destination (console, WritableStream, test buffer, etc.).
+ * Color/style formatting and output targets have moved to `@eser/streams`.
+ * Use `@eser/streams/span` for formatting and `streams.output()` for output.
  *
- * For value formatters (formatDuration, formatSize, etc.), see @eser/standards/formatters.
+ * This module retains:
+ * - `Spinner` — terminal spinner (uses streams.Output)
+ * - `supportsColor()` — TTY detection
+ * - `stripAnsi()` — ANSI code stripping utility
  *
  * @example
  * ```typescript
- * import {
- *   c,
- *   createOutput,
- *   getStreamTarget,
- *   Spinner,
- * } from "@eser/shell/formatting";
+ * import * as streams from "@eser/streams";
+ * import * as span from "@eser/streams/span";
+ * import { Spinner } from "@eser/shell/formatting";
  *
- * // Colors and styles
- * console.log(c.success("Operation completed!"));
- * console.log(c.brand("My CLI Tool"));
+ * const out = streams.output({
+ *   renderer: streams.renderers.ansi(),
+ *   sink: streams.sinks.stdout(),
+ * });
  *
- * // Formatted output (default: console)
- * const fmt = createOutput();
- * fmt.printSuccess("Config loaded", "from ./config.json");
- *
- * // Formatted output to a stream
- * const streamFmt = createOutput(getStreamTarget(responseStream));
- * streamFmt.printSuccess("Streamed!");
+ * // Formatted output
+ * out.writeln(span.green("✓"), span.text(" Done!"));
  *
  * // Spinner for async operations
- * const spinner = new Spinner("Loading...");
+ * const spinner = new Spinner(out, "Loading...");
  * spinner.start();
  * await someAsyncOperation();
  * spinner.succeed("Done!");
  * ```
  */
 
-// Colors and styles
-export {
-  bgBlack,
-  bgBlue,
-  bgCyan,
-  bgGreen,
-  bgMagenta,
-  bgRed,
-  bgWhite,
-  bgYellow,
-  black,
-  blue,
-  bold,
-  brightBlue,
-  brightCyan,
-  brightGreen,
-  brightMagenta,
-  brightRed,
-  brightWhite,
-  brightYellow,
-  c,
-  cyan,
-  dim,
-  gray,
-  green,
-  italic,
-  magenta,
-  red,
-  strikethrough,
-  stripAnsi,
-  supportsColor,
-  underline,
-  white,
-  yellow,
-} from "./colors.ts";
+// Terminal utilities
+export { stripAnsi, supportsColor } from "./colors.ts";
 
 // Spinner
 export { Spinner, type SpinnerOptions } from "./spinner.ts";
-
-// Output target types and factory
-export { createOutput } from "./output.ts";
-export type { FormattingOutput, OutputChannel, OutputTarget } from "./types.ts";
-
-// Output targets (sink factories)
-export {
-  emitLines,
-  getConsoleTarget,
-  getMultiplexTarget,
-  getStreamTarget,
-  getTestTarget,
-  nullTarget,
-} from "./targets.ts";
-
-// Pure formatters (return structured data, no side effects)
-export {
-  formatBlank,
-  formatBox,
-  formatClearTerminal,
-  formatError,
-  formatInfo,
-  formatItem,
-  formatNextSteps,
-  formatRule,
-  formatSection,
-  formatSuccess,
-  formatTable,
-  type FormattedLine,
-  formatWarning,
-} from "./formatters.ts";

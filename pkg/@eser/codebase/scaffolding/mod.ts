@@ -29,7 +29,8 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as shellArgs from "@eser/shell/args";
@@ -102,11 +103,22 @@ export const main = async (
     return results.ok(undefined);
   }
 
+  const renderer = streams.renderers.ansi();
+
+  const out = streams.output({
+    renderer,
+    sink: streams.sinks.stdout(),
+  });
+
   const specifier = args._[0] as string | undefined;
 
   if (specifier === undefined) {
+    await out.close();
     return results.fail({
-      message: `${fmtColors.red("Error: Template specifier is required")}\n` +
+      message:
+        `${
+          renderer.render([span.red("Error: Template specifier is required")])
+        }\n` +
         "\nUsage: scaffold <specifier> [options]\n" +
         "\nExamples:\n" +
         "  scaffold eser/ajan\n" +
@@ -135,7 +147,11 @@ export const main = async (
     }
   }
 
-  console.log(`Scaffolding from ${fmtColors.cyan(specifier)}...`);
+  out.writeln(
+    span.text("Scaffolding from "),
+    span.cyan(specifier),
+    span.text("..."),
+  );
 
   const scaffoldResult = await results.tryCatchAsync(
     () =>
@@ -151,36 +167,38 @@ export const main = async (
   );
 
   if (results.isFail(scaffoldResult)) {
+    await out.close();
     return results.fail({
-      message: fmtColors.red(
-        `\nScaffolding failed: ${scaffoldResult.error.message}`,
-      ),
+      message: renderer.render([
+        span.red(`\nScaffolding failed: ${scaffoldResult.error.message}`),
+      ]),
       exitCode: 1,
     });
   }
 
   const result = scaffoldResult.value;
 
-  console.log(
-    fmtColors.green(
+  out.writeln(
+    span.green(
       `\nScaffolded ${result.templateName} to ${result.targetDir}`,
     ),
   );
 
   if (Object.keys(result.variables).length > 0) {
-    console.log("\nVariables applied:");
+    out.writeln(span.text("\nVariables applied:"));
     for (const [key, value] of Object.entries(result.variables)) {
-      console.log(`  ${fmtColors.dim(key)}: ${value}`);
+      out.writeln(span.text("  "), span.dim(key), span.text(`: ${value}`));
     }
   }
 
   if (result.postInstallCommands.length > 0) {
-    console.log("\nPost-install commands executed:");
+    out.writeln(span.text("\nPost-install commands executed:"));
     for (const cmd of result.postInstallCommands) {
-      console.log(`  ${fmtColors.dim(cmd)}`);
+      out.writeln(span.text("  "), span.dim(cmd));
     }
   }
 
+  await out.close();
   return results.ok(undefined);
 };
 

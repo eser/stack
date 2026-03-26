@@ -110,6 +110,12 @@ export type WorkflowResult = {
   readonly totalDurationMs: number;
 };
 
+/** Error type for workflow engine failures. */
+export type WorkflowError = {
+  readonly _tag: "WorkflowError";
+  readonly message: string;
+};
+
 /** Options for running a workflow. */
 export type RunOptions = {
   readonly root?: string;

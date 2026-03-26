@@ -108,24 +108,6 @@ export type LoggerRegistryState = {
 };
 
 /**
- * Options for console sink.
- */
-export type ConsoleSinkOptions = {
-  /** Custom formatter function */
-  readonly formatter?: FormatterFn;
-  /** Use stderr instead of stdout (default: false) */
-  readonly stderr?: boolean;
-};
-
-/**
- * Options for stream sink.
- */
-export type StreamSinkOptions = {
-  /** Custom formatter function */
-  readonly formatter?: FormatterFn;
-};
-
-/**
  * A formatter function that converts a LogRecord to a string.
  */
 export type FormatterFn = (record: LogRecord) => string;

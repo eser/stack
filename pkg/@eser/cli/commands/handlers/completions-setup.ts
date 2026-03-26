@@ -6,7 +6,8 @@
  * @module
  */
 
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import { current } from "@eser/standards/runtime";
 import * as shellEnv from "@eser/shell/env";
 
@@ -61,6 +62,11 @@ export const hasCompletions = async (
 export const addCompletions = async (shell: shellEnv.Shell): Promise<void> => {
   const config = shellEnv.getShellConfig(shell, APP_NAME);
 
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
   try {
     if (config.completionType === "file") {
       const fishPath = config.completionsFile!;
@@ -85,8 +91,12 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "update" -d "Update 
 complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Generate shell completion scripts"
 `;
       await current.fs.writeTextFile(fishPath, fishScript);
-      // deno-lint-ignore no-console
-      console.log(`  ${fmtColors.dim("Created")} ${fmtColors.cyan(fishPath)}`);
+      out.writeln(
+        span.text("  "),
+        span.dim("Created"),
+        span.text(" "),
+        span.cyan(fishPath),
+      );
     } else {
       const content = await readFileOrEmpty(config.rcFile);
       const line = shellEnv.getCompletionEvalLine(shell, APP_NAME);
@@ -94,24 +104,25 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Ge
       if (!content.includes(line)) {
         const addition = `\n${COMPLETION_MARKER}\n${line}\n`;
         await current.fs.writeTextFile(config.rcFile, content + addition);
-        // deno-lint-ignore no-console
-        console.log(
-          `  ${fmtColors.dim("Added completions to")} ${
-            fmtColors.cyan(config.rcFile)
-          }`,
+        out.writeln(
+          span.text("  "),
+          span.dim("Added completions to"),
+          span.text(" "),
+          span.cyan(config.rcFile),
         );
       }
     }
   } catch (error) {
-    // deno-lint-ignore no-console
-    console.log(
-      fmtColors.yellow(
+    out.writeln(
+      span.yellow(
         `  Warning: Could not add shell completions: ${
           error instanceof Error ? error.message : String(error)
         }`,
       ),
     );
   }
+
+  await out.close();
 };
 
 /**
@@ -122,24 +133,33 @@ export const removeCompletions = async (
 ): Promise<void> => {
   const config = shellEnv.getShellConfig(shell, APP_NAME);
 
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
   try {
     if (config.completionType === "file") {
       const fishPath = config.completionsFile!;
       if (await fileExists(fishPath)) {
         await current.fs.remove(fishPath);
-        // deno-lint-ignore no-console
-        console.log(
-          `  ${fmtColors.dim("Removed")} ${fmtColors.cyan(fishPath)}`,
+        out.writeln(
+          span.text("  "),
+          span.dim("Removed"),
+          span.text(" "),
+          span.cyan(fishPath),
         );
       }
     } else {
       const content = await readFileOrEmpty(config.rcFile);
       if (content === "") {
+        await out.close();
         return;
       }
 
       const line = shellEnv.getCompletionEvalLine(shell, APP_NAME);
       if (!content.includes(line)) {
+        await out.close();
         return;
       }
 
@@ -151,21 +171,22 @@ export const removeCompletions = async (
         .replace(/\n{3,}/g, "\n\n");
 
       await current.fs.writeTextFile(config.rcFile, filtered);
-      // deno-lint-ignore no-console
-      console.log(
-        `  ${fmtColors.dim("Removed completions from")} ${
-          fmtColors.cyan(config.rcFile)
-        }`,
+      out.writeln(
+        span.text("  "),
+        span.dim("Removed completions from"),
+        span.text(" "),
+        span.cyan(config.rcFile),
       );
     }
   } catch (error) {
-    // deno-lint-ignore no-console
-    console.log(
-      fmtColors.yellow(
+    out.writeln(
+      span.yellow(
         `  Warning: Could not remove shell completions: ${
           error instanceof Error ? error.message : String(error)
         }`,
       ),
     );
   }
+
+  await out.close();
 };

@@ -6,7 +6,8 @@
  * @module
  */
 
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
@@ -38,14 +39,23 @@ export const uninstallHandler = async (
 ): Promise<shellArgs.CliResult<void>> => {
   const runtimeName = standardsRuntime.detectRuntime();
 
-  // deno-lint-ignore no-console
-  console.log(`Detected runtime: ${fmtColors.cyan(runtimeName)}`);
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
+  out.writeln(span.text("Detected runtime: "), span.cyan(runtimeName));
 
   const config = UNINSTALL_CONFIGS[runtimeName];
 
   if (config === undefined) {
+    const renderer = streams.renderers.ansi();
+    await out.close();
     return results.fail({
-      message: `${fmtColors.red(`\nUnsupported runtime: ${runtimeName}`)}\n` +
+      message:
+        `${
+          renderer.render([span.red(`\nUnsupported runtime: ${runtimeName}`)])
+        }\n` +
         "Global uninstallation is only supported for Deno, Node.js, and Bun.",
       exitCode: 1,
     });
@@ -55,14 +65,15 @@ export const uninstallHandler = async (
 
   // Remove shell completions first
   const shell = detectShell();
-  // deno-lint-ignore no-console
-  console.log(`\nRemoving ${fmtColors.cyan(shell)} completions...`);
+  out.writeln(
+    span.text("\nRemoving "),
+    span.cyan(shell),
+    span.text(" completions..."),
+  );
   await removeCompletions(shell);
 
-  // deno-lint-ignore no-console
-  console.log(fmtColors.dim(`\nRunning: ${cmd} ${args.join(" ")}`));
-  // deno-lint-ignore no-console
-  console.log("");
+  out.writeln(span.dim(`\nRunning: ${cmd} ${args.join(" ")}`));
+  out.writeln();
 
   const result = await shellExec.exec`${cmd} ${args}`
     .stdout("inherit")
@@ -71,17 +82,18 @@ export const uninstallHandler = async (
     .spawn();
 
   if (!result.success) {
-    // deno-lint-ignore no-console
-    console.error(fmtColors.red("\nUninstallation failed."));
+    out.writeln(span.red("\nUninstallation failed."));
+    await out.close();
     return results.fail({ exitCode: result.code });
   }
 
-  // deno-lint-ignore no-console
-  console.log(fmtColors.green("\nUninstallation complete!"));
-  // deno-lint-ignore no-console
-  console.log(
-    `The ${fmtColors.cyan("eser")} command has been removed from your system.`,
+  out.writeln(span.green("\nUninstallation complete!"));
+  out.writeln(
+    span.text("The "),
+    span.cyan("eser"),
+    span.text(" command has been removed from your system."),
   );
 
+  await out.close();
   return results.ok(undefined);
 };

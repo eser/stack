@@ -9,7 +9,8 @@
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
 import * as shellExec from "@eser/shell/exec";
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as versionCheck from "./version-check.ts";
 import config from "../../package.json" with { type: "json" };
@@ -23,32 +24,41 @@ const ESER_OPTS: standardsRuntime.CliCommandOptions = {
 
 const LABEL_WIDTH = 17;
 
+const out = streams.output({
+  renderer: streams.renderers.ansi(),
+  sink: streams.sinks.stdout(),
+});
+
 const ok = (label: string, value: string): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
-  // deno-lint-ignore no-console
-  console.log(`  ${padded}${fmtColors.green("\u2713")} ${value}`);
+  out.writeln(
+    span.text(`  ${padded}`),
+    span.green("\u2713"),
+    span.text(` ${value}`),
+  );
 };
 
 const fail = (label: string, value: string): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
-  // deno-lint-ignore no-console
-  console.log(`  ${padded}${fmtColors.red("\u2717")} ${value}`);
+  out.writeln(
+    span.text(`  ${padded}`),
+    span.red("\u2717"),
+    span.text(` ${value}`),
+  );
 };
 
 const info = (label: string, value: string): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
-  // deno-lint-ignore no-console
-  console.log(`  ${padded}${value}`);
+  out.writeln(span.text(`  ${padded}${value}`));
 };
 
 const neutral = (label: string, value: string): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
-  // deno-lint-ignore no-console
-  console.log(`  ${padded}${fmtColors.dim("-")} ${value}`);
+  out.writeln(span.text(`  ${padded}`), span.dim("-"), span.text(` ${value}`));
 };
 
 const fileExists = async (path: string): Promise<boolean> => {
@@ -164,8 +174,7 @@ const checkNode = async (): Promise<void> => {
 export const doctorHandler = async (
   _ctx: shellArgs.CommandContext,
 ): Promise<shellArgs.CliResult<void>> => {
-  // deno-lint-ignore no-console
-  console.log("eser doctor\n");
+  out.writeln(span.text("eser doctor\n"));
 
   // Install method & version
   const execContext = await standardsRuntime.detectExecutionContext(ESER_OPTS);
@@ -183,20 +192,19 @@ export const doctorHandler = async (
     ok("Update", "Up to date");
   }
 
-  // deno-lint-ignore no-console
-  console.log("");
+  out.writeln();
 
   // Project checks
   await checkGitHooks();
   await checkManifest();
 
-  // deno-lint-ignore no-console
-  console.log("");
+  out.writeln();
 
   // Tool checks
   await checkDeno();
   await checkGo();
   await checkNode();
 
+  await out.close();
   return results.ok(undefined);
 };

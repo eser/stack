@@ -1,32 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as logging from "@eser/standards/logging";
+import * as span from "@eser/streams/span";
 import type { FormatterFn, LogRecord, TextFormatterOptions } from "./types.ts";
 import { categoryToString } from "./category.ts";
-
-/**
- * ANSI color codes for terminal output.
- */
-const ANSI = {
-  reset: "\x1b[0m",
-  bold: "\x1b[1m",
-  dim: "\x1b[2m",
-
-  // Foreground colors
-  black: "\x1b[30m",
-  red: "\x1b[31m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  blue: "\x1b[34m",
-  magenta: "\x1b[35m",
-  cyan: "\x1b[36m",
-  white: "\x1b[37m",
-  gray: "\x1b[90m",
-
-  // Background colors
-  bgRed: "\x1b[41m",
-  bgYellow: "\x1b[43m",
-} as const;
 
 /**
  * Severity level abbreviations (OpenTelemetry order: Trace=1 to Emergency=23).
@@ -41,21 +18,6 @@ const SEVERITY_ABBR: Record<logging.Severity, string> = {
   [logging.Severities.Critical]: "CRIT",
   [logging.Severities.Alert]: "ALRT",
   [logging.Severities.Emergency]: "EMRG",
-};
-
-/**
- * ANSI colors for each severity level (OpenTelemetry order: Trace=1 to Emergency=23).
- */
-const SEVERITY_COLORS: Record<logging.Severity, string> = {
-  [logging.Severities.Trace]: `${ANSI.dim}${ANSI.magenta}`,
-  [logging.Severities.Debug]: ANSI.gray,
-  [logging.Severities.Info]: ANSI.green,
-  [logging.Severities.Notice]: ANSI.cyan,
-  [logging.Severities.Warning]: ANSI.yellow,
-  [logging.Severities.Error]: ANSI.red,
-  [logging.Severities.Critical]: `${ANSI.red}${ANSI.bold}`,
-  [logging.Severities.Alert]: `${ANSI.bgRed}${ANSI.white}`,
-  [logging.Severities.Emergency]: `${ANSI.bgRed}${ANSI.white}${ANSI.bold}`,
 };
 
 /**
@@ -211,58 +173,6 @@ export const textFormatter = (
 };
 
 /**
- * ANSI color formatter - outputs colored log lines for terminals.
- */
-export const ansiColorFormatter = (
-  options: TextFormatterOptions = {},
-): FormatterFn => {
-  const {
-    timestamp = "date-time-timezone",
-    categorySeparator = ".",
-    includeLevel = true,
-    includeCategory = true,
-  } = options;
-
-  return (record: LogRecord): string => {
-    const parts: string[] = [];
-    const color = SEVERITY_COLORS[record.severity] ?? "";
-
-    // Timestamp (dimmed)
-    const ts = formatTimestamp(record.datetime, timestamp);
-    if (ts) {
-      parts.push(`${ANSI.dim}${ts}${ANSI.reset}`);
-    }
-
-    // Severity level (colored)
-    if (includeLevel) {
-      const abbr = SEVERITY_ABBR[record.severity] ?? "????";
-      parts.push(`${color}${abbr}${ANSI.reset}`);
-    }
-
-    // Category (cyan)
-    if (includeCategory && record.category.length > 0) {
-      const cat = categoryToString(record.category, categorySeparator);
-      parts.push(`${ANSI.cyan}[${cat}]${ANSI.reset}`);
-    }
-
-    // Message (colored for errors and above - higher = more severe in OpenTelemetry)
-    if (record.severity >= logging.Severities.Error) {
-      parts.push(`${color}${record.message}${ANSI.reset}`);
-    } else {
-      parts.push(record.message);
-    }
-
-    // Properties and context (dimmed)
-    const propsStr = formatProperties(record.properties, record.context);
-    if (propsStr) {
-      parts.push(`${ANSI.dim}${propsStr.trim()}${ANSI.reset}`);
-    }
-
-    return `${parts.join(" ")}\n`;
-  };
-};
-
-/**
  * JSON Lines formatter - outputs compact JSON (one object per line, no pretty printing).
  */
 export const jsonLinesFormatter: FormatterFn = (record: LogRecord): string => {
@@ -279,15 +189,88 @@ export const jsonLinesFormatter: FormatterFn = (record: LogRecord): string => {
   );
 };
 
-/**
- * Default text formatter instance.
- */
-export const defaultTextFormatter: FormatterFn = textFormatter();
+// =============================================================================
+// Span-based formatting (uses @eser/streams span IR)
+// =============================================================================
 
 /**
- * Default ANSI color formatter instance.
+ * Maps severity to a styled span.
  */
-export const defaultAnsiColorFormatter: FormatterFn = ansiColorFormatter();
+const severityToSpan = (
+  severity: logging.Severity,
+  label: string,
+): span.Span => {
+  switch (severity) {
+    case logging.Severities.Trace:
+      return span.dim(span.magenta(label));
+    case logging.Severities.Debug:
+      return span.gray(label);
+    case logging.Severities.Info:
+      return span.green(label);
+    case logging.Severities.Notice:
+      return span.cyan(label);
+    case logging.Severities.Warning:
+      return span.yellow(label);
+    case logging.Severities.Error:
+      return span.red(label);
+    case logging.Severities.Critical:
+      return span.bold(span.red(label));
+    case logging.Severities.Alert:
+      return span.bold(span.red(label));
+    case logging.Severities.Emergency:
+      return span.bold(span.red(label));
+    default:
+      return span.text(label);
+  }
+};
+
+/**
+ * A span formatter function that converts a LogRecord to an array of Spans.
+ * Used with getOutputSink() — the Output's renderer determines the final format.
+ */
+export type SpanFormatterFn = (record: LogRecord) => span.Span[];
+
+/**
+ * Default span formatter — produces styled spans for terminal/markdown/plain output.
+ * Pair with `getOutputSink(output)` and let the Output's renderer handle serialization.
+ *
+ * @example
+ * const sink = getOutputSink(out, { formatter: spanFormatter });
+ */
+export const spanFormatter: SpanFormatterFn = (
+  record: LogRecord,
+): span.Span[] => {
+  const ts = formatTimestamp(record.datetime, "date-time-timezone");
+  const abbr = SEVERITY_ABBR[record.severity] ?? "????";
+  const cat = record.category.length > 0
+    ? categoryToString(record.category)
+    : "";
+  const propsStr = formatProperties(record.properties, record.context);
+
+  const spans: span.Span[] = [];
+
+  if (ts) {
+    spans.push(span.dim(ts), span.text(" "));
+  }
+
+  spans.push(severityToSpan(record.severity, abbr), span.text(" "));
+
+  if (cat) {
+    spans.push(span.cyan(`[${cat}]`), span.text(" "));
+  }
+
+  if (record.severity >= logging.Severities.Error) {
+    spans.push(span.red(record.message));
+  } else {
+    spans.push(span.text(record.message));
+  }
+
+  if (propsStr.trim()) {
+    spans.push(span.text(" "), span.dim(propsStr.trim()));
+  }
+
+  return spans;
+};
 
 // Re-export FormatterFn type
 export type { FormatterFn } from "./types.ts";

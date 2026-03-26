@@ -3,6 +3,8 @@
   "version": "4.1.13",
   "exports": {
     ".": "./mod.ts",
+    "./adapter": "./adapter.ts",
+    "./response": "./response.ts",
     "./middlewares/cors": "./middlewares/cors.ts",
     "./middlewares/csp": "./middlewares/csp.ts",
     "./middlewares/csrf": "./middlewares/csrf.ts",

@@ -27,7 +27,8 @@
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eser/primitives";
 import * as functions from "@eser/functions";
-import * as shell from "@eser/shell";
+import type * as shellArgs from "@eser/shell/args";
+import * as span from "@eser/streams/span";
 import type {
   StackId,
   Validator,
@@ -40,9 +41,9 @@ import {
   type WalkOptions,
   walkSourceFiles,
 } from "./file-tools-shared.ts";
-import { toCliEvent } from "./cli-support.ts";
+import { createCliOutput, toCliEvent } from "./cli-support.ts";
 
-const output = shell.formatting.createOutput();
+const out = createCliOutput();
 
 // =============================================================================
 // Types
@@ -138,7 +139,7 @@ export type FileTool = {
   /** CLI entry point */
   readonly main: (
     cliArgs?: readonly string[],
-  ) => Promise<shell.args.CliResult<void>>;
+  ) => Promise<shellArgs.CliResult<void>>;
 };
 
 // =============================================================================
@@ -257,7 +258,7 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
 
   const handleCli = async (
     event: functions.triggers.CliEvent,
-  ): Promise<shell.args.CliResult<void>> => {
+  ): Promise<shellArgs.CliResult<void>> => {
     const fix = config.canFix && event.flags["fix"] === true;
     const root = (event.flags["root"] as string | undefined) ?? ".";
     const excludeFlag = event.flags["exclude"];
@@ -274,14 +275,18 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
         // Import writeMutations lazily to avoid circular deps
         const { writeMutations } = await import("./file-tools-shared.ts");
         const written = await writeMutations(result.mutations);
-        output.printSuccess(
-          `Fixed ${written} file(s) for ${config.name}.`,
+        out.writeln(
+          span.green("✓"),
+          span.text(` Fixed ${written} file(s) for ${config.name}.`),
         );
       }
 
       if (result.issues.length === 0 && result.mutations.length === 0) {
-        output.printSuccess(
-          `${config.name}: ${result.filesChecked} files checked, no issues.`,
+        out.writeln(
+          span.green("✓"),
+          span.text(
+            ` ${config.name}: ${result.filesChecked} files checked, no issues.`,
+          ),
         );
         return primitives.results.ok(undefined);
       }
@@ -292,15 +297,21 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
           const loc = issue.line !== undefined
             ? `${issue.path}:${issue.line}`
             : issue.path;
-          output.printError(`${loc}: ${issue.message}`);
+          out.writeln(
+            span.red("✗"),
+            span.text(` ${loc}: ${issue.message}`),
+          );
         }
         return primitives.results.fail({ exitCode: 1 });
       }
 
       return primitives.results.ok(undefined);
     } catch (error) {
-      output.printError(
-        error instanceof Error ? error.message : String(error),
+      out.writeln(
+        span.red("✗"),
+        span.text(
+          " " + (error instanceof Error ? error.message : String(error)),
+        ),
       );
       return primitives.results.fail({ exitCode: 1 });
     }
@@ -310,7 +321,7 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
 
   const main = async (
     cliArgs?: readonly string[],
-  ): Promise<shell.args.CliResult<void>> => {
+  ): Promise<shellArgs.CliResult<void>> => {
     const flags = config.canFix ? ["fix"] : [];
     const parsed = cliParseArgs.parseArgs(
       (cliArgs ?? []) as string[],

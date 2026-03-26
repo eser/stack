@@ -4,11 +4,19 @@
  * Provides helpful error messages and formatting
  */
 
-import { c } from "@eser/shell/formatting";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as logging from "@eser/logging";
 import { current } from "@eser/standards/runtime";
 
 const errorLogger = logging.logger.getLogger(["laroux-server", "error"]);
+
+const renderer = streams.renderers.ansi();
+
+/**
+ * Convenience wrapper: render a single span to a string.
+ */
+const r = (s: span.Span): string => renderer.render([s]);
 
 /**
  * Error code ranges:
@@ -152,54 +160,55 @@ export function formatError(error: Error | LarouxError): string {
 
   // Error header
   lines.push("");
-  lines.push(c.error("╭─ Error ") + c.error("─".repeat(60)));
+  lines.push(r(span.red("╭─ Error ")) + r(span.red("─".repeat(60))));
 
   // Error name, code, and correlation ID
   if (error instanceof LarouxError) {
-    const codeStr = error.code !== null ? c.dim(` [${error.code}]`) : "";
-    const corrId = c.dim(` (${error.correlationId.slice(0, 8)})`);
-    lines.push(c.error("│ ") + c.bold(error.name) + codeStr + corrId);
+    const codeStr = error.code !== null ? r(span.dim(` [${error.code}]`)) : "";
+    const corrId = r(span.dim(` (${error.correlationId.slice(0, 8)})`));
+    lines.push(r(span.red("│ ")) + r(span.bold(error.name)) + codeStr + corrId);
   } else {
-    lines.push(c.error("│ ") + c.bold(error.name));
+    lines.push(r(span.red("│ ")) + r(span.bold(error.name)));
   }
 
-  lines.push(c.error("│"));
+  lines.push(r(span.red("│")));
 
   // Error message
   const messageLines = error.message.split("\n");
   messageLines.forEach((line) => {
-    lines.push(c.error("│ ") + line);
+    lines.push(r(span.red("│ ")) + line);
   });
 
   // Hint (if available)
   if (error instanceof LarouxError && error.hint !== null) {
-    lines.push(c.error("│"));
-    lines.push(c.error("│ ") + c.dim("Hint:"));
+    lines.push(r(span.red("│")));
+    lines.push(r(span.red("│ ")) + r(span.dim("Hint:")));
     const hintLines = error.hint.split("\n");
     hintLines.forEach((line) => {
-      lines.push(c.error("│ ") + c.dim("  " + line));
+      lines.push(r(span.red("│ ")) + r(span.dim("  " + line)));
     });
   }
 
   // Documentation link (if available)
   if (error instanceof LarouxError && error.docUrl !== null) {
-    lines.push(c.error("│"));
+    lines.push(r(span.red("│")));
     lines.push(
-      c.error("│ ") + c.dim("Documentation: ") + c.link(error.docUrl),
+      r(span.red("│ ")) + r(span.dim("Documentation: ")) +
+        r(span.cyan(error.docUrl)),
     );
   }
 
   // Stack trace (in development)
   if (current.env.get("DEBUG") !== "" && error.stack !== undefined) {
-    lines.push(c.error("│"));
-    lines.push(c.error("│ ") + c.dim("Stack trace:"));
+    lines.push(r(span.red("│")));
+    lines.push(r(span.red("│ ")) + r(span.dim("Stack trace:")));
     const stackLines = error.stack.split("\n").slice(1, 6); // First 5 lines
     stackLines.forEach((line) => {
-      lines.push(c.error("│ ") + c.dim("  " + line.trim()));
+      lines.push(r(span.red("│ ")) + r(span.dim("  " + line.trim())));
     });
   }
 
-  lines.push(c.error("╰" + "─".repeat(70)));
+  lines.push(r(span.red("╰" + "─".repeat(70))));
   lines.push("");
 
   return lines.join("\n");
@@ -213,27 +222,27 @@ export const errors = {
   /** Invalid CLI command */
   invalidCommand: (command: string, available: string[]) =>
     new CLIError(
-      `Unknown command: ${c.code(command)}`,
+      `Unknown command: ${r(span.cyan(command))}`,
       "CLI001",
       `Available commands: ${
-        available.map((cmd) => c.code(cmd)).join(", ")
-      }\n\nRun ${c.code("laroux --help")} for more information.`,
+        available.map((cmd) => r(span.cyan(cmd))).join(", ")
+      }\n\nRun ${r(span.cyan("laroux --help"))} for more information.`,
     ),
 
   /** Invalid template */
   invalidTemplate: (template: string, available: string[]) =>
     new CLIError(
-      `Invalid template: ${c.code(template)}`,
+      `Invalid template: ${r(span.cyan(template))}`,
       "CLI002",
       `Available templates: ${
-        available.map((t) => c.code(t)).join(", ")
+        available.map((t) => r(span.cyan(t))).join(", ")
       }\n\nExample: laroux init my-app --template ${available[0]}`,
     ),
 
   /** Project already exists */
   projectExists: (path: string) =>
     new CLIError(
-      `Project directory already exists: ${c.path(path)}`,
+      `Project directory already exists: ${r(span.cyan(path))}`,
       "CLI003",
       `Choose a different directory name or remove the existing directory.`,
     ),
@@ -242,7 +251,7 @@ export const errors = {
   /** Module not found */
   moduleNotFound: (modulePath: string) =>
     new BuildError(
-      `Module not found: ${c.path(modulePath)}`,
+      `Module not found: ${r(span.cyan(modulePath))}`,
       "BUILD100",
       `Check that the file exists and the import path is correct.\n\nIf using path aliases, verify your laroux.config.ts.`,
     ),
@@ -258,7 +267,7 @@ export const errors = {
   /** Syntax error in component */
   syntaxError: (filePath: string, line: number, reason: string) =>
     new BuildError(
-      `Syntax error in ${c.path(filePath)}:${line}`,
+      `Syntax error in ${r(span.cyan(filePath))}:${line}`,
       "BUILD102",
       `${reason}\n\nCheck the syntax at the specified line.`,
     ),
@@ -266,7 +275,7 @@ export const errors = {
   /** Client component parsing error */
   clientComponentError: (filePath: string, reason: string) =>
     new BuildError(
-      `Failed to transform client component: ${c.path(filePath)}`,
+      `Failed to transform client component: ${r(span.cyan(filePath))}`,
       "BUILD103",
       `${reason}\n\nEnsure your component uses valid React syntax and "use client" directive.`,
     ),
@@ -301,7 +310,7 @@ export const errors = {
   /** Component render error */
   componentError: (componentName: string, reason: string) =>
     new RuntimeError(
-      `Error rendering component: ${c.code(componentName)}`,
+      `Error rendering component: ${r(span.cyan(componentName))}`,
       "RUNTIME202",
       `${reason}\n\nCheck your component's props and dependencies.`,
     ),
@@ -326,7 +335,7 @@ export const errors = {
   /** Config file not found or invalid */
   invalidConfig: (path: string, reason: string) =>
     new ConfigError(
-      `Invalid configuration file: ${c.path(path)}`,
+      `Invalid configuration file: ${r(span.cyan(path))}`,
       "CONFIG300",
       `${reason}\n\nCheck your laroux.config.ts syntax and exports.`,
     ),
@@ -334,7 +343,7 @@ export const errors = {
   /** Missing required directory */
   missingDirectory: (dir: string, purpose: string) =>
     new ConfigError(
-      `Required directory not found: ${c.path(dir)}`,
+      `Required directory not found: ${r(span.cyan(dir))}`,
       "CONFIG301",
       `This directory is needed for ${purpose}.\n\nCreate it with: mkdir -p ${dir}`,
     ),
@@ -342,7 +351,7 @@ export const errors = {
   /** Invalid config option */
   invalidConfigOption: (option: string, value: unknown, expected: string) =>
     new ConfigError(
-      `Invalid configuration option: ${c.code(option)}`,
+      `Invalid configuration option: ${r(span.cyan(option))}`,
       "CONFIG302",
       `Expected ${expected}, but got: ${
         JSON.stringify(value)
@@ -361,7 +370,7 @@ export const errors = {
   /** HMR update failed */
   hmrUpdateFailed: (modulePath: string, reason: string) =>
     new HMRError(
-      `Failed to apply HMR update for: ${c.path(modulePath)}`,
+      `Failed to apply HMR update for: ${r(span.cyan(modulePath))}`,
       "HMR401",
       `${reason}\n\nThe page will need a full reload.`,
     ),

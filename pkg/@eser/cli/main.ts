@@ -17,24 +17,24 @@
 import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import { Command } from "@eser/shell/args";
+import { Module } from "@eser/shell/module";
+import { moduleDef as noskillsModule } from "@eser/noskills/module";
+import { moduleDef as larouxModule } from "@eser/laroux/module";
 import { registry } from "./registry.ts";
 import config from "./package.json" with { type: "json" };
 
-const app = new Command("eser")
-  .description("Terminal client for Eser's work")
-  .version(config.version)
-  // Tier 1: Registry packages (lazy module groups)
+const cliModule = new Module({
+  description: "Terminal client for Eser's work",
+});
+cliModule.addSubmodule({ name: "noskills", aliases: ["nos"] }, noskillsModule);
+cliModule.addSubmodule({ name: "laroux" }, larouxModule);
+
+const app = cliModule
+  .toCommand("eser", config.version)
+  // Remaining inline module groups (future: convert to Module too)
   .moduleGroup("kit", registry["kit"]!)
   .moduleGroup("codebase", registry["codebase"]!)
   .moduleGroup("workflows", registry["workflows"]!)
-  // Tier 2: Framework commands (lazy Command trees)
-  .lazyCommand("laroux", {
-    description: "laroux.js framework commands (init, dev, build, serve)",
-    load: async () => {
-      const mod = await import("./commands/laroux/mod.ts");
-      return mod.larouxCommand;
-    },
-  })
   .lazyCommand("system", {
     description: "Commands related with this CLI",
     load: async () => {
@@ -105,7 +105,7 @@ const app = new Command("eser")
     }
 
     // deno-lint-ignore no-console
-    console.error(`Unknown command: ${commandName}`);
+    console.error(`Unknown subcommand "${commandName}"`);
     return results.fail({ exitCode: 1 });
   });
 

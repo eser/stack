@@ -9,9 +9,23 @@
     "./navigation": "./navigation/mod.ts",
     "./image": "./image/mod.ts",
     "./router": "./router/mod.ts",
-    "./config": "./config/mod.ts"
+    "./config": "./config/mod.ts",
+    "./module": "./module.ts",
+    "./main": "./main.ts",
+    "./commands/init": "./commands/init.ts",
+    "./commands/dev": "./commands/dev.ts",
+    "./commands/build": "./commands/build.ts",
+    "./commands/serve": "./commands/serve.ts"
   },
   "dependencies": {
-    "@eser/standards": "workspace:*"
+    "@eser/primitives": "workspace:*",
+    "@eser/shell": "workspace:*",
+    "@eser/standards": "workspace:*",
+    "@eser/streams": "workspace:*",
+    "@eser/codebase": "workspace:*",
+    "@eser/laroux-bundler": "workspace:*",
+    "@eser/laroux-server": "workspace:*",
+    "@eser/logging": "workspace:*",
+    "@eser/registry": "workspace:*"
   }
 }

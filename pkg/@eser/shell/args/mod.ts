@@ -60,6 +60,7 @@ export {
   buildParseOptions,
   coerceValue,
   extractFlags,
+  parseFlags,
   validateRequiredFlags,
 } from "./flags.ts";
 export { generateHelp, type HelpCommandMeta } from "./help.ts";

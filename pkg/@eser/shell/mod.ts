@@ -16,3 +16,8 @@ export * as completions from "./completions/mod.ts";
 export * as args from "./args/mod.ts";
 export * as exec from "./exec/mod.ts";
 export * as formatting from "./formatting/mod.ts";
+export {
+  Module,
+  type ModuleConfig,
+  type SubmoduleRegistration,
+} from "./module.ts";

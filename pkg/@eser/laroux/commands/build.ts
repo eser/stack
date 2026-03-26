@@ -1,20 +1,18 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * laroux build command handler
+ * laroux build command
  *
  * Builds the application for production.
- * Uses dynamic imports to avoid loading react-dom/server.
  *
  * @module
  */
 
+import * as shellArgs from "@eser/shell/args";
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
-import * as shellArgs from "@eser/shell/args";
 
-// Valid log levels
 const VALID_LOG_LEVELS = [
   "trace",
   "debug",
@@ -25,9 +23,27 @@ const VALID_LOG_LEVELS = [
 ] as const;
 type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 
-export const buildHandler = async (
-  ctx: shellArgs.CommandContext,
-): Promise<shellArgs.CliResult<void>> => {
+export const main = async (
+  args?: readonly string[],
+): Promise<results.Result<void, { message?: string; exitCode: number }>> => {
+  const { flags } = shellArgs.parseFlags(args ?? [], [
+    {
+      name: "out-dir",
+      type: "string",
+      default: "dist",
+      description: "Output directory",
+    },
+    { name: "clean", type: "boolean", description: "Clean output first" },
+    { name: "no-minify", type: "boolean", description: "Disable minification" },
+    { name: "analyze", type: "boolean", description: "Analyze bundle size" },
+    {
+      name: "log-level",
+      type: "string",
+      default: "info",
+      description: "Log level",
+    },
+  ]);
+
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -35,26 +51,22 @@ export const buildHandler = async (
 
   out.writeln(span.cyan("\n📦 Building for production...\n"));
 
-  // Configure logging FIRST (before importing bundler modules that create loggers)
   const logging = await import("@eser/logging");
   const { current } = await import("@eser/standards/runtime");
 
-  // Get flags with defaults
   const projectRoot = current.process.cwd();
-  const outDir = (ctx.flags["out-dir"] as string) ?? "dist";
-  const minify = !(ctx.flags["no-minify"] as boolean);
-  const clean = (ctx.flags["clean"] as boolean) ?? false;
-  const analyze = (ctx.flags["analyze"] as boolean) ?? false;
-  const logLevelInput = (ctx.flags["log-level"] as string) ?? "info";
+  const outDir = flags["out-dir"] as string;
+  const minify = !(flags["no-minify"] as boolean);
+  const clean = flags["clean"] as boolean;
+  const analyze = flags["analyze"] as boolean;
+  const logLevelInput = (flags["log-level"] as string) ?? "info";
 
-  // Validate log level
   const logLevel: LogLevel = VALID_LOG_LEVELS.includes(
       logLevelInput.toLowerCase() as LogLevel,
     )
     ? (logLevelInput.toLowerCase() as LogLevel)
     : "info";
 
-  // Map log level names to @eser/logging severity values
   const logLevelMap = {
     trace: logging.Severities.Trace,
     debug: logging.Severities.Debug,
@@ -81,7 +93,6 @@ export const buildHandler = async (
     ],
   });
 
-  // Now import bundler modules (their loggers will use our config)
   const [
     { build, createBuildContext },
     { loadConfig },
@@ -96,10 +107,8 @@ export const buildHandler = async (
 
   const bundlerLogger = logging.logger.getLogger(["laroux-bundler", "cli"]);
 
-  // Load configuration
   const baseConfig = await loadConfig(projectRoot);
 
-  // Build config (only what bundler needs)
   const buildConfig = {
     projectRoot,
     srcDir: current.path.resolve(projectRoot, baseConfig.srcDir),
@@ -117,7 +126,6 @@ export const buildHandler = async (
     },
   };
 
-  // Clean dist directory if requested
   if (clean) {
     try {
       await current.fs.remove(buildConfig.distDir, { recursive: true });
@@ -127,7 +135,6 @@ export const buildHandler = async (
     }
   }
 
-  // Create plugins
   const tailwindPlugin = createTailwindPlugin({
     globalCssPath: current.path.resolve(
       projectRoot,
@@ -135,7 +142,6 @@ export const buildHandler = async (
     ),
   });
 
-  // Run production build
   const context = createBuildContext(buildConfig, {
     framework: reactPlugin,
     css: tailwindPlugin,
@@ -143,50 +149,38 @@ export const buildHandler = async (
   });
   await build(context);
 
-  // Clean up logging
   await logging.config.reset();
 
-  // Analyze bundle if requested
   if (analyze) {
-    await analyzeBuild(current, outDir, out);
+    out.writeln(span.cyan("\n📊 Bundle Analysis:\n"));
+    try {
+      const manifestPath = `${outDir}/client/manifest.json`;
+      const manifestText = await current.fs.readTextFile(manifestPath);
+      const manifest = JSON.parse(manifestText);
+
+      out.writeln(span.text("Chunks:"));
+      for (
+        const [file, info] of Object.entries(
+          manifest.files as Record<string, { name: string; size: number }>,
+        )
+      ) {
+        const sizeKB = (info.size / 1024).toFixed(2);
+        out.writeln(
+          span.text(`  ${file.padEnd(30)} ${sizeKB.padStart(8)} KB`),
+        );
+      }
+
+      const totalSize = Object.values(
+        manifest.files as Record<string, { size: number }>,
+      ).reduce((sum, file) => sum + file.size, 0);
+      out.writeln(span.dim(`\nTotal: ${(totalSize / 1024).toFixed(2)} KB`));
+    } catch {
+      out.writeln(
+        span.yellow("Could not analyze build (manifest.json not found)"),
+      );
+    }
   }
 
   await out.close();
   return results.ok(undefined);
 };
-
-async function analyzeBuild(
-  runtime: { fs: { readTextFile: (path: string) => Promise<string> } },
-  outDir: string,
-  out: streams.Output,
-) {
-  out.writeln(span.cyan("\n📊 Bundle Analysis:\n"));
-
-  try {
-    const manifestPath = `${outDir}/client/manifest.json`;
-    const manifestText = await runtime.fs.readTextFile(manifestPath);
-    const manifest = JSON.parse(manifestText);
-
-    // Display chunk sizes
-    out.writeln(span.text("Chunks:"));
-    for (
-      const [file, info] of Object.entries(
-        manifest.files as Record<string, { name: string; size: number }>,
-      )
-    ) {
-      const sizeKB = (info.size / 1024).toFixed(2);
-      out.writeln(span.text(`  ${file.padEnd(30)} ${sizeKB.padStart(8)} KB`));
-    }
-
-    // Calculate total size
-    const totalSize = Object.values(
-      manifest.files as Record<string, { size: number }>,
-    ).reduce((sum, file) => sum + file.size, 0);
-
-    out.writeln(span.dim(`\nTotal: ${(totalSize / 1024).toFixed(2)} KB`));
-  } catch {
-    out.writeln(
-      span.yellow("Could not analyze build (manifest.json not found)"),
-    );
-  }
-}

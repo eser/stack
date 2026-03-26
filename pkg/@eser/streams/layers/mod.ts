@@ -4,5 +4,3 @@ export { map } from "./map.ts";
 export { filter } from "./filter.ts";
 export { tap } from "./tap.ts";
 export { tee } from "./tee.ts";
-export { encode } from "./encode.ts";
-export { decode } from "./decode.ts";

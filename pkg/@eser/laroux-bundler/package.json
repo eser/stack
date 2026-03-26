@@ -21,7 +21,6 @@
   "dependencies": {
     "@eser/bundler": "workspace:*",
     "@eser/crypto": "workspace:*",
-    "@eser/laroux": "workspace:*",
     "@eser/logging": "workspace:*",
     "@eser/standards": "workspace:*",
     "@std/fs": "npm:@jsr/std__fs@^1.0.21",

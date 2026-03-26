@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * NoSkills module definition.
+ * noskills module definition — state-machine orchestrator for AI agents.
  *
  * @module
  */
@@ -9,11 +9,43 @@
 import { Module } from "@eser/shell/module";
 
 export const moduleDef: Module = new Module({
-  description: "not disclosed yet",
+  description: "noskills — state-machine orchestrator for AI agents",
   modules: {
     init: {
-      description: "Initialize noskills",
-      load: () => import("./init.ts"),
+      description: "Initialize noskills in project",
+      load: () => import("./commands/init.ts"),
+    },
+    status: {
+      description: "Show current state",
+      load: () => import("./commands/status.ts"),
+    },
+    spec: {
+      description: "Manage specs (new, list)",
+      load: () => import("./commands/spec.ts"),
+    },
+    next: {
+      description: "Get next instruction for agent",
+      load: () => import("./commands/next.ts"),
+    },
+    approve: {
+      description: "Approve phase transition",
+      load: () => import("./commands/approve.ts"),
+    },
+    block: {
+      description: "Mark spec as blocked",
+      load: () => import("./commands/block.ts"),
+    },
+    reset: {
+      description: "Reset current spec state",
+      load: () => import("./commands/reset.ts"),
+    },
+    sync: {
+      description: "Regenerate tool-specific files",
+      load: () => import("./commands/sync.ts"),
+    },
+    rule: {
+      description: "Manage rules (add, list, promote)",
+      load: () => import("./commands/rule.ts"),
     },
   },
 });

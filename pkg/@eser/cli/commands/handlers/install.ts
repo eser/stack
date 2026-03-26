@@ -9,7 +9,8 @@
  * @module
  */
 
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
@@ -76,34 +77,39 @@ const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   const installDir = await getInstallDir();
   const targetPath = rt.path.join(installDir, "eser");
 
-  // deno-lint-ignore no-console
-  console.log(
-    `Install method: ${fmtColors.cyan("compiled binary")}`,
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
+  out.writeln(
+    span.text("Install method: "),
+    span.cyan("compiled binary"),
   );
-  // deno-lint-ignore no-console
-  console.log(fmtColors.dim(`Copying to ${targetPath}...`));
+  out.writeln(span.dim(`Copying to ${targetPath}...`));
 
   try {
     await rt.fs.copyFile(currentPath, targetPath);
     await rt.fs.chmod(targetPath, 0o755);
   } catch (error) {
     if (error instanceof Deno.errors.PermissionDenied) {
-      // deno-lint-ignore no-console
-      console.error(
-        fmtColors.red(
+      out.writeln(
+        span.red(
           `\nPermission denied writing to ${installDir}.\nTry: sudo eser install`,
         ),
       );
+      await out.close();
       return results.fail({ exitCode: 1 });
     }
+    await out.close();
     throw error;
   }
 
-  // deno-lint-ignore no-console
-  console.log(fmtColors.green("\nInstallation complete!"));
-  // deno-lint-ignore no-console
-  console.log(
-    `You can now use ${fmtColors.cyan("eser")} from anywhere in your terminal.`,
+  out.writeln(span.green("\nInstallation complete!"));
+  out.writeln(
+    span.text("You can now use "),
+    span.cyan("eser"),
+    span.text(" from anywhere in your terminal."),
   );
 
   // Setup shell completions
@@ -111,21 +117,24 @@ const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   const alreadyHasCompletions = await hasCompletions(shell);
 
   if (!alreadyHasCompletions) {
-    // deno-lint-ignore no-console
-    console.log(`\nSetting up ${fmtColors.cyan(shell)} completions...`);
+    out.writeln(
+      span.text("\nSetting up "),
+      span.cyan(shell),
+      span.text(" completions..."),
+    );
     await addCompletions(shell);
 
     const shellConfig = shellEnv.getShellConfig(shell);
     if (shellConfig.completionType === "eval") {
-      // deno-lint-ignore no-console
-      console.log(
-        fmtColors.dim(
+      out.writeln(
+        span.dim(
           `  Restart your shell or run 'source ${shellConfig.rcFile}' to enable completions.`,
         ),
       );
     }
   }
 
+  await out.close();
   return results.ok(undefined);
 };
 
@@ -139,19 +148,21 @@ export const installHandler = async (
     return await installCompiledBinary();
   }
 
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
   // Runtime-based: use package manager
-  // deno-lint-ignore no-console
-  console.log(`Detected runtime: ${fmtColors.cyan(execContext.runtime)}`);
+  out.writeln(span.text("Detected runtime: "), span.cyan(execContext.runtime));
 
   const config = INSTALL_CONFIGS[execContext.runtime as string] ??
     INSTALL_CONFIGS["node"]!;
 
   const { cmd, args } = config;
 
-  // deno-lint-ignore no-console
-  console.log(fmtColors.dim(`Running: ${cmd} ${args.join(" ")}`));
-  // deno-lint-ignore no-console
-  console.log("");
+  out.writeln(span.dim(`Running: ${cmd} ${args.join(" ")}`));
+  out.writeln();
 
   const result = await shellExec.exec`${cmd} ${args}`
     .stdout("inherit")
@@ -160,16 +171,16 @@ export const installHandler = async (
     .spawn();
 
   if (!result.success) {
-    // deno-lint-ignore no-console
-    console.error(fmtColors.red("\nInstallation failed."));
+    out.writeln(span.red("\nInstallation failed."));
+    await out.close();
     return results.fail({ exitCode: result.code });
   }
 
-  // deno-lint-ignore no-console
-  console.log(fmtColors.green("\nInstallation complete!"));
-  // deno-lint-ignore no-console
-  console.log(
-    `You can now use ${fmtColors.cyan("eser")} from anywhere in your terminal.`,
+  out.writeln(span.green("\nInstallation complete!"));
+  out.writeln(
+    span.text("You can now use "),
+    span.cyan("eser"),
+    span.text(" from anywhere in your terminal."),
   );
 
   // Setup shell completions
@@ -177,20 +188,23 @@ export const installHandler = async (
   const alreadyHasCompletions = await hasCompletions(shell);
 
   if (!alreadyHasCompletions) {
-    // deno-lint-ignore no-console
-    console.log(`\nSetting up ${fmtColors.cyan(shell)} completions...`);
+    out.writeln(
+      span.text("\nSetting up "),
+      span.cyan(shell),
+      span.text(" completions..."),
+    );
     await addCompletions(shell);
 
     const shellConfig = shellEnv.getShellConfig(shell);
     if (shellConfig.completionType === "eval") {
-      // deno-lint-ignore no-console
-      console.log(
-        fmtColors.dim(
+      out.writeln(
+        span.dim(
           `  Restart your shell or run 'source ${shellConfig.rcFile}' to enable completions.`,
         ),
       );
     }
   }
 
+  await out.close();
   return results.ok(undefined);
 };

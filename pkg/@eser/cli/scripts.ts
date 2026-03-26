@@ -14,7 +14,8 @@
 
 import * as shellExec from "@eser/shell/exec";
 import * as results from "@eser/primitives/results";
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as standardsRuntime from "@eser/standards/runtime";
 import type * as shellArgs from "@eser/shell/args";
 import type { ScriptConfig } from "@eser/workflows";
@@ -169,13 +170,18 @@ export const runScript = async (
   scripts: Readonly<Record<string, ScriptConfig>>,
   remainingArgs: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
   // Resolve dependency order
   const deps = resolveDependencies(name, scripts);
 
   // Execute dependencies first (no extra args)
   for (const dep of deps) {
     const depParsed = parseScript(dep, scripts[dep]!);
-    console.log(fmtColors.dim(`$ ${dep}`));
+    out.writeln(span.dim(`$ ${dep}`));
 
     const depCode = await executeCommand(
       depParsed.command,
@@ -183,18 +189,19 @@ export const runScript = async (
     );
 
     if (depCode !== 0) {
-      console.error(
-        fmtColors.red(
+      out.writeln(
+        span.red(
           `Script dependency "${dep}" failed with exit code ${depCode}`,
         ),
       );
+      await out.close();
       return results.fail({ exitCode: depCode });
     }
   }
 
   // Execute the main script
   const parsed = parseScript(name, scripts[name]!);
-  console.log(fmtColors.dim(`$ ${name}`));
+  out.writeln(span.dim(`$ ${name}`));
 
   const exitCode = await executeCommand(
     parsed.command,
@@ -203,9 +210,11 @@ export const runScript = async (
   );
 
   if (exitCode !== 0) {
+    await out.close();
     return results.fail({ exitCode });
   }
 
+  await out.close();
   return results.ok(undefined);
 };
 
@@ -215,12 +224,20 @@ export const runScript = async (
 export const showScripts = (
   scripts: Readonly<Record<string, ScriptConfig>>,
 ): void => {
-  console.log("Scripts:");
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
+  out.writeln(span.text("Scripts:"));
 
   for (const [name, config] of Object.entries(scripts)) {
     const parsed = parseScript(name, config);
-    console.log(`  ${name.padEnd(20)} ${fmtColors.dim(parsed.description)}`);
+    out.writeln(
+      span.text(`  ${name.padEnd(20)} `),
+      span.dim(parsed.description),
+    );
   }
 
-  console.log();
+  out.writeln();
 };

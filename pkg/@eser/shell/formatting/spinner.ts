@@ -2,33 +2,11 @@
 
 /**
  * Terminal spinner for CLI applications.
- * Cross-runtime compatible - works in Deno, Node.js, and Bun.
+ * Uses @eser/streams for all output.
  */
 
-import { c } from "./colors.ts";
-
-/**
- * Write to stdout without newline.
- * Cross-runtime compatible function.
- * @throws Error if no supported runtime is detected
- */
-const writeStdout = (text: string): void => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-
-  if (typeof globalThis.Deno !== "undefined") {
-    Deno.stdout.writeSync(data);
-  } else if (
-    typeof globalThis.process !== "undefined" &&
-    globalThis.process.stdout !== undefined
-  ) {
-    globalThis.process.stdout.write(data);
-  } else {
-    throw new Error(
-      "Spinner requires a terminal environment (Deno, Node.js, or Bun)",
-    );
-  }
-};
+import type * as streams from "@eser/streams";
+import * as span from "@eser/streams/span";
 
 /**
  * Spinner configuration options.
@@ -49,16 +27,18 @@ const DEFAULT_INTERVAL = 80;
  * @example
  * ```typescript
  * import { Spinner } from "@eser/shell/formatting";
+ * import * as streams from "@eser/streams";
  *
- * const spinner = new Spinner("Loading...");
+ * const out = streams.output({
+ *   renderer: streams.renderers.ansi(),
+ *   sink: streams.sinks.stdout(),
+ * });
+ * const spinner = new Spinner(out, "Loading...");
  * spinner.start();
  *
- * // Do some work...
  * await someAsyncOperation();
  *
  * spinner.succeed("Done!");
- * // or
- * spinner.fail("Failed!");
  * ```
  */
 export class Spinner {
@@ -67,8 +47,14 @@ export class Spinner {
   private frameInterval: number;
   private currentFrame = 0;
   private message: string;
+  private output: streams.Output;
 
-  constructor(message: string, options: SpinnerOptions = {}) {
+  constructor(
+    output: streams.Output,
+    message: string,
+    options: SpinnerOptions = {},
+  ) {
+    this.output = output;
     this.message = message;
     this.frames = options.frames ?? DEFAULT_FRAMES;
     this.frameInterval = options.interval ?? DEFAULT_INTERVAL;
@@ -80,8 +66,11 @@ export class Spinner {
   start(): this {
     this.intervalId = setInterval(() => {
       const frame = this.frames[this.currentFrame];
-      writeStdout(`\r${c.brand(frame ?? "")} ${this.message}`);
-      this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+      this.output.write(
+        span.text(`\r`),
+        span.cyan(frame ?? ""),
+        span.text(` ${this.message}`),
+      );
     }, this.frameInterval);
 
     return this;
@@ -100,7 +89,10 @@ export class Spinner {
    */
   succeed(message?: string): void {
     this.stop();
-    console.log(`${c.success("✓")} ${message ?? this.message}`);
+    this.output.writeln(
+      span.green("✓"),
+      span.text(` ${message ?? this.message}`),
+    );
   }
 
   /**
@@ -108,7 +100,10 @@ export class Spinner {
    */
   fail(message?: string): void {
     this.stop();
-    console.log(`${c.error("✗")} ${message ?? this.message}`);
+    this.output.writeln(
+      span.red("✗"),
+      span.text(` ${message ?? this.message}`),
+    );
   }
 
   /**
@@ -116,7 +111,10 @@ export class Spinner {
    */
   warn(message?: string): void {
     this.stop();
-    console.log(`${c.warning("⚠")} ${message ?? this.message}`);
+    this.output.writeln(
+      span.yellow("⚠"),
+      span.text(` ${message ?? this.message}`),
+    );
   }
 
   /**
@@ -124,7 +122,10 @@ export class Spinner {
    */
   info(message?: string): void {
     this.stop();
-    console.log(`${c.info("ℹ")} ${message ?? this.message}`);
+    this.output.writeln(
+      span.blue("ℹ"),
+      span.text(` ${message ?? this.message}`),
+    );
   }
 
   /**
@@ -133,7 +134,9 @@ export class Spinner {
   stop(): void {
     if (this.intervalId) {
       clearInterval(this.intervalId);
-      writeStdout(`\r${" ".repeat(this.message.length + 4)}\r`);
+      this.output.write(
+        span.text(`\r${" ".repeat(this.message.length + 4)}\r`),
+      );
     }
   }
 }

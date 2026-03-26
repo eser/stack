@@ -34,6 +34,9 @@ export { yamlFormat } from "./formats/yaml.ts";
 export { csvFormat } from "./formats/csv.ts";
 export { tomlFormat } from "./formats/toml.ts";
 
+// Stream layer adapters for @eser/streams pipeline integration
+export * as streamLayers from "./stream-layers.ts";
+
 // Helper to register all built-in formats at once (opt-in)
 import { registerFormat } from "./format-registry.ts";
 import { jsonFormat as _jsonFormat } from "./formats/json.ts";

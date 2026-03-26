@@ -27,7 +27,8 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as shellArgs from "@eser/shell/args";
@@ -173,6 +174,13 @@ export const main = async (
     return results.ok(undefined);
   }
 
+  const renderer = streams.renderers.ansi();
+
+  const out = streams.output({
+    renderer,
+    sink: streams.sinks.stdout(),
+  });
+
   const root = args["root"] as string | undefined;
   const fix = args["fix"] as boolean | undefined;
 
@@ -190,39 +198,41 @@ export const main = async (
   const config = await loadProjectConfig(root ?? ".");
   const stackInfo = config?.stack?.join(", ") ?? "all (no .manifest.yml)";
 
-  console.log("Validating codebase...\n");
-  console.log(`Stack: ${fmtColors.cyan(stackInfo)}\n`);
+  out.writeln(span.text("Validating codebase...\n"));
+  out.writeln(span.text("Stack: "), span.cyan(stackInfo), span.text("\n"));
 
   const result = await validate({ root, only, skip, fix });
 
   // Print results
   for (const validatorResult of result.results) {
-    const status = validatorResult.passed
-      ? fmtColors.green("PASS")
-      : fmtColors.red("FAIL");
+    const statusSpan = validatorResult.passed
+      ? span.green("PASS")
+      : span.red("FAIL");
 
     const stats = Object.entries(validatorResult.stats)
       .map(([key, value]) => `${value} ${key}`)
       .join(", ");
 
-    console.log(
-      `  ${validatorResult.name.padEnd(18)} ${status}  (${stats})`,
+    out.writeln(
+      span.text(`  ${validatorResult.name.padEnd(18)} `),
+      statusSpan,
+      span.text(`  (${stats})`),
     );
   }
 
   // Print skipped validators
   if (result.skipped.length > 0) {
-    console.log(fmtColors.dim("\nSkipped (stack not configured):"));
-    for (const skipped of result.skipped) {
-      console.log(fmtColors.dim(`  - ${skipped.name}: ${skipped.reason}`));
+    out.writeln(span.dim("\nSkipped (stack not configured):"));
+    for (const skippedItem of result.skipped) {
+      out.writeln(span.dim(`  - ${skippedItem.name}: ${skippedItem.reason}`));
     }
   }
 
   // Print disabled validators
   if (result.disabled.length > 0) {
-    console.log(fmtColors.dim("\nDisabled:"));
-    for (const disabled of result.disabled) {
-      console.log(fmtColors.dim(`  - ${disabled}`));
+    out.writeln(span.dim("\nDisabled:"));
+    for (const disabledItem of result.disabled) {
+      out.writeln(span.dim(`  - ${disabledItem}`));
     }
   }
 
@@ -232,7 +242,7 @@ export const main = async (
   );
 
   if (allIssues.length > 0) {
-    console.log(fmtColors.red(`\nIssues (${allIssues.length}):\n`));
+    out.writeln(span.red(`\nIssues (${allIssues.length}):\n`));
 
     // Group issues by location (file path or validator name)
     const grouped = new Map<string, typeof allIssues>();
@@ -244,30 +254,38 @@ export const main = async (
     }
 
     for (const [location, issues] of grouped) {
-      console.log(`  ${fmtColors.dim(location)}`);
+      out.writeln(span.dim(`  ${location}`));
       for (const issue of issues) {
-        const severity = issue.severity === "error"
-          ? fmtColors.red("error")
-          : fmtColors.yellow("warning");
+        const severitySpan = issue.severity === "error"
+          ? span.red("error")
+          : span.yellow("warning");
         const lineInfo = issue.line !== undefined ? `:${issue.line}` : "";
-        console.log(`    ${severity}${lineInfo}: ${issue.message}`);
+        out.writeln(
+          span.text("    "),
+          severitySpan,
+          span.text(`${lineInfo}: ${issue.message}`),
+        );
       }
-      console.log();
+      out.writeln();
     }
   }
 
   // Summary
   const failedCount = result.results.filter((r) => !r.passed).length;
   if (failedCount > 0) {
+    await out.close();
     return results.fail({
-      message: fmtColors.red(
-        `\n${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
-      ),
+      message: renderer.render([
+        span.red(
+          `\n${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
+        ),
+      ]),
       exitCode: 1,
     });
   }
 
-  console.log(fmtColors.green("\nAll checks passed!"));
+  out.writeln(span.green("\nAll checks passed!"));
+  await out.close();
   return results.ok(undefined);
 };
 

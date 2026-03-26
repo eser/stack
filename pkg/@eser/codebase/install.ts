@@ -8,7 +8,8 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
 import * as configManifest from "@eser/config/manifest";
@@ -112,6 +113,12 @@ const extractEvents = (
 };
 
 // =============================================================================
+// Renderer for string returns
+// =============================================================================
+
+const renderer = streams.renderers.ansi();
+
+// =============================================================================
 // Install
 // =============================================================================
 
@@ -141,13 +148,19 @@ export const main = async (
     return primitives.results.ok(undefined);
   }
 
+  const out = streams.output({
+    renderer,
+    sink: streams.sinks.stdout(),
+  });
+
   const force = parsed.force as boolean;
   const dryRun = parsed["dry-run"] as boolean;
 
   // 1. Find .git directory
   const gitDir = await findGitDir();
   if (gitDir === null) {
-    console.error(fmtColors.c.error("Error: not inside a git repository"));
+    out.writeln(span.red("Error: not inside a git repository"));
+    await out.close();
     return primitives.results.fail({ exitCode: 1 });
   }
 
@@ -157,20 +170,20 @@ export const main = async (
   const cwd = standards.runtime.current.process.cwd();
   const raw = await configManifest.loadManifest(cwd);
   if (raw === null) {
-    console.error(
-      fmtColors.c.error(
-        "Error: no .manifest.yml found in current directory",
-      ),
+    out.writeln(
+      span.red("Error: no .manifest.yml found in current directory"),
     );
+    await out.close();
     return primitives.results.fail({ exitCode: 1 });
   }
 
   // 3. Extract events
   const events = extractEvents(raw);
   if (events.length === 0) {
-    console.log(
-      fmtColors.c.warning("No workflow events found — nothing to install."),
+    out.writeln(
+      span.yellow("No workflow events found — nothing to install."),
     );
+    await out.close();
     return primitives.results.ok(undefined);
   }
 
@@ -187,8 +200,8 @@ export const main = async (
   for (const event of events) {
     const mapping = EVENT_TO_HOOK[event];
     if (mapping === undefined) {
-      console.log(
-        fmtColors.c.dim(`  skip  ${event} (unknown event, no hook mapping)`),
+      out.writeln(
+        span.dim(`  skip  ${event} (unknown event, no hook mapping)`),
       );
       continue;
     }
@@ -212,22 +225,20 @@ export const main = async (
 
     if (dryRun) {
       if (!exists) {
-        console.log(
-          fmtColors.c.info(`  would create  ${hookName}`),
+        out.writeln(
+          span.blue(`  would create  ${hookName}`),
         );
       } else if (isManaged) {
-        console.log(
-          fmtColors.c.info(`  would update  ${hookName} (managed)`),
+        out.writeln(
+          span.blue(`  would update  ${hookName} (managed)`),
         );
       } else if (force) {
-        console.log(
-          fmtColors.c.warning(
-            `  would overwrite  ${hookName} (--force)`,
-          ),
+        out.writeln(
+          span.yellow(`  would overwrite  ${hookName} (--force)`),
         );
       } else {
-        console.log(
-          fmtColors.c.warning(
+        out.writeln(
+          span.yellow(
             `  would skip  ${hookName} (user hook; use --force to overwrite)`,
           ),
         );
@@ -236,8 +247,8 @@ export const main = async (
     }
 
     if (exists && !isManaged && !force) {
-      console.log(
-        fmtColors.c.warning(
+      out.writeln(
+        span.yellow(
           `  skip  ${hookName} — user hook exists (use --force to overwrite)`,
         ),
       );
@@ -255,32 +266,33 @@ export const main = async (
     }
 
     if (exists && isManaged) {
-      console.log(
-        fmtColors.c.success(`  updated  ${hookName}`),
+      out.writeln(
+        span.green(`  updated  ${hookName}`),
       );
       updated++;
     } else {
-      console.log(
-        fmtColors.c.success(`  installed  ${hookName}`),
+      out.writeln(
+        span.green(`  installed  ${hookName}`),
       );
       installed++;
     }
   }
 
   // Summary
-  console.log("");
+  out.writeln();
   const parts: string[] = [];
   if (installed > 0) parts.push(`${installed} installed`);
   if (updated > 0) parts.push(`${updated} updated`);
   if (skipped > 0) parts.push(`${skipped} skipped`);
   if (dryRun) {
-    console.log(fmtColors.c.dim("(dry run — no changes made)"));
+    out.writeln(span.dim("(dry run — no changes made)"));
   } else if (parts.length > 0) {
-    console.log(fmtColors.c.success(`Done: ${parts.join(", ")}.`));
+    out.writeln(span.green(`Done: ${parts.join(", ")}.`));
   } else {
-    console.log(fmtColors.c.dim("Nothing to do."));
+    out.writeln(span.dim("Nothing to do."));
   }
 
+  await out.close();
   return primitives.results.ok(undefined);
 };
 
@@ -304,9 +316,15 @@ export const uninstallMain = async (
     return primitives.results.ok(undefined);
   }
 
+  const out = streams.output({
+    renderer,
+    sink: streams.sinks.stdout(),
+  });
+
   const gitDir = await findGitDir();
   if (gitDir === null) {
-    console.error(fmtColors.c.error("Error: not inside a git repository"));
+    out.writeln(span.red("Error: not inside a git repository"));
+    await out.close();
     return primitives.results.fail({ exitCode: 1 });
   }
 
@@ -323,7 +341,7 @@ export const uninstallMain = async (
       const content = await standards.runtime.current.fs.readTextFile(hookPath);
       if (content.includes(MARKER)) {
         await standards.runtime.current.fs.remove(hookPath);
-        console.log(fmtColors.c.success(`  removed  ${hookName}`));
+        out.writeln(span.green(`  removed  ${hookName}`));
         removed++;
       }
     } catch {
@@ -331,13 +349,14 @@ export const uninstallMain = async (
     }
   }
 
-  console.log("");
+  out.writeln();
   if (removed > 0) {
-    console.log(fmtColors.c.success(`Done: ${removed} hook(s) removed.`));
+    out.writeln(span.green(`Done: ${removed} hook(s) removed.`));
   } else {
-    console.log(fmtColors.c.dim("No managed hooks found."));
+    out.writeln(span.dim("No managed hooks found."));
   }
 
+  await out.close();
   return primitives.results.ok(undefined);
 };
 
@@ -361,9 +380,15 @@ export const statusMain = async (
     return primitives.results.ok(undefined);
   }
 
+  const out = streams.output({
+    renderer,
+    sink: streams.sinks.stdout(),
+  });
+
   const gitDir = await findGitDir();
   if (gitDir === null) {
-    console.error(fmtColors.c.error("Error: not inside a git repository"));
+    out.writeln(span.red("Error: not inside a git repository"));
+    await out.close();
     return primitives.results.fail({ exitCode: 1 });
   }
 
@@ -373,28 +398,31 @@ export const statusMain = async (
   const cwd = standards.runtime.current.process.cwd();
   const raw = await configManifest.loadManifest(cwd);
   if (raw === null) {
-    console.error(
-      fmtColors.c.error("Error: no .manifest.yml found in current directory"),
+    out.writeln(
+      span.red("Error: no .manifest.yml found in current directory"),
     );
+    await out.close();
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const events = extractEvents(raw);
   if (events.length === 0) {
-    console.log(fmtColors.c.dim("No workflow events found in manifest."));
+    out.writeln(span.dim("No workflow events found in manifest."));
+    await out.close();
     return primitives.results.ok(undefined);
   }
 
-  console.log(fmtColors.c.bold("Git hook status:"));
-  console.log("");
+  out.writeln(span.bold("Git hook status:"));
+  out.writeln();
 
   for (const event of events) {
     const mapping = EVENT_TO_HOOK[event];
     if (mapping === undefined) {
-      console.log(
-        `  ${fmtColors.c.dim(event.padEnd(14))} ${
-          fmtColors.c.dim("(no hook mapping)")
-        }`,
+      out.writeln(
+        span.text("  "),
+        span.dim(event.padEnd(14)),
+        span.text(" "),
+        span.dim("(no hook mapping)"),
       );
       continue;
     }
@@ -402,22 +430,23 @@ export const statusMain = async (
     const { hookName } = mapping;
     const hookPath = standards.runtime.current.path.join(hooksDir, hookName);
 
-    let status: string;
+    let statusSpan: span.Span;
     try {
       const content = await standards.runtime.current.fs.readTextFile(hookPath);
       if (content.includes(MARKER)) {
-        status = fmtColors.c.success("managed (@eser)");
+        statusSpan = span.green("managed (@eser)");
       } else {
-        status = fmtColors.c.warning("user hook");
+        statusSpan = span.yellow("user hook");
       }
     } catch {
-      status = fmtColors.c.dim("not installed");
+      statusSpan = span.dim("not installed");
     }
 
-    console.log(`  ${hookName.padEnd(14)} ${status}`);
+    out.writeln(span.text(`  ${hookName.padEnd(14)} `), statusSpan);
   }
 
-  console.log("");
+  out.writeln();
+  await out.close();
   return primitives.results.ok(undefined);
 };
 

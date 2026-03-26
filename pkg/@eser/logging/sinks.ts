@@ -1,60 +1,27 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import type {
-  ConsoleSinkOptions,
-  Filter,
-  LogRecord,
-  Sink,
-  StreamSinkOptions,
-} from "./types.ts";
-import { defaultTextFormatter, jsonFormatter } from "./formatters.ts";
+import type * as streams from "@eser/streams";
+import type { Filter, LogRecord, Sink } from "./types.ts";
+import { spanFormatter } from "./formatters.ts";
 
 /**
- * Creates a console sink that outputs to console.log/console.error.
+ * Creates a sink that writes log records to a @eser/streams Output.
+ * The output handles rendering (ANSI, Markdown, plain) via its renderer.
  *
  * @example
- * const sink = getConsoleSink({ formatter: ansiColorFormatter() });
+ * import * as streams from "@eser/streams";
+ * const out = streams.output({ renderer: streams.renderers.ansi(), sink: streams.sinks.stdout() });
+ * const sink = getOutputSink(out);
  */
-export const getConsoleSink = (options: ConsoleSinkOptions = {}): Sink => {
-  const { formatter = defaultTextFormatter, stderr = false } = options;
+export const getOutputSink = (
+  output: streams.Output,
+  options?: { formatter?: typeof spanFormatter },
+): Sink => {
+  const fmt = options?.formatter ?? spanFormatter;
 
   return (record: LogRecord): void => {
-    const formatted = formatter(record);
-
-    if (stderr) {
-      console.error(formatted.trimEnd());
-    } else {
-      console.log(formatted.trimEnd());
-    }
-  };
-};
-
-/**
- * Creates a stream sink that writes to a WritableStream.
- *
- * @example
- * const sink = getStreamSink(Deno.stderr, { formatter: jsonFormatter });
- */
-export const getStreamSink = (
-  stream: WritableStream<Uint8Array>,
-  options: StreamSinkOptions = {},
-): Sink => {
-  const { formatter = jsonFormatter } = options;
-  const encoder = new TextEncoder();
-
-  return async (record: LogRecord): Promise<void> => {
-    const writer = stream.getWriter();
-
-    try {
-      await writer.ready;
-      const formatted = formatter(record);
-      await writer.write(encoder.encode(formatted));
-    } catch (error) {
-      // Re-throw with context to avoid silent failures
-      throw new Error("Stream sink write failed", { cause: error });
-    } finally {
-      writer.releaseLock();
-    }
+    const spans = fmt(record);
+    output.writeln(...spans);
   };
 };
 
@@ -63,7 +30,7 @@ export const getStreamSink = (
  *
  * @example
  * const filteredSink = withFilter(
- *   getConsoleSink(),
+ *   getOutputSink(out),
  *   getLevelFilter(logging.Severities.Warning)
  * );
  */
@@ -72,18 +39,6 @@ export const withFilter = (sink: Sink, filter: Filter): Sink => {
     if (filter(record)) {
       return sink(record);
     }
-  };
-};
-
-/**
- * Creates a sink that writes to multiple sinks.
- *
- * @example
- * const multiSink = multiplexSink(consoleSink, fileSink, remoteSink);
- */
-export const multiplexSink = (...sinks: Sink[]): Sink => {
-  return async (record: LogRecord): Promise<void> => {
-    await Promise.all(sinks.map((sink) => sink(record)));
   };
 };
 
@@ -154,7 +109,7 @@ export const getBufferedSink = (
  * and flushes them when a high-severity log occurs.
  *
  * @example
- * const fcSink = fingersCrossedSink(consoleSink, {
+ * const fcSink = fingersCrossedSink(outputSink, {
  *   triggerLevel: logging.Severities.Error,
  *   maxBufferSize: 1000
  * });
@@ -213,21 +168,17 @@ export const fingersCrossedSink = (
 };
 
 /**
- * Creates a sink that does nothing (for testing or disabling logging).
- */
-export const nullSink: Sink = (_record: LogRecord): void => {
-  // Intentionally empty
-};
-
-/**
- * Creates a sink that collects records into an array (for testing).
+ * Creates a sink that collects LogRecords into an array (for testing).
  *
  * @example
- * const { sink, records } = getTestSink();
+ * const { sink, records } = getRecordCollectorSink();
  * // ... log some messages
  * expect(records).toHaveLength(3);
  */
-export const getTestSink = (): { sink: Sink; records: LogRecord[] } => {
+export const getRecordCollectorSink = (): {
+  sink: Sink;
+  records: LogRecord[];
+} => {
   const records: LogRecord[] = [];
 
   const sink: Sink = (record: LogRecord): void => {
@@ -238,18 +189,9 @@ export const getTestSink = (): { sink: Sink; records: LogRecord[] } => {
 };
 
 /**
- * Creates a sink that calls a callback for each record.
- *
- * @example
- * const sink = getCallbackSink((record) => {
- *   sendToExternalService(record);
- * });
+ * @deprecated Use `getRecordCollectorSink()` instead.
  */
-export const getCallbackSink = (
-  callback: (record: LogRecord) => void | Promise<void>,
-): Sink => {
-  return callback;
-};
+export const getTestSink = getRecordCollectorSink;
 
 // Re-export types
-export type { ConsoleSinkOptions, Sink, StreamSinkOptions } from "./types.ts";
+export type { Sink } from "./types.ts";

@@ -29,12 +29,13 @@ import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
-import * as shell from "@eser/shell";
+import type * as shellArgs from "@eser/shell/args";
+import * as span from "@eser/streams/span";
 import * as git from "./git.ts";
 import { readVersionFile } from "./versions.ts";
-import { runCliMain, toCliEvent } from "./cli-support.ts";
+import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
 
-const output = shell.formatting.createOutput();
+const out = createCliOutput();
 
 // =============================================================================
 // Types
@@ -454,13 +455,17 @@ const cliAdapter: functions.handler.Adapter<
 const cliResponseMapper: functions.handler.ResponseMapper<
   GenerateChangelogResult,
   Error | functions.handler.AdaptError,
-  shell.args.CliResult<void>
+  shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
-    output.printError(
-      result.error instanceof Error
-        ? result.error.message
-        : String(result.error),
+    out.writeln(
+      span.red("✗"),
+      span.text(
+        " " +
+          (result.error instanceof Error
+            ? result.error.message
+            : String(result.error)),
+      ),
     );
     return primitives.results.fail({ exitCode: 1 });
   }
@@ -468,11 +473,17 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   const { value } = result;
 
   if (value.dryRun) {
-    output.printWarning("[DRY RUN] Generated changelog preview:");
-    output.printInfo(`\n${value.content}`);
+    out.writeln(
+      span.yellow("⚠"),
+      span.text(" [DRY RUN] Generated changelog preview:"),
+    );
+    out.writeln(span.blue("ℹ"), span.text(` \n${value.content}`));
   } else {
-    output.printSuccess(
-      `Added ${value.entryCount} entries to CHANGELOG.md for v${value.version}`,
+    out.writeln(
+      span.green("✓"),
+      span.text(
+        ` Added ${value.entryCount} entries to CHANGELOG.md for v${value.version}`,
+      ),
     );
   }
 
@@ -482,7 +493,7 @@ const cliResponseMapper: functions.handler.ResponseMapper<
 /** Runnable CLI trigger for changelog-gen. */
 export const handleCli: (
   event: functions.triggers.CliEvent,
-) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
   handler: generateChangelogHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -491,7 +502,7 @@ export const handleCli: (
 /** CLI entry point. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     { boolean: ["dry-run"], alias: { n: "dry-run" } },
@@ -501,5 +512,8 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.runtime.current.process.args as string[]),
+    out,
+  );
 }

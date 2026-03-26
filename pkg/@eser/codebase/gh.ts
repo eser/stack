@@ -15,13 +15,17 @@
 
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
-import * as shell from "@eser/shell";
-import { runCliMain } from "./cli-support.ts";
+import type * as shellArgs from "@eser/shell/args";
+import * as span from "@eser/streams/span";
+import { createCliOutput, runCliMain } from "./cli-support.ts";
 
-const output = shell.formatting.createOutput();
+const out = createCliOutput();
 
 const showGhHelp = (): void => {
-  output.printInfo("eser codebase gh — GitHub operations\n");
+  out.writeln(
+    span.blue("ℹ"),
+    span.text(" eser codebase gh — GitHub operations\n"),
+  );
   console.log("Subcommands:");
   console.log("  contributors     Update contributor list in README.md");
   console.log("  release-notes    Sync CHANGELOG to GitHub Releases");
@@ -34,7 +38,7 @@ const showGhHelp = (): void => {
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const args = (cliArgs ?? []) as string[];
   const subcommand = args[0];
   const remaining = args.slice(1);
@@ -61,12 +65,18 @@ export const main = async (
       return await mod.main(remaining);
     }
     default:
-      output.printError(`Unknown gh subcommand: ${subcommand}\n`);
+      out.writeln(
+        span.red("✗"),
+        span.text(` Unknown gh subcommand: ${subcommand}\n`),
+      );
       showGhHelp();
       return primitives.results.fail({ exitCode: 1 });
   }
 };
 
 if (import.meta.main) {
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.runtime.current.process.args as string[]),
+    out,
+  );
 }

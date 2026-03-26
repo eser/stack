@@ -28,13 +28,14 @@ import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
-import * as shell from "@eser/shell";
+import type * as shellArgs from "@eser/shell/args";
 import * as shellExec from "@eser/shell/exec";
+import * as span from "@eser/streams/span";
 
 import { readVersionFile } from "./versions.ts";
-import { runCliMain, toCliEvent } from "./cli-support.ts";
+import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
 
-const output = shell.formatting.createOutput();
+const out = createCliOutput();
 
 // =============================================================================
 // Types
@@ -433,45 +434,76 @@ const unreleaseCliAdapter: functions.handler.Adapter<
 const releaseResponseMapper: functions.handler.ResponseMapper<
   ReleaseResult,
   Error | functions.handler.AdaptError,
-  shell.args.CliResult<void>
+  shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
       ? err.message
       : (err as functions.handler.AdaptError).message ?? String(err);
-    output.printError(message);
+    out.writeln(span.red("✗"), span.text(" " + message));
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (value.dryRun) {
-    output.printWarning("[DRY RUN] Release preview:");
-    output.printInfo(`  Version: ${value.previousVersion} -> ${value.version}`);
-    output.printInfo(
-      `  Changelog: ${
-        value.changelogGenerated ? "generated" : "no user-facing changes"
-      }`,
+    out.writeln(
+      span.yellow("⚠"),
+      span.text(" [DRY RUN] Release preview:"),
     );
-    output.printInfo("  No changes were made.");
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(
+        `   Version: ${value.previousVersion} -> ${value.version}`,
+      ),
+    );
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(
+        `   Changelog: ${
+          value.changelogGenerated ? "generated" : "no user-facing changes"
+        }`,
+      ),
+    );
+    out.writeln(
+      span.blue("ℹ"),
+      span.text("   No changes were made."),
+    );
   } else {
-    output.printSuccess(`Released v${value.version}`);
-    output.printInfo(
-      `  Version: ${value.previousVersion} -> ${value.version}`,
+    out.writeln(
+      span.green("✓"),
+      span.text(` Released v${value.version}`),
     );
-    output.printInfo(
-      `  Changelog: ${
-        value.changelogGenerated ? "updated" : "no user-facing changes"
-      }`,
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(
+        `   Version: ${value.previousVersion} -> ${value.version}`,
+      ),
     );
-    output.printInfo(`  Committed: ${value.committed}`);
-    output.printInfo(`  Pushed: ${value.pushed}`);
-    output.printInfo(
-      "  CI will validate, tag, and publish.",
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(
+        `   Changelog: ${
+          value.changelogGenerated ? "updated" : "no user-facing changes"
+        }`,
+      ),
     );
-    output.printInfo(
-      "  Watch: https://github.com/eser/stack/actions",
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(`   Committed: ${value.committed}`),
+    );
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(`   Pushed: ${value.pushed}`),
+    );
+    out.writeln(
+      span.blue("ℹ"),
+      span.text("   CI will validate, tag, and publish."),
+    );
+    out.writeln(
+      span.blue("ℹ"),
+      span.text("   Watch: https://github.com/eser/stack/actions"),
     );
   }
 
@@ -482,26 +514,35 @@ const releaseResponseMapper: functions.handler.ResponseMapper<
 const rereleaseResponseMapper: functions.handler.ResponseMapper<
   RereleaseResult,
   Error | functions.handler.AdaptError,
-  shell.args.CliResult<void>
+  shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
       ? err.message
       : (err as functions.handler.AdaptError).message ?? String(err);
-    output.printError(message);
+    out.writeln(span.red("✗"), span.text(" " + message));
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (value.dryRun) {
-    output.printWarning(
-      `[DRY RUN] Would delete and recreate tag ${value.tag}`,
+    out.writeln(
+      span.yellow("⚠"),
+      span.text(
+        ` [DRY RUN] Would delete and recreate tag ${value.tag}`,
+      ),
     );
   } else {
-    output.printSuccess(`Re-tagged ${value.tag}`);
-    output.printInfo("CI will validate and publish.");
+    out.writeln(
+      span.green("✓"),
+      span.text(` Re-tagged ${value.tag}`),
+    );
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(" CI will validate and publish."),
+    );
   }
 
   return primitives.results.ok(undefined);
@@ -511,21 +552,24 @@ const rereleaseResponseMapper: functions.handler.ResponseMapper<
 const unreleaseResponseMapper: functions.handler.ResponseMapper<
   UnreleaseResult,
   Error | functions.handler.AdaptError,
-  shell.args.CliResult<void>
+  shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
       ? err.message
       : (err as functions.handler.AdaptError).message ?? String(err);
-    output.printError(message);
+    out.writeln(span.red("✗"), span.text(" " + message));
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (value.deleted) {
-    output.printSuccess(`Deleted tag v${value.version} (local + remote).`);
+    out.writeln(
+      span.green("✓"),
+      span.text(` Deleted tag v${value.version} (local + remote).`),
+    );
   }
 
   return primitives.results.ok(undefined);
@@ -538,7 +582,7 @@ const unreleaseResponseMapper: functions.handler.ResponseMapper<
 /** Runnable CLI trigger for release. */
 export const handleReleaseCli: (
   event: functions.triggers.CliEvent,
-) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
   handler: releaseHandler,
   adaptInput: releaseCliAdapter,
   adaptOutput: releaseResponseMapper,
@@ -547,7 +591,7 @@ export const handleReleaseCli: (
 /** Runnable CLI trigger for rerelease. */
 export const handleRereleaseCli: (
   event: functions.triggers.CliEvent,
-) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
   handler: rereleaseHandler,
   adaptInput: rereleaseCliAdapter,
   adaptOutput: rereleaseResponseMapper,
@@ -556,7 +600,7 @@ export const handleRereleaseCli: (
 /** Runnable CLI trigger for unrelease. */
 export const handleUnreleaseCli: (
   event: functions.triggers.CliEvent,
-) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
   handler: unreleaseHandler,
   adaptInput: unreleaseCliAdapter,
   adaptOutput: unreleaseResponseMapper,
@@ -569,7 +613,7 @@ export const handleUnreleaseCli: (
 /** CLI entry point for release (default export via main). */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     {
@@ -589,15 +633,21 @@ export const main = async (
   ) {
     // Preview version
     const previousVersion = (await readVersionFile()) ?? "0.0.0";
-    output.printInfo(`Current version: ${previousVersion}`);
-    output.printInfo(`Bump type: ${typeArg}`);
-    output.printInfo(
-      "This will bump version, generate changelog, commit, and push.",
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(` Current version: ${previousVersion}`),
+    );
+    out.writeln(span.blue("ℹ"), span.text(` Bump type: ${typeArg}`));
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(
+        " This will bump version, generate changelog, commit, and push.",
+      ),
     );
 
     const proceed = await confirm("Proceed?");
     if (!proceed) {
-      output.printWarning("Aborted.");
+      out.writeln(span.yellow("⚠"), span.text(" Aborted."));
       return primitives.results.ok(undefined);
     }
 
@@ -612,7 +662,7 @@ export const main = async (
 /** CLI entry point for rerelease. */
 export const rereleaseMain = async (
   cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     {
@@ -627,7 +677,7 @@ export const rereleaseMain = async (
 /** CLI entry point for unrelease. */
 export const unreleaseMain = async (
   cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     {
@@ -640,5 +690,8 @@ export const unreleaseMain = async (
 };
 
 if (import.meta.main) {
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.runtime.current.process.args as string[]),
+    out,
+  );
 }

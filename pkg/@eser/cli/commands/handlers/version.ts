@@ -9,7 +9,8 @@
  * @module
  */
 
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
 import * as versionCheck from "./version-check.ts";
@@ -20,15 +21,19 @@ const UPDATE_CHECK_TIMEOUT_MS = 200;
 export const versionHandler = async (
   ctx: shellArgs.CommandContext,
 ): Promise<shellArgs.CliResult<void>> => {
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
   // --bare: print raw version only (Homebrew compatibility)
   if (ctx.flags["bare"] === true) {
-    // deno-lint-ignore no-console
-    console.log(config.version);
+    out.writeln(span.text(config.version));
+    await out.close();
     return results.ok(undefined);
   }
 
-  // deno-lint-ignore no-console
-  console.log(`eser ${config.version}`);
+  out.writeln(span.text(`eser ${config.version}`));
 
   // Race the update check against a short timeout so the command stays snappy
   try {
@@ -42,9 +47,8 @@ export const versionHandler = async (
     ]);
 
     if (result !== undefined && result.updateAvailable) {
-      // deno-lint-ignore no-console
-      console.log(
-        fmtColors.dim(
+      out.writeln(
+        span.dim(
           `  Update available: v${result.latestVersion} — run 'eser update'`,
         ),
       );
@@ -53,5 +57,6 @@ export const versionHandler = async (
     // Silently ignore — update check is best-effort
   }
 
+  await out.close();
   return results.ok(undefined);
 };

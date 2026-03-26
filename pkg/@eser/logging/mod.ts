@@ -9,13 +9,15 @@
  * @example Basic Usage
  * ```typescript
  * import * as logging from "@eser/logging";
+ * import * as streams from "@eser/streams";
+ *
+ * // Create an Output with a renderer and sink
+ * const out = streams.output({ renderer: streams.renderers.ansi(), sink: streams.sinks.stdout() });
  *
  * // Configure once at app startup
  * await logging.config.configure({
  *   sinks: {
- *     console: logging.sinks.getConsoleSink({
- *       formatter: logging.formatters.ansiColorFormatter()
- *     }),
+ *     console: logging.sinks.getOutputSink(out),
  *   },
  *   loggers: [
  *     { category: ["myapp"], lowestLevel: logging.Severities.Debug, sinks: ["console"] },
@@ -63,7 +65,7 @@ export * as sinks from "./sinks.ts";
 /** Filter utilities - level, category, rate limit, sampling */
 export * as filters from "./filters.ts";
 
-/** Formatter functions - JSON, text, ANSI color */
+/** Formatter functions - JSON, text, span-based */
 export * as formatters from "./formatters.ts";
 
 /** OpenTelemetry integration - withSpan(), tracer */

@@ -9,7 +9,8 @@
  * @module
  */
 
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
 
@@ -27,8 +28,12 @@ type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 export const devHandler = async (
   ctx: shellArgs.CommandContext,
 ): Promise<shellArgs.CliResult<void>> => {
-  // deno-lint-ignore no-console
-  console.log(fmtColors.cyan("\n⚡ Starting development server...\n"));
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
+  out.writeln(span.cyan("\n⚡ Starting development server...\n"));
 
   // Get flags with defaults
   const port = ctx.flags["port"] as number | undefined;
@@ -55,6 +60,8 @@ export const devHandler = async (
     import("@eser/laroux-bundler/adapters/react"),
     import("@eser/laroux-bundler/adapters/tailwindcss"),
   ]);
+
+  await out.close();
 
   // Start server with explicit plugin injection
   await startServer({

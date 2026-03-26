@@ -25,12 +25,13 @@
 import * as primitives from "@eser/primitives";
 import * as functions from "@eser/functions";
 import * as fp from "@eser/fp";
-import * as shell from "@eser/shell";
+import type * as shellArgs from "@eser/shell/args";
+import * as span from "@eser/streams/span";
 import * as pkg from "./package/mod.ts";
 import { ConfigFileTypes } from "./package/types.ts";
-import { runCliMain } from "./cli-support.ts";
+import { createCliOutput, runCliMain } from "./cli-support.ts";
 
-const output = shell.formatting.createOutput();
+const out = createCliOutput();
 
 /**
  * Fields to check for consistency.
@@ -436,22 +437,28 @@ const cliAdapter: functions.handler.Adapter<
 const cliResponseMapper: functions.handler.ResponseMapper<
   CheckPackageConfigsResult,
   Error | functions.handler.AdaptError,
-  shell.args.CliResult<void>
+  shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
-    output.printError(String(result.error));
+    out.writeln(span.red("✗"), span.text(" " + String(result.error)));
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
-  output.printInfo(`Checked ${value.packagesChecked} packages.`);
+  out.writeln(
+    span.blue("ℹ"),
+    span.text(` Checked ${value.packagesChecked} packages.`),
+  );
 
   if (!value.isConsistent) {
     // Show field inconsistencies
     if (value.inconsistencies.length > 0) {
-      output.printError(
-        `Found ${value.inconsistencies.length} field inconsistencies:`,
+      out.writeln(
+        span.red("✗"),
+        span.text(
+          ` Found ${value.inconsistencies.length} field inconsistencies:`,
+        ),
       );
 
       // Group by package
@@ -461,12 +468,21 @@ const cliResponseMapper: functions.handler.ResponseMapper<
       );
 
       for (const [pkgName, inconsistencies] of Object.entries(byPackage)) {
-        output.printWarning(pkgName);
+        out.writeln(span.yellow("⚠"), span.text(" " + pkgName));
         for (const inc of inconsistencies) {
-          output.printError(`  ${inc.field} mismatch:`);
-          output.printInfo(`    deno.json:    ${formatValue(inc.denoValue)}`);
-          output.printInfo(
-            `    package.json: ${formatValue(inc.packageValue)}`,
+          out.writeln(
+            span.red("✗"),
+            span.text(`   ${inc.field} mismatch:`),
+          );
+          out.writeln(
+            span.blue("ℹ"),
+            span.text(`     deno.json:    ${formatValue(inc.denoValue)}`),
+          );
+          out.writeln(
+            span.blue("ℹ"),
+            span.text(
+              `     package.json: ${formatValue(inc.packageValue)}`,
+            ),
           );
         }
       }
@@ -474,8 +490,11 @@ const cliResponseMapper: functions.handler.ResponseMapper<
 
     // Show dependency inconsistencies
     if (value.dependencyInconsistencies.length > 0) {
-      output.printError(
-        `Found ${value.dependencyInconsistencies.length} dependency inconsistencies:`,
+      out.writeln(
+        span.red("✗"),
+        span.text(
+          ` Found ${value.dependencyInconsistencies.length} dependency inconsistencies:`,
+        ),
       );
 
       // Group by package
@@ -485,10 +504,16 @@ const cliResponseMapper: functions.handler.ResponseMapper<
       );
 
       for (const [pkgName, inconsistencies] of Object.entries(byPackage)) {
-        output.printWarning(pkgName);
+        out.writeln(span.yellow("⚠"), span.text(" " + pkgName));
         for (const inc of inconsistencies) {
-          output.printError(`  ${inc.dependencyName}:`);
-          output.printInfo(`    ${formatDepIssue(inc)}`);
+          out.writeln(
+            span.red("✗"),
+            span.text(`   ${inc.dependencyName}:`),
+          );
+          out.writeln(
+            span.blue("ℹ"),
+            span.text(`     ${formatDepIssue(inc)}`),
+          );
         }
       }
     }
@@ -496,7 +521,10 @@ const cliResponseMapper: functions.handler.ResponseMapper<
     return primitives.results.fail({ exitCode: 1 });
   }
 
-  output.printSuccess("All package configs are consistent.");
+  out.writeln(
+    span.green("✓"),
+    span.text(" All package configs are consistent."),
+  );
   return primitives.results.ok(undefined);
 };
 
@@ -507,7 +535,7 @@ const cliResponseMapper: functions.handler.ResponseMapper<
  */
 export const handleCli: (
   event: functions.triggers.CliEvent,
-) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
   handler: checkPackageConfigsHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -516,9 +544,9 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   _cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> =>
+): Promise<shellArgs.CliResult<void>> =>
   await handleCli({ command: "validate-package-configs", args: [], flags: {} });
 
 if (import.meta.main) {
-  runCliMain(await main());
+  runCliMain(await main(), out);
 }

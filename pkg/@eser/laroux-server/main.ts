@@ -68,11 +68,11 @@ let bundlerLogger: logging.logger.Logger;
  */
 async function configureLogging(logLevel: LogLevel): Promise<void> {
   const level = mapLogLevel(logLevel);
+  const { output, renderers, sinks } = await import("@eser/streams");
+  const out = output({ renderer: renderers.ansi(), sink: sinks.stdout() });
   await logging.config.configure({
     sinks: {
-      console: logging.sinks.getConsoleSink({
-        formatter: logging.formatters.ansiColorFormatter(),
-      }),
+      console: logging.sinks.getOutputSink(out),
     },
     loggers: [
       { category: ["laroux-server"], lowestLevel: level, sinks: ["console"] },

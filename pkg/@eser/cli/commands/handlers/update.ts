@@ -16,7 +16,8 @@
  * @module
  */
 
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
@@ -85,33 +86,40 @@ const detectPlatformTarget = (): string | undefined => {
 const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   const rt = standardsRuntime.current;
 
-  // deno-lint-ignore no-console
-  console.log(
-    `Install method: ${fmtColors.cyan("compiled binary")}`,
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
+  out.writeln(
+    span.text("Install method: "),
+    span.cyan("compiled binary"),
   );
-  // deno-lint-ignore no-console
-  console.log(`Current version: ${fmtColors.cyan(config.version)}\n`);
+  out.writeln(
+    span.text("Current version: "),
+    span.cyan(config.version),
+    span.text("\n"),
+  );
 
   // Check for updates
-  // deno-lint-ignore no-console
-  console.log("Checking for updates...");
+  out.writeln(span.text("Checking for updates..."));
   const check = await versionCheck.checkForUpdate();
 
   if (check === undefined) {
-    // deno-lint-ignore no-console
-    console.error(fmtColors.red("Could not check for updates."));
+    out.writeln(span.red("Could not check for updates."));
+    await out.close();
     return results.fail({ exitCode: 1 });
   }
 
   if (!check.updateAvailable) {
-    // deno-lint-ignore no-console
-    console.log(fmtColors.green(`\nAlready up to date (v${config.version}).`));
+    out.writeln(span.green(`\nAlready up to date (v${config.version}).`));
+    await out.close();
     return results.ok(undefined);
   }
 
-  // deno-lint-ignore no-console
-  console.log(
-    `\nNew version available: ${fmtColors.cyan(`v${check.latestVersion}`)}`,
+  out.writeln(
+    span.text("\nNew version available: "),
+    span.cyan(`v${check.latestVersion}`),
   );
 
   // Determine platform
@@ -120,12 +128,10 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
     const os = standardsRuntime.getPlatform();
     const arch = standardsRuntime.getArch();
 
-    // deno-lint-ignore no-console
-    console.error(
-      fmtColors.red(
-        `\nUnsupported platform: ${os}-${arch}`,
-      ),
+    out.writeln(
+      span.red(`\nUnsupported platform: ${os}-${arch}`),
     );
+    await out.close();
     return results.fail({ exitCode: 1 });
   }
 
@@ -136,17 +142,14 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   const baseUrl = `https://github.com/eser/stack/releases/download/${tag}`;
 
   // Download archive
-  // deno-lint-ignore no-console
-  console.log(fmtColors.dim(`Downloading ${archiveName}...`));
+  out.writeln(span.dim(`Downloading ${archiveName}...`));
 
   const archiveResponse = await fetch(`${baseUrl}/${archiveName}`);
   if (!archiveResponse.ok) {
-    // deno-lint-ignore no-console
-    console.error(
-      fmtColors.red(
-        `\nFailed to download: HTTP ${archiveResponse.status}`,
-      ),
+    out.writeln(
+      span.red(`\nFailed to download: HTTP ${archiveResponse.status}`),
     );
+    await out.close();
     return results.fail({ exitCode: 1 });
   }
 
@@ -171,12 +174,11 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
         .join("");
 
       if (actualHash !== expectedHash) {
-        // deno-lint-ignore no-console
-        console.error(fmtColors.red("\nSHA256 checksum verification failed."));
+        out.writeln(span.red("\nSHA256 checksum verification failed."));
+        await out.close();
         return results.fail({ exitCode: 1 });
       }
-      // deno-lint-ignore no-console
-      console.log(fmtColors.dim("Checksum verified."));
+      out.writeln(span.dim("Checksum verified."));
     }
   }
 
@@ -205,13 +207,14 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
       // Windows: can't replace a running binary. Write .new.exe next to current.
       const newPath = currentBinaryPath.replace(/\.exe$/i, ".new.exe");
       await rt.fs.copyFile(newBinaryPath, newPath);
-      // deno-lint-ignore no-console
-      console.log(fmtColors.green(`\nDownloaded v${check.latestVersion}!`));
-      // deno-lint-ignore no-console
-      console.log(
-        `\nTo complete the update, close this terminal and rename:\n  ${
-          fmtColors.cyan(newPath)
-        }\nto:\n  ${fmtColors.cyan(currentBinaryPath)}`,
+      out.writeln(span.green(`\nDownloaded v${check.latestVersion}!`));
+      out.writeln(
+        span.text(
+          "\nTo complete the update, close this terminal and rename:\n  ",
+        ),
+        span.cyan(newPath),
+        span.text("\nto:\n  "),
+        span.cyan(currentBinaryPath),
       );
     } else {
       // Unix: write to temp, then rename over self
@@ -219,21 +222,21 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
       await rt.fs.copyFile(newBinaryPath, tempBinaryPath);
       await rt.fs.chmod(tempBinaryPath, 0o755);
       await rt.fs.rename(tempBinaryPath, currentBinaryPath);
-      // deno-lint-ignore no-console
-      console.log(fmtColors.green(`\nUpdated to v${check.latestVersion}!`));
+      out.writeln(span.green(`\nUpdated to v${check.latestVersion}!`));
     }
   } catch (error) {
     if (
       error instanceof Deno.errors.PermissionDenied
     ) {
-      // deno-lint-ignore no-console
-      console.error(
-        fmtColors.red(
+      out.writeln(
+        span.red(
           `\nPermission denied. Try running with sudo:\n  sudo eser update`,
         ),
       );
+      await out.close();
       return results.fail({ exitCode: 1 });
     }
+    await out.close();
     throw error;
   } finally {
     try {
@@ -243,6 +246,7 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
     }
   }
 
+  await out.close();
   return results.ok(undefined);
 };
 
@@ -259,10 +263,15 @@ export const updateHandler = async (
     return await updateCompiledBinary();
   }
 
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
   // Runtime-based: use package manager
-  // deno-lint-ignore no-console
-  console.log(
-    `Detected runtime: ${fmtColors.cyan(execContext.runtime)}`,
+  out.writeln(
+    span.text("Detected runtime: "),
+    span.cyan(execContext.runtime),
   );
 
   const runtimeConfig = UPDATE_CONFIGS[execContext.runtime as string] ??
@@ -270,10 +279,8 @@ export const updateHandler = async (
 
   const { cmd, args } = runtimeConfig;
 
-  // deno-lint-ignore no-console
-  console.log(fmtColors.dim(`Running: ${cmd} ${args.join(" ")}`));
-  // deno-lint-ignore no-console
-  console.log("");
+  out.writeln(span.dim(`Running: ${cmd} ${args.join(" ")}`));
+  out.writeln();
 
   const result = await shellExec.exec`${cmd} ${args}`
     .stdout("inherit")
@@ -282,19 +289,18 @@ export const updateHandler = async (
     .spawn();
 
   if (!result.success) {
-    // deno-lint-ignore no-console
-    console.error(fmtColors.red("\nUpdate failed."));
+    out.writeln(span.red("\nUpdate failed."));
+    await out.close();
     return results.fail({ exitCode: result.code });
   }
 
-  // deno-lint-ignore no-console
-  console.log(fmtColors.green("\nUpdate complete!"));
-  // deno-lint-ignore no-console
-  console.log(
-    `The ${
-      fmtColors.cyan("eser")
-    } command has been updated to the latest version.`,
+  out.writeln(span.green("\nUpdate complete!"));
+  out.writeln(
+    span.text("The "),
+    span.cyan("eser"),
+    span.text(" command has been updated to the latest version."),
   );
 
+  await out.close();
   return results.ok(undefined);
 };

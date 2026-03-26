@@ -28,10 +28,12 @@ import * as stdPath from "@std/path";
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
+import type * as shellArgs from "@eser/shell/args";
 import * as shell from "@eser/shell";
-import { runCliMain, toCliEvent } from "./cli-support.ts";
+import * as span from "@eser/streams/span";
+import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
 
-const output = shell.formatting.createOutput();
+const out = createCliOutput();
 
 // --- Types ---
 
@@ -263,30 +265,39 @@ const cliAdapter: functions.handler.Adapter<
 const cliResponseMapper: functions.handler.ResponseMapper<
   UpdateContributorsResult,
   Error | functions.handler.AdaptError,
-  shell.args.CliResult<void>
+  shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
       ? err.message
       : (err as functions.handler.AdaptError).message ?? String(err);
-    output.printError(message);
+    out.writeln(span.red("✗"), span.text(" " + message));
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (!value.updated) {
-    output.printInfo(
-      `No changes — ${value.contributorCount} contributors already up to date.`,
+    out.writeln(
+      span.blue("ℹ"),
+      span.text(
+        ` No changes — ${value.contributorCount} contributors already up to date.`,
+      ),
     );
   } else if (value.committed) {
-    output.printSuccess(
-      `Updated ${value.contributorCount} contributors and committed changes.`,
+    out.writeln(
+      span.green("✓"),
+      span.text(
+        ` Updated ${value.contributorCount} contributors and committed changes.`,
+      ),
     );
   } else {
-    output.printSuccess(
-      `Updated ${value.contributorCount} contributors in ${value.readmePath}.`,
+    out.writeln(
+      span.green("✓"),
+      span.text(
+        ` Updated ${value.contributorCount} contributors in ${value.readmePath}.`,
+      ),
     );
   }
 
@@ -298,7 +309,7 @@ const cliResponseMapper: functions.handler.ResponseMapper<
 /** Runnable CLI trigger for gh-contributors. */
 export const handleCli: (
   event: functions.triggers.CliEvent,
-) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
   handler: updateContributorsHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -307,7 +318,7 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     {
@@ -336,5 +347,8 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.runtime.current.process.args as string[]),
+    out,
+  );
 }

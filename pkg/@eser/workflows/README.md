@@ -55,8 +55,10 @@ workflows:
 
 Build workflows programmatically without YAML:
 
-```js
+```ts
 import * as workflows from "@eser/workflows";
+import * as task from "@eser/functions/task";
+import * as results from "@eser/primitives/results";
 
 // Create a registry and register tools
 const registry = workflows.createRegistry();
@@ -78,10 +80,17 @@ const workflow = workflows.createWorkflow("ci")
   .step("my-check", { strict: true })
   .build();
 
-// Run it
-const result = await workflows.runWorkflow(workflow, registry, {
-  fix: true,
-});
+// Run it — runWorkflow() returns a Task, use task.runTask() to execute
+const result = await task.runTask(
+  workflows.runWorkflow(workflow, registry, { fix: true }),
+);
+
+// result is Result<WorkflowResult, WorkflowError>
+if (results.isOk(result)) {
+  console.log(result.value.passed ? "All checks passed" : "Some checks failed");
+} else {
+  console.error(result.error.message);
+}
 ```
 
 Or define from a plain object:
@@ -164,6 +173,10 @@ workflows:
 
 The core library (`mod.ts`) has zero I/O dependencies — it's pure functions for
 composing and running workflows. File loading and CLI are separate entry points.
+
+`runWorkflow()` and `runByEvent()` return lazy `Task` values (from
+`@eser/functions/task`). Use `task.runTask()` to execute and get a
+`Result<WorkflowResult, WorkflowError>` — check it with `results.isOk()`.
 
 ---
 

@@ -11,8 +11,10 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
+import * as task from "@eser/functions/task";
 import * as standardsRuntime from "@eser/standards/runtime";
 import * as shellExec from "@eser/shell/exec";
 import type * as shellArgs from "@eser/shell/args";
@@ -33,6 +35,8 @@ import { shellTool } from "./shell-tool.ts";
 
 const COLUMN_WIDTH = 50;
 
+const renderer = streams.renderers.ansi();
+
 const formatStepLine = (
   name: string,
   result: StepResult,
@@ -41,27 +45,31 @@ const formatStepLine = (
   const dots = ".".repeat(Math.max(1, COLUMN_WIDTH - name.length));
   const timing = `${(result.durationMs / 1000).toFixed(1)}s`;
 
-  let status: string;
+  let statusStr: string;
   if (result.passed && result.mutations.length > 0) {
-    status = fmtColors.yellow(
-      `Fixed (${result.mutations.length} file${
-        result.mutations.length === 1 ? "" : "s"
-      }, ${timing})`,
-    );
+    statusStr = renderer.render([
+      span.yellow(
+        `Fixed (${result.mutations.length} file${
+          result.mutations.length === 1 ? "" : "s"
+        }, ${timing})`,
+      ),
+    ]);
   } else if (result.passed) {
     if (verbose && Object.keys(result.stats).length > 0) {
       const statsStr = Object.entries(result.stats)
         .map(([k, v]) => `${v} ${k}`)
         .join(", ");
-      status = fmtColors.green(`Passed (${statsStr}, ${timing})`);
+      statusStr = renderer.render([
+        span.green(`Passed (${statsStr}, ${timing})`),
+      ]);
     } else {
-      status = fmtColors.green(`Passed (${timing})`);
+      statusStr = renderer.render([span.green(`Passed (${timing})`)]);
     }
   } else {
-    status = fmtColors.red(`Failed (${timing})`);
+    statusStr = renderer.render([span.red(`Failed (${timing})`)]);
   }
 
-  return `${name}${dots}${status}`;
+  return `${name}${dots}${statusStr}`;
 };
 
 // =============================================================================
@@ -124,6 +132,11 @@ export const main = async (
     return results.ok(undefined);
   }
 
+  const out = streams.output({
+    renderer,
+    sink: streams.sinks.stdout(),
+  });
+
   const eventArg = parsed.event as string | undefined;
   const workflowArg = parsed.workflow as string | undefined;
   const fixMode = (parsed.fix as boolean | undefined) ?? false;
@@ -138,6 +151,7 @@ export const main = async (
     console.error(
       "Error: specify -e <event> or -w <workflow-id>. Use --help for usage.",
     );
+    await out.close();
     return results.fail({ exitCode: 1 });
   }
 
@@ -155,6 +169,7 @@ export const main = async (
     console.error(
       "Error: no .manifest.yml found in current directory.",
     );
+    await out.close();
     return results.fail({ exitCode: 1 });
   }
 
@@ -168,8 +183,8 @@ export const main = async (
         .lines();
       changedFiles = changedOutput;
     } catch {
-      console.warn(
-        fmtColors.yellow(
+      out.writeln(
+        span.yellow(
           "Warning: could not run git, running without file filtering.",
         ),
       );
@@ -201,7 +216,7 @@ export const main = async (
               : issue.path
             : "";
           console.log(
-            `  ${fmtColors.red("✗")} ${loc}${
+            `  ${renderer.render([span.red("✗")])} ${loc}${
               loc.length > 0 ? ": " : ""
             }${issue.message}`,
           );
@@ -231,14 +246,20 @@ export const main = async (
     let totalFailed = 0;
 
     if (eventArg !== undefined) {
-      const workflowResults = await runByEvent(
-        eventArg,
-        config.workflows,
-        registry,
-        runOptions,
+      const eventResult = await task.runTask(
+        runByEvent(
+          eventArg,
+          config.workflows,
+          registry,
+          runOptions,
+        ),
       );
 
-      for (const wfResult of workflowResults) {
+      if (results.isFail(eventResult)) {
+        throw new Error(eventResult.error.message);
+      }
+
+      for (const wfResult of eventResult.value) {
         allResults.push(wfResult);
         if (!wfResult.passed) {
           allPassed = false;
@@ -251,13 +272,20 @@ export const main = async (
         }
       }
     } else {
-      const wfResult = await runWorkflowWithConfig(
-        workflowArg!,
-        config,
-        registry,
-        runOptions,
+      const wfTaskResult = await task.runTask(
+        runWorkflowWithConfig(
+          workflowArg!,
+          config,
+          registry,
+          runOptions,
+        ),
       );
 
+      if (results.isFail(wfTaskResult)) {
+        throw new Error(wfTaskResult.error.message);
+      }
+
+      const wfResult = wfTaskResult.value;
       allResults.push(wfResult);
       allPassed = wfResult.passed;
       for (const step of wfResult.steps) {
@@ -276,25 +304,28 @@ export const main = async (
     // --- Summary ---
     if (!allPassed) {
       if (!jsonOutput) {
-        console.error(
-          fmtColors.red(
+        out.writeln(
+          span.red(
             `\n${totalFailed} check(s) failed with ${totalIssues} issue(s)`,
           ),
         );
       }
+      await out.close();
       return results.fail({ exitCode: 1 });
     }
 
     if (!jsonOutput) {
-      console.log(fmtColors.green("\nAll checks passed!"));
+      out.writeln(span.green("\nAll checks passed!"));
     }
+    await out.close();
     return results.ok(undefined);
   } catch (error) {
-    console.error(
-      fmtColors.red(
+    out.writeln(
+      span.red(
         `Error: ${error instanceof Error ? error.message : String(error)}`,
       ),
     );
+    await out.close();
     return results.fail({ exitCode: 1 });
   }
 };

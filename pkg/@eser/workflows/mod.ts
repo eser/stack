@@ -13,6 +13,7 @@
  * @example
  * ```typescript
  * import * as workflows from "@eser/workflows";
+ * import * as task from "@eser/functions/task";
  *
  * // Create a registry and register tools
  * const registry = workflows.createRegistry();
@@ -24,8 +25,10 @@
  *   .step("my-tool", { strict: true })
  *   .build();
  *
- * // Run it
- * const result = await workflows.runWorkflow(workflow, registry, { fix: true });
+ * // Run it (returns a Task — use task.runTask() to execute)
+ * const result = await task.runTask(
+ *   workflows.runWorkflow(workflow, registry, { fix: true }),
+ * );
  * ```
  *
  * @module
@@ -38,6 +41,7 @@ export type {
   ScriptConfig,
   StepResult,
   WorkflowDefinition,
+  WorkflowError,
   WorkflowFileMutation,
   WorkflowIssue,
   WorkflowResult,

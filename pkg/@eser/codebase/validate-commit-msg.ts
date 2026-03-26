@@ -13,10 +13,11 @@
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
-import * as shell from "@eser/shell";
-import { runCliMain } from "./cli-support.ts";
+import type * as shellArgs from "@eser/shell/args";
+import * as span from "@eser/streams/span";
+import { createCliOutput, runCliMain } from "./cli-support.ts";
 
-const output = shell.formatting.createOutput();
+const out = createCliOutput();
 
 // =============================================================================
 // Validation logic (pure)
@@ -145,7 +146,7 @@ export const validateCommitMsg = (
  */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     {
@@ -178,27 +179,33 @@ export const main = async (
         String(parsed._[0]),
       );
     } catch {
-      output.printError(`cannot read commit message file: ${parsed._[0]}`);
+      out.writeln(
+        span.red("✗"),
+        span.text(` cannot read commit message file: ${parsed._[0]}`),
+      );
       return primitives.results.fail({ exitCode: 1 });
     }
   } else {
-    output.printError("no commit message provided");
+    out.writeln(span.red("✗"), span.text(" no commit message provided"));
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const result = validateCommitMsg(message);
 
   if (result.valid) {
-    output.printSuccess("commit message is valid");
+    out.writeln(span.green("✓"), span.text(" commit message is valid"));
     return primitives.results.ok(undefined);
   }
 
   for (const issue of result.issues) {
-    output.printError(issue);
+    out.writeln(span.red("✗"), span.text(" " + issue));
   }
   return primitives.results.fail({ exitCode: 1 });
 };
 
 if (import.meta.main) {
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.runtime.current.process.args as string[]),
+    out,
+  );
 }

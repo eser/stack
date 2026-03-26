@@ -9,7 +9,8 @@
  * @module
  */
 
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
 import * as registryFetcher from "@eser/registry/fetcher";
@@ -27,22 +28,31 @@ export const initHandler = async (
   // Get template from flags
   const templateName = (ctx.flags["template"] as string) ?? "minimal";
 
+  const renderer = streams.renderers.ansi();
+
+  const out = streams.output({
+    renderer,
+    sink: streams.sinks.stdout(),
+  });
+
   // Validate template
   if (!TEMPLATES.includes(templateName as TemplateName)) {
+    await out.close();
     return results.fail({
-      message:
-        `${fmtColors.red(`\nError: Invalid template "${templateName}"`)}\n` +
+      message: `${
+        renderer.render([
+          span.red(`\nError: Invalid template "${templateName}"`),
+        ])
+      }\n` +
         `Available templates: ${TEMPLATES.join(", ")}`,
       exitCode: 1,
     });
   }
 
-  // deno-lint-ignore no-console
-  console.log(
-    fmtColors.cyan(`\n✨ Creating new laroux.js project in ./${folder}\n`),
+  out.writeln(
+    span.cyan(`\n✨ Creating new laroux.js project in ./${folder}\n`),
   );
-  // deno-lint-ignore no-console
-  console.log(fmtColors.dim(`   Template: ${templateName}`));
+  out.writeln(span.dim(`   Template: ${templateName}`));
 
   // Try the registry first (for the "laroux-app" recipe if it matches "minimal")
   // Fall back to GitHub clone for specific templates
@@ -58,15 +68,17 @@ export const initHandler = async (
   try {
     await Deno.mkdir(targetDir, { recursive: true });
   } catch {
+    await out.close();
     return results.fail({
-      message: fmtColors.red(`\nCould not create directory: ${targetDir}`),
+      message: renderer.render([
+        span.red(`\nCould not create directory: ${targetDir}`),
+      ]),
       exitCode: 1,
     });
   }
 
-  // deno-lint-ignore no-console
-  console.log(
-    fmtColors.dim(`   Fetching from gh:${specOwner}/${specRepo}...\n`),
+  out.writeln(
+    span.dim(`   Fetching from gh:${specOwner}/${specRepo}...\n`),
   );
 
   try {
@@ -94,11 +106,9 @@ export const initHandler = async (
         variables: { project_name: folder },
       });
 
-      // deno-lint-ignore no-console
-      console.log(fmtColors.green(`\n🎉 Project created successfully!`));
-      // deno-lint-ignore no-console
-      console.log(
-        fmtColors.dim(`   ${result.written.length} files written`),
+      out.writeln(span.green(`\n🎉 Project created successfully!`));
+      out.writeln(
+        span.dim(`   ${result.written.length} files written`),
       );
     } else {
       // No recipe.json — fall back to the legacy scaffolding system
@@ -118,48 +128,51 @@ export const initHandler = async (
       );
 
       if (scaffoldResult._tag === "Fail") {
+        await out.close();
         return results.fail({
-          message: fmtColors.red(
-            `\nScaffolding failed: ${scaffoldResult.error.message}`,
-          ),
+          message: renderer.render([
+            span.red(`\nScaffolding failed: ${scaffoldResult.error.message}`),
+          ]),
           exitCode: 1,
         });
       }
 
       const result = scaffoldResult.value;
 
-      // deno-lint-ignore no-console
-      console.log(fmtColors.green(`\n🎉 Project created successfully!`));
+      out.writeln(span.green(`\n🎉 Project created successfully!`));
 
       if (Object.keys(result.variables).length > 0) {
-        // deno-lint-ignore no-console
-        console.log("\nVariables applied:");
+        out.writeln(span.text("\nVariables applied:"));
         for (const [key, value] of Object.entries(result.variables)) {
-          // deno-lint-ignore no-console
-          console.log(`  ${fmtColors.dim(key)}: ${value}`);
+          out.writeln(span.text("  "), span.dim(key), span.text(`: ${value}`));
         }
       }
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    await out.close();
     return results.fail({
-      message: fmtColors.red(`\nFailed: ${msg}`),
+      message: renderer.render([span.red(`\nFailed: ${msg}`)]),
       exitCode: 1,
     });
   }
 
   // Print next steps
-  // deno-lint-ignore no-console
-  console.log(`
-${fmtColors.bold("Next steps:")}
+  out.writeln();
+  out.writeln(span.bold("Next steps:"));
+  out.writeln();
+  out.writeln(span.text(`  cd ${folder}`));
+  out.writeln(span.text("  eser laroux dev"));
+  out.writeln();
+  out.writeln(
+    span.text("Then open "),
+    span.cyan("http://localhost:8000"),
+    span.text(" in your browser."),
+  );
+  out.writeln();
+  out.writeln(span.dim("Learn more at https://laroux.now/"));
+  out.writeln();
 
-  cd ${folder}
-  eser laroux dev
-
-Then open ${fmtColors.cyan("http://localhost:8000")} in your browser.
-
-${fmtColors.dim("Learn more at https://laroux.now/")}
-`);
-
+  await out.close();
   return results.ok(undefined);
 };

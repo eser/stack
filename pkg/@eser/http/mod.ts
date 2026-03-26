@@ -2,3 +2,5 @@
 
 export { type MiddlewareFn } from "./types.ts";
 export * as middlewares from "./middlewares/mod.ts";
+export * as adapter from "./adapter.ts";
+export * as response from "./response.ts";

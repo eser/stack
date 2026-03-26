@@ -9,7 +9,8 @@
  * @module
  */
 
-import * as fmtColors from "@eser/shell/formatting/colors";
+import * as span from "@eser/streams/span";
+import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
 
@@ -27,8 +28,12 @@ type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 export const buildHandler = async (
   ctx: shellArgs.CommandContext,
 ): Promise<shellArgs.CliResult<void>> => {
-  // deno-lint-ignore no-console
-  console.log(fmtColors.cyan("\n📦 Building for production...\n"));
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
+  out.writeln(span.cyan("\n📦 Building for production...\n"));
 
   // Configure logging FIRST (before importing bundler modules that create loggers)
   const logging = await import("@eser/logging");
@@ -59,11 +64,13 @@ export const buildHandler = async (
     fatal: logging.Severities.Critical,
   } as const;
 
+  const loggingOut = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
   await logging.config.configure({
     sinks: {
-      console: logging.sinks.getConsoleSink({
-        formatter: logging.formatters.ansiColorFormatter(),
-      }),
+      console: logging.sinks.getOutputSink(loggingOut),
     },
     loggers: [
       {
@@ -141,18 +148,19 @@ export const buildHandler = async (
 
   // Analyze bundle if requested
   if (analyze) {
-    await analyzeBuild(current, outDir);
+    await analyzeBuild(current, outDir, out);
   }
 
+  await out.close();
   return results.ok(undefined);
 };
 
 async function analyzeBuild(
   runtime: { fs: { readTextFile: (path: string) => Promise<string> } },
   outDir: string,
+  out: streams.Output,
 ) {
-  // deno-lint-ignore no-console
-  console.log(fmtColors.cyan("\n📊 Bundle Analysis:\n"));
+  out.writeln(span.cyan("\n📊 Bundle Analysis:\n"));
 
   try {
     const manifestPath = `${outDir}/client/manifest.json`;
@@ -160,16 +168,14 @@ async function analyzeBuild(
     const manifest = JSON.parse(manifestText);
 
     // Display chunk sizes
-    // deno-lint-ignore no-console
-    console.log("Chunks:");
+    out.writeln(span.text("Chunks:"));
     for (
       const [file, info] of Object.entries(
         manifest.files as Record<string, { name: string; size: number }>,
       )
     ) {
       const sizeKB = (info.size / 1024).toFixed(2);
-      // deno-lint-ignore no-console
-      console.log(`  ${file.padEnd(30)} ${sizeKB.padStart(8)} KB`);
+      out.writeln(span.text(`  ${file.padEnd(30)} ${sizeKB.padStart(8)} KB`));
     }
 
     // Calculate total size
@@ -177,12 +183,10 @@ async function analyzeBuild(
       manifest.files as Record<string, { size: number }>,
     ).reduce((sum, file) => sum + file.size, 0);
 
-    // deno-lint-ignore no-console
-    console.log(fmtColors.dim(`\nTotal: ${(totalSize / 1024).toFixed(2)} KB`));
+    out.writeln(span.dim(`\nTotal: ${(totalSize / 1024).toFixed(2)} KB`));
   } catch {
-    // deno-lint-ignore no-console
-    console.log(
-      fmtColors.yellow("Could not analyze build (manifest.json not found)"),
+    out.writeln(
+      span.yellow("Could not analyze build (manifest.json not found)"),
     );
   }
 }

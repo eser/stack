@@ -1,6 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
+import * as task from "@eser/functions/task";
+import * as results from "@eser/primitives/results";
 import type { WorkflowDefinition, WorkflowTool } from "./types.ts";
 import { resolveIncludes, runByEvent } from "./engine.ts";
 import { createRegistry } from "./registry.ts";
@@ -108,21 +110,26 @@ Deno.test({
       includes: ["base"],
     };
 
-    const results = await runByEvent("ci", [base, child], registry);
+    const taskResult = await task.runTask(
+      runByEvent("ci", [base, child], registry),
+    );
+    assert.assert(results.isOk(taskResult));
+
+    const eventResults = taskResult.value;
 
     // Both "base" and "child" match the "ci" event
-    assert.assertEquals(results.length, 2);
+    assert.assertEquals(eventResults.length, 2);
 
     // base runs its own step
-    assert.assertEquals(results[0]!.workflowId, "base");
-    assert.assertEquals(results[0]!.steps.length, 1);
-    assert.assertEquals(results[0]!.passed, true);
+    assert.assertEquals(eventResults[0]!.workflowId, "base");
+    assert.assertEquals(eventResults[0]!.steps.length, 1);
+    assert.assertEquals(eventResults[0]!.passed, true);
 
     // child resolves includes and runs base steps + own steps
-    assert.assertEquals(results[1]!.workflowId, "child");
-    assert.assertEquals(results[1]!.steps.length, 2);
-    assert.assertEquals(results[1]!.steps[0]!.name, "step-a");
-    assert.assertEquals(results[1]!.steps[1]!.name, "step-c");
-    assert.assertEquals(results[1]!.passed, true);
+    assert.assertEquals(eventResults[1]!.workflowId, "child");
+    assert.assertEquals(eventResults[1]!.steps.length, 2);
+    assert.assertEquals(eventResults[1]!.steps[0]!.name, "step-a");
+    assert.assertEquals(eventResults[1]!.steps[1]!.name, "step-c");
+    assert.assertEquals(eventResults[1]!.passed, true);
   },
 });

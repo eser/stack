@@ -33,10 +33,12 @@ import * as stdPath from "@std/path";
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
+import type * as shellArgs from "@eser/shell/args";
 import * as shell from "@eser/shell";
-import { runCliMain, toCliEvent } from "./cli-support.ts";
+import * as span from "@eser/streams/span";
+import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
 
-const output = shell.formatting.createOutput();
+const out = createCliOutput();
 
 /**
  * A parsed entry from a CHANGELOG.md file.
@@ -338,14 +340,14 @@ const cliAdapter: functions.handler.Adapter<
 const cliResponseMapper: functions.handler.ResponseMapper<
   SyncReleaseNotesResult,
   Error | functions.handler.AdaptError,
-  shell.args.CliResult<void>
+  shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
       ? err.message
       : (err as functions.handler.AdaptError).message ?? String(err);
-    output.printError(message);
+    out.writeln(span.red("✗"), span.text(" " + message));
     return primitives.results.fail({ exitCode: 1 });
   }
 
@@ -353,14 +355,23 @@ const cliResponseMapper: functions.handler.ResponseMapper<
 
   switch (value.action) {
     case "created":
-      output.printSuccess(`Created release ${value.tag} with changelog notes.`);
+      out.writeln(
+        span.green("✓"),
+        span.text(` Created release ${value.tag} with changelog notes.`),
+      );
       break;
     case "updated":
-      output.printSuccess(`Updated release notes for ${value.tag}.`);
+      out.writeln(
+        span.green("✓"),
+        span.text(` Updated release notes for ${value.tag}.`),
+      );
       break;
     case "skipped":
-      output.printWarning(
-        `Release ${value.tag} not found. Skipping (pass --create-if-missing to create).`,
+      out.writeln(
+        span.yellow("⚠"),
+        span.text(
+          ` Release ${value.tag} not found. Skipping (pass --create-if-missing to create).`,
+        ),
       );
       break;
   }
@@ -373,7 +384,7 @@ const cliResponseMapper: functions.handler.ResponseMapper<
 /** Runnable CLI trigger for release-notes. */
 export const handleCli: (
   event: functions.triggers.CliEvent,
-) => Promise<shell.args.CliResult<void>> = functions.handler.createTrigger({
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
   handler: syncReleaseNotesHandler,
   adaptInput: cliAdapter,
   adaptOutput: cliResponseMapper,
@@ -382,7 +393,7 @@ export const handleCli: (
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shell.args.CliResult<void>> => {
+): Promise<shellArgs.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     {
@@ -396,5 +407,8 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.runtime.current.process.args as string[]),
+    out,
+  );
 }

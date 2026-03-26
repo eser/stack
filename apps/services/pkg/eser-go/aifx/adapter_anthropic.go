@@ -379,7 +379,7 @@ func (m *AnthropicModel) buildMessageParams(
 	}
 
 	params := anthropic.MessageNewParams{ //nolint:exhaustruct
-		Model:     anthropic.Model(m.config.Model),
+		Model:     m.config.Model,
 		Messages:  messages,
 		MaxTokens: maxTokens,
 	}
@@ -741,7 +741,7 @@ func (m *AnthropicModel) mapResponse(msg *anthropic.Message) *GenerateTextResult
 			TotalTokens:    int(msg.Usage.InputTokens) + int(msg.Usage.OutputTokens),
 			ThinkingTokens: 0,
 		},
-		ModelID:     string(msg.Model),
+		ModelID:     msg.Model,
 		RawRequest:  nil,
 		RawResponse: nil,
 	}

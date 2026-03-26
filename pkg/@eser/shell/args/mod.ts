@@ -51,9 +51,9 @@ export {
   type FallbackHandler,
   type FlagDef,
   type FlagType,
+  type GroupOptions,
   type LazyCommandOptions,
   type ModuleEntry,
-  type ModuleGroupOptions,
 } from "./types.ts";
 export { Command } from "./command.ts";
 export {

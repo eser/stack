@@ -2,7 +2,9 @@
   "name": "@eser/codebase",
   "version": "4.1.15",
   "exports": {
-    ".": "./mod.ts",
+    ".": "./main.ts",
+    "./mod": "./mod.ts",
+    "./module": "./module.ts",
     "./directive-analysis": "./directive-analysis.ts",
     "./git": "./git.ts",
     "./package": "./package/mod.ts",
@@ -21,6 +23,7 @@
     "./release-tag": "./release-tag.ts",
     "./release-notes": "./release-notes.ts",
     "./changelog-gen": "./changelog-gen.ts",
+    "./commitmsg": "./commitmsg.ts",
     "./release": "./release.ts",
     "./lint-plugin": "./lint-plugin.ts",
     "./cli-support": "./cli-support.ts",

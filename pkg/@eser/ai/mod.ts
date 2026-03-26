@@ -94,3 +94,6 @@ export { isBatchCapable } from "./model.ts";
 // Registry
 export type { RegistryOptions } from "./registry.ts";
 export { Registry } from "./registry.ts";
+
+// Module (CLI integration)
+export { moduleDef } from "./module.ts";

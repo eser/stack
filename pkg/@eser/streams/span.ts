@@ -52,8 +52,8 @@ type CodeBlockSpan = {
 
 type TableSpan = {
   readonly kind: "table";
-  readonly headers: readonly string[];
-  readonly rows: readonly (readonly string[])[];
+  readonly headers: readonly Span[];
+  readonly rows: readonly (readonly Span[])[];
 };
 
 type ListSpan = {
@@ -160,18 +160,44 @@ const codeBlock = (value: string, language?: string): CodeBlockSpan => ({
 });
 
 const table = (
-  headers: readonly string[],
-  rows: readonly (readonly string[])[],
+  headers: readonly SpanInput[],
+  rows: readonly (readonly SpanInput[])[],
 ): TableSpan => ({
   kind: "table",
-  headers,
-  rows,
+  headers: normalize(headers),
+  rows: rows.map((row) => normalize(row)),
 });
 
 const list = (items: readonly (readonly SpanInput[])[]): ListSpan => ({
   kind: "list",
   items: items.map((row) => normalize(row)),
 });
+
+// =============================================================================
+// Measurement — plain text length of a span (strips all formatting)
+// =============================================================================
+
+const plainLength = (s: Span): number => {
+  switch (s.kind) {
+    case "text":
+      return s.value.length;
+    case "newline":
+      return 1;
+    case "bold":
+    case "dim":
+    case "italic":
+    case "underline":
+    case "strikethrough":
+    case "color":
+    case "group":
+      return s.children.reduce((sum, child) => sum + plainLength(child), 0);
+    case "code-block":
+      return s.value.length;
+    case "table":
+    case "list":
+      return 0; // nested blocks don't contribute to inline length
+  }
+};
 
 // =============================================================================
 // Exports
@@ -192,6 +218,7 @@ export {
   magenta,
   nl,
   normalize,
+  plainLength,
   red,
   strikethrough,
   table,

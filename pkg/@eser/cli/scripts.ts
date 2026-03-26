@@ -18,7 +18,7 @@ import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
 import * as standardsRuntime from "@eser/standards/runtime";
 import type * as shellArgs from "@eser/shell/args";
-import type { ScriptConfig } from "@eser/workflows";
+import type { ScriptConfig } from "@eser/workflows/mod";
 
 /** Parsed representation of a script config entry. */
 type ParsedScript = {

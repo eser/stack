@@ -8,6 +8,7 @@
  */
 
 import type * as spanTypes from "../span.ts";
+import { plainLength } from "../span.ts";
 import type { Renderer } from "./types.ts";
 
 const renderSpan = (span: spanTypes.Span): string => {
@@ -32,18 +33,29 @@ const renderSpan = (span: spanTypes.Span): string => {
     case "table": {
       const widths = span.headers.map((h, i) => {
         const maxRow = span.rows.reduce(
-          (max, row) => Math.max(max, (row[i] ?? "").length),
+          (max, row) => {
+            const cell = row[i];
+            return Math.max(max, cell !== undefined ? plainLength(cell) : 0);
+          },
           0,
         );
-        return Math.max(h.length, maxRow);
+        return Math.max(plainLength(h), maxRow);
       });
 
+      const padCell = (cell: spanTypes.Span, width: number): string => {
+        const rendered = renderSpan(cell);
+        const textLen = plainLength(cell);
+        return rendered + " ".repeat(Math.max(0, width - textLen));
+      };
+
       const header = span.headers
-        .map((h, i) => h.padEnd(widths[i]!))
+        .map((h, i) => padCell(h, widths[i]!))
         .join("  ");
       const sep = widths.map((w) => "-".repeat(w)).join("  ");
       const rows = span.rows
-        .map((row) => row.map((cell, i) => cell.padEnd(widths[i]!)).join("  "))
+        .map((row) =>
+          row.map((cell, i) => padCell(cell, widths[i]!)).join("  ")
+        )
         .join("\n");
 
       return `${header}\n${sep}\n${rows}\n`;

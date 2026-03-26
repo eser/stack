@@ -7,9 +7,12 @@
     "eser": "./bin.ts"
   },
   "dependencies": {
+    "@eser/ai": "workspace:*",
     "@eser/codebase": "workspace:*",
+    "@eser/kit": "workspace:*",
     "@eser/noskills": "workspace:*",
     "@eser/laroux": "workspace:*",
+    "@eser/workflows": "workspace:*",
     "@eser/functions": "workspace:*",
     "@eser/logging": "workspace:*",
     "@eser/shell": "workspace:*",

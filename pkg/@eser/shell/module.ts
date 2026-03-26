@@ -29,7 +29,7 @@
  * @module
  */
 
-import type { ModuleEntry, ModuleGroupOptions } from "./args/types.ts";
+import type { GroupOptions, ModuleEntry } from "./args/types.ts";
 import { Command } from "./args/command.ts";
 
 /**
@@ -82,10 +82,10 @@ export class Module {
   }
 
   /**
-   * Convert to ModuleGroupOptions for use with Command.moduleGroup().
+   * Convert to GroupOptions for use with Command.group().
    * This is the bridge between the Module abstraction and the Command framework.
    */
-  toModuleGroupOptions(): ModuleGroupOptions {
+  toGroupOptions(): GroupOptions {
     return {
       description: this.description,
       modules: this.#modules,
@@ -110,17 +110,17 @@ export class Module {
 
     // Own modules → flat dispatch via .modules()
     if (Object.keys(this.#modules).length > 0) {
-      cmd.modules(this.toModuleGroupOptions());
+      cmd.modules(this.toGroupOptions());
     }
 
-    // Submodules → namespaced dispatch via .moduleGroup()
+    // Submodules → namespaced dispatch via .group()
     for (const { registration, module: submod } of this.#submodules) {
-      const opts = submod.toModuleGroupOptions();
-      cmd.moduleGroup(registration.name, opts);
+      const opts = submod.toGroupOptions();
+      cmd.group(registration.name, opts);
 
       if (registration.aliases !== undefined) {
         for (const alias of registration.aliases) {
-          cmd.moduleGroup(alias, opts);
+          cmd.group(alias, opts);
         }
       }
     }

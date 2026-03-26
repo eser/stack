@@ -3,7 +3,9 @@
   "version": "4.1.15",
   "type": "module",
   "exports": {
-    ".": "./mod.ts",
+    ".": "./main.ts",
+    "./mod": "./mod.ts",
+    "./module": "./module.ts",
     "./directive-analysis": "./directive-analysis.ts",
     "./git": "./git.ts",
     "./package": "./package/mod.ts",
@@ -22,6 +24,7 @@
     "./release-tag": "./release-tag.ts",
     "./release-notes": "./release-notes.ts",
     "./changelog-gen": "./changelog-gen.ts",
+    "./commitmsg": "./commitmsg.ts",
     "./release": "./release.ts",
     "./lint-plugin": "./lint-plugin.ts",
     "./cli-support": "./cli-support.ts",
@@ -46,7 +49,9 @@
     "./install": "./install.ts"
   },
   "dependencies": {
+    "@eser/ai": "workspace:*",
     "@eser/config": "workspace:*",
+    "@eser/primitives": "workspace:*",
     "@eser/fp": "workspace:*",
     "@eser/functions": "workspace:*",
     "@eser/shell": "workspace:*",

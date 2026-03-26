@@ -82,6 +82,19 @@ export class Module {
   }
 
   /**
+   * Register a submodule from an async factory.
+   * Resolves the factory immediately and registers the resulting Module.
+   */
+  async addSubmoduleAsync(
+    registration: SubmoduleRegistration,
+    factory: Promise<Module>,
+  ): Promise<this> {
+    const module = await factory;
+    this.#submodules.push({ registration, module });
+    return this;
+  }
+
+  /**
    * Convert to GroupOptions for use with Command.group().
    * This is the bridge between the Module abstraction and the Command framework.
    */

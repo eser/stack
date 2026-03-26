@@ -1,6 +1,6 @@
 {
   "name": "@eser/cli",
-  "version": "4.1.12",
+  "version": "4.1.13",
   "type": "module",
   "exports": "./main.ts",
   "bin": {
@@ -18,6 +18,7 @@
     "@std/fmt": "npm:@jsr/std__fmt@^1.0.8"
   },
   "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
     "esbuild": "^0.27.3"
   }
 }

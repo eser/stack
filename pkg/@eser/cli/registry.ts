@@ -10,39 +10,170 @@
  * @module
  */
 
-import * as shellArgs from "@eser/shell/args";
-
-/**
- * A module that can be dispatched from the CLI.
- */
-export type DispatchableModule = {
-  readonly main: (
-    cliArgs?: readonly string[],
-  ) => Promise<shellArgs.CliResult<void>>;
-};
-
-/**
- * Registry entry for a single module.
- */
-export type ModuleEntry = {
-  readonly description: string;
-  readonly category?: string;
-  readonly load: () => Promise<DispatchableModule>;
-};
-
-/**
- * Registry entry for a package namespace.
- */
-export type PackageEntry = {
-  readonly description: string;
-  readonly modules: Record<string, ModuleEntry>;
-  readonly aliases?: Record<string, string>;
-};
+import type { ModuleGroupOptions } from "@eser/shell/args";
 
 /**
  * Static registry of dispatchable packages and modules.
+ *
+ * Uses ModuleGroupOptions from @eser/shell/args so the registry can be
+ * passed directly to Command.moduleGroup() — no adapter layer needed.
  */
-export const registry: Record<string, PackageEntry> = {
+export const registry: Record<string, ModuleGroupOptions> = {
+  kit: {
+    description: "Kit — recipes, templates, project creation",
+    modules: {
+      add: {
+        description: "Add a recipe to your project",
+        category: "Distribution",
+        load: () => import("./commands/add.ts"),
+        flags: [
+          {
+            name: "registry",
+            type: "string",
+            description: "Custom registry URL",
+          },
+          {
+            name: "dry-run",
+            type: "boolean",
+            description: "Preview without writing",
+          },
+          {
+            name: "force",
+            type: "boolean",
+            description: "Overwrite existing files",
+          },
+          {
+            name: "skip-existing",
+            type: "boolean",
+            description: "Skip existing files",
+          },
+          {
+            name: "verbose",
+            type: "boolean",
+            description: "Show detailed output",
+          },
+          { name: "local", type: "boolean", description: "Use local registry" },
+          {
+            name: "no-install",
+            type: "boolean",
+            description: "Skip dependency installation",
+          },
+          {
+            name: "var",
+            type: "string",
+            description: "Template variable (key=value)",
+          },
+        ],
+      },
+      list: {
+        description: "Browse available recipes and templates",
+        category: "Distribution",
+        load: () => import("./commands/list.ts"),
+        flags: [
+          {
+            name: "language",
+            type: "string",
+            description: "Filter by language",
+          },
+          {
+            name: "scale",
+            type: "string",
+            description: "Filter by scale (project/structure/utility)",
+          },
+          { name: "tag", type: "string", description: "Filter by tag" },
+          {
+            name: "registry",
+            type: "string",
+            description: "Custom registry URL",
+          },
+          { name: "local", type: "boolean", description: "Use local registry" },
+        ],
+      },
+      new: {
+        description: "Create a new project from a template",
+        category: "Distribution",
+        load: () => import("./commands/new.ts"),
+        flags: [
+          { name: "name", type: "string", description: "Project name" },
+          {
+            name: "registry",
+            type: "string",
+            description: "Custom registry URL",
+          },
+          { name: "local", type: "boolean", description: "Use local registry" },
+          {
+            name: "var",
+            type: "string",
+            description: "Template variable (key=value)",
+          },
+        ],
+      },
+      clone: {
+        description: "Clone a recipe from any GitHub repo",
+        category: "Distribution",
+        load: () => import("./commands/clone.ts"),
+        flags: [
+          {
+            name: "recipe",
+            type: "string",
+            description: "Path to recipe.json in repo",
+          },
+          {
+            name: "name",
+            short: "p",
+            type: "string",
+            description: "Target directory",
+          },
+          {
+            name: "force",
+            type: "boolean",
+            description: "Overwrite existing files",
+          },
+          {
+            name: "dry-run",
+            type: "boolean",
+            description: "Preview without writing",
+          },
+          {
+            name: "verbose",
+            type: "boolean",
+            description: "Show detailed output",
+          },
+          {
+            name: "var",
+            type: "string",
+            description: "Template variable (key=value)",
+          },
+        ],
+      },
+      update: {
+        description: "Re-fetch and update an applied recipe",
+        category: "Distribution",
+        load: () => import("./commands/update.ts"),
+        flags: [
+          {
+            name: "registry",
+            type: "string",
+            description: "Custom registry URL",
+          },
+          {
+            name: "dry-run",
+            type: "boolean",
+            description: "Preview without writing",
+          },
+          {
+            name: "verbose",
+            type: "boolean",
+            description: "Show detailed output",
+          },
+          { name: "local", type: "boolean", description: "Use local registry" },
+        ],
+      },
+    },
+    aliases: {
+      create: "new",
+    },
+  },
   workflows: {
     description: "Workflow engine — run tool pipelines",
     modules: {

@@ -31,7 +31,7 @@ type TargetHashes = {
 
 const generateFormula = (version: string, hashes: TargetHashes): string =>
   `class Eser < Formula
-  desc "Eser's swiss-army-knife tooling for your terminal"
+  desc "Terminal client for Eser's work"
   homepage "https://github.com/eser/stack"
   version "${version}"
   license "Apache-2.0"

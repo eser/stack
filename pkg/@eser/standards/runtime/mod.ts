@@ -20,7 +20,7 @@
  *
  * // For testing - use factory with mocks
  * import { createRuntime } from "@eser/standards/runtime";
- * const mockRuntime = createRuntime({ fs: mockFs });
+ * const mockRuntime = await createRuntime({ fs: mockFs });
  * ```
  *
  * @module
@@ -127,12 +127,9 @@ import { RuntimeCapabilityError } from "./types.ts";
 import { detectRuntime } from "./detect.ts";
 import { posixPath } from "./polyfills/path.ts";
 
-// Import adapters - bundlers/tree-shaking will eliminate unused ones
-import { createDenoRuntime } from "./adapters/deno.ts";
-import { createNodeRuntime } from "./adapters/node.ts";
-import { createBunRuntime } from "./adapters/bun.ts";
-import { createWorkerdRuntime } from "./adapters/workerd.ts";
-import { createBrowserRuntime } from "./adapters/browser.ts";
+// Adapters are loaded lazily via dynamic import() — only the detected
+// runtime's adapter is imported. This avoids loading all 5 adapters
+// (and their platform-specific dependencies) at startup.
 
 import type { RuntimeCapabilities as Caps, RuntimeName } from "./types.ts";
 
@@ -253,14 +250,32 @@ const createMinimalRuntime = (name: Runtime["name"]): Runtime => ({
 });
 
 /**
- * Runtime factory lookup table.
+ * Runtime factory lookup table — each factory lazily imports its adapter.
+ * Only the detected runtime's adapter module is loaded.
  */
-const runtimeFactories: Partial<Record<RuntimeName, () => Runtime>> = {
-  deno: createDenoRuntime,
-  node: createNodeRuntime,
-  bun: createBunRuntime,
-  workerd: createWorkerdRuntime,
-  browser: createBrowserRuntime,
+const runtimeFactories: Partial<
+  Record<RuntimeName, () => Promise<Runtime>>
+> = {
+  deno: async () => {
+    const mod = await import("./adapters/deno.ts");
+    return mod.createDenoRuntime();
+  },
+  node: async () => {
+    const mod = await import("./adapters/node.ts");
+    return mod.createNodeRuntime();
+  },
+  bun: async () => {
+    const mod = await import("./adapters/bun.ts");
+    return mod.createBunRuntime();
+  },
+  workerd: async () => {
+    const mod = await import("./adapters/workerd.ts");
+    return mod.createWorkerdRuntime();
+  },
+  browser: async () => {
+    const mod = await import("./adapters/browser.ts");
+    return mod.createBrowserRuntime();
+  },
 };
 
 /**
@@ -305,10 +320,14 @@ const mergeRuntime = (
  * @param options - Optional overrides for testing or customization
  * @returns A Runtime instance
  */
-export const createRuntime = (options?: CreateRuntimeOptions): Runtime => {
+export const createRuntime = async (
+  options?: CreateRuntimeOptions,
+): Promise<Runtime> => {
   const runtimeName = detectRuntime();
   const factory = runtimeFactories[runtimeName];
-  const baseRuntime = factory?.() ?? createMinimalRuntime(runtimeName);
+  const baseRuntime = factory !== undefined
+    ? await factory()
+    : createMinimalRuntime(runtimeName);
 
   // Apply capability overrides if provided
   const capabilities = options?.capabilities
@@ -344,4 +363,5 @@ export const createRuntime = (options?: CreateRuntimeOptions): Runtime => {
  * }
  * ```
  */
-export const current: Runtime = createRuntime();
+// deno-lint-ignore no-top-level-await
+export const current: Runtime = await createRuntime();

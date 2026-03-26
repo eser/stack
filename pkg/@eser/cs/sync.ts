@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as writer from "@eser/writer";
+import * as formats from "@eser/formats";
 import * as dotenv from "@eser/config/dotenv";
 import * as shellExec from "@eser/shell/exec";
 import type {
@@ -226,7 +226,7 @@ export const buildConfigMapFromContext = (
  */
 export const sync = async (options: SyncOptions): Promise<string> => {
   // Register formats lazily when needed
-  writer.registerBuiltinFormats();
+  formats.registerBuiltinFormats();
 
   try {
     // Validate resource reference early (defense in depth)
@@ -280,7 +280,7 @@ export const sync = async (options: SyncOptions): Promise<string> => {
 
     let patchString: string;
     if (format === "yaml") {
-      patchString = writer.serialize([patchObject], "yaml", { pretty: true })
+      patchString = formats.serialize([patchObject], "yaml", { pretty: true })
         .trim();
     } else {
       patchString = JSON.stringify(patchObject);

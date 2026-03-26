@@ -37,63 +37,73 @@ npx vitest
 
 Scope: JS/TS projects using Deno
 
-Rule: Use package.json for dependencies and
-scripts. Use tsconfig.json for TypeScript. Use deno.json only for
-formatter/linter configuration.
+Rule: Packages need BOTH `deno.json` AND `package.json`. They serve
+different roles:
 
-package.json (dependencies and scripts):
+- `deno.json` — Package identity for JSR (`name`, `version`, `exports`), plus
+  formatter/linter config at root level.
+- `package.json` — Package identity for npm workspace resolution (`name`,
+  `version`, `exports`, `devDependencies`). The root `package.json` defines
+  the workspace glob.
+
+**Root `package.json` (workspace definition):**
 
 ```json
 {
-  "dependencies": {
-    "react": "^19.0.0",
-    "@std/path": "npm:@jsr/std__path@^1.0.0"
-  },
-  "scripts": {
-    "dev": "deno run --allow-all main.ts",
-    "test": "deno test --allow-all"
-  }
+  "name": "@eser/stack",
+  "private": true,
+  "workspaces": ["pkg/@eser/*", "pkg/@cool/*"],
+  "scripts": { "cli": "deno run --allow-all ./pkg/@eser/cli/main.ts" }
 }
 ```
 
-tsconfig.json (TypeScript config):
+Cross-package imports (e.g., `import * as foo from "@eser/bar/baz"`) resolve
+through this npm workspace. Run `deno install` at root after adding a new
+package to wire up the graph.
+
+**Per-package `deno.json`:**
 
 ```json
 {
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "strict": true
-  }
+  "name": "@eser/my-pkg",
+  "version": "4.1.12",
+  "exports": { ".": "./mod.ts", "./sub": "./sub.ts" }
 }
 ```
 
-deno.json (formatter/linter only):
+**Per-package `package.json` (must mirror exports):**
 
 ```json
 {
-  "fmt": {
-    "lineWidth": 80,
-    "semiColons": true
-  },
-  "lint": {
-    "rules": {
-      "exclude": ["no-explicit-any"]
-    }
-  }
+  "name": "@eser/my-pkg",
+  "version": "4.1.12",
+  "type": "module",
+  "exports": { ".": "./mod.ts", "./sub": "./sub.ts" },
+  "devDependencies": { "@std/assert": "npm:@jsr/std__assert@^1.0.16" }
 }
 ```
 
-Incorrect (don't use deno.json for dependencies):
+**Root `deno.json` (lint/fmt config only, NO workspace key):**
 
 ```json
 {
-  "imports": {
-    "react": "npm:react@^19.0.0"
-  },
-  "tasks": {
-    "dev": "deno run main.ts"
-  }
+  "nodeModulesDir": "auto",
+  "lint": { "rules": { "tags": ["recommended"] } },
+  "exclude": [".git", "node_modules/", "etc/templates/"]
 }
+```
+
+**After adding a new package, ALWAYS run:**
+
+```bash
+deno install   # at project root — wires up workspace graph
+```
+
+Incorrect (don't skip package.json — workspace resolution will fail):
+
+```json
+// Having only deno.json without package.json means other packages
+// cannot import via bare specifiers like "@eser/my-pkg/sub"
 ```
 
 ---
@@ -424,10 +434,14 @@ Scope: All @eser/* packages
 Rule: Use `@eser/standards/runtime` for all filesystem, exec, and env access. Never use
 `Deno.*` directly. Enables cross-runtime (Deno/Node/Bun) and testability.
 
+Exception: CLI-only code (commands, tools that only run in the CLI context) may
+use `Deno.*` directly when `@eser/standards/runtime` doesn't expose the needed
+API (e.g., `Deno.cwd()`, `Deno.makeTempDir()`). Prefer the abstraction when available.
+
 Correct:
 ```typescript
-import { current } from "@eser/standards/runtime";
-const content = await current.fs.readTextFile(path);
+import * as standardsRuntime from "@eser/standards/runtime";
+const content = await standardsRuntime.current.fs.readTextFile(path);
 ```
 
 Incorrect:

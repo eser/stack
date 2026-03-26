@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as writer from "@eser/writer";
+import * as formats from "@eser/formats";
 import * as dotenv from "@eser/config/dotenv";
 import * as sync from "./sync.ts";
 
@@ -15,7 +15,7 @@ export interface GenerateOptions {
 
 export const generate = async (options: GenerateOptions): Promise<string> => {
   // Register formats lazily when needed
-  writer.registerBuiltinFormats();
+  formats.registerBuiltinFormats();
 
   // Extract resource information
   const resourceType = options.resource.type;
@@ -50,10 +50,10 @@ export const generate = async (options: GenerateOptions): Promise<string> => {
     );
   }
 
-  // Use @eser/writer to serialize resource
+  // Use @eser/formats to serialize resource
   const writeOptions = {
     pretty: true,
   };
 
-  return writer.serialize([resource], options.format, writeOptions);
+  return formats.serialize([resource], options.format, writeOptions);
 };

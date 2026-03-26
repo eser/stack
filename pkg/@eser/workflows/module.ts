@@ -3,45 +3,45 @@
 /**
  * Workflows module definition for @eser/shell integration.
  *
+ * Tool injection is the caller's responsibility — pass tools via
+ * createModuleDef() or let the CLI layer compose them.
+ *
  * @module
  */
 
 import { Module } from "@eser/shell/module";
+import type * as types from "./types.ts";
 
-export const moduleDef: Module = new Module({
-  description: "Workflow engine — run tool pipelines",
-  modules: {
-    run: {
-      description: "Run workflows by event or id",
-      load: async () => {
-        const [workflowsRun, codebaseValidation] = await Promise.all([
-          import("./run.ts"),
-          import("@eser/codebase/validation"),
-        ]);
+export const createModuleDef = (
+  tools?: readonly types.WorkflowTool[],
+): Module =>
+  new Module({
+    description: "Workflow engine — run tool pipelines",
+    modules: {
+      run: {
+        description: "Run workflows by event or id",
+        load: async () => {
+          const workflowsRun = await import("./run.ts");
 
-        const tools = codebaseValidation.getWorkflowTools();
+          return {
+            main: (args?: readonly string[]) =>
+              workflowsRun.main(args, { tools: tools ?? [] }),
+          };
+        },
+      },
+      list: {
+        description: "List available workflows and tools",
+        load: async () => {
+          const workflowsList = await import("./list.ts");
 
-        return {
-          main: (args?: readonly string[]) =>
-            workflowsRun.main(args, { tools }),
-        };
+          return {
+            main: (args?: readonly string[]) =>
+              workflowsList.main(args, { tools: tools ?? [] }),
+          };
+        },
       },
     },
-    list: {
-      description: "List available workflows and tools",
-      load: async () => {
-        const [workflowsList, codebaseValidation] = await Promise.all([
-          import("./list.ts"),
-          import("@eser/codebase/validation"),
-        ]);
+  });
 
-        const tools = codebaseValidation.getWorkflowTools();
-
-        return {
-          main: (args?: readonly string[]) =>
-            workflowsList.main(args, { tools }),
-        };
-      },
-    },
-  },
-});
+// Default module with no pre-injected tools (standalone use)
+export const moduleDef: Module = createModuleDef();

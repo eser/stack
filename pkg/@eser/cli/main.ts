@@ -21,7 +21,8 @@ import { Module } from "@eser/shell/module";
 import { moduleDef as aiModule } from "@eser/ai/module";
 import { moduleDef as kitModule } from "@eser/kit/module";
 import { moduleDef as codebaseModule } from "@eser/codebase/module";
-import { moduleDef as workflowsModule } from "@eser/workflows/module";
+import { createModuleDef as createWorkflowsModule } from "@eser/workflows/module";
+
 import { moduleDef as noskillsModule } from "@eser/noskills/module";
 import { moduleDef as larouxModule } from "@eser/laroux/module";
 import config from "./package.json" with { type: "json" };
@@ -32,7 +33,13 @@ const cliModule = new Module({
 cliModule.addSubmodule({ name: "ai" }, aiModule);
 cliModule.addSubmodule({ name: "kit" }, kitModule);
 cliModule.addSubmodule({ name: "codebase", aliases: ["cb"] }, codebaseModule);
-cliModule.addSubmodule({ name: "workflows", aliases: ["wf"] }, workflowsModule);
+await cliModule.addSubmoduleAsync(
+  { name: "workflows", aliases: ["wf"] },
+  (async () => {
+    const { getWorkflowTools } = await import("@eser/codebase/validation");
+    return createWorkflowsModule(getWorkflowTools());
+  })(),
+);
 cliModule.addSubmodule({ name: "noskills", aliases: ["nos"] }, noskillsModule);
 cliModule.addSubmodule({ name: "laroux" }, larouxModule);
 

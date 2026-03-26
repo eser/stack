@@ -33,6 +33,8 @@ node_modules/*
 
 # npm builds
 /pkg/@eser/cli/dist/*
+/pkg/@eser/laroux/dist/*
+/pkg/@eser/noskills/dist/*
 
 # Nix
 result

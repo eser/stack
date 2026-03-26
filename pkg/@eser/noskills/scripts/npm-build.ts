@@ -160,7 +160,10 @@ const main = async (): Promise<void> => {
     const result = await esbuild.build({
       entryPoints: [mainTsPath],
       bundle: true,
-      outfile: current.path.join(distDir, "noskills.js"),
+      outdir: distDir,
+      splitting: true,
+      entryNames: "noskills",
+      chunkNames: "chunks/[name]-[hash]",
       format: "esm",
       platform: "node",
       target: "node18",

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+export * as ai from "./@eser/ai/mod.ts";
 export * as appRuntime from "./@eser/app-runtime/mod.ts";
 export * as bundler from "./@eser/bundler/mod.ts";
 // export * as codebase from "./@eser/codebase/mod.ts";

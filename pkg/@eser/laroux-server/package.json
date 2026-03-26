@@ -1,6 +1,6 @@
 {
   "name": "@eser/laroux-server",
-  "version": "4.1.19",
+  "version": "4.1.20",
   "description": "Server runtime for the laroux.js framework",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,0 +1,193 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * State machine — valid phase transitions and enforcement.
+ *
+ * @module
+ */
+
+import type * as schema from "./schema.ts";
+
+// =============================================================================
+// Transition Map
+// =============================================================================
+
+const VALID_TRANSITIONS: Readonly<
+  Record<schema.Phase, readonly schema.Phase[]>
+> = {
+  UNINITIALIZED: ["IDLE"],
+  IDLE: ["DISCOVERY"],
+  DISCOVERY: ["SPEC_DRAFT"],
+  SPEC_DRAFT: ["SPEC_APPROVED"],
+  SPEC_APPROVED: ["BUILDING"],
+  BUILDING: ["DONE", "BLOCKED"],
+  BLOCKED: ["BUILDING"],
+  DONE: ["IDLE"],
+};
+
+// =============================================================================
+// Transition Validation
+// =============================================================================
+
+export const canTransition = (
+  from: schema.Phase,
+  to: schema.Phase,
+): boolean => {
+  const allowed = VALID_TRANSITIONS[from];
+
+  return allowed.includes(to);
+};
+
+export const assertTransition = (
+  from: schema.Phase,
+  to: schema.Phase,
+): void => {
+  if (!canTransition(from, to)) {
+    throw new Error(
+      `Invalid phase transition: ${from} → ${to}. Allowed: ${
+        VALID_TRANSITIONS[from].join(", ")
+      }`,
+    );
+  }
+};
+
+// =============================================================================
+// State Mutations
+// =============================================================================
+
+export const transition = (
+  state: schema.StateFile,
+  to: schema.Phase,
+): schema.StateFile => {
+  assertTransition(state.phase, to);
+
+  return { ...state, phase: to };
+};
+
+export const startSpec = (
+  state: schema.StateFile,
+  specName: string,
+  branch: string,
+): schema.StateFile => {
+  assertTransition(state.phase, "DISCOVERY");
+
+  return {
+    ...state,
+    phase: "DISCOVERY",
+    spec: specName,
+    branch,
+    discovery: { answers: [], completed: false },
+    specState: { path: null, status: "none" },
+    building: { iteration: 0, lastProgress: null },
+    decisions: [],
+  };
+};
+
+export const addDiscoveryAnswer = (
+  state: schema.StateFile,
+  questionId: string,
+  answer: string,
+): schema.StateFile => {
+  if (state.phase !== "DISCOVERY") {
+    throw new Error(`Cannot add discovery answer in phase: ${state.phase}`);
+  }
+
+  const existingAnswers = state.discovery.answers.filter(
+    (a) => a.questionId !== questionId,
+  );
+  const newAnswers = [...existingAnswers, { questionId, answer }];
+
+  return {
+    ...state,
+    discovery: {
+      answers: newAnswers,
+      completed: state.discovery.completed,
+    },
+  };
+};
+
+export const completeDiscovery = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  if (state.phase !== "DISCOVERY") {
+    throw new Error(`Cannot complete discovery in phase: ${state.phase}`);
+  }
+
+  return {
+    ...state,
+    phase: "SPEC_DRAFT",
+    discovery: { ...state.discovery, completed: true },
+    specState: {
+      path: `.nos/specs/${state.spec}/spec.md`,
+      status: "draft",
+    },
+  };
+};
+
+export const approveSpec = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  assertTransition(state.phase, "SPEC_APPROVED");
+
+  return {
+    ...state,
+    phase: "BUILDING",
+    specState: { ...state.specState, status: "approved" },
+    building: { iteration: 0, lastProgress: null },
+  };
+};
+
+export const advanceBuilding = (
+  state: schema.StateFile,
+  progress: string,
+): schema.StateFile => {
+  if (state.phase !== "BUILDING") {
+    throw new Error(`Cannot advance building in phase: ${state.phase}`);
+  }
+
+  return {
+    ...state,
+    building: {
+      iteration: state.building.iteration + 1,
+      lastProgress: progress,
+    },
+  };
+};
+
+export const blockSpec = (
+  state: schema.StateFile,
+  reason: string,
+): schema.StateFile => {
+  assertTransition(state.phase, "BLOCKED");
+
+  return {
+    ...state,
+    phase: "BLOCKED",
+    building: { ...state.building, lastProgress: `BLOCKED: ${reason}` },
+  };
+};
+
+export const addDecision = (
+  state: schema.StateFile,
+  decision: schema.Decision,
+): schema.StateFile => {
+  return {
+    ...state,
+    decisions: [...state.decisions, decision],
+  };
+};
+
+export const resetToIdle = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  return {
+    ...state,
+    phase: "IDLE",
+    spec: null,
+    branch: null,
+    discovery: { answers: [], completed: false },
+    specState: { path: null, status: "none" },
+    building: { iteration: 0, lastProgress: null },
+    decisions: [],
+  };
+};

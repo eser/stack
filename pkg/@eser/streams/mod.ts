@@ -36,3 +36,9 @@ export * as sources from "./sources/mod.ts";
 
 // Layers
 export * as layers from "./layers/mod.ts";
+
+// Span-based formatting
+export * as span from "./span.ts";
+
+// Renderers
+export * as renderers from "./renderers/mod.ts";

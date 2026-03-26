@@ -189,13 +189,13 @@ Deno.test("current.exec.spawnChild() should provide status promise", async () =>
 // Factory Tests
 // =============================================================================
 
-Deno.test("createRuntime() should create Deno runtime", () => {
-  const rt = createRuntime();
+Deno.test("createRuntime() should create Deno runtime", async () => {
+  const rt = await createRuntime();
   assert.assertEquals(rt.name, "deno");
   assert.assertEquals(rt.capabilities.fs, true);
 });
 
-Deno.test("createRuntime() with overrides should merge", () => {
+Deno.test("createRuntime() with overrides should merge", async () => {
   const mockEnv = {
     get: () => "mock",
     set: () => {},
@@ -204,7 +204,7 @@ Deno.test("createRuntime() with overrides should merge", () => {
     toObject: () => ({ MOCK: "value" }),
   };
 
-  const rt = createRuntime({ env: mockEnv });
+  const rt = await createRuntime({ env: mockEnv });
   assert.assertEquals(rt.env.get("anything"), "mock");
 });
 

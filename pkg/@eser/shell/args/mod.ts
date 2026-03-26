@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Cobra-like CLI framework
+ * CLI framework
  *
  * Provides a Command class for building CLI applications with:
  * - Hierarchical command trees (commands and subcommands)
@@ -47,8 +47,13 @@ export {
   type CommandContext,
   type CommandHandler,
   type CommandLike,
+  type DispatchableModule,
+  type FallbackHandler,
   type FlagDef,
   type FlagType,
+  type LazyCommandOptions,
+  type ModuleEntry,
+  type ModuleGroupOptions,
 } from "./types.ts";
 export { Command } from "./command.ts";
 export {

@@ -1,10 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Dependency resolver — detects the project type (Go, Deno, Node) and
- * generates human-readable dependency installation instructions.
- *
- * Phase 1: prints instructions only (does NOT auto-install).
+ * Dependency resolver — detects the project type (Go, Deno, Node),
+ * generates dependency installation commands, and executes them.
  *
  * @module
  */
@@ -118,6 +116,83 @@ const getDependencyInstructions = (
   return { instructions, warnings };
 };
 
-export { detectProjectType, getDependencyInstructions, PROJECT_FILES };
+// =============================================================================
+// Dependency installation
+// =============================================================================
 
-export type { DependencyInstructions, ProjectDetection, ProjectType };
+interface InstallResult {
+  readonly command: string;
+  readonly success: boolean;
+  readonly error?: string;
+}
+
+/**
+ * Execute dependency installation commands in the given directory.
+ * Runs each command sequentially, stops on first failure.
+ * In dry-run mode, returns the commands without executing.
+ */
+const installDependencies = async (
+  instructions: readonly string[],
+  cwd: string,
+  options?: { dryRun?: boolean; verbose?: boolean },
+): Promise<readonly InstallResult[]> => {
+  const results: InstallResult[] = [];
+
+  for (const instruction of instructions) {
+    if (options?.dryRun === true) {
+      results.push({ command: instruction, success: true });
+      continue;
+    }
+
+    if (options?.verbose === true) {
+      // deno-lint-ignore no-console
+      console.log(`  [install] ${instruction}`);
+    }
+
+    const parts = instruction.split(/\s+/);
+    const cmd = parts[0]!;
+    const args = parts.slice(1);
+
+    try {
+      const command = new Deno.Command(cmd, {
+        args,
+        cwd,
+        stdout: "inherit",
+        stderr: "inherit",
+      });
+
+      const output = await command.output();
+
+      if (!output.success) {
+        results.push({
+          command: instruction,
+          success: false,
+          error: `Exit code ${output.code}`,
+        });
+        break; // Stop on first failure
+      }
+
+      results.push({ command: instruction, success: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      results.push({ command: instruction, success: false, error: msg });
+      break;
+    }
+  }
+
+  return results;
+};
+
+export {
+  detectProjectType,
+  getDependencyInstructions,
+  installDependencies,
+  PROJECT_FILES,
+};
+
+export type {
+  DependencyInstructions,
+  InstallResult,
+  ProjectDetection,
+  ProjectType,
+};

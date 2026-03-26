@@ -116,3 +116,53 @@ export type CliError = {
  * ```
  */
 export type CliResult<T> = results.Result<T, CliError>;
+
+/**
+ * Options for lazily-loaded subcommands.
+ * The module is only imported when the command is invoked.
+ */
+export type LazyCommandOptions = {
+  /** Description shown in help text (without loading the module) */
+  readonly description: string;
+  /** Async factory that loads and returns the Command */
+  readonly load: () => Promise<CommandLike>;
+};
+
+/**
+ * A module that can be dispatched from the CLI.
+ * Used by moduleGroup for registry-style command namespaces.
+ */
+export type DispatchableModule = {
+  readonly main: (
+    cliArgs?: readonly string[],
+  ) => Promise<CliResult<void>>;
+};
+
+/**
+ * Entry for a single module within a module group.
+ */
+export type ModuleEntry = {
+  readonly description: string;
+  readonly category?: string;
+  readonly load: () => Promise<DispatchableModule>;
+  /** Flag metadata for shell completions (optional — avoids loading module) */
+  readonly flags?: readonly FlagDef[];
+};
+
+/**
+ * A group of lazily-loaded modules under a single namespace.
+ * Used for registry-style dispatch (e.g., `eser codebase <module>`).
+ */
+export type ModuleGroupOptions = {
+  readonly description: string;
+  readonly modules: Record<string, ModuleEntry>;
+  readonly aliases?: Record<string, string>;
+};
+
+/**
+ * Handler for unrecognized commands (fallback/catch-all).
+ */
+export type FallbackHandler = (
+  commandName: string,
+  args: readonly string[],
+) => Promise<CliResult<void>>;

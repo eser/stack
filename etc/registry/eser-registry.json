@@ -1,7 +1,7 @@
 {
   "$schema": "https://eser.live/registry/v1.json",
   "name": "eser",
-  "description": "Eser Ozvataf's personal development ecosystem",
+  "description": "Terminal client for Eser's work",
   "author": "Eser Ozvataf",
   "registryUrl": "https://raw.githubusercontent.com/eser/stack/main/etc/registry",
   "recipes": [

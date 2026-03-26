@@ -17,3 +17,10 @@ export type {
   ImageProps,
   ResponsiveImageProps,
 } from "./runtime/image/image.tsx";
+
+// Span rendering
+export { react as reactRenderer, SpanView } from "./span-renderer.tsx";
+
+// Function integration
+export { runFunction } from "./use-function.ts";
+export type { FunctionContext, RunFunctionOptions } from "./use-function.ts";

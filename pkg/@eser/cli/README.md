@@ -1,8 +1,13 @@
 # 🖥️ [@eser/cli](./)
 
-Eser's swiss-army-knife tooling for your terminal. A multi-purpose CLI that
-dispatches to library modules for codebase management, workflow automation,
-framework scaffolding, and more.
+Terminal client for Eser's work. A multi-purpose CLI that dispatches to library
+modules for codebase management, workflow automation, framework scaffolding, and
+more.
+
+Built on a hexagonal architecture: business logic lives in pure handlers
+(`@eser/registry/handlers`), output flows through Span-based formatting
+(`@eser/streams`), and the CLI is just one adapter — the same handlers can serve
+MCP tool calls, HTTP APIs, or tests.
 
 ## 🚀 Installation
 
@@ -31,6 +36,12 @@ deno run --allow-all jsr:@eser/cli <command>
 
 ```
 eser
+├── kit                   Recipe distribution & project scaffolding
+│   ├── list              Browse available recipes and templates
+│   ├── add               Add a recipe to your project
+│   ├── new               Create a new project from a template
+│   ├── clone             Clone a recipe from any GitHub repo
+│   └── update            Re-fetch and update an applied recipe
 ├── codebase              Codebase management tools
 │   ├── scaffolding       Initialize project from template
 │   ├── install           Install git hooks from .manifest.yml
@@ -78,6 +89,102 @@ eser
 ```
 
 ## 📋 Commands
+
+### kit
+
+Recipe distribution system — add code recipes, scaffold projects, and pull
+utilities from the eser ecosystem. Copy code recipes into your project across
+TypeScript and Go, at three scales: projects, structures, and utilities.
+
+```bash
+# Browse all available recipes
+npx eser kit list
+npx eser kit list --language go
+npx eser kit list --scale utility
+
+# Add a recipe to your current project
+npx eser kit add fp-pipe
+npx eser kit add ajan-httpfx
+npx eser kit add ajan-httpfx --no-install   # skip auto-installing deps
+npx eser kit add fp-pipe --dry-run          # preview without writing
+
+# Create a new project from a template
+npx eser kit new laroux-app --name my-site
+npx eser kit create go-service --name my-api   # "create" is an alias for "new"
+
+# Clone a recipe from any GitHub repo (not just the registry)
+npx eser kit clone eser/ajan
+
+# Re-fetch and update a previously applied recipe
+npx eser kit update ajan-httpfx
+```
+
+#### kit list
+
+```bash
+eser kit list [options]
+```
+
+| Option       | Description                                        |
+| ------------ | -------------------------------------------------- |
+| `--language` | Filter by language: `typescript`, `go`             |
+| `--scale`    | Filter by scale: `project`, `structure`, `utility` |
+| `--tag`      | Filter by tag                                      |
+| `--registry` | Custom registry URL                                |
+| `--local`    | Use local registry (auto-detected)                 |
+
+#### kit add
+
+```bash
+eser kit add <recipe> [options]
+```
+
+| Option            | Description                                       |
+| ----------------- | ------------------------------------------------- |
+| `--dry-run`       | Preview files without writing                     |
+| `--force`         | Overwrite existing files                          |
+| `--skip-existing` | Skip files that already exist                     |
+| `--no-install`    | Print dependency commands instead of running them |
+| `--verbose`       | Show detailed output                              |
+| `--var key=value` | Set template variables (repeatable)               |
+| `--registry`      | Custom registry URL                               |
+| `--local`         | Use local registry (auto-detected)                |
+
+#### kit new
+
+```bash
+eser kit new <template> [options]
+eser kit create <template> [options]   # alias
+```
+
+| Option            | Description                         |
+| ----------------- | ----------------------------------- |
+| `--name`          | Project name (defaults to template) |
+| `--var key=value` | Set template variables (repeatable) |
+| `--registry`      | Custom registry URL                 |
+| `--local`         | Use local registry (auto-detected)  |
+
+**Available templates:** `library-pkg`, `laroux-app`, `go-service`,
+`cf-workers-app`, `vite-app`, `cool-lime-app`, `jsx-runtime-app`, `vanilla-app`
+
+#### kit clone
+
+```bash
+eser kit clone <owner/repo> [options]
+```
+
+Clones a recipe from any GitHub repository that contains a `recipe.json` file.
+Not limited to the built-in registry.
+
+#### Custom registries
+
+Anyone can host their own recipe registry. Create an `eser-registry.json` file
+following the [registry schema](https://eser.live/registry/v1.json) and use:
+
+```bash
+npx eser kit list --registry https://example.com/my-registry.json
+npx eser kit add my-recipe --registry https://example.com/my-registry.json
+```
 
 ### workflows
 
@@ -222,6 +329,48 @@ eser version --bare   # version number only
 # Run diagnostic checks
 eser doctor
 ```
+
+## Architecture
+
+The CLI follows a hexagonal (ports & adapters) architecture where:
+
+1. **Handlers** (`@eser/registry/handlers/`) contain pure business logic
+2. **Streams** (`@eser/streams`) provide adapter-agnostic output via Spans
+3. **CLI commands** are thin adapters that wire handlers to terminal I/O
+
+```
+User types:  eser kit list --language go
+
+CLI adapter (commands/list.ts):
+  ├── Parse args with @std/cli/parse-args
+  ├── Create Output with ANSI renderer + stdout sink
+  ├── Run handler via task.runTask(listRecipes(input), { out })
+  └── Return ok/fail result
+
+Handler (handlers/list-recipes.ts):
+  ├── Fetch registry
+  ├── Filter recipes
+  ├── Write to ctx.out using Span constructors (bold, cyan, dim)
+  └── Return typed Result
+
+Output pipeline:
+  Spans → ANSI renderer → stdout sink → terminal
+```
+
+The same handler can be invoked with a different renderer + sink:
+
+- **MCP tool call**: `markdown()` renderer + `buffer()` sink → returns markdown
+- **HTTP API**: `plain()` renderer + `buffer()` sink → returns JSON
+- **Test**: `plain()` renderer + `buffer()` sink → assert on output
+
+### Key Packages
+
+| Package                   | Role                                               |
+| ------------------------- | -------------------------------------------------- |
+| `@eser/shell/args`        | Command class (routing, lazy loading, completions) |
+| `@eser/functions/task`    | Task<T,E,R> for DI-aware lazy computation          |
+| `@eser/streams`           | Output API + Span formatting + Renderers           |
+| `@eser/registry/handlers` | Pure business logic handlers                       |
 
 ## License
 

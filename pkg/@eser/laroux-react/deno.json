@@ -10,13 +10,17 @@
     ".": "./mod.ts",
     "./client": "./client.ts",
     "./protocol": "./protocol.ts",
-    "./client/bootstrap": "./client/bootstrap/index.ts"
+    "./client/bootstrap": "./client/bootstrap/index.ts",
+    "./span-renderer": "./span-renderer.tsx",
+    "./use-function": "./use-function.ts"
   },
   "publish": {
     "include": [
       "mod.ts",
       "client.ts",
       "protocol.ts",
+      "span-renderer.tsx",
+      "use-function.ts",
       "runtime/**/*.ts",
       "runtime/**/*.tsx",
       "client/**/*.ts",

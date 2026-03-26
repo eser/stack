@@ -490,14 +490,16 @@ Deno.test("output write after close should be ignored", async () => {
   assert.assertEquals(buf.items()[0], "before");
 });
 
-Deno.test("output write() with multiple args", async () => {
+Deno.test("output write() with multiple args renders to single chunk", async () => {
   const buf = buffer<unknown>();
   const out = output({ sink: buf });
 
   out.write("a", "b", "c");
   await out.flush();
 
-  assert.assertEquals(buf.items().length, 3);
+  // Multiple string args are normalized to Spans and rendered as one chunk
+  assert.assertEquals(buf.items().length, 1);
+  assert.assertEquals(buf.items()[0], "abc");
 });
 
 Deno.test("defineLayer with start and flush callbacks", async () => {
@@ -593,7 +595,7 @@ Deno.test("integration: tight write loop should not crash", async () => {
   const out = output({ sink: buf });
 
   for (let i = 0; i < 1000; i++) {
-    out.write(i);
+    out.write(String(i));
   }
 
   await out.flush();

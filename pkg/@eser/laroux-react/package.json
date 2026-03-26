@@ -8,13 +8,18 @@
     ".": "./mod.ts",
     "./client": "./client.ts",
     "./protocol": "./protocol.ts",
-    "./client/bootstrap": "./client/bootstrap/index.ts"
+    "./client/bootstrap": "./client/bootstrap/index.ts",
+    "./span-renderer": "./span-renderer.tsx",
+    "./use-function": "./use-function.ts"
   },
   "dependencies": {
+    "@eser/functions": "workspace:*",
     "@eser/laroux": "workspace:*",
     "@eser/laroux-bundler": "workspace:*",
     "@eser/logging": "workspace:*",
+    "@eser/primitives": "workspace:*",
     "@eser/standards": "workspace:*",
+    "@eser/streams": "workspace:*",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },

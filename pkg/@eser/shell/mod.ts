@@ -5,8 +5,8 @@
  *
  * Provides submodules:
  * - `@eser/shell/completions` - Shell completion script generators (bash, zsh, fish)
- * - `@eser/shell/args` - Cobra-like CLI framework with command trees
- * - `@eser/shell/exec` - dax-like shell command execution
+ * - `@eser/shell/args` - CLI framework with command trees, lazy loading, and completions
+ * - `@eser/shell/exec` - Shell command execution
  * - `@eser/shell/formatting` - Terminal formatting, colors, and output utilities
  *
  * @module

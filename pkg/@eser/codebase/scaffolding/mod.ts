@@ -75,7 +75,15 @@ export { hasVariables, substituteVariables } from "./processor.ts";
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const args = cliParseArgs.parseArgs(
+  const args: {
+    _: (string | number)[];
+    path?: string;
+    var?: string[];
+    force?: boolean;
+    interactive?: boolean;
+    "skip-post-install"?: boolean;
+    help?: boolean;
+  } = cliParseArgs.parseArgs(
     (cliArgs ?? standardsRuntime.current.process.args) as string[],
     {
       string: ["path", "var"],
@@ -83,7 +91,7 @@ export const main = async (
       alias: { p: "path", f: "force", i: "interactive", h: "help" },
       collect: ["var"],
     },
-  );
+  ) as ReturnType<typeof cliParseArgs.parseArgs>;
 
   if (args["help"]) {
     console.log(
@@ -110,9 +118,7 @@ export const main = async (
     sink: streams.sinks.stdout(),
   });
 
-  const specifier = args._[0] as string | undefined;
-
-  if (specifier === undefined) {
+  if (args._.length === 0) {
     await out.close();
     return results.fail({
       message:
@@ -127,6 +133,8 @@ export const main = async (
       exitCode: 1,
     });
   }
+
+  const specifier = String(args._[0]);
 
   const targetDir = (args["path"] as string | undefined) ?? ".";
   const force = args["force"] as boolean | undefined ?? false;

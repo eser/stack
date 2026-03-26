@@ -216,7 +216,7 @@ export const claudeCodeFactory: model.ProviderFactory = {
 
 const buildArgs = (
   cfg: config.ResolvedConfigTarget,
-  options: generation.GenerateTextOptions,
+  _options: generation.GenerateTextOptions,
   outputFormat: "json" | "text" | "stream-json",
 ): string[] => {
   const args: string[] = [];
@@ -233,13 +233,14 @@ const buildArgs = (
 
   args.push("--model", cfg.model);
 
-  // Default to single turn (no tool loop) unless overridden
-  const maxTurns = cfg.properties?.["maxTurns"] as number | undefined ?? 1;
-  args.push("--max-turns", String(maxTurns));
+  // Only limit turns if explicitly configured
+  const maxTurns = cfg.properties?.["maxTurns"] as number | undefined;
 
-  if (options.maxTokens !== undefined) {
-    args.push("--max-tokens", String(options.maxTokens));
+  if (maxTurns !== undefined) {
+    args.push("--max-turns", String(maxTurns));
   }
+
+  // Note: claude CLI does not support --max-tokens; token limits are model-level
 
   const allowedTools = cfg.properties?.["allowedTools"] as string[] | undefined;
 

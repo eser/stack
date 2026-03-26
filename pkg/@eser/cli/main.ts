@@ -24,7 +24,7 @@ import { moduleDef as codebaseModule } from "@eser/codebase/module";
 import { createModuleDef as createWorkflowsModule } from "@eser/workflows/module";
 
 import { moduleDef as noskillsModule } from "@eser/noskills/module";
-import { moduleDef as larouxModule } from "@eser/laroux/module";
+import { moduleDef as larouxModule } from "@eser/laroux-server/module";
 import config from "./package.json" with { type: "json" };
 
 const cliModule = new Module({

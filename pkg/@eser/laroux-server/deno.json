@@ -14,12 +14,21 @@
     ".": "./main.ts",
     "./config": "./config/load-config.ts",
     "./adapters/react": "./adapters/react/mod.ts",
-    "./action-registry": "./domain/action-registry.ts"
+    "./action-registry": "./domain/action-registry.ts",
+    "./module": "./module.ts",
+    "./cli": "./cli.ts",
+    "./commands/init": "./commands/init.ts",
+    "./commands/dev": "./commands/dev.ts",
+    "./commands/build": "./commands/build.ts",
+    "./commands/serve": "./commands/serve.ts"
   },
   "publish": {
     "include": [
       "main.ts",
       "options.ts",
+      "module.ts",
+      "cli.ts",
+      "commands/**/*.ts",
       "domain/**/*.ts",
       "adapters/**/*.ts",
       "adapters/**/*.tsx",
@@ -28,6 +37,7 @@
       "proxy/**/*.ts",
       "error-formatting.ts",
       "product-info.ts",
+      "package.json",
       "README.md",
       "LICENSE"
     ]

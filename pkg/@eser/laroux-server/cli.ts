@@ -4,7 +4,7 @@
  * laroux.js — standalone CLI entry point.
  *
  * Usage:
- *   deno run --allow-all ./main.ts <command> [options]
+ *   deno run --allow-all ./cli.ts <command> [options]
  *   npx laroux <command> [options]
  *
  * @module

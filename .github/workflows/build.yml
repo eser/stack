@@ -119,20 +119,35 @@ jobs:
         with:
           node-version: "latest"
 
-      - name: Build npm package
+      - name: Build eser npm package
         run: deno task cli build
 
-      - name: Smoke test — help
+      - name: Build noskills npm package
+        run: deno run --allow-all pkg/@eser/noskills/scripts/npm-build.ts
+
+      - name: Build laroux npm package
+        run: deno run --allow-all pkg/@eser/laroux/scripts/npm-build.ts
+
+      - name: Smoke test — eser help
         run: node pkg/@eser/cli/dist/eser.js --help
 
-      - name: Smoke test — validate-licenses
+      - name: Smoke test — eser validate-licenses
         run: node pkg/@eser/cli/dist/eser.js codebase validate-licenses || true
 
-      - name: Upload npm bundle
+      - name: Smoke test — noskills help
+        run: node pkg/@eser/noskills/dist/noskills.js --help
+
+      - name: Smoke test — laroux help
+        run: node pkg/@eser/laroux/dist/laroux.js --help
+
+      - name: Upload npm bundles
         uses: actions/upload-artifact@v7
         with:
           name: npm-bundle
-          path: pkg/@eser/cli/dist/
+          path: |
+            pkg/@eser/cli/dist/
+            pkg/@eser/noskills/dist/
+            pkg/@eser/laroux/dist/
 
   # ── Release: publish ────────────────────────────────────────────
   publish:
@@ -163,15 +178,22 @@ jobs:
           node-version: "latest"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Download npm bundle
+      - name: Download npm bundles
         uses: actions/download-artifact@v8
         with:
           name: npm-bundle
-          path: pkg/@eser/cli/dist/
 
-      - name: Publish to npm
+      - name: Publish eser to npm
         run: npm publish --provenance --access public
         working-directory: ./pkg/@eser/cli/dist
+
+      - name: Publish noskills to npm
+        run: npm publish --provenance --access public
+        working-directory: ./pkg/@eser/noskills/dist
+
+      - name: Publish laroux to npm
+        run: npm publish --provenance --access public
+        working-directory: ./pkg/@eser/laroux/dist
 
       - name: Summary
         run: |
@@ -179,7 +201,9 @@ jobs:
           echo "### Published v$VERSION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **JSR:** https://jsr.io/@eser" >> $GITHUB_STEP_SUMMARY
-          echo "- **npm:** https://www.npmjs.com/package/eser/v/$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **npm (eser):** https://www.npmjs.com/package/eser/v/$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **npm (noskills):** https://www.npmjs.com/package/noskills/v/$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **npm (laroux):** https://www.npmjs.com/package/laroux/v/$VERSION" >> $GITHUB_STEP_SUMMARY
 
   # ── Release: sync release notes ────────────────────────────────
   release-notes:

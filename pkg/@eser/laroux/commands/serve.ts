@@ -1,20 +1,18 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * laroux dev command handler
+ * laroux serve command
  *
- * Starts development server with hot reload.
- * Uses dynamic imports to keep CLI startup fast.
+ * Serves the production build locally.
  *
  * @module
  */
 
+import * as shellArgs from "@eser/shell/args";
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
-import * as shellArgs from "@eser/shell/args";
 
-// Valid log levels
 const VALID_LOG_LEVELS = [
   "trace",
   "debug",
@@ -25,30 +23,41 @@ const VALID_LOG_LEVELS = [
 ] as const;
 type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 
-export const devHandler = async (
-  ctx: shellArgs.CommandContext,
-): Promise<shellArgs.CliResult<void>> => {
+export const main = async (
+  args?: readonly string[],
+): Promise<results.Result<void, { message?: string; exitCode: number }>> => {
+  const { flags } = shellArgs.parseFlags(args ?? [], [
+    {
+      name: "port",
+      short: "p",
+      type: "number",
+      default: 8000,
+      description: "Server port",
+    },
+    {
+      name: "log-level",
+      type: "string",
+      default: "info",
+      description: "Log level",
+    },
+  ]);
+
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
 
-  out.writeln(span.cyan("\n⚡ Starting development server...\n"));
+  out.writeln(span.cyan("\n🚀 Serving production build...\n"));
 
-  // Get flags with defaults
-  const port = ctx.flags["port"] as number | undefined;
-  const logLevelInput = (ctx.flags["log-level"] as string) ?? "info";
-  const hmr = !(ctx.flags["no-hmr"] as boolean);
-  const open = (ctx.flags["open"] as boolean) ?? false;
+  const port = flags["port"] as number | undefined;
+  const logLevelInput = (flags["log-level"] as string) ?? "info";
 
-  // Validate log level
   const logLevel: LogLevel = VALID_LOG_LEVELS.includes(
       logLevelInput.toLowerCase() as LogLevel,
     )
     ? (logLevelInput.toLowerCase() as LogLevel)
     : "info";
 
-  // Dynamic imports - deferred until command execution for fast CLI startup
   const [
     { startServer },
     { reactRenderer, reactHtmlShellBuilder },
@@ -63,14 +72,11 @@ export const devHandler = async (
 
   await out.close();
 
-  // Start server with explicit plugin injection
   await startServer({
-    mode: "dev",
+    mode: "serve",
     port,
     logLevel,
-    hmr,
-    open,
-    // Explicit plugin injection (hexagonal architecture)
+    hmr: false,
     renderer: reactRenderer,
     htmlShell: reactHtmlShellBuilder,
     frameworkPlugin: reactPlugin,

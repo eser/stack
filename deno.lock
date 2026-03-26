@@ -1996,6 +1996,11 @@
           ]
         }
       },
+      "pkg/@eser/laroux": {
+        "dependencies": [
+          "npm:esbuild@~0.24.2"
+        ]
+      },
       "pkg/@eser/laroux-bundler": {
         "dependencies": [
           "jsr:@std/assert@^1.0.16",
@@ -2060,6 +2065,11 @@
             "npm:@opentelemetry/api@^1.9.0"
           ]
         }
+      },
+      "pkg/@eser/noskills": {
+        "dependencies": [
+          "npm:esbuild@~0.24.2"
+        ]
       },
       "pkg/@eser/parsing": {
         "dependencies": [

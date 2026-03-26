@@ -6,7 +6,7 @@
  * @module
  */
 
-import type * as cliParseArgs from "@std/cli/parse-args";
+import * as cliParseArgs from "@std/cli/parse-args";
 import type { FlagDef, FlagType } from "./types.ts";
 
 /**
@@ -89,6 +89,38 @@ export const extractFlags = (
   }
 
   return result;
+};
+
+/**
+ * Parse raw CLI arguments using flag definitions.
+ * High-level utility for DispatchableModule.main(args) implementations.
+ *
+ * @example
+ * ```ts
+ * import { parseFlags } from "@eser/shell/args";
+ *
+ * export const main = async (args?: readonly string[]) => {
+ *   const { positional, flags } = parseFlags(args ?? [], [
+ *     { name: "port", short: "p", type: "number", default: 8000, description: "Server port" },
+ *     { name: "verbose", type: "boolean", description: "Verbose output" },
+ *   ]);
+ *   const port = flags["port"] as number;
+ * };
+ * ```
+ */
+export const parseFlags = (
+  args: readonly string[],
+  flags: readonly FlagDef[],
+): {
+  positional: readonly string[];
+  flags: Readonly<Record<string, unknown>>;
+} => {
+  const parseOptions = buildParseOptions(flags);
+  const parsed = cliParseArgs.parseArgs(args as string[], parseOptions);
+  return {
+    positional: parsed._ as string[],
+    flags: extractFlags(parsed, flags),
+  };
 };
 
 /**

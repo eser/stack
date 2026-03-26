@@ -1,0 +1,17 @@
+{
+  "name": "@eser/noskills",
+  "version": "4.1.14",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./module": "./module.ts",
+    "./init": "./init.ts",
+    "./main": "./main.ts"
+  },
+  "dependencies": {
+    "@eser/primitives": "workspace:*",
+    "@eser/shell": "workspace:*",
+    "@eser/standards": "workspace:*",
+    "@eser/streams": "workspace:*"
+  }
+}

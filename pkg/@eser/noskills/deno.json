@@ -1,0 +1,13 @@
+{
+  "name": "@eser/noskills",
+  "version": "4.1.14",
+  "exports": {
+    ".": "./mod.ts",
+    "./module": "./module.ts",
+    "./init": "./init.ts",
+    "./main": "./main.ts"
+  },
+  "imports": {
+    "esbuild": "npm:esbuild@^0.24.2"
+  }
+}

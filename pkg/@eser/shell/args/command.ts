@@ -48,6 +48,7 @@ export class Command implements CommandLike {
   #children: Command[] = [];
   #lazyChildren: Map<string, LazyCommandOptions> = new Map();
   #moduleGroups: Map<string, ModuleGroupOptions> = new Map();
+  #moduleOptions?: ModuleGroupOptions;
   #fallbackHandler?: FallbackHandler;
   #handler?: CommandHandler;
   #argsConfig: ArgsConfig = { validation: "none" };
@@ -165,6 +166,16 @@ export class Command implements CommandLike {
   }
 
   /**
+   * Register modules for flat dispatch — no namespace prefix.
+   * Used by standalone CLIs (e.g., `noskills init` instead of `eser noskills init`).
+   * Internally used by Module.toCommand().
+   */
+  modules(options: ModuleGroupOptions): this {
+    this.#moduleOptions = options;
+    return this;
+  }
+
+  /**
    * Set a fallback handler for unrecognized commands.
    * Called when no child, lazy child, or module group matches.
    */
@@ -270,7 +281,8 @@ export class Command implements CommandLike {
 
     const hasSubcommands = this.#children.length > 0 ||
       this.#lazyChildren.size > 0 ||
-      this.#moduleGroups.size > 0;
+      this.#moduleGroups.size > 0 ||
+      this.#moduleOptions !== undefined;
 
     const parsed = cliParseArgs.parseArgs(argv, {
       ...parseOptions,
@@ -325,7 +337,19 @@ export class Command implements CommandLike {
         return results.ok(undefined);
       }
 
-      // 3. Check module groups
+      // 3. Check direct modules (flat dispatch, no namespace prefix)
+      if (this.#moduleOptions !== undefined) {
+        const resolvedDirect = this.#moduleOptions.aliases?.[firstArg] ??
+          firstArg;
+        const directEntry = this.#moduleOptions.modules[resolvedDirect];
+
+        if (directEntry !== undefined) {
+          const mod = await directEntry.load();
+          return await mod.main(positional.slice(1));
+        }
+      }
+
+      // 4. Check module groups
       for (const [groupName, group] of this.#moduleGroups) {
         if (firstArg === groupName) {
           const moduleName = positional[1];
@@ -354,7 +378,7 @@ export class Command implements CommandLike {
         }
       }
 
-      // 4. Fallback handler
+      // 5. Fallback handler
       if (this.#fallbackHandler !== undefined) {
         return await this.#fallbackHandler(firstArg, positional.slice(1));
       }
@@ -453,6 +477,17 @@ export class Command implements CommandLike {
         flags: [] as FlagDef[],
         children: [] as HelpCommandMeta[],
       })),
+      // Direct modules (flat dispatch)
+      ...(this.#moduleOptions !== undefined
+        ? Object.entries(this.#moduleOptions.modules).map(
+          ([name, entry]) => ({
+            name,
+            description: entry.description,
+            flags: (entry.flags ?? []) as FlagDef[],
+            children: [] as HelpCommandMeta[],
+          }),
+        )
+        : []),
       // Module groups
       ...[...this.#moduleGroups.entries()].map(([name, opts]) => ({
         name,
@@ -497,6 +532,24 @@ export class Command implements CommandLike {
           children: [],
           flags: [],
         });
+      }
+
+      // Include direct modules (flat dispatch)
+      if (cmd.#moduleOptions !== undefined) {
+        for (
+          const [modName, entry] of Object.entries(
+            cmd.#moduleOptions.modules,
+          )
+        ) {
+          children.push({
+            name: modName,
+            description: entry.description,
+            children: [],
+            flags: entry.flags !== undefined
+              ? flagsToCompletionFlags(entry.flags)
+              : [],
+          });
+        }
       }
 
       // Include module groups

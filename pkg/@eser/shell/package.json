@@ -6,6 +6,7 @@
     ".": "./mod.ts",
     "./completions": "./completions/mod.ts",
     "./args": "./args/mod.ts",
+    "./module": "./module.ts",
     "./exec": "./exec/mod.ts",
     "./env": "./env/mod.ts",
     "./formatting": "./formatting/mod.ts"

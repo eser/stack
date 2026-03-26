@@ -8,6 +8,8 @@
     "pkg/@cool/*"
   ],
   "scripts": {
-    "cli": "deno run --allow-all ./pkg/@eser/cli/main.ts"
+    "cli": "deno run --allow-all ./pkg/@eser/cli/main.ts",
+    "laroux-cli": "deno run --allow-all ./pkg/@eser/laroux/main.ts",
+    "noskills-cli": "deno run --allow-all ./pkg/@eser/noskills/main.ts"
   }
 }

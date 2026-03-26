@@ -6,15 +6,28 @@
     "./navigation": "./navigation/mod.ts",
     "./image": "./image/mod.ts",
     "./router": "./router/mod.ts",
-    "./config": "./config/mod.ts"
+    "./config": "./config/mod.ts",
+    "./module": "./module.ts",
+    "./main": "./main.ts",
+    "./commands/init": "./commands/init.ts",
+    "./commands/dev": "./commands/dev.ts",
+    "./commands/build": "./commands/build.ts",
+    "./commands/serve": "./commands/serve.ts"
+  },
+  "imports": {
+    "esbuild": "npm:esbuild@^0.24.2"
   },
   "publish": {
     "include": [
       "mod.ts",
+      "module.ts",
+      "main.ts",
       "navigation/**/*.ts",
       "image/**/*.ts",
       "router/**/*.ts",
       "config/**/*.ts",
+      "commands/**/*.ts",
+      "package.json",
       "README.md",
       "LICENSE"
     ]

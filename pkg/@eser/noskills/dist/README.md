@@ -1,3 +1,0 @@
-# noskills
-
-Not disclosed yet.

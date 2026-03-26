@@ -1,0 +1,17 @@
+{
+  "name": "@eser/ai",
+  "version": "4.1.15",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./adapters": "./adapters/mod.ts",
+    "./streams": "./streams/mod.ts"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
+    "@std/testing": "npm:@jsr/std__testing@^1.0.16",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "openai": "^4.77.0",
+    "@google/genai": "^0.11.0"
+  }
+}

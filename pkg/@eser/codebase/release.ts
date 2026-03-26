@@ -644,6 +644,7 @@ export const main = async (
         " This will bump version, generate changelog, commit, and push.",
       ),
     );
+    await out.flush();
 
     const proceed = await confirm("Proceed?");
     if (!proceed) {

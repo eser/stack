@@ -44,12 +44,12 @@ strives to offer you an intuitive and delightful development experience.
 - **Love Functional Programming**: `eserstack` not only supports but encourages
   a functional programming approach. This means you can write your code once and
   run it on various platforms without modifications.
-  [Dive into our functional programming tools](./fp/README.md)
+  [Dive into our functional programming tools](pkg/@eser/fp/README.md)
 
 - **Want Enhanced Testability**: With the removal of hard-coded dependencies and
   the promotion of loose coupling, `eserstack` enhances the testability of your
   codebase, ensuring that your applications run as expected.
-  [Explore our dependency injection system](./di/README.md)
+  [Explore our dependency injection system](pkg/@eser/di/README.md)
 
 - **Desire a Unified Approach**: Instead of juggling multiple libraries and
   tools, `eserstack` provides a unified toolkit where each component works
@@ -130,23 +130,25 @@ Visit the respective component page for detailed usage instructions.
 We strive to run the following code seamlessly across
 [all platforms we support](#platform-support):
 
-```js
-import * as runtime from "@eser/runtime";
+```ts
+import * as standardsRuntime from "@eser/standards/runtime";
 
-const home = (ctx: runtime.Context) => {
+const home = (ctx: standardsRuntime.Context) => {
   return ctx.results.jsx(<h1>Hello there!</h1>);
 };
 
-const profile = (ctx: runtime.Context) => {
+const profile = (ctx: standardsRuntime.Context) => {
   const slug = ctx.input.param("id");
   const db = ctx.di`db`;
 
   ctx.logger.info(`Visiting the profile of ${slug}!`);
 
-  return ctx.results.json(db.query("SELECT * FROM users WHERE slug=:slug", { slug }));
+  return ctx.results.json(
+    db.query("SELECT * FROM users WHERE slug=:slug", { slug }),
+  );
 };
 
-const router = (ctx: runtime.Context) => {
+const router = (ctx: standardsRuntime.Context) => {
   switch (true) {
     case ctx.route.match("/"):
       return home(ctx);
@@ -157,9 +159,9 @@ const router = (ctx: runtime.Context) => {
   }
 };
 
-const runtime = new runtime.Runtime();
-runtime.ci.register("db", new DatabaseConnection());
-runtime.listen(router); // or runtime.execute(fn);
+const app = new standardsRuntime.Runtime();
+app.di.register("db", new DatabaseConnection());
+app.listen(router); // or app.execute(fn);
 ```
 
 ### Platform Support

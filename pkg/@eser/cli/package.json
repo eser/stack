@@ -11,7 +11,7 @@
     "@eser/codebase": "workspace:*",
     "@eser/kit": "workspace:*",
     "@eser/noskills": "workspace:*",
-    "@eser/laroux": "workspace:*",
+    "@eser/laroux-server": "workspace:*",
     "@eser/workflows": "workspace:*",
     "@eser/functions": "workspace:*",
     "@eser/logging": "workspace:*",

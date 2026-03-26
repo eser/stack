@@ -19,15 +19,14 @@ import type * as workflows from "@eser/workflows/mod";
 // =============================================================================
 
 const SYSTEM_PROMPT =
-  `You are a commit message generator. Given a git diff, produce a concise conventional commit message.
+  `Output ONLY a conventional commit message. No explanation, no markdown, no code blocks, no bullet points.
 
-Rules:
-- Use conventional commit format: type(scope): description
-- Types: feat, fix, chore, docs, refactor, test, style, perf, ci, build
-- Keep the subject line under 72 characters
-- If the diff spans multiple areas, use the most significant type
-- Do NOT include a body — just the subject line
-- Output ONLY the commit message, nothing else`;
+Format: type(scope): description
+Types: feat, fix, chore, docs, refactor, test, style, perf, ci, build
+Max 72 characters. One line only. No body. No quotes. No backticks.
+
+Example output:
+feat(ai): add streaming support for Claude Code adapter`;
 
 // =============================================================================
 // Main
@@ -58,17 +57,32 @@ export const main = async (
       return results.ok(undefined);
     }
 
-    // Auto-detect AI provider
-    const { main: askMain } = await import("@eser/ai/commands/ask");
+    const message = await generateCommitMessage(diff);
 
-    // Use the ask command internally with the diff as context
-    const prompt = `Generate a commit message for this diff:\n\n${diff}`;
-    const result = await askMain(["--json", prompt]);
+    // Escape shell-special characters inside double quotes:
+    // " → \"   backtick → \`   $ → \$   ! → \!   \ → \\
+    const escaped = message
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/`/g, "\\`")
+      .replace(/\$/g, "\\$")
+      .replace(/!/g, "\\!");
 
-    if (results.isOk(result)) {
-      // The ask command with --json printed the result; we're done
-    }
-
+    out.writeln("");
+    out.writeln(span.bold("Plain Format:"));
+    out.writeln("```");
+    out.writeln(message);
+    out.writeln("```");
+    out.writeln("");
+    out.writeln(span.bold("Shell Command:"));
+    out.writeln("```");
+    out.writeln(`git commit -m "${escaped}"`);
+    out.writeln("```");
+    out.writeln("");
+    out.writeln(span.bold("Copy to Clipboard:"));
+    out.writeln("```");
+    out.writeln(`echo "${escaped}" | pbcopy`);
+    out.writeln("```");
     await out.close();
 
     return results.ok(undefined);
@@ -129,7 +143,7 @@ export const generateCommitMessage = async (
         `Generate a commit message for this diff:\n\n${diff}`,
       ),
     ],
-    maxTokens: 100,
+    maxTokens: 256,
   });
 
   await registry.close();

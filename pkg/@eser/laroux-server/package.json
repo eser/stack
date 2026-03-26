@@ -7,15 +7,22 @@
   "exports": {
     ".": "./main.ts",
     "./config": "./config/load-config.ts",
-    "./adapters/react": "./adapters/react/mod.ts"
+    "./adapters/react": "./adapters/react/mod.ts",
+    "./module": "./module.ts",
+    "./cli": "./cli.ts"
   },
   "dependencies": {
+    "@eser/codebase": "workspace:*",
     "@eser/http": "workspace:*",
     "@eser/laroux": "workspace:*",
     "@eser/laroux-bundler": "workspace:*",
     "@eser/laroux-react": "workspace:*",
     "@eser/logging": "workspace:*",
+    "@eser/primitives": "workspace:*",
+    "@eser/registry": "workspace:*",
+    "@eser/shell": "workspace:*",
     "@eser/standards": "workspace:*",
+    "@eser/streams": "workspace:*",
     "@std/cli": "npm:@jsr/std__cli@^1.0.25",
     "@std/media-types": "npm:@jsr/std__media-types@^1.1.0",
     "react": "^19.2.3",

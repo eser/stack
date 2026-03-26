@@ -73,8 +73,8 @@ export const main = async (
     { reactPlugin },
     { createTailwindPlugin },
   ] = await Promise.all([
-    import("@eser/laroux-server"),
-    import("@eser/laroux-server/adapters/react"),
+    import("../main.ts"),
+    import("../adapters/react/mod.ts"),
     import("@eser/laroux-bundler/adapters/react"),
     import("@eser/laroux-bundler/adapters/tailwindcss"),
   ]);

@@ -13,7 +13,7 @@ import type {
 } from "@eser/bundler";
 import type { BundleResult } from "./bundler.ts";
 import type { ClientComponent } from "./framework-plugin.ts";
-import type { LogLevel } from "../types.ts";
+import type { LogLevel } from "@eser/laroux/config";
 import { VIRTUAL_SRC_DIR } from "./virtual-source.ts";
 import * as logging from "@eser/logging";
 

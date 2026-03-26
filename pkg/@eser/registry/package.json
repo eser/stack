@@ -1,6 +1,6 @@
 {
   "name": "@eser/registry",
-  "version": "4.1.13",
+  "version": "4.1.14",
   "type": "module",
   "exports": {
     ".": "./mod.ts",

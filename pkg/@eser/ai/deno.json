@@ -1,6 +1,6 @@
 {
   "name": "@eser/ai",
-  "version": "4.1.21",
+  "version": "4.1.22",
   "exports": {
     ".": "./main.ts",
     "./mod": "./mod.ts",

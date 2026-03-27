@@ -1,6 +1,6 @@
 {
   "name": "@eser/cache",
-  "version": "4.1.23",
+  "version": "4.1.24",
   "type": "module",
   "exports": {
     ".": "./mod.ts",

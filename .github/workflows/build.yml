@@ -27,7 +27,7 @@ jobs:
   # ── Always runs ─────────────────────────────────────────────────
   validate:
     name: Validate
-    runs-on: ubicloud-standard-4-arm
+    runs-on: ubuntu-latest-arm
     timeout-minutes: 20
 
     permissions:
@@ -84,7 +84,7 @@ jobs:
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       startsWith(github.event.head_commit.message, 'chore(codebase): release v')
-    runs-on: ubicloud-standard-2-arm
+    runs-on: ubuntu-latest-arm
     permissions:
       contents: write
 
@@ -114,7 +114,7 @@ jobs:
   smoke-test:
     name: npm Smoke Test
     needs: tag-release
-    runs-on: ubicloud-standard-4-arm
+    runs-on: ubuntu-latest-arm
     timeout-minutes: 10
 
     permissions:
@@ -266,7 +266,7 @@ jobs:
   release-notes:
     name: Sync Release Notes
     needs: publish
-    runs-on: ubicloud-standard-2-arm
+    runs-on: ubuntu-latest-arm
 
     permissions:
       contents: write
@@ -301,7 +301,7 @@ jobs:
   compile-binaries:
     name: Compile Binaries
     needs: tag-release
-    runs-on: ubicloud-standard-4-arm
+    runs-on: ubuntu-latest-arm
     timeout-minutes: 15
 
     permissions:
@@ -341,7 +341,7 @@ jobs:
   upload-assets:
     name: Upload & Sign Assets
     needs: [compile-binaries, release-notes]
-    runs-on: ubicloud-standard-2-arm
+    runs-on: ubuntu-latest-arm
     timeout-minutes: 10
 
     permissions:
@@ -395,7 +395,7 @@ jobs:
   update-homebrew:
     name: Update Homebrew Tap
     needs: upload-assets
-    runs-on: ubicloud-standard-2-arm
+    runs-on: ubuntu-latest-arm
     timeout-minutes: 5
     continue-on-error: true
 
@@ -439,7 +439,7 @@ jobs:
   update-nix-hashes:
     name: Update Nix Hashes
     needs: upload-assets
-    runs-on: ubicloud-standard-2-arm
+    runs-on: ubuntu-latest-arm
     timeout-minutes: 5
     continue-on-error: true
 

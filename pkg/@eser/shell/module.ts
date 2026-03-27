@@ -133,7 +133,7 @@ export class Module {
 
       if (registration.aliases !== undefined) {
         for (const alias of registration.aliases) {
-          cmd.group(alias, opts);
+          cmd.groupAlias(alias, registration.name, opts);
         }
       }
     }

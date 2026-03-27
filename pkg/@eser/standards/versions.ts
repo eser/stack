@@ -18,9 +18,16 @@ export const compareTextVersions = (
   targetVersion: string,
 ): boolean => {
   const currentSemanticVersion = semver.parse(currentVersion);
-  const targetSemanticVersion = semver.parseRange(targetVersion);
 
-  return compareSemanticVersions(currentSemanticVersion, targetSemanticVersion);
+  // Try parsing as a plain version first (e.g., "4.1.23"),
+  // fall back to range parsing (e.g., "^4.1.0", ">=4.0.0")
+  try {
+    const targetAsSemVer = semver.parse(targetVersion);
+    return compareSemanticVersions(currentSemanticVersion, targetAsSemVer);
+  } catch {
+    const targetAsRange = semver.parseRange(targetVersion);
+    return compareSemanticVersions(currentSemanticVersion, targetAsRange);
+  }
 };
 
 export function maxVersion(

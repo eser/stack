@@ -13,6 +13,7 @@ import type { FlagDef } from "./types.ts";
  */
 export type HelpCommandMeta = {
   readonly name: string;
+  readonly aliases?: readonly string[];
   readonly description?: string;
   readonly usage?: string;
   readonly examples?: readonly string[];
@@ -55,9 +56,16 @@ const generateUsage = (
 const generateCommands = (children: readonly HelpCommandMeta[]): string[] => {
   if (children.length === 0) return [];
 
-  const maxLen = Math.max(...children.map((c) => c.name.length));
+  const nameColumn = (c: HelpCommandMeta): string => {
+    if (c.aliases !== undefined && c.aliases.length > 0) {
+      return `${c.name}, ${c.aliases.join(", ")}`;
+    }
+    return c.name;
+  };
+
+  const maxLen = Math.max(...children.map((c) => nameColumn(c).length));
   const lines = children.map(
-    (c) => `  ${padRight(c.name, maxLen + 2)}${c.description ?? ""}`,
+    (c) => `  ${padRight(nameColumn(c), maxLen + 2)}${c.description ?? ""}`,
   );
   return ["Commands:", ...lines, ""];
 };

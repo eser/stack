@@ -48,6 +48,7 @@ export class Command implements CommandLike {
   #children: Command[] = [];
   #lazyChildren: Map<string, LazyCommandOptions> = new Map();
   #groups: Map<string, GroupOptions> = new Map();
+  #groupAliases: Map<string, string> = new Map(); // alias → primary name
   #groupOptions?: GroupOptions;
   #fallbackHandler?: FallbackHandler;
   #handler?: CommandHandler;
@@ -162,6 +163,16 @@ export class Command implements CommandLike {
    */
   group(name: string, options: GroupOptions): this {
     this.#groups.set(name, options);
+    return this;
+  }
+
+  /**
+   * Register a group alias — dispatches to an existing group
+   * but doesn't appear as a separate entry in help output.
+   */
+  groupAlias(alias: string, primaryName: string, options: GroupOptions): this {
+    this.#groups.set(alias, options);
+    this.#groupAliases.set(alias, primaryName);
     return this;
   }
 
@@ -464,6 +475,7 @@ export class Command implements CommandLike {
       // Regular children
       ...this.#children.map((c) => ({
         name: c.#name,
+        aliases: c.#aliases.length > 0 ? c.#aliases : undefined,
         description: c.#description,
         usage: c.#usage,
         examples: c.#examples,
@@ -488,13 +500,22 @@ export class Command implements CommandLike {
           }),
         )
         : []),
-      // Groups
-      ...[...this.#groups.entries()].map(([name, opts]) => ({
-        name,
-        description: opts.description,
-        flags: [] as FlagDef[],
-        children: [] as HelpCommandMeta[],
-      })),
+      // Groups (exclude aliases, they are shown inline with primary)
+      ...[...this.#groups.entries()]
+        .filter(([name]) => !this.#groupAliases.has(name))
+        .map(([name, opts]) => {
+          const aliases = [...this.#groupAliases.entries()]
+            .filter(([_, primary]) => primary === name)
+            .map(([alias]) => alias);
+
+          return {
+            name,
+            aliases: aliases.length > 0 ? aliases : undefined,
+            description: opts.description,
+            flags: [] as FlagDef[],
+            children: [] as HelpCommandMeta[],
+          };
+        }),
     ];
 
     const meta: HelpCommandMeta = {

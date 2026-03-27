@@ -135,7 +135,7 @@ const main = async (): Promise<void> => {
   const pkgDir = current.path.dirname(scriptDir);
   const projectRoot = current.path.resolve(pkgDir, "../../..");
   const distDir = current.path.join(pkgDir, "dist");
-  const mainTsPath = current.path.join(pkgDir, "main.ts");
+  const mainTsPath = current.path.join(pkgDir, "cli.ts");
 
   // deno-lint-ignore no-console
   console.log("Building @eser/laroux for npm...\n");
@@ -258,7 +258,7 @@ const main = async (): Promise<void> => {
   // deno-lint-ignore no-console
   console.log("\n✓ Build complete!");
   // deno-lint-ignore no-console
-  console.log("\nTo publish: cd pkg/@eser/laroux/dist && npm publish");
+  console.log("\nTo publish: cd pkg/@eser/laroux-server/dist && npm publish");
 };
 
 main();

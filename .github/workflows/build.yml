@@ -126,7 +126,7 @@ jobs:
         run: deno run --allow-all pkg/@eser/noskills/scripts/npm-build.ts
 
       - name: Build laroux npm package
-        run: deno run --allow-all pkg/@eser/laroux/scripts/npm-build.ts
+        run: deno run --allow-all pkg/@eser/laroux-server/scripts/npm-build.ts
 
       - name: Smoke test — eser help
         run: node pkg/@eser/cli/dist/eser.js --help
@@ -138,7 +138,7 @@ jobs:
         run: node pkg/@eser/noskills/dist/noskills.js --help
 
       - name: Smoke test — laroux help
-        run: node pkg/@eser/laroux/dist/laroux.js --help
+        run: node pkg/@eser/laroux-server/dist/laroux.js --help
 
       - name: Upload npm bundles
         uses: actions/upload-artifact@v7
@@ -147,7 +147,7 @@ jobs:
           path: |
             pkg/@eser/cli/dist/
             pkg/@eser/noskills/dist/
-            pkg/@eser/laroux/dist/
+            pkg/@eser/laroux-server/dist/
 
   # ── Release: publish ────────────────────────────────────────────
   publish:
@@ -193,7 +193,7 @@ jobs:
 
       - name: Publish laroux to npm
         run: npm publish --provenance --access public
-        working-directory: ./pkg/@eser/laroux/dist
+        working-directory: ./pkg/@eser/laroux-server/dist
 
       - name: Summary
         run: |

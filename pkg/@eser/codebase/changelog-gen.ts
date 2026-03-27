@@ -253,7 +253,8 @@ export const generateChangelogSection = (
   const grouped = groupBySection(commits);
 
   if (grouped.size === 0) {
-    return "";
+    const today = new Date().toISOString().split("T")[0];
+    return `## ${version} - ${today}\n\n_Maintenance release._`;
   }
 
   const today = new Date().toISOString().split("T")[0];
@@ -389,12 +390,6 @@ export const generateChangelog = async (
   const parsed = parseConventionalCommits(commits);
   const deduped = deduplicateCommits(parsed);
   const content = generateChangelogSection(version, deduped);
-
-  if (content === "") {
-    throw new Error(
-      "No user-facing changes found (all commits are chore/ci/test). Nothing to add to CHANGELOG.",
-    );
-  }
 
   if (!dryRun) {
     const changelogPath = standards.crossRuntime.runtime.path.join(

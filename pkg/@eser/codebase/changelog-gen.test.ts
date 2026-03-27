@@ -199,13 +199,14 @@ Deno.test("generateChangelogSection - produces markdown", () => {
   assert.assertStringIncludes(section, "- fix crash");
 });
 
-Deno.test("generateChangelogSection - empty when all skipped", () => {
+Deno.test("generateChangelogSection - maintenance section when all skipped", () => {
   const commits: ConventionalCommit[] = [
     { type: "chore", scope: undefined, message: "bump", hash: "a" },
   ];
 
   const section = generateChangelogSection("1.0.0", commits);
-  assert.assertEquals(section, "");
+  assert.assertStringIncludes(section, "## 1.0.0 -");
+  assert.assertStringIncludes(section, "_Maintenance release._");
 });
 
 Deno.test("generateChangelogSection - section ordering", () => {

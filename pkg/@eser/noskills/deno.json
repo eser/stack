@@ -1,6 +1,6 @@
 {
   "name": "@eser/noskills",
-  "version": "4.1.22",
+  "version": "4.1.23",
   "exports": {
     ".": "./main.ts",
     "./mod": "./mod.ts",

@@ -1,6 +1,6 @@
 {
   "name": "@eser/crypto",
-  "version": "4.1.22",
+  "version": "4.1.23",
   "exports": {
     ".": "./mod.ts",
     "./hash": "./hash.ts"

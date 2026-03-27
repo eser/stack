@@ -182,6 +182,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: npm-bundle
+          path: pkg/
 
       - name: Publish eser to npm
         run: npm publish --provenance --access public

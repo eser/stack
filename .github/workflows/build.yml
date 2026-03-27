@@ -140,14 +140,23 @@ jobs:
       - name: Smoke test — laroux help
         run: node pkg/@eser/laroux-server/dist/laroux.js --help
 
-      - name: Upload npm bundles
+      - name: Upload eser npm bundle
         uses: actions/upload-artifact@v7
         with:
-          name: npm-bundle
-          path: |
-            pkg/@eser/cli/dist/
-            pkg/@eser/noskills/dist/
-            pkg/@eser/laroux-server/dist/
+          name: npm-eser
+          path: pkg/@eser/cli/dist/
+
+      - name: Upload noskills npm bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-noskills
+          path: pkg/@eser/noskills/dist/
+
+      - name: Upload laroux npm bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-laroux
+          path: pkg/@eser/laroux-server/dist/
 
   # ── Release: publish ────────────────────────────────────────────
   publish:
@@ -178,23 +187,35 @@ jobs:
           node-version: "latest"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Download npm bundles
+      - name: Download eser npm bundle
         uses: actions/download-artifact@v8
         with:
-          name: npm-bundle
-          path: pkg/
+          name: npm-eser
+          path: npm-dist/eser/
+
+      - name: Download noskills npm bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-noskills
+          path: npm-dist/noskills/
+
+      - name: Download laroux npm bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-laroux
+          path: npm-dist/laroux/
 
       - name: Publish eser to npm
         run: npm publish --provenance --access public
-        working-directory: ./pkg/@eser/cli/dist
+        working-directory: npm-dist/eser
 
       - name: Publish noskills to npm
         run: npm publish --provenance --access public
-        working-directory: ./pkg/@eser/noskills/dist
+        working-directory: npm-dist/noskills
 
       - name: Publish laroux to npm
         run: npm publish --provenance --access public
-        working-directory: ./pkg/@eser/laroux-server/dist
+        working-directory: npm-dist/laroux
 
       - name: Summary
         run: |

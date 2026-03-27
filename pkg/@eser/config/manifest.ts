@@ -1,16 +1,22 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Shared manifest file loader for `.manifest.yml` / `.manifest.yaml`.
+ * Shared manifest file loader for `.eser/manifest.yml`.
+ * Falls back to legacy `.manifest.yml` at repo root for migration.
  * Used by both @eser/workflows (for workflow config) and @eser/codebase (for hook installation).
  * @module
  */
 
-import * as yaml from "@std/yaml";
+import * as yaml from "yaml";
 import { NotFoundError, runtime } from "@eser/standards/cross-runtime";
 
 /** Manifest filenames to search for (in order of priority). */
-export const MANIFEST_FILENAMES = [".manifest.yml", ".manifest.yaml"];
+export const MANIFEST_FILENAMES = [
+  ".eser/manifest.yml",
+  ".eser/manifest.yaml",
+  ".manifest.yml", // legacy fallback
+  ".manifest.yaml", // legacy fallback
+];
 
 /**
  * Load and parse a manifest file from a directory.

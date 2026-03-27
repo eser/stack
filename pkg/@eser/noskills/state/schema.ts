@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * State schema — types for .nos/.state/state.json and .nos/config.json.
+ * State schema — types for .eser/.state/state.json and .eser/manifest.yml.
  *
  * @module
  */
@@ -16,7 +16,7 @@ export type Phase =
   | "DISCOVERY"
   | "SPEC_DRAFT"
   | "SPEC_APPROVED"
-  | "BUILDING"
+  | "EXECUTING"
   | "BLOCKED"
   | "DONE";
 
@@ -44,10 +44,10 @@ export type SpecState = {
 };
 
 // =============================================================================
-// Building
+// Execution
 // =============================================================================
 
-export type BuildingState = {
+export type ExecutionState = {
   readonly iteration: number;
   readonly lastProgress: string | null;
 };
@@ -65,7 +65,7 @@ export type Decision = {
 };
 
 // =============================================================================
-// State File (.nos/.state/state.json)
+// State File (.eser/.state/state.json)
 // =============================================================================
 
 export type StateFile = {
@@ -75,7 +75,7 @@ export type StateFile = {
   readonly branch: string | null;
   readonly discovery: DiscoveryState;
   readonly specState: SpecState;
-  readonly building: BuildingState;
+  readonly execution: ExecutionState;
   readonly decisions: readonly Decision[];
 };
 
@@ -86,12 +86,12 @@ export const createInitialState = (): StateFile => ({
   branch: null,
   discovery: { answers: [], completed: false },
   specState: { path: null, status: "none" },
-  building: { iteration: 0, lastProgress: null },
+  execution: { iteration: 0, lastProgress: null },
   decisions: [],
 });
 
 // =============================================================================
-// Config (.nos/config.json)
+// Config (noskills section in .eser/manifest.yml)
 // =============================================================================
 
 // AI provider IDs — matches @eser/ai provider names
@@ -104,26 +104,34 @@ export type ProjectTraits = {
   readonly testRunner: string | null;
 };
 
-export type NosConfig = {
-  readonly version: string;
+export type CodingToolId =
+  | "claude-code"
+  | "cursor"
+  | "kiro"
+  | "copilot"
+  | "windsurf";
+
+export type NosManifest = {
   readonly concerns: readonly string[];
-  readonly tools: readonly ToolId[];
+  readonly tools: readonly CodingToolId[];
+  readonly providers: readonly ToolId[];
   readonly project: ProjectTraits;
 };
 
-export const createInitialConfig = (
+export const createInitialManifest = (
   concerns: readonly string[],
-  tools: readonly ToolId[],
+  tools: readonly CodingToolId[],
+  providers: readonly ToolId[],
   project: ProjectTraits,
-): NosConfig => ({
-  version: "0.1.0",
+): NosManifest => ({
   concerns,
   tools,
+  providers,
   project,
 });
 
 // =============================================================================
-// Concern Definition (.nos/concerns/*.json)
+// Concern Definition (.eser/concerns/*.json)
 // =============================================================================
 
 export type ConcernExtra = {

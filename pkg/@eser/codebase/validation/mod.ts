@@ -4,13 +4,13 @@
  * Validation system for codebase checks
  *
  * Provides a unified `validate()` function that runs all applicable validators
- * based on the project's stack configuration in `.manifest.yml`.
+ * based on the project's stack configuration in `.eser/manifest.yml`.
  *
  * @example
  * ```typescript
  * import { validate } from "@eser/codebase/validation";
  *
- * // Run all validators (defaults to all when no .manifest.yml)
+ * // Run all validators (defaults to all when no .eser/manifest.yml)
  * const result = await validate();
  *
  * if (!result.passed) {
@@ -70,10 +70,10 @@ export {
 /**
  * Run all applicable validators
  *
- * Loads project configuration from `.manifest.yml`, determines which validators
+ * Loads project configuration from `.eser/manifest.yml`, determines which validators
  * to run based on the stack configuration, and returns aggregated results.
  *
- * When no `.manifest.yml` exists, all validators are run by default.
+ * When no `.eser/manifest.yml` exists, all validators are run by default.
  *
  * @param options - Validation options
  * @returns Validation result with all validator outputs
@@ -108,7 +108,7 @@ export const validate = async (
     }
 
     // Check if required stack is present
-    // When projectStack is empty (no .manifest.yml), run all validators
+    // When projectStack is empty (no .eser/manifest.yml), run all validators
     if (validator.requiredStacks.length > 0 && projectStack.length > 0) {
       const hasStack = validator.requiredStacks.some((s) =>
         projectStack.includes(s)
@@ -195,7 +195,7 @@ export const main = async (
 
   // Load project config to show stack info
   const config = await loadProjectConfig(root ?? ".");
-  const stackInfo = config?.stack?.join(", ") ?? "all (no .manifest.yml)";
+  const stackInfo = config?.stack?.join(", ") ?? "all (no .eser/manifest.yml)";
 
   out.writeln(span.text("Validating codebase...\n"));
   out.writeln(span.text("Stack: "), span.cyan(stackInfo), span.text("\n"));

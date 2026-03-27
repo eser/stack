@@ -6,12 +6,17 @@
  * @module
  */
 
-import * as yaml from "@std/yaml";
+import * as yaml from "yaml";
 import { NotFoundError, runtime } from "@eser/standards/cross-runtime";
 import type { TemplateConfig, TemplateVariable } from "./types.ts";
 
 /** Default config filenames to look for */
-const CONFIG_FILENAMES = [".manifest.yml", ".manifest.yaml"];
+const CONFIG_FILENAMES = [
+  ".eser/manifest.yml",
+  ".eser/manifest.yaml",
+  ".manifest.yml", // legacy fallback
+  ".manifest.yaml", // legacy fallback
+];
 
 /**
  * Load template configuration from a directory

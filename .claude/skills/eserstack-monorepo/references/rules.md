@@ -173,7 +173,7 @@ vim ./pkg/@eser/fp/deno.json
 |------|---------|
 | `deno.json` | Root config (lint rules, unstable features, excludes) |
 | `package.json` | npm workspace root, deno task scripts |
-| `.manifest.yml` | Pre-commit hooks (20+ checks) |
+| `.eser/manifest.yml` | Pre-commit hooks (20+ checks) |
 | `pkg/@eser/*/deno.json` | Per-package TS config |
 | `pkg/@eser/*/mod.ts` | TS package entry points |
 | `apps/services/go.mod` | Go module definition + tool directives |

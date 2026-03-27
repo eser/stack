@@ -1,12 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Sync engine — regenerates tool-specific instruction files from .nos/rules/.
+ * Sync engine — regenerates tool-specific instruction files from .eser/rules/.
  *
  * @module
  */
 
 import type * as schema from "../state/schema.ts";
+import * as persistence from "../state/persistence.ts";
 import * as claude from "./claude.ts";
 import * as cursor from "./cursor.ts";
 import * as kiro from "./kiro.ts";
@@ -19,7 +20,7 @@ import { runtime } from "@eser/standards/cross-runtime";
 // =============================================================================
 
 export const loadRules = async (root: string): Promise<readonly string[]> => {
-  const rulesDir = `${root}/.nos/rules`;
+  const rulesDir = `${root}/${persistence.paths.rulesDir}`;
   const rules: string[] = [];
 
   try {
@@ -31,7 +32,9 @@ export const loadRules = async (root: string): Promise<readonly string[]> => {
         const content = await runtime.fs.readTextFile(
           `${rulesDir}/${entry.name}`,
         );
-        rules.push(content.trim());
+        // Use first line as the rule summary for bullet rendering
+        const firstLine = content.trim().split("\n")[0] ?? content.trim();
+        rules.push(firstLine);
       }
     }
   } catch {
@@ -47,7 +50,7 @@ export const loadRules = async (root: string): Promise<readonly string[]> => {
 
 const GENERATORS: Readonly<
   Record<
-    schema.ToolId,
+    schema.CodingToolId,
     (root: string, rules: readonly string[]) => Promise<void>
   >
 > = {
@@ -60,7 +63,7 @@ const GENERATORS: Readonly<
 
 export const syncAll = async (
   root: string,
-  tools: readonly schema.ToolId[],
+  tools: readonly schema.CodingToolId[],
 ): Promise<readonly string[]> => {
   const rules = await loadRules(root);
   const synced: string[] = [];

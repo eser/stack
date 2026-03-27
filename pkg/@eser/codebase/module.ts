@@ -18,7 +18,7 @@ export const moduleDef: Module = new Module({
       load: () => import("./scaffolding/mod.ts"),
     },
     install: {
-      description: "Install git hooks from .manifest.yml",
+      description: "Install git hooks from .eser/manifest.yml",
       category: "Setup",
       load: () => import("./install.ts"),
     },

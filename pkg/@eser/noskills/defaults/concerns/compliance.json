@@ -1,0 +1,21 @@
+{
+  "id": "compliance",
+  "name": "Compliance",
+  "description": "Audit trails, access controls, data handling rules. Every change is traceable. Verification is mandatory, not optional.",
+  "extras": [
+    {
+      "questionId": "reversibility",
+      "text": "Is the audit trail preserved on rollback?"
+    },
+    {
+      "questionId": "verification",
+      "text": "Is there an audit/traceability requirement?"
+    }
+  ],
+  "specSections": ["Audit Trail", "Access Control", "Data Handling"],
+  "reminders": [
+    "Every state change must be traceable",
+    "Verification is mandatory, not optional",
+    "Document data handling and retention policies"
+  ]
+}

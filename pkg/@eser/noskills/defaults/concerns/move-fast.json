@@ -1,0 +1,21 @@
+{
+  "id": "move-fast",
+  "name": "Move Fast",
+  "description": "Optimize for shipping speed. Acceptable trade-offs on polish. Good enough is good enough. Reduce ceremony.",
+  "extras": [
+    {
+      "questionId": "scope_boundary",
+      "text": "Which polish items can be deferred to v2?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "What is the minimum viable 5-star version?"
+    }
+  ],
+  "specSections": ["v1 vs v2 Scope"],
+  "reminders": [
+    "Good enough is good enough — ship it",
+    "Reduce ceremony, optimize for feedback speed",
+    "Mark polish items for v2 explicitly"
+  ]
+}

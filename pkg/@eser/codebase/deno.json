@@ -57,7 +57,7 @@
     "@std/semver": "jsr:@std/semver@^1.0.7",
     "@std/tar": "jsr:@std/tar@^0.1.9",
     "@std/toml": "jsr:@std/toml@^1.0.5",
-    "@std/yaml": "jsr:@std/yaml@^1.0.10",
+    "yaml": "npm:yaml@^2",
     "octokit": "npm:octokit@^5.0.5"
   }
 }

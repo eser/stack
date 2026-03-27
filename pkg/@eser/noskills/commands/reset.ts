@@ -40,7 +40,7 @@ export const main = async (
   if (specName !== null) {
     out.writeln(
       span.dim(
-        `Spec "${specName}" state cleared. Files in .nos/specs/${specName}/ preserved.`,
+        `Spec "${specName}" state cleared. Files in .eser/specs/${specName}/ preserved.`,
       ),
     );
   }

@@ -3,7 +3,7 @@
   "name": "eser",
   "description": "Terminal client for Eser's work",
   "author": "Eser Ozvataf",
-  "registryUrl": "https://raw.githubusercontent.com/eser/stack/main/etc/registry",
+  "registryUrl": "https://raw.githubusercontent.com/eser/stack/main/.eser",
   "recipes": [
     {
       "name": "library-pkg",
@@ -135,7 +135,7 @@
     },
     {
       "name": "cf-workers-app",
-      "description": "Cloudflare Workers application with Vitest",
+      "description": "Cloudflare Workers application",
       "language": "typescript",
       "scale": "project",
       "tags": ["cloudflare", "workers", "edge", "serverless"],

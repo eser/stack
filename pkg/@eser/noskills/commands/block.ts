@@ -26,14 +26,14 @@ export const main = async (
   const reason = args?.join(" ") ?? "No reason given";
   const state = await persistence.readState(root);
 
-  if (state.phase !== "BUILDING") {
+  if (state.phase !== "EXECUTING") {
     out.writeln(span.red(`Cannot block in phase: ${state.phase}`));
     await out.close();
 
     return results.fail({ exitCode: 1 });
   }
 
-  const newState = machine.blockSpec(state, reason);
+  const newState = machine.blockExecution(state, reason);
   await persistence.writeState(root, newState);
 
   out.writeln(span.yellow("⚠"), " Spec blocked: ", span.dim(reason));

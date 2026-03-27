@@ -39,6 +39,14 @@ export const moduleDef: Module = new Module({
       description: "Reset current spec state",
       load: () => import("./commands/reset.ts"),
     },
+    done: {
+      description: "Mark spec execution as complete",
+      load: () => import("./commands/done.ts"),
+    },
+    concern: {
+      description: "Manage concerns (add, remove, list)",
+      load: () => import("./commands/concern.ts"),
+    },
     sync: {
       description: "Regenerate tool-specific files",
       load: () => import("./commands/sync.ts"),

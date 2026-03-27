@@ -2,7 +2,7 @@
 
 /**
  * Git hook installation — installs, uninstalls, and reports status of
- * managed git hooks derived from `.manifest.yml` workflow events.
+ * managed git hooks derived from `.eser/manifest.yml` workflow events.
  *
  * @module
  */
@@ -123,7 +123,7 @@ const renderer = streams.renderers.ansi();
 // =============================================================================
 
 /**
- * Install managed git hooks based on `.manifest.yml` workflow events.
+ * Install managed git hooks based on `.eser/manifest.yml` workflow events.
  *
  * Flags:
  *   --force     Overwrite non-managed hooks
@@ -139,7 +139,9 @@ export const main = async (
   });
 
   if (parsed.help) {
-    console.log("eser codebase install — Install git hooks from .manifest.yml");
+    console.log(
+      "eser codebase install — Install git hooks from .eser/manifest.yml",
+    );
     console.log("");
     console.log("Flags:");
     console.log("  --force, -f     Overwrite non-managed hooks");
@@ -171,7 +173,7 @@ export const main = async (
   const raw = await configManifest.loadManifest(cwd);
   if (raw === null) {
     out.writeln(
-      span.red("Error: no .manifest.yml found in current directory"),
+      span.red("Error: no .eser/manifest.yml found in current directory"),
     );
     await out.close();
     return primitives.results.fail({ exitCode: 1 });
@@ -407,7 +409,7 @@ export const statusMain = async (
   const raw = await configManifest.loadManifest(cwd);
   if (raw === null) {
     out.writeln(
-      span.red("Error: no .manifest.yml found in current directory"),
+      span.red("Error: no .eser/manifest.yml found in current directory"),
     );
     await out.close();
     return primitives.results.fail({ exitCode: 1 });

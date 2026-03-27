@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Spec generator — creates .nos/specs/{name}/spec.md from discovery answers.
+ * Spec generator — creates .eser/specs/{name}/spec.md from discovery answers.
  *
  * @module
  */

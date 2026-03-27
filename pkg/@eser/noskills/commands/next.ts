@@ -43,7 +43,7 @@ export const main = async (
   }
 
   const state = await persistence.readState(root);
-  const config = await persistence.readConfig(root);
+  const config = await persistence.readManifest(root);
 
   if (config === null) {
     const output = JSON.stringify({ error: "No config found" });
@@ -94,7 +94,7 @@ import type * as schema from "../state/schema.ts";
 const handleAnswer = async (
   root: string,
   state: schema.StateFile,
-  _config: schema.NosConfig,
+  _config: schema.NosManifest,
   activeConcerns: readonly schema.ConcernDefinition[],
   answer: string,
 ): Promise<schema.StateFile> => {
@@ -115,22 +115,42 @@ const handleAnswer = async (
 
       // Check if discovery is complete
       if (questions.isDiscoveryComplete(newState.discovery.answers)) {
+        // Generate spec draft first — if it fails, don't transition state
+        const preTransitionState = newState;
         newState = machine.completeDiscovery(newState);
 
-        // Generate spec draft
-        await specGenerator.generateSpec(root, newState, activeConcerns);
+        try {
+          await specGenerator.generateSpec(root, newState, activeConcerns);
+        } catch {
+          // Revert to pre-transition state if spec gen fails
+          return preTransitionState;
+        }
       }
 
       return newState;
     }
 
-    case "BUILDING": {
-      return machine.advanceBuilding(state, answer);
+    case "SPEC_APPROVED": {
+      // User is ready — start execution
+      return machine.startExecution(state);
+    }
+
+    case "EXECUTING": {
+      return machine.advanceExecution(state, answer);
     }
 
     case "BLOCKED": {
-      // Unblock and return to building
-      return machine.transition(state, "BUILDING");
+      // Unblock and return to execution, record the resolution
+      let newState = machine.transition(state, "EXECUTING");
+      newState = {
+        ...newState,
+        execution: {
+          ...newState.execution,
+          lastProgress: `Resolved: ${answer}`,
+        },
+      };
+
+      return newState;
     }
 
     default:

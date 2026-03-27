@@ -65,7 +65,7 @@ export type Validator = {
 };
 
 /**
- * Project configuration from .manifest.yml
+ * Project configuration from .eser/manifest.yml
  */
 export type ProjectConfig = {
   /** Template name (for scaffolded projects) */

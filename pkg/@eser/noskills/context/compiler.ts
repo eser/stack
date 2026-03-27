@@ -20,7 +20,8 @@ import * as concerns from "./concerns.ts";
 export type NextOutput =
   | DiscoveryOutput
   | SpecDraftOutput
-  | BuildingOutput
+  | SpecApprovedOutput
+  | ExecutionOutput
   | BlockedOutput
   | DoneOutput
   | IdleOutput;
@@ -50,8 +51,17 @@ export type SpecDraftOutput = {
   };
 };
 
-export type BuildingOutput = {
-  readonly phase: "BUILDING";
+export type SpecApprovedOutput = {
+  readonly phase: "SPEC_APPROVED";
+  readonly instruction: string;
+  readonly specPath: string;
+  readonly transition: {
+    readonly onStart: string;
+  };
+};
+
+export type ExecutionOutput = {
+  readonly phase: "EXECUTING";
   readonly instruction: string;
   readonly context: ContextBlock;
   readonly transition: {
@@ -107,8 +117,9 @@ export const compile = (
     case "SPEC_DRAFT":
       return compileSpecDraft(state);
     case "SPEC_APPROVED":
-    case "BUILDING":
-      return compileBuilding(state, activeConcerns, rules);
+      return compileSpecApproved(state);
+    case "EXECUTING":
+      return compileExecution(state, activeConcerns, rules);
     case "BLOCKED":
       return compileBlocked(state);
     case "DONE":
@@ -180,17 +191,25 @@ const compileSpecDraft = (state: schema.StateFile): SpecDraftOutput => ({
   transition: { onApprove: "noskills approve" },
 });
 
-const compileBuilding = (
+const compileSpecApproved = (state: schema.StateFile): SpecApprovedOutput => ({
+  phase: "SPEC_APPROVED",
+  instruction:
+    "Spec is approved and ready. When the user is ready to start, begin execution.",
+  specPath: state.specState.path ?? "",
+  transition: { onStart: `noskills next --answer="start"` },
+});
+
+const compileExecution = (
   state: schema.StateFile,
   activeConcerns: readonly schema.ConcernDefinition[],
   rules: readonly string[],
-): BuildingOutput => {
+): ExecutionOutput => {
   const tensions = concerns.detectTensions(activeConcerns);
 
-  const output: BuildingOutput = {
-    phase: "BUILDING",
+  const output: ExecutionOutput = {
+    phase: "EXECUTING",
     instruction:
-      "Read the spec and implement the next task. Report progress when done.",
+      "Read the spec and execute the next task. Report progress when done.",
     context: {
       rules,
       concernReminders: concerns.getReminders(activeConcerns) as string[],
@@ -198,7 +217,7 @@ const compileBuilding = (
     transition: {
       onComplete: `noskills next --answer="..."`,
       onBlocked: `noskills block "reason"`,
-      iteration: state.building.iteration,
+      iteration: state.execution.iteration,
     },
   };
 
@@ -212,7 +231,7 @@ const compileBuilding = (
 const compileBlocked = (state: schema.StateFile): BlockedOutput => ({
   phase: "BLOCKED",
   instruction: "A decision is needed. Ask the user.",
-  reason: state.building.lastProgress ?? "Unknown",
+  reason: state.execution.lastProgress ?? "Unknown",
   transition: { onResolved: `noskills next --answer="..."` },
 });
 
@@ -220,7 +239,7 @@ const compileDone = (state: schema.StateFile): DoneOutput => ({
   phase: "DONE",
   summary: {
     spec: state.spec,
-    iterations: state.building.iteration,
+    iterations: state.execution.iteration,
     decisionsCount: state.decisions.length,
   },
 });

@@ -2,7 +2,7 @@
 
 import * as jsonc from "@std/jsonc";
 import * as toml from "@std/toml";
-import * as yaml from "@std/yaml";
+import * as yaml from "yaml";
 import { runtime, searchFileHierarchy } from "@eser/standards/cross-runtime";
 import * as primitives from "./primitives.ts";
 

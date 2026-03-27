@@ -61,7 +61,7 @@ const ruleAdd = async (
   if (ruleText === undefined || ruleText.length === 0) {
     out.writeln(
       span.red("Please provide a rule: "),
-      span.bold('noskills rule add "Use Vitest for all tests"'),
+      span.bold('noskills rule add "Use Deno Tests for all tests"'),
     );
     await out.close();
 
@@ -87,7 +87,7 @@ const ruleAdd = async (
   out.writeln(span.green("✔"), " Rule added: ", span.dim(ruleText));
 
   // Auto-sync
-  const config = await persistence.readConfig(root);
+  const config = await persistence.readManifest(root);
   if (config !== null && config.tools.length > 0) {
     await syncEngine.syncAll(root, config.tools);
     out.writeln(span.dim("  Tool files synced."));
@@ -150,9 +150,8 @@ const rulePromote = async (
     return results.fail({ exitCode: 1 });
   }
 
-  // Promote = add as rule (same as rule add)
-  out.writeln(span.dim("Promoting decision to rule..."));
   await out.close();
 
+  // Promote = add as rule (same as rule add)
   return await ruleAdd(args);
 };

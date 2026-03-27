@@ -23,7 +23,7 @@ export const tool: FileTool = createFileTool({
       return [];
     }
 
-    // Check excludes from .manifest.yml config
+    // Check excludes from .eser/manifest.yml config
     const excludes = (options["exclude"] as string[] | undefined) ?? [];
     if (excludes.some((pattern) => file.path.includes(pattern))) {
       return [];

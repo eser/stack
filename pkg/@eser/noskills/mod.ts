@@ -10,13 +10,15 @@ export { moduleDef } from "./module.ts";
 
 // Public API for programmatic consumers
 export type {
+  CodingToolId,
   ConcernDefinition,
   Decision,
-  NosConfig,
+  ExecutionState,
+  NosManifest,
   Phase,
   StateFile,
 } from "./state/schema.ts";
-export { createInitialConfig, createInitialState } from "./state/schema.ts";
+export { createInitialManifest, createInitialState } from "./state/schema.ts";
 export * as machine from "./state/machine.ts";
 export * as persistence from "./state/persistence.ts";
 export * as compiler from "./context/compiler.ts";

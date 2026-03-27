@@ -9,7 +9,7 @@ release tooling, and a workflow integration layer.
 ### Install git hooks
 
 ```bash
-# Install hooks from .manifest.yml into .git/hooks/
+# Install hooks from .eser/manifest.yml into .git/hooks/
 npx eser codebase install
 
 # Show installed hook status
@@ -36,12 +36,12 @@ npx eser codebase validate-commit-msg --message "feat(core): add feature"
 
 ### Setup
 
-| Command       | Description                            |
-| ------------- | -------------------------------------- |
-| `scaffolding` | Initialize project from template       |
-| `install`     | Install git hooks from `.manifest.yml` |
-| `uninstall`   | Remove managed git hooks               |
-| `status`      | Show git hook installation status      |
+| Command       | Description                                 |
+| ------------- | ------------------------------------------- |
+| `scaffolding` | Initialize project from template            |
+| `install`     | Install git hooks from `.eser/manifest.yml` |
+| `uninstall`   | Remove managed git hooks                    |
+| `status`      | Show git hook installation status           |
 
 ### Release
 
@@ -91,9 +91,9 @@ Run any tool with `--help` for options:
 npx eser codebase validate-filenames --help
 ```
 
-## 📋 Configuration (.manifest.yml)
+## 📋 Configuration (.eser/manifest.yml)
 
-Tools are configured through `.manifest.yml` at the project root. Each tool
+Tools are configured through `.eser/manifest.yml` at the project root. Each tool
 receives its options from the workflow step configuration:
 
 ```yaml

@@ -9,6 +9,6 @@
     "@std/csv": "jsr:@std/csv@^1.0.6",
     "@std/testing": "jsr:@std/testing@^1.0.16",
     "@std/toml": "jsr:@std/toml@^1.0.11",
-    "@std/yaml": "jsr:@std/yaml@^1.0.10"
+    "yaml": "npm:yaml@^2"
   }
 }

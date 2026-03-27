@@ -35,9 +35,11 @@ export const main = async (
     out.writeln("Usage: eser kit clone <specifier> [options]");
     out.writeln();
     out.writeln("Specifier formats:");
-    out.writeln("  eser/ajan                  GitHub repo (default branch)");
     out.writeln(
-      "  gh:eser/ajan#v1.0          GitHub repo at specific tag/branch",
+      "  owner/repo                 GitHub repo (default branch)",
+    );
+    out.writeln(
+      "  owner/repo#ref             GitHub repo at specific tag/branch",
     );
     out.writeln();
     out.writeln("Options:");

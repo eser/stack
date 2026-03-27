@@ -7,6 +7,7 @@
  */
 
 import type * as schema from "./schema.ts";
+import { paths } from "./persistence.ts";
 
 // =============================================================================
 // Transition Map
@@ -19,9 +20,9 @@ const VALID_TRANSITIONS: Readonly<
   IDLE: ["DISCOVERY"],
   DISCOVERY: ["SPEC_DRAFT"],
   SPEC_DRAFT: ["SPEC_APPROVED"],
-  SPEC_APPROVED: ["BUILDING"],
-  BUILDING: ["DONE", "BLOCKED"],
-  BLOCKED: ["BUILDING"],
+  SPEC_APPROVED: ["EXECUTING"],
+  EXECUTING: ["DONE", "BLOCKED"],
+  BLOCKED: ["EXECUTING"],
   DONE: ["IDLE"],
 };
 
@@ -78,7 +79,7 @@ export const startSpec = (
     branch,
     discovery: { answers: [], completed: false },
     specState: { path: null, status: "none" },
-    building: { iteration: 0, lastProgress: null },
+    execution: { iteration: 0, lastProgress: null },
     decisions: [],
   };
 };
@@ -118,7 +119,7 @@ export const completeDiscovery = (
     phase: "SPEC_DRAFT",
     discovery: { ...state.discovery, completed: true },
     specState: {
-      path: `.nos/specs/${state.spec}/spec.md`,
+      path: paths.specFile(state.spec!),
       status: "draft",
     },
   };
@@ -131,30 +132,41 @@ export const approveSpec = (
 
   return {
     ...state,
-    phase: "BUILDING",
+    phase: "SPEC_APPROVED",
     specState: { ...state.specState, status: "approved" },
-    building: { iteration: 0, lastProgress: null },
   };
 };
 
-export const advanceBuilding = (
+export const startExecution = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  assertTransition(state.phase, "EXECUTING");
+
+  return {
+    ...state,
+    phase: "EXECUTING",
+    execution: { iteration: 0, lastProgress: null },
+  };
+};
+
+export const advanceExecution = (
   state: schema.StateFile,
   progress: string,
 ): schema.StateFile => {
-  if (state.phase !== "BUILDING") {
-    throw new Error(`Cannot advance building in phase: ${state.phase}`);
+  if (state.phase !== "EXECUTING") {
+    throw new Error(`Cannot advance execution in phase: ${state.phase}`);
   }
 
   return {
     ...state,
-    building: {
-      iteration: state.building.iteration + 1,
+    execution: {
+      iteration: state.execution.iteration + 1,
       lastProgress: progress,
     },
   };
 };
 
-export const blockSpec = (
+export const blockExecution = (
   state: schema.StateFile,
   reason: string,
 ): schema.StateFile => {
@@ -163,7 +175,7 @@ export const blockSpec = (
   return {
     ...state,
     phase: "BLOCKED",
-    building: { ...state.building, lastProgress: `BLOCKED: ${reason}` },
+    execution: { ...state.execution, lastProgress: `BLOCKED: ${reason}` },
   };
 };
 
@@ -187,7 +199,7 @@ export const resetToIdle = (
     branch: null,
     discovery: { answers: [], completed: false },
     specState: { path: null, status: "none" },
-    building: { iteration: 0, lastProgress: null },
+    execution: { iteration: 0, lastProgress: null },
     decisions: [],
   };
 };

@@ -32,9 +32,13 @@ export const main = async (
     out.writeln(
       span.green("✔"),
       " Spec approved. Phase: ",
-      span.cyan("BUILDING"),
+      span.cyan("SPEC_APPROVED"),
     );
-    out.writeln("Run ", span.bold("noskills next"), " to start building.");
+    out.writeln(
+      "When ready, run ",
+      span.bold('noskills next --answer="start"'),
+      " to begin execution.",
+    );
   } else if (state.phase === "DISCOVERY" && state.discovery.completed) {
     // Already completed discovery, move to spec draft
     out.writeln(span.dim("Discovery complete. Spec draft already generated."));

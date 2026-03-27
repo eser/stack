@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Optional config file loader for `.manifest.yml` files.
+ * Optional config file loader for `.eser/manifest.yml` files.
  *
  * The workflow engine does not require file-based configuration —
  * workflows can be constructed programmatically via the builder.
@@ -21,7 +21,7 @@
  * @module
  */
 
-import * as yaml from "@std/yaml";
+import * as yaml from "yaml";
 import * as configManifest from "@eser/config/manifest";
 import type { WorkflowsConfig } from "./types.ts";
 
@@ -116,7 +116,7 @@ export const parseConfig = (content: string): WorkflowsConfig => {
 /**
  * Load workflow configuration from a directory.
  *
- * Looks for `.manifest.yml` or `.manifest.yaml` in the specified directory.
+ * Looks for `.eser/manifest.yml` or `.eser/manifest.yaml` in the specified directory.
  *
  * @param dir - Directory to load config from
  * @returns Parsed configuration or null if no config file exists

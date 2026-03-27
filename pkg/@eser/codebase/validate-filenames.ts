@@ -50,7 +50,7 @@ const SNAKE_CASE = /^[a-z0-9_./[\]@-]+$/;
 /** kebab-case pattern: lowercase letters, digits, hyphens, dots */
 const KEBAB_CASE = /^[a-z0-9./[\]@-]+$/;
 
-/** Default excluded paths (fallback when no .manifest.yml config) */
+/** Default excluded paths (fallback when no .eser/manifest.yml config) */
 const DEFAULT_EXCLUDES = [
   ".claude/",
   ".github/",

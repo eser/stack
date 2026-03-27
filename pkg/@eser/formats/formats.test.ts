@@ -434,7 +434,7 @@ Deno.test("registry unregister() should be no-op for unknown format", () => {
 
 Deno.test("deserialize() should throw DeserializationError for malformed YAML", () => {
   assert.assertThrows(
-    () => deserialize(":\n  :\n    - :", "yaml"),
+    () => deserialize("{\ninvalid: yaml: [broken", "yaml"),
     Error,
   );
 });

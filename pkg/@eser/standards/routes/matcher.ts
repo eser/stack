@@ -17,9 +17,9 @@ import type {
 /**
  * Escape special regex characters in a string.
  */
+// lgtm[js/incomplete-sanitization] — intentional regex metacharacter escaping, not general sanitization
 const escapeRegex = (str: string): string => {
-  // Escape all regex metacharacters
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // codeql[js/incomplete-sanitization]
 };
 
 /**

@@ -14,7 +14,7 @@ const getFunctionParametersFromString = (fnSerialized: string) => {
   // Use bounded quantifiers to prevent ReDoS
   // Match function parameters: function name(...) or (...) =>
   const match = limitedInput.match(
-    /(?:function\s*\w{0,100}\s*\(|\()([^)]{0,2000})(?:\)|=>)/,
+    /(?:function\s{0,100}\w{0,100}\s{0,100}\(|\()([^)]{0,2000})\)/,
   );
 
   if (match?.[1]) {

@@ -27,7 +27,7 @@ jobs:
   # ── Always runs ─────────────────────────────────────────────────
   validate:
     name: Validate
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-4-arm
     timeout-minutes: 20
 
     permissions:
@@ -44,10 +44,21 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+            node_modules
+          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
+          restore-keys: deno-${{ runner.arch }}-
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: "1.25"
+          cache: true
           cache-dependency-path: apps/services/go.sum
 
       - name: Run validation
@@ -73,13 +84,15 @@ jobs:
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       startsWith(github.event.head_commit.message, 'chore(codebase): release v')
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2-arm
     permissions:
       contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Create and push version tag
         run: |
@@ -101,7 +114,7 @@ jobs:
   smoke-test:
     name: npm Smoke Test
     needs: tag-release
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-4-arm
     timeout-minutes: 10
 
     permissions:
@@ -110,9 +123,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+            node_modules
+          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
+          restore-keys: deno-${{ runner.arch }}-
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -162,7 +187,7 @@ jobs:
   publish:
     name: Publish
     needs: [tag-release, smoke-test]
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2-arm
     timeout-minutes: 15
 
     permissions:
@@ -177,6 +202,16 @@ jobs:
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+            node_modules
+          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
+          restore-keys: deno-${{ runner.arch }}-
 
       - name: Publish to JSR
         run: deno publish
@@ -231,7 +266,7 @@ jobs:
   release-notes:
     name: Sync Release Notes
     needs: publish
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2-arm
 
     permissions:
       contents: write
@@ -245,8 +280,20 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
 
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+            node_modules
+          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
+          restore-keys: deno-${{ runner.arch }}-
+
       - name: Sync CHANGELOG to GitHub Release
-        run: deno task cli codebase gh release-notes --create-if-missing
+        run: |
+          VERSION=$(cat VERSION)
+          deno task cli codebase gh release-notes --tag "v$VERSION" --create-if-missing
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -254,7 +301,7 @@ jobs:
   compile-binaries:
     name: Compile Binaries
     needs: tag-release
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-4-arm
     timeout-minutes: 15
 
     permissions:
@@ -263,11 +310,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+            node_modules
+          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
+          restore-keys: deno-${{ runner.arch }}-
 
       - name: Compile for all platforms
         run: deno run --allow-all ./pkg/@eser/cli/scripts/compile.ts
@@ -282,7 +341,7 @@ jobs:
   upload-assets:
     name: Upload & Sign Assets
     needs: [compile-binaries, release-notes]
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2-arm
     timeout-minutes: 10
 
     permissions:
@@ -292,6 +351,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Download binary bundle
         uses: actions/download-artifact@v8
@@ -334,7 +395,7 @@ jobs:
   update-homebrew:
     name: Update Homebrew Tap
     needs: upload-assets
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2-arm
     timeout-minutes: 5
     continue-on-error: true
 
@@ -344,9 +405,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+            node_modules
+          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
+          restore-keys: deno-${{ runner.arch }}-
 
       - name: Generate GitHub App token
         id: app-token
@@ -366,7 +439,7 @@ jobs:
   update-nix-hashes:
     name: Update Nix Hashes
     needs: upload-assets
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2-arm
     timeout-minutes: 5
     continue-on-error: true
 
@@ -376,9 +449,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+            node_modules
+          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
+          restore-keys: deno-${{ runner.arch }}-
 
       - name: Generate GitHub App token
         id: app-token

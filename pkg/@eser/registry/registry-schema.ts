@@ -329,8 +329,8 @@ const validateRecipe = (data: unknown): Recipe => {
  * Normalizes trailing/leading slashes to prevent double-slash or missing-slash.
  */
 const resolveRegistryUrl = (base: string, path: string): string => {
-  const normalizedBase = base.replace(/\/+$/, "");
-  const normalizedPath = path.replace(/^\/+/, "");
+  const normalizedBase = base.replace(/\/{1,20}$/, "");
+  const normalizedPath = path.replace(/^\/{1,20}/, "");
 
   return `${normalizedBase}/${normalizedPath}`;
 };

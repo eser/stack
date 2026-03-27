@@ -9,8 +9,13 @@
 import type { CompletionFlag, CompletionNode } from "../types.ts";
 
 const escapeFish = (str: string): string => {
-  // Escape backslashes first, then single quotes
-  return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  return str
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\$/g, "\\$")
+    .replace(/`/g, "\\`")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
 };
 
 const generateFlagCompletions = (

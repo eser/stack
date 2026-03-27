@@ -84,7 +84,7 @@ const setPropertyByPath = (
 
   const lastPart = parts[parts.length - 1];
   if (lastPart !== undefined && isSafePropertyName(lastPart)) {
-    current[lastPart] = value;
+    current[lastPart] = value; // codeql[js/prototype-pollution-utility]
   }
 };
 

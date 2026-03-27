@@ -103,7 +103,7 @@ export type SyncReleaseNotesResult = {
 };
 
 const HEADING_PATTERN =
-  /^##\s+\[?([^\]\s]+)\]?\s*-?\s*([0-9]{4}-[0-9]{2}-[0-9]{2})?\s*$/;
+  /^##\s{1,100}\[?([^\]\s]+)\]?\s{0,100}-?\s{0,100}([0-9]{4}-[0-9]{2}-[0-9]{2})?\s{0,100}$/;
 
 /**
  * Normalizes a tag string by stripping `refs/tags/` prefix and ensuring a `v` prefix.

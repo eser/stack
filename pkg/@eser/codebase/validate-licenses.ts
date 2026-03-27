@@ -28,6 +28,7 @@
  */
 
 import * as standards from "@eser/standards";
+import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import {
   createFileTool,
   type FileEntry,
@@ -149,7 +150,7 @@ export const tool: FileTool = createFileTool({
   stacks: ["javascript"],
   defaults: {},
   // Dotted format required — matches path.extname() output in walkSourceFiles git-aware path
-  extensions: [".tsx", ".jsx", ".ts", ".js", ".mts", ".mjs", ".cts", ".cjs"],
+  extensions: JS_FILE_EXTENSIONS,
 
   checkFile: checkLicenseHeader,
   fixFile: fixLicenseHeader,
@@ -161,5 +162,7 @@ export const main: FileTool["main"] = tool.main;
 
 if (import.meta.main) {
   const { runCliMain } = await import("./cli-support.ts");
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.crossRuntime.runtime.process.args as string[]),
+  );
 }

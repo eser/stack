@@ -9,9 +9,11 @@
  * @module
  */
 
-import * as standardsRuntime from "@eser/standards/runtime";
+import * as standardsCrossRuntime from "@eser/standards/cross-runtime";
 import * as versions from "@eser/standards/versions";
 import config from "../../package.json" with { type: "json" };
+
+const runtime = standardsCrossRuntime.runtime;
 
 const CACHE_DIR = ".cache/eser";
 const CACHE_FILE = "latest-version.json";
@@ -33,22 +35,18 @@ type CachedVersion = {
 };
 
 const getCachePath = (): string => {
-  const home = standardsRuntime.getHomedir();
-  const runtime = standardsRuntime.current;
+  const home = standardsCrossRuntime.getHomedir();
 
   return runtime.path.join(home, CACHE_DIR, CACHE_FILE);
 };
 
 const getCacheDir = (): string => {
-  const home = standardsRuntime.getHomedir();
-  const runtime = standardsRuntime.current;
+  const home = standardsCrossRuntime.getHomedir();
 
   return runtime.path.join(home, CACHE_DIR);
 };
 
 const readCache = async (): Promise<CachedVersion | undefined> => {
-  const runtime = standardsRuntime.current;
-
   try {
     const cachePath = getCachePath();
     const exists = await runtime.fs.exists(cachePath);
@@ -74,8 +72,6 @@ const readCache = async (): Promise<CachedVersion | undefined> => {
 };
 
 const writeCache = async (latestVersion: string): Promise<void> => {
-  const runtime = standardsRuntime.current;
-
   try {
     const cacheDir = getCacheDir();
     await runtime.fs.ensureDir(cacheDir);

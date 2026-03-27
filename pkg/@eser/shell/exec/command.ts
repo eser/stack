@@ -6,7 +6,7 @@
  * @module
  */
 
-import * as standardsRuntime from "@eser/standards/runtime";
+import * as standardsCrossRuntime from "@eser/standards/cross-runtime";
 import type { CommandOptions, CommandResult, StdioOption } from "./types.ts";
 import { CommandError } from "./types.ts";
 
@@ -120,9 +120,9 @@ export class CommandBuilder {
 
   /** Execute command and return result */
   async spawn(): Promise<CommandResult> {
-    const { current } = standardsRuntime;
+    const { runtime } = standardsCrossRuntime;
 
-    const result = await current.exec.spawn(this.#cmd, this.#args, {
+    const result = await runtime.exec.spawn(this.#cmd, this.#args, {
       cwd: this.#options.cwd,
       env: this.#options.env,
       stdin: this.#options.stdin,
@@ -202,10 +202,10 @@ export class CommandBuilder {
    * const { stdout } = await child.output();
    * ```
    */
-  child(): standardsRuntime.ChildProcess {
-    const { current } = standardsRuntime;
+  child(): standardsCrossRuntime.ChildProcess {
+    const { runtime } = standardsCrossRuntime;
 
-    return current.exec.spawnChild(this.#cmd, this.#args, {
+    return runtime.exec.spawnChild(this.#cmd, this.#args, {
       cwd: this.#options.cwd,
       env: this.#options.env,
       stdin: this.#options.stdin ?? "piped",

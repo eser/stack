@@ -17,7 +17,7 @@ import {
   createStreamingHtmlShellEnd,
   createStreamingHtmlShellStart,
 } from "./html-shell.ts";
-import { current, NotFoundError } from "@eser/standards/runtime";
+import { NotFoundError, runtime } from "@eser/standards/cross-runtime";
 import { contentType } from "@std/media-types";
 import type { AppConfig } from "../config/load-config.ts";
 import type { HMRManager } from "../domain/hmr-manager.ts";
@@ -203,20 +203,20 @@ async function serveStatic(
 ): Promise<Response | null> {
   try {
     const relativePath = pathname.replace(/^\/dist\//, "");
-    const filePath = current.path.resolve(config.distDir, relativePath);
+    const filePath = runtime.path.resolve(config.distDir, relativePath);
 
     if (!filePath.startsWith(config.distDir)) {
       serverLogger.warn(`Path traversal attempt blocked: ${pathname}`);
       return new Response("Forbidden", { status: 403 });
     }
 
-    const fileInfo = await current.fs.stat(filePath);
+    const fileInfo = await runtime.fs.stat(filePath);
     const lastModified = fileInfo.mtime?.toUTCString() ??
       new Date().toUTCString();
     const etag = `"${fileInfo.size}-${fileInfo.mtime?.getTime() ?? 0}"`;
 
-    const file = await current.fs.readFile(filePath);
-    const ext = current.path.extname(filePath);
+    const file = await runtime.fs.readFile(filePath);
+    const ext = runtime.path.extname(filePath);
     const mimeType = contentType(ext) ?? "application/octet-stream";
 
     const headers: Record<string, string> = {
@@ -229,8 +229,8 @@ async function serveStatic(
     if (ext === ".js") {
       const mapFilePath = `${filePath}.map`;
       try {
-        await current.fs.stat(mapFilePath);
-        const mapFileName = current.path.basename(mapFilePath);
+        await runtime.fs.stat(mapFilePath);
+        const mapFileName = runtime.path.basename(mapFilePath);
         headers["SourceMap"] = mapFileName;
       } catch {
         // No source map file exists
@@ -255,25 +255,25 @@ async function servePublicAsset(
 ): Promise<Response | null> {
   try {
     const relativePath = pathname.replace(/^\//, "");
-    const filePath = current.path.resolve(
+    const filePath = runtime.path.resolve(
       config.projectRoot,
       "public",
       relativePath,
     );
-    const publicDir = current.path.resolve(config.projectRoot, "public");
+    const publicDir = runtime.path.resolve(config.projectRoot, "public");
 
     if (!filePath.startsWith(publicDir)) {
       serverLogger.warn(`Path traversal attempt blocked: ${pathname}`);
       return new Response("Forbidden", { status: 403 });
     }
 
-    const fileInfo = await current.fs.stat(filePath);
+    const fileInfo = await runtime.fs.stat(filePath);
     const lastModified = fileInfo.mtime?.toUTCString() ??
       new Date().toUTCString();
     const etag = `"${fileInfo.size}-${fileInfo.mtime?.getTime() ?? 0}"`;
 
-    const file = await current.fs.readFile(filePath);
-    const ext = current.path.extname(filePath);
+    const file = await runtime.fs.readFile(filePath);
+    const ext = runtime.path.extname(filePath);
     const mimeType = contentType(ext) ?? "application/octet-stream";
 
     return new Response(file as BodyInit, {
@@ -403,7 +403,7 @@ export function createHandler(deps: ServerDependencies) {
 
             // Import the action module dynamically
             // Actions are in dist/server/<modulePath>.js
-            const actionModulePath = current.path.resolve(
+            const actionModulePath = runtime.path.resolve(
               config.distDir,
               "server",
               `${modulePath}.js`,
@@ -623,20 +623,20 @@ async function handlePageRequest(
   let fontCSS: string | undefined;
 
   try {
-    const fontPreloadsPath = current.path.resolve(
+    const fontPreloadsPath = runtime.path.resolve(
       config.distDir,
       "client",
       "font-preloads.json",
     );
-    const fontCssPath = current.path.resolve(
+    const fontCssPath = runtime.path.resolve(
       config.distDir,
       "client",
       "fonts.css",
     );
 
-    const fontPreloadsContent = await current.fs.readTextFile(fontPreloadsPath);
+    const fontPreloadsContent = await runtime.fs.readTextFile(fontPreloadsPath);
     fontPreloads = JSON.parse(fontPreloadsContent);
-    fontCSS = await current.fs.readTextFile(fontCssPath);
+    fontCSS = await runtime.fs.readTextFile(fontCssPath);
   } catch {
     serverLogger.debug("Font optimization data not found, using fallback");
   }
@@ -647,24 +647,24 @@ async function handlePageRequest(
   let deferredCSSPath: string | undefined;
 
   try {
-    const criticalCssPath = current.path.resolve(
+    const criticalCssPath = runtime.path.resolve(
       config.distDir,
       "client",
       "styles.critical.css",
     );
-    criticalPageCSS = await current.fs.readTextFile(criticalCssPath);
+    criticalPageCSS = await runtime.fs.readTextFile(criticalCssPath);
     deferredCSSPath = "/styles.deferred.css";
   } catch {
     serverLogger.debug("Critical page CSS not found, using defaults");
   }
 
   try {
-    const universalCssPath = current.path.resolve(
+    const universalCssPath = runtime.path.resolve(
       config.distDir,
       "client",
       "styles.universal.css",
     );
-    criticalUniversalCSS = await current.fs.readTextFile(universalCssPath);
+    criticalUniversalCSS = await runtime.fs.readTextFile(universalCssPath);
   } catch {
     serverLogger.debug("Critical universal CSS not found, using defaults");
   }

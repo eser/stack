@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import {
   createCssModulesRuntime,
   findCssModules,
@@ -71,11 +71,13 @@ Deno.test("generateTypeScriptDefinition includes default export", () => {
 Deno.test("createCssModulesRuntime generates JavaScript runtime for empty map", () => {
   const exportsMap = new Map<string, CssModuleResult>();
 
-  const runtime = createCssModulesRuntime(exportsMap);
+  const cssModulesRuntime = createCssModulesRuntime(exportsMap);
 
-  assert.assert(runtime.includes("const cssModules = {"));
-  assert.assert(runtime.includes("export function getStyles(modulePath)"));
-  assert.assert(runtime.includes("export default cssModules"));
+  assert.assert(cssModulesRuntime.includes("const cssModules = {"));
+  assert.assert(
+    cssModulesRuntime.includes("export function getStyles(modulePath)"),
+  );
+  assert.assert(cssModulesRuntime.includes("export default cssModules"));
 });
 
 Deno.test("createCssModulesRuntime generates runtime with module exports", () => {
@@ -86,11 +88,11 @@ Deno.test("createCssModulesRuntime generates runtime with module exports", () =>
     ],
   ]);
 
-  const runtime = createCssModulesRuntime(exportsMap);
+  const cssModulesRuntime = createCssModulesRuntime(exportsMap);
 
-  assert.assert(runtime.includes('"/src/button"'));
-  assert.assert(runtime.includes('"btn"'));
-  assert.assert(runtime.includes('"btn_123"'));
+  assert.assert(cssModulesRuntime.includes('"/src/button"'));
+  assert.assert(cssModulesRuntime.includes('"btn"'));
+  assert.assert(cssModulesRuntime.includes('"btn_123"'));
 });
 
 Deno.test("createCssModulesRuntime strips .module.css extension from paths", () => {
@@ -101,19 +103,23 @@ Deno.test("createCssModulesRuntime strips .module.css extension from paths", () 
     ],
   ]);
 
-  const runtime = createCssModulesRuntime(exportsMap);
+  const cssModulesRuntime = createCssModulesRuntime(exportsMap);
 
-  assert.assert(runtime.includes('"/path/to/component"'));
-  assert.assertEquals(runtime.includes(".module.css"), false);
+  assert.assert(cssModulesRuntime.includes('"/path/to/component"'));
+  assert.assertEquals(cssModulesRuntime.includes(".module.css"), false);
 });
 
 Deno.test("createCssModulesRuntime includes getStyles function", () => {
   const exportsMap = new Map<string, CssModuleResult>();
 
-  const runtime = createCssModulesRuntime(exportsMap);
+  const cssModulesRuntime = createCssModulesRuntime(exportsMap);
 
-  assert.assert(runtime.includes("export function getStyles(modulePath)"));
-  assert.assert(runtime.includes("return cssModules[modulePath] || {}"));
+  assert.assert(
+    cssModulesRuntime.includes("export function getStyles(modulePath)"),
+  );
+  assert.assert(
+    cssModulesRuntime.includes("return cssModules[modulePath] || {}"),
+  );
 });
 
 Deno.test("createCssModulesRuntime handles multiple modules", () => {
@@ -123,11 +129,11 @@ Deno.test("createCssModulesRuntime handles multiple modules", () => {
     ["/c.module.css", { code: "", exports: { c: "c_3" }, dts: undefined }],
   ]);
 
-  const runtime = createCssModulesRuntime(exportsMap);
+  const cssModulesRuntime = createCssModulesRuntime(exportsMap);
 
-  assert.assert(runtime.includes('"/a"'));
-  assert.assert(runtime.includes('"/b"'));
-  assert.assert(runtime.includes('"/c"'));
+  assert.assert(cssModulesRuntime.includes('"/a"'));
+  assert.assert(cssModulesRuntime.includes('"/b"'));
+  assert.assert(cssModulesRuntime.includes('"/c"'));
 });
 
 // ============================================================================
@@ -135,14 +141,14 @@ Deno.test("createCssModulesRuntime handles multiple modules", () => {
 // ============================================================================
 
 const createTestContext = async () => {
-  const tempDir = await standardsRuntime.current.fs.makeTempDir({
+  const tempDir = await runtime.fs.makeTempDir({
     prefix: "modules-test-",
   });
   return {
     tempDir,
     cleanup: async () => {
       try {
-        await standardsRuntime.current.fs.remove(tempDir, { recursive: true });
+        await runtime.fs.remove(tempDir, { recursive: true });
       } catch {
         // Ignore cleanup errors
       }
@@ -154,11 +160,11 @@ Deno.test("processCssModule processes simple CSS module and returns exports", as
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "button.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".button { background: blue; }",
     );
@@ -177,11 +183,11 @@ Deno.test("processCssModule generates .d.ts when generateDts is true", async () 
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "test.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".test { color: red; }",
     );
@@ -199,11 +205,11 @@ Deno.test("processCssModule does not generate .d.ts by default", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "nodts.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".cls { margin: 0; }",
     );
@@ -220,11 +226,11 @@ Deno.test("processCssModule handles multiple classes", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "multi.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".a { color: red; } .b { color: blue; } .c { color: green; }",
     );
@@ -247,10 +253,10 @@ Deno.test("processCssModules processes multiple modules in parallel", async () =
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const css1 = standardsRuntime.current.path.join(tempDir, "a.module.css");
-    const css2 = standardsRuntime.current.path.join(tempDir, "b.module.css");
-    await standardsRuntime.current.fs.writeTextFile(css1, ".a { color: red; }");
-    await standardsRuntime.current.fs.writeTextFile(
+    const css1 = runtime.path.join(tempDir, "a.module.css");
+    const css2 = runtime.path.join(tempDir, "b.module.css");
+    await runtime.fs.writeTextFile(css1, ".a { color: red; }");
+    await runtime.fs.writeTextFile(
       css2,
       ".b { color: blue; }",
     );
@@ -279,12 +285,12 @@ Deno.test("findCssModules finds .module.css files in directory", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    await standardsRuntime.current.fs.writeTextFile(
-      standardsRuntime.current.path.join(tempDir, "a.module.css"),
+    await runtime.fs.writeTextFile(
+      runtime.path.join(tempDir, "a.module.css"),
       ".a {}",
     );
-    await standardsRuntime.current.fs.writeTextFile(
-      standardsRuntime.current.path.join(tempDir, "b.module.css"),
+    await runtime.fs.writeTextFile(
+      runtime.path.join(tempDir, "b.module.css"),
       ".b {}",
     );
 
@@ -301,8 +307,8 @@ Deno.test("findCssModules returns empty array for directory with no modules", as
 
   try {
     // Write a regular CSS file (not .module.css)
-    await standardsRuntime.current.fs.writeTextFile(
-      standardsRuntime.current.path.join(tempDir, "styles.css"),
+    await runtime.fs.writeTextFile(
+      runtime.path.join(tempDir, "styles.css"),
       ".foo {}",
     );
 
@@ -318,13 +324,13 @@ Deno.test("findCssModules handles nested directories", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const nestedDir = standardsRuntime.current.path.join(
+    const nestedDir = runtime.path.join(
       tempDir,
       "components/Button",
     );
-    await standardsRuntime.current.fs.mkdir(nestedDir, { recursive: true });
-    await standardsRuntime.current.fs.writeTextFile(
-      standardsRuntime.current.path.join(nestedDir, "Button.module.css"),
+    await runtime.fs.mkdir(nestedDir, { recursive: true });
+    await runtime.fs.writeTextFile(
+      runtime.path.join(nestedDir, "Button.module.css"),
       ".btn {}",
     );
 
@@ -345,11 +351,11 @@ Deno.test("processCssModule works without tailwind option", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "plain.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".button { background: blue; padding: 1rem; }",
     );
@@ -369,13 +375,13 @@ Deno.test("processCssModule with @apply but no tailwind passes through silently"
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "apply.module.css",
     );
     // CSS with @apply but no Tailwind plugin - should pass through
     // Lightning CSS will preserve unknown at-rules or ignore them
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".button { color: red; }",
     );
@@ -395,11 +401,11 @@ Deno.test("processCssModule respects minify option without tailwind", async () =
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "minify.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".button {\n  color: red;\n  background: blue;\n}",
     );
@@ -418,11 +424,11 @@ Deno.test("processCssModule generates dts without tailwind", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "dts.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".container { display: flex; } .item { flex: 1; }",
     );
@@ -441,12 +447,12 @@ Deno.test("processCssModule handles CSS nesting without tailwind", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "nested.module.css",
     );
     // Lightning CSS handles nesting natively
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".card { color: black; &:hover { color: blue; } }",
     );
@@ -470,11 +476,11 @@ Deno.test("processCssModule calls tailwind.compile when provided", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "tailwind.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".button { color: red; }",
     );
@@ -510,11 +516,11 @@ Deno.test("processCssModule uses tailwind.compile result when returned", async (
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "expanded.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".button { @apply px-4; }",
     );
@@ -545,12 +551,12 @@ Deno.test("processCssModule skips tailwind when compile returns null", async () 
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "skip.module.css",
     );
     const originalCss = ".plain { color: red; }";
-    await standardsRuntime.current.fs.writeTextFile(cssPath, originalCss);
+    await runtime.fs.writeTextFile(cssPath, originalCss);
 
     // Mock TailwindRoot that returns null (no Tailwind features)
     const mockTailwind = {
@@ -576,11 +582,11 @@ Deno.test("processCssModule handles local keyframe animations", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "anim.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       `
       .fadeIn { animation: fadeIn 0.5s ease-out; }
@@ -601,11 +607,11 @@ Deno.test("processCssModule handles pseudo-elements in nested selectors", async 
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "tooltip.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       ".tooltip { position: relative; &::after { content: 'Hint'; position: absolute; } }",
     );
@@ -625,11 +631,11 @@ Deno.test("processCssModule handles deeply nested CSS structures", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "deep.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       `.card {
         padding: 1rem;
@@ -656,11 +662,11 @@ Deno.test("processCssModule handles data attribute selectors", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const cssPath = standardsRuntime.current.path.join(
+    const cssPath = runtime.path.join(
       tempDir,
       "variant.module.css",
     );
-    await standardsRuntime.current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       cssPath,
       `.btn {
         padding: 0.5rem;

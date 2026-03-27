@@ -23,7 +23,7 @@ development:
   template strings.
 
 - **Runtime Agnostic:** Works with Deno, Node.js, and Bun via
-  `@eser/standards/runtime`.
+  `@eser/standards/cross-runtime`.
 
 - **Type-Safe:** Written in TypeScript with full type support.
 

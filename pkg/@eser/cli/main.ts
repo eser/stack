@@ -15,7 +15,7 @@
  */
 
 import * as results from "@eser/primitives/results";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import { Command } from "@eser/shell/args";
 import { Module } from "@eser/shell/module";
 import { moduleDef as aiModule } from "@eser/ai/module";
@@ -137,7 +137,7 @@ if (import.meta.main) {
         // deno-lint-ignore no-console
         console.error(error.message);
       }
-      standardsRuntime.current.process.setExitCode(error.exitCode);
+      runtime.process.setExitCode(error.exitCode);
     },
   });
 }

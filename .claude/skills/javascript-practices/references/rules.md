@@ -36,6 +36,9 @@ Rule: **ALWAYS use namespace imports (`import * as`)** to prevent naming
 collisions and make the source of every symbol explicit. This is a strict
 convention — violations will be caught in review.
 
+This only exception is:
+- `import { runtime } from "@eser/standards/cross-runtime";`
+
 Correct:
 
 ```typescript
@@ -67,12 +70,12 @@ package and access sub-modules via dot notation:
 import * as shell from "@eser/shell";
 import * as primitives from "@eser/primitives";
 import * as functions from "@eser/functions";
-import * as standards from "@eser/standards";
+import { runtime } from "@eser/standards/cross-runtime";
 
 const output = shell.formatting.createOutput();
 const result = primitives.results.ok(value);
 const tag: functions.triggers.CliEvent = event;
-const version = standards.runtime.current.process.args;
+const version = runtime.process.args;
 ```
 
 Do NOT import sub-modules individually when the root exports them:

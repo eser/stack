@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import * as platform from "@eser/standards/runtime/platform";
+ * import * as platform from "@eser/standards/cross-runtime/platform";
  *
  * const os = platform.getPlatform(); // "darwin" | "linux" | "windows"
  * const arch = platform.getArch();   // "amd64" | "arm64"

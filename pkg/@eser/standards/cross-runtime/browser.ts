@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { isBrowser, createBrowserRuntime } from "@eser/standards/runtime/browser";
+ * import { isBrowser, createBrowserRuntime } from "@eser/standards/cross-runtime/browser";
  *
  * if (isBrowser()) {
  *   const runtime = createBrowserRuntime();

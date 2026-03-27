@@ -238,12 +238,12 @@ export const buildCommand = (
 export const isCommandInPath = async (name: string): Promise<boolean> => {
   const os = platform.getPlatform();
   const exeName = os === "windows" ? `${name}.exe` : name;
-  const pathStr = mod.current.env.get("PATH") ?? "";
+  const pathStr = mod.runtime.env.get("PATH") ?? "";
   const dirs = resolvePathDirs(pathStr, os);
 
   for (const dir of dirs) {
     try {
-      await mod.current.fs.stat(mod.current.path.join(dir, exeName));
+      await mod.runtime.fs.stat(mod.runtime.path.join(dir, exeName));
       return true;
     } catch {
       continue;
@@ -299,9 +299,9 @@ export const detectExecutionContext = async (
   const mainModule = import.meta.url;
 
   const envVars: Record<string, string | undefined> = {
-    BUN_INSTALL: mod.current.env.get("BUN_INSTALL"),
-    npm_execpath: mod.current.env.get("npm_execpath"),
-    npm_config_user_agent: mod.current.env.get("npm_config_user_agent"),
+    BUN_INSTALL: mod.runtime.env.get("BUN_INSTALL"),
+    npm_execpath: mod.runtime.env.get("npm_execpath"),
+    npm_config_user_agent: mod.runtime.env.get("npm_config_user_agent"),
   };
 
   // Dev context: file:// URL (local on-disk module) + deno.json with "cli" task in cwd
@@ -309,9 +309,9 @@ export const detectExecutionContext = async (
 
   if (runtimeName === "deno" && mainModule.startsWith("file://")) {
     try {
-      const cwd = mod.current.process.cwd();
-      const denoJsonPath = mod.current.path.join(cwd, "deno.json");
-      const content = await mod.current.fs.readTextFile(denoJsonPath);
+      const cwd = mod.runtime.process.cwd();
+      const denoJsonPath = mod.runtime.path.join(cwd, "deno.json");
+      const content = await mod.runtime.fs.readTextFile(denoJsonPath);
       const parsed = JSON.parse(content) as Record<string, unknown>;
       const tasks = parsed["tasks"] as Record<string, unknown> | undefined;
 

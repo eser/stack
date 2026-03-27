@@ -63,6 +63,10 @@ workflows:
       - validate-licenses:
           exclude:
             - "etc/registry/recipes/"
+      - validate-runtime-js-apis:
+          exclude:
+            - "pkg/@eser/standards/cross-runtime/"
+            - "pkg/@eser/cli/scripts/compile.ts"
 
       # Deno checks
       - shell:

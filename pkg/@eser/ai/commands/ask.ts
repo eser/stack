@@ -7,7 +7,7 @@
  */
 
 import * as results from "@eser/primitives/results";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as streams from "@eser/streams";
 import * as logging from "@eser/logging";
 import * as shellExec from "@eser/shell/exec";
@@ -54,8 +54,7 @@ const setupLogging = async (
   verbose: boolean,
 ): Promise<logging.logger.Logger> => {
   if (verbose) {
-    const { current } = standardsRuntime;
-    const stderrWriter = current.process.stderr.getWriter();
+    const stderrWriter = runtime.process.stderr.getWriter();
 
     const errOut = streams.output({
       renderer: streams.renderers.ansi(),
@@ -133,14 +132,12 @@ const detectProvider = async (log: logging.logger.Logger): Promise<string> => {
   }
 
   // 4. Check env vars for API providers
-  const { current } = standardsRuntime;
-
-  if (current.capabilities.env) {
-    if (current.env.has("ANTHROPIC_API_KEY")) {
+  if (runtime.capabilities.env) {
+    if (runtime.env.has("ANTHROPIC_API_KEY")) {
       await log.info("Anthropic API key detected.");
       return "anthropic";
     }
-    if (current.env.has("OPENAI_API_KEY")) {
+    if (runtime.env.has("OPENAI_API_KEY")) {
       await log.info("OpenAI API key detected.");
       return "openai";
     }
@@ -323,7 +320,7 @@ export const main = async (
         .run();
 
       // Newline after stream
-      const writer = standardsRuntime.current.process.stdout.getWriter();
+      const writer = runtime.process.stdout.getWriter();
       await writer.write(new TextEncoder().encode("\n"));
       writer.releaseLock();
     }
@@ -362,7 +359,7 @@ const typewriterSink = (
     writable: new WritableStream<streams.Chunk<string>>({
       async write(chunk) {
         const text = String(chunk.data);
-        const writer = standardsRuntime.current.process.stdout.getWriter();
+        const writer = runtime.process.stdout.getWriter();
 
         for (const char of text) {
           await writer.write(encoder.encode(char));

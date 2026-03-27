@@ -4,6 +4,17 @@
   "exports": {
     ".": "./main.ts",
     "./mod": "./mod.ts",
-    "./module": "./module.ts"
+    "./module": "./module.ts",
+    "./recipes": "./recipes/mod.ts",
+    "./recipes/schema": "./recipes/registry-schema.ts",
+    "./recipes/fetcher": "./recipes/registry-fetcher.ts",
+    "./recipes/applier": "./recipes/recipe-applier.ts",
+    "./recipes/resolver": "./recipes/dependency-resolver.ts",
+    "./recipes/handlers": "./recipes/handlers/mod.ts",
+    "./recipes/handlers/list-recipes": "./recipes/handlers/list-recipes.ts",
+    "./recipes/handlers/add-recipe": "./recipes/handlers/add-recipe.ts",
+    "./recipes/handlers/new-project": "./recipes/handlers/new-project.ts",
+    "./recipes/handlers/clone-recipe": "./recipes/handlers/clone-recipe.ts",
+    "./recipes/handlers/update-recipe": "./recipes/handlers/update-recipe.ts"
   }
 }

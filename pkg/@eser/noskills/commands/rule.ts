@@ -12,6 +12,7 @@ import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as syncEngine from "../sync/engine.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
@@ -54,7 +55,7 @@ const ruleAdd = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = Deno.cwd();
+  const root = runtime.process.cwd();
   const ruleText = args?.join(" ");
 
   if (ruleText === undefined || ruleText.length === 0) {
@@ -75,10 +76,13 @@ const ruleAdd = async (
     .slice(0, 50);
 
   const filePath = `${root}/${persistence.paths.rulesDir}/${slug}.md`;
-  await Deno.mkdir(`${root}/${persistence.paths.rulesDir}`, {
-    recursive: true,
-  });
-  await Deno.writeTextFile(filePath, ruleText + "\n");
+  await runtime.fs.mkdir(
+    `${root}/${persistence.paths.rulesDir}`,
+    {
+      recursive: true,
+    },
+  );
+  await runtime.fs.writeTextFile(filePath, ruleText + "\n");
 
   out.writeln(span.green("✔"), " Rule added: ", span.dim(ruleText));
 
@@ -104,7 +108,7 @@ const ruleList = async (): Promise<shellArgs.CliResult<void>> => {
     sink: streams.sinks.stdout(),
   });
 
-  const root = Deno.cwd();
+  const root = runtime.process.cwd();
   const rules = await syncEngine.loadRules(root);
 
   out.writeln(span.bold("Rules"));

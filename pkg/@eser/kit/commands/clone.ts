@@ -6,12 +6,13 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
 import * as results from "@eser/primitives/results";
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as task from "@eser/functions/task";
 import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
-import * as cloneRecipeHandler from "@eser/registry/handlers/clone-recipe";
+import * as cloneRecipeHandler from "../recipes/handlers/clone-recipe.ts";
 import type * as shellArgs from "@eser/shell/args";
 
 export const main = async (
@@ -90,7 +91,7 @@ export const main = async (
     cloneRecipeHandler.cloneRecipe({
       specifier,
       recipePath: parsed["recipe"] as string | undefined,
-      cwd: Deno.cwd(),
+      cwd: runtime.process.cwd(),
       projectName: parsed["name"] as string | undefined,
       dryRun: parsed["dry-run"] === true,
       force: parsed["force"] === true,

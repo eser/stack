@@ -86,7 +86,7 @@ export const createReader = (_options?: FormatOptions): FormatReader => {
 
 export const yamlFormat: Format = {
   name: "yaml",
-  extensions: [".yaml", ".yml"],
+  extensions: ["yaml", "yml"],
   streamable: false,
   writeStart,
   writeItem,

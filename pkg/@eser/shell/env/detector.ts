@@ -6,21 +6,21 @@
  * @module
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import type { Shell, ShellConfig } from "./types.ts";
 
 /**
  * Get user's home directory
  */
 export const getHomeDir = (): string => {
-  return current.env.get("HOME") ?? "";
+  return runtime.env.get("HOME") ?? "";
 };
 
 /**
  * Detect shell type from SHELL environment variable
  */
 export const detectShell = (): Shell => {
-  const shellPath = current.env.get("SHELL") ?? "";
+  const shellPath = runtime.env.get("SHELL") ?? "";
 
   if (shellPath.includes("zsh")) {
     return "zsh";
@@ -39,11 +39,11 @@ export const getRcFilePath = (shell: Shell): string => {
 
   switch (shell) {
     case "zsh":
-      return current.path.join(home, ".zshrc");
+      return runtime.path.join(home, ".zshrc");
     case "bash":
-      return current.path.join(home, ".bashrc");
+      return runtime.path.join(home, ".bashrc");
     case "fish":
-      return current.path.join(home, ".config", "fish", "config.fish");
+      return runtime.path.join(home, ".config", "fish", "config.fish");
   }
 };
 
@@ -60,11 +60,11 @@ export const getCompletionsFilePath = (
 
   switch (shell) {
     case "zsh":
-      return current.path.join(home, ".zshrc");
+      return runtime.path.join(home, ".zshrc");
     case "bash":
-      return current.path.join(home, ".bashrc");
+      return runtime.path.join(home, ".bashrc");
     case "fish":
-      return current.path.join(
+      return runtime.path.join(
         home,
         ".config",
         "fish",

@@ -10,7 +10,7 @@
  */
 
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 
 /**
  * Common JavaScript/TypeScript directives.
@@ -182,7 +182,7 @@ export const extractExports = (content: string): readonly string[] => {
  */
 const readFileContent = async (filePath: string): Promise<string | null> => {
   try {
-    return await current.fs.readTextFile(filePath);
+    return await runtime.fs.readTextFile(filePath);
   } catch {
     return null;
   }
@@ -209,7 +209,7 @@ export const analyzeDirectives = async (
   const matches: DirectiveMatch[] = [];
 
   for await (
-    const entry of current.fs.walk(scanDir, {
+    const entry of runtime.fs.walk(scanDir, {
       exts: [...extensions],
       skip: [...skip],
     })
@@ -220,7 +220,7 @@ export const analyzeDirectives = async (
     if (content === null) continue;
 
     if (hasDirective(content, directive)) {
-      const relativePath = current.path.relative(projectRoot, entry.path);
+      const relativePath = runtime.path.relative(projectRoot, entry.path);
       const exports = extractExports(content);
 
       matches.push({
@@ -279,7 +279,7 @@ export const analyzeServerActions = async (
   const matches: DirectiveMatch[] = [];
 
   for await (
-    const entry of current.fs.walk(scanDir, {
+    const entry of runtime.fs.walk(scanDir, {
       exts: [...extensions],
       skip: [...skip],
     })
@@ -291,7 +291,7 @@ export const analyzeServerActions = async (
 
     // Check for "use server" ANYWHERE in file (file-level or function-level)
     if (containsDirective(content, DIRECTIVES.USE_SERVER)) {
-      const relativePath = current.path.relative(projectRoot, entry.path);
+      const relativePath = runtime.path.relative(projectRoot, entry.path);
       const exports = extractExports(content);
 
       matches.push({

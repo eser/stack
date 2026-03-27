@@ -102,8 +102,8 @@ export const logger = {
 };
 export default { logger };
 `,
-    "@eser/standards/runtime/browser": `
-// Browser shim for @eser/standards/runtime/browser
+    "@eser/standards/cross-runtime/browser": `
+// Browser shim for @eser/standards/cross-runtime/browser
 export const isBrowser = () => true;
 `,
   },

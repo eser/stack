@@ -5,7 +5,7 @@
  *
  * This module defines the `eser-registry.json` manifest format and provides
  * type-guard validation. This is a RECIPE registry for distributing code
- * recipes — not to be confused with `@eser/standards/registry` which is a
+ * recipes — not to be confused with `@eser/standards/collections` which is a
  * generic immutable data structure.
  *
  * A recipe can also live standalone as `recipe.json` in any GitHub repo,

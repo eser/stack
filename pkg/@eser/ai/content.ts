@@ -119,22 +119,22 @@ export const decodeDataUrl = (
 // =============================================================================
 
 const EXTENSION_MIME_MAP: Readonly<Record<string, string>> = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-  ".svg": "image/svg+xml",
-  ".bmp": "image/bmp",
-  ".mp3": "audio/mpeg",
-  ".wav": "audio/wav",
-  ".ogg": "audio/ogg",
-  ".flac": "audio/flac",
-  ".m4a": "audio/mp4",
-  ".webm": "audio/webm",
-  ".pdf": "application/pdf",
-  ".json": "application/json",
-  ".txt": "text/plain",
+  "png": "image/png",
+  "jpg": "image/jpeg",
+  "jpeg": "image/jpeg",
+  "gif": "image/gif",
+  "webp": "image/webp",
+  "svg": "image/svg+xml",
+  "bmp": "image/bmp",
+  "mp3": "audio/mpeg",
+  "wav": "audio/wav",
+  "ogg": "audio/ogg",
+  "flac": "audio/flac",
+  "m4a": "audio/mp4",
+  "webm": "audio/webm",
+  "pdf": "application/pdf",
+  "json": "application/json",
+  "txt": "text/plain",
 };
 
 export const detectMimeFromUrl = (url: string): string | null => {
@@ -145,7 +145,7 @@ export const detectMimeFromUrl = (url: string): string | null => {
     return null;
   }
 
-  const extension = urlWithoutQuery.slice(lastDot).toLowerCase();
+  const extension = urlWithoutQuery.slice(lastDot + 1).toLowerCase();
 
   return EXTENSION_MIME_MAP[extension] ?? null;
 };

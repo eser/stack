@@ -52,9 +52,9 @@ export const main = async (
   out.writeln(span.cyan("\n📦 Building for production...\n"));
 
   const logging = await import("@eser/logging");
-  const { current } = await import("@eser/standards/runtime");
+  const { runtime } = await import("@eser/standards/cross-runtime");
 
-  const projectRoot = current.process.cwd();
+  const projectRoot = runtime.process.cwd();
   const outDir = flags["out-dir"] as string;
   const minify = !(flags["no-minify"] as boolean);
   const clean = flags["clean"] as boolean;
@@ -111,8 +111,8 @@ export const main = async (
 
   const buildConfig = {
     projectRoot,
-    srcDir: current.path.resolve(projectRoot, baseConfig.srcDir),
-    distDir: current.path.resolve(projectRoot, outDir),
+    srcDir: runtime.path.resolve(projectRoot, baseConfig.srcDir),
+    distDir: runtime.path.resolve(projectRoot, outDir),
     logLevel,
     fonts: baseConfig.fonts,
     images: baseConfig.images,
@@ -128,7 +128,7 @@ export const main = async (
 
   if (clean) {
     try {
-      await current.fs.remove(buildConfig.distDir, { recursive: true });
+      await runtime.fs.remove(buildConfig.distDir, { recursive: true });
       bundlerLogger.debug(`Cleaned ${buildConfig.distDir}`);
     } catch {
       // Directory may not exist
@@ -136,7 +136,7 @@ export const main = async (
   }
 
   const tailwindPlugin = createTailwindPlugin({
-    globalCssPath: current.path.resolve(
+    globalCssPath: runtime.path.resolve(
       projectRoot,
       "src/app/styles/global.css",
     ),
@@ -155,7 +155,7 @@ export const main = async (
     out.writeln(span.cyan("\n📊 Bundle Analysis:\n"));
     try {
       const manifestPath = `${outDir}/client/manifest.json`;
-      const manifestText = await current.fs.readTextFile(manifestPath);
+      const manifestText = await runtime.fs.readTextFile(manifestPath);
       const manifest = JSON.parse(manifestText);
 
       out.writeln(span.text("Chunks:"));

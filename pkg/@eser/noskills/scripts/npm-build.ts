@@ -16,7 +16,7 @@
  */
 
 import * as esbuild from "esbuild";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 
 type PackageJson = {
   name: string;
@@ -51,7 +51,7 @@ const createImportMetaMainPlugin = (entryPath: string): esbuild.Plugin => ({
         return undefined;
       }
 
-      const source = await current.fs.readTextFile(args.path);
+      const source = await runtime.fs.readTextFile(args.path);
 
       if (!source.includes("import.meta.main")) {
         return undefined;
@@ -87,7 +87,7 @@ const createDenoWorkspacePlugin = (projectRoot: string): esbuild.Plugin => ({
         const pkgName = parts.slice(0, 2).join("/");
         const subpath = parts.slice(2).join("/");
 
-        const denoJsonPath = current.path.join(
+        const denoJsonPath = runtime.path.join(
           projectRoot,
           "pkg",
           pkgName,
@@ -96,7 +96,7 @@ const createDenoWorkspacePlugin = (projectRoot: string): esbuild.Plugin => ({
 
         try {
           const denoJson = JSON.parse(
-            await current.fs.readTextFile(denoJsonPath),
+            await runtime.fs.readTextFile(denoJsonPath),
           ) as DenoJson;
           const exports = denoJson.exports ?? {};
 
@@ -108,13 +108,13 @@ const createDenoWorkspacePlugin = (projectRoot: string): esbuild.Plugin => ({
           }
 
           if (exportPath !== undefined) {
-            const fullPath = current.path.join(
+            const fullPath = runtime.path.join(
               projectRoot,
               "pkg",
               pkgName,
               exportPath.replace(/^\.\//, ""),
             );
-            const realPath = await current.fs.realPath(fullPath);
+            const realPath = await runtime.fs.realPath(fullPath);
             return { path: realPath };
           }
         } catch {
@@ -134,10 +134,10 @@ const main = async (): Promise<void> => {
     throw new Error("Cannot determine script directory");
   }
 
-  const pkgDir = current.path.dirname(scriptDir);
-  const projectRoot = current.path.resolve(pkgDir, "../../..");
-  const distDir = current.path.join(pkgDir, "dist");
-  const mainTsPath = current.path.join(pkgDir, "main.ts");
+  const pkgDir = runtime.path.dirname(scriptDir);
+  const projectRoot = runtime.path.resolve(pkgDir, "../../..");
+  const distDir = runtime.path.join(pkgDir, "dist");
+  const mainTsPath = runtime.path.join(pkgDir, "main.ts");
 
   // deno-lint-ignore no-console
   console.log("Building @eser/noskills for npm...\n");
@@ -146,11 +146,11 @@ const main = async (): Promise<void> => {
   // deno-lint-ignore no-console
   console.log("1. Cleaning dist directory...");
   try {
-    await current.fs.remove(distDir, { recursive: true });
+    await runtime.fs.remove(distDir, { recursive: true });
   } catch {
     // Directory doesn't exist
   }
-  await current.fs.mkdir(distDir, { recursive: true });
+  await runtime.fs.mkdir(distDir, { recursive: true });
 
   // Step 2: Bundle using esbuild with Deno workspace resolver
   // deno-lint-ignore no-console
@@ -199,17 +199,17 @@ const main = async (): Promise<void> => {
   // Step 3: Add shebang to main entry file
   // deno-lint-ignore no-console
   console.log("3. Adding shebang...");
-  const bundlePath = current.path.join(distDir, "noskills.js");
-  const content = await current.fs.readTextFile(bundlePath);
+  const bundlePath = runtime.path.join(distDir, "noskills.js");
+  const content = await runtime.fs.readTextFile(bundlePath);
   const shebang = "#!/usr/bin/env node\n";
-  await current.fs.writeTextFile(bundlePath, shebang + content);
+  await runtime.fs.writeTextFile(bundlePath, shebang + content);
 
   // Step 4: Generate dist/package.json
   // deno-lint-ignore no-console
   console.log("4. Generating dist/package.json...");
 
   const sourcePackageJson = JSON.parse(
-    await current.fs.readTextFile(current.path.join(pkgDir, "package.json")),
+    await runtime.fs.readTextFile(runtime.path.join(pkgDir, "package.json")),
   ) as SourcePackageJson;
 
   const pkg: PackageJson = {
@@ -223,8 +223,8 @@ const main = async (): Promise<void> => {
     },
   };
 
-  await current.fs.writeTextFile(
-    current.path.join(distDir, "package.json"),
+  await runtime.fs.writeTextFile(
+    runtime.path.join(distDir, "package.json"),
     JSON.stringify(pkg, null, 2) + "\n",
   );
 
@@ -237,14 +237,14 @@ const main = async (): Promise<void> => {
   // deno-lint-ignore no-console
   console.log("5. Copying README.md...");
   try {
-    await current.fs.copyFile(
-      current.path.join(pkgDir, "README.md"),
-      current.path.join(distDir, "README.md"),
+    await runtime.fs.copyFile(
+      runtime.path.join(pkgDir, "README.md"),
+      runtime.path.join(distDir, "README.md"),
     );
   } catch {
     // README.md doesn't exist yet — create a placeholder
-    await current.fs.writeTextFile(
-      current.path.join(distDir, "README.md"),
+    await runtime.fs.writeTextFile(
+      runtime.path.join(distDir, "README.md"),
       "# noskills\n\nNot disclosed yet.\n",
     );
   }

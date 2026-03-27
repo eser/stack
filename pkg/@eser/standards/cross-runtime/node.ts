@@ -1,14 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Bun runtime entry point.
+ * Node.js runtime entry point.
  *
  * @example
  * ```typescript
- * import { isRuntime, createBunRuntime } from "@eser/standards/runtime/bun";
+ * import { isRuntime, createNodeRuntime } from "@eser/standards/cross-runtime/node";
  *
- * if (isRuntime("bun")) {
- *   const runtime = createBunRuntime();
+ * if (isRuntime("node")) {
+ *   const runtime = createNodeRuntime();
  *   await runtime.fs.readTextFile("config.json");
  * }
  * ```
@@ -26,8 +26,8 @@ export {
   isServer,
 } from "./detect.ts";
 
-// Bun adapter
-export { BUN_CAPABILITIES, createBunRuntime } from "./adapters/bun.ts";
+// Node adapter
+export { createNodeRuntime, NODE_CAPABILITIES } from "./adapters/node.ts";
 
 // Re-export all types
 export type {

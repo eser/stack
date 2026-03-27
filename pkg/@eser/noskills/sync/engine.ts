@@ -12,6 +12,7 @@ import * as cursor from "./cursor.ts";
 import * as kiro from "./kiro.ts";
 import * as copilot from "./copilot.ts";
 import * as windsurf from "./windsurf.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 // =============================================================================
 // Rule Loading
@@ -22,12 +23,14 @@ export const loadRules = async (root: string): Promise<readonly string[]> => {
   const rules: string[] = [];
 
   try {
-    for await (const entry of Deno.readDir(rulesDir)) {
+    for await (const entry of runtime.fs.readDir(rulesDir)) {
       if (
         entry.isFile &&
         (entry.name.endsWith(".md") || entry.name.endsWith(".txt"))
       ) {
-        const content = await Deno.readTextFile(`${rulesDir}/${entry.name}`);
+        const content = await runtime.fs.readTextFile(
+          `${rulesDir}/${entry.name}`,
+        );
         rules.push(content.trim());
       }
     }

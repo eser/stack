@@ -32,7 +32,7 @@ import * as cliParseArgs from "@std/cli/parse-args";
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as shellArgs from "@eser/shell/args";
 
 // Main scaffold function
@@ -84,7 +84,7 @@ export const main = async (
     "skip-post-install"?: boolean;
     help?: boolean;
   } = cliParseArgs.parseArgs(
-    (cliArgs ?? standardsRuntime.current.process.args) as string[],
+    (cliArgs ?? runtime.process.args) as string[],
     {
       string: ["path", "var"],
       boolean: ["force", "interactive", "skip-post-install", "help"],
@@ -218,7 +218,7 @@ if (import.meta.main) {
       if (error.message !== undefined) {
         console.error(error.message);
       }
-      standardsRuntime.current.process.setExitCode(error.exitCode);
+      runtime.process.setExitCode(error.exitCode);
     },
   });
 }

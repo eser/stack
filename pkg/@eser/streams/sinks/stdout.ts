@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import type { Chunk, Sink } from "../types.ts";
 
 let encoder: TextEncoder | undefined;
@@ -12,7 +12,7 @@ const getEncoder = (): TextEncoder => {
 };
 
 export const stdout = (): Sink<unknown> => {
-  const stdoutStream = current.process.stdout;
+  const stdoutStream = runtime.process.stdout;
 
   return {
     name: "stdout",

@@ -7,7 +7,7 @@
 // Copyright (c) 2021-2023 Luca Casonato
 
 import * as patterns from "@eser/standards/patterns";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 
 /**
  * Convert a simple glob pattern to a RegExp.
@@ -26,7 +26,7 @@ export async function* walkFiles(
   globFilter: string | undefined,
   ignoreFilePattern: RegExp,
 ): AsyncGenerator<string> {
-  const routesFolder = current.fs.walk(baseDir, {
+  const routesFolder = runtime.fs.walk(baseDir, {
     includeDirs: false,
     includeFiles: true,
     exts: patterns.JS_FILE_EXTENSIONS,
@@ -34,7 +34,7 @@ export async function* walkFiles(
   });
 
   for await (const entry of routesFolder) {
-    const rel = current.path.relative(baseDir, entry.path);
+    const rel = runtime.path.relative(baseDir, entry.path);
 
     if (globFilter !== undefined && !simpleGlobToRegExp(globFilter).test(rel)) {
       continue;
@@ -56,7 +56,7 @@ export type ExportItem = [string, Array<[string, unknown]>];
 export const collectExports = async (
   options: CollectExportsOptions,
 ): Promise<Array<ExportItem>> => {
-  // const mainModule = runtime.current.getMainModule();
+  // const mainModule = runtime.getMainModule();
   const ignoreFilePattern = options.ignoreFilePattern ??
     patterns.JS_TEST_FILE_PATTERN;
 

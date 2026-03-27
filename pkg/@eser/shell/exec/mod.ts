@@ -4,7 +4,7 @@
  * Shell command execution with fluent API
  *
  * Provides a template tag function `exec` for building and executing shell commands
- * with a fluent API. Uses `@eser/standards/runtime` for cross-runtime compatibility.
+ * with a fluent API. Uses `@eser/standards/cross-runtime` for cross-runtime compatibility.
  *
  * @example
  * ```ts
@@ -54,7 +54,7 @@ export {
   type CommandResult,
   type StdioOption,
 } from "./types.ts";
-export type { ChildProcess } from "@eser/standards/runtime";
+export type { ChildProcess } from "@eser/standards/cross-runtime";
 export { CommandBuilder } from "./command.ts";
 export { parseCommand } from "./parser.ts";
 export { exec } from "./exec.ts";

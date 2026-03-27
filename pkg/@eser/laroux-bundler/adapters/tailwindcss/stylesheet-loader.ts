@@ -4,7 +4,7 @@
  * Handles @import and @reference directives with npm module resolution
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 
 export type StylesheetLoadResult = {
   path: string;
@@ -23,12 +23,12 @@ export async function loadStylesheet(
 ): Promise<StylesheetLoadResult> {
   // Check if it's a relative or absolute path
   if (id.startsWith(".") || id.startsWith("/")) {
-    const resolvedPath = current.path.resolve(base, id);
-    const content = await current.fs.readTextFile(resolvedPath);
+    const resolvedPath = runtime.path.resolve(base, id);
+    const content = await runtime.fs.readTextFile(resolvedPath);
     return {
       path: resolvedPath,
       content,
-      base: current.path.dirname(resolvedPath),
+      base: runtime.path.dirname(resolvedPath),
     };
   }
 
@@ -36,28 +36,28 @@ export async function loadStylesheet(
   // Walk up directory tree to find node_modules
   let searchBase = base;
   while (searchBase !== "/" && searchBase !== "") {
-    const nodeModulesPath = current.path.resolve(
+    const nodeModulesPath = runtime.path.resolve(
       searchBase,
       "node_modules",
       id,
     );
     try {
-      const content = await current.fs.readTextFile(nodeModulesPath);
+      const content = await runtime.fs.readTextFile(nodeModulesPath);
       return {
         path: nodeModulesPath,
         content,
-        base: current.path.dirname(nodeModulesPath),
+        base: runtime.path.dirname(nodeModulesPath),
       };
     } catch {
       // Try with .css extension if not already present
       if (!id.endsWith(".css")) {
         const cssPath = `${nodeModulesPath}.css`;
         try {
-          const content = await current.fs.readTextFile(cssPath);
+          const content = await runtime.fs.readTextFile(cssPath);
           return {
             path: cssPath,
             content,
-            base: current.path.dirname(cssPath),
+            base: runtime.path.dirname(cssPath),
           };
         } catch {
           // Continue to next fallback
@@ -65,32 +65,32 @@ export async function loadStylesheet(
       }
 
       // Try resolving as package entry point (index.css or similar)
-      const pkgPath = current.path.resolve(
+      const pkgPath = runtime.path.resolve(
         searchBase,
         "node_modules",
         id,
         "index.css",
       );
       try {
-        const content = await current.fs.readTextFile(pkgPath);
+        const content = await runtime.fs.readTextFile(pkgPath);
         return {
           path: pkgPath,
           content,
-          base: current.path.dirname(pkgPath),
+          base: runtime.path.dirname(pkgPath),
         };
       } catch {
         // Move up one directory
-        searchBase = current.path.dirname(searchBase);
+        searchBase = runtime.path.dirname(searchBase);
       }
     }
   }
 
   // Fallback to treating as a relative path
-  const resolvedPath = current.path.resolve(base, id);
-  const content = await current.fs.readTextFile(resolvedPath);
+  const resolvedPath = runtime.path.resolve(base, id);
+  const content = await runtime.fs.readTextFile(resolvedPath);
   return {
     path: resolvedPath,
     content,
-    base: current.path.dirname(resolvedPath),
+    base: runtime.path.dirname(resolvedPath),
   };
 }

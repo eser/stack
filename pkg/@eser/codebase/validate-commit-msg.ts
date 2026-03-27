@@ -175,7 +175,7 @@ export const main = async (
   } else if (parsed._.length > 0) {
     // Read from file (git commit-msg hook passes the file path)
     try {
-      message = await standards.runtime.current.fs.readTextFile(
+      message = await standards.crossRuntime.runtime.fs.readTextFile(
         String(parsed._[0]),
       );
     } catch {
@@ -205,7 +205,7 @@ export const main = async (
 
 if (import.meta.main) {
   runCliMain(
-    await main(standards.runtime.current.process.args as string[]),
+    await main(standards.crossRuntime.runtime.process.args as string[]),
     out,
   );
 }

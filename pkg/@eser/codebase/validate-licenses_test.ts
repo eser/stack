@@ -11,6 +11,7 @@
 
 import * as assert from "@std/assert";
 import * as path from "@std/path";
+import { runtime } from "@eser/standards/cross-runtime";
 import { tool } from "./validate-licenses.ts";
 
 // =============================================================================
@@ -27,11 +28,11 @@ const WRONG_YEAR_HEADER =
  * Returns the dir path. Caller is responsible for cleanup.
  */
 const makeTempDir = async (): Promise<string> => {
-  return await Deno.makeTempDir({ prefix: "validate-licenses-test-" });
+  return await runtime.fs.makeTempDir({ prefix: "validate-licenses-test-" });
 };
 
 const writeFile = async (dir: string, name: string, content: string) => {
-  await Deno.writeTextFile(path.join(dir, name), content);
+  await runtime.fs.writeTextFile(path.join(dir, name), content);
 };
 
 // =============================================================================
@@ -53,7 +54,7 @@ Deno.test("validate-licenses: correct header → no issues", async () => {
     assert.assertEquals(result.issues.length, 0);
     assert.assertEquals(result.filesChecked, 1);
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });
 
@@ -66,7 +67,7 @@ Deno.test("validate-licenses: missing header → issue reported", async () => {
     assert.assertEquals(result.issues[0]!.message, "missing copyright header");
     assert.assertEquals(result.issues[0]!.path, path.join(dir, "missing.ts"));
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });
 
@@ -82,7 +83,7 @@ Deno.test("validate-licenses: incorrect copyright year → issue reported", asyn
     assert.assertEquals(result.issues.length, 1);
     assert.assertEquals(result.issues[0]!.message, "incorrect copyright year");
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });
 
@@ -97,7 +98,7 @@ Deno.test("validate-licenses: shebang file → header detected after shebang", a
     const result = await tool.run({ root: dir });
     assert.assertEquals(result.issues.length, 0);
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });
 
@@ -109,20 +110,20 @@ Deno.test("validate-licenses: shebang file missing header → issue reported", a
     assert.assertEquals(result.issues.length, 1);
     assert.assertEquals(result.issues[0]!.message, "missing copyright header");
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });
 
 Deno.test("validate-licenses: docs/ pattern → file skipped", async () => {
   const dir = await makeTempDir();
   try {
-    await Deno.mkdir(path.join(dir, "docs"), { recursive: true });
+    await runtime.fs.mkdir(path.join(dir, "docs"), { recursive: true });
     await writeFile(dir, "docs/guide.ts", "export const x = 1;\n");
     const result = await tool.run({ root: dir });
     assert.assertEquals(result.issues.length, 0);
     assert.assertEquals(result.filesChecked, 1); // file was walked but returned no issues
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });
 
@@ -145,7 +146,7 @@ Deno.test("validate-licenses: fix missing → mutation adds header", async () =>
       "export const x = 1;",
     );
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });
 
@@ -169,7 +170,7 @@ Deno.test("validate-licenses: fix incorrect year → mutation replaces header", 
       "old year should be removed",
     );
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });
 
@@ -180,7 +181,7 @@ Deno.test("validate-licenses: fix incorrect year → mutation replaces header", 
 Deno.test("validate-licenses: exclude option → skips matching files", async () => {
   const dir = await makeTempDir();
   try {
-    await Deno.mkdir(path.join(dir, "generated"), { recursive: true });
+    await runtime.fs.mkdir(path.join(dir, "generated"), { recursive: true });
     await writeFile(dir, "generated/output.ts", "export const x = 1;\n");
     await writeFile(
       dir,
@@ -192,7 +193,7 @@ Deno.test("validate-licenses: exclude option → skips matching files", async ()
     // generated/output.ts has no header but should be excluded
     assert.assertEquals(result.issues.length, 0);
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });
 
@@ -200,7 +201,7 @@ Deno.test("validate-licenses: exclude option → skips matching files", async ()
 // Integration: extension normalization in walkSourceFiles
 // =============================================================================
 
-Deno.test("walkSourceFiles: bare extension 'ts' normalized to '.ts'", async () => {
+Deno.test("walkSourceFiles: bare extension 'ts'", async () => {
   const { walkSourceFiles } = await import("./file-tools-shared.ts");
   const dir = await makeTempDir();
   try {
@@ -208,14 +209,11 @@ Deno.test("walkSourceFiles: bare extension 'ts' normalized to '.ts'", async () =
     await writeFile(dir, "file.js", "export const y = 2;\n");
     await writeFile(dir, "file.md", "# readme\n");
 
-    // "ts" (no dot) should match .ts files just like ".ts"
-    const withDot = await walkSourceFiles({ root: dir, extensions: [".ts"] });
     const withoutDot = await walkSourceFiles({ root: dir, extensions: ["ts"] });
 
-    assert.assertEquals(withDot.length, 1);
     assert.assertEquals(withoutDot.length, 1);
-    assert.assertEquals(withDot[0]!.name, withoutDot[0]!.name);
+    assert.assertEquals(withoutDot[0]!.name, "file.ts");
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });

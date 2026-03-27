@@ -3,7 +3,7 @@
 import * as fileLoader from "@eser/config/file";
 import { get } from "@eser/fp/get";
 import { deepMerge } from "@eser/fp/deep-merge";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import {
   baseDirProp,
   CONFIG_FILE_PRIORITY,
@@ -38,19 +38,19 @@ const tryLoadConfigFile = async (
   filepath: string,
   fileType: ConfigFileType,
 ): Promise<RawConfigFile | undefined> => {
-  const exists = await current.fs.exists(filepath);
+  const exists = await runtime.fs.exists(filepath);
   if (exists === false) {
     return undefined;
   }
 
   // Verify it's a file, not a directory
-  const stat = await current.fs.stat(filepath);
+  const stat = await runtime.fs.stat(filepath);
   if (stat.isFile === false) {
     return undefined;
   }
 
   // Read raw text
-  const rawText = await current.fs.readTextFile(filepath);
+  const rawText = await runtime.fs.readTextFile(filepath);
 
   // Use the file loader for parsing
   const parseResult = await fileLoader.parse<Record<string, unknown>>(
@@ -80,7 +80,7 @@ const findConfigFiles = async (
   const results: RawConfigFile[] = [];
 
   for (const fileType of includeFiles) {
-    const filepath = current.path.join(baseDir, fileType);
+    const filepath = runtime.path.join(baseDir, fileType);
     const loaded = await tryLoadConfigFile(filepath, fileType);
     if (loaded) {
       results.push(loaded);
@@ -201,7 +201,7 @@ export const load = async (
   const sortedFiles = sortByPriority(includeFiles);
 
   // Find and load all config files
-  let searchDir = current.path.resolve(baseDir);
+  let searchDir = runtime.path.resolve(baseDir);
   let loadedFiles: RawConfigFile[] = [];
 
   while (true) {
@@ -211,7 +211,7 @@ export const load = async (
       break;
     }
 
-    const parent = current.path.dirname(searchDir);
+    const parent = runtime.path.dirname(searchDir);
     if (parent === searchDir) {
       break;
     }

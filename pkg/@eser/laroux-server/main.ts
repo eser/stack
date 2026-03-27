@@ -8,7 +8,7 @@
  */
 
 import * as logging from "@eser/logging";
-import { current, getPlatform } from "@eser/standards/runtime";
+import { getPlatform, runtime } from "@eser/standards/cross-runtime";
 import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import {
   build,
@@ -117,7 +117,7 @@ async function loadRoutes(config: AppConfig): Promise<RouteDefinition[]> {
 
   // Load directly from the generated routes file
   // Path is constructed from config - no hardcoded directory names
-  const generatedRoutesPath = current.path.join(
+  const generatedRoutesPath = runtime.path.join(
     config.distDir,
     "server",
     "_generated-routes.ts",
@@ -146,7 +146,7 @@ async function resolveServerComponentPath(
   baseName: string,
 ): Promise<string> {
   // Try bundled .js file in src/app (both bundlers output here)
-  const bundledPath = current.path.resolve(
+  const bundledPath = runtime.path.resolve(
     config.distDir,
     "server",
     "src",
@@ -154,20 +154,20 @@ async function resolveServerComponentPath(
     `${baseName}.js`,
   );
 
-  if (await current.fs.exists(bundledPath)) {
+  if (await runtime.fs.exists(bundledPath)) {
     return bundledPath;
   }
 
   // Fall back to source file - try each extension
   for (const ext of JS_FILE_EXTENSIONS) {
-    const sourcePath = current.path.resolve(
+    const sourcePath = runtime.path.resolve(
       config.distDir,
       "server",
       "src",
       "app",
       `${baseName}.${ext}`,
     );
-    if (await current.fs.exists(sourcePath)) {
+    if (await runtime.fs.exists(sourcePath)) {
       return sourcePath;
     }
   }
@@ -218,12 +218,12 @@ async function loadAppComponents(
  */
 async function loadBuildId(config: AppConfig): Promise<string> {
   try {
-    const chunkManifestPath = current.path.resolve(
+    const chunkManifestPath = runtime.path.resolve(
       config.distDir,
       "client",
       MANIFEST_FILENAME,
     );
-    const manifestContent = await current.fs.readTextFile(chunkManifestPath);
+    const manifestContent = await runtime.fs.readTextFile(chunkManifestPath);
     const manifest: ChunkManifest = JSON.parse(manifestContent);
     return manifest.buildId;
   } catch {
@@ -236,13 +236,13 @@ async function loadBuildId(config: AppConfig): Promise<string> {
  */
 async function isBuildUpToDate(config: AppConfig): Promise<boolean> {
   try {
-    const manifestPath = current.path.resolve(
+    const manifestPath = runtime.path.resolve(
       config.distDir,
       "client",
       MANIFEST_FILENAME,
     );
-    const manifestStat = await current.fs.stat(manifestPath);
-    const srcStat = await current.fs.stat(config.srcDir);
+    const manifestStat = await runtime.fs.stat(manifestPath);
+    const srcStat = await runtime.fs.stat(config.srcDir);
     if (manifestStat.mtime === null || srcStat.mtime === null) {
       return false;
     }
@@ -310,14 +310,14 @@ async function initializeServer(
   // Load server actions from manifest (generated during build)
   // The manifest lists all files with "use server" directive
   try {
-    const manifestPath = current.path.resolve(
+    const manifestPath = runtime.path.resolve(
       config.distDir,
       "server",
       "actions-manifest.json",
     );
-    const manifestExists = await current.fs.exists(manifestPath);
+    const manifestExists = await runtime.fs.exists(manifestPath);
     if (manifestExists) {
-      const manifestContent = await current.fs.readTextFile(manifestPath);
+      const manifestContent = await runtime.fs.readTextFile(manifestPath);
       const manifest: { actions: string[] } = JSON.parse(manifestContent);
       const timestamp = Date.now();
       let loadedCount = 0;
@@ -326,12 +326,12 @@ async function initializeServer(
         try {
           // Action paths preserve full structure like "src/app/actions.js"
           // Bundler outputs to dist/server/src/app/actions.js (no path stripping)
-          const fullPath = current.path.resolve(
+          const fullPath = runtime.path.resolve(
             config.distDir,
             "server",
             actionPath,
           );
-          const actionExists = await current.fs.exists(fullPath);
+          const actionExists = await runtime.fs.exists(fullPath);
           if (actionExists) {
             const actionImportPath = `file://${fullPath}?t=${timestamp}`;
             await import(actionImportPath);
@@ -432,7 +432,7 @@ async function initializeServer(
  * @param options - Server options (with optional plugin injection)
  */
 export async function startServer(options: ServerOptions): Promise<void> {
-  const projectRoot = options.projectRoot ?? current.process.cwd();
+  const projectRoot = options.projectRoot ?? runtime.process.cwd();
   const logLevel = options.logLevel ?? "info";
   const isDev = options.mode === "dev";
   const { renderer, htmlShell, frameworkPlugin, cssPlugin } = options;
@@ -443,9 +443,9 @@ export async function startServer(options: ServerOptions): Promise<void> {
   const baseConfig = await loadConfig(projectRoot);
   const config: AppConfig = {
     ...baseConfig,
-    srcDir: current.path.resolve(projectRoot, baseConfig.srcDir),
-    distDir: current.path.resolve(projectRoot, baseConfig.distDir),
-    publicDir: current.path.resolve(projectRoot, baseConfig.publicDir),
+    srcDir: runtime.path.resolve(projectRoot, baseConfig.srcDir),
+    distDir: runtime.path.resolve(projectRoot, baseConfig.distDir),
+    publicDir: runtime.path.resolve(projectRoot, baseConfig.publicDir),
     logLevel,
     mode: {
       isDev,
@@ -555,7 +555,7 @@ function openBrowser(url: string): void {
   const command = commands[platform];
 
   if (command && command[0]) {
-    current.exec.spawnChild(command[0], [...command.slice(1), url], {
+    runtime.exec.spawnChild(command[0], [...command.slice(1), url], {
       stdout: "null",
       stderr: "null",
     });

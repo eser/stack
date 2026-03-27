@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as formats from "@eser/formats";
 import {
   buildConfigMapFromContext,
@@ -23,7 +23,7 @@ function setupTestEnv(): Record<string, string> {
   };
 
   for (const [key, value] of Object.entries(testEnv)) {
-    current.env.set(key, value);
+    runtime.env.set(key, value);
   }
 
   return testEnv;
@@ -32,7 +32,7 @@ function setupTestEnv(): Record<string, string> {
 // Test helper to clean up environment variables
 function cleanupTestEnv(keys: string[]) {
   for (const key of keys) {
-    current.env.delete(key);
+    runtime.env.delete(key);
   }
 }
 

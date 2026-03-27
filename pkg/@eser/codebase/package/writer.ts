@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as runtime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import {
   type ConfigFileType,
   DEFAULT_FIELD_MAPPINGS,
@@ -115,7 +115,7 @@ const writeConfigFile = async (
 
   // Write back to file
   const formatted = formatJson(newContent);
-  await runtime.current.fs.writeTextFile(file.filepath, formatted);
+  await runtime.fs.writeTextFile(file.filepath, formatted);
 
   // Update the in-memory representation
   // Note: We need to cast away readonly for internal mutation

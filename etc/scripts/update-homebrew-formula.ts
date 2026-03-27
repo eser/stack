@@ -13,6 +13,7 @@
  */
 
 import * as distUtils from "./dist-utils.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 // =============================================================================
 // Types
@@ -76,23 +77,24 @@ const run = async (
   cmd: string[],
   options?: { cwd?: string },
 ): Promise<string> => {
-  const command = new Deno.Command(cmd[0]!, {
-    args: cmd.slice(1),
-    cwd: options?.cwd,
-    stdout: "piped",
-    stderr: "piped",
-  });
+  const result = await runtime.exec.spawn(
+    cmd[0]!,
+    cmd.slice(1),
+    {
+      cwd: options?.cwd,
+      stdout: "piped",
+      stderr: "piped",
+    },
+  );
 
-  const { code, stdout, stderr } = await command.output();
-
-  if (code !== 0) {
-    const errorText = new TextDecoder().decode(stderr);
+  if (!result.success) {
+    const errorText = new TextDecoder().decode(result.stderr);
     throw new Error(
-      `Command failed (exit ${code}): ${cmd.join(" ")}\n${errorText}`,
+      `Command failed (exit ${result.code}): ${cmd.join(" ")}\n${errorText}`,
     );
   }
 
-  return new TextDecoder().decode(stdout).trim();
+  return new TextDecoder().decode(result.stdout).trim();
 };
 
 // =============================================================================
@@ -124,7 +126,7 @@ const lookupHash = (
 
 const main = async (): Promise<void> => {
   // 1. Validate environment
-  const ghToken = Deno.env.get("GH_TOKEN");
+  const ghToken = runtime.env.get("GH_TOKEN");
 
   if (ghToken === undefined || ghToken === "") {
     throw new Error(
@@ -134,8 +136,8 @@ const main = async (): Promise<void> => {
 
   // 2. Read VERSION from repo root
   const repoRoot = new URL("../../", import.meta.url);
-  const versionFilePath = new URL("VERSION", repoRoot);
-  const version = (await Deno.readTextFile(versionFilePath)).trim();
+  const versionFilePath = new URL("VERSION", repoRoot).toString();
+  const version = (await runtime.fs.readTextFile(versionFilePath)).trim();
 
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
     throw new Error(`Invalid version in VERSION file: "${version}"`);
@@ -185,7 +187,7 @@ const main = async (): Promise<void> => {
   console.log("Generated Homebrew formula.");
 
   // 6. Clone homebrew-tap repo
-  const tmpDir = await Deno.makeTempDir({ prefix: "homebrew-tap-" });
+  const tmpDir = await runtime.fs.makeTempDir();
   const repoUrl =
     `https://x-access-token:${ghToken}@github.com/eser/homebrew-tap.git`;
 
@@ -211,13 +213,13 @@ const main = async (): Promise<void> => {
   const formulaDir = `${tmpDir}/Formula`;
 
   try {
-    await Deno.mkdir(formulaDir, { recursive: true });
+    await runtime.fs.mkdir(formulaDir, { recursive: true });
   } catch {
     // Directory may already exist — that's fine
   }
 
   const formulaPath = `${formulaDir}/eser.rb`;
-  await Deno.writeTextFile(formulaPath, formula);
+  await runtime.fs.writeTextFile(formulaPath, formula);
 
   // deno-lint-ignore no-console
   console.log(`Wrote formula to ${formulaPath}`);
@@ -255,7 +257,7 @@ const main = async (): Promise<void> => {
   }
 
   // 9. Cleanup
-  await Deno.remove(tmpDir, { recursive: true });
+  await runtime.fs.remove(tmpDir, { recursive: true });
 };
 
 if (import.meta.main) {

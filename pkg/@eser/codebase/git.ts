@@ -2,7 +2,7 @@
 
 /**
  * Git utility functions for working with git repositories.
- * Uses @eser/standards/runtime for cross-runtime command execution.
+ * Uses @eser/standards/cross-runtime for cross-runtime command execution.
  *
  * @module
  */

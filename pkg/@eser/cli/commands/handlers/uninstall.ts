@@ -8,7 +8,7 @@
 
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
-import * as standardsRuntime from "@eser/standards/runtime";
+import * as standardsCrossRuntime from "@eser/standards/cross-runtime";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
 import * as shellExec from "@eser/shell/exec";
@@ -37,7 +37,7 @@ const UNINSTALL_CONFIGS: Record<string, UninstallConfig> = {
 export const uninstallHandler = async (
   _ctx: shellArgs.CommandContext,
 ): Promise<shellArgs.CliResult<void>> => {
-  const runtimeName = standardsRuntime.detectRuntime();
+  const runtimeName = standardsCrossRuntime.detectRuntime();
 
   const out = streams.output({
     renderer: streams.renderers.ansi(),

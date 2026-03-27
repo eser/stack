@@ -77,7 +77,7 @@ export const createReader = (_options?: FormatOptions): FormatReader => {
 
 export const jsonFormat: Format = {
   name: "json",
-  extensions: [".json"],
+  extensions: ["json"],
   streamable: false,
   writeStart,
   writeItem,

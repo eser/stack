@@ -202,7 +202,7 @@ export const updateContributors = async (
   const markdown = generateContributorMarkdown(contributors, columnsPerRow);
 
   // Read README and replace section
-  const currentContent = await standards.runtime.current.fs.readTextFile(
+  const currentContent = await standards.crossRuntime.runtime.fs.readTextFile(
     resolvedPath,
   );
   const { content: newContent, changed } = replaceContributorSection(
@@ -213,7 +213,10 @@ export const updateContributors = async (
   let committed = false;
 
   if (changed) {
-    await standards.runtime.current.fs.writeTextFile(resolvedPath, newContent);
+    await standards.crossRuntime.runtime.fs.writeTextFile(
+      resolvedPath,
+      newContent,
+    );
 
     if (shouldCommit) {
       await shell.exec.exec`git add ${resolvedPath}`.spawn();
@@ -348,7 +351,7 @@ export const main = async (
 
 if (import.meta.main) {
   runCliMain(
-    await main(standards.runtime.current.process.args as string[]),
+    await main(standards.crossRuntime.runtime.process.args as string[]),
     out,
   );
 }

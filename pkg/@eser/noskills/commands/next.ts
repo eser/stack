@@ -15,11 +15,12 @@ import * as compiler from "../context/compiler.ts";
 import * as questions from "../context/questions.ts";
 import * as specGenerator from "../spec/generator.ts";
 import * as syncEngine from "../sync/engine.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const root = Deno.cwd();
+  const root = runtime.process.cwd();
 
   if (!(await persistence.isInitialized(root))) {
     const output = JSON.stringify({
@@ -143,5 +144,7 @@ const handleAnswer = async (
 
 const writeStdout = async (text: string): Promise<void> => {
   const encoder = new TextEncoder();
-  await Deno.stdout.write(encoder.encode(text + "\n"));
+  const writer = runtime.process.stdout.getWriter();
+  await writer.write(encoder.encode(text + "\n"));
+  writer.releaseLock();
 };

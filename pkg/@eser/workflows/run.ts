@@ -15,7 +15,7 @@ import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
 import * as task from "@eser/functions/task";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as shellExec from "@eser/shell/exec";
 import type * as shellArgs from "@eser/shell/args";
 import type {
@@ -230,7 +230,7 @@ export const main = async (
       }
       for (const mutation of mutations) {
         if (mutation.oldContent !== mutation.newContent) {
-          await standardsRuntime.current.fs.writeTextFile(
+          await runtime.fs.writeTextFile(
             mutation.path,
             mutation.newContent,
           );

@@ -4,7 +4,7 @@
  * Transforms "use client" components into createClientReference() wrappers at build time
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import type { ClientComponent } from "./rsc-analyze.ts";
 import * as logging from "@eser/logging";
 
@@ -26,17 +26,17 @@ export async function transformClientComponent(
   outputDir: string,
 ): Promise<TransformResult> {
   // Create output directory structure
-  const relativeDirPath = current.path.dirname(component.relativePath);
-  const outputSubDir = current.path.join(outputDir, relativeDirPath);
-  await current.fs.ensureDir(outputSubDir);
+  const relativeDirPath = runtime.path.dirname(component.relativePath);
+  const outputSubDir = runtime.path.join(outputDir, relativeDirPath);
+  await runtime.fs.ensureDir(outputSubDir);
 
   // Generate transformed content
   const transformed = generateTransformedContent(component);
 
   // Write transformed file
   const outputFileName = component.relativePath.split("/").pop()!;
-  const transformedPath = current.path.join(outputSubDir, outputFileName);
-  await current.fs.writeTextFile(transformedPath, transformed);
+  const transformedPath = runtime.path.join(outputSubDir, outputFileName);
+  await runtime.fs.writeTextFile(transformedPath, transformed);
 
   return {
     originalPath: component.filePath,
@@ -89,7 +89,7 @@ export async function transformAllClientComponents(
     const result = await transformClientComponent(component, outputDir);
     transformLogger.debug(
       `  ✓ ${component.relativePath} → ${
-        current.path.relative(projectRoot, result.transformedPath)
+        runtime.path.relative(projectRoot, result.transformedPath)
       }`,
     );
     results.push(result);
@@ -133,14 +133,14 @@ export async function generateTransformManifest(
     generated: new Date().toISOString(),
     components: transformResults.map((r) => ({
       original: r.originalPath,
-      transformed: current.path.relative(projectRoot, r.transformedPath),
+      transformed: runtime.path.relative(projectRoot, r.transformedPath),
     })),
   };
 
-  await current.fs.writeTextFile(outputPath, JSON.stringify(manifest, null, 2));
+  await runtime.fs.writeTextFile(outputPath, JSON.stringify(manifest, null, 2));
   transformLogger.debug(
     `📝 Transform manifest saved to: ${
-      current.path.relative(projectRoot, outputPath)
+      runtime.path.relative(projectRoot, outputPath)
     }`,
   );
 }

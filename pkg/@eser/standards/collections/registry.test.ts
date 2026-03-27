@@ -496,7 +496,7 @@ Deno.test("IndexedRegistry - lookup by primary key", () => {
     >([
       createExtensionIndex("byExt", (f) => f.extensions),
     ])
-      .set("json", { name: "json", extensions: [".json"] })
+      .set("json", { name: "json", extensions: ["json"] })
       .build();
 
   const format = registry.get("json");
@@ -511,14 +511,14 @@ Deno.test("IndexedRegistry - lookup by index", () => {
     >([
       createExtensionIndex("byExt", (f) => f.extensions),
     ])
-      .set("json", { name: "json", extensions: [".json"] })
-      .set("yaml", { name: "yaml", extensions: [".yaml", ".yml"] })
+      .set("json", { name: "json", extensions: ["json"] })
+      .set("yaml", { name: "yaml", extensions: ["yaml", "yml"] })
       .build();
 
-  const jsonFormat = registry.getByIndex("byExt", ".json");
+  const jsonFormat = registry.getByIndex("byExt", "json");
   assert.assertEquals(jsonFormat?.name, "json");
 
-  const yamlFormat = registry.getByIndex("byExt", ".yml");
+  const yamlFormat = registry.getByIndex("byExt", "yml");
   assert.assertEquals(yamlFormat?.name, "yaml");
 });
 
@@ -530,11 +530,11 @@ Deno.test("IndexedRegistry - normalized lookup", () => {
     >([
       createExtensionIndex("byExt", (f) => f.extensions),
     ])
-      .set("json", { name: "json", extensions: [".json"] })
+      .set("json", { name: "json", extensions: ["json"] })
       .build();
 
   // Should normalize: .JSON -> json, JSON -> json
-  const format1 = registry.getByIndex("byExt", ".JSON");
+  const format1 = registry.getByIndex("byExt", "JSON");
   assert.assertEquals(format1?.name, "json");
 
   const format2 = registry.getByIndex("byExt", "json");
@@ -549,11 +549,11 @@ Deno.test("IndexedRegistry - hasInIndex", () => {
     >([
       createExtensionIndex("byExt", (f) => f.extensions),
     ])
-      .set("json", { name: "json", extensions: [".json"] })
+      .set("json", { name: "json", extensions: ["json"] })
       .build();
 
-  assert.assertEquals(registry.hasInIndex("byExt", ".json"), true);
-  assert.assertEquals(registry.hasInIndex("byExt", ".xml"), false);
+  assert.assertEquals(registry.hasInIndex("byExt", "json"), true);
+  assert.assertEquals(registry.hasInIndex("byExt", "xml"), false);
 });
 
 Deno.test("IndexedRegistry - isLazy works", () => {
@@ -564,7 +564,7 @@ Deno.test("IndexedRegistry - isLazy works", () => {
     >([
       createExtensionIndex("byExt", (f) => f.extensions),
     ])
-      .set("json", { name: "json", extensions: [".json"] })
+      .set("json", { name: "json", extensions: ["json"] })
       .setLazy("lazy", () => ({ name: "lazy", extensions: [] }))
       .build();
 
@@ -965,10 +965,10 @@ Deno.test("IndexedRegistry - getByIndex returns undefined for non-existent index
   const registry = createIndexedRegistryBuilder<string, Format>([
     createExtensionIndex("byExt", (f) => f.extensions),
   ])
-    .set("json", { name: "json", extensions: [".json"] })
+    .set("json", { name: "json", extensions: ["json"] })
     .build();
 
-  const result = registry.getByIndex("nonExistentIndex", ".json");
+  const result = registry.getByIndex("nonExistentIndex", "json");
   assert.assertEquals(result, undefined);
 });
 
@@ -976,10 +976,10 @@ Deno.test("IndexedRegistry - hasInIndex returns false for non-existent index", (
   const registry = createIndexedRegistryBuilder<string, Format>([
     createExtensionIndex("byExt", (f) => f.extensions),
   ])
-    .set("json", { name: "json", extensions: [".json"] })
+    .set("json", { name: "json", extensions: ["json"] })
     .build();
 
-  const result = registry.hasInIndex("nonExistentIndex", ".json");
+  const result = registry.hasInIndex("nonExistentIndex", "json");
   assert.assertEquals(result, false);
 });
 
@@ -1055,11 +1055,11 @@ Deno.test("IndexedRegistry - handles empty extension list", () => {
     createExtensionIndex("byExt", (f) => f.extensions),
   ])
     .set("noext", { name: "noext", extensions: [] })
-    .set("json", { name: "json", extensions: [".json"] })
+    .set("json", { name: "json", extensions: ["json"] })
     .build();
 
   assert.assertEquals(registry.get("noext")?.name, "noext");
-  assert.assertEquals(registry.getByIndex("byExt", ".json")?.name, "json");
+  assert.assertEquals(registry.getByIndex("byExt", "json")?.name, "json");
   // No extensions registered for noext
 });
 
@@ -1297,12 +1297,12 @@ Deno.test("IndexedRegistry.toBuilder - preserves entries and lazy", () => {
   const original = createIndexedRegistryBuilder<string, Format>([
     createExtensionIndex("byExt", (f) => f.extensions),
   ])
-    .set("json", { name: "json", extensions: [".json"] })
-    .setLazy("lazy", () => ({ name: "lazy", extensions: [".lazy"] }))
+    .set("json", { name: "json", extensions: ["json"] })
+    .setLazy("lazy", () => ({ name: "lazy", extensions: ["lazy"] }))
     .build();
 
   const newBuilder = original.toBuilder();
-  newBuilder.set("yaml", { name: "yaml", extensions: [".yaml"] });
+  newBuilder.set("yaml", { name: "yaml", extensions: ["yaml"] });
 
   const newRegistry = newBuilder.build();
 

@@ -13,7 +13,7 @@
  * @module
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as logging from "@eser/logging";
 
 const importMapLogger = logging.logger.getLogger([
@@ -222,24 +222,24 @@ function parsePackageJsonDependencies(
 async function loadDenoJson(
   projectRoot: string,
 ): Promise<DenoJsonConfig | null> {
-  const denoJsonPath = current.path.join(projectRoot, "deno.json");
+  const denoJsonPath = runtime.path.join(projectRoot, "deno.json");
 
   try {
-    const exists = await current.fs.exists(denoJsonPath);
+    const exists = await runtime.fs.exists(denoJsonPath);
     if (!exists) {
       // Try deno.jsonc
-      const denoJsoncPath = current.path.join(projectRoot, "deno.jsonc");
-      const existsJsonc = await current.fs.exists(denoJsoncPath);
+      const denoJsoncPath = runtime.path.join(projectRoot, "deno.jsonc");
+      const existsJsonc = await runtime.fs.exists(denoJsoncPath);
       if (!existsJsonc) {
         return null;
       }
-      const content = await current.fs.readTextFile(denoJsoncPath);
+      const content = await runtime.fs.readTextFile(denoJsoncPath);
       // Note: JSONC parsing would need a proper parser for comments
       // For now, assume valid JSON
       return JSON.parse(content) as DenoJsonConfig;
     }
 
-    const content = await current.fs.readTextFile(denoJsonPath);
+    const content = await runtime.fs.readTextFile(denoJsonPath);
     return JSON.parse(content) as DenoJsonConfig;
   } catch (error) {
     importMapLogger.debug(
@@ -257,15 +257,15 @@ async function loadDenoJson(
 async function loadPackageJson(
   projectRoot: string,
 ): Promise<PackageJsonConfig | null> {
-  const packageJsonPath = current.path.join(projectRoot, "package.json");
+  const packageJsonPath = runtime.path.join(projectRoot, "package.json");
 
   try {
-    const exists = await current.fs.exists(packageJsonPath);
+    const exists = await runtime.fs.exists(packageJsonPath);
     if (!exists) {
       return null;
     }
 
-    const content = await current.fs.readTextFile(packageJsonPath);
+    const content = await runtime.fs.readTextFile(packageJsonPath);
     return JSON.parse(content) as PackageJsonConfig;
   } catch (error) {
     importMapLogger.debug(

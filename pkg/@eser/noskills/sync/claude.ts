@@ -6,6 +6,8 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
+
 const NOS_SECTION_START = "<!-- noskills:start -->";
 const NOS_SECTION_END = "<!-- noskills:end -->";
 
@@ -51,7 +53,7 @@ export const sync = async (
   let content: string;
 
   try {
-    content = await Deno.readTextFile(filePath);
+    content = await runtime.fs.readTextFile(filePath);
 
     // Replace existing section or append
     const startIdx = content.indexOf(NOS_SECTION_START);
@@ -67,5 +69,5 @@ export const sync = async (
     content = section + "\n";
   }
 
-  await Deno.writeTextFile(filePath, content);
+  await runtime.fs.writeTextFile(filePath, content);
 };

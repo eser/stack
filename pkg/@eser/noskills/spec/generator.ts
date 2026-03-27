@@ -9,6 +9,7 @@
 import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as template from "./template.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 // =============================================================================
 // Generate
@@ -26,7 +27,7 @@ export const generateSpec = async (
   const specDir = `${root}/${persistence.paths.specDir(state.spec)}`;
   const specFile = `${root}/${persistence.paths.specFile(state.spec)}`;
 
-  await Deno.mkdir(specDir, { recursive: true });
+  await runtime.fs.mkdir(specDir, { recursive: true });
 
   const content = template.renderSpec(
     state.spec,
@@ -35,7 +36,7 @@ export const generateSpec = async (
     state.decisions,
   );
 
-  await Deno.writeTextFile(specFile, content);
+  await runtime.fs.writeTextFile(specFile, content);
 
   return specFile;
 };

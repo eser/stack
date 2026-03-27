@@ -12,7 +12,7 @@
  */
 
 import { expandGlob } from "@std/fs";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import type { CssModuleOptions, CssModuleResult } from "./types.ts";
 import { transformCssModules } from "./lightning.ts";
 
@@ -53,7 +53,7 @@ export async function processCssModule(
   } = options;
 
   // Read CSS file
-  let cssContent = await current.fs.readTextFile(cssPath);
+  let cssContent = await runtime.fs.readTextFile(cssPath);
 
   // Process with Tailwind first if provided (handles @apply, @tailwind, @theme)
   // This follows the same pattern as @tailwindcss/vite
@@ -65,7 +65,7 @@ export async function processCssModule(
   }
 
   // Get filename for scoped class generation
-  const filename = current.path.basename(cssPath);
+  const filename = runtime.path.basename(cssPath);
 
   // Process with Lightning CSS for CSS Modules (class scoping)
   const result = transformCssModules(cssContent, filename, {
@@ -150,41 +150,41 @@ export async function saveCssModuleOutputs(
   outputDir: string,
   baseDir?: string,
 ): Promise<void> {
-  const basename = current.path.basename(cssPath, ".module.css");
-  const relativePath = current.path.relative(
-    baseDir ?? current.process.cwd(),
+  const basename = runtime.path.basename(cssPath, ".module.css");
+  const relativePath = runtime.path.relative(
+    baseDir ?? runtime.process.cwd(),
     cssPath,
   );
-  const relativeDir = current.path.dirname(relativePath);
+  const relativeDir = runtime.path.dirname(relativePath);
 
   // Create output directory structure mirroring source
-  const moduleOutputDir = current.path.resolve(outputDir, relativeDir);
-  await current.fs.ensureDir(moduleOutputDir);
+  const moduleOutputDir = runtime.path.resolve(outputDir, relativeDir);
+  await runtime.fs.ensureDir(moduleOutputDir);
 
   // Save processed CSS
-  const cssOutputPath = current.path.resolve(
+  const cssOutputPath = runtime.path.resolve(
     moduleOutputDir,
     `${basename}.module.css`,
   );
-  await current.fs.writeTextFile(cssOutputPath, result.code);
+  await runtime.fs.writeTextFile(cssOutputPath, result.code);
 
   // Save exports JSON
-  const jsonOutputPath = current.path.resolve(
+  const jsonOutputPath = runtime.path.resolve(
     moduleOutputDir,
     `${basename}.module.css.json`,
   );
-  await current.fs.writeTextFile(
+  await runtime.fs.writeTextFile(
     jsonOutputPath,
     JSON.stringify(result.exports, null, 2),
   );
 
   // Save .d.ts if generated
   if (result.dts !== undefined) {
-    const dtsOutputPath = current.path.resolve(
+    const dtsOutputPath = runtime.path.resolve(
       moduleOutputDir,
       `${basename}.module.css.d.ts`,
     );
-    await current.fs.writeTextFile(dtsOutputPath, result.dts);
+    await runtime.fs.writeTextFile(dtsOutputPath, result.dts);
   }
 }
 
@@ -201,7 +201,7 @@ export async function findCssModules(
 ): Promise<string[]> {
   const modules: string[] = [];
 
-  for await (const entry of expandGlob(current.path.join(dir, pattern))) {
+  for await (const entry of expandGlob(runtime.path.join(dir, pattern))) {
     if (entry.isFile) {
       modules.push(entry.path);
     }

@@ -198,7 +198,7 @@ export const parseChangelog = async (
 ): Promise<ParseChangelogResult> => {
   const { changelogPath = "CHANGELOG.md", root = "." } = options;
   const fullPath = stdPath.resolve(root, changelogPath);
-  const text = await standards.runtime.current.fs.readTextFile(fullPath);
+  const text = await standards.crossRuntime.runtime.fs.readTextFile(fullPath);
   const entries = parseChangelogText(text);
 
   return { entries };
@@ -259,11 +259,11 @@ export const syncReleaseNotes = async (
   }
 
   // Write notes to a temp file for gh CLI
-  const tempDir = await standards.runtime.current.fs.makeTempDir({
+  const tempDir = await standards.crossRuntime.runtime.fs.makeTempDir({
     prefix: "eserstack-release-",
   });
   const notesPath = stdPath.join(tempDir, `${targetTag}-notes.md`);
-  await standards.runtime.current.fs.writeTextFile(notesPath, entry.notes);
+  await standards.crossRuntime.runtime.fs.writeTextFile(notesPath, entry.notes);
 
   try {
     const exists = await hasGitHubRelease(targetTag, repo);
@@ -294,7 +294,9 @@ export const syncReleaseNotes = async (
       return { tag: targetTag, entry, action: "updated" };
     }
   } finally {
-    await standards.runtime.current.fs.remove(tempDir, { recursive: true });
+    await standards.crossRuntime.runtime.fs.remove(tempDir, {
+      recursive: true,
+    });
   }
 };
 
@@ -317,7 +319,7 @@ const cliAdapter: functions.handler.Adapter<
   event,
 ) => {
   const repo = (event.flags["repo"] as string | undefined) ??
-    standards.runtime.current.env.get("GITHUB_REPOSITORY") ?? "";
+    standards.crossRuntime.runtime.env.get("GITHUB_REPOSITORY") ?? "";
 
   if (repo === "") {
     return primitives.results.fail(
@@ -408,7 +410,7 @@ export const main = async (
 
 if (import.meta.main) {
   runCliMain(
-    await main(standards.runtime.current.process.args as string[]),
+    await main(standards.crossRuntime.runtime.process.args as string[]),
     out,
   );
 }

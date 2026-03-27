@@ -6,12 +6,13 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
 import * as results from "@eser/primitives/results";
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as task from "@eser/functions/task";
 import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
-import * as updateRecipeHandler from "@eser/registry/handlers/update-recipe";
+import * as updateRecipeHandler from "../recipes/handlers/update-recipe.ts";
 import type * as shellArgs from "@eser/shell/args";
 
 export const main = async (
@@ -51,7 +52,7 @@ export const main = async (
   const handlerResult = await task.runTask(
     updateRecipeHandler.updateRecipe({
       recipeName,
-      cwd: Deno.cwd(),
+      cwd: runtime.process.cwd(),
       registrySource: parsed["registry"] as string | undefined,
       local: parsed["local"] === true,
       dryRun,

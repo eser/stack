@@ -18,14 +18,16 @@
 
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
-import * as standardsRuntime from "@eser/standards/runtime";
+import * as standardsCrossRuntime from "@eser/standards/cross-runtime";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
 import * as shellExec from "@eser/shell/exec";
 import * as versionCheck from "./version-check.ts";
 import config from "../../package.json" with { type: "json" };
 
-const ESER_OPTS: standardsRuntime.CliCommandOptions = {
+const runtime = standardsCrossRuntime.runtime;
+
+const ESER_OPTS: standardsCrossRuntime.CliCommandOptions = {
   command: "eser",
   devCommand: "deno task cli",
   npmPackage: "eser",
@@ -73,8 +75,8 @@ const DENO_TARGET_MAP: Record<string, string> = {
  * Detects the current platform in the format used by our release archives.
  */
 const detectPlatformTarget = (): string | undefined => {
-  const os = standardsRuntime.getPlatform(); // "darwin" | "linux" | "windows"
-  const arch = standardsRuntime.getArch(); // "amd64" | "arm64"
+  const os = standardsCrossRuntime.getPlatform(); // "darwin" | "linux" | "windows"
+  const arch = standardsCrossRuntime.getArch(); // "amd64" | "arm64"
   const key = `${os}-${arch}`;
 
   return DENO_TARGET_MAP[key];
@@ -84,8 +86,6 @@ const detectPlatformTarget = (): string | undefined => {
  * Self-updates a compiled binary from GitHub Releases.
  */
 const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
-  const rt = standardsRuntime.current;
-
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -125,8 +125,8 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   // Determine platform
   const target = detectPlatformTarget();
   if (target === undefined) {
-    const os = standardsRuntime.getPlatform();
-    const arch = standardsRuntime.getArch();
+    const os = standardsCrossRuntime.getPlatform();
+    const arch = standardsCrossRuntime.getArch();
 
     out.writeln(
       span.red(`\nUnsupported platform: ${os}-${arch}`),
@@ -136,7 +136,7 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   }
 
   const tag = `v${check.latestVersion}`;
-  const isWindows = standardsRuntime.getPlatform() === "windows";
+  const isWindows = standardsCrossRuntime.getPlatform() === "windows";
   const archiveExt = isWindows ? "zip" : "tar.gz";
   const archiveName = `eser-${tag}-${target}.${archiveExt}`;
   const baseUrl = `https://github.com/eser/stack/releases/download/${tag}`;
@@ -183,12 +183,12 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   }
 
   // Extract to temp directory
-  const tempDir = await rt.fs.makeTempDir({ prefix: "eser-update-" });
+  const tempDir = await runtime.fs.makeTempDir({ prefix: "eser-update-" });
 
   try {
-    const archivePath = rt.path.join(tempDir, archiveName);
+    const archivePath = runtime.path.join(tempDir, archiveName);
     const archiveData = new Uint8Array(await archiveResponse.arrayBuffer());
-    await rt.fs.writeFile(archivePath, archiveData);
+    await runtime.fs.writeFile(archivePath, archiveData);
 
     if (isWindows) {
       await shellExec
@@ -199,14 +199,14 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
     }
 
     const newBinaryPath = isWindows
-      ? rt.path.join(tempDir, "eser.exe")
-      : rt.path.join(tempDir, "eser");
-    const currentBinaryPath = rt.process.execPath();
+      ? runtime.path.join(tempDir, "eser.exe")
+      : runtime.path.join(tempDir, "eser");
+    const currentBinaryPath = runtime.process.execPath();
 
     if (isWindows) {
       // Windows: can't replace a running binary. Write .new.exe next to current.
       const newPath = currentBinaryPath.replace(/\.exe$/i, ".new.exe");
-      await rt.fs.copyFile(newBinaryPath, newPath);
+      await runtime.fs.copyFile(newBinaryPath, newPath);
       out.writeln(span.green(`\nDownloaded v${check.latestVersion}!`));
       out.writeln(
         span.text(
@@ -219,9 +219,9 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
     } else {
       // Unix: write to temp, then rename over self
       const tempBinaryPath = `${currentBinaryPath}.new`;
-      await rt.fs.copyFile(newBinaryPath, tempBinaryPath);
-      await rt.fs.chmod(tempBinaryPath, 0o755);
-      await rt.fs.rename(tempBinaryPath, currentBinaryPath);
+      await runtime.fs.copyFile(newBinaryPath, tempBinaryPath);
+      await runtime.fs.chmod(tempBinaryPath, 0o755);
+      await runtime.fs.rename(tempBinaryPath, currentBinaryPath);
       out.writeln(span.green(`\nUpdated to v${check.latestVersion}!`));
     }
   } catch (error) {
@@ -240,7 +240,7 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
     throw error;
   } finally {
     try {
-      await rt.fs.remove(tempDir, { recursive: true });
+      await runtime.fs.remove(tempDir, { recursive: true });
     } catch {
       // Best effort cleanup
     }
@@ -256,7 +256,9 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
 export const updateHandler = async (
   _ctx: shellArgs.CommandContext,
 ): Promise<shellArgs.CliResult<void>> => {
-  const execContext = await standardsRuntime.detectExecutionContext(ESER_OPTS);
+  const execContext = await standardsCrossRuntime.detectExecutionContext(
+    ESER_OPTS,
+  );
 
   // Compiled binary: self-update from GitHub Releases
   if (execContext.invoker === "binary") {

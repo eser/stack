@@ -91,7 +91,7 @@ export const createReader = (_options?: FormatOptions): FormatReader => {
 
 export const tomlFormat: Format = {
   name: "toml",
-  extensions: [".toml"],
+  extensions: ["toml"],
   streamable: false,
   writeStart,
   writeItem,

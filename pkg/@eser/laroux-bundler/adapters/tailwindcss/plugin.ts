@@ -4,7 +4,7 @@
  * Uses @tailwindcss/node programmatic API + @tailwindcss/oxide for scanning
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as logging from "@eser/logging";
 import { walkFiles } from "@eser/collector";
 import { Scanner } from "@tailwindcss/oxide";
@@ -64,12 +64,12 @@ export function createTailwindPlugin(
         const hasReferenceDirective = /^@reference\s+/m.test(css);
         if (autoInjectReference && !hasReferenceDirective) {
           // Calculate relative path from CSS module to global.css
-          const cssDir = current.path.dirname(context.cssPath);
-          const globalCssAbsPath = current.path.resolve(
+          const cssDir = runtime.path.dirname(context.cssPath);
+          const globalCssAbsPath = runtime.path.resolve(
             context.projectRoot,
             globalCssPath,
           );
-          const relativePath = current.path.relative(cssDir, globalCssAbsPath);
+          const relativePath = runtime.path.relative(cssDir, globalCssAbsPath);
 
           processedContent = `@reference "${relativePath}";\n\n${css}`;
         }
@@ -77,7 +77,7 @@ export function createTailwindPlugin(
         // Expand @apply directives
         return expandApplyDirectives(
           processedContent,
-          current.path.dirname(context.cssPath),
+          runtime.path.dirname(context.cssPath),
         );
       }
 
@@ -88,8 +88,8 @@ export function createTailwindPlugin(
       css: string,
       context: CssPluginContext,
     ): Promise<string> {
-      const cssDir = current.path.dirname(context.cssPath);
-      const srcDir = current.path.resolve(context.projectRoot, "src");
+      const cssDir = runtime.path.dirname(context.cssPath);
+      const srcDir = runtime.path.resolve(context.projectRoot, "src");
 
       // Collect source files for scanning
       const filesToScan: Array<{ content: string; extension: string }> = [];
@@ -102,9 +102,9 @@ export function createTailwindPlugin(
           /node_modules/,
         )
       ) {
-        const fullPath = current.path.resolve(srcDir, relPath);
-        const ext = current.path.extname(relPath);
-        const content = await current.fs.readTextFile(fullPath);
+        const fullPath = runtime.path.resolve(srcDir, relPath);
+        const ext = runtime.path.extname(relPath);
+        const content = await runtime.fs.readTextFile(fullPath);
         filesToScan.push({
           content,
           extension: ext.slice(1), // Remove leading dot

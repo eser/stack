@@ -137,7 +137,7 @@ export const readVersionFile = async (
   const { root = "." } = options;
   const versionFilePath = stdPath.join(root, "VERSION");
   try {
-    const content = await standards.runtime.current.fs.readTextFile(
+    const content = await standards.crossRuntime.runtime.fs.readTextFile(
       versionFilePath,
     );
     return content.trim();
@@ -154,7 +154,7 @@ const writeVersionFile = async (
   version: string,
 ): Promise<void> => {
   const versionFilePath = stdPath.join(root, "VERSION");
-  await standards.runtime.current.fs.writeTextFile(
+  await standards.crossRuntime.runtime.fs.writeTextFile(
     versionFilePath,
     version + "\n",
   );
@@ -490,7 +490,7 @@ export const main = async (
 
 if (import.meta.main) {
   runCliMain(
-    await main(standards.runtime.current.process.args as string[]),
+    await main(standards.crossRuntime.runtime.process.args as string[]),
     out,
   );
 }

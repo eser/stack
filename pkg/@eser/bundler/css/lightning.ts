@@ -13,7 +13,7 @@
 
 import { transform } from "lightningcss";
 import { Buffer } from "node:buffer";
-import { current, isRuntime } from "@eser/standards/runtime";
+import { isRuntime, runtime } from "@eser/standards/cross-runtime";
 import type {
   BrowserTargets,
   CssModuleExportData,
@@ -191,7 +191,7 @@ export async function transformCssFile(
   outputPath?: string,
   options: LightningCssOptions = {},
 ): Promise<LightningCssResult> {
-  const css = await current.fs.readTextFile(inputPath);
+  const css = await runtime.fs.readTextFile(inputPath);
 
   const result = transformWithLightningCss(css, {
     ...options,
@@ -199,7 +199,7 @@ export async function transformCssFile(
   });
 
   const output = outputPath ?? inputPath;
-  await current.fs.writeTextFile(output, result.code);
+  await runtime.fs.writeTextFile(output, result.code);
 
   return result;
 }

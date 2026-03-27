@@ -16,7 +16,7 @@ import * as shellExec from "@eser/shell/exec";
 import * as results from "@eser/primitives/results";
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import type * as shellArgs from "@eser/shell/args";
 import type { ScriptConfig } from "@eser/workflows/mod";
 
@@ -113,7 +113,7 @@ const resolveCliPrefix = (): string => {
   const mainPath = mainUrl.protocol === "file:"
     ? mainUrl.pathname
     : mainUrl.href;
-  const execPath = standardsRuntime.current.process.execPath();
+  const execPath = runtime.process.execPath();
 
   return `${execPath} run --allow-all ${mainPath}`;
 };

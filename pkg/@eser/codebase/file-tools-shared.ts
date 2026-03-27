@@ -9,7 +9,8 @@
  * @module
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
+import { hasExtension } from "@eser/standards/patterns";
 import * as shellExec from "@eser/shell/exec";
 
 // =============================================================================
@@ -54,7 +55,7 @@ export type FileMutation = {
 export type WalkOptions = {
   /** Root directory (default: ".") */
   readonly root?: string;
-  /** File extensions to include (e.g., [".ts", ".json"]). Empty = all. */
+  /** File extensions to include (e.g., ["ts", "json"]). Empty = all. */
   readonly extensions?: readonly string[];
   /** Glob/regex patterns to exclude */
   readonly exclude?: readonly (string | RegExp)[];
@@ -125,16 +126,12 @@ export const walkSourceFiles = async (
   if (gitFiles !== null) {
     // Git-aware path: iterate over git-tracked files
     for (const relativePath of gitFiles) {
-      const fullPath = current.path.join(root, relativePath);
-      const name = current.path.basename(relativePath);
+      const fullPath = runtime.path.join(root, relativePath);
+      const name = runtime.path.basename(relativePath);
 
-      // Apply extension filter (normalize bare exts: "ts" → ".ts" to match extname output)
+      // Apply extension filter (bare extensions: "ts", "json", etc.)
       if (extensions !== undefined && extensions.length > 0) {
-        const ext = current.path.extname(relativePath);
-        const normalizedExts = extensions.map((e) =>
-          e.startsWith(".") ? e : `.${e}`
-        );
-        if (!normalizedExts.includes(ext)) {
+        if (!hasExtension(relativePath, extensions)) {
           continue;
         }
       }
@@ -149,7 +146,7 @@ export const walkSourceFiles = async (
       let size = 0;
       let isSymlink = false;
       try {
-        const stat = await current.fs.lstat(fullPath);
+        const stat = await runtime.fs.lstat(fullPath);
         size = stat.size;
         isSymlink = stat.isSymlink;
         // Skip directories
@@ -165,7 +162,7 @@ export const walkSourceFiles = async (
   } else {
     // Fallback: filesystem walk (existing behavior)
     for await (
-      const entry of current.fs.walk(root, {
+      const entry of runtime.fs.walk(root, {
         includeDirs: options.includeDirs ?? false,
         includeFiles: true,
         exts: extensions as string[] | undefined,
@@ -178,7 +175,7 @@ export const walkSourceFiles = async (
 
       let size = 0;
       try {
-        const stat = await current.fs.stat(entry.path);
+        const stat = await runtime.fs.stat(entry.path);
         size = stat.size;
       } catch {
         continue;
@@ -245,7 +242,7 @@ export const loadBytes = async (file: FileEntry): Promise<Uint8Array> => {
     return file.rawBytes;
   }
 
-  const bytes = await current.fs.readFile(file.path);
+  const bytes = await runtime.fs.readFile(file.path);
   (file as { rawBytes?: Uint8Array }).rawBytes = bytes;
   return bytes;
 };
@@ -322,7 +319,7 @@ export const writeMutations = async (
   let written = 0;
   for (const mutation of mutations) {
     if (mutation.oldContent !== mutation.newContent) {
-      await current.fs.writeTextFile(mutation.path, mutation.newContent);
+      await runtime.fs.writeTextFile(mutation.path, mutation.newContent);
       written++;
     }
   }

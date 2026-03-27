@@ -7,7 +7,7 @@
  */
 
 import * as yaml from "@std/yaml";
-import { current, NotFoundError } from "@eser/standards/runtime";
+import { NotFoundError, runtime } from "@eser/standards/cross-runtime";
 
 /** Manifest filenames to search for (in order of priority). */
 export const MANIFEST_FILENAMES = [".manifest.yml", ".manifest.yaml"];
@@ -20,9 +20,9 @@ export const loadManifest = async (
   dir: string,
 ): Promise<Record<string, unknown> | null> => {
   for (const filename of MANIFEST_FILENAMES) {
-    const filepath = current.path.join(dir, filename);
+    const filepath = runtime.path.join(dir, filename);
     try {
-      const content = await current.fs.readTextFile(filepath);
+      const content = await runtime.fs.readTextFile(filepath);
       return yaml.parse(content) as Record<string, unknown>;
     } catch (error) {
       if (error instanceof NotFoundError) {
@@ -41,9 +41,9 @@ export const getManifestPath = async (
   dir: string,
 ): Promise<string | null> => {
   for (const filename of MANIFEST_FILENAMES) {
-    const filepath = current.path.join(dir, filename);
+    const filepath = runtime.path.join(dir, filename);
     try {
-      await current.fs.stat(filepath);
+      await runtime.fs.stat(filepath);
       return filepath;
     } catch {
       continue;

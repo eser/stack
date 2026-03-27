@@ -26,8 +26,8 @@ import type {
  * ]);
  *
  * builder
- *   .set("json", { name: "json", extensions: [".json"] })
- *   .set("yaml", { name: "yaml", extensions: [".yaml", ".yml"] });
+ *   .set("json", { name: "json", extensions: ["json"] })
+ *   .set("yaml", { name: "yaml", extensions: ["yaml", "yml"] });
  *
  * const registry = builder.build();
  *

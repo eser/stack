@@ -8,8 +8,8 @@
  * The virtual source is created in dist/_bundle_src/ and cleaned up after bundling.
  */
 
-import { current } from "@eser/standards/runtime";
-import { JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
+import { runtime } from "@eser/standards/cross-runtime";
+import { hasExtension, JS_FILE_EXTENSIONS } from "@eser/standards/patterns";
 import { copy, emptyDir, ensureDir, walk } from "@std/fs"; // emptyDir, copy, walk not available in runtime
 import * as logging from "@eser/logging";
 
@@ -34,7 +34,7 @@ export interface VirtualSourceOptions {
  * e.g., if srcDir is "/project/source", returns "source"
  */
 function getSrcDirName(srcDir: string, projectRoot: string): string {
-  return current.path.relative(projectRoot, srcDir);
+  return runtime.path.relative(projectRoot, srcDir);
 }
 
 export interface VirtualSourceResult {
@@ -63,15 +63,15 @@ export async function createVirtualSource(
   // Get the srcDir name relative to projectRoot (e.g., "src" or "source")
   const srcDirName = getSrcDirName(srcDir, projectRoot);
   // virtualSrcDir acts as the "project root" for the virtual source
-  const virtualSrcDir = current.path.resolve(distDir, VIRTUAL_SRC_DIR);
+  const virtualSrcDir = runtime.path.resolve(distDir, VIRTUAL_SRC_DIR);
   // virtualSrcSubdir is where files are actually copied (maintains srcDir structure)
-  const virtualSrcSubdir = current.path.resolve(virtualSrcDir, srcDirName);
+  const virtualSrcSubdir = runtime.path.resolve(virtualSrcDir, srcDirName);
 
   vsLogger.debug(`Creating virtual source: ${virtualSrcDir}`);
   vsLogger.debug(`  Virtual src subdir: ${virtualSrcSubdir}`);
 
   // Check if virtual source already exists for incremental update
-  const virtualSourceExists = await current.fs.exists(virtualSrcSubdir);
+  const virtualSourceExists = await runtime.fs.exists(virtualSrcSubdir);
 
   if (changedFiles && changedFiles.size > 0 && virtualSourceExists) {
     // INCREMENTAL MODE: Only update changed files
@@ -100,7 +100,7 @@ export async function createVirtualSource(
     cleanup: async () => {
       vsLogger.debug(`Cleaning up virtual source: ${virtualSrcDir}`);
       try {
-        await current.fs.remove(virtualSrcDir, { recursive: true });
+        await runtime.fs.remove(virtualSrcDir, { recursive: true });
         vsLogger.debug("Virtual source cleaned up");
       } catch (error) {
         vsLogger.warn("Failed to clean up virtual source:", { error });
@@ -120,9 +120,9 @@ async function incrementalCopySourceFiles(
 ): Promise<void> {
   // JS/TS extensions from standards + json and css for bundling
   const relevantExtensions = [
-    ...JS_FILE_EXTENSIONS.map((ext) => `.${ext}`),
-    ".json",
-    ".css",
+    ...JS_FILE_EXTENSIONS,
+    "json",
+    "css",
   ];
 
   let copiedCount = 0;
@@ -135,26 +135,25 @@ async function incrementalCopySourceFiles(
     }
 
     // Check if file has relevant extension
-    const ext = current.path.extname(filePath);
-    if (!relevantExtensions.includes(ext)) {
+    if (!hasExtension(filePath, relevantExtensions)) {
       continue;
     }
 
     // Calculate target path
-    const relativePath = current.path.relative(srcDir, filePath);
-    const targetPath = current.path.resolve(virtualDir, relativePath);
+    const relativePath = runtime.path.relative(srcDir, filePath);
+    const targetPath = runtime.path.resolve(virtualDir, relativePath);
 
     // Check if source file exists
     try {
-      await current.fs.stat(filePath);
+      await runtime.fs.stat(filePath);
       // File exists - copy it
-      await ensureDir(current.path.dirname(targetPath));
+      await ensureDir(runtime.path.dirname(targetPath));
       await copy(filePath, targetPath, { overwrite: true });
       copiedCount++;
     } catch {
       // File was deleted - remove from virtual source
       try {
-        await current.fs.remove(targetPath);
+        await runtime.fs.remove(targetPath);
         deletedCount++;
       } catch {
         // Target doesn't exist, that's fine
@@ -182,30 +181,29 @@ async function copySourceFiles(
 
   // JS/TS extensions from standards + json and css for bundling
   const validExtensions = [
-    ...JS_FILE_EXTENSIONS.map((ext) => `.${ext}`),
-    ".json",
-    ".css",
+    ...JS_FILE_EXTENSIONS,
+    "json",
+    "css",
   ];
 
   // Use @std/fs walk to include all file types (walkFiles only supports JS files)
   for await (const entry of walk(srcDir, { includeDirs: false })) {
     // Check extension
-    const ext = current.path.extname(entry.path);
-    if (!validExtensions.includes(ext)) {
+    if (!hasExtension(entry.path, validExtensions)) {
       continue;
     }
 
     // Check ignore pattern
-    const relativePath = current.path.relative(srcDir, entry.path);
+    const relativePath = runtime.path.relative(srcDir, entry.path);
     if (IGNORE_PATTERN.test(relativePath)) {
       continue;
     }
 
     // Calculate target path
-    const targetPath = current.path.resolve(virtualDir, relativePath);
+    const targetPath = runtime.path.resolve(virtualDir, relativePath);
 
     // Ensure directory exists
-    await current.fs.ensureDir(current.path.dirname(targetPath));
+    await runtime.fs.ensureDir(runtime.path.dirname(targetPath));
 
     // Copy file
     await copy(entry.path, targetPath);
@@ -230,11 +228,11 @@ export function translateToVirtualPath(
   virtualSrcDir: string,
   srcDirName?: string,
 ): string {
-  const relativePath = current.path.relative(srcDir, originalPath);
+  const relativePath = runtime.path.relative(srcDir, originalPath);
   // Files are in virtualSrcDir/{srcDirName}/ to maintain project structure
   // If srcDirName not provided, derive from srcDir basename
-  const actualSrcDirName = srcDirName ?? current.path.basename(srcDir);
-  return current.path.resolve(virtualSrcDir, actualSrcDirName, relativePath);
+  const actualSrcDirName = srcDirName ?? runtime.path.basename(srcDir);
+  return runtime.path.resolve(virtualSrcDir, actualSrcDirName, relativePath);
 }
 
 /**
@@ -254,13 +252,13 @@ export function translateFromVirtualPath(
 ): string {
   // Files are in virtualSrcDir/{srcDirName}/
   // If srcDirName not provided, derive from srcDir basename
-  const actualSrcDirName = srcDirName ?? current.path.basename(srcDir);
-  const virtualSrcSubdir = current.path.resolve(
+  const actualSrcDirName = srcDirName ?? runtime.path.basename(srcDir);
+  const virtualSrcSubdir = runtime.path.resolve(
     virtualSrcDir,
     actualSrcDirName,
   );
-  const relativePath = current.path.relative(virtualSrcSubdir, virtualPath);
-  return current.path.resolve(srcDir, relativePath);
+  const relativePath = runtime.path.relative(virtualSrcSubdir, virtualPath);
+  return runtime.path.resolve(srcDir, relativePath);
 }
 
 /**

@@ -1,14 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Deno runtime entry point.
+ * Bun runtime entry point.
  *
  * @example
  * ```typescript
- * import { isRuntime, createDenoRuntime } from "@eser/standards/runtime/deno";
+ * import { isRuntime, createBunRuntime } from "@eser/standards/cross-runtime/bun";
  *
- * if (isRuntime("deno")) {
- *   const runtime = createDenoRuntime();
+ * if (isRuntime("bun")) {
+ *   const runtime = createBunRuntime();
  *   await runtime.fs.readTextFile("config.json");
  * }
  * ```
@@ -26,8 +26,8 @@ export {
   isServer,
 } from "./detect.ts";
 
-// Deno adapter
-export { createDenoRuntime, DENO_CAPABILITIES } from "./adapters/deno.ts";
+// Bun adapter
+export { BUN_CAPABILITIES, createBunRuntime } from "./adapters/bun.ts";
 
 // Re-export all types
 export type {

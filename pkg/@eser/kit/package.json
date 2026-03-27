@@ -10,7 +10,6 @@
   "dependencies": {
     "@eser/functions": "workspace:*",
     "@eser/primitives": "workspace:*",
-    "@eser/registry": "workspace:*",
     "@eser/shell": "workspace:*",
     "@eser/standards": "workspace:*",
     "@eser/streams": "workspace:*",

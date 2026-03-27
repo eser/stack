@@ -85,7 +85,7 @@ export const createReader = (_options?: FormatOptions): FormatReader => {
 
 export const jsonlFormat: Format = {
   name: "jsonl",
-  extensions: [".jsonl", ".ndjson"],
+  extensions: ["jsonl", "ndjson"],
   streamable: true,
   writeStart,
   writeItem,

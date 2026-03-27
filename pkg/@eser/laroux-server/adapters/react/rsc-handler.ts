@@ -8,7 +8,7 @@ import {
   type BundlerConfig,
   renderToReadableStream,
 } from "./rsc-flight-renderer.ts";
-import { current, NotFoundError } from "@eser/standards/runtime";
+import { NotFoundError, runtime } from "@eser/standards/cross-runtime";
 import type { AppConfig } from "@eser/laroux/config";
 import * as logging from "@eser/logging";
 
@@ -31,12 +31,12 @@ const MODULE_MAP_FILENAME = "module-map.json";
  */
 export async function loadModuleMap(config: AppConfig): Promise<BundlerConfig> {
   try {
-    const moduleMapPath = current.path.resolve(
+    const moduleMapPath = runtime.path.resolve(
       config.distDir,
       "client",
       MODULE_MAP_FILENAME,
     );
-    const content = await current.fs.readTextFile(moduleMapPath);
+    const content = await runtime.fs.readTextFile(moduleMapPath);
     const map: BundlerConfig = JSON.parse(content);
     rscRenderer.debug(
       `Loaded module map with ${Object.keys(map).length} entries`,

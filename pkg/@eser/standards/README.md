@@ -10,9 +10,9 @@ portable applications.
 import * as standards from "@eser/standards";
 
 // Runtime abstraction — works on Deno, Node.js, Bun, and browsers
-const { current } = standards.runtime;
-const content = await current.fs.readTextFile("config.json");
-const joined = current.path.join("src", "utils.ts");
+const { runtime } = standards.crossRuntime;
+const content = await runtime.fs.readTextFile("config.json");
+const joined = runtime.path.join("src", "utils.ts");
 
 // String interpolation
 const greeting = standards.strings.interpolate("Hello {name}!", {
@@ -185,23 +185,27 @@ const locale = userLocale ?? DEFAULT_LOCALE; // "en"
 Cross-runtime support for Deno, Node.js, Bun, Cloudflare Workers, and browsers.
 
 ```typescript
-import { createRuntime, current, detectRuntime } from "@eser/standards/runtime";
+import {
+  createRuntime,
+  detectRuntime,
+  runtime,
+} from "@eser/standards/cross-runtime";
 
 // Auto-detected runtime singleton
-console.log(current.name); // "deno" | "node" | "bun" | "workerd" | "browser"
-console.log(current.version); // "1.40.0"
+console.log(runtime.name); // "deno" | "node" | "bun" | "workerd" | "browser"
+console.log(runtime.version); // "1.40.0"
 
 // Check capabilities
-if (current.capabilities.fs) {
-  const content = await current.fs.readTextFile("config.json");
+if (runtime.capabilities.fs) {
+  const content = await runtime.fs.readTextFile("config.json");
 }
 
-if (current.capabilities.exec) {
-  const result = await current.exec.command("ls", ["-la"]);
+if (runtime.capabilities.exec) {
+  const result = await runtime.exec.command("ls", ["-la"]);
 }
 
 // Environment variables
-const apiKey = current.env.get("API_KEY");
+const apiKey = runtime.env.get("API_KEY");
 
 // Create runtime with mocks for testing
 const mockRuntime = createRuntime({
@@ -241,7 +245,7 @@ Immutable, indexed data structures for efficient lookups.
 import {
   createIndexedRegistry,
   createRegistry,
-} from "@eser/standards/registry";
+} from "@eser/standards/collections";
 
 // Simple registry
 const registry = createRegistry<{ id: string; name: string }>();

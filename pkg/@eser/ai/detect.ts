@@ -8,6 +8,7 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
 import * as shellExec from "@eser/shell/exec";
 
 // =============================================================================
@@ -47,10 +48,7 @@ const checkOllamaReachable = async (): Promise<boolean> => {
 };
 
 const checkEnvVar = (name: string): boolean => {
-  if (typeof globalThis.Deno !== "undefined") {
-    return Deno.env.get(name) !== undefined;
-  }
-  return false;
+  return runtime.env.has(name);
 };
 
 // =============================================================================

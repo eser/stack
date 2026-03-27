@@ -15,7 +15,7 @@ import type { CliEvent } from "@eser/functions/triggers";
 import type * as shellArgs from "@eser/shell/args";
 import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 
 /**
  * Creates a standard Output wired to stdout with ANSI rendering.
@@ -67,7 +67,7 @@ export const runCliMain = (
           console.error(error.message);
         }
       }
-      current.process.setExitCode(error.exitCode);
+      runtime.process.setExitCode(error.exitCode);
     },
   });
 };

@@ -98,7 +98,7 @@ const isKebabCase = (str: string, ignoreWords: string[] = []): boolean => {
     }
 
     // Strip file extension using path helpers (language-agnostic)
-    const ext = standards.runtime.current.path.extname(cleanSegment);
+    const ext = standards.crossRuntime.runtime.path.extname(cleanSegment);
     if (ext.length > 0) {
       cleanSegment = cleanSegment.slice(0, -ext.length);
     }

@@ -6,11 +6,11 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as shellExec from "@eser/shell/exec";
 
 export const format = async (input: string) => {
-  const execPath = current.process.execPath();
+  const execPath = runtime.process.execPath();
   const child = shellExec.exec`${execPath} fmt -`
     .stderr("null")
     .child();

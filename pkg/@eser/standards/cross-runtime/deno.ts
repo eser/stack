@@ -1,14 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Node.js runtime entry point.
+ * Deno runtime entry point.
  *
  * @example
  * ```typescript
- * import { isRuntime, createNodeRuntime } from "@eser/standards/runtime/node";
+ * import { isRuntime, createDenoRuntime } from "@eser/standards/cross-runtime/deno";
  *
- * if (isRuntime("node")) {
- *   const runtime = createNodeRuntime();
+ * if (isRuntime("deno")) {
+ *   const runtime = createDenoRuntime();
  *   await runtime.fs.readTextFile("config.json");
  * }
  * ```
@@ -26,8 +26,8 @@ export {
   isServer,
 } from "./detect.ts";
 
-// Node adapter
-export { createNodeRuntime, NODE_CAPABILITIES } from "./adapters/node.ts";
+// Deno adapter
+export { createDenoRuntime, DENO_CAPABILITIES } from "./adapters/deno.ts";
 
 // Re-export all types
 export type {

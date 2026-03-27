@@ -7,6 +7,7 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
 import * as task from "@eser/functions/task";
 import * as results from "@eser/primitives/results";
 import * as span from "@eser/streams/span";
@@ -90,7 +91,9 @@ const cloneRecipe = (
         let targetDir = input.cwd;
         if (input.projectName !== undefined) {
           targetDir = `${input.cwd}/${input.projectName}`;
-          await Deno.mkdir(targetDir, { recursive: true });
+          await runtime.fs.mkdir(targetDir, {
+            recursive: true,
+          });
         }
 
         const variables = { ...input.variables };

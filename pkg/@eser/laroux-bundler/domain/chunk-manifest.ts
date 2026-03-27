@@ -6,7 +6,7 @@
  * Uses @eser/bundler for base chunk manifest types.
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import type {
   ChunkInfo as BaseChunkInfo,
   ChunkManifest as BaseChunkManifest,
@@ -259,7 +259,7 @@ export async function saveChunkManifest(
   manifest: ChunkManifest,
   outputPath: string,
 ): Promise<void> {
-  await current.fs.writeTextFile(
+  await runtime.fs.writeTextFile(
     outputPath,
     JSON.stringify(manifest, null, 2),
   );
@@ -272,7 +272,7 @@ export async function saveChunkManifest(
 export async function loadChunkManifest(
   filePath: string,
 ): Promise<ChunkManifest> {
-  const content = await current.fs.readTextFile(filePath);
+  const content = await runtime.fs.readTextFile(filePath);
   return JSON.parse(content);
 }
 

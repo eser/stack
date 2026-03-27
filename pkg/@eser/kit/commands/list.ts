@@ -10,7 +10,7 @@ import * as results from "@eser/primitives/results";
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as task from "@eser/functions/task";
 import * as streams from "@eser/streams";
-import * as listRecipesHandler from "@eser/registry/handlers/list-recipes";
+import * as listRecipesHandler from "../recipes/handlers/list-recipes.ts";
 import type * as shellArgs from "@eser/shell/args";
 
 export const main = async (

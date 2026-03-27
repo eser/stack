@@ -209,8 +209,8 @@ export type IndexConfig<V> = {
  *   { name: "byExtension", extractor: (f) => f.extensions }
  * ]).set("json", jsonFormat).build();
  *
- * registry.get("json");                    // By primary key
- * registry.getByIndex("byExtension", ".json"); // By extension
+ * registry.get("json");                       // By primary key
+ * registry.getByIndex("byExtension", "json"); // By extension
  * ```
  */
 export type IndexedRegistry<K extends string = string, V = unknown> =

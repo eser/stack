@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Script executor — resolves and runs scripts from .manifest.yml.
+ * Script executor — resolves and runs scripts from .eser/manifest.yml.
  *
  * Supports:
  * - String shorthand: `ok: "eser workflows run -e precommit"`

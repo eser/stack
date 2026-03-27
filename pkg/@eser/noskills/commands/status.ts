@@ -11,6 +11,7 @@ import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
+import { QUESTIONS } from "../context/questions.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -35,7 +36,7 @@ export const main = async (
   }
 
   const state = await persistence.readState(root);
-  const config = await persistence.readConfig(root);
+  const config = await persistence.readManifest(root);
 
   out.writeln(span.bold("noskills status"));
   out.writeln("");
@@ -45,7 +46,7 @@ export const main = async (
     ? span.green(state.phase)
     : state.phase === "BLOCKED"
     ? span.red(state.phase)
-    : state.phase === "BUILDING"
+    : state.phase === "EXECUTING"
     ? span.cyan(state.phase)
     : span.yellow(state.phase);
 
@@ -61,14 +62,16 @@ export const main = async (
   // Discovery progress
   if (state.phase === "DISCOVERY") {
     const answered = state.discovery.answers.length;
-    out.writeln(`  Discovery: ${answered}/6 questions answered`);
+    out.writeln(
+      `  Discovery: ${answered}/${QUESTIONS.length} questions answered`,
+    );
   }
 
-  // Building progress
-  if (state.phase === "BUILDING") {
-    out.writeln(`  Iteration: ${state.building.iteration}`);
-    if (state.building.lastProgress !== null) {
-      out.writeln("  Progress:  ", span.dim(state.building.lastProgress));
+  // Execution progress
+  if (state.phase === "EXECUTING") {
+    out.writeln(`  Iteration: ${state.execution.iteration}`);
+    if (state.execution.lastProgress !== null) {
+      out.writeln("  Progress:  ", span.dim(state.execution.lastProgress));
     }
   }
 

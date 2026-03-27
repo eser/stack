@@ -1,11 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Registry fetcher — loads and validates registry manifests from local
- * paths or remote URLs. Supports file, folder, and standalone recipe fetching.
- *
- * This is part of the eser recipe registry system for distributing code
- * recipes. Not to be confused with `@eser/standards/collections`.
+ * Registry fetcher — loads and validates recipe manifests from local
+ * `.eser/recipes.json` or remote GitHub repos. Unified specifier resolution
+ * for all kit commands (add, clone, new, list).
  *
  * @module
  */
@@ -19,19 +17,71 @@ import * as registrySchema from "./registry-schema.ts";
 
 const FETCH_TIMEOUT_MS = 30_000;
 
-const DEFAULT_REGISTRY_URL =
-  "https://raw.githubusercontent.com/eser/stack/main/etc/registry/eser-registry.json";
+const DEFAULT_OWNER = "eser";
+const DEFAULT_REPO = "stack";
+const DEFAULT_REF = "main";
+const RECIPES_FILENAME = ".eser/recipes.json";
 
-const LOCAL_REGISTRY_PATH = "etc/registry/eser-registry.json";
+// Legacy constants (kept for backwards compatibility in tests/external use)
+const DEFAULT_REGISTRY_URL: string =
+  `https://raw.githubusercontent.com/${DEFAULT_OWNER}/${DEFAULT_REPO}/${DEFAULT_REF}/.eser/recipes.json`;
+
+const LOCAL_REGISTRY_PATH: string = RECIPES_FILENAME;
+
+// =============================================================================
+// Specifier Resolution
+// =============================================================================
+
+/**
+ * A resolved specifier — either a recipe name lookup or a repo reference.
+ *
+ * - `kind: "name"` — look up by name in local, then default repo
+ * - `kind: "repo"` — fetch .eser/recipes.json from that specific repo
+ */
+type ResolvedSpecifier =
+  | { readonly kind: "name"; readonly name: string; readonly ref?: string }
+  | {
+    readonly kind: "repo";
+    readonly owner: string;
+    readonly repo: string;
+    readonly ref: string;
+  };
+
+/**
+ * Parse a specifier string into a resolved specifier.
+ *
+ * Formats:
+ *   "fp-pipe"           → name lookup, no ref
+ *   "fp-pipe#dev"       → name lookup, ref=dev
+ *   "deneme/ajan"       → repo github.com/deneme/ajan, ref=main
+ *   "deneme/ajan#v2"    → repo github.com/deneme/ajan, ref=v2
+ *   "gh:deneme/ajan"    → same (gh: prefix stripped)
+ */
+const resolveSpecifier = (specifier: string): ResolvedSpecifier => {
+  const cleaned = specifier.replace(/^gh:/, "");
+  const hashIndex = cleaned.indexOf("#");
+  const pathPart = hashIndex === -1 ? cleaned : cleaned.slice(0, hashIndex);
+  const ref = hashIndex === -1 ? undefined : cleaned.slice(hashIndex + 1);
+
+  if (pathPart.includes("/")) {
+    const slashIndex = pathPart.indexOf("/");
+    const owner = pathPart.slice(0, slashIndex);
+    const repo = pathPart.slice(slashIndex + 1);
+
+    if (owner === "" || repo === "") {
+      return { kind: "name", name: pathPart, ref };
+    }
+
+    return { kind: "repo", owner, repo, ref: ref ?? DEFAULT_REF };
+  }
+
+  return { kind: "name", name: pathPart, ref };
+};
 
 // =============================================================================
 // Shared fetch utility
 // =============================================================================
 
-/**
- * Fetch a URL with a 30-second timeout. Shared by registry manifest
- * fetching and recipe file downloading.
- */
 const registryFetch = async (url: string): Promise<Response> => {
   const response = await globalThis.fetch(url, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -45,19 +95,17 @@ const registryFetch = async (url: string): Promise<Response> => {
 // =============================================================================
 
 /**
- * Detect if CWD is inside the eserstack repo by looking for the local
- * registry manifest file. Walks up the directory tree.
+ * Detect local `.eser/recipes.json` by walking up the directory tree.
  */
 const detectLocalRegistry = async (): Promise<string | undefined> => {
   let dir = runtime.process.cwd();
 
   for (let i = 0; i < 10; i++) {
-    const candidate = `${dir}/${LOCAL_REGISTRY_PATH}`;
+    const candidate = `${dir}/${RECIPES_FILENAME}`;
     try {
       await runtime.fs.stat(candidate);
       return candidate;
     } catch {
-      // Not found — go up
       const parent = dir.replace(/\/[^/]+$/, "");
       if (parent === dir) break;
       dir = parent;
@@ -68,7 +116,7 @@ const detectLocalRegistry = async (): Promise<string | undefined> => {
 };
 
 // =============================================================================
-// Registry fetcher
+// Registry fetcher (unified)
 // =============================================================================
 
 interface FetchRegistryOptions {
@@ -77,12 +125,12 @@ interface FetchRegistryOptions {
 }
 
 /**
- * Fetch and validate a registry manifest from a local path or remote URL.
+ * Fetch and validate a registry manifest.
  *
- * - If `options.local` is true, auto-detect the local registry file.
- * - If `source` starts with `http://` or `https://`, fetches remotely.
- * - Otherwise, treats it as a local file path and reads via fs.
- * - Validates the JSON against the registry schema.
+ * Resolution chain:
+ * 1. If `source` is provided (URL or path), use it directly
+ * 2. If `options.local`, auto-detect local `.eser/recipes.json`
+ * 3. Fall back to eser/stack's `.eser/recipes.json` on GitHub
  */
 const fetchRegistry = async (
   source?: string,
@@ -90,7 +138,6 @@ const fetchRegistry = async (
 ): Promise<registrySchema.RegistryManifest> => {
   let registrySource = source ?? DEFAULT_REGISTRY_URL;
 
-  // Auto-detect local registry if requested
   if (options?.local === true && source === undefined) {
     const localPath = await detectLocalRegistry();
     if (localPath !== undefined) {
@@ -123,7 +170,6 @@ const fetchRegistry = async (
 
     rawJson = await response.text();
   } else {
-    // Local file — use runtime abstraction
     try {
       rawJson = await runtime.fs.readTextFile(registrySource);
     } catch {
@@ -145,14 +191,25 @@ const fetchRegistry = async (
   return registrySchema.validateRegistryManifest(data);
 };
 
+/**
+ * Fetch a registry manifest from a specific GitHub repo's `.eser/recipes.json`.
+ */
+const fetchRegistryFromRepo = async (
+  owner: string,
+  repo: string,
+  ref: string,
+  options?: FetchRegistryOptions,
+): Promise<registrySchema.RegistryManifest> => {
+  const url =
+    `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${RECIPES_FILENAME}`;
+
+  return await fetchRegistry(url, options);
+};
+
 // =============================================================================
 // File fetcher
 // =============================================================================
 
-/**
- * Fetch a single file's content from a registry.
- * Used by the recipe applier to download individual recipe files.
- */
 const fetchRecipeFile = async (
   registryUrl: string,
   sourcePath: string,
@@ -171,19 +228,14 @@ const fetchRecipeFile = async (
 };
 
 // =============================================================================
-// Folder fetcher (fetch-all-then-write pattern)
+// Folder fetcher
 // =============================================================================
 
-/** A fetched file entry with its content held in memory */
 interface FetchedFile {
   readonly path: string;
   readonly content: string;
 }
 
-/**
- * Parse a GitHub raw content URL into owner/repo/ref/path components.
- * Supports: https://raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}
- */
 const parseGitHubRawUrl = (
   url: string,
 ):
@@ -203,13 +255,6 @@ const parseGitHubRawUrl = (
   };
 };
 
-/**
- * Fetch all files in a folder from a GitHub repository.
- * Uses the GitHub Contents API to list directory contents, then fetches each file.
- *
- * Returns all files in memory (fetch-all-then-write pattern).
- * Throws if any file fails to fetch — caller gets all or nothing.
- */
 const fetchRecipeFolder = async (
   registryUrl: string,
   sourcePath: string,
@@ -226,7 +271,6 @@ const fetchRecipeFolder = async (
     ? `${parsed.basePath}/${sourcePath}`.replace(/\/+/g, "/")
     : sourcePath;
 
-  // Use GitHub Contents API to list the directory
   const apiUrl =
     `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/contents/${folderPath}?ref=${parsed.ref}`;
 
@@ -250,34 +294,34 @@ const fetchRecipeFolder = async (
     );
   }
 
-  // Fetch all files in parallel — all or nothing
   const fileEntries = entries.filter((e) => e.type === "file");
 
-  const fetchPromises = fileEntries.map(async (entry): Promise<FetchedFile> => {
-    if (entry.download_url === null) {
-      throw new Error(
-        `File '${entry.path}' has no download URL (may be too large)`,
-      );
-    }
+  const fetchPromises = fileEntries.map(
+    async (entry): Promise<FetchedFile> => {
+      if (entry.download_url === null) {
+        throw new Error(
+          `File '${entry.path}' has no download URL (may be too large)`,
+        );
+      }
 
-    const fileResponse = await registryFetch(entry.download_url);
+      const fileResponse = await registryFetch(entry.download_url);
 
-    if (!fileResponse.ok) {
-      throw new Error(
-        `Could not fetch file '${entry.path}'. HTTP ${fileResponse.status}`,
-      );
-    }
+      if (!fileResponse.ok) {
+        throw new Error(
+          `Could not fetch file '${entry.path}'. HTTP ${fileResponse.status}`,
+        );
+      }
 
-    // Strip the base folder path to get relative path within the folder
-    const relativePath = entry.path.startsWith(folderPath)
-      ? entry.path.slice(folderPath.length).replace(/^\//, "")
-      : entry.path;
+      const relativePath = entry.path.startsWith(folderPath)
+        ? entry.path.slice(folderPath.length).replace(/^\//, "")
+        : entry.path;
 
-    return {
-      path: relativePath,
-      content: await fileResponse.text(),
-    };
-  });
+      return {
+        path: relativePath,
+        content: await fileResponse.text(),
+      };
+    },
+  );
 
   return await Promise.all(fetchPromises);
 };
@@ -286,15 +330,6 @@ const fetchRecipeFolder = async (
 // Standalone recipe fetcher (for clone command)
 // =============================================================================
 
-/**
- * Fetch a standalone recipe.json from a GitHub repository.
- * Used by `eser kit clone` for non-registered recipes.
- *
- * @param owner - GitHub repo owner
- * @param repo - GitHub repo name
- * @param ref - Branch, tag, or commit (default: "main")
- * @param recipePath - Path to recipe.json in the repo (default: "recipe.json")
- */
 const fetchRecipeFromRepo = async (
   owner: string,
   repo: string,
@@ -325,16 +360,22 @@ const fetchRecipeFromRepo = async (
 };
 
 export {
+  DEFAULT_OWNER,
+  DEFAULT_REF,
   DEFAULT_REGISTRY_URL,
+  DEFAULT_REPO,
   detectLocalRegistry,
   FETCH_TIMEOUT_MS,
   fetchRecipeFile,
   fetchRecipeFolder,
   fetchRecipeFromRepo,
   fetchRegistry,
+  fetchRegistryFromRepo,
   LOCAL_REGISTRY_PATH,
   parseGitHubRawUrl,
+  RECIPES_FILENAME,
   registryFetch,
+  resolveSpecifier,
 };
 
-export type { FetchedFile, FetchRegistryOptions };
+export type { FetchedFile, FetchRegistryOptions, ResolvedSpecifier };

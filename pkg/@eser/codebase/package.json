@@ -62,7 +62,7 @@
     "@std/path": "npm:@jsr/std__path@^1.1.4",
     "@std/semver": "npm:@jsr/std__semver@^1.0.7",
     "@std/tar": "npm:@jsr/std__tar@^0.1.9",
-    "@std/yaml": "npm:@jsr/std__yaml@^1.0.10",
+    "yaml": "^2",
     "octokit": "^5.0.5"
   },
   "devDependencies": {

@@ -83,8 +83,8 @@ export const scaffold = async (
   // Build ignore list (always ignore common patterns)
   const ignorePatterns = [
     ".git",
-    ".manifest.yml",
-    ".manifest.yaml",
+    ".eser/manifest.yml",
+    ".eser/manifest.yaml",
     ...(config?.ignore ?? []),
   ];
 

@@ -17,9 +17,9 @@ npx eser workflows run -w default --fix
 npx eser workflows list
 ```
 
-## 📋 .manifest.yml
+## 📋 .eser/manifest.yml
 
-Create a `.manifest.yml` at your project root:
+Create a `.eser/manifest.yml` at your project root:
 
 ```yaml
 stack:
@@ -165,7 +165,7 @@ workflows:
 ```
 @eser/workflows
 ├── mod.ts          Core library (types, registry, engine, builder)
-├── loader.ts       .manifest.yml file loader
+├── loader.ts       .eser/manifest.yml file loader
 ├── run.ts          CLI: workflows run
 ├── list.ts         CLI: workflows list
 └── shell-tool.ts   Built-in shell command tool

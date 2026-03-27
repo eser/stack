@@ -6,7 +6,7 @@
  * @module
  */
 
-import * as yaml from "@std/yaml";
+import * as yaml from "yaml";
 import * as standards from "@eser/standards";
 import { createFileTool, type FileTool } from "./file-tool.ts";
 

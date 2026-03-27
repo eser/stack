@@ -49,7 +49,7 @@ export type ScriptConfig =
     readonly depends?: readonly string[];
   };
 
-/** Top-level configuration (can be loaded from .manifest.yml or built programmatically). */
+/** Top-level configuration (can be loaded from .eser/manifest.yml or built programmatically). */
 export type WorkflowsConfig = {
   readonly stack?: readonly string[];
   readonly workflows: readonly WorkflowDefinition[];

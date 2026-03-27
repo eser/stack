@@ -5,7 +5,7 @@ import * as results from "@eser/primitives/results";
 import { main } from "./new.ts";
 
 const REGISTRY_PATH = new URL(
-  "../../../../etc/registry/eser-registry.json",
+  "../../../../.eser/recipes.json",
   import.meta.url,
 ).pathname;
 

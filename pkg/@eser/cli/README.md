@@ -44,7 +44,7 @@ eser
 │   └── update            Re-fetch and update an applied recipe
 ├── codebase              Codebase management tools
 │   ├── scaffolding       Initialize project from template
-│   ├── install           Install git hooks from .manifest.yml
+│   ├── install           Install git hooks from .eser/manifest.yml
 │   ├── uninstall         Remove managed git hooks
 │   ├── status            Show git hook installation status
 │   ├── versions          Manage workspace package versions

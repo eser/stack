@@ -72,16 +72,34 @@ export const renderSpec = (
     lines.push("");
   }
 
+  // Out of Scope (from scope_boundary answer)
+  const scopeAnswer = answers.find((a) => a.questionId === "scope_boundary");
+
+  if (scopeAnswer !== undefined) {
+    lines.push("## Out of Scope");
+    lines.push("");
+    lines.push(scopeAnswer.answer);
+    lines.push("");
+  }
+
   // Tasks placeholder
   lines.push("## Tasks");
   lines.push("");
-  lines.push("_To be generated from discovery answers._");
+  lines.push("_To be broken down during execution._");
   lines.push("");
 
-  // Verification
+  // Verification (from verification answer)
+  const verificationAnswer = answers.find(
+    (a) => a.questionId === "verification",
+  );
+
   lines.push("## Verification");
   lines.push("");
-  lines.push("_To be defined based on discovery answers._");
+  if (verificationAnswer !== undefined) {
+    lines.push(verificationAnswer.answer);
+  } else {
+    lines.push("_To be defined._");
+  }
   lines.push("");
 
   return lines.join("\n");

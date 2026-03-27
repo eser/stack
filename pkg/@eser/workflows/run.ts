@@ -167,7 +167,7 @@ export const main = async (
   const config = await loadFromFile(configDir);
   if (config === null) {
     console.error(
-      "Error: no .manifest.yml found in current directory.",
+      "Error: no .eser/manifest.yml found in current directory.",
     );
     await out.close();
     return results.fail({ exitCode: 1 });

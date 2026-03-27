@@ -79,7 +79,7 @@ export type ToolResult = {
 
 /**
  * Options passed to tool check/fix functions.
- * Merged from: defaults → .manifest.yml → CLI flags.
+ * Merged from: defaults → .eser/manifest.yml → CLI flags.
  */
 export type ToolOptions = {
   readonly root: string;

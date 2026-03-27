@@ -1,0 +1,21 @@
+{
+  "id": "open-source",
+  "name": "Open Source",
+  "description": "Community-driven, inclusive, well-documented. Prioritize contributor experience, avoid exclusionary patterns, default to permissive choices.",
+  "extras": [
+    {
+      "questionId": "status_quo",
+      "text": "Is this workaround common in the community?"
+    },
+    {
+      "questionId": "user_impact",
+      "text": "Does this make contribution harder?"
+    }
+  ],
+  "specSections": ["Contributor Guide", "Public API Surface"],
+  "reminders": [
+    "Endpoint should be documented in API docs",
+    "Consider contributor experience for new patterns",
+    "Default to permissive, well-documented choices"
+  ]
+}

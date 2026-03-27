@@ -21,10 +21,8 @@ import type { HandlerContext } from "../handler-context.ts";
 // Types
 // =============================================================================
 
-type ParsedSpecifier = {
-  readonly owner: string;
-  readonly repo: string;
-  readonly ref: string;
+type ParsedSpecifier = registryFetcher.ResolvedSpecifier & {
+  readonly kind: "repo";
 };
 
 type CloneRecipeInput = {
@@ -51,21 +49,17 @@ type CloneRecipeError =
   | { readonly _tag: "ApplyError"; readonly message: string };
 
 // =============================================================================
-// Specifier parsing
+// Specifier parsing (delegates to shared resolver)
 // =============================================================================
 
 const parseSpecifier = (specifier: string): ParsedSpecifier | undefined => {
-  const cleaned = specifier.replace(/^gh:/, "");
-  const [repoPath, ref] = cleaned.split("#");
+  const resolved = registryFetcher.resolveSpecifier(specifier);
 
-  if (repoPath === undefined) return undefined;
-
-  const parts = repoPath.split("/");
-  if (parts.length !== 2 || parts[0] === "" || parts[1] === "") {
+  if (resolved.kind !== "repo") {
     return undefined;
   }
 
-  return { owner: parts[0]!, repo: parts[1]!, ref: ref ?? "main" };
+  return resolved;
 };
 
 // =============================================================================

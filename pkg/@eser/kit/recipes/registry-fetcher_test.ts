@@ -9,14 +9,14 @@ import { parseGitHubRawUrl } from "./registry-fetcher.ts";
 
 Deno.test("parseGitHubRawUrl — parses standard raw URL", () => {
   const result = parseGitHubRawUrl(
-    "https://raw.githubusercontent.com/eser/stack/main/etc/registry",
+    "https://raw.githubusercontent.com/eser/stack/main/.eser",
   );
 
   assert.assertExists(result);
   assert.assertEquals(result!.owner, "eser");
   assert.assertEquals(result!.repo, "stack");
   assert.assertEquals(result!.ref, "main");
-  assert.assertEquals(result!.basePath, "etc/registry");
+  assert.assertEquals(result!.basePath, ".eser");
 });
 
 Deno.test("parseGitHubRawUrl — parses URL with tag ref", () => {

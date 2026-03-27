@@ -1,11 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * State persistence — read/write .nos/.state/state.json and .nos/config.json.
+ * State persistence — read/write .eser/.state/state.json and noskills
+ * config inside .eser/manifest.yml (comment-preserving YAML).
  *
  * @module
  */
 
+import * as yaml from "yaml";
 import * as schema from "./schema.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -13,20 +15,20 @@ import { runtime } from "@eser/standards/cross-runtime";
 // Paths
 // =============================================================================
 
-const NOS_DIR: string = ".nos";
-const STATE_DIR: string = `${NOS_DIR}/.state`;
+const ESER_DIR: string = ".eser";
+const STATE_DIR: string = `${ESER_DIR}/.state`;
 const STATE_FILE: string = `${STATE_DIR}/state.json`;
-const CONFIG_FILE: string = `${NOS_DIR}/config.json`;
-const CONCERNS_DIR: string = `${NOS_DIR}/concerns`;
-const RULES_DIR: string = `${NOS_DIR}/rules`;
-const SPECS_DIR: string = `${NOS_DIR}/specs`;
-const WORKFLOWS_DIR: string = `${NOS_DIR}/workflows`;
+const MANIFEST_FILE: string = `${ESER_DIR}/manifest.yml`;
+const CONCERNS_DIR: string = `${ESER_DIR}/concerns`;
+const RULES_DIR: string = `${ESER_DIR}/rules`;
+const SPECS_DIR: string = `${ESER_DIR}/specs`;
+const WORKFLOWS_DIR: string = `${ESER_DIR}/workflows`;
 
 export const paths: {
-  readonly nosDir: string;
+  readonly eserDir: string;
   readonly stateDir: string;
   readonly stateFile: string;
-  readonly configFile: string;
+  readonly manifestFile: string;
   readonly concernsDir: string;
   readonly rulesDir: string;
   readonly specsDir: string;
@@ -34,12 +36,12 @@ export const paths: {
   readonly specDir: (specName: string) => string;
   readonly specFile: (specName: string) => string;
   readonly concernFile: (concernId: string) => string;
-  readonly nosGitignore: string;
+  readonly eserGitignore: string;
 } = {
-  nosDir: NOS_DIR,
+  eserDir: ESER_DIR,
   stateDir: STATE_DIR,
   stateFile: STATE_FILE,
-  configFile: CONFIG_FILE,
+  manifestFile: MANIFEST_FILE,
   concernsDir: CONCERNS_DIR,
   rulesDir: RULES_DIR,
   specsDir: SPECS_DIR,
@@ -49,7 +51,7 @@ export const paths: {
   specFile: (specName: string): string => `${SPECS_DIR}/${specName}/spec.md`,
   concernFile: (concernId: string): string =>
     `${CONCERNS_DIR}/${concernId}.json`,
-  nosGitignore: `${NOS_DIR}/.gitignore`,
+  eserGitignore: `${ESER_DIR}/.gitignore`,
 };
 
 // =============================================================================
@@ -83,33 +85,49 @@ export const writeState = async (
 };
 
 // =============================================================================
-// Config File
+// Config (noskills section inside .eser/manifest.yml)
 // =============================================================================
 
-export const readConfig = async (
+export const readManifest = async (
   root: string,
-): Promise<schema.NosConfig | null> => {
-  const filePath = `${root}/${CONFIG_FILE}`;
+): Promise<schema.NosManifest | null> => {
+  const filePath = `${root}/${MANIFEST_FILE}`;
 
   try {
     const content = await runtime.fs.readTextFile(filePath);
+    const parsed = yaml.parse(content) as Record<string, unknown>;
 
-    return JSON.parse(content) as schema.NosConfig;
+    if (parsed?.["noskills"] === undefined) {
+      return null;
+    }
+
+    return parsed["noskills"] as schema.NosManifest;
   } catch {
     return null;
   }
 };
 
-export const writeConfig = async (
+export const writeManifest = async (
   root: string,
-  config: schema.NosConfig,
+  config: schema.NosManifest,
 ): Promise<void> => {
-  const filePath = `${root}/${CONFIG_FILE}`;
+  const filePath = `${root}/${MANIFEST_FILE}`;
 
-  await runtime.fs.writeTextFile(
-    filePath,
-    JSON.stringify(config, null, 2) + "\n",
-  );
+  // Comment-preserving: parse existing document, update only the noskills key
+  let doc: yaml.Document;
+
+  try {
+    const content = await runtime.fs.readTextFile(filePath);
+    doc = yaml.parseDocument(content);
+  } catch {
+    doc = new yaml.Document({});
+  }
+
+  const node = doc.createNode(config);
+  node.commentBefore =
+    " noskills orchestrator — inline comments in this section won't be preserved on next write";
+  doc.set("noskills", node);
+  await runtime.fs.writeTextFile(filePath, doc.toString());
 };
 
 // =============================================================================
@@ -171,9 +189,9 @@ export const listConcerns = async (
 // Directory Scaffolding
 // =============================================================================
 
-export const scaffoldNosDir = async (root: string): Promise<void> => {
+export const scaffoldEserDir = async (root: string): Promise<void> => {
   const dirs = [
-    NOS_DIR,
+    ESER_DIR,
     STATE_DIR,
     CONCERNS_DIR,
     RULES_DIR,
@@ -187,11 +205,17 @@ export const scaffoldNosDir = async (root: string): Promise<void> => {
     });
   }
 
-  // .gitignore at .nos/ level to keep runtime state out of git
-  await runtime.fs.writeTextFile(
-    `${root}/${paths.nosGitignore}`,
-    "# noskills runtime state — not tracked by git\n.state/\n",
-  );
+  // .gitignore at .eser/ level — only create if missing
+  const gitignorePath = `${root}/${paths.eserGitignore}`;
+
+  try {
+    await runtime.fs.stat(gitignorePath);
+  } catch {
+    await runtime.fs.writeTextFile(
+      gitignorePath,
+      "# eser toolchain runtime state — not tracked by git\n.state/\n",
+    );
+  }
 };
 
 // =============================================================================
@@ -200,9 +224,12 @@ export const scaffoldNosDir = async (root: string): Promise<void> => {
 
 export const isInitialized = async (root: string): Promise<boolean> => {
   try {
-    await runtime.fs.stat(`${root}/${CONFIG_FILE}`);
+    const content = await runtime.fs.readTextFile(
+      `${root}/${MANIFEST_FILE}`,
+    );
+    const parsed = yaml.parse(content) as Record<string, unknown>;
 
-    return true;
+    return parsed?.["noskills"] !== undefined;
   } catch {
     return false;
   }

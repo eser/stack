@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as yaml from "@std/yaml";
+import * as yaml from "yaml";
 import type { Format, FormatOptions, FormatReader } from "../types.ts";
 import { DeserializationError, SerializationError } from "../types.ts";
 
@@ -13,7 +13,7 @@ export const writeItem = (
   options?: FormatOptions,
 ): string => {
   try {
-    const yamlOptions: yaml.StringifyOptions = {};
+    const yamlOptions: yaml.ToStringOptions = {};
 
     if (options?.indent !== undefined) {
       yamlOptions.indent = options.indent;

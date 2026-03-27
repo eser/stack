@@ -1,0 +1,25 @@
+{
+  "id": "beautiful-product",
+  "name": "Beautiful Product",
+  "description": "Design and UX are first-class. Agent critiques UI/UX like a passionate designer. Empty states, error states, loading states, mobile layout — nothing ships unspecified.",
+  "extras": [
+    {
+      "questionId": "status_quo",
+      "text": "How painful is the current experience?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "In the 10-star version, what does the user feel?"
+    }
+  ],
+  "specSections": [
+    "Design States (empty, loading, error, success)",
+    "Mobile Layout",
+    "Interaction Design"
+  ],
+  "reminders": [
+    "Loading state and error state must be designed, not placeholder",
+    "No AI slop — every UI element is intentional",
+    "Empty states need clear CTAs with examples"
+  ]
+}

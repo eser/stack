@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Project configuration loading from .manifest.yml
+ * Project configuration loading from .eser/manifest.yml
  *
  * @module
  */
@@ -12,7 +12,7 @@ import type { ProjectConfig } from "./types.ts";
 /**
  * Load project configuration from a directory
  *
- * Looks for .manifest.yml or .manifest.yaml in the specified directory.
+ * Looks for .eser/manifest.yml or .eser/manifest.yaml in the specified directory.
  *
  * @param dir - Directory to load config from
  * @returns Project configuration or null if no config file exists

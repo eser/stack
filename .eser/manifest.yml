@@ -17,7 +17,7 @@ workflows:
       - validate-merge-conflict
       - validate-json:
           exclude:
-            - "etc/registry/recipes/"
+            - ".eser/recipes/"
             - "tsconfig.json"
       - validate-toml
       - validate-yaml:
@@ -51,7 +51,7 @@ workflows:
                 - "docs/"
                 - "etc/coverage/"
                 - "etc/temp/"
-                - "etc/registry/recipes/"
+                - ".eser/recipes/"
                 - "Dockerfile"
                 - "LICENSE"
                 - "README.md"
@@ -62,7 +62,7 @@ workflows:
       - validate-submodules
       - validate-licenses:
           exclude:
-            - "etc/registry/recipes/"
+            - ".eser/recipes/"
       - validate-runtime-js-apis:
           exclude:
             - "pkg/@eser/standards/cross-runtime/"

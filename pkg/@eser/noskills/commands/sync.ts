@@ -23,7 +23,7 @@ export const main = async (
   });
 
   const root = runtime.process.cwd();
-  const config = await persistence.readConfig(root);
+  const config = await persistence.readManifest(root);
 
   if (config === null) {
     out.writeln(

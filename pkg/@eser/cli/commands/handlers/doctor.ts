@@ -113,17 +113,29 @@ const checkGitHooks = async (): Promise<void> => {
 };
 
 const checkManifest = async (): Promise<void> => {
-  const manifestPath = runtime.path.join(
+  const newPath = runtime.path.join(
+    ".",
+    ".eser",
+    "manifest.yml",
+  );
+  const legacyPath = runtime.path.join(
     ".",
     ".manifest.yml",
   );
-  const exists = await fileExists(manifestPath);
 
-  if (exists) {
-    ok("Manifest", ".manifest.yml found");
-  } else {
-    fail("Manifest", ".manifest.yml not found");
+  const newExists = await fileExists(newPath);
+  if (newExists) {
+    ok("Manifest", ".eser/manifest.yml found");
+    return;
   }
+
+  const legacyExists = await fileExists(legacyPath);
+  if (legacyExists) {
+    ok("Manifest", ".manifest.yml found (legacy path)");
+    return;
+  }
+
+  fail("Manifest", ".eser/manifest.yml not found");
 };
 
 const checkDeno = async (): Promise<void> => {

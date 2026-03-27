@@ -43,6 +43,6 @@
     "node_modules/",
     "pkg/@eser/cli/dist/",
     "pkg/@eser/noskills/dist/",
-    "pkg/@eser/laroux/dist/"
+    "pkg/@eser/laroux-server/dist/"
   ]
 }

@@ -77,9 +77,7 @@ const shouldIgnore = (
     } else if (pattern.includes("*")) {
       // Convert glob to regex - escape all regex metacharacters first
       const regexPattern = pattern
-        // Escape all regex metacharacters except * which we handle specially
-        .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-        // Then convert glob patterns
+        .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // codeql[js/incomplete-sanitization]
         .replace(/\*\*/g, ".*")
         .replace(/\*/g, "[^/]*");
       const regex = new RegExp(`^${regexPattern}$`);

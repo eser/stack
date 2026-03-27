@@ -114,13 +114,13 @@ const SKIP_TYPES = new Set(["chore", "ci", "test"]);
  * Pattern for conventional commit: type(scope): message
  * Also handles: type: message (no scope)
  */
-const CONVENTIONAL_PATTERN = /^(\w+)(?:\(([^)]+)\))?!?:\s*(.+)$/;
+const CONVENTIONAL_PATTERN = /^(\w+)(?:\(([^)]+)\))?!?:\s{1,5}(.+)$/;
 
 /**
  * Pattern for "take" suffix: (take II), (take III), (take 2), etc.
  * Supports Roman numerals (I, V, X, L, C, D, M) and Arabic numbers.
  */
-const TAKE_PATTERN = /\s*\(take\s+[IVXLCDM\d]+\)\s*\.?$/i;
+const TAKE_PATTERN = /\s{0,100}\(take\s{1,100}[IVXLCDM\d]+\)\s{0,100}\.?$/i;
 
 /**
  * Parse a single commit subject as a conventional commit.
@@ -184,7 +184,7 @@ export const deduplicateCommits = (
   for (const commit of commits) {
     const normalized = stripTakeSuffix(commit.message);
     // Normalize trailing punctuation for dedup key comparison
-    const keyMsg = normalized.replace(/[.\s]+$/, "").toLowerCase();
+    const keyMsg = normalized.replace(/[.\s]{1,20}$/, "").toLowerCase();
     const key = `${commit.type}:${keyMsg}`;
 
     if (seen.has(key)) {

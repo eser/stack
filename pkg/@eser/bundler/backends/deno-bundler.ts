@@ -654,9 +654,9 @@ export class DenoBundlerBackend implements Bundler {
     // Pattern: import{...}from"../../chunk-HASH.js" or import"../../chunk-HASH.js"
     // Use specific character classes to prevent ReDoS (avoid unbounded [^X]* patterns)
     const chunkImportPattern =
-      /import(?:\{[\w\s,]*\})?\s*from\s*["']([\w./-]*chunk-[A-Z0-9]+\.js)["']/gi;
+      /import(?:\{[\w\s,]{0,500}\})?\s{0,100}from\s{0,100}["']([\w./-]*chunk-[A-Z0-9]+\.js)["']/gi;
     const sideEffectPattern =
-      /import\s*["']([\w./-]*chunk-[A-Z0-9]+\.js)["']/gi;
+      /import\s{0,100}["']([\w./-]*chunk-[A-Z0-9]+\.js)["']/gi;
 
     let match: RegExpExecArray | null;
 
@@ -761,7 +761,7 @@ export class DenoBundlerBackend implements Bundler {
     // Match static imports: import ... from "..."
     // Use bounded quantifiers to prevent ReDoS
     const staticImportRegex =
-      /import\s{1,10}(?:[\w\s{},*]{1,500})\s{1,10}from\s{0,10}["']([\w./@-]+)["']/g;
+      /import\s{1,100}[^\n"']{1,500}\s{1,100}from\s{0,100}["']([\w./@-]+)["']/g;
     let match: RegExpExecArray | null;
 
     while ((match = staticImportRegex.exec(content)) !== null) {

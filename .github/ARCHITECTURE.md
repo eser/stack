@@ -138,7 +138,7 @@ Each package follows a double-layered structure:
 
 ### Portability
 
-The `@eser/standards/runtime` module provides a cross-platform abstraction
+The `@eser/standards/cross-runtime` module provides a cross-platform abstraction
 layer, enabling code to run on Deno, browsers, Supabase, Netlify, AWS Lambda,
 and Cloudflare Workers.
 

@@ -4,7 +4,7 @@
  * Loads and validates environment variables from .env files
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as logging from "@eser/logging";
 
 const envLogger = logging.logger.getLogger(["laroux-server", "env"]);
@@ -81,7 +81,7 @@ function parseEnvFile(content: string): Record<string, string> {
  * 5. System environment variables (highest priority)
  */
 export async function loadEnvFiles(projectRoot: string): Promise<void> {
-  const mode = current.env.get("NODE_ENV") ??
+  const mode = runtime.env.get("NODE_ENV") ??
     "development";
 
   const envFiles = [
@@ -92,17 +92,17 @@ export async function loadEnvFiles(projectRoot: string): Promise<void> {
   ];
 
   for (const filename of envFiles) {
-    const filepath = current.path.resolve(projectRoot, filename);
+    const filepath = runtime.path.resolve(projectRoot, filename);
 
-    if (await current.fs.exists(filepath)) {
+    if (await runtime.fs.exists(filepath)) {
       try {
-        const content = await current.fs.readTextFile(filepath);
+        const content = await runtime.fs.readTextFile(filepath);
         const vars = parseEnvFile(content);
 
         // Set variables that aren't already set
         for (const [key, value] of Object.entries(vars)) {
-          if (!current.env.has(key)) {
-            current.env.set(key, value);
+          if (!runtime.env.has(key)) {
+            runtime.env.set(key, value);
           }
         }
       } catch (error) {
@@ -114,10 +114,10 @@ export async function loadEnvFiles(projectRoot: string): Promise<void> {
 
 /**
  * Get a typed environment configuration
- * Uses current.env with fallbacks to defaults
+ * Uses runtime.env with fallbacks to defaults
  */
 export function getEnvConfig(): EnvConfig {
-  const getEnv = (key: string): string | undefined => current.env.get(key);
+  const getEnv = (key: string): string | undefined => runtime.env.get(key);
 
   const getEnvNumber = (key: string, defaultValue: number): number => {
     const value = getEnv(key);

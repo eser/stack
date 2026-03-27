@@ -8,56 +8,55 @@
  * @module
  */
 
-import { current, NotFoundError } from "@eser/standards/runtime";
+import { NotFoundError, runtime } from "@eser/standards/cross-runtime";
+import { hasExtension } from "@eser/standards/patterns";
 
 /** Variable placeholder pattern: {{.variable_name}} (Go template style) */
 const VARIABLE_PATTERN = /\{\{\s*\.(\w+)\s*\}\}/g;
 
-/** Binary file extensions to skip */
-const BINARY_EXTENSIONS = new Set([
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".gif",
-  ".ico",
-  ".webp",
-  ".svg",
-  ".woff",
-  ".woff2",
-  ".ttf",
-  ".eot",
-  ".otf",
-  ".zip",
-  ".tar",
-  ".gz",
-  ".bz2",
-  ".xz",
-  ".7z",
-  ".pdf",
-  ".doc",
-  ".docx",
-  ".xls",
-  ".xlsx",
-  ".ppt",
-  ".pptx",
-  ".exe",
-  ".dll",
-  ".so",
-  ".dylib",
-  ".mp3",
-  ".mp4",
-  ".avi",
-  ".mov",
-  ".webm",
-]);
+/** Binary file extensions to skip (bare, no dots) */
+const BINARY_EXTENSIONS = [
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "ico",
+  "webp",
+  "svg",
+  "woff",
+  "woff2",
+  "ttf",
+  "eot",
+  "otf",
+  "zip",
+  "tar",
+  "gz",
+  "bz2",
+  "xz",
+  "7z",
+  "pdf",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  "exe",
+  "dll",
+  "so",
+  "dylib",
+  "mp3",
+  "mp4",
+  "avi",
+  "mov",
+  "webm",
+];
 
 /**
  * Check if a file should be treated as binary
  */
-const isBinaryFile = (filepath: string): boolean => {
-  const ext = current.path.extname(filepath).toLowerCase();
-  return BINARY_EXTENSIONS.has(ext);
-};
+const isBinaryFile = (filepath: string): boolean =>
+  hasExtension(filepath.toLowerCase(), BINARY_EXTENSIONS);
 
 /**
  * Check if a path matches any of the ignore patterns
@@ -149,8 +148,8 @@ export const processTemplate = async (
   const filesToProcess: string[] = [];
   const dirsToRename: string[] = [];
 
-  for await (const entry of current.fs.walk(dir, { includeDirs: true })) {
-    const relativePath = current.path.relative(dir, entry.path);
+  for await (const entry of runtime.fs.walk(dir, { includeDirs: true })) {
+    const relativePath = runtime.path.relative(dir, entry.path);
 
     // Skip root
     if (relativePath === "") {
@@ -174,17 +173,17 @@ export const processTemplate = async (
 
   // Process files
   for (const filepath of filesToProcess) {
-    const filename = current.path.basename(filepath);
-    const dirPath = current.path.dirname(filepath);
+    const filename = runtime.path.basename(filepath);
+    const dirPath = runtime.path.dirname(filepath);
 
     // Process file content (skip binary files)
     if (!isBinaryFile(filepath)) {
       try {
-        const content = await current.fs.readTextFile(filepath);
+        const content = await runtime.fs.readTextFile(filepath);
 
         if (hasVariables(content)) {
           const processed = substituteVariables(content, variables);
-          await current.fs.writeTextFile(filepath, processed);
+          await runtime.fs.writeTextFile(filepath, processed);
         }
       } catch (error) {
         // Log but don't fail on individual file errors
@@ -200,27 +199,27 @@ export const processTemplate = async (
     // Rename file if name contains variables
     if (hasVariables(filename)) {
       const newFilename = substituteVariables(filename, variables);
-      const newPath = current.path.join(dirPath, newFilename);
+      const newPath = runtime.path.join(dirPath, newFilename);
 
       if (newPath !== filepath) {
-        await current.fs.rename(filepath, newPath);
+        await runtime.fs.rename(filepath, newPath);
       }
     }
   }
 
   // Rename directories (process deepest first to avoid path issues)
   dirsToRename.sort((a, b) =>
-    b.split(current.path.sep).length - a.split(current.path.sep).length
+    b.split(runtime.path.sep).length - a.split(runtime.path.sep).length
   );
 
   for (const dirPath of dirsToRename) {
-    const dirname = current.path.basename(dirPath);
-    const parentDir = current.path.dirname(dirPath);
+    const dirname = runtime.path.basename(dirPath);
+    const parentDir = runtime.path.dirname(dirPath);
     const newDirname = substituteVariables(dirname, variables);
-    const newPath = current.path.join(parentDir, newDirname);
+    const newPath = runtime.path.join(parentDir, newDirname);
 
     if (newPath !== dirPath) {
-      await current.fs.rename(dirPath, newPath);
+      await runtime.fs.rename(dirPath, newPath);
     }
   }
 };
@@ -230,7 +229,7 @@ export const processTemplate = async (
  */
 export const removeConfigFile = async (filepath: string): Promise<void> => {
   try {
-    await current.fs.remove(filepath);
+    await runtime.fs.remove(filepath);
   } catch (error) {
     if (!(error instanceof NotFoundError)) {
       throw error;

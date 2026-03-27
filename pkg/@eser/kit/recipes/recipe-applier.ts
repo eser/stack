@@ -14,6 +14,7 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
 import * as registrySchema from "./registry-schema.ts";
 import * as registryFetcher from "./registry-fetcher.ts";
 import * as variableProcessor from "./variable-processor.ts";
@@ -73,13 +74,13 @@ const ensureParentDir = async (filePath: string): Promise<void> => {
   const dir = parts.join("/");
 
   if (dir !== "" && dir !== ".") {
-    await Deno.mkdir(dir, { recursive: true });
+    await runtime.fs.mkdir(dir, { recursive: true });
   }
 };
 
 const fileExists = async (path: string): Promise<boolean> => {
   try {
-    await Deno.stat(path);
+    await runtime.fs.stat(path);
     return true;
   } catch {
     return false;
@@ -150,7 +151,7 @@ const applyFile = async (
   const processed = processContent(content, options.variables);
 
   await ensureParentDir(targetPath);
-  await Deno.writeTextFile(targetPath, processed);
+  await runtime.fs.writeTextFile(targetPath, processed);
   written.push(file.target);
 };
 
@@ -208,7 +209,7 @@ const applyFolder = async (
     const processed = processContent(fetched.content, options.variables);
 
     await ensureParentDir(targetPath);
-    await Deno.writeTextFile(targetPath, processed);
+    await runtime.fs.writeTextFile(targetPath, processed);
     written.push(relativePath);
   }
 };
@@ -239,14 +240,15 @@ const runPostInstall = async (
     }
 
     const parts = cmd.split(/\s+/);
-    const command = new Deno.Command(parts[0]!, {
-      args: parts.slice(1),
-      cwd,
-      stdout: "inherit",
-      stderr: "inherit",
-    });
-
-    const result = await command.output();
+    const result = await runtime.exec.spawn(
+      parts[0]!,
+      parts.slice(1),
+      {
+        cwd,
+        stdout: "inherit",
+        stderr: "inherit",
+      },
+    );
 
     if (!result.success) {
       throw new Error(

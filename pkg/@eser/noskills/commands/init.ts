@@ -15,6 +15,7 @@ import * as persistence from "../state/persistence.ts";
 import * as toolDetect from "../detect/tools.ts";
 import * as codebaseDetect from "../detect/codebase.ts";
 import * as concernDefs from "../context/concerns.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   _args?: readonly string[],
@@ -24,7 +25,7 @@ export const main = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = Deno.cwd();
+  const root = runtime.process.cwd();
 
   // Check if already initialized
   if (await persistence.isInitialized(root)) {

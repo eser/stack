@@ -9,7 +9,7 @@
  * projects.
  *
  * This is a RECIPE registry — not to be confused with
- * `@eser/standards/registry` which is a generic immutable data structure.
+ * `@eser/standards/collections` which is a generic immutable data structure.
  *
  * @module
  */

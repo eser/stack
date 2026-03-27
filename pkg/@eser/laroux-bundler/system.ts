@@ -7,7 +7,11 @@
  * through the FrameworkPlugin interface.
  */
 
-import { current, type FsWatcher, toPosix } from "@eser/standards/runtime";
+import {
+  type FsWatcher,
+  runtime,
+  toPosix,
+} from "@eser/standards/cross-runtime";
 import * as logging from "@eser/logging";
 import * as pkg from "@eser/codebase/package";
 import { analyzeServerActions } from "@eser/codebase/directive-analysis";
@@ -139,7 +143,7 @@ export function createBuildContext(
   const distDir = config.distDir;
   // Client entry is no longer hardcoded - provided by the plugin
   const clientEntry = "";
-  const chunkManifestFile = current.path.resolve(distDir, MANIFEST_FILENAME);
+  const chunkManifestFile = runtime.path.resolve(distDir, MANIFEST_FILENAME);
 
   return {
     config,
@@ -186,7 +190,7 @@ export async function build(
     if (options?.cssOnly) {
       buildLogger.debug("⚡ CSS-only rebuild (fast path)");
       const buildTimestamp = Date.now();
-      const clientOutputDir = current.path.resolve(distDir, CLIENT_DIR);
+      const clientOutputDir = runtime.path.resolve(distDir, CLIENT_DIR);
 
       // Use provided CSS plugin or skip CSS processing if none
       const cssPlugin = context.cssPlugin;
@@ -235,7 +239,7 @@ export async function build(
     await cleanBuildDir(distDir, options?.skipCss);
 
     // Step 2: Ensure dist directory exists
-    await current.fs.ensureDir(distDir);
+    await runtime.fs.ensureDir(distDir);
 
     // Build timestamp will be written to chunk manifest at the end
     const buildTimestamp = Date.now();
@@ -245,7 +249,7 @@ export async function build(
     buildLogger.debug(
       "🔍 Step 3: Parallel scanning (routes, components, CSS modules)...",
     );
-    const routesDir = current.path.resolve(srcDir, "app/routes");
+    const routesDir = runtime.path.resolve(srcDir, "app/routes");
     const { plugin } = context;
     const [scanResult, clientComponents, cssModulePaths] = await Promise.all([
       scanRoutes(routesDir, projectRoot),
@@ -256,14 +260,14 @@ export async function build(
     ]);
 
     // Generate route files to dist/server/ (NOT src/) for build isolation
-    const serverDir = current.path.resolve(distDir, SERVER_DIR);
-    await current.fs.ensureDir(serverDir);
-    const generatedRoutesPath = current.path.resolve(
+    const serverDir = runtime.path.resolve(distDir, SERVER_DIR);
+    await runtime.fs.ensureDir(serverDir);
+    const generatedRoutesPath = runtime.path.resolve(
       serverDir,
       "_generated-routes.ts",
     );
     // Get srcDir name relative to project root (e.g., "src")
-    const srcDirName = current.path.relative(projectRoot, srcDir);
+    const srcDirName = runtime.path.relative(projectRoot, srcDir);
     await generateRouteFile({
       scanResult,
       outputPath: generatedRoutesPath,
@@ -276,12 +280,12 @@ export async function build(
 
     // Generate API routes file if any exist
     if (scanResult.apiRoutes.length > 0) {
-      const apiRoutesPath = current.path.resolve(
+      const apiRoutesPath = runtime.path.resolve(
         distDir,
         "server",
         "api-routes.ts",
       );
-      await current.fs.ensureDir(current.path.dirname(apiRoutesPath));
+      await runtime.fs.ensureDir(runtime.path.dirname(apiRoutesPath));
       await generateApiRouteFile(scanResult, apiRoutesPath, projectRoot);
       buildLogger.debug(
         `✓ Generated ${scanResult.apiRoutes.length} API route(s)`,
@@ -290,12 +294,12 @@ export async function build(
 
     // Generate proxy registry if any exist
     if (scanResult.proxies.length > 0) {
-      const proxyPath = current.path.resolve(
+      const proxyPath = runtime.path.resolve(
         distDir,
         "server",
         "proxy-registry.ts",
       );
-      await current.fs.ensureDir(current.path.dirname(proxyPath));
+      await runtime.fs.ensureDir(runtime.path.dirname(proxyPath));
       await generateProxyFile(scanResult, proxyPath, projectRoot);
       buildLogger.debug(
         `✓ Generated ${scanResult.proxies.length} proxy definition(s)`,
@@ -311,7 +315,7 @@ export async function build(
     const transformResults = plugin.transformClientComponents
       ? await plugin.transformClientComponents(
         clientComponents,
-        current.path.resolve(distDir, SERVER_DIR),
+        runtime.path.resolve(distDir, SERVER_DIR),
         projectRoot,
       )
       : [];
@@ -320,7 +324,7 @@ export async function build(
     if (plugin.generateTransformManifest) {
       await plugin.generateTransformManifest(
         transformResults,
-        current.path.resolve(distDir, "transform-manifest.json"),
+        runtime.path.resolve(distDir, "transform-manifest.json"),
         projectRoot,
       );
     }
@@ -344,7 +348,7 @@ export async function build(
         serverComponentPaths,
         transformResults,
         cssModulePaths,
-        current.path.resolve(distDir, SERVER_DIR),
+        runtime.path.resolve(distDir, SERVER_DIR),
         projectRoot,
       );
     }
@@ -354,7 +358,7 @@ export async function build(
     buildLogger.debug(
       "🔄 Step 5b: Transforming server actions with React symbols...",
     );
-    const serverDistDir = current.path.resolve(distDir, SERVER_DIR);
+    const serverDistDir = runtime.path.resolve(distDir, SERVER_DIR);
     const serverActionResults = await transformServerActions(serverDistDir);
     if (serverActionResults.length > 0) {
       const totalActions = serverActionResults.reduce(
@@ -368,8 +372,8 @@ export async function build(
 
     // Step 6: Generate module map
     buildLogger.debug("🗺️  Step 6: Generating module map...");
-    const clientOutputDir = current.path.resolve(distDir, CLIENT_DIR);
-    await current.fs.ensureDir(clientOutputDir);
+    const clientOutputDir = runtime.path.resolve(distDir, CLIENT_DIR);
+    await runtime.fs.ensureDir(clientOutputDir);
 
     const moduleMap = plugin.createModuleMap
       ? await plugin.createModuleMap(clientComponents)
@@ -377,7 +381,7 @@ export async function build(
     if (plugin.saveModuleMap) {
       await plugin.saveModuleMap(
         moduleMap,
-        current.path.resolve(clientOutputDir, MODULE_MAP_FILENAME),
+        runtime.path.resolve(clientOutputDir, MODULE_MAP_FILENAME),
       );
     }
 
@@ -418,7 +422,7 @@ export async function build(
     buildLogger.debug(
       "🔌 Step 8b: Generating client action stubs in virtual source...",
     );
-    const virtualSrcSubdirForStubs = current.path.join(
+    const virtualSrcSubdirForStubs = runtime.path.join(
       virtualSrcDir,
       srcDirName,
     );
@@ -469,14 +473,14 @@ export async function build(
       // This avoids duplicate CSS module processing
       cssModuleResults = new Map();
       // Use srcDirName computed from config (e.g., "src") for virtual path translation
-      const virtualSrcSubdir = current.path.join(virtualSrcDir, srcDirName);
+      const virtualSrcSubdir = runtime.path.join(virtualSrcDir, srcDirName);
       for (const [virtualPath, result] of virtualResults) {
         // Convert virtual path back to original path
-        const relativePath = current.path.relative(
+        const relativePath = runtime.path.relative(
           virtualSrcSubdir,
           virtualPath,
         );
-        const originalPath = current.path.resolve(srcDir, relativePath);
+        const originalPath = runtime.path.resolve(srcDir, relativePath);
         cssModuleResults.set(originalPath, result);
       }
 
@@ -535,7 +539,7 @@ export async function build(
           translateToVirtualPath(p, srcDir, virtualSrcDir)
         ),
         virtualSrcDir,
-        current.path.resolve(distDir, SERVER_DIR),
+        runtime.path.resolve(distDir, SERVER_DIR),
       );
 
       // Append CSS module styles to main styles.css bundle
@@ -589,7 +593,7 @@ export async function build(
     buildLogger.debug("🌐 Step 20: Copying translation files...");
     await copyTranslationFiles(
       srcDir,
-      current.path.resolve(distDir, SERVER_DIR),
+      runtime.path.resolve(distDir, SERVER_DIR),
       projectRoot,
     );
 
@@ -597,7 +601,7 @@ export async function build(
     // In dev mode, Deno dynamically imports files from dist/server.
     // These files have bare imports (e.g., "lucide-react") that need resolution.
     // Copying the project's config files ensures import maps apply.
-    const serverOutputDir = current.path.resolve(distDir, SERVER_DIR);
+    const serverOutputDir = runtime.path.resolve(distDir, SERVER_DIR);
     await copyConfigFilesWithImportMaps(projectRoot, serverOutputDir);
 
     // Step 22: Bundle server components
@@ -618,10 +622,10 @@ export async function build(
       const serverEntrypoints: string[] = [];
       for (const srcPath of serverComponentPaths) {
         // Get path relative to project root (e.g., "src/app/page.tsx")
-        const relativePath = current.path.relative(projectRoot, srcPath);
+        const relativePath = runtime.path.relative(projectRoot, srcPath);
         // Join with serverOutputDir (e.g., "dist/server/src/app/page.tsx")
-        const distPath = current.path.join(serverOutputDir, relativePath);
-        const exists = await current.fs.exists(distPath);
+        const distPath = runtime.path.join(serverOutputDir, relativePath);
+        const exists = await runtime.fs.exists(distPath);
         if (exists) {
           serverEntrypoints.push(distPath);
         }
@@ -682,11 +686,11 @@ export async function build(
     );
 
     // Write actions manifest
-    const actionsManifestPath = current.path.resolve(
+    const actionsManifestPath = runtime.path.resolve(
       serverOutputDir,
       "actions-manifest.json",
     );
-    await current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       actionsManifestPath,
       JSON.stringify({ actions: actionFiles }, null, 2),
     );
@@ -757,25 +761,25 @@ async function needsRebuild(context: BuildContext): Promise<boolean> {
     context;
 
   // Check if dist directory exists
-  if (!(await current.fs.exists(distDir))) {
+  if (!(await runtime.fs.exists(distDir))) {
     return true;
   }
 
   // Check if chunk manifest file exists
-  if (!(await current.fs.exists(chunkManifestFile))) {
+  if (!(await runtime.fs.exists(chunkManifestFile))) {
     return true;
   }
 
   // Get build timestamp from chunk manifest
-  const manifestContent = await current.fs.readTextFile(chunkManifestFile);
+  const manifestContent = await runtime.fs.readTextFile(chunkManifestFile);
   const manifest: ChunkManifest = JSON.parse(manifestContent);
   const buildTimestamp = manifest.timestamp;
 
   // Check if any source file is newer than build
   const sourceFiles = [];
-  for await (const entry of current.fs.readDir(srcDir)) {
+  for await (const entry of runtime.fs.readDir(srcDir)) {
     if (entry.isFile && JS_FILE_PATTERN.test(entry.name)) {
-      sourceFiles.push(current.path.resolve(srcDir, entry.name));
+      sourceFiles.push(runtime.path.resolve(srcDir, entry.name));
     }
   }
 
@@ -784,10 +788,10 @@ async function needsRebuild(context: BuildContext): Promise<boolean> {
 
   for (const file of sourceFiles) {
     try {
-      const fileStat = await current.fs.stat(file);
+      const fileStat = await runtime.fs.stat(file);
       if (fileStat.mtime && fileStat.mtime.getTime() > buildTimestamp) {
         buildLogger.debug(
-          `  Changed: ${current.path.relative(projectRoot, file)}`,
+          `  Changed: ${runtime.path.relative(projectRoot, file)}`,
         );
         return true;
       }
@@ -810,16 +814,16 @@ async function needsRebuild(context: BuildContext): Promise<boolean> {
 async function loadExistingBuild(context: BuildContext): Promise<BuildResult> {
   const { chunkManifestFile, distDir } = context;
 
-  const manifestContent = await current.fs.readTextFile(chunkManifestFile);
+  const manifestContent = await runtime.fs.readTextFile(chunkManifestFile);
   const manifest: ChunkManifest = JSON.parse(manifestContent);
-  const moduleMapContent = await current.fs.readTextFile(
-    current.path.resolve(distDir, MODULE_MAP_FILENAME),
+  const moduleMapContent = await runtime.fs.readTextFile(
+    runtime.path.resolve(distDir, MODULE_MAP_FILENAME),
   );
   const moduleMap: ModuleMap = JSON.parse(moduleMapContent);
 
   return {
     success: true,
-    clientBundle: current.path.resolve(distDir, "client.js"),
+    clientBundle: runtime.path.resolve(distDir, "client.js"),
     moduleMap,
     clientComponents: Object.keys(moduleMap).length,
     duration: 0,
@@ -848,12 +852,12 @@ export function watch(
   const contextWithCache = { ...context, cache };
 
   // Compute relative dist directory path for filtering
-  const relativeDistDir = current.path.relative(projectRoot, distDir);
+  const relativeDistDir = runtime.path.relative(projectRoot, distDir);
 
   // Build list of paths to watch
   const watchPaths: string[] = [srcDir];
 
-  const watcher = current.fs.watch(watchPaths);
+  const watcher = runtime.fs.watch(watchPaths);
 
   let building = false;
   let pendingRebuild = false;
@@ -885,7 +889,7 @@ export function watch(
 
         // Invalidate cache entries for changed files
         cache.invalidateFiles(
-          changedFilesList.map((f) => current.path.resolve(projectRoot, f)),
+          changedFilesList.map((f) => runtime.path.resolve(projectRoot, f)),
         );
 
         const hasCssChanges = changedFilesList.some((file) =>
@@ -904,7 +908,7 @@ export function watch(
 
         // Convert changed files to absolute paths for incremental virtual source
         const changedFilesAbsolute = new Set(
-          changedFilesList.map((f) => current.path.resolve(projectRoot, f)),
+          changedFilesList.map((f) => runtime.path.resolve(projectRoot, f)),
         );
 
         const result = await build(contextWithCache, {
@@ -940,7 +944,7 @@ export function watch(
       ) {
         const eventPath = event.paths[0];
         if (!eventPath) continue;
-        const changedFile = current.path.relative(projectRoot, eventPath);
+        const changedFile = runtime.path.relative(projectRoot, eventPath);
 
         // Skip non-source files (tsx/jsx/css)
         if (!changedFile.match(/\.(tsx?|jsx?|css)$/)) continue;
@@ -1010,7 +1014,7 @@ async function bundleClient(
     // Pass ALL component files as entrypoints for proper code splitting
     // Deno will create separate chunks for each and extract shared deps (React) into common chunks
     const componentEntrypoints = clientComponents.map((c) => c.filePath);
-    const clientOutputDir = current.path.resolve(distDir, CLIENT_DIR);
+    const clientOutputDir = runtime.path.resolve(distDir, CLIENT_DIR);
 
     // Create import map resolver plugin to handle all bare imports
     // Uses both deno.json and package.json for import resolution
@@ -1057,7 +1061,7 @@ async function bundleClient(
     );
 
     // Save chunk manifest to client directory
-    const manifestPath = current.path.resolve(
+    const manifestPath = runtime.path.resolve(
       clientOutputDir,
       MANIFEST_FILENAME,
     );
@@ -1065,7 +1069,7 @@ async function bundleClient(
 
     // Clean up generated entry file
     try {
-      await current.fs.remove(generatedEntry);
+      await runtime.fs.remove(generatedEntry);
     } catch {
       // Ignore if file doesn't exist
     }
@@ -1074,11 +1078,11 @@ async function bundleClient(
     logManifest(chunkManifest);
 
     // Return path to entrypoint
-    return current.path.resolve(distDir, bundleResult.entrypoint);
+    return runtime.path.resolve(distDir, bundleResult.entrypoint);
   } catch (error) {
     // Clean up on error
     try {
-      await current.fs.remove(generatedEntry);
+      await runtime.fs.remove(generatedEntry);
     } catch {
       // Ignore cleanup errors
     }
@@ -1099,7 +1103,7 @@ function adjustRelativePaths(
       typeof value === "string" &&
       (value.startsWith("./") || value.startsWith("../"))
     ) {
-      record[key] = current.path.join(relativePath, value);
+      record[key] = runtime.path.join(relativePath, value);
     }
   }
 }
@@ -1125,7 +1129,7 @@ async function copyConfigFilesWithImportMaps(
   }
 
   // Compute relative path from outputDir back to projectRoot
-  const relativePath = current.path.relative(outputDir, projectRoot);
+  const relativePath = runtime.path.relative(outputDir, projectRoot);
   let copiedCount = 0;
 
   // Process each loaded config file
@@ -1150,8 +1154,8 @@ async function copyConfigFilesWithImportMaps(
       }
 
       // Write to output directory
-      const destPath = current.path.join(outputDir, file.fileType);
-      await current.fs.writeTextFile(
+      const destPath = runtime.path.join(outputDir, file.fileType);
+      await runtime.fs.writeTextFile(
         destPath,
         JSON.stringify(content, null, 2),
       );
@@ -1182,16 +1186,16 @@ async function copyPublicAssets(
   projectRoot: string,
   distDir: string,
 ): Promise<void> {
-  const publicDir = current.path.resolve(projectRoot, "public");
+  const publicDir = runtime.path.resolve(projectRoot, "public");
 
-  if (!(await current.fs.exists(publicDir))) {
+  if (!(await runtime.fs.exists(publicDir))) {
     return;
   }
 
   // Copy all files and directories recursively
-  for await (const entry of current.fs.readDir(publicDir)) {
-    const sourcePath = current.path.resolve(publicDir, entry.name);
-    const destPath = current.path.resolve(distDir, entry.name);
+  for await (const entry of runtime.fs.readDir(publicDir)) {
+    const sourcePath = runtime.path.resolve(publicDir, entry.name);
+    const destPath = runtime.path.resolve(distDir, entry.name);
     await copy(sourcePath, destPath, { overwrite: true });
   }
 }
@@ -1211,28 +1215,28 @@ async function copyTranslationFiles(
 ): Promise<void> {
   let totalCopied = 0;
   // Get srcDir name relative to project root (e.g., "src")
-  const srcDirName = current.path.relative(projectRoot, srcDir);
+  const srcDirName = runtime.path.relative(projectRoot, srcDir);
 
   // Copy from {srcDir}/app/messages/ (legacy location)
-  const appMessagesSourceDir = current.path.resolve(
+  const appMessagesSourceDir = runtime.path.resolve(
     srcDir,
     "app/messages",
   );
-  const appMessagesDestDir = current.path.resolve(
+  const appMessagesDestDir = runtime.path.resolve(
     serverDistDir,
     srcDirName,
     "app/messages",
   );
 
-  if (await current.fs.exists(appMessagesSourceDir)) {
-    await current.fs.ensureDir(appMessagesDestDir);
-    for await (const entry of current.fs.readDir(appMessagesSourceDir)) {
+  if (await runtime.fs.exists(appMessagesSourceDir)) {
+    await runtime.fs.ensureDir(appMessagesDestDir);
+    for await (const entry of runtime.fs.readDir(appMessagesSourceDir)) {
       if (entry.isFile && entry.name.endsWith(".json")) {
-        const sourcePath = current.path.resolve(
+        const sourcePath = runtime.path.resolve(
           appMessagesSourceDir,
           entry.name,
         );
-        const destPath = current.path.resolve(appMessagesDestDir, entry.name);
+        const destPath = runtime.path.resolve(appMessagesDestDir, entry.name);
         await copy(sourcePath, destPath, { overwrite: true });
         totalCopied++;
       }
@@ -1240,25 +1244,25 @@ async function copyTranslationFiles(
   }
 
   // Copy from {srcDir}/lib/i18n/messages/ (loader.ts location)
-  const i18nMessagesSourceDir = current.path.resolve(
+  const i18nMessagesSourceDir = runtime.path.resolve(
     srcDir,
     "lib/i18n/messages",
   );
-  const i18nMessagesDestDir = current.path.resolve(
+  const i18nMessagesDestDir = runtime.path.resolve(
     serverDistDir,
     srcDirName,
     "lib/i18n/messages",
   );
 
-  if (await current.fs.exists(i18nMessagesSourceDir)) {
-    await current.fs.ensureDir(i18nMessagesDestDir);
-    for await (const entry of current.fs.readDir(i18nMessagesSourceDir)) {
+  if (await runtime.fs.exists(i18nMessagesSourceDir)) {
+    await runtime.fs.ensureDir(i18nMessagesDestDir);
+    for await (const entry of runtime.fs.readDir(i18nMessagesSourceDir)) {
       if (entry.isFile && entry.name.endsWith(".json")) {
-        const sourcePath = current.path.resolve(
+        const sourcePath = runtime.path.resolve(
           i18nMessagesSourceDir,
           entry.name,
         );
-        const destPath = current.path.resolve(i18nMessagesDestDir, entry.name);
+        const destPath = runtime.path.resolve(i18nMessagesDestDir, entry.name);
         await copy(sourcePath, destPath, { overwrite: true });
         totalCopied++;
       }
@@ -1288,14 +1292,14 @@ async function processCssFiles(
   distDir: string,
 ): Promise<void> {
   // CSS input path relative to srcDir
-  const cssInput = current.path.resolve(
+  const cssInput = runtime.path.resolve(
     srcDir,
     "app/styles/global.css",
   );
-  const cssOutput = current.path.resolve(distDir, "styles.css");
+  const cssOutput = runtime.path.resolve(distDir, "styles.css");
 
   // Check if CSS source file exists
-  if (!(await current.fs.exists(cssInput))) {
+  if (!(await runtime.fs.exists(cssInput))) {
     buildLogger.debug("No CSS source file found, skipping CSS processing");
     return;
   }
@@ -1337,16 +1341,16 @@ async function extractCriticalPageCssFiles(
     return null;
   }
 
-  const stylesPath = current.path.resolve(distDir, "styles.css");
+  const stylesPath = runtime.path.resolve(distDir, "styles.css");
 
   // Check if styles.css exists
-  if (!(await current.fs.exists(stylesPath))) {
+  if (!(await runtime.fs.exists(stylesPath))) {
     buildLogger.debug("No styles.css found, skipping critical CSS extraction");
     return null;
   }
 
   try {
-    const fullCss = await current.fs.readTextFile(stylesPath);
+    const fullCss = await runtime.fs.readTextFile(stylesPath);
 
     // Representative HTML template covering common layout patterns
     // This ensures all layout-critical utilities are included
@@ -1464,11 +1468,11 @@ async function extractCriticalPageCssFiles(
     });
 
     // Save critical and deferred CSS
-    const criticalPath = current.path.resolve(distDir, "styles.critical.css");
-    const deferredPath = current.path.resolve(distDir, "styles.deferred.css");
+    const criticalPath = runtime.path.resolve(distDir, "styles.critical.css");
+    const deferredPath = runtime.path.resolve(distDir, "styles.deferred.css");
 
-    await current.fs.writeTextFile(criticalPath, result.critical);
-    await current.fs.writeTextFile(deferredPath, result.deferred);
+    await runtime.fs.writeTextFile(criticalPath, result.critical);
+    await runtime.fs.writeTextFile(deferredPath, result.deferred);
 
     const stats = result.stats;
     if (stats) {
@@ -1509,23 +1513,23 @@ async function generateCriticalUniversalCssFile(
     return null;
   }
 
-  const stylesPath = current.path.resolve(distDir, "styles.css");
+  const stylesPath = runtime.path.resolve(distDir, "styles.css");
 
   // Check if styles.css exists
-  if (!(await current.fs.exists(stylesPath))) {
+  if (!(await runtime.fs.exists(stylesPath))) {
     buildLogger.debug("No styles.css found, skipping universal CSS generation");
     return null;
   }
 
   try {
-    const compiledCss = await current.fs.readTextFile(stylesPath);
+    const compiledCss = await runtime.fs.readTextFile(stylesPath);
 
     // Use plugin's extractUniversalCss method
     const result = plugin.extractUniversalCss(compiledCss);
 
     // Save universal CSS
-    const universalPath = current.path.resolve(distDir, "styles.universal.css");
-    await current.fs.writeTextFile(universalPath, result.css);
+    const universalPath = runtime.path.resolve(distDir, "styles.universal.css");
+    await runtime.fs.writeTextFile(universalPath, result.css);
 
     buildLogger.debug(
       `✓ Universal CSS generated: ${result.css.length} bytes`,
@@ -1547,7 +1551,7 @@ async function cleanBuildDir(
   distDir: string,
   preserveCss?: boolean,
 ): Promise<void> {
-  if (!await current.fs.exists(distDir)) {
+  if (!await runtime.fs.exists(distDir)) {
     return;
   }
 
@@ -1556,15 +1560,15 @@ async function cleanBuildDir(
     buildLogger.debug("🧹 Cleaning build directory (preserving CSS)");
 
     // Remove server directory completely
-    const serverDir = current.path.resolve(distDir, SERVER_DIR);
-    if (await current.fs.exists(serverDir)) {
-      await current.fs.remove(serverDir, { recursive: true });
+    const serverDir = runtime.path.resolve(distDir, SERVER_DIR);
+    if (await runtime.fs.exists(serverDir)) {
+      await runtime.fs.remove(serverDir, { recursive: true });
     }
 
     // Clean client directory but preserve CSS files
-    const clientDir = current.path.resolve(distDir, CLIENT_DIR);
-    if (await current.fs.exists(clientDir)) {
-      for await (const entry of current.fs.readDir(clientDir)) {
+    const clientDir = runtime.path.resolve(distDir, CLIENT_DIR);
+    if (await runtime.fs.exists(clientDir)) {
+      for await (const entry of runtime.fs.readDir(clientDir)) {
         // Preserve CSS files and font directories
         if (
           entry.name.endsWith(".css") ||
@@ -1575,13 +1579,13 @@ async function cleanBuildDir(
           continue;
         }
 
-        const entryPath = current.path.resolve(clientDir, entry.name);
-        await current.fs.remove(entryPath, { recursive: true });
+        const entryPath = runtime.path.resolve(clientDir, entry.name);
+        await runtime.fs.remove(entryPath, { recursive: true });
       }
     }
   } else {
     // Full cleanup
-    await current.fs.remove(distDir, { recursive: true });
+    await runtime.fs.remove(distDir, { recursive: true });
     buildLogger.debug("🧹 Cleaned build directory");
   }
 }
@@ -1604,7 +1608,7 @@ async function optimizeFonts(
     return;
   }
 
-  const fontsDir = current.path.resolve(distDir, "fonts");
+  const fontsDir = runtime.path.resolve(distDir, "fonts");
   const publicPath = "/fonts";
 
   try {
@@ -1615,15 +1619,15 @@ async function optimizeFonts(
     );
 
     // Save font CSS to a file that can be inlined in HTML
-    const fontCssPath = current.path.resolve(distDir, "fonts.css");
-    await current.fs.writeTextFile(fontCssPath, result.fontFaceCSS);
+    const fontCssPath = runtime.path.resolve(distDir, "fonts.css");
+    await runtime.fs.writeTextFile(fontCssPath, result.fontFaceCSS);
 
     // Save preload hints to a file for HTML shell integration
-    const preloadHintsPath = current.path.resolve(
+    const preloadHintsPath = runtime.path.resolve(
       distDir,
       "font-preloads.json",
     );
-    await current.fs.writeTextFile(
+    await runtime.fs.writeTextFile(
       preloadHintsPath,
       JSON.stringify(result.preloadHints, null, 2),
     );
@@ -1656,34 +1660,34 @@ async function _copyCssModuleJsonFiles(
 ): Promise<void> {
   for (const cssPath of cssModulePaths) {
     // Get relative path from project root
-    const relativePath = current.path.relative(projectRoot, cssPath);
+    const relativePath = runtime.path.relative(projectRoot, cssPath);
 
     // Construct JSON file paths
-    const jsonFilename = current.path.basename(cssPath) + ".json";
-    const sourceJsonPath = current.path.join(
+    const jsonFilename = runtime.path.basename(cssPath) + ".json";
+    const sourceJsonPath = runtime.path.join(
       clientOutputDir,
-      current.path.dirname(relativePath),
+      runtime.path.dirname(relativePath),
       jsonFilename,
     );
-    const targetJsonPath = current.path.join(
+    const targetJsonPath = runtime.path.join(
       serverOutputDir,
-      current.path.dirname(relativePath),
+      runtime.path.dirname(relativePath),
       jsonFilename,
     );
 
     // Ensure target directory exists
-    await current.fs.ensureDir(current.path.dirname(targetJsonPath));
+    await runtime.fs.ensureDir(runtime.path.dirname(targetJsonPath));
 
     // Copy JSON file
     try {
       await copy(sourceJsonPath, targetJsonPath, { overwrite: true });
       buildLogger.debug(
-        `   ✓ Copied ${current.path.relative(projectRoot, cssPath)}.json`,
+        `   ✓ Copied ${runtime.path.relative(projectRoot, cssPath)}.json`,
       );
     } catch (error) {
       buildLogger.warn(
         `   ⚠ Failed to copy JSON for ${
-          current.path.relative(projectRoot, cssPath)
+          runtime.path.relative(projectRoot, cssPath)
         }:`,
         { error },
       );
@@ -1707,37 +1711,37 @@ async function _copyCssModuleJsonFilesToSrc(
 
   for (const cssPath of cssModulePaths) {
     // Get relative path from project root
-    const relativePath = current.path.relative(projectRoot, cssPath);
+    const relativePath = runtime.path.relative(projectRoot, cssPath);
 
     // Construct JSON file paths
-    const jsonFilename = current.path.basename(cssPath) + ".json";
-    const sourceJsonPath = current.path.join(
+    const jsonFilename = runtime.path.basename(cssPath) + ".json";
+    const sourceJsonPath = runtime.path.join(
       clientOutputDir,
-      current.path.dirname(relativePath),
+      runtime.path.dirname(relativePath),
       jsonFilename,
     );
-    const targetJsonPath = current.path.join(
+    const targetJsonPath = runtime.path.join(
       projectRoot,
-      current.path.dirname(relativePath),
+      runtime.path.dirname(relativePath),
       jsonFilename,
     );
 
     // Ensure target directory exists
-    await current.fs.ensureDir(current.path.dirname(targetJsonPath));
+    await runtime.fs.ensureDir(runtime.path.dirname(targetJsonPath));
 
     // Copy JSON file
     try {
       await copy(sourceJsonPath, targetJsonPath, { overwrite: true });
       buildLogger.debug(
         `   ✓ Copied ${
-          current.path.relative(projectRoot, cssPath)
+          runtime.path.relative(projectRoot, cssPath)
         }.json to src/`,
       );
       copiedCount++;
     } catch (error) {
       buildLogger.warn(
         `   ⚠ Failed to copy JSON for ${
-          current.path.relative(projectRoot, cssPath)
+          runtime.path.relative(projectRoot, cssPath)
         } to src/:`,
         { error },
       );
@@ -1760,8 +1764,8 @@ async function scanCssModuleFiles(srcDir: string): Promise<string[]> {
   const cssModuleFiles: string[] = [];
 
   async function scanDirectory(dir: string): Promise<void> {
-    for await (const entry of current.fs.readDir(dir)) {
-      const fullPath = current.path.resolve(dir, entry.name);
+    for await (const entry of runtime.fs.readDir(dir)) {
+      const fullPath = runtime.path.resolve(dir, entry.name);
 
       if (entry.isDirectory) {
         await scanDirectory(fullPath);
@@ -1849,23 +1853,23 @@ async function copyCssModuleJsonFilesFromSrc(
 
   for (const cssPath of cssModulePaths) {
     // Get relative path from project root
-    const relativePath = current.path.relative(projectRoot, cssPath);
+    const relativePath = runtime.path.relative(projectRoot, cssPath);
 
     // Construct JSON file paths
-    const jsonFilename = current.path.basename(cssPath) + ".json";
-    const sourceJsonPath = current.path.join(
+    const jsonFilename = runtime.path.basename(cssPath) + ".json";
+    const sourceJsonPath = runtime.path.join(
       projectRoot,
-      current.path.dirname(relativePath),
+      runtime.path.dirname(relativePath),
       jsonFilename,
     );
-    const targetJsonPath = current.path.join(
+    const targetJsonPath = runtime.path.join(
       targetDir,
-      current.path.dirname(relativePath),
+      runtime.path.dirname(relativePath),
       jsonFilename,
     );
 
     // Ensure target directory exists
-    await current.fs.ensureDir(current.path.dirname(targetJsonPath));
+    await runtime.fs.ensureDir(runtime.path.dirname(targetJsonPath));
 
     // Copy JSON file
     try {
@@ -1874,7 +1878,7 @@ async function copyCssModuleJsonFilesFromSrc(
     } catch (error) {
       buildLogger.warn(
         `   ⚠ Failed to copy JSON for ${
-          current.path.relative(projectRoot, cssPath)
+          runtime.path.relative(projectRoot, cssPath)
         }:`,
         { error },
       );
@@ -1927,10 +1931,10 @@ async function appendCssModulesToStyles(
 
   // Append CSS module styles to main styles.css bundle
   if (cssModuleContents.length > 0) {
-    const stylesPath = current.path.resolve(clientOutputDir, "styles.css");
+    const stylesPath = runtime.path.resolve(clientOutputDir, "styles.css");
     let existingStyles = "";
     try {
-      existingStyles = await current.fs.readTextFile(stylesPath);
+      existingStyles = await runtime.fs.readTextFile(stylesPath);
     } catch {
       // styles.css doesn't exist yet, that's fine
     }
@@ -1943,7 +1947,7 @@ async function appendCssModulesToStyles(
     );
     const combinedStyles = existingStyles + "\n" +
       cleanedContents.join("\n");
-    await current.fs.writeTextFile(stylesPath, combinedStyles);
+    await runtime.fs.writeTextFile(stylesPath, combinedStyles);
     buildLogger.debug(
       `✓ Appended ${cssModuleContents.length} CSS module(s) to styles.css`,
     );
@@ -1967,11 +1971,11 @@ async function optimizeImagesStep(
   );
 
   // Look for images in public/ directory
-  const publicDir = current.path.resolve(projectRoot, "public");
-  const imagesInputDir = current.path.resolve(publicDir, "images");
+  const publicDir = runtime.path.resolve(projectRoot, "public");
+  const imagesInputDir = runtime.path.resolve(publicDir, "images");
 
   // Check if images directory exists
-  if (!(await current.fs.exists(imagesInputDir))) {
+  if (!(await runtime.fs.exists(imagesInputDir))) {
     buildLogger.debug(
       "✓ No images directory found, skipping image optimization",
     );
@@ -1986,7 +1990,7 @@ async function optimizeImagesStep(
   }
 
   try {
-    const imagesOutputDir = current.path.resolve(distDir, "images");
+    const imagesOutputDir = runtime.path.resolve(distDir, "images");
     const manifest = await optimizeImages(
       imagesInputDir,
       imagesOutputDir,

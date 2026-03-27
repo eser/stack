@@ -397,14 +397,14 @@ export const generateChangelog = async (
   }
 
   if (!dryRun) {
-    const changelogPath = standards.runtime.current.path.join(
+    const changelogPath = standards.crossRuntime.runtime.path.join(
       root,
       "CHANGELOG.md",
     );
 
     let existingContent: string;
     try {
-      existingContent = await standards.runtime.current.fs.readTextFile(
+      existingContent = await standards.crossRuntime.runtime.fs.readTextFile(
         changelogPath,
       );
     } catch {
@@ -418,7 +418,7 @@ export const generateChangelog = async (
       content,
       version,
     );
-    await standards.runtime.current.fs.writeTextFile(
+    await standards.crossRuntime.runtime.fs.writeTextFile(
       changelogPath,
       updatedContent,
     );
@@ -513,7 +513,7 @@ export const main = async (
 
 if (import.meta.main) {
   runCliMain(
-    await main(standards.runtime.current.process.args as string[]),
+    await main(standards.crossRuntime.runtime.process.args as string[]),
     out,
   );
 }

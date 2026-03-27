@@ -37,6 +37,7 @@ import * as validateSecrets from "../validate-secrets.ts";
 import * as validateFilenames from "../validate-filenames.ts";
 import * as validateSubmodules from "../validate-submodules.ts";
 import * as validateLicenses from "../validate-licenses.ts";
+import * as validateRuntimeJsApis from "../validate-runtime-js-apis.ts";
 
 // Standalone scripts (not file tools)
 import * as validateCommitMsg from "../validate-commit-msg.ts";
@@ -84,6 +85,7 @@ const initializeBuiltinValidators = (): void => {
   registerValidator(validateFilenames.validator);
   registerValidator(validateSubmodules.validator);
   registerValidator(validateLicenses.validator);
+  registerValidator(validateRuntimeJsApis.validator);
 };
 
 const ensureInitialized = (): void => {
@@ -246,6 +248,7 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
     validateFilenames.tool,
     validateSubmodules.tool,
     validateLicenses.tool,
+    validateRuntimeJsApis.tool,
   ];
 
   for (const ft of fileTools) {
@@ -274,10 +277,10 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
         (options["_args"] as string[] | undefined)?.[0] ??
         ".git/COMMIT_EDITMSG";
 
-      const { current } = await import("@eser/standards/runtime");
+      const { runtime } = await import("@eser/standards/cross-runtime");
       let message: string;
       try {
-        message = await current.fs.readTextFile(commitMsgFile);
+        message = await runtime.fs.readTextFile(commitMsgFile);
       } catch {
         return {
           name: "validate-commit-msg",

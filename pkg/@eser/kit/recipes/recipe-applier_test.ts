@@ -1,6 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as recipeApplier from "./recipe-applier.ts";
 
 // =============================================================================
@@ -58,7 +59,7 @@ Deno.test("applyRecipe — dry-run reports files without writing", async () => {
     ],
   };
 
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     const result = await recipeApplier.applyRecipe(recipe, {
@@ -75,7 +76,7 @@ Deno.test("applyRecipe — dry-run reports files without writing", async () => {
 
     assert.assertEquals(exists, false);
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
@@ -94,7 +95,7 @@ Deno.test("applyRecipe — rejects recipe with path traversal", async () => {
     ],
   };
 
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     await assert.assertRejects(
@@ -108,7 +109,7 @@ Deno.test("applyRecipe — rejects recipe with path traversal", async () => {
       "path traversal",
     );
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
@@ -117,12 +118,14 @@ Deno.test("applyRecipe — rejects recipe with path traversal", async () => {
 // =============================================================================
 
 Deno.test("fileExists — returns true for existing file", async () => {
-  const tmpFile = await Deno.makeTempFile();
+  const tmpDir = await runtime.fs.makeTempDir();
+  const tmpFile = `${tmpDir}/test-file.txt`;
+  await runtime.fs.writeTextFile(tmpFile, "test");
 
   try {
     assert.assertEquals(await recipeApplier.fileExists(tmpFile), true);
   } finally {
-    await Deno.remove(tmpFile);
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
@@ -166,7 +169,7 @@ Deno.test("processContent — returns unchanged with empty variables", () => {
 // =============================================================================
 
 Deno.test("runPostInstall — dry-run reports commands without executing", async () => {
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     const ran = await recipeApplier.runPostInstall(
@@ -179,12 +182,12 @@ Deno.test("runPostInstall — dry-run reports commands without executing", async
     assert.assertEquals(ran[0], "echo hello");
     assert.assertEquals(ran[1], "echo world");
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
 Deno.test("runPostInstall — executes commands for real", async () => {
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     const ran = await recipeApplier.runPostInstall(
@@ -195,7 +198,7 @@ Deno.test("runPostInstall — executes commands for real", async () => {
 
     assert.assertEquals(ran.length, 1);
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
@@ -217,7 +220,7 @@ Deno.test("applyRecipe — dry-run with variables reports correctly", async () =
     ],
   };
 
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     const result = await recipeApplier.applyRecipe(recipe, {
@@ -229,7 +232,7 @@ Deno.test("applyRecipe — dry-run with variables reports correctly", async () =
 
     assert.assertEquals(result.written.length, 1);
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
@@ -247,7 +250,7 @@ Deno.test("applyRecipe — dry-run includes postInstall in result", async () => 
     postInstall: ["echo setup"],
   };
 
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     const result = await recipeApplier.applyRecipe(recipe, {
@@ -259,7 +262,7 @@ Deno.test("applyRecipe — dry-run includes postInstall in result", async () => 
     assert.assertEquals(result.postInstallRan.length, 1);
     assert.assertEquals(result.postInstallRan[0], "echo setup");
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
@@ -279,7 +282,7 @@ Deno.test("applyRecipe — dry-run with folder kind reports correctly", async ()
     ],
   };
 
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     // Folder fetch requires network — in dry-run for file entries,
@@ -299,6 +302,6 @@ Deno.test("applyRecipe — dry-run with folder kind reports correctly", async ()
 
     assert.assertEquals(result.written.length, 1);
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });

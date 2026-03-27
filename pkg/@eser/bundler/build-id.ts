@@ -1,14 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as hex from "@std/encoding/hex";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 
 // Lazy initialization state - computed on first getBuildId() call
 const buildIdState: { current: string | null } = { current: null };
 let initPromise: Promise<string> | null = null;
 
 const computeBuildId = async (): Promise<string> => {
-  const env = current.env.toObject();
+  const env = runtime.env.toObject();
   const deploymentId = env["DENO_DEPLOYMENT_ID"] ??
     // For CI
     env["GITHUB_SHA"] ??

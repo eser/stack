@@ -360,13 +360,13 @@ Deno.test("format registry should look up by name", () => {
 });
 
 Deno.test("format registry should look up by extension", () => {
-  assert.assertEquals(hasFormat(".json"), true);
-  assert.assertEquals(hasFormat(".yaml"), true);
-  assert.assertEquals(hasFormat(".yml"), true);
-  assert.assertEquals(hasFormat(".csv"), true);
-  assert.assertEquals(hasFormat(".toml"), true);
-  assert.assertEquals(hasFormat(".jsonl"), true);
-  assert.assertEquals(hasFormat(".ndjson"), true);
+  assert.assertEquals(hasFormat("json"), true);
+  assert.assertEquals(hasFormat("yaml"), true);
+  assert.assertEquals(hasFormat("yml"), true);
+  assert.assertEquals(hasFormat("csv"), true);
+  assert.assertEquals(hasFormat("toml"), true);
+  assert.assertEquals(hasFormat("jsonl"), true);
+  assert.assertEquals(hasFormat("ndjson"), true);
 });
 
 Deno.test("format registry should list unique formats", () => {
@@ -401,7 +401,7 @@ Deno.test("registry register() should reject format with no name", () => {
     () =>
       registry.register({
         name: "",
-        extensions: [".x"],
+        extensions: ["x"],
         streamable: false,
         writeItem: () => "",
         createReader: () => ({ push: () => [], flush: () => [] }),

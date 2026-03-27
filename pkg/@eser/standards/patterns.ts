@@ -28,3 +28,9 @@ export function replaceJsExtension(
 ): string {
   return filePath.replace(JS_FILE_PATTERN, targetExtension);
 }
+
+/** Check if a path ends with one of the given bare extensions */
+export const hasExtension = (
+  path: string,
+  extensions: readonly string[],
+): boolean => extensions.some((ext) => path.endsWith(`.${ext}`));

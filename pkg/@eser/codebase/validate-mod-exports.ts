@@ -156,12 +156,17 @@ export const checkModExports = async (
   const missingExports: MissingExport[] = [];
 
   for (const pkg of packages) {
-    const modPath = standards.runtime.current.path.join(pkg.path, "mod.ts");
+    const modPath = standards.crossRuntime.runtime.path.join(
+      pkg.path,
+      "mod.ts",
+    );
 
     // Check if mod.ts exists
     let modContent: string;
     try {
-      modContent = await standards.runtime.current.fs.readTextFile(modPath);
+      modContent = await standards.crossRuntime.runtime.fs.readTextFile(
+        modPath,
+      );
     } catch {
       // No mod.ts, skip this package
       continue;
@@ -176,7 +181,7 @@ export const checkModExports = async (
     const files = await workspaceDiscovery.getPackageFiles(pkg.path);
 
     for (const file of files) {
-      const fileName = standards.runtime.current.path.basename(file);
+      const fileName = standards.crossRuntime.runtime.path.basename(file);
 
       if (!shouldBeExported(fileName)) {
         continue;

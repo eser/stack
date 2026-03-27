@@ -2449,13 +2449,6 @@
           ]
         }
       },
-      "pkg/@eser/registry": {
-        "packageJson": {
-          "dependencies": [
-            "npm:@jsr/std__assert@^1.0.16"
-          ]
-        }
-      },
       "pkg/@eser/shell": {
         "dependencies": [
           "jsr:@std/cli@^1.0.25"

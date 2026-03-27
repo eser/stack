@@ -6,6 +6,8 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
+
 export const sync = async (
   root: string,
   rules: readonly string[],
@@ -28,8 +30,10 @@ export const sync = async (
     lines.push("");
   }
 
-  await Deno.mkdir(`${root}/.kiro/steering`, { recursive: true });
-  await Deno.writeTextFile(
+  await runtime.fs.mkdir(`${root}/.kiro/steering`, {
+    recursive: true,
+  });
+  await runtime.fs.writeTextFile(
     `${root}/.kiro/steering/conventions.md`,
     lines.join("\n"),
   );

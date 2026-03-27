@@ -12,7 +12,7 @@ import {
   type DirectiveAnalysisOptions,
   type DirectiveMatch,
 } from "@eser/codebase/directive-analysis";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as logging from "@eser/logging";
 import { walkFiles } from "@eser/collector";
 import type { BuildCache } from "../../domain/build-cache.ts";
@@ -88,7 +88,7 @@ export async function analyzeClientComponents(
     // Get file modification time for cache check
     let fileMtime = 0;
     try {
-      const fileStat = await current.fs.stat(match.filePath);
+      const fileStat = await runtime.fs.stat(match.filePath);
       fileMtime = fileStat.mtime?.getTime() ?? 0;
     } catch {
       // File might have been deleted, skip
@@ -150,7 +150,7 @@ export async function getAllComponents(srcDir: string): Promise<string[]> {
   for await (
     const relPath of walkFiles(srcDir, "**/*.{tsx,ts,jsx,js}", IGNORE_PATTERN)
   ) {
-    components.push(current.path.join(srcDir, relPath));
+    components.push(runtime.path.join(srcDir, relPath));
   }
 
   return components;
@@ -158,8 +158,8 @@ export async function getAllComponents(srcDir: string): Promise<string[]> {
 
 // CLI usage
 if (import.meta.main) {
-  const projectRoot = current.process.cwd();
-  const srcDir = current.path.resolve(projectRoot, "src");
+  const projectRoot = runtime.process.cwd();
+  const srcDir = runtime.path.resolve(projectRoot, "src");
   const clientComponents = await analyzeClientComponents(srcDir, projectRoot);
 
   analyzeLogger.info("Client Components:", { clientComponents });

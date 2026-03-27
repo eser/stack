@@ -5,11 +5,12 @@
  * paths or remote URLs. Supports file, folder, and standalone recipe fetching.
  *
  * This is part of the eser recipe registry system for distributing code
- * recipes. Not to be confused with `@eser/standards/registry`.
+ * recipes. Not to be confused with `@eser/standards/collections`.
  *
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
 import * as registrySchema from "./registry-schema.ts";
 
 // =============================================================================
@@ -48,12 +49,12 @@ const registryFetch = async (url: string): Promise<Response> => {
  * registry manifest file. Walks up the directory tree.
  */
 const detectLocalRegistry = async (): Promise<string | undefined> => {
-  let dir = Deno.cwd();
+  let dir = runtime.process.cwd();
 
   for (let i = 0; i < 10; i++) {
     const candidate = `${dir}/${LOCAL_REGISTRY_PATH}`;
     try {
-      await Deno.stat(candidate);
+      await runtime.fs.stat(candidate);
       return candidate;
     } catch {
       // Not found — go up
@@ -122,9 +123,9 @@ const fetchRegistry = async (
 
     rawJson = await response.text();
   } else {
-    // Local file — use Deno APIs directly since this is a CLI tool
+    // Local file — use runtime abstraction
     try {
-      rawJson = await Deno.readTextFile(registrySource);
+      rawJson = await runtime.fs.readTextFile(registrySource);
     } catch {
       throw new Error(
         `Could not read registry file at ${registrySource}`,

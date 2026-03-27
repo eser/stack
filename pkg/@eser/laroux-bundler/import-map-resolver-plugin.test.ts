@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { assertEquals, assertExists } from "@std/assert";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import { createImportMapResolverPlugin } from "./import-map-resolver-plugin.ts";
 import type { ImportMap } from "./domain/import-map.ts";
 
@@ -91,7 +91,7 @@ Deno.test("import-map-resolver-plugin", async (t) => {
     "isBareSpecifier logic - handled by plugin resolution",
     async () => {
       // Create a temp directory with a deno.json
-      const tempDir = await current.fs.makeTempDir({
+      const tempDir = await runtime.fs.makeTempDir({
         prefix: "resolver-test-",
       });
 
@@ -101,8 +101,8 @@ Deno.test("import-map-resolver-plugin", async (t) => {
           "@/": "./src/",
         },
       };
-      await current.fs.writeTextFile(
-        current.path.join(tempDir, "deno.json"),
+      await runtime.fs.writeTextFile(
+        runtime.path.join(tempDir, "deno.json"),
         JSON.stringify(denoJson, null, 2),
       );
 
@@ -114,16 +114,16 @@ Deno.test("import-map-resolver-plugin", async (t) => {
       assertExists(plugin);
 
       // Cleanup
-      await current.fs.remove(tempDir, { recursive: true });
+      await runtime.fs.remove(tempDir, { recursive: true });
     },
   );
 });
 
 Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
   // Create a temp directory for test fixtures
-  const tempDir = await current.fs.makeTempDir({ prefix: "resolver-fixture-" });
-  const srcDir = current.path.join(tempDir, "src");
-  await current.fs.ensureDir(srcDir);
+  const tempDir = await runtime.fs.makeTempDir({ prefix: "resolver-fixture-" });
+  const srcDir = runtime.path.join(tempDir, "src");
+  await runtime.fs.ensureDir(srcDir);
 
   await t.step("setup test files", async () => {
     // Create deno.json
@@ -135,14 +135,14 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
         "@/": "./src/",
       },
     };
-    await current.fs.writeTextFile(
-      current.path.join(tempDir, "deno.json"),
+    await runtime.fs.writeTextFile(
+      runtime.path.join(tempDir, "deno.json"),
       JSON.stringify(denoJson, null, 2),
     );
 
     // Create a source file
-    await current.fs.writeTextFile(
-      current.path.join(srcDir, "utils.ts"),
+    await runtime.fs.writeTextFile(
+      runtime.path.join(srcDir, "utils.ts"),
       "export const sum = (a: number, b: number) => a + b;",
     );
   });
@@ -193,5 +193,5 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
   });
 
   // Cleanup
-  await current.fs.remove(tempDir, { recursive: true });
+  await runtime.fs.remove(tempDir, { recursive: true });
 });

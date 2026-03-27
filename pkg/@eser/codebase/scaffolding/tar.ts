@@ -9,7 +9,7 @@
  */
 
 import * as tar from "@std/tar/untar-stream";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 
 export type ExtractOptions = {
   /** Number of leading path components to strip (like tar --strip-components) */
@@ -34,7 +34,7 @@ export const extractTarball = async (
 
   // Normalize the subpath for matching
   const normalizedSubpath = subpath !== undefined
-    ? current.path.normalize(subpath).replace(/^\/+/, "")
+    ? runtime.path.normalize(subpath).replace(/^\/+/, "")
     : undefined;
 
   // Decompress gzip if needed and parse tar
@@ -49,10 +49,10 @@ export const extractTarball = async (
 
   for await (const entry of untarStream) {
     // Normalize and validate the entry path
-    const entryPath = current.path.normalize(entry.path);
+    const entryPath = runtime.path.normalize(entry.path);
 
     // Security: Prevent path traversal attacks
-    if (entryPath.startsWith("..") || current.path.isAbsolute(entryPath)) {
+    if (entryPath.startsWith("..") || runtime.path.isAbsolute(entryPath)) {
       // Skip entries that try to escape the target directory
       if (entry.readable !== undefined) {
         await entry.readable.cancel();
@@ -61,7 +61,7 @@ export const extractTarball = async (
     }
 
     // Strip leading path components
-    const parts = entryPath.split(current.path.sep);
+    const parts = entryPath.split(runtime.path.sep);
     const strippedParts = parts.slice(stripComponents);
 
     if (strippedParts.length === 0) {
@@ -72,7 +72,7 @@ export const extractTarball = async (
       continue;
     }
 
-    const strippedPath = strippedParts.join(current.path.sep);
+    const strippedPath = strippedParts.join(runtime.path.sep);
 
     // Filter by subpath if specified
     if (normalizedSubpath !== undefined) {
@@ -95,21 +95,21 @@ export const extractTarball = async (
 
     // Calculate final output path
     const outputPath = normalizedSubpath !== undefined
-      ? current.path.join(
+      ? runtime.path.join(
         targetDir,
         strippedPath.slice(normalizedSubpath.length).replace(/^\/+/, ""),
       )
-      : current.path.join(targetDir, strippedPath);
+      : runtime.path.join(targetDir, strippedPath);
 
     // Create parent directories
-    await current.fs.ensureDir(current.path.dirname(outputPath));
+    await runtime.fs.ensureDir(runtime.path.dirname(outputPath));
 
     // Write file content
     if (entry.readable !== undefined) {
       // Collect stream to Uint8Array and write using runtime.fs
       const response = new Response(entry.readable);
       const buffer = new Uint8Array(await response.arrayBuffer());
-      await current.fs.writeFile(outputPath, buffer);
+      await runtime.fs.writeFile(outputPath, buffer);
     }
   }
 };

@@ -7,7 +7,7 @@
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
 import * as logging from "@eser/logging";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 
 const errorLogger = logging.logger.getLogger(["laroux-server", "error"]);
 
@@ -199,7 +199,7 @@ export function formatError(error: Error | LarouxError): string {
   }
 
   // Stack trace (in development)
-  if (current.env.get("DEBUG") !== "" && error.stack !== undefined) {
+  if (runtime.env.get("DEBUG") !== "" && error.stack !== undefined) {
     lines.push(r(span.red("│")));
     lines.push(r(span.red("│ ")) + r(span.dim("Stack trace:")));
     const stackLines = error.stack.split("\n").slice(1, 6); // First 5 lines

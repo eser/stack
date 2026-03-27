@@ -8,18 +8,18 @@
  *
  * @example
  * ```typescript
- * import { current } from "@eser/standards/runtime";
+ * import { runtime } from "@eser/standards/cross-runtime";
  *
  * // Check capabilities before use
- * if (current.capabilities.fs) {
- *   const config = await current.fs.readTextFile("config.json");
+ * if (runtime.capabilities.fs) {
+ *   const config = await runtime.fs.readTextFile("config.json");
  * }
  *
  * // Path is always available
- * const fullPath = current.path.join("src", "lib", "utils.ts");
+ * const fullPath = runtime.path.join("src", "lib", "utils.ts");
  *
  * // For testing - use factory with mocks
- * import { createRuntime } from "@eser/standards/runtime";
+ * import { createRuntime } from "@eser/standards/cross-runtime";
  * const mockRuntime = await createRuntime({ fs: mockFs });
  * ```
  *
@@ -356,12 +356,14 @@ export const createRuntime = async (
  *
  * @example
  * ```typescript
- * import { current } from "@eser/standards/runtime";
+ * import { runtime } from "@eser/standards/cross-runtime";
  *
- * if (current.capabilities.fs) {
- *   const data = await current.fs.readTextFile("config.json");
+ * if (runtime.capabilities.fs) {
+ *   const data = await runtime.fs.readTextFile("config.json");
  * }
  * ```
  */
 // deno-lint-ignore no-top-level-await
-export const current: Runtime = await createRuntime();
+export const runtime: Runtime = await createRuntime();
+// deno-lint-ignore no-top-level-await
+export const current: Runtime = runtime;

@@ -7,6 +7,7 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
 import * as task from "@eser/functions/task";
 import * as results from "@eser/primitives/results";
 import * as span from "@eser/streams/span";
@@ -71,7 +72,9 @@ const newProject = (
           });
         }
 
-        await Deno.mkdir(input.targetDir, { recursive: true });
+        await runtime.fs.mkdir(input.targetDir, {
+          recursive: true,
+        });
 
         const variables = {
           project_name: input.projectName,

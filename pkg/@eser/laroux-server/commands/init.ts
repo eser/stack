@@ -13,6 +13,7 @@ import * as shellArgs from "@eser/shell/args";
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
+import { runtime } from "@eser/standards/cross-runtime";
 
 const TEMPLATES = ["minimal", "blog", "dashboard", "docs"] as const;
 type TemplateName = (typeof TEMPLATES)[number];
@@ -68,9 +69,9 @@ export const main = async (
   const specRef = "main";
 
   // Create target directory
-  const targetDir = `${Deno.cwd()}/${folder}`;
+  const targetDir = `${runtime.process.cwd()}/${folder}`;
   try {
-    await Deno.mkdir(targetDir, { recursive: true });
+    await runtime.fs.mkdir(targetDir, { recursive: true });
   } catch {
     await out.close();
     return results.fail({
@@ -86,8 +87,8 @@ export const main = async (
   );
 
   try {
-    const registryFetcher = await import("@eser/registry/fetcher");
-    const recipeApplier = await import("@eser/registry/applier");
+    const registryFetcher = await import("@eser/kit/recipes/fetcher");
+    const recipeApplier = await import("@eser/kit/recipes/applier");
 
     const recipe = await results.tryCatchAsync(
       () =>

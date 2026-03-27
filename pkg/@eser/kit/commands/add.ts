@@ -6,12 +6,13 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
 import * as results from "@eser/primitives/results";
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as task from "@eser/functions/task";
 import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
-import * as addRecipeHandler from "@eser/registry/handlers/add-recipe";
+import * as addRecipeHandler from "../recipes/handlers/add-recipe.ts";
 import type * as shellArgs from "@eser/shell/args";
 
 const parseVarFlags = (varFlags: string[]): Record<string, string> => {
@@ -74,7 +75,7 @@ export const main = async (
   const result = await task.runTask(
     addRecipeHandler.addRecipe({
       recipeName,
-      cwd: Deno.cwd(),
+      cwd: runtime.process.cwd(),
       registrySource: parsed["registry"] as string | undefined,
       local: parsed["local"] === true,
       dryRun,

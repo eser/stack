@@ -1,6 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as dependencyResolver from "./dependency-resolver.ts";
 
 // =============================================================================
@@ -8,63 +9,66 @@ import * as dependencyResolver from "./dependency-resolver.ts";
 // =============================================================================
 
 Deno.test("detectProjectType — detects go.mod", async () => {
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
-    await Deno.writeTextFile(`${tmpDir}/go.mod`, "module example.com/test");
+    await runtime.fs.writeTextFile(
+      `${tmpDir}/go.mod`,
+      "module example.com/test",
+    );
     const result = await dependencyResolver.detectProjectType(tmpDir);
 
     assert.assertEquals(result.type, "go");
     assert.assertEquals(result.configFile, "go.mod");
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
 Deno.test("detectProjectType — detects deno.json", async () => {
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
-    await Deno.writeTextFile(`${tmpDir}/deno.json`, "{}");
+    await runtime.fs.writeTextFile(`${tmpDir}/deno.json`, "{}");
     const result = await dependencyResolver.detectProjectType(tmpDir);
 
     assert.assertEquals(result.type, "deno");
     assert.assertEquals(result.configFile, "deno.json");
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
 Deno.test("detectProjectType — detects deno.jsonc", async () => {
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
-    await Deno.writeTextFile(`${tmpDir}/deno.jsonc`, "{}");
+    await runtime.fs.writeTextFile(`${tmpDir}/deno.jsonc`, "{}");
     const result = await dependencyResolver.detectProjectType(tmpDir);
 
     assert.assertEquals(result.type, "deno");
     assert.assertEquals(result.configFile, "deno.jsonc");
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
 Deno.test("detectProjectType — detects package.json", async () => {
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
-    await Deno.writeTextFile(`${tmpDir}/package.json`, "{}");
+    await runtime.fs.writeTextFile(`${tmpDir}/package.json`, "{}");
     const result = await dependencyResolver.detectProjectType(tmpDir);
 
     assert.assertEquals(result.type, "node");
     assert.assertEquals(result.configFile, "package.json");
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
 Deno.test("detectProjectType — returns unknown for empty dir", async () => {
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     const result = await dependencyResolver.detectProjectType(tmpDir);
@@ -72,7 +76,7 @@ Deno.test("detectProjectType — returns unknown for empty dir", async () => {
     assert.assertEquals(result.type, "unknown");
     assert.assertEquals(result.configFile, undefined);
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
@@ -181,7 +185,7 @@ Deno.test("getDependencyInstructions — no warning for unknown project type", (
 // =============================================================================
 
 Deno.test("installDependencies — dry-run returns commands without executing", async () => {
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     const installResults = await dependencyResolver.installDependencies(
@@ -195,12 +199,12 @@ Deno.test("installDependencies — dry-run returns commands without executing", 
     assert.assertEquals(installResults[0]!.command, "echo hello");
     assert.assertEquals(installResults[1]!.success, true);
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
 Deno.test("installDependencies — executes commands successfully", async () => {
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     const installResults = await dependencyResolver.installDependencies(
@@ -212,12 +216,12 @@ Deno.test("installDependencies — executes commands successfully", async () => 
     assert.assertEquals(installResults[0]!.success, true);
     assert.assertEquals(installResults[0]!.command, "echo test_output");
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
 
 Deno.test("installDependencies — stops on first failure", async () => {
-  const tmpDir = await Deno.makeTempDir();
+  const tmpDir = await runtime.fs.makeTempDir();
 
   try {
     const installResults = await dependencyResolver.installDependencies(
@@ -228,6 +232,6 @@ Deno.test("installDependencies — stops on first failure", async () => {
     assert.assertEquals(installResults.length, 1);
     assert.assertEquals(installResults[0]!.success, false);
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });

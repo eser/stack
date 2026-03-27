@@ -7,6 +7,7 @@
  */
 
 import type * as schema from "../state/schema.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 // =============================================================================
 // Detection Helpers
@@ -14,7 +15,7 @@ import type * as schema from "../state/schema.ts";
 
 const pathExists = async (path: string): Promise<boolean> => {
   try {
-    await Deno.stat(path);
+    await runtime.fs.stat(path);
     return true;
   } catch {
     return false;
@@ -26,7 +27,7 @@ const readJsonField = async (
   field: string,
 ): Promise<Record<string, unknown> | null> => {
   try {
-    const content = await Deno.readTextFile(path);
+    const content = await runtime.fs.readTextFile(path);
     const parsed = JSON.parse(content);
     return parsed[field] ?? null;
   } catch {

@@ -11,7 +11,7 @@
 
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
-import * as standardsRuntime from "@eser/standards/runtime";
+import * as standardsCrossRuntime from "@eser/standards/cross-runtime";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
 import * as shellExec from "@eser/shell/exec";
@@ -22,7 +22,9 @@ import {
   hasCompletions,
 } from "./completions-setup.ts";
 
-const ESER_OPTS: standardsRuntime.CliCommandOptions = {
+const runtime = standardsCrossRuntime.runtime;
+
+const ESER_OPTS: standardsCrossRuntime.CliCommandOptions = {
   command: "eser",
   devCommand: "deno task cli",
   npmPackage: "eser",
@@ -54,12 +56,11 @@ const INSTALL_CONFIGS: Record<string, InstallConfig> = {
  * Prefers ~/.local/bin if it exists; falls back to /usr/local/bin.
  */
 const getInstallDir = async (): Promise<string> => {
-  const rt = standardsRuntime.current;
-  const home = standardsRuntime.getHomedir();
-  const localBin = rt.path.join(home, ".local", "bin");
+  const home = standardsCrossRuntime.getHomedir();
+  const localBin = runtime.path.join(home, ".local", "bin");
 
   try {
-    await rt.fs.stat(localBin);
+    await runtime.fs.stat(localBin);
     return localBin;
   } catch {
     // Fall through to /usr/local/bin
@@ -72,10 +73,9 @@ const getInstallDir = async (): Promise<string> => {
  * Installs a compiled binary by copying itself to the install directory.
  */
 const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
-  const rt = standardsRuntime.current;
-  const currentPath = rt.process.execPath();
+  const currentPath = runtime.process.execPath();
   const installDir = await getInstallDir();
-  const targetPath = rt.path.join(installDir, "eser");
+  const targetPath = runtime.path.join(installDir, "eser");
 
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -89,8 +89,8 @@ const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   out.writeln(span.dim(`Copying to ${targetPath}...`));
 
   try {
-    await rt.fs.copyFile(currentPath, targetPath);
-    await rt.fs.chmod(targetPath, 0o755);
+    await runtime.fs.copyFile(currentPath, targetPath);
+    await runtime.fs.chmod(targetPath, 0o755);
   } catch (error) {
     if (error instanceof Deno.errors.PermissionDenied) {
       out.writeln(
@@ -141,7 +141,9 @@ const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
 export const installHandler = async (
   _ctx: shellArgs.CommandContext,
 ): Promise<shellArgs.CliResult<void>> => {
-  const execContext = await standardsRuntime.detectExecutionContext(ESER_OPTS);
+  const execContext = await standardsCrossRuntime.detectExecutionContext(
+    ESER_OPTS,
+  );
 
   // Compiled binary: copy self to install directory
   if (execContext.invoker === "binary") {

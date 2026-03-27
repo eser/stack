@@ -2,11 +2,6 @@
 
 import type { Format, FormatRegistry } from "./types.ts";
 
-const normalizeExtension = (ext: string): string =>
-  ext.toLowerCase().startsWith(".")
-    ? ext.toLowerCase()
-    : `.${ext.toLowerCase()}`;
-
 class DefaultFormatRegistry implements FormatRegistry {
   private formats = new Map<string, Format>();
 
@@ -24,7 +19,7 @@ class DefaultFormatRegistry implements FormatRegistry {
 
     // Register by extensions
     for (const ext of format.extensions) {
-      this.formats.set(normalizeExtension(ext), format);
+      this.formats.set(ext, format);
     }
   }
 
@@ -39,13 +34,12 @@ class DefaultFormatRegistry implements FormatRegistry {
 
     // Remove by extensions
     for (const ext of format.extensions) {
-      this.formats.delete(normalizeExtension(ext));
+      this.formats.delete(ext);
     }
   }
 
   get(nameOrExtension: string): Format | undefined {
-    const key = nameOrExtension.toLowerCase();
-    return this.formats.get(key) ?? this.formats.get(`.${key}`);
+    return this.formats.get(nameOrExtension.toLowerCase());
   }
 
   list(): Format[] {

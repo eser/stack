@@ -7,7 +7,7 @@
  */
 
 import * as standards from "@eser/standards";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import { createFileTool, type FileTool } from "./file-tool.ts";
 
 export const tool: FileTool = createFileTool({
@@ -18,14 +18,14 @@ export const tool: FileTool = createFileTool({
   defaults: {},
 
   async checkAll(_files, options) {
-    const gitmodulesPath = current.path.join(options.root, ".gitmodules");
+    const gitmodulesPath = runtime.path.join(options.root, ".gitmodules");
 
-    const exists = await current.fs.exists(gitmodulesPath);
+    const exists = await runtime.fs.exists(gitmodulesPath);
     if (!exists) {
       return [];
     }
 
-    const content = await current.fs.readTextFile(gitmodulesPath);
+    const content = await runtime.fs.readTextFile(gitmodulesPath);
     const submoduleCount = (content.match(/\[submodule\s/g) ?? []).length;
 
     if (submoduleCount > 0) {
@@ -46,5 +46,7 @@ export const main: FileTool["main"] = tool.main;
 
 if (import.meta.main) {
   const { runCliMain } = await import("./cli-support.ts");
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.crossRuntime.runtime.process.args as string[]),
+  );
 }

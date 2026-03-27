@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { assertEquals, assertExists } from "@std/assert";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import { analyzeBundleResult, type BundleResult } from "./bundler.ts";
 
 Deno.test("bundler", async (t) => {
@@ -68,12 +68,12 @@ Deno.test("bundler", async (t) => {
 
 Deno.test("bundler integration", async (t) => {
   // Create a temp directory for test fixtures
-  const tempDir = await current.fs.makeTempDir({ prefix: "bundler-test-" });
-  const srcDir = current.path.join(tempDir, "src");
-  const distDir = current.path.join(tempDir, "dist");
+  const tempDir = await runtime.fs.makeTempDir({ prefix: "bundler-test-" });
+  const srcDir = runtime.path.join(tempDir, "src");
+  const distDir = runtime.path.join(tempDir, "dist");
 
-  await current.fs.ensureDir(srcDir);
-  await current.fs.ensureDir(distDir);
+  await runtime.fs.ensureDir(srcDir);
+  await runtime.fs.ensureDir(distDir);
 
   await t.step("setup test files", async () => {
     // Create a simple component file
@@ -82,8 +82,8 @@ export function Counter() {
   return <div>Counter Component</div>;
 }
 `;
-    await current.fs.writeTextFile(
-      current.path.join(srcDir, "counter.tsx"),
+    await runtime.fs.writeTextFile(
+      runtime.path.join(srcDir, "counter.tsx"),
       componentCode,
     );
 
@@ -93,8 +93,8 @@ export function Counter() {
         "react": "npm:react@^19.0.0",
       },
     };
-    await current.fs.writeTextFile(
-      current.path.join(tempDir, "deno.json"),
+    await runtime.fs.writeTextFile(
+      runtime.path.join(tempDir, "deno.json"),
       JSON.stringify(denoJson, null, 2),
     );
   });
@@ -106,7 +106,7 @@ export function Counter() {
   await t.step("ServerBundleOptions type check", () => {
     // This is a compile-time type check
     const options = {
-      entrypoints: [current.path.join(srcDir, "counter.tsx")],
+      entrypoints: [runtime.path.join(srcDir, "counter.tsx")],
       outputDir: distDir,
       projectRoot: tempDir,
       externals: ["react"],
@@ -122,5 +122,5 @@ export function Counter() {
   });
 
   // Cleanup
-  await current.fs.remove(tempDir, { recursive: true });
+  await runtime.fs.remove(tempDir, { recursive: true });
 });

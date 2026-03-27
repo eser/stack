@@ -12,6 +12,7 @@ import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
@@ -48,7 +49,7 @@ const specNew = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = Deno.cwd();
+  const root = runtime.process.cwd();
 
   if (!(await persistence.isInitialized(root))) {
     out.writeln(
@@ -100,9 +101,12 @@ const specNew = async (
   );
 
   // Create spec directory
-  await Deno.mkdir(`${root}/${persistence.paths.specDir(specName)}`, {
-    recursive: true,
-  });
+  await runtime.fs.mkdir(
+    `${root}/${persistence.paths.specDir(specName)}`,
+    {
+      recursive: true,
+    },
+  );
   await persistence.writeState(root, newState);
 
   out.writeln(span.green("✔"), " Spec started: ", span.bold(specName));
@@ -129,7 +133,7 @@ const specList = async (): Promise<shellArgs.CliResult<void>> => {
     sink: streams.sinks.stdout(),
   });
 
-  const root = Deno.cwd();
+  const root = runtime.process.cwd();
   const specsDir = `${root}/${persistence.paths.specsDir}`;
 
   out.writeln(span.bold("Specs"));
@@ -138,9 +142,11 @@ const specList = async (): Promise<shellArgs.CliResult<void>> => {
   try {
     let count = 0;
 
-    for await (const entry of Deno.readDir(specsDir)) {
+    for await (const entry of runtime.fs.readDir(specsDir)) {
       if (entry.isDirectory) {
-        const hasSpec = await Deno.stat(`${specsDir}/${entry.name}/spec.md`)
+        const hasSpec = await runtime.fs.stat(
+          `${specsDir}/${entry.name}/spec.md`,
+        )
           .then(() => true)
           .catch(() => false);
 

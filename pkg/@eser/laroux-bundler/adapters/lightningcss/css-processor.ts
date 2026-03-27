@@ -4,7 +4,7 @@
  * Uses plugin hooks for framework-specific processing (Tailwind, etc.)
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as logging from "@eser/logging";
 import { buildErrors } from "../../types.ts";
 import { transform } from "lightningcss";
@@ -35,17 +35,17 @@ export async function processCss(options: CssProcessOptions): Promise<void> {
   const { input, output, minify = false, projectRoot, plugin } = options;
 
   // Check if input file exists
-  if (!(await current.fs.exists(input))) {
+  if (!(await runtime.fs.exists(input))) {
     cssLogger.warn(`CSS input file not found: ${input}`);
     return;
   }
 
   // Ensure output directory exists
-  const outputDir = current.path.resolve(output, "..");
-  await current.fs.ensureDir(outputDir);
+  const outputDir = runtime.path.resolve(output, "..");
+  await runtime.fs.ensureDir(outputDir);
 
   // Read input CSS
-  let cssContent = await current.fs.readTextFile(input);
+  let cssContent = await runtime.fs.readTextFile(input);
 
   cssLogger.debug(`Processing CSS: ${input} → ${output}`);
 
@@ -69,7 +69,7 @@ export async function processCss(options: CssProcessOptions): Promise<void> {
     }
 
     // Write output
-    await current.fs.writeTextFile(output, cssContent);
+    await runtime.fs.writeTextFile(output, cssContent);
 
     cssLogger.debug(`✓ CSS processed successfully: ${output}`);
   } catch (error) {

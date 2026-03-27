@@ -142,7 +142,7 @@ export const createReader = (options?: FormatOptions): FormatReader => {
 
 export const csvFormat: Format = {
   name: "csv",
-  extensions: [".csv"],
+  extensions: ["csv"],
   streamable: true,
   writeStart,
   writeItem,

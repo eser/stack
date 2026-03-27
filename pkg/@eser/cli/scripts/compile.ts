@@ -18,7 +18,7 @@
  * @module
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as shellExec from "@eser/shell/exec";
 
 const TARGETS = [
@@ -80,7 +80,7 @@ const createTarGz = async (
   binaryName: string,
   outputPath: string,
 ): Promise<void> => {
-  const dir = current.path.dirname(binaryPath);
+  const dir = runtime.path.dirname(binaryPath);
 
   await shellExec.exec`tar -czf ${outputPath} -C ${dir} ${binaryName}`.spawn();
 };
@@ -93,10 +93,10 @@ const createZip = async (
   binaryName: string,
   outputPath: string,
 ): Promise<void> => {
-  const dir = current.path.dirname(binaryPath);
+  const dir = runtime.path.dirname(binaryPath);
 
   await shellExec.exec`zip -j ${outputPath} ${
-    current.path.join(dir, binaryName)
+    runtime.path.join(dir, binaryName)
   }`
     .spawn();
 };
@@ -107,14 +107,14 @@ const main = async (): Promise<void> => {
     throw new Error("Cannot determine script directory");
   }
 
-  const pkgDir = current.path.dirname(scriptDir);
-  const projectRoot = current.path.resolve(pkgDir, "../../..");
-  const mainTsPath = current.path.join(pkgDir, "main.ts");
-  const versionPath = current.path.join(projectRoot, "VERSION");
-  const outputDir = current.path.join(projectRoot, "etc", "temp", "binaries");
+  const pkgDir = runtime.path.dirname(scriptDir);
+  const projectRoot = runtime.path.resolve(pkgDir, "../../..");
+  const mainTsPath = runtime.path.join(pkgDir, "main.ts");
+  const versionPath = runtime.path.join(projectRoot, "VERSION");
+  const outputDir = runtime.path.join(projectRoot, "etc", "temp", "binaries");
 
   // Step 1: Read version
-  const version = (await current.fs.readTextFile(versionPath)).trim();
+  const version = (await runtime.fs.readTextFile(versionPath)).trim();
   // deno-lint-ignore no-console
   console.log(
     `Compiling eser v${version} for ${TARGETS.length} platforms...\n`,
@@ -122,11 +122,11 @@ const main = async (): Promise<void> => {
 
   // Step 2: Clean output directory
   try {
-    await current.fs.remove(outputDir, { recursive: true });
+    await runtime.fs.remove(outputDir, { recursive: true });
   } catch {
     // Directory doesn't exist
   }
-  await current.fs.mkdir(outputDir, { recursive: true });
+  await runtime.fs.mkdir(outputDir, { recursive: true });
 
   // Step 3: Compile for each target
   const results: {
@@ -139,7 +139,7 @@ const main = async (): Promise<void> => {
   for (const target of TARGETS) {
     const isWindows = target.includes("windows");
     const binaryName = isWindows ? `eser.exe` : `eser`;
-    const binaryPath = current.path.join(outputDir, binaryName);
+    const binaryPath = runtime.path.join(outputDir, binaryName);
 
     // deno-lint-ignore no-console
     console.log(`  Compiling for ${target}...`);
@@ -150,7 +150,7 @@ const main = async (): Promise<void> => {
         .spawn();
 
       // Validate binary size
-      const stat = await current.fs.stat(binaryPath);
+      const stat = await runtime.fs.stat(binaryPath);
       if (stat.size < MIN_BINARY_SIZE) {
         // deno-lint-ignore no-console
         console.error(
@@ -170,7 +170,7 @@ const main = async (): Promise<void> => {
       const archiveName = isWindows
         ? `${archiveBase}.zip`
         : `${archiveBase}.tar.gz`;
-      const archivePath = current.path.join(outputDir, archiveName);
+      const archivePath = runtime.path.join(outputDir, archiveName);
 
       if (isWindows) {
         await createZip(binaryPath, binaryName, archivePath);
@@ -181,7 +181,7 @@ const main = async (): Promise<void> => {
       results.push({ target, archiveName, archivePath });
 
       // Remove raw binary after archiving
-      await current.fs.remove(binaryPath);
+      await runtime.fs.remove(binaryPath);
     } catch (error) {
       // deno-lint-ignore no-console
       console.error(
@@ -193,7 +193,7 @@ const main = async (): Promise<void> => {
 
       // Clean up partial binary
       try {
-        await current.fs.remove(binaryPath);
+        await runtime.fs.remove(binaryPath);
       } catch {
         // May not exist
       }
@@ -210,8 +210,8 @@ const main = async (): Promise<void> => {
     sha256Lines.push(`${hash}  ${archiveName}`);
   }
 
-  const sha256Path = current.path.join(outputDir, "SHA256SUMS.txt");
-  await current.fs.writeTextFile(
+  const sha256Path = runtime.path.join(outputDir, "SHA256SUMS.txt");
+  await runtime.fs.writeTextFile(
     sha256Path,
     sha256Lines.join("\n") + "\n",
   );
@@ -240,7 +240,7 @@ const main = async (): Promise<void> => {
 
   // Exit with error if any target failed
   if (failed.length > 0) {
-    current.process.setExitCode(1);
+    runtime.process.setExitCode(1);
   }
 };
 

@@ -27,7 +27,7 @@ export const tool: FileTool = createFileTool({
       // Only flag BROKEN symlinks (target doesn't exist).
       // Valid symlinks like AGENTS.md → CLAUDE.md pass silently.
       try {
-        await standards.runtime.current.fs.stat(file.path);
+        await standards.crossRuntime.runtime.fs.stat(file.path);
       } catch {
         issues.push({
           path: file.path,
@@ -46,5 +46,7 @@ export const main: FileTool["main"] = tool.main;
 
 if (import.meta.main) {
   const { runCliMain } = await import("./cli-support.ts");
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.crossRuntime.runtime.process.args as string[]),
+  );
 }

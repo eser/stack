@@ -8,7 +8,7 @@
 
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as shellEnv from "@eser/shell/env";
 
 export { detectShell, type Shell } from "@eser/shell/env";
@@ -21,7 +21,7 @@ const APP_NAME = "eser";
  */
 const readFileOrEmpty = async (path: string): Promise<string> => {
   try {
-    return await current.fs.readTextFile(path);
+    return await runtime.fs.readTextFile(path);
   } catch {
     return "";
   }
@@ -32,7 +32,7 @@ const readFileOrEmpty = async (path: string): Promise<string> => {
  */
 const fileExists = async (path: string): Promise<boolean> => {
   try {
-    await current.fs.stat(path);
+    await runtime.fs.stat(path);
     return true;
   } catch {
     return false;
@@ -70,10 +70,10 @@ export const addCompletions = async (shell: shellEnv.Shell): Promise<void> => {
   try {
     if (config.completionType === "file") {
       const fishPath = config.completionsFile!;
-      const dir = current.path.dirname(fishPath);
+      const dir = runtime.path.dirname(fishPath);
 
       try {
-        await current.fs.mkdir(dir, { recursive: true });
+        await runtime.fs.mkdir(dir, { recursive: true });
       } catch {
         // Directory might already exist
       }
@@ -90,7 +90,7 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "uninstall" -d "Unin
 complete -c eser -n "__fish_seen_subcommand_from system" -a "update" -d "Update eser CLI to latest version"
 complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Generate shell completion scripts"
 `;
-      await current.fs.writeTextFile(fishPath, fishScript);
+      await runtime.fs.writeTextFile(fishPath, fishScript);
       out.writeln(
         span.text("  "),
         span.dim("Created"),
@@ -103,7 +103,7 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Ge
 
       if (!content.includes(line)) {
         const addition = `\n${COMPLETION_MARKER}\n${line}\n`;
-        await current.fs.writeTextFile(config.rcFile, content + addition);
+        await runtime.fs.writeTextFile(config.rcFile, content + addition);
         out.writeln(
           span.text("  "),
           span.dim("Added completions to"),
@@ -142,7 +142,7 @@ export const removeCompletions = async (
     if (config.completionType === "file") {
       const fishPath = config.completionsFile!;
       if (await fileExists(fishPath)) {
-        await current.fs.remove(fishPath);
+        await runtime.fs.remove(fishPath);
         out.writeln(
           span.text("  "),
           span.dim("Removed"),
@@ -170,7 +170,7 @@ export const removeCompletions = async (
         .join("\n")
         .replace(/\n{3,}/g, "\n\n");
 
-      await current.fs.writeTextFile(config.rcFile, filtered);
+      await runtime.fs.writeTextFile(config.rcFile, filtered);
       out.writeln(
         span.text("  "),
         span.dim("Removed completions from"),

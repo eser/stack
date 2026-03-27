@@ -203,7 +203,9 @@ export const checkDocs = async (
 
       let content: string;
       try {
-        content = await standards.runtime.current.fs.readTextFile(filePath);
+        content = await standards.crossRuntime.runtime.fs.readTextFile(
+          filePath,
+        );
       } catch {
         continue;
       }

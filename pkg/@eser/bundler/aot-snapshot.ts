@@ -2,7 +2,7 @@
 
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
-import { current, NotFoundError } from "@eser/standards/runtime";
+import { NotFoundError, runtime } from "@eser/standards/cross-runtime";
 import { type BuildSnapshot, type BuildSnapshotSerialized } from "./mod.ts";
 import { setBuildId } from "./build-id.ts";
 
@@ -37,7 +37,7 @@ export class AotSnapshot implements BuildSnapshot {
 
     if (filePath !== undefined) {
       try {
-        const data = await current.fs.readFile(filePath);
+        const data = await runtime.fs.readFile(filePath);
 
         return new ReadableStream({
           start(controller) {
@@ -65,7 +65,7 @@ export const loadAotSnapshot = async (
   snapshotDirPath: string,
 ): Promise<BuildSnapshot | null> => {
   try {
-    if (!(await current.fs.stat(snapshotDirPath)).isDirectory) {
+    if (!(await runtime.fs.stat(snapshotDirPath)).isDirectory) {
       return null;
     }
 
@@ -80,9 +80,9 @@ export const loadAotSnapshot = async (
     );
     await out.close();
 
-    const snapshotPath = current.path.join(snapshotDirPath, "snapshot.json");
+    const snapshotPath = runtime.path.join(snapshotDirPath, "snapshot.json");
     const json = JSON.parse(
-      await current.fs.readTextFile(snapshotPath),
+      await runtime.fs.readTextFile(snapshotPath),
     ) as BuildSnapshotSerialized;
     setBuildId(json.build_id);
 
@@ -92,7 +92,7 @@ export const loadAotSnapshot = async (
 
     const files = new Map<string, string>();
     Object.keys(json.files).forEach((name) => {
-      const filePath = current.path.join(snapshotDirPath, name);
+      const filePath = runtime.path.join(snapshotDirPath, name);
       files.set(name, filePath);
     });
 

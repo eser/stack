@@ -6,6 +6,8 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
+
 export const sync = async (
   root: string,
   rules: readonly string[],
@@ -29,5 +31,8 @@ export const sync = async (
     lines.push("");
   }
 
-  await Deno.writeTextFile(`${root}/.cursorrules`, lines.join("\n"));
+  await runtime.fs.writeTextFile(
+    `${root}/.cursorrules`,
+    lines.join("\n"),
+  );
 };

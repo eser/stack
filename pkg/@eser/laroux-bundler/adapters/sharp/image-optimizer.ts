@@ -4,7 +4,8 @@
  * Build-time image processing with format conversion and responsive variants
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
+import { hasExtension } from "@eser/standards/patterns";
 import * as logging from "@eser/logging";
 
 const imageLogger = logging.logger.getLogger(["laroux", "image-optimizer"]);
@@ -107,18 +108,17 @@ const DEFAULT_CONFIG: Required<ImageOptimizationConfig> = {
  */
 export async function scanImages(dir: string): Promise<string[]> {
   const images: string[] = [];
-  const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+  const imageExtensions = ["jpg", "jpeg", "png", "gif", "webp"];
 
   async function scan(currentDir: string): Promise<void> {
     try {
-      for await (const entry of current.fs.readDir(currentDir)) {
-        const fullPath = current.path.resolve(currentDir, entry.name);
+      for await (const entry of runtime.fs.readDir(currentDir)) {
+        const fullPath = runtime.path.resolve(currentDir, entry.name);
 
         if (entry.isDirectory) {
           await scan(fullPath);
         } else if (entry.isFile) {
-          const ext = current.path.extname(entry.name).toLowerCase();
-          if (imageExtensions.includes(ext)) {
+          if (hasExtension(entry.name.toLowerCase(), imageExtensions)) {
             images.push(fullPath);
           }
         }
@@ -174,10 +174,9 @@ export async function optimizeImage(
   const originalHeight = metadata.height;
   const aspectRatio = originalWidth / originalHeight;
 
-  const basename = current.path.basename(
-    imagePath,
-    current.path.extname(imagePath),
-  );
+  const originalExt = runtime.path.extname(imagePath);
+  const originalExtBare = originalExt.slice(1).toLowerCase();
+  const basename = runtime.path.basename(imagePath, originalExt);
   const publicPath = `${publicBasePath}/${basename}`;
 
   const variants: ImageVariant[] = [];
@@ -194,22 +193,21 @@ export async function optimizeImage(
       let outputFormat: string;
 
       if (format === "original") {
-        const originalExt = current.path.extname(imagePath).toLowerCase();
-        outputFormat = originalExt.replace(".", "");
-        outputPath = current.path.resolve(
+        outputFormat = originalExtBare;
+        outputPath = runtime.path.resolve(
           outputDir,
-          `${basename}-${width}w${originalExt}`,
+          `${basename}-${width}w.${originalExtBare}`,
         );
       } else {
         outputFormat = format;
-        outputPath = current.path.resolve(
+        outputPath = runtime.path.resolve(
           outputDir,
           `${basename}-${width}w.${format}`,
         );
       }
 
       // Ensure output directory exists
-      await current.fs.ensureDir(current.path.dirname(outputPath));
+      await runtime.fs.ensureDir(runtime.path.dirname(outputPath));
 
       // Process and save
       let processedImage = image.clone().resize(width, height, {
@@ -235,7 +233,7 @@ export async function optimizeImage(
       }
 
       const outputBuffer = await processedImage.toBuffer();
-      await current.fs.writeFile(outputPath, outputBuffer);
+      await runtime.fs.writeFile(outputPath, outputBuffer);
 
       variants.push({
         path: outputPath,
@@ -296,7 +294,7 @@ export async function optimizeImages(
 
   for (const imagePath of imagePaths) {
     try {
-      const originalStat = await current.fs.stat(imagePath);
+      const originalStat = await runtime.fs.stat(imagePath);
       totalOriginalSize += originalStat.size;
 
       const optimized = await optimizeImage(
@@ -316,7 +314,7 @@ export async function optimizeImages(
 
       imageLogger.debug(
         `Optimized: ${
-          current.path.basename(imagePath)
+          runtime.path.basename(imagePath)
         } → ${optimized.variants.length} variants`,
       );
     } catch (error) {
@@ -334,9 +332,9 @@ export async function optimizeImages(
   };
 
   // Save manifest
-  const manifestPath = current.path.resolve(outputDir, "image-manifest.json");
-  await current.fs.ensureDir(current.path.dirname(manifestPath));
-  await current.fs.writeTextFile(
+  const manifestPath = runtime.path.resolve(outputDir, "image-manifest.json");
+  await runtime.fs.ensureDir(runtime.path.dirname(manifestPath));
+  await runtime.fs.writeTextFile(
     manifestPath,
     JSON.stringify(manifest, null, 2),
   );

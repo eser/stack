@@ -10,7 +10,7 @@
  * - Build reproducibility
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import { walkFiles } from "@eser/collector";
 import { copy, ensureDir } from "@std/fs"; // copy not available in runtime
 import * as logging from "@eser/logging";
@@ -73,7 +73,7 @@ export async function validateBuildIsolation(
   } = {},
 ): Promise<BuildIsolationReport> {
   const violations: FileViolation[] = [];
-  const resolvedDistDir = current.path.resolve(projectRoot, distDir);
+  const resolvedDistDir = runtime.path.resolve(projectRoot, distDir);
 
   validatorLogger.debug("Validating build isolation...");
   validatorLogger.debug(`  Project root: ${projectRoot}`);
@@ -82,9 +82,9 @@ export async function validateBuildIsolation(
 
   // Check each protected directory for modifications
   for (const protectedDir of PROTECTED_DIRECTORIES) {
-    const dirPath = current.path.resolve(projectRoot, protectedDir);
+    const dirPath = runtime.path.resolve(projectRoot, protectedDir);
 
-    if (!(await current.fs.exists(dirPath))) {
+    if (!(await runtime.fs.exists(dirPath))) {
       continue;
     }
 
@@ -154,16 +154,16 @@ async function scanForViolations(
 ): Promise<void> {
   try {
     for await (const relPath of walkFiles(dirPath, undefined, IGNORE_PATTERN)) {
-      const filePath = current.path.join(dirPath, relPath);
+      const filePath = runtime.path.join(dirPath, relPath);
 
       // Check if file matches ignore patterns
-      const relativePath = current.path.relative(projectRoot, filePath);
+      const relativePath = runtime.path.relative(projectRoot, filePath);
       if (ignorePatterns.some((pattern) => relativePath.includes(pattern))) {
         continue;
       }
 
       try {
-        const stat = await current.fs.stat(filePath);
+        const stat = await runtime.fs.stat(filePath);
 
         if (stat.mtime && stat.mtime > buildStartTime) {
           violations.push({
@@ -189,10 +189,10 @@ export function isWithinOutputDir(
   filePath: string,
   distDir: string,
 ): boolean {
-  const resolvedFilePath = current.path.resolve(filePath);
-  const resolvedDistDir = current.path.resolve(distDir);
+  const resolvedFilePath = runtime.path.resolve(filePath);
+  const resolvedDistDir = runtime.path.resolve(distDir);
 
-  return resolvedFilePath.startsWith(resolvedDistDir + current.path.sep) ||
+  return resolvedFilePath.startsWith(resolvedDistDir + runtime.path.sep) ||
     resolvedFilePath === resolvedDistDir;
 }
 
@@ -209,7 +209,7 @@ export type IsolatedWriter = {
  * Use this to wrap file writes for strict isolation
  */
 export function createIsolatedWriter(distDir: string): IsolatedWriter {
-  const resolvedDistDir = current.path.resolve(distDir);
+  const resolvedDistDir = runtime.path.resolve(distDir);
 
   return {
     async writeTextFile(filePath: string, content: string): Promise<void> {
@@ -220,8 +220,8 @@ export function createIsolatedWriter(distDir: string): IsolatedWriter {
       }
 
       // Ensure directory exists
-      await current.fs.ensureDir(current.path.dirname(filePath));
-      await current.fs.writeTextFile(filePath, content);
+      await runtime.fs.ensureDir(runtime.path.dirname(filePath));
+      await runtime.fs.writeTextFile(filePath, content);
     },
 
     async copy(src: string, dest: string): Promise<void> {
@@ -231,7 +231,7 @@ export function createIsolatedWriter(distDir: string): IsolatedWriter {
         );
       }
 
-      await ensureDir(current.path.dirname(dest));
+      await ensureDir(runtime.path.dirname(dest));
       await copy(src, dest, { overwrite: true });
     },
   };
@@ -247,24 +247,24 @@ export async function cleanSrcArtifacts(
   const deleted: string[] = [];
   const failed: string[] = [];
 
-  const srcDir = current.path.resolve(projectRoot, "src");
+  const srcDir = runtime.path.resolve(projectRoot, "src");
 
   validatorLogger.debug("Cleaning build artifacts from src/...");
 
   try {
     for await (const relPath of walkFiles(srcDir, undefined, /node_modules/)) {
-      const filePath = current.path.join(srcDir, relPath);
+      const filePath = runtime.path.join(srcDir, relPath);
       const isArtifact = KNOWN_SRC_ARTIFACTS.some((pattern) =>
         filePath.endsWith(pattern)
       );
 
       if (isArtifact) {
         try {
-          await current.fs.remove(filePath);
-          deleted.push(current.path.relative(projectRoot, filePath));
+          await runtime.fs.remove(filePath);
+          deleted.push(runtime.path.relative(projectRoot, filePath));
           validatorLogger.debug(`  Deleted: ${filePath}`);
         } catch (error) {
-          failed.push(current.path.relative(projectRoot, filePath));
+          failed.push(runtime.path.relative(projectRoot, filePath));
           validatorLogger.warn(`  Failed to delete: ${filePath}`, { error });
         }
       }

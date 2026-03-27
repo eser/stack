@@ -181,5 +181,7 @@ export const main: FileTool["main"] = tool.main;
 
 if (import.meta.main) {
   const { runCliMain } = await import("./cli-support.ts");
-  runCliMain(await main(standards.runtime.current.process.args as string[]));
+  runCliMain(
+    await main(standards.crossRuntime.runtime.process.args as string[]),
+  );
 }

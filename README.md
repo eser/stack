@@ -131,13 +131,13 @@ We strive to run the following code seamlessly across
 [all platforms we support](#platform-support):
 
 ```ts
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 
-const home = (ctx: standardsRuntime.Context) => {
+const home = (ctx: runtime.Context) => {
   return ctx.results.jsx(<h1>Hello there!</h1>);
 };
 
-const profile = (ctx: standardsRuntime.Context) => {
+const profile = (ctx: runtime.Context) => {
   const slug = ctx.input.param("id");
   const db = ctx.di`db`;
 
@@ -148,7 +148,7 @@ const profile = (ctx: standardsRuntime.Context) => {
   );
 };
 
-const router = (ctx: standardsRuntime.Context) => {
+const router = (ctx: runtime.Context) => {
   switch (true) {
     case ctx.route.match("/"):
       return home(ctx);
@@ -159,7 +159,7 @@ const router = (ctx: standardsRuntime.Context) => {
   }
 };
 
-const app = new standardsRuntime.Runtime();
+const app = new runtime.App();
 app.di.register("db", new DatabaseConnection());
 app.listen(router); // or app.execute(fn);
 ```

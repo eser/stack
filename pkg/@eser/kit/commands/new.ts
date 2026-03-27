@@ -11,8 +11,8 @@ import * as cliParseArgs from "@std/cli/parse-args";
 import * as task from "@eser/functions/task";
 import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
-import * as newProjectHandler from "@eser/registry/handlers/new-project";
-import * as registryFetcher from "@eser/registry/fetcher";
+import * as newProjectHandler from "../recipes/handlers/new-project.ts";
+import * as registryFetcher from "../recipes/registry-fetcher.ts";
 import type * as shellArgs from "@eser/shell/args";
 
 export const main = async (

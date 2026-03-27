@@ -431,17 +431,17 @@ logic, Adapter = input transform (CLI/MCP/agent), ResponseMapper = output format
 
 Scope: All @eser/* packages
 
-Rule: Use `@eser/standards/runtime` for all filesystem, exec, and env access. Never use
-`Deno.*` directly. Enables cross-runtime (Deno/Node/Bun) and testability.
+Rule: Use `@eser/standards/cross-runtime` for all filesystem, exec, and env access.
+Never use `Deno.*` directly. Enables cross-runtime (Deno/Node/Bun) and testability.
 
 Exception: CLI-only code (commands, tools that only run in the CLI context) may
-use `Deno.*` directly when `@eser/standards/runtime` doesn't expose the needed
+use `Deno.*` directly when `@eser/standards/cross-runtime` doesn't expose the needed
 API (e.g., `Deno.cwd()`, `Deno.makeTempDir()`). Prefer the abstraction when available.
 
 Correct:
 ```typescript
-import * as standardsRuntime from "@eser/standards/runtime";
-const content = await standardsRuntime.current.fs.readTextFile(path);
+import { runtime } from "@eser/standards/cross-runtime";
+const content = await runtime.fs.readTextFile(path);
 ```
 
 Incorrect:

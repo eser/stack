@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { current } from "./mod.ts";
+import { runtime } from "./mod.ts";
 
 /**
  * Options for file hierarchy search.
@@ -24,7 +24,7 @@ export type SearchFileHierarchyOptions = {
  *
  * @example
  * ```typescript
- * import { searchFileHierarchy } from "@eser/standards/runtime";
+ * import { searchFileHierarchy } from "@eser/standards/cross-runtime";
  *
  * // Find config file in current directory only
  * const configPath = await searchFileHierarchy("./src", ["deno.json", "deno.jsonc"]);
@@ -45,12 +45,12 @@ export const searchFileHierarchy = async (
 
   while (true) {
     for (const name of filenames) {
-      const filepath = current.path.join(dir, name);
-      const exists = await current.fs.exists(filepath);
+      const filepath = runtime.path.join(dir, name);
+      const exists = await runtime.fs.exists(filepath);
 
       if (exists) {
         // Verify it's a file, not a directory
-        const stat = await current.fs.stat(filepath);
+        const stat = await runtime.fs.stat(filepath);
         if (stat.isFile) {
           return filepath;
         }
@@ -61,7 +61,7 @@ export const searchFileHierarchy = async (
       break;
     }
 
-    const parent = current.path.dirname(dir);
+    const parent = runtime.path.dirname(dir);
     if (parent === dir) {
       // Reached root
       break;

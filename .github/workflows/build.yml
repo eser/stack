@@ -187,7 +187,7 @@ jobs:
   publish:
     name: Publish
     needs: [tag-release, smoke-test]
-    runs-on: ubicloud-standard-2-arm
+    runs-on: ubuntu-latest-arm
     timeout-minutes: 15
 
     permissions:

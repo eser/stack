@@ -7,6 +7,7 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
 import * as registrySchema from "./registry-schema.ts";
 
 // =============================================================================
@@ -44,7 +45,7 @@ const detectProjectType = async (
 ): Promise<ProjectDetection> => {
   for (const [filename, type] of PROJECT_FILES) {
     try {
-      await Deno.stat(`${cwd}/${filename}`);
+      await runtime.fs.stat(`${cwd}/${filename}`);
       return { type, configFile: filename };
     } catch {
       // File doesn't exist, try next
@@ -154,14 +155,11 @@ const installDependencies = async (
     const args = parts.slice(1);
 
     try {
-      const command = new Deno.Command(cmd, {
-        args,
+      const output = await runtime.exec.spawn(cmd, args, {
         cwd,
         stdout: "inherit",
         stderr: "inherit",
       });
-
-      const output = await command.output();
 
       if (!output.success) {
         results.push({

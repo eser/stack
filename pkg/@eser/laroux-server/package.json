@@ -19,7 +19,7 @@
     "@eser/laroux-react": "workspace:*",
     "@eser/logging": "workspace:*",
     "@eser/primitives": "workspace:*",
-    "@eser/registry": "workspace:*",
+    "@eser/kit": "workspace:*",
     "@eser/shell": "workspace:*",
     "@eser/standards": "workspace:*",
     "@eser/streams": "workspace:*",

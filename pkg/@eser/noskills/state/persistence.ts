@@ -7,6 +7,7 @@
  */
 
 import * as schema from "./schema.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 // =============================================================================
 // Paths
@@ -59,7 +60,7 @@ export const readState = async (root: string): Promise<schema.StateFile> => {
   const filePath = `${root}/${STATE_FILE}`;
 
   try {
-    const content = await Deno.readTextFile(filePath);
+    const content = await runtime.fs.readTextFile(filePath);
 
     return JSON.parse(content) as schema.StateFile;
   } catch {
@@ -74,8 +75,11 @@ export const writeState = async (
   const dirPath = `${root}/${STATE_DIR}`;
   const filePath = `${root}/${STATE_FILE}`;
 
-  await Deno.mkdir(dirPath, { recursive: true });
-  await Deno.writeTextFile(filePath, JSON.stringify(state, null, 2) + "\n");
+  await runtime.fs.mkdir(dirPath, { recursive: true });
+  await runtime.fs.writeTextFile(
+    filePath,
+    JSON.stringify(state, null, 2) + "\n",
+  );
 };
 
 // =============================================================================
@@ -88,7 +92,7 @@ export const readConfig = async (
   const filePath = `${root}/${CONFIG_FILE}`;
 
   try {
-    const content = await Deno.readTextFile(filePath);
+    const content = await runtime.fs.readTextFile(filePath);
 
     return JSON.parse(content) as schema.NosConfig;
   } catch {
@@ -102,7 +106,10 @@ export const writeConfig = async (
 ): Promise<void> => {
   const filePath = `${root}/${CONFIG_FILE}`;
 
-  await Deno.writeTextFile(filePath, JSON.stringify(config, null, 2) + "\n");
+  await runtime.fs.writeTextFile(
+    filePath,
+    JSON.stringify(config, null, 2) + "\n",
+  );
 };
 
 // =============================================================================
@@ -116,7 +123,7 @@ export const readConcern = async (
   const filePath = `${root}/${paths.concernFile(concernId)}`;
 
   try {
-    const content = await Deno.readTextFile(filePath);
+    const content = await runtime.fs.readTextFile(filePath);
 
     return JSON.parse(content) as schema.ConcernDefinition;
   } catch {
@@ -131,8 +138,11 @@ export const writeConcern = async (
   const dirPath = `${root}/${CONCERNS_DIR}`;
   const filePath = `${root}/${paths.concernFile(concern.id)}`;
 
-  await Deno.mkdir(dirPath, { recursive: true });
-  await Deno.writeTextFile(filePath, JSON.stringify(concern, null, 2) + "\n");
+  await runtime.fs.mkdir(dirPath, { recursive: true });
+  await runtime.fs.writeTextFile(
+    filePath,
+    JSON.stringify(concern, null, 2) + "\n",
+  );
 };
 
 export const listConcerns = async (
@@ -142,9 +152,11 @@ export const listConcerns = async (
   const concerns: schema.ConcernDefinition[] = [];
 
   try {
-    for await (const entry of Deno.readDir(dirPath)) {
+    for await (const entry of runtime.fs.readDir(dirPath)) {
       if (entry.isFile && entry.name.endsWith(".json")) {
-        const content = await Deno.readTextFile(`${dirPath}/${entry.name}`);
+        const content = await runtime.fs.readTextFile(
+          `${dirPath}/${entry.name}`,
+        );
         concerns.push(JSON.parse(content) as schema.ConcernDefinition);
       }
     }
@@ -170,11 +182,13 @@ export const scaffoldNosDir = async (root: string): Promise<void> => {
   ];
 
   for (const dir of dirs) {
-    await Deno.mkdir(`${root}/${dir}`, { recursive: true });
+    await runtime.fs.mkdir(`${root}/${dir}`, {
+      recursive: true,
+    });
   }
 
   // .gitignore at .nos/ level to keep runtime state out of git
-  await Deno.writeTextFile(
+  await runtime.fs.writeTextFile(
     `${root}/${paths.nosGitignore}`,
     "# noskills runtime state — not tracked by git\n.state/\n",
   );
@@ -186,7 +200,7 @@ export const scaffoldNosDir = async (root: string): Promise<void> => {
 
 export const isInitialized = async (root: string): Promise<boolean> => {
   try {
-    await Deno.stat(`${root}/${CONFIG_FILE}`);
+    await runtime.fs.stat(`${root}/${CONFIG_FILE}`);
 
     return true;
   } catch {

@@ -2,6 +2,7 @@
 
 import * as path from "jsr:@std/path@^1.1.4";
 import * as distUtils from "./dist-utils.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 const TARGETS = [
   "x86_64-unknown-linux-gnu",
@@ -12,7 +13,7 @@ const TARGETS = [
 
 const readVersion = async (repoRoot: string): Promise<string> => {
   const versionPath = path.join(repoRoot, "VERSION");
-  const raw = await Deno.readTextFile(versionPath);
+  const raw = await runtime.fs.readTextFile(versionPath);
 
   return raw.trim();
 };
@@ -66,7 +67,7 @@ const main = async (): Promise<void> => {
 
   const outputPath = path.join(repoRoot, "nix", "hashes.json");
   const json = JSON.stringify(hashes, null, 2) + "\n";
-  await Deno.writeTextFile(outputPath, json);
+  await runtime.fs.writeTextFile(outputPath, json);
 
   // deno-lint-ignore no-console
   console.log(`\nWrote ${outputPath}`);

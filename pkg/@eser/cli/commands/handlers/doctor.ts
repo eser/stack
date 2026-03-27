@@ -11,11 +11,13 @@ import * as shellArgs from "@eser/shell/args";
 import * as shellExec from "@eser/shell/exec";
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
-import * as standardsRuntime from "@eser/standards/runtime";
+import * as standardsCrossRuntime from "@eser/standards/cross-runtime";
 import * as versionCheck from "./version-check.ts";
 import config from "../../package.json" with { type: "json" };
 
-const ESER_OPTS: standardsRuntime.CliCommandOptions = {
+const runtime = standardsCrossRuntime.runtime;
+
+const ESER_OPTS: standardsCrossRuntime.CliCommandOptions = {
   command: "eser",
   devCommand: "deno task cli",
   npmPackage: "eser",
@@ -63,7 +65,7 @@ const neutral = (label: string, value: string): void => {
 
 const fileExists = async (path: string): Promise<boolean> => {
   try {
-    await standardsRuntime.current.fs.stat(path);
+    await runtime.fs.stat(path);
     return true;
   } catch {
     return false;
@@ -72,7 +74,7 @@ const fileExists = async (path: string): Promise<boolean> => {
 
 const readFileOrEmpty = async (path: string): Promise<string> => {
   try {
-    return await standardsRuntime.current.fs.readTextFile(path);
+    return await runtime.fs.readTextFile(path);
   } catch {
     return "";
   }
@@ -88,7 +90,7 @@ const parseToolVersion = (
 };
 
 const checkGitHooks = async (): Promise<void> => {
-  const hookPath = standardsRuntime.current.path.join(
+  const hookPath = runtime.path.join(
     ".",
     ".git",
     "hooks",
@@ -111,7 +113,7 @@ const checkGitHooks = async (): Promise<void> => {
 };
 
 const checkManifest = async (): Promise<void> => {
-  const manifestPath = standardsRuntime.current.path.join(
+  const manifestPath = runtime.path.join(
     ".",
     ".manifest.yml",
   );
@@ -177,7 +179,9 @@ export const doctorHandler = async (
   out.writeln(span.text("eser doctor\n"));
 
   // Install method & version
-  const execContext = await standardsRuntime.detectExecutionContext(ESER_OPTS);
+  const execContext = await standardsCrossRuntime.detectExecutionContext(
+    ESER_OPTS,
+  );
   info("Install method", `${execContext.invoker} (${execContext.mode})`);
   info("Version", config.version);
 

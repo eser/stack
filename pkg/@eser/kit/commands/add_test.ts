@@ -2,6 +2,7 @@
 
 import * as assert from "@std/assert";
 import * as results from "@eser/primitives/results";
+import { runtime } from "@eser/standards/cross-runtime";
 import { main } from "./add.ts";
 
 const REGISTRY_PATH = new URL(
@@ -26,11 +27,11 @@ Deno.test("add — fails for unknown recipe", async () => {
 });
 
 Deno.test("add — dry-run succeeds without writing files", async () => {
-  const tmpDir = await Deno.makeTempDir();
-  const origCwd = Deno.cwd();
+  const tmpDir = await runtime.fs.makeTempDir();
+  const origCwd = runtime.process.cwd();
 
   try {
-    Deno.chdir(tmpDir);
+    runtime.process.chdir(tmpDir);
 
     const result = await main([
       "fp-pipe",
@@ -44,7 +45,7 @@ Deno.test("add — dry-run succeeds without writing files", async () => {
     // Verify no files were written
     let fileExists = false;
     try {
-      await Deno.stat(`${tmpDir}/lib/fp/pipe.ts`);
+      await runtime.fs.stat(`${tmpDir}/lib/fp/pipe.ts`);
       fileExists = true;
     } catch {
       // expected
@@ -52,7 +53,7 @@ Deno.test("add — dry-run succeeds without writing files", async () => {
 
     assert.assertEquals(fileExists, false);
   } finally {
-    Deno.chdir(origCwd);
-    await Deno.remove(tmpDir, { recursive: true });
+    runtime.process.chdir(origCwd);
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });

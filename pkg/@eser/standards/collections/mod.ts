@@ -20,7 +20,7 @@
  * ### Layer 0: ImmutableMap (Pure Key-Value)
  *
  * ```typescript
- * import { createMapBuilder } from "@eser/standards/registry";
+ * import { createMapBuilder } from "@eser/standards/collections";
  *
  * // Build phase (mutable)
  * const map = createMapBuilder<string, number>()
@@ -40,7 +40,7 @@
  * ### Layer 1: Registry (With Lazy Support)
  *
  * ```typescript
- * import { createRegistryBuilder, type Registry } from "@eser/standards/registry";
+ * import { createRegistryBuilder, type Registry } from "@eser/standards/collections";
  *
  * // Build phase (mutable)
  * const builder = createRegistryBuilder<string, Item>();
@@ -79,17 +79,17 @@
  * ## Indexed Registry (Multi-Key Lookup)
  *
  * ```typescript
- * import { createIndexedRegistryBuilder, createExtensionIndex } from "@eser/standards/registry";
+ * import { createIndexedRegistryBuilder, createExtensionIndex } from "@eser/standards/collections";
  *
  * const builder = createIndexedRegistryBuilder<string, Format>([
  *   createExtensionIndex("byExtension", (f) => f.extensions),
  * ]);
  *
- * builder.set("json", { name: "json", extensions: [".json"] });
+ * builder.set("json", { name: "json", extensions: ["json"] });
  * const registry = builder.build();
  *
  * registry.get("json");                        // By name
- * registry.getByIndex("byExtension", ".json"); // By extension
+ * registry.getByIndex("byExtension", "json");  // By extension
  * ```
  *
  * ## Bitmap Matching (Custom Flags)
@@ -97,7 +97,7 @@
  * Create your own bitmap matcher for O(1) flag matching:
  *
  * ```typescript
- * import { createBitmapMatcher } from "@eser/standards/registry";
+ * import { createBitmapMatcher } from "@eser/standards/collections";
  *
  * // Consumer defines their own domain-specific mapping
  * const FlagBits = {

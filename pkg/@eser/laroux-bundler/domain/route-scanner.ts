@@ -2,7 +2,7 @@
 // Route scanner for file-based routing
 // Scans src/app/routes for page.tsx, layout.tsx, route.ts, and proxy.ts files
 
-import { current, toPosix } from "@eser/standards/runtime";
+import { runtime, toPosix } from "@eser/standards/cross-runtime";
 import { JS_FILE_EXTENSIONS, JS_FILE_PATTERN } from "@eser/standards/patterns";
 import { walkFiles } from "@eser/collector";
 import * as logging from "@eser/logging";
@@ -94,7 +94,7 @@ export async function scanRoutes(
   // Check if cache is valid
   if (!forceRescan && cachedResult) {
     try {
-      const routesDirStat = await current.fs.stat(routesDir);
+      const routesDirStat = await runtime.fs.stat(routesDir);
       const mtime = routesDirStat.mtime?.getTime() ?? 0;
 
       if (mtime <= cachedRoutesDirMtime) {
@@ -115,17 +115,17 @@ export async function scanRoutes(
   for await (
     const relativePath of walkFiles(routesDir, undefined, IGNORE_PATTERN)
   ) {
-    const fileName = current.path.basename(relativePath);
+    const fileName = runtime.path.basename(relativePath);
 
     // Only process route files
     if (!ROUTE_FILES.has(fileName)) {
       continue;
     }
 
-    const dirPath = current.path.dirname(relativePath);
+    const dirPath = runtime.path.dirname(relativePath);
     const dirEntry = dirEntries.get(dirPath) ?? {};
 
-    const fullPath = current.path.join(routesDir, relativePath);
+    const fullPath = runtime.path.join(routesDir, relativePath);
 
     const base = getRouteFileBase(fileName);
     if (base === "page") {
@@ -150,12 +150,12 @@ export async function scanRoutes(
   const findParentLayout = (dirPath: string): string | undefined => {
     let currentDir = dirPath;
     while (currentDir && currentDir !== ".") {
-      const parentDir = current.path.dirname(currentDir);
+      const parentDir = runtime.path.dirname(currentDir);
       if (parentDir === currentDir) break; // Reached root
 
       const parentEntry = dirEntries.get(parentDir);
       if (parentEntry?.layoutPath) {
-        return current.path.relative(projectRoot, parentEntry.layoutPath);
+        return runtime.path.relative(projectRoot, parentEntry.layoutPath);
       }
       currentDir = parentDir;
     }
@@ -167,13 +167,13 @@ export async function scanRoutes(
 
     // Add page route
     if (entries.pagePath) {
-      const componentPath = current.path.relative(
+      const componentPath = runtime.path.relative(
         projectRoot,
         entries.pagePath,
       );
       // Use own layout if present, otherwise inherit from closest parent
       const layoutPath = entries.layoutPath
-        ? current.path.relative(projectRoot, entries.layoutPath)
+        ? runtime.path.relative(projectRoot, entries.layoutPath)
         : findParentLayout(dirPath);
 
       routes.push({
@@ -192,7 +192,7 @@ export async function scanRoutes(
 
     // Add API route
     if (entries.routePath) {
-      const componentPath = current.path.relative(
+      const componentPath = runtime.path.relative(
         projectRoot,
         entries.routePath,
       );
@@ -208,7 +208,7 @@ export async function scanRoutes(
 
     // Add proxy
     if (entries.proxyPath) {
-      const modulePath = current.path.relative(projectRoot, entries.proxyPath);
+      const modulePath = runtime.path.relative(projectRoot, entries.proxyPath);
 
       proxies.push({
         pathPrefix: routePath || "/",
@@ -236,7 +236,7 @@ export async function scanRoutes(
 
   // Cache the result for future builds
   try {
-    const routesDirStat = await current.fs.stat(routesDir);
+    const routesDirStat = await runtime.fs.stat(routesDir);
     cachedRoutesDirMtime = routesDirStat.mtime?.getTime() ?? 0;
   } catch {
     // Ignore caching errors
@@ -335,7 +335,7 @@ function sortProxiesBySpecificity(proxies: ScannedProxy[]): ScannedProxy[] {
  */
 export function getComponentName(componentPath: string): string {
   // Get parent directory name
-  const dirName = current.path.basename(current.path.dirname(componentPath));
+  const dirName = runtime.path.basename(runtime.path.dirname(componentPath));
 
   // Generate a PascalCase component name from directory
   const name = dirName === "home" ? "HomePage" : `${toPascalCase(dirName)}Page`;
@@ -347,7 +347,7 @@ export function getComponentName(componentPath: string): string {
  * Gets the layout component name from a layout.tsx file
  */
 export function getLayoutName(layoutPath: string): string {
-  const dirName = current.path.basename(current.path.dirname(layoutPath));
+  const dirName = runtime.path.basename(runtime.path.dirname(layoutPath));
   return `${toPascalCase(dirName)}Layout`;
 }
 

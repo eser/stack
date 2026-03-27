@@ -8,7 +8,7 @@
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eser/primitives/results";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import {
   type ArgsConfig,
   type ArgsValidation,
@@ -279,7 +279,7 @@ export class Command implements CommandLike {
 
   /** Parse and execute the command, returning Result */
   async parse(argv?: readonly string[]): Promise<CliResult<void>> {
-    const inputArgs = argv ?? standardsRuntime.current.process.args;
+    const inputArgs = argv ?? runtime.process.args;
     return await this.#execute(inputArgs as string[], []);
   }
 

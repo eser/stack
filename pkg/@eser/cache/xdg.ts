@@ -22,8 +22,10 @@
  * @module
  */
 
-import * as standardsRuntime from "@eser/standards/runtime";
+import * as standardsCrossRuntime from "@eser/standards/cross-runtime";
 import type { AppIdentifier } from "./primitives.ts";
+
+const runtime = standardsCrossRuntime.runtime;
 
 /**
  * Gets the XDG cache home directory.
@@ -36,28 +38,28 @@ import type { AppIdentifier } from "./primitives.ts";
  * @returns Absolute path to cache home directory
  */
 export const getXdgCacheHome = (): string => {
-  const platform = standardsRuntime.getPlatform();
-  const homedir = standardsRuntime.getHomedir();
+  const platform = standardsCrossRuntime.getPlatform();
+  const homedir = standardsCrossRuntime.getHomedir();
 
   if (platform === "darwin") {
-    return standardsRuntime.current.path.join(homedir, "Library", "Caches");
+    return runtime.path.join(homedir, "Library", "Caches");
   }
 
   if (platform === "windows") {
-    const localAppData = standardsRuntime.current.env.get("LOCALAPPDATA");
+    const localAppData = runtime.env.get("LOCALAPPDATA");
     if (localAppData) {
       return localAppData;
     }
-    return standardsRuntime.current.path.join(homedir, "AppData", "Local");
+    return runtime.path.join(homedir, "AppData", "Local");
   }
 
   // Linux/Unix: Use XDG_CACHE_HOME or default
-  const xdgCacheHome = standardsRuntime.current.env.get("XDG_CACHE_HOME");
+  const xdgCacheHome = runtime.env.get("XDG_CACHE_HOME");
   if (xdgCacheHome) {
     return xdgCacheHome;
   }
 
-  return standardsRuntime.current.path.join(homedir, ".cache");
+  return runtime.path.join(homedir, ".cache");
 };
 
 /**
@@ -71,11 +73,11 @@ export const getXdgCacheHome = (): string => {
  * @returns Absolute path to data home directory
  */
 export const getXdgDataHome = (): string => {
-  const platform = standardsRuntime.getPlatform();
-  const homedir = standardsRuntime.getHomedir();
+  const platform = standardsCrossRuntime.getPlatform();
+  const homedir = standardsCrossRuntime.getHomedir();
 
   if (platform === "darwin") {
-    return standardsRuntime.current.path.join(
+    return runtime.path.join(
       homedir,
       "Library",
       "Application Support",
@@ -83,20 +85,20 @@ export const getXdgDataHome = (): string => {
   }
 
   if (platform === "windows") {
-    const localAppData = standardsRuntime.current.env.get("LOCALAPPDATA");
+    const localAppData = runtime.env.get("LOCALAPPDATA");
     if (localAppData) {
       return localAppData;
     }
-    return standardsRuntime.current.path.join(homedir, "AppData", "Local");
+    return runtime.path.join(homedir, "AppData", "Local");
   }
 
   // Linux/Unix: Use XDG_DATA_HOME or default
-  const xdgDataHome = standardsRuntime.current.env.get("XDG_DATA_HOME");
+  const xdgDataHome = runtime.env.get("XDG_DATA_HOME");
   if (xdgDataHome) {
     return xdgDataHome;
   }
 
-  return standardsRuntime.current.path.join(homedir, ".local", "share");
+  return runtime.path.join(homedir, ".local", "share");
 };
 
 /**
@@ -110,11 +112,11 @@ export const getXdgDataHome = (): string => {
  * @returns Absolute path to config home directory
  */
 export const getXdgConfigHome = (): string => {
-  const platform = standardsRuntime.getPlatform();
-  const homedir = standardsRuntime.getHomedir();
+  const platform = standardsCrossRuntime.getPlatform();
+  const homedir = standardsCrossRuntime.getHomedir();
 
   if (platform === "darwin") {
-    return standardsRuntime.current.path.join(
+    return runtime.path.join(
       homedir,
       "Library",
       "Preferences",
@@ -122,20 +124,20 @@ export const getXdgConfigHome = (): string => {
   }
 
   if (platform === "windows") {
-    const appData = standardsRuntime.current.env.get("APPDATA");
+    const appData = runtime.env.get("APPDATA");
     if (appData) {
       return appData;
     }
-    return standardsRuntime.current.path.join(homedir, "AppData", "Roaming");
+    return runtime.path.join(homedir, "AppData", "Roaming");
   }
 
   // Linux/Unix: Use XDG_CONFIG_HOME or default
-  const xdgConfigHome = standardsRuntime.current.env.get("XDG_CONFIG_HOME");
+  const xdgConfigHome = runtime.env.get("XDG_CONFIG_HOME");
   if (xdgConfigHome) {
     return xdgConfigHome;
   }
 
-  return standardsRuntime.current.path.join(homedir, ".config");
+  return runtime.path.join(homedir, ".config");
 };
 
 /**
@@ -163,10 +165,10 @@ export const getAppCacheDir = (app: AppIdentifier): string => {
   const cacheHome = getXdgCacheHome();
 
   if (app.org) {
-    return standardsRuntime.current.path.join(cacheHome, app.org, app.name);
+    return runtime.path.join(cacheHome, app.org, app.name);
   }
 
-  return standardsRuntime.current.path.join(cacheHome, app.name);
+  return runtime.path.join(cacheHome, app.name);
 };
 
 /**
@@ -198,7 +200,7 @@ export const getVersionedCachePath = (
   // Normalize version to always have 'v' prefix
   const normalizedVersion = version.startsWith("v") ? version : `v${version}`;
 
-  return standardsRuntime.current.path.join(
+  return runtime.path.join(
     appCacheDir,
     normalizedVersion,
     name,

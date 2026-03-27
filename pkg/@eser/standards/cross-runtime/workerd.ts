@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { isRuntime, createWorkerdRuntime } from "@eser/standards/runtime/workerd";
+ * import { isRuntime, createWorkerdRuntime } from "@eser/standards/cross-runtime/workerd";
  *
  * if (isRuntime("workerd")) {
  *   const runtime = createWorkerdRuntime();

@@ -6,7 +6,7 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
-import { current, toPosix } from "@eser/standards/runtime";
+import { runtime, toPosix } from "@eser/standards/cross-runtime";
 import * as logger from "@eser/logging/logger";
 import * as validatorIdentifier from "./validator-identifier/mod.ts";
 import * as collector from "./collector.ts";
@@ -21,7 +21,7 @@ const PLACEHOLDER_SUFFIX = "__//!!##";
  * Normalizes to POSIX format and ensures ./ prefix for relative imports.
  */
 const toImportSpecifier = (file: string) => {
-  const specifier = toPosix(current.path.normalize(file));
+  const specifier = toPosix(runtime.path.normalize(file));
 
   if (!specifier.startsWith(".")) {
     return `./${specifier}`;
@@ -40,7 +40,7 @@ export const specifierToIdentifier = (
   used: Set<string>,
 ): string => {
   // specifier = specifier.replace(/^(?:\.\/pkg)\//, "");
-  const ext = current.path.extname(specifier);
+  const ext = runtime.path.extname(specifier);
   if (ext) {
     specifier = specifier.slice(0, -ext.length);
   }
@@ -178,7 +178,7 @@ export const buildManifestFile = async (
   const collection = await collector.collectExports(options);
   const manifestStr = await writeManifestToString(collection);
 
-  await current.fs.writeTextFile(filepath, manifestStr);
+  await runtime.fs.writeTextFile(filepath, manifestStr);
 
   const exportModules = Object.values(collection);
   const exportCount = exportModules.reduce((acc, [, moduleFns]) => {

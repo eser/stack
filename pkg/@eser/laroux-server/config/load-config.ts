@@ -7,7 +7,7 @@
  * 3. CLI options (passed in by caller)
  */
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as logging from "@eser/logging";
 import { deepMerge } from "@eser/fp/deep-merge";
 import { toFileUrl } from "@std/path/to-file-url";
@@ -25,9 +25,9 @@ const configLogger = logging.logger.getLogger(["laroux-server", "config"]);
  */
 function pathToFileUrl(filePath: string): string {
   // Ensure the path is absolute
-  const absolutePath = current.path.isAbsolute(filePath)
+  const absolutePath = runtime.path.isAbsolute(filePath)
     ? filePath
-    : current.path.resolve(filePath);
+    : runtime.path.resolve(filePath);
 
   // Use @std/path's toFileUrl for cross-platform file:// URL generation
   return toFileUrl(absolutePath).href;
@@ -39,9 +39,9 @@ function pathToFileUrl(filePath: string): string {
 async function loadUserConfig(
   projectRoot: string,
 ): Promise<UserConfig | null> {
-  const configPath = current.path.join(projectRoot, "laroux.config.ts");
+  const configPath = runtime.path.join(projectRoot, "laroux.config.ts");
 
-  if (await current.fs.exists(configPath)) {
+  if (await runtime.fs.exists(configPath)) {
     try {
       // Dynamic import the config file using proper file:// URL
       const fileUrl = pathToFileUrl(configPath);
@@ -61,7 +61,7 @@ async function loadUserConfig(
  * Load complete configuration from all sources
  */
 export async function loadConfig(projectRoot?: string): Promise<AppConfig> {
-  const root = projectRoot ?? current.process.cwd();
+  const root = projectRoot ?? runtime.process.cwd();
 
   // Load user config and merge with defaults
   const userConfig = await loadUserConfig(root);

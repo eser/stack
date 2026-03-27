@@ -164,7 +164,7 @@ const confirm = async (question: string): Promise<boolean> => {
   const decoder = new TextDecoder();
   const buf = new Uint8Array(256);
 
-  // Use Deno.stderr / Deno.stdin directly — @eser/standards/runtime does not
+  // Use Deno.stderr / Deno.stdin directly — @eser/standards/cross-runtime does not
   // expose interactive I/O, and this is a CLI-only concern.
   await Deno.stderr.write(encoder.encode(`${question} [y/N] `));
   const n = await Deno.stdin.read(buf);
@@ -692,7 +692,7 @@ export const unreleaseMain = async (
 
 if (import.meta.main) {
   runCliMain(
-    await main(standards.runtime.current.process.args as string[]),
+    await main(standards.crossRuntime.runtime.process.args as string[]),
     out,
   );
 }

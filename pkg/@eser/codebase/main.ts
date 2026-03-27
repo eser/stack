@@ -11,7 +11,7 @@
  */
 
 import * as results from "@eser/primitives/results";
-import * as standardsRuntime from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import { moduleDef } from "./module.ts";
 import config from "./package.json" with { type: "json" };
 
@@ -32,7 +32,7 @@ if (import.meta.main) {
         // deno-lint-ignore no-console
         console.error(error.message);
       }
-      standardsRuntime.current.process.setExitCode(error.exitCode);
+      runtime.process.setExitCode(error.exitCode);
     },
   });
 }

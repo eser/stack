@@ -30,9 +30,8 @@ import * as cliParseArgs from "@std/cli/parse-args";
 import * as span from "@eser/streams/span";
 import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
-import * as standardsRuntime from "@eser/standards/runtime";
 import * as shellArgs from "@eser/shell/args";
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import { loadProjectConfig } from "./config.ts";
 import { getValidators } from "./registry.ts";
 import type {
@@ -82,7 +81,7 @@ export {
 export const validate = async (
   options: ValidateOptions = {},
 ): Promise<ValidateResult> => {
-  const root = options.root ?? current.process.cwd();
+  const root = options.root ?? runtime.process.cwd();
 
   // Load project config
   const config = await loadProjectConfig(root);
@@ -150,7 +149,7 @@ export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const args = cliParseArgs.parseArgs(
-    (cliArgs ?? standardsRuntime.current.process.args) as string[],
+    (cliArgs ?? runtime.process.args) as string[],
     {
       string: ["root", "only", "skip"],
       boolean: ["fix", "help"],
@@ -297,7 +296,7 @@ if (import.meta.main) {
       if (error.message !== undefined) {
         console.error(error.message);
       }
-      standardsRuntime.current.process.setExitCode(error.exitCode);
+      runtime.process.setExitCode(error.exitCode);
     },
   });
 }

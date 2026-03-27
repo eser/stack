@@ -43,7 +43,7 @@ const generateHookScript = async (
   event: string,
   args: string,
 ): Promise<string> => {
-  const cliCmd = await standards.runtime.getCliCommand({
+  const cliCmd = await standards.crossRuntime.getCliCommand({
     command: "eser",
     devCommand: "deno task cli",
     npmPackage: "eser",
@@ -67,7 +67,7 @@ const generateHookScript = async (
  */
 const findGitDir = async (): Promise<string | null> => {
   try {
-    const output = await standards.runtime.current.exec.exec(
+    const output = await standards.crossRuntime.runtime.exec.exec(
       "git",
       ["rev-parse", "--git-dir"],
     );
@@ -78,10 +78,10 @@ const findGitDir = async (): Promise<string | null> => {
   }
 
   // Fallback: check cwd
-  const cwd = standards.runtime.current.process.cwd();
-  const dotGit = standards.runtime.current.path.join(cwd, ".git");
+  const cwd = standards.crossRuntime.runtime.process.cwd();
+  const dotGit = standards.crossRuntime.runtime.path.join(cwd, ".git");
   try {
-    const info = await standards.runtime.current.fs.stat(dotGit);
+    const info = await standards.crossRuntime.runtime.fs.stat(dotGit);
     if (info.isDirectory) return dotGit;
   } catch {
     // not found
@@ -164,10 +164,10 @@ export const main = async (
     return primitives.results.fail({ exitCode: 1 });
   }
 
-  const hooksDir = standards.runtime.current.path.join(gitDir, "hooks");
+  const hooksDir = standards.crossRuntime.runtime.path.join(gitDir, "hooks");
 
   // 2. Load manifest
-  const cwd = standards.runtime.current.process.cwd();
+  const cwd = standards.crossRuntime.runtime.process.cwd();
   const raw = await configManifest.loadManifest(cwd);
   if (raw === null) {
     out.writeln(
@@ -189,7 +189,7 @@ export const main = async (
 
   // 4. Ensure hooks directory exists
   if (!dryRun) {
-    await standards.runtime.current.fs.ensureDir(hooksDir);
+    await standards.crossRuntime.runtime.fs.ensureDir(hooksDir);
   }
 
   // 5. Install hooks
@@ -207,14 +207,17 @@ export const main = async (
     }
 
     const { hookName, args } = mapping;
-    const hookPath = standards.runtime.current.path.join(hooksDir, hookName);
+    const hookPath = standards.crossRuntime.runtime.path.join(
+      hooksDir,
+      hookName,
+    );
     const script = await generateHookScript(event, args);
 
     let exists = false;
     let isManaged = false;
 
     try {
-      const existing = await standards.runtime.current.fs.readTextFile(
+      const existing = await standards.crossRuntime.runtime.fs.readTextFile(
         hookPath,
       );
       exists = true;
@@ -256,11 +259,11 @@ export const main = async (
       continue;
     }
 
-    await standards.runtime.current.fs.writeTextFile(hookPath, script);
+    await standards.crossRuntime.runtime.fs.writeTextFile(hookPath, script);
 
     // chmod +x (non-fatal on platforms without chmod support)
     try {
-      await standards.runtime.current.fs.chmod(hookPath, 0o755);
+      await standards.crossRuntime.runtime.fs.chmod(hookPath, 0o755);
     } catch {
       // Windows doesn't support chmod — hook will still work via shebang
     }
@@ -328,7 +331,7 @@ export const uninstallMain = async (
     return primitives.results.fail({ exitCode: 1 });
   }
 
-  const hooksDir = standards.runtime.current.path.join(gitDir, "hooks");
+  const hooksDir = standards.crossRuntime.runtime.path.join(gitDir, "hooks");
   let removed = 0;
 
   // Iterate over known hook names
@@ -336,11 +339,16 @@ export const uninstallMain = async (
   const uniqueHooks = [...new Set(knownHooks)];
 
   for (const hookName of uniqueHooks) {
-    const hookPath = standards.runtime.current.path.join(hooksDir, hookName);
+    const hookPath = standards.crossRuntime.runtime.path.join(
+      hooksDir,
+      hookName,
+    );
     try {
-      const content = await standards.runtime.current.fs.readTextFile(hookPath);
+      const content = await standards.crossRuntime.runtime.fs.readTextFile(
+        hookPath,
+      );
       if (content.includes(MARKER)) {
-        await standards.runtime.current.fs.remove(hookPath);
+        await standards.crossRuntime.runtime.fs.remove(hookPath);
         out.writeln(span.green(`  removed  ${hookName}`));
         removed++;
       }
@@ -392,10 +400,10 @@ export const statusMain = async (
     return primitives.results.fail({ exitCode: 1 });
   }
 
-  const hooksDir = standards.runtime.current.path.join(gitDir, "hooks");
+  const hooksDir = standards.crossRuntime.runtime.path.join(gitDir, "hooks");
 
   // Load manifest
-  const cwd = standards.runtime.current.process.cwd();
+  const cwd = standards.crossRuntime.runtime.process.cwd();
   const raw = await configManifest.loadManifest(cwd);
   if (raw === null) {
     out.writeln(
@@ -428,11 +436,16 @@ export const statusMain = async (
     }
 
     const { hookName } = mapping;
-    const hookPath = standards.runtime.current.path.join(hooksDir, hookName);
+    const hookPath = standards.crossRuntime.runtime.path.join(
+      hooksDir,
+      hookName,
+    );
 
     let statusSpan: span.Span;
     try {
-      const content = await standards.runtime.current.fs.readTextFile(hookPath);
+      const content = await standards.crossRuntime.runtime.fs.readTextFile(
+        hookPath,
+      );
       if (content.includes(MARKER)) {
         statusSpan = span.green("managed (@eser)");
       } else {
@@ -457,6 +470,6 @@ export const statusMain = async (
 if (import.meta.main) {
   const { runCliMain } = await import("./cli-support.ts");
   runCliMain(
-    await main(standards.runtime.current.process.args as string[]),
+    await main(standards.crossRuntime.runtime.process.args as string[]),
   );
 }

@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { current } from "@eser/standards/runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 import type { PackageConfig, WorkspaceModule } from "./types.ts";
 import { getBaseDir, load, PackageLoadError, tryLoad } from "./loader.ts";
 
@@ -30,7 +30,7 @@ export const loadPackageConfig = async (
   } catch (e) {
     if (e instanceof PackageLoadError) {
       throw new WorkspaceError(
-        `No package config file found in ${current.path.resolve(path)}`,
+        `No package config file found in ${runtime.path.resolve(path)}`,
       );
     }
     throw e;
@@ -52,12 +52,12 @@ const expandWorkspacePaths = async (
   for (const pattern of patterns) {
     // Check if pattern ends with a simple wildcard like "pkg/*"
     if (pattern.endsWith("/*")) {
-      const parentDir = current.path.join(root, pattern.slice(0, -2));
+      const parentDir = runtime.path.join(root, pattern.slice(0, -2));
 
       try {
-        for await (const entry of current.fs.readDir(parentDir)) {
+        for await (const entry of runtime.fs.readDir(parentDir)) {
           if (entry.isDirectory) {
-            paths.push(current.path.join(parentDir, entry.name));
+            paths.push(runtime.path.join(parentDir, entry.name));
           }
         }
       } catch {
@@ -77,7 +77,7 @@ const expandWorkspacePaths = async (
         staticParts.push(parts[i]!);
       }
 
-      const parentDir = current.path.join(root, ...staticParts);
+      const parentDir = runtime.path.join(root, ...staticParts);
       const globPart = parts.slice(globStart).join("/");
       const regexPattern = globPart
         .replace(/[.+^${}()|[\]\\]/g, "\\$&")
@@ -88,12 +88,12 @@ const expandWorkspacePaths = async (
 
       try {
         for await (
-          const entry of current.fs.walk(parentDir, {
+          const entry of runtime.fs.walk(parentDir, {
             includeDirs: true,
             includeFiles: false,
           })
         ) {
-          const rel = current.path.relative(parentDir, entry.path);
+          const rel = runtime.path.relative(parentDir, entry.path);
           if (rel !== "" && regex.test(rel)) {
             paths.push(entry.path);
           }
@@ -103,7 +103,7 @@ const expandWorkspacePaths = async (
       }
     } else {
       // Direct path — no glob
-      paths.push(current.path.join(root, pattern));
+      paths.push(runtime.path.join(root, pattern));
     }
   }
 

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.1.27 - 2026-03-27
+
+### Fixed
+
+- **codebase:** emit maintenance release section instead of throwing on
+  chore-only changelogs
+
 ## 4.1.25 - 2026-03-27
 
 ### Changed

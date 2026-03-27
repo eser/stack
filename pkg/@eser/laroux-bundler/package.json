@@ -1,6 +1,6 @@
 {
   "name": "@eser/laroux-bundler",
-  "version": "4.1.25",
+  "version": "4.1.26",
   "description": "Framework-agnostic bundler for the laroux.js framework with hexagonal architecture",
   "license": "Apache-2.0",
   "type": "module",

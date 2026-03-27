@@ -32,7 +32,10 @@ const cliModule = new Module({
 });
 cliModule.addSubmodule({ name: "ai" }, aiModule);
 cliModule.addSubmodule({ name: "kit" }, kitModule);
-cliModule.addSubmodule({ name: "codebase", aliases: ["cb"] }, codebaseModule);
+cliModule.addSubmodule(
+  { name: "codebase", aliases: ["cb", "."] },
+  codebaseModule,
+);
 await cliModule.addSubmoduleAsync(
   { name: "workflows", aliases: ["wf"] },
   (async () => {

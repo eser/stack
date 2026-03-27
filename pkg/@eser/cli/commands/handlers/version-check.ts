@@ -10,6 +10,7 @@
  */
 
 import * as standardsRuntime from "@eser/standards/runtime";
+import * as versions from "@eser/standards/versions";
 import config from "../../package.json" with { type: "json" };
 
 const CACHE_DIR = ".cache/eser";
@@ -138,7 +139,10 @@ export const checkForUpdate = async (): Promise<
         return {
           latestVersion: cached.latestVersion,
           currentVersion,
-          updateAvailable: cached.latestVersion !== currentVersion,
+          updateAvailable: versions.compareTextVersions(
+            currentVersion,
+            cached.latestVersion,
+          ),
         };
       }
     }
@@ -156,7 +160,10 @@ export const checkForUpdate = async (): Promise<
     return {
       latestVersion,
       currentVersion,
-      updateAvailable: latestVersion !== currentVersion,
+      updateAvailable: versions.compareTextVersions(
+        currentVersion,
+        latestVersion,
+      ),
     };
   } catch {
     return undefined;

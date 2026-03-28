@@ -11,11 +11,15 @@ const getFunctionParametersFromString = (fnSerialized: string) => {
   // Limit input length to prevent ReDoS on pathological inputs
   const limitedInput = fnSerialized.slice(0, 10000);
 
-  // Use bounded quantifiers to prevent ReDoS
-  // Match function parameters: function name(...) or (...) =>
-  const match = limitedInput.match(
-    /(?:function\s{0,100}\w{0,100}\s{0,100}\(|\()([^)]{0,2000})\)/,
-  );
+  // Extract parameter list without regex — find first balanced parentheses
+  const openIdx = limitedInput.indexOf("(");
+  if (openIdx === -1) return [];
+  const closeIdx = limitedInput.indexOf(")", openIdx);
+  if (closeIdx === -1) return [];
+  const match = [
+    limitedInput.slice(openIdx, closeIdx + 1),
+    limitedInput.slice(openIdx + 1, closeIdx),
+  ] as const;
 
   if (match?.[1]) {
     return match[1].split(",").map((p) => p.trim());

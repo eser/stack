@@ -51,13 +51,12 @@ const getPropertyByPath = (
 /**
  * Check if a property name is safe (not a prototype pollution vector).
  */
-const isSafePropertyName = (name: string): boolean => {
-  return name !== "__proto__" && name !== "constructor" && name !== "prototype";
-};
+const UNSAFE_PROPS = new Set(["__proto__", "constructor", "prototype"]);
 
 /**
  * Sets a nested property value in an object using a dot-separated path.
- * Prevents prototype pollution by blocking dangerous property names.
+ * Prevents prototype pollution by blocking dangerous property names
+ * and only writing to own properties of plain objects.
  */
 const setPropertyByPath = (
   obj: Record<string, unknown>,
@@ -69,22 +68,23 @@ const setPropertyByPath = (
 
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i];
-    if (part === undefined || !isSafePropertyName(part)) {
-      continue;
+    if (part === undefined || UNSAFE_PROPS.has(part)) {
+      return;
     }
     if (
-      !(part in current) ||
+      !Object.hasOwn(current, part) ||
       typeof current[part] !== "object" ||
       current[part] === null
     ) {
-      current[part] = {};
+      const child = Object.create(null) as Record<string, unknown>;
+      current[part] = child;
     }
     current = current[part] as Record<string, unknown>;
   }
 
   const lastPart = parts[parts.length - 1];
-  if (lastPart !== undefined && isSafePropertyName(lastPart)) {
-    current[lastPart] = value; // codeql[js/prototype-pollution-utility]
+  if (lastPart !== undefined && !UNSAFE_PROPS.has(lastPart)) {
+    current[lastPart] = value;
   }
 };
 

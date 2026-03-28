@@ -19,7 +19,7 @@ import type {
  */
 // lgtm[js/incomplete-sanitization] — intentional regex metacharacter escaping, not general sanitization
 const escapeRegex = (str: string): string => {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // codeql[js/incomplete-sanitization]
+  return str.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
 };
 
 /**

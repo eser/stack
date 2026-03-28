@@ -74,11 +74,12 @@ const shouldIgnore = (
         return true;
       }
     } else if (pattern.includes("*")) {
-      // Convert glob to regex - escape all regex metacharacters first
+      // Convert glob to regex - escape metacharacters, then convert glob wildcards
       const regexPattern = pattern
-        .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // codeql[js/incomplete-sanitization]
-        .replace(/\*\*/g, ".*")
-        .replace(/\*/g, "[^/]*");
+        .replace(/[.+?^${}()|[\]\\-]/g, "\\$&")
+        .replace(/\*\*/g, "\0GLOBSTAR\0")
+        .replace(/\*/g, "[^/]*")
+        .replace(/\0GLOBSTAR\0/g, ".*");
       const regex = new RegExp(`^${regexPattern}$`);
       if (regex.test(relativePath)) {
         return true;

@@ -20,7 +20,7 @@ import * as formatter from "../output/formatter.ts";
 import { cmd } from "../output/cmd.ts";
 import { detectMode, stripModeFlag } from "../output/mode.ts";
 import { detectAgentTool } from "@eser/shell/env";
-import { runtime } from "@eser/standards/cross-runtime";
+import { getCliCommand, runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
@@ -168,7 +168,7 @@ export const main = async (
   }
 
   // ── Step 5: Detect invocation command ──
-  const detectedCommand = detectInvocation();
+  const detectedCommand = await detectInvocation();
 
   // ── Step 6: Scaffold directories ──
   const initSpinner = tui.createSpinner(ctx, "Initializing...");
@@ -313,30 +313,22 @@ const parseListFlag = (
   return null;
 };
 
-/** Detect how noskills was invoked from process args */
-const detectInvocation = (): string => {
+/**
+ * Detect the noskills command prefix using PATH detection.
+ * If `eser` binary is on PATH → "eser noskills"
+ * If not → falls back to "npx eser@latest noskills", "bunx eser noskills", etc.
+ */
+const detectInvocation = async (): Promise<string> => {
   try {
-    const args = runtime.process.args;
-    const joined = args.join(" ");
+    const base = await getCliCommand({
+      command: "eser",
+      devCommand: "deno task cli",
+      npmPackage: "eser@latest",
+      jsrPackage: "@eser/cli",
+    });
 
-    if (joined.includes("jsr:@eser/noskills")) {
-      return "deno run jsr:@eser/noskills";
-    }
-    if (joined.includes("noskills/main.ts")) {
-      return "deno run --allow-all ./pkg/@eser/noskills/main.ts";
-    }
-    if (
-      joined.includes("eser") && joined.includes("nos") &&
-      !joined.includes("noskills")
-    ) {
-      return "eser nos";
-    }
-    if (joined.includes("eser") && joined.includes("noskills")) {
-      return "eser noskills";
-    }
+    return `${base} noskills`;
   } catch {
-    // args detection not available
+    return "npx eser@latest noskills";
   }
-
-  return "npx eser noskills";
 };

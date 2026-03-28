@@ -61,13 +61,14 @@ noskills determines what's needed at runtime.
 
 Open Claude Code and paste:
 
-```
-npx eser noskills init
-```
+    Run `eser noskills init`
 
-That's it. After init, run `npx eser noskills next` — it will tell you what to
-do from here. Every step, every decision, every task — always check with
-noskills first.
+If `eser` CLI is not installed:
+
+    Run `npx eser@latest noskills init`
+
+That's it. noskills will detect Claude Code, set up hooks, generate CLAUDE.md,
+and present your next options automatically.
 
 If you want to add this to an existing project where teammates also use
 noskills, the init scaffolds `.eser/` which should be committed to your repo.

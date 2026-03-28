@@ -32,8 +32,7 @@ export const main = async (
     return await specSwitch(args?.slice(1));
   }
 
-  const config = await persistence.readManifest(runtime.process.cwd());
-  const prefix = cmdPrefix(config);
+  const prefix = cmdPrefix();
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -60,13 +59,11 @@ const specNew = async (
 
   const root = runtime.process.cwd();
 
-  const config = await persistence.readManifest(root);
-
   if (!(await persistence.isInitialized(root))) {
     out.writeln(
       span.red("noskills is not initialized."),
       " Run: ",
-      span.bold(cmd("init", config)),
+      span.bold(cmd("init")),
     );
     await out.close();
 
@@ -92,7 +89,7 @@ const specNew = async (
   if (description.length === 0) {
     out.writeln(
       span.red("Please provide a description: "),
-      span.bold(`${cmdPrefix(config)} spec new "photo auto-listing"`),
+      span.bold(`${cmdPrefix()} spec new "photo auto-listing"`),
     );
     await out.close();
 
@@ -142,7 +139,7 @@ const specNew = async (
   out.writeln("");
   out.writeln(
     "Run ",
-    span.bold(cmd("next", config)),
+    span.bold(cmd("next")),
     " to begin discovery questions.",
   );
   await out.close();
@@ -302,12 +299,10 @@ const specSwitch = async (
   const root = runtime.process.cwd();
   const targetName = args?.[0];
 
-  const config = await persistence.readManifest(root);
-
   if (targetName === undefined || targetName.length === 0) {
     out.writeln(
       span.red("Please provide a spec name: "),
-      span.bold(`${cmdPrefix(config)} spec switch my-feature`),
+      span.bold(`${cmdPrefix()} spec switch my-feature`),
     );
     await out.close();
 
@@ -334,7 +329,7 @@ const specSwitch = async (
   ) {
     out.writeln(span.red(`Spec "${targetName}" not found.`));
     out.writeln(
-      span.dim(`Run \`${cmd("spec list", config)}\` to see available specs.`),
+      span.dim(`Run \`${cmd("spec list")}\` to see available specs.`),
     );
     await out.close();
 

@@ -26,7 +26,6 @@ export const main = async (
 
   const root = runtime.process.cwd();
   const state = await persistence.readState(root);
-  const config = await persistence.readManifest(root);
 
   if (state.phase !== "EXECUTING") {
     out.writeln(span.red(`Cannot complete in phase: ${state.phase}`));
@@ -65,7 +64,7 @@ export const main = async (
   out.writeln("");
   out.writeln(
     "Start a new spec with: ",
-    span.bold(`${cmd('spec new "..."', config)}`),
+    span.bold(`${cmd('spec new "..."')}`),
   );
   await out.close();
 

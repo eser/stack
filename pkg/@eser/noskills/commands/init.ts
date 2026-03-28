@@ -20,7 +20,7 @@ import * as formatter from "../output/formatter.ts";
 import { cmd } from "../output/cmd.ts";
 import { detectMode, stripModeFlag } from "../output/mode.ts";
 import { detectAgentTool } from "@eser/shell/env";
-import { getCliCommand, runtime } from "@eser/standards/cross-runtime";
+import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
@@ -40,11 +40,10 @@ export const main = async (
 
   // Check if already initialized
   if (await persistence.isInitialized(root)) {
-    const existingConfig = await persistence.readManifest(root);
     tui.log.warn(ctx, "noskills is already initialized in this project.");
     tui.log.info(
       ctx,
-      `Run \`${cmd("sync", existingConfig)}\` to regenerate tool files.`,
+      `Run \`${cmd("sync")}\` to regenerate tool files.`,
     );
 
     return results.ok(undefined);
@@ -167,10 +166,7 @@ export const main = async (
     );
   }
 
-  // ── Step 5: Detect invocation command ──
-  const detectedCommand = await detectInvocation();
-
-  // ── Step 6: Scaffold directories ──
+  // ── Step 5: Scaffold directories ──
   const initSpinner = tui.createSpinner(ctx, "Initializing...");
   initSpinner.start();
 
@@ -185,15 +181,12 @@ export const main = async (
   }
 
   // ── Step 7: Write config ──
-  const config: schema.NosManifest = {
-    ...schema.createInitialManifest(
-      selectedConcernIds,
-      codingTools,
-      availableProviders,
-      project,
-    ),
-    command: detectedCommand,
-  };
+  const config: schema.NosManifest = schema.createInitialManifest(
+    selectedConcernIds,
+    codingTools,
+    availableProviders,
+    project,
+  );
   await persistence.writeManifest(root, config);
 
   // Write initial state
@@ -221,7 +214,7 @@ export const main = async (
     ctx,
     `Done. ${codingTools.length} tool(s), ${availableProviders.length} provider(s), ${selectedConcernIds.length} concern(s).`,
   );
-  tui.log.info(ctx, `Command prefix: ${detectedCommand}`);
+  // (command prefix is detected from process.args at runtime — not stored in manifest)
 
   // In agent mode: output the IDLE instruction so the agent knows what to do next
   if (mode === "agent") {
@@ -233,7 +226,7 @@ export const main = async (
     const output = compiler.compile(state, active, rules, config);
     await formatter.writeFormatted(output, "json");
   } else {
-    tui.outro(ctx, `Start a spec with: ${cmd('spec new "..."', config)}`);
+    tui.outro(ctx, `Start a spec with: ${cmd('spec new "..."')}`);
   }
 
   return results.ok(undefined);
@@ -311,24 +304,4 @@ const parseListFlag = (
   }
 
   return null;
-};
-
-/**
- * Detect the noskills command prefix using PATH detection.
- * If `eser` binary is on PATH → "eser noskills"
- * If not → falls back to "npx eser@latest noskills", "bunx eser noskills", etc.
- */
-const detectInvocation = async (): Promise<string> => {
-  try {
-    const base = await getCliCommand({
-      command: "eser",
-      devCommand: "deno task cli",
-      npmPackage: "eser@latest",
-      jsrPackage: "@eser/cli",
-    });
-
-    return `${base} noskills`;
-  } catch {
-    return "npx eser@latest noskills";
-  }
 };

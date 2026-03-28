@@ -17,12 +17,8 @@ import type { ParsedSpec } from "../spec/parser.ts";
 import type { FolderRule } from "./folder-rules.ts";
 import { cmd as _cmd } from "../output/cmd.ts";
 
-// Module-level config ref — set at compile() entry, read by all helpers.
-// This avoids threading config through 10+ function signatures.
-let _activeConfig: schema.NosManifest | null = null;
-
-/** Shorthand: build a command string using the active config's prefix. */
-const c = (sub: string): string => _cmd(sub, _activeConfig);
+/** Shorthand: build a command string using the runtime-detected prefix. */
+const c = (sub: string): string => _cmd(sub);
 
 // =============================================================================
 // Output Types (JSON contract for `noskills next`)
@@ -169,6 +165,7 @@ export type DoneOutput = {
 
 export type InteractiveOption = {
   readonly label: string;
+  readonly description: string;
   readonly command: string;
 };
 
@@ -240,8 +237,8 @@ const buildBehavioral = (
       return {
         rules: [
           ...mandatoryRules,
-          "Present interactiveOptions to the user using your native interactive question tool (AskUserQuestionTool or equivalent). Do NOT list them as a text table.",
-          "If no interactive question tool is available, fall back to a concise numbered list.",
+          "When interactiveOptions are present, use AskUserQuestion to present them. Map each option's label and description fields directly to the tool's options array. When the user picks one, run the corresponding command.",
+          "For availableConcerns: AskUserQuestion only supports 4 options per question. Use multiSelect and split concerns across two AskUserQuestion calls if needed (e.g., first 3 + last 3), or list all 6 as text and ask which to add. Never silently drop concerns.",
           "Do not take action without the user choosing an option first.",
         ],
         tone: "Welcoming. Present choices, then wait.",
@@ -251,14 +248,14 @@ const buildBehavioral = (
       return {
         rules: [
           ...mandatoryRules,
-          "You received all questions at once from noskills. Present them to the user ONE AT A TIME for better conversation flow.",
-          "Use your interactive question tool to ask each question individually. Show concern sub-questions as additional context.",
-          "Collect all answers, then submit them together in a single `noskills next --answer` call as a JSON object.",
-          "Relay the user's answer back verbatim. Do not interpret or summarize.",
+          "Present questions to the user ONE AT A TIME. Show concern sub-questions as additional context for each.",
+          "Push back on shallow answers. If the user says something vague like 'a CLI project' or 'manual workarounds', probe deeper: 'What specific problem? Who needs this? How often?' — like a good PM in sprint planning.",
+          "A one-sentence answer is almost always too shallow. Ask one follow-up to deepen it before accepting.",
+          "Once you have a substantive answer for each question, collect all answers and submit them together in a single `noskills next --answer` call as a JSON object.",
           "Do not start coding or exploring the codebase. Discovery is conversation only.",
         ],
         tone:
-          "Conversational. You are a messenger between noskills and the user.",
+          "Curious interviewer who has a stake in the answers. Push for specifics, don't accept handwaving.",
       };
 
     case "SPEC_DRAFT":
@@ -454,8 +451,6 @@ export const compile = (
   parsedSpec?: ParsedSpec | null,
   folderRuleCriteria?: readonly FolderRule[],
 ): NextOutput => {
-  _activeConfig = config ?? null;
-
   const meta = buildMeta(state, activeConcerns);
   const maxIter = config?.maxIterationsBeforeRestart ?? 15;
   const allowGit = config?.allowGit ?? false;
@@ -543,40 +538,77 @@ const buildInteractiveOptions = (
     case "IDLE":
       return activeConcerns.length === 0
         ? [
-          { label: "Add project concerns", command: c("concern add <id>") },
           {
-            label: "Start a new feature spec",
+            label: "Add concerns (Recommended)",
+            description:
+              "Shape how discovery and specs work by adding project concerns",
+            command: c("concern add <id>"),
+          },
+          {
+            label: "Start a feature spec",
+            description: "Begin discovery questions for a new feature",
             command: c('spec new "description"'),
           },
           {
-            label: "Add a coding convention",
+            label: "Add a coding rule",
+            description: "Add a permanent coding convention for this project",
             command: c('rule add "rule"'),
           },
-          { label: "Check project status", command: c("status") },
+          {
+            label: "Check status",
+            description: "Show current phase, spec, and progress",
+            command: c("status"),
+          },
         ]
         : [
           {
-            label: "Start a new feature spec",
+            label: "Start a feature spec",
+            description: "Begin discovery questions for a new feature",
             command: c('spec new "description"'),
           },
-          { label: "Add more concerns", command: c("concern add <id>") },
           {
-            label: "Add a coding convention",
+            label: "Add more concerns",
+            description: "Add additional project concerns",
+            command: c("concern add <id>"),
+          },
+          {
+            label: "Add a coding rule",
+            description: "Add a permanent coding convention for this project",
             command: c('rule add "rule"'),
           },
-          { label: "Check project status", command: c("status") },
+          {
+            label: "Check status",
+            description: "Show current phase, spec, and progress",
+            command: c("status"),
+          },
         ];
 
     case "SPEC_DRAFT":
       return [
-        { label: "Review and approve spec", command: c("approve") },
-        { label: "Reset and start over", command: c("reset") },
+        {
+          label: "Approve spec",
+          description: "Review looks good — approve and move to execution",
+          command: c("approve"),
+        },
+        {
+          label: "Start over",
+          description: "Reset the spec and start fresh",
+          command: c("reset"),
+        },
       ];
 
     case "SPEC_APPROVED":
       return [
-        { label: "Start execution", command: c('next --answer="start"') },
-        { label: "Reset", command: c("reset") },
+        {
+          label: "Start execution",
+          description: "Begin working through the spec tasks",
+          command: c('next --answer="start"'),
+        },
+        {
+          label: "Reset",
+          description: "Discard this spec and start over",
+          command: c("reset"),
+        },
       ];
 
     case "EXECUTING":
@@ -585,19 +617,29 @@ const buildInteractiveOptions = (
     case "BLOCKED":
       return [
         {
-          label: "Resolve the block",
+          label: "Resolve block",
+          description: "Provide a resolution to unblock execution",
           command: c('next --answer="resolution"'),
         },
-        { label: "Reset spec", command: c("reset") },
+        {
+          label: "Reset spec",
+          description: "Abandon this spec and start over",
+          command: c("reset"),
+        },
       ];
 
     case "DONE":
       return [
         {
-          label: "Start a new spec",
+          label: "New spec",
+          description: "Start a new feature spec",
           command: c('spec new "description"'),
         },
-        { label: "Check project status", command: c("status") },
+        {
+          label: "Check status",
+          description: "Review completed spec summary",
+          command: c("status"),
+        },
       ];
 
     default:

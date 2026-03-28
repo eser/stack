@@ -26,7 +26,6 @@ export const main = async (
   const root = runtime.process.cwd();
   const reason = args?.join(" ") ?? "No reason given";
   const state = await persistence.readState(root);
-  const config = await persistence.readManifest(root);
 
   if (state.phase !== "EXECUTING") {
     out.writeln(span.red(`Cannot block in phase: ${state.phase}`));
@@ -41,7 +40,7 @@ export const main = async (
   out.writeln(span.yellow("⚠"), " Spec blocked: ", span.dim(reason));
   out.writeln(
     "Resolve with: ",
-    span.bold(`${cmd('next --answer="resolution"', config)}`),
+    span.bold(`${cmd('next --answer="resolution"')}`),
   );
   await out.close();
 

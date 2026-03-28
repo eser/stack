@@ -11,6 +11,8 @@ import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
+import * as compiler from "../context/compiler.ts";
+import * as syncEngine from "../sync/engine.ts";
 import { QUESTIONS } from "../context/questions.ts";
 import * as formatter from "../output/formatter.ts";
 import { cmd } from "../output/cmd.ts";
@@ -33,11 +35,10 @@ export const main = async (
         renderer: streams.renderers.ansi(),
         sink: streams.sinks.stdout(),
       });
-      const initConfig = await persistence.readManifest(root);
       out.writeln(
         span.red("noskills is not initialized."),
         " Run: ",
-        span.bold(cmd("init", initConfig)),
+        span.bold(cmd("init")),
       );
       await out.close();
     }
@@ -73,15 +74,29 @@ export const main = async (
     pendingClear: state.pendingClear,
   };
 
-  // JSON/text/markdown → use formatter
-  if (fmt !== "json") {
-    // ANSI-formatted output for human modes
+  // JSON mode: use compiler.compile for full output with interactiveOptions
+  if (fmt === "json") {
+    const allConcerns = await persistence.listConcerns(root);
+    const activeConcerns = allConcerns.filter((c) =>
+      config !== null && config.concerns.includes(c.id)
+    );
+    const rules = await syncEngine.loadRules(root);
+    const output = compiler.compile(state, activeConcerns, rules, config);
+
+    // Merge status-specific data with compiled output
+    await formatter.writeFormatted({ ...statusData, ...output }, "json");
+
+    return results.ok(undefined);
+  }
+
+  // ANSI-formatted output for human modes
+  {
     const out = streams.output({
       renderer: streams.renderers.ansi(),
       sink: streams.sinks.stdout(),
     });
 
-    out.writeln(span.bold(`${cmd("status", config)}`));
+    out.writeln(span.bold(`${cmd("status")}`));
     out.writeln("");
 
     const phaseColor = state.phase === "DONE"
@@ -139,8 +154,6 @@ export const main = async (
     }
 
     await out.close();
-  } else {
-    await formatter.writeFormatted(statusData, "json");
   }
 
   return results.ok(undefined);

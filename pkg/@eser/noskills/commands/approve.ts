@@ -61,7 +61,7 @@ export const main = async (
     );
     out.writeln(
       "When ready, run ",
-      span.bold(`${cmd('next --answer="start"', config)}`),
+      span.bold(`${cmd('next --answer="start"')}`),
       " to begin execution.",
     );
   } else if (state.phase === "DISCOVERY" && state.discovery.completed) {
@@ -69,7 +69,7 @@ export const main = async (
     out.writeln(span.dim("Discovery complete. Spec draft already generated."));
     out.writeln(
       "Review the spec and run ",
-      span.bold(cmd("approve", config)),
+      span.bold(cmd("approve")),
       " again when in SPEC_DRAFT phase.",
     );
   } else {

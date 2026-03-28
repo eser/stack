@@ -30,7 +30,7 @@ export const main = async (
     out.writeln(
       span.red("noskills is not initialized."),
       " Run: ",
-      span.bold(cmd("init", config)),
+      span.bold(cmd("init")),
     );
     await out.close();
 

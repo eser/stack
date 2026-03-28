@@ -147,21 +147,7 @@ describe("Manifest structure after init", () => {
     assertEquals(config.maxIterationsBeforeRestart, 15);
     assertEquals(config.verifyCommand, null);
     assertEquals(config.allowGit, false);
-    assertEquals(config.command, "npx eser noskills");
-  });
-
-  it("command field can be overridden", () => {
-    const config = {
-      ...schema.createInitialManifest([], [], [], {
-        languages: [],
-        frameworks: [],
-        ci: [],
-        testRunner: null,
-      }),
-      command: "eser nos",
-    };
-
-    assertEquals(config.command, "eser nos");
+    // command is no longer in manifest — detected from process.args at runtime
   });
 });
 

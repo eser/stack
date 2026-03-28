@@ -1,6 +1,6 @@
 {
   "name": "@eser/cs",
-  "version": "4.1.29",
+  "version": "4.1.30",
   "exports": {
     ".": "./mod.ts",
     "./cli": "./cli.ts"

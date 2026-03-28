@@ -11,6 +11,7 @@
  */
 
 import type * as schema from "../state/schema.ts";
+import { DEFAULT_CONCERNS } from "../defaults/concerns/mod.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 // =============================================================================
@@ -53,15 +54,13 @@ export const loadConcerns = async (
 };
 
 /**
- * Load built-in concerns from `defaults/concerns/` relative to this module.
+ * Load built-in concerns. Embedded via static imports — works in all runtimes
+ * including bundled npm packages where filesystem paths don't resolve.
  */
-export const loadDefaultConcerns = async (): Promise<
+export const loadDefaultConcerns = (): Promise<
   readonly schema.ConcernDefinition[]
 > => {
-  const defaultsDir = new URL("../defaults/concerns/", import.meta.url);
-
-  // Ordering comes from filename sort (numeric prefixes: 001-, 002-, etc.)
-  return await loadConcerns(defaultsDir.pathname);
+  return Promise.resolve(DEFAULT_CONCERNS);
 };
 
 // =============================================================================

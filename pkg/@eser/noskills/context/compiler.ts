@@ -165,15 +165,15 @@ export type DoneOutput = {
   };
 };
 
-export type AvailableAction = {
+export type InteractiveOption = {
+  readonly label: string;
   readonly command: string;
-  readonly description: string;
 };
 
 export type IdleOutput = {
   readonly phase: "IDLE";
   readonly instruction: string;
-  readonly availableActions?: readonly AvailableAction[];
+  readonly interactiveOptions?: readonly InteractiveOption[];
   readonly hint?: string;
 };
 
@@ -228,6 +228,17 @@ const buildBehavioral = (
   const scopeItems = parsedSpec?.outOfScope ?? [];
 
   switch (state.phase) {
+    case "IDLE":
+      return {
+        rules: [
+          ...mandatoryRules,
+          "Present options to the user using your native interactive question tool (AskUserQuestionTool or equivalent). Do NOT list them as a text table or numbered list.",
+          "If no interactive question tool is available, fall back to a concise numbered list.",
+          "Do not take action without the user choosing an option first.",
+        ],
+        tone: "Welcoming. Present choices, then wait.",
+      };
+
     case "DISCOVERY":
       return {
         rules: [
@@ -510,37 +521,32 @@ export const compile = (
 
 const compileIdle = (
   activeConcerns: readonly schema.ConcernDefinition[],
-): IdleOutput => {
-  const output: IdleOutput = {
-    phase: "IDLE",
-    instruction:
-      "noskills is initialized. Ask the user what they would like to do next.",
-    availableActions: [
-      {
-        command: c('spec new "description"'),
-        description: "Start a new feature spec with discovery questions",
-      },
-      {
-        command: c("concern add <id>"),
-        description:
-          "Add project concerns: open-source, beautiful-product, long-lived, move-fast, compliance, learning-project",
-      },
-      {
-        command: c('rule add "rule"'),
-        description: "Add a permanent coding convention",
-      },
-      {
-        command: c("status"),
-        description: "Show current project status",
-      },
-    ],
-    hint: activeConcerns.length === 0
-      ? "No concerns active. Consider adding concerns first — they shape how discovery questions and specs work."
-      : undefined,
-  };
-
-  return output;
-};
+): IdleOutput => ({
+  phase: "IDLE",
+  instruction:
+    "Present the following options to the user using your interactive question tool. Do NOT list them as a text table.",
+  interactiveOptions: [
+    {
+      label: "Start a new feature spec",
+      command: c('spec new "description"'),
+    },
+    {
+      label: "Add project concerns",
+      command: c("concern add <id>"),
+    },
+    {
+      label: "Add a coding convention",
+      command: c('rule add "rule"'),
+    },
+    {
+      label: "Check project status",
+      command: c("status"),
+    },
+  ],
+  hint: activeConcerns.length === 0
+    ? "No concerns active. Consider adding concerns first — they shape discovery questions and specs."
+    : undefined,
+});
 
 const compileDiscovery = (
   state: schema.StateFile,

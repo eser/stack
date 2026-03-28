@@ -50,12 +50,27 @@ The `eser/rules` repository
 ideas live on in noskills, refined under
 [github.com/eser/stack](https://github.com/eser/stack).
 
-This is the **SW3** (Software Cubed) philosophy: build, discover limits, evolve,
-share. noskills will discover its own limits too — and when it does, the next
-step will emerge. If you want to discover those limits together, jump on board.
+This is the **Software³** philosophy: build, discover limits, evolve, share.
+noskills will discover its own limits too — and when it does, the next step will
+emerge. If you want to discover those limits together, jump on board.
 
 The name mirrors the SQL -> NoSQL shift: skills define everything upfront,
 noskills determines what's needed at runtime.
+
+## Getting Started with Claude Code
+
+Open Claude Code and paste:
+
+```
+npx eser noskills init
+```
+
+That's it. After init, run `npx eser noskills next` — it will tell you what to
+do from here. Every step, every decision, every task — always check with
+noskills first.
+
+If you want to add this to an existing project where teammates also use
+noskills, the init scaffolds `.eser/` which should be committed to your repo.
 
 ## Quick Start
 

@@ -332,7 +332,7 @@ describe("No active spec behavior", () => {
     assertEquals(text.includes("spec new"), true);
   });
 
-  it("IDLE availableActions includes spec new command", () => {
+  it("IDLE interactiveOptions includes spec new command", () => {
     const output = compiler.compile(
       idle(),
       noConcerns,
@@ -340,9 +340,18 @@ describe("No active spec behavior", () => {
       config(),
     ) as compiler.IdleOutput;
 
-    const actions = output.availableActions ?? [];
-    const hasSpecNew = actions.some((a) => a.command.includes("spec new"));
+    const options = output.interactiveOptions ?? [];
+    const hasSpecNew = options.some((o) => o.command.includes("spec new"));
     assertEquals(hasSpecNew, true);
+  });
+
+  it("IDLE behavioral instructs agent to use interactive question tool", () => {
+    const output = compiler.compile(idle(), noConcerns, noRules, config());
+
+    const hasRule = output.behavioral.rules.some((r) =>
+      r.includes("interactive question tool")
+    );
+    assertEquals(hasRule, true);
   });
 
   it("IDLE with zero concerns includes hint about adding concerns", () => {

@@ -30,9 +30,8 @@ export const main = async (
   const cleanArgs = formatter.stripOutputFlag(args);
 
   if (!(await persistence.isInitialized(root))) {
-    const initConfig = await persistence.readManifest(root);
     await formatter.writeFormatted(
-      { error: `noskills not initialized. Run: ${cmd("init", initConfig)}` },
+      { error: `noskills not initialized. Run: ${cmd("init")}` },
       fmt,
     );
 

@@ -47,9 +47,8 @@ export const main = async (
   const maxIterations = parseFlag(args, "--max-iterations") ?? 50;
 
   if (!(await persistence.isInitialized(root))) {
-    const initConfig = await persistence.readManifest(root);
     out.writeln(
-      span.red(`noskills not initialized. Run: ${cmd("init", initConfig)}`),
+      span.red(`noskills not initialized. Run: ${cmd("init")}`),
     );
     await out.close();
 
@@ -88,7 +87,7 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  out.writeln(span.bold(`${cmdPrefix(config)} run`));
+  out.writeln(span.bold(`${cmdPrefix()} run`));
   out.writeln(
     span.dim(
       `Mode: ${
@@ -184,7 +183,7 @@ export const main = async (
     const rules = await syncEngine.loadRules(root);
     const output = compiler.compile(state, activeConcerns, rules, config);
 
-    const prompt = buildAgentPrompt(output, config);
+    const prompt = buildAgentPrompt(output);
 
     // ── Log iteration ──
     out.writeln(
@@ -287,7 +286,6 @@ export const main = async (
 
 const buildAgentPrompt = (
   output: compiler.NextOutput,
-  config?: { command?: string } | null,
 ): string => {
   const lines: string[] = [];
 
@@ -362,7 +360,7 @@ const buildAgentPrompt = (
   }
 
   // Protocol footer
-  const prefix = cmdPrefix(config);
+  const prefix = cmdPrefix();
   lines.push(
     `When done, report progress: ${prefix} next --answer="your progress"`,
   );

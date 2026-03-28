@@ -90,7 +90,7 @@ const buildSettings = (commandPrefix: string): Record<string, unknown> => ({
 
 export const syncHooks = async (
   root: string,
-  commandPrefix = "npx eser noskills",
+  commandPrefix = "npx eser@latest noskills",
 ): Promise<void> => {
   const settingsPath = `${root}/.claude/settings.json`;
 

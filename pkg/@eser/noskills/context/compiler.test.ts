@@ -258,10 +258,10 @@ describe("compile", () => {
     assertEquals(output.behavioral.tone.includes("Start coding"), true);
   });
 
-  it("DISCOVERY behavioral says 'messenger'", () => {
+  it("DISCOVERY behavioral tone is challenging", () => {
     const output = compiler.compile(inDiscovery(), noConcerns, noRules);
 
-    assertEquals(output.behavioral.tone.includes("messenger"), true);
+    assertEquals(output.behavioral.tone.includes("stake in the answers"), true);
   });
 
   it("EXECUTING behavioral includes urgency when over iteration threshold", () => {

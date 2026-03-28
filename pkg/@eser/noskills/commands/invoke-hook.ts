@@ -129,7 +129,7 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
   if (state["pendingClear"] === true) {
     await deny(
       `Task accepted. You must run \`/clear\` and then \`${
-        cmd("next", config)
+        cmd("next")
       }\` before continuing.`,
     );
     return results.ok(undefined);
@@ -193,22 +193,18 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
   if (phase === "EXECUTING") return results.ok(undefined);
 
   const reasons: Record<string, string> = {
-    IDLE: `No active spec. Run \`${cmd("spec new", config)}\``,
-    UNINITIALIZED: `noskills not initialized. Run \`${cmd("init", config)}\``,
-    DISCOVERY: `Discovery in progress. Run \`${
-      cmd("next", config)
-    }\` to continue.`,
-    SPEC_DRAFT: `Spec needs review. Run \`${cmd("approve", config)}\``,
-    SPEC_APPROVED: `Start execution first: \`${
-      cmd('next --answer="start"', config)
-    }\``,
+    IDLE: `No active spec. Run \`${cmd("spec new")}\``,
+    UNINITIALIZED: `noskills not initialized. Run \`${cmd("init")}\``,
+    DISCOVERY: `Discovery in progress. Run \`${cmd("next")}\` to continue.`,
+    SPEC_DRAFT: `Spec needs review. Run \`${cmd("approve")}\``,
+    SPEC_APPROVED: `Start execution first: \`${cmd('next --answer="start"')}\``,
     BLOCKED: `Execution blocked. Resolve with \`${
-      cmd('next --answer="resolution"', config)
+      cmd('next --answer="resolution"')
     }\``,
-    DONE: `Spec complete. Start a new one or run \`${cmd("reset", config)}\``,
+    DONE: `Spec complete. Start a new one or run \`${cmd("reset")}\``,
   };
 
-  await deny(reasons[phase] ?? `Run \`${cmd("next", config)}\` first.`);
+  await deny(reasons[phase] ?? `Run \`${cmd("next")}\` first.`);
   return results.ok(undefined);
 };
 

@@ -32,8 +32,7 @@ export const main = async (
     return await concernList();
   }
 
-  const config = await persistence.readManifest(runtime.process.cwd());
-  const prefix = cmdPrefix(config);
+  const prefix = cmdPrefix();
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -64,7 +63,7 @@ const concernAdd = async (
   if (concernIds.length === 0) {
     out.writeln(
       span.red("Please provide concern ID(s): "),
-      span.bold(cmd("concern add open-source beautiful-product", config)),
+      span.bold(cmd("concern add open-source beautiful-product")),
     );
     await out.close();
 
@@ -149,7 +148,7 @@ const concernRemove = async (
   if (concernId === undefined || concernId.length === 0) {
     out.writeln(
       span.red("Please provide a concern ID: "),
-      span.bold(cmd("concern remove move-fast", config)),
+      span.bold(cmd("concern remove move-fast")),
     );
     await out.close();
 

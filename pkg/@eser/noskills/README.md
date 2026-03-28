@@ -334,13 +334,13 @@ noskills status -o json    # Structured status for scripts
 Every `noskills next` output includes a `behavioral` block with phase-specific
 rules. These tell the agent HOW to behave, not just WHAT to do:
 
-| Phase      | Behavioral tone                | Key rules                                                    |
-| ---------- | ------------------------------ | ------------------------------------------------------------ |
-| DISCOVERY  | "You are a messenger"          | Don't rephrase questions, relay answers verbatim, don't code |
-| SPEC_DRAFT | "The user is reviewing"        | Don't modify the spec, don't start coding                    |
-| EXECUTING  | "Start coding immediately"     | Don't explore beyond scope, don't refactor, timebox reading  |
-| BLOCKED    | "Brief. Decision time."        | Present decision as-is, don't suggest preferences            |
-| DONE       | "Celebrate briefly, then stop" | Don't start new work                                         |
+| Phase      | Behavioral tone                | Key rules                                                     |
+| ---------- | ------------------------------ | ------------------------------------------------------------- |
+| DISCOVERY  | "Curious, has a stake"         | Push back on shallow answers, probe for specifics, don't code |
+| SPEC_DRAFT | "The user is reviewing"        | Don't modify the spec, don't start coding                     |
+| EXECUTING  | "Start coding immediately"     | Don't explore beyond scope, don't refactor, timebox reading   |
+| BLOCKED    | "Brief. Decision time."        | Present decision as-is, don't suggest preferences             |
+| DONE       | "Celebrate briefly, then stop" | Don't start new work                                          |
 
 **Git is read-only** for agents (configurable via `allowGit: true` in manifest).
 Agents may read (`git log`, `git diff`, `git status`) but never write
@@ -577,6 +577,10 @@ noskills spec list -o json
 Multiple specs can exist at different stages. Switching away from an EXECUTING
 spec preserves everything — iteration, debt, verification result, progress.
 Switching back resumes exactly where it left off.
+
+> **Future:** `spec new --from-plan <file>` — import an existing plan document
+> (e.g., from Claude Code's plan mode) as the basis for discovery, pre-filling
+> some answers. Not yet implemented.
 
 ## CLI Reference
 

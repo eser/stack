@@ -32,8 +32,7 @@ export const main = async (
     return await rulePromote(args?.slice(1));
   }
 
-  const config = await persistence.readManifest(runtime.process.cwd());
-  const prefix = cmdPrefix(config);
+  const prefix = cmdPrefix();
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -66,7 +65,7 @@ const ruleAdd = async (
   if (ruleText === undefined || ruleText.length === 0) {
     out.writeln(
       span.red("Please provide a rule: "),
-      span.bold(`${cmd('rule add "Use Deno Tests for all tests"', config)}`),
+      span.bold(`${cmd('rule add "Use Deno Tests for all tests"')}`),
     );
     await out.close();
 
@@ -118,12 +117,10 @@ const ruleList = async (): Promise<shellArgs.CliResult<void>> => {
   out.writeln(span.bold("Rules"));
   out.writeln("");
 
-  const config = await persistence.readManifest(root);
-
   if (rules.length === 0) {
     out.writeln(
       span.dim(
-        `  No rules yet. Add one with: ${cmd('rule add "..."', config)}`,
+        `  No rules yet. Add one with: ${cmd('rule add "..."')}`,
       ),
     );
   } else {

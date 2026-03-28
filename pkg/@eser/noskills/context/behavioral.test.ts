@@ -98,9 +98,9 @@ describe("EXECUTING tone", () => {
 // =============================================================================
 
 describe("DISCOVERY behavioral", () => {
-  it("says agent is a messenger", () => {
+  it("tone is curious interviewer with a stake", () => {
     const output = compiler.compile(inDiscovery(), noConcerns, noRules);
-    assertEquals(output.behavioral.tone.includes("messenger"), true);
+    assertEquals(output.behavioral.tone.includes("stake in the answers"), true);
   });
 
   it("says present questions one at a time", () => {
@@ -111,9 +111,11 @@ describe("DISCOVERY behavioral", () => {
     assertEquals(has, true);
   });
 
-  it("says relay answer verbatim", () => {
+  it("says push back on shallow answers", () => {
     const output = compiler.compile(inDiscovery(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) => r.includes("verbatim"));
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("Push back on shallow")
+    );
     assertEquals(has, true);
   });
 

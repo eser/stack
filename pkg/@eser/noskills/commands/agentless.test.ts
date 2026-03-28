@@ -363,11 +363,11 @@ describe("No active spec behavior", () => {
     );
   });
 
-  it("IDLE behavioral instructs agent to use interactive question tool", () => {
+  it("IDLE behavioral instructs agent to use AskUserQuestion for options", () => {
     const output = compiler.compile(idle(), noConcerns, noRules, config());
 
     const hasRule = output.behavioral.rules.some((r) =>
-      r.includes("interactive question tool")
+      r.includes("AskUserQuestion")
     );
     assertEquals(hasRule, true);
   });

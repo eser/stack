@@ -14,6 +14,7 @@ import * as kiro from "./kiro.ts";
 import * as copilot from "./copilot.ts";
 import * as windsurf from "./windsurf.ts";
 import * as hooks from "./hooks.ts";
+import { detectCommandPrefix } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 // =============================================================================
@@ -76,7 +77,8 @@ export const syncAll = async (
   const rules = await loadRules(root);
   const synced: string[] = [];
   const syncOptions = { allowGit: config?.allowGit ?? false };
-  const commandPrefix = config?.command ?? "npx eser noskills";
+  // Always re-detect from process.args — manifest.command may be stale
+  const commandPrefix = await detectCommandPrefix();
 
   for (const toolId of tools) {
     if (toolId === "claude-code") {

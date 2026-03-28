@@ -171,7 +171,6 @@ export type NosManifest = {
   readonly maxIterationsBeforeRestart: number;
   readonly verifyCommand: string | null;
   readonly allowGit: boolean;
-  readonly command: string;
 };
 
 export const createInitialManifest = (
@@ -187,7 +186,6 @@ export const createInitialManifest = (
   maxIterationsBeforeRestart: 15,
   verifyCommand: null,
   allowGit: false,
-  command: "npx eser noskills",
 });
 
 // =============================================================================

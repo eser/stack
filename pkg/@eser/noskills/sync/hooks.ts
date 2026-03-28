@@ -70,6 +70,17 @@ const buildSettings = (commandPrefix: string): Record<string, unknown> => ({
         ],
       },
     ],
+    SessionStart: [
+      {
+        hooks: [
+          {
+            type: "command",
+            command: `${commandPrefix} invoke-hook session-start`,
+            timeout: 5,
+          },
+        ],
+      },
+    ],
   },
 });
 

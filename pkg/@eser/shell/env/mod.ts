@@ -19,6 +19,7 @@
  */
 
 export type {
+  AgentTool,
   Audience,
   EnvironmentConfig,
   Interaction,
@@ -26,6 +27,7 @@ export type {
   ShellConfig,
 } from "./types.ts";
 export {
+  detectAgentTool,
   detectAudience,
   detectInteraction,
   detectShell,

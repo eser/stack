@@ -8,6 +8,7 @@
 
 import { runtime } from "@eser/standards/cross-runtime";
 import type {
+  AgentTool,
   Audience,
   EnvironmentConfig,
   Interaction,
@@ -122,43 +123,51 @@ export const getShellConfig = (
 // =============================================================================
 
 /**
- * Known environment variables set by AI coding agents.
- *
- * Claude Code: CLAUDE_CODE=1, CLAUDE_CODE_ENTRYPOINT, CLAUDE_SESSION_ID
- * Cursor:      CURSOR_SESSION, CURSOR=1
- * Kiro:        KIRO_SESSION, KIRO=1
- * Windsurf:    WINDSURF_SESSION
- * Copilot:     GITHUB_COPILOT=1
+ * Mapping from environment variables to specific agent tool IDs.
+ * Checked in order — first match wins.
  */
-const AGENT_ENV_VARS: readonly string[] = [
-  "CLAUDE_CODE",
-  "CLAUDECODE",
-  "CLAUDE_CODE_ENTRYPOINT",
-  "CLAUDE_SESSION_ID",
-  "CURSOR_SESSION",
-  "CURSOR",
-  "KIRO_SESSION",
-  "KIRO",
-  "WINDSURF_SESSION",
-  "GITHUB_COPILOT",
+const AGENT_ENV_MAP: readonly {
+  envVars: readonly string[];
+  tool: NonNullable<AgentTool>;
+}[] = [
+  {
+    envVars: [
+      "CLAUDE_CODE",
+      "CLAUDECODE",
+      "CLAUDE_CODE_ENTRYPOINT",
+      "CLAUDE_SESSION_ID",
+    ],
+    tool: "claude-code",
+  },
+  { envVars: ["CURSOR_SESSION", "CURSOR"], tool: "cursor" },
+  { envVars: ["KIRO_SESSION", "KIRO"], tool: "kiro" },
+  { envVars: ["WINDSURF_SESSION"], tool: "windsurf" },
+  { envVars: ["GITHUB_COPILOT"], tool: "copilot" },
 ];
 
 /**
- * Detect audience — "agent" if running inside an AI coding tool, "human" otherwise.
- *
- * Checks well-known environment variables set by Claude Code, Cursor, Kiro,
- * Windsurf, and GitHub Copilot.
+ * Detect which specific AI coding agent is running, if any.
+ * Returns the tool ID or null if not inside an agent.
  */
-export const detectAudience = (): Audience => {
-  for (const varName of AGENT_ENV_VARS) {
-    const value = runtime.env.get(varName);
+export const detectAgentTool = (): AgentTool => {
+  for (const entry of AGENT_ENV_MAP) {
+    for (const varName of entry.envVars) {
+      const value = runtime.env.get(varName);
 
-    if (value !== undefined && value !== "") {
-      return "agent";
+      if (value !== undefined && value !== "") {
+        return entry.tool;
+      }
     }
   }
 
-  return "human";
+  return null;
+};
+
+/**
+ * Detect audience — "agent" if running inside an AI coding tool, "human" otherwise.
+ */
+export const detectAudience = (): Audience => {
+  return detectAgentTool() !== null ? "agent" : "human";
 };
 
 /**
@@ -183,4 +192,5 @@ export const getEnvironmentConfig = (): EnvironmentConfig => ({
   shell: detectShell(),
   audience: detectAudience(),
   interaction: detectInteraction(),
+  agentTool: detectAgentTool(),
 });

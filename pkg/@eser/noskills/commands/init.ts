@@ -14,9 +14,12 @@ import * as persistence from "../state/persistence.ts";
 import * as toolDetect from "../detect/tools.ts";
 import * as codebaseDetect from "../detect/codebase.ts";
 import * as concernDefs from "../context/concerns.ts";
+import * as compiler from "../context/compiler.ts";
 import * as syncEngine from "../sync/engine.ts";
+import * as formatter from "../output/formatter.ts";
 import { cmd } from "../output/cmd.ts";
 import { detectMode, stripModeFlag } from "../output/mode.ts";
+import { detectAgentTool } from "@eser/shell/env";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -31,6 +34,7 @@ export const main = async (
 
   // Parse flags
   const parsedConcerns = parseListFlag(cleanArgs, "--concerns");
+  const parsedTools = parseListFlag(cleanArgs, "--tools");
   const nonInteractive = cleanArgs.includes("--non-interactive") ||
     mode === "agent";
 
@@ -70,11 +74,45 @@ export const main = async (
   // ── Step 2: Detect coding tools ──
   const toolSpinner = tui.createSpinner(ctx, "Detecting coding tools...");
   toolSpinner.start();
-  const codingTools = await toolDetect.detectCodingTools(root);
-  toolSpinner.succeed(`${codingTools.length} coding tool(s) detected`);
+  const detectedTools = await toolDetect.detectCodingTools(root);
 
-  for (const tool of codingTools) {
-    tui.log.step(ctx, `  ${tool}`);
+  // Auto-inject the agent we're currently running inside
+  const currentAgent = detectAgentTool();
+  const guaranteed: schema.CodingToolId[] = currentAgent !== null &&
+      !detectedTools.includes(currentAgent)
+    ? [currentAgent]
+    : [];
+  const allDetected: schema.CodingToolId[] = [
+    ...new Set([...guaranteed, ...detectedTools]),
+  ];
+
+  toolSpinner.succeed(`${allDetected.length} coding tool(s) detected`);
+
+  for (const tool of allDetected) {
+    const suffix = tool === currentAgent ? " (current)" : "";
+    tui.log.step(ctx, `  ${tool}${suffix}`);
+  }
+
+  let codingTools: schema.CodingToolId[];
+
+  if (parsedTools !== null) {
+    // Explicit --tools flag — still guarantee current agent
+    const valid: schema.CodingToolId[] = [
+      "claude-code",
+      "cursor",
+      "kiro",
+      "copilot",
+      "windsurf",
+    ];
+    const parsed = parsedTools.filter((t): t is schema.CodingToolId =>
+      valid.includes(t as schema.CodingToolId)
+    );
+    codingTools = [...new Set([...guaranteed, ...parsed])];
+  } else if (nonInteractive) {
+    codingTools = [...allDetected];
+  } else {
+    // Interactive: let user confirm/add tools (current agent non-deselectable)
+    codingTools = await pickCodingTools(ctx, allDetected, currentAgent);
   }
 
   // ── Step 3: Detect AI providers ──
@@ -170,6 +208,12 @@ export const main = async (
     syncSpinner.start();
     const synced = await syncEngine.syncAll(root, codingTools, config);
     syncSpinner.succeed(`Synced ${synced.length} tool(s)`);
+  } else {
+    tui.log.warn(
+      ctx,
+      "No tools selected. noskills will work in agentless CLI mode only.",
+    );
+    tui.log.info(ctx, "Add tools later with `noskills sync`.");
   }
 
   // ── Summary ──
@@ -178,7 +222,19 @@ export const main = async (
     `Done. ${codingTools.length} tool(s), ${availableProviders.length} provider(s), ${selectedConcernIds.length} concern(s).`,
   );
   tui.log.info(ctx, `Command prefix: ${detectedCommand}`);
-  tui.outro(ctx, `Start a spec with: ${cmd('spec new "..."', config)}`);
+
+  // In agent mode: output the IDLE instruction so the agent knows what to do next
+  if (mode === "agent") {
+    const allConcernDefs = await concernDefs.loadDefaultConcerns();
+    const active = allConcernDefs.filter((c) =>
+      selectedConcernIds.includes(c.id)
+    );
+    const rules = await syncEngine.loadRules(root);
+    const output = compiler.compile(state, active, rules, config);
+    await formatter.writeFormatted(output, "json");
+  } else {
+    tui.outro(ctx, `Start a spec with: ${cmd('spec new "..."', config)}`);
+  }
 
   return results.ok(undefined);
 };
@@ -186,6 +242,58 @@ export const main = async (
 // =============================================================================
 // Helpers
 // =============================================================================
+
+const ALL_TOOLS: readonly {
+  value: schema.CodingToolId;
+  label: string;
+}[] = [
+  { value: "claude-code", label: "Claude Code" },
+  { value: "cursor", label: "Cursor" },
+  { value: "kiro", label: "Kiro" },
+  { value: "copilot", label: "GitHub Copilot" },
+  { value: "windsurf", label: "Windsurf" },
+];
+
+/** Interactive tool picker — pre-selects auto-detected tools, lets user add more. */
+const pickCodingTools = async (
+  ctx: tui.TuiContext,
+  detected: readonly schema.CodingToolId[],
+  currentAgent: schema.CodingToolId | null,
+): Promise<schema.CodingToolId[]> => {
+  const message = detected.length === 0
+    ? "No coding tools detected. Which tools do you use? (space to toggle)"
+    : "Any additional tools? (space to toggle, enter to skip)";
+
+  const detectedSet = new Set(detected);
+
+  const selected = await tui.multiselect(ctx, {
+    message,
+    options: ALL_TOOLS.map((t) => ({
+      ...t,
+      hint: t.value === currentAgent
+        ? "you're running inside it"
+        : detectedSet.has(t.value)
+        ? "detected"
+        : undefined,
+      disabled: t.value === currentAgent,
+    })),
+    initialValues: [...detected],
+    required: false,
+  });
+
+  if (tui.isCancel(selected)) {
+    return [...detected];
+  }
+
+  // Ensure current agent is always included (disabled items aren't in selection)
+  const result = [...selected as schema.CodingToolId[]];
+
+  if (currentAgent !== null && !result.includes(currentAgent)) {
+    result.unshift(currentAgent);
+  }
+
+  return result;
+};
 
 /** Parse comma-separated list from --flag=a,b,c */
 const parseListFlag = (

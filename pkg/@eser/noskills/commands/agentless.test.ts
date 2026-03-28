@@ -332,12 +332,28 @@ describe("No active spec behavior", () => {
     assertEquals(text.includes("spec new"), true);
   });
 
-  it("IDLE instruction includes spec new with dynamic prefix", () => {
-    const output = compiler.compile(idle(), noConcerns, noRules, config());
+  it("IDLE availableActions includes spec new command", () => {
+    const output = compiler.compile(
+      idle(),
+      noConcerns,
+      noRules,
+      config(),
+    ) as compiler.IdleOutput;
 
-    assertEquals(
-      (output as { instruction: string }).instruction.includes("spec new"),
-      true,
-    );
+    const actions = output.availableActions ?? [];
+    const hasSpecNew = actions.some((a) => a.command.includes("spec new"));
+    assertEquals(hasSpecNew, true);
+  });
+
+  it("IDLE with zero concerns includes hint about adding concerns", () => {
+    const output = compiler.compile(
+      idle(),
+      [],
+      noRules,
+      config(),
+    ) as compiler.IdleOutput;
+
+    assertEquals(output.hint !== undefined, true);
+    assertEquals(output.hint!.includes("concern"), true);
   });
 });

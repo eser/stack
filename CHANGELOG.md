@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.1.35 - 2026-03-28
+
+### Added
+
+- **noskills:** use PATH-based CLI detection and update setup docs
+
+### Fixed
+
+- **codebase:** harden regex patterns and prototype pollution guards
+
 ## 4.1.34 - 2026-03-28
 
 ### Added

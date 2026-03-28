@@ -1,6 +1,6 @@
 {
-  "x86_64-unknown-linux-gnu": "sha256-blycPf8xmzqK4XCg/hO9BesjBW+1qikNRC4zSMgjmFg=",
-  "aarch64-unknown-linux-gnu": "sha256-sE9vx6RFspkcoUlZw4Rk1TS/1xTE1r6OAyq13jpwc60=",
-  "x86_64-apple-darwin": "sha256-UkZ+YIqsqSxkfAAaoIcVapJQ6FY7R6W7ThsZ7/4IAP0=",
-  "aarch64-apple-darwin": "sha256-CCRket4tjOkQYR1q7TDJCECWXQdvxNaEtz8oKYfCWn0="
+  "x86_64-unknown-linux-gnu": "sha256-Y92H0ECGSlpVmwHLrm1aQMeqMDDRnq9mxNZdMd4NKpU=",
+  "aarch64-unknown-linux-gnu": "sha256-wV+ER0hN/M00NEqaxpm4mvEtBVeLKy+AN3CFLXxYtOA=",
+  "x86_64-apple-darwin": "sha256-OqeioZegxS+iTKKMX7YENLomIIRpUMWiREc+rSM0R8c=",
+  "aarch64-apple-darwin": "sha256-T2dlQl8TYFD+gT7voGccH/yOqEtecwq22BHS0NCLFgs="
 }

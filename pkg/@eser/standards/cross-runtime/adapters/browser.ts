@@ -109,6 +109,12 @@ const createBrowserProcess = (): RuntimeProcess => {
     get stderr(): WritableStream<Uint8Array> {
       throw new RuntimeCapabilityError("process", "browser");
     },
+    isTerminal(): boolean {
+      return false;
+    },
+    setStdinRaw(): void {
+      throw new RuntimeCapabilityError("process", "browser");
+    },
   };
 };
 

@@ -7,6 +7,7 @@
  */
 
 import * as streams from "@eser/streams";
+import { runtime } from "@eser/standards/cross-runtime";
 import type { Audience, Interaction } from "@eser/shell/env";
 
 // =============================================================================
@@ -42,6 +43,16 @@ export type TuiContextOptions = Partial<TuiContext> & {
   audience?: Audience;
 };
 
+/** Get stdin as a ReadableStream, falling back to empty stream if unavailable. */
+const getStdinStream = (): ReadableStream<Uint8Array> => {
+  try {
+    return runtime.process.stdin;
+  } catch {
+    // Runtime doesn't support stdin (browser, test env)
+    return new ReadableStream();
+  }
+};
+
 export const createTuiContext = (
   options?: TuiContextOptions,
 ): TuiContext => {
@@ -65,10 +76,7 @@ export const createTuiContext = (
         : streams.renderers.plain(),
       sink: isInteractive ? streams.sinks.stdout() : streams.sinks.stderr(),
     }),
-    input: options?.input ??
-      (typeof globalThis.Deno !== "undefined"
-        ? Deno.stdin.readable
-        : new ReadableStream()),
+    input: options?.input ?? getStdinStream(),
     target,
     interaction,
     audience,

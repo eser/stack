@@ -526,6 +526,25 @@ const createDenoProcess = (): RuntimeProcess => {
     stdout: Deno.stdout.writable,
 
     stderr: Deno.stderr.writable,
+
+    isTerminal(stream: "stdin" | "stdout" | "stderr"): boolean {
+      try {
+        switch (stream) {
+          case "stdin":
+            return Deno.stdin.isTerminal();
+          case "stdout":
+            return Deno.stdout.isTerminal();
+          case "stderr":
+            return Deno.stderr.isTerminal();
+        }
+      } catch {
+        return false;
+      }
+    },
+
+    setStdinRaw(raw: boolean): void {
+      Deno.stdin.setRaw(raw);
+    },
   };
 };
 

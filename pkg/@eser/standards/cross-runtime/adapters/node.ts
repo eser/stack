@@ -600,6 +600,21 @@ const createNodeProcess = (): RuntimeProcess => {
     stdout: Writable.toWeb(nodeProcess.stdout) as WritableStream<Uint8Array>,
 
     stderr: Writable.toWeb(nodeProcess.stderr) as WritableStream<Uint8Array>,
+
+    isTerminal(stream: "stdin" | "stdout" | "stderr"): boolean {
+      switch (stream) {
+        case "stdin":
+          return nodeProcess.stdin.isTTY === true;
+        case "stdout":
+          return nodeProcess.stdout.isTTY === true;
+        case "stderr":
+          return nodeProcess.stderr.isTTY === true;
+      }
+    },
+
+    setStdinRaw(raw: boolean): void {
+      nodeProcess.stdin.setRawMode(raw);
+    },
   };
 };
 

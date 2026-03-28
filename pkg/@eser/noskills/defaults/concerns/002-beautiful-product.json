@@ -21,5 +21,10 @@
     "Loading state and error state must be designed, not placeholder",
     "No AI slop — every UI element is intentional",
     "Empty states need clear CTAs with examples"
+  ],
+  "acceptanceCriteria": [
+    "All UI states designed (empty, loading, error, success)",
+    "Mobile layout considered",
+    "No placeholder or skeleton UI left unfinished"
   ]
 }

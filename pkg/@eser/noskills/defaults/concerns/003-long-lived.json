@@ -17,5 +17,10 @@
     "Favor boring technology over shiny new tools",
     "Every shortcut needs explicit justification",
     "Consider maintenance burden for new dependencies"
+  ],
+  "acceptanceCriteria": [
+    "Backward compatibility preserved",
+    "Migration path documented if breaking",
+    "No unnecessary new dependencies"
   ]
 }

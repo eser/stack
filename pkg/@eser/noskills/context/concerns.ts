@@ -24,19 +24,29 @@ import { runtime } from "@eser/standards/cross-runtime";
 export const loadConcerns = async (
   dirPath: string,
 ): Promise<readonly schema.ConcernDefinition[]> => {
-  const concerns: schema.ConcernDefinition[] = [];
+  // Collect filenames first, sort by name (numeric prefixes ensure order)
+  const entries: { name: string }[] = [];
 
   try {
     for await (const entry of runtime.fs.readDir(dirPath)) {
       if (entry.isFile && entry.name.endsWith(".json")) {
-        const content = await runtime.fs.readTextFile(
-          `${dirPath}/${entry.name}`,
-        );
-        concerns.push(JSON.parse(content) as schema.ConcernDefinition);
+        entries.push({ name: entry.name });
       }
     }
   } catch {
     // Directory doesn't exist yet
+    return [];
+  }
+
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+
+  const concerns: schema.ConcernDefinition[] = [];
+
+  for (const entry of entries) {
+    const content = await runtime.fs.readTextFile(
+      `${dirPath}/${entry.name}`,
+    );
+    concerns.push(JSON.parse(content) as schema.ConcernDefinition);
   }
 
   return concerns;
@@ -50,6 +60,7 @@ export const loadDefaultConcerns = async (): Promise<
 > => {
   const defaultsDir = new URL("../defaults/concerns/", import.meta.url);
 
+  // Ordering comes from filename sort (numeric prefixes: 001-, 002-, etc.)
   return await loadConcerns(defaultsDir.pathname);
 };
 

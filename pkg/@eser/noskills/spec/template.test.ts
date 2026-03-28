@@ -63,19 +63,48 @@ describe("renderSpec", () => {
     assertEquals(md.includes("### verification"), true);
   });
 
-  it("includes concern-specific sections", () => {
-    const md = template.renderSpec("test", [], [openSource], []);
+  it("includes concern sections when classification says relevant", () => {
+    const apiClassification = {
+      involvesUI: false,
+      involvesPublicAPI: true,
+      involvesMigration: false,
+      involvesDataHandling: false,
+    };
+    const md = template.renderSpec(
+      "test",
+      [],
+      [openSource],
+      [],
+      apiClassification,
+    );
 
     assertEquals(md.includes("## Contributor Guide (open-source)"), true);
     assertEquals(md.includes("## Public API Surface (open-source)"), true);
   });
 
-  it("includes multiple concern sections when stacked", () => {
-    const md = template.renderSpec("test", [], [openSource, beautiful], []);
+  it("skips irrelevant concern sections based on classification", () => {
+    const noUiClassification = {
+      involvesUI: false,
+      involvesPublicAPI: false,
+      involvesMigration: false,
+      involvesDataHandling: false,
+    };
+    const md = template.renderSpec(
+      "test",
+      [],
+      [beautiful],
+      [],
+      noUiClassification,
+    );
 
-    assertEquals(md.includes("(open-source)"), true);
-    assertEquals(md.includes("(beautiful-product)"), true);
-    assertEquals(md.includes("## Design States"), true);
+    assertEquals(md.includes("## Design States"), false);
+    assertEquals(md.includes("## Mobile Layout"), false);
+  });
+
+  it("skips concern sections when no classification provided (clean default)", () => {
+    const md = template.renderSpec("test", [], [beautiful], []);
+
+    assertEquals(md.includes("## Design States"), false);
   });
 
   it("includes decisions table when decisions exist", () => {

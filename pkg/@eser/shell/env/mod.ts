@@ -18,12 +18,21 @@
  * @module
  */
 
-export type { Shell, ShellConfig } from "./types.ts";
+export type {
+  Audience,
+  EnvironmentConfig,
+  Interaction,
+  Shell,
+  ShellConfig,
+} from "./types.ts";
 export {
+  detectAudience,
+  detectInteraction,
   detectShell,
   getCompletionEvalLine,
   getCompletionsFilePath,
   getCompletionType,
+  getEnvironmentConfig,
   getHomeDir,
   getRcFilePath,
   getShellConfig,

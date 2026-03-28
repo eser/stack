@@ -61,6 +61,24 @@ type ListSpan = {
   readonly items: readonly (readonly Span[])[];
 };
 
+type GaugeSpan = {
+  readonly kind: "gauge";
+  readonly percent: number;
+  readonly width?: number;
+  readonly label?: string;
+};
+
+type SeparatorSpan = {
+  readonly kind: "separator";
+  readonly label?: string;
+};
+
+type AlertSpan = {
+  readonly kind: "alert";
+  readonly level: "info" | "success" | "warning" | "error";
+  readonly children: readonly Span[];
+};
+
 // =============================================================================
 // Union type
 // =============================================================================
@@ -77,7 +95,10 @@ type Span =
   | NewlineSpan
   | CodeBlockSpan
   | TableSpan
-  | ListSpan;
+  | ListSpan
+  | GaugeSpan
+  | SeparatorSpan
+  | AlertSpan;
 
 type SpanInput = string | Span;
 
@@ -173,6 +194,30 @@ const list = (items: readonly (readonly SpanInput[])[]): ListSpan => ({
   items: items.map((row) => normalize(row)),
 });
 
+const gauge = (
+  percent: number,
+  options?: { width?: number; label?: string },
+): GaugeSpan => ({
+  kind: "gauge",
+  percent: Math.max(0, Math.min(100, percent)),
+  width: options?.width,
+  label: options?.label,
+});
+
+const separator = (label?: string): SeparatorSpan => ({
+  kind: "separator",
+  label,
+});
+
+const alert = (
+  level: AlertSpan["level"],
+  ...children: SpanInput[]
+): AlertSpan => ({
+  kind: "alert",
+  level,
+  children: normalize(children),
+});
+
 // =============================================================================
 // Measurement — plain text length of a span (strips all formatting)
 // =============================================================================
@@ -196,6 +241,15 @@ const plainLength = (s: Span): number => {
     case "table":
     case "list":
       return 0; // nested blocks don't contribute to inline length
+    case "gauge": {
+      const w = s.width ?? 20;
+      const label = s.label ? `  ${s.label}` : "";
+      return w + ` ${s.percent}%`.length + label.length;
+    }
+    case "separator":
+      return 0; // block-level, no inline contribution
+    case "alert":
+      return 2 + s.children.reduce((sum, child) => sum + plainLength(child), 0);
   }
 };
 
@@ -204,12 +258,14 @@ const plainLength = (s: Span): number => {
 // =============================================================================
 
 export {
+  alert,
   blue,
   bold,
   codeBlock,
   color,
   cyan,
   dim,
+  gauge,
   gray,
   green,
   group,
@@ -220,6 +276,7 @@ export {
   normalize,
   plainLength,
   red,
+  separator,
   strikethrough,
   table,
   text,
@@ -229,14 +286,17 @@ export {
 };
 
 export type {
+  AlertSpan,
   BoldSpan,
   CodeBlockSpan,
   ColorSpan,
   DimSpan,
+  GaugeSpan,
   GroupSpan,
   ItalicSpan,
   ListSpan,
   NewlineSpan,
+  SeparatorSpan,
   Span,
   SpanInput,
   StrikethroughSpan,

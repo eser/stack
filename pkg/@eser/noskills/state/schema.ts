@@ -47,9 +47,47 @@ export type SpecState = {
 // Execution
 // =============================================================================
 
+export type VerificationResult = {
+  readonly passed: boolean;
+  readonly output: string;
+  readonly timestamp: string;
+};
+
+export type StatusReport = {
+  readonly completed: readonly string[];
+  readonly remaining: readonly string[];
+  readonly blocked: readonly string[];
+  readonly iteration: number;
+  readonly timestamp: string;
+};
+
+export type DebtState = {
+  readonly items: readonly string[];
+  readonly fromIteration: number;
+  readonly unaddressedIterations: number;
+};
+
+export type SpecTask = {
+  readonly id: string;
+  readonly title: string;
+  readonly completed: boolean;
+};
+
+export type SpecClassification = {
+  readonly involvesUI: boolean;
+  readonly involvesPublicAPI: boolean;
+  readonly involvesMigration: boolean;
+  readonly involvesDataHandling: boolean;
+};
+
 export type ExecutionState = {
   readonly iteration: number;
   readonly lastProgress: string | null;
+  readonly modifiedFiles: readonly string[];
+  readonly lastVerification: VerificationResult | null;
+  readonly awaitingStatusReport: boolean;
+  readonly debt: DebtState | null;
+  readonly completedTasks: readonly string[];
 };
 
 // =============================================================================
@@ -77,6 +115,9 @@ export type StateFile = {
   readonly specState: SpecState;
   readonly execution: ExecutionState;
   readonly decisions: readonly Decision[];
+  readonly lastCalledAt: string | null;
+  readonly pendingClear: boolean;
+  readonly classification: SpecClassification | null;
 };
 
 export const createInitialState = (): StateFile => ({
@@ -86,8 +127,19 @@ export const createInitialState = (): StateFile => ({
   branch: null,
   discovery: { answers: [], completed: false },
   specState: { path: null, status: "none" },
-  execution: { iteration: 0, lastProgress: null },
+  execution: {
+    iteration: 0,
+    lastProgress: null,
+    modifiedFiles: [],
+    lastVerification: null,
+    awaitingStatusReport: false,
+    debt: null,
+    completedTasks: [],
+  },
   decisions: [],
+  lastCalledAt: null,
+  pendingClear: false,
+  classification: null,
 });
 
 // =============================================================================
@@ -116,6 +168,10 @@ export type NosManifest = {
   readonly tools: readonly CodingToolId[];
   readonly providers: readonly ToolId[];
   readonly project: ProjectTraits;
+  readonly maxIterationsBeforeRestart: number;
+  readonly verifyCommand: string | null;
+  readonly allowGit: boolean;
+  readonly command: string;
 };
 
 export const createInitialManifest = (
@@ -128,6 +184,10 @@ export const createInitialManifest = (
   tools,
   providers,
   project,
+  maxIterationsBeforeRestart: 15,
+  verifyCommand: null,
+  allowGit: false,
+  command: "npx eser noskills",
 });
 
 // =============================================================================
@@ -146,4 +206,5 @@ export type ConcernDefinition = {
   readonly extras: readonly ConcernExtra[];
   readonly specSections: readonly string[];
   readonly reminders: readonly string[];
+  readonly acceptanceCriteria: readonly string[];
 };

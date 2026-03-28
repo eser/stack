@@ -24,6 +24,9 @@ const RULES_DIR: string = `${ESER_DIR}/rules`;
 const SPECS_DIR: string = `${ESER_DIR}/specs`;
 const WORKFLOWS_DIR: string = `${ESER_DIR}/workflows`;
 
+const SPEC_STATES_DIR: string = `${STATE_DIR}/specs`;
+const ACTIVE_FILE: string = `${STATE_DIR}/active.json`;
+
 export const paths: {
   readonly eserDir: string;
   readonly stateDir: string;
@@ -33,8 +36,11 @@ export const paths: {
   readonly rulesDir: string;
   readonly specsDir: string;
   readonly workflowsDir: string;
+  readonly specStatesDir: string;
+  readonly activeFile: string;
   readonly specDir: (specName: string) => string;
   readonly specFile: (specName: string) => string;
+  readonly specStateFile: (specName: string) => string;
   readonly concernFile: (concernId: string) => string;
   readonly eserGitignore: string;
 } = {
@@ -46,9 +52,13 @@ export const paths: {
   rulesDir: RULES_DIR,
   specsDir: SPECS_DIR,
   workflowsDir: WORKFLOWS_DIR,
+  specStatesDir: SPEC_STATES_DIR,
+  activeFile: ACTIVE_FILE,
 
   specDir: (specName: string): string => `${SPECS_DIR}/${specName}`,
   specFile: (specName: string): string => `${SPECS_DIR}/${specName}/spec.md`,
+  specStateFile: (specName: string): string =>
+    `${SPEC_STATES_DIR}/${specName}.json`,
   concernFile: (concernId: string): string =>
     `${CONCERNS_DIR}/${concernId}.json`,
   eserGitignore: `${ESER_DIR}/.gitignore`,
@@ -82,6 +92,96 @@ export const writeState = async (
     filePath,
     JSON.stringify(state, null, 2) + "\n",
   );
+};
+
+// =============================================================================
+// Active Spec
+// =============================================================================
+
+export type ActiveSpecIndex = {
+  readonly activeSpec: string | null;
+};
+
+/** Read active spec name from state.json's "spec" field. */
+export const readActiveSpec = async (
+  root: string,
+): Promise<string | null> => {
+  const state = await readState(root);
+
+  return state.spec;
+};
+
+/**
+ * Set active spec by loading per-spec state into main state.json.
+ * @deprecated Use writeState directly. Kept for backward compatibility.
+ */
+export const writeActiveSpec = async (
+  _root: string,
+  _specName: string | null,
+): Promise<void> => {
+  // No-op: active spec is determined by state.json's "spec" field.
+  // The spec switch command handles loading per-spec state directly.
+};
+
+// =============================================================================
+// Per-Spec State Files (.eser/.state/specs/<name>.json)
+// =============================================================================
+
+export const readSpecState = async (
+  root: string,
+  specName: string,
+): Promise<schema.StateFile> => {
+  const filePath = `${root}/${paths.specStateFile(specName)}`;
+
+  try {
+    const content = await runtime.fs.readTextFile(filePath);
+
+    return JSON.parse(content) as schema.StateFile;
+  } catch {
+    return schema.createInitialState();
+  }
+};
+
+export const writeSpecState = async (
+  root: string,
+  specName: string,
+  state: schema.StateFile,
+): Promise<void> => {
+  const dirPath = `${root}/${SPEC_STATES_DIR}`;
+  const filePath = `${root}/${paths.specStateFile(specName)}`;
+
+  await runtime.fs.mkdir(dirPath, { recursive: true });
+  await runtime.fs.writeTextFile(
+    filePath,
+    JSON.stringify(state, null, 2) + "\n",
+  );
+};
+
+/** List all spec names that have state files. */
+export const listSpecStates = async (
+  root: string,
+): Promise<readonly { name: string; state: schema.StateFile }[]> => {
+  const dirPath = `${root}/${SPEC_STATES_DIR}`;
+  const results: { name: string; state: schema.StateFile }[] = [];
+
+  try {
+    for await (const entry of runtime.fs.readDir(dirPath)) {
+      if (entry.isFile && entry.name.endsWith(".json")) {
+        const name = entry.name.replace(/\.json$/, "");
+        const content = await runtime.fs.readTextFile(
+          `${dirPath}/${entry.name}`,
+        );
+        results.push({
+          name,
+          state: JSON.parse(content) as schema.StateFile,
+        });
+      }
+    }
+  } catch {
+    // No spec states yet
+  }
+
+  return results;
 };
 
 // =============================================================================
@@ -193,6 +293,7 @@ export const scaffoldEserDir = async (root: string): Promise<void> => {
   const dirs = [
     ESER_DIR,
     STATE_DIR,
+    SPEC_STATES_DIR,
     CONCERNS_DIR,
     RULES_DIR,
     SPECS_DIR,
@@ -215,6 +316,22 @@ export const scaffoldEserDir = async (root: string): Promise<void> => {
       gitignorePath,
       "# eser toolchain runtime state — not tracked by git\n.state/\n",
     );
+  }
+};
+
+// =============================================================================
+// State + Spec State (write both atomically)
+// =============================================================================
+
+/** Write main state AND the per-spec state file for the active spec. */
+export const writeStateAndSpec = async (
+  root: string,
+  state: schema.StateFile,
+): Promise<void> => {
+  await writeState(root, state);
+
+  if (state.spec !== null) {
+    await writeSpecState(root, state.spec, state);
   }
 };
 

@@ -11,6 +11,8 @@ import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
+import { loadDefaultConcerns } from "../context/concerns.ts";
+import { cmd, cmdPrefix } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -30,11 +32,13 @@ export const main = async (
     return await concernList();
   }
 
+  const config = await persistence.readManifest(runtime.process.cwd());
+  const prefix = cmdPrefix(config);
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
-  out.writeln("Usage: noskills concern <add <id> | remove <id> | list>");
+  out.writeln(`Usage: ${prefix} concern <add <id> | remove <id> | list>`);
   await out.close();
 
   return results.ok(undefined);
@@ -55,21 +59,34 @@ const concernAdd = async (
   const root = runtime.process.cwd();
   const concernId = args?.[0];
 
+  const config = await persistence.readManifest(root);
+
   if (concernId === undefined || concernId.length === 0) {
     out.writeln(
       span.red("Please provide a concern ID: "),
-      span.bold("noskills concern add open-source"),
+      span.bold(cmd("concern add open-source", config)),
     );
     await out.close();
 
     return results.fail({ exitCode: 1 });
   }
 
-  // Verify concern exists in .eser/concerns/
-  const concern = await persistence.readConcern(root, concernId);
+  // Find concern: check .eser/concerns/ first, then built-in defaults
+  let concern = await persistence.readConcern(root, concernId);
 
   if (concern === null) {
-    const available = await persistence.listConcerns(root);
+    // Try built-in defaults
+    const defaults = await loadDefaultConcerns();
+    concern = defaults.find((c) => c.id === concernId) ?? null;
+
+    if (concern !== null) {
+      // Write the built-in concern to .eser/concerns/ so it's available locally
+      await persistence.writeConcern(root, concern);
+    }
+  }
+
+  if (concern === null) {
+    const available = await loadDefaultConcerns();
     out.writeln(span.red(`Unknown concern: ${concernId}`));
     if (available.length > 0) {
       out.writeln(
@@ -82,8 +99,6 @@ const concernAdd = async (
 
     return results.fail({ exitCode: 1 });
   }
-
-  const config = await persistence.readManifest(root);
 
   if (config === null) {
     out.writeln(span.red("noskills not initialized."));
@@ -127,17 +142,17 @@ const concernRemove = async (
   const root = runtime.process.cwd();
   const concernId = args?.[0];
 
+  const config = await persistence.readManifest(root);
+
   if (concernId === undefined || concernId.length === 0) {
     out.writeln(
       span.red("Please provide a concern ID: "),
-      span.bold("noskills concern remove move-fast"),
+      span.bold(cmd("concern remove move-fast", config)),
     );
     await out.close();
 
     return results.fail({ exitCode: 1 });
   }
-
-  const config = await persistence.readManifest(root);
 
   if (config === null) {
     out.writeln(span.red("noskills not initialized."));
@@ -177,8 +192,9 @@ const concernList = async (): Promise<shellArgs.CliResult<void>> => {
 
   const root = runtime.process.cwd();
   const config = await persistence.readManifest(root);
-  const allConcerns = await persistence.listConcerns(root);
 
+  // Show all built-in concerns (not just locally installed ones)
+  const allConcerns = await loadDefaultConcerns();
   const activeConcernIds = config?.concerns ?? [];
 
   out.writeln(span.bold("Concerns"));

@@ -14,7 +14,7 @@ const idle = (): schema.StateFile => schema.createInitialState();
 const inDiscovery = (): schema.StateFile =>
   machine.startSpec(idle(), "test-spec", "spec/test-spec");
 
-const _withAnswers = (
+const withAnswers = (
   state: schema.StateFile,
   count: number,
 ): schema.StateFile => {
@@ -34,7 +34,7 @@ const inSpecApproved = (): schema.StateFile =>
 const inExecuting = (): schema.StateFile =>
   machine.startExecution(inSpecApproved());
 
-const _inBlocked = (): schema.StateFile =>
+const inBlocked = (): schema.StateFile =>
   machine.blockExecution(inExecuting(), "need decision");
 
 // =============================================================================
@@ -349,5 +349,37 @@ describe("resetToIdle", () => {
     const state = machine.resetToIdle(original);
 
     assertEquals(state.version, original.version);
+  });
+});
+
+// =============================================================================
+// withAnswers helper
+// =============================================================================
+
+describe("withAnswers helper", () => {
+  it("adds N answers to discovery state", () => {
+    const state = withAnswers(inDiscovery(), 3);
+
+    assertEquals(state.discovery.answers.length, 3);
+    assertEquals(state.discovery.answers[0]?.questionId, "q0");
+    assertEquals(state.discovery.answers[2]?.answer, "answer-2");
+  });
+});
+
+// =============================================================================
+// BLOCKED round-trip
+// =============================================================================
+
+describe("BLOCKED round-trip", () => {
+  it("block preserves iteration and resolving continues", () => {
+    let state = inExecuting();
+    state = machine.advanceExecution(state, "step 1");
+    state = machine.advanceExecution(state, "step 2");
+
+    const blocked = inBlocked();
+    assertEquals(blocked.phase, "BLOCKED");
+
+    const unblocked = machine.transition(blocked, "EXECUTING");
+    assertEquals(unblocked.phase, "EXECUTING");
   });
 });

@@ -12,6 +12,7 @@ import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as syncEngine from "../sync/engine.ts";
+import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -29,7 +30,7 @@ export const main = async (
     out.writeln(
       span.red("noskills is not initialized."),
       " Run: ",
-      span.bold("noskills init"),
+      span.bold(cmd("init", config)),
     );
     await out.close();
 
@@ -37,7 +38,7 @@ export const main = async (
   }
 
   out.writeln(span.dim("Syncing tool files..."));
-  const synced = await syncEngine.syncAll(root, config.tools);
+  const synced = await syncEngine.syncAll(root, config.tools, config);
 
   for (const id of synced) {
     out.writeln("  ", span.green("✔"), ` ${id}`);

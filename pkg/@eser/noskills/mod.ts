@@ -12,11 +12,14 @@ export { moduleDef } from "./module.ts";
 export type {
   CodingToolId,
   ConcernDefinition,
+  DebtState,
   Decision,
   ExecutionState,
   NosManifest,
   Phase,
   StateFile,
+  StatusReport,
+  VerificationResult,
 } from "./state/schema.ts";
 export { createInitialManifest, createInitialState } from "./state/schema.ts";
 export * as machine from "./state/machine.ts";
@@ -24,3 +27,4 @@ export * as persistence from "./state/persistence.ts";
 export * as compiler from "./context/compiler.ts";
 export * as concerns from "./context/concerns.ts";
 export * as questions from "./context/questions.ts";
+export * as formatter from "./output/formatter.ts";

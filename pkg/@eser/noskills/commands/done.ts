@@ -12,6 +12,8 @@ import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
+import * as specUpdater from "../spec/updater.ts";
+import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -24,6 +26,7 @@ export const main = async (
 
   const root = runtime.process.cwd();
   const state = await persistence.readState(root);
+  const config = await persistence.readManifest(root);
 
   if (state.phase !== "EXECUTING") {
     out.writeln(span.red(`Cannot complete in phase: ${state.phase}`));
@@ -37,6 +40,12 @@ export const main = async (
 
   const newState = machine.transition(state, "DONE");
   await persistence.writeState(root, newState);
+
+  // Update spec.md: "executing" → "done"
+  if (newState.spec !== null) {
+    await specUpdater.updateSpecStatus(root, newState.spec, "done");
+    await specUpdater.updateProgressStatus(root, newState.spec, "done");
+  }
 
   out.writeln(span.green("✔"), " Spec completed!");
   out.writeln("");
@@ -56,7 +65,7 @@ export const main = async (
   out.writeln("");
   out.writeln(
     "Start a new spec with: ",
-    span.bold('noskills spec new "..."'),
+    span.bold(`${cmd('spec new "..."', config)}`),
   );
   await out.close();
 

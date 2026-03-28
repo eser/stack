@@ -9,7 +9,7 @@
     "./module": "./module.ts",
     "./exec": "./exec/mod.ts",
     "./env": "./env/mod.ts",
-    "./formatting": "./formatting/mod.ts"
+    "./tui": "./tui/mod.ts"
   },
   "dependencies": {
     "@eser/standards": "workspace:*"

@@ -8,8 +8,8 @@ development:
   zsh, and fish
 - **`@eser/shell/args`** - Hierarchical CLI framework for building command trees
 - **`@eser/shell/exec`** - Lightweight shell execution with template-literal API
-- **`@eser/shell/formatting`** - TTY detection, ANSI stripping, and progress
-  spinners (colors moved to `@eser/streams`)
+- **`@eser/shell/tui`** - Terminal UI: interactive prompts, spinners, progress
+  bars, and styled output (built on `@eser/streams/span`)
 
 ## 💫 Key features
 
@@ -207,87 +207,73 @@ await $`npm install`.quiet().spawn();
 | `bytes()`         | Execute and return stdout as Uint8Array      |
 | `code()`          | Execute and return exit code                 |
 
-### @eser/shell/formatting
+### @eser/shell/tui
 
-Lightweight terminal utilities: TTY detection, ANSI stripping, and progress
-spinners.
-
-> **Note:** All color functions, semantic color objects, and output formatters
-> have moved to `@eser/streams`. Use `@eser/streams/span` for colors/styles and
-> `@eser/streams` for structured output. Value formatters (`formatDuration`,
-> `formatSize`, `formatNumber`, `formatPercent`) live in
-> `@eser/standards/formatters`.
-
-#### Utilities
+Terminal UI — interactive prompts, spinners, progress bars, and styled output.
+Built on `@eser/streams/span` for multi-target rendering (ANSI, Markdown,
+plain).
 
 ```typescript
-import * as formatting from "@eser/shell/formatting";
+import * as tui from "@eser/shell/tui";
 
-// Check if the terminal supports ANSI colors
-if (formatting.supportsColor()) {
-  // Terminal supports colors
-}
+// Create a TUI context (production: real terminal)
+const ctx = tui.createTuiContext();
 
-// Strip ANSI escape codes from a string
-const plain = formatting.stripAnsi(coloredString);
+// Interactive prompts
+const name = await tui.text(ctx, { message: "Project name?" });
+const framework = await tui.select(ctx, {
+  message: "Pick a framework",
+  options: [
+    { value: "next", label: "Next.js" },
+    { value: "svelte", label: "SvelteKit" },
+  ],
+});
+const features = await tui.multiselect(ctx, {
+  message: "Select features",
+  options: [
+    { value: "ts", label: "TypeScript" },
+    { value: "lint", label: "ESLint" },
+  ],
+});
+const deploy = await tui.confirm(ctx, { message: "Deploy now?" });
+
+// Spinner for async operations
+const s = tui.createSpinner(ctx, "Installing...");
+s.start();
+// await install();
+s.succeed("Installed!");
+
+// Structured logging
+tui.log.info(ctx, "Processing files...");
+tui.log.success(ctx, "All done!");
 ```
 
-#### Spinner
+#### Interactive vs Non-Interactive Modes
 
-The `Spinner` class provides a progress indicator for long-running operations.
-It takes a `streams.Output` instance as its first argument for all rendering.
+`createTuiContext` accepts a `target` parameter to switch between interactive
+(human terminal) and non-interactive (agent/CI) modes:
 
 ```typescript
-import { Spinner } from "@eser/shell/formatting";
-import * as streams from "@eser/streams";
+import * as tui from "@eser/shell/tui";
 
-// Create an output target
-const out = streams.output({
-  renderer: streams.renderers.ansi(),
-  sink: streams.sinks.stdout(),
-});
+// Interactive mode (default) — ANSI output to stdout, reads from stdin
+const humanCtx = tui.createTuiContext({ target: "interactive" });
 
-const spinner = new Spinner(out, "Loading...");
-spinner.start();
-
-// Update message while running
-spinner.update("Still loading...");
-
-// Complete with different states
-spinner.succeed("Done!"); // ✓ Done!
-spinner.fail("Failed!"); // ✗ Failed!
-spinner.warn("Warning!"); // ⚠ Warning!
-spinner.info("Info!"); // ℹ Info!
-spinner.stop(); // Stop without message
-
-// Custom spinner frames
-const customSpinner = new Spinner(out, "Processing", {
-  frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-  interval: 80,
-});
+// Non-interactive mode — plain text output to stderr, stdout stays clean for JSON
+const agentCtx = tui.createTuiContext({ target: "non-interactive" });
 ```
 
-#### Colors and Formatting (via @eser/streams)
+| Behavior        | `interactive`            | `non-interactive`        |
+| --------------- | ------------------------ | ------------------------ |
+| Output renderer | ANSI (colors, bold)      | Plain text (no escapes)  |
+| Output sink     | stdout                   | stderr                   |
+| Prompts         | Real terminal prompts    | Return defaults / cancel |
+| Spinners        | Animated terminal output | Silent or stderr logging |
+| `log.*` calls   | Styled stdout            | Plain stderr             |
 
-Colors and structured output have moved to `@eser/streams`:
-
-```typescript
-import * as span from "@eser/streams/span";
-import * as streams from "@eser/streams";
-
-// Text styles and colors via span
-span.bold("Bold text");
-span.italic("Italic text");
-span.red("Error message");
-span.green("Success message");
-span.cyan("Info message");
-
-// Structured output via streams
-const out = streams.output({
-  renderer: streams.renderers.ansi(),
-  sink: streams.sinks.stdout(),
-});
-```
+This lets the same CLI code work for both human users and AI agents without
+branching logic throughout commands. The context also exposes a `stderr` output
+for cases where you need to write diagnostics regardless of mode.
 
 ## 🛠 Usage Examples
 

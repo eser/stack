@@ -113,6 +113,47 @@ const renderSpan = (span: spanTypes.Span): string => {
       return span.items
         .map((item) => `  • ${item.map(renderSpan).join("")}`)
         .join("\n") + "\n";
+    case "gauge": {
+      const w = span.width ?? 20;
+      const filled = Math.round(w * span.percent / 100);
+      const empty = w - filled;
+      const bar = `${COLOR_CODES["green"]!}${"█".repeat(filled)}${COLOR_RESET}${
+        STYLE_CODES["dim"]![0]
+      }${"░".repeat(empty)}${STYLE_CODES["dim"]![1]}`;
+      const pct = ` ${span.percent}%`;
+      const label = span.label
+        ? `${STYLE_CODES["dim"]![0]}  ${span.label}${STYLE_CODES["dim"]![1]}`
+        : "";
+      return `${bar}${pct}${label}`;
+    }
+    case "separator": {
+      const dimOpen = STYLE_CODES["dim"]![0];
+      const dimClose = STYLE_CODES["dim"]![1];
+      if (span.label) {
+        const pad = "─".repeat(Math.max(0, 33 - span.label.length));
+        return `${dimOpen}──── ${span.label} ${pad}${dimClose}\n`;
+      }
+      return `${dimOpen}${"─".repeat(40)}${dimClose}\n`;
+    }
+    case "alert": {
+      const icons = {
+        info: "ℹ",
+        success: "✓",
+        warning: "▲",
+        error: "✗",
+      } as const;
+      const colors = {
+        info: "cyan",
+        success: "green",
+        warning: "yellow",
+        error: "red",
+      } as const;
+      const icon = icons[span.level];
+      const colorCode = COLOR_CODES[colors[span.level]]!;
+      return `${colorCode}${icon}${COLOR_RESET} ${
+        span.children.map(renderSpan).join("")
+      }`;
+    }
   }
 };
 

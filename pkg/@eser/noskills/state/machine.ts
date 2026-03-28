@@ -79,7 +79,15 @@ export const startSpec = (
     branch,
     discovery: { answers: [], completed: false },
     specState: { path: null, status: "none" },
-    execution: { iteration: 0, lastProgress: null },
+    execution: {
+      iteration: 0,
+      lastProgress: null,
+      modifiedFiles: [],
+      lastVerification: null,
+      awaitingStatusReport: false,
+      debt: null,
+      completedTasks: [],
+    },
     decisions: [],
   };
 };
@@ -122,6 +130,7 @@ export const completeDiscovery = (
       path: paths.specFile(state.spec!),
       status: "draft",
     },
+    // classification stays null until user provides it via the classification prompt
   };
 };
 
@@ -145,7 +154,17 @@ export const startExecution = (
   return {
     ...state,
     phase: "EXECUTING",
-    execution: { iteration: 0, lastProgress: null },
+    // Clear discovery answers — they're persisted in spec.md, no need in state
+    discovery: { answers: [], completed: true },
+    execution: {
+      iteration: 0,
+      lastProgress: null,
+      modifiedFiles: [],
+      lastVerification: null,
+      awaitingStatusReport: false,
+      debt: null,
+      completedTasks: [],
+    },
   };
 };
 
@@ -160,6 +179,7 @@ export const advanceExecution = (
   return {
     ...state,
     execution: {
+      ...state.execution,
       iteration: state.execution.iteration + 1,
       lastProgress: progress,
     },
@@ -199,7 +219,17 @@ export const resetToIdle = (
     branch: null,
     discovery: { answers: [], completed: false },
     specState: { path: null, status: "none" },
-    execution: { iteration: 0, lastProgress: null },
+    execution: {
+      iteration: 0,
+      lastProgress: null,
+      modifiedFiles: [],
+      lastVerification: null,
+      awaitingStatusReport: false,
+      debt: null,
+      completedTasks: [],
+    },
     decisions: [],
+    pendingClear: false,
+    classification: null,
   };
 };

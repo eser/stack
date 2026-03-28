@@ -182,6 +182,10 @@ const main = async (): Promise<void> => {
       format: "esm",
       platform: "node",
       target: "node18",
+      banner: {
+        js:
+          'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
+      },
       minify: true,
       external: [...EXTERNAL_PACKAGES, "npm:*"],
       plugins: [

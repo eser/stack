@@ -17,5 +17,9 @@
     "Good enough is good enough — ship it",
     "Reduce ceremony, optimize for feedback speed",
     "Mark polish items for v2 explicitly"
+  ],
+  "acceptanceCriteria": [
+    "Core functionality works",
+    "v2 items explicitly deferred"
   ]
 }

@@ -13,6 +13,7 @@ import * as cursor from "./cursor.ts";
 import * as kiro from "./kiro.ts";
 import * as copilot from "./copilot.ts";
 import * as windsurf from "./windsurf.ts";
+import * as hooks from "./hooks.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 // =============================================================================
@@ -48,13 +49,19 @@ export const loadRules = async (root: string): Promise<readonly string[]> => {
 // Sync
 // =============================================================================
 
+// Claude Code is handled separately (needs SyncOptions for allowGit)
 const GENERATORS: Readonly<
-  Record<
-    schema.CodingToolId,
-    (root: string, rules: readonly string[]) => Promise<void>
+  Partial<
+    Record<
+      schema.CodingToolId,
+      (
+        root: string,
+        rules: readonly string[],
+        commandPrefix: string,
+      ) => Promise<void>
+    >
   >
 > = {
-  "claude-code": claude.sync,
   cursor: cursor.sync,
   kiro: kiro.sync,
   copilot: copilot.sync,
@@ -64,17 +71,33 @@ const GENERATORS: Readonly<
 export const syncAll = async (
   root: string,
   tools: readonly schema.CodingToolId[],
+  config?: schema.NosManifest | null,
 ): Promise<readonly string[]> => {
   const rules = await loadRules(root);
   const synced: string[] = [];
+  const syncOptions = { allowGit: config?.allowGit ?? false };
+  const commandPrefix = config?.command ?? "npx eser noskills";
 
   for (const toolId of tools) {
+    if (toolId === "claude-code") {
+      // Claude gets options (allowGit affects CLAUDE.md content)
+      await claude.sync(root, rules, syncOptions, commandPrefix);
+      synced.push(toolId);
+      continue;
+    }
+
     const generator = GENERATORS[toolId];
 
     if (generator !== undefined) {
-      await generator(root, rules);
+      await generator(root, rules, commandPrefix);
       synced.push(toolId);
     }
+  }
+
+  // Generate all Claude Code hooks (enforce, stop-snapshot, post-write, post-bash)
+  if (tools.includes("claude-code")) {
+    await hooks.syncHooks(root, commandPrefix);
+    synced.push("hooks");
   }
 
   return synced;

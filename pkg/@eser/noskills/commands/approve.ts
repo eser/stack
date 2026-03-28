@@ -12,6 +12,9 @@ import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
+import * as specGenerator from "../spec/generator.ts";
+import * as specUpdater from "../spec/updater.ts";
+import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -24,10 +27,32 @@ export const main = async (
 
   const root = runtime.process.cwd();
   const state = await persistence.readState(root);
+  const config = await persistence.readManifest(root);
 
   if (state.phase === "SPEC_DRAFT") {
+    // If classification was skipped, generate spec with null classification
+    // (defaults all concern sections to not relevant — clean spec)
+    if (state.classification === null && state.spec !== null) {
+      const allConcerns = await persistence.listConcerns(root);
+      const active = allConcerns.filter((c) =>
+        config?.concerns.includes(c.id) ?? false
+      );
+
+      try {
+        await specGenerator.generateSpec(root, state, active);
+      } catch {
+        // spec dir may already exist
+      }
+    }
+
     const newState = machine.approveSpec(state);
     await persistence.writeState(root, newState);
+
+    // Update spec.md: "draft" → "approved"
+    if (newState.spec !== null) {
+      await specUpdater.updateSpecStatus(root, newState.spec, "approved");
+      await specUpdater.updateProgressStatus(root, newState.spec, "approved");
+    }
 
     out.writeln(
       span.green("✔"),
@@ -36,7 +61,7 @@ export const main = async (
     );
     out.writeln(
       "When ready, run ",
-      span.bold('noskills next --answer="start"'),
+      span.bold(`${cmd('next --answer="start"', config)}`),
       " to begin execution.",
     );
   } else if (state.phase === "DISCOVERY" && state.discovery.completed) {
@@ -44,7 +69,7 @@ export const main = async (
     out.writeln(span.dim("Discovery complete. Spec draft already generated."));
     out.writeln(
       "Review the spec and run ",
-      span.bold("noskills approve"),
+      span.bold(cmd("approve", config)),
       " again when in SPEC_DRAFT phase.",
     );
   } else {

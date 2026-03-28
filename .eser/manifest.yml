@@ -83,7 +83,9 @@ workflows:
           timeout: 120
       - shell:
           name: deno-tests
-          command: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --trace-leaks --coverage=./etc/coverage/
+          command: deno test --allow-sys --allow-net --allow-env --allow-read
+            --allow-write --allow-run --allow-ffi --parallel --trace-leaks
+            --coverage=./etc/coverage/
           timeout: 300
       - shell:
           name: deno-publish-check
@@ -135,10 +137,13 @@ scripts:
 
   # Testing
   test:
-    command: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --trace-leaks --coverage=./etc/coverage/
+    command: deno test --allow-sys --allow-net --allow-env --allow-read
+      --allow-write --allow-run --allow-ffi --parallel --trace-leaks
+      --coverage=./etc/coverage/
     description: Run tests with coverage
   test-watch:
-    command: deno test --allow-sys --allow-net --allow-env --allow-read --allow-write --allow-run --allow-ffi --parallel --watch
+    command: deno test --allow-sys --allow-net --allow-env --allow-read
+      --allow-write --allow-run --allow-ffi --parallel --watch
     description: Run tests in watch mode
 
   # Code quality
@@ -151,7 +156,8 @@ scripts:
   compile: deno run --allow-all ./pkg/@eser/cli/scripts/compile.ts
 
   # Documentation
-  docs: "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts"
+  docs: "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html
+    ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts"
   docs-lint: deno doc --lint ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts
 
   # Docker
@@ -159,7 +165,8 @@ scripts:
   container-run: docker run --interactive --tty --rm eservm
 
   # Maintenance
-  clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./deno.lock && deno check ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts"
+  clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./deno.lock && deno check
+    ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts"
   repl: deno repl --allow-all --unstable-bundle --eval-file=./repl-init.ts
 
   # Coverage

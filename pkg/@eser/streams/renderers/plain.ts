@@ -64,6 +64,25 @@ const renderSpan = (span: spanTypes.Span): string => {
       return span.items
         .map((item) => `  - ${item.map(renderSpan).join("")}`)
         .join("\n") + "\n";
+    case "gauge": {
+      const w = span.width ?? 20;
+      const filled = Math.round(w * span.percent / 100);
+      const empty = w - filled;
+      const bar = `[${"=".repeat(filled)}${" ".repeat(empty)}]`;
+      const label = span.label ? ` ${span.label}` : "";
+      return `${bar} ${span.percent}%${label}`;
+    }
+    case "separator":
+      return span.label ? `--- ${span.label} ---\n` : `${"─".repeat(40)}\n`;
+    case "alert": {
+      const tags = {
+        info: "INFO",
+        success: "OK",
+        warning: "WARN",
+        error: "ERROR",
+      } as const;
+      return `[${tags[span.level]}] ${span.children.map(renderSpan).join("")}`;
+    }
   }
 };
 

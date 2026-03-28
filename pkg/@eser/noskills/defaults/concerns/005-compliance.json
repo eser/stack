@@ -17,5 +17,10 @@
     "Every state change must be traceable",
     "Verification is mandatory, not optional",
     "Document data handling and retention policies"
+  ],
+  "acceptanceCriteria": [
+    "Audit trail added for state changes",
+    "Access control verified",
+    "Data handling documented"
   ]
 }

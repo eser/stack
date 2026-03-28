@@ -8,8 +8,8 @@
     "./module": "./module.ts",
     "./exec": "./exec/mod.ts",
     "./env": "./env/mod.ts",
-    "./formatting": "./formatting/mod.ts",
-    "./formatting/colors": "./formatting/colors.ts"
+    "./tui": "./tui/mod.ts",
+    "./tui/colors": "./tui/colors.ts"
   },
   "imports": {
     "@std/cli": "jsr:@std/cli@^1.0.25"

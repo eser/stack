@@ -12,6 +12,7 @@ import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
+import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -25,6 +26,7 @@ export const main = async (
   const root = runtime.process.cwd();
   const reason = args?.join(" ") ?? "No reason given";
   const state = await persistence.readState(root);
+  const config = await persistence.readManifest(root);
 
   if (state.phase !== "EXECUTING") {
     out.writeln(span.red(`Cannot block in phase: ${state.phase}`));
@@ -39,7 +41,7 @@ export const main = async (
   out.writeln(span.yellow("⚠"), " Spec blocked: ", span.dim(reason));
   out.writeln(
     "Resolve with: ",
-    span.bold('noskills next --answer="resolution"'),
+    span.bold(`${cmd('next --answer="resolution"', config)}`),
   );
   await out.close();
 

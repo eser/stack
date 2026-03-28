@@ -57,8 +57,8 @@ describe("compile", () => {
 
     assertEquals(output.phase, "DISCOVERY");
     const discovery = output as compiler.DiscoveryOutput;
-    assertEquals(discovery.question.id, "status_quo");
-    assertEquals(discovery.transition.remainingQuestions, 5);
+    assertEquals(discovery.questions.length, 6);
+    assertEquals(discovery.questions[0]?.id, "status_quo");
   });
 
   it("DISCOVERY includes rules and concern reminders in context", () => {
@@ -80,16 +80,34 @@ describe("compile", () => {
     ) as compiler.DiscoveryOutput;
 
     // open-source adds an extra to status_quo question
-    assertEquals(output.question.extras.length > 0, true);
+    assertEquals((output.questions[0]?.extras.length ?? 0) > 0, true);
   });
 
-  it("SPEC_DRAFT returns SpecDraftOutput with specPath", () => {
+  it("SPEC_DRAFT without classification shows classification prompt", () => {
     const output = compiler.compile(inSpecDraft(), noConcerns, noRules);
 
     assertEquals(output.phase, "SPEC_DRAFT");
     const specDraft = output as compiler.SpecDraftOutput;
-    assertEquals(specDraft.specPath, ".eser/specs/test-spec/spec.md");
-    assertEquals(specDraft.transition.onApprove, "noskills approve");
+    assertEquals(specDraft.classificationRequired, true);
+    assertEquals(specDraft.classificationPrompt !== undefined, true);
+  });
+
+  it("SPEC_DRAFT with classification shows approve transition", () => {
+    const state = {
+      ...inSpecDraft(),
+      classification: {
+        involvesUI: false,
+        involvesPublicAPI: false,
+        involvesMigration: false,
+        involvesDataHandling: false,
+      },
+    };
+    const output = compiler.compile(state, noConcerns, noRules);
+
+    assertEquals(output.phase, "SPEC_DRAFT");
+    const specDraft = output as compiler.SpecDraftOutput;
+    assertEquals(specDraft.classificationRequired, undefined);
+    assertEquals(specDraft.transition.onApprove.includes("approve"), true);
   });
 
   it("SPEC_APPROVED returns SpecApprovedOutput with onStart transition", () => {
@@ -143,5 +161,130 @@ describe("compile", () => {
     const output = compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.phase, "IDLE");
+  });
+
+  it("every output includes meta block with resumeHint", () => {
+    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+
+    assertEquals(output.meta !== undefined, true);
+    assertEquals(output.meta.spec, "test-spec");
+    assertEquals(typeof output.meta.resumeHint, "string");
+    assertEquals(output.meta.resumeHint.length > 0, true);
+  });
+
+  it("includes protocolGuide on first call (lastCalledAt null)", () => {
+    // Default state has lastCalledAt: null
+    const output = compiler.compile(idle(), noConcerns, noRules);
+
+    assertEquals(output.protocolGuide !== undefined, true);
+    assertEquals(output.protocolGuide!.currentPhase, "IDLE");
+  });
+
+  it("omits protocolGuide when lastCalledAt is recent", () => {
+    const recentState = {
+      ...idle(),
+      lastCalledAt: new Date().toISOString(),
+    };
+    const output = compiler.compile(recentState, noConcerns, noRules);
+
+    assertEquals(output.protocolGuide, undefined);
+  });
+
+  it("includes protocolGuide when lastCalledAt is stale (>5 min)", () => {
+    const staleTime = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const staleState = { ...idle(), lastCalledAt: staleTime };
+    const output = compiler.compile(staleState, noConcerns, noRules);
+
+    assertEquals(output.protocolGuide !== undefined, true);
+  });
+
+  it("EXECUTING includes restartRecommended when over threshold", () => {
+    // Create a state with high iteration count
+    let state = inExecuting();
+    for (let i = 0; i < 16; i++) {
+      state = machine.advanceExecution(state, `step ${i}`);
+    }
+
+    const config = schema.createInitialManifest([], [], [], {
+      languages: [],
+      frameworks: [],
+      ci: [],
+      testRunner: null,
+    });
+    const output = compiler.compile(
+      state,
+      noConcerns,
+      noRules,
+      config,
+    ) as compiler.ExecutionOutput & { meta: compiler.MetaBlock };
+
+    assertEquals(output.restartRecommended, true);
+    assertEquals(typeof output.restartInstruction, "string");
+  });
+
+  it("EXECUTING omits restartRecommended when under threshold", () => {
+    const output = compiler.compile(
+      inExecuting(),
+      noConcerns,
+      noRules,
+    ) as compiler.ExecutionOutput & { meta: compiler.MetaBlock };
+
+    assertEquals(output.restartRecommended, undefined);
+  });
+
+  it("every output includes behavioral block with rules and tone", () => {
+    const phases = [
+      idle(),
+      inDiscovery(),
+      inSpecDraft(),
+      inSpecApproved(),
+      inExecuting(),
+      inBlocked(),
+      inDone(),
+    ];
+
+    for (const state of phases) {
+      const output = compiler.compile(state, noConcerns, noRules);
+
+      assertEquals(output.behavioral !== undefined, true);
+      assertEquals(output.behavioral.rules.length > 0, true);
+      assertEquals(typeof output.behavioral.tone, "string");
+    }
+  });
+
+  it("EXECUTING behavioral says 'Start coding immediately'", () => {
+    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+
+    assertEquals(output.behavioral.tone.includes("Start coding"), true);
+  });
+
+  it("DISCOVERY behavioral says 'messenger'", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+
+    assertEquals(output.behavioral.tone.includes("messenger"), true);
+  });
+
+  it("EXECUTING behavioral includes urgency when over iteration threshold", () => {
+    let state = inExecuting();
+    for (let i = 0; i < 16; i++) {
+      state = machine.advanceExecution(state, `step ${i}`);
+    }
+
+    const config = schema.createInitialManifest([], [], [], {
+      languages: [],
+      frameworks: [],
+      ci: [],
+      testRunner: null,
+    });
+    const output = compiler.compile(state, noConcerns, noRules, config);
+
+    assertEquals(output.behavioral.urgency !== undefined, true);
+    assertEquals(output.behavioral.urgency!.includes("degrading"), true);
+  });
+
+  it("EXECUTING behavioral omits urgency when under threshold", () => {
+    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+
+    assertEquals(output.behavioral.urgency, undefined);
   });
 });

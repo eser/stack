@@ -17,5 +17,9 @@
     "Document learnings, not just outcomes",
     "Dead ends are acceptable — document why",
     "Try new patterns freely, polish later"
+  ],
+  "acceptanceCriteria": [
+    "Learnings documented",
+    "Experiment outcomes recorded"
   ]
 }

@@ -17,5 +17,10 @@
     "Endpoint should be documented in API docs",
     "Consider contributor experience for new patterns",
     "Default to permissive, well-documented choices"
+  ],
+  "acceptanceCriteria": [
+    "Public API documented",
+    "Changes reflected in README or API docs",
+    "No exclusionary patterns introduced"
   ]
 }

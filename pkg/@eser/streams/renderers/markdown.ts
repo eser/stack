@@ -45,6 +45,22 @@ const renderSpan = (span: spanTypes.Span): string => {
       return span.items
         .map((item) => `- ${item.map(renderSpan).join("")}`)
         .join("\n") + "\n";
+    case "gauge": {
+      const label = span.label ? ` — ${span.label}` : "";
+      return `**${span.percent}%**${label}`;
+    }
+    case "separator":
+      return span.label ? `--- ${span.label} ---\n` : "---\n";
+    case "alert": {
+      const prefixes = {
+        info: "ℹ Info",
+        success: "✓ Success",
+        warning: "⚠ Warning",
+        error: "✗ Error",
+      } as const;
+      const body = span.children.map(renderSpan).join("");
+      return `> **${prefixes[span.level]}:** ${body}\n`;
+    }
   }
 };
 

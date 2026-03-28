@@ -12,25 +12,35 @@ import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import { QUESTIONS } from "../context/questions.ts";
+import * as formatter from "../output/formatter.ts";
+import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
-  _args?: readonly string[],
+  args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const out = streams.output({
-    renderer: streams.renderers.ansi(),
-    sink: streams.sinks.stdout(),
-  });
-
   const root = runtime.process.cwd();
+  const fmt = formatter.parseOutputFormat(args);
 
   if (!(await persistence.isInitialized(root))) {
-    out.writeln(
-      span.red("noskills is not initialized."),
-      " Run: ",
-      span.bold("noskills init"),
-    );
-    await out.close();
+    if (fmt === "json") {
+      await formatter.writeFormatted(
+        { error: "noskills is not initialized" },
+        fmt,
+      );
+    } else {
+      const out = streams.output({
+        renderer: streams.renderers.ansi(),
+        sink: streams.sinks.stdout(),
+      });
+      const initConfig = await persistence.readManifest(root);
+      out.writeln(
+        span.red("noskills is not initialized."),
+        " Run: ",
+        span.bold(cmd("init", initConfig)),
+      );
+      await out.close();
+    }
 
     return results.fail({ exitCode: 1 });
   }
@@ -38,61 +48,100 @@ export const main = async (
   const state = await persistence.readState(root);
   const config = await persistence.readManifest(root);
 
-  out.writeln(span.bold("noskills status"));
-  out.writeln("");
+  // Build structured status data
+  const statusData = {
+    phase: state.phase,
+    spec: state.spec,
+    branch: state.branch,
+    discovery: state.phase === "DISCOVERY"
+      ? {
+        answered: state.discovery.answers.length,
+        total: QUESTIONS.length,
+      }
+      : undefined,
+    execution: state.phase === "EXECUTING" || state.phase === "BLOCKED"
+      ? {
+        iteration: state.execution.iteration,
+        lastProgress: state.execution.lastProgress,
+        debt: state.execution.debt?.items.length ?? 0,
+        verificationPassed: state.execution.lastVerification?.passed ?? null,
+      }
+      : undefined,
+    concerns: config?.concerns ?? [],
+    tools: config?.tools ?? [],
+    decisions: state.decisions.length,
+    pendingClear: state.pendingClear,
+  };
 
-  // Phase
-  const phaseColor = state.phase === "DONE"
-    ? span.green(state.phase)
-    : state.phase === "BLOCKED"
-    ? span.red(state.phase)
-    : state.phase === "EXECUTING"
-    ? span.cyan(state.phase)
-    : span.yellow(state.phase);
+  // JSON/text/markdown → use formatter
+  if (fmt !== "json") {
+    // ANSI-formatted output for human modes
+    const out = streams.output({
+      renderer: streams.renderers.ansi(),
+      sink: streams.sinks.stdout(),
+    });
 
-  out.writeln("  Phase:    ", phaseColor);
-
-  if (state.spec !== null) {
-    out.writeln("  Spec:     ", span.bold(state.spec));
-  }
-  if (state.branch !== null) {
-    out.writeln("  Branch:   ", state.branch);
-  }
-
-  // Discovery progress
-  if (state.phase === "DISCOVERY") {
-    const answered = state.discovery.answers.length;
-    out.writeln(
-      `  Discovery: ${answered}/${QUESTIONS.length} questions answered`,
-    );
-  }
-
-  // Execution progress
-  if (state.phase === "EXECUTING") {
-    out.writeln(`  Iteration: ${state.execution.iteration}`);
-    if (state.execution.lastProgress !== null) {
-      out.writeln("  Progress:  ", span.dim(state.execution.lastProgress));
-    }
-  }
-
-  // Config info
-  if (config !== null) {
+    out.writeln(span.bold(`${cmd("status", config)}`));
     out.writeln("");
-    if (config.concerns.length > 0) {
-      out.writeln("  Concerns: ", span.dim(config.concerns.join(", ")));
-    }
-    if (config.tools.length > 0) {
-      out.writeln("  Tools:    ", span.dim(config.tools.join(", ")));
-    }
-  }
 
-  // Decisions
-  if (state.decisions.length > 0) {
-    out.writeln("");
-    out.writeln(`  Decisions: ${state.decisions.length}`);
-  }
+    const phaseColor = state.phase === "DONE"
+      ? span.green(state.phase)
+      : state.phase === "BLOCKED"
+      ? span.red(state.phase)
+      : state.phase === "EXECUTING"
+      ? span.cyan(state.phase)
+      : span.yellow(state.phase);
 
-  await out.close();
+    out.writeln("  Phase:    ", phaseColor);
+    if (state.spec !== null) {
+      out.writeln("  Spec:     ", span.bold(state.spec));
+    }
+    if (state.branch !== null) {
+      out.writeln("  Branch:   ", state.branch);
+    }
+    if (state.phase === "DISCOVERY") {
+      out.writeln(
+        `  Discovery: ${state.discovery.answers.length}/${QUESTIONS.length} questions answered`,
+      );
+    }
+    if (state.phase === "EXECUTING") {
+      out.writeln(`  Iteration: ${state.execution.iteration}`);
+      if (state.execution.lastProgress !== null) {
+        out.writeln(
+          "  Progress:  ",
+          span.dim(state.execution.lastProgress),
+        );
+      }
+      if (state.execution.debt !== null) {
+        out.writeln(
+          span.yellow(
+            `  Debt:      ${state.execution.debt.items.length} items`,
+          ),
+        );
+      }
+    }
+    if (config !== null) {
+      out.writeln("");
+      if (config.concerns.length > 0) {
+        out.writeln("  Concerns: ", span.dim(config.concerns.join(", ")));
+      }
+      if (config.tools.length > 0) {
+        out.writeln("  Tools:    ", span.dim(config.tools.join(", ")));
+      }
+    }
+    if (state.decisions.length > 0) {
+      out.writeln("");
+      out.writeln(`  Decisions: ${state.decisions.length}`);
+    }
+    if (state.pendingClear) {
+      out.writeln("");
+      out.writeln(span.yellow("  ⚠ Context clear pending — run `/clear`"));
+    }
+
+    await out.close();
+  } else {
+    await formatter.writeFormatted(statusData, "json");
+  }
 
   return results.ok(undefined);
 };

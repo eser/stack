@@ -47,9 +47,26 @@ export const moduleDef: Module = new Module({
       description: "Manage concerns (add, remove, list)",
       load: () => import("./commands/concern.ts"),
     },
+    run: {
+      description: "Autonomous execution loop (Ralph loop)",
+      load: () => import("./commands/run.ts"),
+    },
+    watch: {
+      description: "Live dashboard for monitoring agent progress",
+      load: () => import("./commands/watch.ts"),
+    },
     sync: {
       description: "Regenerate tool-specific files",
       load: () => import("./commands/sync.ts"),
+    },
+    purge: {
+      description:
+        "Remove all noskills content (specs, rules, concerns, hooks)",
+      load: () => import("./commands/purge.ts"),
+    },
+    "invoke-hook": {
+      description: "Internal hook handlers (called by agents)",
+      load: () => import("./commands/invoke-hook.ts"),
     },
     rule: {
       description: "Manage rules (add, list, promote)",

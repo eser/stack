@@ -23,6 +23,7 @@ describe("createInitialState", () => {
     assertEquals(state.execution.iteration, 0);
     assertEquals(state.execution.lastProgress, null);
     assertEquals(state.decisions.length, 0);
+    assertEquals(state.lastCalledAt, null);
   });
 });
 
@@ -50,5 +51,6 @@ describe("createInitialManifest", () => {
     assertEquals(config.providers.length, 2);
     assertEquals(config.project.languages.length, 2);
     assertEquals(config.project.testRunner, "deno");
+    assertEquals(config.maxIterationsBeforeRestart, 15);
   });
 });

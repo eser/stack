@@ -301,7 +301,7 @@ jobs:
   compile-binaries:
     name: Compile Binaries
     needs: tag-release
-    runs-on: ubicloud-standard-4-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
 
     permissions:
@@ -341,7 +341,7 @@ jobs:
   upload-assets:
     name: Upload & Sign Assets
     needs: [compile-binaries, release-notes]
-    runs-on: ubicloud-standard-2-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
 
     permissions:

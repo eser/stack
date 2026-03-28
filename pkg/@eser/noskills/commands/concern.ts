@@ -57,44 +57,15 @@ const concernAdd = async (
   });
 
   const root = runtime.process.cwd();
-  const concernId = args?.[0];
+  const concernIds = (args ?? []).filter((a) => !a.startsWith("-"));
 
   const config = await persistence.readManifest(root);
 
-  if (concernId === undefined || concernId.length === 0) {
+  if (concernIds.length === 0) {
     out.writeln(
-      span.red("Please provide a concern ID: "),
-      span.bold(cmd("concern add open-source", config)),
+      span.red("Please provide concern ID(s): "),
+      span.bold(cmd("concern add open-source beautiful-product", config)),
     );
-    await out.close();
-
-    return results.fail({ exitCode: 1 });
-  }
-
-  // Find concern: check .eser/concerns/ first, then built-in defaults
-  let concern = await persistence.readConcern(root, concernId);
-
-  if (concern === null) {
-    // Try built-in defaults
-    const defaults = await loadDefaultConcerns();
-    concern = defaults.find((c) => c.id === concernId) ?? null;
-
-    if (concern !== null) {
-      // Write the built-in concern to .eser/concerns/ so it's available locally
-      await persistence.writeConcern(root, concern);
-    }
-  }
-
-  if (concern === null) {
-    const available = await loadDefaultConcerns();
-    out.writeln(span.red(`Unknown concern: ${concernId}`));
-    if (available.length > 0) {
-      out.writeln(
-        span.dim(
-          `  Available: ${available.map((c) => c.id).join(", ")}`,
-        ),
-      );
-    }
     await out.close();
 
     return results.fail({ exitCode: 1 });
@@ -107,21 +78,52 @@ const concernAdd = async (
     return results.fail({ exitCode: 1 });
   }
 
-  if (config.concerns.includes(concernId)) {
-    out.writeln(span.dim(`Concern "${concernId}" is already active.`));
-    await out.close();
+  const defaults = await loadDefaultConcerns();
+  const added: string[] = [];
 
-    return results.ok(undefined);
+  for (const concernId of concernIds) {
+    // Find concern: check .eser/concerns/ first, then built-in defaults
+    let concern = await persistence.readConcern(root, concernId);
+
+    if (concern === null) {
+      concern = defaults.find((c) => c.id === concernId) ?? null;
+
+      if (concern !== null) {
+        await persistence.writeConcern(root, concern);
+      }
+    }
+
+    if (concern === null) {
+      out.writeln(span.red(`Unknown concern: ${concernId}`));
+      out.writeln(
+        span.dim(
+          `  Available: ${defaults.map((c) => c.id).join(", ")}`,
+        ),
+      );
+      continue;
+    }
+
+    if (config.concerns.includes(concernId) || added.includes(concernId)) {
+      out.writeln(span.dim(`Concern "${concernId}" is already active.`));
+      continue;
+    }
+
+    added.push(concernId);
   }
 
-  const newConfig = {
-    ...config,
-    concerns: [...config.concerns, concernId],
-  };
-  await persistence.writeManifest(root, newConfig);
+  if (added.length > 0) {
+    const newConfig = {
+      ...config,
+      concerns: [...config.concerns, ...added],
+    };
+    await persistence.writeManifest(root, newConfig);
 
-  out.writeln(span.green("✔"), " Activated concern: ", span.bold(concernId));
-  out.writeln(span.dim(`  ${concern.description}`));
+    out.writeln(
+      span.green("✔"),
+      ` Activated concerns: ${added.join(", ")}`,
+    );
+  }
+
   await out.close();
 
   return results.ok(undefined);

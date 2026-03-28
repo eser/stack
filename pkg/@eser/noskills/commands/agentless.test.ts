@@ -338,11 +338,29 @@ describe("No active spec behavior", () => {
       noConcerns,
       noRules,
       config(),
-    ) as compiler.IdleOutput;
+    );
 
     const options = output.interactiveOptions ?? [];
-    const hasSpecNew = options.some((o) => o.command.includes("spec new"));
+    const hasSpecNew = options.some((o: compiler.InteractiveOption) =>
+      o.command.includes("spec new")
+    );
     assertEquals(hasSpecNew, true);
+  });
+
+  it("IDLE output includes availableConcerns list", () => {
+    const output = compiler.compile(
+      idle(),
+      noConcerns,
+      noRules,
+      config(),
+    ) as compiler.IdleOutput;
+
+    assertEquals(output.availableConcerns !== undefined, true);
+    assertEquals(output.availableConcerns!.length > 0, true);
+    assertEquals(
+      output.availableConcerns!.some((c) => c.id === "open-source"),
+      true,
+    );
   });
 
   it("IDLE behavioral instructs agent to use interactive question tool", () => {

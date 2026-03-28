@@ -103,10 +103,10 @@ describe("DISCOVERY behavioral", () => {
     assertEquals(output.behavioral.tone.includes("messenger"), true);
   });
 
-  it("says ask question as written", () => {
+  it("says present questions one at a time", () => {
     const output = compiler.compile(inDiscovery(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("exactly as written")
+      r.includes("ONE AT A TIME")
     );
     assertEquals(has, true);
   });

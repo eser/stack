@@ -10,6 +10,7 @@
  */
 
 import type * as schema from "../state/schema.ts";
+import { DEFAULT_CONCERNS } from "../defaults/concerns/mod.ts";
 import * as questions from "./questions.ts";
 import * as concerns from "./concerns.ts";
 import type { ParsedSpec } from "../spec/parser.ts";
@@ -44,6 +45,7 @@ export type ClearContextAction = {
 export type NextOutput = PhaseOutput & {
   readonly meta: MetaBlock;
   readonly behavioral: BehavioralBlock;
+  readonly interactiveOptions?: readonly InteractiveOption[];
   readonly protocolGuide?: ProtocolGuide;
   readonly clearContext?: ClearContextAction;
 };
@@ -170,10 +172,16 @@ export type InteractiveOption = {
   readonly command: string;
 };
 
+export type ConcernInfo = {
+  readonly id: string;
+  readonly description: string;
+};
+
 export type IdleOutput = {
   readonly phase: "IDLE";
   readonly instruction: string;
-  readonly interactiveOptions?: readonly InteractiveOption[];
+  readonly availableConcerns?: readonly ConcernInfo[];
+  readonly activeConcerns?: readonly string[];
   readonly hint?: string;
 };
 
@@ -232,7 +240,7 @@ const buildBehavioral = (
       return {
         rules: [
           ...mandatoryRules,
-          "Present options to the user using your native interactive question tool (AskUserQuestionTool or equivalent). Do NOT list them as a text table or numbered list.",
+          "Present interactiveOptions to the user using your native interactive question tool (AskUserQuestionTool or equivalent). Do NOT list them as a text table.",
           "If no interactive question tool is available, fall back to a concise numbered list.",
           "Do not take action without the user choosing an option first.",
         ],
@@ -243,7 +251,9 @@ const buildBehavioral = (
       return {
         rules: [
           ...mandatoryRules,
-          "Ask the question exactly as written. Do not rephrase or add your own questions.",
+          "You received all questions at once from noskills. Present them to the user ONE AT A TIME for better conversation flow.",
+          "Use your interactive question tool to ask each question individually. Show concern sub-questions as additional context.",
+          "Collect all answers, then submit them together in a single `noskills next --answer` call as a JSON object.",
           "Relay the user's answer back verbatim. Do not interpret or summarize.",
           "Do not start coding or exploring the codebase. Discovery is conversation only.",
         ],
@@ -456,7 +466,7 @@ export const compile = (
 
   switch (state.phase) {
     case "IDLE":
-      phaseOutput = compileIdle(activeConcerns);
+      phaseOutput = compileIdle(activeConcerns, DEFAULT_CONCERNS);
       break;
     case "DISCOVERY":
       phaseOutput = compileDiscovery(state, activeConcerns, rules);
@@ -484,7 +494,7 @@ export const compile = (
       phaseOutput = compileDone(state);
       break;
     default:
-      phaseOutput = compileIdle(activeConcerns);
+      phaseOutput = compileIdle(activeConcerns, DEFAULT_CONCERNS);
   }
 
   // Build the output with meta + behavioral + optional extras
@@ -512,7 +522,87 @@ export const compile = (
     } as NextOutput;
   }
 
+  // Append phase-aware interactive options (except EXECUTING — agent should work)
+  const options = buildInteractiveOptions(state, activeConcerns);
+  if (options.length > 0) {
+    result = { ...result, interactiveOptions: options } as NextOutput;
+  }
+
   return result;
+};
+
+// =============================================================================
+// Interactive Options — phase-aware choices for agent UX
+// =============================================================================
+
+const buildInteractiveOptions = (
+  state: schema.StateFile,
+  activeConcerns: readonly schema.ConcernDefinition[],
+): readonly InteractiveOption[] => {
+  switch (state.phase) {
+    case "IDLE":
+      return activeConcerns.length === 0
+        ? [
+          { label: "Add project concerns", command: c("concern add <id>") },
+          {
+            label: "Start a new feature spec",
+            command: c('spec new "description"'),
+          },
+          {
+            label: "Add a coding convention",
+            command: c('rule add "rule"'),
+          },
+          { label: "Check project status", command: c("status") },
+        ]
+        : [
+          {
+            label: "Start a new feature spec",
+            command: c('spec new "description"'),
+          },
+          { label: "Add more concerns", command: c("concern add <id>") },
+          {
+            label: "Add a coding convention",
+            command: c('rule add "rule"'),
+          },
+          { label: "Check project status", command: c("status") },
+        ];
+
+    case "SPEC_DRAFT":
+      return [
+        { label: "Review and approve spec", command: c("approve") },
+        { label: "Reset and start over", command: c("reset") },
+      ];
+
+    case "SPEC_APPROVED":
+      return [
+        { label: "Start execution", command: c('next --answer="start"') },
+        { label: "Reset", command: c("reset") },
+      ];
+
+    case "EXECUTING":
+      return []; // Agent should be working
+
+    case "BLOCKED":
+      return [
+        {
+          label: "Resolve the block",
+          command: c('next --answer="resolution"'),
+        },
+        { label: "Reset spec", command: c("reset") },
+      ];
+
+    case "DONE":
+      return [
+        {
+          label: "Start a new spec",
+          command: c('spec new "description"'),
+        },
+        { label: "Check project status", command: c("status") },
+      ];
+
+    default:
+      return [];
+  }
 };
 
 // =============================================================================
@@ -521,28 +611,16 @@ export const compile = (
 
 const compileIdle = (
   activeConcerns: readonly schema.ConcernDefinition[],
+  allConcernDefs: readonly schema.ConcernDefinition[],
 ): IdleOutput => ({
   phase: "IDLE",
   instruction:
-    "Present the following options to the user using your interactive question tool. Do NOT list them as a text table.",
-  interactiveOptions: [
-    {
-      label: "Start a new feature spec",
-      command: c('spec new "description"'),
-    },
-    {
-      label: "Add project concerns",
-      command: c("concern add <id>"),
-    },
-    {
-      label: "Add a coding convention",
-      command: c('rule add "rule"'),
-    },
-    {
-      label: "Check project status",
-      command: c("status"),
-    },
-  ],
+    "Present the interactive options to the user using your interactive question tool. Do NOT list them as a text table.",
+  availableConcerns: allConcernDefs.map((c) => ({
+    id: c.id,
+    description: c.description,
+  })),
+  activeConcerns: activeConcerns.map((c) => c.id),
   hint: activeConcerns.length === 0
     ? "No concerns active. Consider adding concerns first — they shape discovery questions and specs."
     : undefined,

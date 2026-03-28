@@ -1,6 +1,6 @@
 {
   "name": "@eser/events",
-  "version": "4.1.29",
+  "version": "4.1.30",
   "type": "module",
   "exports": {
     ".": "./mod.ts",

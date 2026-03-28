@@ -132,7 +132,7 @@ export const extractExports = (content: string): readonly string[] => {
 
   // Named const/let exports: export const Name =
   const namedConsts = content.matchAll(
-    /export\s{1,100}(?:const|let)\s{1,100}(\w+)\s{0,100}=/g,
+    /export\s+(?:const|let)\s+(\w+)\s*=/g,
   );
   for (const match of namedConsts) {
     if (match[1] !== undefined) {
@@ -142,7 +142,7 @@ export const extractExports = (content: string): readonly string[] => {
 
   // Named class exports: export class Name
   const namedClasses = content.matchAll(
-    /export\s{1,100}class\s{1,100}(\w+)/g,
+    /export\s+class\s+(\w+)/g,
   );
   for (const match of namedClasses) {
     if (match[1] !== undefined) {

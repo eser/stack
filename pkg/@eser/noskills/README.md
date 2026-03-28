@@ -57,6 +57,62 @@ emerge. If you want to discover those limits together, jump on board.
 The name mirrors the SQL -> NoSQL shift: skills define everything upfront,
 noskills determines what's needed at runtime.
 
+## Philosophy — A Scrum Master for Agents
+
+I used to teach Agile. In those trainings, I'd go all the way back to the Toyota
+Production System to explain why we do what we do.
+
+I'd talk about WIP limits — not as a process rule, but as acknowledgment that
+human attention is finite. I'd explain how story points emerged from the need to
+break work into pieces small enough for a single person's working memory. I'd
+walk through why we have daily standups (people lose track), why we have
+Definition of Done (everyone's "done" is different), why we have acceptance
+criteria (without them, work drifts from intent). I'd talk about cognitive load
+— how the brain starts dropping things when you pile on too much context.
+
+When I first encountered context rot in AI agents, it felt familiar. The agent
+starts strong, makes a great plan, then gradually loses the plot — forgets
+instructions, gets sloppy, declares things "done" that aren't. I'd seen this in
+humans. The practices we built around human limitations applied directly.
+
+When I saw Ralph loops, I got excited — they felt like sprints. Each iteration
+starts clean: fresh context, clear goal, defined scope. Just like a sprint
+protects the team from mid-sprint chaos, a Ralph loop protects the agent from
+context accumulation. But just as sprint quality depends on what goes INTO the
+sprint, loop quality depends on what context the agent receives.
+
+I'd also teach Jidoka — one of the pillars of the Toyota Production System.
+Jidoka means "automation with a human touch." The machine runs autonomously, but
+when it detects an anomaly, it stops and calls a human. The human doesn't watch
+every step — they intervene at the right moments. Production quality comes from
+human and machine working together, each doing what they're best at.
+
+noskills is Jidoka for AI coding. The agent runs autonomously through tasks, but
+at every phase transition — discovery, spec approval, blocked decisions — it
+stops and the human decides. The human doesn't watch every line of code. They
+intervene at the moments that matter: what to build, whether the plan is right,
+which tradeoffs to accept. The agent handles execution; the human handles
+judgment.
+
+That's why I stopped using skills and built a scrum master instead:
+
+- **Ralph loops are sprints** — fresh context, clear scope, no carryover rot.
+- **Discovery is sprint planning** — the same questions a good PM asks before
+  work starts.
+- **Backpressure is Definition of Done** — "done" requires evidence, not
+  declaration.
+- **Debt tracking is the sprint board** — unfinished items don't vanish, they
+  carry forward with increasing urgency.
+- **Concerns are team values** — "we care about open source" shapes every
+  decision, just like team values shape how a team works.
+- **Phase transitions are Jidoka stops** — the machine pauses, the human
+  decides, then the machine continues.
+
+The insight isn't technical. It's that the practices we spent decades developing
+for human teams apply directly to AI agents — because the underlying problem is
+the same: finite attention, drifting focus, and the need for structure to keep
+work on track.
+
 ## Getting Started with Claude Code
 
 Open Claude Code and paste:
@@ -67,7 +123,7 @@ If `eser` CLI is not installed:
 
     Run `npx eser@latest noskills init`
 
-That's it. noskills will detect Claude Code, set up hooks, generate CLAUDE.md,
+That's it. noskills will detect Claude Code, set up hooks, generate `CLAUDE.md`,
 and present your next options automatically.
 
 If you want to add this to an existing project where teammates also use
@@ -95,10 +151,10 @@ to prompt-engineer the agent's behavior — noskills handles that.
 eser noskills init
 eser noskills concern add beautiful-product
 eser noskills spec new "photo upload"
-eser noskills next -o text                  # Shows Q1 in plain text
-eser noskills next --answer="users drag files manually" -o text
-eser noskills next -o text                  # Shows Q2
-# ... answer all 6 questions ...
+eser noskills next -o text                  # Shows all 6 questions at once
+eser noskills next --answer='{"status_quo":"...","ambition":"...","reversibility":"...","user_impact":"...","verification":"...","scope_boundary":"..."}' -o text
+# Classification: what does this spec involve?
+eser noskills next --answer='{"involvesUI":true,"involvesPublicAPI":false,"involvesMigration":false,"involvesDataHandling":false}' -o text
 eser noskills approve
 eser noskills next --answer="start" -o text # Begin execution
 eser noskills next --answer="task-1 done" -o text
@@ -107,6 +163,10 @@ eser noskills next --answer='{"completed":["endpoint works"],"remaining":["error
 # debt carries forward to next iteration
 eser noskills status -o markdown
 ```
+
+After discovery, noskills asks you to classify the spec (UI, API, migration,
+data handling). If you skip this by running `approve` directly, all concern
+sections default to N/A — the spec stays clean.
 
 The entire lifecycle works without any agent. noskills is the orchestrator —
 agents and humans are both consumers.
@@ -126,7 +186,13 @@ eser noskills run --max-iterations=20       # Safety valve
 eser noskills run --max-turns=15            # Turns per agent process
 ```
 
-Each iteration is a fresh `claude -p` process with zero context accumulation.
+Each iteration is a fresh `claude -p` process with zero context accumulation —
+this is the Ralph loop pattern (originated by Geoff Huntley). AI agents suffer
+from context rot: the longer they work, the more stale instructions accumulate
+and performance degrades. The Ralph loop solves this by restarting the agent
+every iteration with fresh context while persisting state in files. noskills IS
+the Ralph loop — no separate bash script needed.
+
 State persists in `.eser/.state/state.json` between iterations. The Stop hook
 snapshots git state automatically. Verification backpressure prevents advancing
 past broken tests. When `autoCommit: true` in `manifest.yml`, the `noskills run`
@@ -443,12 +509,13 @@ noskills next --answer='{"involvesUI":true,"involvesPublicAPI":false,"involvesMi
 noskills installs Claude Code hooks that handle state bookkeeping without
 spending LLM tokens:
 
-| Hook                | Event       | What it does                                                                                                         |
-| ------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------- |
-| **pre-tool-use**    | PreToolUse  | Blocks file edits outside EXECUTING phase. Blocks git write commands. Blocks edits when pendingClear is set.         |
-| **stop**            | Stop        | Increments iteration counter, snapshots `git diff` into state, checks restart threshold. The Ralph loop's heartbeat. |
-| **post-file-write** | PostToolUse | Logs modified file paths to `.eser/.state/files-changed.jsonl`                                                       |
-| **post-bash**       | PostToolUse | Logs noskills CLI invocations for observability                                                                      |
+| Hook                | Event        | What it does                                                                                                                                         |
+| ------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **pre-tool-use**    | PreToolUse   | Blocks file edits outside EXECUTING phase. Blocks git write commands. Blocks edits when pendingClear is set.                                         |
+| **stop**            | Stop         | Increments iteration counter, snapshots `git diff` into state, checks restart threshold. The Ralph loop's heartbeat.                                 |
+| **post-file-write** | PostToolUse  | Logs modified file paths to `.eser/.state/files-changed.jsonl`                                                                                       |
+| **post-bash**       | PostToolUse  | Logs noskills CLI invocations for observability                                                                                                      |
+| **session-start**   | SessionStart | Runs `noskills next` at session start so the agent is immediately oriented. No CLAUDE.md reading needed — the hook delivers the current instruction. |
 
 Hooks are CLI subcommands (`noskills invoke-hook <name>`), not generated script
 files. This avoids ESM/CJS issues — the same Deno entry point handles

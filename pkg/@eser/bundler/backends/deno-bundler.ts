@@ -380,14 +380,17 @@ export class DenoBundlerBackend implements Bundler {
       }
 
       // Fix relative import paths (Deno.bundle quirk)
-      content = content.replace(/from\s*["']\.\.\/chunk-/g, 'from"./chunk-');
-      content = content.replace(/from\s*["']\.\.chunk-/g, 'from"./chunk-');
       content = content.replace(
-        /import\s*\(["']\.\.\/chunk-/g,
+        /from\s{0,5}["']\.\.\/chunk-/g,
+        'from"./chunk-',
+      );
+      content = content.replace(/from\s{0,5}["']\.\.chunk-/g, 'from"./chunk-');
+      content = content.replace(
+        /import\s{0,5}\(["']\.\.\/chunk-/g,
         'import("./chunk-',
       );
       content = content.replace(
-        /import\s*\(["']\.\.chunk-/g,
+        /import\s{0,5}\(["']\.\.chunk-/g,
         'import("./chunk-',
       );
 
@@ -603,7 +606,7 @@ export class DenoBundlerBackend implements Bundler {
       // Check if this chunk exports the expected symbol
       const exportPatterns = [
         // export { Symbol } or export { Symbol, ... } or export { X as Symbol }
-        new RegExp(`export\\s*\\{[^}]*\\b${expectedExport}\\b[^}]*\\}`),
+        new RegExp(`export\\s{0,5}\\{[^}]*\\b${expectedExport}\\b[^}]*\\}`),
         // export function Symbol or export const Symbol
         new RegExp(
           `export\\s+(?:function|const|let|var|class)\\s+${expectedExport}\\b`,
@@ -622,7 +625,7 @@ export class DenoBundlerBackend implements Bundler {
 
         // Also find dependency chunks by looking at what this chunk imports
         const importPattern =
-          /from\s*["']\.?\/?([^"']*chunk-[A-Z0-9]+\.js)["']/gi;
+          /from\s{0,5}["']\.?\/?([^"']*chunk-[A-Z0-9]+\.js)["']/gi;
         let match: RegExpExecArray | null;
         while ((match = importPattern.exec(chunkContent)) !== null) {
           const depChunk = runtime.path.basename(match[1] ?? "");
@@ -685,7 +688,7 @@ export class DenoBundlerBackend implements Bundler {
     // Determine main chunk by finding which chunk actually exports the symbol
     // IMPORTANT: Search ALL chunks in the bundle, not just the ones imported by proxy
     // Use specific character class to prevent ReDoS
-    const exportMatch = content.match(/export\s*\{([\w\s,]+)\}/);
+    const exportMatch = content.match(/export\s{0,5}\{([\w\s,]+)\}/);
     if (exportMatch !== null) {
       const exportStatement = exportMatch[1];
       // Match either "Symbol as ExportName" or just "Symbol"
@@ -708,7 +711,7 @@ export class DenoBundlerBackend implements Bundler {
           // Check if this chunk exports the symbol directly
           const exportPatterns = [
             // export { Symbol } or export { Symbol, ... } or export { X as Symbol }
-            new RegExp(`export\\s*\\{[^}]*\\b${exportedSymbol}\\b[^}]*\\}`),
+            new RegExp(`export\\s{0,5}\\{[^}]*\\b${exportedSymbol}\\b[^}]*\\}`),
             // export function Symbol or export const Symbol
             new RegExp(
               `export\\s+(?:function|const|let|var|class)\\s+${exportedSymbol}\\b`,
@@ -782,7 +785,8 @@ export class DenoBundlerBackend implements Bundler {
     }
 
     // Match dynamic imports: import("...")
-    const dynamicImportRegex = /import\s*\(\s*["']([^"']+)["']\s*\)/g;
+    const dynamicImportRegex =
+      /import\s{0,5}\(\s{0,5}["']([^"']+)["']\s{0,5}\)/g;
     while ((match = dynamicImportRegex.exec(content)) !== null) {
       const importPath = match[1];
       if (

@@ -165,9 +165,16 @@ export type DoneOutput = {
   };
 };
 
+export type AvailableAction = {
+  readonly command: string;
+  readonly description: string;
+};
+
 export type IdleOutput = {
   readonly phase: "IDLE";
   readonly instruction: string;
+  readonly availableActions?: readonly AvailableAction[];
+  readonly hint?: string;
 };
 
 export type ContextBlock = {
@@ -438,7 +445,7 @@ export const compile = (
 
   switch (state.phase) {
     case "IDLE":
-      phaseOutput = compileIdle();
+      phaseOutput = compileIdle(activeConcerns);
       break;
     case "DISCOVERY":
       phaseOutput = compileDiscovery(state, activeConcerns, rules);
@@ -466,7 +473,7 @@ export const compile = (
       phaseOutput = compileDone(state);
       break;
     default:
-      phaseOutput = compileIdle();
+      phaseOutput = compileIdle(activeConcerns);
   }
 
   // Build the output with meta + behavioral + optional extras
@@ -501,12 +508,39 @@ export const compile = (
 // Phase Compilers
 // =============================================================================
 
-const compileIdle = (): IdleOutput => ({
-  phase: "IDLE",
-  instruction: `No active spec. Start one with: \`${
-    c('spec new "description"')
-  }\``,
-});
+const compileIdle = (
+  activeConcerns: readonly schema.ConcernDefinition[],
+): IdleOutput => {
+  const output: IdleOutput = {
+    phase: "IDLE",
+    instruction:
+      "noskills is initialized. Ask the user what they would like to do next.",
+    availableActions: [
+      {
+        command: c('spec new "description"'),
+        description: "Start a new feature spec with discovery questions",
+      },
+      {
+        command: c("concern add <id>"),
+        description:
+          "Add project concerns: open-source, beautiful-product, long-lived, move-fast, compliance, learning-project",
+      },
+      {
+        command: c('rule add "rule"'),
+        description: "Add a permanent coding convention",
+      },
+      {
+        command: c("status"),
+        description: "Show current project status",
+      },
+    ],
+    hint: activeConcerns.length === 0
+      ? "No concerns active. Consider adding concerns first — they shape how discovery questions and specs work."
+      : undefined,
+  };
+
+  return output;
+};
 
 const compileDiscovery = (
   state: schema.StateFile,

@@ -42,10 +42,23 @@ export type ShellConfig = {
 };
 
 /**
+ * Specific AI coding agent detected from environment variables.
+ * null means no agent detected (human user).
+ */
+export type AgentTool =
+  | "claude-code"
+  | "cursor"
+  | "kiro"
+  | "copilot"
+  | "windsurf"
+  | null;
+
+/**
  * Complete environment configuration — shell + audience + interaction.
  */
 export type EnvironmentConfig = {
   readonly shell: Shell;
   readonly audience: Audience;
   readonly interaction: Interaction;
+  readonly agentTool: AgentTool;
 };

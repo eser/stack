@@ -8,6 +8,7 @@
  *   invoke-hook stop            — Stop: iteration increment + git snapshot
  *   invoke-hook post-file-write — PostToolUse: log modified files
  *   invoke-hook post-bash       — PostToolUse: log noskills CLI calls
+ *   invoke-hook session-start   — SessionStart: output current noskills instruction
  *
  * Each reads Claude Code hook JSON from stdin, performs logic, outputs
  * JSON to stdout. The LLM is completely unaware these exist.
@@ -18,6 +19,8 @@
 import * as results from "@eser/primitives/results";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
+import * as compiler from "../context/compiler.ts";
+import * as syncEngine from "../sync/engine.ts";
 import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -83,6 +86,8 @@ export const main = async (
       return await handlePostFileWrite();
     case "post-bash":
       return await handlePostBash();
+    case "session-start":
+      return await handleSessionStart();
     default:
       return results.ok(undefined);
   }
@@ -433,6 +438,35 @@ const handlePostBash = async (): Promise<shellArgs.CliResult<void>> => {
   } catch {
     // best effort
   }
+
+  return results.ok(undefined);
+};
+
+// =============================================================================
+// SessionStart: output current noskills instruction
+// =============================================================================
+
+const handleSessionStart = async (): Promise<shellArgs.CliResult<void>> => {
+  const root = runtime.process.cwd();
+
+  // Not initialized — silently skip
+  if (!(await persistence.isInitialized(root))) {
+    return results.ok(undefined);
+  }
+
+  const state = await persistence.readState(root);
+  const config = await persistence.readManifest(root);
+
+  // Load concerns and rules
+  const allConcerns = await persistence.listConcerns(root);
+  const activeConcerns = allConcerns.filter((c) =>
+    config !== null && config.concerns.includes(c.id)
+  );
+  const rules = await syncEngine.loadRules(root);
+
+  // Compile and output the current instruction
+  const output = compiler.compile(state, activeConcerns, rules, config);
+  await writeStdout(output);
 
   return results.ok(undefined);
 };

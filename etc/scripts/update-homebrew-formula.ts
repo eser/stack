@@ -136,7 +136,7 @@ const main = async (): Promise<void> => {
 
   // 2. Read VERSION from repo root
   const repoRoot = new URL("../../", import.meta.url);
-  const versionFilePath = new URL("VERSION", repoRoot).toString();
+  const versionFilePath = new URL("VERSION", repoRoot).pathname;
   const version = (await runtime.fs.readTextFile(versionFilePath)).trim();
 
   if (!/^\d+\.\d+\.\d+$/.test(version)) {

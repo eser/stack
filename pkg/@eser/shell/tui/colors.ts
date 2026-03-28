@@ -7,6 +7,8 @@
  * Only runtime detection utilities remain here.
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
+
 // Utility to strip ANSI codes
 export const stripAnsi = (s: string): string =>
   // deno-lint-ignore no-control-regex
@@ -24,12 +26,9 @@ export const supportsColor = (): boolean => {
     return colorSupportCached;
   }
 
-  // Check for common environment variables
-  if (typeof globalThis.Deno !== "undefined") {
-    colorSupportCached = Deno.stdout.isTerminal?.() ?? true;
-  } else if (typeof globalThis.process !== "undefined") {
-    colorSupportCached = globalThis.process.stdout?.isTTY ?? false;
-  } else {
+  try {
+    colorSupportCached = runtime.process.isTerminal("stdout");
+  } catch {
     colorSupportCached = false;
   }
 

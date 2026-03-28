@@ -12,6 +12,7 @@
 
 import type * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
+import { runtime } from "@eser/standards/cross-runtime";
 
 // =============================================================================
 // Types
@@ -32,16 +33,17 @@ export type KeypressEvent = {
 /**
  * Execute a function with the terminal in raw mode.
  * Restores normal mode in `finally`, even on error or cancellation.
+ * Uses `@eser/standards/cross-runtime` for runtime-agnostic raw mode control.
  */
 export const withRawMode = async <T>(fn: () => Promise<T>): Promise<T> => {
   let rawEnabled = false;
 
-  if (typeof globalThis.Deno !== "undefined") {
+  if (runtime.capabilities.stdin && runtime.process.isTerminal("stdin")) {
     try {
-      Deno.stdin.setRaw(true);
+      runtime.process.setStdinRaw(true);
       rawEnabled = true;
     } catch {
-      // Not a TTY (e.g., piped input or test environment) — proceed without raw mode
+      // Not a TTY or raw mode not supported
     }
   }
 
@@ -50,7 +52,7 @@ export const withRawMode = async <T>(fn: () => Promise<T>): Promise<T> => {
   } finally {
     if (rawEnabled) {
       try {
-        Deno.stdin.setRaw(false);
+        runtime.process.setStdinRaw(false);
       } catch {
         // stdin may have been closed
       }

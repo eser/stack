@@ -212,6 +212,12 @@ const createStubProcess = (runtimeName: RuntimeName): Runtime["process"] => {
     get stderr(): WritableStream<Uint8Array> {
       throw new RuntimeCapabilityError("process", runtimeName);
     },
+    isTerminal(): boolean {
+      return false;
+    },
+    setStdinRaw(): void {
+      throw new RuntimeCapabilityError("process", runtimeName);
+    },
   };
 };
 

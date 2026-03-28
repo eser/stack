@@ -194,6 +194,12 @@ const createWorkerdProcess = (): RuntimeProcess => {
     get stderr(): WritableStream<Uint8Array> {
       throw new RuntimeCapabilityError("process", "workerd");
     },
+    isTerminal(): boolean {
+      return false;
+    },
+    setStdinRaw(): void {
+      throw new RuntimeCapabilityError("process", "workerd");
+    },
   };
 };
 

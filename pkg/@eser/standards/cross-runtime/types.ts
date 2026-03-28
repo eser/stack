@@ -747,6 +747,21 @@ export interface RuntimeProcess {
    * Standard error as a writable stream.
    */
   readonly stderr: WritableStream<Uint8Array>;
+
+  /**
+   * Check if a standard stream is attached to a TTY (terminal).
+   * @param stream - Which stream to check
+   * @returns true if the stream is a terminal
+   */
+  isTerminal(stream: "stdin" | "stdout" | "stderr"): boolean;
+
+  /**
+   * Enable or disable raw mode on stdin.
+   * In raw mode, input is available character by character,
+   * and special processing (echo, line editing) is disabled.
+   * @throws If stdin is not a TTY
+   */
+  setStdinRaw(raw: boolean): void;
 }
 
 // =============================================================================

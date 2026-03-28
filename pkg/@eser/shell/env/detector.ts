@@ -166,15 +166,7 @@ export const detectAudience = (): Audience => {
  */
 export const detectInteraction = (): Interaction => {
   try {
-    if (typeof globalThis.Deno !== "undefined" && Deno.stdin.isTerminal()) {
-      return "interactive";
-    }
-
-    const proc = (globalThis as Record<string, unknown>)["process"] as
-      | { stdin?: { isTTY?: boolean } }
-      | undefined;
-
-    if (proc?.stdin?.isTTY === true) {
+    if (runtime.capabilities.stdin && runtime.process.isTerminal("stdin")) {
       return "interactive";
     }
   } catch {

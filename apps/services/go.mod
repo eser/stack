@@ -13,7 +13,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.27.1
 	github.com/getkin/kin-openapi v0.134.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/jackc/pgx/v5 v5.9.0
+	github.com/jackc/pgx/v5 v5.9.1
 	github.com/nicksnyder/go-i18n/v2 v2.6.1
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/openai/openai-go v1.12.0
@@ -34,8 +34,8 @@ require (
 	golang.org/x/net v0.52.0
 	golang.org/x/sys v0.42.0
 	golang.org/x/text v0.35.0
-	google.golang.org/genai v1.51.0
-	modernc.org/sqlite v1.47.0
+	google.golang.org/genai v1.52.0
+	modernc.org/sqlite v1.48.0
 )
 
 require (

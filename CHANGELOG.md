@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.1.41 - 2026-03-29
+
+### Added
+
+- **noskills:** add adapter pattern for sync engine with full Kiro integration
+
 ## 4.1.40 - 2026-03-29
 
 ### Changed

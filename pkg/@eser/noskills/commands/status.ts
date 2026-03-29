@@ -46,7 +46,8 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  const state = await persistence.readState(root);
+  const specFlag = persistence.parseSpecFlag(args);
+  const state = await persistence.resolveState(root, specFlag);
   const config = await persistence.readManifest(root);
 
   // Build structured status data
@@ -54,7 +55,7 @@ export const main = async (
     phase: state.phase,
     spec: state.spec,
     branch: state.branch,
-    discovery: state.phase === "DISCOVERY"
+    discovery: state.phase === "DISCOVERY" || state.phase === "DISCOVERY_REVIEW"
       ? {
         answered: state.discovery.answers.length,
         total: QUESTIONS.length,
@@ -71,7 +72,6 @@ export const main = async (
     concerns: config?.concerns ?? [],
     tools: config?.tools ?? [],
     decisions: state.decisions.length,
-    pendingClear: state.pendingClear,
   };
 
   // JSON mode: use compiler.compile for full output with interactiveOptions
@@ -114,7 +114,7 @@ export const main = async (
     if (state.branch !== null) {
       out.writeln("  Branch:   ", state.branch);
     }
-    if (state.phase === "DISCOVERY") {
+    if (state.phase === "DISCOVERY" || state.phase === "DISCOVERY_REVIEW") {
       out.writeln(
         `  Discovery: ${state.discovery.answers.length}/${QUESTIONS.length} questions answered`,
       );
@@ -148,11 +148,6 @@ export const main = async (
       out.writeln("");
       out.writeln(`  Decisions: ${state.decisions.length}`);
     }
-    if (state.pendingClear) {
-      out.writeln("");
-      out.writeln(span.yellow("  ⚠ Context clear pending — run `/clear`"));
-    }
-
     await out.close();
   }
 

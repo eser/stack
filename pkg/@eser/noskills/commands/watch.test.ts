@@ -32,7 +32,6 @@ const baseSnapshot = (): WatchSnapshot => ({
   concerns: ["open-source", "beautiful-product"],
   maxIterations: 15,
   awaitingStatusReport: false,
-  pendingClear: false,
   verificationPassed: true,
   decisionsCount: 2,
   discoveryAnswered: 6,
@@ -259,12 +258,6 @@ describe("Watch status flags", () => {
     };
     const output = renderTerminal(snap);
     assertEquals(output.includes("Status report pending"), true);
-  });
-
-  it("shows /clear pending", () => {
-    const snap: WatchSnapshot = { ...baseSnapshot(), pendingClear: true };
-    const output = renderTerminal(snap);
-    assertEquals(output.includes("/clear pending"), true);
   });
 
   it("shows verification failed", () => {

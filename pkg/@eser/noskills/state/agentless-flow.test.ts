@@ -99,9 +99,13 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
 
     assertEquals(state.discovery.answers.length, 6);
 
-    // === Step 4: Complete discovery → SPEC_DRAFT ===
+    // === Step 4: Complete discovery → DISCOVERY_REVIEW ===
     assertEquals(questions.isDiscoveryComplete(state.discovery.answers), true);
     state = machine.completeDiscovery(state);
+    assertEquals(state.phase, "DISCOVERY_REVIEW");
+
+    // Approve discovery review → SPEC_DRAFT
+    state = machine.approveDiscoveryReview(state);
     assertEquals(state.phase, "SPEC_DRAFT");
     assertEquals(state.classification, null); // not yet classified
 
@@ -117,7 +121,8 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     state = {
       ...state,
       classification: {
-        involvesUI: false,
+        involvesWebUI: false,
+        involvesCLI: false,
         involvesPublicAPI: false,
         involvesMigration: false,
         involvesDataHandling: false,
@@ -190,16 +195,16 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     const execWithReport = output7 as compiler.ExecutionOutput;
     assertEquals(execWithReport.statusReportRequired, true);
     assertEquals(execWithReport.statusReport !== undefined, true);
-    // Classification filters concern criteria — involvesUI=false means no beautiful-product
+    // Classification filters keyword-specific ACs — involvesWebUI=false means no "Mobile layout" etc.
     assertEquals(
       execWithReport.statusReport!.criteria.some((c) =>
-        c.text.includes("beautiful-product")
+        c.text.includes("Mobile layout")
       ),
       false,
     );
     assertEquals(
       execWithReport.statusReport!.criteria.some((c) =>
-        c.text.includes("open-source")
+        c.text.includes("Public API documented")
       ),
       false,
     );
@@ -212,16 +217,7 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
         awaitingStatusReport: false,
         debt: null,
       },
-      pendingClear: true, // task accepted
     };
-
-    // pendingClear → clearContext emitted
-    const output7b = compiler.compile(state, activeConcerns, rules, config());
-    assertEquals(output7b.clearContext !== undefined, true);
-    assertEquals(output7b.clearContext!.action, "clear_context");
-
-    // After /clear, agent calls noskills next → pendingClear resets
-    state = { ...state, pendingClear: false };
 
     // === Step 8: Advance and complete ===
     state = machine.advanceExecution(state, "all tasks done");
@@ -256,6 +252,9 @@ describe("Output format consistency across phases", () => {
     const disc = { name: "DISCOVERY", state: s };
 
     s = machine.completeDiscovery(s);
+    const discReview = { name: "DISCOVERY_REVIEW", state: s };
+
+    s = machine.approveDiscoveryReview(s);
     const draft = { name: "SPEC_DRAFT", state: s };
 
     s = machine.approveSpec(s);
@@ -274,7 +273,7 @@ describe("Output format consistency across phases", () => {
       state: machine.transition(s, "DONE"),
     };
 
-    return [idle, disc, draft, approved, exec, blocked, done];
+    return [idle, disc, discReview, draft, approved, exec, blocked, done];
   };
 
   it("every phase produces valid JSON output", () => {

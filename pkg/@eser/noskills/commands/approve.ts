@@ -18,7 +18,7 @@ import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
-  _args?: readonly string[],
+  args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -26,7 +26,8 @@ export const main = async (
   });
 
   const root = runtime.process.cwd();
-  const state = await persistence.readState(root);
+  const specFlag = persistence.parseSpecFlag(args);
+  const state = await persistence.resolveState(root, specFlag);
   const config = await persistence.readManifest(root);
 
   if (state.phase === "SPEC_DRAFT") {
@@ -63,6 +64,21 @@ export const main = async (
       "When ready, run ",
       span.bold(`${cmd('next --answer="start"')}`),
       " to begin execution.",
+    );
+  } else if (state.phase === "DISCOVERY_REVIEW") {
+    // Approve discovery review → transition to SPEC_DRAFT
+    const newState = machine.approveDiscoveryReview(state);
+    await persistence.writeState(root, newState);
+
+    out.writeln(
+      span.green("✔"),
+      " Discovery answers approved. Phase: ",
+      span.cyan("SPEC_DRAFT"),
+    );
+    out.writeln(
+      "Review the spec and run ",
+      span.bold(cmd("approve")),
+      " again to approve.",
     );
   } else if (state.phase === "DISCOVERY" && state.discovery.completed) {
     // Already completed discovery, move to spec draft

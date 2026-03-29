@@ -3,7 +3,7 @@
 import { describe, it } from "@std/testing/bdd";
 import { assertEquals } from "@std/assert";
 import * as template from "./template.ts";
-import type * as schema from "../state/schema.ts";
+import * as schema from "../state/schema.ts";
 import { loadDefaultConcerns } from "../context/concerns.ts";
 
 // =============================================================================
@@ -65,7 +65,8 @@ describe("renderSpec", () => {
 
   it("includes concern sections when classification says relevant", () => {
     const apiClassification = {
-      involvesUI: false,
+      involvesWebUI: false,
+      involvesCLI: false,
       involvesPublicAPI: true,
       involvesMigration: false,
       involvesDataHandling: false,
@@ -84,7 +85,8 @@ describe("renderSpec", () => {
 
   it("skips irrelevant concern sections based on classification", () => {
     const noUiClassification = {
-      involvesUI: false,
+      involvesWebUI: false,
+      involvesCLI: false,
       involvesPublicAPI: false,
       involvesMigration: false,
       involvesDataHandling: false,
@@ -128,5 +130,121 @@ describe("renderSpec", () => {
     const md = template.renderSpec("test", [], [], []);
 
     assertEquals(md.includes("## Status: draft"), true);
+  });
+});
+
+// =============================================================================
+// deriveTasks — sentence splitting and clean titles
+// =============================================================================
+
+describe("deriveTasks", () => {
+  it("splits ambition by sentences, not commas", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "ambition",
+        answer:
+          "Add upload endpoint with validation. Support multiple file types.",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 2);
+    assertEquals(
+      tasks[0]!.includes("upload endpoint with validation"),
+      true,
+    );
+    assertEquals(tasks[1]!.includes("multiple file types"), true);
+  });
+
+  it("keeps verification as single task even with commas", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "verification",
+        answer:
+          "Run noskills sync, check CLAUDE.md contains Phase Transition Protocol section and --validate docs",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.includes("Run noskills sync"), true);
+    assertEquals(tasks[0]!.includes("Phase Transition Protocol"), true);
+  });
+
+  it("strips garbled prefixes like 'the target:'", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "ambition",
+        answer:
+          "10-star: the target: Full protocol section with phase transition docs",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 1);
+    assertEquals(
+      tasks[0],
+      "Full protocol section with phase transition docs",
+    );
+  });
+
+  it("does not split ambition on commas or 'and'", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "ambition",
+        answer:
+          "Build a dashboard with filtering, sorting, and pagination support",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    // Should be 1 task, not 3
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.includes("filtering"), true);
+    assertEquals(tasks[0]!.includes("sorting"), true);
+    assertEquals(tasks[0]!.includes("pagination"), true);
+  });
+
+  it("splits ambition on newlines into separate tasks", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "ambition",
+        answer: "Add photo upload endpoint\nAdd video upload endpoint",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 2);
+    assertEquals(tasks[0]!.includes("photo upload"), true);
+    assertEquals(tasks[1]!.includes("video upload"), true);
+  });
+
+  it("verification with newlines produces multiple tasks", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "verification",
+        answer: "Run unit tests\nCheck e2e tests pass\nVerify deployment",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 3);
+    assertEquals(tasks[0], "Run unit tests");
+    assertEquals(tasks[1], "Check e2e tests pass");
+    assertEquals(tasks[2], "Verify deployment");
+  });
+
+  it("verification does not add 'Verify:' prefix", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "verification",
+        answer: "Run noskills sync",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.startsWith("Verify:"), false);
+    assertEquals(tasks[0], "Run noskills sync");
   });
 });

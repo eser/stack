@@ -24,8 +24,10 @@ export const main = async (
   });
 
   const root = runtime.process.cwd();
-  const reason = args?.join(" ") ?? "No reason given";
-  const state = await persistence.readState(root);
+  const specFlag = persistence.parseSpecFlag(args);
+  const filteredArgs = (args ?? []).filter((a) => !a.startsWith("--spec="));
+  const reason = filteredArgs.join(" ") || "No reason given";
+  const state = await persistence.resolveState(root, specFlag);
 
   if (state.phase !== "EXECUTING") {
     out.writeln(span.red(`Cannot block in phase: ${state.phase}`));

@@ -10,7 +10,7 @@
  */
 
 // =============================================================================
-// noskills command detection (for pendingClear whitelist)
+// noskills command detection (control plane whitelist)
 // =============================================================================
 
 /** Check if a Bash command is a noskills/nos CLI command (control plane). */

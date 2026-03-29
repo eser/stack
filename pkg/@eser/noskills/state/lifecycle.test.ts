@@ -44,10 +44,14 @@ describe("Full lifecycle: IDLE → DONE", () => {
     state = answerAllQuestions(state);
     assertEquals(state.discovery.answers.length, 6);
 
-    // DISCOVERY → SPEC_DRAFT
+    // DISCOVERY → DISCOVERY_REVIEW
     state = machine.completeDiscovery(state);
-    assertEquals(state.phase, "SPEC_DRAFT");
+    assertEquals(state.phase, "DISCOVERY_REVIEW");
     assertEquals(state.discovery.completed, true);
+
+    // DISCOVERY_REVIEW → SPEC_DRAFT
+    state = machine.approveDiscoveryReview(state);
+    assertEquals(state.phase, "SPEC_DRAFT");
     assertEquals(state.specState.status, "draft");
 
     // SPEC_DRAFT → SPEC_APPROVED
@@ -127,6 +131,7 @@ describe("Lifecycle with BLOCKED state", () => {
     state = machine.startSpec(state, "api", "spec/api");
     state = answerAllQuestions(state);
     state = machine.completeDiscovery(state);
+    state = machine.approveDiscoveryReview(state);
     state = machine.approveSpec(state);
     state = machine.startExecution(state);
 
@@ -168,6 +173,7 @@ describe("Reset mid-workflow", () => {
     state = machine.startSpec(state, "feature", "spec/feature");
     state = answerAllQuestions(state);
     state = machine.completeDiscovery(state);
+    state = machine.approveDiscoveryReview(state);
     state = machine.approveSpec(state);
     state = machine.startExecution(state);
 
@@ -210,7 +216,6 @@ describe("Reset mid-workflow", () => {
     assertEquals(state.execution.debt, null);
     assertEquals(state.execution.awaitingStatusReport, false);
     assertEquals(state.decisions.length, 0);
-    assertEquals(state.pendingClear, false);
   });
 });
 
@@ -229,7 +234,7 @@ describe("Invalid transition shortcuts blocked", () => {
     assertThrows(() => machine.approveSpec(state), Error);
   });
 
-  it("cannot advanceExecution from SPEC_DRAFT", () => {
+  it("cannot advanceExecution from DISCOVERY_REVIEW", () => {
     let state = machine.startSpec(idle(), "x", "spec/x");
     state = machine.completeDiscovery(state);
     assertThrows(() => machine.advanceExecution(state, "x"), Error);
@@ -239,6 +244,7 @@ describe("Invalid transition shortcuts blocked", () => {
     let state = machine.startSpec(idle(), "x", "spec/x");
     state = answerAllQuestions(state);
     state = machine.completeDiscovery(state);
+    state = machine.approveDiscoveryReview(state);
     state = machine.approveSpec(state);
     state = machine.startExecution(state);
     assertThrows(() => machine.startSpec(state, "y", "spec/y"), Error);

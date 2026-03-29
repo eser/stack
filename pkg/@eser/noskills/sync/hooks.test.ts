@@ -23,19 +23,10 @@ type HookDecision = { allow: true } | { allow: false; reason: string };
 const enforcePreToolUse = (input: {
   tool_name: string;
   tool_input: Record<string, unknown>;
-  state: { phase: string; pendingClear?: boolean } | null;
+  state: { phase: string } | null;
   allowGit?: boolean;
 }): HookDecision => {
   const { tool_name, tool_input, state, allowGit } = input;
-
-  // pendingClear blocks ALL tools
-  if (state?.pendingClear === true) {
-    return {
-      allow: false,
-      reason:
-        "Task accepted. You must run `/clear` and then `npx eser noskills next` before continuing.",
-    };
-  }
 
   // Bash: git write guard
   if (tool_name === "Bash") {
@@ -323,47 +314,6 @@ describe("PreToolUse: git protection", () => {
       state: { phase: "EXECUTING" },
     });
     assertEquals(result.allow, false);
-  });
-});
-
-// =============================================================================
-// PreToolUse: pendingClear
-// =============================================================================
-
-describe("PreToolUse: pendingClear", () => {
-  it("blocks file edit when pendingClear is true", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Write",
-      tool_input: { file_path: "/src/index.ts" },
-      state: { phase: "EXECUTING", pendingClear: true },
-    });
-    assertEquals(result.allow, false);
-    assertEquals(
-      (result as { reason: string }).reason.includes("/clear"),
-      true,
-    );
-  });
-
-  it("blocks bash when pendingClear is true", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "echo hello" },
-      state: { phase: "EXECUTING", pendingClear: true },
-    });
-    assertEquals(result.allow, false);
-    assertEquals(
-      (result as { reason: string }).reason.includes("/clear"),
-      true,
-    );
-  });
-
-  it("allows when pendingClear is false", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Write",
-      tool_input: { file_path: "/src/index.ts" },
-      state: { phase: "EXECUTING", pendingClear: false },
-    });
-    assertEquals(result.allow, true);
   });
 });
 

@@ -28,6 +28,7 @@ const inExecuting = (): schema.StateFile => {
   let s = idle();
   s = machine.startSpec(s, "test-spec", "spec/test-spec");
   s = machine.completeDiscovery(s);
+  s = machine.approveDiscoveryReview(s);
   s = machine.approveSpec(s);
   s = machine.startExecution(s);
   return s;

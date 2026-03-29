@@ -29,7 +29,8 @@ const inDiscovery = (): schema.StateFile =>
 const inExecuting = (): schema.StateFile => {
   const s = machine.startSpec(idle(), "test-spec", "spec/test-spec");
   const sd = machine.completeDiscovery(s);
-  const sa = machine.approveSpec(sd);
+  const sdr = machine.approveDiscoveryReview(sd);
+  const sa = machine.approveSpec(sdr);
   return machine.startExecution(sa);
 };
 
@@ -411,11 +412,9 @@ describe("Behavioral with concerns active", () => {
 // =============================================================================
 
 describe("IDLE behavioral — AskUserQuestion and concerns", () => {
-  it("tells agent to use ONLY label and description for AskUserQuestion", () => {
+  it("tells agent to pass interactiveOptions DIRECTLY and use commandMap", () => {
     const output = compiler.compile(idle(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("do NOT include the command field")
-    );
+    const has = output.behavioral.rules.some((r) => r.includes("commandMap"));
     assertEquals(has, true);
   });
 

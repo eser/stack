@@ -17,7 +17,7 @@ import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
-  _args?: readonly string[],
+  args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -25,7 +25,8 @@ export const main = async (
   });
 
   const root = runtime.process.cwd();
-  const state = await persistence.readState(root);
+  const specFlag = persistence.parseSpecFlag(args);
+  const state = await persistence.resolveState(root, specFlag);
 
   if (state.phase !== "EXECUTING") {
     out.writeln(span.red(`Cannot complete in phase: ${state.phase}`));

@@ -19,6 +19,7 @@ import * as specParser from "../spec/parser.ts";
 import * as specUpdater from "../spec/updater.ts";
 import * as folderRules from "../context/folder-rules.ts";
 import * as formatter from "../output/formatter.ts";
+import * as mode from "../output/mode.ts";
 import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -47,7 +48,8 @@ export const main = async (
     }
   }
 
-  let state = await persistence.readState(root);
+  const specFlag = persistence.parseSpecFlag(cleanArgs);
+  let state = await persistence.resolveState(root, specFlag);
   const config = await persistence.readManifest(root);
 
   // Set command prefix from manifest for cmd() / cmdPrefix() calls
@@ -56,16 +58,16 @@ export const main = async (
     setCommandPrefix(config.command);
   }
 
-  // If pendingClear is set, reset it — the agent called noskills next after /clear
-  if (state.pendingClear) {
-    state = { ...state, pendingClear: false };
-    await persistence.writeStateAndSpec(root, state);
-  }
-
   if (config === null) {
     await formatter.writeFormatted({ error: "No config found" }, fmt);
 
     return results.fail({ exitCode: 1 });
+  }
+
+  // Detect audience mode and persist on discovery state
+  const audience = mode.detectMode(cleanArgs, config);
+  if (state.phase === "DISCOVERY" && state.discovery.audience !== audience) {
+    state = { ...state, discovery: { ...state.discovery, audience } };
   }
 
   // Load active concerns
@@ -165,7 +167,7 @@ export const main = async (
 
 import type * as schema from "../state/schema.ts";
 
-const handleAnswer = async (
+export const handleAnswer = async (
   root: string,
   state: schema.StateFile,
   config: schema.NosManifest,
@@ -174,7 +176,9 @@ const handleAnswer = async (
 ): Promise<schema.StateFile> => {
   switch (state.phase) {
     case "DISCOVERY": {
-      // Try parsing answer as JSON object with all answers at once
+      const isAgent = state.discovery.audience === "agent";
+
+      // Try parsing answer as JSON object for batch submission
       let answersMap: Record<string, string> | null = null;
       try {
         const parsed = JSON.parse(answer);
@@ -182,40 +186,78 @@ const handleAnswer = async (
           typeof parsed === "object" && parsed !== null &&
           !Array.isArray(parsed)
         ) {
-          answersMap = parsed as Record<string, string>;
+          if (isAgent) {
+            // Agent mode: only batch if ALL required question IDs are present
+            const requiredIds = questions.QUESTIONS.map((q) => q.id);
+            const hasAll = requiredIds.every((id) => id in parsed);
+            if (hasAll) {
+              answersMap = parsed as Record<string, string>;
+            }
+          } else {
+            // Human mode: any JSON object is treated as batch
+            answersMap = parsed as Record<string, string>;
+          }
         }
       } catch {
-        // Not JSON — treat as single answer for backward compat
+        // Not JSON — fall through to single answer mode
       }
 
       let newState = state;
 
       if (answersMap !== null) {
-        // Batch mode: add all answers at once
+        // Batch mode: add all answers at once (human/agentless CLI)
         for (const [qId, qAnswer] of Object.entries(answersMap)) {
           if (typeof qAnswer === "string" && qAnswer.length > 0) {
             newState = machine.addDiscoveryAnswer(newState, qId, qAnswer);
           }
         }
       } else {
-        // Single answer mode (backward compat): find next unanswered question
+        // Single answer mode (agent one-at-a-time): answer current question and advance
         const allQuestions = questions.getQuestionsWithExtras(activeConcerns);
-        const nextQ = questions.getNextUnanswered(
-          allQuestions,
-          newState.discovery.answers,
-        );
+        const currentIdx = newState.discovery.currentQuestion;
+        const currentQ = allQuestions[currentIdx];
 
-        if (nextQ === null) return state;
-        newState = machine.addDiscoveryAnswer(newState, nextQ.id, answer);
+        if (currentQ === undefined) return state;
+        newState = machine.addDiscoveryAnswer(newState, currentQ.id, answer);
+        newState = machine.advanceDiscoveryQuestion(newState);
       }
 
-      // Check if discovery is complete — transition to SPEC_DRAFT
-      // (spec.md generated later, after classification is provided)
+      // Check if discovery is complete — transition to DISCOVERY_REVIEW
       if (questions.isDiscoveryComplete(newState.discovery.answers)) {
         newState = machine.completeDiscovery(newState);
       }
 
       return newState;
+    }
+
+    case "DISCOVERY_REVIEW": {
+      // "approve" → transition to SPEC_DRAFT
+      if (answer.trim().toLowerCase() === "approve") {
+        return machine.approveDiscoveryReview(state);
+      }
+
+      // Revision: parse JSON with { revise: { questionId: "corrected answer" } }
+      try {
+        const parsed = JSON.parse(answer);
+        if (typeof parsed.revise === "object" && parsed.revise !== null) {
+          let newState = state;
+          for (
+            const [qId, qAnswer] of Object.entries(
+              parsed.revise as Record<string, string>,
+            )
+          ) {
+            if (typeof qAnswer === "string" && qAnswer.length > 0) {
+              newState = machine.addDiscoveryAnswer(newState, qId, qAnswer);
+            }
+          }
+          // Stay in DISCOVERY_REVIEW — updated answers, re-show for confirmation
+          return newState;
+        }
+      } catch {
+        // Not JSON — ignore
+      }
+
+      return state;
     }
 
     case "SPEC_DRAFT": {
@@ -226,7 +268,10 @@ const handleAnswer = async (
         try {
           const parsed = JSON.parse(answer);
           classification = {
-            involvesUI: parsed.involvesUI === true,
+            involvesWebUI: parsed.involvesWebUI === true ||
+              parsed.involvesUI === true,
+            involvesCLI: parsed.involvesCLI === true ||
+              parsed.involvesUI === true,
             involvesPublicAPI: parsed.involvesPublicAPI === true,
             involvesMigration: parsed.involvesMigration === true,
             involvesDataHandling: parsed.involvesDataHandling === true,
@@ -234,7 +279,8 @@ const handleAnswer = async (
         } catch {
           // If not JSON, default to all false
           classification = {
-            involvesUI: false,
+            involvesWebUI: false,
+            involvesCLI: false,
             involvesPublicAPI: false,
             involvesMigration: false,
             involvesDataHandling: false,
@@ -257,7 +303,45 @@ const handleAnswer = async (
         return newState;
       }
 
-      // Already classified — nothing to do in SPEC_DRAFT via --answer
+      // Already classified — check for refinement
+      try {
+        const parsed = JSON.parse(answer);
+        if (
+          typeof parsed.refinement === "string" &&
+          parsed.refinement.length > 0
+        ) {
+          const refinementText = parsed.refinement;
+
+          if (state.spec !== null) {
+            const specFile = `${root}/${
+              persistence.paths.specFile(state.spec)
+            }`;
+            const currentContent = await runtime.fs.readTextFile(specFile);
+
+            // If refinement contains "task-" patterns, replace the Tasks section
+            if (refinementText.includes("task-")) {
+              // Split ONLY on "task-N:" prefix boundaries, preserving full descriptions
+              const taskLines = parseRefinementTasks(refinementText);
+              const newTasksSection = taskLines.map(
+                (t: string) => `- [ ] ${t}`,
+              ).join("\n");
+
+              // Replace the ## Tasks section in the spec
+              const tasksRegex = /## Tasks\n\n([\s\S]*?)(?=\n## |\n*$)/;
+              const updatedContent = currentContent.replace(
+                tasksRegex,
+                `## Tasks\n\n${newTasksSection}\n`,
+              );
+              await runtime.fs.writeTextFile(specFile, updatedContent);
+            }
+          }
+
+          return state; // Stay in SPEC_DRAFT
+        }
+      } catch {
+        // Not JSON — ignore
+      }
+
       return state;
     }
 
@@ -359,6 +443,21 @@ const handleAnswer = async (
 };
 
 // =============================================================================
+// Refinement Task Parsing
+// =============================================================================
+
+/**
+ * Parse refinement text containing "task-N:" prefixed lines into task entries.
+ * Splits ONLY on the task-N: prefix pattern, preserving full descriptions.
+ */
+export const parseRefinementTasks = (text: string): string[] => {
+  return text
+    .split(/(?=task-\d+:)/)
+    .map((t) => t.replace(/[,;\n\s]+$/, "").trim())
+    .filter((t) => /^task-\d+:/.test(t));
+};
+
+// =============================================================================
 // Status Report Processing
 // =============================================================================
 
@@ -373,6 +472,7 @@ const processStatusReport = async (
     completed?: string[];
     remaining?: string[];
     blocked?: string[];
+    na?: string[];
     newIssues?: string[];
   };
 
@@ -424,17 +524,22 @@ const processStatusReport = async (
 
   // ── ID-based debt matching ──
   // completed/remaining/blocked: arrays of IDs referencing existing debt/AC items
+  // na: IDs that don't apply to this task — removed permanently
   // newIssues: free-text strings for issues discovered during implementation
   const completedIds = report.completed ?? [];
   const completedSet = new Set(completedIds);
+  const naIds = report.na ?? [];
+  const naSet = new Set(naIds);
   const newIssueTexts = report.newIssues ?? [];
+  const remainingIds = report.remaining ?? [];
+  const blockedIds = report.blocked ?? [];
   const prevUnaddressed = currentState.execution.debt?.unaddressedIterations ??
     0;
 
-  // Filter out completed items from existing debt (match by ID)
+  // Filter out completed AND N/A items from existing debt (match by ID)
   const survivingOldDebt = currentState.execution.debt !== null
     ? currentState.execution.debt.items.filter(
-      (item) => !completedSet.has(item.id),
+      (item) => !completedSet.has(item.id) && !naSet.has(item.id),
     )
     : [];
 
@@ -449,19 +554,33 @@ const processStatusReport = async (
   // Merge surviving old debt + newly discovered issues
   const allDebtItems = [...survivingOldDebt, ...newDebtItems];
 
-  const mergedDebt: schema.DebtState | null = allDebtItems.length > 0
-    ? {
+  // Explicit completion signal: remaining=[] AND blocked=[] AND no new issues
+  // When the agent says nothing remains, trust it — accept in one round-trip
+  const explicitlyComplete = remainingIds.length === 0 &&
+    blockedIds.length === 0 && newIssueTexts.length === 0;
+
+  const mergedDebt: schema.DebtState | null =
+    (explicitlyComplete || allDebtItems.length === 0) ? null : {
       items: allDebtItems,
       fromIteration: currentState.execution.debt?.fromIteration ??
         currentState.execution.iteration,
       unaddressedIterations: survivingOldDebt.length > 0
         ? prevUnaddressed + 1
         : 1,
-    }
-    : null;
+    };
 
-  const progressSummary = completedIds.length > 0
-    ? `Completed: ${completedIds.join(", ")}`
+  // Persist N/A'd items so they're excluded from future criteria
+  const updatedNaItems = [
+    ...new Set([...(currentState.execution.naItems ?? []), ...naIds]),
+  ];
+
+  const progressParts: string[] = [];
+  if (completedIds.length > 0) {
+    progressParts.push(`Completed: ${completedIds.join(", ")}`);
+  }
+  if (naIds.length > 0) progressParts.push(`N/A: ${naIds.join(", ")}`);
+  const progressSummary = progressParts.length > 0
+    ? progressParts.join("; ")
     : "Status report submitted";
 
   // Task fully accepted: zero debt AND verification passed (or no verify configured)
@@ -498,7 +617,6 @@ const processStatusReport = async (
         // Add to completedTasks in state
         return {
           ...currentState,
-          pendingClear: true,
           execution: {
             ...currentState.execution,
             lastProgress: `Task ${currentTask.id} accepted: ${progressSummary}`,
@@ -506,6 +624,7 @@ const processStatusReport = async (
             debt: mergedDebt,
             completedTasks: [...taskCompletedIds, currentTask.id],
             debtCounter: newDebtCounter,
+            naItems: updatedNaItems,
           },
         };
       }
@@ -514,7 +633,6 @@ const processStatusReport = async (
 
   return {
     ...currentState,
-    pendingClear: taskComplete,
     execution: {
       ...currentState.execution,
       lastProgress: taskComplete
@@ -523,6 +641,7 @@ const processStatusReport = async (
       awaitingStatusReport: false,
       debt: mergedDebt,
       debtCounter: newDebtCounter,
+      naItems: updatedNaItems,
     },
   };
 };

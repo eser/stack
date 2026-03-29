@@ -41,6 +41,7 @@ const inExecuting = (): schema.StateFile => {
   let s = idle();
   s = machine.startSpec(s, "photo-upload", "spec/photo-upload");
   s = machine.completeDiscovery(s);
+  s = machine.approveDiscoveryReview(s);
   s = machine.approveSpec(s);
   s = machine.startExecution(s);
   return s;
@@ -211,6 +212,7 @@ describe("Spec switching", () => {
     // Start spec B
     let specB = machine.startSpec(idle(), "fix-bug", "spec/fix-bug");
     specB = machine.completeDiscovery(specB);
+    specB = machine.approveDiscoveryReview(specB);
     specB = machine.approveSpec(specB);
     specB = machine.startExecution(specB);
     specB = machine.advanceExecution(specB, "bug fixed");
@@ -274,6 +276,9 @@ describe("Agentless end-to-end: text output at every phase", () => {
     phases.push({ name: "DISCOVERY", state: s });
 
     s = machine.completeDiscovery(s);
+    phases.push({ name: "DISCOVERY_REVIEW", state: s });
+
+    s = machine.approveDiscoveryReview(s);
     phases.push({ name: "SPEC_DRAFT", state: s });
 
     s = machine.approveSpec(s);
@@ -309,6 +314,9 @@ describe("Agentless end-to-end: text output at every phase", () => {
       idle(),
       machine.startSpec(idle(), "t", "spec/t"),
       machine.completeDiscovery(machine.startSpec(idle(), "t", "spec/t")),
+      machine.approveDiscoveryReview(
+        machine.completeDiscovery(machine.startSpec(idle(), "t", "spec/t")),
+      ),
     ];
 
     for (const s of phases) {
@@ -332,7 +340,7 @@ describe("No active spec behavior", () => {
     assertEquals(text.includes("spec new"), true);
   });
 
-  it("IDLE interactiveOptions includes spec new command", () => {
+  it("IDLE commandMap includes spec new command", () => {
     const output = compiler.compile(
       idle(),
       noConcerns,
@@ -340,9 +348,9 @@ describe("No active spec behavior", () => {
       config(),
     );
 
-    const options = output.interactiveOptions ?? [];
-    const hasSpecNew = options.some((o: compiler.InteractiveOption) =>
-      o.command.includes("spec new")
+    const cmdMap = output.commandMap ?? {};
+    const hasSpecNew = Object.values(cmdMap).some((cmd) =>
+      cmd.includes("spec new")
     );
     assertEquals(hasSpecNew, true);
   });

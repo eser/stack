@@ -14,6 +14,7 @@ export type Phase =
   | "UNINITIALIZED"
   | "IDLE"
   | "DISCOVERY"
+  | "DISCOVERY_REVIEW"
   | "SPEC_DRAFT"
   | "SPEC_APPROVED"
   | "EXECUTING"
@@ -32,6 +33,8 @@ export type DiscoveryAnswer = {
 export type DiscoveryState = {
   readonly answers: readonly DiscoveryAnswer[];
   readonly completed: boolean;
+  readonly currentQuestion: number;
+  readonly audience: "agent" | "human";
 };
 
 // =============================================================================
@@ -80,7 +83,8 @@ export type SpecTask = {
 };
 
 export type SpecClassification = {
-  readonly involvesUI: boolean;
+  readonly involvesWebUI: boolean;
+  readonly involvesCLI: boolean;
   readonly involvesPublicAPI: boolean;
   readonly involvesMigration: boolean;
   readonly involvesDataHandling: boolean;
@@ -95,6 +99,7 @@ export type ExecutionState = {
   readonly debt: DebtState | null;
   readonly completedTasks: readonly string[];
   readonly debtCounter: number;
+  readonly naItems: readonly string[];
 };
 
 // =============================================================================
@@ -123,7 +128,6 @@ export type StateFile = {
   readonly execution: ExecutionState;
   readonly decisions: readonly Decision[];
   readonly lastCalledAt: string | null;
-  readonly pendingClear: boolean;
   readonly classification: SpecClassification | null;
 };
 
@@ -132,7 +136,12 @@ export const createInitialState = (): StateFile => ({
   phase: "IDLE",
   spec: null,
   branch: null,
-  discovery: { answers: [], completed: false },
+  discovery: {
+    answers: [],
+    completed: false,
+    currentQuestion: 0,
+    audience: "human",
+  },
   specState: { path: null, status: "none" },
   execution: {
     iteration: 0,
@@ -143,10 +152,10 @@ export const createInitialState = (): StateFile => ({
     debt: null,
     completedTasks: [],
     debtCounter: 0,
+    naItems: [],
   },
   decisions: [],
   lastCalledAt: null,
-  pendingClear: false,
   classification: null,
 });
 

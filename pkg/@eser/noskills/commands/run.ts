@@ -56,7 +56,8 @@ export const main = async (
   }
 
   // Validate starting phase
-  const initialState = await persistence.readState(root);
+  const specFlag = persistence.parseSpecFlag(args);
+  const initialState = await persistence.resolveState(root, specFlag);
 
   if (
     initialState.phase !== "EXECUTING" &&
@@ -168,11 +169,6 @@ export const main = async (
       out.writeln(span.red(`Unexpected phase: ${state.phase}. Stopping.`));
       exitCode = 1;
       break;
-    }
-
-    // ── Handle pendingClear: reset it (we're already in a fresh process) ──
-    if (state.pendingClear) {
-      await persistence.writeState(root, { ...state, pendingClear: false });
     }
 
     // ── Build agent prompt from compiler output ──

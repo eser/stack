@@ -177,7 +177,8 @@ describe("Skip classification: approve without classifying", () => {
 
     const criteria = output.statusReport?.criteria ?? [];
     const concernCriteria = criteria.filter(
-      (c) => c.includes("open-source") || c.includes("beautiful-product"),
+      (c) =>
+        c.text.includes("open-source") || c.text.includes("beautiful-product"),
     );
     assertEquals(concernCriteria.length, 0);
   });
@@ -217,7 +218,8 @@ describe("Skip concerns: init with zero concerns", () => {
 
     const criteria = output.statusReport?.criteria ?? [];
     const concernCriteria = criteria.filter(
-      (c) => c.includes("open-source") || c.includes("beautiful-product"),
+      (c) =>
+        c.text.includes("open-source") || c.text.includes("beautiful-product"),
     );
     assertEquals(concernCriteria.length, 0);
   });

@@ -14,7 +14,7 @@ import * as kiro from "./kiro.ts";
 import * as copilot from "./copilot.ts";
 import * as windsurf from "./windsurf.ts";
 import * as hooks from "./hooks.ts";
-import { detectCommandPrefix } from "../output/cmd.ts";
+import { setCommandPrefix } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 // =============================================================================
@@ -77,8 +77,8 @@ export const syncAll = async (
   const rules = await loadRules(root);
   const synced: string[] = [];
   const syncOptions = { allowGit: config?.allowGit ?? false };
-  // Always re-detect from process.args — manifest.command may be stale
-  const commandPrefix = await detectCommandPrefix();
+  const commandPrefix = config?.command ?? "npx eser@latest noskills";
+  setCommandPrefix(commandPrefix);
 
   for (const toolId of tools) {
     if (toolId === "claude-code") {
@@ -99,8 +99,45 @@ export const syncAll = async (
   // Generate all Claude Code hooks (enforce, stop-snapshot, post-write, post-bash)
   if (tools.includes("claude-code")) {
     await hooks.syncHooks(root, commandPrefix);
+    await generateAgentFile(root, commandPrefix);
     synced.push("hooks");
   }
 
   return synced;
+};
+
+// =============================================================================
+// Agent File Generation
+// =============================================================================
+
+const generateAgentFile = async (
+  root: string,
+  commandPrefix: string,
+): Promise<void> => {
+  const agentDir = `${root}/.claude/agents`;
+  await runtime.fs.mkdir(agentDir, { recursive: true });
+
+  const content = `---
+name: noskills-executor
+description: "Executes a single noskills task."
+tools: Read, Edit, MultiEdit, Write, Bash, Grep, Glob, LS
+---
+
+You are executing a single task from a noskills spec.
+Your ONLY job is to complete the task described in the prompt.
+Follow all behavioral rules provided in the prompt.
+When done, summarize what you did and list all files you created or modified.
+Do NOT start new tasks, explore unrelated code, or make architectural decisions.
+If the task is too vague to execute, say so immediately.
+
+## Reporting
+When finished, provide a structured JSON summary:
+\`\`\`json
+{"completed": ["<item IDs done>"], "remaining": ["<item IDs not done>"], "blocked": ["<item IDs needing decisions>"], "filesModified": ["<paths>"]}
+\`\`\`
+
+The orchestrator will submit this to \`${commandPrefix} next --answer\` on your behalf.
+`;
+
+  await runtime.fs.writeTextFile(`${agentDir}/noskills-executor.md`, content);
 };

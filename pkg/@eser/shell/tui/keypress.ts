@@ -13,6 +13,7 @@
 import type * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
 import { runtime } from "@eser/standards/cross-runtime";
+import type { SignalAction, TuiContext } from "./types.ts";
 
 // =============================================================================
 // Types
@@ -181,3 +182,32 @@ export async function* readKeypress(
     reader.releaseLock();
   }
 }
+
+/**
+ * Execute a signal action. Returns "cancel" if the prompt should return CANCEL,
+ * or "continue" if the prompt should keep running.
+ *
+ * "exit" restores terminal state and exits the process.
+ * "cancel" returns so the prompt can clean up and return CANCEL.
+ * "ignore" does nothing — the prompt continues.
+ */
+export const handleSignal = (
+  action: SignalAction,
+  ctx: TuiContext,
+): "cancel" | "continue" => {
+  if (action === "exit") {
+    // Restore terminal before exiting
+    showCursor(ctx.output);
+    try {
+      runtime.process.setStdinRaw(false);
+    } catch { /* may not be in raw mode */ }
+    runtime.process.exit(130);
+  }
+
+  if (action === "cancel") {
+    return "cancel";
+  }
+
+  // "ignore"
+  return "continue";
+};

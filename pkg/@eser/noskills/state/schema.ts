@@ -61,9 +61,15 @@ export type StatusReport = {
   readonly timestamp: string;
 };
 
+export type DebtItem = {
+  readonly id: string;
+  readonly text: string;
+  readonly since: number;
+};
+
 export type DebtState = {
-  readonly items: readonly string[];
-  readonly fromIteration: number;
+  readonly items: readonly DebtItem[];
+  readonly fromIteration: number; // kept for backward compat, prefer item.since
   readonly unaddressedIterations: number;
 };
 
@@ -88,6 +94,7 @@ export type ExecutionState = {
   readonly awaitingStatusReport: boolean;
   readonly debt: DebtState | null;
   readonly completedTasks: readonly string[];
+  readonly debtCounter: number;
 };
 
 // =============================================================================
@@ -135,6 +142,7 @@ export const createInitialState = (): StateFile => ({
     awaitingStatusReport: false,
     debt: null,
     completedTasks: [],
+    debtCounter: 0,
   },
   decisions: [],
   lastCalledAt: null,
@@ -171,6 +179,7 @@ export type NosManifest = {
   readonly maxIterationsBeforeRestart: number;
   readonly verifyCommand: string | null;
   readonly allowGit: boolean;
+  readonly command: string;
 };
 
 export const createInitialManifest = (
@@ -186,6 +195,7 @@ export const createInitialManifest = (
   maxIterationsBeforeRestart: 15,
   verifyCommand: null,
   allowGit: false,
+  command: "npx eser@latest noskills",
 });
 
 // =============================================================================

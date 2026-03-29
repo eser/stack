@@ -30,12 +30,12 @@ import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
 import type * as shellArgs from "@eser/shell/args";
-import * as span from "@eser/streams/span";
+import * as tui from "@eser/shell/tui";
 import * as git from "./git.ts";
 import { readVersionFile } from "./versions.ts";
-import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
+import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
 
-const out = createCliOutput();
+const { ctx, output: out } = createCliContext();
 
 // =============================================================================
 // Types
@@ -453,32 +453,22 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
-    out.writeln(
-      span.red("✗"),
-      span.text(
-        " " +
-          (result.error instanceof Error
-            ? result.error.message
-            : String(result.error)),
-      ),
-    );
+    const message = result.error instanceof Error
+      ? result.error.message
+      : String(result.error);
+    tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (value.dryRun) {
-    out.writeln(
-      span.yellow("⚠"),
-      span.text(" [DRY RUN] Generated changelog preview:"),
-    );
-    out.writeln(span.blue("ℹ"), span.text(` \n${value.content}`));
+    tui.log.warn(ctx, "[DRY RUN] Generated changelog preview:");
+    tui.log.info(ctx, `\n${value.content}`);
   } else {
-    out.writeln(
-      span.green("✓"),
-      span.text(
-        ` Added ${value.entryCount} entries to CHANGELOG.md for v${value.version}`,
-      ),
+    tui.log.success(
+      ctx,
+      `Added ${value.entryCount} entries to CHANGELOG.md for v${value.version}`,
     );
   }
 

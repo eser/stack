@@ -39,3 +39,53 @@ deno task cli go-ok    # Go-only validation
 - TS packages share one version — load `release-management` for bumping
 - Go modules use independent git-tag versioning (NOT the version-bump script)
 - Business logic stays dependency-free (hexagonal architecture)
+
+<!-- noskills:start -->
+
+## noskills orchestrator
+
+This project uses noskills for state-driven orchestration. Do NOT read
+`.eser/rules/`, `.eser/specs/`, or concern files directly. noskills gives you
+exactly what you need via JSON output.
+
+### Protocol
+
+    deno task cli noskills next                           # get current instruction
+    deno task cli noskills next --answer="your response"  # submit result and advance
+
+### When to call noskills next
+
+You MUST call `deno task cli noskills next` in these situations:
+
+1. At the **START** of every conversation (first thing you do)
+2. **BEFORE** creating or modifying any file (to verify you have an active task)
+3. **AFTER** completing a logical unit of work (to report progress)
+4. When you encounter a **DECISION** that affects architecture or scope
+5. When you are **UNSURE** what to do next
+
+NEVER proceed with implementation without checking noskills first. NEVER make
+architectural decisions independently — noskills routes them to the user.
+
+### Git is read-only
+
+You MUST NOT run git write commands: commit, add, push, checkout, stash, reset,
+merge, rebase, cherry-pick. The user controls git. You control files. You MAY
+read from git: log, diff, status, show, blame.
+
+### Convention discovery
+
+When you discover a pattern, receive a correction, or identify a recurring
+preference from the user, ask: "Should this be a permanent rule for this
+project, or just for this task?" If permanent, run:
+`deno task cli noskills rule add
+"<description>"`. If just this task, note it
+and move on. Never write to `.eser/rules/` directly.
+
+### JSON output
+
+noskills returns JSON with a `phase` field and phase-specific instructions. The
+`meta` block contains resume context - use it to orient yourself, especially
+after compaction or at the start of a new session. Follow the `instruction`
+field. Use `transition` commands to advance state.
+
+<!-- noskills:end -->

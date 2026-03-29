@@ -27,11 +27,11 @@
  */
 
 import * as cliParseArgs from "@std/cli/parse-args";
-import * as span from "@eser/streams/span";
-import * as streams from "@eser/streams";
 import * as results from "@eser/primitives/results";
 import * as shellArgs from "@eser/shell/args";
+import * as tui from "@eser/shell/tui";
 import { runtime } from "@eser/standards/cross-runtime";
+import { createCliContext } from "../cli-support.ts";
 import { loadProjectConfig } from "./config.ts";
 import { getValidators } from "./registry.ts";
 import type {
@@ -40,6 +40,9 @@ import type {
   ValidateResult,
   ValidatorResult,
 } from "./types.ts";
+
+/** Maximum number of validators to run concurrently in read-only (non-fix) mode. */
+const CONCURRENCY_LIMIT = 8;
 
 // Re-export types
 export type {
@@ -144,6 +147,10 @@ export const validate = async (
 
 /**
  * CLI main function for standalone usage.
+ *
+ * Displays a spinner while loading config, a progress bar while running
+ * validators, and streams per-validator results in real-time using TUI
+ * components from `@eser/shell/tui`.
  */
 export const main = async (
   cliArgs?: readonly string[],
@@ -152,8 +159,8 @@ export const main = async (
     (cliArgs ?? runtime.process.args) as string[],
     {
       string: ["root", "only", "skip"],
-      boolean: ["fix", "help"],
-      alias: { h: "help" },
+      boolean: ["fix", "help", "json", "yes"],
+      alias: { h: "help", y: "yes" },
     },
   );
 
@@ -169,16 +176,18 @@ export const main = async (
       "  --skip <validators>    Skip specific validators (comma-separated)",
     );
     console.log("  --fix                  Auto-fix issues where supported");
+    console.log(
+      "  -y, --yes              Auto-confirm all fix prompts (no interactive prompts)",
+    );
+    console.log(
+      "  --json                 Output results as JSON (suppresses TUI output)",
+    );
     console.log("  -h, --help             Show this help message");
     return results.ok(undefined);
   }
 
-  const renderer = streams.renderers.ansi();
-
-  const out = streams.output({
-    renderer,
-    sink: streams.sinks.stdout(),
-  });
+  const jsonMode = args["json"] as boolean | undefined;
+  const autoYes = args["yes"] as boolean | undefined;
 
   const root = args["root"] as string | undefined;
   const fix = args["fix"] as boolean | undefined;
@@ -186,62 +195,222 @@ export const main = async (
   // Parse comma-separated validator lists
   const onlyRaw = args["only"] as string | undefined;
   const skipRaw = args["skip"] as string | undefined;
-  const only = onlyRaw !== undefined
+  const onlyList = onlyRaw !== undefined
     ? onlyRaw.split(",").map((s) => s.trim())
-    : undefined;
-  const skip = skipRaw !== undefined
+    : [];
+  const skipList = skipRaw !== undefined
     ? skipRaw.split(",").map((s) => s.trim())
-    : undefined;
+    : [];
 
-  // Load project config to show stack info
-  const config = await loadProjectConfig(root ?? ".");
-  const stackInfo = config?.stack?.join(", ") ?? "all (no .eser/manifest.yml)";
+  // --- JSON mode: force non-interactive, suppress all TUI output ---
+  const { ctx } = jsonMode
+    ? {
+      ctx: tui.createTuiContext({ interaction: "non-interactive" }),
+    }
+    : createCliContext();
 
-  out.writeln(span.text("Validating codebase...\n"));
-  out.writeln(span.text("Stack: "), span.cyan(stackInfo), span.text("\n"));
+  const isInteractive = ctx.interaction === "interactive";
 
-  const result = await validate({ root, only, skip, fix });
+  // --- Shared: load config and filter validators ---
+  const resolvedRoot = root ?? runtime.process.cwd();
 
-  // Print results
-  for (const validatorResult of result.results) {
-    const statusSpan = validatorResult.passed
-      ? span.green("PASS")
-      : span.red("FAIL");
+  if (!jsonMode) {
+    tui.intro(ctx, "Validating codebase...");
+  }
 
-    const stats = Object.entries(validatorResult.stats)
-      .map(([key, value]) => `${value} ${key}`)
-      .join(", ");
+  // --- Load project config with spinner ---
+  const spinner = jsonMode
+    ? undefined
+    : tui.createSpinner(ctx, "Loading config...");
+  spinner?.start();
 
-    out.writeln(
-      span.text(`  ${validatorResult.name.padEnd(18)} `),
-      statusSpan,
-      span.text(`  (${stats})`),
+  const config = await loadProjectConfig(resolvedRoot);
+  const projectStack = config?.stack ?? [];
+  const stackInfo = projectStack.length > 0
+    ? projectStack.join(", ")
+    : "all (no .eser/manifest.yml)";
+
+  spinner?.succeed("Config loaded");
+
+  if (!jsonMode) {
+    tui.log.info(ctx, `Stack: ${stackInfo}`);
+  }
+
+  // --- Filter validators (mirrors validate() logic) ---
+  const allValidators = getValidators();
+  const validatorsToRun: typeof allValidators[number][] = [];
+  const skippedValidators: SkippedValidator[] = [];
+  const disabledNames: string[] = [];
+
+  for (const validator of allValidators) {
+    // Check --only filter
+    if (onlyList.length > 0 && !onlyList.includes(validator.name)) {
+      continue;
+    }
+
+    // Check --skip filter
+    if (skipList.includes(validator.name)) {
+      disabledNames.push(validator.name);
+      continue;
+    }
+
+    // Check stack compatibility
+    if (validator.requiredStacks.length > 0 && projectStack.length > 0) {
+      const hasStack = validator.requiredStacks.some((s) =>
+        projectStack.includes(s)
+      );
+      if (!hasStack) {
+        skippedValidators.push({
+          name: validator.name,
+          reason: `Requires '${validator.requiredStacks.join("' or '")}' stack`,
+        });
+        continue;
+      }
+    }
+
+    validatorsToRun.push(validator);
+  }
+
+  // --- Run validators with progress bar ---
+  const validatorResults: ValidatorResult[] = [];
+  const progress = jsonMode ? undefined : tui.createProgress(ctx, {
+    total: validatorsToRun.length,
+    label: "Validating...",
+  });
+  progress?.start();
+
+  // Stream a single validator result to the TUI and advance the progress bar.
+  const streamResult = (result: ValidatorResult) => {
+    validatorResults.push(result);
+
+    if (!jsonMode) {
+      const stats = Object.entries(result.stats)
+        .map(([key, value]) => `${value} ${key}`)
+        .join(", ");
+      const label = `${result.name.padEnd(18)} (${stats})`;
+
+      if (result.passed) {
+        tui.log.success(ctx, `PASS  ${label}`);
+      } else {
+        tui.log.error(ctx, `FAIL  ${label}`);
+      }
+    }
+
+    progress?.advance(1);
+  };
+
+  if (fix) {
+    // --- Sequential execution (fix mode) ---
+    // Fixes may depend on execution order and require interactive confirm prompts,
+    // so we must run validators one at a time.
+    for (const validator of validatorsToRun) {
+      // First pass: always run in check-only mode
+      const checkResult = await validator.validate({
+        root: resolvedRoot,
+        options: {},
+      });
+
+      let finalResult = checkResult;
+
+      // If fix is requested and issues were found, handle fix logic
+      if (!checkResult.passed) {
+        let shouldFix = true;
+
+        // In interactive mode without --yes, prompt for confirmation
+        if (isInteractive && !autoYes && !jsonMode) {
+          const issueCount = checkResult.issues.length;
+          const confirmed = await tui.confirm(ctx, {
+            message: `Fix ${issueCount} issue(s) found by ${validator.name}?`,
+            initialValue: true,
+          });
+
+          if (tui.isCancel(confirmed) || !confirmed) {
+            shouldFix = false;
+          }
+        }
+
+        if (shouldFix) {
+          // Re-run with fix enabled
+          finalResult = await validator.validate({
+            root: resolvedRoot,
+            options: { fix: true },
+          });
+        }
+      }
+
+      streamResult(finalResult);
+    }
+  } else {
+    // --- Parallel execution (read-only mode) ---
+    // Bounded concurrency: up to CONCURRENCY_LIMIT validators run at once.
+    // Results stream in completion order; Promise.allSettled ensures one
+    // failure does not abort the rest.
+    let index = 0;
+
+    const executeWorker = async (): Promise<void> => {
+      while (index < validatorsToRun.length) {
+        const currentIndex = index++;
+        const validator = validatorsToRun[currentIndex];
+
+        if (validator === undefined) {
+          break;
+        }
+
+        try {
+          const result = await validator.validate({
+            root: resolvedRoot,
+            options: {},
+          });
+          streamResult(result);
+        } catch (error) {
+          // Validator threw — synthesise a failed result so the run continues.
+          const failedResult: ValidatorResult = {
+            name: validator.name,
+            passed: false,
+            issues: [{
+              severity: "error",
+              message: String(error),
+            }],
+            stats: { filesChecked: 0, issuesFound: 1, fixedCount: 0 },
+          };
+          streamResult(failedResult);
+        }
+      }
+    };
+
+    const workerCount = Math.min(
+      CONCURRENCY_LIMIT,
+      validatorsToRun.length,
     );
+    const workers = Array.from({ length: workerCount }, () => executeWorker());
+    await Promise.allSettled(workers);
   }
 
-  // Print skipped validators
-  if (result.skipped.length > 0) {
-    out.writeln(span.dim("\nSkipped (stack not configured):"));
-    for (const skippedItem of result.skipped) {
-      out.writeln(span.dim(`  - ${skippedItem.name}: ${skippedItem.reason}`));
+  progress?.stop("Validation complete");
+
+  // --- Print skipped validators ---
+  if (!jsonMode && skippedValidators.length > 0) {
+    tui.log.step(ctx, "Skipped (stack not configured):");
+    for (const skippedItem of skippedValidators) {
+      tui.log.step(ctx, `  - ${skippedItem.name}: ${skippedItem.reason}`);
     }
   }
 
-  // Print disabled validators
-  if (result.disabled.length > 0) {
-    out.writeln(span.dim("\nDisabled:"));
-    for (const disabledItem of result.disabled) {
-      out.writeln(span.dim(`  - ${disabledItem}`));
+  // --- Print disabled validators ---
+  if (!jsonMode && disabledNames.length > 0) {
+    tui.log.step(ctx, "Disabled:");
+    for (const disabledItem of disabledNames) {
+      tui.log.step(ctx, `  - ${disabledItem}`);
     }
   }
 
-  // Print issues grouped by location (file or validator)
-  const allIssues = result.results.flatMap((r) =>
+  // --- Print issues grouped by location ---
+  const allIssues = validatorResults.flatMap((r) =>
     r.issues.map((i) => ({ validator: r.name, ...i }))
   );
 
-  if (allIssues.length > 0) {
-    out.writeln(span.red(`\nIssues (${allIssues.length}):\n`));
+  if (!jsonMode && allIssues.length > 0) {
+    tui.log.warn(ctx, `Issues (${allIssues.length}):`);
 
     // Group issues by location (file path or validator name)
     const grouped = new Map<string, typeof allIssues>();
@@ -253,38 +422,107 @@ export const main = async (
     }
 
     for (const [location, issues] of grouped) {
-      out.writeln(span.dim(`  ${location}`));
+      tui.log.step(ctx, `  ${location}`);
       for (const issue of issues) {
-        const severitySpan = issue.severity === "error"
-          ? span.red("error")
-          : span.yellow("warning");
+        const severityTag = issue.severity === "error" ? "error" : "warning";
         const lineInfo = issue.line !== undefined ? `:${issue.line}` : "";
-        out.writeln(
-          span.text("    "),
-          severitySpan,
-          span.text(`${lineInfo}: ${issue.message}`),
-        );
+        if (issue.severity === "error") {
+          tui.log.error(ctx, `    ${severityTag}${lineInfo}: ${issue.message}`);
+        } else {
+          tui.log.warn(ctx, `    ${severityTag}${lineInfo}: ${issue.message}`);
+        }
       }
-      out.writeln();
     }
   }
 
-  // Summary
-  const failedCount = result.results.filter((r) => !r.passed).length;
+  // --- Interactive error drill-down ---
+  const failedResults = validatorResults.filter((r) => !r.passed);
+
+  if (!jsonMode && isInteractive && failedResults.length > 0) {
+    while (true) {
+      const selectOptions = [
+        ...failedResults.map((r) => ({
+          value: r.name,
+          label: `${r.name} (${r.issues.length} issue(s))`,
+        })),
+        { value: "__done__", label: "Done" },
+      ];
+
+      const selected = await tui.select<string>(ctx, {
+        message: "View details for which validator?",
+        options: selectOptions,
+      });
+
+      if (tui.isCancel(selected) || selected === "__done__") {
+        break;
+      }
+
+      // Show detailed issues for the selected validator
+      const selectedResult = failedResults.find((r) => r.name === selected);
+      if (selectedResult !== undefined) {
+        tui.log.info(
+          ctx,
+          `Details for ${selectedResult.name} (${selectedResult.issues.length} issue(s)):`,
+        );
+        for (const issue of selectedResult.issues) {
+          const severityTag = issue.severity === "error" ? "error" : "warning";
+          const fileInfo = issue.file ?? selectedResult.name;
+          const lineInfo = issue.line !== undefined ? `:${issue.line}` : "";
+          if (issue.severity === "error") {
+            tui.log.error(
+              ctx,
+              `  ${fileInfo}${lineInfo} [${severityTag}]: ${issue.message}`,
+            );
+          } else {
+            tui.log.warn(
+              ctx,
+              `  ${fileInfo}${lineInfo} [${severityTag}]: ${issue.message}`,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  // --- JSON mode: output structured JSON and exit ---
+  if (jsonMode) {
+    const passed = validatorResults.every((r) => r.passed);
+    const jsonOutput = JSON.stringify(
+      {
+        passed,
+        results: validatorResults,
+        skipped: skippedValidators,
+        disabled: disabledNames,
+      },
+      null,
+      2,
+    );
+    console.log(jsonOutput);
+
+    if (!passed) {
+      return results.fail({
+        message: "",
+        exitCode: 1,
+      });
+    }
+    return results.ok(undefined);
+  }
+
+  // --- Summary ---
+  const failedCount = failedResults.length;
   if (failedCount > 0) {
-    await out.close();
+    tui.outro(
+      ctx,
+      `${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
+    );
     return results.fail({
-      message: renderer.render([
-        span.red(
-          `\n${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
-        ),
-      ]),
+      message:
+        `${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
       exitCode: 1,
     });
   }
 
-  out.writeln(span.green("\nAll checks passed!"));
-  await out.close();
+  tui.outro(ctx, "All checks passed!");
   return results.ok(undefined);
 };
 

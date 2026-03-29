@@ -723,6 +723,16 @@ export interface RuntimeProcess {
   execPath(): string;
 
   /**
+   * Get the process launch arguments.
+   */
+  readonly argv: readonly string[];
+
+  /**
+   * Get the first process launch argument.
+   */
+  readonly argv0: string;
+
+  /**
    * Command-line arguments passed to the script.
    * Does not include the runtime executable or script name.
    */

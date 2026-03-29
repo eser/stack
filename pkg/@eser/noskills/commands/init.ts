@@ -17,7 +17,7 @@ import * as concernDefs from "../context/concerns.ts";
 import * as compiler from "../context/compiler.ts";
 import * as syncEngine from "../sync/engine.ts";
 import * as formatter from "../output/formatter.ts";
-import { cmd } from "../output/cmd.ts";
+import { cmd, extractPrefix, setCommandPrefix } from "../output/cmd.ts";
 import { detectMode, stripModeFlag } from "../output/mode.ts";
 import { detectAgentTool } from "@eser/shell/env";
 import { runtime } from "@eser/standards/cross-runtime";
@@ -70,6 +70,8 @@ export const main = async (
     tui.log.step(ctx, `  test runner: ${project.testRunner}`);
   }
 
+  tui.gap(ctx);
+
   // ── Step 2: Detect coding tools ──
   const toolSpinner = tui.createSpinner(ctx, "Detecting coding tools...");
   toolSpinner.start();
@@ -110,9 +112,13 @@ export const main = async (
   } else if (nonInteractive) {
     codingTools = [...allDetected];
   } else {
+    tui.gap(ctx);
+
     // Interactive: let user confirm/add tools (current agent non-deselectable)
     codingTools = await pickCodingTools(ctx, allDetected, currentAgent);
   }
+
+  tui.gap(ctx);
 
   // ── Step 3: Detect AI providers ──
   const providerSpinner = tui.createSpinner(
@@ -125,6 +131,8 @@ export const main = async (
     p.name
   );
   providerSpinner.succeed(`${availableProviders.length} provider(s) detected`);
+
+  tui.gap(ctx);
 
   // ── Step 4: Concern picker ──
   const allConcerns = await concernDefs.loadDefaultConcerns();
@@ -158,13 +166,15 @@ export const main = async (
   }
 
   if (selectedConcernIds.length > 0) {
-    tui.log.success(ctx, `Concerns: ${selectedConcernIds.join(", ")}`);
+    tui.log.success(ctx, ` Concerns: ${selectedConcernIds.join(", ")}`);
   } else {
     tui.log.info(
       ctx,
-      "No concerns selected. Add later with `concern add <id>`.",
+      "No concerns selected. Add later with `concern add <id> [<id2> ...]`.",
     );
   }
+
+  tui.gap(ctx);
 
   // ── Step 5: Scaffold directories ──
   const initSpinner = tui.createSpinner(ctx, "Initializing...");
@@ -180,13 +190,20 @@ export const main = async (
     await persistence.writeConcern(root, concern);
   }
 
+  // ── Step 6: Capture invocation prefix ──
+  const commandPrefix = await extractPrefix();
+  setCommandPrefix(commandPrefix);
+
   // ── Step 7: Write config ──
-  const config: schema.NosManifest = schema.createInitialManifest(
-    selectedConcernIds,
-    codingTools,
-    availableProviders,
-    project,
-  );
+  const config: schema.NosManifest = {
+    ...schema.createInitialManifest(
+      selectedConcernIds,
+      codingTools,
+      availableProviders,
+      project,
+    ),
+    command: commandPrefix,
+  };
   await persistence.writeManifest(root, config);
 
   // Write initial state
@@ -210,11 +227,10 @@ export const main = async (
   }
 
   // ── Summary ──
-  tui.log.success(
+  tui.outro(
     ctx,
     `Done. ${codingTools.length} tool(s), ${availableProviders.length} provider(s), ${selectedConcernIds.length} concern(s).`,
   );
-  // (command prefix is detected from process.args at runtime — not stored in manifest)
 
   // In agent mode: output the IDLE instruction so the agent knows what to do next
   if (mode === "agent") {
@@ -226,7 +242,8 @@ export const main = async (
     const output = compiler.compile(state, active, rules, config);
     await formatter.writeFormatted(output, "json");
   } else {
-    tui.outro(ctx, `Start a spec with: ${cmd('spec new "..."')}`);
+    tui.gapDetached(ctx);
+    tui.messageDetached(ctx, `Start a spec with: ${cmd('spec new "..."')}`);
   }
 
   return results.ok(undefined);

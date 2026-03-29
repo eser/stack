@@ -87,6 +87,7 @@ export const startSpec = (
       awaitingStatusReport: false,
       debt: null,
       completedTasks: [],
+      debtCounter: 0,
     },
     decisions: [],
   };
@@ -164,6 +165,7 @@ export const startExecution = (
       awaitingStatusReport: false,
       debt: null,
       completedTasks: [],
+      debtCounter: 0,
     },
   };
 };
@@ -227,6 +229,7 @@ export const resetToIdle = (
       awaitingStatusReport: false,
       debt: null,
       completedTasks: [],
+      debtCounter: 0,
     },
     decisions: [],
     pendingClear: false,

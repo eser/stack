@@ -36,11 +36,11 @@ import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
 import type * as shellArgs from "@eser/shell/args";
-import * as span from "@eser/streams/span";
-import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
+import * as tui from "@eser/shell/tui";
+import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
 import * as pkg from "./package/mod.ts";
 
-const out = createCliOutput();
+const { ctx, output: out } = createCliContext();
 
 /**
  * Valid version commands.
@@ -414,51 +414,40 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   const { result: updateResult } = handlerOutput;
 
   if (updateResult.command === "sync") {
-    out.writeln(span.blue("ℹ"), span.text(" Syncing all versions..."));
+    tui.log.info(ctx, "Syncing all versions...");
   } else if (updateResult.command === "explicit") {
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(
-        ` Setting all versions to ${updateResult.targetVersion}...`,
-      ),
+    tui.log.info(
+      ctx,
+      `Setting all versions to ${updateResult.targetVersion}...`,
     );
   } else {
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(` Bumping all versions (${updateResult.command})...`),
+    tui.log.info(
+      ctx,
+      `Bumping all versions (${updateResult.command})...`,
     );
   }
 
-  out.writeln(
-    span.blue("ℹ"),
-    span.text(` Target version: ${updateResult.targetVersion}`),
-  );
+  tui.log.info(ctx, `Target version: ${updateResult.targetVersion}`);
   console.table(updateResult.updates);
 
   for (const fileUpdate of updateResult.fileUpdates) {
     if (fileUpdate.changed) {
-      out.writeln(
-        span.blue("ℹ"),
-        span.text(
-          ` ${fileUpdate.path} (${fileUpdate.from} → ${fileUpdate.to})`,
-        ),
+      tui.log.info(
+        ctx,
+        `${fileUpdate.path} (${fileUpdate.from} → ${fileUpdate.to})`,
       );
     }
   }
 
   if (updateResult.dryRun) {
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(
-        ` Dry run - ${updateResult.changedCount} packages would be modified.`,
-      ),
+    tui.log.info(
+      ctx,
+      `Dry run - ${updateResult.changedCount} packages would be modified.`,
     );
   } else {
-    out.writeln(
-      span.green("✓"),
-      span.text(
-        ` Done. Updated ${updateResult.changedCount} packages.`,
-      ),
+    tui.log.success(
+      ctx,
+      `Done. Updated ${updateResult.changedCount} packages.`,
     );
   }
 

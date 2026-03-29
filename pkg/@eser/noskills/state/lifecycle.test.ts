@@ -189,7 +189,7 @@ describe("Reset mid-workflow", () => {
       execution: {
         ...state.execution,
         debt: {
-          items: ["leftover task"],
+          items: [{ id: "debt-1", text: "leftover task", since: 2 }],
           fromIteration: 2,
           unaddressedIterations: 1,
         },

@@ -33,7 +33,7 @@ export type WatchSnapshot = {
   readonly lastCalledAt: string | null;
   readonly modifiedFiles: readonly string[];
   readonly debt: {
-    readonly items: readonly string[];
+    readonly items: readonly schema.DebtItem[];
     readonly fromIteration: number;
   } | null;
   readonly concerns: readonly string[];
@@ -332,7 +332,7 @@ const renderTerminal = (snap: WatchSnapshot): string => {
       }${DIM}│${RESET}`,
     );
     for (const item of snap.debt.items.slice(0, 3)) {
-      const truncated = item.slice(0, w - 8);
+      const truncated = item.text.slice(0, w - 8);
       lines.push(
         `${DIM}│${RESET}   └─ ${truncated}${
           " ".repeat(Math.max(0, w - 6 - truncated.length))

@@ -103,26 +103,136 @@ describe("DISCOVERY behavioral", () => {
     assertEquals(output.behavioral.tone.includes("stake in the answers"), true);
   });
 
-  it("says present questions one at a time", () => {
+  it("tone says comes PREPARED", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    assertEquals(output.behavioral.tone.includes("PREPARED"), true);
+  });
+
+  it("has plan mode override", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    assertEquals(output.behavioral.modeOverride !== undefined, true);
+    assertEquals(
+      output.behavioral.modeOverride!.includes("plan mode"),
+      true,
+    );
+  });
+
+  it("blocks file writes", () => {
     const output = compiler.compile(inDiscovery(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("ONE AT A TIME")
+      r.includes("DO NOT create, edit, or write any files")
     );
     assertEquals(has, true);
   });
 
-  it("says push back on shallow answers", () => {
+  it("says push back on vague answers", () => {
     const output = compiler.compile(inDiscovery(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("Push back on shallow")
+      r.includes("Push back on vague")
     );
     assertEquals(has, true);
   });
 
-  it("says do not start coding", () => {
+  it("includes pre-discovery codebase scan rule", () => {
     const output = compiler.compile(inDiscovery(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("Do not start coding")
+      r.includes("pre-discovery codebase scan")
+    );
+    assertEquals(has, true);
+  });
+
+  it("includes premise challenge rule", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("challenge the user's initial spec description")
+    );
+    assertEquals(has, true);
+  });
+
+  it("includes options over open-ended rule", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("offer concrete options")
+    );
+    assertEquals(has, true);
+  });
+
+  it("includes dream state framing rule", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("CURRENT STATE") && r.includes("6-MONTH IDEAL")
+    );
+    assertEquals(has, true);
+  });
+
+  it("includes expansion proposals with scoring rule", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("expansion opportunities") && r.includes("completeness delta")
+    );
+    assertEquals(has, true);
+  });
+
+  it("includes architectural decision resolution rule", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("architectural decisions") && r.includes("RECOMMENDATION")
+    );
+    assertEquals(has, true);
+  });
+
+  it("includes error and rescue map rule", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("error and rescue paths") && r.includes("CRITICAL GAPS")
+    );
+    assertEquals(has, true);
+  });
+
+  it("includes post-discovery synthesis rule", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("DISCOVERY SUMMARY") && r.includes("confirmation")
+    );
+    assertEquals(has, true);
+  });
+
+  it("blocks state-modifying shell commands", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("DO NOT run shell commands that modify state")
+    );
+    assertEquals(has, true);
+  });
+
+  it("allows read-only commands", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("MAY read files") && r.includes("read-only commands")
+    );
+    assertEquals(has, true);
+  });
+
+  it("enforces one question at a time", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("one question at a time")
+    );
+    assertEquals(has, true);
+  });
+
+  it("includes follow-up on short answers", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("short answer") && r.includes("more specific")
+    );
+    assertEquals(has, true);
+  });
+
+  it("includes batch answer submission rule", () => {
+    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("submit them together") && r.includes("noskills next --answer")
     );
     assertEquals(has, true);
   });
@@ -293,5 +403,58 @@ describe("Behavioral with concerns active", () => {
       exec.context.concernReminders.some((r) => r.includes("open-source")),
       true,
     );
+  });
+});
+
+// =============================================================================
+// IDLE behavioral — AskUserQuestion format (Issue 6) + concerns (Issue 5)
+// =============================================================================
+
+describe("IDLE behavioral — AskUserQuestion and concerns", () => {
+  it("tells agent to use ONLY label and description for AskUserQuestion", () => {
+    const output = compiler.compile(idle(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("do NOT include the command field")
+    );
+    assertEquals(has, true);
+  });
+
+  it("tells agent to use multiSelect for concerns", () => {
+    const output = compiler.compile(idle(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("multiSelect:true")
+    );
+    assertEquals(has, true);
+  });
+
+  it("IDLE instruction says present ALL concerns", () => {
+    const output = compiler.compile(idle(), noConcerns, noRules);
+    const idleOutput = output as compiler.IdleOutput;
+    assertEquals(
+      idleOutput.instruction.includes("ALL available concerns"),
+      true,
+    );
+  });
+});
+
+// =============================================================================
+// EXECUTING behavioral — sub-agent (Issue 2) + fallback (E3)
+// =============================================================================
+
+describe("EXECUTING sub-agent behavioral rules", () => {
+  it("includes sub-agent spawning rule", () => {
+    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("noskills-executor") || r.includes("sub-agent")
+    );
+    assertEquals(has, true);
+  });
+
+  it("includes sub-agent failure fallback rule", () => {
+    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("fall back to executing the task directly")
+    );
+    assertEquals(has, true);
   });
 });

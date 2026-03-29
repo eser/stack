@@ -155,35 +155,38 @@ export const multiselect = async <T>(
       );
       await ctx.output.flush();
 
+      const cancelPrompt = (): void => {
+        keypress.clearLines(ctx.output, lines);
+        renderFrame(
+          ctx,
+          options.message,
+          options.options,
+          cursor,
+          selected,
+          undefined,
+          "cancel",
+        );
+      };
+
       for await (const key of keypress.readKeypress(ctx.input)) {
         if (key.name === "c" && key.ctrl) {
-          keypress.clearLines(ctx.output, lines);
-          renderFrame(
-            ctx,
-            options.message,
-            options.options,
-            cursor,
-            selected,
-            undefined,
-            "cancel",
-          );
-          await ctx.output.flush();
-          return types.CANCEL;
+          const action = keypress.handleSignal(ctx.signals.ctrlC, ctx);
+          if (action === "cancel") {
+            cancelPrompt();
+            await ctx.output.flush();
+            return types.CANCEL;
+          }
+          continue; // "ignore"
         }
 
         if (key.name === "escape") {
-          keypress.clearLines(ctx.output, lines);
-          renderFrame(
-            ctx,
-            options.message,
-            options.options,
-            cursor,
-            selected,
-            undefined,
-            "cancel",
-          );
-          await ctx.output.flush();
-          return types.CANCEL;
+          const action = keypress.handleSignal(ctx.signals.escape, ctx);
+          if (action === "cancel") {
+            cancelPrompt();
+            await ctx.output.flush();
+            return types.CANCEL;
+          }
+          continue; // "ignore"
         }
 
         if (key.name === "return") {

@@ -47,6 +47,28 @@ export const outro = (ctx: types.TuiContext, message: string): void => {
 };
 
 /**
+ * Blank line outside the tree — visual breathing room after outro.
+ */
+export const gapDetached = (ctx: types.TuiContext): void => {
+  ctx.output.writeln(span.text(""));
+};
+
+/**
+ * Detached message after the tree ends — no bar prefix, just indented text.
+ *
+ * ```
+ * └  Done!
+ *    Start a spec with: noskills spec new "..."
+ * ```
+ */
+export const messageDetached = (
+  ctx: types.TuiContext,
+  message: string,
+): void => {
+  ctx.output.writeln(span.text("   "), span.dim(message));
+};
+
+/**
  * Semantic log messages using the alert span system.
  *
  * ```
@@ -57,6 +79,17 @@ export const outro = (ctx: types.TuiContext, message: string): void => {
  * ◇  Step 1 of 3       (step — dim)
  * ```
  */
+/**
+ * Visual separator between logical groups — a bare connector line.
+ *
+ * ```
+ * │
+ * ```
+ */
+export const gap = (ctx: types.TuiContext): void => {
+  ctx.output.writeln(span.gray(symbols.BAR));
+};
+
 export const log = {
   info: (ctx: types.TuiContext, message: string): void => {
     ctx.output.writeln(span.alert("info", message));

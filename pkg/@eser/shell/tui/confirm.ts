@@ -79,19 +79,30 @@ export const confirm = async (
       lines = renderFrame(ctx, options.message, value, "active");
       await ctx.output.flush();
 
+      const cancelPrompt = (): void => {
+        keypress.clearLines(ctx.output, lines);
+        renderFrame(ctx, options.message, value, "cancel");
+      };
+
       for await (const key of keypress.readKeypress(ctx.input)) {
         if (key.name === "c" && key.ctrl) {
-          keypress.clearLines(ctx.output, lines);
-          renderFrame(ctx, options.message, value, "cancel");
-          await ctx.output.flush();
-          return types.CANCEL;
+          const action = keypress.handleSignal(ctx.signals.ctrlC, ctx);
+          if (action === "cancel") {
+            cancelPrompt();
+            await ctx.output.flush();
+            return types.CANCEL;
+          }
+          continue;
         }
 
         if (key.name === "escape") {
-          keypress.clearLines(ctx.output, lines);
-          renderFrame(ctx, options.message, value, "cancel");
-          await ctx.output.flush();
-          return types.CANCEL;
+          const action = keypress.handleSignal(ctx.signals.escape, ctx);
+          if (action === "cancel") {
+            cancelPrompt();
+            await ctx.output.flush();
+            return types.CANCEL;
+          }
+          continue;
         }
 
         if (key.name === "return") {

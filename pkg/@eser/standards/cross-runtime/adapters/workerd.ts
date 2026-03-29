@@ -10,16 +10,9 @@
  * @module
  */
 
-import type {
-  Runtime,
-  RuntimeCapabilities,
-  RuntimeEnv,
-  RuntimeExec,
-  RuntimeFs,
-  RuntimePath,
-  RuntimeProcess,
-} from "../types.ts";
-import { RuntimeCapabilityError } from "../types.ts";
+import type { Runtime, RuntimeCapabilities, RuntimeEnv } from "../types.ts";
+import { posixPath } from "../polyfills/path.ts";
+import { createStubExec, createStubFs, createStubProcess } from "./shared.ts";
 
 /**
  * Cloudflare Workers capabilities - very limited.
@@ -35,101 +28,34 @@ export const WORKERD_CAPABILITIES: RuntimeCapabilities = {
   stdout: false,
   kv: true, // Cloudflare KV bindings
 } as const;
-import { posixPath } from "../polyfills/path.ts";
 
 // =============================================================================
-// Filesystem Adapter (Not Available)
+// Environment Adapter (Workerd-specific)
 // =============================================================================
 
-const createWorkerdFs = (): RuntimeFs => {
-  const throwNotAvailable = (): never => {
-    throw new RuntimeCapabilityError("fs", "workerd");
-  };
-
-  return {
-    readFile: throwNotAvailable,
-    readTextFile: throwNotAvailable,
-    writeFile: throwNotAvailable,
-    writeTextFile: throwNotAvailable,
-    exists: throwNotAvailable,
-    stat: throwNotAvailable,
-    lstat: throwNotAvailable,
-    mkdir: throwNotAvailable,
-    ensureDir: throwNotAvailable,
-    remove: throwNotAvailable,
-    readDir: () => {
-      throw new RuntimeCapabilityError("fs", "workerd");
-    },
-    copyFile: throwNotAvailable,
-    rename: throwNotAvailable,
-    makeTempDir: throwNotAvailable,
-    realPath: throwNotAvailable,
-    watch: throwNotAvailable,
-    walk: throwNotAvailable,
-    chmod: throwNotAvailable,
-  };
-};
-
-// =============================================================================
-// Path Adapter (Polyfilled)
-// =============================================================================
-
-const createWorkerdPath = (): RuntimePath => {
-  // Use the pure JS polyfill since Workers has no path module
-  return posixPath;
-};
-
-// =============================================================================
-// Exec Adapter (Not Available)
-// =============================================================================
-
-const createWorkerdExec = (): RuntimeExec => {
-  const throwNotAvailable = (): never => {
-    throw new RuntimeCapabilityError("exec", "workerd");
-  };
-
-  return {
-    spawn: throwNotAvailable,
-    exec: throwNotAvailable,
-    execJson: throwNotAvailable,
-    spawnChild: throwNotAvailable,
-  };
-};
-
-// =============================================================================
-// Environment Adapter
-// =============================================================================
-
-/**
- * Environment variable storage for Workers.
- * In Workers, env vars are typically passed via the handler context.
- * This adapter allows setting env vars that will be available within the runtime.
- */
 const envStorage = new Map<string, string>();
 
-const createWorkerdEnv = (): RuntimeEnv => {
-  return {
-    get(key: string): string | undefined {
-      return envStorage.get(key);
-    },
+const createWorkerdEnv = (): RuntimeEnv => ({
+  get(key: string): string | undefined {
+    return envStorage.get(key);
+  },
 
-    set(key: string, value: string): void {
-      envStorage.set(key, value);
-    },
+  set(key: string, value: string): void {
+    envStorage.set(key, value);
+  },
 
-    delete(key: string): void {
-      envStorage.delete(key);
-    },
+  delete(key: string): void {
+    envStorage.delete(key);
+  },
 
-    has(key: string): boolean {
-      return envStorage.has(key);
-    },
+  has(key: string): boolean {
+    return envStorage.has(key);
+  },
 
-    toObject(): Record<string, string> {
-      return Object.fromEntries(envStorage);
-    },
-  };
-};
+  toObject(): Record<string, string> {
+    return Object.fromEntries(envStorage);
+  },
+});
 
 /**
  * Populate the environment from a Workers handler context.
@@ -164,72 +90,20 @@ export const clearEnv = (): void => {
 };
 
 // =============================================================================
-// Process Adapter (Not Available)
-// =============================================================================
-
-const createWorkerdProcess = (): RuntimeProcess => {
-  const throwNotAvailable = (): never => {
-    throw new RuntimeCapabilityError("process", "workerd");
-  };
-
-  return {
-    exit: throwNotAvailable,
-    setExitCode: throwNotAvailable,
-    cwd: throwNotAvailable,
-    chdir: throwNotAvailable,
-    hostname: throwNotAvailable,
-    execPath: throwNotAvailable,
-    get args(): readonly string[] {
-      throw new RuntimeCapabilityError("process", "workerd");
-    },
-    get pid(): number {
-      throw new RuntimeCapabilityError("process", "workerd");
-    },
-    get stdin(): ReadableStream<Uint8Array> {
-      throw new RuntimeCapabilityError("process", "workerd");
-    },
-    get stdout(): WritableStream<Uint8Array> {
-      throw new RuntimeCapabilityError("process", "workerd");
-    },
-    get stderr(): WritableStream<Uint8Array> {
-      throw new RuntimeCapabilityError("process", "workerd");
-    },
-    isTerminal(): boolean {
-      return false;
-    },
-    setStdinRaw(): void {
-      throw new RuntimeCapabilityError("process", "workerd");
-    },
-  };
-};
-
-// =============================================================================
 // Runtime Factory
 // =============================================================================
 
 /**
  * Creates a Cloudflare Workers runtime instance.
- *
- * Note: This runtime has very limited capabilities:
- * - No filesystem access (use KV, R2, or D1 bindings instead)
- * - No process execution
- * - Environment is managed through populateEnvFromContext()
+ * Composes: shared stubs (fs, exec, process) + workerd-specific env.
  */
-export const createWorkerdRuntime = (): Runtime => {
-  const fs = createWorkerdFs();
-  const path = createWorkerdPath();
-  const exec = createWorkerdExec();
-  const env = createWorkerdEnv();
-  const process = createWorkerdProcess();
-
-  return {
-    name: "workerd",
-    version: "unknown", // Workers doesn't expose version
-    capabilities: WORKERD_CAPABILITIES as RuntimeCapabilities,
-    fs,
-    path,
-    exec,
-    env,
-    process,
-  };
-};
+export const createWorkerdRuntime = (): Runtime => ({
+  name: "workerd",
+  version: "unknown",
+  capabilities: WORKERD_CAPABILITIES as RuntimeCapabilities,
+  fs: createStubFs("workerd"),
+  path: posixPath,
+  exec: createStubExec("workerd"),
+  env: createWorkerdEnv(),
+  process: createStubProcess("workerd"),
+});

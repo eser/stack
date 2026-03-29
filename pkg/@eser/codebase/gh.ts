@@ -16,16 +16,13 @@
 import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
 import type * as shellArgs from "@eser/shell/args";
-import * as span from "@eser/streams/span";
-import { createCliOutput, runCliMain } from "./cli-support.ts";
+import * as tui from "@eser/shell/tui";
+import { createCliContext, runCliMain } from "./cli-support.ts";
 
-const out = createCliOutput();
+const { ctx, output: out } = createCliContext();
 
 const showGhHelp = (): void => {
-  out.writeln(
-    span.blue("ℹ"),
-    span.text(" eser codebase gh — GitHub operations\n"),
-  );
+  tui.log.info(ctx, "eser codebase gh — GitHub operations\n");
   console.log("Subcommands:");
   console.log("  contributors     Update contributor list in README.md");
   console.log("  release-notes    Sync CHANGELOG to GitHub Releases");
@@ -65,10 +62,7 @@ export const main = async (
       return await mod.main(remaining);
     }
     default:
-      out.writeln(
-        span.red("✗"),
-        span.text(` Unknown gh subcommand: ${subcommand}\n`),
-      );
+      tui.log.error(ctx, `Unknown gh subcommand: ${subcommand}`);
       showGhHelp();
       return primitives.results.fail({ exitCode: 1 });
   }

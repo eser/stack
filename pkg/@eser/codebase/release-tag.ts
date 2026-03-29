@@ -24,12 +24,12 @@ import * as primitives from "@eser/primitives";
 import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
 import type * as shellArgs from "@eser/shell/args";
-import * as span from "@eser/streams/span";
+import * as tui from "@eser/shell/tui";
 import { createTag, pushTag } from "./git.ts";
 import { readVersionFile } from "./versions.ts";
-import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
+import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
 
-const out = createCliOutput();
+const { ctx, output: out } = createCliContext();
 
 /**
  * Options for pushing a release tag.
@@ -127,31 +127,23 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   shellArgs.CliResult<void>
 > = (result) => {
   if (primitives.results.isFail(result)) {
-    out.writeln(
-      span.red("✗"),
-      span.text(
-        " " +
-          (result.error instanceof Error
-            ? result.error.message
-            : String(result.error)),
-      ),
-    );
+    const message = result.error instanceof Error
+      ? result.error.message
+      : String(result.error);
+    tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (value.dryRun) {
-    out.writeln(
-      span.yellow("⚠"),
-      span.text(` [DRY RUN] Would create and push tag ${value.tag}`),
+    tui.log.warn(
+      ctx,
+      `[DRY RUN] Would create and push tag ${value.tag}`,
     );
   } else {
-    out.writeln(span.green("✓"), span.text(` Created tag ${value.tag}`));
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(` Pushed tag ${value.tag} to ${value.remote}`),
-    );
+    tui.log.success(ctx, `Created tag ${value.tag}`);
+    tui.log.info(ctx, `Pushed tag ${value.tag} to ${value.remote}`);
   }
 
   return primitives.results.ok(undefined);

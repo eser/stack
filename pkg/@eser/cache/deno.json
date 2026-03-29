@@ -1,6 +1,6 @@
 {
   "name": "@eser/cache",
-  "version": "4.1.39",
+  "version": "4.1.40",
   "exports": {
     ".": "./mod.ts",
     "./xdg": "./xdg.ts"

@@ -14,7 +14,7 @@ Copilot, Windsurf) have sync support but haven't been tested end-to-end yet.
 
 If you want to test noskills with a platform other than Claude Code, reach out —
 we'd love early feedback. Find me at [github.com/eser](https://github.com/eser)
-or [@eaborai](https://x.com/eaborai).
+or [@eserozvataf](https://x.com/eserozvataf).
 
 **Coming next:** deeper rule management, concern customization, and platform
 integrations beyond Claude Code. Star the repo and watch for updates.

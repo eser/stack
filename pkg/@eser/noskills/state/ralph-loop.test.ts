@@ -245,10 +245,10 @@ describe("Meta block for every phase", () => {
     assertEquals(output.meta.resumeHint.includes("blocked"), true);
   });
 
-  it("DONE meta includes completion summary", () => {
+  it("COMPLETED meta includes completion summary", () => {
     let state = inExecuting();
     state = machine.advanceExecution(state, "all done");
-    state = machine.transition(state, "DONE");
+    state = machine.completeSpec(state, "done");
     const output = compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.meta.resumeHint.includes("completed"), true);

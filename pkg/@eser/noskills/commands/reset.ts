@@ -33,6 +33,17 @@ export const main = async (
     return results.ok(undefined);
   }
 
+  // State integrity check: verify active spec directory exists
+  if (state.spec !== null) {
+    const specDir = `${root}/${persistence.paths.specDir(state.spec)}`;
+    try {
+      await runtime.fs.stat(specDir);
+    } catch {
+      out.writeln(span.red(`Active spec '${state.spec}' directory not found.`));
+      out.writeln(span.dim("Resetting to IDLE anyway."));
+    }
+  }
+
   const specName = state.spec;
   const newState = machine.resetToIdle(state);
   await persistence.writeState(root, newState);

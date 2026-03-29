@@ -29,6 +29,19 @@ export const main = async (
   const reason = filteredArgs.join(" ") || "No reason given";
   const state = await persistence.resolveState(root, specFlag);
 
+  // State integrity check: verify active spec directory exists
+  if (state.spec !== null) {
+    const specDir = `${root}/${persistence.paths.specDir(state.spec)}`;
+    try {
+      await runtime.fs.stat(specDir);
+    } catch {
+      out.writeln(span.red(`Active spec '${state.spec}' directory not found.`));
+      out.writeln(span.dim("Run `noskills reset` to return to IDLE."));
+      await out.close();
+      return results.fail({ exitCode: 1 });
+    }
+  }
+
   if (state.phase !== "EXECUTING") {
     out.writeln(span.red(`Cannot block in phase: ${state.phase}`));
     await out.close();

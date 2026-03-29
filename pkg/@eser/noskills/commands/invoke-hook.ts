@@ -198,7 +198,7 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
 
   // Allow writes in phases where the agent should be free to work
   if (
-    phase === "EXECUTING" || phase === "IDLE" || phase === "DONE" ||
+    phase === "EXECUTING" || phase === "IDLE" || phase === "COMPLETED" ||
     phase === "UNKNOWN"
   ) {
     // Sub-agent spawning reminder (once per session, non-blocking)

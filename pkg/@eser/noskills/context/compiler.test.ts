@@ -41,8 +41,8 @@ const inExecuting = (): schema.StateFile =>
 const inBlocked = (): schema.StateFile =>
   machine.blockExecution(inExecuting(), "need API key");
 
-const inDone = (): schema.StateFile =>
-  machine.transition(inExecuting(), "DONE");
+const inCompleted = (): schema.StateFile =>
+  machine.completeSpec(inExecuting(), "done");
 
 // =============================================================================
 // compile
@@ -151,14 +151,14 @@ describe("compile", () => {
     assertEquals(blocked.reason, "BLOCKED: need API key");
   });
 
-  it("DONE returns DoneOutput with summary", () => {
-    const output = compiler.compile(inDone(), noConcerns, noRules);
+  it("COMPLETED returns CompletedOutput with summary", () => {
+    const output = compiler.compile(inCompleted(), noConcerns, noRules);
 
-    assertEquals(output.phase, "DONE");
-    const done = output as compiler.DoneOutput;
-    assertEquals(done.summary.spec, "test-spec");
-    assertEquals(done.summary.iterations, 0);
-    assertEquals(done.summary.decisionsCount, 0);
+    assertEquals(output.phase, "COMPLETED");
+    const completed = output as compiler.CompletedOutput;
+    assertEquals(completed.summary.spec, "test-spec");
+    assertEquals(completed.summary.iterations, 0);
+    assertEquals(completed.summary.decisionsCount, 0);
   });
 
   it("UNINITIALIZED falls through to IdleOutput", () => {
@@ -245,7 +245,7 @@ describe("compile", () => {
       inSpecApproved(),
       inExecuting(),
       inBlocked(),
-      inDone(),
+      inCompleted(),
     ];
 
     for (const state of phases) {

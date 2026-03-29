@@ -92,7 +92,8 @@ const enforcePreToolUse = (input: {
       'Start execution first: `npx eser noskills next --answer="start"`',
     BLOCKED:
       'Execution blocked. Resolve with `npx eser noskills next --answer="resolution"`',
-    DONE: "Spec complete. Start a new one or run `npx eser noskills reset`",
+    COMPLETED:
+      "Spec complete. Start a new one or run `npx eser noskills reset`",
   };
   return {
     allow: false,

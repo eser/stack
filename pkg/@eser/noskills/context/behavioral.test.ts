@@ -37,8 +37,8 @@ const inExecuting = (): schema.StateFile => {
 const inBlocked = (): schema.StateFile =>
   machine.blockExecution(inExecuting(), "need decision");
 
-const inDone = (): schema.StateFile =>
-  machine.transition(inExecuting(), "DONE");
+const inCompleted = (): schema.StateFile =>
+  machine.completeSpec(inExecuting(), "done");
 
 const config15 = schema.createInitialManifest([], [], [], {
   languages: [],
@@ -356,12 +356,12 @@ describe("No commit in behavioral", () => {
 });
 
 // =============================================================================
-// DONE behavioral
+// COMPLETED behavioral
 // =============================================================================
 
-describe("DONE behavioral", () => {
+describe("COMPLETED behavioral", () => {
   it("says report summary, do not start new work", () => {
-    const output = compiler.compile(inDone(), noConcerns, noRules);
+    const output = compiler.compile(inCompleted(), noConcerns, noRules);
     const hasStop = output.behavioral.rules.some((r) =>
       r.includes("Do not start new work")
     );
@@ -369,7 +369,7 @@ describe("DONE behavioral", () => {
   });
 
   it("tone says Concise", () => {
-    const output = compiler.compile(inDone(), noConcerns, noRules);
+    const output = compiler.compile(inCompleted(), noConcerns, noRules);
     assertEquals(output.behavioral.tone.includes("Concise"), true);
   });
 });

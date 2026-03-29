@@ -2,20 +2,21 @@
 
 /**
  * Sync engine — regenerates tool-specific instruction files from .eser/rules/.
+ * Dispatches to ToolAdapter instances instead of special-casing individual tools.
  *
  * @module
  */
 
 import type * as schema from "../state/schema.ts";
+import type * as adapter from "./adapter.ts";
 import * as persistence from "../state/persistence.ts";
-import * as claude from "./claude.ts";
-import * as cursor from "./cursor.ts";
-import * as kiro from "./kiro.ts";
-import * as copilot from "./copilot.ts";
-import * as windsurf from "./windsurf.ts";
-import * as hooks from "./hooks.ts";
-import { setCommandPrefix } from "../output/cmd.ts";
-import { runtime } from "@eser/standards/cross-runtime";
+import * as claudeCodeAdapterMod from "./adapters/claude-code.ts";
+import * as cursorAdapterMod from "./adapters/cursor.ts";
+import * as kiroAdapterMod from "./adapters/kiro.ts";
+import * as copilotAdapterMod from "./adapters/copilot.ts";
+import * as windsurfAdapterMod from "./adapters/windsurf.ts";
+import * as cmd from "../output/cmd.ts";
+import * as crossRuntime from "@eser/standards/cross-runtime";
 
 // =============================================================================
 // Rule Loading
@@ -26,12 +27,12 @@ export const loadRules = async (root: string): Promise<readonly string[]> => {
   const rules: string[] = [];
 
   try {
-    for await (const entry of runtime.fs.readDir(rulesDir)) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(rulesDir)) {
       if (
         entry.isFile &&
         (entry.name.endsWith(".md") || entry.name.endsWith(".txt"))
       ) {
-        const content = await runtime.fs.readTextFile(
+        const content = await crossRuntime.runtime.fs.readTextFile(
           `${rulesDir}/${entry.name}`,
         );
         // Use first line as the rule summary for bullet rendering
@@ -47,27 +48,20 @@ export const loadRules = async (root: string): Promise<readonly string[]> => {
 };
 
 // =============================================================================
-// Sync
+// Adapter Registry
 // =============================================================================
 
-// Claude Code is handled separately (needs SyncOptions for allowGit)
-const GENERATORS: Readonly<
-  Partial<
-    Record<
-      schema.CodingToolId,
-      (
-        root: string,
-        rules: readonly string[],
-        commandPrefix: string,
-      ) => Promise<void>
-    >
-  >
-> = {
-  cursor: cursor.sync,
-  kiro: kiro.sync,
-  copilot: copilot.sync,
-  windsurf: windsurf.sync,
-};
+const ADAPTERS: readonly adapter.ToolAdapter[] = [
+  claudeCodeAdapterMod.claudeCodeAdapter,
+  cursorAdapterMod.cursorAdapter,
+  kiroAdapterMod.kiroAdapter,
+  copilotAdapterMod.copilotAdapter,
+  windsurfAdapterMod.windsurfAdapter,
+];
+
+// =============================================================================
+// Sync
+// =============================================================================
 
 export const syncAll = async (
   root: string,
@@ -76,116 +70,59 @@ export const syncAll = async (
 ): Promise<readonly string[]> => {
   const rules = await loadRules(root);
   const synced: string[] = [];
-  const syncOptions = { allowGit: config?.allowGit ?? false };
+  const syncOptions: adapter.SyncOptions = {
+    allowGit: config?.allowGit ?? false,
+  };
   const commandPrefix = config?.command ?? "npx eser@latest noskills";
-  setCommandPrefix(commandPrefix);
+  cmd.setCommandPrefix(commandPrefix);
 
   for (const toolId of tools) {
-    if (toolId === "claude-code") {
-      // Claude gets options (allowGit affects CLAUDE.md content)
-      await claude.sync(root, rules, syncOptions, commandPrefix);
-      synced.push(toolId);
+    const found = ADAPTERS.find((a) => a.id === toolId);
+
+    if (found === undefined) {
       continue;
     }
 
-    const generator = GENERATORS[toolId];
+    const ctx: adapter.SyncContext = { root, rules, commandPrefix };
 
-    if (generator !== undefined) {
-      await generator(root, rules, commandPrefix);
-      synced.push(toolId);
+    await found.syncRules(ctx, syncOptions);
+
+    if (found.capabilities.hooks && found.syncHooks !== undefined) {
+      await found.syncHooks(ctx, syncOptions);
     }
+
+    if (found.capabilities.agents && found.syncAgents !== undefined) {
+      await found.syncAgents(ctx, syncOptions);
+    }
+
+    if (found.capabilities.specs && found.syncSpecs !== undefined) {
+      const specsDir = `${root}/${persistence.paths.specsDir}`;
+
+      try {
+        for await (
+          const entry of crossRuntime.runtime.fs.readDir(specsDir)
+        ) {
+          if (entry.isDirectory) {
+            const specPath = `${specsDir}/${entry.name}/spec.md`;
+            await found.syncSpecs(ctx, specPath);
+          }
+        }
+      } catch {
+        // No specs directory yet
+      }
+    }
+
+    if (found.capabilities.mcp && found.syncMcp !== undefined) {
+      await found.syncMcp(ctx);
+    }
+
+    synced.push(toolId);
   }
 
-  // Generate all Claude Code hooks (enforce, stop-snapshot, post-write, post-bash)
+  // Preserve the "hooks" marker in the synced list for backward compatibility
   if (tools.includes("claude-code")) {
-    await hooks.syncHooks(root, commandPrefix);
-    await generateAgentFile(root, commandPrefix);
-    await generateVerifierFile(root, commandPrefix);
     synced.push("hooks");
   }
 
   return synced;
-};
-
-// =============================================================================
-// Agent File Generation
-// =============================================================================
-
-const generateAgentFile = async (
-  root: string,
-  commandPrefix: string,
-): Promise<void> => {
-  const agentDir = `${root}/.claude/agents`;
-  await runtime.fs.mkdir(agentDir, { recursive: true });
-
-  const content = `---
-name: noskills-executor
-description: "Executes a single noskills task."
-tools: Read, Edit, MultiEdit, Write, Bash, Grep, Glob, LS
----
-
-You are executing a single task from a noskills spec.
-Your ONLY job is to complete the task described in the prompt.
-Follow all behavioral rules provided in the prompt.
-Do NOT start new tasks, explore unrelated code, or make architectural decisions.
-If the task is too vague to execute, say so immediately.
-
-## Self-Verification
-After completing the task, you MUST verify your own work before reporting:
-1. Run type check: \`deno check\` on all modified files
-2. Run test suite: \`deno test\` on the relevant test files
-3. If type check or tests fail, fix the issues before reporting
-
-## Reporting
-When finished, provide a structured JSON summary:
-\\\`\\\`\\\`json
-{"completed": ["<item IDs done>"], "remaining": ["<item IDs not done>"], "blocked": ["<item IDs needing decisions>"], "filesModified": ["<paths>"], "verification": {"typeCheck": "pass|fail", "tests": "pass|fail (N passed, M failed)"}}
-\\\`\\\`\\\`
-
-Do NOT return raw test output — summarize it in the verification field.
-The orchestrator will submit this to \`${commandPrefix} next --answer\` on your behalf.
-`;
-
-  await runtime.fs.writeTextFile(`${agentDir}/noskills-executor.md`, content);
-};
-
-const generateVerifierFile = async (
-  root: string,
-  _commandPrefix: string,
-): Promise<void> => {
-  const agentDir = `${root}/.claude/agents`;
-  await runtime.fs.mkdir(agentDir, { recursive: true });
-
-  const content = `---
-name: noskills-verifier
-description: "Independently verifies completed task work. Read-only. Never sees the executor's context."
-tools: Read, Bash, Grep, Glob, LS
----
-
-You are verifying another agent's work. You have NO context about how it was done.
-Read the changed files. Run the test suite. Check each acceptance criterion independently.
-
-For each acceptance criterion:
-- PASS: with evidence — show the grep result, the test output, or the file content that proves it
-- FAIL: with specific reason — what's missing, what's wrong, what doesn't match
-
-Be skeptical. Don't assume anything works — verify it yourself.
-You CANNOT edit files. Read-only access only.
-
-## Verification Steps
-1. Read each modified file and verify the changes are correct
-2. Run type check: \\\`deno check\\\` on modified files
-3. Run tests: \\\`deno test\\\` on relevant test files
-4. Check each acceptance criterion against actual file contents
-
-## Report Format
-When finished, provide a structured JSON summary:
-\\\`\\\`\\\`json
-{"results": [{"id": "ac-1", "status": "PASS", "evidence": "..."}, {"id": "ac-2", "status": "FAIL", "reason": "..."}]}
-\\\`\\\`\\\`
-
-The orchestrator will use this report for the noskills status report.
-`;
-
-  await runtime.fs.writeTextFile(`${agentDir}/noskills-verifier.md`, content);
 };

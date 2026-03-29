@@ -42,8 +42,8 @@ const inSpecApproved = (): schema.StateFile => {
 const inBlocked = (): schema.StateFile =>
   machine.blockExecution(inExecuting(), "need API key");
 
-const inDone = (): schema.StateFile =>
-  machine.transition(inExecuting(), "DONE");
+const inCompleted = (): schema.StateFile =>
+  machine.completeSpec(inExecuting(), "done");
 
 const noRules: readonly string[] = [];
 const noConcerns: readonly schema.ConcernDefinition[] = [];
@@ -99,9 +99,9 @@ describe("noskills run: SPEC_APPROVED transition", () => {
 // =============================================================================
 
 describe("noskills run: exit conditions", () => {
-  it("exits on DONE (exit code 0 equivalent)", () => {
-    const state = inDone();
-    assertEquals(state.phase, "DONE");
+  it("exits on COMPLETED (exit code 0 equivalent)", () => {
+    const state = inCompleted();
+    assertEquals(state.phase, "COMPLETED");
   });
 
   it("exits on BLOCKED (exit code 1 equivalent)", () => {

@@ -64,6 +64,26 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
+  // State integrity check: verify active spec directory exists
+  if (
+    state.spec !== null && state.phase !== "IDLE" && state.phase !== "COMPLETED"
+  ) {
+    const specDir = `${root}/${persistence.paths.specDir(state.spec)}`;
+    try {
+      await runtime.fs.stat(specDir);
+    } catch {
+      await formatter.writeFormatted({
+        error: true,
+        message:
+          `Active spec '${state.spec}' directory not found. Files may have been deleted manually.`,
+        suggestion: `Run \`${cmd("reset")}\` to return to IDLE, or \`${
+          cmd("cancel")
+        }\` to mark as cancelled.`,
+      }, fmt);
+      return results.fail({ exitCode: 1 });
+    }
+  }
+
   // Detect audience mode and persist on discovery state
   const audience = mode.detectMode(cleanArgs, config);
   if (state.phase === "DISCOVERY" && state.discovery.audience !== audience) {
@@ -139,7 +159,7 @@ export const main = async (
           ? `${s.state.execution.completedTasks.length} tasks done, iteration ${s.state.execution.iteration}`
           : s.state.phase === "SPEC_DRAFT"
           ? "awaiting approval"
-          : s.state.phase === "DONE"
+          : s.state.phase === "COMPLETED"
           ? "completed"
           : undefined,
       })),

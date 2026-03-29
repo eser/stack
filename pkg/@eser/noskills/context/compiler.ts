@@ -31,7 +31,7 @@ export type PhaseOutput =
   | SpecApprovedOutput
   | ExecutionOutput
   | BlockedOutput
-  | DoneOutput
+  | CompletedOutput
   | IdleOutput;
 
 export type ClearContextAction = {
@@ -181,12 +181,14 @@ export type BlockedOutput = {
   };
 };
 
-export type DoneOutput = {
-  readonly phase: "DONE";
+export type CompletedOutput = {
+  readonly phase: "COMPLETED";
   readonly summary: {
     readonly spec: string | null;
     readonly iterations: number;
     readonly decisionsCount: number;
+    readonly completionReason: schema.CompletionReason | null;
+    readonly completionNote: string | null;
   };
 };
 
@@ -425,7 +427,7 @@ const buildBehavioral = (
         }\`. You are the orchestrator — the sub-agent is the implementer.`,
         "If the sub-agent fails, errors out, or returns no results, fall back to executing the task directly yourself. Report the sub-agent failure in your next status report so it can be investigated.",
         `After the noskills-executor sub-agent completes a task, spawn a noskills-verifier sub-agent to independently verify the work. Pass it: the list of changed files, the acceptance criteria, and the test commands. The verifier reports PASS/FAIL per criterion with evidence. Use the verifier's report as your status report to noskills. Do NOT submit status reports based solely on the executor's self-report.`,
-        "After spawning sub-agents, ALWAYS present a dispatch table showing the FULL pipeline — not just executors, but also verification and test steps:\n\n| Step | Agent | Files | Tasks | Est. Time |\n|------|-------|-------|-------|-----------|\n| 1. Implement | noskills-executor | purge.ts | Tasks 1-6 | ~3 min |\n| 2. Verify | noskills-verifier | purge.ts (read-only) | Validate ACs | ~1 min |\n| 3. Write tests | noskills-executor | purge.test.ts | Task 7 | ~2 min |\n\nWhen agents complete, update with actual time and status (Done / Failed / Found N issues). The user should see the complete plan upfront.",
+        "After spawning sub-agents, ALWAYS present a dispatch table showing the FULL pipeline — not just executors, but also verification and test steps:\n\n| Step | Agent | Files | Tasks | Est. Time |\n|------|-------|-------|-------|-----------|\n| 1. Implement | noskills-executor | purge.ts | Tasks 1-6 | ~3 min |\n| 2. Verify | noskills-verifier | purge.ts (read-only) | Validate ACs | ~1 min |\n| 3. Write tests | noskills-executor | purge.test.ts | Task 7 | ~2 min |\n\nWhen agents complete, update with actual time and status (Done / Failed / Found N issues). The user should see the complete plan upfront.\n\nEstimate: S ~1min, M ~2min, L ~5min, XL ~10min.",
         "The agent that writes implementation code must NOT write tests for that code. Spawn a SEPARATE sub-agent for test writing. This prevents the implementer from writing tests that only confirm what it already knows. The test writer reads the code fresh and tests what it actually does, not what the implementer intended.",
         "When deciding how to split work across sub-agents: if all tasks touch the same file or tightly coupled files, batch them into one executor. If tasks touch independent files or modules, spawn parallel executors. Always err toward smaller, focused sub-agents over large batched ones — fresh context per task is better than accumulated context across tasks.",
         `When you discover a pattern, receive a correction, or identify a recurring preference from the user, ask: 'Should this be a permanent rule for this project, or just for this task?' If permanent, run: \`${
@@ -467,7 +469,7 @@ const buildBehavioral = (
         tone: "Brief. The user is making a decision, not having a discussion.",
       };
 
-    case "DONE":
+    case "COMPLETED":
       return {
         rules: [
           ...mandatoryRules,
@@ -530,7 +532,7 @@ const buildMeta = (
       resumeHint =
         `Execution blocked: ${state.execution.lastProgress}. Ask the user to resolve.`;
       break;
-    case "DONE":
+    case "COMPLETED":
       resumeHint =
         `Spec "${state.spec}" completed in ${state.execution.iteration} iterations.`;
       break;
@@ -558,7 +560,7 @@ const buildProtocolGuide = (
     // First call ever — include guide
     return {
       what:
-        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE",
+        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → COMPLETED",
       how: `Run \`${c("next")}\` for instructions. Submit results with \`${
         c('next --answer="..."')
       }\`. Never make architectural decisions without asking.`,
@@ -572,7 +574,7 @@ const buildProtocolGuide = (
   if (now - lastCalled > STALE_SESSION_MS) {
     return {
       what:
-        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE",
+        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → COMPLETED",
       how: `Run \`${c("next")}\` for instructions. Submit results with \`${
         c('next --answer="..."')
       }\`. Never make architectural decisions without asking.`,
@@ -640,8 +642,8 @@ export const compile = (
     case "BLOCKED":
       phaseOutput = compileBlocked(state);
       break;
-    case "DONE":
-      phaseOutput = compileDone(state);
+    case "COMPLETED":
+      phaseOutput = compileCompleted(state);
       break;
     default:
       phaseOutput = compileIdle(
@@ -700,8 +702,8 @@ const buildInteractiveOptions = (
       const opts: InternalOption[] = [];
       const specs = idleContext?.existingSpecs ?? [];
 
-      // Continuable specs (not DONE)
-      const continuable = specs.filter((s) => s.phase !== "DONE");
+      // Continuable specs (not COMPLETED)
+      const continuable = specs.filter((s) => s.phase !== "COMPLETED");
 
       if (activeConcerns.length === 0) {
         opts.push({
@@ -778,13 +780,14 @@ const buildInteractiveOptions = (
       return [
         {
           label: "Start execution",
-          description: "Begin working through the spec tasks",
+          description: "Begin implementing the tasks",
           command: c('next --answer="start"'),
         },
         {
-          label: "Reset",
-          description: "Discard this spec and start over",
-          command: c("reset"),
+          label: "Not yet",
+          description:
+            'Save for later \u2014 resume with noskills next --answer="start"',
+          command: "",
         },
       ];
 
@@ -805,12 +808,17 @@ const buildInteractiveOptions = (
         },
       ];
 
-    case "DONE":
+    case "COMPLETED":
       return [
         {
           label: "New spec",
           description: "Start a new feature spec",
           command: c('spec new "description"'),
+        },
+        {
+          label: "Reopen spec",
+          description: "Reopen this spec for revision",
+          command: c("reopen"),
         },
         {
           label: "Check status",
@@ -1367,11 +1375,13 @@ const compileBlocked = (state: schema.StateFile): BlockedOutput => ({
   transition: { onResolved: `${c('next --answer="..."')}` },
 });
 
-const compileDone = (state: schema.StateFile): DoneOutput => ({
-  phase: "DONE",
+const compileCompleted = (state: schema.StateFile): CompletedOutput => ({
+  phase: "COMPLETED",
   summary: {
     spec: state.spec,
     iterations: state.execution.iteration,
     decisionsCount: state.decisions.length,
+    completionReason: state.completionReason,
+    completionNote: state.completionNote,
   },
 });

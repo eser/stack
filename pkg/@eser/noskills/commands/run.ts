@@ -111,8 +111,8 @@ export const main = async (
     // Read fresh state each iteration
     const state = await persistence.readState(root);
 
-    // ── Exit: DONE ──
-    if (state.phase === "DONE") {
+    // ── Exit: COMPLETED ──
+    if (state.phase === "COMPLETED") {
       out.writeln("");
       out.writeln(span.green("✔"), " Spec completed!");
       out.writeln(`  Iterations: ${state.execution.iteration}`);

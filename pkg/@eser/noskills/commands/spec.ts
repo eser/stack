@@ -103,7 +103,7 @@ const specNew = async (
 
   const state = await persistence.readState(root);
 
-  if (state.phase !== "IDLE" && state.phase !== "DONE") {
+  if (state.phase !== "IDLE" && state.phase !== "COMPLETED") {
     out.writeln(
       span.red(`Cannot start new spec in phase: ${state.phase}`),
       span.dim(" — finish or reset the current spec first."),
@@ -114,7 +114,7 @@ const specNew = async (
   }
 
   const newState = machine.startSpec(
-    state.phase === "DONE" ? machine.resetToIdle(state) : state,
+    state.phase === "COMPLETED" ? machine.resetToIdle(state) : state,
     specName,
     branch,
   );
@@ -263,7 +263,7 @@ const specList = async (
     for (const spec of allSpecs) {
       const indicator = spec.active ? span.green("●") : span.dim("○");
       const nameStr = spec.active ? span.bold(spec.name) : span.dim(spec.name);
-      const phaseStr = spec.phase === "DONE"
+      const phaseStr = spec.phase === "COMPLETED"
         ? span.green(spec.phase)
         : spec.phase === "EXECUTING"
         ? span.cyan(spec.phase)

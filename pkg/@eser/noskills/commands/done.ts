@@ -31,20 +31,33 @@ export const main = async (
   if (state.phase !== "EXECUTING") {
     out.writeln(span.red(`Cannot complete in phase: ${state.phase}`));
     out.writeln(
-      span.dim("Only EXECUTING phase can transition to DONE."),
+      span.dim("Only EXECUTING phase can transition to COMPLETED."),
     );
     await out.close();
 
     return results.fail({ exitCode: 1 });
   }
 
-  const newState = machine.transition(state, "DONE");
+  // State integrity check: verify active spec directory exists
+  if (state.spec !== null) {
+    const specDir = `${root}/${persistence.paths.specDir(state.spec)}`;
+    try {
+      await runtime.fs.stat(specDir);
+    } catch {
+      out.writeln(span.red(`Active spec '${state.spec}' directory not found.`));
+      out.writeln(span.dim("Run `noskills reset` to return to IDLE."));
+      await out.close();
+      return results.fail({ exitCode: 1 });
+    }
+  }
+
+  const newState = machine.completeSpec(state, "done");
   await persistence.writeState(root, newState);
 
-  // Update spec.md: "executing" → "done"
+  // Update spec.md: "executing" → "completed"
   if (newState.spec !== null) {
-    await specUpdater.updateSpecStatus(root, newState.spec, "done");
-    await specUpdater.updateProgressStatus(root, newState.spec, "done");
+    await specUpdater.updateSpecStatus(root, newState.spec, "completed");
+    await specUpdater.updateProgressStatus(root, newState.spec, "completed");
   }
 
   out.writeln(span.green("✔"), " Spec completed!");

@@ -9,15 +9,18 @@ the state machine does.
 
 noskills is in active beta. We've battle-tested it with Claude Code — the
 discovery flow, sub-agent orchestration, verification backpressure, and the full
-spec lifecycle are working in production use. Other platforms (Cursor, Kiro,
-Copilot, Windsurf) have sync support but haven't been tested end-to-end yet.
+spec lifecycle are working in production use. Kiro has full integration
+(steering files, hooks, custom agents, spec projection, MCP registration) but
+needs end-to-end testing. Other platforms (Cursor, Copilot, Windsurf) have rule
+sync support.
 
 If you want to test noskills with a platform other than Claude Code, reach out —
 we'd love early feedback. Find me at [github.com/eser](https://github.com/eser)
 or [@eserozvataf](https://x.com/eserozvataf).
 
-**Coming next:** deeper rule management, concern customization, and platform
-integrations beyond Claude Code. Star the repo and watch for updates.
+**Coming next:** deeper rule management, concern customization, and richer
+integrations for Cursor, Copilot, and Windsurf. Star the repo and watch for
+updates.
 
 ## Why
 
@@ -224,11 +227,26 @@ If `eser` CLI is not installed:
 
     Run `npx eser@latest noskills init` — it will scaffold your project and guide you through setup.
 
-That's it. The init command detects Claude Code, sets up hooks, generates
-`CLAUDE.md`, and presents your next options automatically.
+That's it. The init command detects Claude Code, sets up hooks, instructions,
+and agent helpers automatically.
 
 If you want to add this to an existing project where teammates also use
 noskills, the init scaffolds `.eser/` which should be committed to your repo.
+
+## Getting Started with Kiro
+
+Open a Kiro session and paste:
+
+    Run `eser noskills init` — it will scaffold your project and guide you through setup.
+
+If `eser` CLI is not installed:
+
+    Run `npx eser@latest noskills init` — it will scaffold your project and guide you through setup.
+
+noskills detects the `.kiro` directory automatically and generates steering
+files, hooks, custom agents, spec projection, and MCP registration — all from
+the same `.eser/` source of truth. Your teammates on different tools get
+identical orchestration quality.
 
 ## Quick Start
 
@@ -616,8 +634,9 @@ noskills next --answer='{"involvesWebUI":true,"involvesCLI":false,"involvesPubli
 
 ### Hooks — Zero-Token Bookkeeping
 
-noskills installs Claude Code hooks that handle state bookkeeping without
-spending LLM tokens:
+noskills installs hooks for Claude Code (`.claude/settings.json`) and Kiro
+(`.kiro/settings/hooks.json`) that handle state bookkeeping without spending LLM
+tokens. Claude Code hooks:
 
 | Hook                | Event        | What it does                                                                                                                                         |
 | ------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -626,6 +645,9 @@ spending LLM tokens:
 | **post-file-write** | PostToolUse  | Logs modified file paths to `.eser/.state/files-changed.jsonl`                                                                                       |
 | **post-bash**       | PostToolUse  | Logs noskills CLI invocations for observability                                                                                                      |
 | **session-start**   | SessionStart | Runs `noskills next` at session start so the agent is immediately oriented. No CLAUDE.md reading needed — the hook delivers the current instruction. |
+
+Kiro hooks map the same behavioral guarantees to Kiro-native triggers (Pre Tool
+Use, Post Tool Use, Agent Stop, Prompt Submit) using Run Command actions.
 
 Hooks are CLI subcommands (`noskills invoke-hook <name>`), not generated script
 files. This avoids ESM/CJS issues — the same Deno entry point handles
@@ -642,11 +664,17 @@ noskills generates instruction files for every AI tool your team uses:
 ```
 .eser/ (single source of truth)
 +-- noskills sync
-    |-- -> CLAUDE.md          (Claude Code)
-    |-- -> .cursorrules       (Cursor)
-    |-- -> .kiro/steering/    (Kiro)
+    |-- -> CLAUDE.md                       (Claude Code)
+    |-- -> .claude/settings.json           (Claude Code hooks)
+    |-- -> .claude/agents/                 (Claude Code agents)
+    |-- -> .cursorrules                    (Cursor)
+    |-- -> .kiro/steering/*.md             (Kiro steering files)
+    |-- -> .kiro/settings/hooks.json       (Kiro hooks)
+    |-- -> .kiro/settings/mcp.json         (Kiro MCP registration)
+    |-- -> .kiro/agents/*.json             (Kiro custom agents)
+    |-- -> .kiro/specs/                    (Kiro spec projection)
     |-- -> .github/copilot-instructions.md (GitHub Copilot)
-    +-- -> .windsurfrules     (Windsurf)
+    +-- -> .windsurfrules                  (Windsurf)
 ```
 
 Write your rules once in `.eser/rules/`, run `noskills sync`, and every tool

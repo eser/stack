@@ -17,14 +17,14 @@ const VALID_TRANSITIONS: Readonly<
   Record<schema.Phase, readonly schema.Phase[]>
 > = {
   UNINITIALIZED: ["IDLE"],
-  IDLE: ["DISCOVERY"],
-  DISCOVERY: ["DISCOVERY_REVIEW"],
-  DISCOVERY_REVIEW: ["DISCOVERY_REVIEW", "SPEC_DRAFT"],
-  SPEC_DRAFT: ["SPEC_DRAFT", "SPEC_APPROVED"],
-  SPEC_APPROVED: ["EXECUTING"],
-  EXECUTING: ["DONE", "BLOCKED"],
-  BLOCKED: ["EXECUTING"],
-  DONE: ["IDLE"],
+  IDLE: ["DISCOVERY", "COMPLETED"],
+  DISCOVERY: ["DISCOVERY_REVIEW", "COMPLETED"],
+  DISCOVERY_REVIEW: ["DISCOVERY_REVIEW", "SPEC_DRAFT", "COMPLETED"],
+  SPEC_DRAFT: ["SPEC_DRAFT", "SPEC_APPROVED", "COMPLETED"],
+  SPEC_APPROVED: ["EXECUTING", "COMPLETED"],
+  EXECUTING: ["COMPLETED", "BLOCKED"],
+  BLOCKED: ["EXECUTING", "COMPLETED"],
+  COMPLETED: ["IDLE", "DISCOVERY"],
 };
 
 // =============================================================================
@@ -252,6 +252,58 @@ export const addDecision = (
   };
 };
 
+export const completeSpec = (
+  state: schema.StateFile,
+  reason: schema.CompletionReason,
+  note?: string,
+): schema.StateFile => {
+  assertTransition(state.phase, "COMPLETED");
+
+  return {
+    ...state,
+    phase: "COMPLETED",
+    completionReason: reason,
+    completedAt: new Date().toISOString(),
+    completionNote: note ?? null,
+  };
+};
+
+export const reopenSpec = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  if (state.phase !== "COMPLETED") {
+    throw new Error(`Cannot reopen in phase: ${state.phase}`);
+  }
+
+  return {
+    ...state,
+    phase: "DISCOVERY",
+    reopenedFrom: state.completionReason,
+    completionReason: null,
+    completedAt: null,
+    completionNote: null,
+    // Preserve discovery answers for revision
+    discovery: {
+      ...state.discovery,
+      completed: false,
+      currentQuestion: 0,
+    },
+    // Reset execution state
+    execution: {
+      iteration: 0,
+      lastProgress: null,
+      modifiedFiles: [],
+      lastVerification: null,
+      awaitingStatusReport: false,
+      debt: null,
+      completedTasks: [],
+      debtCounter: 0,
+      naItems: [],
+    },
+    classification: null,
+  };
+};
+
 export const resetToIdle = (
   state: schema.StateFile,
 ): schema.StateFile => {
@@ -280,5 +332,9 @@ export const resetToIdle = (
     },
     decisions: [],
     classification: null,
+    completionReason: null,
+    completedAt: null,
+    completionNote: null,
+    reopenedFrom: null,
   };
 };

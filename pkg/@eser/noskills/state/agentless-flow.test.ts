@@ -47,7 +47,7 @@ const config = (): schema.NosManifest => ({
 // =============================================================================
 
 describe("Agentless flow: complete lifecycle via CLI", () => {
-  it("walks IDLE → DISCOVERY → all questions → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE", () => {
+  it("walks IDLE → DISCOVERY → all questions → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → COMPLETED", () => {
     // === Step 1: Start from IDLE ===
     let state = schema.createInitialState();
     const output0 = compiler.compile(state, activeConcerns, rules, config());
@@ -221,13 +221,13 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
 
     // === Step 8: Advance and complete ===
     state = machine.advanceExecution(state, "all tasks done");
-    state = machine.transition(state, "DONE");
-    assertEquals(state.phase, "DONE");
+    state = machine.completeSpec(state, "done");
+    assertEquals(state.phase, "COMPLETED");
 
     const output8 = compiler.compile(state, activeConcerns, rules, config());
-    assertEquals(output8.phase, "DONE");
-    const done = output8 as compiler.DoneOutput;
-    assertEquals(done.summary.spec, "photo-upload");
+    assertEquals(output8.phase, "COMPLETED");
+    const completed = output8 as compiler.CompletedOutput;
+    assertEquals(completed.summary.spec, "photo-upload");
 
     // Text format shows summary
     const textDone = formatter.format(output8, "text");
@@ -268,12 +268,12 @@ describe("Output format consistency across phases", () => {
       state: machine.blockExecution(s, "decision needed"),
     };
 
-    const done = {
-      name: "DONE",
-      state: machine.transition(s, "DONE"),
+    const completed = {
+      name: "COMPLETED",
+      state: machine.completeSpec(s, "done"),
     };
 
-    return [idle, disc, discReview, draft, approved, exec, blocked, done];
+    return [idle, disc, discReview, draft, approved, exec, blocked, completed];
   };
 
   it("every phase produces valid JSON output", () => {

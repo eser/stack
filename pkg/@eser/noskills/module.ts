@@ -43,6 +43,18 @@ export const moduleDef: Module = new Module({
       description: "Mark spec execution as complete",
       load: () => import("./commands/done.ts"),
     },
+    cancel: {
+      description: "Cancel current spec",
+      load: () => import("./commands/cancel.ts"),
+    },
+    wontfix: {
+      description: "Mark spec as won't fix (requires reason)",
+      load: () => import("./commands/wontfix.ts"),
+    },
+    reopen: {
+      description: "Reopen a completed spec for revision",
+      load: () => import("./commands/reopen.ts"),
+    },
     concern: {
       description: "Manage concerns (add, remove, list)",
       load: () => import("./commands/concern.ts"),

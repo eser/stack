@@ -28,10 +28,10 @@ const answerAllQuestions = (state: schema.StateFile): schema.StateFile => {
 };
 
 // =============================================================================
-// 1.1 Happy path: IDLE through DONE
+// 1.1 Happy path: IDLE through COMPLETED
 // =============================================================================
 
-describe("Full lifecycle: IDLE → DONE", () => {
+describe("Full lifecycle: IDLE → COMPLETED", () => {
   it("walks the complete happy path", () => {
     let state = idle();
 
@@ -79,9 +79,9 @@ describe("Full lifecycle: IDLE → DONE", () => {
       timestamp: "2026-03-27T10:00:00Z",
     });
 
-    // EXECUTING → DONE
-    state = machine.transition(state, "DONE");
-    assertEquals(state.phase, "DONE");
+    // EXECUTING → COMPLETED
+    state = machine.transition(state, "COMPLETED");
+    assertEquals(state.phase, "COMPLETED");
     assertEquals(state.execution.iteration, 3);
     assertEquals(state.decisions.length, 1);
     assertEquals(state.spec, "photo-upload");
@@ -156,8 +156,8 @@ describe("Lifecycle with BLOCKED state", () => {
     assertEquals(state.execution.iteration, 3);
 
     // Complete
-    state = machine.transition(state, "DONE");
-    assertEquals(state.phase, "DONE");
+    state = machine.transition(state, "COMPLETED");
+    assertEquals(state.phase, "COMPLETED");
     assertEquals(state.execution.iteration, 3);
   });
 });

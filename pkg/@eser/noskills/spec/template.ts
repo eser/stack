@@ -14,7 +14,8 @@ import type * as schema from "../state/schema.ts";
 
 /**
  * Split text into list items by line breaks or sentence boundaries.
- * Does NOT split on dots inside filenames, extensions, or abbreviations.
+ * Does NOT split on dots inside filenames, extensions, abbreviations,
+ * version numbers, or URLs.
  */
 const toBulletList = (text: string): string[] => {
   // Split on line breaks first
@@ -24,10 +25,11 @@ const toBulletList = (text: string): string[] => {
 
   if (lines.length > 1) return lines;
 
-  // Single block — split on ". " (period+space) or "; " (semicolon+space)
-  // This avoids splitting on ".md", ".ts", "v1.", "e.g.", etc.
+  // Single block — split on sentence-ending periods only.
+  // A sentence-ending period is followed by space+uppercase letter or EOL.
+  // This avoids splitting on ".md", ".ts", "v0.1", "e.g.", "i.e.", URLs, paths.
   return text
-    .split(/\.\s+|;\s+/)
+    .split(/\.(?=\s+[A-Z])|;\s+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 5);
 };
@@ -48,69 +50,44 @@ export const deriveTasks = (
   const tasks: string[] = [];
 
   // -------------------------------------------------------------------------
-  // From Q2 (ambition) — extract individual features from the 10-star goal.
+  // From Q2 (ambition) — extract the implementation goal as ONE task.
+  // Q2 describes a spectrum (1-star to 10-star). The target is the highest
+  // ambition level described. We do NOT split it into per-star tasks.
   // -------------------------------------------------------------------------
   const ambition = answers.find((a) => a.questionId === "ambition");
   if (ambition !== undefined) {
     const text = ambition.answer;
-    const tenStarMatch = text.match(/10[- ]?star[:\s]+(.+)/i);
-    const goalText = tenStarMatch !== null ? tenStarMatch[1]!.trim() : text;
 
-    // Split by sentences (newlines or ". "), NOT by commas.
-    // Commas are part of task descriptions, not delimiters.
-    const goalLines = goalText.split(/\n/).map((s) => s.trim()).filter((s) =>
-      s.length > 0
-    );
-    let fragments: string[];
-    if (goalLines.length > 1) {
-      fragments = goalLines.map((s) =>
-        s.replace(/^\s*[-\u2022*]\s*/, "").trim()
-      )
-        .filter((s) => s.length > 3);
-    } else {
-      // Single block — split on sentence boundaries (period + space)
-      fragments = goalText
-        .split(/\.\s+/)
-        .map((s) => s.replace(/^\s*[-\u2022*]\s*/, "").trim())
-        .filter((s) => s.length > 3);
+    // Extract the highest star description as the implementation target
+    const tenStarMatch = text.match(/10[- ]?star[:\s]+(.+?)(?:\n|$)/is);
+    const fiveStarMatch = text.match(/5[- ]?star[:\s]+(.+?)(?:\n|$)/is);
+    const goalText = tenStarMatch !== null
+      ? tenStarMatch[1]!.trim()
+      : fiveStarMatch !== null
+      ? fiveStarMatch[1]!.trim()
+      : text.replace(/1[- ]?star[:\s]+[^.]*\.\s*/i, "").trim();
+
+    // Clean: strip leading articles/filler, garbled prefixes
+    let cleaned = goalText
+      .replace(/^(the|a|an|with|plus|also)\s+/i, "")
+      .replace(/^(the\s+)?(target|goal|objective)[:\s]+/i, "")
+      .trim();
+
+    // Capitalize first letter
+    if (cleaned.length > 0) {
+      cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
     }
 
-    for (const raw of fragments) {
-      // Clean: strip leading articles/filler, capitalize, ensure imperative
-      let cleaned = raw
-        .replace(/^(the|a|an|with|plus|also)\s+/i, "")
-        .trim();
+    // Strip trailing period or ellipsis
+    cleaned = cleaned.replace(/[.\u2026]+$/, "").trim();
 
-      // Strip garbled prefixes like "the target:", "the goal:"
-      cleaned = cleaned.replace(
-        /^(the\s+)?(target|goal|objective)[:\s]+/i,
-        "",
-      ).trim();
+    // Trim to reasonable length without adding prefixes
+    if (cleaned.length > 140) {
+      cleaned = cleaned.slice(0, 137) + "...";
+    }
 
-      // Capitalize first letter
-      cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-
-      // Strip trailing period or ellipsis
-      cleaned = cleaned.replace(/[.\u2026]+$/, "").trim();
-
-      // If still vague (too long and no leading verb), prefix with "Implement"
-      const hasVerb = /^[A-Z][a-z]+\s/.test(cleaned) &&
-        /^(Add|Create|Build|Implement|Set up|Configure|Enable|Update|Remove|Refactor|Extract|Fix|Write|Design|Integrate|Support|Replace|Migrate)\s/i
-          .test(cleaned);
-
-      if (cleaned.length > 100 && !hasVerb) {
-        cleaned = `Implement ${cleaned.charAt(0).toLowerCase()}${
-          cleaned.slice(1)
-        }`;
-        // Trim to a reasonable length
-        if (cleaned.length > 140) {
-          cleaned = cleaned.slice(0, 137) + "...";
-        }
-      }
-
-      if (cleaned.length > 3) {
-        tasks.push(cleaned);
-      }
+    if (cleaned.length > 3) {
+      tasks.push(cleaned);
     }
   }
 

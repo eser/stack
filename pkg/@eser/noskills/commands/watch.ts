@@ -156,7 +156,7 @@ const CYAN = "\x1b[36m";
 
 const phaseColor = (phase: string): string => {
   switch (phase) {
-    case "DONE":
+    case "COMPLETED":
       return GREEN;
     case "BLOCKED":
       return RED;
@@ -264,7 +264,7 @@ const renderTerminal = (snap: WatchSnapshot): string => {
         }${DIM}│${RESET}`,
       );
     }
-  } else if (snap.phase === "DONE") {
+  } else if (snap.phase === "COMPLETED") {
     lines.push(
       `${DIM}│${RESET}  ${GREEN}Complete!${RESET} ${snap.iteration} iterations, ${snap.decisionsCount} decisions${
         " ".repeat(
@@ -479,7 +479,7 @@ export const main = async (
       }
     }
 
-    return snap.phase === "DONE";
+    return snap.phase === "COMPLETED";
   };
 
   // Initial render

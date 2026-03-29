@@ -138,40 +138,58 @@ describe("renderSpec", () => {
 // =============================================================================
 
 describe("deriveTasks", () => {
-  it("splits ambition by sentences, not commas", () => {
+  // ---------------------------------------------------------------------------
+  // Q2 ambition — always ONE task using highest star description
+  // ---------------------------------------------------------------------------
+
+  it("Q2 produces ONE task from 10-star description", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "ambition",
         answer:
-          "Add upload endpoint with validation. Support multiple file types.",
-      },
-    ];
-    const tasks = template.deriveTasks(answers);
-
-    assertEquals(tasks.length, 2);
-    assertEquals(
-      tasks[0]!.includes("upload endpoint with validation"),
-      true,
-    );
-    assertEquals(tasks[1]!.includes("multiple file types"), true);
-  });
-
-  it("keeps verification as single task even with commas", () => {
-    const answers: schema.DiscoveryAnswer[] = [
-      {
-        questionId: "verification",
-        answer:
-          "Run noskills sync, check CLAUDE.md contains Phase Transition Protocol section and --validate docs",
+          "1-star: basic upload. 10-star: full system with validation, preview, and batch processing",
       },
     ];
     const tasks = template.deriveTasks(answers);
 
     assertEquals(tasks.length, 1);
-    assertEquals(tasks[0]!.includes("Run noskills sync"), true);
-    assertEquals(tasks[0]!.includes("Phase Transition Protocol"), true);
+    assertEquals(tasks[0]!.includes("validation"), true);
+    assertEquals(tasks[0]!.includes("preview"), true);
+    assertEquals(tasks[0]!.includes("batch processing"), true);
   });
 
-  it("strips garbled prefixes like 'the target:'", () => {
+  it("Q2 uses 1-star when no 10-star provided", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "ambition",
+        answer: "Build a dashboard with filtering and sorting",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.includes("filtering"), true);
+    assertEquals(tasks[0]!.includes("sorting"), true);
+  });
+
+  it("Q2 does not split 1-star and 10-star into separate tasks", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "ambition",
+        answer:
+          "1-star: Add a sentence about --validate. 10-star: Full protocol section with human->AgentA->AgentB->human cycle, usage examples, and mermaid diagram",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    // Must be ONE task, not two
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.includes("protocol section"), true);
+    // Must NOT contain 1-star content
+    assertEquals(tasks[0]!.includes("1-star"), false);
+  });
+
+  it("Q2 strips garbled prefixes like 'the target:'", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "ambition",
@@ -188,35 +206,38 @@ describe("deriveTasks", () => {
     );
   });
 
-  it("does not split ambition on commas or 'and'", () => {
+  it("Q2 does not add 'Implement:' prefix", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "ambition",
         answer:
-          "Build a dashboard with filtering, sorting, and pagination support",
+          "10-star: comprehensive analytics dashboard with real-time updates, drill-down charts, cohort analysis, and export to CSV and PDF formats for all user segments",
       },
     ];
     const tasks = template.deriveTasks(answers);
 
-    // Should be 1 task, not 3
     assertEquals(tasks.length, 1);
-    assertEquals(tasks[0]!.includes("filtering"), true);
-    assertEquals(tasks[0]!.includes("sorting"), true);
-    assertEquals(tasks[0]!.includes("pagination"), true);
+    assertEquals(tasks[0]!.startsWith("Implement"), false);
   });
 
-  it("splits ambition on newlines into separate tasks", () => {
+  // ---------------------------------------------------------------------------
+  // Q5 verification — kept whole, no splitting on file extensions
+  // ---------------------------------------------------------------------------
+
+  it("keeps verification as single task even with commas", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
-        questionId: "ambition",
-        answer: "Add photo upload endpoint\nAdd video upload endpoint",
+        questionId: "verification",
+        answer:
+          "Run noskills sync, check CLAUDE.md contains Phase Transition Protocol section and --validate docs",
       },
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 2);
-    assertEquals(tasks[0]!.includes("photo upload"), true);
-    assertEquals(tasks[1]!.includes("video upload"), true);
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.includes("Run noskills sync"), true);
+    assertEquals(tasks[0]!.includes("CLAUDE.md"), true);
+    assertEquals(tasks[0]!.includes("Phase Transition Protocol"), true);
   });
 
   it("verification with newlines produces multiple tasks", () => {
@@ -246,5 +267,85 @@ describe("deriveTasks", () => {
     assertEquals(tasks.length, 1);
     assertEquals(tasks[0]!.startsWith("Verify:"), false);
     assertEquals(tasks[0], "Run noskills sync");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Bug A: sentence splitting must not break on file extensions/abbreviations
+  // ---------------------------------------------------------------------------
+
+  it("does not split on periods inside file extensions like CLAUDE.md", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "verification",
+        answer: "Run noskills sync, check CLAUDE.md contains protocol section",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.includes("CLAUDE.md"), true);
+  });
+
+  it("does not split on version numbers like v0.1", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "verification",
+        answer: "Check v0.1 compatibility with the new API",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.includes("v0.1"), true);
+  });
+
+  it("does not split on file paths like src/api/v1/endpoint.ts", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "verification",
+        answer: "Verify src/api/v1/endpoint.ts handles errors correctly",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.includes("endpoint.ts"), true);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Bug B: Q2 ambition produces ONE task, not per-star tasks
+  // ---------------------------------------------------------------------------
+
+  it("1-star/10-star answer produces ONE task using 10-star", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "ambition",
+        answer: "1-star: basic. 10-star: full system with X, Y, Z",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.toLowerCase().includes("full system"), true);
+    assertEquals(tasks[0]!.includes("1-star"), false);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Bug C: no raw prefixes like "Implement:" in task descriptions
+  // ---------------------------------------------------------------------------
+
+  it("task descriptions do not start with Implement: prefix", () => {
+    const answers: schema.DiscoveryAnswer[] = [
+      {
+        questionId: "ambition",
+        answer:
+          "10-star: noskills is indistinguishable between Claude Code and Kiro with adapter-based sync engine with capabilities dispatch and multi-file steering",
+      },
+    ];
+    const tasks = template.deriveTasks(answers);
+
+    assertEquals(tasks.length, 1);
+    assertEquals(tasks[0]!.startsWith("Implement:"), false);
+    assertEquals(tasks[0]!.startsWith("Implement "), false);
   });
 });

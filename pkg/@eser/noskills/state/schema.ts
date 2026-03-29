@@ -19,7 +19,9 @@ export type Phase =
   | "SPEC_APPROVED"
   | "EXECUTING"
   | "BLOCKED"
-  | "DONE";
+  | "COMPLETED";
+
+export type CompletionReason = "done" | "cancelled" | "wontfix";
 
 // =============================================================================
 // Discovery
@@ -129,6 +131,10 @@ export type StateFile = {
   readonly decisions: readonly Decision[];
   readonly lastCalledAt: string | null;
   readonly classification: SpecClassification | null;
+  readonly completionReason: CompletionReason | null;
+  readonly completedAt: string | null;
+  readonly completionNote: string | null;
+  readonly reopenedFrom: string | null;
 };
 
 export const createInitialState = (): StateFile => ({
@@ -157,6 +163,10 @@ export const createInitialState = (): StateFile => ({
   decisions: [],
   lastCalledAt: null,
   classification: null,
+  completionReason: null,
+  completedAt: null,
+  completionNote: null,
+  reopenedFrom: null,
 });
 
 // =============================================================================

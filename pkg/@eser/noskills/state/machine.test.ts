@@ -52,19 +52,17 @@ describe("canTransition", () => {
     assertEquals(machine.canTransition("DISCOVERY_REVIEW", "SPEC_DRAFT"), true);
     assertEquals(machine.canTransition("SPEC_DRAFT", "SPEC_APPROVED"), true);
     assertEquals(machine.canTransition("SPEC_APPROVED", "EXECUTING"), true);
-    assertEquals(machine.canTransition("EXECUTING", "DONE"), true);
+    assertEquals(machine.canTransition("EXECUTING", "COMPLETED"), true);
     assertEquals(machine.canTransition("EXECUTING", "BLOCKED"), true);
     assertEquals(machine.canTransition("BLOCKED", "EXECUTING"), true);
-    assertEquals(machine.canTransition("DONE", "IDLE"), true);
+    assertEquals(machine.canTransition("COMPLETED", "IDLE"), true);
+    assertEquals(machine.canTransition("COMPLETED", "DISCOVERY"), true);
   });
 
   it("rejects invalid transitions", () => {
-    assertEquals(machine.canTransition("IDLE", "DONE"), false);
     assertEquals(machine.canTransition("DISCOVERY", "EXECUTING"), false);
     assertEquals(machine.canTransition("DISCOVERY", "SPEC_DRAFT"), false);
     assertEquals(machine.canTransition("EXECUTING", "IDLE"), false);
-    assertEquals(machine.canTransition("BLOCKED", "DONE"), false);
-    assertEquals(machine.canTransition("DONE", "DISCOVERY"), false);
     assertEquals(machine.canTransition("SPEC_DRAFT", "EXECUTING"), false);
     assertEquals(machine.canTransition("SPEC_APPROVED", "IDLE"), false);
   });
@@ -77,9 +75,9 @@ describe("canTransition", () => {
 describe("assertTransition", () => {
   it("throws on invalid transition with descriptive message", () => {
     assertThrows(
-      () => machine.assertTransition("IDLE", "DONE"),
+      () => machine.assertTransition("IDLE", "EXECUTING"),
       Error,
-      "Invalid phase transition: IDLE → DONE",
+      "Invalid phase transition: IDLE → EXECUTING",
     );
   });
 

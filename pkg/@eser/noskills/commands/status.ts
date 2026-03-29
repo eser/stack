@@ -99,7 +99,7 @@ export const main = async (
     out.writeln(span.bold(`${cmd("status")}`));
     out.writeln("");
 
-    const phaseColor = state.phase === "DONE"
+    const phaseColor = state.phase === "COMPLETED"
       ? span.green(state.phase)
       : state.phase === "BLOCKED"
       ? span.red(state.phase)

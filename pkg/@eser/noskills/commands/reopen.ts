@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * `noskills reset` — Reset current spec state to IDLE.
+ * `noskills reopen` — Reopen a completed spec for revision.
  *
  * @module
  */
@@ -26,36 +26,21 @@ export const main = async (
   const specFlag = persistence.parseSpecFlag(args);
   const state = await persistence.resolveState(root, specFlag);
 
-  if (state.phase === "IDLE" || state.phase === "UNINITIALIZED") {
-    out.writeln(span.dim("Already idle. Nothing to reset."));
+  if (state.phase !== "COMPLETED") {
+    out.writeln(span.red(`Cannot reopen in phase: ${state.phase}`));
+    out.writeln(span.dim("Only COMPLETED specs can be reopened."));
     await out.close();
 
-    return results.ok(undefined);
+    return results.fail({ exitCode: 1 });
   }
 
-  // State integrity check: verify active spec directory exists
-  if (state.spec !== null) {
-    const specDir = `${root}/${persistence.paths.specDir(state.spec)}`;
-    try {
-      await runtime.fs.stat(specDir);
-    } catch {
-      out.writeln(span.red(`Active spec '${state.spec}' directory not found.`));
-      out.writeln(span.dim("Resetting to IDLE anyway."));
-    }
-  }
-
-  const specName = state.spec;
-  const newState = machine.resetToIdle(state);
+  const newState = machine.reopenSpec(state);
   await persistence.writeState(root, newState);
 
-  out.writeln(span.green("✔"), " Reset to IDLE.");
-  if (specName !== null) {
-    out.writeln(
-      span.dim(
-        `Spec "${specName}" state cleared. Files in .eser/specs/${specName}/ preserved.`,
-      ),
-    );
-  }
+  out.writeln(
+    span.green("✔"),
+    " Spec reopened. Discovery answers preserved — run `noskills next` to revise.",
+  );
   await out.close();
 
   return results.ok(undefined);

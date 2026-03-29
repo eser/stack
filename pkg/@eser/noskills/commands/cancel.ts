@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * `noskills done` — Mark current spec execution as complete.
+ * `noskills cancel` — Cancel current spec.
  *
  * @module
  */
@@ -13,7 +13,6 @@ import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as specUpdater from "../spec/updater.ts";
-import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -28,11 +27,11 @@ export const main = async (
   const specFlag = persistence.parseSpecFlag(args);
   const state = await persistence.resolveState(root, specFlag);
 
-  if (state.phase !== "EXECUTING") {
-    out.writeln(span.red(`Cannot complete in phase: ${state.phase}`));
-    out.writeln(
-      span.dim("Only EXECUTING phase can transition to COMPLETED."),
-    );
+  if (
+    state.phase === "IDLE" || state.phase === "UNINITIALIZED" ||
+    state.phase === "COMPLETED"
+  ) {
+    out.writeln(span.red(`Cannot cancel in phase: ${state.phase}`));
     await out.close();
 
     return results.fail({ exitCode: 1 });
@@ -51,35 +50,16 @@ export const main = async (
     }
   }
 
-  const newState = machine.completeSpec(state, "done");
+  const newState = machine.completeSpec(state, "cancelled");
   await persistence.writeState(root, newState);
 
-  // Update spec.md: "executing" → "completed"
+  // Update spec.md status
   if (newState.spec !== null) {
-    await specUpdater.updateSpecStatus(root, newState.spec, "completed");
-    await specUpdater.updateProgressStatus(root, newState.spec, "completed");
+    await specUpdater.updateSpecStatus(root, newState.spec, "cancelled");
+    await specUpdater.updateProgressStatus(root, newState.spec, "cancelled");
   }
 
-  out.writeln(span.green("✔"), " Spec completed!");
-  out.writeln("");
-  out.writeln("  Spec:       ", span.bold(state.spec ?? "unknown"));
-  out.writeln(`  Iterations: ${state.execution.iteration}`);
-  out.writeln(`  Decisions:  ${state.decisions.length}`);
-
-  if (state.decisions.length > 0) {
-    const promoted = state.decisions.filter((d) => d.promoted);
-    if (promoted.length > 0) {
-      out.writeln(
-        span.dim(`  Promoted to rules: ${promoted.length}`),
-      );
-    }
-  }
-
-  out.writeln("");
-  out.writeln(
-    "Start a new spec with: ",
-    span.bold(`${cmd('spec new "..."')}`),
-  );
+  out.writeln(span.green("✔"), " Spec cancelled.");
   await out.close();
 
   return results.ok(undefined);

@@ -181,10 +181,10 @@ describe("Watch phase-specific display", () => {
     assertEquals(output.includes("Human input needed"), true);
   });
 
-  it("DONE shows completion summary", () => {
+  it("COMPLETED shows completion summary", () => {
     const snap: WatchSnapshot = {
       ...baseSnapshot(),
-      phase: "DONE",
+      phase: "COMPLETED",
     };
     const output = renderTerminal(snap);
     assertEquals(output.includes("Complete"), true);

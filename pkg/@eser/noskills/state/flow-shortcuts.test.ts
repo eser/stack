@@ -111,8 +111,8 @@ describe("Happy path: full lifecycle with classification", () => {
     assertEquals(s.phase, "EXECUTING");
 
     s = machine.advanceExecution(s, "all done");
-    s = machine.transition(s, "DONE");
-    assertEquals(s.phase, "DONE");
+    s = machine.completeSpec(s, "done");
+    assertEquals(s.phase, "COMPLETED");
   });
 
   it("all-true classification renders all concern sections", () => {

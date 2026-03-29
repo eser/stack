@@ -106,9 +106,9 @@ describe("Output formatting: -o flag", () => {
     assertEquals(text.includes("Question ["), true);
   });
 
-  it("-o markdown for DONE shows summary", () => {
-    const done = machine.transition(inExecuting(), "DONE");
-    const output = compiler.compile(done, noConcerns, noRules, config());
+  it("-o markdown for COMPLETED shows summary", () => {
+    const completed = machine.completeSpec(inExecuting(), "done");
+    const output = compiler.compile(completed, noConcerns, noRules, config());
     const md = formatter.format(output, "markdown");
 
     assertEquals(md.includes("## Summary"), true);
@@ -238,7 +238,7 @@ describe("Spec switching", () => {
         iteration: 0,
         active: false,
       },
-      { name: "SPC0001", phase: "DONE", iteration: 5, active: false },
+      { name: "SPC0001", phase: "COMPLETED", iteration: 5, active: false },
     ];
 
     assertEquals(specs.length, 3);
@@ -246,7 +246,7 @@ describe("Spec switching", () => {
     const active = specs.find((s) => s.active);
     assertEquals(active?.name, "photo-upload");
 
-    const done = specs.find((s) => s.phase === "DONE");
+    const done = specs.find((s) => s.phase === "COMPLETED");
     assertEquals(done?.name, "SPC0001");
   });
 
@@ -292,8 +292,8 @@ describe("Agentless end-to-end: text output at every phase", () => {
       state: machine.blockExecution(s, "decision needed"),
     });
     phases.push({
-      name: "DONE",
-      state: machine.transition(s, "DONE"),
+      name: "COMPLETED",
+      state: machine.completeSpec(s, "done"),
     });
 
     for (const p of phases) {

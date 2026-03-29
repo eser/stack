@@ -92,18 +92,24 @@ export type SpecApprovedOutput = {
   };
 };
 
+export type AcceptanceCriterion = {
+  readonly id: string;
+  readonly text: string;
+};
+
 export type StatusReportRequest = {
-  readonly criteria: readonly string[];
+  readonly criteria: readonly AcceptanceCriterion[];
   readonly reportFormat: {
     readonly completed: string;
     readonly remaining: string;
     readonly blocked: string;
+    readonly newIssues: string;
   };
 };
 
 export type DebtCarryForward = {
   readonly fromIteration: number;
-  readonly items: readonly string[];
+  readonly items: readonly schema.DebtItem[];
   readonly note: string;
 };
 
@@ -174,11 +180,21 @@ export type ConcernInfo = {
   readonly description: string;
 };
 
+export type SpecSummary = {
+  readonly name: string;
+  readonly phase: string;
+  readonly iteration: number;
+  readonly detail?: string;
+};
+
 export type IdleOutput = {
   readonly phase: "IDLE";
   readonly instruction: string;
-  readonly availableConcerns?: readonly ConcernInfo[];
-  readonly activeConcerns?: readonly string[];
+  readonly welcome: string;
+  readonly existingSpecs: readonly SpecSummary[];
+  readonly availableConcerns: readonly ConcernInfo[];
+  readonly activeConcerns: readonly string[];
+  readonly activeRulesCount: number;
   readonly hint?: string;
 };
 
@@ -212,6 +228,7 @@ export type ProtocolGuide = {
 // =============================================================================
 
 export type BehavioralBlock = {
+  readonly modeOverride?: string;
   readonly rules: readonly string[];
   readonly tone: string;
   readonly urgency?: string;
@@ -237,8 +254,8 @@ const buildBehavioral = (
       return {
         rules: [
           ...mandatoryRules,
-          "When interactiveOptions are present, use AskUserQuestion to present them. Map each option's label and description fields directly to the tool's options array. When the user picks one, run the corresponding command.",
-          "For availableConcerns: AskUserQuestion only supports 4 options per question. Use multiSelect and split concerns across two AskUserQuestion calls if needed (e.g., first 3 + last 3), or list all 6 as text and ask which to add. Never silently drop concerns.",
+          "When interactiveOptions are present, use AskUserQuestion with a single question. Build the options array using ONLY {label, description} from each interactiveOption — do NOT include the command field in options. When the user picks an option, find the matching interactiveOption by label and execute its command field.",
+          "For availableConcerns: use AskUserQuestion with multiSelect:true. AskUserQuestion supports max 4 options per question and max 4 questions per call. If there are more than 4 concerns, present them across two AskUserQuestion questions (e.g., first 3 + last 3) within the same call. NEVER silently drop concerns — present ALL available concerns to the user.",
           "Do not take action without the user choosing an option first.",
         ],
         tone: "Welcoming. Present choices, then wait.",
@@ -246,27 +263,64 @@ const buildBehavioral = (
 
     case "DISCOVERY":
       return {
+        modeOverride:
+          "You are in plan mode. Behave exactly as you would in Claude Code's native plan mode. Do not attempt to create, edit, or write any files. Do not run any shell commands that modify state. You can read files and run read-only commands to understand the codebase. Your ONLY job right now is to have a thorough conversation with the user — ask probing questions, challenge vague answers, explore alternatives, understand the problem deeply. The quality of everything that follows depends on this conversation.",
         rules: [
           ...mandatoryRules,
-          "Present questions to the user ONE AT A TIME. Show concern sub-questions as additional context for each.",
-          "Push back on shallow answers. If the user says something vague like 'a CLI project' or 'manual workarounds', probe deeper: 'What specific problem? Who needs this? How often?' — like a good PM in sprint planning.",
-          "A one-sentence answer is almost always too shallow. Ask one follow-up to deepen it before accepting.",
+          // Base constraints
+          "DO NOT create, edit, or write any files.",
+          "DO NOT run shell commands that modify state.",
+          "You MAY read files and run read-only commands (cat, ls, grep, git log, git diff).",
+
+          // 1. Pre-discovery codebase scan
+          "BEFORE asking any discovery questions, conduct a pre-discovery codebase scan: read the project README, CLAUDE.md, and any design docs; check the last 20 git commits (git log --oneline -20); look for TODO files, open issue references, and existing specs; scan the directory structure to understand the project shape. Then present a brief 'Pre-discovery audit' summary: stack detected, recent work themes, open TODOs, existing specs. This gives you CONTEXT to ask INFORMED questions, not blind ones.",
+
+          // 2. Premise challenge
+          "Before starting discovery questions, challenge the user's initial spec description against what you learned from the codebase scan. Look for: hidden complexity they haven't mentioned, conflicts with existing code, scope that's bigger or smaller than they think, existing modules that overlap with what they're asking for. Share your observations and ask clarifying follow-ups, then proceed to questions.",
+
+          // 3. Options over open-ended
+          "When asking discovery questions, use your codebase knowledge to offer concrete options alongside the open-ended question. For example, instead of just 'What does the user do today?' present: 'Based on the codebase, I see three likely scenarios: A) ... B) ... C) ... D) Something else — describe it. Which is closest?' The user can always pick 'something else' but concrete options speed up the conversation and force specificity.",
+
+          // Core question discipline
+          "Ask one question at a time using your interactive question tool.",
+          "Push back on vague answers — you will be the one executing this spec, vague answers make your job harder.",
+          "When the user gives a short answer, follow up: 'Can you be more specific?'",
+
+          // 4. Dream state framing
+          "After collecting discovery answers, synthesize a CURRENT STATE → THIS SPEC → 6-MONTH IDEAL vision before generating the spec. Show three columns: where the project is now, what this spec achieves, and where it could go in 6 months. Note: 'This spec moves you from column 1 to column 2. Column 3 is out of scope but worth knowing — every decision in this spec should keep column 3 possible.' This helps the user see if the scope is right.",
+
+          // 5. Expansion proposals with scoring
+          "When you spot expansion opportunities during discovery (from codebase scan, TODOs, concern requirements, synergies with the current plan), present each as a numbered proposal (1/N, 2/N...). Every proposal MUST include: clear description of WHAT and WHY (how it connects to the current plan); effort estimate as S/M/L/XL with human time and CC time estimates (e.g., 'S (human: ~1 day / CC: ~15 min)' — not just 'small'); risk assessment as Low/Low-Med/Med/Med-High/High naming the specific risk factor; completeness delta showing X/10 without this and Y/10 with this. Every proposal gets three options: A) Add to scope B) Defer to future spec C) Skip — not interested, plus 'Chat about this' and 'Skip remaining proposals' escape hatches.",
+
+          // 6. Architectural decision resolution
+          "After discovery questions and expansion proposals, identify architectural decisions that must be resolved before implementation. These are decisions where choosing A vs B changes the shape of multiple tasks, the data model, the API surface, or system boundaries. Present each as a concrete technical question with options, a RECOMMENDATION with reasoning, and completeness scores. Show how each option affects downstream work (e.g., 'If you choose B, tasks 3 and 4 need a job queue setup step added'). Only surface decisions that BLOCK implementation — not preferences or nice-to-haves. If the user says 'I don't know yet', mark it as a risk: 'UNRESOLVED: [decision] TBD. Tasks X-Y may change.' Never allow implementation to start with unresolved architectural decisions — flag them prominently in the spec.",
+
+          // 7. Error and rescue map
+          "Before finalizing, map error and rescue paths for every significant codepath in the planned work. Create a table: codepath | what can go wrong | how it's handled. Identify CRITICAL GAPS — failure modes that the plan doesn't address. Present each critical gap as a decision with options, a recommendation, and completeness scores, just like architectural decisions. Resolved gaps become tasks or acceptance criteria. Unresolved gaps become risk flags. Think like an SRE reviewing a design doc — what fails at 3am?",
+
+          // 8. Post-discovery synthesis
+          "After all discovery questions, expansion proposals, architectural decisions, and error mapping are complete, present a DISCOVERY SUMMARY for the user to review: intent, ambition, reversibility, impact, verification, out of scope, the dream state table (current → this spec → future), accepted/deferred/skipped expansions, resolved architectural decisions, and the error/rescue map. Ask for confirmation before generating the spec. This is the last chance to catch misunderstandings.",
+
+          // Submit
           "Once you have a substantive answer for each question, collect all answers and submit them together in a single `noskills next --answer` call as a JSON object.",
-          "Do not start coding or exploring the codebase. Discovery is conversation only.",
         ],
         tone:
-          "Curious interviewer who has a stake in the answers. Push for specifics, don't accept handwaving.",
+          "Curious interviewer who has a stake in the answers and comes PREPARED. You've read the codebase before asking. Challenge assumptions, offer concrete options, think about architecture and failure modes. Think deeply before asking each question.",
       };
 
     case "SPEC_DRAFT":
       return {
+        modeOverride:
+          "You are in plan mode. Behave exactly as you would in Claude Code's native plan mode. Do not attempt to create, edit, or write any files. Your job is to review the generated spec with the user — identify gaps, suggest improvements, check if tasks are concrete enough to execute.",
         rules: [
           ...mandatoryRules,
-          "Present the spec to the user for review. Do not modify it.",
-          "If the user requests changes, relay them — do not implement them.",
-          "Do not start coding. The spec must be approved first.",
+          "DO NOT create, edit, or write any files.",
+          "Read the spec and present a summary to the user.",
+          "Flag any tasks that are too vague to execute.",
+          "Flag any missing acceptance criteria.",
+          "Ask the user if they want to refine before approving.",
         ],
-        tone: "Brief. The user is reviewing, not discussing.",
+        tone: "Thoughtful reviewer preparing to hand off to an implementer.",
       };
 
     case "SPEC_APPROVED":
@@ -289,6 +343,10 @@ const buildBehavioral = (
         "If you need to read files to understand context, timebox it — then write code.",
         "The deliverable is working code, not a plan or analysis.",
         "Complete the task, then report progress. The user handles git.",
+        `When you receive a task from noskills next, do NOT execute it yourself. Spawn the noskills-executor sub-agent using the Agent tool. Pass it: the task title, description, acceptance criteria (with IDs), behavioral rules, out-of-scope constraints, concern reminders, and relevant file paths. When the sub-agent completes, review its results briefly, then report to noskills via \`${
+          c('next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'')
+        }\`. You are the orchestrator — the sub-agent is the implementer.`,
+        "If the sub-agent fails, errors out, or returns no results, fall back to executing the task directly yourself. Report the sub-agent failure in your next status report so it can be investigated.",
         `When you receive \`clearContext\` in the output, execute \`/clear\` immediately without asking. After clearing, read \`CLAUDE.md\` and run \`${
           c("next")
         }\`.`,
@@ -443,6 +501,12 @@ const buildProtocolGuide = (
   return undefined;
 };
 
+/** Extra context for IDLE phase — specs, rules count. Loaded by callers. */
+export type IdleContext = {
+  readonly existingSpecs?: readonly SpecSummary[];
+  readonly rulesCount?: number;
+};
+
 export const compile = (
   state: schema.StateFile,
   activeConcerns: readonly schema.ConcernDefinition[],
@@ -450,6 +514,7 @@ export const compile = (
   config?: schema.NosManifest | null,
   parsedSpec?: ParsedSpec | null,
   folderRuleCriteria?: readonly FolderRule[],
+  idleContext?: IdleContext,
 ): NextOutput => {
   const meta = buildMeta(state, activeConcerns);
   const maxIter = config?.maxIterationsBeforeRestart ?? 15;
@@ -461,7 +526,12 @@ export const compile = (
 
   switch (state.phase) {
     case "IDLE":
-      phaseOutput = compileIdle(activeConcerns, DEFAULT_CONCERNS);
+      phaseOutput = compileIdle(
+        activeConcerns,
+        DEFAULT_CONCERNS,
+        rules.length,
+        idleContext,
+      );
       break;
     case "DISCOVERY":
       phaseOutput = compileDiscovery(state, activeConcerns, rules);
@@ -489,7 +559,12 @@ export const compile = (
       phaseOutput = compileDone(state);
       break;
     default:
-      phaseOutput = compileIdle(activeConcerns, DEFAULT_CONCERNS);
+      phaseOutput = compileIdle(
+        activeConcerns,
+        DEFAULT_CONCERNS,
+        rules.length,
+        idleContext,
+      );
   }
 
   // Build the output with meta + behavioral + optional extras
@@ -518,7 +593,7 @@ export const compile = (
   }
 
   // Append phase-aware interactive options (except EXECUTING — agent should work)
-  const options = buildInteractiveOptions(state, activeConcerns);
+  const options = buildInteractiveOptions(state, activeConcerns, idleContext);
   if (options.length > 0) {
     result = { ...result, interactiveOptions: options } as NextOutput;
   }
@@ -533,55 +608,53 @@ export const compile = (
 const buildInteractiveOptions = (
   state: schema.StateFile,
   activeConcerns: readonly schema.ConcernDefinition[],
+  idleContext?: IdleContext,
 ): readonly InteractiveOption[] => {
   switch (state.phase) {
-    case "IDLE":
-      return activeConcerns.length === 0
-        ? [
-          {
-            label: "Add concerns (Recommended)",
-            description:
-              "Shape how discovery and specs work by adding project concerns",
-            command: c("concern add <id>"),
-          },
-          {
-            label: "Start a feature spec",
-            description: "Begin discovery questions for a new feature",
-            command: c('spec new "description"'),
-          },
-          {
-            label: "Add a coding rule",
-            description: "Add a permanent coding convention for this project",
-            command: c('rule add "rule"'),
-          },
-          {
-            label: "Check status",
-            description: "Show current phase, spec, and progress",
-            command: c("status"),
-          },
-        ]
-        : [
-          {
-            label: "Start a feature spec",
-            description: "Begin discovery questions for a new feature",
-            command: c('spec new "description"'),
-          },
-          {
-            label: "Add more concerns",
-            description: "Add additional project concerns",
-            command: c("concern add <id>"),
-          },
-          {
-            label: "Add a coding rule",
-            description: "Add a permanent coding convention for this project",
-            command: c('rule add "rule"'),
-          },
-          {
-            label: "Check status",
-            description: "Show current phase, spec, and progress",
-            command: c("status"),
-          },
-        ];
+    case "IDLE": {
+      const opts: InteractiveOption[] = [];
+      const specs = idleContext?.existingSpecs ?? [];
+
+      // Continuable specs (not DONE)
+      const continuable = specs.filter((s) => s.phase !== "DONE");
+
+      if (activeConcerns.length === 0) {
+        opts.push({
+          label: "Add concerns (Recommended)",
+          description:
+            "Shape how discovery and specs work by adding project concerns",
+          command: c("concern add <id> [<id2> ...]"),
+        });
+      }
+
+      opts.push({
+        label: "Start a new spec",
+        description: "Begin discovery questions for a new feature",
+        command: c('spec new "description"'),
+      });
+
+      // Add continuable specs as options (max 2 to stay within AskUserQuestion limits)
+      for (const spec of continuable.slice(0, 2)) {
+        opts.push({
+          label: `Continue: ${spec.name} (${spec.phase})`,
+          description: spec.detail ?? `Iteration ${spec.iteration}`,
+          command: c(`spec switch ${spec.name}`),
+        });
+      }
+
+      if (activeConcerns.length > 0) {
+        opts.push({
+          label: "Edit concerns",
+          description: `Currently: ${
+            activeConcerns.map((c) => c.id).join(", ")
+          }`,
+          command: c("concern list"),
+        });
+      }
+
+      // AskUserQuestion maxItems is 4 — trim if needed
+      return opts.slice(0, 4);
+    }
 
     case "SPEC_DRAFT":
       return [
@@ -651,18 +724,26 @@ const buildInteractiveOptions = (
 // Phase Compilers
 // =============================================================================
 
+const WELCOME =
+  "noskills is a state-machine orchestrator that acts as a scrum master for both you and your agent — keeping work focused, decisions in your hands, and tokens efficient.";
+
 const compileIdle = (
   activeConcerns: readonly schema.ConcernDefinition[],
   allConcernDefs: readonly schema.ConcernDefinition[],
+  rulesCount: number,
+  idleContext?: IdleContext,
 ): IdleOutput => ({
   phase: "IDLE",
   instruction:
-    "Present the interactive options to the user using your interactive question tool. Do NOT list them as a text table.",
+    "Present the welcome dashboard and interactive options to the user. Show existing specs if any, then present choices. IMPORTANT: Present ALL available concerns to the user — never truncate the list. Split across multiple AskUserQuestion calls if needed.",
+  welcome: WELCOME,
+  existingSpecs: idleContext?.existingSpecs ?? [],
   availableConcerns: allConcernDefs.map((c) => ({
     id: c.id,
     description: c.description,
   })),
   activeConcerns: activeConcerns.map((c) => c.id),
+  activeRulesCount: idleContext?.rulesCount ?? rulesCount,
   hint: activeConcerns.length === 0
     ? "No concerns active. Consider adding concerns first — they shape discovery questions and specs."
     : undefined,
@@ -702,7 +783,7 @@ const compileDiscovery = (
   return {
     phase: "DISCOVERY",
     instruction:
-      "Ask the user ALL of the following questions. Collect answers for each, then submit them all at once as a JSON object.",
+      "Conduct a thorough discovery conversation. FIRST: perform a pre-discovery codebase scan (README, CLAUDE.md, recent git log, TODOs, directory structure) and present a brief audit summary. THEN: challenge the user's spec description against your findings. THEN: ask the discovery questions one at a time, offering concrete options based on codebase knowledge. AFTER questions: present a dream state table (current → this spec → future), scored expansion proposals, architectural decisions, and an error/rescue map. FINALLY: present a complete discovery synthesis for user confirmation before submitting answers as a JSON object.",
     questions: unanswered,
     answeredCount,
     context: {
@@ -794,27 +875,33 @@ const buildAcceptanceCriteria = (
   classification: schema.SpecClassification | null,
   parsedSpec?: ParsedSpec | null,
   folderRuleCriteria?: readonly FolderRule[],
-): readonly string[] => {
-  const criteria: string[] = [];
+): readonly AcceptanceCriterion[] => {
+  const criteria: AcceptanceCriterion[] = [];
+  let acCounter = 0;
+  const nextId = (): string => `ac-${++acCounter}`;
 
-  // Debt items from previous iterations come first
+  // Debt items from previous iterations come first (use their existing IDs)
   if (debt !== null) {
     for (const item of debt.items) {
-      criteria.push(`[DEBT from iteration ${debt.fromIteration}] ${item}`);
+      criteria.push({
+        id: item.id,
+        text: `[DEBT from iteration ${item.since}] ${item.text}`,
+      });
     }
   }
 
   // Automated verification result
   if (verifyFailed) {
-    criteria.push(
-      `[FAILED] Tests — fix this first: ${verifyOutput.slice(0, 200)}`,
-    );
+    criteria.push({
+      id: nextId(),
+      text: `[FAILED] Tests — fix this first: ${verifyOutput.slice(0, 200)}`,
+    });
   }
 
   // Task-specific verification from spec (the actual acceptance criteria)
   if (parsedSpec !== null && parsedSpec !== undefined) {
     for (const item of parsedSpec.verification) {
-      criteria.push(item);
+      criteria.push({ id: nextId(), text: item });
     }
   }
 
@@ -827,7 +914,7 @@ const buildAcceptanceCriteria = (
       concern.acceptanceCriteria.length > 0
     ) {
       for (const ac of concern.acceptanceCriteria) {
-        criteria.push(`(${concern.id}) ${ac}`);
+        criteria.push({ id: nextId(), text: `(${concern.id}) ${ac}` });
       }
     }
   }
@@ -835,7 +922,10 @@ const buildAcceptanceCriteria = (
   // Folder-scoped rules from .folder-rules.md files
   if (folderRuleCriteria !== undefined) {
     for (const fr of folderRuleCriteria) {
-      criteria.push(`(folder: ${fr.folder}) ${fr.rule}`);
+      criteria.push({
+        id: nextId(),
+        text: `(folder: ${fr.folder}) ${fr.rule}`,
+      });
     }
   }
 
@@ -901,9 +991,11 @@ const compileExecution = (
         criteria,
         reportFormat: {
           completed:
-            "list items you finished with evidence (file exists, test passes)",
-          remaining: "list items not yet done",
-          blocked: "list items that need a decision from the user",
+            "list item IDs you finished (e.g., ['debt-1', 'ac-3']) with evidence",
+          remaining: "list item IDs not yet done",
+          blocked: "list item IDs that need a decision from the user",
+          newIssues:
+            "(optional) list NEW issues discovered during implementation — free text, will be assigned debt IDs automatically",
         },
       },
     };
@@ -967,7 +1059,7 @@ const compileExecution = (
       taskRejected: true,
       rejectionReason:
         `${debtItems.length} remaining item(s) must be addressed.`,
-      rejectionRemaining: debtItems,
+      rejectionRemaining: debtItems.map((d) => d.text),
     };
   }
 

@@ -147,7 +147,7 @@ describe("Manifest structure after init", () => {
     assertEquals(config.maxIterationsBeforeRestart, 15);
     assertEquals(config.verifyCommand, null);
     assertEquals(config.allowGit, false);
-    // command is no longer in manifest — detected from process.args at runtime
+    assertEquals(config.command, "npx eser@latest noskills");
   });
 });
 

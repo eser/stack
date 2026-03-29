@@ -50,9 +50,13 @@ const withAwaitingReport = (state: schema.StateFile): schema.StateFile => ({
   },
 });
 
+/** Helper: convert string descriptions to DebtItem[] for test data. */
+const debtItems = (texts: string[], since = 1): schema.DebtItem[] =>
+  texts.map((text, i) => ({ id: `debt-${i + 1}`, text, since }));
+
 const withDebt = (
   state: schema.StateFile,
-  items: string[],
+  items: schema.DebtItem[],
   fromIteration: number,
   unaddressedIterations: number = 1,
 ): schema.StateFile => ({
@@ -134,7 +138,7 @@ describe("Concern-injected criteria", () => {
 
     const criteria = output.statusReport?.criteria ?? [];
     const hasUIStates = criteria.some((c) =>
-      c.includes("beautiful-product") && c.includes("UI states")
+      c.text.includes("beautiful-product") && c.text.includes("UI states")
     );
     assertEquals(hasUIStates, true);
   });
@@ -149,7 +153,7 @@ describe("Concern-injected criteria", () => {
 
     const criteria = output.statusReport?.criteria ?? [];
     const hasDocs = criteria.some((c) =>
-      c.includes("open-source") && c.includes("documented")
+      c.text.includes("open-source") && c.text.includes("documented")
     );
     assertEquals(hasDocs, true);
   });
@@ -164,8 +168,9 @@ describe("Concern-injected criteria", () => {
 
     const criteria = output.statusReport?.criteria ?? [];
     const beautifulCount =
-      criteria.filter((c) => c.includes("beautiful-product")).length;
-    const osCount = criteria.filter((c) => c.includes("open-source")).length;
+      criteria.filter((c) => c.text.includes("beautiful-product")).length;
+    const osCount =
+      criteria.filter((c) => c.text.includes("open-source")).length;
     assertEquals(beautifulCount > 0, true);
     assertEquals(osCount > 0, true);
   });
@@ -195,10 +200,12 @@ describe("Folder rules in acceptance criteria", () => {
     ) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
-    const folderCriteria = criteria.filter((c) => c.startsWith("(folder:"));
+    const folderCriteria = criteria.filter((c) =>
+      c.text.startsWith("(folder:")
+    );
     assertEquals(folderCriteria.length, 2);
     assertEquals(
-      folderCriteria[0]!.includes("Sync must be idempotent"),
+      folderCriteria[0]!.text.includes("Sync must be idempotent"),
       true,
     );
   });
@@ -215,7 +222,9 @@ describe("Folder rules in acceptance criteria", () => {
     ) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
-    const folderCriteria = criteria.filter((c) => c.startsWith("(folder:"));
+    const folderCriteria = criteria.filter((c) =>
+      c.text.startsWith("(folder:")
+    );
     assertEquals(folderCriteria.length, 0);
   });
 
@@ -234,8 +243,10 @@ describe("Folder rules in acceptance criteria", () => {
     ) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
-    const hasFolderRule = criteria.some((c) => c.includes("self-contained"));
-    const hasConcernRule = criteria.some((c) => c.includes("open-source"));
+    const hasFolderRule = criteria.some((c) =>
+      c.text.includes("self-contained")
+    );
+    const hasConcernRule = criteria.some((c) => c.text.includes("open-source"));
     assertEquals(hasFolderRule, true);
     assertEquals(hasConcernRule, true);
   });
@@ -247,7 +258,11 @@ describe("Folder rules in acceptance criteria", () => {
 
 describe("Debt carry-forward", () => {
   it("8.4: debt items appear as previousIterationDebt in output", () => {
-    const state = withDebt(inExecuting(), ["error UI", "API docs"], 3);
+    const state = withDebt(
+      inExecuting(),
+      debtItems(["error UI", "API docs"], 3),
+      3,
+    );
     const output = compiler.compile(
       state,
       noConcerns,
@@ -265,18 +280,18 @@ describe("Debt carry-forward", () => {
 
   it("8.5: debt persists when not cleared", () => {
     // Simulate: debt from iteration 3, now at iteration 5
-    let state = withDebt(inExecuting(), ["error UI"], 3);
+    let state = withDebt(inExecuting(), debtItems(["error UI"], 3), 3);
     state = machine.advanceExecution(state, "step 4");
     state = machine.advanceExecution(state, "step 5");
 
     // Debt should still be there
     assertEquals(state.execution.debt !== null, true);
     assertEquals(state.execution.debt!.items.length, 1);
-    assertEquals(state.execution.debt!.items[0], "error UI");
+    assertEquals(state.execution.debt!.items[0]!.text, "error UI");
   });
 
   it("8.7: debt note says address BEFORE new work", () => {
-    const state = withDebt(inExecuting(), ["stale item"], 1);
+    const state = withDebt(inExecuting(), debtItems(["stale item"]), 1);
     const output = compiler.compile(
       state,
       noConcerns,
@@ -297,7 +312,7 @@ describe("Debt carry-forward", () => {
 describe("Debt in status report criteria", () => {
   it("debt items appear with [DEBT] prefix in criteria", () => {
     const state = withAwaitingReport(
-      withDebt(inExecuting(), ["error UI design"], 2),
+      withDebt(inExecuting(), debtItems(["error UI design"], 2), 2),
     );
     const output = compiler.compile(
       state,
@@ -306,9 +321,9 @@ describe("Debt in status report criteria", () => {
     ) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
-    const debtCriteria = criteria.filter((c) => c.includes("[DEBT"));
+    const debtCriteria = criteria.filter((c) => c.text.includes("[DEBT"));
     assertEquals(debtCriteria.length, 1);
-    assertEquals(debtCriteria[0]!.includes("error UI design"), true);
+    assertEquals(debtCriteria[0]!.text.includes("error UI design"), true);
   });
 });
 
@@ -329,7 +344,7 @@ describe("Verification backpressure", () => {
 
     assertEquals(output.verificationFailed, true);
     const criteria = output.statusReport?.criteria ?? [];
-    const failedCriteria = criteria.filter((c) => c.includes("[FAILED]"));
+    const failedCriteria = criteria.filter((c) => c.text.includes("[FAILED]"));
     assertEquals(failedCriteria.length, 1);
   });
 
@@ -424,7 +439,7 @@ describe("Verification gates status report", () => {
 
 describe("Debt urgency escalation", () => {
   it("unaddressedIterations < 3 → normal note", () => {
-    const state = withDebt(inExecuting(), ["error UI"], 1, 2);
+    const state = withDebt(inExecuting(), debtItems(["error UI"]), 1, 2);
     const output = compiler.compile(
       state,
       noConcerns,
@@ -442,7 +457,7 @@ describe("Debt urgency escalation", () => {
   });
 
   it("unaddressedIterations >= 3 → URGENT note", () => {
-    const state = withDebt(inExecuting(), ["error UI"], 1, 3);
+    const state = withDebt(inExecuting(), debtItems(["error UI"]), 1, 3);
     const output = compiler.compile(
       state,
       noConcerns,
@@ -460,7 +475,7 @@ describe("Debt urgency escalation", () => {
   });
 
   it("unaddressedIterations = 5 → shows correct count", () => {
-    const state = withDebt(inExecuting(), ["stale item"], 1, 5);
+    const state = withDebt(inExecuting(), debtItems(["stale item"]), 1, 5);
     const output = compiler.compile(
       state,
       noConcerns,
@@ -498,12 +513,12 @@ describe("Empty remaining clears debt", () => {
 describe("Debt persists across session restart", () => {
   it("debt in state survives simulated reload", () => {
     // Create state with debt, serialize and deserialize (simulating file persistence)
-    const state = withDebt(inExecuting(), ["API docs"], 2, 2);
+    const state = withDebt(inExecuting(), debtItems(["API docs"], 2), 2, 2);
     const serialized = JSON.stringify(state);
     const reloaded = JSON.parse(serialized) as schema.StateFile;
 
     assertEquals(reloaded.execution.debt !== null, true);
-    assertEquals(reloaded.execution.debt!.items[0], "API docs");
+    assertEquals(reloaded.execution.debt!.items[0]!.text, "API docs");
     assertEquals(reloaded.execution.debt!.fromIteration, 2);
     assertEquals(reloaded.execution.debt!.unaddressedIterations, 2);
 

@@ -28,7 +28,7 @@ import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eser/primitives";
 import * as functions from "@eser/functions";
 import type * as shellArgs from "@eser/shell/args";
-import * as span from "@eser/streams/span";
+import * as tui from "@eser/shell/tui";
 import type {
   StackId,
   Validator,
@@ -41,9 +41,9 @@ import {
   type WalkOptions,
   walkSourceFiles,
 } from "./file-tools-shared.ts";
-import { createCliOutput, toCliEvent } from "./cli-support.ts";
+import { createCliContext, toCliEvent } from "./cli-support.ts";
 
-const out = createCliOutput();
+const { ctx, output: _out } = createCliContext();
 
 // =============================================================================
 // Types
@@ -275,18 +275,16 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
         // Import writeMutations lazily to avoid circular deps
         const { writeMutations } = await import("./file-tools-shared.ts");
         const written = await writeMutations(result.mutations);
-        out.writeln(
-          span.green("✓"),
-          span.text(` Fixed ${written} file(s) for ${config.name}.`),
+        tui.log.success(
+          ctx,
+          `Fixed ${written} file(s) for ${config.name}.`,
         );
       }
 
       if (result.issues.length === 0 && result.mutations.length === 0) {
-        out.writeln(
-          span.green("✓"),
-          span.text(
-            ` ${config.name}: ${result.filesChecked} files checked, no issues.`,
-          ),
+        tui.log.success(
+          ctx,
+          `${config.name}: ${result.filesChecked} files checked, no issues.`,
         );
         return primitives.results.ok(undefined);
       }
@@ -297,21 +295,16 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
           const loc = issue.line !== undefined
             ? `${issue.path}:${issue.line}`
             : issue.path;
-          out.writeln(
-            span.red("✗"),
-            span.text(` ${loc}: ${issue.message}`),
-          );
+          tui.log.error(ctx, `${loc}: ${issue.message}`);
         }
         return primitives.results.fail({ exitCode: 1 });
       }
 
       return primitives.results.ok(undefined);
     } catch (error) {
-      out.writeln(
-        span.red("✗"),
-        span.text(
-          " " + (error instanceof Error ? error.message : String(error)),
-        ),
+      tui.log.error(
+        ctx,
+        error instanceof Error ? error.message : String(error),
       );
       return primitives.results.fail({ exitCode: 1 });
     }

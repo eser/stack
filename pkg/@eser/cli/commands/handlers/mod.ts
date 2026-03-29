@@ -12,3 +12,4 @@ export { updateHandler } from "./update.ts";
 export { completionsHandler } from "./completions.ts";
 export { versionHandler } from "./version.ts";
 export { doctorHandler } from "./doctor.ts";
+export { infoHandler } from "./info.ts";

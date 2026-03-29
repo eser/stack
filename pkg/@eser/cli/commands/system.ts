@@ -10,6 +10,7 @@ import * as shellArgs from "@eser/shell/args";
 import {
   completionsHandler,
   doctorHandler,
+  infoHandler,
   installHandler,
   uninstallHandler,
   updateHandler,
@@ -57,4 +58,9 @@ export const systemCommand = new shellArgs.Command("system")
     new shellArgs.Command("doctor")
       .description("Run diagnostic checks")
       .run(doctorHandler),
+  )
+  .command(
+    new shellArgs.Command("info")
+      .description("Show runtime and execution context diagnostics")
+      .run(infoHandler),
   );

@@ -13,12 +13,42 @@ import type * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eser/primitives/results";
 import type { CliEvent } from "@eser/functions/triggers";
 import type * as shellArgs from "@eser/shell/args";
+import * as shellEnv from "@eser/shell/env";
+import * as tui from "@eser/shell/tui";
 import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
 import { runtime } from "@eser/standards/cross-runtime";
 
+/** Return type for {@link createCliContext}. */
+export type CliContext = {
+  readonly ctx: tui.TuiContext;
+  readonly output: streams.Output;
+};
+
+/**
+ * Creates a `TuiContext` configured for the current environment.
+ *
+ * Detects whether stdout is a TTY (interactive terminal) or a pipe / CI
+ * environment and builds the context accordingly. The `output` field is
+ * extracted from the context for backward compatibility with call-sites
+ * that only need an `Output`.
+ */
+export const createCliContext = (): CliContext => {
+  const isInteractive = runtime.process.isTerminal("stdout");
+
+  const interaction: shellEnv.Interaction = isInteractive
+    ? "interactive"
+    : "non-interactive";
+
+  const ctx = tui.createTuiContext({ interaction });
+
+  return { ctx, output: ctx.output };
+};
+
 /**
  * Creates a standard Output wired to stdout with ANSI rendering.
+ *
+ * @deprecated Prefer {@link createCliContext} which returns a full `TuiContext`.
  */
 export const createCliOutput = (): streams.Output =>
   streams.output({

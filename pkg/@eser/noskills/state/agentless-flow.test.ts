@@ -193,13 +193,13 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     // Classification filters concern criteria — involvesUI=false means no beautiful-product
     assertEquals(
       execWithReport.statusReport!.criteria.some((c) =>
-        c.includes("beautiful-product")
+        c.text.includes("beautiful-product")
       ),
       false,
     );
     assertEquals(
       execWithReport.statusReport!.criteria.some((c) =>
-        c.includes("open-source")
+        c.text.includes("open-source")
       ),
       false,
     );

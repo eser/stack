@@ -3,7 +3,8 @@
 import * as jsonc from "@std/jsonc";
 import * as toml from "@std/toml";
 import * as yaml from "yaml";
-import { runtime, searchFileHierarchy } from "@eser/standards/cross-runtime";
+import { runtime } from "@eser/standards/cross-runtime";
+import { searchFileHierarchy } from "./file-search.ts";
 import * as primitives from "./primitives.ts";
 
 /**

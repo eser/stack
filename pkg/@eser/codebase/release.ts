@@ -30,12 +30,12 @@ import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
 import type * as shellArgs from "@eser/shell/args";
 import * as shellExec from "@eser/shell/exec";
-import * as span from "@eser/streams/span";
+import * as tui from "@eser/shell/tui";
 
 import { readVersionFile } from "./versions.ts";
-import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
+import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
 
-const out = createCliOutput();
+const { ctx, output: out } = createCliContext();
 
 // =============================================================================
 // Types
@@ -441,69 +441,43 @@ const releaseResponseMapper: functions.handler.ResponseMapper<
     const message = err instanceof Error
       ? err.message
       : (err as functions.handler.AdaptError).message ?? String(err);
-    out.writeln(span.red("✗"), span.text(" " + message));
+    tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (value.dryRun) {
-    out.writeln(
-      span.yellow("⚠"),
-      span.text(" [DRY RUN] Release preview:"),
+    tui.log.warn(ctx, "[DRY RUN] Release preview:");
+    tui.log.info(
+      ctx,
+      `  Version: ${value.previousVersion} -> ${value.version}`,
     );
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(
-        `   Version: ${value.previousVersion} -> ${value.version}`,
-      ),
+    tui.log.info(
+      ctx,
+      `  Changelog: ${
+        value.changelogGenerated ? "generated" : "no user-facing changes"
+      }`,
     );
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(
-        `   Changelog: ${
-          value.changelogGenerated ? "generated" : "no user-facing changes"
-        }`,
-      ),
-    );
-    out.writeln(
-      span.blue("ℹ"),
-      span.text("   No changes were made."),
-    );
+    tui.log.info(ctx, "  No changes were made.");
   } else {
-    out.writeln(
-      span.green("✓"),
-      span.text(` Released v${value.version}`),
+    tui.log.success(ctx, `Released v${value.version}`);
+    tui.log.info(
+      ctx,
+      `  Version: ${value.previousVersion} -> ${value.version}`,
     );
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(
-        `   Version: ${value.previousVersion} -> ${value.version}`,
-      ),
+    tui.log.info(
+      ctx,
+      `  Changelog: ${
+        value.changelogGenerated ? "updated" : "no user-facing changes"
+      }`,
     );
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(
-        `   Changelog: ${
-          value.changelogGenerated ? "updated" : "no user-facing changes"
-        }`,
-      ),
-    );
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(`   Committed: ${value.committed}`),
-    );
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(`   Pushed: ${value.pushed}`),
-    );
-    out.writeln(
-      span.blue("ℹ"),
-      span.text("   CI will validate, tag, and publish."),
-    );
-    out.writeln(
-      span.blue("ℹ"),
-      span.text("   Watch: https://github.com/eser/stack/actions"),
+    tui.log.info(ctx, `  Committed: ${value.committed}`);
+    tui.log.info(ctx, `  Pushed: ${value.pushed}`);
+    tui.log.info(ctx, "  CI will validate, tag, and publish.");
+    tui.log.info(
+      ctx,
+      "  Watch: https://github.com/eser/stack/actions",
     );
   }
 
@@ -521,28 +495,20 @@ const rereleaseResponseMapper: functions.handler.ResponseMapper<
     const message = err instanceof Error
       ? err.message
       : (err as functions.handler.AdaptError).message ?? String(err);
-    out.writeln(span.red("✗"), span.text(" " + message));
+    tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (value.dryRun) {
-    out.writeln(
-      span.yellow("⚠"),
-      span.text(
-        ` [DRY RUN] Would delete and recreate tag ${value.tag}`,
-      ),
+    tui.log.warn(
+      ctx,
+      `[DRY RUN] Would delete and recreate tag ${value.tag}`,
     );
   } else {
-    out.writeln(
-      span.green("✓"),
-      span.text(` Re-tagged ${value.tag}`),
-    );
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(" CI will validate and publish."),
-    );
+    tui.log.success(ctx, `Re-tagged ${value.tag}`);
+    tui.log.info(ctx, "CI will validate and publish.");
   }
 
   return primitives.results.ok(undefined);
@@ -559,16 +525,16 @@ const unreleaseResponseMapper: functions.handler.ResponseMapper<
     const message = err instanceof Error
       ? err.message
       : (err as functions.handler.AdaptError).message ?? String(err);
-    out.writeln(span.red("✗"), span.text(" " + message));
+    tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (value.deleted) {
-    out.writeln(
-      span.green("✓"),
-      span.text(` Deleted tag v${value.version} (local + remote).`),
+    tui.log.success(
+      ctx,
+      `Deleted tag v${value.version} (local + remote).`,
     );
   }
 
@@ -633,22 +599,17 @@ export const main = async (
   ) {
     // Preview version
     const previousVersion = (await readVersionFile()) ?? "0.0.0";
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(` Current version: ${previousVersion}`),
-    );
-    out.writeln(span.blue("ℹ"), span.text(` Bump type: ${typeArg}`));
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(
-        " This will bump version, generate changelog, commit, and push.",
-      ),
+    tui.log.info(ctx, `Current version: ${previousVersion}`);
+    tui.log.info(ctx, `Bump type: ${typeArg}`);
+    tui.log.info(
+      ctx,
+      "This will bump version, generate changelog, commit, and push.",
     );
     await out.flush();
 
     const proceed = await confirm("Proceed?");
     if (!proceed) {
-      out.writeln(span.yellow("⚠"), span.text(" Aborted."));
+      tui.log.warn(ctx, "Aborted.");
       return primitives.results.ok(undefined);
     }
 

@@ -21,6 +21,7 @@ import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as compiler from "../context/compiler.ts";
 import * as syncEngine from "../sync/engine.ts";
+import * as hookDecisions from "./hook-decisions.ts";
 import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -125,14 +126,26 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
     });
   };
 
-  // ── Pending clear guard (blocks ALL tools) ──
+  const PENDING_CLEAR_MSG =
+    `Task accepted. You must run \`/clear\` and then \`${
+      cmd("next")
+    }\` before continuing.`;
+
+  // ── Pending clear guard (blocks ALL tools EXCEPT noskills commands) ──
   if (state["pendingClear"] === true) {
-    await deny(
-      `Task accepted. You must run \`/clear\` and then \`${
-        cmd("next")
-      }\` before continuing.`,
-    );
-    return results.ok(undefined);
+    if (toolName === "Bash") {
+      const bashCmd = ((toolInput["command"] as string) ?? "").trim();
+
+      if (hookDecisions.isNoskillsCommand(bashCmd)) {
+        // Fall through — noskills commands are control plane, always allowed
+      } else {
+        await deny(PENDING_CLEAR_MSG);
+        return results.ok(undefined);
+      }
+    } else {
+      await deny(PENDING_CLEAR_MSG);
+      return results.ok(undefined);
+    }
   }
 
   // ── Git write guard ──
@@ -162,16 +175,30 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
       ];
 
       for (const op of gitWriteOps) {
-        if (
-          command.startsWith(op) ||
-          command.includes(` && ${op}`) ||
-          command.includes(`; ${op}`)
-        ) {
-          await deny(
-            "git is read-only for agents. The user controls git. You may use `git log`, `git diff`, `git status`, `git show`, `git blame`.",
-          );
-          return results.ok(undefined);
+        // Find which segment matched the write-op prefix
+        let matchedSegment = "";
+
+        if (command.startsWith(op)) {
+          matchedSegment = command.split(/\s*&&\s*|\s*;\s*/)[0] ?? command;
+        } else if (command.includes(` && ${op}`)) {
+          matchedSegment = command.split(/\s*&&\s*/).find((s) =>
+            s.trim().startsWith(op)
+          ) ?? "";
+        } else if (command.includes(`; ${op}`)) {
+          matchedSegment = command.split(/\s*;\s*/).find((s) =>
+            s.trim().startsWith(op)
+          ) ?? "";
+        } else {
+          continue;
         }
+
+        // Check if the matched segment is actually a read-only subcommand
+        if (hookDecisions.isGitReadOnly(matchedSegment.trim())) continue;
+
+        await deny(
+          "git is read-only for agents. The user controls git. You may use `git log`, `git diff`, `git status`, `git show`, `git blame`.",
+        );
+        return results.ok(undefined);
       }
     }
 
@@ -190,18 +217,23 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
   }
 
   const phase = (state["phase"] as string) ?? "UNKNOWN";
-  if (phase === "EXECUTING") return results.ok(undefined);
 
+  // Allow writes in phases where the agent should be free to work
+  if (
+    phase === "EXECUTING" || phase === "IDLE" || phase === "DONE" ||
+    phase === "UNKNOWN"
+  ) {
+    return results.ok(undefined);
+  }
+
+  // Block writes only in conversation phases (DISCOVERY, SPEC_DRAFT, SPEC_APPROVED, BLOCKED)
   const reasons: Record<string, string> = {
-    IDLE: `No active spec. Run \`${cmd("spec new")}\``,
-    UNINITIALIZED: `noskills not initialized. Run \`${cmd("init")}\``,
     DISCOVERY: `Discovery in progress. Run \`${cmd("next")}\` to continue.`,
     SPEC_DRAFT: `Spec needs review. Run \`${cmd("approve")}\``,
     SPEC_APPROVED: `Start execution first: \`${cmd('next --answer="start"')}\``,
     BLOCKED: `Execution blocked. Resolve with \`${
       cmd('next --answer="resolution"')
     }\``,
-    DONE: `Spec complete. Start a new one or run \`${cmd("reset")}\``,
   };
 
   await deny(reasons[phase] ?? `Run \`${cmd("next")}\` first.`);

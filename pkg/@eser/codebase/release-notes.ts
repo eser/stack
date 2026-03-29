@@ -35,10 +35,10 @@ import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
 import type * as shellArgs from "@eser/shell/args";
 import * as shell from "@eser/shell";
-import * as span from "@eser/streams/span";
-import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
+import * as tui from "@eser/shell/tui";
+import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
 
-const out = createCliOutput();
+const { ctx, output: out } = createCliContext();
 
 /**
  * A parsed entry from a CHANGELOG.md file.
@@ -349,7 +349,7 @@ const cliResponseMapper: functions.handler.ResponseMapper<
     const message = err instanceof Error
       ? err.message
       : (err as functions.handler.AdaptError).message ?? String(err);
-    out.writeln(span.red("✗"), span.text(" " + message));
+    tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
 
@@ -357,23 +357,18 @@ const cliResponseMapper: functions.handler.ResponseMapper<
 
   switch (value.action) {
     case "created":
-      out.writeln(
-        span.green("✓"),
-        span.text(` Created release ${value.tag} with changelog notes.`),
+      tui.log.success(
+        ctx,
+        `Created release ${value.tag} with changelog notes.`,
       );
       break;
     case "updated":
-      out.writeln(
-        span.green("✓"),
-        span.text(` Updated release notes for ${value.tag}.`),
-      );
+      tui.log.success(ctx, `Updated release notes for ${value.tag}.`);
       break;
     case "skipped":
-      out.writeln(
-        span.yellow("⚠"),
-        span.text(
-          ` Release ${value.tag} not found. Skipping (pass --create-if-missing to create).`,
-        ),
+      tui.log.warn(
+        ctx,
+        `Release ${value.tag} not found. Skipping (pass --create-if-missing to create).`,
       );
       break;
   }

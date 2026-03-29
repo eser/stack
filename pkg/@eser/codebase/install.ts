@@ -36,19 +36,20 @@ const MARKER = "# @eser managed hook";
 /**
  * Generate the shell script content for a git hook.
  *
- * Uses `getCliCommand()` to detect the best available command at generation
- * time: eser binary > npx > pnpx > bunx > deno run jsr: > "eser" fallback.
+ * Uses `detectExecutionContext()` to determine how the CLI was invoked,
+ * honoring the user's chosen invocation method for the hook command.
  */
 const generateHookScript = async (
   event: string,
   args: string,
 ): Promise<string> => {
-  const cliCmd = await standards.crossRuntime.getCliCommand({
+  const ctx = await standards.crossRuntime.detectExecutionContext({
     command: "eser",
     devCommand: "deno task cli",
     npmPackage: "eser",
     jsrPackage: "@eser/cli",
   });
+  const cliCmd = ctx.command;
   const argsStr = args.length > 0 ? ` ${args}` : "";
   const command = `${cliCmd} workflows run -e ${event}${argsStr}`;
 

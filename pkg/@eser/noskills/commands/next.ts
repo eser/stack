@@ -50,6 +50,12 @@ export const main = async (
   let state = await persistence.readState(root);
   const config = await persistence.readManifest(root);
 
+  // Set command prefix from manifest for cmd() / cmdPrefix() calls
+  if (config?.command !== undefined) {
+    const { setCommandPrefix } = await import("../output/cmd.ts");
+    setCommandPrefix(config.command);
+  }
+
   // If pendingClear is set, reset it — the agent called noskills next after /clear
   if (state.pendingClear) {
     state = { ...state, pendingClear: false };
@@ -117,6 +123,28 @@ export const main = async (
     : null;
   const touchedFiles = await collectTouchedFiles(root, touchedState);
   const fRules = await folderRules.collectFolderRules(root, touchedFiles);
+
+  // Build IDLE context if needed (spec list for welcome dashboard)
+  let idleContext: compiler.IdleContext | undefined;
+  if (touchedState.phase === "IDLE") {
+    const specStates = await persistence.listSpecStates(root);
+    idleContext = {
+      existingSpecs: specStates.map((s) => ({
+        name: s.name,
+        phase: s.state.phase,
+        iteration: s.state.execution.iteration,
+        detail: s.state.phase === "EXECUTING"
+          ? `${s.state.execution.completedTasks.length} tasks done, iteration ${s.state.execution.iteration}`
+          : s.state.phase === "SPEC_DRAFT"
+          ? "awaiting approval"
+          : s.state.phase === "DONE"
+          ? "completed"
+          : undefined,
+      })),
+      rulesCount: rules.length,
+    };
+  }
+
   const output = compiler.compile(
     touchedState,
     activeConcerns,
@@ -124,6 +152,7 @@ export const main = async (
     config,
     parsed,
     fRules,
+    idleContext,
   );
   await formatter.writeFormatted(output, fmt);
 
@@ -344,6 +373,7 @@ const processStatusReport = async (
     completed?: string[];
     remaining?: string[];
     blocked?: string[];
+    newIssues?: string[];
   };
 
   try {
@@ -361,96 +391,121 @@ const processStatusReport = async (
     };
   }
 
-  const completed = report.completed ?? [];
-  const remaining = report.remaining ?? [];
-  const blocked = report.blocked ?? [];
+  // ── Legacy migration: string[] debt → DebtItem[] ──
+  let currentState = state;
 
-  // Carry forward remaining + blocked items as debt
-  const debtItems = [...remaining, ...blocked];
-  const prevUnaddressed = state.execution.debt?.unaddressedIterations ?? 0;
+  if (
+    state.execution.debt !== null && state.execution.debt.items.length > 0 &&
+    typeof state.execution.debt.items[0] === "string"
+  ) {
+    const legacyItems = state.execution.debt.items as unknown as string[];
+    const migratedItems: schema.DebtItem[] = legacyItems.map((text, i) => ({
+      id: `legacy-${i + 1}`,
+      text,
+      since: state.execution.debt!.fromIteration,
+    }));
+    currentState = {
+      ...state,
+      execution: {
+        ...state.execution,
+        debt: { ...state.execution.debt!, items: migratedItems },
+      },
+    };
+    // Log migration for observability
+    const encoder = new TextEncoder();
+    const writer = runtime.process.stderr.getWriter();
+    await writer.write(
+      encoder.encode(
+        "noskills: migrated legacy string[] debt to DebtItem[] format\n",
+      ),
+    );
+    writer.releaseLock();
+  }
 
-  const newDebt: schema.DebtState | null = debtItems.length > 0
+  // ── ID-based debt matching ──
+  // completed/remaining/blocked: arrays of IDs referencing existing debt/AC items
+  // newIssues: free-text strings for issues discovered during implementation
+  const completedIds = report.completed ?? [];
+  const completedSet = new Set(completedIds);
+  const newIssueTexts = report.newIssues ?? [];
+  const prevUnaddressed = currentState.execution.debt?.unaddressedIterations ??
+    0;
+
+  // Filter out completed items from existing debt (match by ID)
+  const survivingOldDebt = currentState.execution.debt !== null
+    ? currentState.execution.debt.items.filter(
+      (item) => !completedSet.has(item.id),
+    )
+    : [];
+
+  // Create new debt items from newIssues with auto-increment IDs
+  const counter = currentState.execution.debtCounter ?? 0;
+  const newDebtItems: schema.DebtItem[] = newIssueTexts.map((text, i) => ({
+    id: `debt-${counter + i + 1}`,
+    text,
+    since: currentState.execution.iteration,
+  }));
+
+  // Merge surviving old debt + newly discovered issues
+  const allDebtItems = [...survivingOldDebt, ...newDebtItems];
+
+  const mergedDebt: schema.DebtState | null = allDebtItems.length > 0
     ? {
-      items: debtItems,
-      fromIteration: state.execution.iteration,
-      unaddressedIterations: 1,
+      items: allDebtItems,
+      fromIteration: currentState.execution.debt?.fromIteration ??
+        currentState.execution.iteration,
+      unaddressedIterations: survivingOldDebt.length > 0
+        ? prevUnaddressed + 1
+        : 1,
     }
     : null;
 
-  // Merge with existing debt — don't silently drop old debt
-  let mergedDebt = newDebt;
-
-  if (state.execution.debt !== null && newDebt !== null) {
-    // Combine: old debt items that aren't in completed + new remaining
-    const completedSet = new Set(completed.map((c) => c.toLowerCase().trim()));
-    const survivingOldDebt = state.execution.debt.items.filter(
-      (item) => !completedSet.has(item.toLowerCase().trim()),
-    );
-    const allDebtItems = [...new Set([...survivingOldDebt, ...debtItems])];
-
-    mergedDebt = allDebtItems.length > 0
-      ? {
-        items: allDebtItems,
-        fromIteration: state.execution.debt.fromIteration,
-        unaddressedIterations: survivingOldDebt.length > 0
-          ? prevUnaddressed + 1
-          : 1,
-      }
-      : null;
-  } else if (state.execution.debt !== null && newDebt === null) {
-    // Agent completed everything including old debt — check if old items cleared
-    const completedSet = new Set(completed.map((c) => c.toLowerCase().trim()));
-    const survivingOldDebt = state.execution.debt.items.filter(
-      (item) => !completedSet.has(item.toLowerCase().trim()),
-    );
-
-    mergedDebt = survivingOldDebt.length > 0
-      ? {
-        items: survivingOldDebt,
-        fromIteration: state.execution.debt.fromIteration,
-        unaddressedIterations: prevUnaddressed + 1,
-      }
-      : null;
-  }
-
-  const progressSummary = completed.length > 0
-    ? `Completed: ${completed.join(", ")}`
+  const progressSummary = completedIds.length > 0
+    ? `Completed: ${completedIds.join(", ")}`
     : "Status report submitted";
 
   // Task fully accepted: zero debt AND verification passed (or no verify configured)
-  const verifyPassed = state.execution.lastVerification === null ||
-    state.execution.lastVerification.passed === true;
+  const verifyPassed = currentState.execution.lastVerification === null ||
+    currentState.execution.lastVerification.passed === true;
   const taskComplete = mergedDebt === null && verifyPassed;
 
+  // Updated debtCounter
+  const newDebtCounter = counter + newIssueTexts.length;
+
   // If task accepted, find the current task and mark it completed
-  if (taskComplete && state.spec !== null) {
-    const parsed = await specParser.parseSpec(root, state.spec);
+  if (taskComplete && currentState.spec !== null) {
+    const parsed = await specParser.parseSpec(root, currentState.spec);
     if (parsed !== null) {
-      const completedIds = state.execution.completedTasks ?? [];
-      const completedSet = new Set(completedIds);
-      const currentTask = parsed.tasks.find((t) => !completedSet.has(t.id));
+      const taskCompletedIds = currentState.execution.completedTasks ?? [];
+      const taskCompletedSet = new Set(taskCompletedIds);
+      const currentTask = parsed.tasks.find((t) => !taskCompletedSet.has(t.id));
 
       if (currentTask !== undefined) {
         // Update spec.md: "- [ ] task-N:" → "- [x] task-N:"
-        await specUpdater.markTaskCompleted(root, state.spec, currentTask.id);
+        await specUpdater.markTaskCompleted(
+          root,
+          currentState.spec,
+          currentTask.id,
+        );
         // Update progress.json
         await specUpdater.updateProgressTask(
           root,
-          state.spec,
+          currentState.spec,
           currentTask.id,
           "done",
         );
 
         // Add to completedTasks in state
         return {
-          ...state,
+          ...currentState,
           pendingClear: true,
           execution: {
-            ...state.execution,
+            ...currentState.execution,
             lastProgress: `Task ${currentTask.id} accepted: ${progressSummary}`,
             awaitingStatusReport: false,
             debt: mergedDebt,
-            completedTasks: [...completedIds, currentTask.id],
+            completedTasks: [...taskCompletedIds, currentTask.id],
+            debtCounter: newDebtCounter,
           },
         };
       }
@@ -458,15 +513,16 @@ const processStatusReport = async (
   }
 
   return {
-    ...state,
+    ...currentState,
     pendingClear: taskComplete,
     execution: {
-      ...state.execution,
+      ...currentState.execution,
       lastProgress: taskComplete
         ? progressSummary
         : `Task not accepted — remaining items must be addressed first. ${progressSummary}`,
       awaitingStatusReport: false,
       debt: mergedDebt,
+      debtCounter: newDebtCounter,
     },
   };
 };

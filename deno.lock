@@ -2470,13 +2470,15 @@
           "jsr:@std/assert@^1.0.16",
           "jsr:@std/fs@^1.0.23",
           "jsr:@std/path@^1.1.4",
-          "jsr:@std/semver@^1.0.7"
+          "jsr:@std/semver@^1.0.7",
+          "jsr:@std/testing@^1.0.16"
         ],
         "packageJson": {
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
             "npm:@jsr/std__path@^1.1.4",
-            "npm:@jsr/std__semver@^1.0.7"
+            "npm:@jsr/std__semver@^1.0.7",
+            "npm:@jsr/std__testing@^1.0.16"
           ]
         }
       },

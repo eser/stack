@@ -67,41 +67,32 @@ export {
   RuntimeCapabilityError,
 } from "./types.ts";
 
-// Re-export detection utilities
+// Re-export detection and platform utilities (from shared adapter base layer)
 export {
   detectRuntime,
-  getRuntimeVersion,
-  isBrowser,
-  isEdge,
-  isRuntime,
-  isServer,
-} from "./detect.ts";
-
-// Re-export platform utilities
-export {
   getArch,
   getHomedir,
   getPlatform,
   getPlatformInfo,
+  getRuntimeVersion,
   getTmpdir,
-} from "./platform.ts";
+  isBrowser,
+  isEdge,
+  isRuntime,
+  isServer,
+} from "./adapters/shared.ts";
 
 // Re-export polyfills
 export { posixPath, toPosix } from "./polyfills/path.ts";
-
-// Re-export file search utilities
-export {
-  searchFileHierarchy,
-  type SearchFileHierarchyOptions,
-} from "./file-search.ts";
 
 // Re-export CLI execution context utilities
 export {
   buildCommand,
   detectExecutionContext,
   detectInvoker,
-  getCliCommand,
+  getCliPrefix,
   isCommandInPath,
+  matchCliPrefix,
   resolvePathDirs,
 } from "./execution-context.ts";
 export type {
@@ -123,137 +114,13 @@ import type {
   Runtime,
   RuntimeCapabilities,
 } from "./types.ts";
-import { RuntimeCapabilityError } from "./types.ts";
-import { detectRuntime } from "./detect.ts";
-import { posixPath } from "./polyfills/path.ts";
+import { createFallbackRuntime, detectRuntime } from "./adapters/shared.ts";
 
 // Adapters are loaded lazily via dynamic import() — only the detected
 // runtime's adapter is imported. This avoids loading all 5 adapters
 // (and their platform-specific dependencies) at startup.
 
-import type { RuntimeCapabilities as Caps, RuntimeName } from "./types.ts";
-
-/**
- * Creates a throw function for a specific capability.
- */
-const createThrowFn = (
-  capability: keyof Caps,
-  runtimeName: RuntimeName,
-): () => never => {
-  return () => {
-    throw new RuntimeCapabilityError(capability, runtimeName);
-  };
-};
-
-/**
- * Creates a stub filesystem adapter that throws on all operations.
- */
-const createStubFs = (runtimeName: RuntimeName): Runtime["fs"] => {
-  const throwFs = createThrowFn("fs", runtimeName);
-  return {
-    readFile: throwFs,
-    readTextFile: throwFs,
-    writeFile: throwFs,
-    writeTextFile: throwFs,
-    exists: throwFs,
-    stat: throwFs,
-    lstat: throwFs,
-    mkdir: throwFs,
-    ensureDir: throwFs,
-    remove: throwFs,
-    readDir: throwFs,
-    copyFile: throwFs,
-    rename: throwFs,
-    makeTempDir: throwFs,
-    realPath: throwFs,
-    watch: throwFs,
-    walk: throwFs,
-    chmod: throwFs,
-  };
-};
-
-/**
- * Creates a stub exec adapter that throws on all operations.
- */
-const createStubExec = (runtimeName: RuntimeName): Runtime["exec"] => {
-  const throwExec = createThrowFn("exec", runtimeName);
-  return {
-    spawn: throwExec,
-    exec: throwExec,
-    execJson: throwExec,
-    spawnChild: throwExec,
-  };
-};
-
-/**
- * Creates a stub process adapter that throws on all operations.
- */
-const createStubProcess = (runtimeName: RuntimeName): Runtime["process"] => {
-  const throwProcess = createThrowFn("process", runtimeName);
-  return {
-    exit: throwProcess,
-    setExitCode: throwProcess,
-    cwd: throwProcess,
-    chdir: throwProcess,
-    hostname: throwProcess,
-    execPath: throwProcess,
-    get args(): readonly string[] {
-      throw new RuntimeCapabilityError("process", runtimeName);
-    },
-    get pid(): number {
-      throw new RuntimeCapabilityError("process", runtimeName);
-    },
-    get stdin(): ReadableStream<Uint8Array> {
-      throw new RuntimeCapabilityError("process", runtimeName);
-    },
-    get stdout(): WritableStream<Uint8Array> {
-      throw new RuntimeCapabilityError("process", runtimeName);
-    },
-    get stderr(): WritableStream<Uint8Array> {
-      throw new RuntimeCapabilityError("process", runtimeName);
-    },
-    isTerminal(): boolean {
-      return false;
-    },
-    setStdinRaw(): void {
-      throw new RuntimeCapabilityError("process", runtimeName);
-    },
-  };
-};
-
-/**
- * Creates a no-op env adapter for environments without env access.
- */
-const createStubEnv = (): Runtime["env"] => ({
-  get: () => undefined,
-  set: () => {},
-  delete: () => {},
-  has: () => false,
-  toObject: () => ({}),
-});
-
-/**
- * Create a minimal runtime for unknown environments.
- */
-const createMinimalRuntime = (name: Runtime["name"]): Runtime => ({
-  name,
-  version: "unknown",
-  capabilities: {
-    fs: false,
-    fsSync: false,
-    exec: false,
-    process: false,
-    env: false,
-    stdin: false,
-    stdout: false,
-    kv: false,
-  },
-  fs: createStubFs(name),
-  path: posixPath,
-  exec: createStubExec(name),
-  env: createStubEnv(),
-  process: createStubProcess(name),
-});
+import type { RuntimeName } from "./types.ts";
 
 /**
  * Runtime factory lookup table — each factory lazily imports its adapter.
@@ -331,9 +198,10 @@ export const createRuntime = async (
 ): Promise<Runtime> => {
   const runtimeName = detectRuntime();
   const factory = runtimeFactories[runtimeName];
+
   const baseRuntime = factory !== undefined
     ? await factory()
-    : createMinimalRuntime(runtimeName);
+    : createFallbackRuntime(runtimeName);
 
   // Apply capability overrides if provided
   const capabilities = options?.capabilities
@@ -371,5 +239,3 @@ export const createRuntime = async (
  */
 // deno-lint-ignore no-top-level-await
 export const runtime: Runtime = await createRuntime();
-// deno-lint-ignore no-top-level-await
-export const current: Runtime = runtime;

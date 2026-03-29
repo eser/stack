@@ -16,12 +16,15 @@ export {
   type ConfirmOptions,
   createTestContext,
   createTuiContext,
+  DEFAULT_SIGNALS,
   type GroupOptions,
   isCancel,
   type MultiselectOptions,
   type PromptOptions,
   type SelectOption,
   type SelectOptions,
+  type SignalAction,
+  type SignalConfig,
   type TextOptions,
   type TuiContext,
   type TuiContextOptions,
@@ -53,7 +56,7 @@ export { multiselect } from "./multiselect.ts";
 export { group } from "./group.ts";
 
 // Non-interactive output
-export { intro, log, outro } from "./log.ts";
+export { gap, gapDetached, intro, log, messageDetached, outro } from "./log.ts";
 export {
   createSpinner,
   type SpinnerHandle,

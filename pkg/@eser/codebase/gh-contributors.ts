@@ -30,10 +30,10 @@ import * as standards from "@eser/standards";
 import * as functions from "@eser/functions";
 import type * as shellArgs from "@eser/shell/args";
 import * as shell from "@eser/shell";
-import * as span from "@eser/streams/span";
-import { createCliOutput, runCliMain, toCliEvent } from "./cli-support.ts";
+import * as tui from "@eser/shell/tui";
+import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
 
-const out = createCliOutput();
+const { ctx, output: out } = createCliContext();
 
 // --- Types ---
 
@@ -275,32 +275,26 @@ const cliResponseMapper: functions.handler.ResponseMapper<
     const message = err instanceof Error
       ? err.message
       : (err as functions.handler.AdaptError).message ?? String(err);
-    out.writeln(span.red("✗"), span.text(" " + message));
+    tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
 
   const { value } = result;
 
   if (!value.updated) {
-    out.writeln(
-      span.blue("ℹ"),
-      span.text(
-        ` No changes — ${value.contributorCount} contributors already up to date.`,
-      ),
+    tui.log.info(
+      ctx,
+      `No changes — ${value.contributorCount} contributors already up to date.`,
     );
   } else if (value.committed) {
-    out.writeln(
-      span.green("✓"),
-      span.text(
-        ` Updated ${value.contributorCount} contributors and committed changes.`,
-      ),
+    tui.log.success(
+      ctx,
+      `Updated ${value.contributorCount} contributors and committed changes.`,
     );
   } else {
-    out.writeln(
-      span.green("✓"),
-      span.text(
-        ` Updated ${value.contributorCount} contributors in ${value.readmePath}.`,
-      ),
+    tui.log.success(
+      ctx,
+      `Updated ${value.contributorCount} contributors in ${value.readmePath}.`,
     );
   }
 

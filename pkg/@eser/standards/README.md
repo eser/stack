@@ -183,6 +183,8 @@ const locale = userLocale ?? DEFAULT_LOCALE; // "en"
 ### Runtime Abstraction
 
 Cross-runtime support for Deno, Node.js, Bun, Cloudflare Workers, and browsers.
+Architecture: `adapters/shared.ts` (base layer) composed with runtime-specific
+adapters (`deno.ts`, `node.ts`, `bun.ts`, `browser.ts`, `workerd.ts`).
 
 ```typescript
 import {
@@ -193,28 +195,77 @@ import {
 
 // Auto-detected runtime singleton
 console.log(runtime.name); // "deno" | "node" | "bun" | "workerd" | "browser"
-console.log(runtime.version); // "1.40.0"
+console.log(runtime.version); // "2.0.0"
 
-// Check capabilities
+// Check capabilities before use
 if (runtime.capabilities.fs) {
   const content = await runtime.fs.readTextFile("config.json");
 }
 
 if (runtime.capabilities.exec) {
-  const result = await runtime.exec.command("ls", ["-la"]);
+  const output = await runtime.exec.exec("git", ["status"]);
 }
 
 // Environment variables
 const apiKey = runtime.env.get("API_KEY");
 
+// Process info
+const cwd = runtime.process.cwd();
+const args = runtime.process.args;
+
 // Create runtime with mocks for testing
-const mockRuntime = createRuntime({
-  name: "test",
-  fs: {
-    readTextFile: async () => '{"test": true}',
-    writeTextFile: async () => {},
+const mockRuntime = await createRuntime({
+  env: {
+    get: () => "mock",
+    set: () => {},
+    delete: () => {},
+    has: () => true,
+    toObject: () => ({}),
   },
 });
+```
+
+### CLI Execution Context
+
+Detect how the CLI was invoked and build reproducible commands for git hooks.
+
+```typescript
+import {
+  detectExecutionContext,
+  getCliPrefix,
+  matchCliPrefix,
+} from "@eser/standards/cross-runtime";
+
+// Detect full execution context
+const ctx = await detectExecutionContext({
+  command: "eser",
+  devCommand: "deno task cli",
+  npmPackage: "eser",
+  jsrPackage: "@eser/cli",
+});
+console.log(ctx.runtime); // "deno" | "node" | "bun" | "compiled"
+console.log(ctx.invoker); // "npm" | "npx" | "pnpm" | "pnpx" | "bun" | "bunx" | "deno" | "dev" | "binary"
+console.log(ctx.command); // "npx eser" (canonical, reproducible command)
+
+// Find subcommand prefix for hooks/manifest
+const prefix = await getCliPrefix(
+  {
+    command: "eser",
+    devCommand: "deno task cli",
+    npmPackage: "eser",
+    jsrPackage: "@eser/cli",
+  },
+  ["noskills", "nos"],
+);
+// → "npx eser noskills"  (when invoked as: npx eser noskills init)
+// → "deno task cli nos"  (when invoked as: deno task cli nos init)
+
+// Pure function for testing (no runtime access)
+const result = matchCliPrefix(
+  ["noskills", "nos"],
+  ["npx", "eser", "noskills", "init"],
+);
+// → "npx eser noskills"
 ```
 
 ### Route Matching

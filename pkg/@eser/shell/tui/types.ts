@@ -26,12 +26,27 @@ export const isCancel = (value: unknown): value is Cancel => value === CANCEL;
 /** @deprecated Use `Interaction` from `@eser/shell/env` instead. */
 export type TuiTarget = "interactive" | "non-interactive";
 
+export type SignalAction = "exit" | "cancel" | "ignore";
+
+export type SignalConfig = {
+  /** Ctrl+C behavior. Default: "exit" (exit process with code 130). */
+  readonly ctrlC: SignalAction;
+  /** Escape behavior. Default: "cancel" (cancel current prompt). */
+  readonly escape: SignalAction;
+};
+
+export const DEFAULT_SIGNALS: SignalConfig = {
+  ctrlC: "exit",
+  escape: "cancel",
+};
+
 export type TuiContext = {
   readonly output: streams.Output;
   readonly input: ReadableStream<Uint8Array>;
   readonly target: TuiTarget;
   readonly interaction: Interaction;
   readonly audience: Audience;
+  readonly signals: SignalConfig;
   /** stderr output for non-interactive mode (logs go here, stdout stays pure JSON) */
   readonly stderr: streams.Output;
 };
@@ -41,6 +56,7 @@ export type TuiContextOptions = Partial<TuiContext> & {
   target?: TuiTarget;
   interaction?: Interaction;
   audience?: Audience;
+  signals?: Partial<SignalConfig>;
 };
 
 /** Get stdin as a ReadableStream, falling back to empty stream if unavailable. */
@@ -80,6 +96,7 @@ export const createTuiContext = (
     target,
     interaction,
     audience,
+    signals: { ...DEFAULT_SIGNALS, ...options?.signals },
     stderr: options?.stderr ?? streams.output({
       renderer: streams.renderers.plain(),
       sink: streams.sinks.stderr(),
@@ -136,6 +153,7 @@ export const createTestContext = (): {
       target: "interactive",
       interaction: "interactive",
       audience: "human",
+      signals: { ctrlC: "cancel", escape: "cancel" },
       stderr: out,
     },
     getOutput: () => sink.items().map(String).join(""),

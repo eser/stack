@@ -14,6 +14,11 @@
     "./routes": "./routes/mod.ts",
     "./run-modes": "./run-modes.ts",
     "./cross-runtime": "./cross-runtime/mod.ts",
+    "./cross-runtime/browser": "./cross-runtime/adapters/browser.ts",
+    "./cross-runtime/bun": "./cross-runtime/adapters/bun.ts",
+    "./cross-runtime/deno": "./cross-runtime/adapters/deno.ts",
+    "./cross-runtime/node": "./cross-runtime/adapters/node.ts",
+    "./cross-runtime/workerd": "./cross-runtime/adapters/workerd.ts",
     "./strings": "./strings/mod.ts",
     "./versions": "./versions.ts"
   },
@@ -23,6 +28,7 @@
     "@std/semver": "npm:@jsr/std__semver@^1.0.7"
   },
   "devDependencies": {
-    "@std/assert": "npm:@jsr/std__assert@^1.0.16"
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
+    "@std/testing": "npm:@jsr/std__testing@^1.0.16"
   }
 }

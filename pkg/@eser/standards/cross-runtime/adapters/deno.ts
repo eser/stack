@@ -7,6 +7,10 @@
  * @module
  */
 
+// FIXME(@eser) since we don't have process.argv0 and process.argv equivalents in Deno,
+//              we're going to use them from nodecompat.
+import nodeProcess from "node:process";
+
 import * as denoPath from "@std/path";
 import type {
   ChildProcess,
@@ -516,6 +520,10 @@ const createDenoProcess = (): RuntimeProcess => {
     execPath(): string {
       return Deno.execPath();
     },
+
+    argv: nodeProcess.argv,
+
+    argv0: nodeProcess.argv0,
 
     args: Deno.args,
 

@@ -26,7 +26,7 @@ const baseSnapshot = (): WatchSnapshot => ({
   lastCalledAt: new Date(Date.now() - 12000).toISOString(),
   modifiedFiles: ["src/api/v1/listings/price.ts", "src/lib/comps-engine.ts"],
   debt: {
-    items: ["API docs not yet written"],
+    items: [{ id: "debt-1", text: "API docs not yet written", since: 5 }],
     fromIteration: 5,
   },
   concerns: ["open-source", "beautiful-product"],
@@ -59,7 +59,7 @@ describe("Watch snapshot: correct data extraction", () => {
     const snap = baseSnapshot();
     assertEquals(snap.debt !== null, true);
     assertEquals(snap.debt!.items.length, 1);
-    assertEquals(snap.debt!.items[0], "API docs not yet written");
+    assertEquals(snap.debt!.items[0]!.text, "API docs not yet written");
   });
 
   it("shows tracked files", () => {

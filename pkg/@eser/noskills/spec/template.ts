@@ -32,42 +32,122 @@ const toBulletList = (text: string): string[] => {
     .filter((s) => s.length > 5);
 };
 
-/** Derive tasks from discovery answers. */
-const deriveTasks = (
+/**
+ * Derive tasks from discovery answers and decisions.
+ *
+ * SPEC_DRAFT behavioral rule: Auto-generated tasks are a starting point.
+ * If any task is still vague (reads like a goal rather than an action), the
+ * agent MUST refine it into a concrete imperative before presenting the spec
+ * to the user. A good task starts with a verb and describes a single
+ * deliverable — e.g. "Add photo upload endpoint with validation".
+ */
+export const deriveTasks = (
   answers: readonly schema.DiscoveryAnswer[],
+  decisions: readonly schema.Decision[] = [],
 ): string[] => {
   const tasks: string[] = [];
 
-  // From Q2 (ambition) — ONE implementation task from the 10-star goal.
+  // -------------------------------------------------------------------------
+  // From Q2 (ambition) — extract individual features from the 10-star goal.
+  // -------------------------------------------------------------------------
   const ambition = answers.find((a) => a.questionId === "ambition");
   if (ambition !== undefined) {
     const text = ambition.answer;
     const tenStarMatch = text.match(/10[- ]?star[:\s]+(.+)/i);
-    const goal = tenStarMatch !== null
-      ? tenStarMatch[1]!.trim()
-      : (text.length > 120 ? text.slice(0, 120) + "..." : text);
-    // Clean imperative: capitalize first letter, no prefix
-    const cleaned = goal.charAt(0).toUpperCase() + goal.slice(1);
-    tasks.push(cleaned);
+    const goalText = tenStarMatch !== null ? tenStarMatch[1]!.trim() : text;
+
+    // Split by sentences (newlines or ". "), NOT by commas.
+    // Commas are part of task descriptions, not delimiters.
+    const goalLines = goalText.split(/\n/).map((s) => s.trim()).filter((s) =>
+      s.length > 0
+    );
+    let fragments: string[];
+    if (goalLines.length > 1) {
+      fragments = goalLines.map((s) =>
+        s.replace(/^\s*[-\u2022*]\s*/, "").trim()
+      )
+        .filter((s) => s.length > 3);
+    } else {
+      // Single block — split on sentence boundaries (period + space)
+      fragments = goalText
+        .split(/\.\s+/)
+        .map((s) => s.replace(/^\s*[-\u2022*]\s*/, "").trim())
+        .filter((s) => s.length > 3);
+    }
+
+    for (const raw of fragments) {
+      // Clean: strip leading articles/filler, capitalize, ensure imperative
+      let cleaned = raw
+        .replace(/^(the|a|an|with|plus|also)\s+/i, "")
+        .trim();
+
+      // Strip garbled prefixes like "the target:", "the goal:"
+      cleaned = cleaned.replace(
+        /^(the\s+)?(target|goal|objective)[:\s]+/i,
+        "",
+      ).trim();
+
+      // Capitalize first letter
+      cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+
+      // Strip trailing period or ellipsis
+      cleaned = cleaned.replace(/[.\u2026]+$/, "").trim();
+
+      // If still vague (too long and no leading verb), prefix with "Implement"
+      const hasVerb = /^[A-Z][a-z]+\s/.test(cleaned) &&
+        /^(Add|Create|Build|Implement|Set up|Configure|Enable|Update|Remove|Refactor|Extract|Fix|Write|Design|Integrate|Support|Replace|Migrate)\s/i
+          .test(cleaned);
+
+      if (cleaned.length > 100 && !hasVerb) {
+        cleaned = `Implement ${cleaned.charAt(0).toLowerCase()}${
+          cleaned.slice(1)
+        }`;
+        // Trim to a reasonable length
+        if (cleaned.length > 140) {
+          cleaned = cleaned.slice(0, 137) + "...";
+        }
+      }
+
+      if (cleaned.length > 3) {
+        tasks.push(cleaned);
+      }
+    }
   }
 
-  // From Q5 (verification) — each criterion as a test task.
+  // -------------------------------------------------------------------------
+  // From Q5 (verification) — verification tasks, kept whole.
+  // These validate the implementation; they do NOT drive it.
+  // -------------------------------------------------------------------------
   const verification = answers.find((a) => a.questionId === "verification");
   if (verification !== undefined) {
-    const items = toBulletList(verification.answer);
+    // Split on newlines only — keep each criterion whole even with commas or file extensions
+    const items = verification.answer
+      .split(/\n/)
+      .map((s) => s.replace(/^\s*[-\u2022*]\s*/, "").trim())
+      .filter((s) => s.length > 0);
     for (const item of items) {
-      // Rephrase: "Run X, check Y" → "Test that X" or keep as-is if already imperative
-      const lower = item.toLowerCase();
-      if (lower.startsWith("run ") || lower.startsWith("check ")) {
-        tasks.push(`Test: ${item}`);
-      } else {
-        tasks.push(item);
-      }
+      tasks.push(item);
     }
   }
 
   // Q6 (scope boundary) items are NOT tasks — they're constraints.
   // They go into behavioral.outOfScope, not the task list.
+
+  // -------------------------------------------------------------------------
+  // From decisions — expansion proposals that were accepted become tasks.
+  // -------------------------------------------------------------------------
+  for (const decision of decisions) {
+    const lower = decision.choice.toLowerCase();
+    if (lower.includes("accepted") || lower.includes("add to scope")) {
+      const taskText = decision.question
+        .replace(/^should\s+(we|i)\s+/i, "")
+        .replace(/\?+$/, "")
+        .trim();
+      const capitalized = taskText.charAt(0).toUpperCase() +
+        taskText.slice(1);
+      tasks.push(capitalized);
+    }
+  }
 
   // If no tasks could be derived, prompt the user
   if (tasks.length === 0) {
@@ -112,7 +192,7 @@ const checkSectionRelevance = (
       lower.includes("design") || lower.includes("mobile") ||
       lower.includes("layout") || lower.includes("interaction")
     ) {
-      relevance[section] = classification.involvesUI;
+      relevance[section] = classification.involvesWebUI;
     } else if (
       lower.includes("contributor") || lower.includes("public api") ||
       lower.includes("api surface")
@@ -218,8 +298,8 @@ export const renderSpec = (
     lines.push("");
   }
 
-  // Tasks — auto-derived from discovery answers
-  const tasks = deriveTasks(answers);
+  // Tasks — auto-derived from discovery answers and accepted decisions
+  const tasks = deriveTasks(answers, decisions);
   lines.push("## Tasks");
   lines.push("");
   for (let i = 0; i < tasks.length; i++) {

@@ -5,6 +5,20 @@ context and hoping the agent picks the right one, noskills pushes exactly the
 right instruction at the right time — the agent never decides what to do next,
 the state machine does.
 
+## Status: Beta
+
+noskills is in active beta. We've battle-tested it with Claude Code — the
+discovery flow, sub-agent orchestration, verification backpressure, and the full
+spec lifecycle are working in production use. Other platforms (Cursor, Kiro,
+Copilot, Windsurf) have sync support but haven't been tested end-to-end yet.
+
+If you want to test noskills with a platform other than Claude Code, reach out —
+we'd love early feedback. Find me at [github.com/eser](https://github.com/eser)
+or [@eaborai](https://x.com/eaborai).
+
+**Coming next:** deeper rule management, concern customization, and platform
+integrations beyond Claude Code. Star the repo and watch for updates.
+
 ## Why
 
 AI coding agents have a context rot problem. The more skills, rules, and
@@ -24,6 +38,91 @@ Agent <- stdout (JSON) <- noskills CLI <- filesystem (state + concerns + rules)
 The agent calls `noskills next`, gets exactly what it needs for the current
 phase, acts on it, and calls `noskills next` again. No skill selection, no
 context pollution, no forgetting.
+
+## Before & After
+
+**Without noskills:**
+
+```
+You: "Add photo upload with validation"
+Agent: *reads 17 skill files into context*
+Agent: *picks wrong skill, starts building auth instead*
+Agent: "I've implemented a comprehensive authentication system..."
+You: "No, photo UPLOAD"
+Agent: *context is now 60% full with auth code it wrote*
+Agent: *starts photo upload but forgets validation requirement*
+Agent: "Done! Photo upload is working."
+You: *tests* "There's no validation. And you deleted my error handler."
+Agent: "I apologize, let me fix that..."
+Agent: *context window full, compaction happens*
+Agent: *forgets everything, starts from scratch*
+```
+
+**With noskills:**
+
+```
+You: "Add photo upload with validation"
+noskills: Discovery Q1/6: "What do users do today without this?"
+You: "They fill forms manually, it's slow"
+noskills: Q2/6: "1-star and 10-star versions?"
+You: "1-star: basic upload. 10-star: auto-detect from photo"
+... 4 more questions ...
+noskills: "Here's your spec. 5 tasks. Approve?"
+You: "Approved"
+noskills -> Agent: "Task 1: Create upload endpoint. Acceptance: returns 200 for JPEG/PNG/WebP, 400 for invalid."
+Agent: *implements task 1 in fresh context*
+noskills: "Tests pass. Status report: what's done?"
+Agent: "Endpoint works. Error handling done. Docs not yet."
+noskills: "Docs carried as debt. Task 2: Add validation..."
+*Each task: fresh context, clear scope, verified before advancing*
+```
+
+## What You Get
+
+**Discovery that actually discovers.** Not "Got it, I'll start coding." noskills
+asks 6 questions that probe product, engineering, and QA simultaneously — with
+sub-questions injected by your active concerns. The agent scans your codebase
+first, challenges your assumptions, then asks. You get a spec that reflects what
+you actually need, not what the agent guessed.
+
+**Specs that track themselves.** Every spec has a status (draft -> approved ->
+executing -> done), tasks with checkboxes, and acceptance criteria from both the
+spec AND your active concerns. You don't track progress — noskills tracks it.
+The agent reports against specific criteria, not vibes.
+
+**Agents that can't lie about being done.** When the agent says "task done,"
+noskills runs your test suite first. If tests fail, the task stays incomplete —
+no exceptions. Then it asks for a status report against each acceptance
+criterion. Items the agent didn't finish carry forward as debt with increasing
+urgency. The agent can't declare victory and move on.
+
+**Context that never rots.** Each task runs in a sub-agent with fresh context.
+The main agent orchestrates, sub-agents execute. No `/clear` gymnastics, no "the
+agent forgot my requirements." State lives in files, not in the agent's memory.
+
+**Concerns that shape everything.** "We're open-source" isn't a wish — it's a
+lens that injects documentation requirements into every spec,
+contributor-friendliness checks into every review, and permissive-default
+reminders into every task. Stack concerns to define your project's character.
+
+**One source of truth for every tool.** Write rules once in `.eser/rules/`.
+noskills generates CLAUDE.md, .cursorrules, Kiro steering files, Copilot
+instructions, and Windsurf rules. Your teammate on Cursor and your teammate on
+Claude Code both get the same conventions, automatically.
+
+**A human who's always in charge.** noskills never makes decisions silently.
+Discovery questions -> you answer. Spec approval -> you decide. Architectural
+choices -> you pick. Concern tensions -> you resolve. The agent executes, you
+decide. Explicit > Clever.
+
+## Who Is This For
+
+noskills is for builders who use AI coding agents daily and are tired of
+babysitting them — repeating the same corrections, watching the agent forget
+requirements mid-session, and manually tracking what's done and what isn't. Solo
+builders get a structured workflow that keeps the agent focused. Teams get a
+shared source of truth that every tool and every teammate inherits
+automatically.
 
 ## The Mental Model
 
@@ -107,6 +206,8 @@ That's why I stopped using skills and built a scrum master instead:
   decision, just like team values shape how a team works.
 - **Phase transitions are Jidoka stops** — the machine pauses, the human
   decides, then the machine continues.
+- **Explicit over clever** — noskills never makes decisions silently. It always
+  asks.
 
 The insight isn't technical. It's that the practices we spent decades developing
 for human teams apply directly to AI agents — because the underlying problem is
@@ -117,19 +218,22 @@ work on track.
 
 Open Claude Code and paste:
 
-    Run `eser noskills init`
+    Run `eser noskills init` — it will scaffold your project and guide you through setup.
 
 If `eser` CLI is not installed:
 
-    Run `npx eser@latest noskills init`
+    Run `npx eser@latest noskills init` — it will scaffold your project and guide you through setup.
 
-That's it. noskills will detect Claude Code, set up hooks, generate `CLAUDE.md`,
-and present your next options automatically.
+That's it. The init command detects Claude Code, sets up hooks, generates
+`CLAUDE.md`, and presents your next options automatically.
 
 If you want to add this to an existing project where teammates also use
 noskills, the init scaffolds `.eser/` which should be committed to your repo.
 
 ## Quick Start
+
+noskills works with any AI coding agent. Here's how to get started in a few
+minutes.
 
 ### With an agent (Claude Code, Cursor, etc.)
 
@@ -154,7 +258,7 @@ eser noskills spec new "photo upload"
 eser noskills next -o text                  # Shows all 6 questions at once
 eser noskills next --answer='{"status_quo":"...","ambition":"...","reversibility":"...","user_impact":"...","verification":"...","scope_boundary":"..."}' -o text
 # Classification: what does this spec involve?
-eser noskills next --answer='{"involvesUI":true,"involvesPublicAPI":false,"involvesMigration":false,"involvesDataHandling":false}' -o text
+eser noskills next --answer='{"involvesWebUI":true,"involvesCLI":false,"involvesPublicAPI":false,"involvesMigration":false,"involvesDataHandling":false}' -o text
 eser noskills approve
 eser noskills next --answer="start" -o text # Begin execution
 eser noskills next --answer="task-1 done" -o text
@@ -216,25 +320,31 @@ for changes. Zero LLM tokens. Exits automatically when phase reaches DONE.
 
 ## How It Works
 
+noskills is a state machine. Your spec moves through phases — each phase has
+different rules, different questions, and different behavioral constraints for
+the agent. You don't need to understand the internals to use noskills, but
+here's how it works under the hood.
+
 ### The State Machine
 
 Every spec follows a deterministic phase flow:
 
 ```
-IDLE -> DISCOVERY -> SPEC_DRAFT -> SPEC_APPROVED -> EXECUTING <-> BLOCKED
- ^                                                       |
- +------------------------- DONE <-----------------------+
+IDLE -> DISCOVERY -> DISCOVERY_REVIEW -> SPEC_DRAFT -> SPEC_APPROVED -> EXECUTING <-> BLOCKED
+ ^                                                                          |
+ +--------------------------------- DONE <---------------------------------+
 ```
 
-| Phase             | What happens                                                           |
-| ----------------- | ---------------------------------------------------------------------- |
-| **IDLE**          | No active spec. Start one with `noskills spec new "..."`               |
-| **DISCOVERY**     | 6 blended questions probe product, engineering, and QA simultaneously  |
-| **SPEC_DRAFT**    | Spec generated from discovery answers. Human reviews                   |
-| **SPEC_APPROVED** | Spec approved, waiting to start. A deliberate "ready but not yet" gate |
-| **EXECUTING**     | Agent works through the spec. Reports progress each iteration          |
-| **BLOCKED**       | Agent hit a decision it can't make alone. Human resolves               |
-| **DONE**          | Spec complete. Summary with iteration count and decisions              |
+| Phase                | What happens                                                           |
+| -------------------- | ---------------------------------------------------------------------- |
+| **IDLE**             | No active spec. Start one with `noskills spec new "..."`               |
+| **DISCOVERY**        | 6 blended questions probe product, engineering, and QA simultaneously  |
+| **DISCOVERY_REVIEW** | User reviews and confirms all discovery answers before spec generation |
+| **SPEC_DRAFT**       | Spec generated from discovery answers. Human reviews                   |
+| **SPEC_APPROVED**    | Spec approved, waiting to start. A deliberate "ready but not yet" gate |
+| **EXECUTING**        | Agent works through the spec. Reports progress each iteration          |
+| **BLOCKED**          | Agent hit a decision it can't make alone. Human resolves               |
+| **DONE**             | Spec complete. Summary with iteration count and decisions              |
 
 ### Phase Transition Protocol
 
@@ -436,9 +546,8 @@ When the agent reports a task complete, noskills doesn't take its word for it.
    and must be addressed before any new work.
 
 4. **Context clearing** — when debt is zero and verification passes, noskills
-   emits a `clearContext` action telling the agent to `/clear` for fresh context
-   on the next task. A `pendingClear` flag blocks all file edits until the agent
-   complies.
+   recommends a `/clear` for fresh context on the next task. The sub-agent
+   pattern handles context isolation naturally, so this is advisory only.
 
 ### Scoped Folder Rules
 
@@ -484,11 +593,12 @@ question 1 also asks: _"Is this workaround common in the community?"_
 ### Spec Classification
 
 After discovery answers are submitted, noskills asks the user to classify the
-spec along four boolean axes:
+spec along five boolean axes:
 
 | Flag                   | What it controls                                        |
 | ---------------------- | ------------------------------------------------------- |
-| `involvesUI`           | UI state sections from beautiful-product concern        |
+| `involvesWebUI`        | Web/Mobile UI sections from beautiful-product concern   |
+| `involvesCLI`          | CLI/Terminal UI loading states                          |
 | `involvesPublicAPI`    | API documentation sections from open-source concern     |
 | `involvesMigration`    | Migration checklist sections from compliance/long-lived |
 | `involvesDataHandling` | Data safety sections from compliance concern            |
@@ -501,7 +611,7 @@ keyword-based guessing with explicit user input.
 The classification is submitted as JSON via `noskills next`:
 
 ```bash
-noskills next --answer='{"involvesUI":true,"involvesPublicAPI":false,"involvesMigration":false,"involvesDataHandling":false}'
+noskills next --answer='{"involvesWebUI":true,"involvesCLI":false,"involvesPublicAPI":false,"involvesMigration":false,"involvesDataHandling":false}'
 ```
 
 ### Hooks — Zero-Token Bookkeeping
@@ -511,7 +621,7 @@ spending LLM tokens:
 
 | Hook                | Event        | What it does                                                                                                                                         |
 | ------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **pre-tool-use**    | PreToolUse   | Blocks file edits outside EXECUTING phase. Blocks git write commands. Blocks edits when pendingClear is set.                                         |
+| **pre-tool-use**    | PreToolUse   | Blocks file edits outside EXECUTING phase. Blocks git write commands.                                                                                |
 | **stop**            | Stop         | Increments iteration counter, snapshots `git diff` into state, checks restart threshold. The Ralph loop's heartbeat.                                 |
 | **post-file-write** | PostToolUse  | Logs modified file paths to `.eser/.state/files-changed.jsonl`                                                                                       |
 | **post-bash**       | PostToolUse  | Logs noskills CLI invocations for observability                                                                                                      |
@@ -582,6 +692,47 @@ Switching back resumes exactly where it left off.
 > (e.g., from Claude Code's plan mode) as the basis for discovery, pre-filling
 > some answers. Not yet implemented.
 
+## Common Workflows
+
+**"I have a bug report from a customer"**
+
+```bash
+eser noskills spec new "Fix: users can't upload files over 10MB"
+# Discovery mode: Ship fast (skip expansions, minimal questions)
+# 3 tasks generated: reproduce, fix, test
+# Agent implements in ~8 minutes with verification
+```
+
+**"I need to add a major feature"**
+
+```bash
+eser noskills spec new "Add real-time collaboration to the editor"
+# Discovery mode: Explore scope (expansion proposals, dream state table)
+# 12 tasks generated with architectural decisions
+# Agent works through tasks over multiple sessions
+# Debt tracking ensures nothing is forgotten between sessions
+```
+
+**"I have meeting notes and need to turn them into work"**
+
+```bash
+eser noskills spec new "From product meeting: need analytics dashboard,
+  CEO wants daily active users, retention curves, revenue per cohort.
+  Mobile must work. Launch by end of Q2."
+# noskills accepts any input format — meeting notes, kanban cards, emails
+# Discovery challenges assumptions: "Is mobile-first or desktop-first?"
+# Spec generated with proper tasks, not meeting note fragments
+```
+
+**"I want the agent to work autonomously while I sleep"**
+
+```bash
+eser noskills run --unattended --max-iterations=50
+# Fresh agent per iteration, zero context rot
+# Blocks logged to file — resolve in the morning
+# Git commits handled by CLI, not the agent
+```
+
 ## CLI Reference
 
 ```bash
@@ -597,25 +748,28 @@ eser nos <command>
 
 ### Commands
 
-| Command                       | Description                                                        |
-| ----------------------------- | ------------------------------------------------------------------ |
-| `init`                        | Scaffold `.eser/`, detect project traits, install hooks            |
-| `status [-o format]`          | Show current phase, spec name, progress, debt                      |
-| `spec new "..." [--name=N]`   | Start a new spec, enter DISCOVERY                                  |
-| `spec list [-o format]`       | List all specs with phase info                                     |
-| `spec switch <name>`          | Switch active spec (preserves state)                               |
-| `next [-o format]`            | Get instruction for current phase                                  |
-| `next --answer="..."  [-o f]` | Submit answer and advance state                                    |
-| `approve`                     | Approve spec draft -> SPEC_APPROVED                                |
-| `done`                        | Complete execution -> DONE                                         |
-| `block "reason"`              | Mark execution as blocked                                          |
-| `reset`                       | Reset current spec to IDLE                                         |
-| `run [--unattended]`          | Autonomous execution loop (Ralph loop)                             |
-| `watch [-o format]`           | Live dashboard monitoring agent progress                           |
-| `concern add/remove/list`     | Manage active concerns                                             |
-| `rule add/list/promote`       | Manage permanent rules                                             |
-| `sync`                        | Regenerate tool-specific instruction files + hooks                 |
-| `purge [--force]`             | Remove all noskills content (specs, rules, concerns, hooks, state) |
+| Command                                    | Description                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------ |
+| `init`                                     | Scaffold `.eser/`, detect project traits, install hooks            |
+| `status [-o format]`                       | Show current phase, spec name, progress, debt                      |
+| `spec new "..." [--name=N]`                | Start a new spec, enter DISCOVERY                                  |
+| `spec list [-o format]`                    | List all specs with phase info                                     |
+| `spec switch <name>`                       | Switch active spec (preserves state)                               |
+| `next [--spec=name] [-o format]`           | Get instruction for current phase                                  |
+| `next --answer="..." [--spec=name] [-o f]` | Submit answer and advance state                                    |
+| `approve [--spec=name]`                    | Approve spec draft -> SPEC_APPROVED                                |
+| `done [--spec=name]`                       | Complete execution -> DONE                                         |
+| `block [--spec=name] "reason"`             | Mark execution as blocked                                          |
+| `reset [--spec=name]`                      | Reset current spec to IDLE                                         |
+| `run [--spec=name] [--unattended]`         | Autonomous execution loop (Ralph loop)                             |
+| `watch [-o format]`                        | Live dashboard monitoring agent progress                           |
+| `concern add/remove/list`                  | Manage active concerns                                             |
+| `rule add/list/promote`                    | Manage permanent rules                                             |
+| `sync`                                     | Regenerate tool-specific instruction files + hooks                 |
+| `purge [--force]`                          | Remove all noskills content (specs, rules, concerns, hooks, state) |
+
+The `--spec` flag targets a specific spec by name, enabling parallel work across
+multiple terminal sessions. When omitted, commands operate on the active spec.
 
 ### Output Formats
 

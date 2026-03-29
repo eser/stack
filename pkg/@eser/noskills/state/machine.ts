@@ -18,8 +18,9 @@ const VALID_TRANSITIONS: Readonly<
 > = {
   UNINITIALIZED: ["IDLE"],
   IDLE: ["DISCOVERY"],
-  DISCOVERY: ["SPEC_DRAFT"],
-  SPEC_DRAFT: ["SPEC_APPROVED"],
+  DISCOVERY: ["DISCOVERY_REVIEW"],
+  DISCOVERY_REVIEW: ["DISCOVERY_REVIEW", "SPEC_DRAFT"],
+  SPEC_DRAFT: ["SPEC_DRAFT", "SPEC_APPROVED"],
   SPEC_APPROVED: ["EXECUTING"],
   EXECUTING: ["DONE", "BLOCKED"],
   BLOCKED: ["EXECUTING"],
@@ -77,7 +78,12 @@ export const startSpec = (
     phase: "DISCOVERY",
     spec: specName,
     branch,
-    discovery: { answers: [], completed: false },
+    discovery: {
+      answers: [],
+      completed: false,
+      currentQuestion: 0,
+      audience: "human",
+    },
     specState: { path: null, status: "none" },
     execution: {
       iteration: 0,
@@ -88,6 +94,7 @@ export const startSpec = (
       debt: null,
       completedTasks: [],
       debtCounter: 0,
+      naItems: [],
     },
     decisions: [],
   };
@@ -98,7 +105,7 @@ export const addDiscoveryAnswer = (
   questionId: string,
   answer: string,
 ): schema.StateFile => {
-  if (state.phase !== "DISCOVERY") {
+  if (state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REVIEW") {
     throw new Error(`Cannot add discovery answer in phase: ${state.phase}`);
   }
 
@@ -110,8 +117,8 @@ export const addDiscoveryAnswer = (
   return {
     ...state,
     discovery: {
+      ...state.discovery,
       answers: newAnswers,
-      completed: state.discovery.completed,
     },
   };
 };
@@ -125,13 +132,41 @@ export const completeDiscovery = (
 
   return {
     ...state,
-    phase: "SPEC_DRAFT",
+    phase: "DISCOVERY_REVIEW",
     discovery: { ...state.discovery, completed: true },
     specState: {
       path: paths.specFile(state.spec!),
       status: "draft",
     },
-    // classification stays null until user provides it via the classification prompt
+  };
+};
+
+export const approveDiscoveryReview = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  assertTransition(state.phase, "SPEC_DRAFT");
+
+  return {
+    ...state,
+    phase: "SPEC_DRAFT",
+  };
+};
+
+export const advanceDiscoveryQuestion = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  if (state.phase !== "DISCOVERY") {
+    throw new Error(
+      `Cannot advance discovery question in phase: ${state.phase}`,
+    );
+  }
+
+  return {
+    ...state,
+    discovery: {
+      ...state.discovery,
+      currentQuestion: state.discovery.currentQuestion + 1,
+    },
   };
 };
 
@@ -156,7 +191,12 @@ export const startExecution = (
     ...state,
     phase: "EXECUTING",
     // Clear discovery answers — they're persisted in spec.md, no need in state
-    discovery: { answers: [], completed: true },
+    discovery: {
+      answers: [],
+      completed: true,
+      currentQuestion: 0,
+      audience: "human",
+    },
     execution: {
       iteration: 0,
       lastProgress: null,
@@ -166,6 +206,7 @@ export const startExecution = (
       debt: null,
       completedTasks: [],
       debtCounter: 0,
+      naItems: [],
     },
   };
 };
@@ -219,7 +260,12 @@ export const resetToIdle = (
     phase: "IDLE",
     spec: null,
     branch: null,
-    discovery: { answers: [], completed: false },
+    discovery: {
+      answers: [],
+      completed: false,
+      currentQuestion: 0,
+      audience: "human",
+    },
     specState: { path: null, status: "none" },
     execution: {
       iteration: 0,
@@ -230,9 +276,9 @@ export const resetToIdle = (
       debt: null,
       completedTasks: [],
       debtCounter: 0,
+      naItems: [],
     },
     decisions: [],
-    pendingClear: false,
     classification: null,
   };
 };

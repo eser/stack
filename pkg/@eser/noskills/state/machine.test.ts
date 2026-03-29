@@ -25,8 +25,11 @@ const withAnswers = (
   return s;
 };
 
-const inSpecDraft = (): schema.StateFile =>
+const inDiscoveryReview = (): schema.StateFile =>
   machine.completeDiscovery(inDiscovery());
+
+const inSpecDraft = (): schema.StateFile =>
+  machine.approveDiscoveryReview(inDiscoveryReview());
 
 const inSpecApproved = (): schema.StateFile =>
   machine.approveSpec(inSpecDraft());
@@ -45,7 +48,8 @@ describe("canTransition", () => {
   it("allows valid transitions", () => {
     assertEquals(machine.canTransition("UNINITIALIZED", "IDLE"), true);
     assertEquals(machine.canTransition("IDLE", "DISCOVERY"), true);
-    assertEquals(machine.canTransition("DISCOVERY", "SPEC_DRAFT"), true);
+    assertEquals(machine.canTransition("DISCOVERY", "DISCOVERY_REVIEW"), true);
+    assertEquals(machine.canTransition("DISCOVERY_REVIEW", "SPEC_DRAFT"), true);
     assertEquals(machine.canTransition("SPEC_DRAFT", "SPEC_APPROVED"), true);
     assertEquals(machine.canTransition("SPEC_APPROVED", "EXECUTING"), true);
     assertEquals(machine.canTransition("EXECUTING", "DONE"), true);
@@ -57,6 +61,7 @@ describe("canTransition", () => {
   it("rejects invalid transitions", () => {
     assertEquals(machine.canTransition("IDLE", "DONE"), false);
     assertEquals(machine.canTransition("DISCOVERY", "EXECUTING"), false);
+    assertEquals(machine.canTransition("DISCOVERY", "SPEC_DRAFT"), false);
     assertEquals(machine.canTransition("EXECUTING", "IDLE"), false);
     assertEquals(machine.canTransition("BLOCKED", "DONE"), false);
     assertEquals(machine.canTransition("DONE", "DISCOVERY"), false);
@@ -161,10 +166,10 @@ describe("addDiscoveryAnswer", () => {
 // =============================================================================
 
 describe("completeDiscovery", () => {
-  it("transitions to SPEC_DRAFT and sets completed", () => {
+  it("transitions to DISCOVERY_REVIEW and sets completed", () => {
     const state = machine.completeDiscovery(inDiscovery());
 
-    assertEquals(state.phase, "SPEC_DRAFT");
+    assertEquals(state.phase, "DISCOVERY_REVIEW");
     assertEquals(state.discovery.completed, true);
   });
 
@@ -180,6 +185,45 @@ describe("completeDiscovery", () => {
       () => machine.completeDiscovery(idle()),
       Error,
       "Cannot complete discovery in phase: IDLE",
+    );
+  });
+});
+
+// =============================================================================
+// approveDiscoveryReview
+// =============================================================================
+
+describe("approveDiscoveryReview", () => {
+  it("transitions DISCOVERY_REVIEW to SPEC_DRAFT", () => {
+    const state = machine.approveDiscoveryReview(inDiscoveryReview());
+
+    assertEquals(state.phase, "SPEC_DRAFT");
+  });
+
+  it("throws if not in DISCOVERY_REVIEW", () => {
+    assertThrows(
+      () => machine.approveDiscoveryReview(idle()),
+      Error,
+    );
+  });
+});
+
+// =============================================================================
+// advanceDiscoveryQuestion
+// =============================================================================
+
+describe("advanceDiscoveryQuestion", () => {
+  it("increments currentQuestion", () => {
+    const state = machine.advanceDiscoveryQuestion(inDiscovery());
+
+    assertEquals(state.discovery.currentQuestion, 1);
+  });
+
+  it("throws if not in DISCOVERY", () => {
+    assertThrows(
+      () => machine.advanceDiscoveryQuestion(idle()),
+      Error,
+      "Cannot advance discovery question in phase: IDLE",
     );
   });
 });

@@ -22,6 +22,7 @@ const inExecuting = (): schema.StateFile => {
   let s = schema.createInitialState();
   s = machine.startSpec(s, "test-spec", "spec/test-spec");
   s = machine.completeDiscovery(s);
+  s = machine.approveDiscoveryReview(s);
   s = machine.approveSpec(s);
   s = machine.startExecution(s);
   return s;
@@ -208,26 +209,6 @@ describe("One task at a time", () => {
     ) as compiler.ExecutionOutput;
 
     assertEquals(output.instruction.includes("completed"), true);
-  });
-});
-
-// =============================================================================
-// Context clearing protocol
-// =============================================================================
-
-describe("Context clearing (pendingClear)", () => {
-  it("pendingClear=true emits clearContext action", () => {
-    const state = { ...inExecuting(), pendingClear: true };
-    const output = compiler.compile(state, noConcerns, noRules);
-
-    assertEquals(output.clearContext !== undefined, true);
-    assertEquals(output.clearContext!.action, "clear_context");
-  });
-
-  it("pendingClear=false does not emit clearContext", () => {
-    const output = compiler.compile(inExecuting(), noConcerns, noRules);
-
-    assertEquals(output.clearContext, undefined);
   });
 });
 

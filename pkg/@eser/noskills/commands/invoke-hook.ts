@@ -95,7 +95,7 @@ export const main = async (
 };
 
 // =============================================================================
-// PreToolUse: phase gate + git write guard + pendingClear
+// PreToolUse: phase gate + git write guard
 // =============================================================================
 
 const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
@@ -125,28 +125,6 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
       },
     });
   };
-
-  const PENDING_CLEAR_MSG =
-    `Task accepted. You must run \`/clear\` and then \`${
-      cmd("next")
-    }\` before continuing.`;
-
-  // ── Pending clear guard (blocks ALL tools EXCEPT noskills commands) ──
-  if (state["pendingClear"] === true) {
-    if (toolName === "Bash") {
-      const bashCmd = ((toolInput["command"] as string) ?? "").trim();
-
-      if (hookDecisions.isNoskillsCommand(bashCmd)) {
-        // Fall through — noskills commands are control plane, always allowed
-      } else {
-        await deny(PENDING_CLEAR_MSG);
-        return results.ok(undefined);
-      }
-    } else {
-      await deny(PENDING_CLEAR_MSG);
-      return results.ok(undefined);
-    }
-  }
 
   // ── Git write guard ──
   if (toolName === "Bash") {
@@ -223,12 +201,43 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
     phase === "EXECUTING" || phase === "IDLE" || phase === "DONE" ||
     phase === "UNKNOWN"
   ) {
+    // Sub-agent spawning reminder (once per session, non-blocking)
+    if (phase === "EXECUTING" && gatedTools.includes(toolName)) {
+      const flagFile =
+        `${root}/${persistence.paths.stateDir}/executor-warned.flag`;
+      try {
+        await runtime.fs.readTextFile(flagFile);
+        // Flag exists — already warned this session
+      } catch {
+        // First write attempt in EXECUTING — show reminder
+        try {
+          await runtime.fs.mkdir(
+            `${root}/${persistence.paths.stateDir}`,
+            { recursive: true },
+          );
+          await runtime.fs.writeTextFile(flagFile, new Date().toISOString());
+          const encoder = new TextEncoder();
+          const writer = runtime.process.stderr.getWriter();
+          await writer.write(
+            encoder.encode(
+              "noskills: REMINDER — You should be spawning a noskills-executor sub-agent for implementation work. If you're the main orchestrator agent, delegate to a sub-agent instead of editing directly. If you ARE a sub-agent, ignore this message and continue.\n",
+            ),
+          );
+          writer.releaseLock();
+        } catch {
+          // best effort
+        }
+      }
+    }
     return results.ok(undefined);
   }
 
-  // Block writes only in conversation phases (DISCOVERY, SPEC_DRAFT, SPEC_APPROVED, BLOCKED)
+  // Block writes only in conversation phases (DISCOVERY, DISCOVERY_REVIEW, SPEC_DRAFT, SPEC_APPROVED, BLOCKED)
   const reasons: Record<string, string> = {
     DISCOVERY: `Discovery in progress. Run \`${cmd("next")}\` to continue.`,
+    DISCOVERY_REVIEW: `Discovery answers need review. Run \`${
+      cmd('next --answer="approve"')
+    }\` or revise answers.`,
     SPEC_DRAFT: `Spec needs review. Run \`${cmd("approve")}\``,
     SPEC_APPROVED: `Start execution first: \`${cmd('next --answer="start"')}\``,
     BLOCKED: `Execution blocked. Resolve with \`${
@@ -370,6 +379,15 @@ const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
     await runtime.fs.writeTextFile(filesChangedPath, "");
   } catch {
     // best effort
+  }
+
+  // Reset executor warning flag for fresh iteration
+  try {
+    await runtime.fs.remove(
+      `${root}/${persistence.paths.stateDir}/executor-warned.flag`,
+    );
+  } catch {
+    // best effort — may not exist
   }
 
   if (iteration >= maxIter) {

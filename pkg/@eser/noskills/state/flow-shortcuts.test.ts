@@ -54,8 +54,11 @@ const withAllAnswers = (): schema.StateFile => {
   return s;
 };
 
-const inSpecDraft = (): schema.StateFile =>
+const inDiscoveryReview = (): schema.StateFile =>
   machine.completeDiscovery(withAllAnswers());
+
+const inSpecDraft = (): schema.StateFile =>
+  machine.approveDiscoveryReview(inDiscoveryReview());
 
 const inSpecApproved = (): schema.StateFile =>
   machine.approveSpec(inSpecDraft());
@@ -83,6 +86,9 @@ describe("Happy path: full lifecycle with classification", () => {
       s = machine.addDiscoveryAnswer(s, q.id, "answer");
     }
     s = machine.completeDiscovery(s);
+    assertEquals(s.phase, "DISCOVERY_REVIEW");
+
+    s = machine.approveDiscoveryReview(s);
     assertEquals(s.phase, "SPEC_DRAFT");
     assertEquals(s.classification, null);
 
@@ -90,7 +96,8 @@ describe("Happy path: full lifecycle with classification", () => {
     s = {
       ...s,
       classification: {
-        involvesUI: true,
+        involvesWebUI: true,
+        involvesCLI: false,
         involvesPublicAPI: true,
         involvesMigration: true,
         involvesDataHandling: true,
@@ -110,7 +117,8 @@ describe("Happy path: full lifecycle with classification", () => {
 
   it("all-true classification renders all concern sections", () => {
     const allTrue = {
-      involvesUI: true,
+      involvesWebUI: true,
+      involvesCLI: false,
       involvesPublicAPI: true,
       involvesMigration: true,
       involvesDataHandling: true,
@@ -123,7 +131,8 @@ describe("Happy path: full lifecycle with classification", () => {
 
   it("all-false classification renders zero concern sections", () => {
     const allFalse = {
-      involvesUI: false,
+      involvesWebUI: false,
+      involvesCLI: false,
       involvesPublicAPI: false,
       involvesMigration: false,
       involvesDataHandling: false,
@@ -409,7 +418,8 @@ describe("Edge case: SPEC_DRAFT compiler output with null classification", () =>
     s = {
       ...s,
       classification: {
-        involvesUI: false,
+        involvesWebUI: false,
+        involvesCLI: false,
         involvesPublicAPI: false,
         involvesMigration: false,
         involvesDataHandling: false,

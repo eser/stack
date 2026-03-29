@@ -27,11 +27,13 @@ const inExecuting = (): schema.StateFile => {
   let s = schema.createInitialState();
   s = machine.startSpec(s, "test-spec", "spec/test-spec");
   s = machine.completeDiscovery(s);
+  s = machine.approveDiscoveryReview(s);
   // Provide classification so concern criteria are active in tests
   s = {
     ...s,
     classification: {
-      involvesUI: true,
+      involvesWebUI: true,
+      involvesCLI: false,
       involvesPublicAPI: true,
       involvesMigration: true,
       involvesDataHandling: true,

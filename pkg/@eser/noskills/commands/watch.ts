@@ -39,7 +39,6 @@ export type WatchSnapshot = {
   readonly concerns: readonly string[];
   readonly maxIterations: number;
   readonly awaitingStatusReport: boolean;
-  readonly pendingClear: boolean;
   readonly verificationPassed: boolean | null;
   readonly decisionsCount: number;
   readonly discoveryAnswered: number;
@@ -108,7 +107,6 @@ const buildSnapshot = async (
     concerns: config?.concerns ?? [],
     maxIterations: config?.maxIterationsBeforeRestart ?? 15,
     awaitingStatusReport: state.execution.awaitingStatusReport,
-    pendingClear: state.pendingClear,
     verificationPassed: state.execution.lastVerification?.passed ?? null,
     decisionsCount: state.decisions.length,
     discoveryAnswered: state.discovery.answers.length,
@@ -206,7 +204,7 @@ const renderTerminal = (snap: WatchSnapshot): string => {
   );
 
   // Phase-specific content
-  if (snap.phase === "DISCOVERY") {
+  if (snap.phase === "DISCOVERY" || snap.phase === "DISCOVERY_REVIEW") {
     lines.push(
       `${DIM}│${RESET}  Discovery: ${snap.discoveryAnswered}/${snap.discoveryTotal} questions answered${
         " ".repeat(Math.max(0, w - 38))
@@ -304,13 +302,6 @@ const renderTerminal = (snap: WatchSnapshot): string => {
     lines.push(
       `${DIM}│${RESET}  ${YELLOW}Status report pending${RESET}${
         " ".repeat(Math.max(0, w - 23))
-      }${DIM}│${RESET}`,
-    );
-  }
-  if (snap.pendingClear) {
-    lines.push(
-      `${DIM}│${RESET}  ${YELLOW}/clear pending${RESET}${
-        " ".repeat(Math.max(0, w - 16))
       }${DIM}│${RESET}`,
     );
   }
@@ -429,7 +420,6 @@ const renderJsonLine = (snap: WatchSnapshot): string => {
       ? snap.trackedFiles
       : snap.modifiedFiles,
     timeSinceUpdate: snap.timeSinceUpdate,
-    pendingClear: snap.pendingClear,
     verificationPassed: snap.verificationPassed,
   });
 };

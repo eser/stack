@@ -26,6 +26,7 @@ const c = (sub: string): string => _cmd(sub);
 
 export type PhaseOutput =
   | DiscoveryOutput
+  | DiscoveryReviewOutput
   | SpecDraftOutput
   | SpecApprovedOutput
   | ExecutionOutput
@@ -42,6 +43,7 @@ export type NextOutput = PhaseOutput & {
   readonly meta: MetaBlock;
   readonly behavioral: BehavioralBlock;
   readonly interactiveOptions?: readonly InteractiveOption[];
+  readonly commandMap?: Record<string, string>;
   readonly protocolGuide?: ProtocolGuide;
   readonly clearContext?: ClearContextAction;
 };
@@ -58,9 +60,27 @@ export type DiscoveryOutput = {
   readonly instruction: string;
   readonly questions: readonly DiscoveryQuestion[];
   readonly answeredCount: number;
+  readonly currentQuestion?: number;
+  readonly totalQuestions?: number;
   readonly context: ContextBlock;
   readonly transition: {
     readonly onComplete: string;
+  };
+};
+
+export type DiscoveryReviewAnswer = {
+  readonly questionId: string;
+  readonly question: string;
+  readonly answer: string;
+};
+
+export type DiscoveryReviewOutput = {
+  readonly phase: "DISCOVERY_REVIEW";
+  readonly instruction: string;
+  readonly answers: readonly DiscoveryReviewAnswer[];
+  readonly transition: {
+    readonly onApprove: string;
+    readonly onRevise: string;
   };
 };
 
@@ -103,6 +123,7 @@ export type StatusReportRequest = {
     readonly completed: string;
     readonly remaining: string;
     readonly blocked: string;
+    readonly na: string;
     readonly newIssues: string;
   };
 };
@@ -170,6 +191,11 @@ export type DoneOutput = {
 };
 
 export type InteractiveOption = {
+  readonly label: string;
+  readonly description: string;
+};
+
+type InternalOption = {
   readonly label: string;
   readonly description: string;
   readonly command: string;
@@ -246,7 +272,28 @@ const buildBehavioral = (
   parsedSpec?: ParsedSpec | null,
 ): BehavioralBlock => {
   const stale = state.execution.iteration >= maxIterationsBeforeRestart;
-  const mandatoryRules = allowGit ? [] : [GIT_READONLY_RULE];
+  const ROLE_IDENTITY_RULE =
+    "You are a senior engineer and a scrum master who takes pride in honest reporting. Your reputation depends on accuracy, not speed. You are responsible for others' toil, and you are a perfect example of a servant leader. When reporting progress: if something is NOT implemented, say so — don't hide it. If partially done, say 'partially done: [what works] / [what doesn't]'. If untested, say 'implemented but untested'. NEVER say 'done' for something you haven't verified yourself. Underpromise — 4 of 6 done means '4 of 6 done, 2 remaining', not 'almost done'.";
+  const EXPLICIT_OVER_CLEVER_RULE =
+    "Never skip steps or make decisions without asking the user. If you think something can be skipped or inferred, ask first. Explicit > Clever.";
+  const DECISION_POINT_RULE =
+    "At every decision point (discovery questions, classification, spec approval, expansion proposals, architectural decisions, rule promotion), you MUST use AskUserQuestion to get the user's input. You MUST NOT make decisions, infer preferences, or assume the user's intent. If you're unsure whether something is a decision point, it is — ask.";
+  const RECOMMENDATION_RULE =
+    "At every decision point where you present options to the user, share your recommendation BEFORE asking. Say what you think and why, then ask if the user agrees. Format: 'I'd recommend X because [reason]. Agree, or would you prefer Y?' The user always has the final word, but you save them cognitive load by proposing first.";
+  const mandatoryRules = allowGit
+    ? [
+      ROLE_IDENTITY_RULE,
+      EXPLICIT_OVER_CLEVER_RULE,
+      DECISION_POINT_RULE,
+      RECOMMENDATION_RULE,
+    ]
+    : [
+      GIT_READONLY_RULE,
+      ROLE_IDENTITY_RULE,
+      EXPLICIT_OVER_CLEVER_RULE,
+      DECISION_POINT_RULE,
+      RECOMMENDATION_RULE,
+    ];
   const scopeItems = parsedSpec?.outOfScope ?? [];
 
   switch (state.phase) {
@@ -254,9 +301,11 @@ const buildBehavioral = (
       return {
         rules: [
           ...mandatoryRules,
-          "When interactiveOptions are present, use AskUserQuestion with a single question. Build the options array using ONLY {label, description} from each interactiveOption — do NOT include the command field in options. When the user picks an option, find the matching interactiveOption by label and execute its command field.",
-          "For availableConcerns: use AskUserQuestion with multiSelect:true. AskUserQuestion supports max 4 options per question and max 4 questions per call. If there are more than 4 concerns, present them across two AskUserQuestion questions (e.g., first 3 + last 3) within the same call. NEVER silently drop concerns — present ALL available concerns to the user.",
+          "When interactiveOptions are present, pass them DIRECTLY as the `options` array in AskUserQuestion — they are already in the correct {label, description} format. You MUST also provide a `header` field (max 12 chars, e.g. 'Action') and a `question` field. When the user picks an option, look up its label in the `commandMap` object to find the command to execute.",
+          "For availableConcerns: use AskUserQuestion with multiSelect:true. AskUserQuestion supports max 4 options per question and max 4 questions per call. If there are more than 4 concerns, split them across two questions within the same AskUserQuestion call (e.g., first 3 in question 1, remaining in question 2). NEVER silently drop concerns — present ALL available concerns to the user, even if it requires multiple questions.",
           "Do not take action without the user choosing an option first.",
+          "When the user wants to create a new spec, they can provide anything: a one-line description, a full task list, meeting notes, a kanban card, a customer email, or a detailed requirements document. Accept whatever format they provide. If it's long, summarize it into a spec title for the slug but preserve the full text as context for discovery.",
+          "After running spec new, ask the user if they want full discovery, quick discovery, or skip to spec draft. Full discovery: pre-scan, premise challenge, 6 questions, expansions, architecture, error map, synthesis. Quick discovery: only questions relevant to active concerns, skip expansions and error map. Skip to spec draft: classification → approve → execute. Never skip discovery without asking.",
         ],
         tone: "Welcoming. Present choices, then wait.",
       };
@@ -267,6 +316,8 @@ const buildBehavioral = (
           "You are in plan mode. Behave exactly as you would in Claude Code's native plan mode. Do not attempt to create, edit, or write any files. Do not run any shell commands that modify state. You can read files and run read-only commands to understand the codebase. Your ONLY job right now is to have a thorough conversation with the user — ask probing questions, challenge vague answers, explore alternatives, understand the problem deeply. The quality of everything that follows depends on this conversation.",
         rules: [
           ...mandatoryRules,
+          // HIGHEST PRIORITY: questions must be asked via AskUserQuestion
+          "You MUST ask each discovery question using AskUserQuestion tool. You MUST NOT answer questions yourself or infer answers from the spec description. You MUST NOT submit discovery answers without the user explicitly providing each answer through AskUserQuestion. Each question → one AskUserQuestion call → user answers → next question. If the user already gave a detailed description in spec new, you may PRE-FILL suggested answers as option descriptions in AskUserQuestion — but the user must still confirm or override each one. If the user provided a fully formed plan, you may skip Phase 2 (questions) but you MUST still run premise challenge and alternatives. Never skip premise challenge.",
           // Base constraints
           "DO NOT create, edit, or write any files.",
           "DO NOT run shell commands that modify state.",
@@ -274,6 +325,9 @@ const buildBehavioral = (
 
           // 1. Pre-discovery codebase scan
           "BEFORE asking any discovery questions, conduct a pre-discovery codebase scan: read the project README, CLAUDE.md, and any design docs; check the last 20 git commits (git log --oneline -20); look for TODO files, open issue references, and existing specs; scan the directory structure to understand the project shape. Then present a brief 'Pre-discovery audit' summary: stack detected, recent work themes, open TODOs, existing specs. This gives you CONTEXT to ask INFORMED questions, not blind ones.",
+
+          // 1.5. Discovery mode selection
+          "After the pre-discovery codebase scan and BEFORE starting questions, ask the user: 'What kind of discovery do you need? A) Explore scope — I'll help expand, find opportunities, think bigger. B) Technical depth — I'll focus on architecture, error handling, implementation strategy. C) Validate my plan — I already know what I want, challenge my assumptions. D) Ship fast — minimal scope, cut the fat, get to tasks quickly.' Adapt your discovery emphasis accordingly: Explore → heavy on expansion proposals and dream state; Technical → heavy on architectural decisions and error/rescue map; Validate → heavy on premise challenge and pushback; Ship fast → minimal questions, skip expansions, go direct to classification and tasks.",
 
           // 2. Premise challenge
           "Before starting discovery questions, challenge the user's initial spec description against what you learned from the codebase scan. Look for: hidden complexity they haven't mentioned, conflicts with existing code, scope that's bigger or smaller than they think, existing modules that overlap with what they're asking for. Share your observations and ask clarifying follow-ups, then proceed to questions.",
@@ -308,6 +362,22 @@ const buildBehavioral = (
           "Curious interviewer who has a stake in the answers and comes PREPARED. You've read the codebase before asking. Challenge assumptions, offer concrete options, think about architecture and failure modes. Think deeply before asking each question.",
       };
 
+    case "DISCOVERY_REVIEW":
+      return {
+        modeOverride:
+          "You are in plan mode. Do not create, edit, or write any files. Present the discovery answers to the user for review and confirmation.",
+        rules: [
+          ...mandatoryRules,
+          "DO NOT create, edit, or write any files.",
+          "Present ALL discovery answers to the user clearly, one by one.",
+          "Use AskUserQuestion to ask: 'Are these answers correct, or would you like to revise any?'",
+          "If the user approves, run the approve command.",
+          "If the user wants to revise, collect their corrections and submit them.",
+          "You MUST NOT approve on behalf of the user. The user must explicitly confirm.",
+        ],
+        tone: "Careful reviewer. The user must confirm every answer.",
+      };
+
     case "SPEC_DRAFT":
       return {
         modeOverride:
@@ -319,6 +389,12 @@ const buildBehavioral = (
           "Flag any tasks that are too vague to execute.",
           "Flag any missing acceptance criteria.",
           "Ask the user if they want to refine before approving.",
+          "When presenting classification options, use AskUserQuestion with multiSelect:true. Do NOT infer classification yourself.",
+          "If you identify issues in the spec (vague tasks, irrelevant sections, missing acceptance criteria), submit a refinement via: `" +
+          c(
+            'next --answer=\'{"refinement":"task-1: Add upload endpoint, task-2: Add validation middleware, task-3: Write integration tests"}\'',
+          ) +
+          "`. The spec will be updated and you can review again.",
         ],
         tone: "Thoughtful reviewer preparing to hand off to an implementer.",
       };
@@ -330,6 +406,7 @@ const buildBehavioral = (
           "The spec is approved but execution has not started.",
           "Do not start coding until the user triggers execution.",
           "If the user wants changes, they must reset and re-spec.",
+          "Before starting execution, show the spec summary to the user and ask for final confirmation via AskUserQuestion.",
         ],
         tone: "Patient. Wait for the go signal.",
       };
@@ -347,9 +424,10 @@ const buildBehavioral = (
           c('next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'')
         }\`. You are the orchestrator — the sub-agent is the implementer.`,
         "If the sub-agent fails, errors out, or returns no results, fall back to executing the task directly yourself. Report the sub-agent failure in your next status report so it can be investigated.",
-        `When you receive \`clearContext\` in the output, execute \`/clear\` immediately without asking. After clearing, read \`CLAUDE.md\` and run \`${
-          c("next")
-        }\`.`,
+        `After the noskills-executor sub-agent completes a task, spawn a noskills-verifier sub-agent to independently verify the work. Pass it: the list of changed files, the acceptance criteria, and the test commands. The verifier reports PASS/FAIL per criterion with evidence. Use the verifier's report as your status report to noskills. Do NOT submit status reports based solely on the executor's self-report.`,
+        "After spawning sub-agents, ALWAYS present a dispatch table showing the FULL pipeline — not just executors, but also verification and test steps:\n\n| Step | Agent | Files | Tasks | Est. Time |\n|------|-------|-------|-------|-----------|\n| 1. Implement | noskills-executor | purge.ts | Tasks 1-6 | ~3 min |\n| 2. Verify | noskills-verifier | purge.ts (read-only) | Validate ACs | ~1 min |\n| 3. Write tests | noskills-executor | purge.test.ts | Task 7 | ~2 min |\n\nWhen agents complete, update with actual time and status (Done / Failed / Found N issues). The user should see the complete plan upfront.",
+        "The agent that writes implementation code must NOT write tests for that code. Spawn a SEPARATE sub-agent for test writing. This prevents the implementer from writing tests that only confirm what it already knows. The test writer reads the code fresh and tests what it actually does, not what the implementer intended.",
+        "When deciding how to split work across sub-agents: if all tasks touch the same file or tightly coupled files, batch them into one executor. If tasks touch independent files or modules, spawn parallel executors. Always err toward smaller, focused sub-agents over large batched ones — fresh context per task is better than accumulated context across tasks.",
         `When you discover a pattern, receive a correction, or identify a recurring preference from the user, ask: 'Should this be a permanent rule for this project, or just for this task?' If permanent, run: \`${
           c('rule add "<description>"')
         }\`. If just this task, note it and move on. Never write to \`.eser/rules/\` directly.`,
@@ -431,6 +509,10 @@ const buildMeta = (
       resumeHint =
         `Discovery in progress for "${state.spec}". ${state.discovery.answers.length} questions answered so far.`;
       break;
+    case "DISCOVERY_REVIEW":
+      resumeHint =
+        `Discovery answers ready for review. ${state.discovery.answers.length} answers collected. Waiting for user confirmation.`;
+      break;
     case "SPEC_DRAFT":
       resumeHint =
         `Spec draft ready for review at ${state.specState.path}. Waiting for approval.`;
@@ -476,7 +558,7 @@ const buildProtocolGuide = (
     // First call ever — include guide
     return {
       what:
-        "noskills orchestrates your work: IDLE → DISCOVERY → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE",
+        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE",
       how: `Run \`${c("next")}\` for instructions. Submit results with \`${
         c('next --answer="..."')
       }\`. Never make architectural decisions without asking.`,
@@ -490,7 +572,7 @@ const buildProtocolGuide = (
   if (now - lastCalled > STALE_SESSION_MS) {
     return {
       what:
-        "noskills orchestrates your work: IDLE → DISCOVERY → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE",
+        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE",
       how: `Run \`${c("next")}\` for instructions. Submit results with \`${
         c('next --answer="..."')
       }\`. Never make architectural decisions without asking.`,
@@ -536,6 +618,9 @@ export const compile = (
     case "DISCOVERY":
       phaseOutput = compileDiscovery(state, activeConcerns, rules);
       break;
+    case "DISCOVERY_REVIEW":
+      phaseOutput = compileDiscoveryReview(state, activeConcerns);
+      break;
     case "SPEC_DRAFT":
       phaseOutput = compileSpecDraft(state);
       break;
@@ -574,28 +659,28 @@ export const compile = (
     result = { ...result, protocolGuide } as NextOutput;
   }
 
-  // Emit clear_context action when a task is fully accepted
-  if (state.pendingClear) {
-    result = {
-      ...result,
-      clearContext: {
-        action: "clear_context",
-        reason:
-          `Task complete. Run \`/clear\` now. After clearing, read \`CLAUDE.md\` and run \`${
-            c("next")
-          }\` to continue.`,
-      },
-      instruction:
-        `Task accepted. Run \`/clear\` immediately to start fresh for the next task. After clearing, run \`${
-          c("next")
-        }\`.`,
-    } as NextOutput;
-  }
+  // Soft recommendation: consider /clear after task completion (not enforced)
 
   // Append phase-aware interactive options (except EXECUTING — agent should work)
-  const options = buildInteractiveOptions(state, activeConcerns, idleContext);
-  if (options.length > 0) {
-    result = { ...result, interactiveOptions: options } as NextOutput;
+  // Split into AskUserQuestion-compatible options + separate commandMap
+  const internalOptions = buildInteractiveOptions(
+    state,
+    activeConcerns,
+    idleContext,
+  );
+  if (internalOptions.length > 0) {
+    const options: InteractiveOption[] = internalOptions.map((
+      { label, description },
+    ) => ({ label, description }));
+    const cmdMap: Record<string, string> = {};
+    for (const opt of internalOptions) {
+      cmdMap[opt.label] = opt.command;
+    }
+    result = {
+      ...result,
+      interactiveOptions: options,
+      commandMap: cmdMap,
+    } as NextOutput;
   }
 
   return result;
@@ -609,10 +694,10 @@ const buildInteractiveOptions = (
   state: schema.StateFile,
   activeConcerns: readonly schema.ConcernDefinition[],
   idleContext?: IdleContext,
-): readonly InteractiveOption[] => {
+): readonly InternalOption[] => {
   switch (state.phase) {
     case "IDLE": {
-      const opts: InteractiveOption[] = [];
+      const opts: InternalOption[] = [];
       const specs = idleContext?.existingSpecs ?? [];
 
       // Continuable specs (not DONE)
@@ -656,12 +741,31 @@ const buildInteractiveOptions = (
       return opts.slice(0, 4);
     }
 
+    case "DISCOVERY_REVIEW":
+      return [
+        {
+          label: "Approve all answers",
+          description: "Answers look correct — generate the spec",
+          command: c('next --answer="approve"'),
+        },
+        {
+          label: "Revise answers",
+          description: "Correct one or more discovery answers",
+          command: c("next --answer='{\"revise\":{...}}'"),
+        },
+      ];
+
     case "SPEC_DRAFT":
       return [
         {
           label: "Approve spec",
           description: "Review looks good — approve and move to execution",
           command: c("approve"),
+        },
+        {
+          label: "Refine spec",
+          description: "Submit refinements to improve tasks or sections",
+          command: c('next --answer=\'{"refinement":"..."}\''),
         },
         {
           label: "Start over",
@@ -757,6 +861,7 @@ const compileDiscovery = (
   const allQuestions = questions.getQuestionsWithExtras(activeConcerns);
   const answeredCount = state.discovery.answers.length;
   const allAnswered = questions.isDiscoveryComplete(state.discovery.answers);
+  const isAgent = state.discovery.audience === "agent";
 
   if (allAnswered) {
     return {
@@ -769,7 +874,52 @@ const compileDiscovery = (
     };
   }
 
-  // Return ALL unanswered questions in one batch
+  // ── Agent mode: return only the current question ──
+  if (isAgent) {
+    const currentIdx = state.discovery.currentQuestion;
+    const currentQ = allQuestions[currentIdx];
+
+    if (currentQ === undefined) {
+      return {
+        phase: "DISCOVERY",
+        instruction: `All discovery questions answered. Run: \`${
+          c("approve")
+        }\``,
+        questions: [],
+        answeredCount,
+        context: { rules, concernReminders: [] },
+        transition: { onComplete: c("approve") },
+      };
+    }
+
+    const question: DiscoveryQuestion = {
+      id: currentQ.id,
+      text: currentQ.text,
+      concerns: [...currentQ.concerns],
+      extras: currentQ.extras.map((e) => e.text),
+    };
+
+    return {
+      phase: "DISCOVERY",
+      instruction:
+        `Ask this question to the user using AskUserQuestion. Submit the answer with: \`${
+          c('next --agent --answer="<answer>"')
+        }\``,
+      questions: [question],
+      answeredCount,
+      currentQuestion: currentIdx,
+      totalQuestions: allQuestions.length,
+      context: {
+        rules,
+        concernReminders: concerns.getReminders(activeConcerns) as string[],
+      },
+      transition: {
+        onComplete: `${c('next --agent --answer="<answer>"')}`,
+      },
+    };
+  }
+
+  // ── Human mode: return ALL unanswered questions in one batch ──
   const answeredIds = new Set(state.discovery.answers.map((a) => a.questionId));
   const unanswered: DiscoveryQuestion[] = allQuestions
     .filter((q) => !answeredIds.has(q.id))
@@ -798,6 +948,36 @@ const compileDiscovery = (
   };
 };
 
+const compileDiscoveryReview = (
+  state: schema.StateFile,
+  activeConcerns: readonly schema.ConcernDefinition[],
+): DiscoveryReviewOutput => {
+  const allQuestions = questions.getQuestionsWithExtras(activeConcerns);
+  const reviewAnswers: DiscoveryReviewAnswer[] = state.discovery.answers.map(
+    (a) => {
+      const q = allQuestions.find((q) => q.id === a.questionId);
+      return {
+        questionId: a.questionId,
+        question: q?.text ?? a.questionId,
+        answer: a.answer,
+      };
+    },
+  );
+
+  return {
+    phase: "DISCOVERY_REVIEW",
+    instruction:
+      "Present ALL discovery answers to the user for review. The user must confirm or correct each answer before the spec can be generated. Use AskUserQuestion to ask for confirmation.",
+    answers: reviewAnswers,
+    transition: {
+      onApprove: c('next --answer="approve"'),
+      onRevise: c(
+        'next --answer=\'{"revise":{"status_quo":"corrected answer"}}\'',
+      ),
+    },
+  };
+};
+
 const compileSpecDraft = (state: schema.StateFile): SpecDraftOutput => {
   // If classification not yet provided, ask for it before showing spec
   if (state.classification === null) {
@@ -808,13 +988,22 @@ const compileSpecDraft = (state: schema.StateFile): SpecDraftOutput => {
       specPath: state.specState.path ?? "",
       transition: {
         onApprove: `${
-          c('next --answer=\'{"involvesUI":false,"involvesPublicAPI":false,"involvesMigration":false,"involvesDataHandling":false}\'')
+          c('next --answer=\'{"involvesWebUI":false,"involvesCLI":false,"involvesPublicAPI":false,"involvesMigration":false,"involvesDataHandling":false}\'')
         }`,
       },
       classificationRequired: true,
       classificationPrompt: {
         options: [
-          { id: "involvesUI", label: "User-facing UI" },
+          {
+            id: "involvesWebUI",
+            label:
+              "Web/Mobile UI — layouts, responsive design, visual components",
+          },
+          {
+            id: "involvesCLI",
+            label:
+              "CLI/Terminal UI — spinners, progress bars, interactive prompts",
+          },
           { id: "involvesPublicAPI", label: "Public API changes" },
           {
             id: "involvesMigration",
@@ -823,7 +1012,7 @@ const compileSpecDraft = (state: schema.StateFile): SpecDraftOutput => {
           { id: "involvesDataHandling", label: "Data handling or privacy" },
         ],
         instruction: "Select all that apply. Submit as JSON: `" +
-          c('next --answer=\'{"involvesUI":true,"involvesPublicAPI":false,...}\'') +
+          c('next --answer=\'{"involvesWebUI":true,"involvesCLI":false,"involvesPublicAPI":false,...}\'') +
           "`",
       },
     };
@@ -846,25 +1035,55 @@ const compileSpecApproved = (state: schema.StateFile): SpecApprovedOutput => ({
   transition: { onStart: `${c('next --answer="start"')}` },
 });
 
-/** Check if a concern's acceptance criteria are relevant based on classification. */
-const isConcernRelevant = (
-  concernId: string,
+/**
+ * Check if an individual acceptance criterion is relevant based on classification.
+ * Uses keyword matching on the AC text — same approach as section relevance in template.ts.
+ * ACs that don't match any classification keyword are always relevant.
+ */
+const isACRelevant = (
+  acText: string,
   classification: schema.SpecClassification | null,
 ): boolean => {
-  if (classification === null) return false; // no classification = skip all concern criteria
+  if (classification === null) return false;
 
-  switch (concernId) {
-    case "beautiful-product":
-      return classification.involvesUI;
-    case "open-source":
-      return classification.involvesPublicAPI;
-    case "long-lived":
-      return classification.involvesMigration;
-    case "compliance":
-      return classification.involvesDataHandling;
-    default:
-      return true;
+  const lower = acText.toLowerCase();
+
+  // Web-only ACs (mobile layout, responsive design)
+  if (
+    lower.includes("mobile") || lower.includes("layout") ||
+    lower.includes("interaction design")
+  ) {
+    return classification.involvesWebUI;
   }
+
+  // Any UI ACs (loading states, skeleton UI)
+  if (lower.includes("ui state") || lower.includes("skeleton ui")) {
+    return classification.involvesWebUI || classification.involvesCLI;
+  }
+
+  // Public API documentation ACs
+  if (lower.includes("api doc") || lower.includes("public api")) {
+    return classification.involvesPublicAPI;
+  }
+
+  // Migration and backward compatibility ACs
+  if (
+    lower.includes("migration") || lower.includes("backward compat") ||
+    lower.includes("deprecat")
+  ) {
+    return classification.involvesMigration;
+  }
+
+  // Data handling and audit ACs
+  if (
+    lower.includes("audit trail") || lower.includes("access control") ||
+    lower.includes("data handling") || lower.includes("data retention")
+  ) {
+    return classification.involvesDataHandling;
+  }
+
+  // Default: relevant (general quality ACs always apply)
+  return true;
 };
 
 const buildAcceptanceCriteria = (
@@ -875,14 +1094,17 @@ const buildAcceptanceCriteria = (
   classification: schema.SpecClassification | null,
   parsedSpec?: ParsedSpec | null,
   folderRuleCriteria?: readonly FolderRule[],
+  naItems?: readonly string[],
 ): readonly AcceptanceCriterion[] => {
   const criteria: AcceptanceCriterion[] = [];
+  const naSet = new Set(naItems ?? []);
   let acCounter = 0;
   const nextId = (): string => `ac-${++acCounter}`;
 
   // Debt items from previous iterations come first (use their existing IDs)
   if (debt !== null) {
     for (const item of debt.items) {
+      if (naSet.has(item.id)) continue; // skip N/A'd items
       criteria.push({
         id: item.id,
         text: `[DEBT from iteration ${item.since}] ${item.text}`,
@@ -901,20 +1123,23 @@ const buildAcceptanceCriteria = (
   // Task-specific verification from spec (the actual acceptance criteria)
   if (parsedSpec !== null && parsedSpec !== undefined) {
     for (const item of parsedSpec.verification) {
-      criteria.push({ id: nextId(), text: item });
+      const id = nextId();
+      if (naSet.has(id)) continue; // skip N/A'd items
+      criteria.push({ id, text: item });
     }
   }
 
-  // Concern-injected criteria — filtered by classification
+  // Concern-injected criteria — filtered per-AC by classification keywords
   for (const concern of activeConcerns) {
-    if (!isConcernRelevant(concern.id, classification)) continue;
-
     if (
       concern.acceptanceCriteria !== undefined &&
       concern.acceptanceCriteria.length > 0
     ) {
       for (const ac of concern.acceptanceCriteria) {
-        criteria.push({ id: nextId(), text: `(${concern.id}) ${ac}` });
+        if (!isACRelevant(ac, classification)) continue;
+        const id = nextId();
+        if (naSet.has(id)) continue; // skip N/A'd items
+        criteria.push({ id, text: `(${concern.id}) ${ac}` });
       }
     }
   }
@@ -922,8 +1147,10 @@ const buildAcceptanceCriteria = (
   // Folder-scoped rules from .folder-rules.md files
   if (folderRuleCriteria !== undefined) {
     for (const fr of folderRuleCriteria) {
+      const id = nextId();
+      if (naSet.has(id)) continue; // skip N/A'd items
       criteria.push({
-        id: nextId(),
+        id,
         text: `(folder: ${fr.folder}) ${fr.rule}`,
       });
     }
@@ -969,6 +1196,7 @@ const compileExecution = (
       state.classification,
       parsedSpec,
       folderRuleCriteria,
+      state.execution.naItems,
     );
 
     let output: ExecutionOutput = {
@@ -994,6 +1222,8 @@ const compileExecution = (
             "list item IDs you finished (e.g., ['debt-1', 'ac-3']) with evidence",
           remaining: "list item IDs not yet done",
           blocked: "list item IDs that need a decision from the user",
+          na:
+            "(optional) list item IDs that are not applicable to this task — they will be removed from future criteria",
           newIssues:
             "(optional) list NEW issues discovered during implementation — free text, will be assigned debt IDs automatically",
         },

@@ -80,6 +80,57 @@ export const readState = async (root: string): Promise<schema.StateFile> => {
   }
 };
 
+/**
+ * Resolve state for a specific spec, or the active state if no spec given.
+ * Used by commands that support --spec flag.
+ */
+export const resolveState = async (
+  root: string,
+  specName?: string | null,
+): Promise<schema.StateFile> => {
+  if (specName === null || specName === undefined) {
+    return readState(root);
+  }
+
+  // Check if spec exists
+  const specDir = `${root}/${paths.specDir(specName)}`;
+  try {
+    await runtime.fs.stat(specDir);
+  } catch {
+    throw new Error(
+      `Spec '${specName}' not found. Run \`noskills spec list\` to see available specs.`,
+    );
+  }
+
+  // Try per-spec state first, fall back to active state if matching
+  const specState = await readSpecState(root, specName);
+  if (specState.spec === specName) {
+    return specState;
+  }
+
+  // Check if active state matches
+  const activeState = await readState(root);
+  if (activeState.spec === specName) {
+    return activeState;
+  }
+
+  // Return the per-spec state even if spec field is null (freshly created)
+  return { ...specState, spec: specName };
+};
+
+/** Parse --spec=<name> from command args. Returns null if not provided. */
+export const parseSpecFlag = (
+  args?: readonly string[],
+): string | null => {
+  if (args === undefined) return null;
+  for (const arg of args) {
+    if (arg.startsWith("--spec=")) {
+      return arg.slice("--spec=".length);
+    }
+  }
+  return null;
+};
+
 export const writeState = async (
   root: string,
   state: schema.StateFile,

@@ -4,7 +4,7 @@
  * Tests for `noskills run` state machine logic.
  *
  * These test the decision logic of the run command — phase checks,
- * exit conditions, pendingClear handling — without spawning actual
+ * exit conditions — without spawning actual
  * claude processes.
  */
 
@@ -24,6 +24,7 @@ const inExecuting = (): schema.StateFile => {
   let s = idle();
   s = machine.startSpec(s, "test", "spec/test");
   s = machine.completeDiscovery(s);
+  s = machine.approveDiscoveryReview(s);
   s = machine.approveSpec(s);
   s = machine.startExecution(s);
   return s;
@@ -33,6 +34,7 @@ const inSpecApproved = (): schema.StateFile => {
   let s = idle();
   s = machine.startSpec(s, "test", "spec/test");
   s = machine.completeDiscovery(s);
+  s = machine.approveDiscoveryReview(s);
   s = machine.approveSpec(s);
   return s;
 };
@@ -114,32 +116,6 @@ describe("noskills run: exit conditions", () => {
       state = machine.advanceExecution(state, `step ${i}`);
     }
     assertEquals(state.execution.iteration >= 50, true);
-  });
-});
-
-// =============================================================================
-// pendingClear handling in run loop
-// =============================================================================
-
-describe("noskills run: pendingClear handling", () => {
-  it("pendingClear is reset to false (fresh process = fresh context)", () => {
-    const state = { ...inExecuting(), pendingClear: true };
-    // Simulate what run.ts does: reset pendingClear
-    const reset = { ...state, pendingClear: false };
-    assertEquals(reset.pendingClear, false);
-    assertEquals(reset.phase, "EXECUTING");
-  });
-
-  it("pendingClear=true does not block the run loop itself", () => {
-    // The run loop resets pendingClear before building the prompt
-    // because each iteration IS a fresh context (new claude -p process)
-    const state = { ...inExecuting(), pendingClear: true };
-    const afterReset = { ...state, pendingClear: false };
-
-    // Compiler should produce normal execution output (not clearContext)
-    const output = compiler.compile(afterReset, noConcerns, noRules);
-    assertEquals(output.clearContext, undefined);
-    assertEquals(output.phase, "EXECUTING");
   });
 });
 

@@ -5,6 +5,7 @@ import { assertEquals } from "@std/assert";
 import * as compiler from "./compiler.ts";
 import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
+import * as questions from "./questions.ts";
 import { loadDefaultConcerns } from "./concerns.ts";
 
 // =============================================================================
@@ -25,8 +26,11 @@ const idle = (): schema.StateFile => schema.createInitialState();
 const inDiscovery = (): schema.StateFile =>
   machine.startSpec(idle(), "test-spec", "spec/test-spec");
 
-const inSpecDraft = (): schema.StateFile =>
+const inDiscoveryReview = (): schema.StateFile =>
   machine.completeDiscovery(inDiscovery());
+
+const inSpecDraft = (): schema.StateFile =>
+  machine.approveDiscoveryReview(inDiscoveryReview());
 
 const inSpecApproved = (): schema.StateFile =>
   machine.approveSpec(inSpecDraft());
@@ -96,7 +100,8 @@ describe("compile", () => {
     const state = {
       ...inSpecDraft(),
       classification: {
-        involvesUI: false,
+        involvesWebUI: false,
+        involvesCLI: false,
         involvesPublicAPI: false,
         involvesMigration: false,
         involvesDataHandling: false,
@@ -286,5 +291,94 @@ describe("compile", () => {
     const output = compiler.compile(inExecuting(), noConcerns, noRules);
 
     assertEquals(output.behavioral.urgency, undefined);
+  });
+});
+
+// =============================================================================
+// Agent discovery one-at-a-time
+// =============================================================================
+
+const QUESTION_IDS = [
+  "status_quo",
+  "ambition",
+  "reversibility",
+  "user_impact",
+  "verification",
+  "scope_boundary",
+];
+
+describe("agent discovery one-at-a-time", () => {
+  const agentDiscovery = (): schema.StateFile => ({
+    ...inDiscovery(),
+    discovery: { ...inDiscovery().discovery, audience: "agent" },
+  });
+
+  it("--agent mode returns 1 question with currentQuestion=0", () => {
+    const output = compiler.compile(
+      agentDiscovery(),
+      noConcerns,
+      noRules,
+    ) as compiler.DiscoveryOutput;
+
+    assertEquals(output.phase, "DISCOVERY");
+    assertEquals(output.questions.length, 1);
+    assertEquals(output.currentQuestion, 0);
+    assertEquals(output.totalQuestions, 6);
+    assertEquals(output.questions[0]?.id, "status_quo");
+  });
+
+  it("--agent mode after answering Q1 returns Q2 with currentQuestion=1", () => {
+    let state = agentDiscovery();
+    state = machine.addDiscoveryAnswer(state, "status_quo", "Users do X today");
+    state = machine.advanceDiscoveryQuestion(state);
+
+    const output = compiler.compile(
+      state,
+      noConcerns,
+      noRules,
+    ) as compiler.DiscoveryOutput;
+
+    assertEquals(output.questions.length, 1);
+    assertEquals(output.currentQuestion, 1);
+    assertEquals(output.totalQuestions, 6);
+    assertEquals(output.questions[0]?.id, "ambition");
+  });
+
+  it("--agent mode answer all 6 one by one transitions to DISCOVERY_REVIEW", () => {
+    let state = agentDiscovery();
+
+    for (const qId of QUESTION_IDS) {
+      state = machine.addDiscoveryAnswer(state, qId, `Answer for ${qId}`);
+      state = machine.advanceDiscoveryQuestion(state);
+    }
+
+    assertEquals(questions.isDiscoveryComplete(state.discovery.answers), true);
+    state = machine.completeDiscovery(state);
+    assertEquals(state.phase, "DISCOVERY_REVIEW");
+  });
+
+  it("human mode (no --agent) returns all 6 questions", () => {
+    const output = compiler.compile(
+      inDiscovery(),
+      noConcerns,
+      noRules,
+    ) as compiler.DiscoveryOutput;
+
+    assertEquals(output.phase, "DISCOVERY");
+    assertEquals(output.questions.length, 6);
+    assertEquals(output.currentQuestion, undefined);
+    assertEquals(output.totalQuestions, undefined);
+  });
+
+  it("human mode JSON answer with all 6 keys transitions to DISCOVERY_REVIEW", () => {
+    let state = inDiscovery();
+
+    for (const qId of QUESTION_IDS) {
+      state = machine.addDiscoveryAnswer(state, qId, `Answer for ${qId}`);
+    }
+
+    assertEquals(questions.isDiscoveryComplete(state.discovery.answers), true);
+    state = machine.completeDiscovery(state);
+    assertEquals(state.phase, "DISCOVERY_REVIEW");
   });
 });

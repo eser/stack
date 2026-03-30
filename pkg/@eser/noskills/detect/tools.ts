@@ -46,6 +46,8 @@ const TOOL_SIGNALS: readonly {
   { id: "kiro", paths: [".kiro"] },
   { id: "copilot", paths: [".github/copilot-instructions.md"] },
   { id: "windsurf", paths: [".windsurfrules"] },
+  { id: "codex", paths: [".codex", ".codex/config.toml"] },
+  { id: "copilot-cli", paths: [".copilot", ".github/hooks"] },
 ];
 
 export const detectCodingTools = async (

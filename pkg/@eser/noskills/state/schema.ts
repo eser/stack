@@ -13,6 +13,7 @@
 export type Phase =
   | "UNINITIALIZED"
   | "IDLE"
+  | "FREE"
   | "DISCOVERY"
   | "DISCOVERY_REVIEW"
   | "SPEC_DRAFT"
@@ -188,7 +189,10 @@ export type CodingToolId =
   | "cursor"
   | "kiro"
   | "copilot"
-  | "windsurf";
+  | "windsurf"
+  | "opencode"
+  | "codex"
+  | "copilot-cli";
 
 export type NosManifest = {
   readonly concerns: readonly string[];

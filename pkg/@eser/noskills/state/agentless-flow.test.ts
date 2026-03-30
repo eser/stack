@@ -174,7 +174,10 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     );
 
     // Behavioral guardrails present
-    assertEquals(output6.behavioral.tone.includes("Start coding"), true);
+    assertEquals(
+      output6.behavioral.tone.includes("Orchestrate immediately"),
+      true,
+    );
     assertEquals(
       output6.behavioral.rules.some((r) => r.includes("Do not explore")),
       true,

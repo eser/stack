@@ -110,8 +110,9 @@ reminders into every task. Stack concerns to define your project's character.
 
 **One source of truth for every tool.** Write rules once in `.eser/rules/`.
 noskills generates CLAUDE.md, .cursorrules, Kiro steering files, Copilot
-instructions, and Windsurf rules. Your teammate on Cursor and your teammate on
-Claude Code both get the same conventions, automatically.
+instructions, Windsurf rules, OpenCode AGENTS.md + plugins, Codex CLI hooks +
+TOML agents, and Copilot CLI hooks + MCP config. Your teammate on Cursor and
+your teammate on Claude Code both get the same conventions, automatically.
 
 **A human who's always in charge.** noskills never makes decisions silently.
 Discovery questions -> you answer. Spec approval -> you decide. Architectural
@@ -261,6 +262,11 @@ eser noskills concern add open-source       # Activate concerns
 eser noskills spec new "photo upload"       # Start spec -> DISCOVERY
 # Agent takes over: calls noskills next, answers questions,
 # builds to spec, reports progress. You approve transitions.
+
+# Or skip structure entirely:
+eser noskills free                          # FREE mode — no enforcement
+# Work freely, then exit when you want structure back:
+eser noskills free --exit                   # Back to IDLE
 ```
 
 After `init`, your CLAUDE.md (or .cursorrules, etc.) tells the agent to call
@@ -349,13 +355,15 @@ Every spec follows a deterministic phase flow:
 
 ```
 IDLE -> DISCOVERY -> DISCOVERY_REVIEW -> SPEC_DRAFT -> SPEC_APPROVED -> EXECUTING <-> BLOCKED
- ^                                                                          |
+ ^  \                                                                       |
+ |   <-> FREE                                                               |
  +--------------------------------- DONE <---------------------------------+
 ```
 
 | Phase                | What happens                                                           |
 | -------------------- | ---------------------------------------------------------------------- |
 | **IDLE**             | No active spec. Start one with `noskills spec new "..."`               |
+| **FREE**             | No enforcement. Work freely. Agent has no restrictions from noskills   |
 | **DISCOVERY**        | 6 blended questions probe product, engineering, and QA simultaneously  |
 | **DISCOVERY_REVIEW** | User reviews and confirms all discovery answers before spec generation |
 | **SPEC_DRAFT**       | Spec generated from discovery answers. Human reviews                   |
@@ -411,7 +419,7 @@ Every `noskills next` call returns a structured JSON payload:
       "Do not refactor, improve, or modify code outside this task's scope.",
       "Complete the task, then report progress. The user handles git."
     ],
-    "tone": "Direct. No preamble. Start coding immediately."
+    "tone": "Direct. Orchestrate immediately — spawn sub-agents."
   },
   "context": {
     "rules": ["Use Deno for all TypeScript"],
@@ -462,13 +470,15 @@ noskills status -o json    # Structured status for scripts
 Every `noskills next` output includes a `behavioral` block with phase-specific
 rules. These tell the agent HOW to behave, not just WHAT to do:
 
-| Phase      | Behavioral tone                | Key rules                                                     |
-| ---------- | ------------------------------ | ------------------------------------------------------------- |
-| DISCOVERY  | "Curious, has a stake"         | Push back on shallow answers, probe for specifics, don't code |
-| SPEC_DRAFT | "The user is reviewing"        | Don't modify the spec, don't start coding                     |
-| EXECUTING  | "Start coding immediately"     | Don't explore beyond scope, don't refactor, timebox reading   |
-| BLOCKED    | "Brief. Decision time."        | Present decision as-is, don't suggest preferences             |
-| DONE       | "Celebrate briefly, then stop" | Don't start new work                                          |
+| Phase      | Behavioral tone                  | Key rules                                                     |
+| ---------- | -------------------------------- | ------------------------------------------------------------- |
+| IDLE       | "Welcoming. Present choices"     | No file edits until free mode or spec approved                |
+| FREE       | "Quiet. No enforcement."         | No restrictions — work freely                                 |
+| DISCOVERY  | "Curious, has a stake"           | Push back on shallow answers, probe for specifics, don't code |
+| SPEC_DRAFT | "The user is reviewing"          | Don't modify the spec, don't start coding                     |
+| EXECUTING  | "Orchestrate — spawn sub-agents" | Delegate to sub-agents, don't edit files directly             |
+| BLOCKED    | "Brief. Decision time."          | Present decision as-is, don't suggest preferences             |
+| DONE       | "Celebrate briefly, then stop"   | Don't start new work                                          |
 
 **Git is read-only** for agents (configurable via `allowGit: true` in manifest).
 Agents may read (`git log`, `git diff`, `git status`) but never write
@@ -634,9 +644,10 @@ noskills next --answer='{"involvesWebUI":true,"involvesCLI":false,"involvesPubli
 
 ### Hooks — Zero-Token Bookkeeping
 
-noskills installs hooks for Claude Code (`.claude/settings.json`) and Kiro
-(`.kiro/settings/hooks.json`) that handle state bookkeeping without spending LLM
-tokens. Claude Code hooks:
+noskills installs hooks for Claude Code (`.claude/settings.json`), Kiro
+(`.kiro/settings/hooks.json`), OpenCode (`.opencode/plugins/noskills.ts`), Codex
+CLI (`.codex/hooks.json`), and Copilot CLI (`.github/hooks/noskills.json`) that
+handle state bookkeeping without spending LLM tokens. Claude Code hooks:
 
 | Hook                | Event        | What it does                                                                                                                                         |
 | ------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -648,6 +659,11 @@ tokens. Claude Code hooks:
 
 Kiro hooks map the same behavioral guarantees to Kiro-native triggers (Pre Tool
 Use, Post Tool Use, Agent Stop, Prompt Submit) using Run Command actions.
+OpenCode hooks use the plugin system (`.opencode/plugins/`) with event handlers
+for session.created, tool.execute.before/after, and session.deleted. Codex CLI
+hooks use `.codex/hooks.json` with PascalCase events (SessionStart, PreToolUse,
+PostToolUse, Stop). Copilot CLI hooks use `.github/hooks/noskills.json` with a
+versioned schema (`{"version": 1, "hooks": {...}}`) and array-format commands.
 
 Hooks are CLI subcommands (`noskills invoke-hook <name>`), not generated script
 files. This avoids ESM/CJS issues — the same Deno entry point handles
@@ -674,7 +690,18 @@ noskills generates instruction files for every AI tool your team uses:
     |-- -> .kiro/agents/*.json             (Kiro custom agents)
     |-- -> .kiro/specs/                    (Kiro spec projection)
     |-- -> .github/copilot-instructions.md (GitHub Copilot)
-    +-- -> .windsurfrules                  (Windsurf)
+    |-- -> .windsurfrules                  (Windsurf)
+    |-- -> AGENTS.md                       (OpenCode / Codex / Copilot CLI)
+    |-- -> .opencode/plugins/noskills.ts   (OpenCode hooks)
+    |-- -> .opencode/agents/*.md           (OpenCode agents)
+    |-- -> .opencode/skills/*.md           (OpenCode spec projection)
+    |-- -> opencode.json                   (OpenCode MCP registration)
+    |-- -> .codex/hooks.json               (Codex CLI hooks)
+    |-- -> .codex/agents/*.toml            (Codex CLI agents)
+    |-- -> .codex/config.toml              (Codex CLI MCP registration)
+    |-- -> .github/hooks/noskills.json     (Copilot CLI hooks)
+    |-- -> .github/agents/*.agent.md       (Copilot CLI agents)
+    +-- -> .copilot/mcp.json               (Copilot CLI MCP registration)
 ```
 
 Write your rules once in `.eser/rules/`, run `noskills sync`, and every tool
@@ -843,7 +870,8 @@ install all get correct command references.
 **Tools vs Providers:**
 
 - **Tools** = the IDE or agent environment (`claude-code`, `cursor`, `kiro`,
-  `copilot`, `windsurf`). Affects which sync output files are generated.
+  `copilot`, `windsurf`, `opencode`, `codex`, `copilot-cli`). Affects which sync
+  output files are generated.
 - **Providers** = AI model access methods (`anthropic`, `openai`, `ollama`,
   `claude-code` CLI). Used by the Agent Bridge for validation and
   `noskills run`.

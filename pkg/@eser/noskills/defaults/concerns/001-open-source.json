@@ -16,11 +16,12 @@
   "reminders": [
     "Endpoint should be documented in API docs",
     "Consider contributor experience for new patterns",
-    "Default to permissive, well-documented choices"
+    "Default to permissive, well-documented choices",
+    "New features and API changes must be documented so contributors can discover and use them"
   ],
   "acceptanceCriteria": [
     "Public API documented",
-    "Changes reflected in README or API docs",
+    "Changes reflected in README or relevant docs",
     "No exclusionary patterns introduced"
   ]
 }

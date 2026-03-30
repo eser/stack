@@ -49,18 +49,30 @@ export const main = async (
     }
   }
 
-  const specResult = persistence.requireSpecFlag(cleanArgs);
-  if (!specResult.ok) {
-    await formatter.writeFormatted({ error: specResult.error }, fmt);
-    return results.fail({ exitCode: 1 });
-  }
-  const specFlag = specResult.spec;
+  // Try --spec flag; if absent, fall back to global state (supports IDLE/FREE)
+  const specFlag = persistence.parseSpecFlag(cleanArgs);
   let state: schema.StateFile;
   try {
     state = await persistence.resolveState(root, specFlag);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     await formatter.writeFormatted({ error: msg }, fmt);
+    return results.fail({ exitCode: 1 });
+  }
+
+  // If no --spec and we're in a spec-active phase, require it
+  if (
+    specFlag === null &&
+    state.phase !== "IDLE" && state.phase !== "FREE" &&
+    state.phase !== "COMPLETED"
+  ) {
+    await formatter.writeFormatted(
+      {
+        error:
+          "Error: --spec=<name> is required. Use `noskills spec list` to see available specs.",
+      },
+      fmt,
+    );
     return results.fail({ exitCode: 1 });
   }
   const config = await persistence.readManifest(root);

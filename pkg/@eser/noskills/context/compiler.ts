@@ -43,6 +43,11 @@ const cs = (sub: string, specName: string | null): string => {
 // Output Types (JSON contract for `noskills next`)
 // =============================================================================
 
+export type FreeOutput = {
+  readonly phase: "FREE";
+  readonly instruction: string;
+};
+
 export type PhaseOutput =
   | DiscoveryOutput
   | DiscoveryReviewOutput
@@ -51,7 +56,8 @@ export type PhaseOutput =
   | ExecutionOutput
   | BlockedOutput
   | CompletedOutput
-  | IdleOutput;
+  | IdleOutput
+  | FreeOutput;
 
 export type ClearContextAction = {
   readonly action: "clear_context";
@@ -316,12 +322,15 @@ const buildBehavioral = (
 
   const RECOMMENDATION_RULE =
     "At every decision point where you present options to the user, share your recommendation BEFORE asking. Say what you think and why, then ask if the user agrees. Format: 'I'd recommend X because [reason]. Agree, or would you prefer Y?' The user always has the final word, but you save them cognitive load by proposing first.";
+  const LIVE_STATE_MACHINE_RULE =
+    "noskills is a live state machine the user watches in real-time. Call noskills ONCE per interaction. Ask ONE question, wait for the user's answer, submit it. Never batch-submit, never backfill, never answer questions yourself.";
   const mandatoryRules = allowGit
     ? [
       ROLE_IDENTITY_RULE,
       EXPLICIT_OVER_CLEVER_RULE,
       DECISION_POINT_RULE,
       RECOMMENDATION_RULE,
+      LIVE_STATE_MACHINE_RULE,
     ]
     : [
       GIT_READONLY_RULE,
@@ -329,12 +338,19 @@ const buildBehavioral = (
       EXPLICIT_OVER_CLEVER_RULE,
       DECISION_POINT_RULE,
       RECOMMENDATION_RULE,
+      LIVE_STATE_MACHINE_RULE,
     ];
   const scopeItems = parsedSpec?.outOfScope ?? [];
 
   const specName = state.spec;
 
   switch (state.phase) {
+    case "FREE":
+      return {
+        rules: [],
+        tone: "Quiet. No enforcement.",
+      };
+
     case "IDLE": {
       const idleOptionRules: string[] = hints.optionPresentation === "tool"
         ? [
@@ -357,6 +373,7 @@ const buildBehavioral = (
 
       return {
         rules: [
+          "You MUST NOT create, edit, or delete any project file until you have either entered free mode or created and approved a spec. No exceptions. No 'quick fixes'. Choose: `noskills free` for unstructured work, or `noskills spec new` for structured work.",
           ...mandatoryRules,
           ...finalOptionRules,
           "Do not take action without the user choosing an option first.",
@@ -375,7 +392,7 @@ const buildBehavioral = (
 
       return {
         modeOverride:
-          "You are in plan mode. Do not attempt to create, edit, or write any files. Do not run any shell commands that modify state. You can read files and run read-only commands to understand the codebase. Your ONLY job right now is to have a thorough conversation with the user — ask probing questions, challenge vague answers, explore alternatives, understand the problem deeply. The quality of everything that follows depends on this conversation.",
+          "You are in plan mode. Do not attempt to create, edit, or write any files. Do not run any shell commands that modify state. You can read files and run read-only commands to understand the codebase. Your ONLY job right now is to think and talk. Read code to understand. Ask questions to discover. Challenge assumptions. Propose ideas. Debate tradeoffs. But NEVER create, edit, or delete project files. Discovery exists to catch what you don't yet know you don't know.",
         rules: [
           ...mandatoryRules,
           // HIGHEST PRIORITY: questions must be asked via interaction tool
@@ -448,7 +465,7 @@ const buildBehavioral = (
     case "SPEC_DRAFT":
       return {
         modeOverride:
-          "You are in plan mode. Do not attempt to create, edit, or write any files. Your job is to review the generated spec with the user — identify gaps, suggest improvements, check if tasks are concrete enough to execute.",
+          "You are in plan mode. Do not attempt to create, edit, or write any files. Do not run any shell commands that modify state. You can read files and run read-only commands to understand the codebase. Your ONLY job right now is to think and talk. Read code to understand. Ask questions to discover. Challenge assumptions. Propose ideas. Debate tradeoffs. But NEVER create, edit, or delete project files. Discovery exists to catch what you don't yet know you don't know.",
         rules: [
           ...mandatoryRules,
           "DO NOT create, edit, or write any files.",
@@ -530,6 +547,7 @@ const buildBehavioral = (
 
       const base: string[] = [
         ...mandatoryRules,
+        "You are the orchestrator, not the implementer. NEVER create, edit, or delete project files directly. ALWAYS delegate to noskills-executor sub-agent, even for single-line changes. There is no 'minor change' — every edit goes through the executor→verifier pipeline. Your job: read noskills output, spawn sub-agents, report status.",
         "Do not explore the codebase beyond what the current task requires.",
         "Do not refactor, improve, or modify code outside this task's scope.",
         "Do not add features, tests, or documentation not specified in the spec.",
@@ -550,7 +568,7 @@ const buildBehavioral = (
 
       const behavioral: BehavioralBlock = {
         rules: base,
-        tone: "Direct. No preamble. Start coding immediately.",
+        tone: "Direct. Orchestrate immediately — spawn sub-agents.",
         outOfScope: scopeItems.length > 0 ? scopeItems : undefined,
       };
 
@@ -769,6 +787,12 @@ export const compile = (
     case "COMPLETED":
       phaseOutput = compileCompleted(state);
       break;
+    case "FREE":
+      phaseOutput = {
+        phase: "FREE",
+        instruction: "Free mode — no enforcement active. Work as you wish.",
+      };
+      break;
     default:
       phaseOutput = compileIdle(
         activeConcerns,
@@ -855,6 +879,12 @@ const buildInteractiveOptions = (
         label: "Start a new spec",
         description: "Begin discovery questions for a new feature",
         command: c('spec new --name=<slug> "description"'),
+      });
+
+      opts.push({
+        label: "Free mode",
+        description: "No enforcement — work freely until you want structure",
+        command: c("free"),
       });
 
       // Add continuable specs as options (max 2 to stay within AskUserQuestion limits)
@@ -1226,6 +1256,14 @@ const isACRelevant = (
   // Any UI ACs (loading states, skeleton UI)
   if (lower.includes("ui state") || lower.includes("skeleton ui")) {
     return classification.involvesWebUI || classification.involvesCLI;
+  }
+
+  // Documentation ACs (README, docs) — always relevant
+  if (
+    lower.includes("readme") || lower.includes("documentation updated") ||
+    lower.includes("reflected in") && lower.includes("docs")
+  ) {
+    return true;
   }
 
   // Public API documentation ACs

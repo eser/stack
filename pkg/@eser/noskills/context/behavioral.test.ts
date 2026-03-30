@@ -88,9 +88,12 @@ describe("EXECUTING behavioral guardrails", () => {
 // =============================================================================
 
 describe("EXECUTING tone", () => {
-  it("says 'Start coding immediately'", () => {
+  it("says 'Orchestrate immediately'", () => {
     const output = compiler.compile(inExecuting(), noConcerns, noRules);
-    assertEquals(output.behavioral.tone.includes("Start coding"), true);
+    assertEquals(
+      output.behavioral.tone.includes("Orchestrate immediately"),
+      true,
+    );
   });
 });
 

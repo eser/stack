@@ -198,8 +198,8 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
 
   // Allow writes in phases where the agent should be free to work
   if (
-    phase === "EXECUTING" || phase === "IDLE" || phase === "COMPLETED" ||
-    phase === "UNKNOWN"
+    phase === "EXECUTING" || phase === "IDLE" || phase === "FREE" ||
+    phase === "COMPLETED" || phase === "UNKNOWN"
   ) {
     // Sub-agent spawning reminder (once per session, non-blocking)
     if (phase === "EXECUTING" && gatedTools.includes(toolName)) {
@@ -234,12 +234,21 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
 
   // Block writes only in conversation phases (DISCOVERY, DISCOVERY_REVIEW, SPEC_DRAFT, SPEC_APPROVED, BLOCKED)
   const reasons: Record<string, string> = {
-    DISCOVERY: `Discovery in progress. Run \`${cmd("next")}\` to continue.`,
-    DISCOVERY_REVIEW: `Discovery answers need review. Run \`${
-      cmd('next --answer="approve"')
-    }\` or revise answers.`,
-    SPEC_DRAFT: `Spec needs review. Run \`${cmd("approve")}\``,
-    SPEC_APPROVED: `Start execution first: \`${cmd('next --answer="start"')}\``,
+    DISCOVERY:
+      `You are in DISCOVERY — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, complete discovery and get the spec approved first. Run \`${
+        cmd("next")
+      }\` to continue.`,
+    DISCOVERY_REVIEW:
+      `You are in DISCOVERY_REVIEW — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, complete discovery and get the spec approved first. Run \`${
+        cmd('next --answer="approve"')
+      }\` or revise answers.`,
+    SPEC_DRAFT:
+      `You are in SPEC_DRAFT — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, approve the spec first. Run \`${
+        cmd("approve")
+      }\``,
+    SPEC_APPROVED: `You are in SPEC_APPROVED — start execution first: \`${
+      cmd('next --answer="start"')
+    }\``,
     BLOCKED: `Execution blocked. Resolve with \`${
       cmd('next --answer="resolution"')
     }\``,

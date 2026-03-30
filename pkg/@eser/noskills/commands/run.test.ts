@@ -188,7 +188,10 @@ describe("noskills run: prompt construction", () => {
     const output = compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.behavioral.rules.length > 0, true);
-    assertEquals(output.behavioral.tone.includes("Start coding"), true);
+    assertEquals(
+      output.behavioral.tone.includes("Orchestrate immediately"),
+      true,
+    );
   });
 
   it("compiler output includes concern reminders when active", () => {

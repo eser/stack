@@ -8,6 +8,10 @@
       "text": "Will this decision still be correct in 2 years?"
     },
     {
+      "questionId": "verification",
+      "text": "Is documentation (README, CHANGELOG, API docs) up to date with this change?"
+    },
+    {
       "questionId": "scope_boundary",
       "text": "What technical debt would this introduce?"
     }
@@ -16,11 +20,13 @@
   "reminders": [
     "Favor boring technology over shiny new tools",
     "Every shortcut needs explicit justification",
-    "Consider maintenance burden for new dependencies"
+    "Consider maintenance burden for new dependencies",
+    "If this task changes public behavior, API, CLI flags, or configuration — update README and relevant docs in the SAME task. Documentation is not a follow-up."
   ],
   "acceptanceCriteria": [
     "Backward compatibility preserved",
     "Migration path documented if breaking",
-    "No unnecessary new dependencies"
+    "No unnecessary new dependencies",
+    "Documentation updated for any public-facing change"
   ]
 }

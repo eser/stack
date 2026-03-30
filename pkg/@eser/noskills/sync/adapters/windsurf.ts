@@ -18,6 +18,12 @@ export const windsurfAdapter: adapter.ToolAdapter = {
     agents: false,
     specs: false,
     mcp: false,
+    interaction: {
+      hasAskUserTool: false,
+      optionPresentation: "prose",
+      hasSubAgentDelegation: false,
+      subAgentMethod: "none",
+    },
   },
   async syncRules(ctx: adapter.SyncContext): Promise<void> {
     await windsurf.sync(ctx.root, ctx.rules, ctx.commandPrefix);

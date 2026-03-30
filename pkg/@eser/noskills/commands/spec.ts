@@ -11,6 +11,7 @@ import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
+import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
 import { cmd, cmdPrefix } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
@@ -28,17 +29,13 @@ export const main = async (
     return await specList(args?.slice(1));
   }
 
-  if (subcommand === "switch") {
-    return await specSwitch(args?.slice(1));
-  }
-
   const prefix = cmdPrefix();
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
   out.writeln(
-    `Usage: ${prefix} spec <new "description" | list | switch <name>>`,
+    `Usage: ${prefix} spec <new --name=<slug> "description" | list>`,
   );
   await out.close();
 
@@ -71,13 +68,13 @@ const specNew = async (
   }
 
   // Parse --name flag and collect description words
-  let explicitName: string | null = null;
+  let specName: string | null = null;
   const descWords: string[] = [];
 
   if (args !== undefined) {
     for (const arg of args) {
       if (arg.startsWith("--name=")) {
-        explicitName = arg.slice("--name=".length);
+        specName = arg.slice("--name=".length);
       } else if (!arg.startsWith("-")) {
         descWords.push(arg);
       }
@@ -86,38 +83,75 @@ const specNew = async (
 
   const description = descWords.join(" ");
 
+  if (specName === null || specName.length === 0) {
+    out.writeln(
+      span.red("Error: --name is required."),
+    );
+    out.writeln(
+      span.dim("Example: "),
+      span.bold(
+        `${cmdPrefix()} spec new --name=photo-upload "photo upload feature"`,
+      ),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  // Validate name: lowercase, hyphens, numbers only. Max 50 chars.
+  const NAME_REGEX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
+  if (
+    specName.length > 50 ||
+    (specName.length > 1 && !NAME_REGEX.test(specName)) ||
+    (specName.length === 1 && !/^[a-z0-9]$/.test(specName))
+  ) {
+    out.writeln(
+      span.red("Invalid spec name: "),
+      span.bold(specName),
+    );
+    out.writeln(
+      span.dim(
+        "Must be lowercase, hyphens, numbers only. Max 50 chars. Regex: /^[a-z0-9][a-z0-9-]*[a-z0-9]$/",
+      ),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
   if (description.length === 0) {
     out.writeln(
       span.red("Please provide a description: "),
-      span.bold(`${cmdPrefix()} spec new "photo auto-listing"`),
+      span.bold(
+        `${cmdPrefix()} spec new --name=${specName} "photo upload feature"`,
+      ),
     );
     await out.close();
 
     return results.fail({ exitCode: 1 });
   }
-
-  // Determine spec name: explicit --name or slugified from description
-  const baseSlug = explicitName ?? slugify(description);
-  const specName = await deduplicateSlug(root, baseSlug);
   const branch = `spec/${specName}`;
 
-  const state = await persistence.readState(root);
-
-  if (state.phase !== "IDLE" && state.phase !== "COMPLETED") {
+  // Check if spec name already exists
+  const specDir = `${root}/${persistence.paths.specDir(specName)}`;
+  try {
+    await runtime.fs.stat(specDir);
     out.writeln(
-      span.red(`Cannot start new spec in phase: ${state.phase}`),
-      span.dim(" — finish or reset the current spec first."),
+      span.red(`Spec "${specName}" already exists.`),
+      span.dim(
+        ` Use a different --name or run \`${cmdPrefix()} reset --spec=${specName}\` first.`,
+      ),
     );
     await out.close();
 
     return results.fail({ exitCode: 1 });
+  } catch {
+    // Directory doesn't exist — good, proceed
   }
 
-  const newState = machine.startSpec(
-    state.phase === "COMPLETED" ? machine.resetToIdle(state) : state,
-    specName,
-    branch,
-  );
+  // Create a fresh state for the new spec (independent of other specs)
+  const freshState = schema.createInitialState();
+  const newState = machine.startSpec(freshState, specName, branch);
 
   // Create spec directory and save state
   await runtime.fs.mkdir(
@@ -126,7 +160,6 @@ const specNew = async (
       recursive: true,
     },
   );
-  await persistence.writeState(root, newState);
   await persistence.writeSpecState(root, specName, newState);
 
   out.writeln(span.green("✔"), " Spec started: ", span.bold(specName));
@@ -139,58 +172,12 @@ const specNew = async (
   out.writeln("");
   out.writeln(
     "Run ",
-    span.bold(cmd("next")),
+    span.bold(cmd(`next --spec=${specName}`)),
     " to begin discovery questions.",
   );
   await out.close();
 
   return results.ok(undefined);
-};
-
-// =============================================================================
-// Slug utilities
-// =============================================================================
-
-/** Lowercase, spaces to hyphens, strip special chars, truncate at 50. */
-/** Lowercase, strip accents (NFD + remove combining marks), hyphens, truncate. */
-const slugify = (text: string): string => {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // strip combining diacritical marks
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 50)
-    .replace(/-$/, "");
-};
-
-/** If slug already exists as a spec directory, append -2, -3, etc. */
-const deduplicateSlug = async (
-  root: string,
-  slug: string,
-): Promise<string> => {
-  const specsDir = `${root}/${persistence.paths.specsDir}`;
-
-  // Check if base slug exists
-  const exists = async (name: string): Promise<boolean> => {
-    try {
-      await runtime.fs.stat(`${specsDir}/${name}`);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  if (!(await exists(slug))) return slug;
-
-  // Append suffix
-  for (let i = 2; i <= 99; i++) {
-    const candidate = `${slug}-${i}`;
-    if (!(await exists(candidate))) return candidate;
-  }
-
-  // Fallback: timestamp
-  return `${slug}-${Date.now()}`;
 };
 
 // =============================================================================
@@ -204,7 +191,6 @@ const specList = async (
 ): Promise<shellArgs.CliResult<void>> => {
   const root = runtime.process.cwd();
   const fmt = formatter.parseOutputFormat(args);
-  const activeSpec = await persistence.readActiveSpec(root);
   const specStates = await persistence.listSpecStates(root);
 
   // Also check spec directories that might not have state files yet
@@ -214,7 +200,6 @@ const specList = async (
     name: string;
     phase: string;
     iteration: number;
-    active: boolean;
   }[] = [];
 
   for (const ss of specStates) {
@@ -222,7 +207,6 @@ const specList = async (
       name: ss.name,
       phase: ss.state.phase,
       iteration: ss.state.execution.iteration,
-      active: ss.name === activeSpec,
     });
   }
 
@@ -234,7 +218,6 @@ const specList = async (
           name: entry.name,
           phase: "IDLE",
           iteration: 0,
-          active: entry.name === activeSpec,
         });
       }
     }
@@ -261,8 +244,6 @@ const specList = async (
     out.writeln(span.dim("  No specs yet."));
   } else {
     for (const spec of allSpecs) {
-      const indicator = spec.active ? span.green("●") : span.dim("○");
-      const nameStr = spec.active ? span.bold(spec.name) : span.dim(spec.name);
       const phaseStr = spec.phase === "COMPLETED"
         ? span.green(spec.phase)
         : spec.phase === "EXECUTING"
@@ -275,87 +256,7 @@ const specList = async (
         ? span.dim(` iteration ${spec.iteration}`)
         : "";
 
-      out.writeln("  ", indicator, " ", nameStr, "  ", phaseStr, iterStr);
-    }
-  }
-
-  await out.close();
-
-  return results.ok(undefined);
-};
-
-// =============================================================================
-// spec switch
-// =============================================================================
-
-const specSwitch = async (
-  args?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  const out = streams.output({
-    renderer: streams.renderers.ansi(),
-    sink: streams.sinks.stdout(),
-  });
-
-  const root = runtime.process.cwd();
-  const targetName = args?.[0];
-
-  if (targetName === undefined || targetName.length === 0) {
-    out.writeln(
-      span.red("Please provide a spec name: "),
-      span.bold(`${cmdPrefix()} spec switch my-feature`),
-    );
-    await out.close();
-
-    return results.fail({ exitCode: 1 });
-  }
-
-  // Save current state to its per-spec file before switching
-  const currentActive = await persistence.readActiveSpec(root);
-  const currentState = await persistence.readState(root);
-
-  if (currentActive !== null && currentState.spec !== null) {
-    await persistence.writeSpecState(root, currentActive, currentState);
-  }
-
-  // Check target exists (has a spec directory or state file)
-  const targetState = await persistence.readSpecState(root, targetName);
-  const specDirExists = await runtime.fs
-    .stat(`${root}/${persistence.paths.specDir(targetName)}`)
-    .then(() => true)
-    .catch(() => false);
-
-  if (
-    targetState.phase === "IDLE" && !specDirExists
-  ) {
-    out.writeln(span.red(`Spec "${targetName}" not found.`));
-    out.writeln(
-      span.dim(`Run \`${cmd("spec list")}\` to see available specs.`),
-    );
-    await out.close();
-
-    return results.fail({ exitCode: 1 });
-  }
-
-  // Switch: load target state as the main state (state.json's "spec" field = active spec)
-  await persistence.writeState(root, targetState);
-
-  out.writeln(
-    span.green("✔"),
-    " Switched to: ",
-    span.bold(targetName),
-    " (",
-    span.cyan(targetState.phase),
-    ")",
-  );
-
-  if (targetState.phase === "EXECUTING") {
-    out.writeln(
-      span.dim(`  Iteration: ${targetState.execution.iteration}`),
-    );
-    if (targetState.execution.lastProgress !== null) {
-      out.writeln(
-        span.dim(`  Progress:  ${targetState.execution.lastProgress}`),
-      );
+      out.writeln("  ", span.dim("○"), " ", spec.name, "  ", phaseStr, iterStr);
     }
   }
 

@@ -131,6 +131,24 @@ export const parseSpecFlag = (
   return null;
 };
 
+/**
+ * Require --spec=<name> flag on spec-specific commands.
+ * Returns the spec name if present, or an error message string if missing.
+ */
+export const requireSpecFlag = (
+  args?: readonly string[],
+): { ok: true; spec: string } | { ok: false; error: string } => {
+  const spec = parseSpecFlag(args);
+  if (spec === null || spec.length === 0) {
+    return {
+      ok: false,
+      error:
+        "Error: --spec=<name> is required. Use `noskills spec list` to see available specs.",
+    };
+  }
+  return { ok: true, spec };
+};
+
 export const writeState = async (
   root: string,
   state: schema.StateFile,

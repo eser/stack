@@ -511,7 +511,17 @@ const handleSessionStart = async (): Promise<shellArgs.CliResult<void>> => {
   const rules = await syncEngine.loadRules(root);
 
   // Compile and output the current instruction
-  const output = compiler.compile(state, activeConcerns, rules, config);
+  const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
+  const output = compiler.compile(
+    state,
+    activeConcerns,
+    rules,
+    config,
+    undefined,
+    undefined,
+    undefined,
+    hints,
+  );
   await writeStdout(output);
 
   return results.ok(undefined);

@@ -38,6 +38,10 @@ const baseSnapshot = (): WatchSnapshot => ({
   discoveryTotal: 6,
   trackedFiles: ["src/api/v1/listings/price.ts"],
   timeSinceUpdate: 12,
+  allSpecs: [
+    { name: "photo-upload", phase: "EXECUTING", iteration: 7 },
+    { name: "login-flow", phase: "COMPLETED", iteration: 3 },
+  ],
 });
 
 // =============================================================================

@@ -239,7 +239,17 @@ export const main = async (
       selectedConcernIds.includes(c.id)
     );
     const rules = await syncEngine.loadRules(root);
-    const output = compiler.compile(state, active, rules, config);
+    const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
+    const output = compiler.compile(
+      state,
+      active,
+      rules,
+      config,
+      undefined,
+      undefined,
+      undefined,
+      hints,
+    );
     await formatter.writeFormatted(output, "json");
   } else {
     tui.gapDetached(ctx);

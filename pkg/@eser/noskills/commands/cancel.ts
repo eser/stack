@@ -10,6 +10,7 @@ import * as results from "@eser/primitives/results";
 import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
 import type * as shellArgs from "@eser/shell/args";
+import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as specUpdater from "../spec/updater.ts";
@@ -24,8 +25,21 @@ export const main = async (
   });
 
   const root = runtime.process.cwd();
-  const specFlag = persistence.parseSpecFlag(args);
-  const state = await persistence.resolveState(root, specFlag);
+  const specResult = persistence.requireSpecFlag(args);
+  if (!specResult.ok) {
+    out.writeln(span.red(specResult.error));
+    await out.close();
+    return results.fail({ exitCode: 1 });
+  }
+  let state: schema.StateFile;
+  try {
+    state = await persistence.resolveState(root, specResult.spec);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    out.writeln(span.red(msg));
+    await out.close();
+    return results.fail({ exitCode: 1 });
+  }
 
   if (
     state.phase === "IDLE" || state.phase === "UNINITIALIZED" ||
@@ -52,6 +66,9 @@ export const main = async (
 
   const newState = machine.completeSpec(state, "cancelled");
   await persistence.writeState(root, newState);
+  if (newState.spec !== null) {
+    await persistence.writeSpecState(root, newState.spec, newState);
+  }
 
   // Update spec.md status
   if (newState.spec !== null) {

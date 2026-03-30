@@ -81,7 +81,17 @@ export const main = async (
       config !== null && config.concerns.includes(c.id)
     );
     const rules = await syncEngine.loadRules(root);
-    const output = compiler.compile(state, activeConcerns, rules, config);
+    const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
+    const output = compiler.compile(
+      state,
+      activeConcerns,
+      rules,
+      config,
+      undefined,
+      undefined,
+      undefined,
+      hints,
+    );
 
     // Merge status-specific data with compiled output
     await formatter.writeFormatted({ ...statusData, ...output }, "json");

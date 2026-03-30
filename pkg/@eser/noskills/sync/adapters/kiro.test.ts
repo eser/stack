@@ -70,8 +70,8 @@ describe("Kiro adapter: snapshot tests", () => {
       );
 
       assertStringIncludes(content, "# noskills Protocol");
-      assertStringIncludes(content, `${CMD_PREFIX} next`);
-      assertStringIncludes(content, `${CMD_PREFIX} next --answer=`);
+      assertStringIncludes(content, `${CMD_PREFIX} next --spec=`);
+      assertStringIncludes(content, `--answer=`);
     });
 
     it("includes git-read-only section when allowGit is not set", async () => {

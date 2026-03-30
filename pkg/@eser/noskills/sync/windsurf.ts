@@ -34,6 +34,16 @@ export const sync = async (
     "",
     "NEVER proceed with implementation without checking noskills first.",
     "",
+    "## Interactive choices",
+    "",
+    "Present choices as numbered lists. Users select by number.",
+    "When interactiveOptions are present in noskills output, present each as a",
+    "numbered item with its label and description. Ask the user to pick a number.",
+    "",
+    "## Execution model",
+    "",
+    "Execute tasks sequentially in this context. Do not attempt to spawn sub-agents.",
+    "",
   ];
 
   if (rules.length > 0) {

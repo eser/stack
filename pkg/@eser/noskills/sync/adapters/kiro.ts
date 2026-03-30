@@ -53,8 +53,11 @@ const buildProtocol = (
     "",
     "## Protocol",
     "",
-    `    ${commandPrefix} next                           # get current instruction`,
-    `    ${commandPrefix} next --answer="your response"  # submit result and advance`,
+    `    ${commandPrefix} next --spec=<name>                           # get current instruction`,
+    `    ${commandPrefix} next --spec=<name> --answer="your response"  # submit result and advance`,
+    "",
+    "Every noskills command that operates on a spec MUST include `--spec=<name>`.",
+    `Never omit it. Use \`${commandPrefix} spec list\` to see available specs.`,
     "",
     "## When to call noskills next",
     "",
@@ -82,6 +85,13 @@ const buildProtocol = (
   }
 
   lines.push(
+    "",
+    "## Interactive choices",
+    "",
+    "Present choices as numbered lists. Users select by number.",
+    "When interactiveOptions are present in noskills output, present each as a",
+    "numbered item with its label and description. Ask the user to pick a number.",
+    "Use the `commandMap` to resolve the user's selection to a CLI command.",
     "",
     "## Decision principle: Explicit > Clever",
     "",
@@ -554,6 +564,12 @@ export const kiroAdapter: adapter.ToolAdapter = {
     agents: true,
     specs: true,
     mcp: true,
+    interaction: {
+      hasAskUserTool: false,
+      optionPresentation: "prose",
+      hasSubAgentDelegation: true,
+      subAgentMethod: "delegation",
+    },
   },
 
   async syncRules(

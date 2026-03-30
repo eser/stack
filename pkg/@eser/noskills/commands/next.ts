@@ -9,6 +9,7 @@
 
 import * as results from "@eser/primitives/results";
 import type * as shellArgs from "@eser/shell/args";
+import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as compiler from "../context/compiler.ts";
@@ -48,8 +49,20 @@ export const main = async (
     }
   }
 
-  const specFlag = persistence.parseSpecFlag(cleanArgs);
-  let state = await persistence.resolveState(root, specFlag);
+  const specResult = persistence.requireSpecFlag(cleanArgs);
+  if (!specResult.ok) {
+    await formatter.writeFormatted({ error: specResult.error }, fmt);
+    return results.fail({ exitCode: 1 });
+  }
+  const specFlag = specResult.spec;
+  let state: schema.StateFile;
+  try {
+    state = await persistence.resolveState(root, specFlag);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await formatter.writeFormatted({ error: msg }, fmt);
+    return results.fail({ exitCode: 1 });
+  }
   const config = await persistence.readManifest(root);
 
   // Set command prefix from manifest for cmd() / cmdPrefix() calls
@@ -121,6 +134,7 @@ export const main = async (
     // Collect folder rules from touched files (state + hook log)
     const touchedFiles = await collectTouchedFiles(root, touchedState);
     const fRules = await folderRules.collectFolderRules(root, touchedFiles);
+    const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
     const output = compiler.compile(
       touchedState,
       activeConcerns,
@@ -128,6 +142,8 @@ export const main = async (
       config,
       parsed,
       fRules,
+      undefined,
+      hints,
     );
     await formatter.writeFormatted(output, fmt);
 
@@ -167,6 +183,7 @@ export const main = async (
     };
   }
 
+  const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
   const output = compiler.compile(
     touchedState,
     activeConcerns,
@@ -175,6 +192,7 @@ export const main = async (
     parsed,
     fRules,
     idleContext,
+    hints,
   );
   await formatter.writeFormatted(output, fmt);
 
@@ -184,8 +202,6 @@ export const main = async (
 // =============================================================================
 // Answer Handling
 // =============================================================================
-
-import type * as schema from "../state/schema.ts";
 
 export const handleAnswer = async (
   root: string,
@@ -285,19 +301,9 @@ export const handleAnswer = async (
       if (state.classification === null) {
         let classification: schema.SpecClassification;
 
-        try {
-          const parsed = JSON.parse(answer);
-          classification = {
-            involvesWebUI: parsed.involvesWebUI === true ||
-              parsed.involvesUI === true,
-            involvesCLI: parsed.involvesCLI === true ||
-              parsed.involvesUI === true,
-            involvesPublicAPI: parsed.involvesPublicAPI === true,
-            involvesMigration: parsed.involvesMigration === true,
-            involvesDataHandling: parsed.involvesDataHandling === true,
-          };
-        } catch {
-          // If not JSON, default to all false
+        // Shortcut: "none" or "skip" means all flags false
+        const trimmed = answer.trim().toLowerCase();
+        if (trimmed === "none" || trimmed === "skip") {
           classification = {
             involvesWebUI: false,
             involvesCLI: false,
@@ -305,6 +311,28 @@ export const handleAnswer = async (
             involvesMigration: false,
             involvesDataHandling: false,
           };
+        } else {
+          try {
+            const parsed = JSON.parse(answer);
+            classification = {
+              involvesWebUI: parsed.involvesWebUI === true ||
+                parsed.involvesUI === true,
+              involvesCLI: parsed.involvesCLI === true ||
+                parsed.involvesUI === true,
+              involvesPublicAPI: parsed.involvesPublicAPI === true,
+              involvesMigration: parsed.involvesMigration === true,
+              involvesDataHandling: parsed.involvesDataHandling === true,
+            };
+          } catch {
+            // If not JSON, default to all false
+            classification = {
+              involvesWebUI: false,
+              involvesCLI: false,
+              involvesPublicAPI: false,
+              involvesMigration: false,
+              involvesDataHandling: false,
+            };
+          }
         }
 
         const newState = { ...state, classification };

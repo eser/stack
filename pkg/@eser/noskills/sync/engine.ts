@@ -60,6 +60,38 @@ const ADAPTERS: readonly adapter.ToolAdapter[] = [
 ];
 
 // =============================================================================
+// Active Tool Resolution
+// =============================================================================
+
+/** Default interaction hints (Claude Code behavior) used when no tool is configured. */
+const DEFAULT_INTERACTION: adapter.InteractionHints = {
+  hasAskUserTool: true,
+  optionPresentation: "tool",
+  hasSubAgentDelegation: true,
+  subAgentMethod: "task",
+};
+
+/**
+ * Resolve the interaction hints for the primary active tool.
+ *
+ * Uses the first tool in the manifest's tools list. Falls back to Claude Code
+ * defaults if no tools are configured or the tool ID is unknown.
+ */
+export const resolveInteractionHints = (
+  tools: readonly schema.CodingToolId[],
+): adapter.InteractionHints => {
+  const primaryId = tools[0];
+
+  if (primaryId === undefined) {
+    return DEFAULT_INTERACTION;
+  }
+
+  const found = ADAPTERS.find((a) => a.id === primaryId);
+
+  return found?.capabilities.interaction ?? DEFAULT_INTERACTION;
+};
+
+// =============================================================================
 // Sync
 // =============================================================================
 

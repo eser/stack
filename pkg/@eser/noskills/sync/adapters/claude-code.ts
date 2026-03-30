@@ -114,6 +114,12 @@ export const claudeCodeAdapter: adapter.ToolAdapter = {
     agents: true,
     specs: false,
     mcp: false,
+    interaction: {
+      hasAskUserTool: true,
+      optionPresentation: "tool",
+      hasSubAgentDelegation: true,
+      subAgentMethod: "task",
+    },
   },
 
   async syncRules(

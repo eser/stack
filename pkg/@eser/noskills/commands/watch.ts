@@ -21,6 +21,12 @@ import { runtime } from "@eser/standards/cross-runtime";
 // Watch snapshot — everything we display, derived from files
 // =============================================================================
 
+export type SpecSnapshot = {
+  readonly name: string;
+  readonly phase: schema.Phase;
+  readonly iteration: number;
+};
+
 export type WatchSnapshot = {
   readonly spec: string | null;
   readonly phase: schema.Phase;
@@ -45,6 +51,7 @@ export type WatchSnapshot = {
   readonly discoveryTotal: number;
   readonly trackedFiles: readonly string[];
   readonly timeSinceUpdate: number | null;
+  readonly allSpecs: readonly SpecSnapshot[];
 };
 
 // =============================================================================
@@ -92,6 +99,14 @@ const buildSnapshot = async (
     );
   }
 
+  // Collect all specs for multi-spec dashboard
+  const specStates = await persistence.listSpecStates(root);
+  const allSpecs: SpecSnapshot[] = specStates.map((ss) => ({
+    name: ss.name,
+    phase: ss.state.phase,
+    iteration: ss.state.execution.iteration,
+  }));
+
   return {
     spec: state.spec,
     phase: state.phase,
@@ -113,6 +128,7 @@ const buildSnapshot = async (
     discoveryTotal: 6,
     trackedFiles,
     timeSinceUpdate,
+    allSpecs,
   };
 };
 
@@ -181,70 +197,128 @@ const formatTime = (seconds: number | null): string => {
   return `${Math.floor(seconds / 3600)}h ago`;
 };
 
+/** Pad text to fit within a box cell, stripping ANSI for length calc. */
+// deno-lint-ignore no-control-regex
+const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, "");
+const padCell = (text: string, w: number): string => {
+  const visible = stripAnsi(text).length;
+  return text + " ".repeat(Math.max(0, w - visible));
+};
+
 const renderTerminal = (snap: WatchSnapshot): string => {
   const lines: string[] = [];
-  const w = 52;
+  const w = 54;
   const border = "─".repeat(w);
+  const row = (content: string): string =>
+    `${DIM}│${RESET}  ${padCell(content, w - 2)}${DIM}│${RESET}`;
+  const blank = (): string => `${DIM}│${"".padEnd(w)}│${RESET}`;
 
   lines.push(`${DIM}╭${border}╮${RESET}`);
-  lines.push(
-    `${DIM}│${RESET}  ${BOLD}noskills watch${RESET} — ${
-      snap.spec ?? "no active spec"
-    }${DIM}${
-      " ".repeat(Math.max(0, w - 18 - (snap.spec?.length ?? 15)))
-    }│${RESET}`,
-  );
+  lines.push(row(`${BOLD}noskills watch${RESET}`));
+  lines.push(blank());
 
-  // Phase
-  const pc = phaseColor(snap.phase);
-  lines.push(
-    `${DIM}│${RESET}  Phase: ${pc}${snap.phase}${RESET}${
-      " ".repeat(Math.max(0, w - 10 - snap.phase.length))
-    }${DIM}│${RESET}`,
-  );
+  // ── Per-spec summary rows ──
+  lines.push(row(`${BOLD}Specs:${RESET}`));
 
+  if (snap.allSpecs.length > 0) {
+    for (const s of snap.allSpecs) {
+      const pc = phaseColor(s.phase);
+      const nameCol = s.name.slice(0, 18).padEnd(18);
+      const phaseCol = `${pc}${s.phase}${RESET}`.padEnd(
+        s.phase.length + 10,
+      );
+
+      if (
+        s.phase === "EXECUTING" || s.phase === "BLOCKED"
+      ) {
+        // Show inline progress bar for executing specs
+        const bar = progressBar(snap.completedTaskCount, snap.totalTasks, 10);
+        const pct = snap.totalTasks > 0
+          ? Math.round((snap.completedTaskCount / snap.totalTasks) * 100)
+          : 0;
+        lines.push(
+          row(
+            `  ${nameCol} ${phaseCol} ${bar} ${snap.completedTaskCount}/${snap.totalTasks} (${pct}%)`,
+          ),
+        );
+      } else if (s.phase === "COMPLETED") {
+        lines.push(
+          row(`  ${nameCol} ${phaseCol} done`),
+        );
+      } else {
+        lines.push(
+          row(`  ${nameCol} ${phaseCol}`),
+        );
+      }
+    }
+  } else if (snap.spec !== null) {
+    // Fallback: single spec from main state
+    const pc = phaseColor(snap.phase);
+    lines.push(row(`  ${snap.spec}  ${pc}${snap.phase}${RESET}`));
+  } else {
+    lines.push(row(`  ${DIM}No specs yet${RESET}`));
+  }
+
+  lines.push(blank());
+
+  // ── Detail block for the primary spec ──
   // Phase-specific content
   if (snap.phase === "DISCOVERY" || snap.phase === "DISCOVERY_REVIEW") {
     lines.push(
-      `${DIM}│${RESET}  Discovery: ${snap.discoveryAnswered}/${snap.discoveryTotal} questions answered${
-        " ".repeat(Math.max(0, w - 38))
-      }${DIM}│${RESET}`,
+      row(
+        `Phase: ${
+          phaseColor(snap.phase)
+        }${snap.phase}${RESET}  Discovery: ${snap.discoveryAnswered}/${snap.discoveryTotal} questions answered`,
+      ),
     );
   } else if (snap.phase === "SPEC_DRAFT") {
     lines.push(
-      `${DIM}│${RESET}  ${YELLOW}Awaiting approval${RESET}${
-        " ".repeat(Math.max(0, w - 19))
-      }${DIM}│${RESET}`,
+      row(
+        `Phase: ${YELLOW}${snap.phase}${RESET}  ${YELLOW}Awaiting approval${RESET}`,
+      ),
+    );
+  } else if (snap.phase === "SPEC_APPROVED") {
+    lines.push(
+      row(
+        `Phase: ${YELLOW}${snap.phase}${RESET}  ${GREEN}Ready to start${RESET}`,
+      ),
     );
   } else if (snap.phase === "EXECUTING" || snap.phase === "BLOCKED") {
-    // Progress bar: completed / total tasks
-    const bar = progressBar(snap.completedTaskCount, snap.totalTasks, 12);
-    const pct = snap.totalTasks > 0
-      ? Math.round((snap.completedTaskCount / snap.totalTasks) * 100)
-      : 0;
-    const progLine =
-      `${bar} ${snap.completedTaskCount}/${snap.totalTasks} tasks (${pct}%)`;
-    lines.push(
-      `${DIM}│${RESET}  Progress: ${GREEN}${progLine}${RESET}${
-        " ".repeat(Math.max(0, w - 12 - progLine.length))
-      }${DIM}│${RESET}`,
-    );
-    lines.push(
-      `${DIM}│${RESET}  Iteration: ${snap.iteration}${
-        " ".repeat(Math.max(0, w - 14 - String(snap.iteration).length))
-      }${DIM}│${RESET}`,
-    );
+    if (snap.spec !== null) {
+      lines.push(
+        row(
+          `${BOLD}${snap.spec}${RESET} (iteration ${snap.iteration}):`,
+        ),
+      );
+    }
 
     // Active task
     if (snap.activeTaskId !== null) {
       const taskLine = `${snap.activeTaskId}${
         snap.activeTaskTitle !== null ? ` (${snap.activeTaskTitle})` : ""
       }`;
-      const truncTask = taskLine.slice(0, w - 16);
       lines.push(
-        `${DIM}│${RESET}  Active task: ${CYAN}${truncTask}${RESET}${
-          " ".repeat(Math.max(0, w - 16 - truncTask.length))
-        }${DIM}│${RESET}`,
+        row(`  Active task: ${CYAN}${taskLine.slice(0, w - 18)}${RESET}`),
+      );
+    }
+
+    // Progress bar
+    const bar = progressBar(snap.completedTaskCount, snap.totalTasks, 12);
+    const pct = snap.totalTasks > 0
+      ? Math.round((snap.completedTaskCount / snap.totalTasks) * 100)
+      : 0;
+    lines.push(
+      row(
+        `  Progress: ${GREEN}${bar} ${snap.completedTaskCount}/${snap.totalTasks} tasks (${pct}%)${RESET}`,
+      ),
+    );
+    lines.push(row(`  Iteration: ${snap.iteration}`));
+
+    // Last update + progress
+    lines.push(row(`  Last update: ${formatTime(snap.timeSinceUpdate)}`));
+    if (snap.lastProgress !== null) {
+      lines.push(
+        row(`  ${DIM}${snap.lastProgress.slice(0, w - 4)}${RESET}`),
       );
     }
 
@@ -254,149 +328,75 @@ const renderTerminal = (snap: WatchSnapshot): string => {
         "",
       );
       lines.push(
-        `${DIM}│${RESET}  ${RED}BLOCKED: ${reason.slice(0, w - 12)}${RESET}${
-          " ".repeat(Math.max(0, w - 12 - reason.slice(0, w - 12).length))
-        }${DIM}│${RESET}`,
+        row(`  ${RED}BLOCKED: ${reason.slice(0, w - 14)}${RESET}`),
       );
-      lines.push(
-        `${DIM}│${RESET}  ${YELLOW}Human input needed${RESET}${
-          " ".repeat(Math.max(0, w - 20))
-        }${DIM}│${RESET}`,
-      );
+      lines.push(row(`  ${YELLOW}Human input needed${RESET}`));
+    }
+
+    // Status flags
+    if (snap.awaitingStatusReport) {
+      lines.push(row(`  ${YELLOW}Status report pending${RESET}`));
+    }
+    if (snap.verificationPassed === false) {
+      lines.push(row(`  ${RED}Verification failed${RESET}`));
+    }
+
+    lines.push(blank());
+
+    // Debt
+    if (snap.debt !== null && snap.debt.items.length > 0) {
+      lines.push(row(`  Debt: ${snap.debt.items.length} item(s)`));
+      for (const item of snap.debt.items.slice(0, 3)) {
+        lines.push(row(`   └─ ${item.text.slice(0, w - 10)}`));
+      }
+      if (snap.debt.items.length > 3) {
+        lines.push(
+          row(`   └─ ... and ${snap.debt.items.length - 3} more`),
+        );
+      }
+    }
+
+    // Files changed
+    if (snap.trackedFiles.length > 0 || snap.modifiedFiles.length > 0) {
+      const files = snap.trackedFiles.length > 0
+        ? snap.trackedFiles
+        : snap.modifiedFiles;
+      lines.push(row(`  Files changed: ${files.length}`));
+      for (const f of files.slice(0, 5)) {
+        const short = f.length > w - 10 ? "..." + f.slice(-(w - 13)) : f;
+        lines.push(row(`   └─ ${short}`));
+      }
+      if (files.length > 5) {
+        lines.push(row(`   └─ ... and ${files.length - 5} more`));
+      }
     }
   } else if (snap.phase === "COMPLETED") {
     lines.push(
-      `${DIM}│${RESET}  ${GREEN}Complete!${RESET} ${snap.iteration} iterations, ${snap.decisionsCount} decisions${
-        " ".repeat(
-          Math.max(
-            0,
-            w - 35 - String(snap.iteration).length -
-              String(snap.decisionsCount).length,
-          ),
-        )
-      }${DIM}│${RESET}`,
+      row(
+        `${GREEN}Complete!${RESET} ${snap.iteration} iterations, ${snap.decisionsCount} decisions`,
+      ),
     );
+  } else if (snap.phase === "IDLE") {
+    lines.push(row(`${DIM}No active work${RESET}`));
   }
 
-  lines.push(`${DIM}│${"".padEnd(w)}│${RESET}`);
+  lines.push(blank());
 
-  // Last update
-  lines.push(
-    `${DIM}│${RESET}  Last update: ${formatTime(snap.timeSinceUpdate)}${
-      " ".repeat(Math.max(0, w - 16 - formatTime(snap.timeSinceUpdate).length))
-    }${DIM}│${RESET}`,
-  );
-
-  // Last progress
-  if (snap.lastProgress !== null) {
-    const prog = snap.lastProgress.slice(0, w - 4);
-    lines.push(
-      `${DIM}│${RESET}  ${DIM}${prog}${RESET}${
-        " ".repeat(Math.max(0, w - 2 - prog.length))
-      }${DIM}│${RESET}`,
-    );
-  }
-
-  // Status flags
-  if (snap.awaitingStatusReport) {
-    lines.push(
-      `${DIM}│${RESET}  ${YELLOW}Status report pending${RESET}${
-        " ".repeat(Math.max(0, w - 23))
-      }${DIM}│${RESET}`,
-    );
-  }
-  if (snap.verificationPassed === false) {
-    lines.push(
-      `${DIM}│${RESET}  ${RED}Verification failed${RESET}${
-        " ".repeat(Math.max(0, w - 21))
-      }${DIM}│${RESET}`,
-    );
-  }
-
-  lines.push(`${DIM}│${"".padEnd(w)}│${RESET}`);
-
-  // Debt
-  if (snap.debt !== null && snap.debt.items.length > 0) {
-    lines.push(
-      `${DIM}│${RESET}  Debt: ${snap.debt.items.length} item(s)${
-        " ".repeat(Math.max(0, w - 18))
-      }${DIM}│${RESET}`,
-    );
-    for (const item of snap.debt.items.slice(0, 3)) {
-      const truncated = item.text.slice(0, w - 8);
-      lines.push(
-        `${DIM}│${RESET}   └─ ${truncated}${
-          " ".repeat(Math.max(0, w - 6 - truncated.length))
-        }${DIM}│${RESET}`,
-      );
-    }
-    if (snap.debt.items.length > 3) {
-      lines.push(
-        `${DIM}│${RESET}   └─ ... and ${snap.debt.items.length - 3} more${
-          " ".repeat(Math.max(0, w - 20))
-        }${DIM}│${RESET}`,
-      );
-    }
-  }
-
-  // Files changed
-  if (snap.trackedFiles.length > 0 || snap.modifiedFiles.length > 0) {
-    const files = snap.trackedFiles.length > 0
-      ? snap.trackedFiles
-      : snap.modifiedFiles;
-    lines.push(
-      `${DIM}│${RESET}  Files changed: ${files.length}${
-        " ".repeat(Math.max(0, w - 18 - String(files.length).length))
-      }${DIM}│${RESET}`,
-    );
-    for (const f of files.slice(0, 5)) {
-      const short = f.length > w - 8 ? "..." + f.slice(-(w - 11)) : f;
-      lines.push(
-        `${DIM}│${RESET}   └─ ${short}${
-          " ".repeat(Math.max(0, w - 6 - short.length))
-        }${DIM}│${RESET}`,
-      );
-    }
-    if (files.length > 5) {
-      lines.push(
-        `${DIM}│${RESET}   └─ ... and ${files.length - 5} more${
-          " ".repeat(Math.max(0, w - 20))
-        }${DIM}│${RESET}`,
-      );
-    }
-  }
-
-  lines.push(`${DIM}│${"".padEnd(w)}│${RESET}`);
-
-  // Concerns + context warning
+  // ── Footer: concerns + context ──
   if (snap.concerns.length > 0) {
-    const cl = snap.concerns.join(", ").slice(0, w - 14);
     lines.push(
-      `${DIM}│${RESET}  Concerns: ${cl}${
-        " ".repeat(Math.max(0, w - 12 - cl.length))
-      }${DIM}│${RESET}`,
+      row(`Concerns: ${snap.concerns.join(", ").slice(0, w - 14)}`),
     );
   }
 
   const ctxWarn = snap.iteration >= snap.maxIterations
     ? `${RED}RESTART RECOMMENDED${RESET}`
     : `${GREEN}ok${RESET} (${snap.iteration}/${snap.maxIterations})`;
-  lines.push(
-    `${DIM}│${RESET}  Context: ${ctxWarn}${
-      " ".repeat(
-        Math.max(
-          0,
-          w - 11 -
-            // deno-lint-ignore no-control-regex
-            ctxWarn.replace(/\x1b\[[0-9;]*m/g, "").length,
-        ),
-      )
-    }${DIM}│${RESET}`,
-  );
+  lines.push(row(`Context: ${ctxWarn}`));
 
   lines.push(`${DIM}╰${border}╯${RESET}`);
   lines.push(
-    `  ${DIM}watching .eser/.state/ for changes... (ctrl+c to stop)${RESET}`,
+    `  ${DIM}watching .eser/.state/ ... ctrl+c to stop${RESET}`,
   );
 
   return lines.join("\n");
@@ -432,7 +432,11 @@ export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const root = runtime.process.cwd();
-  const fmt = formatter.parseOutputFormat(args);
+  // Watch defaults to terminal dashboard (not JSON like other commands).
+  // Only use JSON/markdown when explicitly requested via -o flag.
+  const hasExplicitFormat = args !== undefined &&
+    args.some((a) => a === "-o" || a.startsWith("--output"));
+  const fmt = hasExplicitFormat ? formatter.parseOutputFormat(args) : "ansi";
 
   if (!(await persistence.isInitialized(root))) {
     const encoder = new TextEncoder();
@@ -479,7 +483,11 @@ export const main = async (
       }
     }
 
-    return snap.phase === "COMPLETED";
+    // Auto-exit when ALL specs are COMPLETED (nothing left to watch)
+    const allDone = snap.allSpecs.length > 0 &&
+      snap.allSpecs.every((s) => s.phase === "COMPLETED");
+    return allDone ||
+      (snap.allSpecs.length === 0 && snap.phase === "COMPLETED");
   };
 
   // Initial render
@@ -501,8 +509,8 @@ export const main = async (
       if (mtime > lastMtime) {
         lastMtime = mtime;
 
-        // Debounce: wait 100ms for rapid changes to settle
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Debounce: wait 200ms for rapid changes to settle
+        await new Promise((resolve) => setTimeout(resolve, 200));
 
         const isDone = await render();
         if (isDone) break;

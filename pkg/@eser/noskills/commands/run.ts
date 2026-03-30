@@ -177,7 +177,17 @@ export const main = async (
       config.concerns.includes(c.id)
     );
     const rules = await syncEngine.loadRules(root);
-    const output = compiler.compile(state, activeConcerns, rules, config);
+    const hints = syncEngine.resolveInteractionHints(config.tools);
+    const output = compiler.compile(
+      state,
+      activeConcerns,
+      rules,
+      config,
+      undefined,
+      undefined,
+      undefined,
+      hints,
+    );
 
     const prompt = buildAgentPrompt(output);
 

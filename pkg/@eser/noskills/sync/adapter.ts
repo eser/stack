@@ -14,6 +14,18 @@ import type * as schema from "../state/schema.ts";
 // Capabilities
 // =============================================================================
 
+/** How a tool presents interactive choices and delegates to sub-agents. */
+export type InteractionHints = {
+  /** Whether the tool has an AskUserQuestion-style tool (Claude Code: true). */
+  readonly hasAskUserTool: boolean;
+  /** How to present options: "tool" uses AskUserQuestion, "prose" uses numbered lists. */
+  readonly optionPresentation: "tool" | "prose";
+  /** Whether the tool can delegate work to sub-agents. */
+  readonly hasSubAgentDelegation: boolean;
+  /** Mechanism for spawning sub-agents. */
+  readonly subAgentMethod: "task" | "delegation" | "none";
+};
+
 /** Boolean flags describing what a tool adapter can generate. */
 export type ToolCapabilities = {
   readonly rules: boolean;
@@ -21,6 +33,7 @@ export type ToolCapabilities = {
   readonly agents: boolean;
   readonly specs: boolean;
   readonly mcp: boolean;
+  readonly interaction: InteractionHints;
 };
 
 // =============================================================================

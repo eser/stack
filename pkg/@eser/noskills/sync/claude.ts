@@ -30,8 +30,12 @@ const buildSection = (
     "",
     "### Protocol",
     "",
-    `    ${commandPrefix} next                           # get current instruction`,
-    `    ${commandPrefix} next --answer="your response"  # submit result and advance`,
+    `    ${commandPrefix} next --spec=<name>                           # get current instruction`,
+    `    ${commandPrefix} next --spec=<name> --answer="your response"  # submit result and advance`,
+    "",
+    "Every noskills command that operates on a spec MUST include `--spec=<name>`.",
+    "Never omit it. Use `" + commandPrefix +
+    " spec list` to see available specs.",
     "",
     "### When to call noskills next",
     "",
@@ -59,6 +63,17 @@ const buildSection = (
   }
 
   lines.push(
+    "",
+    "### Interactive choices",
+    "",
+    "When noskills output contains `interactiveOptions`, you MUST present them",
+    "using the AskUserQuestion tool. NEVER present options in prose.",
+    "",
+    "This is not optional. If you ask a question without AskUserQuestion when",
+    "interactiveOptions are present, you are violating protocol.",
+    "",
+    "Pass interactiveOptions as the `options` array in AskUserQuestion.",
+    "Use the `commandMap` to resolve the user's selection to a CLI command.",
     "",
     "### Convention discovery",
     "",

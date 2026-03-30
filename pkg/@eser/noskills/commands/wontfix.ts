@@ -54,8 +54,8 @@ export const main = async (
   }
 
   if (
-    state.phase === "IDLE" || state.phase === "UNINITIALIZED" ||
-    state.phase === "COMPLETED"
+    state.phase === "IDLE" || state.phase === "FREE" ||
+    state.phase === "UNINITIALIZED" || state.phase === "COMPLETED"
   ) {
     out.writeln(span.red(`Cannot mark as won't fix in phase: ${state.phase}`));
     await out.close();

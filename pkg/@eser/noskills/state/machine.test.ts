@@ -425,3 +425,147 @@ describe("BLOCKED round-trip", () => {
     assertEquals(unblocked.phase, "EXECUTING");
   });
 });
+
+// =============================================================================
+// FREE mode transitions
+// =============================================================================
+
+describe("FREE mode", () => {
+  it("IDLE → FREE via enterFreeMode", () => {
+    const state = machine.enterFreeMode(idle());
+    assertEquals(state.phase, "FREE");
+  });
+
+  it("FREE → IDLE via exitFreeMode", () => {
+    const free = machine.enterFreeMode(idle());
+    const state = machine.exitFreeMode(free);
+    assertEquals(state.phase, "IDLE");
+  });
+
+  it("throws enterFreeMode from non-IDLE phases", () => {
+    assertThrows(() => machine.enterFreeMode(inDiscovery()), Error);
+    assertThrows(() => machine.enterFreeMode(inExecuting()), Error);
+  });
+
+  it("throws exitFreeMode from non-FREE phases", () => {
+    assertThrows(() => machine.exitFreeMode(idle()), Error);
+    assertThrows(() => machine.exitFreeMode(inExecuting()), Error);
+  });
+
+  it("canTransition IDLE → FREE", () => {
+    assertEquals(machine.canTransition("IDLE", "FREE"), true);
+  });
+
+  it("canTransition FREE → IDLE", () => {
+    assertEquals(machine.canTransition("FREE", "IDLE"), true);
+  });
+
+  it("rejects FREE → DISCOVERY (must exit free first)", () => {
+    assertEquals(machine.canTransition("FREE", "DISCOVERY"), false);
+  });
+});
+
+// =============================================================================
+// completeSpec (cancel/wontfix from every phase)
+// =============================================================================
+
+describe("completeSpec: cancel from every spec phase", () => {
+  it("cancel from DISCOVERY → COMPLETED(cancelled)", () => {
+    const state = machine.completeSpec(inDiscovery(), "cancelled");
+    assertEquals(state.phase, "COMPLETED");
+    assertEquals(state.completionReason, "cancelled");
+  });
+
+  it("cancel from DISCOVERY_REVIEW → COMPLETED(cancelled)", () => {
+    const state = machine.completeSpec(inDiscoveryReview(), "cancelled");
+    assertEquals(state.phase, "COMPLETED");
+    assertEquals(state.completionReason, "cancelled");
+  });
+
+  it("cancel from SPEC_DRAFT → COMPLETED(cancelled)", () => {
+    const state = machine.completeSpec(inSpecDraft(), "cancelled");
+    assertEquals(state.phase, "COMPLETED");
+    assertEquals(state.completionReason, "cancelled");
+  });
+
+  it("cancel from SPEC_APPROVED → COMPLETED(cancelled)", () => {
+    const state = machine.completeSpec(inSpecApproved(), "cancelled");
+    assertEquals(state.phase, "COMPLETED");
+    assertEquals(state.completionReason, "cancelled");
+  });
+
+  it("cancel from EXECUTING → COMPLETED(cancelled)", () => {
+    const state = machine.completeSpec(inExecuting(), "cancelled");
+    assertEquals(state.phase, "COMPLETED");
+    assertEquals(state.completionReason, "cancelled");
+  });
+
+  it("cancel from BLOCKED → COMPLETED(cancelled)", () => {
+    const state = machine.completeSpec(inBlocked(), "cancelled");
+    assertEquals(state.phase, "COMPLETED");
+    assertEquals(state.completionReason, "cancelled");
+  });
+});
+
+describe("completeSpec: wontfix from spec phases", () => {
+  it("wontfix from DISCOVERY → COMPLETED(wontfix) with note", () => {
+    const state = machine.completeSpec(
+      inDiscovery(),
+      "wontfix",
+      "resolved itself",
+    );
+    assertEquals(state.phase, "COMPLETED");
+    assertEquals(state.completionReason, "wontfix");
+    assertEquals(state.completionNote, "resolved itself");
+  });
+
+  it("wontfix from EXECUTING → COMPLETED(wontfix) with note", () => {
+    const state = machine.completeSpec(
+      inExecuting(),
+      "wontfix",
+      "no longer relevant",
+    );
+    assertEquals(state.phase, "COMPLETED");
+    assertEquals(state.completionReason, "wontfix");
+    assertEquals(state.completionNote, "no longer relevant");
+  });
+});
+
+describe("completeSpec: COMPLETED rejects re-completion", () => {
+  it("cancel from COMPLETED → throws (no self-transition)", () => {
+    const completed = machine.completeSpec(inExecuting(), "done");
+    assertThrows(
+      () => machine.completeSpec(completed, "cancelled"),
+      Error,
+      "Invalid phase transition: COMPLETED → COMPLETED",
+    );
+  });
+
+  it("wontfix from COMPLETED → throws (no self-transition)", () => {
+    const completed = machine.completeSpec(inExecuting(), "done");
+    assertThrows(
+      () => machine.completeSpec(completed, "wontfix", "reason"),
+      Error,
+      "Invalid phase transition: COMPLETED → COMPLETED",
+    );
+  });
+});
+
+describe("completeSpec: command-level guards (IDLE/FREE)", () => {
+  // Note: IDLE → COMPLETED is a valid machine transition (for `done` after cancel),
+  // but the cancel/wontfix COMMANDS reject IDLE/FREE at the command level (not machine level).
+  // These tests verify the machine allows the transition but commands should guard against it.
+  it("machine allows IDLE → COMPLETED (guarded at command level)", () => {
+    const state = machine.completeSpec(idle(), "cancelled");
+    assertEquals(state.phase, "COMPLETED");
+  });
+
+  it("machine rejects FREE → COMPLETED (no transition path)", () => {
+    const free = machine.enterFreeMode(idle());
+    assertThrows(
+      () => machine.completeSpec(free, "cancelled"),
+      Error,
+      "Invalid phase transition: FREE → COMPLETED",
+    );
+  });
+});

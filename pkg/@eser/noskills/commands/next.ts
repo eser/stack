@@ -9,7 +9,7 @@
 
 import * as results from "@eser/primitives/results";
 import type * as shellArgs from "@eser/shell/args";
-import type * as schema from "../state/schema.ts";
+import * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as compiler from "../context/compiler.ts";
@@ -19,6 +19,7 @@ import * as syncEngine from "../sync/engine.ts";
 import * as specParser from "../spec/parser.ts";
 import * as specUpdater from "../spec/updater.ts";
 import * as folderRules from "../context/folder-rules.ts";
+import * as splitDetector from "../context/split-detector.ts";
 import * as formatter from "../output/formatter.ts";
 import * as mode from "../output/mode.ts";
 import { cmd } from "../output/cmd.ts";
@@ -284,6 +285,11 @@ export const handleAnswer = async (
         return machine.approveDiscoveryReview(state);
       }
 
+      // "split" → create sub-specs, cancel parent
+      if (answer.trim().toLowerCase() === "split") {
+        return await handleSplit(root, state);
+      }
+
       // Revision: parse JSON with { revise: { questionId: "corrected answer" } }
       try {
         const parsed = JSON.parse(answer);
@@ -503,6 +509,66 @@ export const handleAnswer = async (
 };
 
 // =============================================================================
+// Split Handling
+// =============================================================================
+
+const handleSplit = async (
+  root: string,
+  state: schema.StateFile,
+): Promise<schema.StateFile> => {
+  // Run split analysis
+  const proposal = splitDetector.analyzeForSplit(state.discovery.answers);
+  if (!proposal.detected || proposal.proposals.length === 0) {
+    return state; // No split possible
+  }
+
+  const childNames: string[] = [];
+
+  for (const item of proposal.proposals) {
+    // Create spec directory
+    const specDir = `${root}/${persistence.paths.specDir(item.name)}`;
+    await runtime.fs.mkdir(specDir, { recursive: true });
+
+    // Pre-fill discovery answers (only relevant ones)
+    const relevantAnswers = state.discovery.answers.filter(
+      (a) => item.relevantAnswers.includes(a.questionId),
+    );
+
+    // Create child state at DISCOVERY_REVIEW (answers pre-filled)
+    const childState = machine.startSpec(
+      schema.createInitialState(),
+      item.name,
+      `spec/${item.name}`,
+    );
+
+    // Add relevant answers
+    let filledState = childState;
+    for (const a of relevantAnswers) {
+      filledState = machine.addDiscoveryAnswer(
+        filledState,
+        a.questionId,
+        a.answer,
+      );
+    }
+
+    // Transition to DISCOVERY_REVIEW
+    filledState = machine.completeDiscovery(filledState);
+
+    await persistence.writeSpecState(root, item.name, filledState);
+    childNames.push(item.name);
+  }
+
+  // Cancel parent spec
+  const parentCompleted = machine.completeSpec(
+    state,
+    "cancelled",
+    `Split into: ${childNames.join(", ")}`,
+  );
+
+  return parentCompleted;
+};
+
+// =============================================================================
 // Refinement Task Parsing
 // =============================================================================
 
@@ -651,38 +717,68 @@ const processStatusReport = async (
   // Updated debtCounter
   const newDebtCounter = counter + newIssueTexts.length;
 
-  // If task accepted, find the current task and mark it completed
+  // If task accepted, find the current task(s) and mark completed.
+  // Supports batch: if the step-1 answer (lastProgress) contained a JSON
+  // object with `completed: [id, ...]`, all matching tasks advance at once.
   if (taskComplete && currentState.spec !== null) {
     const parsed = await specParser.parseSpec(root, currentState.spec);
     if (parsed !== null) {
       const taskCompletedIds = currentState.execution.completedTasks ?? [];
       const taskCompletedSet = new Set(taskCompletedIds);
-      const currentTask = parsed.tasks.find((t) => !taskCompletedSet.has(t.id));
 
-      if (currentTask !== undefined) {
-        // Update spec.md: "- [ ] task-N:" → "- [x] task-N:"
-        await specUpdater.markTaskCompleted(
-          root,
-          currentState.spec,
-          currentTask.id,
+      // Try to extract batch task IDs from the step-1 answer (lastProgress)
+      let batchIds: string[] = [];
+      try {
+        const prevAnswer = JSON.parse(
+          currentState.execution.lastProgress ?? "",
         );
-        // Update progress.json
+        if (Array.isArray(prevAnswer.completed)) {
+          batchIds = (prevAnswer.completed as string[]).filter(
+            (id: string) =>
+              !taskCompletedSet.has(id) &&
+              parsed.tasks.some((t) => t.id === id),
+          );
+        }
+      } catch {
+        // Not batch JSON — fall back to single task
+      }
+
+      // If no batch, find single current task (first incomplete)
+      if (batchIds.length === 0) {
+        const currentTask = parsed.tasks.find((t) =>
+          !taskCompletedSet.has(t.id)
+        );
+        if (currentTask !== undefined) {
+          batchIds = [currentTask.id];
+        }
+      }
+
+      // Mark all batch tasks as completed
+      const newlyCompleted: string[] = [];
+      for (const taskId of batchIds) {
+        await specUpdater.markTaskCompleted(root, currentState.spec, taskId);
         await specUpdater.updateProgressTask(
           root,
           currentState.spec,
-          currentTask.id,
+          taskId,
           "done",
         );
+        newlyCompleted.push(taskId);
+      }
 
-        // Add to completedTasks in state
+      if (newlyCompleted.length > 0) {
+        const label = newlyCompleted.length === 1
+          ? `Task ${newlyCompleted[0]} accepted`
+          : `Tasks ${newlyCompleted.join(", ")} accepted`;
+
         return {
           ...currentState,
           execution: {
             ...currentState.execution,
-            lastProgress: `Task ${currentTask.id} accepted: ${progressSummary}`,
+            lastProgress: `${label}: ${progressSummary}`,
             awaitingStatusReport: false,
             debt: mergedDebt,
-            completedTasks: [...taskCompletedIds, currentTask.id],
+            completedTasks: [...taskCompletedIds, ...newlyCompleted],
             debtCounter: newDebtCounter,
             naItems: updatedNaItems,
           },

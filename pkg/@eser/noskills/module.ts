@@ -43,6 +43,10 @@ export const moduleDef: Module = new Module({
       description: "Mark spec execution as complete",
       load: () => import("./commands/done.ts"),
     },
+    free: {
+      description: "Enter or exit free mode (no enforcement)",
+      load: () => import("./commands/free.ts"),
+    },
     cancel: {
       description: "Cancel current spec",
       load: () => import("./commands/cancel.ts"),

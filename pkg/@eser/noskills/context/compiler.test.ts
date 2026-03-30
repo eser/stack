@@ -257,10 +257,13 @@ describe("compile", () => {
     }
   });
 
-  it("EXECUTING behavioral says 'Start coding immediately'", () => {
+  it("EXECUTING behavioral says 'Orchestrate immediately'", () => {
     const output = compiler.compile(inExecuting(), noConcerns, noRules);
 
-    assertEquals(output.behavioral.tone.includes("Start coding"), true);
+    assertEquals(
+      output.behavioral.tone.includes("Orchestrate immediately"),
+      true,
+    );
   });
 
   it("DISCOVERY behavioral tone is challenging", () => {

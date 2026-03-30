@@ -104,6 +104,9 @@ export const main = async (
       "kiro",
       "copilot",
       "windsurf",
+      "opencode",
+      "codex",
+      "copilot-cli",
     ];
     const parsed = parsedTools.filter((t): t is schema.CodingToolId =>
       valid.includes(t as schema.CodingToolId)
@@ -272,6 +275,9 @@ const ALL_TOOLS: readonly {
   { value: "kiro", label: "Kiro" },
   { value: "copilot", label: "GitHub Copilot" },
   { value: "windsurf", label: "Windsurf" },
+  { value: "opencode", label: "OpenCode" },
+  { value: "codex", label: "Codex CLI" },
+  { value: "copilot-cli", label: "Copilot CLI" },
 ];
 
 /** Interactive tool picker — pre-selects auto-detected tools, lets user add more. */

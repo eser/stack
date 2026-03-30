@@ -15,6 +15,9 @@ import * as cursorAdapterMod from "./adapters/cursor.ts";
 import * as kiroAdapterMod from "./adapters/kiro.ts";
 import * as copilotAdapterMod from "./adapters/copilot.ts";
 import * as windsurfAdapterMod from "./adapters/windsurf.ts";
+import * as opencodeAdapterMod from "./adapters/opencode.ts";
+import * as codexAdapterMod from "./adapters/codex.ts";
+import * as copilotCliAdapterMod from "./adapters/copilot-cli.ts";
 import * as cmd from "../output/cmd.ts";
 import * as crossRuntime from "@eser/standards/cross-runtime";
 
@@ -57,6 +60,9 @@ const ADAPTERS: readonly adapter.ToolAdapter[] = [
   kiroAdapterMod.kiroAdapter,
   copilotAdapterMod.copilotAdapter,
   windsurfAdapterMod.windsurfAdapter,
+  opencodeAdapterMod.opencodeAdapter,
+  codexAdapterMod.codexAdapter,
+  copilotCliAdapterMod.copilotCliAdapter,
 ];
 
 // =============================================================================

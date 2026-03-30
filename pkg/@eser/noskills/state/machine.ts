@@ -17,7 +17,8 @@ const VALID_TRANSITIONS: Readonly<
   Record<schema.Phase, readonly schema.Phase[]>
 > = {
   UNINITIALIZED: ["IDLE"],
-  IDLE: ["DISCOVERY", "COMPLETED"],
+  IDLE: ["DISCOVERY", "COMPLETED", "FREE"],
+  FREE: ["IDLE"],
   DISCOVERY: ["DISCOVERY_REVIEW", "COMPLETED"],
   DISCOVERY_REVIEW: ["DISCOVERY_REVIEW", "SPEC_DRAFT", "COMPLETED"],
   SPEC_DRAFT: ["SPEC_DRAFT", "SPEC_APPROVED", "COMPLETED"],
@@ -98,6 +99,20 @@ export const startSpec = (
     },
     decisions: [],
   };
+};
+
+export const enterFreeMode = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  assertTransition(state.phase, "FREE");
+  return { ...state, phase: "FREE" };
+};
+
+export const exitFreeMode = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  assertTransition(state.phase, "IDLE");
+  return { ...state, phase: "IDLE" };
 };
 
 export const addDiscoveryAnswer = (

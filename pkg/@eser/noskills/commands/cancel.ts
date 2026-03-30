@@ -42,8 +42,8 @@ export const main = async (
   }
 
   if (
-    state.phase === "IDLE" || state.phase === "UNINITIALIZED" ||
-    state.phase === "COMPLETED"
+    state.phase === "IDLE" || state.phase === "FREE" ||
+    state.phase === "UNINITIALIZED" || state.phase === "COMPLETED"
   ) {
     out.writeln(span.red(`Cannot cancel in phase: ${state.phase}`));
     await out.close();

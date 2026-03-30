@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * `noskills spec` — Manage specs (new, list).
+ * `noskills spec` — Manage specs (new, list, split).
  *
  * @module
  */
@@ -13,6 +13,7 @@ import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
+import * as splitDetector from "../context/split-detector.ts";
 import { cmd, cmdPrefix } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -29,13 +30,17 @@ export const main = async (
     return await specList(args?.slice(1));
   }
 
+  if (subcommand === "split") {
+    return await specSplit(args?.slice(1));
+  }
+
   const prefix = cmdPrefix();
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
   out.writeln(
-    `Usage: ${prefix} spec <new --name=<slug> "description" | list>`,
+    `Usage: ${prefix} spec <new --name=<slug> "description" | list | split --spec=<name> --into name1 "desc1" --into name2 "desc2">`,
   );
   await out.close();
 
@@ -260,6 +265,237 @@ const specList = async (
     }
   }
 
+  await out.close();
+
+  return results.ok(undefined);
+};
+
+// =============================================================================
+// spec split
+// =============================================================================
+
+type IntoEntry = {
+  readonly name: string;
+  readonly description: string;
+};
+
+/**
+ * Parse --into flags from args.
+ * Format: --into name1 "desc1" --into name2 "desc2"
+ */
+const parseIntoFlags = (
+  args: readonly string[],
+): readonly IntoEntry[] => {
+  const entries: IntoEntry[] = [];
+  let i = 0;
+
+  while (i < args.length) {
+    if (args[i] === "--into" && i + 1 < args.length) {
+      const name = args[i + 1]!;
+      // Next non-flag arg is the description (optional)
+      let description = name;
+      if (i + 2 < args.length && !args[i + 2]!.startsWith("-")) {
+        description = args[i + 2]!;
+        i += 3;
+      } else {
+        i += 2;
+      }
+      entries.push({ name, description });
+    } else {
+      i += 1;
+    }
+  }
+
+  return entries;
+};
+
+const specSplit = async (
+  args?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
+  const root = runtime.process.cwd();
+
+  if (!(await persistence.isInitialized(root))) {
+    out.writeln(
+      span.red("noskills is not initialized."),
+      " Run: ",
+      span.bold(cmd("init")),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  // Parse --spec flag
+  const specFlag = persistence.parseSpecFlag(args ?? []);
+  if (specFlag === null) {
+    out.writeln(
+      span.red("Error: --spec=<name> is required."),
+    );
+    out.writeln(
+      span.dim("Example: "),
+      span.bold(
+        `${cmdPrefix()} spec split --spec=parent --into name1 "desc1" --into name2 "desc2"`,
+      ),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  // Load parent state
+  let parentState: schema.StateFile;
+  try {
+    parentState = await persistence.resolveState(root, specFlag);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    out.writeln(span.red(`Error: ${msg}`));
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  // Validate parent is in DISCOVERY or DISCOVERY_REVIEW
+  if (
+    parentState.phase !== "DISCOVERY" &&
+    parentState.phase !== "DISCOVERY_REVIEW"
+  ) {
+    out.writeln(
+      span.red(
+        `Cannot split spec in phase ${parentState.phase}. Must be in DISCOVERY or DISCOVERY_REVIEW.`,
+      ),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  // Parse --into flags
+  const intoEntries = parseIntoFlags(args ?? []);
+
+  if (intoEntries.length < 2) {
+    // If no --into flags, try auto-detect from split detector
+    const proposal = splitDetector.analyzeForSplit(
+      parentState.discovery.answers,
+    );
+
+    if (!proposal.detected || proposal.proposals.length < 2) {
+      out.writeln(
+        span.red(
+          "Error: at least 2 --into entries required, or discovery answers must contain 2+ independent areas.",
+        ),
+      );
+      await out.close();
+
+      return results.fail({ exitCode: 1 });
+    }
+
+    // Use auto-detected proposals
+    const childNames: string[] = [];
+
+    for (const item of proposal.proposals) {
+      const specDir = `${root}/${persistence.paths.specDir(item.name)}`;
+      await runtime.fs.mkdir(specDir, { recursive: true });
+
+      const relevantAnswers = parentState.discovery.answers.filter(
+        (a) => item.relevantAnswers.includes(a.questionId),
+      );
+
+      const childState = machine.startSpec(
+        schema.createInitialState(),
+        item.name,
+        `spec/${item.name}`,
+      );
+
+      let filledState = childState;
+      for (const a of relevantAnswers) {
+        filledState = machine.addDiscoveryAnswer(
+          filledState,
+          a.questionId,
+          a.answer,
+        );
+      }
+
+      filledState = machine.completeDiscovery(filledState);
+      await persistence.writeSpecState(root, item.name, filledState);
+      childNames.push(item.name);
+    }
+
+    // Cancel parent
+    const parentCompleted = machine.completeSpec(
+      parentState,
+      "cancelled",
+      `Split into: ${childNames.join(", ")}`,
+    );
+    await persistence.writeSpecState(root, specFlag, parentCompleted);
+
+    out.writeln(
+      span.green("Split complete."),
+      ` Created ${childNames.length} sub-specs:`,
+    );
+    for (const name of childNames) {
+      out.writeln("  ", span.dim("○"), " ", span.bold(name));
+    }
+    out.writeln(
+      "",
+      span.dim(`Parent spec "${specFlag}" cancelled.`),
+    );
+    await out.close();
+
+    return results.ok(undefined);
+  }
+
+  // Manual split: use --into entries
+  const childNames: string[] = [];
+
+  for (const entry of intoEntries) {
+    const specDir = `${root}/${persistence.paths.specDir(entry.name)}`;
+    await runtime.fs.mkdir(specDir, { recursive: true });
+
+    const childState = machine.startSpec(
+      schema.createInitialState(),
+      entry.name,
+      `spec/${entry.name}`,
+    );
+
+    // Copy all parent discovery answers to each child
+    let filledState = childState;
+    for (const a of parentState.discovery.answers) {
+      filledState = machine.addDiscoveryAnswer(
+        filledState,
+        a.questionId,
+        a.answer,
+      );
+    }
+
+    filledState = machine.completeDiscovery(filledState);
+    await persistence.writeSpecState(root, entry.name, filledState);
+    childNames.push(entry.name);
+  }
+
+  // Cancel parent
+  const parentCompleted = machine.completeSpec(
+    parentState,
+    "cancelled",
+    `Split into: ${childNames.join(", ")}`,
+  );
+  await persistence.writeSpecState(root, specFlag, parentCompleted);
+
+  out.writeln(
+    span.green("Split complete."),
+    ` Created ${childNames.length} sub-specs:`,
+  );
+  for (const name of childNames) {
+    out.writeln("  ", span.dim("○"), " ", span.bold(name));
+  }
+  out.writeln(
+    "",
+    span.dim(`Parent spec "${specFlag}" cancelled.`),
+  );
   await out.close();
 
   return results.ok(undefined);

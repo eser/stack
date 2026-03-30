@@ -131,56 +131,29 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
     const command = ((toolInput["command"] as string) ?? "").trim();
     const allowGit = config?.allowGit ?? false;
 
-    if (!allowGit) {
-      const gitWriteOps = [
-        "git add",
-        "git commit",
-        "git push",
-        "git merge",
-        "git rebase",
-        "git checkout",
-        "git stash",
-        "git reset",
-        "git cherry-pick",
-        "git tag",
-        "git branch -d",
-        "git branch -D",
-        "git branch -m",
-        "git revert",
-        "git am",
-        "git mv",
-        "git rm",
-      ];
-
-      for (const op of gitWriteOps) {
-        // Find which segment matched the write-op prefix
-        let matchedSegment = "";
-
-        if (command.startsWith(op)) {
-          matchedSegment = command.split(/\s*&&\s*|\s*;\s*/)[0] ?? command;
-        } else if (command.includes(` && ${op}`)) {
-          matchedSegment = command.split(/\s*&&\s*/).find((s) =>
-            s.trim().startsWith(op)
-          ) ?? "";
-        } else if (command.includes(`; ${op}`)) {
-          matchedSegment = command.split(/\s*;\s*/).find((s) =>
-            s.trim().startsWith(op)
-          ) ?? "";
-        } else {
-          continue;
+    if (!allowGit && command.includes("git")) {
+      // Split on && and ; to check each segment
+      const segments = command.split(/\s*(?:&&|;)\s*/);
+      for (const seg of segments) {
+        const trimmed = seg.trim();
+        if (trimmed.startsWith("git") && !hookDecisions.isGitAllowed(trimmed)) {
+          await deny(
+            "Git write operations are not allowed. Only read commands (log, diff, status, show, blame, branch, tag) are permitted. The user controls git, the agent controls files.",
+          );
+          return results.ok(undefined);
         }
+      }
 
-        // Check if the matched segment is actually a read-only subcommand
-        if (hookDecisions.isGitReadOnly(matchedSegment.trim())) continue;
-
+      // Check for subshell/pipe bypasses
+      if (hookDecisions.containsGitWriteBypass(command)) {
         await deny(
-          "git is read-only for agents. The user controls git. You may use `git log`, `git diff`, `git status`, `git show`, `git blame`.",
+          "Git write operations detected in subshell or pipe. Only read commands are permitted. The user controls git, the agent controls files.",
         );
         return results.ok(undefined);
       }
     }
 
-    // Non-git bash commands — allow
+    // Non-git or allowed git commands — allow
     return results.ok(undefined);
   }
 

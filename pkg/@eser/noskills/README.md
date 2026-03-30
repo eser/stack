@@ -109,10 +109,10 @@ contributor-friendliness checks into every review, and permissive-default
 reminders into every task. Stack concerns to define your project's character.
 
 **One source of truth for every tool.** Write rules once in `.eser/rules/`.
-noskills generates CLAUDE.md, .cursorrules, Kiro steering files, Copilot
-instructions, Windsurf rules, OpenCode AGENTS.md + plugins, Codex CLI hooks +
-TOML agents, and Copilot CLI hooks + MCP config. Your teammate on Cursor and
-your teammate on Claude Code both get the same conventions, automatically.
+noskills generates AGENTS.md CLAUDE.md, .cursorrules, Kiro steering files,
+Copilot instructions, Windsurf rules, OpenCode AGENTS.md + plugins, Codex CLI
+hooks + TOML agents, and Copilot CLI hooks + MCP config. Your teammate on Cursor
+and your teammate on Claude Code both get the same conventions, automatically.
 
 **A human who's always in charge.** noskills never makes decisions silently.
 Discovery questions -> you answer. Spec approval -> you decide. Architectural
@@ -218,36 +218,41 @@ for human teams apply directly to AI agents — because the underlying problem i
 the same: finite attention, drifting focus, and the need for structure to keep
 work on track.
 
-## Getting Started with Claude Code
+## Getting Started
+
+noskills supports multiple AI coding platforms. Pick yours:
+
+### Claude Code
 
 Open Claude Code and paste:
 
-    Run `eser noskills init` — it will scaffold your project and guide you through setup.
+    Run `npx eser@latest noskills init` — it will scaffold your project and guide you through setup.
 
-If `eser` CLI is not installed:
+That's it. The init command detects Claude Code, sets up hooks, generates
+`CLAUDE.md`, and presents your next options automatically.
+
+### OpenCode / OpenAI Codex CLI / GitHub Copilot CLI / Kiro
+
+Open your agent in your project and run in the terminal:
 
     Run `npx eser@latest noskills init` — it will scaffold your project and guide you through setup.
 
-That's it. The init command detects Claude Code, sets up hooks, instructions,
-and agent helpers automatically.
+noskills detects your agent, generates multi-file steering files (with `always`,
+`auto`, and `fileMatch` inclusion modes), installs hook configs, and creates
+executor/verifier agents.
 
-If you want to add this to an existing project where teammates also use
-noskills, the init scaffolds `.eser/` which should be committed to your repo.
+### Other agents
 
-## Getting Started with Kiro
+noskills generates a generic `AGENTS.md` at the project root. Any agent that
+reads instruction files can use it. Run `noskills sync` after adding rules to
+regenerate all tool files.
 
-Open a Kiro session and paste:
+### Adding to an existing team project
 
-    Run `eser noskills init` — it will scaffold your project and guide you through setup.
-
-If `eser` CLI is not installed:
-
-    Run `npx eser@latest noskills init` — it will scaffold your project and guide you through setup.
-
-noskills detects the `.kiro` directory automatically and generates steering
-files, hooks, custom agents, spec projection, and MCP registration — all from
-the same `.eser/` source of truth. Your teammates on different tools get
-identical orchestration quality.
+If teammates already use noskills, the `.eser/` directory should be committed to
+your repo. Run `noskills init` to detect your tool and generate tool-specific
+files. The init command won't overwrite existing `.eser/` config — it only
+generates the sync output for your tool.
 
 ## Quick Start
 
@@ -269,9 +274,9 @@ eser noskills free                          # FREE mode — no enforcement
 eser noskills free --exit                   # Back to IDLE
 ```
 
-After `init`, your CLAUDE.md (or .cursorrules, etc.) tells the agent to call
-`noskills next` at every step. The agent follows the JSON output. You never need
-to prompt-engineer the agent's behavior — noskills handles that.
+After `init`, your AGENTS.md (or CLAUDE.md, .cursorrules, etc.) tells the agent
+to call `noskills next` at every step. The agent follows the JSON output. You
+never need to prompt-engineer the agent's behavior — noskills handles that.
 
 ### Without an agent (agentless CLI mode)
 
@@ -483,11 +488,29 @@ rules. These tell the agent HOW to behave, not just WHAT to do:
 **Git is read-only** for agents (configurable via `allowGit: true` in manifest).
 Agents may read (`git log`, `git diff`, `git status`) but never write
 (`git commit`, `git push`, `git checkout`). This is enforced at three levels:
-behavioral rules, CLAUDE.md instruction, and PreToolUse hook.
+behavioral rules, AGENTS.md instruction, and PreToolUse hook.
 
 When the agent's iteration count exceeds `maxIterationsBeforeRestart` (default
 15), an `urgency` message warns that context is degrading and recommends a fresh
 session.
+
+### Platform Support
+
+| Platform    | Rules          | Hooks       | Agents      | MCP | Enforcement     |
+| ----------- | -------------- | ----------- | ----------- | --- | --------------- |
+| Claude Code | CLAUDE.md      | full        | Task tool   | yes | Mechanical      |
+| Kiro        | steering/      | Run Command | delegation  | yes | Mechanical      |
+| Codex CLI   | AGENTS.md      | full        | spawn_agent | yes | Mechanical      |
+| Copilot CLI | AGENTS.md      | full        | /fleet      | yes | Mechanical      |
+| OpenCode    | AGENTS.md      | plugins     | delegation  | yes | Mechanical      |
+| Cursor      | .cursorrules   | none        | none        | yes | Behavioral only |
+| Windsurf    | .windsurfrules | none        | none        | yes | Behavioral only |
+
+Platforms with **mechanical enforcement** use hooks to prevent unauthorized file
+edits, block git write commands, and enforce phase transitions. Platforms with
+**behavioral-only enforcement** rely on rules and instructions — the agent is
+asked to follow the protocol but cannot be mechanically prevented from breaking
+it.
 
 **Convention discovery:** When the agent identifies a recurring pattern,
 receives a correction from the user, or discovers a preference during work, the
@@ -583,7 +606,7 @@ In monorepos, different packages have different constraints. Drop a
 `.folder-rules.md` in any directory with markdown bullet rules:
 
 ```markdown
-- Generated CLAUDE.md must preserve existing content outside noskills:start/end
+- Generated AGENTS.md must preserve existing content outside noskills:start/end
   markers
 - All command references must use dynamic noskillsCmd prefix
 - Sync output must be idempotent
@@ -617,6 +640,11 @@ Six questions, each probing product + engineering + QA at once:
 
 Active concerns inject sub-questions. For example, with `open-source` active,
 question 1 also asks: _"Is this workaround common in the community?"_
+
+For larger specs, noskills may propose splitting the work into separate specs at
+the end of discovery — for example, separating a bug fix from a feature
+addition. You always decide: keep as one spec or split. noskills never splits on
+its own.
 
 ### Spec Classification
 
@@ -680,34 +708,40 @@ noskills generates instruction files for every AI tool your team uses:
 ```
 .eser/ (single source of truth)
 +-- noskills sync
-    |-- -> CLAUDE.md                       (Claude Code)
-    |-- -> .claude/settings.json           (Claude Code hooks)
-    |-- -> .claude/agents/                 (Claude Code agents)
-    |-- -> .cursorrules                    (Cursor)
-    |-- -> .kiro/steering/*.md             (Kiro steering files)
-    |-- -> .kiro/settings/hooks.json       (Kiro hooks)
-    |-- -> .kiro/settings/mcp.json         (Kiro MCP registration)
-    |-- -> .kiro/agents/*.json             (Kiro custom agents)
-    |-- -> .kiro/specs/                    (Kiro spec projection)
-    |-- -> .github/copilot-instructions.md (GitHub Copilot)
-    |-- -> .windsurfrules                  (Windsurf)
-    |-- -> AGENTS.md                       (OpenCode / Codex / Copilot CLI)
-    |-- -> .opencode/plugins/noskills.ts   (OpenCode hooks)
-    |-- -> .opencode/agents/*.md           (OpenCode agents)
-    |-- -> .opencode/skills/*.md           (OpenCode spec projection)
-    |-- -> opencode.json                   (OpenCode MCP registration)
-    |-- -> .codex/hooks.json               (Codex CLI hooks)
-    |-- -> .codex/agents/*.toml            (Codex CLI agents)
-    |-- -> .codex/config.toml              (Codex CLI MCP registration)
-    |-- -> .github/hooks/noskills.json     (Copilot CLI hooks)
-    |-- -> .github/agents/*.agent.md       (Copilot CLI agents)
-    +-- -> .copilot/mcp.json               (Copilot CLI MCP registration)
+    |                                        Claude Code
+    |-- -> CLAUDE.md                         (instructions)
+    |-- -> AGENTS.md                         (shared: Codex / Copilot / OpenCode)
+    |-- -> .claude/settings.json             (hooks)
+    |-- -> .claude/agents/                   (agents)
+    |                                        Kiro
+    |-- -> .kiro/steering/*.md               (steering files)
+    |-- -> .kiro/settings/hooks.json         (hooks)
+    |-- -> .kiro/settings/mcp.json           (MCP)
+    |-- -> .kiro/agents/*.json               (agents)
+    |-- -> .kiro/specs/                      (spec projection)
+    |                                        Codex CLI
+    |-- -> .codex/hooks.json                 (hooks)
+    |-- -> .codex/agents/*.toml              (agents)
+    |-- -> .codex/config.toml                (MCP)
+    |                                        Copilot CLI
+    |-- -> .github/hooks/noskills.json       (hooks)
+    |-- -> .github/agents/*.agent.md         (agents)
+    |-- -> .github/copilot-instructions.md   (IDE instructions)
+    |-- -> .copilot/mcp.json                 (MCP)
+    |                                        OpenCode
+    |-- -> .opencode/plugins/noskills.ts     (hooks)
+    |-- -> .opencode/agents/*.md             (agents)
+    |-- -> .opencode/skills/*.md             (spec projection)
+    |-- -> opencode.json                     (MCP)
+    |                                        Cursor / Windsurf / Copilot IDE
+    |-- -> .cursorrules                      (Cursor)
+    +-- -> .windsurfrules                    (Windsurf)
 ```
 
 Write your rules once in `.eser/rules/`, run `noskills sync`, and every tool
 gets the same instructions in its native format.
 
-Generated CLAUDE.md includes:
+Generated AGENTS.md includes:
 
 - Protocol instructions with 5 concrete trigger points
 - Git read-only section (unless `allowGit: true`)
@@ -862,7 +896,7 @@ noskills:
 ```
 
 During `init`, noskills detects how it was invoked (via `@eser/standards`
-runtime) and stores it as `command`. All generated output — `CLAUDE.md`
+runtime) and stores it as `command`. All generated output — `AGENTS.md`
 instructions, hook remediation messages, behavioral rules, transition hints —
 uses this prefix. Users who invoke via `deno run`, `npx`, homebrew, or global
 install all get correct command references.
@@ -945,12 +979,23 @@ noskills can call AI agents for validation via a fallback chain:
   package.json)
 - **CI** — GitHub Actions, GitLab CI, Jenkins, CircleCI
 - **Test runner** — Deno, Vitest, Jest, Playwright
-- **Coding tools** — Claude Code, Cursor, Kiro, Copilot, Windsurf (from existing
-  config files in repo)
+- **Coding tools:**
+  - **Claude Code** — `CLAUDE.md`, `.claude/` directory
+  - **Kiro** — `.kiro/` directory
+  - **Codex CLI** — `.codex/` directory, `.codex/config.toml`
+  - **Copilot CLI** — `.copilot/` directory, `.github/hooks/`
+  - **Copilot IDE** — `.github/copilot-instructions.md`
+  - **OpenCode** — `.opencode/` directory, `opencode.json`
+  - **Cursor** — `.cursorrules`, `.cursor/` directory
+  - **Windsurf** — `.windsurfrules`
+  - **Kilo Code** — `.kilo/` directory _(detection only — full adapter planned)_
+  - **Cline** — `.clinerules` file _(detection only — full adapter planned)_
+  - **Roo Code** — `.roo/` directory, `.roomodes` file _(detection only — full
+    adapter planned)_
 
 Detected coding tools are auto-synced on init, including hook installation for
-Claude Code. Invocation method is auto-detected and stored in `manifest.yml` as
-`noskills.command` — all output references use this prefix.
+tools that support it. Invocation method is auto-detected and stored in
+`manifest.yml` as `noskills.command` — all output references use this prefix.
 
 ## License
 

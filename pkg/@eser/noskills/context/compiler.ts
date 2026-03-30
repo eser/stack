@@ -14,6 +14,7 @@ import type { InteractionHints } from "../sync/adapter.ts";
 import { DEFAULT_CONCERNS } from "../defaults/concerns/mod.ts";
 import * as questions from "./questions.ts";
 import * as concerns from "./concerns.ts";
+import * as splitDetector from "./split-detector.ts";
 import type { ParsedSpec } from "../spec/parser.ts";
 import type { FolderRule } from "./folder-rules.ts";
 import { cmd as _cmd } from "../output/cmd.ts";
@@ -109,6 +110,7 @@ export type DiscoveryReviewOutput = {
     readonly onApprove: string;
     readonly onRevise: string;
   };
+  readonly splitProposal?: splitDetector.SplitProposal;
 };
 
 export type ClassificationPrompt = {
@@ -458,6 +460,7 @@ const buildBehavioral = (
           "If the user approves, run the approve command.",
           "If the user wants to revise, collect their corrections and submit them.",
           "You MUST NOT approve on behalf of the user. The user must explicitly confirm.",
+          "If noskills output contains a splitProposal, present it to the user with the exact options shown. Do NOT split or merge specs on your own. Do NOT recommend one option over the other unless the user asks for your opinion. The user decides.",
         ],
         tone: "Careful reviewer. The user must confirm every answer.",
       };
@@ -922,6 +925,12 @@ const buildInteractiveOptions = (
           description: "Correct one or more discovery answers",
           command: cs("next --answer='{\"revise\":{...}}'", specName),
         },
+        {
+          label: "Split into separate specs",
+          description:
+            "Create one spec per independent area (if split proposed)",
+          command: cs('next --answer="split"', specName),
+        },
       ];
 
     case "SPEC_DRAFT":
@@ -1146,10 +1155,16 @@ const compileDiscoveryReview = (
     },
   );
 
+  // Analyze for potential spec split
+  const splitProposal = splitDetector.analyzeForSplit(
+    state.discovery.answers,
+  );
+
   return {
     phase: "DISCOVERY_REVIEW",
-    instruction:
-      "Present ALL discovery answers to the user for review. The user must confirm or correct each answer before the spec can be generated. Use AskUserQuestion to ask for confirmation.",
+    instruction: splitProposal.detected
+      ? "Present ALL discovery answers to the user for review. ALSO present the split proposal — noskills detected multiple independent areas."
+      : "Present ALL discovery answers to the user for review. The user must confirm or correct each answer before the spec can be generated. Use AskUserQuestion to ask for confirmation.",
     answers: reviewAnswers,
     transition: {
       onApprove: cs('next --answer="approve"', specName),
@@ -1158,6 +1173,7 @@ const compileDiscoveryReview = (
         specName,
       ),
     },
+    splitProposal: splitProposal.detected ? splitProposal : undefined,
   };
 };
 

@@ -36,56 +36,323 @@ describe("isNoskillsCommand", () => {
   });
 });
 
-describe("isGitReadOnly", () => {
-  it("allows git stash list", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git stash list"), true);
+describe("isGitAllowed", () => {
+  // Unconditionally allowed (read-only) subcommands
+  it("allows git log", () => {
+    assertEquals(hookDecisions.isGitAllowed("git log"), true);
   });
 
-  it("allows git stash show", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git stash show"), true);
+  it("allows git log with args", () => {
+    assertEquals(hookDecisions.isGitAllowed("git log --oneline -10"), true);
   });
 
-  it("blocks git stash drop", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git stash drop"), false);
+  it("allows git diff", () => {
+    assertEquals(hookDecisions.isGitAllowed("git diff"), true);
   });
 
-  it("blocks git stash pop", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git stash pop"), false);
+  it("allows git diff with path", () => {
+    assertEquals(hookDecisions.isGitAllowed("git diff HEAD -- file.ts"), true);
   });
 
-  it("blocks bare git stash (push implied)", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git stash"), false);
+  it("allows git status", () => {
+    assertEquals(hookDecisions.isGitAllowed("git status"), true);
   });
 
-  it("allows git tag -l", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git tag -l"), true);
+  it("allows git show HEAD", () => {
+    assertEquals(hookDecisions.isGitAllowed("git show HEAD"), true);
   });
 
-  it("allows git tag --list", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git tag --list"), true);
+  it("allows git blame file.ts", () => {
+    assertEquals(hookDecisions.isGitAllowed("git blame file.ts"), true);
   });
 
-  it("blocks git tag v1.0", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git tag v1.0"), false);
+  it("allows git rev-parse", () => {
+    assertEquals(hookDecisions.isGitAllowed("git rev-parse HEAD"), true);
   });
 
-  it("allows git branch --list", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git branch --list"), true);
+  it("allows git ls-files", () => {
+    assertEquals(hookDecisions.isGitAllowed("git ls-files"), true);
+  });
+
+  it("allows git describe", () => {
+    assertEquals(hookDecisions.isGitAllowed("git describe --tags"), true);
+  });
+
+  it("allows git shortlog", () => {
+    assertEquals(hookDecisions.isGitAllowed("git shortlog -sn"), true);
+  });
+
+  it("allows git help", () => {
+    assertEquals(hookDecisions.isGitAllowed("git help"), true);
+  });
+
+  it("allows git version", () => {
+    assertEquals(hookDecisions.isGitAllowed("git version"), true);
+  });
+
+  // Conditional: branch
+  it("allows git branch (bare list)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git branch"), true);
   });
 
   it("allows git branch -a", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git branch -a"), true);
+    assertEquals(hookDecisions.isGitAllowed("git branch -a"), true);
+  });
+
+  it("allows git branch --all", () => {
+    assertEquals(hookDecisions.isGitAllowed("git branch --all"), true);
+  });
+
+  it("allows git branch -r", () => {
+    assertEquals(hookDecisions.isGitAllowed("git branch -r"), true);
+  });
+
+  it("allows git branch -v", () => {
+    assertEquals(hookDecisions.isGitAllowed("git branch -v"), true);
+  });
+
+  it("blocks git branch -d feature", () => {
+    assertEquals(hookDecisions.isGitAllowed("git branch -d feature"), false);
   });
 
   it("blocks git branch -D main", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git branch -D main"), false);
+    assertEquals(hookDecisions.isGitAllowed("git branch -D main"), false);
   });
 
-  it("returns false for non-matching prefix", () => {
-    assertEquals(hookDecisions.isGitReadOnly("git commit -m foo"), false);
+  it("blocks git branch -m old new", () => {
+    assertEquals(hookDecisions.isGitAllowed("git branch -m old new"), false);
+  });
+
+  it("blocks git branch new-branch-name", () => {
+    assertEquals(
+      hookDecisions.isGitAllowed("git branch new-branch-name"),
+      false,
+    );
+  });
+
+  // Conditional: tag
+  it("allows git tag (bare list)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git tag"), true);
+  });
+
+  it("allows git tag -l", () => {
+    assertEquals(hookDecisions.isGitAllowed("git tag -l"), true);
+  });
+
+  it("allows git tag --list", () => {
+    assertEquals(hookDecisions.isGitAllowed("git tag --list"), true);
+  });
+
+  it("blocks git tag v1.0 (create)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git tag v1.0"), false);
+  });
+
+  it("blocks git tag -a v1.0 (annotated create)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git tag -a v1.0"), false);
+  });
+
+  it("blocks git tag -d v1.0 (delete)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git tag -d v1.0"), false);
+  });
+
+  // Conditional: stash
+  it("blocks bare git stash (push implied)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git stash"), false);
+  });
+
+  it("allows git stash list", () => {
+    assertEquals(hookDecisions.isGitAllowed("git stash list"), true);
+  });
+
+  it("allows git stash show", () => {
+    assertEquals(hookDecisions.isGitAllowed("git stash show"), true);
+  });
+
+  it("blocks git stash pop", () => {
+    assertEquals(hookDecisions.isGitAllowed("git stash pop"), false);
+  });
+
+  it("blocks git stash drop", () => {
+    assertEquals(hookDecisions.isGitAllowed("git stash drop"), false);
+  });
+
+  it("blocks git stash push", () => {
+    assertEquals(hookDecisions.isGitAllowed("git stash push"), false);
+  });
+
+  // Conditional: remote
+  it("allows git remote (bare list)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git remote"), true);
+  });
+
+  it("allows git remote -v", () => {
+    assertEquals(hookDecisions.isGitAllowed("git remote -v"), true);
+  });
+
+  it("allows git remote show origin", () => {
+    assertEquals(hookDecisions.isGitAllowed("git remote show origin"), true);
+  });
+
+  it("blocks git remote add", () => {
+    assertEquals(
+      hookDecisions.isGitAllowed("git remote add origin url"),
+      false,
+    );
+  });
+
+  it("blocks git remote remove", () => {
+    assertEquals(hookDecisions.isGitAllowed("git remote remove origin"), false);
+  });
+
+  // Blocked write commands
+  it("blocks git commit", () => {
+    assertEquals(hookDecisions.isGitAllowed("git commit -m test"), false);
+  });
+
+  it("blocks git push", () => {
+    assertEquals(hookDecisions.isGitAllowed("git push"), false);
+  });
+
+  it("blocks git push origin main", () => {
+    assertEquals(hookDecisions.isGitAllowed("git push origin main"), false);
+  });
+
+  it("blocks git checkout", () => {
+    assertEquals(hookDecisions.isGitAllowed("git checkout branch"), false);
+  });
+
+  it("blocks git add", () => {
+    assertEquals(hookDecisions.isGitAllowed("git add ."), false);
+  });
+
+  it("blocks git merge", () => {
+    assertEquals(hookDecisions.isGitAllowed("git merge feature"), false);
+  });
+
+  it("blocks git rebase", () => {
+    assertEquals(hookDecisions.isGitAllowed("git rebase main"), false);
+  });
+
+  it("blocks git reset", () => {
+    assertEquals(hookDecisions.isGitAllowed("git reset --hard"), false);
+  });
+
+  it("blocks git cherry-pick", () => {
+    assertEquals(hookDecisions.isGitAllowed("git cherry-pick abc123"), false);
+  });
+
+  it("blocks git revert", () => {
+    assertEquals(hookDecisions.isGitAllowed("git revert HEAD"), false);
+  });
+
+  it("blocks git rm", () => {
+    assertEquals(hookDecisions.isGitAllowed("git rm file.ts"), false);
+  });
+
+  it("blocks git mv", () => {
+    assertEquals(hookDecisions.isGitAllowed("git mv a.ts b.ts"), false);
+  });
+
+  it("blocks git am", () => {
+    assertEquals(hookDecisions.isGitAllowed("git am patch.diff"), false);
+  });
+
+  // Edge cases
+  it("returns true for non-git command", () => {
+    assertEquals(hookDecisions.isGitAllowed("echo hello"), true);
+  });
+
+  it("returns true for bare git", () => {
+    assertEquals(hookDecisions.isGitAllowed("git"), true);
   });
 
   it("handles leading whitespace", () => {
-    assertEquals(hookDecisions.isGitReadOnly("  git stash list"), true);
+    assertEquals(hookDecisions.isGitAllowed("  git stash list"), true);
+  });
+
+  it("handles leading whitespace on blocked", () => {
+    assertEquals(hookDecisions.isGitAllowed("  git push"), false);
+  });
+});
+
+// Backward-compat alias
+describe("isGitReadOnly", () => {
+  it("is the same function as isGitAllowed", () => {
+    assertEquals(hookDecisions.isGitReadOnly("git stash list"), true);
+    assertEquals(hookDecisions.isGitReadOnly("git stash drop"), false);
+    assertEquals(hookDecisions.isGitReadOnly("git log"), true);
+    assertEquals(hookDecisions.isGitReadOnly("git commit -m x"), false);
+  });
+});
+
+describe("containsGitWriteBypass", () => {
+  it("detects bash -c git commit", () => {
+    assertEquals(
+      hookDecisions.containsGitWriteBypass('bash -c "git commit -m test"'),
+      true,
+    );
+  });
+
+  it("detects sh -c git push", () => {
+    assertEquals(
+      hookDecisions.containsGitWriteBypass('sh -c "git push"'),
+      true,
+    );
+  });
+
+  it("detects /bin/bash -c git add", () => {
+    assertEquals(
+      hookDecisions.containsGitWriteBypass('/bin/bash -c "git add ."'),
+      true,
+    );
+  });
+
+  it("detects eval git commit", () => {
+    assertEquals(
+      hookDecisions.containsGitWriteBypass('eval "git commit"'),
+      true,
+    );
+  });
+
+  it("detects pipe to git commit", () => {
+    assertEquals(
+      hookDecisions.containsGitWriteBypass("echo msg | git commit --file=-"),
+      true,
+    );
+  });
+
+  it("detects git add in matchAll fallback", () => {
+    assertEquals(
+      hookDecisions.containsGitWriteBypass("$(git add .)"),
+      true,
+    );
+  });
+
+  it("allows bash -c git log", () => {
+    assertEquals(
+      hookDecisions.containsGitWriteBypass('bash -c "git log"'),
+      false,
+    );
+  });
+
+  it("allows pipe to git log", () => {
+    assertEquals(
+      hookDecisions.containsGitWriteBypass("echo test | git log"),
+      false,
+    );
+  });
+
+  it("allows bash -c git diff", () => {
+    assertEquals(
+      hookDecisions.containsGitWriteBypass('bash -c "git diff --stat"'),
+      false,
+    );
+  });
+
+  it("returns false for no git mentions", () => {
+    assertEquals(
+      hookDecisions.containsGitWriteBypass("echo hello world"),
+      false,
+    );
   });
 });

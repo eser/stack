@@ -309,6 +309,9 @@ jobs:
         run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts
 
       - name: Verify FFI — eser ajan version
+        env:
+          ESER_AJAN_WASM: disabled
+          ESER_AJAN_LIB_PATH: ${{ github.workspace }}/pkg/@eser/ajan/dist/${{ runner.arch == 'ARM64' && 'aarch64' || 'x86_64' }}-${{ runner.os == 'macOS' && 'darwin' || 'linux' }}/libeser_ajan.${{ runner.os == 'macOS' && 'dylib' || 'so' }}
         run: |
           if [ "${{ matrix.runtime }}" = "deno" ]; then
             deno task cli ajan version

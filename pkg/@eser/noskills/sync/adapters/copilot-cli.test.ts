@@ -85,7 +85,7 @@ describe("Copilot CLI adapter: snapshot tests", () => {
 
       // AGENTS.md has noskills Protocol section
       assertStringIncludes(agentsMd, "## noskills Protocol");
-      assertStringIncludes(agentsMd, `${CMD_PREFIX} next --spec=`);
+      assertStringIncludes(agentsMd, `${CMD_PREFIX} spec`);
 
       // copilot-instructions.md has noskills orchestrator section
       assertStringIncludes(copilotMd, "noskills");
@@ -623,11 +623,11 @@ describe("Copilot CLI adapter: capability tests", () => {
     assertEquals(caps.mcp, true);
   });
 
-  it("interaction.subAgentMethod is 'delegation'", () => {
+  it("interaction.subAgentMethod is 'fleet'", () => {
     assertEquals(
       copilotCliAdapterMod.copilotCliAdapter.capabilities.interaction
         .subAgentMethod,
-      "delegation",
+      "fleet",
     );
   });
 

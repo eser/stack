@@ -128,6 +128,32 @@ builders get a structured workflow that keeps the agent focused. Teams get a
 shared source of truth that every tool and every teammate inherits
 automatically.
 
+## How noskills differs
+
+|                           | Sequential Thinking                       | gstack                                           | Skills / Rules                    | Ralph Loops                              | noskills                                   |
+| ------------------------- | ----------------------------------------- | ------------------------------------------------ | --------------------------------- | ---------------------------------------- | ------------------------------------------ |
+| What it does              | Structures agent's internal thinking      | Role-based slash commands (CEO, Eng, QA)         | Loads rules into context          | Resets session, keeps state in files     | Manages workflow via state machine         |
+| Metaphor                  | "Think out loud"                          | "Virtual team"                                   | "Law book"                        | "Clean desk every turn"                  | "Scrum Master"                             |
+| User role                 | None — agent self-talks                   | Chooses which role to invoke                     | Writes rules, hopes agent follows | Manages context manually                 | Active decision-maker at every gate        |
+| Enforcement               | None                                      | None — behavioral                                | None — behavioral                 | Context reset only                       | Mechanical (hooks block actions)           |
+| State tracking            | Thought history (in-memory)               | Learnings (cross-session)                        | None                              | File-based (manual)                      | Full state machine, per-spec               |
+| File control              | None                                      | None                                             | None                              | None                                     | Phase-based edit control                   |
+| Sub-agents                | None                                      | None (single agent, multiple roles)              | None                              | None                                     | Executor / verifier / test-writer pipeline |
+| Discovery                 | None                                      | /office-hours (similar concept)                  | None                              | None                                     | 6 structured questions + concerns          |
+| Works alongside noskills? | Yes — ST for thinking, noskills for doing | Yes — gstack for roles, noskills for enforcement | Replaced by noskills              | Automated by noskills sub-agent pipeline | —                                          |
+
+**The core difference:** other tools tell the agent what to do and hope it
+listens. noskills mechanically restricts what the agent _can_ do. When the agent
+is in DISCOVERY, it literally cannot edit files — not because a rule says
+"don't" but because a hook blocks the operation. That is the difference between
+behavioral guidance and mechanical enforcement.
+
+noskills is not a replacement for any of these tools. Sequential Thinking helps
+agents reason better. gstack assigns useful roles. Both can run alongside
+noskills. The distinction is that noskills owns the workflow — who does what,
+when, and whether the result was verified — while the others own the thinking or
+the persona.
+
 ## The Mental Model
 
 ```
@@ -159,6 +185,31 @@ emerge. If you want to discover those limits together, jump on board.
 
 The name mirrors the SQL -> NoSQL shift: skills define everything upfront,
 noskills determines what's needed at runtime.
+
+### The Scrum analogy
+
+If you know Agile, you already know noskills:
+
+| Agile / Scrum      | noskills                                      |
+| ------------------ | --------------------------------------------- |
+| User Story         | Spec                                          |
+| Increment          | Spec's deliverable                            |
+| Refinement meeting | Discovery (6 questions + concerns)            |
+| Sprint Planning    | Spec draft → approval (tasks defined)         |
+| Sprint             | Execution (runs until spec is done)           |
+| Dev team           | Sub-agents (executor, verifier, test-writer)  |
+| Scrum Master       | noskills (state machine, hooks, backpressure) |
+| Definition of Done | Acceptance criteria                           |
+| Sprint Review      | AC status report + verifier validation        |
+| Retrospective      | Debt tracking + concern reminders             |
+| Product Owner      | You (every decision is yours)                 |
+
+One key difference: in Scrum, a sprint is time-boxed. In noskills, execution
+runs until the spec is complete — it is a single-story sprint. This is why
+mid-execution checkpoints make no sense: a Scrum Master does not stop a sprint
+halfway through the only story. If the story is too big, you split it _before_
+the sprint starts — not during. That is exactly what noskills does at
+DISCOVERY_REVIEW with the split proposal.
 
 ## Philosophy — A Scrum Master for Agents
 
@@ -837,28 +888,29 @@ eser nos <command>
 
 ### Commands
 
-| Command                                    | Description                                                        |
-| ------------------------------------------ | ------------------------------------------------------------------ |
-| `init`                                     | Scaffold `.eser/`, detect project traits, install hooks            |
-| `status [-o format]`                       | Show current phase, spec name, progress, debt                      |
-| `spec new "..." [--name=N]`                | Start a new spec, enter DISCOVERY                                  |
-| `spec list [-o format]`                    | List all specs with phase info                                     |
-| `spec switch <name>`                       | Switch active spec (preserves state)                               |
-| `next [--spec=name] [-o format]`           | Get instruction for current phase                                  |
-| `next --answer="..." [--spec=name] [-o f]` | Submit answer and advance state                                    |
-| `approve [--spec=name]`                    | Approve spec draft -> SPEC_APPROVED                                |
-| `done [--spec=name]`                       | Complete execution -> DONE                                         |
-| `block [--spec=name] "reason"`             | Mark execution as blocked                                          |
-| `reset [--spec=name]`                      | Reset current spec to IDLE                                         |
-| `run [--spec=name] [--unattended]`         | Autonomous execution loop (Ralph loop)                             |
-| `watch [-o format]`                        | Live dashboard monitoring agent progress                           |
-| `concern add/remove/list`                  | Manage active concerns                                             |
-| `rule add/list/promote`                    | Manage permanent rules                                             |
-| `sync`                                     | Regenerate tool-specific instruction files + hooks                 |
-| `purge [--force]`                          | Remove all noskills content (specs, rules, concerns, hooks, state) |
+| Command                               | Description                                                        |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| `init`                                | Scaffold `.eser/`, detect project traits, install hooks            |
+| `status [-o format]`                  | Show current phase, spec name, progress, debt                      |
+| `spec new <name> "description"`       | Start a new spec, enter DISCOVERY                                  |
+| `spec list [-o format]`               | List all specs with phase info                                     |
+| `spec <name> next [-o format]`        | Get instruction for current phase                                  |
+| `spec <name> next --answer="..."`     | Submit answer and advance state                                    |
+| `spec <name> approve`                 | Approve spec draft -> SPEC_APPROVED                                |
+| `spec <name> done`                    | Complete execution -> DONE                                         |
+| `spec <name> block "reason"`          | Mark execution as blocked                                          |
+| `spec <name> reset`                   | Reset current spec to IDLE                                         |
+| `spec <name> revisit "reason"`        | Return to DISCOVERY from EXECUTING                                 |
+| `spec <name> split --into x --into y` | Split spec into sub-specs                                          |
+| `run [--spec=name] [--unattended]`    | Autonomous execution loop (Ralph loop)                             |
+| `watch [-o format]`                   | Live dashboard monitoring agent progress                           |
+| `concern add/remove/list`             | Manage active concerns                                             |
+| `rule add/list/promote`               | Manage permanent rules                                             |
+| `sync`                                | Regenerate tool-specific instruction files + hooks                 |
+| `purge [--force]`                     | Remove all noskills content (specs, rules, concerns, hooks, state) |
 
-The `--spec` flag targets a specific spec by name, enabling parallel work across
-multiple terminal sessions. When omitted, commands operate on the active spec.
+All spec commands use the `spec <name> <command>` positional format. The spec
+name always comes before the subcommand. Use `spec list` to see available specs.
 
 ### Output Formats
 

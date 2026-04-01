@@ -58,11 +58,30 @@ const ruleAdd = async (
   });
 
   const root = runtime.process.cwd();
-  const ruleText = args?.join(" ");
 
+  // Parse flags and collect rule text
+  let phases: string[] = [];
+  let appliesTo: string[] = [];
+  const textParts: string[] = [];
+
+  if (args !== undefined) {
+    for (const arg of args) {
+      if (arg.startsWith("--phases=")) {
+        phases = arg.slice("--phases=".length).split(",").map((s) => s.trim());
+      } else if (arg.startsWith("--applies-to=")) {
+        appliesTo = arg.slice("--applies-to=".length).split(",").map((s) =>
+          s.trim().replace(/^["']|["']$/g, "")
+        );
+      } else if (!arg.startsWith("-")) {
+        textParts.push(arg);
+      }
+    }
+  }
+
+  const ruleText = textParts.join(" ");
   const config = await persistence.readManifest(root);
 
-  if (ruleText === undefined || ruleText.length === 0) {
+  if (ruleText.length === 0) {
     out.writeln(
       span.red("Please provide a rule: "),
       span.bold(`${cmd('rule add "Use Deno Tests for all tests"')}`),
@@ -79,6 +98,20 @@ const ruleAdd = async (
     .replace(/^-|-$/g, "")
     .slice(0, 50);
 
+  // Build file content with optional frontmatter
+  let content = "";
+  if (phases.length > 0 || appliesTo.length > 0) {
+    content += "---\n";
+    if (phases.length > 0) {
+      content += `phases: [${phases.join(", ")}]\n`;
+    }
+    if (appliesTo.length > 0) {
+      content += `applies_to: [${appliesTo.map((p) => `"${p}"`).join(", ")}]\n`;
+    }
+    content += "---\n";
+  }
+  content += ruleText + "\n";
+
   const filePath = `${root}/${persistence.paths.rulesDir}/${slug}.md`;
   await runtime.fs.mkdir(
     `${root}/${persistence.paths.rulesDir}`,
@@ -86,9 +119,19 @@ const ruleAdd = async (
       recursive: true,
     },
   );
-  await runtime.fs.writeTextFile(filePath, ruleText + "\n");
+  await runtime.fs.writeTextFile(filePath, content);
 
-  out.writeln(span.green("✔"), " Rule added: ", span.dim(ruleText));
+  const scope = [];
+  if (phases.length > 0) scope.push(phases.join(", "));
+  if (appliesTo.length > 0) scope.push(appliesTo.join(", "));
+  const scopeLabel = scope.length > 0 ? ` [${scope.join("; ")}]` : "";
+
+  out.writeln(
+    span.green("✔"),
+    " Rule added: ",
+    span.dim(ruleText),
+    span.dim(scopeLabel),
+  );
 
   // Auto-sync
   if (config !== null && config.tools.length > 0) {
@@ -112,7 +155,7 @@ const ruleList = async (): Promise<shellArgs.CliResult<void>> => {
   });
 
   const root = runtime.process.cwd();
-  const rules = await syncEngine.loadRules(root);
+  const rules = await syncEngine.loadScopedRules(root);
 
   out.writeln(span.bold("Rules"));
   out.writeln("");
@@ -124,8 +167,23 @@ const ruleList = async (): Promise<shellArgs.CliResult<void>> => {
       ),
     );
   } else {
-    for (const rule of rules) {
-      out.writeln("  ", span.dim("•"), ` ${rule}`);
+    for (let i = 0; i < rules.length; i++) {
+      const r = rules[i]!;
+      const scope: string[] = [];
+      if (r.phases !== undefined && r.phases.length > 0) {
+        scope.push(r.phases.join(", "));
+      } else {
+        scope.push("all phases");
+      }
+      if (r.appliesTo !== undefined && r.appliesTo.length > 0) {
+        scope.push(r.appliesTo.join(", "));
+      } else {
+        scope.push("all files");
+      }
+      out.writeln(
+        `  ${i + 1}. ${r.text} `,
+        span.dim(`[${scope.join(", ")}]`),
+      );
     }
   }
 

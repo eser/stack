@@ -133,6 +133,12 @@ export const deriveTasks = (
     );
   }
 
+  // Always append mandatory test + docs tasks (user can remove during refinement)
+  tasks.push("Write or update tests for all new and changed behavior");
+  tasks.push(
+    "Update documentation for all public-facing changes (README, API docs, CHANGELOG)",
+  );
+
   return tasks;
 };
 

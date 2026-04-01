@@ -1,2 +1,3 @@
 # eser toolchain runtime state — not tracked by git
 .state/
+.sessions/

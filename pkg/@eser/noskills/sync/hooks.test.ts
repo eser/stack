@@ -15,8 +15,10 @@ import { describe, it } from "@std/testing/bdd";
 import { assertEquals } from "@std/assert";
 
 // =============================================================================
-// PreToolUse enforcement logic (extracted from ENFORCE_SCRIPT)
+// PreToolUse enforcement logic — uses allowlist from hook-decisions.ts
 // =============================================================================
+
+import * as hookDecisions from "../commands/hook-decisions.ts";
 
 type HookDecision = { allow: true } | { allow: false; reason: string };
 
@@ -28,41 +30,33 @@ const enforcePreToolUse = (input: {
 }): HookDecision => {
   const { tool_name, tool_input, state, allowGit } = input;
 
-  // Bash: git write guard
+  // Bash: git allowlist guard
   if (tool_name === "Bash") {
     const cmd = ((tool_input["command"] as string) ?? "").trim();
 
-    if (!allowGit) {
-      const gitWriteOps = [
-        "git add",
-        "git commit",
-        "git push",
-        "git merge",
-        "git rebase",
-        "git checkout",
-        "git stash",
-        "git reset",
-        "git cherry-pick",
-        "git tag",
-        "git branch -d",
-        "git branch -D",
-        "git branch -m",
-        "git revert",
-        "git am",
-        "git mv",
-        "git rm",
-      ];
-      for (const op of gitWriteOps) {
+    if (!allowGit && cmd.includes("git")) {
+      // Split on && and ; to check each segment
+      const segments = cmd.split(/\s*(?:&&|;)\s*/);
+      for (const seg of segments) {
+        const trimmed = seg.trim();
         if (
-          cmd.startsWith(op) || cmd.includes(" && " + op) ||
-          cmd.includes("; " + op)
+          trimmed.startsWith("git") && !hookDecisions.isGitAllowed(trimmed)
         ) {
           return {
             allow: false,
             reason:
-              "git is read-only for agents. The user controls git. You may use `git log`, `git diff`, `git status`, `git show`, `git blame`.",
+              "Git write operations are not allowed. Only read commands (log, diff, status, show, blame) are permitted. The user controls git, the agent controls files.",
           };
         }
+      }
+
+      // Check for subshell/pipe bypasses
+      if (hookDecisions.containsGitWriteBypass(cmd)) {
+        return {
+          allow: false,
+          reason:
+            "Git write command detected inside subshell/eval/pipe. Git write operations are not allowed regardless of how they are invoked.",
+        };
       }
     }
     return { allow: true };
@@ -154,168 +148,119 @@ describe("PreToolUse: phase gating", () => {
 });
 
 // =============================================================================
-// PreToolUse: Git protection
+// PreToolUse: Git allowlist guard
 // =============================================================================
 
-describe("PreToolUse: git protection", () => {
-  it("blocks git commit", () => {
-    const result = enforcePreToolUse({
+describe("PreToolUse: git allowlist", () => {
+  const git = (command: string, allowGit = false) =>
+    enforcePreToolUse({
       tool_name: "Bash",
-      tool_input: { command: "git commit -m 'test'" },
+      tool_input: { command },
       state: { phase: "EXECUTING" },
+      allowGit,
     });
-    assertEquals(result.allow, false);
-    assertEquals(
-      (result as { reason: string }).reason.includes("read-only"),
-      true,
-    );
-  });
 
-  it("blocks git push", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git push origin main" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, false);
-  });
+  // Read-only commands → pass
+  it("allows git log --oneline -5", () =>
+    assertEquals(git("git log --oneline -5").allow, true));
+  it("allows git diff", () => assertEquals(git("git diff").allow, true));
+  it("allows git status", () => assertEquals(git("git status").allow, true));
+  it("allows git show HEAD", () =>
+    assertEquals(git("git show HEAD").allow, true));
+  it("allows git blame file.ts", () =>
+    assertEquals(git("git blame file.ts").allow, true));
+  it("allows git branch (list)", () =>
+    assertEquals(git("git branch").allow, true));
+  it("allows git tag (list)", () => assertEquals(git("git tag").allow, true));
+  it("allows git stash list", () =>
+    assertEquals(git("git stash list").allow, true));
+  it("allows git remote -v", () =>
+    assertEquals(git("git remote -v").allow, true));
 
-  it("blocks git checkout", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git checkout -b feature" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, false);
-  });
+  // Write commands → blocked
+  it("blocks git branch -d feature", () =>
+    assertEquals(git("git branch -d feature").allow, false));
+  it("blocks git branch -D feature", () =>
+    assertEquals(git("git branch -D feature").allow, false));
+  it("blocks git branch new-branch", () =>
+    assertEquals(git("git branch new-branch").allow, false));
+  it("blocks git tag v1.0", () =>
+    assertEquals(git("git tag v1.0").allow, false));
+  it("blocks git tag -d v1.0", () =>
+    assertEquals(git("git tag -d v1.0").allow, false));
+  it("blocks git stash (bare)", () =>
+    assertEquals(git("git stash").allow, false));
+  it("blocks git stash pop", () =>
+    assertEquals(git("git stash pop").allow, false));
+  it("blocks git remote add", () =>
+    assertEquals(git("git remote add origin url").allow, false));
+  it("blocks git commit", () =>
+    assertEquals(git('git commit -m "test"').allow, false));
+  it("blocks git push", () => assertEquals(git("git push").allow, false));
+  it("blocks git checkout", () =>
+    assertEquals(git("git checkout branch").allow, false));
+  it("blocks git add", () => assertEquals(git("git add .").allow, false));
+  it("blocks git merge", () =>
+    assertEquals(git("git merge main").allow, false));
+  it("blocks git rebase", () =>
+    assertEquals(git("git rebase main").allow, false));
+  it("blocks git cherry-pick", () =>
+    assertEquals(git("git cherry-pick abc").allow, false));
+  it("blocks git reset --hard", () =>
+    assertEquals(git("git reset --hard").allow, false));
+  it("blocks git clean -fd", () =>
+    assertEquals(git("git clean -fd").allow, false));
+  it("blocks git rm file.ts", () =>
+    assertEquals(git("git rm file.ts").allow, false));
+  it("blocks git mv a.ts b.ts", () =>
+    assertEquals(git("git mv a.ts b.ts").allow, false));
 
-  it("blocks git add", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git add -A" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, false);
-  });
+  // allowGit: true → all pass
+  it("allows git commit when allowGit true", () =>
+    assertEquals(git('git commit -m "test"', true).allow, true));
+  it("allows git push when allowGit true", () =>
+    assertEquals(git("git push", true).allow, true));
+  it("allows git checkout when allowGit true", () =>
+    assertEquals(git("git checkout branch", true).allow, true));
 
-  it("blocks git stash", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git stash" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, false);
-  });
+  // Chained commands
+  it("blocks chained git push", () =>
+    assertEquals(git("echo done && git push").allow, false));
+});
 
-  it("blocks git reset", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git reset --hard HEAD" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, false);
-  });
+// =============================================================================
+// PreToolUse: bash -c bypass detection
+// =============================================================================
 
-  it("blocks git merge", () => {
-    const result = enforcePreToolUse({
+describe("PreToolUse: bash -c bypass detection", () => {
+  const git = (command: string) =>
+    enforcePreToolUse({
       tool_name: "Bash",
-      tool_input: { command: "git merge main" },
+      tool_input: { command },
       state: { phase: "EXECUTING" },
     });
-    assertEquals(result.allow, false);
-  });
 
-  it("blocks git rebase", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git rebase main" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, false);
-  });
-
-  it("blocks git cherry-pick", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git cherry-pick abc123" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, false);
-  });
-
-  it("allows git log (read-only)", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git log --oneline -10" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, true);
-  });
-
-  it("allows git diff (read-only)", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git diff --name-only" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, true);
-  });
-
-  it("allows git status (read-only)", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git status" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, true);
-  });
-
-  it("allows git show (read-only)", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git show HEAD" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, true);
-  });
-
-  it("allows git blame (read-only)", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git blame src/index.ts" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, true);
-  });
-
-  it("allows git commit when allowGit is true", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git commit -m 'test'" },
-      state: { phase: "EXECUTING" },
-      allowGit: true,
-    });
-    assertEquals(result.allow, true);
-  });
-
-  it("allows git push when allowGit is true", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "git push origin main" },
-      state: { phase: "EXECUTING" },
-      allowGit: true,
-    });
-    assertEquals(result.allow, true);
-  });
-
-  it("blocks chained git commands", () => {
-    const result = enforcePreToolUse({
-      tool_name: "Bash",
-      tool_input: { command: "echo done && git push origin main" },
-      state: { phase: "EXECUTING" },
-    });
-    assertEquals(result.allow, false);
-  });
+  it('blocks bash -c "git commit"', () =>
+    assertEquals(git('bash -c "git commit -m test"').allow, false));
+  it('blocks sh -c "git push"', () =>
+    assertEquals(git('sh -c "git push"').allow, false));
+  it('blocks /bin/bash -c "git add"', () =>
+    assertEquals(git('/bin/bash -c "git add ."').allow, false));
+  it('allows bash -c "git log"', () =>
+    assertEquals(git('bash -c "git log"').allow, true));
+  it('allows bash -c "git status && echo ok"', () =>
+    assertEquals(git('bash -c "git status"').allow, true));
+  it('blocks bash -c "echo hello && git commit"', () =>
+    assertEquals(git('bash -c "echo hello && git commit -m x"').allow, false));
+  it('blocks eval "git commit"', () =>
+    assertEquals(git('eval "git commit"').allow, false));
+  it("blocks pipe to git commit", () =>
+    assertEquals(git("echo msg | git commit --file=-").allow, false));
+  it("blocks $(git push)", () => assertEquals(git("$(git push)").allow, false));
+  it('allows bash -c "ls -la" (no git)', () =>
+    assertEquals(git('bash -c "ls -la"').allow, true));
+  it("allows normal git log (no subshell)", () =>
+    assertEquals(git("git log").allow, true));
 });
 
 // =============================================================================

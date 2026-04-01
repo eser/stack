@@ -207,4 +207,17 @@ describe("analyzeForSplit", () => {
     assertEquals(result.reason.length > 0, true);
     assertEquals(result.reason.includes("2"), true);
   });
+
+  it("detects 3 independent areas from numbered list", () => {
+    const answers = makeAnswers({
+      status_quo:
+        "(1) Log messages are too verbose and flood stdout (2) Bot chat responses use wrong gender pronouns (3) Missing asset loading fails silently",
+    });
+
+    const result = splitDetector.analyzeForSplit(answers);
+
+    assertEquals(result.detected, true);
+    assertEquals(result.proposals.length, 3);
+    assertEquals(result.reason.includes("3"), true);
+  });
 });

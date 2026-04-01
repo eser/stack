@@ -30,6 +30,7 @@
     "jsr:@std/toml@^1.0.11": "1.0.11",
     "jsr:@std/toml@^1.0.5": "1.0.11",
     "jsr:@std/ulid@1": "1.0.0",
+    "jsr:@std/yaml@*": "1.0.12",
     "npm:@anthropic-ai/sdk@0.80": "0.80.0",
     "npm:@google/genai@^1.47.0": "1.47.0",
     "npm:@jsr/std__assert@^1.0.16": "1.0.19",
@@ -169,6 +170,9 @@
     },
     "@std/ulid@1.0.0": {
       "integrity": "d41c3d27a907714413649fee864b7cde8d42ee68437d22b79d5de4f81d808780"
+    },
+    "@std/yaml@1.0.12": {
+      "integrity": "7deabca4545bcedd07c5f69ea53acea71b8b4c67562f224e17b90d75944cb20c"
     }
   },
   "npm": {

@@ -140,7 +140,18 @@ export const main = async (
     };
     await persistence.writeStateAndSpec(root, touchedState);
 
-    const rules = await syncEngine.loadRules(root);
+    // Sync session phase if NOSKILLS_SESSION is set
+    const sessionId = runtime.env.get("NOSKILLS_SESSION") ?? null;
+    if (sessionId !== null) {
+      await persistence.updateSessionPhase(
+        root,
+        sessionId,
+        touchedState.phase,
+      );
+    }
+
+    const scopedRules = await syncEngine.loadScopedRules(root);
+    const rules = syncEngine.filterRules(scopedRules, touchedState.phase);
     const parsed = touchedState.spec !== null
       ? await specParser.parseSpec(root, touchedState.spec)
       : null;
@@ -167,8 +178,20 @@ export const main = async (
   const touchedState = { ...state, lastCalledAt: new Date().toISOString() };
   await persistence.writeStateAndSpec(root, touchedState);
 
+  // Sync session phase
+  const noAnswerSessionId = runtime.env.get("NOSKILLS_SESSION") ??
+    null;
+  if (noAnswerSessionId !== null) {
+    await persistence.updateSessionPhase(
+      root,
+      noAnswerSessionId,
+      touchedState.phase,
+    );
+  }
+
   // No answer — just output current instruction
-  const rules = await syncEngine.loadRules(root);
+  const scopedRules = await syncEngine.loadScopedRules(root);
+  const rules = syncEngine.filterRules(scopedRules, touchedState.phase);
   const parsed = touchedState.spec !== null
     ? await specParser.parseSpec(root, touchedState.spec)
     : null;
@@ -280,14 +303,37 @@ export const handleAnswer = async (
     }
 
     case "DISCOVERY_REVIEW": {
-      // "approve" → transition to SPEC_DRAFT
-      if (answer.trim().toLowerCase() === "approve") {
+      const trimmed = answer.trim().toLowerCase();
+
+      // "approve" → check for split proposal before transitioning
+      if (trimmed === "approve") {
+        const proposal = splitDetector.analyzeForSplit(
+          state.discovery.answers,
+        );
+        if (proposal.detected && proposal.proposals.length >= 2) {
+          // Stay in DISCOVERY_REVIEW with approved flag — let user decide on split
+          return machine.approveDiscoveryAnswers(state);
+        }
+        // No split detected — transition to SPEC_DRAFT as normal
         return machine.approveDiscoveryReview(state);
       }
 
       // "split" → create sub-specs, cancel parent
-      if (answer.trim().toLowerCase() === "split") {
+      if (trimmed === "split") {
         return await handleSplit(root, state);
+      }
+
+      // "keep" → user chose to keep as one spec despite split proposal
+      if (trimmed === "keep") {
+        const newState = machine.addDecision(state, {
+          id: `decision-split-keep-${Date.now()}`,
+          question: "Split spec into separate areas?",
+          choice:
+            "Chose to keep as single spec despite multiple areas detected",
+          promoted: false,
+          timestamp: new Date().toISOString(),
+        });
+        return machine.approveDiscoveryReview(newState);
       }
 
       // Revision: parse JSON with { revise: { questionId: "corrected answer" } }
@@ -646,6 +692,26 @@ const processStatusReport = async (
       ),
     );
     writer.releaseLock();
+  }
+
+  // ── Mandatory AC rejection ──
+  // mandatory-tests and mandatory-docs cannot be marked N/A without justification
+  const MANDATORY_AC_IDS = new Set(["mandatory-tests", "mandatory-docs"]);
+  const naRaw = report.na ?? [];
+  const rejectedMandatory = naRaw.filter((id) => MANDATORY_AC_IDS.has(id));
+  if (rejectedMandatory.length > 0) {
+    // Reject: return state unchanged with a rejection note in lastProgress
+    return {
+      ...currentState,
+      execution: {
+        ...currentState.execution,
+        lastProgress:
+          `REJECTED: Tests and documentation ACs require explicit justification to mark as N/A. Explain why tests or docs are not needed for this spec. Rejected IDs: ${
+            rejectedMandatory.join(", ")
+          }`,
+        awaitingStatusReport: true,
+      },
+    };
   }
 
   // ── ID-based debt matching ──

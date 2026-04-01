@@ -38,6 +38,7 @@ export type DiscoveryState = {
   readonly completed: boolean;
   readonly currentQuestion: number;
   readonly audience: "agent" | "human";
+  readonly approved: boolean;
 };
 
 // =============================================================================
@@ -118,6 +119,17 @@ export type Decision = {
 };
 
 // =============================================================================
+// Revisit History
+// =============================================================================
+
+export type RevisitEntry = {
+  readonly from: Phase;
+  readonly reason: string;
+  readonly completedTasks: readonly string[];
+  readonly timestamp: string;
+};
+
+// =============================================================================
 // State File (.eser/.state/state.json)
 // =============================================================================
 
@@ -125,6 +137,7 @@ export type StateFile = {
   readonly version: string;
   readonly phase: Phase;
   readonly spec: string | null;
+  readonly specDescription: string | null;
   readonly branch: string | null;
   readonly discovery: DiscoveryState;
   readonly specState: SpecState;
@@ -136,18 +149,21 @@ export type StateFile = {
   readonly completedAt: string | null;
   readonly completionNote: string | null;
   readonly reopenedFrom: string | null;
+  readonly revisitHistory: readonly RevisitEntry[];
 };
 
 export const createInitialState = (): StateFile => ({
   version: "0.1.0",
   phase: "IDLE",
   spec: null,
+  specDescription: null,
   branch: null,
   discovery: {
     answers: [],
     completed: false,
     currentQuestion: 0,
     audience: "human",
+    approved: false,
   },
   specState: { path: null, status: "none" },
   execution: {
@@ -168,6 +184,7 @@ export const createInitialState = (): StateFile => ({
   completedAt: null,
   completionNote: null,
   reopenedFrom: null,
+  revisitHistory: [],
 });
 
 // =============================================================================

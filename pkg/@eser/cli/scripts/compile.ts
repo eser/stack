@@ -5,15 +5,19 @@
  *
  * This script:
  * 1. Reads the VERSION file
- * 2. Runs `deno compile` for each target platform
- * 3. Validates each binary is not corrupted (>1MB)
- * 4. Creates compressed archives (.tar.gz / .zip)
- * 5. Generates SHA256SUMS.txt with streaming hash computation
+ * 2. Optionally builds Go shared libraries (--with-go)
+ * 3. Runs `deno compile` for each target platform, embedding Go shared
+ *    libraries and WASM files when available via --include
+ * 4. Validates each binary is not corrupted (>1MB)
+ * 5. Creates compressed archives (.tar.gz / .zip)
+ * 6. Generates SHA256SUMS.txt with streaming hash computation
  *
  * Pipeline:
- *   VERSION ──▶ deno compile (×5) ──▶ validate ──▶ archive ──▶ SHA256SUMS.txt
+ *   VERSION ──▶ [go build] ──▶ deno compile (×5) ──▶ validate ──▶ archive ──▶ SHA256SUMS.txt
  *
- * Usage: deno run --allow-all ./compile.ts
+ * Usage:
+ *   deno run --allow-all ./compile.ts
+ *   deno run --allow-all ./compile.ts --with-go   # build Go libs first
  *
  * @module
  */
@@ -29,76 +33,193 @@ const TARGETS = [
   "x86_64-pc-windows-msvc",
 ] as const;
 
+/**
+ * Maps deno compile target triples to ajan build target names and
+ * the corresponding shared library filename.
+ */
+const GO_TARGET_MAP: Record<string, { goTarget: string; libFile: string }> = {
+  "x86_64-unknown-linux-gnu": {
+    goTarget: "x86_64-linux",
+    libFile: "libeser_ajan.so",
+  },
+  "aarch64-unknown-linux-gnu": {
+    goTarget: "aarch64-linux",
+    libFile: "libeser_ajan.so",
+  },
+  "x86_64-apple-darwin": {
+    goTarget: "x86_64-darwin",
+    libFile: "libeser_ajan.dylib",
+  },
+  "aarch64-apple-darwin": {
+    goTarget: "aarch64-darwin",
+    libFile: "libeser_ajan.dylib",
+  },
+  "x86_64-pc-windows-msvc": {
+    goTarget: "x86_64-windows",
+    libFile: "libeser_ajan.dll",
+  },
+  "aarch64-pc-windows-msvc": {
+    goTarget: "aarch64-windows",
+    libFile: "libeser_ajan.dll",
+  },
+};
+
+/** WASM files to embed as fallback when available. */
+const WASM_FILES = [
+  "wasi/ajan.wasm",
+  "wasi-reactor/ajan-reactor.wasm",
+] as const;
+
 const MIN_BINARY_SIZE = 1_000_000; // 1MB — Deno binaries are 80-130MB
 
 /**
  * Computes SHA256 hash of a file using streaming (64KB chunks, <1MB peak memory).
  */
 const computeFileSha256 = async (filePath: string): Promise<string> => {
-  const file = await Deno.open(filePath, { read: true });
+  const nodeFs = await import("node:fs");
+  const { createReadStream } = nodeFs;
 
+  const stream = createReadStream(filePath, { highWaterMark: 65_536 });
+  const chunks: Uint8Array[] = [];
+
+  for await (const chunk of stream) {
+    chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
+  }
+
+  // Concatenate all chunks for digest
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const combined = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    combined as unknown as BufferSource,
+  );
+  const hashArray = new Uint8Array(hashBuffer);
+
+  return Array.from(hashArray)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+};
+
+/**
+ * Creates a .tar.gz archive containing files from a staging directory.
+ */
+const createTarGz = async (
+  stagingDir: string,
+  fileNames: string[],
+  outputPath: string,
+): Promise<void> => {
+  await shellExec.exec`tar -czf ${outputPath} -C ${stagingDir} ${fileNames}`
+    .spawn();
+};
+
+/**
+ * Creates a .zip archive containing files from a staging directory.
+ */
+const createZip = async (
+  stagingDir: string,
+  fileNames: string[],
+  outputPath: string,
+): Promise<void> => {
+  const filePaths = fileNames.map((f) => runtime.path.join(stagingDir, f));
+
+  await shellExec.exec`zip -j ${outputPath} ${filePaths}`.spawn();
+};
+
+/**
+ * Checks whether a file exists at the given path.
+ */
+const fileExists = async (filePath: string): Promise<boolean> => {
   try {
-    const chunks: Uint8Array[] = [];
-    const buffer = new Uint8Array(65_536); // 64KB chunks
-
-    while (true) {
-      const bytesRead = await file.read(buffer);
-      if (bytesRead === null) {
-        break;
-      }
-      chunks.push(buffer.slice(0, bytesRead));
-    }
-
-    // Concatenate all chunks for digest
-    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const combined = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      combined.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    const hashBuffer = await crypto.subtle.digest(
-      "SHA-256",
-      combined as unknown as BufferSource,
-    );
-    const hashArray = new Uint8Array(hashBuffer);
-
-    return Array.from(hashArray)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  } finally {
-    file.close();
+    await runtime.fs.stat(filePath);
+    return true;
+  } catch {
+    return false;
   }
 };
 
 /**
- * Creates a .tar.gz archive containing a single binary file.
+ * Resolves --include flags for Go shared library and WASM files.
+ *
+ * Returns an array of `--include=<path>` strings for files that exist.
+ * If a file doesn't exist, a warning is logged but compilation continues.
  */
-const createTarGz = async (
-  binaryPath: string,
-  binaryName: string,
-  outputPath: string,
-): Promise<void> => {
-  const dir = runtime.path.dirname(binaryPath);
+const resolveGoIncludes = async (
+  eserGoDistDir: string,
+  target: string,
+): Promise<string[]> => {
+  const includes: string[] = [];
+  const mapping = GO_TARGET_MAP[target];
 
-  await shellExec.exec`tar -czf ${outputPath} -C ${dir} ${binaryName}`.spawn();
+  // 1. Platform-specific shared library
+  if (mapping !== undefined) {
+    const libPath = runtime.path.join(
+      eserGoDistDir,
+      mapping.goTarget,
+      mapping.libFile,
+    );
+
+    if (await fileExists(libPath)) {
+      includes.push(`--include=${libPath}`);
+      // deno-lint-ignore no-console
+      console.log(`    + Including Go library: ${mapping.libFile}`);
+    } else {
+      // deno-lint-ignore no-console
+      console.warn(
+        `    ~ Go library not found for ${target} (looked at ${libPath}), skipping FFI embed`,
+      );
+    }
+  } else {
+    // deno-lint-ignore no-console
+    console.warn(
+      `    ~ No Go target mapping for ${target}, skipping FFI embed`,
+    );
+  }
+
+  // 2. WASM files (platform-independent fallback)
+  for (const wasmRelPath of WASM_FILES) {
+    const wasmPath = runtime.path.join(eserGoDistDir, wasmRelPath);
+
+    if (await fileExists(wasmPath)) {
+      includes.push(`--include=${wasmPath}`);
+      const wasmName = runtime.path.basename(wasmPath);
+      // deno-lint-ignore no-console
+      console.log(`    + Including WASM fallback: ${wasmName}`);
+    }
+  }
+
+  return includes;
 };
 
 /**
- * Creates a .zip archive containing a single binary file.
+ * Builds Go shared libraries by invoking the ajan build script.
+ *
+ * Called when --with-go is passed. Builds all native targets plus WASM.
  */
-const createZip = async (
-  binaryPath: string,
-  binaryName: string,
-  outputPath: string,
-): Promise<void> => {
-  const dir = runtime.path.dirname(binaryPath);
+const buildGoLibraries = async (projectRoot: string): Promise<void> => {
+  const buildScript = runtime.path.join(
+    projectRoot,
+    "pkg",
+    "@eser",
+    "ajan",
+    "scripts",
+    "build.ts",
+  );
 
-  await shellExec.exec`zip -j ${outputPath} ${
-    runtime.path.join(dir, binaryName)
-  }`
+  // deno-lint-ignore no-console
+  console.log("Building Go shared libraries (--with-go)...\n");
+
+  await shellExec
+    .exec`deno run --allow-all ${buildScript} --all`
     .spawn();
+
+  // deno-lint-ignore no-console
+  console.log("");
 };
 
 const main = async (): Promise<void> => {
@@ -112,6 +233,17 @@ const main = async (): Promise<void> => {
   const mainTsPath = runtime.path.join(pkgDir, "main.ts");
   const versionPath = runtime.path.join(projectRoot, "VERSION");
   const outputDir = runtime.path.join(projectRoot, "etc", "temp", "binaries");
+  const eserGoDistDir = runtime.path.join(
+    projectRoot,
+    "pkg",
+    "@eser",
+    "ajan",
+    "dist",
+  );
+
+  // Parse CLI flags
+  const args = runtime.process.args;
+  const withGo = args.includes("--with-go");
 
   // Step 1: Read version
   const version = (await runtime.fs.readTextFile(versionPath)).trim();
@@ -120,7 +252,12 @@ const main = async (): Promise<void> => {
     `Compiling eser v${version} for ${TARGETS.length} platforms...\n`,
   );
 
-  // Step 2: Clean output directory
+  // Step 2: Build Go shared libraries if requested
+  if (withGo) {
+    await buildGoLibraries(projectRoot);
+  }
+
+  // Step 3: Clean output directory
   try {
     await runtime.fs.remove(outputDir, { recursive: true });
   } catch {
@@ -128,7 +265,7 @@ const main = async (): Promise<void> => {
   }
   await runtime.fs.mkdir(outputDir, { recursive: true });
 
-  // Step 3: Compile for each target
+  // Step 4: Compile for each target
   const results: {
     target: string;
     archiveName: string;
@@ -139,14 +276,22 @@ const main = async (): Promise<void> => {
   for (const target of TARGETS) {
     const isWindows = target.includes("windows");
     const binaryName = isWindows ? `eser.exe` : `eser`;
-    const binaryPath = runtime.path.join(outputDir, binaryName);
+
+    // Use a per-target staging directory so the shared library can sit
+    // alongside the binary inside the archive.
+    const stagingDir = runtime.path.join(outputDir, `staging-${target}`);
+    await runtime.fs.mkdir(stagingDir, { recursive: true });
+    const binaryPath = runtime.path.join(stagingDir, binaryName);
 
     // deno-lint-ignore no-console
     console.log(`  Compiling for ${target}...`);
 
     try {
+      // Resolve --include flags for Go shared lib + WASM
+      const includeFlags = await resolveGoIncludes(eserGoDistDir, target);
+
       await shellExec
-        .exec`deno compile --allow-all --target ${target} --output ${binaryPath} ${mainTsPath}`
+        .exec`deno compile --allow-all --target ${target} ${includeFlags} --output ${binaryPath} ${mainTsPath}`
         .spawn();
 
       // Validate binary size
@@ -165,6 +310,25 @@ const main = async (): Promise<void> => {
         `    ✓ ${(stat.size / 1_000_000).toFixed(1)}MB`,
       );
 
+      // Collect files to archive: binary + Go shared library (if present)
+      const archiveFiles = [binaryName];
+      const mapping = GO_TARGET_MAP[target];
+
+      if (mapping !== undefined) {
+        const libSrcPath = runtime.path.join(
+          eserGoDistDir,
+          mapping.goTarget,
+          mapping.libFile,
+        );
+
+        if (await fileExists(libSrcPath)) {
+          // Copy the shared library into the staging dir for archiving
+          const libDestPath = runtime.path.join(stagingDir, mapping.libFile);
+          await runtime.fs.copyFile(libSrcPath, libDestPath);
+          archiveFiles.push(mapping.libFile);
+        }
+      }
+
       // Create archive
       const archiveBase = `eser-v${version}-${target}`;
       const archiveName = isWindows
@@ -173,15 +337,15 @@ const main = async (): Promise<void> => {
       const archivePath = runtime.path.join(outputDir, archiveName);
 
       if (isWindows) {
-        await createZip(binaryPath, binaryName, archivePath);
+        await createZip(stagingDir, archiveFiles, archivePath);
       } else {
-        await createTarGz(binaryPath, binaryName, archivePath);
+        await createTarGz(stagingDir, archiveFiles, archivePath);
       }
 
       results.push({ target, archiveName, archivePath });
 
-      // Remove raw binary after archiving
-      await runtime.fs.remove(binaryPath);
+      // Remove staging directory after archiving
+      await runtime.fs.remove(stagingDir, { recursive: true });
     } catch (error) {
       // deno-lint-ignore no-console
       console.error(
@@ -191,16 +355,16 @@ const main = async (): Promise<void> => {
       );
       failed.push(target);
 
-      // Clean up partial binary
+      // Clean up staging directory
       try {
-        await runtime.fs.remove(binaryPath);
+        await runtime.fs.remove(stagingDir, { recursive: true });
       } catch {
         // May not exist
       }
     }
   }
 
-  // Step 4: Generate SHA256SUMS.txt
+  // Step 5: Generate SHA256SUMS.txt
   // deno-lint-ignore no-console
   console.log("\nGenerating SHA256SUMS.txt...");
   const sha256Lines: string[] = [];
@@ -216,7 +380,7 @@ const main = async (): Promise<void> => {
     sha256Lines.join("\n") + "\n",
   );
 
-  // Step 5: Summary
+  // Step 6: Summary
   // deno-lint-ignore no-console
   console.log(`\n${"─".repeat(50)}`);
   // deno-lint-ignore no-console

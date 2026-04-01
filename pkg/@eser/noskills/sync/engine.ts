@@ -25,9 +25,54 @@ import * as crossRuntime from "@eser/standards/cross-runtime";
 // Rule Loading
 // =============================================================================
 
-export const loadRules = async (root: string): Promise<readonly string[]> => {
+/** A rule with optional phase and file scoping metadata. */
+export type ScopedRule = {
+  readonly text: string;
+  readonly phases?: readonly string[];
+  readonly appliesTo?: readonly string[];
+};
+
+/** Parse YAML-like frontmatter from a rule file. */
+const parseFrontmatter = (
+  content: string,
+): { meta: Record<string, unknown>; body: string } => {
+  const trimmed = content.trim();
+  if (!trimmed.startsWith("---")) return { meta: {}, body: trimmed };
+
+  const endIdx = trimmed.indexOf("---", 3);
+  if (endIdx === -1) return { meta: {}, body: trimmed };
+
+  const yamlBlock = trimmed.slice(3, endIdx).trim();
+  const body = trimmed.slice(endIdx + 3).trim();
+  const meta: Record<string, unknown> = {};
+
+  // Simple key: value parser (no YAML library dependency)
+  for (const line of yamlBlock.split("\n")) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) continue;
+    const key = line.slice(0, colonIdx).trim();
+    const val = line.slice(colonIdx + 1).trim();
+
+    // Parse array syntax: [a, b, c]
+    if (val.startsWith("[") && val.endsWith("]")) {
+      const items = val.slice(1, -1).split(",").map((s) =>
+        s.trim().replace(/^["']|["']$/g, "")
+      ).filter((s) => s.length > 0);
+      meta[key] = items;
+    } else {
+      meta[key] = val.replace(/^["']|["']$/g, "");
+    }
+  }
+
+  return { meta, body };
+};
+
+/** Load all rules with scoping metadata. */
+export const loadScopedRules = async (
+  root: string,
+): Promise<readonly ScopedRule[]> => {
   const rulesDir = `${root}/${persistence.paths.rulesDir}`;
-  const rules: string[] = [];
+  const rules: ScopedRule[] = [];
 
   try {
     for await (const entry of crossRuntime.runtime.fs.readDir(rulesDir)) {
@@ -38,9 +83,18 @@ export const loadRules = async (root: string): Promise<readonly string[]> => {
         const content = await crossRuntime.runtime.fs.readTextFile(
           `${rulesDir}/${entry.name}`,
         );
-        // Use first line as the rule summary for bullet rendering
-        const firstLine = content.trim().split("\n")[0] ?? content.trim();
-        rules.push(firstLine);
+        const { meta, body } = parseFrontmatter(content);
+        const firstLine = body.split("\n")[0] ?? body;
+
+        rules.push({
+          text: firstLine,
+          phases: Array.isArray(meta["phases"])
+            ? meta["phases"] as string[]
+            : undefined,
+          appliesTo: Array.isArray(meta["applies_to"])
+            ? meta["applies_to"] as string[]
+            : undefined,
+        });
       }
     }
   } catch {
@@ -48,6 +102,46 @@ export const loadRules = async (root: string): Promise<readonly string[]> => {
   }
 
   return rules;
+};
+
+/**
+ * Filter scoped rules by current phase and optional file patterns.
+ */
+export const filterRules = (
+  rules: readonly ScopedRule[],
+  currentPhase: string,
+  _currentFiles?: readonly string[],
+): readonly string[] => {
+  return rules
+    .filter((r) => {
+      // Phase filter: if phases set, current phase must match
+      if (r.phases !== undefined && r.phases.length > 0) {
+        if (!r.phases.includes(currentPhase)) return false;
+      }
+      // File filter: if appliesTo set, at least one file must match a glob
+      // (simplified: check if any file path contains the pattern stem)
+      if (
+        r.appliesTo !== undefined && r.appliesTo.length > 0 &&
+        _currentFiles !== undefined && _currentFiles.length > 0
+      ) {
+        const match = r.appliesTo.some((pat) => {
+          const ext = pat.startsWith("*.") ? pat.slice(1) : null;
+          if (ext !== null) {
+            return _currentFiles.some((f) => f.endsWith(ext));
+          }
+          return _currentFiles.some((f) => f.includes(pat.replace(/\*/g, "")));
+        });
+        if (!match) return false;
+      }
+      return true;
+    })
+    .map((r) => r.text);
+};
+
+/** Load rules as plain strings (backward compat — no scoping). */
+export const loadRules = async (root: string): Promise<readonly string[]> => {
+  const scoped = await loadScopedRules(root);
+  return scoped.map((r) => r.text);
 };
 
 // =============================================================================

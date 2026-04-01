@@ -61,10 +61,28 @@ const generateFormula = (version: string, hashes: TargetHashes): string =>
 
   def install
     bin.install "eser"
+
+    # Install the Go shared library if present in the archive (added in newer releases).
+    # On macOS the library is a .dylib; on Linux it is a .so.
+    if File.exist?("libeser_ajan.dylib")
+      lib.install "libeser_ajan.dylib"
+    elsif File.exist?("libeser_ajan.so")
+      lib.install "libeser_ajan.so"
+    end
+
+    # Install the C header for FFI consumers if present.
+    if File.exist?("libeser_ajan.h")
+      include.install "libeser_ajan.h"
+    end
   end
 
   test do
     assert_match version.to_s, shell_output("\#{bin}/eser version --bare")
+
+    # Verify the Go bridge is functional when the shared library is installed.
+    if (lib/"libeser_ajan.dylib").exist? || (lib/"libeser_ajan.so").exist?
+      assert_match(/\\d+\\.\\d+/, shell_output("\#{bin}/eser go version"))
+    end
   end
 end
 `;

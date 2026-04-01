@@ -198,10 +198,15 @@ describe("Skip classification: approve without classifying", () => {
 // =============================================================================
 
 describe("Skip concerns: init with zero concerns", () => {
-  it("zero concerns → no concern extras in discovery", () => {
+  it("zero concerns → only built-in extras in discovery", () => {
     const qs = questions.getQuestionsWithExtras([]);
     for (const q of qs) {
-      assertEquals(q.extras.length, 0);
+      if (q.id === "verification") {
+        // Q5 always has 2 built-in extras (tests + docs) regardless of concerns
+        assertEquals(q.extras.length, 2);
+      } else {
+        assertEquals(q.extras.length, 0);
+      }
     }
   });
 

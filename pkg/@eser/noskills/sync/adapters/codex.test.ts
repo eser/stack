@@ -70,7 +70,7 @@ describe("Codex adapter: snapshot tests", () => {
       );
 
       assertStringIncludes(content, "## noskills Protocol");
-      assertStringIncludes(content, `${CMD_PREFIX} next --spec=`);
+      assertStringIncludes(content, `${CMD_PREFIX} spec`);
       assertStringIncludes(content, `--answer=`);
     });
 
@@ -538,10 +538,10 @@ describe("Codex adapter: capability tests", () => {
     assertEquals(caps.mcp, true);
   });
 
-  it("interaction.subAgentMethod is 'delegation'", () => {
+  it("interaction.subAgentMethod is 'spawn'", () => {
     assertEquals(
       codexAdapterMod.codexAdapter.capabilities.interaction.subAgentMethod,
-      "delegation",
+      "spawn",
     );
   });
 

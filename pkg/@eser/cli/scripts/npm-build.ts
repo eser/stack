@@ -24,6 +24,7 @@ type PackageJson = {
   type?: string;
   bin?: Record<string, string>;
   dependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
   repository?: {
     type: string;
     url: string;
@@ -32,6 +33,7 @@ type PackageJson = {
 
 type SourcePackageJson = {
   version: string;
+  optionalDependencies?: Record<string, string>;
 };
 
 type DenoJson = {
@@ -43,6 +45,11 @@ const EXTERNAL_PACKAGES = [
   "tailwindcss",
   "@tailwindcss/*",
   "lightningcss",
+  // FFI / platform packages — loaded at runtime via dynamic import + dlopen
+  "@eserstack/ajan-*",
+  "@eserstack/ajan-wasm",
+  "node:ffi",
+  "bun:ffi",
 ];
 
 /**
@@ -241,6 +248,7 @@ const main = async (): Promise<void> => {
       lightningcss: "^1.30.0",
       tailwindcss: "^4.1.8",
     },
+    optionalDependencies: sourcePackageJson.optionalDependencies,
     repository: {
       type: "git",
       url: "https://github.com/eser/stack",
@@ -258,6 +266,10 @@ const main = async (): Promise<void> => {
   console.log(`   version: ${pkg.version}`);
   // deno-lint-ignore no-console
   console.log(`   dependencies: ${JSON.stringify(pkg.dependencies)}`);
+  // deno-lint-ignore no-console
+  console.log(
+    `   optionalDependencies: ${JSON.stringify(pkg.optionalDependencies)}`,
+  );
 
   // Step 5: Copy README.md
   // deno-lint-ignore no-console

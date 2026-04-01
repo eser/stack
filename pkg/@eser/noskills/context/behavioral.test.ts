@@ -440,6 +440,36 @@ describe("IDLE behavioral — AskUserQuestion and concerns", () => {
 });
 
 // =============================================================================
+// DISCOVERY_REVIEW behavioral — split proposal rule
+// =============================================================================
+
+describe("DISCOVERY_REVIEW behavioral", () => {
+  const inDiscoveryReview = (): schema.StateFile =>
+    machine.completeDiscovery(inDiscovery());
+
+  it("contains 'Do NOT split or merge specs on your own' rule", () => {
+    const output = compiler.compile(inDiscoveryReview(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("Do NOT split or merge specs on your own")
+    );
+    assertEquals(has, true);
+  });
+
+  it("contains file-write block rule", () => {
+    const output = compiler.compile(inDiscoveryReview(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("DO NOT create, edit, or write any files")
+    );
+    assertEquals(has, true);
+  });
+
+  it("tone says 'Careful reviewer'", () => {
+    const output = compiler.compile(inDiscoveryReview(), noConcerns, noRules);
+    assertEquals(output.behavioral.tone.includes("Careful reviewer"), true);
+  });
+});
+
+// =============================================================================
 // EXECUTING behavioral — sub-agent (Issue 2) + fallback (E3)
 // =============================================================================
 

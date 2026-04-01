@@ -71,6 +71,7 @@ export const startSpec = (
   state: schema.StateFile,
   specName: string,
   branch: string,
+  description?: string,
 ): schema.StateFile => {
   assertTransition(state.phase, "DISCOVERY");
 
@@ -78,12 +79,14 @@ export const startSpec = (
     ...state,
     phase: "DISCOVERY",
     spec: specName,
+    specDescription: description ?? null,
     branch,
     discovery: {
       answers: [],
       completed: false,
       currentQuestion: 0,
       audience: "human",
+      approved: false,
     },
     specState: { path: null, status: "none" },
     execution: {
@@ -167,6 +170,26 @@ export const approveDiscoveryReview = (
   };
 };
 
+/**
+ * Approve discovery answers without transitioning to SPEC_DRAFT.
+ * Used when a split proposal is detected — stays in DISCOVERY_REVIEW
+ * so the user can decide whether to split or keep as one spec.
+ */
+export const approveDiscoveryAnswers = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  if (state.phase !== "DISCOVERY_REVIEW") {
+    throw new Error(
+      `Cannot approve discovery answers in phase: ${state.phase}`,
+    );
+  }
+
+  return {
+    ...state,
+    discovery: { ...state.discovery, approved: true },
+  };
+};
+
 export const advanceDiscoveryQuestion = (
   state: schema.StateFile,
 ): schema.StateFile => {
@@ -205,12 +228,11 @@ export const startExecution = (
   return {
     ...state,
     phase: "EXECUTING",
-    // Clear discovery answers — they're persisted in spec.md, no need in state
+    // Preserve discovery answers in state for revisit support
     discovery: {
-      answers: [],
+      ...state.discovery,
       completed: true,
-      currentQuestion: 0,
-      audience: "human",
+      approved: false,
     },
     execution: {
       iteration: 0,
@@ -319,6 +341,54 @@ export const reopenSpec = (
   };
 };
 
+/**
+ * Revisit a spec — go back from EXECUTING/BLOCKED to DISCOVERY
+ * while preserving progress and discovery answers.
+ */
+export const revisitSpec = (
+  state: schema.StateFile,
+  reason: string,
+): schema.StateFile => {
+  if (state.phase !== "EXECUTING" && state.phase !== "BLOCKED") {
+    throw new Error(
+      `Cannot revisit in phase: ${state.phase}. Only EXECUTING or BLOCKED can revisit.`,
+    );
+  }
+
+  const entry: schema.RevisitEntry = {
+    from: state.phase,
+    reason,
+    completedTasks: [...state.execution.completedTasks],
+    timestamp: new Date().toISOString(),
+  };
+
+  return {
+    ...state,
+    phase: "DISCOVERY",
+    // Preserve discovery answers for revision
+    discovery: {
+      ...state.discovery,
+      completed: false,
+      currentQuestion: 0,
+      approved: false,
+    },
+    // Reset execution state
+    execution: {
+      iteration: 0,
+      lastProgress: null,
+      modifiedFiles: [],
+      lastVerification: null,
+      awaitingStatusReport: false,
+      debt: null,
+      completedTasks: [],
+      debtCounter: 0,
+      naItems: [],
+    },
+    classification: null,
+    revisitHistory: [...(state.revisitHistory ?? []), entry],
+  };
+};
+
 export const resetToIdle = (
   state: schema.StateFile,
 ): schema.StateFile => {
@@ -332,6 +402,7 @@ export const resetToIdle = (
       completed: false,
       currentQuestion: 0,
       audience: "human",
+      approved: false,
     },
     specState: { path: null, status: "none" },
     execution: {

@@ -115,7 +115,7 @@ const BUGS_URL = "https://github.com/eser/stack/issues";
 const readGoVersion = async (pkgDir: string): Promise<string> => {
   const bridgePath = `${pkgDir}/bridge.go`;
   const content = await runtime.fs.readTextFile(bridgePath);
-  const match = content.match(/const\s+Version\s*=\s*"([^"]+)"/);
+  const match = content.match(/(?:const|var)\s+Version\s*=\s*"([^"]+)"/);
 
   if (match === null || match[1] === undefined) {
     throw new Error(`Could not find Version constant in ${bridgePath}`);

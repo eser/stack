@@ -490,8 +490,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
             gcc-x86-64-linux-gnu \
-            gcc-mingw-w64-x86-64 \
-            gcc-mingw-w64-aarch64
+            gcc-mingw-w64-x86-64
+          # Note: gcc-mingw-w64 for aarch64-windows is not available in apt.
+          # Windows ARM64 cross-compilation requires a separate toolchain.
+          # Darwin targets require osxcross which is not installed here.
+          # These targets will be skipped by build.ts (continue-on-error below).
 
       - name: Build Go shared libraries (all native targets)
         run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts --all

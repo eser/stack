@@ -174,7 +174,7 @@ export const resolveWasmPath = (
       `Checked the following locations:\n` +
       checkedPaths.map((p) => `  - ${p}`).join("\n") +
       `\n\nTo fix this:\n` +
-      `  1. Build the WASM module: deno run --allow-all scripts/build.ts --wasm\n` +
+      `  1. Install: npm install @eser/ajan\n` +
       `  2. Or set ESER_AJAN_WASM_PATH to the full path of ${wasmFile}`,
   );
 };

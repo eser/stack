@@ -54,7 +54,7 @@ export const main = async (
   // Render helpers
   const encoder = new TextEncoder();
   const write = (s: string): void => {
-    Deno.stdout.writeSync(encoder.encode(s));
+    runtime.process.writeToStdout(encoder.encode(s));
   };
 
   if (isDryRun) {

@@ -772,6 +772,19 @@ export interface RuntimeProcess {
    * @throws If stdin is not a TTY
    */
   setStdinRaw(raw: boolean): void;
+
+  /**
+   * Synchronously write bytes to stdout.
+   * Essential for flicker-free TUI rendering where async writes cause tearing.
+   * @param data - Bytes to write
+   */
+  writeToStdout(data: Uint8Array): void;
+
+  /**
+   * Get the current terminal dimensions.
+   * Returns a sensible fallback (80x24) if the size cannot be determined.
+   */
+  consoleSize(): { columns: number; rows: number };
 }
 
 // =============================================================================

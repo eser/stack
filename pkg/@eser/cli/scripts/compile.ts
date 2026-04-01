@@ -24,51 +24,10 @@
 
 import { runtime } from "@eser/standards/cross-runtime";
 import * as shellExec from "@eser/shell/exec";
+import * as ajanTargets from "../../ajan/targets.ts";
 
-const TARGETS = [
-  "x86_64-unknown-linux-gnu",
-  "aarch64-unknown-linux-gnu",
-  "x86_64-apple-darwin",
-  "aarch64-apple-darwin",
-  "x86_64-pc-windows-msvc",
-] as const;
-
-/**
- * Maps deno compile target triples to ajan build target names and
- * the corresponding shared library filename.
- */
-const GO_TARGET_MAP: Record<string, { goTarget: string; libFile: string }> = {
-  "x86_64-unknown-linux-gnu": {
-    goTarget: "x86_64-linux",
-    libFile: "libeser_ajan.so",
-  },
-  "aarch64-unknown-linux-gnu": {
-    goTarget: "aarch64-linux",
-    libFile: "libeser_ajan.so",
-  },
-  "x86_64-apple-darwin": {
-    goTarget: "x86_64-darwin",
-    libFile: "libeser_ajan.dylib",
-  },
-  "aarch64-apple-darwin": {
-    goTarget: "aarch64-darwin",
-    libFile: "libeser_ajan.dylib",
-  },
-  "x86_64-pc-windows-msvc": {
-    goTarget: "x86_64-windows",
-    libFile: "libeser_ajan.dll",
-  },
-  "aarch64-pc-windows-msvc": {
-    goTarget: "aarch64-windows",
-    libFile: "libeser_ajan.dll",
-  },
-};
-
-/** WASM files to embed as fallback when available. */
-const WASM_FILES = [
-  "wasi/ajan.wasm",
-  "wasi-reactor/ajan-reactor.wasm",
-] as const;
+/** Deno compile target triples — derived from canonical targets. */
+const TARGETS = ajanTargets.NATIVE_TARGETS.map((t) => t.denoTarget);
 
 const MIN_BINARY_SIZE = 1_000_000; // 1MB — Deno binaries are 80-130MB
 
@@ -154,20 +113,20 @@ const resolveGoIncludes = async (
   target: string,
 ): Promise<string[]> => {
   const includes: string[] = [];
-  const mapping = GO_TARGET_MAP[target];
+  const nativeTarget = ajanTargets.findByDenoTarget(target);
 
   // 1. Platform-specific shared library
-  if (mapping !== undefined) {
+  if (nativeTarget !== undefined) {
     const libPath = runtime.path.join(
       eserGoDistDir,
-      mapping.goTarget,
-      mapping.libFile,
+      nativeTarget.id,
+      nativeTarget.libFile,
     );
 
     if (await fileExists(libPath)) {
       includes.push(`--include=${libPath}`);
       // deno-lint-ignore no-console
-      console.log(`    + Including Go library: ${mapping.libFile}`);
+      console.log(`    + Including Go library: ${nativeTarget.libFile}`);
     } else {
       // deno-lint-ignore no-console
       console.warn(
@@ -182,14 +141,13 @@ const resolveGoIncludes = async (
   }
 
   // 2. WASM files (platform-independent fallback)
-  for (const wasmRelPath of WASM_FILES) {
-    const wasmPath = runtime.path.join(eserGoDistDir, wasmRelPath);
+  for (const wt of ajanTargets.WASM_TARGETS) {
+    const wasmPath = runtime.path.join(eserGoDistDir, wt.id, wt.outputFile);
 
     if (await fileExists(wasmPath)) {
       includes.push(`--include=${wasmPath}`);
-      const wasmName = runtime.path.basename(wasmPath);
       // deno-lint-ignore no-console
-      console.log(`    + Including WASM fallback: ${wasmName}`);
+      console.log(`    + Including WASM fallback: ${wt.outputFile}`);
     }
   }
 
@@ -312,20 +270,23 @@ const main = async (): Promise<void> => {
 
       // Collect files to archive: binary + Go shared library (if present)
       const archiveFiles = [binaryName];
-      const mapping = GO_TARGET_MAP[target];
+      const nativeTarget = ajanTargets.findByDenoTarget(target);
 
-      if (mapping !== undefined) {
+      if (nativeTarget !== undefined) {
         const libSrcPath = runtime.path.join(
           eserGoDistDir,
-          mapping.goTarget,
-          mapping.libFile,
+          nativeTarget.id,
+          nativeTarget.libFile,
         );
 
         if (await fileExists(libSrcPath)) {
           // Copy the shared library into the staging dir for archiving
-          const libDestPath = runtime.path.join(stagingDir, mapping.libFile);
+          const libDestPath = runtime.path.join(
+            stagingDir,
+            nativeTarget.libFile,
+          );
           await runtime.fs.copyFile(libSrcPath, libDestPath);
-          archiveFiles.push(mapping.libFile);
+          archiveFiles.push(nativeTarget.libFile);
         }
       }
 

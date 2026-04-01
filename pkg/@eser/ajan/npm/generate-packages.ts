@@ -21,81 +21,13 @@
  */
 
 import { runtime } from "@eser/standards/cross-runtime";
+import * as targets from "../targets.ts";
 
 // ---------------------------------------------------------------------------
-// Types & constants
+// Constants
 // ---------------------------------------------------------------------------
-
-interface PlatformTarget {
-  /** Internal build-output directory name (e.g. "aarch64-darwin") */
-  buildTarget: string;
-  /** npm package suffix (e.g. "darwin-arm64") */
-  npmSuffix: string;
-  /** npm `os` field value */
-  os: string;
-  /** npm `cpu` field value */
-  cpu: string;
-  /** Shared library filename */
-  libFile: string;
-  /** Human-readable platform description */
-  description: string;
-}
-
-const PLATFORM_TARGETS: readonly PlatformTarget[] = [
-  {
-    buildTarget: "aarch64-darwin",
-    npmSuffix: "darwin-arm64",
-    os: "darwin",
-    cpu: "arm64",
-    libFile: "libeser_ajan.dylib",
-    description: "eser-ajan shared library for macOS ARM64 (Apple Silicon)",
-  },
-  {
-    buildTarget: "x86_64-darwin",
-    npmSuffix: "darwin-x64",
-    os: "darwin",
-    cpu: "x64",
-    libFile: "libeser_ajan.dylib",
-    description: "eser-ajan shared library for macOS x64 (Intel)",
-  },
-  {
-    buildTarget: "aarch64-linux",
-    npmSuffix: "linux-arm64",
-    os: "linux",
-    cpu: "arm64",
-    libFile: "libeser_ajan.so",
-    description: "eser-ajan shared library for Linux ARM64",
-  },
-  {
-    buildTarget: "x86_64-linux",
-    npmSuffix: "linux-x64",
-    os: "linux",
-    cpu: "x64",
-    libFile: "libeser_ajan.so",
-    description: "eser-ajan shared library for Linux x64",
-  },
-  {
-    buildTarget: "aarch64-windows",
-    npmSuffix: "win32-arm64",
-    os: "win32",
-    cpu: "arm64",
-    libFile: "libeser_ajan.dll",
-    description: "eser-ajan shared library for Windows ARM64",
-  },
-  {
-    buildTarget: "x86_64-windows",
-    npmSuffix: "win32-x64",
-    os: "win32",
-    cpu: "x64",
-    libFile: "libeser_ajan.dll",
-    description: "eser-ajan shared library for Windows x64",
-  },
-] as const;
 
 const HEADER_FILE = "libeser_ajan.h";
-const NPM_SCOPE = "@eserstack";
-const PKG_PREFIX = "ajan";
-const WASM_PKG_SUFFIX = "wasm";
 const LICENSE = "Apache-2.0";
 
 const REPOSITORY = {
@@ -111,14 +43,30 @@ const BUGS_URL = "https://github.com/eser/stack/issues";
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Reads the Version constant from bridge.go. */
-const readGoVersion = async (pkgDir: string): Promise<string> => {
+/** Reads the package version — prefers the root VERSION file, falls back to bridge.go. */
+const readVersion = async (pkgDir: string): Promise<string> => {
+  // Try root VERSION file first (always has the real release version)
+  const projectRoot = pkgDir.replace(/\/pkg\/.*$/, "");
+  try {
+    const versionFileContent = (await runtime.fs.readTextFile(
+      `${projectRoot}/VERSION`,
+    )).trim();
+    if (versionFileContent.length > 0 && versionFileContent !== "dev") {
+      return versionFileContent;
+    }
+  } catch {
+    // VERSION file not found, fall through
+  }
+
+  // Fall back to bridge.go
   const bridgePath = `${pkgDir}/bridge.go`;
   const content = await runtime.fs.readTextFile(bridgePath);
   const match = content.match(/(?:const|var)\s+Version\s*=\s*"([^"]+)"/);
 
   if (match === null || match[1] === undefined) {
-    throw new Error(`Could not find Version constant in ${bridgePath}`);
+    throw new Error(
+      `Could not determine version from VERSION file or ${bridgePath}`,
+    );
   }
 
   return match[1];
@@ -150,13 +98,13 @@ interface GenerateResult {
 }
 
 const generatePlatformPackage = async (
-  target: PlatformTarget,
+  target: targets.NativeTarget,
   _pkgDir: string,
   distDir: string,
   outputBaseDir: string,
   version: string,
 ): Promise<GenerateResult> => {
-  const buildDir = `${distDir}/${target.buildTarget}`;
+  const buildDir = `${distDir}/${target.id}`;
   const libPath = `${buildDir}/${target.libFile}`;
   const headerPath = `${buildDir}/${HEADER_FILE}`;
 
@@ -169,8 +117,10 @@ const generatePlatformPackage = async (
     };
   }
 
-  const pkgName = `${NPM_SCOPE}/${PKG_PREFIX}-${target.npmSuffix}`;
-  const outputDir = `${outputBaseDir}/${PKG_PREFIX}-${target.npmSuffix}`;
+  const pkgName =
+    `${targets.NPM_SCOPE}/${targets.NPM_PKG_PREFIX}-${target.npmSuffix}`;
+  const outputDir =
+    `${outputBaseDir}/${targets.NPM_PKG_PREFIX}-${target.npmSuffix}`;
 
   try {
     await runtime.fs.mkdir(outputDir, { recursive: true });
@@ -194,8 +144,8 @@ const generatePlatformPackage = async (
     repository: REPOSITORY,
     homepage: HOMEPAGE,
     bugs: { url: BUGS_URL },
-    os: [target.os],
-    cpu: [target.cpu],
+    os: [target.npmOs],
+    cpu: [target.npmCpu],
     main: target.libFile,
     files: filesArray,
   };
@@ -220,19 +170,15 @@ const generatePlatformPackage = async (
 // WASM package generation
 // ---------------------------------------------------------------------------
 
-/** WASM files to include: [distSubdir, filename]. */
-const WASM_FILES: readonly [string, string][] = [
-  ["wasi", "eser-ajan.wasm"],
-  ["wasi-reactor", "eser-ajan-reactor.wasm"],
-];
-
 const generateWasmPackage = async (
   distDir: string,
   outputBaseDir: string,
   version: string,
 ): Promise<GenerateResult> => {
-  const pkgName = `${NPM_SCOPE}/${PKG_PREFIX}-${WASM_PKG_SUFFIX}`;
-  const outputDir = `${outputBaseDir}/${PKG_PREFIX}-${WASM_PKG_SUFFIX}`;
+  const pkgName =
+    `${targets.NPM_SCOPE}/${targets.NPM_PKG_PREFIX}-${targets.NPM_WASM_SUFFIX}`;
+  const outputDir =
+    `${outputBaseDir}/${targets.NPM_PKG_PREFIX}-${targets.NPM_WASM_SUFFIX}`;
 
   try {
     await runtime.fs.mkdir(outputDir, { recursive: true });
@@ -242,17 +188,17 @@ const generateWasmPackage = async (
 
   const copiedFiles: string[] = [];
 
-  for (const [subdir, filename] of WASM_FILES) {
-    const srcPath = `${distDir}/${subdir}/${filename}`;
+  for (const wt of targets.WASM_TARGETS) {
+    const srcPath = `${distDir}/${wt.id}/${wt.outputFile}`;
     if (await fileExists(srcPath)) {
-      await copyFile(srcPath, `${outputDir}/${filename}`);
-      copiedFiles.push(filename);
+      await copyFile(srcPath, `${outputDir}/${wt.outputFile}`);
+      copiedFiles.push(wt.outputFile);
     }
   }
 
   if (copiedFiles.length === 0) {
     return {
-      npmSuffix: WASM_PKG_SUFFIX,
+      npmSuffix: targets.NPM_WASM_SUFFIX,
       status: "skip",
       reason: "No WASM build output found in dist/wasi/ or dist/wasi-reactor/",
     };
@@ -275,7 +221,7 @@ const generateWasmPackage = async (
     JSON.stringify(packageJson, null, 2) + "\n",
   );
 
-  return { npmSuffix: WASM_PKG_SUFFIX, status: "ok" };
+  return { npmSuffix: targets.NPM_WASM_SUFFIX, status: "ok" };
 };
 
 // ---------------------------------------------------------------------------
@@ -309,8 +255,8 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  // Read version from Go source
-  const version = await readGoVersion(pkgDir);
+  // Read version from VERSION file (or bridge.go fallback)
+  const version = await readVersion(pkgDir);
   // deno-lint-ignore no-console
   console.log(`Generating npm packages (version ${version})...\n`);
 
@@ -324,9 +270,11 @@ const main = async (): Promise<void> => {
   // Generate each platform package
   const results: GenerateResult[] = [];
 
-  for (const target of PLATFORM_TARGETS) {
+  for (const target of targets.NATIVE_TARGETS) {
     // deno-lint-ignore no-console
-    console.log(`  ${NPM_SCOPE}/${PKG_PREFIX}-${target.npmSuffix} ...`);
+    console.log(
+      `  ${targets.NPM_SCOPE}/${targets.NPM_PKG_PREFIX}-${target.npmSuffix} ...`,
+    );
     const result = await generatePlatformPackage(
       target,
       pkgDir,
@@ -350,7 +298,9 @@ const main = async (): Promise<void> => {
 
   // Generate WASM package
   // deno-lint-ignore no-console
-  console.log(`\n  ${NPM_SCOPE}/${PKG_PREFIX}-${WASM_PKG_SUFFIX} ...`);
+  console.log(
+    `\n  ${targets.NPM_SCOPE}/${targets.NPM_PKG_PREFIX}-${targets.NPM_WASM_SUFFIX} ...`,
+  );
   const wasmResult = await generateWasmPackage(distDir, outputBaseDir, version);
   results.push(wasmResult);
 
@@ -364,50 +314,6 @@ const main = async (): Promise<void> => {
     // deno-lint-ignore no-console
     console.error(`    FAIL: ${wasmResult.reason}`);
   }
-
-  // Generate root package.json
-  // deno-lint-ignore no-console
-  console.log(`\n  ${NPM_SCOPE}/${PKG_PREFIX} (root) ...`);
-
-  const optionalDependencies: Record<string, string> = {};
-  for (const target of PLATFORM_TARGETS) {
-    optionalDependencies[`${NPM_SCOPE}/${PKG_PREFIX}-${target.npmSuffix}`] =
-      version;
-  }
-  optionalDependencies[`${NPM_SCOPE}/${PKG_PREFIX}-${WASM_PKG_SUFFIX}`] =
-    version;
-
-  const rootPackageJson = {
-    name: `${NPM_SCOPE}/${PKG_PREFIX}`,
-    version,
-    description:
-      "Go FFI bridge for eser CLI — cross-runtime (Node.js, Bun, Deno)",
-    type: "module",
-    exports: {
-      ".": "./ffi/mod.ts",
-      "./ffi": "./ffi/mod.ts",
-    },
-    optionalDependencies,
-    license: LICENSE,
-    repository: REPOSITORY,
-    homepage: HOMEPAGE,
-    bugs: { url: BUGS_URL },
-  };
-
-  const rootDir = `${outputBaseDir}/${PKG_PREFIX}`;
-  try {
-    await runtime.fs.mkdir(rootDir, { recursive: true });
-  } catch {
-    // already exists
-  }
-
-  await runtime.fs.writeTextFile(
-    `${rootDir}/package.json`,
-    JSON.stringify(rootPackageJson, null, 2) + "\n",
-  );
-
-  // deno-lint-ignore no-console
-  console.log("    OK");
 
   // Summary
   const ok = results.filter((r) => r.status === "ok").length;

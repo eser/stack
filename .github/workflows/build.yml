@@ -222,10 +222,10 @@ jobs:
       - name: Smoke test — eser version
         run: eser version
 
-      - name: Smoke test — eser go version (graceful failure)
+      - name: Smoke test — eser ajan version (graceful failure)
         run: |
           set +e
-          OUTPUT=$(eser go version 2>&1)
+          OUTPUT=$(eser ajan version 2>&1)
           EXIT_CODE=$?
           echo "$OUTPUT"
 
@@ -235,9 +235,9 @@ jobs:
           fi
 
           if [ $EXIT_CODE -eq 0 ]; then
-            echo "eser go version succeeded (unexpected but acceptable)"
+            echo "eser ajan version succeeded (unexpected but acceptable)"
           else
-            echo "eser go version failed as expected (no shared library in npm package)"
+            echo "eser ajan version failed as expected (no shared library in npm package)"
             echo "Error output does NOT mention Deno — PASS"
           fi
 
@@ -308,16 +308,16 @@ jobs:
       - name: Build Go shared library (native)
         run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts
 
-      - name: Verify FFI — eser go version
+      - name: Verify FFI — eser ajan version
         run: |
           if [ "${{ matrix.runtime }}" = "deno" ]; then
-            deno task cli go version
+            deno task cli ajan version
           elif [ "${{ matrix.runtime }}" = "node" ]; then
             deno task cli build
-            node pkg/@eser/cli/dist/eser.js go version
+            node pkg/@eser/cli/dist/eser.js ajan version
           elif [ "${{ matrix.runtime }}" = "bun" ]; then
             deno task cli build
-            bun pkg/@eser/cli/dist/eser.js go version
+            bun pkg/@eser/cli/dist/eser.js ajan version
           fi
 
       - name: Verify CLI — eser --help

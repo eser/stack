@@ -20,7 +20,7 @@ ESER_AJAN_LIB_PATH=$(pwd)/pkg/@eser/ajan/dist/aarch64-darwin/libeser_ajan.dylib 
 
 # 4. (Optional) Test WASM fallback
 deno run --allow-all pkg/@eser/ajan/scripts/build.ts --wasm
-ESER_AJAN_FFI_NATIVE=disabled deno task cli go version
+ESER_AJAN_NATIVE=disabled deno task cli go version
 ```
 
 ## Build
@@ -227,26 +227,23 @@ Environment variables control which FFI backends are enabled, supporting
 incremental rollout. Set any of these to `disabled` to skip the corresponding
 backend:
 
-| Variable                        | Effect                                                               |
-| ------------------------------- | -------------------------------------------------------------------- |
-| `ESER_AJAN_FFI=disabled`        | Disable ALL FFI (native + WASM); `loadEserAjan()` throws immediately |
-| `ESER_AJAN_FFI_NATIVE=disabled` | Disable native FFI; skip straight to WASM fallback                   |
-| `ESER_AJAN_FFI_WASM=disabled`   | Disable WASM fallback; only try native backends                      |
-| `ESER_AJAN_FFI_DENO=disabled`   | Skip the Deno backend specifically                                   |
-| `ESER_AJAN_FFI_BUN=disabled`    | Skip the Bun backend specifically                                    |
-| `ESER_AJAN_FFI_NODE=disabled`   | Skip the Node.js backend specifically                                |
+| Variable                    | Effect                                                               |
+| --------------------------- | -------------------------------------------------------------------- |
+| `ESER_AJAN=disabled`        | Disable ALL FFI (native + WASM); `loadEserAjan()` throws immediately |
+| `ESER_AJAN_NATIVE=disabled` | Disable native FFI; skip straight to WASM fallback                   |
+| `ESER_AJAN_WASM=disabled`   | Disable WASM fallback; only try native backends                      |
 
 ### Examples
 
 ```bash
 # Force WASM-only (skip native FFI)
-ESER_AJAN_FFI_NATIVE=disabled deno task cli go version
+ESER_AJAN_NATIVE=disabled deno task cli ajan version
 
-# Disable all FFI (useful for testing error paths)
-ESER_AJAN_FFI=disabled deno task cli go version
+# Disable all (useful for testing error paths)
+ESER_AJAN=disabled deno task cli ajan version
 
-# Skip Deno backend specifically (e.g. to test Bun/Node fallback)
-ESER_AJAN_FFI_DENO=disabled deno task cli go version
+# Native only, no WASM fallback (for CI)
+ESER_AJAN_WASM=disabled deno task cli ajan version
 ```
 
 ### Programmatic control
@@ -256,21 +253,19 @@ ESER_AJAN_FFI_DENO=disabled deno task cli go version
 ```ts
 import * as ffi from "./ffi/mod.ts";
 
-// Skip native FFI, use WASM only
+// Skip native, use WASM only
 const lib = await ffi.loadEserAjan({ native: false });
 
-// Only try the Deno backend
-const lib = await ffi.loadEserAjan({ backends: ["deno"] });
+// Native only, no WASM fallback
+const lib = await ffi.loadEserAjan({ wasm: false });
 
-// Explicit path + options
-const lib = await ffi.loadEserAjan("/path/to/libeser_ajan.dylib", {
-  wasm: false,
-});
+// Explicit path
+const lib = await ffi.loadEserAjan("/path/to/libeser_ajan.dylib");
 ```
 
 Environment variables always take precedence over programmatic options. If
-`ESER_AJAN_FFI_NATIVE=disabled` is set, `{ native: true }` will NOT re-enable
-native backends.
+`ESER_AJAN_NATIVE=disabled` is set, `{ native: true }` will NOT re-enable native
+backends.
 
 Skipped backends are logged via `console.debug` so you can diagnose why a
 particular backend was not used.

@@ -13,12 +13,9 @@
  * Environment variables control which backends are enabled for incremental
  * rollout. Set any of these to `"disabled"` to skip the corresponding backend:
  *
- * - `ESER_AJAN_FFI=disabled` — disable ALL FFI (native + WASM); `loadEserAjan()` throws immediately
- * - `ESER_AJAN_FFI_NATIVE=disabled` — disable native FFI; skip straight to WASM fallback
- * - `ESER_AJAN_FFI_WASM=disabled` — disable WASM fallback; only try native
- * - `ESER_AJAN_FFI_DENO=disabled` — skip the Deno backend specifically
- * - `ESER_AJAN_FFI_BUN=disabled` — skip the Bun backend specifically
- * - `ESER_AJAN_FFI_NODE=disabled` — skip the Node backend specifically
+ * - `ESER_AJAN=disabled` — disable everything; `loadEserAjan()` throws immediately
+ * - `ESER_AJAN_NATIVE=disabled` — disable native FFI; skip straight to WASM fallback
+ * - `ESER_AJAN_WASM=disabled` — disable WASM fallback; only try native
  *
  * Usage:
  * ```ts
@@ -63,12 +60,10 @@ import type * as types from "./types.ts";
  * it stays disabled even if `LoadOptions` would enable it.
  */
 export interface LoadOptions {
-  /** Allow native FFI backends. Default: `true` (unless `ESER_AJAN_FFI_NATIVE=disabled`). */
+  /** Allow native FFI backends. Default: `true` (unless `ESER_AJAN_NATIVE=disabled`). */
   native?: boolean;
-  /** Allow WASM fallback. Default: `true` (unless `ESER_AJAN_FFI_WASM=disabled`). */
+  /** Allow WASM fallback. Default: `true` (unless `ESER_AJAN_WASM=disabled`). */
   wasm?: boolean;
-  /** Explicit list of native backends to try (order preserved). Default: all available. */
-  backends?: ("deno" | "bun" | "node")[];
 }
 
 /**
@@ -101,13 +96,6 @@ const isDisabledByEnv = (envVar: string): boolean => {
 const debugLog = (message: string): void => {
   // deno-lint-ignore no-console
   console.debug(`[eser-ajan/ffi] ${message}`);
-};
-
-/** Map backend name → per-runtime env var. */
-const BACKEND_ENV_MAP: Record<string, string> = {
-  deno: "ESER_AJAN_FFI_DENO",
-  bun: "ESER_AJAN_FFI_BUN",
-  node: "ESER_AJAN_FFI_NODE",
 };
 
 // ---------------------------------------------------------------------------
@@ -171,29 +159,8 @@ export const detectRuntime = (): types.RuntimeId => {
  * @param options - Optional programmatic overrides.
  * @throws {Error} If no backend is available or all were disabled.
  */
-export const selectBackend = (options?: LoadOptions): types.FFIBackend => {
-  const allowedNames = options?.backends ?? undefined;
-
+export const selectBackend = (): types.FFIBackend => {
   for (const backend of BACKENDS) {
-    // 1. Programmatic filter: if `backends` is specified, skip unlisted ones
-    if (
-      allowedNames !== undefined &&
-      !allowedNames.includes(backend.name as "deno" | "bun" | "node")
-    ) {
-      debugLog(
-        `Skipping "${backend.name}" backend — not in programmatic backends list`,
-      );
-      continue;
-    }
-
-    // 2. Per-runtime env var (e.g. ESER_AJAN_FFI_DENO=disabled)
-    const envVar = BACKEND_ENV_MAP[backend.name];
-    if (envVar !== undefined && isDisabledByEnv(envVar)) {
-      debugLog(`Skipping "${backend.name}" backend — ${envVar}=disabled`);
-      continue;
-    }
-
-    // 3. Runtime availability check
     if (!backend.available()) {
       continue;
     }
@@ -241,18 +208,18 @@ export const loadEserAjan = async (
     : options;
 
   // --- Global kill switch ---
-  if (isDisabledByEnv("ESER_AJAN_FFI")) {
-    debugLog("ALL FFI disabled — ESER_AJAN_FFI=disabled");
+  if (isDisabledByEnv("ESER_AJAN")) {
+    debugLog("ALL disabled — ESER_AJAN=disabled");
     throw new Error(
-      "FFI is disabled via ESER_AJAN_FFI=disabled environment variable.\n" +
-        "Unset ESER_AJAN_FFI to re-enable.",
+      "Ajan is disabled via ESER_AJAN=disabled environment variable.\n" +
+        "Unset ESER_AJAN to re-enable.",
     );
   }
 
   // --- Determine what's allowed ---
-  const nativeAllowed = !isDisabledByEnv("ESER_AJAN_FFI_NATIVE") &&
+  const nativeAllowed = !isDisabledByEnv("ESER_AJAN_NATIVE") &&
     (opts?.native !== false);
-  const wasmAllowed = !isDisabledByEnv("ESER_AJAN_FFI_WASM") &&
+  const wasmAllowed = !isDisabledByEnv("ESER_AJAN_WASM") &&
     (opts?.wasm !== false);
 
   if (!nativeAllowed) {
@@ -268,7 +235,7 @@ export const loadEserAjan = async (
     try {
       const resolvedPath = libraryPath ??
         resolve.resolveLibraryPath(FFI_MODULE_DIR);
-      const backend = selectBackend(opts);
+      const backend = selectBackend();
       return backend.open(resolvedPath);
     } catch {
       // Native FFI not available — fall through to WASM
@@ -297,15 +264,15 @@ export const loadEserAjan = async (
   const reasons: string[] = [];
   if (!nativeAllowed) {
     reasons.push(
-      isDisabledByEnv("ESER_AJAN_FFI_NATIVE")
-        ? "ESER_AJAN_FFI_NATIVE=disabled"
+      isDisabledByEnv("ESER_AJAN_NATIVE")
+        ? "ESER_AJAN_NATIVE=disabled"
         : "native=false in LoadOptions",
     );
   }
   if (!wasmAllowed) {
     reasons.push(
-      isDisabledByEnv("ESER_AJAN_FFI_WASM")
-        ? "ESER_AJAN_FFI_WASM=disabled"
+      isDisabledByEnv("ESER_AJAN_WASM")
+        ? "ESER_AJAN_WASM=disabled"
         : "wasm=false in LoadOptions",
     );
   }

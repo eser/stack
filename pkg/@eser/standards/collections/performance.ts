@@ -99,12 +99,17 @@ export const createBitmapMatcher = <K extends string>(
 const parameterCache = new WeakMap<Function, readonly string[]>();
 
 /**
- * Regex for extracting function parameters (compiled once).
- * Matches: function name(...) or (...) => or async function(...) etc.
- * Uses bounded quantifiers to prevent ReDoS.
+ * Extract function parameters without regex to prevent ReDoS.
+ * Finds the first balanced parentheses in the function string.
  */
-const PARAM_REGEX =
-  /(?:async\s{1,10})?(?:function\s{0,10}\w{0,100}\s{0,10})?\(([^)]{0,2000})\)/;
+const extractParamString = (fnString: string): string | null => {
+  const limited = fnString.slice(0, 10000);
+  const openIdx = limited.indexOf("(");
+  if (openIdx === -1) return null;
+  const closeIdx = limited.indexOf(")", openIdx);
+  if (closeIdx === -1) return null;
+  return limited.slice(openIdx + 1, closeIdx);
+};
 
 /**
  * Get function parameter names with caching.
@@ -127,9 +132,9 @@ export const getFunctionParameters = (fn: Function): readonly string[] => {
   }
 
   const fnString = fn.toString();
-  const match = PARAM_REGEX.exec(fnString);
+  const paramString = extractParamString(fnString);
 
-  if (match === null || !match[1]) {
+  if (paramString === null || paramString.trim() === "") {
     const empty = Object.freeze([]) as readonly string[];
     parameterCache.set(fn, empty);
 
@@ -137,7 +142,7 @@ export const getFunctionParameters = (fn: Function): readonly string[] => {
   }
 
   const params: readonly string[] = Object.freeze(
-    match[1].split(",").reduce<string[]>((acc, p) => {
+    paramString.split(",").reduce<string[]>((acc, p) => {
       let param = p.trim();
 
       // Remove default value

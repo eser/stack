@@ -591,13 +591,16 @@ export class DenoBundlerBackend implements Bundler {
       // Check if this chunk exports the expected symbol
       const exportPatterns = [
         // export { Symbol } or export { Symbol, ... } or export { X as Symbol }
-        new RegExp(`export\\s{0,5}\\{[^}]*\\b${expectedExport}\\b[^}]*\\}`),
+        // Use bounded quantifier instead of [^}]* to prevent ReDoS
+        new RegExp(
+          `export\\s{0,5}\\{[^}]{0,500}\\b${expectedExport}\\b[^}]{0,500}\\}`,
+        ),
         // export function Symbol or export const Symbol
         new RegExp(
-          `export\\s+(?:function|const|let|var|class)\\s+${expectedExport}\\b`,
+          `export\\s{1,20}(?:function|const|let|var|class)\\s{1,20}${expectedExport}\\b`,
         ),
         // minified pattern: Symbol2 as Symbol
-        new RegExp(`\\b\\w+\\s+as\\s+${expectedExport}\\b`),
+        new RegExp(`\\b\\w+\\s{1,10}as\\s{1,10}${expectedExport}\\b`),
       ];
 
       const exportsSymbol = exportPatterns.some((pattern) =>
@@ -609,8 +612,9 @@ export class DenoBundlerBackend implements Bundler {
         chunks.unshift(chunkFile);
 
         // Also find dependency chunks by looking at what this chunk imports
+        // Use bounded quantifier to prevent ReDoS
         const importPattern =
-          /from\s{0,5}["']\.?\/?([^"']*chunk-[A-Z0-9]+\.js)["']/gi;
+          /from\s{0,5}["']\.?\/?([^"']{0,500}chunk-[A-Z0-9]+\.js)["']/gi;
         let match: RegExpExecArray | null;
         while ((match = importPattern.exec(chunkContent)) !== null) {
           const depChunk = runtime.path.basename(match[1] ?? "");
@@ -672,8 +676,8 @@ export class DenoBundlerBackend implements Bundler {
 
     // Determine main chunk by finding which chunk actually exports the symbol
     // IMPORTANT: Search ALL chunks in the bundle, not just the ones imported by proxy
-    // Use specific character class to prevent ReDoS
-    const exportMatch = content.match(/export\s{0,5}\{([\w\s,]+)\}/);
+    // Use bounded quantifier to prevent ReDoS
+    const exportMatch = content.match(/export\s{0,5}\{([\w\s,]{1,500})\}/);
     if (exportMatch !== null) {
       const exportStatement = exportMatch[1];
       // Match either "Symbol as ExportName" or just "Symbol"
@@ -696,13 +700,16 @@ export class DenoBundlerBackend implements Bundler {
           // Check if this chunk exports the symbol directly
           const exportPatterns = [
             // export { Symbol } or export { Symbol, ... } or export { X as Symbol }
-            new RegExp(`export\\s{0,5}\\{[^}]*\\b${exportedSymbol}\\b[^}]*\\}`),
+            // Use bounded quantifier instead of [^}]* to prevent ReDoS
+            new RegExp(
+              `export\\s{0,5}\\{[^}]{0,500}\\b${exportedSymbol}\\b[^}]{0,500}\\}`,
+            ),
             // export function Symbol or export const Symbol
             new RegExp(
-              `export\\s+(?:function|const|let|var|class)\\s+${exportedSymbol}\\b`,
+              `export\\s{1,20}(?:function|const|let|var|class)\\s{1,20}${exportedSymbol}\\b`,
             ),
             // minified pattern: Symbol2 as Symbol (common in bundled code)
-            new RegExp(`\\b\\w+\\s+as\\s+${exportedSymbol}\\b`),
+            new RegExp(`\\b\\w+\\s{1,10}as\\s{1,10}${exportedSymbol}\\b`),
           ];
 
           const exportsSymbol = exportPatterns.some((pattern) =>
@@ -747,9 +754,9 @@ export class DenoBundlerBackend implements Bundler {
     const imports: string[] = [];
 
     // Match static imports: import ... from "..."
-    // Use bounded quantifiers to prevent ReDoS
+    // Use bounded quantifiers and non-overlapping character classes to prevent ReDoS
     const staticImportRegex =
-      /import\s{1,100}[^\n"']{1,500}\s{1,100}from\s{0,100}["']([\w./@-]+)["']/g;
+      /import\s{1,100}[^\n"']{1,500}from\s{0,100}["']([\w./@-]+)["']/g;
     let match: RegExpExecArray | null;
 
     while ((match = staticImportRegex.exec(content)) !== null) {

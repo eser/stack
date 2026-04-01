@@ -121,8 +121,9 @@ export const extractExports = (content: string): readonly string[] => {
   const exports = new Set<string>();
 
   // Named function exports: export function Name() or export async function Name()
+  // Use bounded whitespace quantifiers to prevent ReDoS
   const namedFunctions = content.matchAll(
-    /export\s+(?:async\s+)?function\s+(\w+)/g,
+    /export\s{1,20}(?:async\s{1,20})?function\s{1,20}(\w+)/g,
   );
   for (const match of namedFunctions) {
     if (match[1] !== undefined) {
@@ -131,8 +132,9 @@ export const extractExports = (content: string): readonly string[] => {
   }
 
   // Named const/let exports: export const Name =
+  // Use bounded whitespace quantifiers to prevent ReDoS
   const namedConsts = content.matchAll(
-    /export\s+(?:const|let)\s+(\w+)\s*=/g,
+    /export\s{1,20}(?:const|let)\s{1,20}(\w+)\s{0,20}=/g,
   );
   for (const match of namedConsts) {
     if (match[1] !== undefined) {
@@ -141,8 +143,9 @@ export const extractExports = (content: string): readonly string[] => {
   }
 
   // Named class exports: export class Name
+  // Use bounded whitespace quantifiers to prevent ReDoS
   const namedClasses = content.matchAll(
-    /export\s+class\s+(\w+)/g,
+    /export\s{1,20}class\s{1,20}(\w+)/g,
   );
   for (const match of namedClasses) {
     if (match[1] !== undefined) {
@@ -151,7 +154,7 @@ export const extractExports = (content: string): readonly string[] => {
   }
 
   // Default exports
-  if (/export\s+default\s+/.test(content)) {
+  if (/export\s{1,20}default\s{1,20}/.test(content)) {
     exports.add("default");
   }
 

@@ -253,9 +253,8 @@ export const loadEserAjan = async (
           `WASM error: ${
             wasmErr instanceof Error ? wasmErr.message : String(wasmErr)
           }\n\n` +
-          `To fix this:\n` +
-          `  1. Build the native library: deno run --allow-all scripts/build.ts\n` +
-          `  2. Or build the WASM module: deno run --allow-all scripts/build.ts --wasm`,
+          `To fix this, install the @eser/ajan package or build the native library.\n` +
+          `  See: https://github.com/eser/stack/tree/main/pkg/@eser/ajan`,
       );
     }
   }

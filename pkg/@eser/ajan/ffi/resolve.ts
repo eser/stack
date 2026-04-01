@@ -232,7 +232,7 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
       `Checked the following locations:\n` +
       checkedPaths.map((p) => `  - ${p}`).join("\n") +
       `\n\nTo fix this:\n` +
-      `  1. Build the library: deno run --allow-all scripts/build.ts\n` +
+      `  1. Install: npm install @eser/ajan\n` +
       `  2. Or set ESER_AJAN_LIB_PATH to the full path of ${libName}`,
   );
 };

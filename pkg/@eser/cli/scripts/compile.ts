@@ -250,6 +250,7 @@ const main = async (): Promise<void> => {
 
       await shellExec
         .exec`deno compile --allow-all --target ${target} ${includeFlags} --output ${binaryPath} ${mainTsPath}`
+        .stderr("inherit")
         .spawn();
 
       // Validate binary size
@@ -314,6 +315,19 @@ const main = async (): Promise<void> => {
           error instanceof Error ? error.message : String(error)
         }`,
       );
+
+      // Surface captured stderr so CI logs show the actual deno compile error
+      if (
+        error !== null && typeof error === "object" && "stderr" in error &&
+        typeof (error as { stderr: unknown }).stderr === "string"
+      ) {
+        const stderr = (error as { stderr: string }).stderr.trim();
+        if (stderr.length > 0) {
+          // deno-lint-ignore no-console
+          console.error(`    stderr:\n${stderr}`);
+        }
+      }
+
       failed.push(target);
 
       // Clean up staging directory

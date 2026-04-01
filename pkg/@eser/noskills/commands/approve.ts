@@ -15,6 +15,7 @@ import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as specGenerator from "../spec/generator.ts";
 import * as specUpdater from "../spec/updater.ts";
+import * as identity from "../state/identity.ts";
 import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -73,7 +74,14 @@ export const main = async (
       }
     }
 
-    const newState = machine.approveSpec(state);
+    const user = await identity.resolveUser(root);
+    let newState = machine.approveSpec(state);
+    newState = machine.recordTransition(
+      newState,
+      "SPEC_DRAFT",
+      "SPEC_APPROVED",
+      user,
+    );
     await persistence.writeState(root, newState);
     if (newState.spec !== null) {
       await persistence.writeSpecState(root, newState.spec, newState);
@@ -97,7 +105,14 @@ export const main = async (
     );
   } else if (state.phase === "DISCOVERY_REVIEW") {
     // Approve discovery review → transition to SPEC_DRAFT
-    const newState = machine.approveDiscoveryReview(state);
+    const user = await identity.resolveUser(root);
+    let newState = machine.approveDiscoveryReview(state);
+    newState = machine.recordTransition(
+      newState,
+      "DISCOVERY_REVIEW",
+      "SPEC_DRAFT",
+      user,
+    );
     await persistence.writeState(root, newState);
     if (newState.spec !== null) {
       await persistence.writeSpecState(root, newState.spec, newState);

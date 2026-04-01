@@ -18,6 +18,7 @@ import * as splitDetector from "./split-detector.ts";
 import type { ParsedSpec } from "../spec/parser.ts";
 import type { FolderRule } from "./folder-rules.ts";
 import { cmd as _cmd } from "../output/cmd.ts";
+import { runtime } from "@eser/standards/cross-runtime";
 
 export type { InteractionHints } from "../sync/adapter.ts";
 
@@ -90,9 +91,51 @@ export type PreDiscoveryResearch = {
   readonly extractedTerms: readonly string[];
 };
 
+export type PlanContext = {
+  readonly provided: boolean;
+  readonly content: string;
+  readonly instruction: string;
+};
+
 export type PreviousProgress = {
   readonly completedTasks: readonly string[];
   readonly totalTasks: number;
+};
+
+export type DiscoveryContributor = {
+  readonly name: string;
+  readonly contributions: string;
+};
+
+export type ModeSelectionOutput = {
+  readonly required: boolean;
+  readonly instruction: string;
+  readonly options: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly description: string;
+  }[];
+};
+
+export type PremiseChallengeOutput = {
+  readonly required: boolean;
+  readonly instruction: string;
+  readonly prompts: readonly string[];
+};
+
+export type RichDescriptionOutput = {
+  readonly provided: boolean;
+  readonly length: number;
+  readonly content: string;
+  readonly instruction: string;
+};
+
+export type AlternativesOutput = {
+  readonly required: boolean;
+  readonly instruction: string;
+  readonly format: {
+    readonly fields: readonly string[];
+  };
 };
 
 export type DiscoveryOutput = {
@@ -110,6 +153,15 @@ export type DiscoveryOutput = {
   readonly revisitReason?: string;
   readonly previousProgress?: PreviousProgress;
   readonly preDiscoveryResearch?: PreDiscoveryResearch;
+  readonly planContext?: PlanContext;
+  readonly currentUser?: { name: string; email: string };
+  readonly previousContributors?: readonly DiscoveryContributor[];
+  readonly notes?: readonly { text: string; user: string }[];
+  readonly modeSelection?: ModeSelectionOutput;
+  readonly premiseChallenge?: PremiseChallengeOutput;
+  readonly richDescription?: RichDescriptionOutput;
+  readonly agreedPremises?: readonly string[];
+  readonly revisedPremises?: readonly { original: string; revision: string }[];
 };
 
 export type DiscoveryReviewAnswer = {
@@ -127,6 +179,8 @@ export type DiscoveryReviewOutput = {
     readonly onRevise: string;
   };
   readonly splitProposal?: splitDetector.SplitProposal;
+  readonly subPhase?: string;
+  readonly alternatives?: AlternativesOutput;
 };
 
 export type ClassificationPrompt = {
@@ -146,6 +200,7 @@ export type SpecDraftOutput = {
   };
   readonly classificationRequired?: boolean;
   readonly classificationPrompt?: ClassificationPrompt;
+  readonly saved?: boolean;
 };
 
 export type SpecApprovedOutput = {
@@ -155,6 +210,7 @@ export type SpecApprovedOutput = {
   readonly transition: {
     readonly onStart: string;
   };
+  readonly saved?: boolean;
 };
 
 export type AcceptanceCriterion = {
@@ -193,6 +249,17 @@ export type TaskBlock = {
   readonly completedTasks: number;
 };
 
+export type DesignChecklistDimension = {
+  readonly id: string;
+  readonly label: string;
+};
+
+export type DesignChecklist = {
+  readonly required: boolean;
+  readonly instruction: string;
+  readonly dimensions: readonly DesignChecklistDimension[];
+};
+
 export type ExecutionOutput = {
   readonly phase: "EXECUTING";
   readonly instruction: string;
@@ -216,6 +283,7 @@ export type ExecutionOutput = {
   readonly taskRejected?: boolean;
   readonly rejectionReason?: string;
   readonly rejectionRemaining?: readonly string[];
+  readonly designChecklist?: DesignChecklist;
 };
 
 export type BlockedOutput = {
@@ -235,6 +303,10 @@ export type CompletedOutput = {
     readonly decisionsCount: number;
     readonly completionReason: schema.CompletionReason | null;
     readonly completionNote: string | null;
+  };
+  readonly learningPrompt?: {
+    readonly instruction: string;
+    readonly examples: readonly string[];
   };
 };
 
@@ -835,7 +907,7 @@ export type IdleContext = {
   readonly rulesCount?: number;
 };
 
-export const compile = (
+export const compile = async (
   state: schema.StateFile,
   activeConcerns: readonly schema.ConcernDefinition[],
   rules: readonly string[],
@@ -844,7 +916,8 @@ export const compile = (
   folderRuleCriteria?: readonly FolderRule[],
   idleContext?: IdleContext,
   interactionHints?: InteractionHints,
-): NextOutput => {
+  currentUser?: { name: string; email: string },
+): Promise<NextOutput> => {
   const meta = buildMeta(state, activeConcerns);
   const maxIter = config?.maxIterationsBeforeRestart ?? 15;
   const allowGit = config?.allowGit ?? false;
@@ -870,7 +943,12 @@ export const compile = (
       );
       break;
     case "DISCOVERY":
-      phaseOutput = compileDiscovery(state, activeConcerns, rules);
+      phaseOutput = await compileDiscovery(
+        state,
+        activeConcerns,
+        rules,
+        currentUser,
+      );
       break;
     case "DISCOVERY_REVIEW":
       phaseOutput = compileDiscoveryReview(state, activeConcerns);
@@ -1076,6 +1154,12 @@ const buildInteractiveOptions = (
           command: cs('next --answer=\'{"refinement":"..."}\'', specName),
         },
         {
+          label: "Save for later",
+          description:
+            "Keep the draft as-is. Others can review, add ACs, notes, or tasks. Come back anytime to approve.",
+          command: cs('next --answer="save"', specName),
+        },
+        {
           label: "Start over",
           description: "Reset the spec and start fresh",
           command: cs("reset", specName),
@@ -1090,10 +1174,10 @@ const buildInteractiveOptions = (
           command: cs('next --answer="start"', specName),
         },
         {
-          label: "Not yet",
+          label: "Save for later",
           description:
-            'Save for later \u2014 resume with noskills next --answer="start"',
-          command: "",
+            "Spec is approved but don't start execution yet. Others can still add ACs or notes.",
+          command: cs('next --answer="save"', specName),
         },
       ];
 
@@ -1207,16 +1291,228 @@ const buildPreDiscoveryResearch = (
   };
 };
 
-const compileDiscovery = (
+const MAX_PLAN_SIZE = 50 * 1024;
+
+const buildPlanContext = async (
+  planPath: string | null,
+): Promise<PlanContext | undefined> => {
+  if (planPath === null) return undefined;
+
+  try {
+    const content = await runtime.fs.readTextFile(planPath);
+    if (content.length > MAX_PLAN_SIZE) return undefined;
+
+    return {
+      provided: true,
+      content,
+      instruction:
+        "A plan document was provided. Read it carefully, extract relevant information for each discovery question, and present pre-filled answers for user review. Do NOT skip any question — present your extraction and let the user confirm, correct, or expand. IMPORTANT: When extracting answers from the plan, mark each extraction as [STATED] (directly written in the plan) or [INFERRED] (your interpretation). Present extractions individually for confirmation.",
+    };
+  } catch {
+    return undefined;
+  }
+};
+
+const getModeRules = (mode: schema.DiscoveryMode): readonly string[] => {
+  switch (mode) {
+    case "full":
+      return [
+        "Ask each discovery question as written. Push for specific, concrete answers.",
+        "If the answer is vague, ask follow-up questions before accepting.",
+      ];
+    case "validate":
+      return [
+        "The user has a plan. Your job is to challenge it, not explore it.",
+        "For each question, identify assumptions and ask: 'What would prove this wrong?'",
+        "If the description already answers a question, present your understanding and ask to confirm.",
+        "When pre-filling answers from a rich description, plan, or prior discussion, DISTINGUISH between what the user EXPLICITLY STATED and what you INFERRED. Format each pre-filled item as: '[STATED] GPU skinning in all 3 renderers — you said this during technical discussion' or '[INFERRED] tangent space is 10-star scope — I assumed this based on complexity'. The user confirms stated items and corrects inferred items.",
+        "Present pre-filled answers ONE ITEM AT A TIME for confirmation, not as a completed block. The user's job is to correct your inferences, not rubber-stamp your summary. If you pre-fill 5 items and 2 are wrong, the user must be able to catch them individually.",
+      ];
+    case "technical-depth":
+      return [
+        "Focus on architecture, data flow, performance, and integration points.",
+        "Before each question, scan the codebase for related implementations.",
+        "Ask: 'How does this interact with [existing system]?' for each integration point.",
+      ];
+    case "ship-fast":
+      return [
+        "Focus on minimum viable scope.",
+        "For each question, also ask: 'What can we defer to a follow-up?'",
+        "Push for the smallest version that delivers value.",
+      ];
+    case "explore":
+      return [
+        "Think bigger. What's the 10x version?",
+        "For each question, ask about adjacent opportunities.",
+        "Suggest possibilities the user might not have considered.",
+      ];
+  }
+};
+
+const computeContributors = (
+  answers:
+    readonly (schema.DiscoveryAnswer | schema.AttributedDiscoveryAnswer)[],
+  currentUser?: { name: string; email: string },
+): readonly DiscoveryContributor[] => {
+  const userMap = new Map<string, number>();
+  for (const a of answers) {
+    const name = "user" in a
+      ? (a as schema.AttributedDiscoveryAnswer).user
+      : "Unknown User";
+    if (currentUser !== undefined && name === currentUser.name) continue;
+    userMap.set(name, (userMap.get(name) ?? 0) + 1);
+  }
+  return [...userMap.entries()].map(([name, count]) => ({
+    name,
+    contributions: `${count} answer${count > 1 ? "s" : ""}`,
+  }));
+};
+
+const compileDiscovery = async (
   state: schema.StateFile,
   activeConcerns: readonly schema.ConcernDefinition[],
   rules: readonly string[],
-): DiscoveryOutput => {
+  currentUser?: { name: string; email: string },
+): Promise<DiscoveryOutput> => {
   const specName = state.spec;
   const allQuestions = questions.getQuestionsWithExtras(activeConcerns);
   const answeredCount = state.discovery.answers.length;
   const allAnswered = questions.isDiscoveryComplete(state.discovery.answers);
   const isAgent = state.discovery.audience === "agent";
+
+  // Compute optional multi-user fields (only present when data exists)
+  const contributors = computeContributors(
+    state.discovery.answers,
+    currentUser,
+  );
+  const specNotes = (state.specNotes ?? [])
+    .filter((n) => !n.text.startsWith("[TASK] "))
+    .map((n) => ({ text: n.text, user: n.user }));
+
+  const multiUserFields: {
+    currentUser?: { name: string; email: string };
+    previousContributors?: readonly DiscoveryContributor[];
+    notes?: readonly { text: string; user: string }[];
+  } = {
+    ...(currentUser !== undefined ? { currentUser } : {}),
+    ...(contributors.length > 0 ? { previousContributors: contributors } : {}),
+    ...(specNotes.length > 0 ? { notes: specNotes } : {}),
+  };
+
+  // ── Mode selection step (before any questions) ──
+  // Only show mode/premise steps for specs with a description AND no answers yet
+  // AND no plan path (backward compat: old states skip straight to questions).
+  const hasDescription = state.specDescription !== null &&
+    state.specDescription.length > 0;
+  const hasPlan = state.discovery.planPath !== null;
+  const mode = state.discovery.mode;
+  if (mode === undefined && hasDescription && answeredCount === 0 && !hasPlan) {
+    const modeOutput: DiscoveryOutput = {
+      phase: "DISCOVERY",
+      instruction:
+        "Before starting discovery, select the discovery mode that best fits this spec.",
+      questions: [],
+      answeredCount: 0,
+      context: {
+        rules,
+        concernReminders: concerns.getReminders(activeConcerns) as string[],
+      },
+      transition: { onComplete: cs('next --answer="<mode>"', specName) },
+      modeSelection: {
+        required: true,
+        instruction: "Select the discovery mode.",
+        options: [
+          {
+            id: "full",
+            label: "Full discovery",
+            description:
+              "Standard 6 questions with all concern extras. Default for new features.",
+          },
+          {
+            id: "validate",
+            label: "Validate my plan",
+            description:
+              "I already know what I want — challenge my assumptions, find gaps.",
+          },
+          {
+            id: "technical-depth",
+            label: "Technical depth",
+            description:
+              "Focus on architecture, data flow, performance, integration points.",
+          },
+          {
+            id: "ship-fast",
+            label: "Ship fast",
+            description:
+              "Minimum viable scope. What can we defer? What's the MVP?",
+          },
+          {
+            id: "explore",
+            label: "Explore scope",
+            description:
+              "Think bigger. 10x version? Adjacent opportunities? What are we missing?",
+          },
+        ],
+      },
+    };
+    if (currentUser !== undefined) {
+      return { ...modeOutput, currentUser };
+    }
+    return modeOutput;
+  }
+
+  // ── Premise challenge step (after mode, before Q1) ──
+  // Skip for states without mode set (backward compat)
+  const premisesCompleted = state.discovery.premisesCompleted === true;
+  if (mode !== undefined && !premisesCompleted && !allAnswered) {
+    const premiseOutput: DiscoveryOutput = {
+      phase: "DISCOVERY",
+      instruction:
+        "Before asking discovery questions, challenge the premises of this spec.",
+      questions: [],
+      answeredCount: 0,
+      context: {
+        rules,
+        concernReminders: concerns.getReminders(activeConcerns) as string[],
+      },
+      transition: {
+        onComplete: cs("next --answer='{\"premises\":[...]}'", specName),
+      },
+      premiseChallenge: {
+        required: true,
+        instruction: "Read the spec description" +
+          (state.discovery.planPath !== null ? " and the plan document" : "") +
+          '. Identify 2-4 premises the spec assumes. Present each premise and ask the user to agree or disagree. Submit as JSON: {"premises":[{"text":"...","agreed":true/false,"revision":"..."}]}',
+        prompts: [
+          "Is this the right problem to solve? Could a different framing yield a simpler solution?",
+          "What happens if we do nothing? Is this a real pain point or a hypothetical one?",
+          "What existing code already partially solves this? Can we build on it instead?",
+        ],
+      },
+    };
+    if (currentUser !== undefined) {
+      return { ...premiseOutput, currentUser };
+    }
+    return premiseOutput;
+  }
+
+  // ── Mode-specific rules injection (only when mode is explicitly set) ──
+  const modeRules = mode !== undefined ? getModeRules(mode) : [];
+  const rulesWithMode = [...rules, ...modeRules];
+
+  // ── Rich description detection ──
+  const specDescription = state.specDescription ?? "";
+  const isRichDescription = specDescription.length > 500;
+
+  // ── Premise context for subsequent questions ──
+  const premises = state.discovery.premises ?? [];
+  const agreedPremises = premises.filter((p) => p.agreed).map((p) => p.text);
+  const revisedPremises = premises
+    .filter((p) => !p.agreed && p.revision !== undefined)
+    .map((p) => ({
+      original: p.text,
+      revision: p.revision!,
+    }));
 
   if (allAnswered) {
     const history = state.revisitHistory ?? [];
@@ -1232,6 +1528,7 @@ const compileDiscovery = (
       answeredCount,
       context: { rules, concernReminders: [] },
       transition: { onComplete: cs("approve", specName) },
+      ...multiUserFields,
     };
 
     if (lastRevisit !== null && lastRevisit !== undefined) {
@@ -1265,6 +1562,7 @@ const compileDiscovery = (
         answeredCount,
         context: { rules, concernReminders: [] },
         transition: { onComplete: cs("approve", specName) },
+        ...multiUserFields,
       };
     }
 
@@ -1286,23 +1584,55 @@ const compileDiscovery = (
       currentQuestion: currentIdx,
       totalQuestions: allQuestions.length,
       context: {
-        rules,
+        rules: rulesWithMode,
         concernReminders: concerns.getReminders(activeConcerns) as string[],
       },
       transition: {
         onComplete: `${cs('next --agent --answer="<answer>"', specName)}`,
       },
+      ...multiUserFields,
     };
 
-    // Only inject preDiscoveryResearch on Q1
+    // Enrich with premise context if available
+    let enrichedAgent: DiscoveryOutput = agentOutput;
+    if (agreedPremises.length > 0 || revisedPremises.length > 0) {
+      enrichedAgent = {
+        ...enrichedAgent,
+        ...(agreedPremises.length > 0 ? { agreedPremises } : {}),
+        ...(revisedPremises.length > 0 ? { revisedPremises } : {}),
+      };
+    }
+
+    // Only inject preDiscoveryResearch, planContext, and richDescription on Q1
     if (currentIdx === 0) {
       const research = buildPreDiscoveryResearch(
         state.specDescription ?? null,
       );
       if (research !== undefined) {
-        return { ...agentOutput, preDiscoveryResearch: research };
+        enrichedAgent = { ...enrichedAgent, preDiscoveryResearch: research };
+      }
+
+      const planCtx = await buildPlanContext(state.discovery.planPath ?? null);
+      if (planCtx !== undefined) {
+        enrichedAgent = { ...enrichedAgent, planContext: planCtx };
+      }
+
+      // Rich description detection (Q1 only, when no plan context)
+      if (isRichDescription && planCtx === undefined) {
+        enrichedAgent = {
+          ...enrichedAgent,
+          richDescription: {
+            provided: true,
+            length: specDescription.length,
+            content: specDescription,
+            instruction:
+              "The user provided a detailed description. For each question, extract relevant info and present as a pre-filled suggestion. IMPORTANT: When extracting answers from the description, mark each extraction as [STATED] (directly written by the user) or [INFERRED] (your interpretation). Present extractions individually for confirmation.",
+          },
+        };
       }
     }
+
+    if (enrichedAgent !== agentOutput) return enrichedAgent;
 
     return agentOutput;
   }
@@ -1332,7 +1662,7 @@ const compileDiscovery = (
     questions: unanswered,
     answeredCount,
     context: {
-      rules,
+      rules: rulesWithMode,
       concernReminders: concerns.getReminders(activeConcerns) as string[],
     },
     transition: {
@@ -1343,6 +1673,9 @@ const compileDiscovery = (
         )
       }`,
     },
+    ...multiUserFields,
+    ...(agreedPremises.length > 0 ? { agreedPremises } : {}),
+    ...(revisedPremises.length > 0 ? { revisedPremises } : {}),
   };
 
   if (isRevisited && lastRevisit !== undefined) {
@@ -1357,12 +1690,35 @@ const compileDiscovery = (
     };
   }
 
-  // Inject preDiscoveryResearch on first call (no answers yet)
+  // Inject preDiscoveryResearch, planContext, and richDescription on first call (no answers yet)
   if (answeredCount === 0) {
+    let enriched = output;
+
     const research = buildPreDiscoveryResearch(state.specDescription ?? null);
     if (research !== undefined) {
-      return { ...output, preDiscoveryResearch: research };
+      enriched = { ...enriched, preDiscoveryResearch: research };
     }
+
+    const planCtx = await buildPlanContext(state.discovery.planPath ?? null);
+    if (planCtx !== undefined) {
+      enriched = { ...enriched, planContext: planCtx };
+    }
+
+    // Rich description detection (first call, when no plan context)
+    if (isRichDescription && planCtx === undefined) {
+      enriched = {
+        ...enriched,
+        richDescription: {
+          provided: true,
+          length: specDescription.length,
+          content: specDescription,
+          instruction:
+            "The user provided a detailed description. For each question, extract relevant info and present as a pre-filled suggestion.",
+        },
+      };
+    }
+
+    if (enriched !== output) return enriched;
   }
 
   return output;
@@ -1390,9 +1746,11 @@ const compileDiscoveryReview = (
     state.discovery.answers,
   );
 
-  // Two sub-phases:
+  // Sub-phases:
   // 1. Not yet approved → user reviews answers, approves or revises
   // 2. Approved + split detected → user decides keep vs split
+  // 3. Approved + (no split or split decided) + alternatives not presented → alternatives prompt
+  // 4. All done → normal transition
   if (state.discovery.approved && splitProposal.detected) {
     return {
       phase: "DISCOVERY_REVIEW",
@@ -1407,6 +1765,33 @@ const compileDiscoveryReview = (
         ),
       },
       splitProposal,
+    };
+  }
+
+  // Check if alternatives step is needed
+  const alternativesPresented = state.discovery.alternativesPresented === true;
+  if (state.discovery.approved && !alternativesPresented) {
+    return {
+      phase: "DISCOVERY_REVIEW",
+      subPhase: "alternatives",
+      instruction:
+        "Based on discovery answers, propose 2-3 distinct implementation approaches. Present each with name, summary, effort (S/M/L/XL), risk (Low/Med/High), pros, and cons. Ask the user to choose one, or skip.",
+      answers: reviewAnswers,
+      transition: {
+        onApprove: cs(
+          'next --answer=\'{"approach":"A","name":"...","summary":"...","effort":"M","risk":"Low"}\'',
+          specName,
+        ),
+        onRevise: cs('next --answer="skip"', specName),
+      },
+      alternatives: {
+        required: true,
+        instruction:
+          "Generate 2-3 approaches from discovery answers and codebase. Present via AskUserQuestion.",
+        format: {
+          fields: ["id", "name", "summary", "effort", "risk", "pros", "cons"],
+        },
+      },
     };
   }
 
@@ -1864,6 +2249,43 @@ const compileExecution = (
     };
   }
 
+  // Design checklist when beautiful-product concern is active
+  const hasBeautifulProduct = activeConcerns.some((cc) =>
+    cc.id === "beautiful-product"
+  );
+  if (hasBeautifulProduct) {
+    output = {
+      ...output,
+      designChecklist: {
+        required: true,
+        instruction:
+          "Before completing any UI task, rate your implementation 0-10 on these dimensions and include the ratings in your AC report:",
+        dimensions: [
+          {
+            id: "hierarchy",
+            label:
+              "Information hierarchy — what does the user see first, second, third?",
+          },
+          {
+            id: "states",
+            label:
+              "Interaction states — loading, empty, error, success all specified?",
+          },
+          {
+            id: "edge-cases",
+            label:
+              "Edge cases — long text, zero results, slow connection handled?",
+          },
+          {
+            id: "intentionality",
+            label:
+              "Overall intentionality — does this feel designed or generated?",
+          },
+        ],
+      },
+    };
+  }
+
   return output;
 };
 
@@ -1886,5 +2308,14 @@ const compileCompleted = (state: schema.StateFile): CompletedOutput => ({
     decisionsCount: state.decisions.length,
     completionReason: state.completionReason,
     completionNote: state.completionNote,
+  },
+  learningPrompt: {
+    instruction:
+      "Before closing this spec, reflect: did you discover any project-specific patterns, pitfalls, or preferences during this work? If so, suggest them as permanent rules.",
+    examples: [
+      "This project uses specific allocators — rule: 'All heap allocations go through the engine allocator, never raw malloc'",
+      "Tests need special flags — rule: 'Always run deno test with --allow-all flag'",
+      "PR titles follow a pattern — rule: 'PR titles follow conventional commits format (feat:/fix:/chore:)'",
+    ],
   },
 });

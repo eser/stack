@@ -119,6 +119,45 @@ Discovery questions -> you answer. Spec approval -> you decide. Architectural
 choices -> you pick. Concern tensions -> you resolve. The agent executes, you
 decide. Explicit > Clever.
 
+### Discovery Modes
+
+Before the six questions, noskills asks which discovery mode to use:
+
+| Mode            | Focus                            | Best for                          |
+| --------------- | -------------------------------- | --------------------------------- |
+| full            | Standard 6 questions             | New features (default)            |
+| validate        | Challenge assumptions            | Detailed plans, long descriptions |
+| technical-depth | Architecture, data flow          | Infrastructure, integration       |
+| ship-fast       | Minimum viable scope             | Bug fixes, quick iterations       |
+| explore         | Think bigger, find opportunities | Brainstorming, scope expansion    |
+
+The mode shapes how questions are asked and which concern extras appear.
+
+### Premise Challenge
+
+Before Q1, noskills challenges the spec's premises:
+
+- Is this the right problem to solve?
+- What happens if we do nothing?
+- What existing code already partially solves this?
+
+Premises are stored in the spec. Disagreements are recorded with the user's
+revision. All subsequent questions reference agreed premises.
+
+### Alternatives Generation
+
+After discovery is approved, noskills prompts for 2-3 implementation approaches
+before generating the spec draft. The user picks one (or skips). The chosen
+approach shapes the spec's tasks and architecture.
+
+### Plans That Get Pre-Filled
+
+When you provide a detailed description (>500 chars) or a plan file
+(`--from-plan`), noskills tells the agent to extract answers from your input and
+present them for confirmation — not ask from scratch. Each extraction is marked
+as [STATED] (your words) or [INFERRED] (agent's interpretation) so you can catch
+misunderstandings.
+
 ## Who Is This For
 
 noskills is for builders who use AI coding agents daily and are tired of
@@ -153,6 +192,17 @@ agents reason better. gstack assigns useful roles. Both can run alongside
 noskills. The distinction is that noskills owns the workflow — who does what,
 when, and whether the result was verified — while the others own the thinking or
 the persona.
+
+**noskills vs gstack in depth:** gstack is a collection of behavioral skills —
+each skill is a 2000+ line prompt that tells the agent how to behave. Office
+hours asks 6 questions (noskills: discovery). CEO review selects a scope mode
+(noskills: discovery modes). Eng review checks architecture and tests (noskills:
+verifier pipeline + mandatory ACs). The key difference: gstack skills are
+behavioral instructions the agent may or may not follow. noskills pushes exactly
+the right instruction at the right time via a state machine, and enforces
+compliance via hooks. gstack's /office-hours produces a design doc. noskills'
+discovery produces a spec with tasks, ACs, and a state machine that tracks
+execution. Both are valuable — gstack for thinking, noskills for doing.
 
 ## The Mental Model
 
@@ -268,6 +318,54 @@ The insight isn't technical. It's that the practices we spent decades developing
 for human teams apply directly to AI agents — because the underlying problem is
 the same: finite attention, drifting focus, and the need for structure to keep
 work on track.
+
+## Multi-User
+
+noskills tracks who did what. Every discovery answer, phase transition, custom
+AC, and note is attributed to the user who made it.
+
+```bash
+noskills config set-user --name="Eser Özvataf" --email="eser@example.com"
+noskills config set-user --from-git    # read from git config
+noskills config get-user               # show current identity
+```
+
+Multiple people can contribute to the same spec:
+
+```bash
+# Eser creates the spec and answers discovery
+noskills spec new upload "photo upload"
+
+# Ahmet revisits and adds mobile concerns
+noskills spec upload revisit "mobile concerns"
+noskills spec upload ac add "Mobile upload < 3s on 4G"
+noskills spec upload note add "Mobile users are 60% of traffic"
+```
+
+The spec tracks everything:
+
+- Discovery answers with attribution (who said what)
+- Phase transitions (who approved, who started execution)
+- Custom ACs (who added which requirement)
+- Notes (who provided which context)
+
+No user configured? noskills still works — attribution shows "Unknown User". Set
+identity anytime with `noskills config set-user`.
+
+## Packs
+
+Installable bundles of rules, concerns, and folder-rules:
+
+```bash
+noskills pack list                     # show available packs
+noskills pack inspect typescript       # preview without installing
+noskills pack install typescript       # install rules + concerns
+noskills pack install security         # security audit rules
+noskills pack uninstall typescript     # remove
+```
+
+Built-in packs: `typescript` (3 rules, 1 concern), `react` (3 rules), `security`
+(3 rules, 1 concern). Remote packs via `github:owner/repo#name`.
 
 ## Getting Started
 

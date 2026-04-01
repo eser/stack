@@ -103,6 +103,83 @@ const GIT_CONDITIONAL_READS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
   ],
 );
 
+/** Git global flags that consume the next argument. */
+const GIT_GLOBAL_FLAGS_WITH_ARG: ReadonlySet<string> = new Set([
+  "-C",
+  "-c",
+  "--git-dir",
+  "--work-tree",
+  "--namespace",
+  "--super-prefix",
+  "--config-env",
+]);
+
+/** Git global flags that are standalone (no argument). */
+const GIT_GLOBAL_FLAGS_NO_ARG: ReadonlySet<string> = new Set([
+  "--no-replace-objects",
+  "--bare",
+  "--no-optional-locks",
+  "--literal-pathspecs",
+  "--glob-pathspecs",
+  "--noglob-pathspecs",
+  "--icase-pathspecs",
+  "--no-pager",
+  "--paginate",
+]);
+
+/**
+ * Extract the real git subcommand, skipping global flags.
+ * e.g. "git -C /path log --oneline" → "log"
+ *      "git --git-dir=/foo status" → "status"
+ *      "git commit -m test" → "commit"
+ */
+const extractGitSubcommand = (tokens: readonly string[]): string | null => {
+  let i = 0;
+  while (i < tokens.length) {
+    const arg = tokens[i]!;
+
+    // Flags with separate argument: -C /path, -c key=val, --git-dir /path
+    if (GIT_GLOBAL_FLAGS_WITH_ARG.has(arg)) {
+      i += 2; // skip flag + its value
+      continue;
+    }
+
+    // Flags without argument
+    if (GIT_GLOBAL_FLAGS_NO_ARG.has(arg)) {
+      i += 1;
+      continue;
+    }
+
+    // Flags with =value form: --git-dir=/path, --work-tree=/path, -c key=val
+    if (
+      arg.startsWith("--git-dir=") ||
+      arg.startsWith("--work-tree=") ||
+      arg.startsWith("--namespace=") ||
+      arg.startsWith("--super-prefix=") ||
+      arg.startsWith("--config-env=")
+    ) {
+      i += 1;
+      continue;
+    }
+
+    // -C/path (no space) — -C with value appended
+    if (arg.startsWith("-C") && arg.length > 2) {
+      i += 1;
+      continue;
+    }
+
+    // -c with value appended: -ckey=val
+    if (arg.startsWith("-c") && arg.length > 2 && arg.includes("=")) {
+      i += 1;
+      continue;
+    }
+
+    // First non-flag token is the subcommand
+    return arg;
+  }
+  return null;
+};
+
 /**
  * Check if a git command string is allowed (read-only).
  * Returns true if allowed, false if it should be blocked.
@@ -119,9 +196,9 @@ export const isGitAllowed = (command: string): boolean => {
   const afterGit = trimmed.slice(3).trim();
   if (afterGit.length === 0) return true; // just "git" alone — shows help
 
-  // Extract subcommand (first token after "git")
+  // Extract subcommand, skipping global flags like -C, --git-dir, etc.
   const tokens = afterGit.split(/\s+/);
-  const subcommand = tokens[0] ?? "";
+  const subcommand = extractGitSubcommand(tokens) ?? "";
 
   // Check unconditional allowlist
   if (GIT_ALLOWED_SUBCOMMANDS.has(subcommand)) {
@@ -131,7 +208,10 @@ export const isGitAllowed = (command: string): boolean => {
   // Check conditional reads
   const readTokens = GIT_CONDITIONAL_READS.get(subcommand);
   if (readTokens !== undefined) {
-    const nextToken = tokens[1] ?? "";
+    const subcommandIdx = tokens.indexOf(subcommand);
+    const nextToken = (subcommandIdx >= 0 && subcommandIdx + 1 < tokens.length)
+      ? tokens[subcommandIdx + 1]!
+      : "";
     if (readTokens.has(nextToken)) return true;
   }
 
@@ -180,23 +260,19 @@ export const containsGitWriteBypass = (command: string): boolean => {
   }
 
   // Aggressive: catch $(git commit), `git commit`, echo | git commit
-  const gitMentions = command.matchAll(/\bgit\s+([\w-]+)/g);
-  for (const m of gitMentions) {
-    const sub = m[1] ?? "";
-    if (
-      !GIT_ALLOWED_SUBCOMMANDS.has(sub) &&
-      !GIT_CONDITIONAL_READS.has(sub)
-    ) {
+  // Use isGitAllowed on each git fragment so global flags are handled.
+  // Match "git" only when preceded by whitespace, start, or shell metachar —
+  // avoids false positives on "--git-dir", ".git", etc.
+  const gitFragments = command.matchAll(/(?:^|[\s($`(])git\b/g);
+  for (const m of gitFragments) {
+    // Find the start of "git" within the match
+    const matchStr = m[0]!;
+    const gitOffset = matchStr.indexOf("git");
+    const idx = (m.index ?? 0) + gitOffset;
+    const rest = command.slice(idx);
+    const fragment = (rest.split(/[;&|$)`'"]/)[0] ?? "").trim();
+    if (fragment.startsWith("git") && !isGitAllowed(fragment)) {
       return true;
-    }
-    // For conditional subcommands, check the context more carefully
-    if (GIT_CONDITIONAL_READS.has(sub)) {
-      // Extract the full git command from context
-      const idx = m.index ?? 0;
-      const rest = command.slice(idx);
-      if (!isGitAllowed(rest.split(/[;&|$)`]/)[0] ?? "")) {
-        return true;
-      }
     }
   }
 

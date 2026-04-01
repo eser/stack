@@ -8,8 +8,24 @@
       "text": "How painful is the current experience?"
     },
     {
+      "questionId": "status_quo",
+      "text": "What does the current UI look like? Rate it 0-10 on design intentionality."
+    },
+    {
       "questionId": "ambition",
       "text": "In the 10-star version, what does the user feel?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "What would a 10/10 design look like for this feature? Describe the emotional response you want from users."
+    },
+    {
+      "questionId": "ambition",
+      "text": "What makes this UI NOT look AI-generated? Name specific design decisions that differentiate it from generic templates."
+    },
+    {
+      "questionId": "verification",
+      "text": "How will you verify design quality? Will you review empty states, loading states, error states, and edge cases (long text, zero results, slow connection)?"
     }
   ],
   "specSections": [
@@ -20,11 +36,18 @@
   "reminders": [
     "Loading state and error state must be designed, not placeholder",
     "No AI slop — every UI element is intentional",
-    "Empty states need clear CTAs with examples"
+    "Empty states need clear CTAs with examples",
+    "Rate each UI change 0-10 on design intentionality before marking task complete. If below 7, iterate.",
+    "Check all interaction states: loading, empty, error, success, partial. Missing states are bugs, not TODOs.",
+    "Edge case check: what happens with 47-character names? Zero results? Network failure mid-action?",
+    "AI SLOP BLACKLIST — reject these patterns in any UI implementation: (1) Purple/violet gradient backgrounds (2) 3-column feature grid with icon-in-circle + bold title + 2-line description (3) Icons in colored circles as decoration (4) Everything centered (text-align: center on all elements) (5) Uniform bubbly border-radius on every element (6) Decorative blobs, floating circles, wavy SVG dividers (7) Emoji as design elements in headings or bullets (8) Colored left-border on cards (9) Generic hero copy ('Welcome to X', 'Unlock the power of...') (10) Cookie-cutter section rhythm (hero → 3 features → testimonials → pricing). If the implementation matches any of these patterns, reject it and ask for a redesign with specific, intentional alternatives."
   ],
   "acceptanceCriteria": [
     "All UI states designed (empty, loading, error, success)",
     "Mobile layout considered",
-    "No placeholder or skeleton UI left unfinished"
+    "No placeholder or skeleton UI left unfinished",
+    "All UI states specified and implemented: loading, empty, error, success, partial",
+    "No placeholder text in shipped UI — every empty state has warmth, a primary action, and context",
+    "Design rated 7+ on intentionality by the spec author"
   ]
 }

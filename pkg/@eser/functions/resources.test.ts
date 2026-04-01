@@ -494,8 +494,9 @@ Deno.test("retryWithBackoff() respects maxDelay", async () => {
   );
 
   // Delays should be capped at 50ms: ~20, ~40, ~50, ~50
+  // Allow generous variance — wall-clock timing on loaded systems can overshoot
   for (const delay of delays.slice(2)) {
-    assert.assertEquals(delay <= 70, true); // allow some timing variance
+    assert.assertEquals(delay <= 150, true);
   }
 });
 

@@ -22,6 +22,11 @@ export type RenderOptions = {
   readonly fullRedraw?: boolean;
 };
 
+export type RenderState = {
+  prevCursorRow: number;
+  prevCursorCol: number;
+};
+
 /**
  * Build SGR for a cell — foreground + attributes only.
  * Background is intentionally omitted: the terminal's native background
@@ -57,9 +62,20 @@ const isDefaultCell = (cell: screen.Cell): boolean =>
 
 export const renderScreen = (
   screenBuf: screen.ScreenBuffer,
-  _cursor: cursor.Cursor,
+  cur: cursor.Cursor,
   opts: RenderOptions,
+  state?: RenderState,
 ): string => {
+  // Mark previous and current cursor lines as dirty to prevent trails
+  if (state !== undefined) {
+    if (state.prevCursorRow >= 0 && state.prevCursorRow < screenBuf.rows) {
+      screenBuf.markLineDirty(state.prevCursorRow);
+    }
+  }
+  if (cur.visible && cur.row >= 0 && cur.row < screenBuf.rows) {
+    screenBuf.markLineDirty(cur.row);
+  }
+
   const out: string[] = [];
   const dirty = screenBuf.getDirtyLines();
 
@@ -82,7 +98,18 @@ export const renderScreen = (
     for (; col < renderCols; col++) {
       const cell = col < line.length ? line[col]! : undefined;
 
-      if (cell === undefined || isDefaultCell(cell)) {
+      const isCursorHere = cur.visible && r === cur.row && col === cur.col;
+
+      if (isCursorHere) {
+        // Render cursor cell with inverse video
+        if (inStyleRun) {
+          out.push("\x1b[0m");
+          inStyleRun = false;
+        }
+        out.push("\x1b[7m"); // inverse on
+        out.push(cell?.char ?? " ");
+        out.push("\x1b[27m"); // inverse off
+      } else if (cell === undefined || isDefaultCell(cell)) {
         if (inStyleRun) {
           out.push("\x1b[0m");
           inStyleRun = false;
@@ -100,6 +127,12 @@ export const renderScreen = (
     if (inStyleRun) {
       out.push("\x1b[0m");
     }
+  }
+
+  // Update state for next render cycle
+  if (state !== undefined) {
+    state.prevCursorRow = cur.row;
+    state.prevCursorCol = cur.col;
   }
 
   screenBuf.clearDirty();

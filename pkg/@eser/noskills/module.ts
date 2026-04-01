@@ -88,6 +88,10 @@ export const moduleDef: Module = new Module({
       description: "Manage rules (add, list, promote)",
       load: () => import("./commands/rule.ts"),
     },
+    config: {
+      description: "Manage configuration (set-user, get-user, clear-user)",
+      load: () => import("./commands/config.ts"),
+    },
     pack: {
       description: "Manage packs (list, install, uninstall, inspect, search)",
       load: () => import("./commands/pack.ts"),

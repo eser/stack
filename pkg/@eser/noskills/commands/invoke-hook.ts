@@ -589,7 +589,7 @@ const handleSessionStart = async (): Promise<shellArgs.CliResult<void>> => {
 
   // Compile and output the current instruction
   const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
-  const output = compiler.compile(
+  const output = await compiler.compile(
     state,
     activeConcerns,
     rules,

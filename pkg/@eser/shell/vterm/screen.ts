@@ -248,4 +248,10 @@ export class ScreenBuffer {
       this.#dirty.add(r);
     }
   }
+
+  markLineDirty(row: number): void {
+    if (row >= 0 && row < this.#rows) {
+      this.#dirty.add(row);
+    }
+  }
 }

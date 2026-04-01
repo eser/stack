@@ -275,6 +275,78 @@ describe("isGitAllowed", () => {
   });
 });
 
+describe("git guard with global flags", () => {
+  it("git -C /path log -> allowed", () => {
+    assertEquals(
+      hookDecisions.isGitAllowed("git -C /path log --oneline"),
+      true,
+    );
+  });
+
+  it("git -C /path commit -> blocked", () => {
+    assertEquals(
+      hookDecisions.isGitAllowed("git -C /path commit -m test"),
+      false,
+    );
+  });
+
+  it("git --git-dir=/path log -> allowed", () => {
+    assertEquals(hookDecisions.isGitAllowed("git --git-dir=/path log"), true);
+  });
+
+  it("git -c core.autocrlf=true status -> allowed", () => {
+    assertEquals(
+      hookDecisions.isGitAllowed("git -c core.autocrlf=true status"),
+      true,
+    );
+  });
+
+  it("git log -> allowed (unchanged)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git log"), true);
+  });
+
+  it("git commit -> blocked (unchanged)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git commit"), false);
+  });
+
+  it("git -C /path -c x=y diff -> allowed (multiple global flags)", () => {
+    assertEquals(
+      hookDecisions.isGitAllowed("git -C /path -c x=y diff"),
+      true,
+    );
+  });
+
+  it("git --no-pager log -> allowed", () => {
+    assertEquals(hookDecisions.isGitAllowed("git --no-pager log"), true);
+  });
+
+  it("git -C/path log -> allowed (no space after -C)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git -C/path log"), true);
+  });
+
+  it("git --work-tree=/tmp status -> allowed", () => {
+    assertEquals(
+      hookDecisions.isGitAllowed("git --work-tree=/tmp status"),
+      true,
+    );
+  });
+
+  it("git -C /path push -> blocked", () => {
+    assertEquals(hookDecisions.isGitAllowed("git -C /path push"), false);
+  });
+
+  it("git --bare branch -> conditional (bare branch = allowed)", () => {
+    assertEquals(hookDecisions.isGitAllowed("git --bare branch"), true);
+  });
+
+  it("git -C /path branch -D main -> blocked", () => {
+    assertEquals(
+      hookDecisions.isGitAllowed("git -C /path branch -D main"),
+      false,
+    );
+  });
+});
+
 // Backward-compat alias
 describe("isGitReadOnly", () => {
   it("is the same function as isGitAllowed", () => {

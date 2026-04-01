@@ -45,14 +45,14 @@ const configWith = (
 // =============================================================================
 
 describe("Resume hint for cold start", () => {
-  it("contains spec name, iteration, and progress", () => {
+  it("contains spec name, iteration, and progress", async () => {
     let state = inExecuting();
     state = machine.advanceExecution(state, "task-2 in progress");
     state = machine.advanceExecution(state, "task-2 in progress");
     state = machine.advanceExecution(state, "task-2 in progress");
     state = machine.advanceExecution(state, "implemented auth module");
 
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.meta.resumeHint.includes("test-spec"), true);
     assertEquals(output.meta.resumeHint.includes("iteration 4"), true);
@@ -62,8 +62,8 @@ describe("Resume hint for cold start", () => {
     );
   });
 
-  it("fresh execution has start instruction in resume hint", () => {
-    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+  it("fresh execution has start instruction in resume hint", async () => {
+    const output = await compiler.compile(inExecuting(), noConcerns, noRules);
 
     assertEquals(output.meta.resumeHint.includes("test-spec"), true);
     assertEquals(output.meta.resumeHint.includes("Start the first task"), true);
@@ -99,13 +99,13 @@ describe("Iteration counter", () => {
 // =============================================================================
 
 describe("Restart recommendation", () => {
-  it("restartRecommended=true when iteration >= threshold", () => {
+  it("restartRecommended=true when iteration >= threshold", async () => {
     let state = inExecuting();
     for (let i = 0; i < 16; i++) {
       state = machine.advanceExecution(state, `step ${i}`);
     }
 
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -116,11 +116,11 @@ describe("Restart recommendation", () => {
     assertEquals(typeof output.restartInstruction, "string");
   });
 
-  it("restartRecommended absent when iteration < threshold", () => {
+  it("restartRecommended absent when iteration < threshold", async () => {
     let state = inExecuting();
     state = machine.advanceExecution(state, "step 1");
 
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -130,7 +130,7 @@ describe("Restart recommendation", () => {
     assertEquals(output.restartRecommended, undefined);
   });
 
-  it("threshold=14, iteration=14 → restartRecommended", () => {
+  it("threshold=14, iteration=14 → restartRecommended", async () => {
     let state = inExecuting();
     for (let i = 0; i < 14; i++) {
       state = machine.advanceExecution(state, `step ${i}`);
@@ -140,7 +140,7 @@ describe("Restart recommendation", () => {
       ...configWith(15),
       maxIterationsBeforeRestart: 14,
     };
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -156,14 +156,14 @@ describe("Restart recommendation", () => {
 // =============================================================================
 
 describe("Progress persistence", () => {
-  it("state carries forward after simulated restart", () => {
+  it("state carries forward after simulated restart", async () => {
     // Simulate: agent worked 3 iterations, then "restart" (just read state again)
     let state = inExecuting();
     state = machine.advanceExecution(state, "task 1 done");
     state = machine.advanceExecution(state, "task 2 in progress");
 
     // Simulate fresh session: create new compiler output from persisted state
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     // The meta block carries forward everything
     assertEquals(output.meta.iteration, 2);
@@ -178,7 +178,7 @@ describe("Progress persistence", () => {
 // =============================================================================
 
 describe("One task at a time", () => {
-  it("EXECUTING with parsed spec includes task inline", () => {
+  it("EXECUTING with parsed spec includes task inline", async () => {
     const mockSpec = {
       name: "test",
       tasks: [
@@ -188,7 +188,7 @@ describe("One task at a time", () => {
       outOfScope: [],
       verification: [],
     };
-    const output = compiler.compile(
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -201,8 +201,8 @@ describe("One task at a time", () => {
     assertEquals(output.instruction.includes("task-1"), true);
   });
 
-  it("EXECUTING without parsed spec says all tasks completed", () => {
-    const output = compiler.compile(
+  it("EXECUTING without parsed spec says all tasks completed", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -217,8 +217,8 @@ describe("One task at a time", () => {
 // =============================================================================
 
 describe("Meta block for every phase", () => {
-  it("IDLE meta has correct fields", () => {
-    const output = compiler.compile(
+  it("IDLE meta has correct fields", async () => {
+    const output = await compiler.compile(
       schema.createInitialState(),
       noConcerns,
       noRules,
@@ -228,9 +228,9 @@ describe("Meta block for every phase", () => {
     assertEquals(typeof output.meta.protocol, "string");
   });
 
-  it("EXECUTING meta includes spec, branch, iteration", () => {
+  it("EXECUTING meta includes spec, branch, iteration", async () => {
     const state = inExecuting();
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.meta.spec, "test-spec");
     assertEquals(output.meta.spec, "test-spec");
@@ -238,18 +238,18 @@ describe("Meta block for every phase", () => {
     assertEquals(output.meta.iteration, 0);
   });
 
-  it("BLOCKED meta includes blocked reason", () => {
+  it("BLOCKED meta includes blocked reason", async () => {
     const state = machine.blockExecution(inExecuting(), "need decision");
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.meta.resumeHint.includes("blocked"), true);
   });
 
-  it("COMPLETED meta includes completion summary", () => {
+  it("COMPLETED meta includes completion summary", async () => {
     let state = inExecuting();
     state = machine.advanceExecution(state, "all done");
     state = machine.completeSpec(state, "done");
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.meta.resumeHint.includes("completed"), true);
     assertEquals(output.meta.iteration, 1);

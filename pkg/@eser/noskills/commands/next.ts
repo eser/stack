@@ -22,6 +22,7 @@ import * as folderRules from "../context/folder-rules.ts";
 import * as splitDetector from "../context/split-detector.ts";
 import * as formatter from "../output/formatter.ts";
 import * as mode from "../output/mode.ts";
+import * as identity from "../state/identity.ts";
 import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -124,12 +125,14 @@ export const main = async (
 
   // Handle --answer
   if (answerText !== null) {
+    const answerUser = await identity.resolveUser(root);
     const newState = await handleAnswer(
       root,
       state,
       config,
       activeConcerns,
       answerText,
+      answerUser,
     );
     await persistence.writeStateAndSpec(root, newState);
 
@@ -159,7 +162,8 @@ export const main = async (
     const touchedFiles = await collectTouchedFiles(root, touchedState);
     const fRules = await folderRules.collectFolderRules(root, touchedFiles);
     const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
-    const output = compiler.compile(
+    const user = await identity.resolveUser(root);
+    const output = await compiler.compile(
       touchedState,
       activeConcerns,
       rules,
@@ -168,7 +172,29 @@ export const main = async (
       fRules,
       undefined,
       hints,
+      user,
     );
+
+    // Inject saved flag when "save" was the answer and phase didn't change
+    const isSaveAnswer = answerText.trim().toLowerCase() === "save";
+    const phaseSame = touchedState.phase === state.phase;
+    if (
+      isSaveAnswer && phaseSame &&
+      (touchedState.phase === "SPEC_DRAFT" ||
+        touchedState.phase === "SPEC_APPROVED")
+    ) {
+      const savedInstruction = touchedState.phase === "SPEC_DRAFT"
+        ? "Spec draft saved. The spec stays in DRAFT and can be reviewed by anyone. Other users can add ACs (`ac add`), notes (`note add`), or tasks (`task add`) while in draft. When ready, any user can approve with `noskills spec <name> approve`."
+        : 'Spec is approved and parked. Others can still add ACs or notes. When ready, run `noskills next --answer="start"` to begin execution.';
+      const savedOutput = {
+        ...output,
+        instruction: savedInstruction,
+        saved: true,
+      };
+      await formatter.writeFormatted(savedOutput, fmt);
+      return results.ok(undefined);
+    }
+
     await formatter.writeFormatted(output, fmt);
 
     return results.ok(undefined);
@@ -220,7 +246,8 @@ export const main = async (
   }
 
   const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
-  const output = compiler.compile(
+  const user = await identity.resolveUser(root);
+  const output = await compiler.compile(
     touchedState,
     activeConcerns,
     rules,
@@ -229,6 +256,7 @@ export const main = async (
     fRules,
     idleContext,
     hints,
+    user,
   );
   await formatter.writeFormatted(output, fmt);
 
@@ -245,9 +273,61 @@ export const handleAnswer = async (
   config: schema.NosManifest,
   activeConcerns: readonly schema.ConcernDefinition[],
   answer: string,
+  user?: { name: string; email: string },
 ): Promise<schema.StateFile> => {
   switch (state.phase) {
     case "DISCOVERY": {
+      // Mode selection (before any questions — only for specs with a description)
+      const hasDescription = state.specDescription !== null &&
+        state.specDescription.length > 0;
+      const discoveryMode = state.discovery.mode;
+      if (discoveryMode === undefined && hasDescription) {
+        const validModes: readonly schema.DiscoveryMode[] = [
+          "full",
+          "validate",
+          "technical-depth",
+          "ship-fast",
+          "explore",
+        ];
+        if (validModes.includes(answer as schema.DiscoveryMode)) {
+          return machine.setDiscoveryMode(
+            state,
+            answer as schema.DiscoveryMode,
+          );
+        }
+        // Invalid mode — default to full
+        return machine.setDiscoveryMode(state, "full");
+      }
+
+      // Premise challenge (after mode, before questions — only when mode is set)
+      const premisesCompleted = state.discovery.premisesCompleted === true;
+      if (discoveryMode !== undefined && !premisesCompleted) {
+        try {
+          const parsed = JSON.parse(answer);
+          if (
+            parsed !== null && typeof parsed === "object" &&
+            "premises" in parsed
+          ) {
+            const rawPremises = parsed.premises as Array<
+              { text: string; agreed: boolean; revision?: string }
+            >;
+            const typedPremises: schema.Premise[] = rawPremises
+              .map((p) => ({
+                text: p.text ?? "",
+                agreed: p.agreed ?? true,
+                revision: p.revision,
+                user: user?.name ?? "Unknown User",
+                timestamp: new Date().toISOString(),
+              }));
+            return machine.completePremises(state, typedPremises);
+          }
+        } catch {
+          // Not JSON — skip premises (empty)
+        }
+        // If answer is not a premises JSON, skip premises step
+        return machine.completePremises(state, []);
+      }
+
       const isAgent = state.discovery.audience === "agent";
 
       // Try parsing answer as JSON object for batch submission
@@ -280,7 +360,7 @@ export const handleAnswer = async (
         // Batch mode: add all answers at once (human/agentless CLI)
         for (const [qId, qAnswer] of Object.entries(answersMap)) {
           if (typeof qAnswer === "string" && qAnswer.length > 0) {
-            newState = machine.addDiscoveryAnswer(newState, qId, qAnswer);
+            newState = machine.addDiscoveryAnswer(newState, qId, qAnswer, user);
           }
         }
       } else {
@@ -290,7 +370,12 @@ export const handleAnswer = async (
         const currentQ = allQuestions[currentIdx];
 
         if (currentQ === undefined) return state;
-        newState = machine.addDiscoveryAnswer(newState, currentQ.id, answer);
+        newState = machine.addDiscoveryAnswer(
+          newState,
+          currentQ.id,
+          answer,
+          user,
+        );
         newState = machine.advanceDiscoveryQuestion(newState);
       }
 
@@ -305,7 +390,7 @@ export const handleAnswer = async (
     case "DISCOVERY_REVIEW": {
       const trimmed = answer.trim().toLowerCase();
 
-      // "approve" → check for split proposal before transitioning
+      // "approve" → check for split proposal, then alternatives step
       if (trimmed === "approve") {
         const proposal = splitDetector.analyzeForSplit(
           state.discovery.answers,
@@ -314,7 +399,12 @@ export const handleAnswer = async (
           // Stay in DISCOVERY_REVIEW with approved flag — let user decide on split
           return machine.approveDiscoveryAnswers(state);
         }
-        // No split detected — transition to SPEC_DRAFT as normal
+        // No split detected — check if new discovery flow is active (mode set)
+        // If mode is set, stay for alternatives step; otherwise go to SPEC_DRAFT (backward compat)
+        if (state.discovery.mode !== undefined) {
+          return machine.approveDiscoveryAnswers(state);
+        }
+        // Backward compat: no mode → direct to SPEC_DRAFT
         return machine.approveDiscoveryReview(state);
       }
 
@@ -323,7 +413,7 @@ export const handleAnswer = async (
         return await handleSplit(root, state);
       }
 
-      // "keep" → user chose to keep as one spec despite split proposal
+      // "keep" → user chose to keep as one spec despite split proposal → transition to SPEC_DRAFT
       if (trimmed === "keep") {
         const newState = machine.addDecision(state, {
           id: `decision-split-keep-${Date.now()}`,
@@ -334,6 +424,47 @@ export const handleAnswer = async (
           timestamp: new Date().toISOString(),
         });
         return machine.approveDiscoveryReview(newState);
+      }
+
+      // Alternatives selection (after approved, before SPEC_DRAFT transition)
+      const alternativesPresented =
+        state.discovery.alternativesPresented === true;
+      if (state.discovery.approved && !alternativesPresented) {
+        let updatedState: schema.StateFile;
+        // Check if user wants to skip
+        if (trimmed === "skip" || trimmed === "none") {
+          updatedState = machine.skipAlternatives(state);
+        } else {
+          // Try parsing approach selection
+          let handled = false;
+          try {
+            const parsed = JSON.parse(answer);
+            if (
+              parsed !== null && typeof parsed === "object" &&
+              "approach" in parsed
+            ) {
+              const approach: schema.SelectedApproach = {
+                id: String(parsed.approach),
+                name: String(parsed.name ?? parsed.approach),
+                summary: String(parsed.summary ?? ""),
+                effort: String(parsed.effort ?? ""),
+                risk: String(parsed.risk ?? ""),
+                user: user?.name ?? "Unknown User",
+                timestamp: new Date().toISOString(),
+              };
+              updatedState = machine.selectApproach(state, approach);
+              handled = true;
+            }
+          } catch {
+            // Not JSON
+          }
+          if (!handled) {
+            // Default: skip alternatives
+            updatedState = machine.skipAlternatives(state);
+          }
+        }
+        // After alternatives step, transition to SPEC_DRAFT
+        return machine.approveDiscoveryReview(updatedState!);
       }
 
       // Revision: parse JSON with { revise: { questionId: "corrected answer" } }
@@ -347,7 +478,12 @@ export const handleAnswer = async (
             )
           ) {
             if (typeof qAnswer === "string" && qAnswer.length > 0) {
-              newState = machine.addDiscoveryAnswer(newState, qId, qAnswer);
+              newState = machine.addDiscoveryAnswer(
+                newState,
+                qId,
+                qAnswer,
+                user,
+              );
             }
           }
           // Stay in DISCOVERY_REVIEW — updated answers, re-show for confirmation
@@ -361,6 +497,11 @@ export const handleAnswer = async (
     }
 
     case "SPEC_DRAFT": {
+      // "save" — keep draft as-is, phase stays SPEC_DRAFT
+      if (answer.trim().toLowerCase() === "save") {
+        return state;
+      }
+
       // Classification answer — parse and store, then generate spec
       if (state.classification === null) {
         let classification: schema.SpecClassification;
@@ -458,6 +599,11 @@ export const handleAnswer = async (
     }
 
     case "SPEC_APPROVED": {
+      // "save" — keep approved spec parked, don't start execution
+      if (answer.trim().toLowerCase() === "save") {
+        return state;
+      }
+
       // User is ready — start execution
       const execState = machine.startExecution(state);
 

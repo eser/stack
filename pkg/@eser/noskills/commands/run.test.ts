@@ -124,7 +124,7 @@ describe("noskills run: exit conditions", () => {
 // =============================================================================
 
 describe("noskills run: fresh process per iteration", () => {
-  it("each iteration reads fresh state from disk", () => {
+  it("each iteration reads fresh state from disk", async () => {
     // Simulate: iteration 1 advances state
     let state = inExecuting();
     state = machine.advanceExecution(state, "iteration 1 done");
@@ -139,7 +139,7 @@ describe("noskills run: fresh process per iteration", () => {
     assertEquals(freshRead.phase, "EXECUTING");
 
     // Compiler produces instruction based on fresh state
-    const output = compiler.compile(freshRead, noConcerns, noRules);
+    const output = await compiler.compile(freshRead, noConcerns, noRules);
     assertEquals(output.phase, "EXECUTING");
     assertEquals(output.meta.iteration, 1);
   });
@@ -175,17 +175,17 @@ describe("noskills run: BLOCKED resolution", () => {
 // =============================================================================
 
 describe("noskills run: prompt construction", () => {
-  it("compiler output includes resumeHint for fresh agent", () => {
+  it("compiler output includes resumeHint for fresh agent", async () => {
     const state = inExecuting();
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.meta.resumeHint.length > 0, true);
     assertEquals(output.meta.resumeHint.includes("test"), true);
   });
 
-  it("compiler output includes behavioral rules for agent", () => {
+  it("compiler output includes behavioral rules for agent", async () => {
     const state = inExecuting();
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.behavioral.rules.length > 0, true);
     assertEquals(
@@ -194,10 +194,10 @@ describe("noskills run: prompt construction", () => {
     );
   });
 
-  it("compiler output includes concern reminders when active", () => {
+  it("compiler output includes concern reminders when active", async () => {
     // Even without concerns loaded, the structure is present
     const state = inExecuting();
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
     const exec = output as compiler.ExecutionOutput;
 
     assertEquals(exec.context !== undefined, true);
@@ -227,9 +227,9 @@ describe("noskills run: git invariant", () => {
     );
   });
 
-  it("behavioral rules tell agent git is read-only", () => {
+  it("behavioral rules tell agent git is read-only", async () => {
     const state = inExecuting();
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     const hasGitRule = output.behavioral.rules.some((r) =>
       r.includes("git write commands")

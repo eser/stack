@@ -79,3 +79,83 @@ export const navigateList = (
   );
   return { ...state, selectedTabIndex: next };
 };
+
+// =============================================================================
+// Mouse routing
+// =============================================================================
+
+export type MouseAction =
+  | { type: "clickSpec"; index: number }
+  | { type: "clickNewSpec" }
+  | { type: "clickFreeMode" }
+  | { type: "clickTerminal" }
+  | { type: "clickMonitor" }
+  | { type: "scrollSpecs"; direction: "up" | "down" }
+  | { type: "scrollTerminal"; direction: "up" | "down" }
+  | { type: "forwardMouse"; event: tui.mouse.MouseEvent }
+  | { type: "none" };
+
+const isInsidePanel = (
+  mx: number,
+  my: number,
+  p: tui.layout.Panel,
+): boolean =>
+  mx >= p.x && mx < p.x + p.width && my >= p.y && my < p.y + p.height;
+
+/**
+ * Route a mouse event based on which panel it hits.
+ * Returns the action to perform.
+ */
+export const routeMouseEvent = (
+  event: tui.mouse.MouseEvent,
+  panels: tui.layout.LayoutResult,
+  specItems: readonly tui.list.ListItem[],
+  focus: "list" | "terminal",
+): MouseAction => {
+  // Mouse coords are 0-based from the event, panels are 1-based
+  const mx = event.x + 1;
+  const my = event.y + 1;
+
+  // Click/scroll in spec list
+  if (isInsidePanel(mx, my, panels.left)) {
+    if (event.type === "wheel") {
+      return {
+        type: "scrollSpecs",
+        direction: event.direction === "up" ? "up" : "down",
+      };
+    }
+    if (event.type === "mousedown" && event.button === 0) {
+      const relRow = event.y + 1 - panels.left.y - 1; // panel-relative, accounting for border
+      if (relRow >= 0 && relRow < specItems.length) {
+        const item = specItems[relRow]!;
+        if (item.selectable !== false) {
+          if (item.label.includes("[n]")) return { type: "clickNewSpec" };
+          if (item.label.includes("[f]")) return { type: "clickFreeMode" };
+          return { type: "clickSpec", index: relRow };
+        }
+      }
+    }
+    return { type: "none" };
+  }
+
+  // Click/scroll in terminal panel
+  if (isInsidePanel(mx, my, panels.rightBottom)) {
+    if (event.type === "wheel") {
+      return {
+        type: "scrollTerminal",
+        direction: event.direction === "up" ? "up" : "down",
+      };
+    }
+    if (focus !== "terminal") {
+      return { type: "clickTerminal" };
+    }
+    return { type: "forwardMouse", event };
+  }
+
+  // Click in monitor → focus spec list
+  if (isInsidePanel(mx, my, panels.rightTop)) {
+    return { type: "clickMonitor" };
+  }
+
+  return { type: "none" };
+};

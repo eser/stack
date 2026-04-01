@@ -168,7 +168,7 @@ describe("Skip classification: approve without classifying", () => {
     assertEquals(md.includes("Public API Surface"), false);
   });
 
-  it("null classification in backpressure produces no concern criteria", () => {
+  it("null classification in backpressure produces no concern criteria", async () => {
     let s = inExecuting();
     // classification stays null from the skip
     s = {
@@ -177,7 +177,7 @@ describe("Skip classification: approve without classifying", () => {
       execution: { ...s.execution, awaitingStatusReport: true },
     };
 
-    const output = compiler.compile(
+    const output = await compiler.compile(
       s,
       activeConcerns,
       noRules,
@@ -217,14 +217,14 @@ describe("Skip concerns: init with zero concerns", () => {
     assertEquals(md.includes("(beautiful-product)"), false);
   });
 
-  it("zero concerns → backpressure has no concern criteria", () => {
+  it("zero concerns → backpressure has no concern criteria", async () => {
     let s = inExecuting();
     s = {
       ...s,
       execution: { ...s.execution, awaitingStatusReport: true },
     };
 
-    const output = compiler.compile(
+    const output = await compiler.compile(
       s,
       [],
       noRules,
@@ -345,11 +345,11 @@ describe("Edge case: empty discovery answers", () => {
 });
 
 describe("Edge case: concern added mid-execution", () => {
-  it("adding concern mid-execution → next output includes new reminders", () => {
+  it("adding concern mid-execution → next output includes new reminders", async () => {
     const s = inExecuting();
 
     // Initially compile with no concerns
-    const output1 = compiler.compile(
+    const output1 = await compiler.compile(
       s,
       [],
       noRules,
@@ -357,7 +357,7 @@ describe("Edge case: concern added mid-execution", () => {
     const reminders1 = output1.context.concernReminders;
 
     // Now compile with open-source concern added
-    const output2 = compiler.compile(
+    const output2 = await compiler.compile(
       s,
       [openSource],
       noRules,
@@ -374,18 +374,18 @@ describe("Edge case: concern added mid-execution", () => {
 });
 
 describe("Edge case: concern removed mid-execution", () => {
-  it("removing concern mid-execution → next output excludes its reminders", () => {
+  it("removing concern mid-execution → next output excludes its reminders", async () => {
     const s = inExecuting();
 
     // Compile with both concerns
-    const output1 = compiler.compile(
+    const output1 = await compiler.compile(
       s,
       activeConcerns,
       noRules,
     ) as compiler.ExecutionOutput;
 
     // Compile with only open-source (beautiful-product removed)
-    const output2 = compiler.compile(
+    const output2 = await compiler.compile(
       s,
       [openSource],
       noRules,
@@ -404,11 +404,11 @@ describe("Edge case: concern removed mid-execution", () => {
 });
 
 describe("Edge case: SPEC_DRAFT compiler output with null classification", () => {
-  it("shows classificationRequired: true when classification is null", () => {
+  it("shows classificationRequired: true when classification is null", async () => {
     const s = inSpecDraft();
     assertEquals(s.classification, null);
 
-    const output = compiler.compile(
+    const output = await compiler.compile(
       s,
       activeConcerns,
       noRules,
@@ -418,7 +418,7 @@ describe("Edge case: SPEC_DRAFT compiler output with null classification", () =>
     assertEquals(output.classificationRequired, true);
   });
 
-  it("shows no classificationRequired when classification is set", () => {
+  it("shows no classificationRequired when classification is set", async () => {
     let s = inSpecDraft();
     s = {
       ...s,
@@ -431,7 +431,7 @@ describe("Edge case: SPEC_DRAFT compiler output with null classification", () =>
       },
     };
 
-    const output = compiler.compile(
+    const output = await compiler.compile(
       s,
       activeConcerns,
       noRules,

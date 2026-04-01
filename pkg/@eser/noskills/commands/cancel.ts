@@ -14,6 +14,7 @@ import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as specUpdater from "../spec/updater.ts";
+import * as identity from "../state/identity.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -64,7 +65,15 @@ export const main = async (
     }
   }
 
-  const newState = machine.completeSpec(state, "cancelled");
+  const user = await identity.resolveUser(root);
+  let newState = machine.completeSpec(state, "cancelled");
+  newState = machine.recordTransition(
+    newState,
+    state.phase,
+    "COMPLETED",
+    user,
+    "cancelled",
+  );
   await persistence.writeState(root, newState);
   if (newState.spec !== null) {
     await persistence.writeSpecState(root, newState.spec, newState);

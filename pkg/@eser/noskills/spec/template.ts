@@ -209,6 +209,9 @@ export const renderSpec = (
   concerns: readonly schema.ConcernDefinition[],
   decisions: readonly schema.Decision[],
   classification?: schema.SpecClassification | null,
+  customACs?: readonly schema.CustomAC[],
+  specNotes?: readonly schema.SpecNote[],
+  transitionHistory?: readonly schema.PhaseTransition[],
 ): string => {
   const lines: string[] = [];
 
@@ -230,6 +233,15 @@ export const renderSpec = (
     lines.push(`### ${answer.questionId}`);
     lines.push("");
     lines.push(answer.answer);
+    // Show attribution if available (new format)
+    if (
+      "user" in answer &&
+      (answer as schema.AttributedDiscoveryAnswer).user !== "Unknown User"
+    ) {
+      const attributed = answer as schema.AttributedDiscoveryAnswer;
+      lines.push("");
+      lines.push(`_-- ${attributed.user}_`);
+    }
     lines.push("");
   }
 
@@ -306,6 +318,45 @@ export const renderSpec = (
     lines.push("_To be defined._");
   }
   lines.push("");
+
+  // Custom Acceptance Criteria (multi-user additions)
+  const acs = customACs ?? [];
+  if (acs.length > 0) {
+    lines.push("## Custom Acceptance Criteria");
+    lines.push("");
+    for (const ac of acs) {
+      lines.push(`- ${ac.text} _-- ${ac.user}, ${ac.addedInPhase}_`);
+    }
+    lines.push("");
+  }
+
+  // Notes (multi-user annotations)
+  const notes = (specNotes ?? []).filter((n) => !n.text.startsWith("[TASK] "));
+  if (notes.length > 0) {
+    lines.push("## Notes");
+    lines.push("");
+    for (const note of notes) {
+      lines.push(`- ${note.text} _-- ${note.user}, ${note.phase}_`);
+    }
+    lines.push("");
+  }
+
+  // Phase transition history
+  const transitions = transitionHistory ?? [];
+  if (transitions.length > 0) {
+    lines.push("## Transition History");
+    lines.push("");
+    lines.push("| From | To | User | Timestamp | Reason |");
+    lines.push("|------|----|------|-----------|--------|");
+    for (const t of transitions) {
+      lines.push(
+        `| ${t.from} | ${t.to} | ${t.user} | ${t.timestamp} | ${
+          t.reason ?? "-"
+        } |`,
+      );
+    }
+    lines.push("");
+  }
 
   return lines.join("\n");
 };

@@ -13,6 +13,7 @@ import type * as shellArgs from "@eser/shell/args";
 import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
+import * as identity from "../state/identity.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -48,7 +49,15 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  const newState = machine.reopenSpec(state);
+  const user = await identity.resolveUser(root);
+  let newState = machine.reopenSpec(state);
+  newState = machine.recordTransition(
+    newState,
+    "COMPLETED",
+    "DISCOVERY",
+    user,
+    "reopened",
+  );
   await persistence.writeState(root, newState);
   if (newState.spec !== null) {
     await persistence.writeSpecState(root, newState.spec, newState);

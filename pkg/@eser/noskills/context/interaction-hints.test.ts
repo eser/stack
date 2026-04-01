@@ -191,8 +191,8 @@ describe("resolveInteractionHints", () => {
 // =============================================================================
 
 describe("Compiler with Claude Code hints", () => {
-  it("IDLE rules mention AskUserQuestion", () => {
-    const output = compiler.compile(
+  it("IDLE rules mention AskUserQuestion", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -208,8 +208,8 @@ describe("Compiler with Claude Code hints", () => {
     assertEquals(has, true);
   });
 
-  it("IDLE rules do NOT mention numbered list", () => {
-    const output = compiler.compile(
+  it("IDLE rules do NOT mention numbered list", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -225,8 +225,8 @@ describe("Compiler with Claude Code hints", () => {
     assertEquals(has, false);
   });
 
-  it("DISCOVERY rules mention AskUserQuestion", () => {
-    const output = compiler.compile(
+  it("DISCOVERY rules mention AskUserQuestion", async () => {
+    const output = await compiler.compile(
       inDiscovery(),
       noConcerns,
       noRules,
@@ -242,8 +242,8 @@ describe("Compiler with Claude Code hints", () => {
     assertEquals(has, true);
   });
 
-  it("EXECUTING rules mention Agent tool for sub-agents", () => {
-    const output = compiler.compile(
+  it("EXECUTING rules mention Agent tool for sub-agents", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -257,8 +257,8 @@ describe("Compiler with Claude Code hints", () => {
     assertEquals(has, true);
   });
 
-  it("EXECUTING rules do NOT mention sequential execution", () => {
-    const output = compiler.compile(
+  it("EXECUTING rules do NOT mention sequential execution", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -280,8 +280,8 @@ describe("Compiler with Claude Code hints", () => {
 // =============================================================================
 
 describe("Compiler with Kiro hints", () => {
-  it("IDLE rules mention numbered list", () => {
-    const output = compiler.compile(
+  it("IDLE rules mention numbered list", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -297,8 +297,8 @@ describe("Compiler with Kiro hints", () => {
     assertEquals(has, true);
   });
 
-  it("IDLE rules do NOT mention AskUserQuestion for options", () => {
-    const output = compiler.compile(
+  it("IDLE rules do NOT mention AskUserQuestion for options", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -317,8 +317,8 @@ describe("Compiler with Kiro hints", () => {
     assertEquals(decisionRule!.includes("pick a number"), true);
   });
 
-  it("DISCOVERY rules do NOT mention AskUserQuestion tool", () => {
-    const output = compiler.compile(
+  it("DISCOVERY rules do NOT mention AskUserQuestion tool", async () => {
+    const output = await compiler.compile(
       inDiscovery(),
       noConcerns,
       noRules,
@@ -340,8 +340,8 @@ describe("Compiler with Kiro hints", () => {
     );
   });
 
-  it("EXECUTING rules mention Kiro delegation", () => {
-    const output = compiler.compile(
+  it("EXECUTING rules mention Kiro delegation", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -357,8 +357,8 @@ describe("Compiler with Kiro hints", () => {
     assertEquals(has, true);
   });
 
-  it("EXECUTING rules do NOT mention Agent tool", () => {
-    const output = compiler.compile(
+  it("EXECUTING rules do NOT mention Agent tool", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -378,8 +378,8 @@ describe("Compiler with Kiro hints", () => {
 // =============================================================================
 
 describe("Compiler with Cursor hints", () => {
-  it("EXECUTING rules say execute sequentially", () => {
-    const output = compiler.compile(
+  it("EXECUTING rules say execute sequentially", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -395,8 +395,8 @@ describe("Compiler with Cursor hints", () => {
     assertEquals(has, true);
   });
 
-  it("EXECUTING rules say do not spawn sub-agents", () => {
-    const output = compiler.compile(
+  it("EXECUTING rules say do not spawn sub-agents", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -412,8 +412,8 @@ describe("Compiler with Cursor hints", () => {
     assertEquals(has, true);
   });
 
-  it("EXECUTING rules do NOT mention Agent tool or delegation", () => {
-    const output = compiler.compile(
+  it("EXECUTING rules do NOT mention Agent tool or delegation", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -433,8 +433,8 @@ describe("Compiler with Cursor hints", () => {
     assertEquals(hasDelegation, false);
   });
 
-  it("IDLE rules mention numbered list (not AskUserQuestion)", () => {
-    const output = compiler.compile(
+  it("IDLE rules mention numbered list (not AskUserQuestion)", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -460,8 +460,8 @@ describe("Compiler with Cursor hints", () => {
 // =============================================================================
 
 describe("interactiveOptions always present for programmatic access", () => {
-  it("IDLE with Claude Code hints has interactiveOptions", () => {
-    const output = compiler.compile(
+  it("IDLE with Claude Code hints has interactiveOptions", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -475,8 +475,8 @@ describe("interactiveOptions always present for programmatic access", () => {
     assertEquals(output.interactiveOptions!.length > 0, true);
   });
 
-  it("IDLE with Kiro hints has interactiveOptions", () => {
-    const output = compiler.compile(
+  it("IDLE with Kiro hints has interactiveOptions", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -490,8 +490,8 @@ describe("interactiveOptions always present for programmatic access", () => {
     assertEquals(output.interactiveOptions!.length > 0, true);
   });
 
-  it("IDLE with Cursor hints has interactiveOptions", () => {
-    const output = compiler.compile(
+  it("IDLE with Cursor hints has interactiveOptions", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -505,8 +505,8 @@ describe("interactiveOptions always present for programmatic access", () => {
     assertEquals(output.interactiveOptions!.length > 0, true);
   });
 
-  it("commandMap present alongside interactiveOptions", () => {
-    const output = compiler.compile(
+  it("commandMap present alongside interactiveOptions", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -525,16 +525,16 @@ describe("interactiveOptions always present for programmatic access", () => {
 // =============================================================================
 
 describe("Default hints (backward compat)", () => {
-  it("compile without hints uses Claude Code defaults", () => {
-    const output = compiler.compile(idle(), noConcerns, noRules);
+  it("compile without hints uses Claude Code defaults", async () => {
+    const output = await compiler.compile(idle(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
       r.includes("AskUserQuestion")
     );
     assertEquals(has, true);
   });
 
-  it("EXECUTING without hints uses Agent tool delegation", () => {
-    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+  it("EXECUTING without hints uses Agent tool delegation", async () => {
+    const output = await compiler.compile(inExecuting(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) => r.includes("Agent tool"));
     assertEquals(has, true);
   });

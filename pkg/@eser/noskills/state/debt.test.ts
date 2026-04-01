@@ -101,9 +101,9 @@ const withVerifyPassed = (state: schema.StateFile): schema.StateFile => ({
 // =============================================================================
 
 describe("Status report request", () => {
-  it("awaitingStatusReport=true triggers criteria in output", () => {
+  it("awaitingStatusReport=true triggers criteria in output", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -114,8 +114,8 @@ describe("Status report request", () => {
     assertEquals(output.instruction.includes("acceptance criteria"), true);
   });
 
-  it("awaitingStatusReport=false shows normal execution instruction", () => {
-    const output = compiler.compile(
+  it("awaitingStatusReport=false shows normal execution instruction", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -130,9 +130,9 @@ describe("Status report request", () => {
 // =============================================================================
 
 describe("Concern-injected criteria", () => {
-  it("beautiful-product adds UI state criteria", () => {
+  it("beautiful-product adds UI state criteria", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       [beautiful],
       noRules,
@@ -145,9 +145,9 @@ describe("Concern-injected criteria", () => {
     assertEquals(hasUIStates, true);
   });
 
-  it("open-source adds documentation criteria", () => {
+  it("open-source adds documentation criteria", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       [openSource],
       noRules,
@@ -160,9 +160,9 @@ describe("Concern-injected criteria", () => {
     assertEquals(hasDocs, true);
   });
 
-  it("multiple concerns stack criteria", () => {
+  it("multiple concerns stack criteria", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       [beautiful, openSource],
       noRules,
@@ -183,7 +183,7 @@ describe("Concern-injected criteria", () => {
 // =============================================================================
 
 describe("Folder rules in acceptance criteria", () => {
-  it("folder rules appear as (folder: path) prefixed criteria", () => {
+  it("folder rules appear as (folder: path) prefixed criteria", async () => {
     const state = withAwaitingReport(inExecuting());
     const folderRuleCriteria = [
       { folder: "pkg/@eser/noskills/sync", rule: "Sync must be idempotent" },
@@ -192,7 +192,7 @@ describe("Folder rules in acceptance criteria", () => {
         rule: "All commands use dynamic prefix",
       },
     ];
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -212,9 +212,9 @@ describe("Folder rules in acceptance criteria", () => {
     );
   });
 
-  it("no folder rules when empty array passed", () => {
+  it("no folder rules when empty array passed", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -230,12 +230,12 @@ describe("Folder rules in acceptance criteria", () => {
     assertEquals(folderCriteria.length, 0);
   });
 
-  it("folder rules stack with concern criteria", () => {
+  it("folder rules stack with concern criteria", async () => {
     const state = withAwaitingReport(inExecuting());
     const folderRuleCriteria = [
       { folder: "pkg/sync", rule: "Hook scripts must be self-contained" },
     ];
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       [openSource],
       noRules,
@@ -259,13 +259,13 @@ describe("Folder rules in acceptance criteria", () => {
 // =============================================================================
 
 describe("Debt carry-forward", () => {
-  it("8.4: debt items appear as previousIterationDebt in output", () => {
+  it("8.4: debt items appear as previousIterationDebt in output", async () => {
     const state = withDebt(
       inExecuting(),
       debtItems(["error UI", "API docs"], 3),
       3,
     );
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -292,9 +292,9 @@ describe("Debt carry-forward", () => {
     assertEquals(state.execution.debt!.items[0]!.text, "error UI");
   });
 
-  it("8.7: debt note says address BEFORE new work", () => {
+  it("8.7: debt note says address BEFORE new work", async () => {
     const state = withDebt(inExecuting(), debtItems(["stale item"]), 1);
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -312,11 +312,11 @@ describe("Debt carry-forward", () => {
 // =============================================================================
 
 describe("Debt in status report criteria", () => {
-  it("debt items appear with [DEBT] prefix in criteria", () => {
+  it("debt items appear with [DEBT] prefix in criteria", async () => {
     const state = withAwaitingReport(
       withDebt(inExecuting(), debtItems(["error UI design"], 2), 2),
     );
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -334,11 +334,11 @@ describe("Debt in status report criteria", () => {
 // =============================================================================
 
 describe("Verification backpressure", () => {
-  it("8.8: failed verification shows in criteria with FAILED prefix", () => {
+  it("8.8: failed verification shows in criteria with FAILED prefix", async () => {
     const state = withAwaitingReport(
       withVerifyFailed(inExecuting(), "FAIL: test_upload expected 200 got 500"),
     );
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -350,12 +350,12 @@ describe("Verification backpressure", () => {
     assertEquals(failedCriteria.length, 1);
   });
 
-  it("8.9: verification failure instruction says fix tests", () => {
+  it("8.9: verification failure instruction says fix tests", async () => {
     const state = withVerifyFailed(
       inExecuting(),
       "2 tests failed",
     );
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -365,9 +365,9 @@ describe("Verification backpressure", () => {
     assertEquals(output.verificationFailed, true);
   });
 
-  it("8.10: verification success shows normal instruction", () => {
+  it("8.10: verification success shows normal instruction", async () => {
     const state = withVerifyPassed(inExecuting());
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -383,7 +383,7 @@ describe("Verification backpressure", () => {
 // =============================================================================
 
 describe("Verification gates status report", () => {
-  it("verify fails → awaitingStatusReport stays false (no status report)", () => {
+  it("verify fails → awaitingStatusReport stays false (no status report)", async () => {
     // Simulate: agent says "done", verification fails
     const state = {
       ...inExecuting(),
@@ -400,7 +400,7 @@ describe("Verification gates status report", () => {
     };
 
     // Compiler should show failure, NOT status report
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -411,9 +411,9 @@ describe("Verification gates status report", () => {
     assertEquals(output.instruction.includes("FAILED"), true);
   });
 
-  it("verify passes → awaitingStatusReport triggers status report", () => {
+  it("verify passes → awaitingStatusReport triggers status report", async () => {
     const state = withAwaitingReport(withVerifyPassed(inExecuting()));
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -423,9 +423,9 @@ describe("Verification gates status report", () => {
     assertEquals(output.verificationFailed, undefined);
   });
 
-  it("no verify configured → status report asked directly", () => {
+  it("no verify configured → status report asked directly", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -440,9 +440,9 @@ describe("Verification gates status report", () => {
 // =============================================================================
 
 describe("Debt urgency escalation", () => {
-  it("unaddressedIterations < 3 → normal note", () => {
+  it("unaddressedIterations < 3 → normal note", async () => {
     const state = withDebt(inExecuting(), debtItems(["error UI"]), 1, 2);
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -458,9 +458,9 @@ describe("Debt urgency escalation", () => {
     );
   });
 
-  it("unaddressedIterations >= 3 → URGENT note", () => {
+  it("unaddressedIterations >= 3 → URGENT note", async () => {
     const state = withDebt(inExecuting(), debtItems(["error UI"]), 1, 3);
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -476,9 +476,9 @@ describe("Debt urgency escalation", () => {
     );
   });
 
-  it("unaddressedIterations = 5 → shows correct count", () => {
+  it("unaddressedIterations = 5 → shows correct count", async () => {
     const state = withDebt(inExecuting(), debtItems(["stale item"]), 1, 5);
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -496,9 +496,9 @@ describe("Debt urgency escalation", () => {
 // =============================================================================
 
 describe("Empty remaining clears debt", () => {
-  it("remaining=[] and no old debt → no previousIterationDebt in output", () => {
+  it("remaining=[] and no old debt → no previousIterationDebt in output", async () => {
     const state = inExecuting();
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -513,7 +513,7 @@ describe("Empty remaining clears debt", () => {
 // =============================================================================
 
 describe("Debt persists across session restart", () => {
-  it("debt in state survives simulated reload", () => {
+  it("debt in state survives simulated reload", async () => {
     // Create state with debt, serialize and deserialize (simulating file persistence)
     const state = withDebt(inExecuting(), debtItems(["API docs"], 2), 2, 2);
     const serialized = JSON.stringify(state);
@@ -525,7 +525,7 @@ describe("Debt persists across session restart", () => {
     assertEquals(reloaded.execution.debt!.unaddressedIterations, 2);
 
     // Compiler still shows debt after reload
-    const output = compiler.compile(
+    const output = await compiler.compile(
       reloaded,
       noConcerns,
       noRules,

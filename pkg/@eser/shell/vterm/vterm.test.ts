@@ -1,13 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import { AnsiParser } from "./parser.ts";
 import { Cursor } from "./cursor.ts";
 import { ScreenBuffer } from "./screen.ts";
 import { defaultStyle, parseSGR } from "./sgr.ts";
 import { VTerminal } from "./terminal.ts";
-import { renderScreen } from "./renderer.ts";
+import { renderScreen, type RenderState } from "./renderer.ts";
 
 // =============================================================================
 // Parser
@@ -345,5 +345,101 @@ describe("renderScreen", () => {
     vt.write("\x1b[2J"); // clear screen
     const cell = vt.getScreen().getCell(0, 0);
     assertEquals(cell.bg, -1);
+  });
+});
+
+// =============================================================================
+// Cursor rendering
+// =============================================================================
+
+describe("Cursor rendering", () => {
+  it("cursor at (0,0) renders inverse at that position", () => {
+    const buf = new ScreenBuffer(3, 10);
+    buf.markAllDirty();
+    const cur = new Cursor();
+    cur.moveTo(0, 0);
+    const opts = { offsetRow: 1, offsetCol: 1, width: 10, height: 3 };
+
+    const output = renderScreen(buf, cur, opts);
+    // Should contain \x1b[7m (inverse on) somewhere
+    assert(output.includes("\x1b[7m"));
+    // Should contain \x1b[27m (inverse off)
+    assert(output.includes("\x1b[27m"));
+  });
+
+  it("moving cursor marks both old and new lines dirty", () => {
+    const buf = new ScreenBuffer(5, 10);
+    buf.markAllDirty();
+
+    const state: RenderState = { prevCursorRow: -1, prevCursorCol: -1 };
+    const cur = new Cursor();
+    cur.moveTo(0, 0);
+    const opts = { offsetRow: 1, offsetCol: 1, width: 10, height: 5 };
+
+    // First render at (0,0)
+    renderScreen(buf, cur, opts, state);
+    assertEquals(state.prevCursorRow, 0);
+    assertEquals(state.prevCursorCol, 0);
+
+    // Second render at (2,5) — only dirty lines should include old (0) and new (2)
+    cur.moveTo(2, 5);
+    const output2 = renderScreen(buf, cur, opts, state);
+
+    // Output should include positioning for row 0 (old cursor) and row 2 (new cursor)
+    assert(output2.includes(`\x1b[${opts.offsetRow + 0};${opts.offsetCol}H`));
+    assert(output2.includes(`\x1b[${opts.offsetRow + 2};${opts.offsetCol}H`));
+    assertEquals(state.prevCursorRow, 2);
+  });
+
+  it("hidden cursor renders no inverse", () => {
+    const buf = new ScreenBuffer(3, 10);
+    buf.markAllDirty();
+    const cur = new Cursor();
+    cur.moveTo(0, 0);
+    cur.visible = false;
+    const opts = { offsetRow: 1, offsetCol: 1, width: 10, height: 3 };
+
+    const output = renderScreen(buf, cur, opts);
+    assertEquals(output.includes("\x1b[7m"), false);
+  });
+
+  it("cursor on last row doesn't cause out-of-bounds", () => {
+    const buf = new ScreenBuffer(3, 10);
+    buf.markAllDirty();
+    const cur = new Cursor();
+    cur.moveTo(2, 9);
+    const opts = { offsetRow: 1, offsetCol: 1, width: 10, height: 3 };
+
+    // Should not throw
+    const output = renderScreen(buf, cur, opts);
+    assert(output.includes("\x1b[7m"));
+  });
+});
+
+// =============================================================================
+// markLineDirty
+// =============================================================================
+
+describe("markLineDirty", () => {
+  it("marks a specific line as dirty", () => {
+    const buf = new ScreenBuffer(5, 10);
+    buf.clearDirty();
+
+    buf.markLineDirty(2);
+
+    const dirty = buf.getDirtyLines();
+    assert(dirty.has(2));
+    assertEquals(dirty.size, 1);
+  });
+
+  it("ignores out-of-bounds row", () => {
+    const buf = new ScreenBuffer(5, 10);
+    buf.clearDirty();
+
+    buf.markLineDirty(-1);
+    buf.markLineDirty(5);
+    buf.markLineDirty(100);
+
+    assertEquals(buf.getDirtyLines().size, 0);
   });
 });

@@ -49,15 +49,15 @@ const inCompleted = (): schema.StateFile =>
 // =============================================================================
 
 describe("compile", () => {
-  it("IDLE returns IdleOutput with instruction", () => {
-    const output = compiler.compile(idle(), noConcerns, noRules);
+  it("IDLE returns IdleOutput with instruction", async () => {
+    const output = await compiler.compile(idle(), noConcerns, noRules);
 
     assertEquals(output.phase, "IDLE");
     assertEquals("instruction" in output, true);
   });
 
-  it("DISCOVERY with unanswered returns DiscoveryOutput with next question", () => {
-    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+  it("DISCOVERY with unanswered returns DiscoveryOutput with next question", async () => {
+    const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
 
     assertEquals(output.phase, "DISCOVERY");
     const discovery = output as compiler.DiscoveryOutput;
@@ -65,8 +65,8 @@ describe("compile", () => {
     assertEquals(discovery.questions[0]?.id, "status_quo");
   });
 
-  it("DISCOVERY includes rules and concern reminders in context", () => {
-    const output = compiler.compile(
+  it("DISCOVERY includes rules and concern reminders in context", async () => {
+    const output = await compiler.compile(
       inDiscovery(),
       [openSource],
       someRules,
@@ -76,8 +76,8 @@ describe("compile", () => {
     assertEquals(output.context.concernReminders.length > 0, true);
   });
 
-  it("DISCOVERY includes concern extras in question", () => {
-    const output = compiler.compile(
+  it("DISCOVERY includes concern extras in question", async () => {
+    const output = await compiler.compile(
       inDiscovery(),
       [openSource],
       noRules,
@@ -87,8 +87,8 @@ describe("compile", () => {
     assertEquals((output.questions[0]?.extras.length ?? 0) > 0, true);
   });
 
-  it("SPEC_DRAFT without classification shows classification prompt", () => {
-    const output = compiler.compile(inSpecDraft(), noConcerns, noRules);
+  it("SPEC_DRAFT without classification shows classification prompt", async () => {
+    const output = await compiler.compile(inSpecDraft(), noConcerns, noRules);
 
     assertEquals(output.phase, "SPEC_DRAFT");
     const specDraft = output as compiler.SpecDraftOutput;
@@ -96,7 +96,7 @@ describe("compile", () => {
     assertEquals(specDraft.classificationPrompt !== undefined, true);
   });
 
-  it("SPEC_DRAFT with classification shows approve transition", () => {
+  it("SPEC_DRAFT with classification shows approve transition", async () => {
     const state = {
       ...inSpecDraft(),
       classification: {
@@ -107,7 +107,7 @@ describe("compile", () => {
         involvesDataHandling: false,
       },
     };
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.phase, "SPEC_DRAFT");
     const specDraft = output as compiler.SpecDraftOutput;
@@ -115,8 +115,12 @@ describe("compile", () => {
     assertEquals(specDraft.transition.onApprove.includes("approve"), true);
   });
 
-  it("SPEC_APPROVED returns SpecApprovedOutput with onStart transition", () => {
-    const output = compiler.compile(inSpecApproved(), noConcerns, noRules);
+  it("SPEC_APPROVED returns SpecApprovedOutput with onStart transition", async () => {
+    const output = await compiler.compile(
+      inSpecApproved(),
+      noConcerns,
+      noRules,
+    );
 
     assertEquals(output.phase, "SPEC_APPROVED");
     const approved = output as compiler.SpecApprovedOutput;
@@ -124,16 +128,16 @@ describe("compile", () => {
     assertEquals(approved.transition.onStart.includes("noskills spec"), true);
   });
 
-  it("EXECUTING returns ExecutionOutput with iteration", () => {
-    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+  it("EXECUTING returns ExecutionOutput with iteration", async () => {
+    const output = await compiler.compile(inExecuting(), noConcerns, noRules);
 
     assertEquals(output.phase, "EXECUTING");
     const exec = output as compiler.ExecutionOutput;
     assertEquals(exec.transition.iteration, 0);
   });
 
-  it("EXECUTING with tensions includes concernTensions array", () => {
-    const output = compiler.compile(
+  it("EXECUTING with tensions includes concernTensions array", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       [moveFast, compliance],
       noRules,
@@ -143,16 +147,16 @@ describe("compile", () => {
     assertEquals(output.concernTensions!.length, 1);
   });
 
-  it("BLOCKED returns BlockedOutput with reason", () => {
-    const output = compiler.compile(inBlocked(), noConcerns, noRules);
+  it("BLOCKED returns BlockedOutput with reason", async () => {
+    const output = await compiler.compile(inBlocked(), noConcerns, noRules);
 
     assertEquals(output.phase, "BLOCKED");
     const blocked = output as compiler.BlockedOutput;
     assertEquals(blocked.reason, "BLOCKED: need API key");
   });
 
-  it("COMPLETED returns CompletedOutput with summary", () => {
-    const output = compiler.compile(inCompleted(), noConcerns, noRules);
+  it("COMPLETED returns CompletedOutput with summary", async () => {
+    const output = await compiler.compile(inCompleted(), noConcerns, noRules);
 
     assertEquals(output.phase, "COMPLETED");
     const completed = output as compiler.CompletedOutput;
@@ -161,15 +165,15 @@ describe("compile", () => {
     assertEquals(completed.summary.decisionsCount, 0);
   });
 
-  it("UNINITIALIZED falls through to IdleOutput", () => {
+  it("UNINITIALIZED falls through to IdleOutput", async () => {
     const state = { ...idle(), phase: "UNINITIALIZED" as schema.Phase };
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.phase, "IDLE");
   });
 
-  it("every output includes meta block with resumeHint", () => {
-    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+  it("every output includes meta block with resumeHint", async () => {
+    const output = await compiler.compile(inExecuting(), noConcerns, noRules);
 
     assertEquals(output.meta !== undefined, true);
     assertEquals(output.meta.spec, "test-spec");
@@ -177,33 +181,33 @@ describe("compile", () => {
     assertEquals(output.meta.resumeHint.length > 0, true);
   });
 
-  it("includes protocolGuide on first call (lastCalledAt null)", () => {
+  it("includes protocolGuide on first call (lastCalledAt null)", async () => {
     // Default state has lastCalledAt: null
-    const output = compiler.compile(idle(), noConcerns, noRules);
+    const output = await compiler.compile(idle(), noConcerns, noRules);
 
     assertEquals(output.protocolGuide !== undefined, true);
     assertEquals(output.protocolGuide!.currentPhase, "IDLE");
   });
 
-  it("omits protocolGuide when lastCalledAt is recent", () => {
+  it("omits protocolGuide when lastCalledAt is recent", async () => {
     const recentState = {
       ...idle(),
       lastCalledAt: new Date().toISOString(),
     };
-    const output = compiler.compile(recentState, noConcerns, noRules);
+    const output = await compiler.compile(recentState, noConcerns, noRules);
 
     assertEquals(output.protocolGuide, undefined);
   });
 
-  it("includes protocolGuide when lastCalledAt is stale (>5 min)", () => {
+  it("includes protocolGuide when lastCalledAt is stale (>5 min)", async () => {
     const staleTime = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const staleState = { ...idle(), lastCalledAt: staleTime };
-    const output = compiler.compile(staleState, noConcerns, noRules);
+    const output = await compiler.compile(staleState, noConcerns, noRules);
 
     assertEquals(output.protocolGuide !== undefined, true);
   });
 
-  it("EXECUTING includes restartRecommended when over threshold", () => {
+  it("EXECUTING includes restartRecommended when over threshold", async () => {
     // Create a state with high iteration count
     let state = inExecuting();
     for (let i = 0; i < 16; i++) {
@@ -216,7 +220,7 @@ describe("compile", () => {
       ci: [],
       testRunner: null,
     });
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -227,8 +231,8 @@ describe("compile", () => {
     assertEquals(typeof output.restartInstruction, "string");
   });
 
-  it("EXECUTING omits restartRecommended when under threshold", () => {
-    const output = compiler.compile(
+  it("EXECUTING omits restartRecommended when under threshold", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
@@ -237,7 +241,7 @@ describe("compile", () => {
     assertEquals(output.restartRecommended, undefined);
   });
 
-  it("every output includes behavioral block with rules and tone", () => {
+  it("every output includes behavioral block with rules and tone", async () => {
     const phases = [
       idle(),
       inDiscovery(),
@@ -249,7 +253,7 @@ describe("compile", () => {
     ];
 
     for (const state of phases) {
-      const output = compiler.compile(state, noConcerns, noRules);
+      const output = await compiler.compile(state, noConcerns, noRules);
 
       assertEquals(output.behavioral !== undefined, true);
       assertEquals(output.behavioral.rules.length > 0, true);
@@ -257,8 +261,8 @@ describe("compile", () => {
     }
   });
 
-  it("EXECUTING behavioral says 'Orchestrate immediately'", () => {
-    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+  it("EXECUTING behavioral says 'Orchestrate immediately'", async () => {
+    const output = await compiler.compile(inExecuting(), noConcerns, noRules);
 
     assertEquals(
       output.behavioral.tone.includes("Orchestrate immediately"),
@@ -266,13 +270,13 @@ describe("compile", () => {
     );
   });
 
-  it("DISCOVERY behavioral tone is challenging", () => {
-    const output = compiler.compile(inDiscovery(), noConcerns, noRules);
+  it("DISCOVERY behavioral tone is challenging", async () => {
+    const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
 
     assertEquals(output.behavioral.tone.includes("stake in the answers"), true);
   });
 
-  it("EXECUTING behavioral includes urgency when over iteration threshold", () => {
+  it("EXECUTING behavioral includes urgency when over iteration threshold", async () => {
     let state = inExecuting();
     for (let i = 0; i < 16; i++) {
       state = machine.advanceExecution(state, `step ${i}`);
@@ -284,14 +288,14 @@ describe("compile", () => {
       ci: [],
       testRunner: null,
     });
-    const output = compiler.compile(state, noConcerns, noRules, config);
+    const output = await compiler.compile(state, noConcerns, noRules, config);
 
     assertEquals(output.behavioral.urgency !== undefined, true);
     assertEquals(output.behavioral.urgency!.includes("degrading"), true);
   });
 
-  it("EXECUTING behavioral omits urgency when under threshold", () => {
-    const output = compiler.compile(inExecuting(), noConcerns, noRules);
+  it("EXECUTING behavioral omits urgency when under threshold", async () => {
+    const output = await compiler.compile(inExecuting(), noConcerns, noRules);
 
     assertEquals(output.behavioral.urgency, undefined);
   });
@@ -316,8 +320,8 @@ describe("agent discovery one-at-a-time", () => {
     discovery: { ...inDiscovery().discovery, audience: "agent" },
   });
 
-  it("--agent mode returns 1 question with currentQuestion=0", () => {
-    const output = compiler.compile(
+  it("--agent mode returns 1 question with currentQuestion=0", async () => {
+    const output = await compiler.compile(
       agentDiscovery(),
       noConcerns,
       noRules,
@@ -330,12 +334,12 @@ describe("agent discovery one-at-a-time", () => {
     assertEquals(output.questions[0]?.id, "status_quo");
   });
 
-  it("--agent mode after answering Q1 returns Q2 with currentQuestion=1", () => {
+  it("--agent mode after answering Q1 returns Q2 with currentQuestion=1", async () => {
     let state = agentDiscovery();
     state = machine.addDiscoveryAnswer(state, "status_quo", "Users do X today");
     state = machine.advanceDiscoveryQuestion(state);
 
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -360,8 +364,8 @@ describe("agent discovery one-at-a-time", () => {
     assertEquals(state.phase, "DISCOVERY_REVIEW");
   });
 
-  it("human mode (no --agent) returns all 6 questions", () => {
-    const output = compiler.compile(
+  it("human mode (no --agent) returns all 6 questions", async () => {
+    const output = await compiler.compile(
       inDiscovery(),
       noConcerns,
       noRules,
@@ -445,9 +449,9 @@ describe("DISCOVERY_REVIEW split proposal", () => {
     return machine.completeDiscovery(state);
   };
 
-  it("multi-area discovery includes splitProposal in output", () => {
+  it("multi-area discovery includes splitProposal in output", async () => {
     const state = multiAreaReview();
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -459,9 +463,9 @@ describe("DISCOVERY_REVIEW split proposal", () => {
     assertEquals(output.splitProposal!.proposals.length >= 2, true);
   });
 
-  it("single-area discovery omits splitProposal", () => {
+  it("single-area discovery omits splitProposal", async () => {
     const state = singleAreaReview();
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -471,9 +475,9 @@ describe("DISCOVERY_REVIEW split proposal", () => {
     assertEquals(output.splitProposal, undefined);
   });
 
-  it("approved + split shows split-specific instruction", () => {
+  it("approved + split shows split-specific instruction", async () => {
     const state = machine.approveDiscoveryAnswers(multiAreaReview());
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -485,9 +489,9 @@ describe("DISCOVERY_REVIEW split proposal", () => {
     assertEquals(output.instruction.includes("independent work areas"), true);
   });
 
-  it("approved + split interactiveOptions has Keep/Split", () => {
+  it("approved + split interactiveOptions has Keep/Split", async () => {
     const state = machine.approveDiscoveryAnswers(multiAreaReview());
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     const labels =
       (output as { interactiveOptions?: readonly { label: string }[] })
@@ -496,9 +500,9 @@ describe("DISCOVERY_REVIEW split proposal", () => {
     assertEquals(labels.includes("Split into separate specs"), true);
   });
 
-  it("not-approved interactiveOptions has Approve/Revise", () => {
+  it("not-approved interactiveOptions has Approve/Revise", async () => {
     const state = multiAreaReview();
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     const labels =
       (output as { interactiveOptions?: readonly { label: string }[] })

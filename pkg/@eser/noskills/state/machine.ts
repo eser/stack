@@ -87,6 +87,7 @@ export const startSpec = (
       currentQuestion: 0,
       audience: "human",
       approved: false,
+      planPath: null,
     },
     specState: { path: null, status: "none" },
     execution: {
@@ -118,25 +119,121 @@ export const exitFreeMode = (
   return { ...state, phase: "IDLE" };
 };
 
+export const setDiscoveryMode = (
+  state: schema.StateFile,
+  mode: schema.DiscoveryMode,
+): schema.StateFile => {
+  if (state.phase !== "DISCOVERY") {
+    throw new Error(`Cannot set discovery mode in phase: ${state.phase}`);
+  }
+  return {
+    ...state,
+    discovery: { ...state.discovery, mode },
+  };
+};
+
+export const completePremises = (
+  state: schema.StateFile,
+  premises: readonly schema.Premise[],
+): schema.StateFile => {
+  if (state.phase !== "DISCOVERY") {
+    throw new Error(`Cannot complete premises in phase: ${state.phase}`);
+  }
+  return {
+    ...state,
+    discovery: { ...state.discovery, premises, premisesCompleted: true },
+  };
+};
+
+export const selectApproach = (
+  state: schema.StateFile,
+  approach: schema.SelectedApproach,
+): schema.StateFile => {
+  if (state.phase !== "DISCOVERY_REVIEW") {
+    throw new Error(`Cannot select approach in phase: ${state.phase}`);
+  }
+  return {
+    ...state,
+    discovery: {
+      ...state.discovery,
+      selectedApproach: approach,
+      alternativesPresented: true,
+    },
+  };
+};
+
+export const skipAlternatives = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  if (state.phase !== "DISCOVERY_REVIEW") {
+    throw new Error(`Cannot skip alternatives in phase: ${state.phase}`);
+  }
+  return {
+    ...state,
+    discovery: { ...state.discovery, alternativesPresented: true },
+  };
+};
+
 export const addDiscoveryAnswer = (
   state: schema.StateFile,
   questionId: string,
   answer: string,
+  user?: { name: string; email: string },
 ): schema.StateFile => {
   if (state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REVIEW") {
     throw new Error(`Cannot add discovery answer in phase: ${state.phase}`);
   }
 
+  // Replace existing answer for this question (backward-compatible behavior)
   const existingAnswers = state.discovery.answers.filter(
     (a) => a.questionId !== questionId,
   );
-  const newAnswers = [...existingAnswers, { questionId, answer }];
+
+  const newAnswer: schema.AttributedDiscoveryAnswer = {
+    questionId,
+    answer,
+    user: user?.name ?? "Unknown User",
+    email: user?.email ?? "",
+    timestamp: new Date().toISOString(),
+    type: "original",
+  };
 
   return {
     ...state,
     discovery: {
       ...state.discovery,
-      answers: newAnswers,
+      answers: [...existingAnswers, newAnswer],
+    },
+  };
+};
+
+/** Add an additional answer to a question without replacing existing ones. */
+export const addDiscoveryContribution = (
+  state: schema.StateFile,
+  questionId: string,
+  answer: string,
+  user?: { name: string; email: string },
+): schema.StateFile => {
+  if (state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REVIEW") {
+    throw new Error(
+      `Cannot add discovery contribution in phase: ${state.phase}`,
+    );
+  }
+
+  const newAnswer: schema.AttributedDiscoveryAnswer = {
+    questionId,
+    answer,
+    user: user?.name ?? "Unknown User",
+    email: user?.email ?? "",
+    timestamp: new Date().toISOString(),
+    type: "addition",
+  };
+
+  return {
+    ...state,
+    discovery: {
+      ...state.discovery,
+      answers: [...state.discovery.answers, newAnswer],
     },
   };
 };
@@ -389,6 +486,72 @@ export const revisitSpec = (
   };
 };
 
+/** Record a phase transition in the history. */
+export const recordTransition = (
+  state: schema.StateFile,
+  from: schema.Phase,
+  to: schema.Phase,
+  user?: { name: string; email: string },
+  reason?: string,
+): schema.StateFile => {
+  const entry: schema.PhaseTransition = {
+    from,
+    to,
+    user: user?.name ?? "Unknown User",
+    email: user?.email ?? "",
+    timestamp: new Date().toISOString(),
+    reason,
+  };
+
+  const history = state.transitionHistory ?? [];
+  return {
+    ...state,
+    transitionHistory: [...history, entry],
+  };
+};
+
+/** Add a custom acceptance criterion. */
+export const addCustomAC = (
+  state: schema.StateFile,
+  text: string,
+  user?: { name: string; email: string },
+): schema.StateFile => {
+  const existing = state.customACs ?? [];
+  const id = `custom-ac-${existing.length + 1}`;
+
+  const ac: schema.CustomAC = {
+    id,
+    text,
+    user: user?.name ?? "Unknown User",
+    email: user?.email ?? "",
+    timestamp: new Date().toISOString(),
+    addedInPhase: state.phase,
+  };
+
+  return { ...state, customACs: [...existing, ac] };
+};
+
+/** Add a note to the spec. */
+export const addSpecNote = (
+  state: schema.StateFile,
+  text: string,
+  user?: { name: string; email: string },
+): schema.StateFile => {
+  const existing = state.specNotes ?? [];
+  const id = `note-${existing.length + 1}`;
+
+  const note: schema.SpecNote = {
+    id,
+    text,
+    user: user?.name ?? "Unknown User",
+    email: user?.email ?? "",
+    timestamp: new Date().toISOString(),
+    phase: state.phase,
+  };
+
+  return { ...state, specNotes: [...existing, note] };
+};
+
 export const resetToIdle = (
   state: schema.StateFile,
 ): schema.StateFile => {
@@ -403,6 +566,7 @@ export const resetToIdle = (
       currentQuestion: 0,
       audience: "human",
       approved: false,
+      planPath: null,
     },
     specState: { path: null, status: "none" },
     execution: {

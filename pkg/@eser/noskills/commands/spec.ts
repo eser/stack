@@ -14,6 +14,7 @@ import * as persistence from "../state/persistence.ts";
 import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
 import * as splitDetector from "../context/split-detector.ts";
+import * as identity from "../state/identity.ts";
 import { cmd, cmdPrefix } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -32,6 +33,9 @@ const RESERVED_NAMES = new Set([
   "reopen",
   "revisit",
   "split",
+  "ac",
+  "task",
+  "note",
 ]);
 
 // Subcommands that can appear after spec <name>
@@ -82,7 +86,7 @@ export const main = async (
     out.writeln(span.dim("  Commands for a spec:"));
     out.writeln(
       span.dim(
-        "    next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split",
+        "    next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note",
       ),
     );
     out.writeln("");
@@ -124,6 +128,11 @@ export const main = async (
     ]);
   }
 
+  // Check for spec-specific sub-commands: ac, task, note
+  if (subcommand === "ac") return await specAC(specName, args?.slice(2));
+  if (subcommand === "task") return await specTask(specName, args?.slice(2));
+  if (subcommand === "note") return await specNote(specName, args?.slice(2));
+
   // Delegate to command modules (next, approve, done, block, etc.)
   const loader = SPEC_SUBCOMMANDS.get(subcommand);
   if (loader !== undefined) {
@@ -142,7 +151,7 @@ export const main = async (
   );
   out.writeln(
     span.dim(
-      `  Valid: next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split`,
+      `  Valid: next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note`,
     ),
   );
   await out.close();
@@ -194,6 +203,16 @@ const specNew = async (
         } else {
           descWords.push(arg);
         }
+      }
+    }
+  }
+
+  // Parse --from-plan flag
+  let planPath: string | null = null;
+  if (args !== undefined) {
+    for (const arg of args) {
+      if (arg.startsWith("--from-plan=")) {
+        planPath = arg.slice("--from-plan=".length);
       }
     }
   }
@@ -258,6 +277,23 @@ const specNew = async (
 
     return results.fail({ exitCode: 1 });
   }
+  // Validate plan file if provided
+  if (planPath !== null) {
+    try {
+      const stat = await runtime.fs.stat(planPath);
+      // Check file size (50KB max)
+      if (stat.size > 50 * 1024) {
+        out.writeln(span.red("Plan file too large. Maximum 50KB."));
+        await out.close();
+        return results.fail({ exitCode: 1 });
+      }
+    } catch {
+      out.writeln(span.red(`Plan file not found: ${planPath}`));
+      await out.close();
+      return results.fail({ exitCode: 1 });
+    }
+  }
+
   const branch = `spec/${specName}`;
 
   // Check if spec name already exists
@@ -281,6 +317,27 @@ const specNew = async (
   const freshState = schema.createInitialState();
   const newState = machine.startSpec(freshState, specName, branch, description);
 
+  // Record the transition with user identity
+  const user = await identity.resolveUser(root);
+  const withTransition = machine.recordTransition(
+    newState,
+    "IDLE",
+    "DISCOVERY",
+    user,
+  );
+
+  // Inject planPath into discovery state if provided
+  let stateToSave = withTransition;
+  if (planPath !== null) {
+    stateToSave = {
+      ...newState,
+      discovery: {
+        ...newState.discovery,
+        planPath,
+      },
+    };
+  }
+
   // Create spec directory and save state
   await runtime.fs.mkdir(
     `${root}/${persistence.paths.specDir(specName)}`,
@@ -288,7 +345,7 @@ const specNew = async (
       recursive: true,
     },
   );
-  await persistence.writeSpecState(root, specName, newState);
+  await persistence.writeSpecState(root, specName, stateToSave);
 
   out.writeln(span.green("✔"), " Spec started: ", span.bold(specName));
   out.writeln(
@@ -297,6 +354,9 @@ const specNew = async (
   );
   out.writeln("  Branch:    ", span.dim(branch));
   out.writeln("  Phase:     ", span.yellow("DISCOVERY"));
+  if (planPath !== null) {
+    out.writeln("  Plan:      ", span.dim(planPath));
+  }
   out.writeln("");
   out.writeln(
     "Run ",
@@ -740,5 +800,251 @@ const specRevisit = async (
   out.writeln("  Discovery answers preserved — revise or re-approve.");
   await out.close();
 
+  return results.ok(undefined);
+};
+
+// =============================================================================
+// spec <name> ac
+// =============================================================================
+
+const specAC = async (
+  specName?: string,
+  args?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+  const root = runtime.process.cwd();
+  const action = args?.[0];
+
+  if (specName === undefined || action === undefined) {
+    out.writeln(
+      `Usage: ${cmdPrefix()} spec <name> ac <add "text" | list>`,
+    );
+    await out.close();
+    return results.ok(undefined);
+  }
+
+  if (action === "add") {
+    const text = (args?.slice(1) ?? [])
+      .filter((a) => !a.startsWith("-"))
+      .join(" ");
+    if (text.length === 0) {
+      out.writeln(span.red("Please provide AC text."));
+      await out.close();
+      return results.fail({ exitCode: 1 });
+    }
+
+    const state = await persistence.resolveState(root, specName);
+    const user = await identity.resolveUser(root);
+
+    // Warn if adding during EXECUTING
+    if (state.phase === "EXECUTING") {
+      out.writeln(
+        span.yellow("Warning: Adding ACs during execution is scope creep."),
+      );
+    }
+
+    const newState = machine.addCustomAC(state, text, user);
+    await persistence.writeSpecState(root, specName, newState);
+
+    out.writeln(
+      span.green("AC added: "),
+      `"${text}"`,
+      span.dim(` (by ${identity.shortUser(user)})`),
+    );
+    await out.close();
+    return results.ok(undefined);
+  }
+
+  if (action === "list") {
+    const state = await persistence.resolveState(root, specName);
+    const acs = state.customACs ?? [];
+
+    out.writeln(span.bold(`Custom ACs for ${specName}`));
+    out.writeln("");
+    if (acs.length === 0) {
+      out.writeln(span.dim("  No custom ACs."));
+    } else {
+      for (const ac of acs) {
+        out.writeln(
+          `  - ${ac.text}`,
+          span.dim(` -- ${ac.user}, ${ac.addedInPhase}`),
+        );
+      }
+    }
+    await out.close();
+    return results.ok(undefined);
+  }
+
+  out.writeln(
+    `Usage: ${cmdPrefix()} spec <name> ac <add "text" | list>`,
+  );
+  await out.close();
+  return results.ok(undefined);
+};
+
+// =============================================================================
+// spec <name> task
+// =============================================================================
+
+const specTask = async (
+  specName?: string,
+  args?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+  const root = runtime.process.cwd();
+  const action = args?.[0];
+
+  if (specName === undefined || action === undefined) {
+    out.writeln(
+      `Usage: ${cmdPrefix()} spec <name> task <add "text" | list>`,
+    );
+    await out.close();
+    return results.ok(undefined);
+  }
+
+  if (action === "add") {
+    const text = (args?.slice(1) ?? [])
+      .filter((a) => !a.startsWith("-"))
+      .join(" ");
+    if (text.length === 0) {
+      out.writeln(span.red("Please provide task text."));
+      await out.close();
+      return results.fail({ exitCode: 1 });
+    }
+
+    const state = await persistence.resolveState(root, specName);
+
+    if (state.phase === "EXECUTING" || state.phase === "BLOCKED") {
+      out.writeln(
+        span.red(
+          "Cannot add tasks during execution. Use `spec revisit` to go back to discovery.",
+        ),
+      );
+      await out.close();
+      return results.fail({ exitCode: 1 });
+    }
+
+    // Task addition reuses the note mechanism with a convention prefix
+    const user = await identity.resolveUser(root);
+    const newState = machine.addSpecNote(state, `[TASK] ${text}`, user);
+    await persistence.writeSpecState(root, specName, newState);
+
+    out.writeln(
+      span.green("Task added: "),
+      `"${text}"`,
+      span.dim(` (by ${identity.shortUser(user)})`),
+    );
+    await out.close();
+    return results.ok(undefined);
+  }
+
+  if (action === "list") {
+    const state = await persistence.resolveState(root, specName);
+    const notes = (state.specNotes ?? []).filter((n) =>
+      n.text.startsWith("[TASK] ")
+    );
+
+    out.writeln(span.bold(`Custom tasks for ${specName}`));
+    out.writeln("");
+    if (notes.length === 0) {
+      out.writeln(span.dim("  No custom tasks."));
+    } else {
+      for (const n of notes) {
+        out.writeln(
+          `  - ${n.text.replace("[TASK] ", "")}`,
+          span.dim(` -- ${n.user}, ${n.phase}`),
+        );
+      }
+    }
+    await out.close();
+    return results.ok(undefined);
+  }
+
+  out.writeln(
+    `Usage: ${cmdPrefix()} spec <name> task <add "text" | list>`,
+  );
+  await out.close();
+  return results.ok(undefined);
+};
+
+// =============================================================================
+// spec <name> note
+// =============================================================================
+
+const specNote = async (
+  specName?: string,
+  args?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+  const root = runtime.process.cwd();
+  const action = args?.[0];
+
+  if (specName === undefined || action === undefined) {
+    out.writeln(
+      `Usage: ${cmdPrefix()} spec <name> note <add "text" | list>`,
+    );
+    await out.close();
+    return results.ok(undefined);
+  }
+
+  if (action === "add") {
+    const text = (args?.slice(1) ?? [])
+      .filter((a) => !a.startsWith("-"))
+      .join(" ");
+    if (text.length === 0) {
+      out.writeln(span.red("Please provide note text."));
+      await out.close();
+      return results.fail({ exitCode: 1 });
+    }
+
+    const state = await persistence.resolveState(root, specName);
+    const user = await identity.resolveUser(root);
+    const newState = machine.addSpecNote(state, text, user);
+    await persistence.writeSpecState(root, specName, newState);
+
+    out.writeln(
+      span.green("Note added: "),
+      `"${text}"`,
+      span.dim(` (by ${identity.shortUser(user)})`),
+    );
+    await out.close();
+    return results.ok(undefined);
+  }
+
+  if (action === "list") {
+    const state = await persistence.resolveState(root, specName);
+    const notes = (state.specNotes ?? []).filter((n) =>
+      !n.text.startsWith("[TASK] ")
+    );
+
+    out.writeln(span.bold(`Notes for ${specName}`));
+    out.writeln("");
+    if (notes.length === 0) {
+      out.writeln(span.dim("  No notes."));
+    } else {
+      for (const n of notes) {
+        out.writeln(
+          `  - ${n.text}`,
+          span.dim(` -- ${n.user}, ${n.phase}`),
+        );
+      }
+    }
+    await out.close();
+    return results.ok(undefined);
+  }
+
+  out.writeln(
+    `Usage: ${cmdPrefix()} spec <name> note <add "text" | list>`,
+  );
+  await out.close();
   return results.ok(undefined);
 };

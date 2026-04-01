@@ -58,32 +58,47 @@ describe("Output formatting: -o flag", () => {
     assertEquals(formatter.parseOutputFormat(["--answer=test"]), "json");
   });
 
-  it("-o markdown for next output", () => {
-    const output = compiler.compile(idle(), noConcerns, noRules, config());
+  it("-o markdown for next output", async () => {
+    const output = await compiler.compile(
+      idle(),
+      noConcerns,
+      noRules,
+      config(),
+    );
     const md = formatter.format(output, "markdown");
 
     assertEquals(md.includes("# noskills"), true);
     assertEquals(md.includes("IDLE"), true);
   });
 
-  it("-o text for next output", () => {
-    const output = compiler.compile(idle(), noConcerns, noRules, config());
+  it("-o text for next output", async () => {
+    const output = await compiler.compile(
+      idle(),
+      noConcerns,
+      noRules,
+      config(),
+    );
     const text = formatter.format(output, "text");
 
     assertEquals(text.includes("[IDLE]"), true);
     assertEquals(text.includes("#"), false); // no markdown headings
   });
 
-  it("-o json for next output is valid JSON", () => {
-    const output = compiler.compile(idle(), noConcerns, noRules, config());
+  it("-o json for next output is valid JSON", async () => {
+    const output = await compiler.compile(
+      idle(),
+      noConcerns,
+      noRules,
+      config(),
+    );
     const json = formatter.format(output, "json");
     const parsed = JSON.parse(json);
 
     assertEquals(parsed.phase, "IDLE");
   });
 
-  it("-o markdown for EXECUTING shows instruction and behavioral", () => {
-    const output = compiler.compile(
+  it("-o markdown for EXECUTING shows instruction and behavioral", async () => {
+    const output = await compiler.compile(
       inExecuting(),
       [openSource],
       noRules,
@@ -96,19 +111,24 @@ describe("Output formatting: -o flag", () => {
     assertEquals(md.includes("**Tone:**"), true);
   });
 
-  it("-o text for DISCOVERY shows question", () => {
+  it("-o text for DISCOVERY shows question", async () => {
     let s = idle();
     s = machine.startSpec(s, "test", "spec/test");
-    const output = compiler.compile(s, noConcerns, noRules, config());
+    const output = await compiler.compile(s, noConcerns, noRules, config());
     const text = formatter.format(output, "text");
 
     assertEquals(text.includes("[DISCOVERY]"), true);
     assertEquals(text.includes("Question ["), true);
   });
 
-  it("-o markdown for COMPLETED shows summary", () => {
+  it("-o markdown for COMPLETED shows summary", async () => {
     const completed = machine.completeSpec(inExecuting(), "done");
-    const output = compiler.compile(completed, noConcerns, noRules, config());
+    const output = await compiler.compile(
+      completed,
+      noConcerns,
+      noRules,
+      config(),
+    );
     const md = formatter.format(output, "markdown");
 
     assertEquals(md.includes("## Summary"), true);
@@ -266,7 +286,7 @@ describe("Spec switching", () => {
 // =============================================================================
 
 describe("Agentless end-to-end: text output at every phase", () => {
-  it("every phase produces non-empty text output with -o text", () => {
+  it("every phase produces non-empty text output with -o text", async () => {
     const phases: { name: string; state: schema.StateFile }[] = [];
 
     let s = idle();
@@ -297,7 +317,12 @@ describe("Agentless end-to-end: text output at every phase", () => {
     });
 
     for (const p of phases) {
-      const output = compiler.compile(p.state, noConcerns, noRules, config());
+      const output = await compiler.compile(
+        p.state,
+        noConcerns,
+        noRules,
+        config(),
+      );
       const text = formatter.format(output, "text");
 
       assertEquals(text.length > 10, true, `${p.name} text too short`);
@@ -309,7 +334,7 @@ describe("Agentless end-to-end: text output at every phase", () => {
     }
   });
 
-  it("every phase produces non-empty markdown output", () => {
+  it("every phase produces non-empty markdown output", async () => {
     const phases = [
       idle(),
       machine.startSpec(idle(), "t", "spec/t"),
@@ -320,7 +345,7 @@ describe("Agentless end-to-end: text output at every phase", () => {
     ];
 
     for (const s of phases) {
-      const output = compiler.compile(s, noConcerns, noRules, config());
+      const output = await compiler.compile(s, noConcerns, noRules, config());
       const md = formatter.format(output, "markdown");
 
       assertEquals(md.includes("# noskills"), true);
@@ -333,15 +358,20 @@ describe("Agentless end-to-end: text output at every phase", () => {
 // =============================================================================
 
 describe("No active spec behavior", () => {
-  it("IDLE output suggests spec new command", () => {
-    const output = compiler.compile(idle(), noConcerns, noRules, config());
+  it("IDLE output suggests spec new command", async () => {
+    const output = await compiler.compile(
+      idle(),
+      noConcerns,
+      noRules,
+      config(),
+    );
     const text = formatter.format(output, "text");
 
     assertEquals(text.includes("spec new"), true);
   });
 
-  it("IDLE commandMap includes spec new command", () => {
-    const output = compiler.compile(
+  it("IDLE commandMap includes spec new command", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -355,8 +385,8 @@ describe("No active spec behavior", () => {
     assertEquals(hasSpecNew, true);
   });
 
-  it("IDLE output includes availableConcerns list", () => {
-    const output = compiler.compile(
+  it("IDLE output includes availableConcerns list", async () => {
+    const output = await compiler.compile(
       idle(),
       noConcerns,
       noRules,
@@ -371,8 +401,13 @@ describe("No active spec behavior", () => {
     );
   });
 
-  it("IDLE behavioral instructs agent to use AskUserQuestion for options", () => {
-    const output = compiler.compile(idle(), noConcerns, noRules, config());
+  it("IDLE behavioral instructs agent to use AskUserQuestion for options", async () => {
+    const output = await compiler.compile(
+      idle(),
+      noConcerns,
+      noRules,
+      config(),
+    );
 
     const hasRule = output.behavioral.rules.some((r) =>
       r.includes("AskUserQuestion")
@@ -380,8 +415,8 @@ describe("No active spec behavior", () => {
     assertEquals(hasRule, true);
   });
 
-  it("IDLE with zero concerns includes hint about adding concerns", () => {
-    const output = compiler.compile(
+  it("IDLE with zero concerns includes hint about adding concerns", async () => {
+    const output = await compiler.compile(
       idle(),
       [],
       noRules,

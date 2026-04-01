@@ -36,6 +36,9 @@ export const generateSpec = async (
     concerns,
     state.decisions,
     state.classification,
+    state.customACs,
+    state.specNotes,
+    state.transitionHistory,
   );
 
   await runtime.fs.writeTextFile(specFile, content);

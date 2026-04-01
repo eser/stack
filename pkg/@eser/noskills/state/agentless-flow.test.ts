@@ -47,10 +47,15 @@ const config = (): schema.NosManifest => ({
 // =============================================================================
 
 describe("Agentless flow: complete lifecycle via CLI", () => {
-  it("walks IDLE → DISCOVERY → all questions → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → COMPLETED", () => {
+  it("walks IDLE → DISCOVERY → all questions → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → COMPLETED", async () => {
     // === Step 1: Start from IDLE ===
     let state = schema.createInitialState();
-    const output0 = compiler.compile(state, activeConcerns, rules, config());
+    const output0 = await compiler.compile(
+      state,
+      activeConcerns,
+      rules,
+      config(),
+    );
     assertEquals(output0.phase, "IDLE");
 
     // Text output works for human
@@ -75,7 +80,12 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     };
 
     // Simulate: noskills next → returns ALL questions at once
-    const output3 = compiler.compile(state, activeConcerns, rules, config());
+    const output3 = await compiler.compile(
+      state,
+      activeConcerns,
+      rules,
+      config(),
+    );
     assertEquals(output3.phase, "DISCOVERY");
     const discovery = output3 as compiler.DiscoveryOutput;
     assertEquals(discovery.questions.length, 6);
@@ -110,7 +120,12 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     assertEquals(state.classification, null); // not yet classified
 
     // SPEC_DRAFT without classification → asks for classification
-    const output4a = compiler.compile(state, activeConcerns, rules, config());
+    const output4a = await compiler.compile(
+      state,
+      activeConcerns,
+      rules,
+      config(),
+    );
     assertEquals(output4a.phase, "SPEC_DRAFT");
     assertEquals(
       (output4a as compiler.SpecDraftOutput).classificationRequired,
@@ -146,7 +161,12 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     assertEquals(specMd.includes("Contributor Guide"), false);
 
     // Output now shows approve transition (classification provided)
-    const output4b = compiler.compile(state, activeConcerns, rules, config());
+    const output4b = await compiler.compile(
+      state,
+      activeConcerns,
+      rules,
+      config(),
+    );
     assertEquals(output4b.phase, "SPEC_DRAFT");
     const specDraft = output4b as compiler.SpecDraftOutput;
     assertEquals(specDraft.transition.onApprove.includes("approve"), true);
@@ -156,7 +176,12 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     assertEquals(state.phase, "SPEC_APPROVED");
     assertEquals(state.specState.status, "approved");
 
-    const output5 = compiler.compile(state, activeConcerns, rules, config());
+    const output5 = await compiler.compile(
+      state,
+      activeConcerns,
+      rules,
+      config(),
+    );
     assertEquals(output5.phase, "SPEC_APPROVED");
 
     // === Step 6: Start execution ===
@@ -164,7 +189,12 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     assertEquals(state.phase, "EXECUTING");
     assertEquals(state.execution.iteration, 0);
 
-    const output6 = compiler.compile(state, activeConcerns, rules, config());
+    const output6 = await compiler.compile(
+      state,
+      activeConcerns,
+      rules,
+      config(),
+    );
     assertEquals(output6.phase, "EXECUTING");
     const execOutput = output6 as compiler.ExecutionOutput;
     assertEquals(
@@ -194,7 +224,12 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
       },
     };
 
-    const output7 = compiler.compile(state, activeConcerns, rules, config());
+    const output7 = await compiler.compile(
+      state,
+      activeConcerns,
+      rules,
+      config(),
+    );
     const execWithReport = output7 as compiler.ExecutionOutput;
     assertEquals(execWithReport.statusReportRequired, true);
     assertEquals(execWithReport.statusReport !== undefined, true);
@@ -227,7 +262,12 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     state = machine.completeSpec(state, "done");
     assertEquals(state.phase, "COMPLETED");
 
-    const output8 = compiler.compile(state, activeConcerns, rules, config());
+    const output8 = await compiler.compile(
+      state,
+      activeConcerns,
+      rules,
+      config(),
+    );
     assertEquals(output8.phase, "COMPLETED");
     const completed = output8 as compiler.CompletedOutput;
     assertEquals(completed.summary.spec, "photo-upload");
@@ -279,9 +319,9 @@ describe("Output format consistency across phases", () => {
     return [idle, disc, discReview, draft, approved, exec, blocked, completed];
   };
 
-  it("every phase produces valid JSON output", () => {
+  it("every phase produces valid JSON output", async () => {
     for (const p of phases()) {
-      const output = compiler.compile(p.state, [], [], config());
+      const output = await compiler.compile(p.state, [], [], config());
       const json = formatter.format(output, "json");
       const parsed = JSON.parse(json);
       assertEquals(parsed.phase, p.name);
@@ -290,18 +330,18 @@ describe("Output format consistency across phases", () => {
     }
   });
 
-  it("every phase produces non-empty text output", () => {
+  it("every phase produces non-empty text output", async () => {
     for (const p of phases()) {
-      const output = compiler.compile(p.state, [], [], config());
+      const output = await compiler.compile(p.state, [], [], config());
       const text = formatter.format(output, "text");
       assertEquals(text.length > 0, true);
       assertEquals(text.includes(`[${p.name}]`), true);
     }
   });
 
-  it("every phase produces non-empty markdown output", () => {
+  it("every phase produces non-empty markdown output", async () => {
     for (const p of phases()) {
-      const output = compiler.compile(p.state, [], [], config());
+      const output = await compiler.compile(p.state, [], [], config());
       const md = formatter.format(output, "markdown");
       assertEquals(md.length > 0, true);
       assertEquals(md.includes(`# noskills — ${p.name}`), true);
@@ -314,7 +354,7 @@ describe("Output format consistency across phases", () => {
 // =============================================================================
 
 describe("Dual entry: CLI and agent produce identical state", () => {
-  it("half CLI, half agent continues seamlessly", () => {
+  it("half CLI, half agent continues seamlessly", async () => {
     // CLI answers Q1-Q3
     let state = machine.startSpec(
       schema.createInitialState(),
@@ -329,7 +369,7 @@ describe("Dual entry: CLI and agent produce identical state", () => {
     assertEquals(state.discovery.answers.length, 3);
 
     // Agent picks up — noskills next should return Q4, not Q1
-    const output = compiler.compile(state, [], []);
+    const output = await compiler.compile(state, [], []);
     assertEquals(output.phase, "DISCOVERY");
     const disc = output as compiler.DiscoveryOutput;
     assertEquals(disc.questions.length, 3); // 3 remaining unanswered

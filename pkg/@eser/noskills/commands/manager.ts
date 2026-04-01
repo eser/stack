@@ -349,93 +349,98 @@ export const main = async (
   markAllDirty();
   renderFrame();
 
-  // ── Mouse helpers ──
-  const isInsidePanel = (
-    mx: number,
-    my: number,
-    p: tui.layout.Panel,
-  ): boolean =>
-    mx >= p.x && mx < p.x + p.width && my >= p.y && my < p.y + p.height;
-
+  // ── Mouse handler (delegates to keyboard-router) ──
   const handleMouse = async (
     ev: tui.mouse.MouseEvent,
   ): Promise<void> => {
-    // Click in spec list → select item or trigger action
-    if (isInsidePanel(ev.x + 1, ev.y + 1, panels.left)) {
-      if (ev.type === "mousedown" && ev.button === 0) {
+    const action = keyboardRouter.routeMouseEvent(
+      ev,
+      panels,
+      listItems,
+      state.focus,
+    );
+
+    switch (action.type) {
+      case "clickSpec": {
         state.focus = "list";
-        const relRow = ev.y + 1 - panels.left.y - 1; // adjust for 0-based + border
-        if (relRow >= 0 && relRow < listItems.length) {
-          const item = listItems[relRow]!;
-          if (item.selectable !== false) {
-            state.selectedTabIndex = relRow;
-            // Check if it's an action item
-            if (item.label.includes("[n]") || item.label.includes("[f]")) {
-              await createFreeTab();
-              markAllDirty();
-              return;
-            }
-            // It's a spec — open tab for it
-            const specName = specs.find((s) => s.name === item.label)?.name;
-            if (specName !== undefined) {
-              await createSpecTab(specName);
-              markAllDirty();
-              return;
-            }
-          }
+        state.selectedTabIndex = action.index;
+        const specName = specs.find(
+          (s) => s.name === listItems[action.index]?.label,
+        )?.name;
+        if (specName !== undefined) {
+          await createSpecTab(specName);
+          markAllDirty();
+          return;
         }
         dirtyPanels.add("specs");
         dirtyPanels.add("monitor");
         dirtyPanels.add("status");
-      } else if (ev.type === "wheel") {
-        const dir = ev.direction === "up" ? "up" : "down";
+        break;
+      }
+
+      case "clickNewSpec":
+      case "clickFreeMode": {
+        state.focus = "list";
+        await createFreeTab();
+        markAllDirty();
+        return;
+      }
+
+      case "clickTerminal": {
+        state.focus = "terminal";
+        dirtyPanels.add("status");
+        break;
+      }
+
+      case "clickMonitor": {
+        state.focus = "list";
+        dirtyPanels.add("status");
+        break;
+      }
+
+      case "scrollSpecs": {
         Object.assign(
           state,
-          keyboardRouter.navigateList(state, dir, listItems),
+          keyboardRouter.navigateList(state, action.direction, listItems),
         );
         dirtyPanels.add("specs");
         dirtyPanels.add("monitor");
+        break;
       }
-      return;
-    }
 
-    // Click in terminal panel → focus terminal + forward mouse to PTY
-    if (isInsidePanel(ev.x + 1, ev.y + 1, panels.rightBottom)) {
-      state.focus = "terminal";
-      dirtyPanels.add("status");
-
-      const activeTab = tabManager.getActiveTab(state);
-      if (activeTab?.process !== null && activeTab !== null) {
-        // Forward mouse as SGR sequence relative to terminal inner area
-        const relX = ev.x + 1 - panels.rightBottom.x; // panel-relative
-        const relY = ev.y + 1 - panels.rightBottom.y;
-        let code = ev.button;
-        if (ev.type === "mousemove") code |= 32;
-        if (ev.type === "wheel") {
-          code = (64 | (ev.direction === "down" ? 1 : 0)) as 0 | 1 | 2;
+      case "scrollTerminal": {
+        const activeTab = tabManager.getActiveTab(state);
+        if (activeTab?.process !== null && activeTab !== null) {
+          const scrollKey = action.direction === "up" ? "\x1b[A" : "\x1b[B";
+          activeTab.process?.write(scrollKey.repeat(3));
         }
-        if (ev.shift) code |= 4;
-        if (ev.ctrl) code |= 16;
-        const suffix = ev.type === "mouseup" ? "m" : "M";
-        activeTab.process?.write(
-          `\x1b[<${code};${relX};${relY}${suffix}`,
-        );
+        break;
       }
 
-      // Wheel in terminal → forward as scroll
-      if (
-        ev.type === "wheel" && activeTab?.process !== null && activeTab !== null
-      ) {
-        const scrollKey = ev.direction === "up" ? "\x1b[A" : "\x1b[B";
-        activeTab.process?.write(scrollKey.repeat(3));
+      case "forwardMouse": {
+        state.focus = "terminal";
+        dirtyPanels.add("status");
+        const activeTab = tabManager.getActiveTab(state);
+        if (activeTab?.process !== null && activeTab !== null) {
+          const relX = ev.x + 1 - panels.rightBottom.x;
+          const relY = ev.y + 1 - panels.rightBottom.y;
+          let code = ev.button;
+          if (ev.type === "mousemove") code |= 32;
+          if (ev.type === "wheel") {
+            code = (64 | (ev.direction === "down" ? 1 : 0)) as 0 | 1 | 2;
+          }
+          if (ev.shift) code |= 4;
+          if (ev.ctrl) code |= 16;
+          const suffix = ev.type === "mouseup" ? "m" : "M";
+          activeTab.process?.write(
+            `\x1b[<${code};${relX};${relY}${suffix}`,
+          );
+        }
+        break;
       }
-      return;
-    }
 
-    // Click in monitor → focus spec list
-    if (isInsidePanel(ev.x + 1, ev.y + 1, panels.rightTop)) {
-      state.focus = "list";
-      dirtyPanels.add("status");
+      case "none":
+        break;
     }
   };
 

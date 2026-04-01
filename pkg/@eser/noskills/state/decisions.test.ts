@@ -111,7 +111,7 @@ describe("BLOCKED → resolve records decision", () => {
 // =============================================================================
 
 describe("Promote prompt after resolution", () => {
-  it("shows promotePrompt when lastProgress starts with 'Resolved:'", () => {
+  it("shows promotePrompt when lastProgress starts with 'Resolved:'", async () => {
     let state = inExecuting();
     const d = makeDecision("d1", "Which DB?", "PostgreSQL", false);
     state = machine.addDecision(state, d);
@@ -123,7 +123,7 @@ describe("Promote prompt after resolution", () => {
       },
     };
 
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -141,7 +141,7 @@ describe("Promote prompt after resolution", () => {
     );
   });
 
-  it("no promotePrompt when decision is already promoted", () => {
+  it("no promotePrompt when decision is already promoted", async () => {
     let state = inExecuting();
     const d = makeDecision("d1", "Which DB?", "PostgreSQL", true);
     state = machine.addDecision(state, d);
@@ -153,7 +153,7 @@ describe("Promote prompt after resolution", () => {
       },
     };
 
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -163,9 +163,9 @@ describe("Promote prompt after resolution", () => {
     assertEquals(output.promotePrompt, undefined);
   });
 
-  it("no promotePrompt during normal execution (no resolution)", () => {
+  it("no promotePrompt during normal execution (no resolution)", async () => {
     const state = inExecuting();
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       noConcerns,
       noRules,
@@ -243,9 +243,9 @@ describe("Spec template decisions table", () => {
 // =============================================================================
 
 describe("Convention discovery behavioral rule", () => {
-  it("EXECUTING behavioral includes convention discovery instruction", () => {
+  it("EXECUTING behavioral includes convention discovery instruction", async () => {
     const state = inExecuting();
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     const hasConventionRule = output.behavioral.rules.some((r) =>
       r.includes("permanent rule for this project")
@@ -253,9 +253,9 @@ describe("Convention discovery behavioral rule", () => {
     assertEquals(hasConventionRule, true);
   });
 
-  it("convention discovery mentions rule add command", () => {
+  it("convention discovery mentions rule add command", async () => {
     const state = inExecuting();
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     const hasRuleAdd = output.behavioral.rules.some((r) =>
       r.includes("rule add")
@@ -263,9 +263,9 @@ describe("Convention discovery behavioral rule", () => {
     assertEquals(hasRuleAdd, true);
   });
 
-  it("convention discovery says never write to .eser/rules/ directly", () => {
+  it("convention discovery says never write to .eser/rules/ directly", async () => {
     const state = inExecuting();
-    const output = compiler.compile(state, noConcerns, noRules);
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     const hasDirect = output.behavioral.rules.some((r) =>
       r.includes("Never write to")

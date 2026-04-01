@@ -178,7 +178,7 @@ export const main = async (
     );
     const rules = await syncEngine.loadRules(root);
     const hints = syncEngine.resolveInteractionHints(config.tools);
-    const output = compiler.compile(
+    const output = await compiler.compile(
       state,
       activeConcerns,
       rules,

@@ -12,4 +12,8 @@ export { Cursor } from "./cursor.ts";
 export { defaultStyle, parseSGR, type RGB, type TextStyle } from "./sgr.ts";
 export { AnsiParser, type ParsedSequence } from "./parser.ts";
 export { VTerminal } from "./terminal.ts";
-export { type RenderOptions, renderScreen } from "./renderer.ts";
+export {
+  type RenderOptions,
+  renderScreen,
+  type RenderState,
+} from "./renderer.ts";

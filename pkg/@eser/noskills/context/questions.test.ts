@@ -55,8 +55,8 @@ describe("getQuestionsWithExtras", () => {
     ]);
     const statusQuo = result.find((q) => q.id === "status_quo")!;
 
-    // open-source adds 1 extra for status_quo, beautiful-product adds 1
-    assertEquals(statusQuo.extras.length, 2);
+    // open-source adds 1 extra for status_quo, beautiful-product adds 2
+    assertEquals(statusQuo.extras.length, 3);
   });
 });
 

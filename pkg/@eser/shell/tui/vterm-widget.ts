@@ -7,8 +7,8 @@
  * @module
  */
 
-import { renderScreen, VTerminal } from "@eser/shell/vterm";
-import type { RenderOptions } from "@eser/shell/vterm";
+import { renderScreen, VTerminal } from "../vterm/mod.ts";
+import type { RenderOptions } from "../vterm/mod.ts";
 import type { Panel } from "./layout.ts";
 
 export class VTermWidget {

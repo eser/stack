@@ -16,10 +16,10 @@ import type {
 
 /**
  * Escape special regex characters in a string.
+ * Escapes all characters that have special meaning in regular expressions.
  */
-// lgtm[js/incomplete-sanitization] — intentional regex metacharacter escaping, not general sanitization
 const escapeRegex = (str: string): string => {
-  return str.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
 
 /**

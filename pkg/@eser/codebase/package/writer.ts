@@ -28,6 +28,7 @@ export class PackageUpdateError extends Error {
 
 /**
  * Gets a nested property value from an object using a dot-separated path.
+ * Guards against prototype pollution by blocking dangerous property names.
  */
 const getPropertyByPath = (
   obj: Record<string, unknown>,
@@ -37,9 +38,15 @@ const getPropertyByPath = (
   let current: unknown = obj;
 
   for (const part of parts) {
+    if (UNSAFE_PROPS.has(part)) {
+      return undefined;
+    }
     if (
       current === null || current === undefined || typeof current !== "object"
     ) {
+      return undefined;
+    }
+    if (!Object.hasOwn(current as Record<string, unknown>, part)) {
       return undefined;
     }
     current = (current as Record<string, unknown>)[part];

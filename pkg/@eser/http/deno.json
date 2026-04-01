@@ -1,6 +1,6 @@
 {
   "name": "@eser/http",
-  "version": "4.1.44",
+  "version": "4.1.45",
   "exports": {
     ".": "./mod.ts",
     "./adapter": "./adapter.ts",

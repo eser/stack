@@ -83,13 +83,37 @@ export type QuestionWithExtras = Question & {
   readonly extras: readonly schema.ConcernExtra[];
 };
 
+/**
+ * Built-in extras that are always injected regardless of active concerns.
+ * These appear BEFORE any concern-specific extras.
+ */
+const BUILT_IN_EXTRAS: readonly {
+  readonly questionId: string;
+  readonly text: string;
+}[] = [
+  {
+    questionId: "verification",
+    text:
+      "What tests should be written? (unit, integration, e2e — be specific about what behavior to test)",
+  },
+  {
+    questionId: "verification",
+    text:
+      "What documentation needs updating? (README, API docs, CHANGELOG, inline comments)",
+  },
+];
+
 export const getQuestionsWithExtras = (
   activeConcerns: readonly schema.ConcernDefinition[],
 ): readonly QuestionWithExtras[] => {
-  return QUESTIONS.map((q) => ({
-    ...q,
-    extras: concerns.getConcernExtras(activeConcerns, q.id),
-  }));
+  return QUESTIONS.map((q) => {
+    const builtIn = BUILT_IN_EXTRAS.filter((e) => e.questionId === q.id);
+    const concernExtras = concerns.getConcernExtras(activeConcerns, q.id);
+    return {
+      ...q,
+      extras: [...builtIn, ...concernExtras],
+    };
+  });
 };
 
 export const getNextUnanswered = (

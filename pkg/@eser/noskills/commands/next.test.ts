@@ -136,6 +136,134 @@ describe("Agent batch discovery", () => {
 });
 
 // =============================================================================
+// DISCOVERY_REVIEW split gating
+// =============================================================================
+
+describe("DISCOVERY_REVIEW split gating", () => {
+  const multiAreaDiscoveryReview = (): schema.StateFile => {
+    let state = inDiscoveryHuman();
+    state = machine.addDiscoveryAnswer(
+      state,
+      "status_quo",
+      "(1) Log messages are too verbose and flood stdout (2) Bot chat responses use wrong gender pronouns",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "ambition",
+      "fix log levels AND restore bot gender detection",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "reversibility",
+      "all reversible",
+    );
+    state = machine.addDiscoveryAnswer(state, "user_impact", "positive only");
+    state = machine.addDiscoveryAnswer(
+      state,
+      "verification",
+      "test without developer 1, verify no rchat errors",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "scope_boundary",
+      "no rchat.c rewrite",
+    );
+    return machine.completeDiscovery(state);
+  };
+
+  const singleAreaDiscoveryReview = (): schema.StateFile => {
+    let state = inDiscoveryHuman();
+    state = machine.addDiscoveryAnswer(
+      state,
+      "status_quo",
+      "cursor shader goes stale after hunk clear",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "ambition",
+      "extract RegisterAssets helper",
+    );
+    state = machine.addDiscoveryAnswer(state, "reversibility", "reversible");
+    state = machine.addDiscoveryAnswer(state, "user_impact", "positive");
+    state = machine.addDiscoveryAnswer(state, "verification", "visual test");
+    state = machine.addDiscoveryAnswer(
+      state,
+      "scope_boundary",
+      "no hunk clear changes",
+    );
+    return machine.completeDiscovery(state);
+  };
+
+  it("approve with multi-area stays in DISCOVERY_REVIEW", async () => {
+    const state = multiAreaDiscoveryReview();
+
+    const result = await next.handleAnswer(
+      "/tmp/test",
+      state,
+      config(),
+      [],
+      "approve",
+    );
+
+    assertEquals(result.phase, "DISCOVERY_REVIEW");
+    assertEquals(result.discovery.approved, true);
+  });
+
+  it("approve with single-area transitions to SPEC_DRAFT", async () => {
+    const state = singleAreaDiscoveryReview();
+
+    const result = await next.handleAnswer(
+      "/tmp/test",
+      state,
+      config(),
+      [],
+      "approve",
+    );
+
+    assertEquals(result.phase, "SPEC_DRAFT");
+  });
+
+  it("keep records decision and transitions to SPEC_DRAFT", async () => {
+    const state = machine.approveDiscoveryAnswers(multiAreaDiscoveryReview());
+
+    const result = await next.handleAnswer(
+      "/tmp/test",
+      state,
+      config(),
+      [],
+      "keep",
+    );
+
+    assertEquals(result.phase, "SPEC_DRAFT");
+    assertEquals(result.decisions.length, 1);
+    assertEquals(
+      result.decisions[0]!.choice.includes("keep as single spec"),
+      true,
+    );
+  });
+
+  it("split creates child specs and cancels parent", async () => {
+    const state = machine.approveDiscoveryAnswers(multiAreaDiscoveryReview());
+
+    const result = await next.handleAnswer(
+      "/tmp/test",
+      state,
+      config(),
+      [],
+      "split",
+    );
+
+    assertEquals(result.phase, "COMPLETED");
+    assertEquals(result.completionReason, "cancelled");
+    assertEquals(
+      result.completionNote !== null &&
+        result.completionNote.includes("Split into:"),
+      true,
+    );
+  });
+});
+
+// =============================================================================
 // parseRefinementTasks
 // =============================================================================
 

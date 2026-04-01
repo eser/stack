@@ -95,6 +95,40 @@ export const main = async (
 };
 
 // =============================================================================
+// Shared helpers for hook handlers
+// =============================================================================
+
+const writeDeny = async (reason: string): Promise<void> => {
+  await writeStdout({
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: `noskills: ${reason}`,
+    },
+  });
+};
+
+/** Check git guard and return denial reason, or null if allowed. */
+const checkGitGuard = (command: string, allowGit: boolean): string | null => {
+  if (allowGit) return null;
+  if (!command.includes("git")) return null;
+
+  const segments = command.split(/\s*(?:&&|;)\s*/);
+  for (const seg of segments) {
+    const trimmed = seg.trim();
+    if (trimmed.startsWith("git") && !hookDecisions.isGitAllowed(trimmed)) {
+      return "Git write operations are not allowed. Only read commands (log, diff, status, show, blame, branch, tag) are permitted. The user controls git, the agent controls files.";
+    }
+  }
+
+  if (hookDecisions.containsGitWriteBypass(command)) {
+    return "Git write operations detected in subshell or pipe. Only read commands are permitted. The user controls git, the agent controls files.";
+  }
+
+  return null;
+};
+
+// =============================================================================
 // PreToolUse: phase gate + git write guard
 // =============================================================================
 
@@ -106,51 +140,112 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
   const root = (input["cwd"] as string) ?? runtime.process.cwd();
   const config = await persistence.readManifest(root);
 
-  // Read state
-  let state: Record<string, unknown> = {};
-  try {
-    const stateFile = await persistence.readState(root);
-    state = stateFile as unknown as Record<string, unknown>;
-  } catch {
-    // No state — noskills not initialized, allow everything
-    return results.ok(undefined);
+  // ── Session-based enforcement ──
+  const sessionId = runtime.env.get("NOSKILLS_SESSION") ?? null;
+
+  if (sessionId !== null) {
+    const session = await persistence.readSession(root, sessionId);
+    if (session !== null) {
+      // Free mode sessions → pass everything (git guard still applies)
+      if (session.mode === "free") {
+        // Still apply git guard even in free mode
+        if (toolName === "Bash") {
+          const command = ((toolInput["command"] as string) ?? "").trim();
+          const allowGit = config?.allowGit ?? false;
+          if (!allowGit && command.includes("git")) {
+            const gitResult = checkGitGuard(command, allowGit);
+            if (gitResult !== null) {
+              await writeDeny(gitResult);
+              return results.ok(undefined);
+            }
+          }
+        }
+        return results.ok(undefined);
+      }
+
+      // Spec mode → use session's cached phase for enforcement
+      // (fall through to normal phase enforcement with session phase)
+    }
   }
 
-  const deny = async (reason: string): Promise<void> => {
-    await writeStdout({
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        permissionDecision: "deny",
-        permissionDecisionReason: `noskills: ${reason}`,
-      },
-    });
-  };
+  // Read state — prefer session phase if available, otherwise global state
+  let state: Record<string, unknown> = {};
+
+  if (sessionId !== null) {
+    const session = await persistence.readSession(root, sessionId);
+    if (session !== null && session.mode === "spec" && session.phase !== null) {
+      state = { phase: session.phase };
+    } else {
+      // Session exists but no valid phase — load spec state
+      if (session !== null && session.spec !== null) {
+        try {
+          const specState = await persistence.resolveState(root, session.spec);
+          state = specState as unknown as Record<string, unknown>;
+        } catch {
+          return results.ok(undefined);
+        }
+      } else {
+        return results.ok(undefined);
+      }
+    }
+  } else {
+    // No session — backward compat: load global state
+    // Warn if sessions exist but NOSKILLS_SESSION not set
+    const sessions = await persistence.listSessions(root);
+    if (sessions.length > 0) {
+      // Use most restrictive phase found
+      const phaseOrder: Record<string, number> = {
+        DISCOVERY: 10,
+        DISCOVERY_REVIEW: 10,
+        SPEC_DRAFT: 10,
+        SPEC_APPROVED: 8,
+        BLOCKED: 8,
+        EXECUTING: 2,
+        FREE: 0,
+        IDLE: 0,
+        COMPLETED: 0,
+      };
+      let mostRestrictive = "IDLE";
+      let maxRestriction = 0;
+      for (const s of sessions) {
+        const p = s.phase ?? "IDLE";
+        const restriction = phaseOrder[p] ?? 0;
+        if (restriction > maxRestriction) {
+          maxRestriction = restriction;
+          mostRestrictive = p;
+        }
+      }
+      state = { phase: mostRestrictive };
+
+      // Write warning to stderr
+      const encoder = new TextEncoder();
+      const writer = runtime.process.stderr.getWriter();
+      await writer.write(
+        encoder.encode(
+          `noskills: WARNING — ${sessions.length} session(s) active but NOSKILLS_SESSION not set. Using most restrictive phase (${mostRestrictive}). Set NOSKILLS_SESSION for correct per-instance enforcement.\n`,
+        ),
+      );
+      writer.releaseLock();
+    } else {
+      try {
+        const stateFile = await persistence.readState(root);
+        state = stateFile as unknown as Record<string, unknown>;
+      } catch {
+        // No state — noskills not initialized, allow everything
+        return results.ok(undefined);
+      }
+    }
+  }
 
   // ── Git write guard ──
   if (toolName === "Bash") {
     const command = ((toolInput["command"] as string) ?? "").trim();
     const allowGit = config?.allowGit ?? false;
 
-    if (!allowGit && command.includes("git")) {
-      // Split on && and ; to check each segment
-      const segments = command.split(/\s*(?:&&|;)\s*/);
-      for (const seg of segments) {
-        const trimmed = seg.trim();
-        if (trimmed.startsWith("git") && !hookDecisions.isGitAllowed(trimmed)) {
-          await deny(
-            "Git write operations are not allowed. Only read commands (log, diff, status, show, blame, branch, tag) are permitted. The user controls git, the agent controls files.",
-          );
-          return results.ok(undefined);
-        }
-      }
-
-      // Check for subshell/pipe bypasses
-      if (hookDecisions.containsGitWriteBypass(command)) {
-        await deny(
-          "Git write operations detected in subshell or pipe. Only read commands are permitted. The user controls git, the agent controls files.",
-        );
-        return results.ok(undefined);
-      }
+    const gitDenial = checkGitGuard(command, allowGit);
+    if (gitDenial !== null) {
+      await writeDeny(gitDenial);
+      return results.ok(undefined);
     }
 
     // Non-git or allowed git commands — allow
@@ -227,7 +322,7 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
     }\``,
   };
 
-  await deny(reasons[phase] ?? `Run \`${cmd("next")}\` first.`);
+  await writeDeny(reasons[phase] ?? `Run \`${cmd("next")}\` first.`);
   return results.ok(undefined);
 };
 

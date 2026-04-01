@@ -1,0 +1,19 @@
+{
+  "name": "@eser/ajan",
+  "version": "4.1.44",
+  "type": "module",
+  "exports": {
+    ".": "./ffi/mod.ts",
+    "./ffi": "./ffi/mod.ts",
+    "./wasm": "./wasm/mod.ts"
+  },
+  "optionalDependencies": {
+    "@eserstack/ajan-darwin-arm64": "4.1.44",
+    "@eserstack/ajan-darwin-x64": "4.1.44",
+    "@eserstack/ajan-linux-arm64": "4.1.44",
+    "@eserstack/ajan-linux-x64": "4.1.44",
+    "@eserstack/ajan-win32-arm64": "4.1.44",
+    "@eserstack/ajan-win32-x64": "4.1.44",
+    "@eserstack/ajan-wasm": "4.1.44"
+  }
+}

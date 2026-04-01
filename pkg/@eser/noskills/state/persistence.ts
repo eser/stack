@@ -26,6 +26,7 @@ const WORKFLOWS_DIR: string = `${ESER_DIR}/workflows`;
 
 const SPEC_STATES_DIR: string = `${STATE_DIR}/specs`;
 const ACTIVE_FILE: string = `${STATE_DIR}/active.json`;
+const SESSIONS_DIR: string = `${ESER_DIR}/.sessions`;
 
 export const paths: {
   readonly eserDir: string;
@@ -42,6 +43,8 @@ export const paths: {
   readonly specFile: (specName: string) => string;
   readonly specStateFile: (specName: string) => string;
   readonly concernFile: (concernId: string) => string;
+  readonly sessionsDir: string;
+  readonly sessionFile: (sessionId: string) => string;
   readonly eserGitignore: string;
 } = {
   eserDir: ESER_DIR,
@@ -61,6 +64,9 @@ export const paths: {
     `${SPEC_STATES_DIR}/${specName}.json`,
   concernFile: (concernId: string): string =>
     `${CONCERNS_DIR}/${concernId}.json`,
+  sessionsDir: SESSIONS_DIR,
+  sessionFile: (sessionId: string): string =>
+    `${SESSIONS_DIR}/${sessionId}.json`,
   eserGitignore: `${ESER_DIR}/.gitignore`,
 };
 
@@ -118,13 +124,28 @@ export const resolveState = async (
   return { ...specState, spec: specName };
 };
 
-/** Parse --spec=<name> from command args. Returns null if not provided. */
+/**
+ * Check if old --spec= format was used (for deprecation warnings).
+ */
+export const usesOldSpecFlag = (
+  args?: readonly string[],
+): boolean => {
+  if (args === undefined) return false;
+  return args.some((a) => a.startsWith("--spec="));
+};
+
+/**
+ * Parse spec name from args. Supports:
+ * - New positional format (spec name passed directly by spec.ts dispatcher)
+ * - Old --spec=<name> format (backward compat with deprecation warning)
+ */
 export const parseSpecFlag = (
   args?: readonly string[],
 ): string | null => {
   if (args === undefined) return null;
   for (const arg of args) {
     if (arg.startsWith("--spec=")) {
+      // Backward compat — still works but deprecated
       return arg.slice("--spec=".length);
     }
   }
@@ -132,7 +153,7 @@ export const parseSpecFlag = (
 };
 
 /**
- * Require --spec=<name> flag on spec-specific commands.
+ * Require spec name on spec-specific commands.
  * Returns the spec name if present, or an error message string if missing.
  */
 export const requireSpecFlag = (
@@ -143,7 +164,7 @@ export const requireSpecFlag = (
     return {
       ok: false,
       error:
-        "Error: --spec=<name> is required. Use `noskills spec list` to see available specs.",
+        "Error: spec name is required. Use `noskills spec <name> <command>` format.",
     };
   }
   return { ok: true, spec };
@@ -383,7 +404,7 @@ export const scaffoldEserDir = async (root: string): Promise<void> => {
   } catch {
     await runtime.fs.writeTextFile(
       gitignorePath,
-      "# eser toolchain runtime state — not tracked by git\n.state/\n",
+      "# eser toolchain runtime state — not tracked by git\n.state/\n.sessions/\n",
     );
   }
 };
@@ -407,6 +428,136 @@ export const writeStateAndSpec = async (
 // =============================================================================
 // Existence Checks
 // =============================================================================
+
+// =============================================================================
+// Sessions
+// =============================================================================
+
+export type Session = {
+  readonly id: string;
+  readonly spec: string | null;
+  readonly mode: "spec" | "free";
+  readonly phase: string | null;
+  readonly pid: number;
+  readonly startedAt: string;
+  readonly lastActiveAt: string;
+  readonly tool: string;
+};
+
+const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+export const createSession = async (
+  root: string,
+  session: Session,
+): Promise<void> => {
+  const dir = `${root}/${SESSIONS_DIR}`;
+  await runtime.fs.mkdir(dir, { recursive: true });
+  await runtime.fs.writeTextFile(
+    `${dir}/${session.id}.json`,
+    JSON.stringify(session, null, 2) + "\n",
+  );
+};
+
+export const readSession = async (
+  root: string,
+  sessionId: string,
+): Promise<Session | null> => {
+  try {
+    const content = await runtime.fs.readTextFile(
+      `${root}/${SESSIONS_DIR}/${sessionId}.json`,
+    );
+    return JSON.parse(content) as Session;
+  } catch {
+    return null;
+  }
+};
+
+export const listSessions = async (
+  root: string,
+): Promise<readonly Session[]> => {
+  const dir = `${root}/${SESSIONS_DIR}`;
+  const sessions: Session[] = [];
+
+  try {
+    for await (const entry of runtime.fs.readDir(dir)) {
+      if (entry.isFile && entry.name.endsWith(".json")) {
+        try {
+          const content = await runtime.fs.readTextFile(
+            `${dir}/${entry.name}`,
+          );
+          sessions.push(JSON.parse(content) as Session);
+        } catch {
+          // corrupt file, skip
+        }
+      }
+    }
+  } catch {
+    // no sessions dir
+  }
+
+  return sessions;
+};
+
+export const deleteSession = async (
+  root: string,
+  sessionId: string,
+): Promise<boolean> => {
+  try {
+    await runtime.fs.remove(`${root}/${SESSIONS_DIR}/${sessionId}.json`);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const updateSessionPhase = async (
+  root: string,
+  sessionId: string,
+  phase: string,
+): Promise<void> => {
+  const session = await readSession(root, sessionId);
+  if (session === null) return;
+
+  const updated: Session = {
+    ...session,
+    phase,
+    lastActiveAt: new Date().toISOString(),
+  };
+  await runtime.fs.writeTextFile(
+    `${root}/${SESSIONS_DIR}/${sessionId}.json`,
+    JSON.stringify(updated, null, 2) + "\n",
+  );
+};
+
+export const gcStaleSessions = async (
+  root: string,
+): Promise<readonly string[]> => {
+  const sessions = await listSessions(root);
+  const now = Date.now();
+  const removed: string[] = [];
+
+  for (const s of sessions) {
+    const elapsed = now - new Date(s.lastActiveAt).getTime();
+    if (elapsed > STALE_THRESHOLD_MS) {
+      await deleteSession(root, s.id);
+      removed.push(s.id);
+    }
+  }
+
+  return removed;
+};
+
+export const isSessionStale = (session: Session): boolean => {
+  const elapsed = Date.now() - new Date(session.lastActiveAt).getTime();
+  return elapsed > STALE_THRESHOLD_MS;
+};
+
+export const generateSessionId = (): string => {
+  // 8-char random hex
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+};
 
 export const isInitialized = async (root: string): Promise<boolean> => {
   try {

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eser-ajan WASM Browser Example</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        max-width: 640px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 1.4rem;
+        margin-bottom: 0.5rem;
+      }
+      p.desc {
+        color: #555;
+        margin-bottom: 1.5rem;
+        font-size: 0.95rem;
+      }
+      button {
+        padding: 0.6rem 1.2rem;
+        font-size: 1rem;
+        border: 1px solid #333;
+        border-radius: 4px;
+        background: #f8f8f8;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #eee;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      pre#output {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #f4f4f4;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        min-height: 3rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 0.9rem;
+      }
+      .error {
+        color: #c00;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>eser-ajan WASM Browser Example</h1>
+    <p class="desc">
+      Loads <code>eser-ajan.wasm</code> via a minimal WASI shim and calls
+      functions using the command-mode JSON protocol (stdin/stdout).
+    </p>
+
+    <button id="btn-version">Call version</button>
+    <button id="btn-init">Call init</button>
+    <button id="btn-custom">Custom call&hellip;</button>
+
+    <pre id="output">Ready. Click a button to call eser-ajan.</pre>
+
+    <!--
+    HOW TO SERVE THIS EXAMPLE
+    ==========================
+    1. Build the WASM:     deno run --allow-all scripts/build.ts --wasm
+    2. Copy the binary:    cp dist/wasm/eser-ajan.wasm pkg/@eser/ajan/examples/browser/
+    3. Serve this folder:  cd pkg/@eser/ajan/examples/browser && python3 -m http.server 8080
+       (or: npx serve -p 8080)
+    4. Open:               http://localhost:8080
+  -->
+
+    <script type="module">
+      // ========================================================================
+      // Minimal WASI preview1 shim — browser-only, no Node.js dependencies.
+      //
+      // Implements just enough of the wasi_snapshot_preview1 ABI for the
+      // eser-ajan command-mode WASM binary (Go wasip1). Each invocation gets a
+      // fresh shim instance with stdin pre-loaded and stdout captured.
+      // ========================================================================
+
+      const ERRNO_SUCCESS = 0;
+      const ERRNO_BADF = 8;
+      const ERRNO_NOSYS = 52;
+
+      class WasiExitError extends Error {
+        constructor(code) {
+          super(`proc_exit(${code})`);
+          this.code = code;
+        }
+      }
+
+      class WasiShim {
+        #stdinData;
+        #stdinOffset = 0;
+        #stdoutChunks = [];
+        #instance = null;
+        #exitCode = null;
+
+        constructor(stdinBytes) {
+          this.#stdinData = stdinBytes ?? new Uint8Array(0);
+        }
+
+        getStdout() {
+          let total = 0;
+          for (const c of this.#stdoutChunks) total += c.length;
+          const buf = new Uint8Array(total);
+          let off = 0;
+          for (const c of this.#stdoutChunks) {
+            buf.set(c, off);
+            off += c.length;
+          }
+          return new TextDecoder().decode(buf);
+        }
+
+        getExitCode() {
+          return this.#exitCode;
+        }
+
+        #mem() {
+          return new DataView(this.#instance.exports.memory.buffer);
+        }
+        #bytes() {
+          return new Uint8Array(this.#instance.exports.memory.buffer);
+        }
+
+        start(instance) {
+          this.#instance = instance;
+          try {
+            instance.exports._start();
+          } catch (err) {
+            if (err instanceof WasiExitError) {
+              this.#exitCode = err.code;
+              if (err.code !== 0) throw err;
+              return;
+            }
+            throw err;
+          }
+        }
+
+        get wasiImport() {
+          return {
+            // -- I/O: fd_write(fd, iovs_ptr, iovs_len, nwritten_ptr) -> errno
+            fd_write: (fd, iovsPtr, iovsLen, nwrittenPtr) => {
+              const view = this.#mem();
+              const mem = this.#bytes();
+              let written = 0;
+              for (let i = 0; i < iovsLen; i++) {
+                const base = iovsPtr + i * 8;
+                const bufPtr = view.getUint32(base, true);
+                const bufLen = view.getUint32(base + 4, true);
+                const bytes = mem.slice(bufPtr, bufPtr + bufLen);
+                if (fd === 1) this.#stdoutChunks.push(bytes);
+                else if (fd === 2) { /* stderr — ignore */ }
+                else return ERRNO_BADF;
+                written += bufLen;
+              }
+              view.setUint32(nwrittenPtr, written, true);
+              return ERRNO_SUCCESS;
+            },
+
+            // -- I/O: fd_read(fd, iovs_ptr, iovs_len, nread_ptr) -> errno
+            fd_read: (fd, iovsPtr, iovsLen, nreadPtr) => {
+              if (fd !== 0) return ERRNO_BADF;
+              const view = this.#mem();
+              const mem = this.#bytes();
+              let totalRead = 0;
+              for (let i = 0; i < iovsLen; i++) {
+                const base = iovsPtr + i * 8;
+                const bufPtr = view.getUint32(base, true);
+                const bufLen = view.getUint32(base + 4, true);
+                const remaining = this.#stdinData.length - this.#stdinOffset;
+                const toRead = Math.min(bufLen, remaining);
+                if (toRead > 0) {
+                  mem.set(
+                    this.#stdinData.subarray(
+                      this.#stdinOffset,
+                      this.#stdinOffset + toRead,
+                    ),
+                    bufPtr,
+                  );
+                  this.#stdinOffset += toRead;
+                  totalRead += toRead;
+                }
+                if (toRead < bufLen) break; // EOF
+              }
+              view.setUint32(nreadPtr, totalRead, true);
+              return ERRNO_SUCCESS;
+            },
+
+            fd_close: () => ERRNO_SUCCESS,
+            fd_seek: () => ERRNO_NOSYS,
+            fd_fdstat_get: (fd, bufPtr) => {
+              const view = this.#mem();
+              view.setUint8(bufPtr, 2); // filetype: char device
+              view.setUint16(bufPtr + 2, 0, true); // flags
+              view.setBigUint64(bufPtr + 8, 0n, true); // rights base
+              view.setBigUint64(bufPtr + 16, 0n, true); // rights inheriting
+              return fd <= 2 ? ERRNO_SUCCESS : ERRNO_BADF;
+            },
+            fd_fdstat_set_flags: () => ERRNO_SUCCESS,
+            fd_prestat_get: () => ERRNO_BADF,
+            fd_prestat_dir_name: () => ERRNO_BADF,
+
+            // -- Process --
+            proc_exit: (code) => {
+              this.#exitCode = code;
+              throw new WasiExitError(code);
+            },
+
+            // -- Clock: clock_time_get(clock_id, precision_i64, timestamp_ptr) -> errno
+            // Go wasip1 passes precision as i64 (BigInt).
+            clock_time_get: (_clockId, _precision, timePtr) => {
+              const view = this.#mem();
+              view.setBigUint64(timePtr, BigInt(Date.now()) * 1_000_000n, true);
+              return ERRNO_SUCCESS;
+            },
+
+            // -- Environment --
+            environ_sizes_get: (countPtr, bufSizePtr) => {
+              const v = this.#mem();
+              v.setUint32(countPtr, 0, true);
+              v.setUint32(bufSizePtr, 0, true);
+              return ERRNO_SUCCESS;
+            },
+            environ_get: () => ERRNO_SUCCESS,
+
+            args_sizes_get: (countPtr, bufSizePtr) => {
+              const v = this.#mem();
+              v.setUint32(countPtr, 0, true);
+              v.setUint32(bufSizePtr, 0, true);
+              return ERRNO_SUCCESS;
+            },
+            args_get: () => ERRNO_SUCCESS,
+
+            // -- Scheduling / polling --
+            poll_oneoff: (inPtr, outPtr, nsubscriptions, neventsPtr) => {
+              const view = this.#mem();
+              for (let i = 0; i < nsubscriptions; i++) {
+                const subBase = inPtr + i * 48;
+                const eventBase = outPtr + i * 32;
+                view.setBigUint64(
+                  eventBase,
+                  view.getBigUint64(subBase, true),
+                  true,
+                );
+                view.setUint16(eventBase + 8, 0, true);
+                view.setUint8(eventBase + 10, view.getUint8(subBase + 8));
+              }
+              view.setUint32(neventsPtr, nsubscriptions, true);
+              return ERRNO_SUCCESS;
+            },
+            random_get: (bufPtr, bufLen) => {
+              const mem = this.#bytes();
+              crypto.getRandomValues(mem.subarray(bufPtr, bufPtr + bufLen));
+              return ERRNO_SUCCESS;
+            },
+            sched_yield: () => ERRNO_SUCCESS,
+
+            // -- Unsupported stubs --
+            path_open: () => ERRNO_NOSYS,
+            path_filestat_get: () => ERRNO_NOSYS,
+            path_create_directory: () => ERRNO_NOSYS,
+            path_remove_directory: () => ERRNO_NOSYS,
+            path_unlink_file: () => ERRNO_NOSYS,
+            path_rename: () => ERRNO_NOSYS,
+            path_readlink: () => ERRNO_NOSYS,
+            path_symlink: () => ERRNO_NOSYS,
+            fd_readdir: () => ERRNO_NOSYS,
+            fd_filestat_get: () => ERRNO_NOSYS,
+            fd_filestat_set_size: () => ERRNO_NOSYS,
+            fd_filestat_set_times: () => ERRNO_NOSYS,
+            fd_advise: () => ERRNO_NOSYS,
+            fd_allocate: () => ERRNO_NOSYS,
+            fd_datasync: () => ERRNO_NOSYS,
+            fd_sync: () => ERRNO_NOSYS,
+            fd_pread: () => ERRNO_NOSYS,
+            fd_pwrite: () => ERRNO_NOSYS,
+            fd_renumber: () => ERRNO_NOSYS,
+            fd_tell: () => ERRNO_NOSYS,
+            sock_accept: () => ERRNO_NOSYS,
+            sock_recv: () => ERRNO_NOSYS,
+            sock_send: () => ERRNO_NOSYS,
+            sock_shutdown: () => ERRNO_NOSYS,
+          };
+        }
+      }
+
+      // ========================================================================
+      // WASM loading & invocation
+      // ========================================================================
+
+      const WASM_URL = "./eser-ajan.wasm";
+      let wasmModule = null;
+
+      const output = document.getElementById("output");
+
+      function log(text, isError = false) {
+        const line = document.createElement("span");
+        line.textContent = text + "\n";
+        if (isError) line.className = "error";
+        output.appendChild(line);
+        output.scrollTop = output.scrollHeight;
+      }
+
+      async function ensureModule() {
+        if (wasmModule) return wasmModule;
+        log("Fetching eser-ajan.wasm...");
+        const resp = await fetch(WASM_URL);
+        if (!resp.ok) {
+          throw new Error(
+            `Failed to fetch WASM: ${resp.status} ${resp.statusText}`,
+          );
+        }
+        const bytes = await resp.arrayBuffer();
+        wasmModule = await WebAssembly.compile(bytes);
+        log(`Compiled OK (${(bytes.byteLength / 1024).toFixed(1)} KB)`);
+        return wasmModule;
+      }
+
+      /**
+       * Invoke a command-mode function in eser-ajan.wasm.
+       *
+       * Each call creates a fresh WASI shim + WASM instance so there is
+       * no shared mutable state between calls (same approach as loader-command.ts).
+       */
+      function invoke(module, request) {
+        const stdinBytes = new TextEncoder().encode(JSON.stringify(request));
+        const wasi = new WasiShim(stdinBytes);
+
+        const instance = new WebAssembly.Instance(module, {
+          wasi_snapshot_preview1: wasi.wasiImport,
+        });
+
+        wasi.start(instance);
+
+        const text = wasi.getStdout().trim();
+        if (!text) return { ok: false, error: "WASM produced no output" };
+        return JSON.parse(text);
+      }
+
+      async function callFn(fn, args) {
+        try {
+          const mod = await ensureModule();
+          log(
+            `> {"fn":"${fn}"${args ? ',"args":' + JSON.stringify(args) : ""}}`,
+          );
+          const resp = invoke(mod, { fn, ...(args ? { args } : {}) });
+          if (resp.ok) {
+            log(`< ${JSON.stringify(resp)}`);
+          } else {
+            log(`< ERROR: ${resp.error}`, true);
+          }
+        } catch (err) {
+          log(`Error: ${err.message}`, true);
+        }
+      }
+
+      // -- Button handlers --
+
+      document.getElementById("btn-version").addEventListener("click", () => {
+        output.textContent = "";
+        callFn("version");
+      });
+
+      document.getElementById("btn-init").addEventListener("click", () => {
+        output.textContent = "";
+        callFn("init");
+      });
+
+      document.getElementById("btn-custom").addEventListener("click", () => {
+        const fn = prompt("Function name (e.g. version, init, configLoad):");
+        if (!fn) return;
+        output.textContent = "";
+        callFn(fn);
+      });
+    </script>
+  </body>
+</html>

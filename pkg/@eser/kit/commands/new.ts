@@ -11,6 +11,7 @@ import * as cliParseArgs from "@std/cli/parse-args";
 import * as task from "@eser/functions/task";
 import * as streams from "@eser/streams";
 import * as span from "@eser/streams/span";
+import { runtime } from "@eser/standards/cross-runtime";
 import * as newProjectHandler from "../recipes/handlers/new-project.ts";
 import * as registryFetcher from "../recipes/registry-fetcher.ts";
 import type * as shellArgs from "@eser/shell/args";
@@ -84,7 +85,7 @@ export const main = async (
     span.cyan(`\nCreating ${projectName} from ${templateName}...\n`),
   );
 
-  const targetDir = `${Deno.cwd()}/${projectName}`;
+  const targetDir = `${runtime.process.cwd()}/${projectName}`;
 
   const handlerResult = await task.runTask(
     newProjectHandler.newProject({

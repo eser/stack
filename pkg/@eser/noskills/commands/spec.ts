@@ -17,34 +17,137 @@ import * as splitDetector from "../context/split-detector.ts";
 import { cmd, cmdPrefix } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
+// Reserved names that cannot be used as spec names
+const RESERVED_NAMES = new Set([
+  "new",
+  "list",
+  "help",
+  "next",
+  "approve",
+  "done",
+  "block",
+  "reset",
+  "cancel",
+  "wontfix",
+  "reopen",
+  "revisit",
+  "split",
+]);
+
+// Subcommands that can appear after spec <name>
+const SPEC_SUBCOMMANDS: ReadonlyMap<
+  string,
+  () => Promise<
+    { main: (args?: readonly string[]) => Promise<shellArgs.CliResult<void>> }
+  >
+> = new Map([
+  ["next", () => import("./next.ts")],
+  ["approve", () => import("./approve.ts")],
+  ["done", () => import("./done.ts")],
+  ["block", () => import("./block.ts")],
+  ["reset", () => import("./reset.ts")],
+  ["cancel", () => import("./cancel.ts")],
+  ["wontfix", () => import("./wontfix.ts")],
+  ["reopen", () => import("./reopen.ts")],
+]);
+
+export { RESERVED_NAMES };
+
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const subcommand = args?.[0];
+  const arg1 = args?.[0];
 
-  if (subcommand === "new") {
+  // noskills spec new <name> "description"
+  if (arg1 === "new") {
     return await specNew(args?.slice(1));
   }
 
-  if (subcommand === "list") {
+  // noskills spec list
+  if (arg1 === "list") {
     return await specList(args?.slice(1));
   }
 
-  if (subcommand === "split") {
-    return await specSplit(args?.slice(1));
+  // noskills spec help
+  if (arg1 === "help" || arg1 === undefined) {
+    const prefix = cmdPrefix();
+    const out = streams.output({
+      renderer: streams.renderers.ansi(),
+      sink: streams.sinks.stdout(),
+    });
+    out.writeln(
+      `Usage: ${prefix} spec <new <name> "desc" | list | <name> <command>>`,
+    );
+    out.writeln("");
+    out.writeln(span.dim("  Commands for a spec:"));
+    out.writeln(
+      span.dim(
+        "    next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split",
+      ),
+    );
+    out.writeln("");
+    out.writeln(span.dim("  Examples:"));
+    out.writeln(
+      span.dim(`    ${prefix} spec new my-feature "Add upload support"`),
+    );
+    out.writeln(
+      span.dim(`    ${prefix} spec my-feature next`),
+    );
+    out.writeln(
+      span.dim(`    ${prefix} spec my-feature next --answer="approve"`),
+    );
+    await out.close();
+
+    return results.ok(undefined);
   }
 
-  const prefix = cmdPrefix();
+  // Otherwise: arg1 is a spec name, arg2 is the subcommand
+  // noskills spec <specName> <subcommand> [args...]
+  const specName = arg1;
+  const subcommand = args?.[1];
+
+  if (subcommand === undefined) {
+    // noskills spec <name> with no subcommand — show spec info via status
+    const statusMod = await import("./status.ts");
+    return await statusMod.main([`--spec=${specName}`]);
+  }
+
+  // Handle spec-scoped commands that live in spec.ts itself
+  if (subcommand === "split") {
+    return await specSplit([`--spec=${specName}`, ...(args?.slice(2) ?? [])]);
+  }
+
+  if (subcommand === "revisit") {
+    return await specRevisit([
+      `--spec=${specName}`,
+      ...(args?.slice(2) ?? []),
+    ]);
+  }
+
+  // Delegate to command modules (next, approve, done, block, etc.)
+  const loader = SPEC_SUBCOMMANDS.get(subcommand);
+  if (loader !== undefined) {
+    const mod = await loader();
+    // Inject --spec=<name> as first arg for backward compat with existing commands
+    return await mod.main([`--spec=${specName}`, ...(args?.slice(2) ?? [])]);
+  }
+
+  // Unknown subcommand
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
   out.writeln(
-    `Usage: ${prefix} spec <new --name=<slug> "description" | list | split --spec=<name> --into name1 "desc1" --into name2 "desc2">`,
+    span.red(`Unknown command: spec ${specName} ${subcommand}`),
+  );
+  out.writeln(
+    span.dim(
+      `  Valid: next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split`,
+    ),
   );
   await out.close();
 
-  return results.ok(undefined);
+  return results.fail({ exitCode: 1 });
 };
 
 // =============================================================================
@@ -72,16 +175,25 @@ const specNew = async (
     return results.fail({ exitCode: 1 });
   }
 
-  // Parse --name flag and collect description words
+  // Positional: spec new <name> "description"
+  // Also supports old --name= format for backward compat
   let specName: string | null = null;
   const descWords: string[] = [];
 
   if (args !== undefined) {
+    let nameConsumed = false;
     for (const arg of args) {
       if (arg.startsWith("--name=")) {
+        // Backward compat
         specName = arg.slice("--name=".length);
+        nameConsumed = true;
       } else if (!arg.startsWith("-")) {
-        descWords.push(arg);
+        if (!nameConsumed && specName === null) {
+          specName = arg;
+          nameConsumed = true;
+        } else {
+          descWords.push(arg);
+        }
       }
     }
   }
@@ -90,13 +202,24 @@ const specNew = async (
 
   if (specName === null || specName.length === 0) {
     out.writeln(
-      span.red("Error: --name is required."),
+      span.red("Error: spec name is required."),
     );
     out.writeln(
       span.dim("Example: "),
       span.bold(
-        `${cmdPrefix()} spec new --name=photo-upload "photo upload feature"`,
+        `${cmdPrefix()} spec new photo-upload "photo upload feature"`,
       ),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  // Check reserved names
+  if (RESERVED_NAMES.has(specName)) {
+    out.writeln(
+      span.red(`"${specName}" is a reserved name.`),
+      span.dim(" Choose a different spec name."),
     );
     await out.close();
 
@@ -156,7 +279,7 @@ const specNew = async (
 
   // Create a fresh state for the new spec (independent of other specs)
   const freshState = schema.createInitialState();
-  const newState = machine.startSpec(freshState, specName, branch);
+  const newState = machine.startSpec(freshState, specName, branch, description);
 
   // Create spec directory and save state
   await runtime.fs.mkdir(
@@ -496,6 +619,125 @@ const specSplit = async (
     "",
     span.dim(`Parent spec "${specFlag}" cancelled.`),
   );
+  await out.close();
+
+  return results.ok(undefined);
+};
+
+// =============================================================================
+// spec revisit
+// =============================================================================
+
+const specRevisit = async (
+  args?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
+  const root = runtime.process.cwd();
+
+  if (!(await persistence.isInitialized(root))) {
+    out.writeln(
+      span.red("noskills is not initialized."),
+      " Run: ",
+      span.bold(cmd("init")),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  const specFlag = persistence.parseSpecFlag(args ?? []);
+  if (specFlag === null) {
+    out.writeln(span.red("Error: --spec=<name> is required."));
+    out.writeln(
+      span.dim("Example: "),
+      span.bold(
+        `${cmdPrefix()} spec revisit --spec=my-spec "reason for revisit"`,
+      ),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  // Parse reason — positional arg that isn't a flag
+  const reason = (args ?? []).find((a) =>
+    !a.startsWith("--") && a !== specFlag
+  );
+  if (reason === undefined || reason.trim().length === 0) {
+    out.writeln(
+      span.red(
+        'Error: Reason is required: noskills spec revisit --spec=X "reason"',
+      ),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  let specState: schema.StateFile;
+  try {
+    specState = await persistence.resolveState(root, specFlag);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    out.writeln(span.red(`Error: ${msg}`));
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  // Phase validation
+  if (
+    specState.phase === "DISCOVERY" || specState.phase === "DISCOVERY_REVIEW" ||
+    specState.phase === "SPEC_DRAFT" || specState.phase === "SPEC_APPROVED"
+  ) {
+    out.writeln(
+      span.red("Already in planning phase, no need to revisit."),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  if (specState.phase === "COMPLETED") {
+    out.writeln(
+      span.red(
+        `Spec is completed. Use \`${cmdPrefix()} reopen --spec=${specFlag}\` instead.`,
+      ),
+    );
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  if (specState.phase === "IDLE" || specState.phase === "FREE") {
+    out.writeln(span.red("No active spec to revisit."));
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
+  const completedCount = specState.execution.completedTasks.length;
+  const newState = machine.revisitSpec(specState, reason.trim());
+  await persistence.writeSpecState(root, specFlag, newState);
+
+  out.writeln(span.green("Revisit complete."));
+  out.writeln(
+    "  Phase: ",
+    span.bold("DISCOVERY"),
+    span.dim(` (revisited from ${specState.phase})`),
+  );
+  if (completedCount > 0) {
+    out.writeln(
+      "  Previous progress: ",
+      span.bold(`${completedCount} tasks completed`),
+    );
+  }
+  out.writeln("  Reason: ", span.dim(`"${reason.trim()}"`));
+  out.writeln("  Discovery answers preserved — revise or re-approve.");
   await out.close();
 
   return results.ok(undefined);

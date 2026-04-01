@@ -70,7 +70,7 @@ describe("Kiro adapter: snapshot tests", () => {
       );
 
       assertStringIncludes(content, "# noskills Protocol");
-      assertStringIncludes(content, `${CMD_PREFIX} next --spec=`);
+      assertStringIncludes(content, `${CMD_PREFIX} spec`);
       assertStringIncludes(content, `--answer=`);
     });
 

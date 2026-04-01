@@ -88,5 +88,17 @@ export const moduleDef: Module = new Module({
       description: "Manage rules (add, list, promote)",
       load: () => import("./commands/rule.ts"),
     },
+    session: {
+      description: "Manage sessions for multi-instance support",
+      load: () => import("./commands/session.ts"),
+    },
+    manager: {
+      description: "Multi-spec TUI with tab management",
+      load: () => import("./commands/manager.ts"),
+    },
+    mgr: {
+      description: "Alias for manager",
+      load: () => import("./commands/manager.ts"),
+    },
   },
 });

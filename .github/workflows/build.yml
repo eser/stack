@@ -183,6 +183,153 @@ jobs:
           name: npm-laroux
           path: pkg/@eser/laroux-server/dist/
 
+  # ── npm-only smoke test (no Deno) ──────────────────────────
+  npm-no-deno-test:
+    name: npm Install Test (no Deno)
+    needs: smoke-test
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Setup Node.js only
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+
+      - name: Verify Deno is NOT installed
+        run: |
+          if command -v deno &>/dev/null; then
+            echo "::error::Deno is installed — this job must run without Deno"
+            exit 1
+          fi
+          echo "Confirmed: Deno is not installed"
+
+      - name: Download eser npm bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-eser
+          path: npm-eser/
+
+      - name: Install eser globally from artifact
+        run: npm install -g ./npm-eser/
+
+      - name: Smoke test — eser --help
+        run: eser --help
+
+      - name: Smoke test — eser version
+        run: eser version
+
+      - name: Smoke test — eser go version (graceful failure)
+        run: |
+          set +e
+          OUTPUT=$(eser go version 2>&1)
+          EXIT_CODE=$?
+          echo "$OUTPUT"
+
+          if echo "$OUTPUT" | grep -qi "deno"; then
+            echo "::error::Error message mentions Deno — npm package must not require Deno"
+            exit 1
+          fi
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "eser go version succeeded (unexpected but acceptable)"
+          else
+            echo "eser go version failed as expected (no shared library in npm package)"
+            echo "Error output does NOT mention Deno — PASS"
+          fi
+
+  # ── Cross-runtime testing ──────────────────────────────────
+  cross-runtime-test:
+    name: Cross-Runtime Test (${{ matrix.runtime }} on ${{ matrix.os }})
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    continue-on-error: ${{ matrix.runtime != 'deno' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, macos-latest]
+        runtime: [deno, node, bun]
+        include:
+          - runtime: deno
+            version: "2.7"
+          - runtime: node
+            version: "25"
+          - runtime: bun
+            version: "1.3"
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+            node_modules
+          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
+          restore-keys: deno-${{ runner.arch }}-
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+          cache: true
+          cache-dependency-path: apps/services/go.sum
+
+      - name: Setup Node.js
+        if: matrix.runtime == 'node'
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.version }}
+
+      - name: Setup Bun
+        if: matrix.runtime == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ matrix.version }}
+
+      - name: Build Go shared library (native)
+        run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts
+
+      - name: Verify FFI — eser go version
+        run: |
+          if [ "${{ matrix.runtime }}" = "deno" ]; then
+            deno task cli go version
+          elif [ "${{ matrix.runtime }}" = "node" ]; then
+            deno task cli build
+            node pkg/@eser/cli/dist/eser.js go version
+          elif [ "${{ matrix.runtime }}" = "bun" ]; then
+            deno task cli build
+            bun pkg/@eser/cli/dist/eser.js go version
+          fi
+
+      - name: Verify CLI — eser --help
+        run: |
+          if [ "${{ matrix.runtime }}" = "deno" ]; then
+            deno task cli --help
+          elif [ "${{ matrix.runtime }}" = "node" ]; then
+            node pkg/@eser/cli/dist/eser.js --help
+          elif [ "${{ matrix.runtime }}" = "bun" ]; then
+            bun pkg/@eser/cli/dist/eser.js --help
+          fi
+
   # ── Release: publish ────────────────────────────────────────────
   publish:
     name: Publish
@@ -327,6 +474,31 @@ jobs:
             node_modules
           key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
           restore-keys: deno-${{ runner.arch }}-
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+          cache: true
+          cache-dependency-path: apps/services/go.sum
+
+      - name: Install cross-compilers
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            gcc-x86-64-linux-gnu \
+            gcc-mingw-w64-x86-64 \
+            gcc-mingw-w64-aarch64
+
+      - name: Build Go shared libraries (all native targets)
+        run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts --all
+        continue-on-error: true
+
+      - name: Build Go WASM modules
+        run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts --wasm
+
+      - name: Generate npm packages for ajan
+        run: deno run --allow-all pkg/@eser/ajan/npm/generate-packages.ts
 
       - name: Compile for all platforms
         run: deno run --allow-all ./pkg/@eser/cli/scripts/compile.ts

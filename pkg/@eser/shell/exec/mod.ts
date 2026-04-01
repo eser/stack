@@ -58,3 +58,7 @@ export type { ChildProcess } from "@eser/standards/cross-runtime";
 export { CommandBuilder } from "./command.ts";
 export { parseCommand } from "./parser.ts";
 export { exec } from "./exec.ts";
+
+// PTY and process management
+export { type PtyOptions, type PtyProcess, spawnPty } from "./pty.ts";
+export { type ManagedProcess, ProcessGroup } from "./process-group.ts";

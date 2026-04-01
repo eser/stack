@@ -156,20 +156,12 @@ const gitDeleteTag = async (tag: string): Promise<void> => {
 // =============================================================================
 
 /**
- * Ask a yes/no question on stderr/stdin.
- * Returns true only if the user types "y" or "Y".
+ * Ask a yes/no question via the TUI confirm widget.
+ * Falls back to a simple process-based prompt if TUI is unavailable.
  */
-const confirm = async (question: string): Promise<boolean> => {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  const buf = new Uint8Array(256);
-
-  // Use Deno.stderr / Deno.stdin directly — @eser/standards/cross-runtime does not
-  // expose interactive I/O, and this is a CLI-only concern.
-  await Deno.stderr.write(encoder.encode(`${question} [y/N] `));
-  const n = await Deno.stdin.read(buf);
-  const answer = decoder.decode(buf.subarray(0, n ?? 0)).trim();
-  return answer === "y" || answer === "Y";
+const confirmPrompt = async (question: string): Promise<boolean> => {
+  const answer = await tui.confirm(ctx, { message: question });
+  return answer === true;
 };
 
 // =============================================================================
@@ -607,7 +599,7 @@ export const main = async (
     );
     await out.flush();
 
-    const proceed = await confirm("Proceed?");
+    const proceed = await confirmPrompt("Proceed?");
     if (!proceed) {
       tui.log.warn(ctx, "Aborted.");
       return primitives.results.ok(undefined);

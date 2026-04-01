@@ -23,7 +23,7 @@ export type InteractionHints = {
   /** Whether the tool can delegate work to sub-agents. */
   readonly hasSubAgentDelegation: boolean;
   /** Mechanism for spawning sub-agents. */
-  readonly subAgentMethod: "task" | "delegation" | "none";
+  readonly subAgentMethod: "task" | "delegation" | "spawn" | "fleet" | "none";
 };
 
 /** Boolean flags describing what a tool adapter can generate. */

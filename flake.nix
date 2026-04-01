@@ -35,6 +35,14 @@
         };
 
         isLinux = builtins.elem system [ "x86_64-linux" "aarch64-linux" ];
+        isDarwin = builtins.elem system [ "x86_64-darwin" "aarch64-darwin" ];
+
+        # Platform-appropriate shared library extension
+        sharedLibExt = if isDarwin then "dylib" else "so";
+        sharedLibName = "libeser_ajan.${sharedLibExt}";
+
+        # Environment variable for shared library lookup
+        libPathVar = if isDarwin then "DYLD_LIBRARY_PATH" else "LD_LIBRARY_PATH";
 
         eser = pkgs.stdenv.mkDerivation {
           pname = "eser";
@@ -42,7 +50,9 @@
 
           sourceRoot = ".";
 
-          nativeBuildInputs = pkgs.lib.optionals isLinux [
+          nativeBuildInputs = [
+            pkgs.makeWrapper
+          ] ++ pkgs.lib.optionals isLinux [
             pkgs.autoPatchelfHook
           ];
 
@@ -52,8 +62,31 @@
 
           installPhase = ''
             mkdir -p $out/bin
+
+            # Install the main binary
             cp eser $out/bin/eser
             chmod +x $out/bin/eser
+
+            # Install the Go shared library if present in the archive
+            if [ -f "${sharedLibName}" ]; then
+              mkdir -p $out/lib
+              cp ${sharedLibName} $out/lib/${sharedLibName}
+              chmod +x $out/lib/${sharedLibName}
+            fi
+
+            # Install the C header if present in the archive
+            if [ -f "libeser_ajan.h" ]; then
+              mkdir -p $out/include
+              cp libeser_ajan.h $out/include/libeser_ajan.h
+            fi
+          '';
+
+          # Wrap the binary so it can find the shared library at runtime
+          postFixup = ''
+            if [ -f "$out/lib/${sharedLibName}" ]; then
+              wrapProgram $out/bin/eser \
+                --set ${libPathVar} "$out/lib"
+            fi
           '';
 
           meta = with pkgs.lib; {
@@ -80,6 +113,7 @@
             deno
             go
             nodejs
+            bun
             git
           ];
         };

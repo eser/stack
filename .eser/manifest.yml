@@ -36,6 +36,12 @@ workflows:
                 - "Dockerfile"
                 - "Makefile"
                 - "README.md"
+            - directory: "pkg/@eser/ajan/"
+              convention: "snake_case"
+              exclude:
+                - "Dockerfile"
+                - "Makefile"
+                - "README.md"
             - directory: "*"
               convention: "kebab-case"
               exclude:
@@ -48,6 +54,7 @@ workflows:
                 - "Makefile"
                 - "VERSION"
                 - "apps/services/"
+                - "pkg/@eser/ajan/"
                 - "docs/"
                 - "etc/coverage/"
                 - "etc/temp/"

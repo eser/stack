@@ -9,7 +9,8 @@
     "./exec": "./exec/mod.ts",
     "./env": "./env/mod.ts",
     "./tui": "./tui/mod.ts",
-    "./tui/colors": "./tui/colors.ts"
+    "./tui/colors": "./tui/colors.ts",
+    "./vterm": "./vterm/mod.ts"
   },
   "imports": {
     "@std/cli": "jsr:@std/cli@^1.0.25"

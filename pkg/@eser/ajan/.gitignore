@@ -1,0 +1,6 @@
+dist/
+*.so
+*.dylib
+*.dll
+*.wasm
+*.h

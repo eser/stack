@@ -34,21 +34,6 @@ declare namespace Deno {
   }
 
   function bundle(options: bundle.Options): Promise<BundleResult>;
-
-  interface FsEvent {
-    kind: "create" | "modify" | "remove" | "access" | "other";
-    paths: string[];
-    flag?: { rescan: boolean };
-  }
-
-  interface FsWatcher extends AsyncIterable<FsEvent> {
-    close(): void;
-  }
-
-  function watchFs(
-    paths: string | string[],
-    options?: { recursive?: boolean },
-  ): FsWatcher;
 }
 
 import * as hex from "@std/encoding/hex";
@@ -207,8 +192,8 @@ export class DenoBundlerBackend implements Bundler {
     );
     const uniquePaths = [...new Set(watchPaths)];
 
-    // Use Deno.watchFs directly for file watching
-    const watcher = Deno.watchFs(uniquePaths, { recursive: true });
+    // Use cross-runtime fs.watch for file watching
+    const watcher = runtime.fs.watch(uniquePaths, { recursive: true });
 
     const watchLoop = async () => {
       for await (const _event of watcher) {

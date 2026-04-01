@@ -229,7 +229,7 @@ export const copilotCliAdapter: adapter.ToolAdapter = {
       hasAskUserTool: false,
       optionPresentation: "prose",
       hasSubAgentDelegation: true,
-      subAgentMethod: "delegation",
+      subAgentMethod: "fleet",
     },
   },
 

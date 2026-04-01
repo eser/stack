@@ -226,7 +226,10 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
     }
   } catch (error) {
     if (
-      error instanceof Deno.errors.PermissionDenied
+      (error instanceof Error && "code" in error &&
+        (error as NodeJS.ErrnoException).code === "EACCES") ||
+      (typeof Deno !== "undefined" &&
+        error instanceof Deno.errors.PermissionDenied)
     ) {
       out.writeln(
         span.red(

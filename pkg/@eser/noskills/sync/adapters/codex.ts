@@ -195,7 +195,7 @@ export const codexAdapter: adapter.ToolAdapter = {
       hasAskUserTool: false,
       optionPresentation: "prose",
       hasSubAgentDelegation: true,
-      subAgentMethod: "delegation",
+      subAgentMethod: "spawn",
     },
   },
 

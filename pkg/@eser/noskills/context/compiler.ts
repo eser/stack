@@ -25,19 +25,12 @@ export type { InteractionHints } from "../sync/adapter.ts";
 const c = (sub: string): string => _cmd(sub);
 
 /**
- * Build a spec-scoped command string. Automatically inserts --spec=<name>
- * after the subcommand for commands that require it.
+ * Build a spec-scoped command string using positional format:
+ *   `spec <specName> <subcommand> [args]`
  */
 const cs = (sub: string, specName: string | null): string => {
   if (specName === null) return c(sub);
-  // Insert --spec=<name> after the first word (the subcommand)
-  const firstSpace = sub.indexOf(" ");
-  if (firstSpace === -1) {
-    return c(`${sub} --spec=${specName}`);
-  }
-  const cmd = sub.slice(0, firstSpace);
-  const rest = sub.slice(firstSpace);
-  return c(`${cmd} --spec=${specName}${rest}`);
+  return c(`spec ${specName} ${sub}`);
 };
 
 // =============================================================================
@@ -65,9 +58,17 @@ export type ClearContextAction = {
   readonly reason: string;
 };
 
+export type GateInfo = {
+  readonly message: string;
+  readonly action: string;
+  readonly phase: string;
+};
+
 export type NextOutput = PhaseOutput & {
   readonly meta: MetaBlock;
   readonly behavioral: BehavioralBlock;
+  readonly roadmap: string;
+  readonly gate?: GateInfo;
   readonly interactiveOptions?: readonly InteractiveOption[];
   readonly commandMap?: Record<string, string>;
   readonly toolHint?: string;
@@ -83,6 +84,17 @@ export type DiscoveryQuestion = {
   readonly extras: readonly string[];
 };
 
+export type PreDiscoveryResearch = {
+  readonly required: boolean;
+  readonly instruction: string;
+  readonly extractedTerms: readonly string[];
+};
+
+export type PreviousProgress = {
+  readonly completedTasks: readonly string[];
+  readonly totalTasks: number;
+};
+
 export type DiscoveryOutput = {
   readonly phase: "DISCOVERY";
   readonly instruction: string;
@@ -94,6 +106,10 @@ export type DiscoveryOutput = {
   readonly transition: {
     readonly onComplete: string;
   };
+  readonly revisited?: boolean;
+  readonly revisitReason?: string;
+  readonly previousProgress?: PreviousProgress;
+  readonly preDiscoveryResearch?: PreDiscoveryResearch;
 };
 
 export type DiscoveryReviewAnswer = {
@@ -181,6 +197,7 @@ export type ExecutionOutput = {
   readonly phase: "EXECUTING";
   readonly instruction: string;
   readonly task?: TaskBlock;
+  readonly batchTasks?: readonly string[];
   readonly context: ContextBlock;
   readonly transition: {
     readonly onComplete: string;
@@ -342,6 +359,9 @@ const buildBehavioral = (
       RECOMMENDATION_RULE,
       LIVE_STATE_MACHINE_RULE,
     ];
+  const ROADMAP_GATE_RULE =
+    "When noskills output contains a `roadmap` field, display it to the user BEFORE any other content. When output contains a `gate` field, display the gate message prominently — do NOT bury it in prose.";
+  mandatoryRules.push(ROADMAP_GATE_RULE);
   const scopeItems = parsedSpec?.outOfScope ?? [];
 
   const specName = state.spec;
@@ -406,6 +426,9 @@ const buildBehavioral = (
 
           // 1. Pre-discovery codebase scan
           "BEFORE asking any discovery questions, conduct a pre-discovery codebase scan: read the project README, CLAUDE.md, and any design docs; check the last 20 git commits (git log --oneline -20); look for TODO files, open issue references, and existing specs; scan the directory structure to understand the project shape. Then present a brief 'Pre-discovery audit' summary: stack detected, recent work themes, open TODOs, existing specs. This gives you CONTEXT to ask INFORMED questions, not blind ones.",
+
+          // 1.1. Pre-discovery platform research
+          "If the noskills output contains `preDiscoveryResearch` with `required: true`, you MUST research every term in `extractedTerms` using web search before asking the first question. Present findings as a brief: current stable versions, API changes, deprecations, and anything that might affect the spec's assumptions.",
 
           // 1.5. Discovery mode selection
           "After the pre-discovery codebase scan and BEFORE starting questions, ask the user: 'What kind of discovery do you need? A) Explore scope — I'll help expand, find opportunities, think bigger. B) Technical depth — I'll focus on architecture, error handling, implementation strategy. C) Validate my plan — I already know what I want, challenge my assumptions. D) Ship fast — minimal scope, cut the fat, get to tasks quickly.' Adapt your discovery emphasis accordingly: Explore → heavy on expansion proposals and dream state; Technical → heavy on architectural decisions and error/rescue map; Validate → heavy on premise challenge and pushback; Ship fast → minimal questions, skip expansions, go direct to classification and tasks.",
@@ -522,6 +545,32 @@ const buildBehavioral = (
           "The agent that writes implementation code must NOT write tests for that code. Spawn a SEPARATE sub-agent for test writing. This prevents the implementer from writing tests that only confirm what it already knows. The test writer reads the code fresh and tests what it actually does, not what the implementer intended.",
           "When deciding how to split work across sub-agents: if all tasks touch the same file or tightly coupled files, batch them into one executor. If tasks touch independent files or modules, spawn parallel executors. Always err toward smaller, focused sub-agents over large batched ones — fresh context per task is better than accumulated context across tasks.",
         );
+      } else if (hints.subAgentMethod === "spawn") {
+        // Codex: uses spawn_agent for sub-agent spawning
+        subAgentRules.push(
+          `When you receive a task from noskills next, use spawn_agent to delegate to the noskills-executor agent. Pass it: the task title, description, acceptance criteria (with IDs), behavioral rules, out-of-scope constraints, concern reminders, and relevant file paths. Use wait_agent to collect results. Then report to noskills via \`${
+            cs(
+              'next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'',
+              specName,
+            )
+          }\`. You are the orchestrator — the spawned agent is the implementer.`,
+          "If the spawned agent fails, errors out, or returns no results, fall back to executing the task directly yourself. Report the agent failure in your next status report so it can be investigated.",
+          `After the noskills-executor agent completes a task, spawn a noskills-verifier agent to independently verify the work. Pass it: the list of changed files, the acceptance criteria, and the test commands. The verifier reports PASS/FAIL per criterion with evidence. Use the verifier's report as your status report to noskills. Do NOT submit status reports based solely on the executor's self-report.`,
+          "When deciding how to split work across spawned agents: if all tasks touch the same file or tightly coupled files, batch them into one executor. If tasks touch independent files or modules, spawn parallel executors. Always err toward smaller, focused agents over large batched ones — fresh context per task is better than accumulated context across tasks.",
+        );
+      } else if (hints.subAgentMethod === "fleet") {
+        // Copilot CLI: uses /fleet for parallel sub-agents
+        subAgentRules.push(
+          `When you receive a task from noskills next, use /fleet to run parallel sub-agents for implementation tasks. Pass each agent: the task title, description, acceptance criteria (with IDs), behavioral rules, out-of-scope constraints, concern reminders, and relevant file paths. Collect results and report to noskills via \`${
+            cs(
+              'next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'',
+              specName,
+            )
+          }\`. You are the orchestrator — the fleet agents are the implementers.`,
+          "If a fleet agent fails, errors out, or returns no results, fall back to executing the task directly yourself. Report the agent failure in your next status report so it can be investigated.",
+          `After the fleet agents complete, run a verification pass to independently check the work. Verify: changed files, acceptance criteria, test commands. Report PASS/FAIL per criterion with evidence.`,
+          "When deciding how to split work across fleet agents: if all tasks touch the same file or tightly coupled files, batch them into one agent. If tasks touch independent files or modules, run parallel agents. Always err toward smaller, focused agents over large batched ones.",
+        );
       } else if (hints.subAgentMethod === "delegation") {
         // Kiro: uses agent delegation
         subAgentRules.push(
@@ -561,6 +610,14 @@ const buildBehavioral = (
         `When you discover a pattern, receive a correction, or identify a recurring preference from the user, ask: 'Should this be a permanent rule for this project, or just for this task?' If permanent, run: \`${
           c('rule add "<description>"')
         }\`. If just this task, note it and move on. Never write to \`.eser/rules/\` directly.`,
+        // Anti-laziness rules
+        "FORCED VERIFICATION: After every file edit, run the project's type-check command (e.g., `tsc --noEmit`, `deno check`, `go build`) and lint command. Report results in AC status. Do NOT mark any AC as passed if type-check fails. If no type-checker is configured, state that explicitly.",
+        "FILE READ BUDGET: Files over 500 lines must be read in chunks using offset and limit. Never assume a single read captured the full file. When you read a partial file, state which lines you read.",
+        "TOOL RESULT AWARENESS: If any search or command returns suspiciously few results, re-run with narrower scope (single directory, stricter pattern). State when you suspect results were truncated.",
+        "PRE-EDIT RE-READ: Before EVERY file edit, re-read the target file to get current content. After editing, read the file again to confirm the change applied correctly. Never edit against stale context.",
+        "DEAD CODE FIRST: Before structural refactors on files over 300 LOC, first remove dead imports, unused exports, and orphaned props. Commit cleanup separately before starting the real work.",
+        // Execution commitment
+        "Do NOT suggest pausing, checkpointing, committing mid-spec, or stopping execution. The spec was scoped during discovery as a meaningful deliverable — execute it to completion. A half-delivered increment has no value. If scope feels too large, finish this spec and note the concern for future specs. The user decides when to stop, not you.",
       ];
 
       if (state.execution.lastVerification?.passed === false) {
@@ -722,6 +779,56 @@ const buildProtocolGuide = (
   return undefined;
 };
 
+// =============================================================================
+// Roadmap — ASCII phase indicator for every output
+// =============================================================================
+
+const ROADMAP_PHASES = [
+  { key: "IDLE", label: "IDLE" },
+  { key: "DISCOVERY", label: "DISCOVERY" },
+  { key: "DISCOVERY_REVIEW", label: "REVIEW" },
+  { key: "SPEC_DRAFT", label: "DRAFT" },
+  { key: "SPEC_APPROVED", label: "APPROVED" },
+  { key: "EXECUTING", label: "EXECUTING" },
+  { key: "COMPLETED", label: "DONE" },
+] as const;
+
+const buildRoadmap = (phase: schema.Phase): string => {
+  if (phase === "FREE") return "✦ FREE ✦ (no enforcement)";
+  if (phase === "BLOCKED") {
+    // Show EXECUTING highlighted with BLOCKED note
+    return ROADMAP_PHASES.map((p) =>
+      p.key === "EXECUTING" ? `✦ EXECUTING (BLOCKED) ✦` : p.label
+    ).join(" → ");
+  }
+  return ROADMAP_PHASES.map((p) => p.key === phase ? `✦ ${p.label} ✦` : p.label)
+    .join(" → ");
+};
+
+const buildGate = (
+  state: schema.StateFile,
+  parsedSpec?: ParsedSpec | null,
+): GateInfo | undefined => {
+  switch (state.phase) {
+    case "DISCOVERY_REVIEW":
+      return {
+        message: `${state.discovery.answers.length}/6 answers collected.`,
+        action: "Type APPROVE to generate spec, or REVISE to correct answers.",
+        phase: "DISCOVERY_REVIEW",
+      };
+    case "SPEC_APPROVED": {
+      const taskCount = parsedSpec?.tasks?.length ?? 0;
+      return {
+        message: `Spec approved. ${taskCount} tasks ready.`,
+        action: "Type START to begin execution.",
+        phase: "SPEC_APPROVED",
+      };
+    }
+    default:
+      return undefined;
+  }
+};
+
 /** Extra context for IDLE phase — specs, rules count. Loaded by callers. */
 export type IdleContext = {
   readonly existingSpecs?: readonly SpecSummary[];
@@ -805,8 +912,19 @@ export const compile = (
       );
   }
 
-  // Build the output with meta + behavioral + optional extras
-  let result: NextOutput = { ...phaseOutput, meta, behavioral } as NextOutput;
+  // Build the output with meta + behavioral + roadmap + optional extras
+  const roadmap = buildRoadmap(state.phase);
+  const gate = buildGate(state, parsedSpec);
+  let result: NextOutput = {
+    ...phaseOutput,
+    meta,
+    behavioral,
+    roadmap,
+  } as NextOutput;
+
+  if (gate !== undefined) {
+    result = { ...result, gate } as NextOutput;
+  }
 
   if (protocolGuide !== undefined) {
     result = { ...result, protocolGuide } as NextOutput;
@@ -913,7 +1031,24 @@ const buildInteractiveOptions = (
       return opts.slice(0, 4);
     }
 
-    case "DISCOVERY_REVIEW":
+    case "DISCOVERY_REVIEW": {
+      // Two sub-phases: answer review vs split decision
+      if (state.discovery.approved) {
+        // Approved + split detected → show keep/split options
+        return [
+          {
+            label: "Keep as one spec",
+            description: "All work in a single spec",
+            command: cs('next --answer="keep"', specName),
+          },
+          {
+            label: "Split into separate specs",
+            description: "Create one spec per independent area",
+            command: cs('next --answer="split"', specName),
+          },
+        ];
+      }
+      // Not yet approved → show approve/revise options
       return [
         {
           label: "Approve all answers",
@@ -925,13 +1060,8 @@ const buildInteractiveOptions = (
           description: "Correct one or more discovery answers",
           command: cs("next --answer='{\"revise\":{...}}'", specName),
         },
-        {
-          label: "Split into separate specs",
-          description:
-            "Create one spec per independent area (if split proposed)",
-          command: cs('next --answer="split"', specName),
-        },
       ];
+    }
 
     case "SPEC_DRAFT":
       return [
@@ -1037,6 +1167,46 @@ const compileIdle = (
     : undefined,
 });
 
+// =============================================================================
+// Pre-discovery Research — extract version-pinned tech terms from description
+// =============================================================================
+
+/**
+ * Regex to extract version-pinned technology references from spec descriptions.
+ * Matches patterns like "Node.js 25+", "Deno 2.7+", "React 19", "Python 3.12", "Go 1.25+"
+ */
+const VERSION_TERM_PATTERN =
+  /\b(Node\.?js|Deno|Bun|Go|Rust|Python|Ruby|Java|Kotlin|Swift|PHP|React|Vue|Angular|Svelte|Next\.?js|Nuxt|Remix|Astro|SolidJS|Qwik|TypeScript|Webpack|Vite|esbuild|Rollup|Terraform|Docker|Kubernetes|PostgreSQL|MySQL|Redis|MongoDB|SQLite|Prisma|Drizzle|gRPC|GraphQL|tRPC)\s+v?(\d+(?:\.\d+)?(?:\.\d+)?\+?)\b/gi;
+
+const extractVersionTerms = (description: string | null): readonly string[] => {
+  if (description === null || description.length === 0) return [];
+
+  const terms: string[] = [];
+  let match;
+  const re = new RegExp(VERSION_TERM_PATTERN.source, "gi");
+
+  while ((match = re.exec(description)) !== null) {
+    terms.push(`${match[1]} ${match[2]}`);
+  }
+
+  return terms;
+};
+
+const buildPreDiscoveryResearch = (
+  description: string | null,
+): PreDiscoveryResearch | undefined => {
+  const terms = extractVersionTerms(description);
+
+  if (terms.length === 0) return undefined;
+
+  return {
+    required: true,
+    instruction:
+      "Before asking discovery questions, research the current state of all platforms, runtimes, libraries, and APIs mentioned in the spec description. Use web search and Context7 MCP if available. Report findings as a pre-discovery brief to the user. Do NOT assume your training data is current — versions change, APIs get added, features get deprecated.",
+    extractedTerms: terms,
+  };
+};
+
 const compileDiscovery = (
   state: schema.StateFile,
   activeConcerns: readonly schema.ConcernDefinition[],
@@ -1049,16 +1219,35 @@ const compileDiscovery = (
   const isAgent = state.discovery.audience === "agent";
 
   if (allAnswered) {
-    return {
+    const history = state.revisitHistory ?? [];
+    const lastRevisit = history.length > 0 ? history[history.length - 1] : null;
+    const base: DiscoveryOutput = {
       phase: "DISCOVERY",
-      instruction: `All discovery questions answered. Run: \`${
-        cs("approve", specName)
-      }\``,
+      instruction: lastRevisit !== null
+        ? "This spec was revisited from EXECUTING. All previous answers are preserved. Review and approve, or revise answers before regenerating the spec."
+        : `All discovery questions answered. Run: \`${
+          cs("approve", specName)
+        }\``,
       questions: [],
       answeredCount,
       context: { rules, concernReminders: [] },
       transition: { onComplete: cs("approve", specName) },
     };
+
+    if (lastRevisit !== null && lastRevisit !== undefined) {
+      const entry = lastRevisit;
+      return {
+        ...base,
+        revisited: true,
+        revisitReason: entry.reason,
+        previousProgress: {
+          completedTasks: [...entry.completedTasks],
+          totalTasks: entry.completedTasks.length,
+        },
+      };
+    }
+
+    return base;
   }
 
   // ── Agent mode: return only the current question ──
@@ -1086,7 +1275,7 @@ const compileDiscovery = (
       extras: currentQ.extras.map((e) => e.text),
     };
 
-    return {
+    const agentOutput: DiscoveryOutput = {
       phase: "DISCOVERY",
       instruction:
         `Ask this question to the user using AskUserQuestion. Submit the answer with: \`${
@@ -1104,6 +1293,18 @@ const compileDiscovery = (
         onComplete: `${cs('next --agent --answer="<answer>"', specName)}`,
       },
     };
+
+    // Only inject preDiscoveryResearch on Q1
+    if (currentIdx === 0) {
+      const research = buildPreDiscoveryResearch(
+        state.specDescription ?? null,
+      );
+      if (research !== undefined) {
+        return { ...agentOutput, preDiscoveryResearch: research };
+      }
+    }
+
+    return agentOutput;
   }
 
   // ── Human mode: return ALL unanswered questions in one batch ──
@@ -1117,10 +1318,17 @@ const compileDiscovery = (
       extras: q.extras.map((e) => e.text),
     }));
 
-  return {
+  // Check for revisit context
+  const history = state.revisitHistory ?? [];
+  const lastRevisit = history.length > 0 ? history[history.length - 1] : null;
+  const isRevisited = lastRevisit !== null;
+  const revisitInstruction = isRevisited
+    ? "This spec was revisited from EXECUTING. Previous discovery answers are preserved — review and revise as needed, or approve to regenerate tasks."
+    : "Conduct a thorough discovery conversation. FIRST: perform a pre-discovery codebase scan (README, CLAUDE.md, recent git log, TODOs, directory structure) and present a brief audit summary. THEN: challenge the user's spec description against your findings. THEN: ask the discovery questions one at a time, offering concrete options based on codebase knowledge. AFTER questions: present a dream state table (current → this spec → future), scored expansion proposals, architectural decisions, and an error/rescue map. FINALLY: present a complete discovery synthesis for user confirmation before submitting answers as a JSON object.";
+
+  const output: DiscoveryOutput = {
     phase: "DISCOVERY",
-    instruction:
-      "Conduct a thorough discovery conversation. FIRST: perform a pre-discovery codebase scan (README, CLAUDE.md, recent git log, TODOs, directory structure) and present a brief audit summary. THEN: challenge the user's spec description against your findings. THEN: ask the discovery questions one at a time, offering concrete options based on codebase knowledge. AFTER questions: present a dream state table (current → this spec → future), scored expansion proposals, architectural decisions, and an error/rescue map. FINALLY: present a complete discovery synthesis for user confirmation before submitting answers as a JSON object.",
+    instruction: revisitInstruction,
     questions: unanswered,
     answeredCount,
     context: {
@@ -1136,6 +1344,28 @@ const compileDiscovery = (
       }`,
     },
   };
+
+  if (isRevisited && lastRevisit !== undefined) {
+    return {
+      ...output,
+      revisited: true,
+      revisitReason: lastRevisit.reason,
+      previousProgress: {
+        completedTasks: [...lastRevisit.completedTasks],
+        totalTasks: lastRevisit.completedTasks.length,
+      },
+    };
+  }
+
+  // Inject preDiscoveryResearch on first call (no answers yet)
+  if (answeredCount === 0) {
+    const research = buildPreDiscoveryResearch(state.specDescription ?? null);
+    if (research !== undefined) {
+      return { ...output, preDiscoveryResearch: research };
+    }
+  }
+
+  return output;
 };
 
 const compileDiscoveryReview = (
@@ -1159,6 +1389,26 @@ const compileDiscoveryReview = (
   const splitProposal = splitDetector.analyzeForSplit(
     state.discovery.answers,
   );
+
+  // Two sub-phases:
+  // 1. Not yet approved → user reviews answers, approves or revises
+  // 2. Approved + split detected → user decides keep vs split
+  if (state.discovery.approved && splitProposal.detected) {
+    return {
+      phase: "DISCOVERY_REVIEW",
+      instruction:
+        "Discovery answers are approved. noskills detected multiple independent work areas in this spec. Present the split proposal to the user and let them decide whether to keep as one spec or split into separate specs.",
+      answers: reviewAnswers,
+      transition: {
+        onApprove: cs('next --answer="keep"', specName),
+        onRevise: cs(
+          'next --answer=\'{"revise":{"status_quo":"corrected answer"}}\'',
+          specName,
+        ),
+      },
+      splitProposal,
+    };
+  }
 
   return {
     phase: "DISCOVERY_REVIEW",
@@ -1377,6 +1627,16 @@ const buildAcceptanceCriteria = (
     }
   }
 
+  // Mandatory ACs — always injected, cannot be N/A'd without justification
+  criteria.push({
+    id: "mandatory-tests",
+    text: "Tests written and passing for all new and changed behavior",
+  });
+  criteria.push({
+    id: "mandatory-docs",
+    text: "Documentation updated for all public-facing changes",
+  });
+
   return criteria;
 };
 
@@ -1421,10 +1681,28 @@ const compileExecution = (
       state.execution.naItems,
     );
 
+    // Detect batch task claims from lastProgress
+    let batchTaskIds: string[] = [];
+    try {
+      const prevAnswer = JSON.parse(
+        state.execution.lastProgress ?? "",
+      );
+      if (Array.isArray(prevAnswer.completed)) {
+        batchTaskIds = (prevAnswer.completed as string[]).filter(
+          (id: string) => typeof id === "string" && id.startsWith("task-"),
+        );
+      }
+    } catch {
+      // Not batch JSON
+    }
+
+    const batchInstruction = batchTaskIds.length >= 2
+      ? `${batchTaskIds.length} tasks reported complete. Report status against ALL relevant acceptance criteria.`
+      : "Before this task is accepted, report your completion status against these acceptance criteria.";
+
     let output: ExecutionOutput = {
       phase: "EXECUTING",
-      instruction:
-        "Before this task is accepted, report your completion status against these acceptance criteria.",
+      instruction: batchInstruction,
       context: {
         rules,
         concernReminders: concerns.getReminders(activeConcerns) as string[],
@@ -1454,6 +1732,10 @@ const compileExecution = (
         },
       },
     };
+
+    if (batchTaskIds.length >= 2) {
+      output = { ...output, batchTasks: batchTaskIds };
+    }
 
     if (verifyFailed) {
       output = {

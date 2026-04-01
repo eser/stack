@@ -42,7 +42,9 @@ export {
   clearLines,
   eraseLine,
   hideCursor,
+  type InputEvent,
   type KeypressEvent,
+  readInput,
   readKeypress,
   showCursor,
   withRawMode,
@@ -67,3 +69,16 @@ export {
   type ProgressHandle,
   type ProgressOptions,
 } from "./progress.ts";
+
+// TUI primitives — terminal control, rendering, layout
+export * as terminal from "./terminal.ts";
+export * as ansi from "./ansi.ts";
+export * as box from "./box.ts";
+export * as layout from "./layout.ts";
+export * as list from "./list.ts";
+
+// Mouse support
+export * as mouse from "./mouse.ts";
+
+// Virtual terminal widget
+export { VTermWidget } from "./vterm-widget.ts";

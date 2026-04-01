@@ -152,7 +152,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.includes("validation"), true);
     assertEquals(tasks[0]!.includes("preview"), true);
     assertEquals(tasks[0]!.includes("batch processing"), true);
@@ -167,7 +168,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.includes("filtering"), true);
     assertEquals(tasks[0]!.includes("sorting"), true);
   });
@@ -183,7 +185,8 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // Must be ONE task, not two
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.includes("protocol section"), true);
     // Must NOT contain 1-star content
     assertEquals(tasks[0]!.includes("1-star"), false);
@@ -199,7 +202,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(
       tasks[0],
       "Full protocol section with phase transition docs",
@@ -216,7 +220,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.startsWith("Implement"), false);
   });
 
@@ -234,7 +239,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.includes("Run noskills sync"), true);
     assertEquals(tasks[0]!.includes("CLAUDE.md"), true);
     assertEquals(tasks[0]!.includes("Phase Transition Protocol"), true);
@@ -249,7 +255,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 3);
+    // 3 verification + 2 mandatory test/docs tasks
+    assertEquals(tasks.length, 5);
     assertEquals(tasks[0], "Run unit tests");
     assertEquals(tasks[1], "Check e2e tests pass");
     assertEquals(tasks[2], "Verify deployment");
@@ -264,7 +271,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.startsWith("Verify:"), false);
     assertEquals(tasks[0], "Run noskills sync");
   });
@@ -282,7 +290,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.includes("CLAUDE.md"), true);
   });
 
@@ -295,7 +304,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.includes("v0.1"), true);
   });
 
@@ -308,7 +318,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.includes("endpoint.ts"), true);
   });
 
@@ -325,7 +336,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.toLowerCase().includes("full system"), true);
     assertEquals(tasks[0]!.includes("1-star"), false);
   });
@@ -344,7 +356,8 @@ describe("deriveTasks", () => {
     ];
     const tasks = template.deriveTasks(answers);
 
-    assertEquals(tasks.length, 1);
+    // +2 mandatory test/docs tasks appended
+    assertEquals(tasks.length, 3);
     assertEquals(tasks[0]!.startsWith("Implement:"), false);
     assertEquals(tasks[0]!.startsWith("Implement "), false);
   });

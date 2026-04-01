@@ -121,7 +121,7 @@ describe("compile", () => {
     assertEquals(output.phase, "SPEC_APPROVED");
     const approved = output as compiler.SpecApprovedOutput;
     assertEquals(approved.specPath, ".eser/specs/test-spec/spec.md");
-    assertEquals(approved.transition.onStart.includes("noskills next"), true);
+    assertEquals(approved.transition.onStart.includes("noskills spec"), true);
   });
 
   it("EXECUTING returns ExecutionOutput with iteration", () => {
@@ -383,5 +383,127 @@ describe("agent discovery one-at-a-time", () => {
     assertEquals(questions.isDiscoveryComplete(state.discovery.answers), true);
     state = machine.completeDiscovery(state);
     assertEquals(state.phase, "DISCOVERY_REVIEW");
+  });
+});
+
+// =============================================================================
+// DISCOVERY_REVIEW split proposal
+// =============================================================================
+
+describe("DISCOVERY_REVIEW split proposal", () => {
+  const multiAreaReview = (): schema.StateFile => {
+    let state = inDiscovery();
+    state = machine.addDiscoveryAnswer(
+      state,
+      "status_quo",
+      "(1) Log messages are too verbose and flood stdout (2) Bot chat responses use wrong gender pronouns",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "ambition",
+      "fix log levels AND restore bot gender detection",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "reversibility",
+      "all reversible",
+    );
+    state = machine.addDiscoveryAnswer(state, "user_impact", "positive only");
+    state = machine.addDiscoveryAnswer(
+      state,
+      "verification",
+      "test without developer 1, verify no rchat errors",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "scope_boundary",
+      "no rchat.c rewrite",
+    );
+    return machine.completeDiscovery(state);
+  };
+
+  const singleAreaReview = (): schema.StateFile => {
+    let state = inDiscovery();
+    state = machine.addDiscoveryAnswer(
+      state,
+      "status_quo",
+      "cursor shader goes stale after hunk clear",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "ambition",
+      "extract RegisterAssets helper",
+    );
+    state = machine.addDiscoveryAnswer(state, "reversibility", "reversible");
+    state = machine.addDiscoveryAnswer(state, "user_impact", "positive");
+    state = machine.addDiscoveryAnswer(state, "verification", "visual test");
+    state = machine.addDiscoveryAnswer(
+      state,
+      "scope_boundary",
+      "no hunk clear changes",
+    );
+    return machine.completeDiscovery(state);
+  };
+
+  it("multi-area discovery includes splitProposal in output", () => {
+    const state = multiAreaReview();
+    const output = compiler.compile(
+      state,
+      noConcerns,
+      noRules,
+    ) as compiler.DiscoveryReviewOutput;
+
+    assertEquals(output.phase, "DISCOVERY_REVIEW");
+    assertEquals(output.splitProposal !== undefined, true);
+    assertEquals(output.splitProposal!.detected, true);
+    assertEquals(output.splitProposal!.proposals.length >= 2, true);
+  });
+
+  it("single-area discovery omits splitProposal", () => {
+    const state = singleAreaReview();
+    const output = compiler.compile(
+      state,
+      noConcerns,
+      noRules,
+    ) as compiler.DiscoveryReviewOutput;
+
+    assertEquals(output.phase, "DISCOVERY_REVIEW");
+    assertEquals(output.splitProposal, undefined);
+  });
+
+  it("approved + split shows split-specific instruction", () => {
+    const state = machine.approveDiscoveryAnswers(multiAreaReview());
+    const output = compiler.compile(
+      state,
+      noConcerns,
+      noRules,
+    ) as compiler.DiscoveryReviewOutput;
+
+    assertEquals(output.phase, "DISCOVERY_REVIEW");
+    assertEquals(output.splitProposal !== undefined, true);
+    assertEquals(output.splitProposal!.detected, true);
+    assertEquals(output.instruction.includes("independent work areas"), true);
+  });
+
+  it("approved + split interactiveOptions has Keep/Split", () => {
+    const state = machine.approveDiscoveryAnswers(multiAreaReview());
+    const output = compiler.compile(state, noConcerns, noRules);
+
+    const labels =
+      (output as { interactiveOptions?: readonly { label: string }[] })
+        .interactiveOptions?.map((o) => o.label) ?? [];
+    assertEquals(labels.includes("Keep as one spec"), true);
+    assertEquals(labels.includes("Split into separate specs"), true);
+  });
+
+  it("not-approved interactiveOptions has Approve/Revise", () => {
+    const state = multiAreaReview();
+    const output = compiler.compile(state, noConcerns, noRules);
+
+    const labels =
+      (output as { interactiveOptions?: readonly { label: string }[] })
+        .interactiveOptions?.map((o) => o.label) ?? [];
+    assertEquals(labels.includes("Approve all answers"), true);
+    assertEquals(labels.includes("Revise answers"), true);
   });
 });

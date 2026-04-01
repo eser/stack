@@ -92,7 +92,12 @@ const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
     await runtime.fs.copyFile(currentPath, targetPath);
     await runtime.fs.chmod(targetPath, 0o755);
   } catch (error) {
-    if (error instanceof Deno.errors.PermissionDenied) {
+    if (
+      (error instanceof Error && "code" in error &&
+        (error as NodeJS.ErrnoException).code === "EACCES") ||
+      (typeof Deno !== "undefined" &&
+        error instanceof Deno.errors.PermissionDenied)
+    ) {
       out.writeln(
         span.red(
           `\nPermission denied writing to ${installDir}.\nTry: sudo eser install`,

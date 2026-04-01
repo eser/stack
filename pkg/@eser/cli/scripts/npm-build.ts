@@ -48,7 +48,7 @@ const EXTERNAL_PACKAGES = [
   // FFI / platform packages — loaded at runtime via dynamic import + dlopen
   "@eserstack/ajan-*",
   "@eserstack/ajan-wasm",
-  "node:ffi",
+  "koffi",
   "bun:ffi",
 ];
 

@@ -20,7 +20,7 @@
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.16",
     "@std/testing": "npm:@jsr/std__testing@^1.0.16",
-    "@anthropic-ai/sdk": "^0.80.0",
+    "@anthropic-ai/sdk": "^0.82.0",
     "openai": "^6.33.0",
     "@google/genai": "^1.47.0"
   }

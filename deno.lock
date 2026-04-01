@@ -57,6 +57,7 @@
     "npm:@types/react@^19.2.7": "19.2.14",
     "npm:esbuild@~0.24.2": "0.24.2",
     "npm:esbuild@~0.27.3": "0.27.3",
+    "npm:koffi@^2.15.0": "2.15.2",
     "npm:lightningcss@^1.30.2": "1.31.1",
     "npm:octokit@^5.0.5": "5.0.5",
     "npm:openai@^6.33.0": "6.33.0",
@@ -1412,6 +1413,10 @@
         "safe-buffer"
       ]
     },
+    "koffi@2.15.2": {
+      "integrity": "sha512-r9tjJLVRSOhCRWdVyQlF3/Ugzeg13jlzS4czS82MAgLff4W+BcYOW7g8Y62t9O5JYjYOLAjAovAZDNlDfZNu+g==",
+      "scripts": true
+    },
     "lightningcss-android-arm64@1.31.1": {
       "integrity": "sha512-HXJF3x8w9nQ4jbXRiNppBCqeZPIAfUo8zE/kOEGbW5NZvGc/K7nMxbhIr+YlFlHW5mpbg/YFPdbnCh1wAXCKFg==",
       "os": ["android"],
@@ -2011,6 +2016,13 @@
             "npm:@jsr/std__assert@^1.0.16",
             "npm:@jsr/std__testing@^1.0.16",
             "npm:openai@^6.33.0"
+          ]
+        }
+      },
+      "pkg/@eser/ajan": {
+        "packageJson": {
+          "dependencies": [
+            "npm:koffi@^2.15.0"
           ]
         }
       },

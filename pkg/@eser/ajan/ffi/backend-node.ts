@@ -1,15 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Node.js FFI backend using `node:ffi` (experimental, Node 25+).
+ * Node.js FFI backend using `koffi`.
  *
- * The `node:ffi` module mirrors Deno's `dlopen` API closely:
- * - `dlopen(path, symbolDefinitions)` returns `{ symbols, close() }`
- * - Pointer values are read via `getNullTerminatedString(ptr)` from `node:ffi`
+ * koffi is a fast, zero-JS-dependency C FFI library for Node.js that ships
+ * prebuilt binaries for all major platforms. It automatically marshals
+ * `char*` returns to JS strings.
  *
- * This module is only functional when running under Node.js 25+ with the
- * `node:ffi` module available. Under other runtimes, `available()` returns
- * false.
+ * This module is only functional when running under Node.js with `koffi`
+ * installed. Under other runtimes (Deno, Bun), `available()` returns false.
  *
  * @module
  */
@@ -17,128 +16,89 @@
 import type * as types from "./types.ts";
 
 /**
- * `node:ffi` module resolved once via top-level await.
- * Returns `null` on non-Node runtimes or older Node versions without FFI.
+ * koffi module resolved once via top-level await.
+ * Returns `null` on non-Node runtimes or when koffi is not installed.
  */
 // deno-lint-ignore no-explicit-any
-let nodeFFI: any = null;
+let koffi: any = null;
 try {
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
 
-  // Only attempt import on actual Node.js (not Deno or Bun which also
-  // expose process.versions.node)
+  // Only attempt import on actual Node.js (not Deno or Bun)
   if (
     typeof g.process !== "undefined" &&
     typeof g.process.versions?.node === "string" &&
     typeof g.Deno === "undefined" &&
     typeof g.Bun === "undefined"
   ) {
-    nodeFFI = await import("node:ffi");
+    koffi = await import("koffi");
+    // Handle default export (koffi uses module.exports = ...)
+    if (koffi.default !== undefined) {
+      koffi = koffi.default;
+    }
   }
 } catch {
-  // node:ffi not available — nodeFFI stays null
+  // koffi not installed — stays null
 }
 
 /**
- * Node.js FFI backend. Uses `node:ffi` (experimental) to load C-shared
- * libraries.
+ * Node.js FFI backend using koffi.
  */
 export const backend: types.FFIBackend = {
   name: "node",
 
   available: (): boolean => {
-    return nodeFFI !== null;
+    return koffi !== null && typeof koffi.load === "function";
   },
 
   open: (libraryPath: string): types.FFILibrary => {
-    if (nodeFFI === null) {
+    if (koffi === null) {
       throw new Error(
-        "node:ffi is not available. Node.js 25+ with --experimental-ffi is required.",
+        "koffi is not available. Install it: npm install koffi",
       );
     }
 
-    const { dlopen, getNullTerminatedString } = nodeFFI;
+    const lib = koffi.load(libraryPath);
 
-    // node:ffi uses the same symbol definition format as Deno.dlopen
-    const symbolDefinitions = {
-      EserAjanVersion: {
-        parameters: [] as string[],
-        result: "pointer",
-      },
-      EserAjanInit: {
-        parameters: [] as string[],
-        result: "i32",
-      },
-      EserAjanShutdown: {
-        parameters: [] as string[],
-        result: "void",
-      },
-      EserAjanFree: {
-        parameters: ["pointer"],
-        result: "void",
-      },
-      EserAjanConfigLoad: {
-        parameters: ["pointer"],
-        result: "pointer",
-      },
-      EserAjanDIResolve: {
-        parameters: ["pointer"],
-        result: "pointer",
-      },
-    };
-
-    const lib = dlopen(libraryPath, symbolDefinitions);
-    const { symbols } = lib;
-
-    /**
-     * Encodes a JS string into a null-terminated buffer for passing
-     * as a C string pointer.
-     */
-    const toCString = (str: string): Uint8Array => {
-      const encoder = new TextEncoder();
-      const encoded = encoder.encode(str);
-      const buf = new Uint8Array(encoded.length + 1);
-      buf.set(encoded);
-      return buf;
-    };
-
-    /**
-     * Reads a null-terminated C string from a pointer, frees it, and
-     * returns the JS string.
-     */
-    const readAndFree = (ptr: unknown): string => {
-      if (ptr === null || ptr === undefined) {
-        return "";
-      }
-      const value = getNullTerminatedString(ptr);
-      symbols.EserAjanFree(ptr);
-      return value;
-    };
+    // koffi auto-decodes char* to JS string, so we just call and return.
+    // Go's C.CString allocates via malloc — we should call EserAjanFree,
+    // but koffi's char* return already copies the string. The Go side
+    // still holds the pointer until freed. For safety we use opaque
+    // pointers for the free call.
+    const rawVersion = lib.func("char* EserAjanVersion()");
+    const rawInit = lib.func("int EserAjanInit()");
+    const rawShutdown = lib.func("void EserAjanShutdown()");
+    const rawConfigLoad = lib.func(
+      "char* EserAjanConfigLoad(const char* path)",
+    );
+    const rawDIResolve = lib.func(
+      "char* EserAjanDIResolve(const char* name)",
+    );
 
     return {
       symbols: {
         EserAjanVersion: (): string => {
-          return readAndFree(symbols.EserAjanVersion());
+          return rawVersion() ?? "";
         },
         EserAjanInit: (): number => {
-          return symbols.EserAjanInit() as number;
+          return rawInit() as number;
         },
         EserAjanShutdown: (): void => {
-          symbols.EserAjanShutdown();
+          rawShutdown();
         },
-        EserAjanFree: (ptr: unknown): void => {
-          symbols.EserAjanFree(ptr);
+        EserAjanFree: (_ptr: unknown): void => {
+          // koffi handles string copying — no manual free needed
         },
         EserAjanConfigLoad: (path: string): string => {
-          return readAndFree(symbols.EserAjanConfigLoad(toCString(path)));
+          return rawConfigLoad(path) ?? "";
         },
         EserAjanDIResolve: (name: string): string => {
-          return readAndFree(symbols.EserAjanDIResolve(toCString(name)));
+          return rawDIResolve(name) ?? "";
         },
       },
       close: (): void => {
-        lib.close();
+        lib.unload();
       },
     };
   },

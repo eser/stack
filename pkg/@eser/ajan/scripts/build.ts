@@ -28,92 +28,55 @@
  */
 
 import { runtime } from "@eser/standards/cross-runtime";
+import * as targets from "../targets.ts";
 
 // ---------------------------------------------------------------------------
 // Types & constants
 // ---------------------------------------------------------------------------
 
-interface Target {
-  name: string;
+/** Internal build target — derived from the shared targets module. */
+interface BuildTarget {
+  id: string;
   goos: string;
   goarch: string;
   outputFile: string;
-  /** Cross-compiler binary name (CC). Undefined means use default cc. */
   cc?: string;
-  /** Build mode: "c-shared" for native, "wasm" for WASI targets. */
   buildMode: "c-shared" | "wasm";
-  /** Extra Go build tags (e.g. "eserajan_reactor"). */
   tags?: string;
 }
 
-const NATIVE_TARGETS: readonly Target[] = [
-  {
-    name: "x86_64-linux",
-    goos: "linux",
-    goarch: "amd64",
-    outputFile: "libeser_ajan.so",
-    cc: "x86_64-linux-gnu-gcc",
-    buildMode: "c-shared",
-  },
-  {
-    name: "aarch64-linux",
-    goos: "linux",
-    goarch: "arm64",
-    outputFile: "libeser_ajan.so",
-    cc: "aarch64-linux-gnu-gcc",
-    buildMode: "c-shared",
-  },
-  {
-    name: "x86_64-darwin",
-    goos: "darwin",
-    goarch: "amd64",
-    outputFile: "libeser_ajan.dylib",
-    buildMode: "c-shared",
-  },
-  {
-    name: "aarch64-darwin",
-    goos: "darwin",
-    goarch: "arm64",
-    outputFile: "libeser_ajan.dylib",
-    buildMode: "c-shared",
-  },
-  {
-    name: "x86_64-windows",
-    goos: "windows",
-    goarch: "amd64",
-    outputFile: "libeser_ajan.dll",
-    cc: "x86_64-w64-mingw32-gcc",
-    buildMode: "c-shared",
-  },
-  {
-    name: "aarch64-windows",
-    goos: "windows",
-    goarch: "arm64",
-    outputFile: "libeser_ajan.dll",
-    cc: "aarch64-w64-mingw32-gcc",
-    buildMode: "c-shared",
-  },
-] as const;
+/** Convert shared NativeTarget → BuildTarget. */
+const nativeToBuild = (t: targets.NativeTarget): BuildTarget => ({
+  id: t.id,
+  goos: t.goos,
+  goarch: t.goarch,
+  outputFile: t.libFile,
+  cc: t.cc,
+  buildMode: "c-shared",
+});
 
-const WASM_TARGETS: readonly Target[] = [
-  {
-    name: "wasi",
-    goos: "wasip1",
-    goarch: "wasm",
-    outputFile: "eser-ajan.wasm",
-    buildMode: "wasm",
-  },
-  {
-    name: "wasi-reactor",
-    goos: "wasip1",
-    goarch: "wasm",
-    outputFile: "eser-ajan-reactor.wasm",
-    buildMode: "wasm",
-    tags: "eserajan_reactor",
-  },
-] as const;
+/** Convert shared WasmTarget → BuildTarget. */
+const wasmToBuild = (t: targets.WasmTarget): BuildTarget => ({
+  id: t.id,
+  goos: t.goos,
+  goarch: t.goarch,
+  outputFile: t.outputFile,
+  buildMode: "wasm",
+  tags: t.tags,
+});
 
-const ALL_TARGETS: readonly Target[] = [...NATIVE_TARGETS, ...WASM_TARGETS];
+const NATIVE_TARGETS: readonly BuildTarget[] = targets.NATIVE_TARGETS.map(
+  nativeToBuild,
+);
+
+const WASM_TARGETS: readonly BuildTarget[] = targets.WASM_TARGETS.map(
+  wasmToBuild,
+);
+
+const ALL_TARGETS: readonly BuildTarget[] = [
+  ...NATIVE_TARGETS,
+  ...WASM_TARGETS,
+];
 
 const MIN_OUTPUT_SIZE = 1_024; // 1KB — output files should be much larger
 
@@ -134,7 +97,7 @@ const goarchFromDeno = (): string => {
   return "amd64";
 };
 
-const detectCurrentTarget = (): Target | undefined => {
+const detectCurrentTarget = (): BuildTarget | undefined => {
   const goos = goosFromDeno();
   const goarch = goarchFromDeno();
 
@@ -159,11 +122,11 @@ interface BuildResult {
 }
 
 const buildTarget = async (
-  target: Target,
+  target: BuildTarget,
   pkgDir: string,
   distDir: string,
 ): Promise<BuildResult> => {
-  const targetDir = `${distDir}/${target.name}`;
+  const targetDir = `${distDir}/${target.id}`;
 
   try {
     await runtime.fs.mkdir(targetDir, { recursive: true });
@@ -194,20 +157,20 @@ const buildTarget = async (
   ];
 
   if (target.buildMode === "c-shared") {
-    env.CGO_ENABLED = "1";
+    env["CGO_ENABLED"] = "1";
 
     // Determine if this is the native platform — skip CC override if so
     const isNative = target.goos === goosFromDeno() &&
       target.goarch === goarchFromDeno();
 
     if (!isNative && target.cc !== undefined) {
-      env.CC = target.cc;
+      env["CC"] = target.cc;
     }
 
     buildArgs.push("-buildmode=c-shared");
   } else {
     // WASM builds: no cgo
-    env.CGO_ENABLED = "0";
+    env["CGO_ENABLED"] = "0";
   }
 
   if (target.tags !== undefined) {
@@ -217,7 +180,7 @@ const buildTarget = async (
   buildArgs.push("-o", outputPath, ".");
 
   // deno-lint-ignore no-console
-  console.log(`  Building ${target.name} ...`);
+  console.log(`  Building ${target.id} ...`);
 
   const { code, stderr } = await runtime.exec.spawn("go", buildArgs, {
     cwd: pkgDir,
@@ -230,7 +193,7 @@ const buildTarget = async (
     const errText = new TextDecoder().decode(stderr);
     // deno-lint-ignore no-console
     console.error(`    FAIL: ${errText.trim()}`);
-    return { target: target.name, status: "fail", error: errText.trim() };
+    return { target: target.id, status: "fail", error: errText.trim() };
   }
 
   // Validate output
@@ -240,17 +203,17 @@ const buildTarget = async (
       const msg = `Output too small (${stat.size} bytes), likely corrupted`;
       // deno-lint-ignore no-console
       console.error(`    FAIL: ${msg}`);
-      return { target: target.name, status: "fail", error: msg };
+      return { target: target.id, status: "fail", error: msg };
     }
 
     // deno-lint-ignore no-console
     console.log(`    OK  ${formatBytes(stat.size)}`);
-    return { target: target.name, status: "ok", fileSize: stat.size };
+    return { target: target.id, status: "ok", fileSize: stat.size };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     // deno-lint-ignore no-console
     console.error(`    FAIL: ${msg}`);
-    return { target: target.name, status: "fail", error: msg };
+    return { target: target.id, status: "fail", error: msg };
   }
 };
 
@@ -270,7 +233,7 @@ Options:
   --help             Show this help
 
 Available targets:
-${ALL_TARGETS.map((t) => `  ${t.name}`).join("\n")}
+${ALL_TARGETS.map((t) => `  ${t.id}`).join("\n")}
 
 When no flag is given, builds for the current platform only (native).`);
 };
@@ -308,7 +271,7 @@ const main = async (): Promise<void> => {
   }
 
   // Determine which targets to build
-  let selectedTargets: Target[];
+  let selectedTargets: BuildTarget[];
 
   if (args.includes("--all")) {
     selectedTargets = [...ALL_TARGETS];
@@ -318,13 +281,13 @@ const main = async (): Promise<void> => {
     const targetArg = args.find((a) => a.startsWith("--target="));
     if (targetArg !== undefined) {
       const name = targetArg.split("=")[1];
-      const found = ALL_TARGETS.find((t) => t.name === name);
+      const found = ALL_TARGETS.find((t) => t.id === name);
       if (found === undefined) {
         // deno-lint-ignore no-console
         console.error(`Unknown target: ${name}`);
         // deno-lint-ignore no-console
         console.error(
-          `Available: ${ALL_TARGETS.map((t) => t.name).join(", ")}`,
+          `Available: ${ALL_TARGETS.map((t) => t.id).join(", ")}`,
         );
         Deno.exitCode = 1;
         return;

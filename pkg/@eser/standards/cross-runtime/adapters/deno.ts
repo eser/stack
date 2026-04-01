@@ -553,6 +553,18 @@ const createDenoProcess = (): RuntimeProcess => {
     setStdinRaw(raw: boolean): void {
       Deno.stdin.setRaw(raw);
     },
+
+    writeToStdout(data: Uint8Array): void {
+      Deno.stdout.writeSync(data);
+    },
+
+    consoleSize(): { columns: number; rows: number } {
+      try {
+        return Deno.consoleSize();
+      } catch {
+        return { columns: 80, rows: 24 };
+      }
+    },
   };
 };
 

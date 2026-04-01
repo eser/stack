@@ -447,10 +447,52 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  # ── Release: build ajan native libs (macOS) ───────────────────
+  build-ajan-darwin:
+    name: Build ajan (darwin)
+    needs: tag-release
+    runs-on: macos-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+          cache: true
+          cache-dependency-path: apps/services/go.sum
+
+      - name: Build aarch64-darwin (native)
+        run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts --target=aarch64-darwin
+
+      - name: Build x86_64-darwin (cross-compile via clang -arch x86_64)
+        run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts --target=x86_64-darwin
+
+      - name: Upload darwin dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: ajan-dist-darwin
+          path: |
+            pkg/@eser/ajan/dist/aarch64-darwin/
+            pkg/@eser/ajan/dist/x86_64-darwin/
+
   # ── Release: compile standalone binaries ──────────────────────
   compile-binaries:
     name: Compile Binaries
-    needs: tag-release
+    needs: [tag-release, build-ajan-darwin]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
 
@@ -491,14 +533,18 @@ jobs:
           sudo apt-get install -y -qq \
             gcc-x86-64-linux-gnu \
             gcc-mingw-w64-x86-64
-          # Note: gcc-mingw-w64 for aarch64-windows is not available in apt.
-          # Windows ARM64 cross-compilation requires a separate toolchain.
-          # Darwin targets require osxcross which is not installed here.
-          # These targets will be skipped by build.ts (continue-on-error below).
 
-      - name: Build Go shared libraries (all native targets)
-        run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts --all
-        continue-on-error: true
+      - name: Download darwin dist
+        uses: actions/download-artifact@v8
+        with:
+          name: ajan-dist-darwin
+          path: pkg/@eser/ajan/dist/
+
+      - name: Build Go shared libraries (linux + windows)
+        run: |
+          deno run --allow-all pkg/@eser/ajan/scripts/build.ts --target=aarch64-linux
+          deno run --allow-all pkg/@eser/ajan/scripts/build.ts --target=x86_64-linux
+          deno run --allow-all pkg/@eser/ajan/scripts/build.ts --target=x86_64-windows
 
       - name: Build Go WASM modules
         run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts --wasm
@@ -514,6 +560,53 @@ jobs:
         with:
           name: binary-bundle
           path: etc/temp/binaries/
+
+      - name: Upload ajan npm packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: ajan-npm-packages
+          path: pkg/@eser/ajan/dist/npm/
+
+  # ── Release: publish ajan npm packages ─────────────────────
+  publish-ajan:
+    name: Publish ajan packages
+    needs: compile-binaries
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download ajan npm packages
+        uses: actions/download-artifact@v8
+        with:
+          name: ajan-npm-packages
+          path: ajan-npm/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "latest"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish ajan platform packages to npm
+        run: |
+          # Publish platform-specific packages first, then the root package last
+          # (root has optionalDependencies on the platform packages)
+          for dir in ajan-npm/ajan-*/; do
+            if [ -f "$dir/package.json" ]; then
+              PKG_NAME=$(node -p "require('./$dir/package.json').name")
+              PKG_VERSION=$(node -p "require('./$dir/package.json').version")
+              echo "Publishing $PKG_NAME@$PKG_VERSION ..."
+              (cd "$dir" && npm publish --provenance --access public) || echo "  ⚠ Failed (may already exist)"
+            fi
+          done
+          # Note: no root @eserstack/ajan meta-package — the eser CLI
+          # lists @eserstack/ajan-* as optionalDependencies directly.
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ── Release: upload assets + sign ─────────────────────────────
   upload-assets:

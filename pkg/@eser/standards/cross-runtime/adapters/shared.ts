@@ -511,6 +511,12 @@ export const createStubProcess = (
     setStdinRaw(): void {
       throw new RuntimeCapabilityError("process", runtimeName);
     },
+    writeToStdout(): void {
+      throw new RuntimeCapabilityError("process", runtimeName);
+    },
+    consoleSize(): { columns: number; rows: number } {
+      return { columns: 80, rows: 24 };
+    },
   };
 };
 

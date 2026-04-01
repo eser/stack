@@ -459,4 +459,15 @@ export const createNodeCompatProcess = (): RuntimeProcess => ({
   setStdinRaw(raw: boolean): void {
     nodeProcess.stdin.setRawMode(raw);
   },
+
+  writeToStdout(data: Uint8Array): void {
+    nodeProcess.stdout.write(data);
+  },
+
+  consoleSize(): { columns: number; rows: number } {
+    return {
+      columns: nodeProcess.stdout.columns ?? 80,
+      rows: nodeProcess.stdout.rows ?? 24,
+    };
+  },
 });

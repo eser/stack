@@ -10,6 +10,8 @@
  * @module
  */
 
+import { runtime } from "@eser/standards/cross-runtime";
+
 /** Switch to the alternate screen buffer. */
 export const enterAlternateScreen = (): string => "\x1b[?1049h";
 
@@ -28,7 +30,7 @@ export const clearScreenSeq = (): string => "\x1b[2J\x1b[H";
 /** Read current terminal dimensions, falling back to 80x24 if unavailable. */
 export const getTerminalSize = (): { cols: number; rows: number } => {
   try {
-    const { columns, rows } = Deno.consoleSize();
+    const { columns, rows } = runtime.process.consoleSize();
     return { cols: columns, rows };
   } catch {
     return { cols: 80, rows: 24 };

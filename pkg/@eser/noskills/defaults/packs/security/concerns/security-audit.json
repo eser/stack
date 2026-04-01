@@ -1,0 +1,26 @@
+{
+  "id": "security-audit",
+  "name": "Security Audit",
+  "description": "Security-focused review for every spec",
+  "extras": [
+    {
+      "questionId": "verification",
+      "text": "Has the change been reviewed for injection, XSS, CSRF, and auth bypass?"
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "What security boundaries must NOT be crossed?"
+    }
+  ],
+  "specSections": [
+    "Security Review"
+  ],
+  "reminders": [
+    "Check for hardcoded secrets, unsanitized input, and missing auth checks"
+  ],
+  "acceptanceCriteria": [
+    "No hardcoded secrets",
+    "All user input validated",
+    "Auth checks present on protected routes"
+  ]
+}

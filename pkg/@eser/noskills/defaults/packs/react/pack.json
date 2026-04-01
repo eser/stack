@@ -1,0 +1,11 @@
+{
+  "name": "react",
+  "version": "1.0.0",
+  "description": "React component conventions",
+  "tags": ["react", "frontend"],
+  "rules": [
+    "rules/component-structure.md",
+    "rules/prefer-function-components.md",
+    "rules/state-management.md"
+  ]
+}

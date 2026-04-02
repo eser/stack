@@ -38,11 +38,6 @@ const cs = (sub: string, specName: string | null): string => {
 // Output Types (JSON contract for `noskills next`)
 // =============================================================================
 
-export type FreeOutput = {
-  readonly phase: "FREE";
-  readonly instruction: string;
-};
-
 export type PhaseOutput =
   | DiscoveryOutput
   | DiscoveryReviewOutput
@@ -51,8 +46,7 @@ export type PhaseOutput =
   | ExecutionOutput
   | BlockedOutput
   | CompletedOutput
-  | IdleOutput
-  | FreeOutput;
+  | IdleOutput;
 
 export type ClearContextAction = {
   readonly action: "clear_context";
@@ -341,6 +335,7 @@ export type IdleOutput = {
   readonly availableConcerns: readonly ConcernInfo[];
   readonly activeConcerns: readonly string[];
   readonly activeRulesCount: number;
+  readonly behavioralNote?: string;
   readonly hint?: string;
 };
 
@@ -439,12 +434,6 @@ const buildBehavioral = (
   const specName = state.spec;
 
   switch (state.phase) {
-    case "FREE":
-      return {
-        rules: [],
-        tone: "Quiet. No enforcement.",
-      };
-
     case "IDLE": {
       const idleOptionRules: string[] = hints.optionPresentation === "tool"
         ? [
@@ -467,11 +456,10 @@ const buildBehavioral = (
 
       return {
         rules: [
-          "You MUST NOT create, edit, or delete any project file until you have either entered free mode or created and approved a spec. No exceptions. No 'quick fixes'. Choose: `noskills free` for unstructured work, or `noskills spec new` for structured work.",
+          "The user has already told you what they want. If they described a feature, bug, or task, create a spec immediately with `noskills spec new \"user's description here\"` — the name is auto-generated. If they said 'fix X', create a spec for fixing X. If they pasted meeting notes, create a spec from those notes. Do NOT present a menu of options. Do NOT ask 'What would you like to do?' — the user already answered that question by talking to you. Do NOT ask for a 'short slug name' — just pass their description to spec new. Only show interactive options if the user explicitly asks 'what can I do?' or the conversation has no prior context.",
           ...mandatoryRules,
           ...finalOptionRules,
-          "Do not take action without the user choosing an option first.",
-          "When the user wants to create a new spec, they can provide anything: a one-line description, a full task list, meeting notes, a kanban card, a customer email, or a detailed requirements document. Accept whatever format they provide. If it's long, summarize it into a spec title for the slug but preserve the full text as context for discovery.",
+          "When the user wants to create a spec, encourage them to share everything they have — short or long. Say: 'Tell me what you want to build. A one-liner is fine, but if you have detailed requirements, meeting notes, a task list, or a full spec in mind, share it all — the more context, the better the discovery.' Do NOT ask for a 'short slug and description.' The slug is auto-generated from the content. Pass the full text as the description to `noskills spec new \"...\"` — detailed requirements produce better discovery.",
           "After running spec new, ask the user if they want full discovery, quick discovery, or skip to spec draft. Full discovery: pre-scan, premise challenge, 6 questions, expansions, architecture, error map, synthesis. Quick discovery: only questions relevant to active concerns, skip expansions and error map. Skip to spec draft: classification → approve → execute. Never skip discovery without asking.",
         ],
         tone: "Welcoming. Present choices, then wait.",
@@ -822,7 +810,7 @@ const buildProtocolGuide = (
     // First call ever — include guide
     return {
       what:
-        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → COMPLETED",
+        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE → IDLE",
       how: `Run \`${
         cs("next", specName)
       }\` for instructions. Submit results with \`${
@@ -838,7 +826,7 @@ const buildProtocolGuide = (
   if (now - lastCalled > STALE_SESSION_MS) {
     return {
       what:
-        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → COMPLETED",
+        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE → IDLE",
       how: `Run \`${
         cs("next", specName)
       }\` for instructions. Submit results with \`${
@@ -863,18 +851,22 @@ const ROADMAP_PHASES = [
   { key: "SPEC_APPROVED", label: "APPROVED" },
   { key: "EXECUTING", label: "EXECUTING" },
   { key: "COMPLETED", label: "DONE" },
+  { key: "IDLE_END", label: "IDLE" },
 ] as const;
 
 const buildRoadmap = (phase: schema.Phase): string => {
-  if (phase === "FREE") return "✦ FREE ✦ (no enforcement)";
   if (phase === "BLOCKED") {
     // Show EXECUTING highlighted with BLOCKED note
     return ROADMAP_PHASES.map((p) =>
       p.key === "EXECUTING" ? `✦ EXECUTING (BLOCKED) ✦` : p.label
     ).join(" → ");
   }
-  return ROADMAP_PHASES.map((p) => p.key === phase ? `✦ ${p.label} ✦` : p.label)
-    .join(" → ");
+  // Highlight current phase — IDLE highlights the first IDLE in the roadmap
+  return ROADMAP_PHASES.map((p) => {
+    if (p.key === "IDLE" && phase === "IDLE") return `✦ IDLE ✦`;
+    if (p.key === phase) return `✦ ${p.label} ✦`;
+    return p.label;
+  }).join(" → ");
 };
 
 const buildGate = (
@@ -975,12 +967,6 @@ export const compile = async (
     case "COMPLETED":
       phaseOutput = compileCompleted(state);
       break;
-    case "FREE":
-      phaseOutput = {
-        phase: "FREE",
-        instruction: "Free mode — no enforcement active. Work as you wish.",
-      };
-      break;
     default:
       phaseOutput = compileIdle(
         activeConcerns,
@@ -1076,14 +1062,9 @@ const buildInteractiveOptions = (
 
       opts.push({
         label: "Start a new spec",
-        description: "Begin discovery questions for a new feature",
-        command: c('spec new --name=<slug> "description"'),
-      });
-
-      opts.push({
-        label: "Free mode",
-        description: "No enforcement — work freely until you want structure",
-        command: c("free"),
+        description:
+          "Tell me what you want to build — a one-liner, detailed requirements, meeting notes, anything",
+        command: c('spec new "description"'),
       });
 
       // Add continuable specs as options (max 2 to stay within AskUserQuestion limits)
@@ -1237,7 +1218,7 @@ const compileIdle = (
 ): IdleOutput => ({
   phase: "IDLE",
   instruction:
-    "Present the welcome dashboard and interactive options to the user. Show existing specs if any, then present choices. IMPORTANT: Present ALL available concerns to the user — never truncate the list. Split across multiple AskUserQuestion calls if needed.",
+    "No active spec. Work freely or start a new spec. If the user has already described what they want to build, create a spec immediately with `noskills spec new \"user's description here\"` — the name is auto-generated from the description. Do NOT re-ask what they want to do. Do NOT ask for a 'short slug' — just take what the user gives you and create the spec. When prompting the user, encourage them to share everything they have: 'Tell me what you want to build. A one-liner is fine, but if you have detailed requirements, meeting notes, a task list, or a full spec in mind, share it all — the more context, the better the discovery.' IMPORTANT: Present ALL available concerns to the user — never truncate the list. Split across multiple AskUserQuestion calls if needed.",
   welcome: WELCOME,
   existingSpecs: idleContext?.existingSpecs ?? [],
   availableConcerns: allConcernDefs.map((c) => ({
@@ -1246,6 +1227,8 @@ const compileIdle = (
   })),
   activeConcerns: activeConcerns.map((c) => c.id),
   activeRulesCount: idleContext?.rulesCount ?? rulesCount,
+  behavioralNote:
+    "These options are fallbacks. If the user already described what they want, act on it directly without presenting these options.",
   hint: activeConcerns.length === 0
     ? "No concerns active. Consider adding concerns first — they shape discovery questions and specs."
     : undefined,

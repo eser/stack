@@ -20,7 +20,6 @@ const abbreviatePhase = (phase: string | null): string => {
     BLOCKED: "BLKD",
     COMPLETED: "DONE",
     IDLE: "IDLE",
-    FREE: "FREE",
   };
   return map[phase] ?? phase.slice(0, 4);
 };
@@ -80,7 +79,7 @@ export const buildListItems = (
     selectable: false,
   });
   items.push({ label: "[n] New spec", badge: "+", badgeColor: "green" });
-  items.push({ label: "[f] Free mode", badge: "~", badgeColor: "cyan" });
+  items.push({ label: "[f] Idle mode", badge: "~", badgeColor: "cyan" });
 
   return items;
 };

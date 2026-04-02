@@ -75,10 +75,14 @@ const enforcePreToolUse = (input: {
   if (state === null) return { allow: true };
 
   const phase = state.phase;
-  if (phase === "EXECUTING") return { allow: true };
+  if (
+    phase === "EXECUTING" || phase === "IDLE" ||
+    phase === "COMPLETED"
+  ) {
+    return { allow: true };
+  }
 
   const reasons: Record<string, string> = {
-    IDLE: "No active spec. Run `npx eser noskills spec new`",
     DISCOVERY:
       "Discovery in progress. Run `npx eser noskills next` to continue.",
     SPEC_DRAFT: "Spec needs review. Run `npx eser noskills approve`",

@@ -37,8 +37,10 @@ export const main = async (
   );
   out.writeln("");
   out.writeln(span.dim("  start --spec=<name>   Bind to a spec"));
-  out.writeln(span.dim("  start --free          Free mode (no enforcement)"));
-  out.writeln(span.dim("  start --auto          Auto-detect spec or free"));
+  out.writeln(
+    span.dim("  start --free          Idle mode (no spec, no enforcement)"),
+  );
+  out.writeln(span.dim("  start --auto          Auto-detect spec or idle"));
   out.writeln(span.dim("  end [--id=<id>]       End current/specific session"));
   out.writeln(span.dim("  list                  Show active sessions"));
   out.writeln(span.dim("  gc                    Remove stale sessions"));

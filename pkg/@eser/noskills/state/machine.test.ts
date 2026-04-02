@@ -427,41 +427,39 @@ describe("BLOCKED round-trip", () => {
 });
 
 // =============================================================================
-// FREE mode transitions
+// IDLE — default permissive state
 // =============================================================================
 
-describe("FREE mode", () => {
-  it("IDLE → FREE via enterFreeMode", () => {
-    const state = machine.enterFreeMode(idle());
-    assertEquals(state.phase, "FREE");
-  });
-
-  it("FREE → IDLE via exitFreeMode", () => {
-    const free = machine.enterFreeMode(idle());
-    const state = machine.exitFreeMode(free);
+describe("IDLE state", () => {
+  it("createInitialState returns IDLE", () => {
+    const state = schema.createInitialState();
     assertEquals(state.phase, "IDLE");
   });
 
-  it("throws enterFreeMode from non-IDLE phases", () => {
-    assertThrows(() => machine.enterFreeMode(inDiscovery()), Error);
-    assertThrows(() => machine.enterFreeMode(inExecuting()), Error);
+  it("IDLE → DISCOVERY via startSpec", () => {
+    const state = machine.startSpec(idle(), "test", "spec/test");
+    assertEquals(state.phase, "DISCOVERY");
   });
 
-  it("throws exitFreeMode from non-FREE phases", () => {
-    assertThrows(() => machine.exitFreeMode(idle()), Error);
-    assertThrows(() => machine.exitFreeMode(inExecuting()), Error);
+  it("IDLE → COMPLETED via completeSpec", () => {
+    const state = machine.completeSpec(idle(), "cancelled");
+    assertEquals(state.phase, "COMPLETED");
   });
 
-  it("canTransition IDLE → FREE", () => {
-    assertEquals(machine.canTransition("IDLE", "FREE"), true);
+  it("canTransition IDLE → DISCOVERY", () => {
+    assertEquals(machine.canTransition("IDLE", "DISCOVERY"), true);
   });
 
-  it("canTransition FREE → IDLE", () => {
-    assertEquals(machine.canTransition("FREE", "IDLE"), true);
+  it("canTransition IDLE → COMPLETED", () => {
+    assertEquals(machine.canTransition("IDLE", "COMPLETED"), true);
   });
 
-  it("rejects FREE → DISCOVERY (must exit free first)", () => {
-    assertEquals(machine.canTransition("FREE", "DISCOVERY"), false);
+  it("rejects IDLE → EXECUTING (must go through spec lifecycle)", () => {
+    assertEquals(machine.canTransition("IDLE", "EXECUTING"), false);
+  });
+
+  it("COMPLETED → IDLE (return to default after spec done)", () => {
+    assertEquals(machine.canTransition("COMPLETED", "IDLE"), true);
   });
 });
 
@@ -551,21 +549,10 @@ describe("completeSpec: COMPLETED rejects re-completion", () => {
   });
 });
 
-describe("completeSpec: command-level guards (IDLE/FREE)", () => {
-  // Note: IDLE → COMPLETED is a valid machine transition (for `done` after cancel),
-  // but the cancel/wontfix COMMANDS reject IDLE/FREE at the command level (not machine level).
-  // These tests verify the machine allows the transition but commands should guard against it.
-  it("machine allows IDLE → COMPLETED (guarded at command level)", () => {
+describe("completeSpec: command-level guards (IDLE)", () => {
+  // IDLE → COMPLETED is a valid machine transition
+  it("machine allows IDLE → COMPLETED", () => {
     const state = machine.completeSpec(idle(), "cancelled");
     assertEquals(state.phase, "COMPLETED");
-  });
-
-  it("machine rejects FREE → COMPLETED (no transition path)", () => {
-    const free = machine.enterFreeMode(idle());
-    assertThrows(
-      () => machine.completeSpec(free, "cancelled"),
-      Error,
-      "Invalid phase transition: FREE → COMPLETED",
-    );
   });
 });

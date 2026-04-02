@@ -38,9 +38,13 @@ export class ClaudeCodeModel implements model.LanguageModel {
       options.messages,
       options.system,
     );
-    args.push("-p", prompt);
 
-    const process = cliShared.spawnCliProcess(this.binary, args, { signal });
+    // Pipe prompt via stdin to avoid E2BIG on large inputs (ARG_MAX ~256KB).
+    // Claude Code reads from stdin when no -p flag is provided.
+    const process = cliShared.spawnCliProcess(this.binary, args, {
+      signal,
+      stdinData: prompt,
+    });
     const stderrPromise = cliShared.captureStderr(process.stderr);
 
     const reader = process.stdout.getReader();
@@ -92,9 +96,12 @@ export class ClaudeCodeModel implements model.LanguageModel {
       options.messages,
       options.system,
     );
-    args.push("-p", prompt);
 
-    const process = cliShared.spawnCliProcess(this.binary, args, { signal });
+    // Pipe prompt via stdin to avoid E2BIG on large inputs.
+    const process = cliShared.spawnCliProcess(this.binary, args, {
+      signal,
+      stdinData: prompt,
+    });
     const stderrPromise = cliShared.captureStderr(process.stderr);
 
     try {

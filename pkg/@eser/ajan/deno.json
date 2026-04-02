@@ -1,6 +1,6 @@
 {
   "name": "@eser/ajan",
-  "version": "4.1.51",
+  "version": "4.1.52",
   "exports": {
     ".": "./ffi/mod.ts",
     "./ffi": "./ffi/mod.ts",

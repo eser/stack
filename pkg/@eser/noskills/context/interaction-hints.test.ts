@@ -308,13 +308,12 @@ describe("Compiler with Kiro hints", () => {
       undefined,
       KIRO_HINTS,
     );
-    // The decision point rule should NOT have AskUserQuestion
-    const decisionRule = output.behavioral.rules.find((r) =>
-      r.includes("decision point")
+    // The decision point rule should use numbered list, not AskUserQuestion
+    const optionRule = output.behavioral.rules.find((r) =>
+      r.includes("numbered list") || r.includes("decision point")
     );
-    assertEquals(decisionRule !== undefined, true);
-    assertEquals(decisionRule!.includes("AskUserQuestion"), false);
-    assertEquals(decisionRule!.includes("pick a number"), true);
+    assertEquals(optionRule !== undefined, true);
+    assertEquals(optionRule!.includes("AskUserQuestion"), false);
   });
 
   it("DISCOVERY rules do NOT mention AskUserQuestion tool", async () => {
@@ -328,16 +327,12 @@ describe("Compiler with Kiro hints", () => {
       undefined,
       KIRO_HINTS,
     );
-    // The question-asking rule should NOT use AskUserQuestion
+    // The question-asking rule should use text, not AskUserQuestion
     const questionRule = output.behavioral.rules.find((r) =>
-      r.includes("MUST ask each discovery question")
+      r.includes("question") && r.includes("as text")
     );
     assertEquals(questionRule !== undefined, true);
     assertEquals(questionRule!.includes("AskUserQuestion"), false);
-    assertEquals(
-      questionRule!.includes("presenting it to the user as text"),
-      true,
-    );
   });
 
   it("EXECUTING rules mention Kiro delegation", async () => {
@@ -352,7 +347,7 @@ describe("Compiler with Kiro hints", () => {
       KIRO_HINTS,
     );
     const has = output.behavioral.rules.some((r) =>
-      r.includes("Kiro's agent delegation")
+      r.includes("Kiro") && r.includes("delegation")
     );
     assertEquals(has, true);
   });
@@ -407,6 +402,7 @@ describe("Compiler with Cursor hints", () => {
       CURSOR_HINTS,
     );
     const has = output.behavioral.rules.some((r) =>
+      r.includes("Execute tasks sequentially yourself") ||
       r.includes("does not support agent delegation")
     );
     assertEquals(has, true);

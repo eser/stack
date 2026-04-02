@@ -25,7 +25,7 @@ export const main = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const specResult = persistence.requireSpecFlag(args);
   if (!specResult.ok) {
     out.writeln(span.red(specResult.error));

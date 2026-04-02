@@ -16,12 +16,11 @@ import * as syncEngine from "../sync/engine.ts";
 import { QUESTIONS } from "../context/questions.ts";
 import * as formatter from "../output/formatter.ts";
 import { cmd } from "../output/cmd.ts";
-import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const fmt = formatter.parseOutputFormat(args);
 
   if (!(await persistence.isInitialized(root))) {

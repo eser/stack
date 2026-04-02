@@ -27,7 +27,7 @@ export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const isDryRun = args?.includes("--dry-run") ?? false;
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
 
   if (!(await persistence.isInitialized(root))) {
     console.error("noskills is not initialized. Run:", cmdPrefix(), "init");
@@ -154,6 +154,7 @@ export const main = async (
         env: {
           ...runtime.env.toObject(),
           NOSKILLS_SESSION: sessionId,
+          NOSKILLS_PROJECT_ROOT: root,
         },
         cols: innerW,
         rows: innerH,
@@ -235,6 +236,7 @@ export const main = async (
         env: {
           ...runtime.env.toObject(),
           NOSKILLS_SESSION: sessionId,
+          NOSKILLS_PROJECT_ROOT: root,
         },
         cols: specInnerW,
         rows: specInnerH,

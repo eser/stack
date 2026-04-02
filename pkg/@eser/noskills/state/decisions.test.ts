@@ -248,7 +248,8 @@ describe("Convention discovery behavioral rule", () => {
     const output = await compiler.compile(state, noConcerns, noRules);
 
     const hasConventionRule = output.behavioral.rules.some((r) =>
-      r.includes("permanent rule for this project")
+      r.includes("Permanent rule") || r.includes("permanent rule") ||
+      r.includes("rule add")
     );
     assertEquals(hasConventionRule, true);
   });

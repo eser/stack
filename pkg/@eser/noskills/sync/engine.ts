@@ -145,6 +145,64 @@ export const loadRules = async (root: string): Promise<readonly string[]> => {
 };
 
 // =============================================================================
+// Two-tier rule splitting
+// =============================================================================
+
+/** Split rules into tier1 (compile-time, no file scope) and tier2 (hook-time, file-scoped). */
+export const splitByTier = (
+  rules: readonly ScopedRule[],
+  currentPhase: string,
+): { tier1: readonly string[]; tier2Count: number } => {
+  const tier1: string[] = [];
+  let tier2Count = 0;
+
+  for (const r of rules) {
+    // Phase filter
+    if (r.phases !== undefined && r.phases.length > 0) {
+      if (!r.phases.includes(currentPhase)) continue;
+    }
+    // Tier split: rules with appliesTo → tier2 (hook-time)
+    if (r.appliesTo !== undefined && r.appliesTo.length > 0) {
+      tier2Count++;
+    } else {
+      tier1.push(r.text);
+    }
+  }
+
+  return { tier1, tier2Count };
+};
+
+/** Match a single file path against a glob pattern. */
+export const matchFilePattern = (
+  filePath: string,
+  pattern: string,
+): boolean => {
+  const ext = pattern.startsWith("*.") ? pattern.slice(1) : null;
+  if (ext !== null) return filePath.endsWith(ext);
+  return filePath.includes(pattern.replace(/\*/g, ""));
+};
+
+/** Get tier2 rules that match a specific file path in the current phase. */
+export const getTier2RulesForFile = (
+  rules: readonly ScopedRule[],
+  currentPhase: string,
+  filePath: string,
+): readonly string[] => {
+  return rules
+    .filter((r) => {
+      // Phase filter
+      if (r.phases !== undefined && r.phases.length > 0) {
+        if (!r.phases.includes(currentPhase)) return false;
+      }
+      // Must have file scope
+      if (r.appliesTo === undefined || r.appliesTo.length === 0) return false;
+      // Match file
+      return r.appliesTo.some((pat) => matchFilePattern(filePath, pat));
+    })
+    .map((r) => r.text);
+};
+
+// =============================================================================
 // Adapter Registry
 // =============================================================================
 

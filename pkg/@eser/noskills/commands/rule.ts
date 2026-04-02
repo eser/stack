@@ -57,7 +57,7 @@ const ruleAdd = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
 
   // Parse flags and collect rule text
   let phases: string[] = [];
@@ -154,7 +154,7 @@ const ruleList = async (): Promise<shellArgs.CliResult<void>> => {
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const rules = await syncEngine.loadScopedRules(root);
 
   out.writeln(span.bold("Rules"));

@@ -185,6 +185,12 @@ export type ClassificationPrompt = {
   readonly instruction: string;
 };
 
+export type SelfReview = {
+  readonly required: boolean;
+  readonly checks: readonly string[];
+  readonly instruction: string;
+};
+
 export type SpecDraftOutput = {
   readonly phase: "SPEC_DRAFT";
   readonly instruction: string;
@@ -194,6 +200,7 @@ export type SpecDraftOutput = {
   };
   readonly classificationRequired?: boolean;
   readonly classificationPrompt?: ClassificationPrompt;
+  readonly selfReview?: SelfReview;
   readonly saved?: boolean;
 };
 
@@ -241,6 +248,7 @@ export type TaskBlock = {
   readonly title: string;
   readonly totalTasks: number;
   readonly completedTasks: number;
+  readonly files?: readonly string[];
 };
 
 export type DesignChecklistDimension = {
@@ -252,6 +260,10 @@ export type DesignChecklist = {
   readonly required: boolean;
   readonly instruction: string;
   readonly dimensions: readonly DesignChecklistDimension[];
+};
+
+export type PreExecutionReview = {
+  readonly instruction: string;
 };
 
 export type ExecutionOutput = {
@@ -278,6 +290,7 @@ export type ExecutionOutput = {
   readonly rejectionReason?: string;
   readonly rejectionRemaining?: readonly string[];
   readonly designChecklist?: DesignChecklist;
+  readonly preExecutionReview?: PreExecutionReview;
 };
 
 export type BlockedOutput = {
@@ -374,6 +387,7 @@ export type BehavioralBlock = {
   readonly tone: string;
   readonly urgency?: string;
   readonly outOfScope?: readonly string[];
+  readonly tier2Summary?: string;
 };
 
 // Invariant: applies to every phase, every output. Non-negotiable.
@@ -396,136 +410,73 @@ const buildBehavioral = (
   hints: InteractionHints = DEFAULT_HINTS,
 ): BehavioralBlock => {
   const stale = state.execution.iteration >= maxIterationsBeforeRestart;
-  const ROLE_IDENTITY_RULE =
-    "You are a senior engineer and a scrum master who takes pride in honest reporting. Your reputation depends on accuracy, not speed. You are responsible for others' toil, and you are a perfect example of a servant leader. When reporting progress: if something is NOT implemented, say so — don't hide it. If partially done, say 'partially done: [what works] / [what doesn't]'. If untested, say 'implemented but untested'. NEVER say 'done' for something you haven't verified yourself. Underpromise — 4 of 6 done means '4 of 6 done, 2 remaining', not 'almost done'.";
-  const EXPLICIT_OVER_CLEVER_RULE =
-    "Never skip steps or make decisions without asking the user. If you think something can be skipped or inferred, ask first. Explicit > Clever.";
 
-  // Decision point rule adapts based on whether the tool has AskUserQuestion
-  const DECISION_POINT_RULE = hints.hasAskUserTool
-    ? "At every decision point (discovery questions, classification, spec approval, expansion proposals, architectural decisions, rule promotion), you MUST use AskUserQuestion to get the user's input. You MUST NOT make decisions, infer preferences, or assume the user's intent. If you're unsure whether something is a decision point, it is — ask."
-    : "At every decision point (discovery questions, classification, spec approval, expansion proposals, architectural decisions, rule promotion), you MUST ask the user. Present options as a numbered list and ask the user to pick a number. You MUST NOT make decisions, infer preferences, or assume the user's intent. If you're unsure whether something is a decision point, it is — ask.";
+  const askMethod = hints.hasAskUserTool
+    ? "Use AskUserQuestion for all decision points."
+    : "Present options as a numbered list at every decision point.";
 
-  const RECOMMENDATION_RULE =
-    "At every decision point where you present options to the user, share your recommendation BEFORE asking. Say what you think and why, then ask if the user agrees. Format: 'I'd recommend X because [reason]. Agree, or would you prefer Y?' The user always has the final word, but you save them cognitive load by proposing first.";
-  const LIVE_STATE_MACHINE_RULE =
-    "noskills is a live state machine the user watches in real-time. Call noskills ONCE per interaction. Ask ONE question, wait for the user's answer, submit it. Never batch-submit, never backfill, never answer questions yourself.";
-  const mandatoryRules = allowGit
-    ? [
-      ROLE_IDENTITY_RULE,
-      EXPLICIT_OVER_CLEVER_RULE,
-      DECISION_POINT_RULE,
-      RECOMMENDATION_RULE,
-      LIVE_STATE_MACHINE_RULE,
-    ]
-    : [
-      GIT_READONLY_RULE,
-      ROLE_IDENTITY_RULE,
-      EXPLICIT_OVER_CLEVER_RULE,
-      DECISION_POINT_RULE,
-      RECOMMENDATION_RULE,
-      LIVE_STATE_MACHINE_RULE,
-    ];
-  const ROADMAP_GATE_RULE =
-    "When noskills output contains a `roadmap` field, display it to the user BEFORE any other content. When output contains a `gate` field, display the gate message prominently — do NOT bury it in prose.";
-  mandatoryRules.push(ROADMAP_GATE_RULE);
+  const mandatoryRules: string[] = [];
+  if (!allowGit) mandatoryRules.push(GIT_READONLY_RULE);
+  mandatoryRules.push(
+    "Report progress honestly. Not done = 'not done'. Partial = 'partial: [works]/[doesn't]'. Untested = 'untested'. 4 of 6 = '4 of 6 done, 2 remaining'.",
+    `Never skip steps or infer decisions. ${askMethod} Recommend first, then ask. One noskills call per interaction — never batch-submit or backfill.`,
+    "Display `roadmap` before other content. Display `gate` prominently.",
+  );
   const scopeItems = parsedSpec?.outOfScope ?? [];
 
   const specName = state.spec;
 
   switch (state.phase) {
     case "IDLE": {
-      const idleOptionRules: string[] = hints.optionPresentation === "tool"
-        ? [
-          "When interactiveOptions are present, pass them DIRECTLY as the `options` array in AskUserQuestion — they are already in the correct {label, description} format. You MUST also provide a `header` field (max 12 chars, e.g. 'Action') and a `question` field. When the user picks an option, look up its label in the `commandMap` object to find the command to execute.",
-          "For availableConcerns: use AskUserQuestion with multiSelect:true. AskUserQuestion supports max 4 options per question and max 4 questions per call. If there are more than 4 concerns, split them across two questions within the same AskUserQuestion call (e.g., first 3 in question 1, remaining in question 2). NEVER silently drop concerns — present ALL available concerns to the user, even if it requires multiple questions.",
-        ]
-        : [
-          "When interactiveOptions are present, present them as a numbered list. For each option show the number, label, and description. Ask the user to pick a number. When the user picks an option, look up its label in the `commandMap` object to find the command to execute. Example format:\n\n1. Start a new spec — Begin discovery questions for a new feature\n2. Add concerns — Shape how discovery and specs work\n\nPick a number:",
-          "For availableConcerns: present ALL available concerns as a numbered list. NEVER silently drop concerns — present ALL available concerns to the user. Ask the user to enter the numbers of the concerns they want to activate (comma-separated).",
-        ];
-
-      const idleConcernRule = hints.hasAskUserTool
-        ? "For availableConcerns: use AskUserQuestion with multiSelect:true. AskUserQuestion supports max 4 options per question and max 4 questions per call. If there are more than 4 concerns, split them across two questions within the same AskUserQuestion call (e.g., first 3 in question 1, remaining in question 2). NEVER silently drop concerns — present ALL available concerns to the user, even if it requires multiple questions."
-        : undefined;
-
-      // Replace the second rule if we already have a more specific concern rule
-      const finalOptionRules = idleConcernRule !== undefined
-        ? [idleOptionRules[0]!, idleConcernRule]
-        : idleOptionRules;
+      const optionRule = hints.optionPresentation === "tool"
+        ? "Pass interactiveOptions DIRECTLY to AskUserQuestion options array (header max 12 chars). Use commandMap to resolve selections. For availableConcerns: AskUserQuestion with multiSelect:true, max 4 per question — split across questions if needed. Present ALL concerns."
+        : "Present interactiveOptions as numbered list. Use commandMap to resolve selections. Present ALL availableConcerns as numbered list for multiselect.";
 
       return {
         rules: [
-          "The user has already told you what they want. If they described a feature, bug, or task, create a spec immediately with `noskills spec new \"user's description here\"` — the name is auto-generated. If they said 'fix X', create a spec for fixing X. If they pasted meeting notes, create a spec from those notes. Do NOT present a menu of options. Do NOT ask 'What would you like to do?' — the user already answered that question by talking to you. Do NOT ask for a 'short slug name' — just pass their description to spec new. Only show interactive options if the user explicitly asks 'what can I do?' or the conversation has no prior context.",
+          "If the user described a feature/bug/task, create a spec immediately: `noskills spec new \"description\"` — name is auto-generated. Do NOT present menus or ask 'What would you like to do?' unless the conversation has no prior context.",
           ...mandatoryRules,
-          ...finalOptionRules,
-          "When the user wants to create a spec, encourage them to share everything they have — short or long. Say: 'Tell me what you want to build. A one-liner is fine, but if you have detailed requirements, meeting notes, a task list, or a full spec in mind, share it all — the more context, the better the discovery.' Do NOT ask for a 'short slug and description.' The slug is auto-generated from the content. Pass the full text as the description to `noskills spec new \"...\"` — detailed requirements produce better discovery.",
-          "After running spec new, ask the user if they want full discovery, quick discovery, or skip to spec draft. Full discovery: pre-scan, premise challenge, 6 questions, expansions, architecture, error map, synthesis. Quick discovery: only questions relevant to active concerns, skip expansions and error map. Skip to spec draft: classification → approve → execute. Never skip discovery without asking.",
+          optionRule,
+          "Encourage full context: 'Tell me what you want to build — one-liner, detailed requirements, meeting notes, anything.' Slug is auto-generated. Pass full text to `noskills spec new \"...\"`.",
+          "After spec new, ask: full discovery, quick discovery, or skip to spec draft. Never skip without asking.",
+          "Every task gets a spec. No exceptions. A one-liner fix, a config change, a 'simple' refactor — all get specs. The spec can be short but it must exist. 'Too simple for a spec' is the anti-pattern.",
         ],
         tone: "Welcoming. Present choices, then wait.",
       };
     }
 
     case "DISCOVERY": {
-      // Discovery question asking rule adapts to the tool's interaction model
-      const discoveryQuestionRule = hints.hasAskUserTool
-        ? "You MUST ask each discovery question using AskUserQuestion tool. You MUST NOT answer questions yourself or infer answers from the spec description. You MUST NOT submit discovery answers without the user explicitly providing each answer through AskUserQuestion. Each question → one AskUserQuestion call → user answers → next question. If the user already gave a detailed description in spec new, you may PRE-FILL suggested answers as option descriptions in AskUserQuestion — but the user must still confirm or override each one. If the user provided a fully formed plan, you may skip Phase 2 (questions) but you MUST still run premise challenge and alternatives. Never skip premise challenge."
-        : "You MUST ask each discovery question by presenting it to the user as text. You MUST NOT answer questions yourself or infer answers from the spec description. You MUST NOT submit discovery answers without the user explicitly providing each answer. Each question → present it → user answers → next question. If the user already gave a detailed description in spec new, you may PRE-FILL suggested answers — but the user must still confirm or override each one. If the user provided a fully formed plan, you may skip Phase 2 (questions) but you MUST still run premise challenge and alternatives. Never skip premise challenge.";
+      const questionMethod = hints.hasAskUserTool
+        ? "Ask each question via AskUserQuestion. One question per call."
+        : "Ask one question at a time as text.";
 
       return {
         modeOverride:
-          "You are in plan mode. Do not attempt to create, edit, or write any files. Do not run any shell commands that modify state. You can read files and run read-only commands to understand the codebase. Your ONLY job right now is to think and talk. Read code to understand. Ask questions to discover. Challenge assumptions. Propose ideas. Debate tradeoffs. But NEVER create, edit, or delete project files. Discovery exists to catch what you don't yet know you don't know.",
+          "plan mode. DO NOT create, edit, or write any files. DO NOT run state-modifying commands. MAY read files and run read-only commands (cat, ls, grep, git log, git diff).",
         rules: [
           ...mandatoryRules,
-          // HIGHEST PRIORITY: questions must be asked via interaction tool
-          discoveryQuestionRule,
-          // Base constraints
+          `${questionMethod} Never answer questions yourself. Never submit answers without user confirmation. Pre-fill suggested answers from detailed descriptions — user must confirm each. With a fully formed plan, skip questions but MUST run premise challenge and alternatives.`,
           "DO NOT create, edit, or write any files.",
           "DO NOT run shell commands that modify state.",
           "You MAY read files and run read-only commands (cat, ls, grep, git log, git diff).",
 
-          // 1. Pre-discovery codebase scan
-          "BEFORE asking any discovery questions, conduct a pre-discovery codebase scan: read the project README, CLAUDE.md, and any design docs; check the last 20 git commits (git log --oneline -20); look for TODO files, open issue references, and existing specs; scan the directory structure to understand the project shape. Then present a brief 'Pre-discovery audit' summary: stack detected, recent work themes, open TODOs, existing specs. This gives you CONTEXT to ask INFORMED questions, not blind ones.",
+          // Pre-scan + research + mode selection
+          "Pre-discovery: (1) pre-discovery codebase scan — read README, CLAUDE.md, design docs, last 20 commits, TODOs, existing specs, directory structure. Present a brief audit summary. (2) If `preDiscoveryResearch.required`, web-search every `extractedTerms` entry — report versions, API changes, deprecations. (3) Ask discovery mode: A) Explore scope B) Technical depth C) Validate my plan D) Ship fast. Adapt emphasis accordingly.",
 
-          // 1.1. Pre-discovery platform research
-          "If the noskills output contains `preDiscoveryResearch` with `required: true`, you MUST research every term in `extractedTerms` using web search before asking the first question. Present findings as a brief: current stable versions, API changes, deprecations, and anything that might affect the spec's assumptions.",
+          // Premise challenge
+          "Before starting discovery questions, challenge the user's initial spec description against codebase findings. Flag: hidden complexity, conflicts with existing code, scope mismatch, overlapping modules. Ask clarifying follow-ups.",
 
-          // 1.5. Discovery mode selection
-          "After the pre-discovery codebase scan and BEFORE starting questions, ask the user: 'What kind of discovery do you need? A) Explore scope — I'll help expand, find opportunities, think bigger. B) Technical depth — I'll focus on architecture, error handling, implementation strategy. C) Validate my plan — I already know what I want, challenge my assumptions. D) Ship fast — minimal scope, cut the fat, get to tasks quickly.' Adapt your discovery emphasis accordingly: Explore → heavy on expansion proposals and dream state; Technical → heavy on architectural decisions and error/rescue map; Validate → heavy on premise challenge and pushback; Ship fast → minimal questions, skip expansions, go direct to classification and tasks.",
+          // Question style
+          "When asking questions, offer concrete options from codebase knowledge alongside the open-ended question (e.g., 'I see three scenarios: A)... B)... C)... D) Something else'). Push back on vague answers. Follow up on short answer with 'Can you be more specific?'",
 
-          // 2. Premise challenge
-          "Before starting discovery questions, challenge the user's initial spec description against what you learned from the codebase scan. Look for: hidden complexity they haven't mentioned, conflicts with existing code, scope that's bigger or smaller than they think, existing modules that overlap with what they're asking for. Share your observations and ask clarifying follow-ups, then proceed to questions.",
+          // Dream state + expansions + architecture + error map
+          "After answers, synthesize CURRENT STATE → THIS SPEC → 6-MONTH IDEAL vision. Then: (1) expansion opportunities as numbered proposals with effort (S/M/L/XL), risk, completeness delta — options: Add/Defer/Skip. (2) Architectural decisions that BLOCK implementation — present with options, RECOMMENDATION, completeness scores. Unresolved = risk flag. (3) Error/rescue map: codepath | failure mode | handling. Flag CRITICAL GAPS as decisions.",
 
-          // 3. Options over open-ended
-          "When asking discovery questions, use your codebase knowledge to offer concrete options alongside the open-ended question. For example, instead of just 'What does the user do today?' present: 'Based on the codebase, I see three likely scenarios: A) ... B) ... C) ... D) Something else — describe it. Which is closest?' The user can always pick 'something else' but concrete options speed up the conversation and force specificity.",
-
-          // Core question discipline
-          hints.hasAskUserTool
-            ? "Ask one question at a time using AskUserQuestion tool."
-            : "Ask one question at a time. Present it as text and wait for the user's response.",
-          "Push back on vague answers — you will be the one executing this spec, vague answers make your job harder.",
-          "When the user gives a short answer, follow up: 'Can you be more specific?'",
-
-          // 4. Dream state framing
-          "After collecting discovery answers, synthesize a CURRENT STATE → THIS SPEC → 6-MONTH IDEAL vision before generating the spec. Show three columns: where the project is now, what this spec achieves, and where it could go in 6 months. Note: 'This spec moves you from column 1 to column 2. Column 3 is out of scope but worth knowing — every decision in this spec should keep column 3 possible.' This helps the user see if the scope is right.",
-
-          // 5. Expansion proposals with scoring
-          "When you spot expansion opportunities during discovery (from codebase scan, TODOs, concern requirements, synergies with the current plan), present each as a numbered proposal (1/N, 2/N...). Every proposal MUST include: clear description of WHAT and WHY (how it connects to the current plan); effort estimate as S/M/L/XL with human time and CC time estimates (e.g., 'S (human: ~1 day / CC: ~15 min)' — not just 'small'); risk assessment as Low/Low-Med/Med/Med-High/High naming the specific risk factor; completeness delta showing X/10 without this and Y/10 with this. Every proposal gets three options: A) Add to scope B) Defer to future spec C) Skip — not interested, plus 'Chat about this' and 'Skip remaining proposals' escape hatches.",
-
-          // 6. Architectural decision resolution
-          "After discovery questions and expansion proposals, identify architectural decisions that must be resolved before implementation. These are decisions where choosing A vs B changes the shape of multiple tasks, the data model, the API surface, or system boundaries. Present each as a concrete technical question with options, a RECOMMENDATION with reasoning, and completeness scores. Show how each option affects downstream work (e.g., 'If you choose B, tasks 3 and 4 need a job queue setup step added'). Only surface decisions that BLOCK implementation — not preferences or nice-to-haves. If the user says 'I don't know yet', mark it as a risk: 'UNRESOLVED: [decision] TBD. Tasks X-Y may change.' Never allow implementation to start with unresolved architectural decisions — flag them prominently in the spec.",
-
-          // 7. Error and rescue map
-          "Before finalizing, map error and rescue paths for every significant codepath in the planned work. Create a table: codepath | what can go wrong | how it's handled. Identify CRITICAL GAPS — failure modes that the plan doesn't address. Present each critical gap as a decision with options, a recommendation, and completeness scores, just like architectural decisions. Resolved gaps become tasks or acceptance criteria. Unresolved gaps become risk flags. Think like an SRE reviewing a design doc — what fails at 3am?",
-
-          // 8. Post-discovery synthesis
-          "After all discovery questions, expansion proposals, architectural decisions, and error mapping are complete, present a DISCOVERY SUMMARY for the user to review: intent, ambition, reversibility, impact, verification, out of scope, the dream state table (current → this spec → future), accepted/deferred/skipped expansions, resolved architectural decisions, and the error/rescue map. Ask for confirmation before generating the spec. This is the last chance to catch misunderstandings.",
-
-          // Submit
-          "Once you have a substantive answer for each question, collect all answers and submit them together in a single `noskills next --answer` call as a JSON object.",
+          // Synthesis + submit
+          "Present DISCOVERY SUMMARY for confirmation: intent, scope, dream state, expansions, architectural decisions, error map. Ask for confirmation before generating spec. Submit all answers together in one `noskills next --answer` JSON call.",
         ],
         tone:
-          "Curious interviewer who has a stake in the answers and comes PREPARED. You've read the codebase before asking. Challenge assumptions, offer concrete options, think about architecture and failure modes. Think deeply before asking each question.",
+          "Curious interviewer with a stake in the answers. Comes PREPARED — read the codebase first. Challenge assumptions, think about architecture and failure modes.",
       };
     }
 
@@ -551,17 +502,19 @@ const buildBehavioral = (
     case "SPEC_DRAFT":
       return {
         modeOverride:
-          "You are in plan mode. Do not attempt to create, edit, or write any files. Do not run any shell commands that modify state. You can read files and run read-only commands to understand the codebase. Your ONLY job right now is to think and talk. Read code to understand. Ask questions to discover. Challenge assumptions. Propose ideas. Debate tradeoffs. But NEVER create, edit, or delete project files. Discovery exists to catch what you don't yet know you don't know.",
+          "plan mode. DO NOT create, edit, or write any files. DO NOT run state-modifying commands. MAY read files and run read-only commands.",
         rules: [
           ...mandatoryRules,
           "DO NOT create, edit, or write any files.",
           "Read the spec and present a summary to the user.",
           "Flag any tasks that are too vague to execute.",
           "Flag any missing acceptance criteria.",
+          "No placeholders in specs. If a task has 'TBD', 'TODO', 'to be determined', 'details to follow', or 'implement appropriate X' — fill in the detail or remove the task and add it as an open question.",
           "Ask the user if they want to refine before approving.",
           hints.hasAskUserTool
             ? "When presenting classification options, use AskUserQuestion with multiSelect:true. Do NOT infer classification yourself."
             : "When presenting classification options, present them as a numbered list with multiselect (user picks multiple numbers). Do NOT infer classification yourself.",
+          "When generating or refining tasks, include a 'Files:' hint listing likely files to create/modify. Format: 'Files: `path/to/file.ts`, `path/to/other.ts`'. Hints, not constraints — helps sub-agents load right context.",
           "If you identify issues in the spec (vague tasks, irrelevant sections, missing acceptance criteria), submit a refinement via: `" +
           cs(
             'next --answer=\'{"refinement":"task-1: Add upload endpoint, task-2: Add validation middleware, task-3: Write integration tests"}\'',
@@ -587,97 +540,74 @@ const buildBehavioral = (
       };
 
     case "EXECUTING": {
-      // Sub-agent delegation rules adapt per tool
-      const subAgentRules: string[] = [];
+      // Sub-agent delegation — build method-specific spawn instruction
+      const reportCmd = cs(
+        'next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'',
+        specName,
+      );
+      let spawnInstruction: string;
+      let verifyInstruction: string;
+
+      const verifierScope =
+        "Verifier scope: (1) AC verification with evidence. (2) Plan alignment — does implementation match task description? Flag deviations. (3) Code quality — follows existing patterns? Flag style breaks, missing error handling. Categorize findings: CRITICAL (blocks completion), IMPORTANT (should fix), SUGGESTION (nice to have).";
 
       if (hints.subAgentMethod === "task") {
-        // Claude Code: uses Agent tool for sub-agent spawning
-        subAgentRules.push(
-          `When you receive a task from noskills next, do NOT execute it yourself. Spawn the noskills-executor sub-agent using the Agent tool. Pass it: the task title, description, acceptance criteria (with IDs), behavioral rules, out-of-scope constraints, concern reminders, and relevant file paths. When the sub-agent completes, review its results briefly, then report to noskills via \`${
-            cs(
-              'next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'',
-              specName,
-            )
-          }\`. You are the orchestrator — the sub-agent is the implementer.`,
-          "If the sub-agent fails, errors out, or returns no results, fall back to executing the task directly yourself. Report the sub-agent failure in your next status report so it can be investigated.",
-          `After the noskills-executor sub-agent completes a task, spawn a noskills-verifier sub-agent to independently verify the work. Pass it: the list of changed files, the acceptance criteria, and the test commands. The verifier reports PASS/FAIL per criterion with evidence. Use the verifier's report as your status report to noskills. Do NOT submit status reports based solely on the executor's self-report.`,
-          "After spawning sub-agents, ALWAYS present a dispatch table showing the FULL pipeline — not just executors, but also verification and test steps:\n\n| Step | Agent | Files | Tasks | Est. Time |\n|------|-------|-------|-------|-----------|\n| 1. Implement | noskills-executor | purge.ts | Tasks 1-6 | ~3 min |\n| 2. Verify | noskills-verifier | purge.ts (read-only) | Validate ACs | ~1 min |\n| 3. Write tests | noskills-executor | purge.test.ts | Task 7 | ~2 min |\n\nWhen agents complete, update with actual time and status (Done / Failed / Found N issues). The user should see the complete plan upfront.\n\nEstimate: S ~1min, M ~2min, L ~5min, XL ~10min.",
-          "The agent that writes implementation code must NOT write tests for that code. Spawn a SEPARATE sub-agent for test writing. This prevents the implementer from writing tests that only confirm what it already knows. The test writer reads the code fresh and tests what it actually does, not what the implementer intended.",
-          "When deciding how to split work across sub-agents: if all tasks touch the same file or tightly coupled files, batch them into one executor. If tasks touch independent files or modules, spawn parallel executors. Always err toward smaller, focused sub-agents over large batched ones — fresh context per task is better than accumulated context across tasks.",
-        );
+        spawnInstruction =
+          `Spawn noskills-executor via Agent tool. Pass: task title, description, ACs, rules, scope constraints, concern reminders, file paths. Report via \`${reportCmd}\`.`;
+        verifyInstruction =
+          `After executor completes, spawn noskills-verifier with changed files + ACs + test commands. Never trust executor self-report alone. ${verifierScope}`;
       } else if (hints.subAgentMethod === "spawn") {
-        // Codex: uses spawn_agent for sub-agent spawning
-        subAgentRules.push(
-          `When you receive a task from noskills next, use spawn_agent to delegate to the noskills-executor agent. Pass it: the task title, description, acceptance criteria (with IDs), behavioral rules, out-of-scope constraints, concern reminders, and relevant file paths. Use wait_agent to collect results. Then report to noskills via \`${
-            cs(
-              'next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'',
-              specName,
-            )
-          }\`. You are the orchestrator — the spawned agent is the implementer.`,
-          "If the spawned agent fails, errors out, or returns no results, fall back to executing the task directly yourself. Report the agent failure in your next status report so it can be investigated.",
-          `After the noskills-executor agent completes a task, spawn a noskills-verifier agent to independently verify the work. Pass it: the list of changed files, the acceptance criteria, and the test commands. The verifier reports PASS/FAIL per criterion with evidence. Use the verifier's report as your status report to noskills. Do NOT submit status reports based solely on the executor's self-report.`,
-          "When deciding how to split work across spawned agents: if all tasks touch the same file or tightly coupled files, batch them into one executor. If tasks touch independent files or modules, spawn parallel executors. Always err toward smaller, focused agents over large batched ones — fresh context per task is better than accumulated context across tasks.",
-        );
+        spawnInstruction =
+          `Use spawn_agent for noskills-executor. Pass: task, ACs, rules, scope, file paths. Use wait_agent to collect. Report via \`${reportCmd}\`.`;
+        verifyInstruction =
+          `After executor completes, spawn noskills-verifier with changed files + ACs + test commands. ${verifierScope}`;
       } else if (hints.subAgentMethod === "fleet") {
-        // Copilot CLI: uses /fleet for parallel sub-agents
-        subAgentRules.push(
-          `When you receive a task from noskills next, use /fleet to run parallel sub-agents for implementation tasks. Pass each agent: the task title, description, acceptance criteria (with IDs), behavioral rules, out-of-scope constraints, concern reminders, and relevant file paths. Collect results and report to noskills via \`${
-            cs(
-              'next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'',
-              specName,
-            )
-          }\`. You are the orchestrator — the fleet agents are the implementers.`,
-          "If a fleet agent fails, errors out, or returns no results, fall back to executing the task directly yourself. Report the agent failure in your next status report so it can be investigated.",
-          `After the fleet agents complete, run a verification pass to independently check the work. Verify: changed files, acceptance criteria, test commands. Report PASS/FAIL per criterion with evidence.`,
-          "When deciding how to split work across fleet agents: if all tasks touch the same file or tightly coupled files, batch them into one agent. If tasks touch independent files or modules, run parallel agents. Always err toward smaller, focused agents over large batched ones.",
-        );
+        spawnInstruction =
+          `Use /fleet for parallel executors. Pass each: task, ACs, rules, scope, file paths. Report via \`${reportCmd}\`.`;
+        verifyInstruction =
+          `After fleet completes, run verification pass. ${verifierScope}`;
       } else if (hints.subAgentMethod === "delegation") {
-        // Kiro: uses agent delegation
-        subAgentRules.push(
-          `When you receive a task from noskills next, use Kiro's agent delegation to spawn the noskills-executor agent. Pass it: the task title, description, acceptance criteria (with IDs), behavioral rules, out-of-scope constraints, concern reminders, and relevant file paths. When the agent completes, review its results briefly, then report to noskills via \`${
-            cs(
-              'next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'',
-              specName,
-            )
-          }\`. You are the orchestrator — the delegated agent is the implementer.`,
-          "If the delegated agent fails, errors out, or returns no results, fall back to executing the task directly yourself. Report the agent failure in your next status report so it can be investigated.",
-          `After the noskills-executor agent completes a task, delegate to the noskills-verifier agent to independently verify the work. Pass it: the list of changed files, the acceptance criteria, and the test commands. The verifier reports PASS/FAIL per criterion with evidence. Use the verifier's report as your status report to noskills. Do NOT submit status reports based solely on the executor's self-report.`,
-          "When deciding how to split work across delegated agents: if all tasks touch the same file or tightly coupled files, batch them into one executor. If tasks touch independent files or modules, spawn parallel executors. Always err toward smaller, focused agents over large batched ones — fresh context per task is better than accumulated context across tasks.",
-        );
+        spawnInstruction =
+          `Use Kiro agent delegation for noskills-executor. Pass: task, ACs, rules, scope, file paths. Report via \`${reportCmd}\`.`;
+        verifyInstruction =
+          `After executor completes, delegate to noskills-verifier with changed files + ACs + test commands. ${verifierScope}`;
       } else {
-        // Cursor/Copilot/Windsurf: no sub-agent support
-        subAgentRules.push(
-          "Execute tasks sequentially in this context. Do not attempt to spawn sub-agents — this tool does not support agent delegation. Complete each task yourself, verify your work (run type checks and tests), then report progress.",
-          `After completing a task, report to noskills via \`${
-            cs(
-              'next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'',
-              specName,
-            )
-          }\`.`,
-        );
+        spawnInstruction =
+          `Execute tasks sequentially yourself. Verify (type-check + tests) after each. Report via \`${reportCmd}\`.`;
+        verifyInstruction = "";
       }
+
+      const hasSubAgents = hints.subAgentMethod !== "none";
+      const orchestratorRule = hasSubAgents
+        ? `You are the orchestrator. NEVER edit files directly — delegate ALL edits to noskills-executor. ${spawnInstruction} On sub-agent failure, fall back to direct execution and note it in status.`
+        : spawnInstruction;
 
       const base: string[] = [
         ...mandatoryRules,
-        "You are the orchestrator, not the implementer. NEVER create, edit, or delete project files directly. ALWAYS delegate to noskills-executor sub-agent, even for single-line changes. There is no 'minor change' — every edit goes through the executor→verifier pipeline. Your job: read noskills output, spawn sub-agents, report status.",
-        "Do not explore the codebase beyond what the current task requires.",
-        "Do not refactor, improve, or modify code outside this task's scope.",
-        "Do not add features, tests, or documentation not specified in the spec.",
-        "If you need to read files to understand context, timebox it — then write code.",
-        "The deliverable is working code, not a plan or analysis.",
-        "Complete the task, then report progress. The user handles git.",
-        ...subAgentRules,
-        `When you discover a pattern, receive a correction, or identify a recurring preference from the user, ask: 'Should this be a permanent rule for this project, or just for this task?' If permanent, run: \`${
+        orchestratorRule,
+        ...(verifyInstruction ? [verifyInstruction] : []),
+        // Scope discipline
+        "Do not explore beyond current task. Do not refactor outside scope. Do not add features, tests, or docs not in the spec. timebox context reads — the deliverable is working code.",
+        // Sub-agent splitting (only for tools with sub-agents)
+        ...(hasSubAgents
+          ? [
+            "Show a dispatch table: | Step | Agent | Files | Tasks | Est. |. Separate executor for implementation vs tests. Batch tightly-coupled files; parallelize independent modules.",
+          ]
+          : []),
+        // Edit discipline (merged from 5 rules)
+        "Edit discipline: (1) Re-read file before editing. (2) Re-read after to confirm. (3) Files >500 LOC: read in chunks. (4) Run type-check + lint after edits — never mark AC passed if type-check fails. (5) If search returns few results, re-run narrower — assume truncation.",
+        // Convention discovery
+        `On recurring patterns or corrections, ask: 'Permanent rule or just this task?' If permanent: \`${
           c('rule add "<description>"')
-        }\`. If just this task, note it and move on. Never write to \`.eser/rules/\` directly.`,
-        // Anti-laziness rules
-        "FORCED VERIFICATION: After every file edit, run the project's type-check command (e.g., `tsc --noEmit`, `deno check`, `go build`) and lint command. Report results in AC status. Do NOT mark any AC as passed if type-check fails. If no type-checker is configured, state that explicitly.",
-        "FILE READ BUDGET: Files over 500 lines must be read in chunks using offset and limit. Never assume a single read captured the full file. When you read a partial file, state which lines you read.",
-        "TOOL RESULT AWARENESS: If any search or command returns suspiciously few results, re-run with narrower scope (single directory, stricter pattern). State when you suspect results were truncated.",
-        "PRE-EDIT RE-READ: Before EVERY file edit, re-read the target file to get current content. After editing, read the file again to confirm the change applied correctly. Never edit against stale context.",
-        "DEAD CODE FIRST: Before structural refactors on files over 300 LOC, first remove dead imports, unused exports, and orphaned props. Commit cleanup separately before starting the real work.",
-        // Execution commitment
-        "Do NOT suggest pausing, checkpointing, committing mid-spec, or stopping execution. The spec was scoped during discovery as a meaningful deliverable — execute it to completion. A half-delivered increment has no value. If scope feels too large, finish this spec and note the concern for future specs. The user decides when to stop, not you.",
+        }\`. Never write to \`.eser/rules/\` directly.`,
+        // Dead code + commitment
+        "Before structural refactors on files >300 LOC, remove dead code first. Do NOT suggest pausing or stopping mid-spec — execute to completion. The user decides when to stop.",
+        // Rationalization prevention
+        "RATIONALIZATION ALERT: Never use 'should work now', 'looks correct', 'I'm confident', 'seems right', 'probably passes'. Run the command, read the output, report what happened. Evidence, not belief.",
+        // TDD red-green cycle
+        "TDD: (1) Write test. (2) Run it — MUST fail. If it passes before implementation, the test is wrong. (3) Implement. (4) Run test — must pass. Skipping step 2 means the test is unverified.",
+        // Parallel vs serial
+        "Parallel vs serial sub-agents: PARALLEL when tasks touch different files with no shared state. SERIAL when tasks modify same files or depend on each other. When unsure, default to serial.",
       ];
 
       if (state.execution.lastVerification?.passed === false) {
@@ -696,7 +626,7 @@ const buildBehavioral = (
         return {
           ...behavioral,
           urgency:
-            `You have been in this session for ${state.execution.iteration}+ iterations. Your context is degrading. Finish the current task and recommend the user start a fresh session. Do not start new tasks.`,
+            `${state.execution.iteration}+ iterations — context degrading. Finish current task, recommend fresh session.`,
         };
       }
 
@@ -909,18 +839,35 @@ export const compile = async (
   idleContext?: IdleContext,
   interactionHints?: InteractionHints,
   currentUser?: { name: string; email: string },
+  tier2Count?: number,
 ): Promise<NextOutput> => {
   const meta = buildMeta(state, activeConcerns);
   const maxIter = config?.maxIterationsBeforeRestart ?? 15;
   const allowGit = config?.allowGit ?? false;
   const hints = interactionHints ?? DEFAULT_HINTS;
-  const behavioral = buildBehavioral(
+  let behavioral = buildBehavioral(
     state,
     maxIter,
     allowGit,
     parsedSpec,
     hints,
   );
+
+  // Inject tier2 summary for EXECUTING phase
+  if (state.phase === "EXECUTING") {
+    const ruleT2 = tier2Count ?? 0;
+    const reminderT2 = concerns.splitRemindersByTier(activeConcerns).tier2
+      .length;
+    const totalT2 = ruleT2 + reminderT2;
+    if (totalT2 > 0) {
+      behavioral = {
+        ...behavioral,
+        tier2Summary:
+          `${totalT2} file-specific rules delivered via PreToolUse hook when editing matching files.`,
+      };
+    }
+  }
+
   const protocolGuide = buildProtocolGuide(state);
 
   let phaseOutput: PhaseOutput;
@@ -1218,7 +1165,7 @@ const compileIdle = (
 ): IdleOutput => ({
   phase: "IDLE",
   instruction:
-    "No active spec. Work freely or start a new spec. If the user has already described what they want to build, create a spec immediately with `noskills spec new \"user's description here\"` — the name is auto-generated from the description. Do NOT re-ask what they want to do. Do NOT ask for a 'short slug' — just take what the user gives you and create the spec. When prompting the user, encourage them to share everything they have: 'Tell me what you want to build. A one-liner is fine, but if you have detailed requirements, meeting notes, a task list, or a full spec in mind, share it all — the more context, the better the discovery.' IMPORTANT: Present ALL available concerns to the user — never truncate the list. Split across multiple AskUserQuestion calls if needed.",
+    'No active spec. If the user described what they want, run `noskills spec new "description"` immediately — name is auto-generated. Present ALL available concerns (split across multiple calls if needed).',
   welcome: WELCOME,
   existingSpecs: idleContext?.existingSpecs ?? [],
   availableConcerns: allConcernDefs.map((c) => ({
@@ -1847,10 +1794,20 @@ const compileSpecDraft = (state: schema.StateFile): SpecDraftOutput => {
 
   return {
     phase: "SPEC_DRAFT",
-    instruction:
-      "Spec draft is ready for review. Ask the user to review and approve.",
+    instruction: "Spec draft is ready. Self-review before presenting to user.",
     specPath: state.specState.path ?? "",
     transition: { onApprove: cs("approve", specName) },
+    selfReview: {
+      required: true,
+      checks: [
+        "Placeholder scan: no TBD, TODO, vague requirements",
+        "Consistency: tasks match discovery, ACs match tasks",
+        "Scope: single spec, not multiple independent subsystems",
+        "Ambiguity: every AC has one interpretation",
+      ],
+      instruction:
+        "Review draft against these checks. Fix issues inline before presenting to user. Do not ask user to fix — fix it yourself.",
+    },
   };
 };
 
@@ -2033,6 +1990,9 @@ const compileExecution = (
       title: nextTask.title,
       totalTasks: specTasks.length,
       completedTasks: completedIds.length,
+      ...(nextTask.files !== undefined && nextTask.files.length > 0
+        ? { files: nextTask.files }
+        : {}),
     }
     : undefined;
 
@@ -2073,7 +2033,8 @@ const compileExecution = (
       instruction: batchInstruction,
       context: {
         rules,
-        concernReminders: concerns.getReminders(activeConcerns) as string[],
+        concernReminders: concerns.splitRemindersByTier(activeConcerns)
+          .tier1 as string[],
       },
       transition: {
         onComplete: `${
@@ -2148,7 +2109,8 @@ const compileExecution = (
     task: taskBlock,
     context: {
       rules,
-      concernReminders: concerns.getReminders(activeConcerns) as string[],
+      concernReminders: concerns.splitRemindersByTier(activeConcerns)
+        .tier1 as string[],
     },
     transition: {
       onComplete: `${cs('next --answer="..."', specName)}`,
@@ -2228,6 +2190,17 @@ const compileExecution = (
           `You just resolved a decision: "${lastUnpromoted.choice}". Ask the user: "Should this be a permanent rule for future specs too?" If yes, run: \`${
             c(`rule add "${lastUnpromoted.choice}"`)
           }\``,
+      },
+    };
+  }
+
+  // Pre-execution review on first iteration
+  if (state.execution.iteration === 0 && !verifyFailed && !wasRejected) {
+    output = {
+      ...output,
+      preExecutionReview: {
+        instruction:
+          "Re-read spec before starting. Flag: missing info that will block mid-execution, wrong task order, unclear ACs. Better to catch now than mid-execution.",
       },
     };
   }

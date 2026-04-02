@@ -9,11 +9,19 @@
 import * as dashboard from "@eser/noskills/dashboard";
 import type { PtyManager } from "../terminal/pty-manager.ts";
 
-const json = (data: unknown, status = 200): Response =>
-  new Response(JSON.stringify(data), {
+const json = (data: unknown, status = 200): Response => {
+  // Sanitize error responses — strip stack traces, keep only first line
+  if (status >= 400 && typeof data === "object" && data !== null) {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj["error"] === "string") {
+      obj["error"] = obj["error"].split("\n")[0]!;
+    }
+  }
+  return new Response(JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json" },
   });
+};
 
 /** GET /api/state — Full dashboard state. */
 export const handleGetState = async (root: string): Promise<Response> => {

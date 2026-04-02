@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.1.50 - 2026-04-02
+
+### Added
+
+- **noskills:** add multi-user identity, discovery modes, and plan-based specs
+
+### Changed
+
+- **noskills:** remove FREE phase, make IDLE default permissive state and
+  auto-generate spec slugs
+
+### Fixed
+
+- **codebase:** validate all path parts upfront and fix nested object traversal
+  in setPropertyByPath
+- **ai:** pipe prompts via stdin to avoid E2BIG on large inputs
+- **shell:** suppress pty tcgetattr noise and skip type-check on compile
+
 ## 4.1.49 - 2026-04-01
 
 ### Added

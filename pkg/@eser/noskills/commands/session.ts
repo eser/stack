@@ -61,7 +61,7 @@ const sessionStart = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
 
   if (!(await persistence.isInitialized(root))) {
     out.writeln(
@@ -139,6 +139,7 @@ const sessionStart = async (
     startedAt: new Date().toISOString(),
     lastActiveAt: new Date().toISOString(),
     tool: "claude-code",
+    projectRoot: root,
   };
 
   await persistence.createSession(root, session);
@@ -158,9 +159,12 @@ const sessionStart = async (
     }
   }
   out.writeln("");
+  out.writeln("Run:");
   out.writeln(
-    `Run: `,
-    span.bold(`export NOSKILLS_SESSION=${sessionId}`),
+    span.bold(`  export NOSKILLS_SESSION=${sessionId}`),
+  );
+  out.writeln(
+    span.bold(`  export NOSKILLS_PROJECT_ROOT=${root}`),
   );
   await out.close();
 
@@ -179,7 +183,7 @@ const sessionEnd = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
 
   // Parse --id flag or use env var
   let sessionId: string | null = null;
@@ -224,7 +228,7 @@ const sessionList = async (): Promise<shellArgs.CliResult<void>> => {
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const sessions = await persistence.listSessions(root);
 
   out.writeln(span.bold("Sessions"));
@@ -279,7 +283,7 @@ const sessionGc = async (): Promise<shellArgs.CliResult<void>> => {
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const removed = await persistence.gcStaleSessions(root);
 
   if (removed.length === 0) {

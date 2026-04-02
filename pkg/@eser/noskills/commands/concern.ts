@@ -13,7 +13,6 @@ import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import { loadDefaultConcerns } from "../context/concerns.ts";
 import { cmd, cmdPrefix } from "../output/cmd.ts";
-import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
@@ -55,7 +54,7 @@ const concernAdd = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const concernIds = (args ?? []).filter((a) => !a.startsWith("-"));
 
   const config = await persistence.readManifest(root);
@@ -140,7 +139,7 @@ const concernRemove = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const concernId = args?.[0];
 
   const config = await persistence.readManifest(root);
@@ -191,7 +190,7 @@ const concernList = async (): Promise<shellArgs.CliResult<void>> => {
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const config = await persistence.readManifest(root);
 
   // Show all built-in concerns (not just locally installed ones)

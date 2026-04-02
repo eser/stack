@@ -18,6 +18,7 @@ import { runtime } from "@eser/standards/cross-runtime";
 export type ParsedTask = {
   readonly id: string;
   readonly title: string;
+  readonly files?: readonly string[];
 };
 
 export type ParsedSpec = {
@@ -78,6 +79,19 @@ export const parseSpecContent = (
           id: taskMatch[1]!,
           title: taskMatch[2]!.trim(),
         });
+      }
+
+      // Parse file hints: Files: `path/to/file.ts`, `path/to/other.ts`
+      const filesMatch = trimmed.match(/^Files?:\s*(.+)$/i);
+      if (filesMatch !== null && tasks.length > 0) {
+        const last = tasks[tasks.length - 1]!;
+        const fileList = filesMatch[1]!
+          .split(",")
+          .map((f) => f.trim().replace(/^`|`$/g, ""))
+          .filter((f) => f.length > 0);
+        if (fileList.length > 0) {
+          tasks[tasks.length - 1] = { ...last, files: fileList };
+        }
       }
     }
 

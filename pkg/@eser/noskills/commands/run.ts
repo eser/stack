@@ -31,7 +31,6 @@ import * as machine from "../state/machine.ts";
 import * as compiler from "../context/compiler.ts";
 import * as syncEngine from "../sync/engine.ts";
 import { cmd, cmdPrefix } from "../output/cmd.ts";
-import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
@@ -41,7 +40,7 @@ export const main = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const unattended = args?.includes("--unattended") ?? false;
   const maxTurns = parseFlag(args, "--max-turns") ?? 10;
   const maxIterations = parseFlag(args, "--max-iterations") ?? 50;

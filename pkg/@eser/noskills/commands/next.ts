@@ -29,7 +29,7 @@ import { runtime } from "@eser/standards/cross-runtime";
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const fmt = formatter.parseOutputFormat(args);
   const cleanArgs = formatter.stripOutputFlag(args);
 
@@ -154,7 +154,10 @@ export const main = async (
     }
 
     const scopedRules = await syncEngine.loadScopedRules(root);
-    const rules = syncEngine.filterRules(scopedRules, touchedState.phase);
+    const { tier1, tier2Count } = syncEngine.splitByTier(
+      scopedRules,
+      touchedState.phase,
+    );
     const parsed = touchedState.spec !== null
       ? await specParser.parseSpec(root, touchedState.spec)
       : null;
@@ -166,13 +169,14 @@ export const main = async (
     const output = await compiler.compile(
       touchedState,
       activeConcerns,
-      rules,
+      tier1,
       config,
       parsed,
       fRules,
       undefined,
       hints,
       user,
+      tier2Count,
     );
 
     // Inject saved flag when "save" was the answer and phase didn't change
@@ -217,7 +221,8 @@ export const main = async (
 
   // No answer — just output current instruction
   const scopedRules = await syncEngine.loadScopedRules(root);
-  const rules = syncEngine.filterRules(scopedRules, touchedState.phase);
+  const { tier1: noAnswerTier1, tier2Count: noAnswerTier2Count } = syncEngine
+    .splitByTier(scopedRules, touchedState.phase);
   const parsed = touchedState.spec !== null
     ? await specParser.parseSpec(root, touchedState.spec)
     : null;
@@ -241,7 +246,7 @@ export const main = async (
           ? "completed"
           : undefined,
       })),
-      rulesCount: rules.length,
+      rulesCount: noAnswerTier1.length,
     };
   }
 
@@ -250,13 +255,14 @@ export const main = async (
   const output = await compiler.compile(
     touchedState,
     activeConcerns,
-    rules,
+    noAnswerTier1,
     config,
     parsed,
     fRules,
     idleContext,
     hints,
     user,
+    noAnswerTier2Count,
   );
   await formatter.writeFormatted(output, fmt);
 

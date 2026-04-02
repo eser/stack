@@ -387,7 +387,7 @@ const packList = async (): Promise<shellArgs.CliResult<void>> => {
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const packsFile = await readPacksFile(root);
   const installedNames = new Set(packsFile.installed.map((p) => p.name));
 
@@ -448,7 +448,7 @@ const packInstall = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const nameOrSpecifier = args?.[0];
 
   if (nameOrSpecifier === undefined || nameOrSpecifier.length === 0) {
@@ -617,7 +617,7 @@ const packUninstall = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const packName = args?.[0];
 
   if (packName === undefined || packName.length === 0) {
@@ -905,7 +905,7 @@ const packSearch = async (
   }
 
   // Try remote registry
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const config = await persistence.readManifest(root);
   const registryUrl = (config as Record<string, unknown> | null)
     ?.["packRegistry"] as

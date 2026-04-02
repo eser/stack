@@ -14,7 +14,6 @@ import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as identity from "../state/identity.ts";
-import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
@@ -24,7 +23,7 @@ export const main = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const specResult = persistence.requireSpecFlag(args);
   if (!specResult.ok) {
     out.writeln(span.red(specResult.error));

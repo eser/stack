@@ -22,6 +22,8 @@ import * as persistence from "../state/persistence.ts";
 import * as compiler from "../context/compiler.ts";
 import * as syncEngine from "../sync/engine.ts";
 import * as hookDecisions from "./hook-decisions.ts";
+import * as folderRules from "../context/folder-rules.ts";
+import * as concerns from "../context/concerns.ts";
 import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -108,6 +110,17 @@ const writeDeny = async (reason: string): Promise<void> => {
   });
 };
 
+/** Allow tool use with advisory context the agent sees. */
+const writeAllowWithContext = async (context: string): Promise<void> => {
+  await writeStdout({
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "allow",
+      additionalContext: context,
+    },
+  });
+};
+
 /** Check git guard and return denial reason, or null if allowed. */
 const checkGitGuard = (command: string, allowGit: boolean): string | null => {
   if (allowGit) return null;
@@ -137,7 +150,8 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
   const toolName = (input["tool_name"] as string) ?? "unknown";
   const toolInput = (input["tool_input"] as Record<string, unknown>) ?? {};
 
-  const root = (input["cwd"] as string) ?? runtime.process.cwd();
+  const root = (input["cwd"] as string) ??
+    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
   const config = await persistence.readManifest(root);
 
   // ── Session-based enforcement ──
@@ -296,6 +310,55 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
         }
       }
     }
+
+    // Tier 2: deliver file-specific rules via additionalContext
+    if (phase === "EXECUTING" && filePath.length > 0) {
+      try {
+        const notes: string[] = [];
+
+        // 1. Scoped rules matching this file
+        const scopedRules = await syncEngine.loadScopedRules(root);
+        const tier2Rules = syncEngine.getTier2RulesForFile(
+          scopedRules,
+          "EXECUTING",
+          filePath,
+        );
+        notes.push(...tier2Rules);
+
+        // 2. Folder rules (walk up from file's directory)
+        const fRules = await folderRules.collectFolderRules(root, [filePath]);
+        for (const fr of fRules) {
+          notes.push(`(${fr.folder}/) ${fr.rule}`);
+        }
+
+        // 3. Concern reminders by file type
+        const stateFile = state as Record<string, unknown>;
+        const classification = (stateFile["classification"] as
+          | import("../state/schema.ts").SpecClassification
+          | null) ?? null;
+        const activeConcerns = await persistence.listConcerns(root);
+        const manifest = await persistence.readManifest(root);
+        const activeConcernDefs = activeConcerns.filter((c) =>
+          manifest !== null && manifest.concerns.includes(c.id)
+        );
+        const tier2Reminders = concerns.getTier2RemindersForFile(
+          activeConcernDefs,
+          filePath,
+          classification,
+        );
+        notes.push(...tier2Reminders);
+
+        if (notes.length > 0) {
+          const context = "[noskills] Rules for this file:\n" +
+            notes.map((n) => `- ${n}`).join("\n");
+          await writeAllowWithContext(context);
+          return results.ok(undefined);
+        }
+      } catch {
+        // best effort — don't block the tool on rule collection failure
+      }
+    }
+
     return results.ok(undefined);
   }
 
@@ -335,7 +398,8 @@ const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
   // Guard: prevent infinite loop
   if (input["stop_hook_active"] === true) return results.ok(undefined);
 
-  const root = (input["cwd"] as string) ?? runtime.process.cwd();
+  const root = (input["cwd"] as string) ??
+    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
 
   // Read state
   let state: Record<string, unknown>;
@@ -497,7 +561,8 @@ const handlePostFileWrite = async (): Promise<shellArgs.CliResult<void>> => {
     return results.ok(undefined);
   }
 
-  const root = (input["cwd"] as string) ?? runtime.process.cwd();
+  const root = (input["cwd"] as string) ??
+    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
   const logFile = `${root}/${persistence.paths.stateDir}/files-changed.jsonl`;
 
   const entry = JSON.stringify({
@@ -537,7 +602,8 @@ const handlePostBash = async (): Promise<shellArgs.CliResult<void>> => {
 
   if (!command.includes("noskills")) return results.ok(undefined);
 
-  const root = (input["cwd"] as string) ?? runtime.process.cwd();
+  const root = (input["cwd"] as string) ??
+    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
   const logFile = `${root}/${persistence.paths.stateDir}/noskills-calls.jsonl`;
 
   const entry = JSON.stringify({
@@ -569,7 +635,8 @@ const handlePostBash = async (): Promise<shellArgs.CliResult<void>> => {
 // =============================================================================
 
 const handleSessionStart = async (): Promise<shellArgs.CliResult<void>> => {
-  const root = runtime.process.cwd();
+  const root = runtime.env.get("NOSKILLS_PROJECT_ROOT") ??
+    runtime.process.cwd();
 
   // Not initialized — silently skip
   if (!(await persistence.isInitialized(root))) {

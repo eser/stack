@@ -264,7 +264,7 @@ const specNew = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
 
   if (!(await persistence.isInitialized(root))) {
     out.writeln(
@@ -508,7 +508,7 @@ import * as formatter from "../output/formatter.ts";
 const specList = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const fmt = formatter.parseOutputFormat(args);
   const specStates = await persistence.listSpecStates(root);
 
@@ -631,7 +631,7 @@ const specSplit = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
 
   if (!(await persistence.isInitialized(root))) {
     out.writeln(
@@ -827,7 +827,7 @@ const specRevisit = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
 
   if (!(await persistence.isInitialized(root))) {
     out.writeln(
@@ -946,7 +946,7 @@ const specAC = async (
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const action = args?.[0];
 
   if (specName === undefined || action === undefined) {
@@ -1028,7 +1028,7 @@ const specTask = async (
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const action = args?.[0];
 
   if (specName === undefined || action === undefined) {
@@ -1116,7 +1116,7 @@ const specNote = async (
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const action = args?.[0];
 
   if (specName === undefined || action === undefined) {

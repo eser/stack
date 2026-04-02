@@ -442,6 +442,7 @@ export type Session = {
   readonly startedAt: string;
   readonly lastActiveAt: string;
   readonly tool: string;
+  readonly projectRoot?: string;
 };
 
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -570,4 +571,79 @@ export const isInitialized = async (root: string): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+// =============================================================================
+// Project Root Discovery
+// =============================================================================
+
+/** Resolve parent directory (platform-safe). */
+const parentDir = (dir: string): string => {
+  // Handle both / and \ separators
+  const sep = dir.includes("\\") ? "\\" : "/";
+  const parts = dir.split(sep).filter(Boolean);
+  if (parts.length <= 1) return dir.startsWith("/") ? "/" : dir;
+  parts.pop();
+  return (dir.startsWith("/") ? "/" : "") + parts.join(sep);
+};
+
+/**
+ * Walk up directory tree to find the nearest directory containing .eser/.
+ * Returns the path or null if not found.
+ */
+export const findProjectRoot = async (
+  startDir: string,
+): Promise<string | null> => {
+  let dir = startDir;
+  for (let depth = 0; depth < 100; depth++) {
+    try {
+      await runtime.fs.stat(`${dir}/${ESER_DIR}`);
+      return dir;
+    } catch {
+      // not found here, try parent
+    }
+    const parent = parentDir(dir);
+    if (parent === dir) return null; // filesystem root
+    dir = parent;
+  }
+  return null;
+};
+
+/**
+ * Resolve the noskills project root with priority:
+ *   1. NOSKILLS_PROJECT_ROOT env var (set by session/manager)
+ *   2. Walk up from cwd to find .eser/
+ *   3. Fall back to cwd (for init command)
+ *
+ * Returns `{ root, found }` — found=false means .eser/ not found anywhere.
+ */
+export const resolveProjectRoot = async (): Promise<
+  { root: string; found: boolean }
+> => {
+  const cwd = runtime.process.cwd();
+
+  // 1. Explicit env var (set by session or manager)
+  const envRoot = runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? null;
+  if (envRoot !== null) {
+    try {
+      await runtime.fs.stat(`${envRoot}/${ESER_DIR}`);
+      return { root: envRoot, found: true };
+    } catch {
+      // env var set but .eser/ not there — fall through to walk-up
+    }
+  }
+
+  // 2. Walk up from cwd
+  const found = await findProjectRoot(cwd);
+  if (found !== null) {
+    return { root: found, found: true };
+  }
+
+  // 3. Env var exists but .eser/ not found
+  if (envRoot !== null) {
+    return { root: envRoot, found: false };
+  }
+
+  // 4. Nothing found — return cwd (for init command to use)
+  return { root: cwd, found: false };
 };

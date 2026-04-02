@@ -13,7 +13,6 @@ import type * as shellArgs from "@eser/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as syncEngine from "../sync/engine.ts";
 import { cmd } from "../output/cmd.ts";
-import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
   _args?: readonly string[],
@@ -23,7 +22,7 @@ export const main = async (
     sink: streams.sinks.stdout(),
   });
 
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   const config = await persistence.readManifest(root);
 
   if (config === null) {

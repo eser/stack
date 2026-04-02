@@ -431,7 +431,7 @@ const renderJsonLine = (snap: WatchSnapshot): string => {
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const root = runtime.process.cwd();
+  const { root } = await persistence.resolveProjectRoot();
   // Watch defaults to terminal dashboard (not JSON like other commands).
   // Only use JSON/markdown when explicitly requested via -o flag.
   const hasExplicitFormat = args !== undefined &&

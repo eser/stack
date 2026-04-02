@@ -86,11 +86,116 @@ export const getConcernExtras = (
 
 export const getReminders = (
   concerns: readonly schema.ConcernDefinition[],
+  classification?: schema.SpecClassification | null,
 ): readonly string[] => {
   const reminders: string[] = [];
 
   for (const concern of concerns) {
     for (const reminder of concern.reminders) {
+      // Filter by classification when available
+      if (classification !== null && classification !== undefined) {
+        const lower = reminder.toLowerCase();
+
+        // AI slop / design-specific → only when involvesWebUI
+        if (
+          (lower.includes("slop") || lower.includes("ui element") ||
+            lower.includes("design intentionality") ||
+            lower.includes("interaction states") ||
+            lower.includes("edge case check") ||
+            lower.includes("loading state")) &&
+          !classification.involvesWebUI
+        ) {
+          continue;
+        }
+
+        // API documentation → only when involvesPublicAPI
+        if (
+          (lower.includes("api doc") || lower.includes("endpoint should be")) &&
+          !classification.involvesPublicAPI
+        ) {
+          continue;
+        }
+      }
+
+      reminders.push(`${concern.id}: ${reminder}`);
+    }
+  }
+
+  return reminders;
+};
+
+/** Check if a reminder is file-type-specific (UI/API/migration). */
+const isFileSpecificReminder = (reminder: string): boolean => {
+  const lower = reminder.toLowerCase();
+  return lower.includes("slop") || lower.includes("ui element") ||
+    lower.includes("design intentionality") ||
+    lower.includes("interaction states") ||
+    lower.includes("edge case check") ||
+    lower.includes("loading state") ||
+    lower.includes("api doc") || lower.includes("endpoint should be") ||
+    lower.includes("migration") || lower.includes("rollback");
+};
+
+/** Split reminders into tier1 (general, compile-time) and tier2 (file-specific, hook-time). */
+export const splitRemindersByTier = (
+  concerns: readonly schema.ConcernDefinition[],
+): { tier1: readonly string[]; tier2: readonly string[] } => {
+  const tier1: string[] = [];
+  const tier2: string[] = [];
+
+  for (const concern of concerns) {
+    for (const reminder of concern.reminders) {
+      const prefixed = `${concern.id}: ${reminder}`;
+      if (isFileSpecificReminder(reminder)) {
+        tier2.push(prefixed);
+      } else {
+        tier1.push(prefixed);
+      }
+    }
+  }
+
+  return { tier1, tier2 };
+};
+
+/** Get tier2 reminders applicable to a specific file extension. */
+export const getTier2RemindersForFile = (
+  concerns: readonly schema.ConcernDefinition[],
+  filePath: string,
+  classification?: schema.SpecClassification | null,
+): readonly string[] => {
+  const ext = filePath.includes(".") ? `.${filePath.split(".").pop()!}` : "";
+  const isUI = [".tsx", ".jsx", ".html", ".css", ".svelte", ".vue"].includes(
+    ext,
+  );
+  const isAPI = [".ts", ".go", ".py", ".rs"].includes(ext);
+
+  const reminders: string[] = [];
+
+  for (const concern of concerns) {
+    for (const reminder of concern.reminders) {
+      if (!isFileSpecificReminder(reminder)) continue;
+
+      const lower = reminder.toLowerCase();
+
+      // UI reminders → only for UI files
+      if (
+        (lower.includes("slop") || lower.includes("ui element") ||
+          lower.includes("design intentionality") ||
+          lower.includes("interaction states") ||
+          lower.includes("edge case check") ||
+          lower.includes("loading state")) && !isUI
+      ) {
+        continue;
+      }
+
+      // API reminders → only for API files with involvesPublicAPI
+      if (
+        (lower.includes("api doc") || lower.includes("endpoint should be")) &&
+        (!isAPI || !classification?.involvesPublicAPI)
+      ) {
+        continue;
+      }
+
       reminders.push(`${concern.id}: ${reminder}`);
     }
   }

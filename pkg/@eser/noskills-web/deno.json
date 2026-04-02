@@ -1,5 +1,5 @@
 {
   "name": "@eser/noskills-web",
-  "version": "0.1.0",
+  "version": "4.1.51",
   "exports": "./mod.ts"
 }

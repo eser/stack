@@ -72,15 +72,6 @@ export const buildListItems = (
     items.push({ label: "No specs yet", dimmed: true, selectable: false });
   }
 
-  // Separator + actions
-  items.push({
-    label: "\u2500".repeat(20),
-    dimmed: true,
-    selectable: false,
-  });
-  items.push({ label: "[n] New spec", badge: "+", badgeColor: "green" });
-  items.push({ label: "[f] Idle mode", badge: "~", badgeColor: "cyan" });
-
   return items;
 };
 

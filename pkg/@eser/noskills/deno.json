@@ -4,7 +4,9 @@
   "exports": {
     ".": "./main.ts",
     "./mod": "./mod.ts",
-    "./module": "./module.ts"
+    "./module": "./module.ts",
+    "./dashboard": "./dashboard/mod.ts",
+    "./persistence": "./state/persistence.ts"
   },
   "imports": {
     "esbuild": "npm:esbuild@^0.24.2",

@@ -5,7 +5,9 @@
   "exports": {
     ".": "./main.ts",
     "./mod": "./mod.ts",
-    "./module": "./module.ts"
+    "./module": "./module.ts",
+    "./dashboard": "./dashboard/mod.ts",
+    "./persistence": "./state/persistence.ts"
   },
   "dependencies": {
     "@eser/ai": "workspace:*",

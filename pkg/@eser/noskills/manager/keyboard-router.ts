@@ -12,11 +12,12 @@ import type * as types from "./types.ts";
 export type KeyAction =
   | { type: "navigate"; direction: "up" | "down" }
   | { type: "select" }
-  | { type: "newSpec" }
-  | { type: "freeMode" }
+  | { type: "newTab" }
   | { type: "closeTab" }
   | { type: "quit" }
   | { type: "toggleFocus" }
+  | { type: "toggleSpecs" }
+  | { type: "toggleMonitor" }
   | { type: "passthrough"; data: string }
   | { type: "none" };
 
@@ -29,9 +30,13 @@ export const routeKey = (
   key: string,
   ctrl: boolean,
 ): KeyAction => {
-  // Global keys
+  // Global keys (work in both list and terminal focus)
   if (ctrl && key === "c") return { type: "quit" };
+  if (ctrl && key === "d") return { type: "quit" };
+  if (ctrl && key === "t") return { type: "newTab" };
   if (key === "tab") return { type: "toggleFocus" };
+  if (ctrl && key === "e") return { type: "toggleSpecs" };
+  if (ctrl && key === "w") return { type: "toggleMonitor" };
 
   if (state.focus === "list") {
     switch (key) {
@@ -42,9 +47,7 @@ export const routeKey = (
       case "return":
         return { type: "select" };
       case "n":
-        return { type: "newSpec" };
-      case "f":
-        return { type: "freeMode" };
+        return { type: "newTab" };
       case "x":
         return { type: "closeTab" };
       case "q":
@@ -86,8 +89,6 @@ export const navigateList = (
 
 export type MouseAction =
   | { type: "clickSpec"; index: number }
-  | { type: "clickNewSpec" }
-  | { type: "clickFreeMode" }
   | { type: "clickTerminal" }
   | { type: "clickMonitor" }
   | { type: "scrollSpecs"; direction: "up" | "down" }
@@ -129,8 +130,6 @@ export const routeMouseEvent = (
       if (relRow >= 0 && relRow < specItems.length) {
         const item = specItems[relRow]!;
         if (item.selectable !== false) {
-          if (item.label.includes("[n]")) return { type: "clickNewSpec" };
-          if (item.label.includes("[f]")) return { type: "clickFreeMode" };
           return { type: "clickSpec", index: relRow };
         }
       }

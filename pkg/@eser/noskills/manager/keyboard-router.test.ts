@@ -17,12 +17,9 @@ const mockPanels: tui.layout.LayoutResult = {
   statusBar: { id: "statusBar", x: 1, y: 24, width: 80, height: 1 },
 };
 
-// Mock list items
+// Mock list items (no action items — specs only)
 const mockItems: readonly tui.list.ListItem[] = [
   { label: "No specs yet", selectable: false },
-  { label: "------", selectable: false },
-  { label: "[n] New spec", selectable: true },
-  { label: "[f] Idle mode", selectable: true },
 ];
 
 // Helper: create a mouse event (0-based coords, matching SGR protocol)
@@ -44,32 +41,6 @@ const mouseEvent = (
   }) as tui.mouse.MouseEvent;
 
 describe("routeMouseEvent", () => {
-  it("click in spec list on [n] item returns clickNewSpec", () => {
-    // [n] item is at index 2 in mockItems.
-    // relRow = (y+1) - panel.y - 1. Panel.y = 1, so relRow = y - 1.
-    // For index 2: y - 1 = 2, so y = 3 (0-based).
-    const ev = mouseEvent("mousedown", 5, 3);
-    const action = keyboardRouter.routeMouseEvent(
-      ev,
-      mockPanels,
-      mockItems,
-      "list",
-    );
-    assertEquals(action.type, "clickNewSpec");
-  });
-
-  it("click in spec list on [f] item returns clickFreeMode", () => {
-    // For index 3: y - 1 = 3, so y = 4 (0-based).
-    const ev = mouseEvent("mousedown", 5, 4);
-    const action = keyboardRouter.routeMouseEvent(
-      ev,
-      mockPanels,
-      mockItems,
-      "list",
-    );
-    assertEquals(action.type, "clickFreeMode");
-  });
-
   it("click in terminal panel when list focused returns clickTerminal", () => {
     // rightBottom panel starts at x=21, y=9 (1-based).
     // 0-based coords inside: x=25, y=12 -> 1-based: 26,13 which is inside.
@@ -168,8 +139,6 @@ describe("routeMouseEvent", () => {
   it("click on regular spec item returns clickSpec with index", () => {
     const specItems: readonly tui.list.ListItem[] = [
       { label: "my-spec", selectable: true },
-      { label: "------", selectable: false },
-      { label: "[n] New spec", selectable: true },
     ];
     // Index 0: relRow = y - 1 = 0, so y = 1 (0-based).
     const ev = mouseEvent("mousedown", 5, 1);

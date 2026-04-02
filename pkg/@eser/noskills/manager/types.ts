@@ -26,6 +26,8 @@ export type ManagerState = {
   selectedTabIndex: number;
   focus: "list" | "terminal";
   running: boolean;
+  specsVisible: boolean;
+  monitorVisible: boolean;
 };
 
 export const createInitialState = (): ManagerState => ({
@@ -33,4 +35,6 @@ export const createInitialState = (): ManagerState => ({
   selectedTabIndex: -1,
   focus: "list",
   running: true,
+  specsVisible: true,
+  monitorVisible: true,
 });

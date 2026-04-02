@@ -15,6 +15,7 @@ import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as specUpdater from "../spec/updater.ts";
 import * as identity from "../state/identity.ts";
+import * as dashboardEvents from "../dashboard/events.ts";
 import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -93,6 +94,15 @@ export const main = async (
       "completed",
     );
   }
+
+  await dashboardEvents.appendEvent(root, {
+    ts: new Date().toISOString(),
+    type: "phase-change",
+    spec: state.spec ?? "unknown",
+    user: user.name,
+    from: "EXECUTING",
+    to: "COMPLETED",
+  });
 
   out.writeln(span.green("✔"), " Spec completed!");
   out.writeln("");

@@ -28,3 +28,4 @@ export * as compiler from "./context/compiler.ts";
 export * as concerns from "./context/concerns.ts";
 export * as questions from "./context/questions.ts";
 export * as formatter from "./output/formatter.ts";
+export * as dashboard from "./dashboard/mod.ts";

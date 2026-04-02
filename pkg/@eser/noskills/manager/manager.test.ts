@@ -112,11 +112,11 @@ describe("keyboard router", () => {
     assertEquals(action.type, "select");
   });
 
-  it("list focus: n → newSpec", () => {
+  it("list focus: n → newTab", () => {
     const state = { ...types.createInitialState(), focus: "list" as const };
     const action = keyboardRouter.routeKey(state, "n", false);
 
-    assertEquals(action.type, "newSpec");
+    assertEquals(action.type, "newTab");
   });
 
   it("list focus: q → quit", () => {

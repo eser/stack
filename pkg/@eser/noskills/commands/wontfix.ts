@@ -15,6 +15,7 @@ import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as specUpdater from "../spec/updater.ts";
 import * as identity from "../state/identity.ts";
+import * as dashboardEvents from "../dashboard/events.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
 export const main = async (
@@ -109,6 +110,16 @@ export const main = async (
       "wontfix",
     );
   }
+
+  await dashboardEvents.appendEvent(root, {
+    ts: new Date().toISOString(),
+    type: "phase-change",
+    spec: state.spec ?? "unknown",
+    user: user.name,
+    from: state.phase,
+    to: "COMPLETED",
+    reason: "wontfix",
+  });
 
   out.writeln(span.green("✔"), ` Spec marked as won't fix: ${reason}`);
   await out.close();

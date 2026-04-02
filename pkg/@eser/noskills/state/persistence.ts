@@ -27,6 +27,7 @@ const WORKFLOWS_DIR: string = `${ESER_DIR}/workflows`;
 const SPEC_STATES_DIR: string = `${STATE_DIR}/specs`;
 const ACTIVE_FILE: string = `${STATE_DIR}/active.json`;
 const SESSIONS_DIR: string = `${ESER_DIR}/.sessions`;
+const EVENTS_DIR: string = `${ESER_DIR}/.events`;
 
 export const paths: {
   readonly eserDir: string;
@@ -45,6 +46,7 @@ export const paths: {
   readonly concernFile: (concernId: string) => string;
   readonly sessionsDir: string;
   readonly sessionFile: (sessionId: string) => string;
+  readonly eventsDir: string;
   readonly eserGitignore: string;
 } = {
   eserDir: ESER_DIR,
@@ -67,6 +69,7 @@ export const paths: {
   sessionsDir: SESSIONS_DIR,
   sessionFile: (sessionId: string): string =>
     `${SESSIONS_DIR}/${sessionId}.json`,
+  eventsDir: EVENTS_DIR,
   eserGitignore: `${ESER_DIR}/.gitignore`,
 };
 
@@ -388,6 +391,7 @@ export const scaffoldEserDir = async (root: string): Promise<void> => {
     RULES_DIR,
     SPECS_DIR,
     WORKFLOWS_DIR,
+    EVENTS_DIR,
   ];
 
   for (const dir of dirs) {
@@ -404,7 +408,7 @@ export const scaffoldEserDir = async (root: string): Promise<void> => {
   } catch {
     await runtime.fs.writeTextFile(
       gitignorePath,
-      "# eser toolchain runtime state — not tracked by git\n.state/\n.sessions/\n",
+      "# eser toolchain runtime state — not tracked by git\n.state/\n.sessions/\n.events/\n",
     );
   }
 };

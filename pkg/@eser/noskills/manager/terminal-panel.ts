@@ -3,27 +3,41 @@
 /**
  * Right-bottom panel — renders PTY output via VTermWidget.
  *
- * When a tab has a VTermWidget, renders the virtual terminal screen.
- * Falls back to raw buffer lines if no widget is available.
+ * Tab bar renders one row ABOVE the panel border.
+ * VTermWidget fills the full panel interior.
  *
  * @module
  */
 
 import * as tui from "@eser/shell/tui";
 import type * as types from "./types.ts";
+import * as tabBarMod from "./tab-bar.ts";
 
 export const render = (
   tab: types.ManagerTab | null,
   panel: tui.layout.Panel,
+  allTabs?: readonly types.ManagerTab[],
+  activeTabIndex?: number,
 ): string => {
-  const title = tab !== null
-    ? tab.mode === "free" ? "Terminal (IDLE)" : `Terminal (${tab.spec ?? "?"})`
-    : "Terminal";
+  const title = "Terminal";
+  const tabs = allTabs ?? [];
+  const tabIdx = activeTabIndex ?? 0;
+
+  // Tab bar sits one row ABOVE the panel border
+  const tabBarRow = panel.y - 1;
+  const tabBarWidth = panel.width;
+  const tabBarRendered = tabBarMod.render(
+    tabs,
+    tabIdx,
+    tabBarWidth,
+    tabBarRow,
+    panel.x,
+  );
 
   // Use VTermWidget?
   const hasWidget = tab !== null && tab.widget !== null;
 
-  // Draw box border — skip interior fill when VTermWidget paints the content
+  // Draw box border
   const border = tui.box.drawBox({
     x: panel.x,
     y: panel.y,
@@ -34,32 +48,49 @@ export const render = (
     skipInterior: hasWidget,
   });
 
-  // No tab or no content — show placeholder
+  // No tabs — centered message inside panel
+  if (tabs.length === 0) {
+    const msg = tui.ansi.dim("No tabs \u2014 press n to create one");
+    const padLine = " ".repeat(Math.max(0, panel.width - 2));
+    let content = "";
+    const midRow = Math.floor((panel.height - 2) / 2);
+    for (let r = 1; r < panel.height - 1; r++) {
+      content += tui.ansi.moveTo(panel.y + r, panel.x + 1);
+      if (r === midRow) {
+        const msgLen = tui.ansi.visibleLength(msg);
+        const leftPad = Math.max(
+          0,
+          Math.floor((panel.width - 2 - msgLen) / 2),
+        );
+        content += " ".repeat(leftPad) + msg +
+          " ".repeat(Math.max(0, panel.width - 2 - leftPad - msgLen));
+      } else {
+        content += padLine;
+      }
+    }
+    return tabBarRendered + border + content;
+  }
+
+  // Tab exists but no output yet — blank interior
   if (tab === null || (tab.widget === null && tab.buffer.length === 0)) {
-    const placeholder = tui.ansi.dim("Waiting for output...");
-    const padLine = " ".repeat(panel.width - 2);
+    const padLine = " ".repeat(Math.max(0, panel.width - 2));
     let content = "";
     for (let r = 1; r < panel.height - 1; r++) {
       content += tui.ansi.moveTo(panel.y + r, panel.x + 1);
-      content += r === 1
-        ? tui.ansi.truncate(placeholder, panel.width - 2) +
-          " ".repeat(
-            Math.max(0, panel.width - 2 - tui.ansi.visibleLength(placeholder)),
-          )
-        : padLine;
+      content += padLine;
     }
-    return border + content;
+    return tabBarRendered + border + content;
   }
 
-  // VTermWidget available — render virtual terminal screen
+  // VTermWidget — render virtual terminal
   if (tab.widget !== null) {
-    return border + tab.widget.render(panel);
+    return tabBarRendered + border + tab.widget.render(panel);
   }
 
   // Fallback: raw buffer lines
   const innerHeight = panel.height - 2;
   const visibleLines = tab.buffer.slice(-innerHeight);
-  return tui.box.fillBox(
+  return tabBarRendered + tui.box.fillBox(
     {
       x: panel.x,
       y: panel.y,

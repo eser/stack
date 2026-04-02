@@ -14,6 +14,7 @@ import type * as shellArgs from "@eser/shell/args";
 import * as tui from "@eser/shell/tui";
 import * as exec from "@eser/shell/exec";
 import * as persistence from "../state/persistence.ts";
+import * as dashboard from "../dashboard/mod.ts";
 import * as managerTypes from "../manager/types.ts";
 import * as specList from "../manager/spec-list.ts";
 import * as monitor from "../manager/monitor.ts";
@@ -34,22 +35,75 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  // Load specs
-  const specStates = await persistence.listSpecStates(root);
-  const specs: specList.SpecInfo[] = specStates.map((s) => ({
+  // Load specs via dashboard core
+  const dashboardState = await dashboard.getState(root);
+  const specs: specList.SpecInfo[] = dashboardState.specs.map((s) => ({
     name: s.name,
-    phase: s.state.phase,
+    phase: s.phase,
     hasActiveSession: false,
   }));
 
   const state = managerTypes.createInitialState();
   const { cols, rows } = tui.terminal.getTerminalSize();
 
-  const layoutConfig: tui.layout.LayoutConfig = {
-    leftWidth: 0.25,
-    rightTopHeight: 0.35,
+  /** Build layout — supports independent panel toggles. */
+  const buildLayout = (
+    showSpecs: boolean,
+    showMonitor: boolean,
+  ): tui.layout.LayoutResult => {
+    const tabBarRows = 1;
+    const usableRows = rows - 1; // status bar
+
+    if (!showSpecs && !showMonitor) {
+      // Full-width terminal
+      return {
+        left: { id: "left", x: 0, y: 0, width: 0, height: 0 },
+        rightTop: { id: "rightTop", x: 0, y: 0, width: 0, height: 0 },
+        rightBottom: {
+          id: "rightBottom",
+          x: 1,
+          y: tabBarRows + 1,
+          width: cols,
+          height: usableRows - tabBarRows,
+        },
+        statusBar: { id: "statusBar", x: 1, y: rows, width: cols, height: 1 },
+      };
+    }
+
+    const config: tui.layout.LayoutConfig = {
+      leftWidth: showSpecs ? 0.25 : 0,
+      rightTopHeight: showMonitor ? 0.35 : 0,
+    };
+    const raw = tui.layout.calculateLayout(cols, rows, config);
+
+    // Reserve 1 row for the tab bar above Terminal (always)
+    const termY = raw.rightBottom.y + tabBarRows;
+    const termH = raw.rightBottom.height - tabBarRows;
+    const monitorH = showMonitor ? raw.rightTop.height - tabBarRows : 0;
+
+    return {
+      left: showSpecs
+        ? raw.left
+        : { id: "left", x: 0, y: 0, width: 0, height: 0 },
+      rightTop: showMonitor
+        ? { ...raw.rightTop, height: monitorH }
+        : { id: "rightTop", x: 0, y: 0, width: 0, height: 0 },
+      rightBottom: {
+        ...raw.rightBottom,
+        y: termY,
+        height: termH,
+      },
+      statusBar: raw.statusBar,
+    };
   };
-  const panels = tui.layout.calculateLayout(cols, rows, layoutConfig);
+
+  let panels = buildLayout(state.specsVisible, state.monitorVisible);
+
+  /** Get terminal content dimensions (inside borders). */
+  const getTerminalSize = (): { cols: number; rows: number } => ({
+    cols: panels.rightBottom.width - 2,
+    rows: panels.rightBottom.height - 2,
+  });
 
   // Render helpers
   const encoder = new TextEncoder();
@@ -80,8 +134,15 @@ export const main = async (
     const activeTab = tabManager.getActiveTab(state);
     write(monitor.render(activeTab, panels.rightTop));
 
-    // Terminal
-    write(terminalPanel.render(activeTab, panels.rightBottom));
+    // Terminal (with tab bar inside)
+    write(
+      terminalPanel.render(
+        activeTab,
+        panels.rightBottom,
+        state.tabs,
+        state.selectedTabIndex,
+      ),
+    );
 
     // Move cursor to bottom
     write(tui.ansi.moveTo(rows, 1));
@@ -129,9 +190,8 @@ export const main = async (
       tool: "claude-code",
     });
 
-    const innerW = panels.rightBottom.width - 2;
-    const innerH = panels.rightBottom.height - 2;
-    const widget = new tui.VTermWidget(innerH, innerW);
+    const termSize = getTerminalSize();
+    const widget = new tui.VTermWidget(termSize.rows, termSize.cols);
 
     const tab: managerTypes.ManagerTab = {
       id: `tab-${sessionId}`,
@@ -156,8 +216,8 @@ export const main = async (
           NOSKILLS_SESSION: sessionId,
           NOSKILLS_PROJECT_ROOT: root,
         },
-        cols: innerW,
-        rows: innerH,
+        cols: termSize.cols,
+        rows: termSize.rows,
       });
 
       tab.process = pty;
@@ -169,6 +229,14 @@ export const main = async (
         tabManager.appendToBuffer(tab, data); // keep raw buffer too
         scheduleRender?.();
       });
+
+      // Auto-close tab when PTY exits
+      pty.exitCode.then(() => {
+        Object.assign(state, tabManager.closeTab(state, tab.id));
+        listItems = specList.buildListItems(specs, state.tabs);
+        markAllDirty();
+        if (state.running) renderFrame();
+      }).catch(() => {});
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       widget.write(`[noskills manager] Failed to spawn claude: ${msg}\r\n`);
@@ -212,9 +280,11 @@ export const main = async (
       tool: "claude-code",
     });
 
-    const specInnerW = panels.rightBottom.width - 2;
-    const specInnerH = panels.rightBottom.height - 2;
-    const specWidget = new tui.VTermWidget(specInnerH, specInnerW);
+    const specTermSize = getTerminalSize();
+    const specWidget = new tui.VTermWidget(
+      specTermSize.rows,
+      specTermSize.cols,
+    );
 
     const tab: managerTypes.ManagerTab = {
       id: `tab-${sessionId}`,
@@ -238,8 +308,8 @@ export const main = async (
           NOSKILLS_SESSION: sessionId,
           NOSKILLS_PROJECT_ROOT: root,
         },
-        cols: specInnerW,
-        rows: specInnerH,
+        cols: specTermSize.cols,
+        rows: specTermSize.rows,
       });
 
       tab.process = pty;
@@ -250,6 +320,14 @@ export const main = async (
         tabManager.appendToBuffer(tab, data);
         scheduleRender?.();
       });
+
+      // Auto-close tab when PTY exits
+      pty.exitCode.then(() => {
+        Object.assign(state, tabManager.closeTab(state, tab.id));
+        listItems = specList.buildListItems(specs, state.tabs);
+        markAllDirty();
+        if (state.running) renderFrame();
+      }).catch(() => {});
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       specWidget.write(
@@ -261,6 +339,9 @@ export const main = async (
     state.focus = "terminal";
     listItems = specList.buildListItems(specs, state.tabs);
   };
+
+  // Auto-create first tab on startup
+  await createFreeTab();
 
   // Interactive mode — full TUI loop
   write(tui.terminal.enterAlternateScreen());
@@ -283,11 +364,19 @@ export const main = async (
     // Hide cursor during render to prevent flicker
     buf.push(tui.terminal.hideCursorSeq());
 
+    // Full clear when all panels dirty (startup, resize, tab changes)
+    if (dirtyPanels.size >= 4) {
+      buf.push("\x1b[2J\x1b[H"); // clear screen + cursor home
+    }
+
     // Status bar — always render (cheap, 1 line)
     if (dirtyPanels.has("status") || dirtyPanels.size === 0) {
       const focusLabel = state.focus === "list" ? "LIST" : "TERM";
+      const panelHint = `ctrl+e: ${
+        state.specsVisible ? "hide" : "show"
+      } specs | ctrl+w: ${state.monitorVisible ? "hide" : "show"} monitor`;
       const statusText =
-        ` noskills manager | ${specs.length} spec(s) | ${state.tabs.length} tab(s) | [${focusLabel}] Tab: toggle | q: quit | n: new | f: free`;
+        ` noskills | ${state.tabs.length} tab(s) | [${focusLabel}] tab: switch | ctrl+d: quit | ctrl+t: new tab | ${panelHint}`;
       buf.push(tui.ansi.moveTo(panels.statusBar.y, panels.statusBar.x));
       buf.push(
         tui.ansi.inverse(
@@ -302,7 +391,7 @@ export const main = async (
       );
     }
 
-    if (dirtyPanels.has("specs")) {
+    if (state.specsVisible && dirtyPanels.has("specs")) {
       buf.push(
         specList.render(
           specs,
@@ -313,12 +402,19 @@ export const main = async (
       );
     }
 
-    if (dirtyPanels.has("monitor")) {
+    if (state.monitorVisible && dirtyPanels.has("monitor")) {
       buf.push(monitor.render(activeTab, panels.rightTop));
     }
 
     if (dirtyPanels.has("terminal")) {
-      buf.push(terminalPanel.render(activeTab, panels.rightBottom));
+      buf.push(
+        terminalPanel.render(
+          activeTab,
+          panels.rightBottom,
+          state.tabs,
+          state.selectedTabIndex,
+        ),
+      );
     }
 
     // Show cursor after render
@@ -347,6 +443,23 @@ export const main = async (
       if (state.running) renderFrame();
     }, 16); // ~60fps cap
   };
+
+  // Watch for dashboard events — refresh spec list on state changes
+  const unsubEvents = dashboard.watchEvents(root, async () => {
+    try {
+      const updated = await dashboard.getState(root);
+      specs.length = 0;
+      for (const s of updated.specs) {
+        specs.push({ name: s.name, phase: s.phase, hasActiveSession: false });
+      }
+      listItems = specList.buildListItems(specs, state.tabs);
+      dirtyPanels.add("specs");
+      dirtyPanels.add("monitor");
+      if (state.running) renderFrame();
+    } catch {
+      // best effort
+    }
+  });
 
   markAllDirty();
   renderFrame();
@@ -378,14 +491,6 @@ export const main = async (
         dirtyPanels.add("monitor");
         dirtyPanels.add("status");
         break;
-      }
-
-      case "clickNewSpec":
-      case "clickFreeMode": {
-        state.focus = "list";
-        await createFreeTab();
-        markAllDirty();
-        return;
       }
 
       case "clickTerminal": {
@@ -486,24 +591,55 @@ export const main = async (
             dirtyPanels.add("terminal");
             break;
 
-          case "freeMode":
+          case "newTab":
             await createFreeTab();
             markAllDirty();
             break;
 
-          case "newSpec":
-            await createFreeTab();
+          case "toggleSpecs": {
+            state.specsVisible = !state.specsVisible;
+            if (!state.specsVisible && !state.monitorVisible) {
+              state.focus = "terminal";
+            }
+            panels = buildLayout(state.specsVisible, state.monitorVisible);
+            const specSize = getTerminalSize();
+            for (const t of state.tabs) {
+              if (t.process !== null) {
+                t.process.resize(specSize.cols, specSize.rows);
+              }
+              if (t.widget !== null) {
+                t.widget.resize(specSize.rows, specSize.cols);
+              }
+            }
             markAllDirty();
             break;
+          }
+
+          case "toggleMonitor": {
+            state.monitorVisible = !state.monitorVisible;
+            if (!state.specsVisible && !state.monitorVisible) {
+              state.focus = "terminal";
+            }
+            panels = buildLayout(state.specsVisible, state.monitorVisible);
+            const monSize = getTerminalSize();
+            for (const t of state.tabs) {
+              if (t.process !== null) {
+                t.process.resize(monSize.cols, monSize.rows);
+              }
+              if (t.widget !== null) {
+                t.widget.resize(monSize.rows, monSize.cols);
+              }
+            }
+            markAllDirty();
+            break;
+          }
 
           case "select": {
             const selectedItem = listItems[state.selectedTabIndex];
             if (selectedItem === undefined) break;
 
             const label = selectedItem.label;
-            if (label.includes("[n]") || label.includes("[f]")) {
-              await createFreeTab();
-            } else {
+            {
               const specName = specs.find((s) => s.name === label)?.name;
               if (specName !== undefined) {
                 await createSpecTab(specName);
@@ -548,6 +684,7 @@ export const main = async (
     });
   } finally {
     // Graceful shutdown
+    unsubEvents();
     await processGroup.killAll();
     processGroup.forceKillAll();
     await persistence.gcStaleSessions(root);

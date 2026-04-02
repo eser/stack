@@ -55,11 +55,8 @@ export const render = (
   const lines: string[] = [];
 
   if (tab === null) {
-    lines.push(tui.ansi.dim("No spec selected"));
-    lines.push("");
-    lines.push(
-      tui.ansi.dim("Select a spec from the list or press [n] for new"),
-    );
+    lines.push(tui.ansi.bold("Mode: ") + tui.ansi.cyan("IDLE"));
+    lines.push(tui.ansi.dim("No active spec"));
   } else if (tab.mode === "free") {
     lines.push(tui.ansi.bold("Mode: ") + tui.ansi.cyan("IDLE"));
     lines.push(tui.ansi.dim("No active spec"));

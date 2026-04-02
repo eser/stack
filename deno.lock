@@ -2344,6 +2344,14 @@
           ]
         }
       },
+      "pkg/@eser/noskills-web": {
+        "packageJson": {
+          "dependencies": [
+            "npm:@jsr/std__assert@^1.0.16",
+            "npm:@jsr/std__testing@^1.0.16"
+          ]
+        }
+      },
       "pkg/@eser/parsing": {
         "dependencies": [
           "jsr:@std/assert@^1.0.16"

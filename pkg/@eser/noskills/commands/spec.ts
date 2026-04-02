@@ -15,6 +15,7 @@ import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
 import * as splitDetector from "../context/split-detector.ts";
 import * as identity from "../state/identity.ts";
+import * as dashboardEvents from "../dashboard/events.ts";
 import { cmd, cmdPrefix } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -477,6 +478,15 @@ const specNew = async (
     },
   );
   await persistence.writeSpecState(root, specName, stateToSave);
+
+  // Log event
+  await dashboardEvents.appendEvent(root, {
+    ts: new Date().toISOString(),
+    type: "spec-created",
+    spec: specName,
+    user: user?.name ?? "unknown",
+    description: description ?? "",
+  });
 
   out.writeln(span.green("✔"), " Spec started: ", span.bold(specName));
   out.writeln(

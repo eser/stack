@@ -72,6 +72,10 @@ export const moduleDef: Module = new Module({
       description: "Live dashboard for monitoring agent progress",
       load: () => import("./commands/watch.ts"),
     },
+    web: {
+      description: "Start web interface (browser dashboard)",
+      load: () => import("./commands/web.ts"),
+    },
     sync: {
       description: "Regenerate tool-specific files",
       load: () => import("./commands/sync.ts"),

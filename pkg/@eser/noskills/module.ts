@@ -44,7 +44,8 @@ export const moduleDef: Module = new Module({
       load: () => import("./commands/done.ts"),
     },
     free: {
-      description: "Enter or exit free mode (no enforcement)",
+      description:
+        "Show idle mode info (noskills starts permissive by default)",
       load: () => import("./commands/free.ts"),
     },
     cancel: {

@@ -60,29 +60,38 @@ export const main = async (
       await runtime.fs.stat(specDir);
     } catch {
       out.writeln(span.red(`Active spec '${state.spec}' directory not found.`));
-      out.writeln(span.dim("Run `noskills reset` to return to IDLE."));
+      out.writeln(span.dim("Run `noskills reset` to return to idle."));
       await out.close();
       return results.fail({ exitCode: 1 });
     }
   }
 
   const user = await identity.resolveUser(root);
-  let newState = machine.completeSpec(state, "done");
-  newState = machine.recordTransition(
-    newState,
+  let completedState = machine.completeSpec(state, "done");
+  completedState = machine.recordTransition(
+    completedState,
     "EXECUTING",
     "COMPLETED",
     user,
   );
-  await persistence.writeState(root, newState);
-  if (newState.spec !== null) {
-    await persistence.writeSpecState(root, newState.spec, newState);
+
+  // Per-spec: preserve COMPLETED state for history
+  if (completedState.spec !== null) {
+    await persistence.writeSpecState(root, completedState.spec, completedState);
   }
 
+  // Global: return to IDLE
+  const idleState = machine.resetToIdle(completedState);
+  await persistence.writeState(root, idleState);
+
   // Update spec.md: "executing" → "completed"
-  if (newState.spec !== null) {
-    await specUpdater.updateSpecStatus(root, newState.spec, "completed");
-    await specUpdater.updateProgressStatus(root, newState.spec, "completed");
+  if (completedState.spec !== null) {
+    await specUpdater.updateSpecStatus(root, completedState.spec, "completed");
+    await specUpdater.updateProgressStatus(
+      root,
+      completedState.spec,
+      "completed",
+    );
   }
 
   out.writeln(span.green("✔"), " Spec completed!");

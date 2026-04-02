@@ -376,10 +376,8 @@ const renderTerminal = (snap: WatchSnapshot): string => {
         `${GREEN}Complete!${RESET} ${snap.iteration} iterations, ${snap.decisionsCount} decisions`,
       ),
     );
-  } else if (snap.phase === "FREE") {
-    lines.push(row(`${DIM}Free mode — no enforcement${RESET}`));
   } else if (snap.phase === "IDLE") {
-    lines.push(row(`${DIM}No active work${RESET}`));
+    lines.push(row(`${DIM}No active spec — work freely${RESET}`));
   }
 
   lines.push(blank());

@@ -22,7 +22,7 @@ const mockItems: readonly tui.list.ListItem[] = [
   { label: "No specs yet", selectable: false },
   { label: "------", selectable: false },
   { label: "[n] New spec", selectable: true },
-  { label: "[f] Free mode", selectable: true },
+  { label: "[f] Idle mode", selectable: true },
 ];
 
 // Helper: create a mouse event (0-based coords, matching SGR protocol)

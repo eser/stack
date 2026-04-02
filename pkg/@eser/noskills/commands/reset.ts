@@ -40,7 +40,10 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  if (state.phase === "IDLE" || state.phase === "UNINITIALIZED") {
+  if (
+    state.phase === "IDLE" ||
+    state.phase === "UNINITIALIZED"
+  ) {
     out.writeln(span.dim("Already idle. Nothing to reset."));
     await out.close();
 
@@ -54,7 +57,7 @@ export const main = async (
       await runtime.fs.stat(specDir);
     } catch {
       out.writeln(span.red(`Active spec '${state.spec}' directory not found.`));
-      out.writeln(span.dim("Resetting to IDLE anyway."));
+      out.writeln(span.dim("Resetting to idle anyway."));
     }
   }
 
@@ -65,7 +68,7 @@ export const main = async (
     await persistence.writeSpecState(root, specName, newState);
   }
 
-  out.writeln(span.green("✔"), " Reset to IDLE.");
+  out.writeln(span.green("✔"), " Reset to idle.");
   if (specName !== null) {
     out.writeln(
       span.dim(

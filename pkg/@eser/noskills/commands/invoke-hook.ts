@@ -201,7 +201,6 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
         SPEC_APPROVED: 8,
         BLOCKED: 8,
         EXECUTING: 2,
-        FREE: 0,
         IDLE: 0,
         COMPLETED: 0,
       };
@@ -266,7 +265,7 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
 
   // Allow writes in phases where the agent should be free to work
   if (
-    phase === "EXECUTING" || phase === "IDLE" || phase === "FREE" ||
+    phase === "EXECUTING" || phase === "IDLE" ||
     phase === "COMPLETED" || phase === "UNKNOWN"
   ) {
     // Sub-agent spawning reminder (once per session, non-blocking)

@@ -17,7 +17,7 @@ export const render = (
   panel: tui.layout.Panel,
 ): string => {
   const title = tab !== null
-    ? tab.mode === "free" ? "Terminal (FREE)" : `Terminal (${tab.spec ?? "?"})`
+    ? tab.mode === "free" ? "Terminal (IDLE)" : `Terminal (${tab.spec ?? "?"})`
     : "Terminal";
 
   // Use VTermWidget?

@@ -13,7 +13,6 @@
 export type Phase =
   | "UNINITIALIZED"
   | "IDLE"
-  | "FREE"
   | "DISCOVERY"
   | "DISCOVERY_REVIEW"
   | "SPEC_DRAFT"

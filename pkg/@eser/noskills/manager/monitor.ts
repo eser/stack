@@ -17,10 +17,11 @@ const ROADMAP_PHASES = [
   "APPROVED",
   "EXECUTING",
   "DONE",
+  "IDLE",
 ];
 
 const buildRoadmap = (phase: string | null): string => {
-  if (phase === null || phase === "FREE") return "FREE (no enforcement)";
+  if (phase === null || phase === "IDLE") return "IDLE";
   const phaseMap: Record<string, string> = {
     DISCOVERY_REVIEW: "REVIEW",
     SPEC_DRAFT: "DRAFT",
@@ -60,8 +61,8 @@ export const render = (
       tui.ansi.dim("Select a spec from the list or press [n] for new"),
     );
   } else if (tab.mode === "free") {
-    lines.push(tui.ansi.bold("Mode: ") + tui.ansi.cyan("FREE"));
-    lines.push(tui.ansi.dim("No enforcement active"));
+    lines.push(tui.ansi.bold("Mode: ") + tui.ansi.cyan("IDLE"));
+    lines.push(tui.ansi.dim("No active spec"));
     lines.push("");
     lines.push(tui.ansi.dim(`Session: ${tab.sessionId}`));
   } else {

@@ -51,7 +51,7 @@ export const main = async (
     }
   }
 
-  // Try --spec flag; if absent, fall back to global state (supports IDLE/FREE)
+  // Try --spec flag; if absent, fall back to global state (supports IDLE)
   const specFlag = persistence.parseSpecFlag(cleanArgs);
   let state: schema.StateFile;
   try {
@@ -65,7 +65,7 @@ export const main = async (
   // If no --spec and we're in a spec-active phase, require it
   if (
     specFlag === null &&
-    state.phase !== "IDLE" && state.phase !== "FREE" &&
+    state.phase !== "IDLE" &&
     state.phase !== "COMPLETED"
   ) {
     await formatter.writeFormatted(
@@ -103,7 +103,7 @@ export const main = async (
         error: true,
         message:
           `Active spec '${state.spec}' directory not found. Files may have been deleted manually.`,
-        suggestion: `Run \`${cmd("reset")}\` to return to IDLE, or \`${
+        suggestion: `Run \`${cmd("reset")}\` to return to idle, or \`${
           cmd("cancel")
         }\` to mark as cancelled.`,
       }, fmt);
@@ -224,7 +224,7 @@ export const main = async (
   const touchedFiles = await collectTouchedFiles(root, touchedState);
   const fRules = await folderRules.collectFolderRules(root, touchedFiles);
 
-  // Build IDLE context if needed (spec list for welcome dashboard)
+  // Build idle context if needed (spec list for welcome dashboard)
   let idleContext: compiler.IdleContext | undefined;
   if (touchedState.phase === "IDLE") {
     const specStates = await persistence.listSpecStates(root);

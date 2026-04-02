@@ -27,7 +27,11 @@ const inDiscovery = (): schema.StateFile =>
   machine.startSpec(idle(), "test-spec", "spec/test-spec");
 
 const inExecuting = (): schema.StateFile => {
-  const s = machine.startSpec(idle(), "test-spec", "spec/test-spec");
+  const s = machine.startSpec(
+    schema.createInitialState(),
+    "test-spec",
+    "spec/test-spec",
+  );
   const sd = machine.completeDiscovery(s);
   const sdr = machine.approveDiscoveryReview(sd);
   const sa = machine.approveSpec(sdr);
@@ -416,10 +420,10 @@ describe("Behavioral with concerns active", () => {
 });
 
 // =============================================================================
-// IDLE behavioral — AskUserQuestion format (Issue 6) + concerns (Issue 5)
+// IDLE behavioral — AskUserQuestion format + concerns + user intent
 // =============================================================================
 
-describe("IDLE behavioral — AskUserQuestion and concerns", () => {
+describe("IDLE behavioral — AskUserQuestion, concerns, user intent", () => {
   it("tells agent to pass interactiveOptions DIRECTLY and use commandMap", async () => {
     const output = await compiler.compile(idle(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) => r.includes("commandMap"));
@@ -441,6 +445,20 @@ describe("IDLE behavioral — AskUserQuestion and concerns", () => {
       idleOutput.instruction.includes("ALL available concerns"),
       true,
     );
+  });
+
+  it("IDLE behavioral includes user intent rule", async () => {
+    const output = await compiler.compile(idle(), noConcerns, noRules);
+    const has = output.behavioral.rules.some((r) =>
+      r.includes("user has already told you what they want") ||
+      r.includes("Do NOT re-ask")
+    );
+    assertEquals(has, true);
+  });
+
+  it("IDLE output phase is IDLE", async () => {
+    const output = await compiler.compile(idle(), noConcerns, noRules);
+    assertEquals(output.phase, "IDLE");
   });
 });
 

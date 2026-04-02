@@ -38,6 +38,92 @@ const RESERVED_NAMES = new Set([
   "note",
 ]);
 
+// Stop words to strip when generating slugs from descriptions
+const SLUG_STOP_WORDS = new Set([
+  "a",
+  "an",
+  "the",
+  "and",
+  "or",
+  "but",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "of",
+  "with",
+  "by",
+  "from",
+  "is",
+  "it",
+  "its",
+  "this",
+  "that",
+  "as",
+  "be",
+  "are",
+  "was",
+  "were",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "could",
+  "should",
+  "may",
+  "might",
+  "shall",
+  "can",
+  "i",
+  "we",
+  "you",
+  "they",
+  "our",
+  "my",
+  "so",
+  "if",
+  "not",
+  "no",
+  "all",
+]);
+
+/**
+ * Generate a slug from a description string.
+ * Picks first 5–6 significant words, kebab-cases them, max 50 chars.
+ */
+const slugFromDescription = (description: string): string => {
+  const words = description
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .split(/\s+/)
+    .filter((w) => w.length > 0 && !SLUG_STOP_WORDS.has(w));
+
+  const significant = words.slice(0, 6);
+  let slug = significant.join("-");
+
+  // Truncate to 50 chars at a word boundary
+  if (slug.length > 50) {
+    slug = slug.slice(0, 50).replace(/-[^-]*$/, "");
+  }
+
+  // Ensure slug starts and ends with alphanumeric
+  slug = slug.replace(/^-+|-+$/g, "");
+
+  return slug || "spec";
+};
+
+/** Check if a string looks like a description rather than a slug name. */
+const looksLikeDescription = (value: string): boolean => {
+  return value.includes(" ") || value.length > 50;
+};
+
 // Subcommands that can appear after spec <name>
 const SPEC_SUBCOMMANDS: ReadonlyMap<
   string,
@@ -55,7 +141,7 @@ const SPEC_SUBCOMMANDS: ReadonlyMap<
   ["reopen", () => import("./reopen.ts")],
 ]);
 
-export { RESERVED_NAMES };
+export { looksLikeDescription, RESERVED_NAMES, slugFromDescription };
 
 export const main = async (
   args?: readonly string[],
@@ -80,7 +166,7 @@ export const main = async (
       sink: streams.sinks.stdout(),
     });
     out.writeln(
-      `Usage: ${prefix} spec <new <name> "desc" | list | <name> <command>>`,
+      `Usage: ${prefix} spec <new "description" | list | <name> <command>>`,
     );
     out.writeln("");
     out.writeln(span.dim("  Commands for a spec:"));
@@ -92,7 +178,14 @@ export const main = async (
     out.writeln("");
     out.writeln(span.dim("  Examples:"));
     out.writeln(
-      span.dim(`    ${prefix} spec new my-feature "Add upload support"`),
+      span.dim(
+        `    ${prefix} spec new "Add photo upload support"            # name auto-generated`,
+      ),
+    );
+    out.writeln(
+      span.dim(
+        `    ${prefix} spec new my-feature "Add upload support"       # explicit name`,
+      ),
     );
     out.writeln(
       span.dim(`    ${prefix} spec my-feature next`),
@@ -185,24 +278,35 @@ const specNew = async (
   }
 
   // Positional: spec new <name> "description"
+  //          or: spec new "description" (name auto-generated)
   // Also supports old --name= format for backward compat
   let specName: string | null = null;
   const descWords: string[] = [];
 
   if (args !== undefined) {
     let nameConsumed = false;
+    const positionals: string[] = [];
     for (const arg of args) {
       if (arg.startsWith("--name=")) {
-        // Backward compat
         specName = arg.slice("--name=".length);
         nameConsumed = true;
       } else if (!arg.startsWith("-")) {
-        if (!nameConsumed && specName === null) {
-          specName = arg;
-          nameConsumed = true;
-        } else {
-          descWords.push(arg);
-        }
+        positionals.push(arg);
+      }
+    }
+
+    // If --name was provided, rest of positionals are description
+    if (nameConsumed) {
+      descWords.push(...positionals);
+    } else if (positionals.length >= 1) {
+      const first = positionals[0]!;
+      if (looksLikeDescription(first)) {
+        // First arg is a description — auto-generate slug
+        descWords.push(...positionals);
+      } else {
+        // First arg is a slug name, rest are description
+        specName = first;
+        descWords.push(...positionals.slice(1));
       }
     }
   }
@@ -219,14 +323,41 @@ const specNew = async (
 
   const description = descWords.join(" ");
 
+  // If no name provided but description exists, auto-generate slug
+  if ((specName === null || specName.length === 0) && description.length > 0) {
+    specName = slugFromDescription(description);
+
+    // Deduplicate: if slug conflicts with existing spec, append -2, -3, etc.
+    let candidate = specName;
+    let suffix = 2;
+    while (true) {
+      if (RESERVED_NAMES.has(candidate)) {
+        candidate = `${specName}-${suffix}`;
+        suffix++;
+        continue;
+      }
+      const candidateDir = `${root}/${persistence.paths.specDir(candidate)}`;
+      try {
+        await runtime.fs.stat(candidateDir);
+        // Exists — try next suffix
+        candidate = `${specName}-${suffix}`;
+        suffix++;
+      } catch {
+        // Doesn't exist — use this name
+        break;
+      }
+    }
+    specName = candidate;
+  }
+
   if (specName === null || specName.length === 0) {
     out.writeln(
-      span.red("Error: spec name is required."),
+      span.red("Error: description is required."),
     );
     out.writeln(
       span.dim("Example: "),
       span.bold(
-        `${cmdPrefix()} spec new photo-upload "photo upload feature"`,
+        `${cmdPrefix()} spec new "Add photo upload support"`,
       ),
     );
     await out.close();
@@ -270,7 +401,7 @@ const specNew = async (
     out.writeln(
       span.red("Please provide a description: "),
       span.bold(
-        `${cmdPrefix()} spec new --name=${specName} "photo upload feature"`,
+        `${cmdPrefix()} spec new "Add photo upload support"`,
       ),
     );
     await out.close();
@@ -773,7 +904,7 @@ const specRevisit = async (
     return results.fail({ exitCode: 1 });
   }
 
-  if (specState.phase === "IDLE" || specState.phase === "FREE") {
+  if (specState.phase === "IDLE") {
     out.writeln(span.red("No active spec to revisit."));
     await out.close();
 

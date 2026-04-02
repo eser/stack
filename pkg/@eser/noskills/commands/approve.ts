@@ -52,7 +52,7 @@ export const main = async (
       await runtime.fs.stat(specDir);
     } catch {
       out.writeln(span.red(`Active spec '${state.spec}' directory not found.`));
-      out.writeln(span.dim("Run `noskills reset` to return to IDLE."));
+      out.writeln(span.dim("Run `noskills reset` to return to idle."));
       await out.close();
       return results.fail({ exitCode: 1 });
     }

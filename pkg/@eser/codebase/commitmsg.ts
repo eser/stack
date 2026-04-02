@@ -18,14 +18,17 @@ import type * as workflows from "@eser/workflows/mod";
 // System Prompt
 // =============================================================================
 
-const SYSTEM_PROMPT =
-  `Output ONLY a conventional commit message. No explanation, no markdown, no code blocks, no bullet points.
+const SYSTEM_PROMPT = `Output ONLY a conventional commit message. Nothing else.
 
-Format: type(scope): description
-Types: feat, fix, chore, docs, refactor, test, style, perf, ci, build
-Max 72 characters. One line only. No body. No quotes. No backticks.
+STRICT RULES:
+- One line only. Max 72 characters.
+- Format: type(scope): description
+- Types: feat, fix, chore, docs, refactor, test, style, perf, ci, build
+- No body. No explanation. No markdown. No code blocks. No bullet points.
+- No quotes. No backticks. No decorative formatting. No insight blocks.
+- No preamble. No commentary. Just the commit message line.
 
-Example output:
+Example of correct output (the ENTIRE response is this one line):
 feat(ai): add streaming support for Claude Code adapter`;
 
 // =============================================================================

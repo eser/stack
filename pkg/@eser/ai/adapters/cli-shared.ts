@@ -51,17 +51,22 @@ export type CliProcess = {
   readonly kill: (signal?: string) => void;
 };
 
+export type SpawnOptions = {
+  readonly cwd?: string;
+  readonly env?: Record<string, string>;
+  readonly signal?: AbortSignal;
+  /** Data to pipe to stdin. When set, stdin is piped and closed after writing. */
+  readonly stdinData?: string;
+};
+
 export const spawnCliProcess = (
   binary: string,
   args: readonly string[],
-  options?: {
-    readonly cwd?: string;
-    readonly env?: Record<string, string>;
-    readonly signal?: AbortSignal;
-  },
+  options?: SpawnOptions,
 ): CliProcess => {
+  const useStdinPipe = options?.stdinData !== undefined;
   const builder = new shellExec.CommandBuilder(binary, [...args], {
-    stdin: "null",
+    stdin: useStdinPipe ? "piped" : "null",
     stdout: "piped",
     stderr: "piped",
     cwd: options?.cwd,
@@ -69,6 +74,17 @@ export const spawnCliProcess = (
   });
 
   const child = builder.child();
+
+  // Write stdin data and close
+  if (useStdinPipe && child.stdin !== null) {
+    const encoder = new TextEncoder();
+    const writer = child.stdin.getWriter();
+    writer.write(encoder.encode(options!.stdinData!)).then(() => {
+      writer.close();
+    }).catch(() => {
+      // stdin may be closed already
+    });
+  }
 
   // Wire up AbortSignal → kill
   if (options?.signal !== undefined) {

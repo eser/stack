@@ -37,9 +37,10 @@ export class KiroModel implements model.LanguageModel {
       options.messages,
       options.system,
     );
-    args.push("--prompt", prompt);
-
-    const process = cliShared.spawnCliProcess(this.binary, args, { signal });
+    const process = cliShared.spawnCliProcess(this.binary, args, {
+      signal,
+      stdinData: prompt,
+    });
     const stderrPromise = cliShared.captureStderr(process.stderr);
 
     const result = await cliShared.parseTextOutput(
@@ -66,9 +67,10 @@ export class KiroModel implements model.LanguageModel {
       options.messages,
       options.system,
     );
-    args.push("--prompt", prompt);
-
-    const process = cliShared.spawnCliProcess(this.binary, args, { signal });
+    const process = cliShared.spawnCliProcess(this.binary, args, {
+      signal,
+      stdinData: prompt,
+    });
     const stderrPromise = cliShared.captureStderr(process.stderr);
 
     try {

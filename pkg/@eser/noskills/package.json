@@ -15,6 +15,7 @@
     "@eser/shell": "workspace:*",
     "@eser/standards": "workspace:*",
     "@eser/streams": "workspace:*",
+    "@eser/noskills-web": "workspace:*",
     "yaml": "^2"
   },
   "devDependencies": {

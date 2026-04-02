@@ -48,8 +48,14 @@ const STRIP_PATTERN = /\x04/g;
 const SCRIPT_NOISE_PATTERN =
   /^Script (started|done),? ?(output file is )?[^\n]*\n?/gm;
 
+/** `script` emits tcgetattr/ioctl errors when stdin is a pipe/socket — suppress them */
+const TCGETATTR_NOISE_PATTERN = /^script: tcgetattr[^\n]*\n?/gm;
+
 const cleanOutput = (text: string): string =>
-  text.replace(STRIP_PATTERN, "").replace(SCRIPT_NOISE_PATTERN, "");
+  text
+    .replace(STRIP_PATTERN, "")
+    .replace(SCRIPT_NOISE_PATTERN, "")
+    .replace(TCGETATTR_NOISE_PATTERN, "");
 
 // =============================================================================
 // PTY command builder
@@ -72,24 +78,34 @@ const buildPtyCommand = (
   const platform = crossRuntime.getPlatform();
 
   if (platform === "darwin") {
-    // macOS: script -q /dev/null <command> <args...>
+    // macOS: wrap in sh to suppress script's tcgetattr stderr warning.
+    // When stdin is a pipe, `script` prints "tcgetattr: Operation not
+    // supported on socket" to stderr but still creates the PTY correctly.
+    // Redirect stderr to suppress noise while keeping stdin piped for
+    // programmatic keystroke forwarding.
+    const escapedArgs = args.map((a) => `'${a.replace(/'/g, "'\\''")}'`);
+    const innerCmd = [command, ...escapedArgs].join(" ");
     return {
-      cmd: "script",
-      args: ["-q", "/dev/null", command, ...args],
+      cmd: "sh",
+      args: ["-c", `script -q /dev/null ${innerCmd} 2>/dev/null`],
       usesScript: true,
     };
   }
 
   if (platform === "linux") {
     // Linux: script -qc "<command> <args...>" /dev/null
+    // Same stderr suppression for tcgetattr noise.
     const fullCmd = args.length > 0
       ? `${command} ${
         args.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ")
       }`
       : command;
     return {
-      cmd: "script",
-      args: ["-qc", fullCmd, "/dev/null"],
+      cmd: "sh",
+      args: [
+        "-c",
+        `script -qc '${fullCmd.replace(/'/g, "'\\''")}' /dev/null 2>/dev/null`,
+      ],
       usesScript: true,
     };
   }

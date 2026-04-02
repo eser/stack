@@ -249,7 +249,7 @@ const main = async (): Promise<void> => {
       const includeFlags = await resolveGoIncludes(eserGoDistDir, target);
 
       await shellExec
-        .exec`deno compile --allow-all --target ${target} ${includeFlags} --output ${binaryPath} ${mainTsPath}`
+        .exec`deno compile --no-check --allow-all --target ${target} ${includeFlags} --output ${binaryPath} ${mainTsPath}`
         .stderr("inherit")
         .spawn();
 

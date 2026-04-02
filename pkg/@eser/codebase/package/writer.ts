@@ -71,13 +71,18 @@ const setPropertyByPath = (
   value: unknown,
 ): void => {
   const parts = path.split(".");
+
+  // Validate ALL parts against unsafe props before traversal
+  for (const part of parts) {
+    if (part === undefined || part.length === 0 || UNSAFE_PROPS.has(part)) {
+      return;
+    }
+  }
+
   let current: Record<string, unknown> = obj;
 
   for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i];
-    if (part === undefined || UNSAFE_PROPS.has(part)) {
-      return;
-    }
+    const part = parts[i]!;
     if (
       !Object.hasOwn(current, part) ||
       typeof current[part] !== "object" ||
@@ -85,14 +90,14 @@ const setPropertyByPath = (
     ) {
       const child = Object.create(null) as Record<string, unknown>;
       current[part] = child;
+      current = child;
+    } else {
+      current = current[part] as Record<string, unknown>;
     }
-    current = current[part] as Record<string, unknown>;
   }
 
-  const lastPart = parts[parts.length - 1];
-  if (lastPart !== undefined && !UNSAFE_PROPS.has(lastPart)) {
-    current[lastPart] = value;
-  }
+  const lastPart = parts[parts.length - 1]!;
+  current[lastPart] = value;
 };
 
 /**

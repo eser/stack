@@ -40,6 +40,7 @@ export type SpecSummary = {
     readonly files?: readonly string[];
   }[];
   readonly contributors: readonly string[];
+  readonly delegations: readonly schema.Delegation[];
   readonly pendingQuestions: readonly Question[];
   readonly pendingSignoffs: readonly string[];
   readonly roadmap: string;
@@ -165,6 +166,7 @@ export const getSpecSummary = async (
     description: state.specDescription ?? "",
     tasks,
     contributors,
+    delegations: state.discovery.delegations ?? [],
     pendingQuestions,
     pendingSignoffs: [],
     roadmap: buildRoadmap(state.phase),

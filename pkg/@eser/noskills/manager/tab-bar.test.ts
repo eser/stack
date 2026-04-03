@@ -42,7 +42,7 @@ describe("tab-bar", () => {
     const tabs = [makeTab("t1", null)];
     const output = tabBarMod.render(tabs, 0, 80, 1);
     const visible = tui.ansi.stripAnsi(output);
-    assert(visible.includes("1: IDLE"));
+    assert(visible.includes("1:IDLE"));
   });
 
   it("renders spec-bound tab with spec name", () => {
@@ -61,9 +61,9 @@ describe("tab-bar", () => {
     ];
     const output = tabBarMod.render(tabs, 0, 120, 1);
     const visible = tui.ansi.stripAnsi(output);
-    assert(visible.includes("1: upload"));
-    assert(visible.includes("2: IDLE"));
-    assert(visible.includes("3: invoice"));
+    assert(visible.includes("1:upload"));
+    assert(visible.includes("2:IDLE"));
+    assert(visible.includes("3:invoice"));
   });
 
   it("active tab is highlighted (inverse)", () => {

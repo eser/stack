@@ -499,12 +499,33 @@ const buildBehavioral = (
         tone: "Careful reviewer. The user must confirm every answer.",
       };
 
-    case "SPEC_DRAFT":
+    case "SPEC_DRAFT": {
+      // Build delegation status rule if delegations exist
+      const delegations = state.discovery.delegations ?? [];
+      const delegationRules: string[] = [];
+      if (delegations.length > 0) {
+        const pending = delegations.filter((d) => d.status === "pending");
+        const answered = delegations.filter((d) => d.status === "answered");
+        const lines = delegations.map((d) =>
+          `- ${d.questionId}: delegated to ${d.delegatedTo} — ${
+            d.status === "answered" ? "ANSWERED ✓" : "PENDING"
+          }`
+        );
+        delegationRules.push(
+          `DELEGATION STATUS:\n${lines.join("\n")}${
+            pending.length > 0
+              ? `\nApprove BLOCKED — ${pending.length} pending delegation(s).`
+              : `\nAll ${answered.length} delegation(s) answered. Approve is allowed.`
+          }`,
+        );
+      }
+
       return {
         modeOverride:
           "plan mode. DO NOT create, edit, or write any files. DO NOT run state-modifying commands. MAY read files and run read-only commands.",
         rules: [
           ...mandatoryRules,
+          ...delegationRules,
           "DO NOT create, edit, or write any files.",
           "Read the spec and present a summary to the user.",
           "Flag any tasks that are too vague to execute.",
@@ -524,6 +545,7 @@ const buildBehavioral = (
         ],
         tone: "Thoughtful reviewer preparing to hand off to an implementer.",
       };
+    }
 
     case "SPEC_APPROVED":
       return {

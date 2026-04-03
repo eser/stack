@@ -3,30 +3,13 @@
 /**
  * Tab bar — renders the horizontal tab strip at the top of the TUI.
  *
+ * Delegates to the generic tab bar widget from `@eser/shell/tui/tab-bar.ts`.
+ *
  * @module
  */
 
 import * as tui from "@eser/shell/tui";
 import type * as types from "./types.ts";
-
-/** Render a single tab label. */
-const renderTab = (
-  tab: types.ManagerTab,
-  index: number,
-  isActive: boolean,
-): string => {
-  const num = index + 1;
-  const label = tab.spec !== null
-    ? `${num}: ${tab.spec}${
-      tab.phase ? ` (${abbreviatePhase(tab.phase)})` : ""
-    }`
-    : `${num}: IDLE`;
-
-  if (isActive) {
-    return tui.ansi.inverse(` ${label} `);
-  }
-  return tui.ansi.dim(` ${label} `);
-};
 
 const abbreviatePhase = (phase: string): string => {
   const map: Record<string, string> = {
@@ -41,6 +24,39 @@ const abbreviatePhase = (phase: string): string => {
   };
   return map[phase] ?? phase.slice(0, 4);
 };
+
+const phaseColor = (
+  phase: string | null,
+): "green" | "yellow" | "red" | "cyan" | "dim" => {
+  switch (phase) {
+    case "EXECUTING":
+      return "green";
+    case "DISCOVERY":
+    case "DISCOVERY_REVIEW":
+      return "cyan";
+    case "BLOCKED":
+      return "red";
+    case "SPEC_DRAFT":
+    case "SPEC_APPROVED":
+      return "yellow";
+    case "COMPLETED":
+      return "dim";
+    default:
+      return "dim";
+  }
+};
+
+/** Convert ManagerTab[] to the generic TabDefinition[] format. */
+const toTabDefinitions = (
+  tabs: readonly types.ManagerTab[],
+): ReadonlyArray<tui.layoutTypes.TabDefinition> =>
+  tabs.map((tab) => ({
+    id: tab.id,
+    label: tab.spec !== null ? tab.spec : "IDLE",
+    badge: tab.phase !== null ? abbreviatePhase(tab.phase) : undefined,
+    badgeColor: tab.phase !== null ? phaseColor(tab.phase) : undefined,
+    closable: true,
+  }));
 
 /** Render the full tab bar row. */
 export const render = (
@@ -63,20 +79,15 @@ export const render = (
     return parts.join("");
   }
 
-  // Build tab labels
-  let tabContent = "";
-  for (let i = 0; i < tabs.length; i++) {
-    const tab = tabs[i]!;
-    tabContent += renderTab(tab, i, i === activeIndex);
-    if (i < tabs.length - 1) {
-      tabContent += tui.ansi.dim("\u2502"); // │ separator
-    }
-  }
+  const definitions = toTabDefinitions(tabs);
+  const tabBarContent = tui.tabBar.renderTabBar({
+    tabs: definitions,
+    activeIndex,
+    maxWidth: width,
+    style: "inverse",
+  });
 
-  // Pad to full width
-  const visLen = tui.ansi.visibleLength(tabContent);
-  const padding = Math.max(0, width - visLen);
-  parts.push(tabContent + " ".repeat(padding));
+  parts.push(tabBarContent);
 
   return parts.join("");
 };

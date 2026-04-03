@@ -94,6 +94,17 @@ export type SpecNote = {
   readonly phase: Phase;
 };
 
+export type Delegation = {
+  readonly questionId: string;
+  readonly delegatedTo: string;
+  readonly delegatedBy: string;
+  readonly status: "pending" | "answered";
+  readonly delegatedAt: string;
+  readonly answer?: string;
+  readonly answeredBy?: string;
+  readonly answeredAt?: string;
+};
+
 export type DiscoveryState = {
   readonly answers: readonly DiscoveryAnswer[];
   readonly completed: boolean;
@@ -106,6 +117,8 @@ export type DiscoveryState = {
   readonly selectedApproach?: SelectedApproach;
   readonly premisesCompleted?: boolean;
   readonly alternativesPresented?: boolean;
+  readonly contributors?: readonly string[];
+  readonly delegations?: readonly Delegation[];
 };
 
 // =============================================================================

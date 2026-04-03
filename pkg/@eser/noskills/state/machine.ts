@@ -537,6 +537,82 @@ export const addSpecNote = (
   return { ...state, specNotes: [...existing, note] };
 };
 
+// =============================================================================
+// Contributors + Delegation
+// =============================================================================
+
+/** Set contributors for a spec. */
+export const setContributors = (
+  state: schema.StateFile,
+  contributors: readonly string[],
+): schema.StateFile => {
+  return {
+    ...state,
+    discovery: { ...state.discovery, contributors },
+  };
+};
+
+/** Delegate a discovery question to another contributor. */
+export const addDelegation = (
+  state: schema.StateFile,
+  questionId: string,
+  delegatedTo: string,
+  delegatedBy: string,
+): schema.StateFile => {
+  const existing = state.discovery.delegations ?? [];
+  const delegation: schema.Delegation = {
+    questionId,
+    delegatedTo,
+    delegatedBy,
+    status: "pending",
+    delegatedAt: new Date().toISOString(),
+  };
+
+  return {
+    ...state,
+    discovery: {
+      ...state.discovery,
+      delegations: [...existing, delegation],
+    },
+  };
+};
+
+/** Answer a delegated question. */
+export const answerDelegation = (
+  state: schema.StateFile,
+  questionId: string,
+  answer: string,
+  answeredBy: string,
+): schema.StateFile => {
+  const delegations = state.discovery.delegations ?? [];
+  const updated = delegations.map((d) => {
+    if (d.questionId === questionId && d.status === "pending") {
+      return {
+        ...d,
+        status: "answered" as const,
+        answer,
+        answeredBy,
+        answeredAt: new Date().toISOString(),
+      };
+    }
+    return d;
+  });
+
+  return {
+    ...state,
+    discovery: { ...state.discovery, delegations: updated },
+  };
+};
+
+/** Check if there are pending delegations blocking approval. */
+export const getPendingDelegations = (
+  state: schema.StateFile,
+): readonly schema.Delegation[] => {
+  return (state.discovery.delegations ?? []).filter(
+    (d) => d.status === "pending",
+  );
+};
+
 export const resetToIdle = (
   state: schema.StateFile,
 ): schema.StateFile => {

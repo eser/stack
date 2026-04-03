@@ -33,7 +33,19 @@ export const main = async (
     }
   }
 
-  const { startServer } = await import("@eser/noskills-web");
+  // Dynamic import — opaque specifier prevents esbuild from bundling it
+  // (avoids circular dep: noskills → noskills-web → noskills)
+  const specifier = "@eser/noskills-web";
+  let startServer: (
+    opts: { root: string; port: number; open: boolean },
+  ) => Promise<void>;
+  try {
+    const mod = await import(specifier);
+    startServer = mod.startServer;
+  } catch {
+    console.error("@eser/noskills-web is not installed. Run: deno install");
+    return results.fail({ exitCode: 1 });
+  }
   await startServer({ root, port, open });
 
   return results.ok(undefined);

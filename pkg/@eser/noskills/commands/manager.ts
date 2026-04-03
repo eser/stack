@@ -46,19 +46,28 @@ export const main = async (
   const state = managerTypes.createInitialState();
   const { cols, rows } = tui.terminal.getTerminalSize();
 
-  /** Build layout — supports independent panel toggles. */
+  /** Build layout — supports independent panel toggles.
+   *  Uses the flex layout engine from @eser/shell/tui/flex-layout.ts. */
   const buildLayout = (
     showSpecs: boolean,
     showMonitor: boolean,
   ): tui.layout.LayoutResult => {
     const tabBarRows = 1;
-    const usableRows = rows - 1; // status bar
+    const usableRows = rows - 1; // reserve 1 row for status bar
+
+    const emptyPanel = (id: string): tui.layout.Panel => ({
+      id,
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+    });
 
     if (!showSpecs && !showMonitor) {
       // Full-width terminal
       return {
-        left: { id: "left", x: 0, y: 0, width: 0, height: 0 },
-        rightTop: { id: "rightTop", x: 0, y: 0, width: 0, height: 0 },
+        left: emptyPanel("left"),
+        rightTop: emptyPanel("rightTop"),
         rightBottom: {
           id: "rightBottom",
           x: 1,
@@ -70,30 +79,79 @@ export const main = async (
       };
     }
 
-    const config: tui.layout.LayoutConfig = {
-      leftWidth: showSpecs ? 0.25 : 0,
-      rightTopHeight: showMonitor ? 0.35 : 0,
+    // Compute absolute panel sizes matching the old fractional config
+    const leftWidth = showSpecs ? Math.min(Math.floor(cols * 0.25), cols) : 0;
+    const rightTopFraction = showMonitor ? 0.35 : 0;
+    const rightTopHeight = Math.floor(usableRows * rightTopFraction);
+
+    // Build a FlexNode tree that reproduces the 3-panel + status bar layout
+    const rightChildren: tui.layoutTypes.FlexNode[] = [];
+    if (showMonitor) {
+      rightChildren.push({
+        id: "rightTop",
+        size: { type: "fixed", value: rightTopHeight },
+      });
+    }
+    rightChildren.push({
+      id: "rightBottom",
+      size: { type: "flex", grow: 1 },
+    });
+
+    const mainRowChildren: tui.layoutTypes.FlexNode[] = [];
+    if (showSpecs) {
+      mainRowChildren.push({
+        id: "left",
+        size: { type: "fixed", value: leftWidth },
+      });
+    }
+    mainRowChildren.push({
+      direction: "column",
+      size: { type: "flex", grow: 1 },
+      children: rightChildren,
+    });
+
+    const root: tui.layoutTypes.FlexNode = {
+      direction: "column",
+      children: [
+        {
+          direction: "row",
+          size: { type: "flex", grow: 1 },
+          children: mainRowChildren,
+        },
+        { id: "statusBar", size: { type: "fixed", value: 1 } },
+      ],
     };
-    const raw = tui.layout.calculateLayout(cols, rows, config);
+
+    const computed = tui.flexLayout.computeLayout(root, cols, rows);
+
+    // Helper to find a panel and convert 0-based coords to 1-based
+    const findPanel = (id: string): tui.layout.Panel => {
+      const p = tui.flexLayout.findPanel(computed, id);
+      if (p === undefined) return emptyPanel(id);
+      return { id, x: p.x + 1, y: p.y + 1, width: p.width, height: p.height };
+    };
+
+    const rawLeft = findPanel("left");
+    const rawRightTop = findPanel("rightTop");
+    const rawRightBottom = findPanel("rightBottom");
+    const rawStatusBar = findPanel("statusBar");
 
     // Reserve 1 row for the tab bar above Terminal (always)
-    const termY = raw.rightBottom.y + tabBarRows;
-    const termH = raw.rightBottom.height - tabBarRows;
-    const monitorH = showMonitor ? raw.rightTop.height - tabBarRows : 0;
+    const termY = rawRightBottom.y + tabBarRows;
+    const termH = rawRightBottom.height - tabBarRows;
+    const monitorH = showMonitor ? rawRightTop.height - tabBarRows : 0;
 
     return {
-      left: showSpecs
-        ? raw.left
-        : { id: "left", x: 0, y: 0, width: 0, height: 0 },
+      left: showSpecs ? rawLeft : emptyPanel("left"),
       rightTop: showMonitor
-        ? { ...raw.rightTop, height: monitorH }
-        : { id: "rightTop", x: 0, y: 0, width: 0, height: 0 },
+        ? { ...rawRightTop, height: monitorH }
+        : emptyPanel("rightTop"),
       rightBottom: {
-        ...raw.rightBottom,
+        ...rawRightBottom,
         y: termY,
         height: termH,
       },
-      statusBar: raw.statusBar,
+      statusBar: rawStatusBar,
     };
   };
 

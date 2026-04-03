@@ -58,6 +58,33 @@ export const main = async (
     }
   }
 
+  // Delegation gate — check for pending delegations before allowing approval
+  const pendingDelegations = machine.getPendingDelegations(state);
+  if (
+    pendingDelegations.length > 0 &&
+    (state.phase === "SPEC_DRAFT" || state.phase === "DISCOVERY_REVIEW")
+  ) {
+    out.writeln(
+      span.red(
+        `Cannot approve — ${pendingDelegations.length} pending delegation(s):`,
+      ),
+    );
+    out.writeln("");
+    for (const d of pendingDelegations) {
+      out.writeln(
+        `  ${d.questionId}: delegated to `,
+        span.bold(d.delegatedTo),
+        span.dim(` (pending since ${d.delegatedAt.slice(0, 10)})`),
+      );
+    }
+    out.writeln("");
+    out.writeln(
+      span.dim("All delegations must be answered before approval."),
+    );
+    await out.close();
+    return results.fail({ exitCode: 1 });
+  }
+
   if (state.phase === "SPEC_DRAFT") {
     // If classification was skipped, generate spec with null classification
     // (defaults all concern sections to not relevant — clean spec)

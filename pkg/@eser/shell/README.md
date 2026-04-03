@@ -275,6 +275,88 @@ This lets the same CLI code work for both human users and AI agents without
 branching logic throughout commands. The context also exposes a `stderr` output
 for cases where you need to write diagnostics regardless of mode.
 
+## TUI Widgets
+
+Layout, scroll, tabs, and text editing primitives for terminal UIs.
+
+### Flex Layout
+
+Build flexible panel layouts with a subset of CSS Flexbox (direction,
+grow/shrink, gap, padding):
+
+```typescript
+import * as flexLayout from "@eser/shell/tui/flex-layout.ts";
+
+const root = {
+  direction: "row" as const,
+  children: [
+    { id: "sidebar", size: { type: "fixed" as const, value: 30 } },
+    { id: "main", size: { type: "flex" as const, grow: 1 } },
+  ],
+};
+
+const panels = flexLayout.computeLayout(root, 120, 40);
+```
+
+### ScrollContainer
+
+Generic scrollable viewport for any content:
+
+```typescript
+import * as scroll from "@eser/shell/tui/scroll-container.ts";
+
+let state = scroll.createScrollState(100, 10); // 100 items, 10 visible
+state = scroll.scrollReducer(state, "pageDown");
+const bar = scroll.renderScrollbar(panel, state);
+```
+
+### TabBar
+
+Reusable tab strip with badge support:
+
+```typescript
+import * as tabBar from "@eser/shell/tui/tab-bar.ts";
+
+const output = tabBar.renderTabBar({
+  tabs: [
+    { id: "1", label: "Main" },
+    { id: "2", label: "Logs", badge: "3", badgeColor: "red" },
+  ],
+  activeIndex: 0,
+  maxWidth: 80,
+});
+```
+
+### Textarea
+
+Multi-line text editor with undo/redo and selection:
+
+```typescript
+import * as textarea from "@eser/shell/tui/textarea.ts";
+
+let state = textarea.createTextareaState("Hello\nWorld");
+let undo = textarea.createUndoStack();
+({ state, undoStack: undo } = textarea.textareaReducer(
+  state,
+  { type: "insert", text: "!" },
+  undo,
+));
+```
+
+### Dirty Tracking
+
+Skip re-rendering unchanged panels:
+
+```typescript
+import * as dirty from "@eser/shell/tui/dirty-tracker.ts";
+
+let tracker = dirty.createDirtyTracker(["sidebar", "main"]);
+if (dirty.isDirty(tracker, "sidebar")) {
+  renderSidebar();
+  tracker = dirty.markClean(tracker, "sidebar");
+}
+```
+
 ## 🛠 Usage Examples
 
 ### Building a Complete CLI

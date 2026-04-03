@@ -82,3 +82,11 @@ export * as mouse from "./mouse.ts";
 
 // Virtual terminal widget
 export { VTermWidget } from "./vterm-widget.ts";
+
+// TUI widget system — layout, scroll, tabs, text editing, dirty tracking
+export * as layoutTypes from "./layout-types.ts";
+export * as flexLayout from "./flex-layout.ts";
+export * as scrollContainer from "./scroll-container.ts";
+export * as tabBar from "./tab-bar.ts";
+export * as dirtyTracker from "./dirty-tracker.ts";
+export * as textarea from "./textarea.ts";

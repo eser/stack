@@ -45,6 +45,23 @@ const phaseColor = (
   }
 };
 
+const colorize = (text: string, color: string): string => {
+  switch (color) {
+    case "green":
+      return tui.ansi.green(text);
+    case "yellow":
+      return tui.ansi.yellow(text);
+    case "red":
+      return tui.ansi.red(text);
+    case "cyan":
+      return tui.ansi.cyan(text);
+    case "dim":
+      return tui.ansi.dim(text);
+    default:
+      return text;
+  }
+};
+
 export type SpecInfo = {
   readonly name: string;
   readonly phase: string | null;
@@ -90,6 +107,69 @@ export const render = (
     title: "Specs",
     borderStyle: "rounded",
   });
-  const listContent = tui.list.renderList(items, selectedIndex, panel);
-  return border + listContent;
+
+  // Use scroll container primitives for scroll offset management
+  const innerWidth = panel.width - 2;
+  const viewportHeight = panel.height - 2;
+  const scrollState = tui.scrollContainer.ensureVisible(
+    tui.scrollContainer.createScrollState(items.length, viewportHeight),
+    selectedIndex,
+  );
+  const range = tui.scrollContainer.visibleRange(scrollState);
+
+  // Render visible items using the computed scroll range
+  const lines: string[] = [];
+  for (let vi = 0; vi < viewportHeight; vi++) {
+    const idx = range.start + vi;
+    const row = panel.y + 1 + vi;
+
+    if (idx >= range.end) {
+      lines.push(
+        tui.ansi.moveTo(row, panel.x + 1) + " ".repeat(innerWidth),
+      );
+      continue;
+    }
+
+    const item = items[idx]!;
+    const isSelectable = item.selectable !== false;
+    const selected = idx === selectedIndex && isSelectable;
+    const bullet = item.active
+      ? tui.ansi.green("\u25CF")
+      : selected
+      ? "\u25B8"
+      : " ";
+    const badge = item.badge !== undefined
+      ? " " + colorize(`[${item.badge}]`, item.badgeColor ?? "dim")
+      : "";
+    const label = item.dimmed ? tui.ansi.dim(item.label) : item.label;
+    const line = ` ${bullet} ${label}${badge}`;
+    const truncated = tui.ansi.truncate(line, innerWidth);
+    const pad = Math.max(0, innerWidth - tui.ansi.visibleLength(truncated));
+
+    if (selected) {
+      lines.push(
+        tui.ansi.moveTo(row, panel.x + 1) +
+          tui.ansi.inverse(truncated + " ".repeat(pad)),
+      );
+    } else {
+      lines.push(
+        tui.ansi.moveTo(row, panel.x + 1) + truncated + " ".repeat(pad),
+      );
+    }
+  }
+
+  // Render scrollbar using the scroll container primitive
+  const computedPanel: tui.layoutTypes.ComputedPanel = {
+    id: panel.id,
+    x: panel.x,
+    y: panel.y + 1,
+    width: panel.width - 1,
+    height: viewportHeight,
+  };
+  const scrollbar = tui.scrollContainer.renderScrollbar(
+    computedPanel,
+    scrollState,
+  );
+
+  return border + lines.join("") + scrollbar;
 };

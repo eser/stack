@@ -37,6 +37,8 @@ const RESERVED_NAMES = new Set([
   "ac",
   "task",
   "note",
+  "review",
+  "delegate",
 ]);
 
 // Stop words to strip when generating slugs from descriptions
@@ -140,6 +142,8 @@ const SPEC_SUBCOMMANDS: ReadonlyMap<
   ["cancel", () => import("./cancel.ts")],
   ["wontfix", () => import("./wontfix.ts")],
   ["reopen", () => import("./reopen.ts")],
+  ["review", () => import("./review.ts")],
+  ["delegate", () => import("./delegate.ts")],
 ]);
 
 export { looksLikeDescription, RESERVED_NAMES, slugFromDescription };

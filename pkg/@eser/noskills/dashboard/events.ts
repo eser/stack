@@ -20,7 +20,10 @@ export type EventType =
   | "note"
   | "task-completed"
   | "spec-created"
-  | "answer-added";
+  | "answer-added"
+  | "delegation-created"
+  | "delegation-answered"
+  | "approve-blocked";
 
 export type DashboardEvent = {
   readonly ts: string;

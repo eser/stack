@@ -10,7 +10,7 @@ tool (
 
 require (
 	github.com/BurntSushi/toml v1.6.0
-	github.com/anthropics/anthropic-sdk-go v1.27.1
+	github.com/anthropics/anthropic-sdk-go v1.30.0
 	github.com/getkin/kin-openapi v0.134.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.9.1
@@ -20,22 +20,22 @@ require (
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/stretchr/testify v1.11.1
-	go.opentelemetry.io/otel v1.42.0
-	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.18.0
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.42.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.42.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.42.0
-	go.opentelemetry.io/otel/log v0.18.0
-	go.opentelemetry.io/otel/metric v1.42.0
-	go.opentelemetry.io/otel/sdk v1.42.0
-	go.opentelemetry.io/otel/sdk/log v0.18.0
-	go.opentelemetry.io/otel/sdk/metric v1.42.0
-	go.opentelemetry.io/otel/trace v1.42.0
+	go.opentelemetry.io/otel v1.43.0
+	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.19.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.43.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.43.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.43.0
+	go.opentelemetry.io/otel/log v0.19.0
+	go.opentelemetry.io/otel/metric v1.43.0
+	go.opentelemetry.io/otel/sdk v1.43.0
+	go.opentelemetry.io/otel/sdk/log v0.19.0
+	go.opentelemetry.io/otel/sdk/metric v1.43.0
+	go.opentelemetry.io/otel/trace v1.43.0
 	golang.org/x/net v0.52.0
 	golang.org/x/sys v0.42.0
 	golang.org/x/text v0.35.0
-	google.golang.org/genai v1.52.0
-	modernc.org/sqlite v1.48.0
+	google.golang.org/genai v1.52.1
+	modernc.org/sqlite v1.48.1
 )
 
 require (
@@ -263,7 +263,7 @@ require (
 	go.augendre.info/fatcontext v0.9.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0 // indirect
-	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
@@ -275,9 +275,9 @@ require (
 	golang.org/x/telemetry v0.0.0-20260209163413-e7419c687ee4 // indirect
 	golang.org/x/tools v0.42.0 // indirect
 	golang.org/x/vuln v1.1.4 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
-	google.golang.org/grpc v1.79.3 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9 // indirect
+	google.golang.org/grpc v1.80.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

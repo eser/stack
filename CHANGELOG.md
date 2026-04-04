@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.1.53 - 2026-04-04
+
+### Added
+
+- **noskills,shell:** add learnings, diagrams, follow-ups, xterm vterm
+- **shell,noskills:** add TUI widget system and spec delegation workflow
+
 ## 4.1.52 - 2026-04-02
 
 ### Fixed

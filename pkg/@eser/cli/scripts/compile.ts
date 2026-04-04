@@ -141,13 +141,26 @@ const resolveGoIncludes = async (
   }
 
   // 2. WASM files (platform-independent fallback)
+  // deno compile validates .wasm imports statically and chokes on
+  // wasi_snapshot_preview1 (provided at runtime via our custom shim).
+  // Workaround: copy .wasm → .wasm.bin so Deno treats it as opaque data,
+  // then the resolver finds it at runtime.
   for (const wt of ajanTargets.WASM_TARGETS) {
     const wasmPath = runtime.path.join(eserGoDistDir, wt.id, wt.outputFile);
 
     if (await fileExists(wasmPath)) {
-      includes.push(`--include=${wasmPath}`);
-      // deno-lint-ignore no-console
-      console.log(`    + Including WASM fallback: ${wt.outputFile}`);
+      // Copy to .wasm.bin to avoid Deno's static WASM import validation
+      const binPath = `${wasmPath}.bin`;
+      try {
+        const bytes = await runtime.fs.readFile(wasmPath);
+        await runtime.fs.writeFile(binPath, bytes);
+        includes.push(`--include=${binPath}`);
+        // deno-lint-ignore no-console
+        console.log(`    + Including WASM fallback: ${wt.outputFile}.bin`);
+      } catch {
+        // deno-lint-ignore no-console
+        console.warn(`    ~ Failed to copy WASM for embed: ${wt.outputFile}`);
+      }
     }
   }
 

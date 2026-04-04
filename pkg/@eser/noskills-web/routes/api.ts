@@ -10,12 +10,17 @@ import * as dashboard from "@eser/noskills/dashboard";
 import type { PtyManager } from "../terminal/pty-manager.ts";
 
 const json = (data: unknown, status = 200): Response => {
-  // Sanitize error responses — strip stack traces, keep only first line
+  // For error responses, return only { ok, error } — never serialize raw data
+  // which may contain stack traces or internal details.
   if (status >= 400 && typeof data === "object" && data !== null) {
     const obj = data as Record<string, unknown>;
-    if (typeof obj["error"] === "string") {
-      obj["error"] = obj["error"].split("\n")[0]!;
-    }
+    const safeError = typeof obj["error"] === "string"
+      ? obj["error"].split("\n")[0]!
+      : "Unknown error";
+    return new Response(
+      JSON.stringify({ ok: false, error: safeError }),
+      { status, headers: { "content-type": "application/json" } },
+    );
   }
   return new Response(JSON.stringify(data), {
     status,

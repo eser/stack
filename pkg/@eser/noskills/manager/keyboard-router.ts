@@ -30,11 +30,19 @@ export const routeKey = (
   key: string,
   ctrl: boolean,
 ): KeyAction => {
-  // Global keys (work in both list and terminal focus)
+  // In terminal focus: only intercept Ctrl+C (quit) and Escape (switch to list).
+  // Everything else passes through to the PTY for maximum terminal compatibility.
+  if (state.focus === "terminal") {
+    if (ctrl && key === "c") return { type: "quit" };
+    if (key === "escape") return { type: "toggleFocus" };
+    return { type: "passthrough", data: key };
+  }
+
+  // List focus: full shortcut set
   if (ctrl && key === "c") return { type: "quit" };
   if (ctrl && key === "d") return { type: "quit" };
   if (ctrl && key === "t") return { type: "newTab" };
-  if (key === "tab") return { type: "toggleFocus" };
+  if (key === "tab" || key === "escape") return { type: "toggleFocus" };
   if (ctrl && key === "e") return { type: "toggleSpecs" };
   if (ctrl && key === "w") return { type: "toggleMonitor" };
 

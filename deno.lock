@@ -55,6 +55,7 @@
     "npm:@tailwindcss/oxide@4": "4.2.1",
     "npm:@tailwindcss/oxide@^4.1.18": "4.2.1",
     "npm:@types/react@^19.2.7": "19.2.14",
+    "npm:@xterm/headless@^5.5.0": "5.5.0",
     "npm:esbuild@~0.24.2": "0.24.2",
     "npm:esbuild@~0.27.3": "0.27.3",
     "npm:koffi@^2.15.0": "2.15.2",
@@ -1181,6 +1182,9 @@
     },
     "@types/retry@0.12.0": {
       "integrity": "sha512-wWKOClTTiizcZhXnPY4wikVAwmdYHp8q6DmC+EJUzAMsycb7HB32Kh9RN4+0gExjmPmZSAQjgURXIGATPegAvA=="
+    },
+    "@xterm/headless@5.5.0": {
+      "integrity": "sha512-5xXB7kdQlFBP82ViMJTwwEc3gKCLGKR/eoxQm4zge7GPBl86tCdI0IdPJjoKd8mUSFXz5V7i/25sfsEkP4j46g=="
     },
     "agent-base@7.1.4": {
       "integrity": "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="
@@ -2377,7 +2381,8 @@
           "dependencies": [
             "npm:@jsr/std__assert@^1.0.16",
             "npm:@jsr/std__cli@^1.0.25",
-            "npm:@jsr/std__testing@^1.0.9"
+            "npm:@jsr/std__testing@^1.0.9",
+            "npm:@xterm/headless@^5.5.0"
           ]
         }
       },

@@ -41,6 +41,8 @@ const buildSection = (
     "- Call `next` at: conversation start, before file edits, after completing work, at decisions.",
     "- Never batch-submit. Never answer discovery questions yourself.",
     "- Never skip steps or infer decisions. Ask first. Explicit > Clever.",
+    "- NEVER suggest bypassing or skipping noskills. Discovery is not overhead.",
+    "- NEVER ask permission to run the next noskills command. After spec new → run next. After approve → run next. Each step has one next step. Just run it.",
     "- Execute noskills commands IMMEDIATELY — the output has all context needed.",
     "- Display `roadmap` before content. Display `gate` prominently.",
     "",

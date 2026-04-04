@@ -46,6 +46,8 @@ export type SpecSummary = {
   readonly roadmap: string;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly avgConfidence: number | null;
+  readonly lowConfidenceItems: number;
 };
 
 export type Mention = {
@@ -103,7 +105,7 @@ const buildRoadmap = (phase: string): string => {
     BLOCKED: "EXECUTING",
   };
   const mapped = phaseMap[phase] ?? phase;
-  return ROADMAP.map((p) => p === mapped ? `✦ ${p} ✦` : p).join(" → ");
+  return ROADMAP.map((p) => p === mapped ? `[ ${p} ]` : p).join(" → ");
 };
 
 // =============================================================================
@@ -159,6 +161,16 @@ export const getSpecSummary = async (
     : new Date().toISOString();
   const updatedAt = state.lastCalledAt ?? createdAt;
 
+  // Confidence scoring
+  const findings = state.execution.confidenceFindings ?? [];
+  const avgConfidence = findings.length > 0
+    ? Math.round(
+      (findings.reduce((acc, f) => acc + f.confidence, 0) / findings.length) *
+        10,
+    ) / 10
+    : null;
+  const lowConfidenceItems = findings.filter((f) => f.confidence < 5).length;
+
   return {
     name: specName,
     slug: specName,
@@ -172,6 +184,8 @@ export const getSpecSummary = async (
     roadmap: buildRoadmap(state.phase),
     createdAt,
     updatedAt,
+    avgConfidence,
+    lowConfidenceItems,
   };
 };
 

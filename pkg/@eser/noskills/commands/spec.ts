@@ -39,6 +39,7 @@ const RESERVED_NAMES = new Set([
   "note",
   "review",
   "delegate",
+  "followup",
 ]);
 
 // Stop words to strip when generating slugs from descriptions
@@ -101,8 +102,19 @@ const SLUG_STOP_WORDS = new Set([
  * Generate a slug from a description string.
  * Picks first 5–6 significant words, kebab-cases them, max 50 chars.
  */
+/** Strip filesystem paths from description before slug generation. */
+const stripPaths = (text: string): string =>
+  text
+    // Absolute, home, relative paths: /foo/bar, ~/foo/bar, ./foo, ../foo
+    .replace(/(?:~|\.{1,2})?\/(?:[\w@.-]+\/)*[\w@.-]+/g, " ")
+    // Remaining slash-heavy tokens (e.g. projects/playground/something)
+    .replace(/(?:[\w@.-]+\/){2,}[\w@.-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const slugFromDescription = (description: string): string => {
-  const words = description
+  const cleaned = stripPaths(description);
+  const words = cleaned
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "")
     .split(/\s+/)
@@ -144,6 +156,8 @@ const SPEC_SUBCOMMANDS: ReadonlyMap<
   ["reopen", () => import("./reopen.ts")],
   ["review", () => import("./review.ts")],
   ["delegate", () => import("./delegate.ts")],
+  ["followup", () => import("./followup.ts")],
+  ["learn", () => import("./learn.ts")],
 ]);
 
 export { looksLikeDescription, RESERVED_NAMES, slugFromDescription };

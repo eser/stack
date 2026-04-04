@@ -111,9 +111,10 @@ export const render = (
   // Use scroll container primitives for scroll offset management
   const innerWidth = panel.width - 2;
   const viewportHeight = panel.height - 2;
+  const clampedIndex = Math.max(0, Math.min(selectedIndex, items.length - 1));
   const scrollState = tui.scrollContainer.ensureVisible(
     tui.scrollContainer.createScrollState(items.length, viewportHeight),
-    selectedIndex,
+    clampedIndex,
   );
   const range = tui.scrollContainer.visibleRange(scrollState);
 
@@ -123,14 +124,20 @@ export const render = (
     const idx = range.start + vi;
     const row = panel.y + 1 + vi;
 
-    if (idx >= range.end) {
+    if (idx >= range.end || idx >= items.length) {
       lines.push(
         tui.ansi.moveTo(row, panel.x + 1) + " ".repeat(innerWidth),
       );
       continue;
     }
 
-    const item = items[idx]!;
+    const item = items[idx];
+    if (item === undefined) {
+      lines.push(
+        tui.ansi.moveTo(row, panel.x + 1) + " ".repeat(innerWidth),
+      );
+      continue;
+    }
     const isSelectable = item.selectable !== false;
     const selected = idx === selectedIndex && isSelectable;
     const bullet = item.active

@@ -1,7 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * `noskills init` — Initialize .eser/ in project with guided onboarding.
+ * `noskills init` — Initialize and sync .eser/ in project. Idempotent.
+ *
+ * Creates directories, config, and tool files. Always safe to re-run.
+ * Subsumes the old `sync` command — tool files are regenerated every time.
  *
  * @module
  */
@@ -38,20 +41,17 @@ export const main = async (
   const nonInteractive = cleanArgs.includes("--non-interactive") ||
     mode === "agent";
 
-  // Check if already initialized
-  if (await persistence.isInitialized(root)) {
-    tui.log.warn(ctx, "noskills is already initialized in this project.");
-    tui.log.info(
-      ctx,
-      `Run \`${cmd("sync")}\` to regenerate tool files.`,
-    );
-
-    return results.ok(undefined);
-  }
+  const alreadyInitialized = await persistence.isInitialized(root);
 
   tui.intro(ctx, "noskills init");
 
-  // ── Step 1: Detect project traits ──
+  // ── Step 1: Scaffold directories (idempotent) ──
+  const scaffoldSpinner = tui.createSpinner(ctx, "Checking directories...");
+  scaffoldSpinner.start();
+  await persistence.scaffoldEserDir(root);
+  scaffoldSpinner.succeed("Config: .eser/");
+
+  // ── Step 2: Project detection ──
   const scanSpinner = tui.createSpinner(ctx, "Scanning project...");
   scanSpinner.start();
   const project = await codebaseDetect.detectProject(root);
@@ -63,21 +63,14 @@ export const main = async (
   for (const fw of project.frameworks) {
     tui.log.step(ctx, `  ${fw}`);
   }
-  for (const ci of project.ci) {
-    tui.log.step(ctx, `  ${ci}`);
-  }
-  if (project.testRunner !== null) {
-    tui.log.step(ctx, `  test runner: ${project.testRunner}`);
-  }
 
   tui.gap(ctx);
 
-  // ── Step 2: Detect coding tools ──
+  // ── Step 3: Detect coding tools ──
   const toolSpinner = tui.createSpinner(ctx, "Detecting coding tools...");
   toolSpinner.start();
   const detectedTools = await toolDetect.detectCodingTools(root);
 
-  // Auto-inject the agent we're currently running inside
   const currentAgent = detectAgentTool();
   const guaranteed: schema.CodingToolId[] = currentAgent !== null &&
       !detectedTools.includes(currentAgent)
@@ -89,15 +82,9 @@ export const main = async (
 
   toolSpinner.succeed(`${allDetected.length} coding tool(s) detected`);
 
-  for (const tool of allDetected) {
-    const suffix = tool === currentAgent ? " (current)" : "";
-    tui.log.step(ctx, `  ${tool}${suffix}`);
-  }
-
   let codingTools: schema.CodingToolId[];
 
   if (parsedTools !== null) {
-    // Explicit --tools flag — still guarantee current agent
     const valid: schema.CodingToolId[] = [
       "claude-code",
       "cursor",
@@ -112,18 +99,22 @@ export const main = async (
       valid.includes(t as schema.CodingToolId)
     );
     codingTools = [...new Set([...guaranteed, ...parsed])];
+  } else if (alreadyInitialized) {
+    // Re-init: use tools from existing config
+    const existingConfig = await persistence.readManifest(root);
+    codingTools = existingConfig !== null
+      ? [...existingConfig.tools]
+      : [...allDetected];
   } else if (nonInteractive) {
     codingTools = [...allDetected];
   } else {
     tui.gap(ctx);
-
-    // Interactive: let user confirm/add tools (current agent non-deselectable)
     codingTools = await pickCodingTools(ctx, allDetected, currentAgent);
   }
 
   tui.gap(ctx);
 
-  // ── Step 3: Detect AI providers ──
+  // ── Step 4: Detect AI providers ──
   const providerSpinner = tui.createSpinner(
     ctx,
     "Detecting AI providers...",
@@ -137,20 +128,24 @@ export const main = async (
 
   tui.gap(ctx);
 
-  // ── Step 4: Concern picker ──
+  // ── Step 5: Concerns ──
   const allConcerns = await concernDefs.loadDefaultConcerns();
   let selectedConcernIds: string[];
 
   if (parsedConcerns !== null) {
-    // Non-interactive: use --concerns flag, sorted by canonical order
     const canonicalOrder = allConcerns.map((c) => c.id);
     selectedConcernIds = parsedConcerns
       .filter((id) => canonicalOrder.includes(id))
       .sort((a, b) => canonicalOrder.indexOf(a) - canonicalOrder.indexOf(b));
+  } else if (alreadyInitialized) {
+    // Re-init: use concerns from existing config
+    const existingConfig = await persistence.readManifest(root);
+    selectedConcernIds = existingConfig !== null
+      ? [...existingConfig.concerns]
+      : [];
   } else if (nonInteractive) {
     selectedConcernIds = [];
   } else {
-    // Interactive concern picker via tui.multiselect
     const options = allConcerns.map((c) => ({
       value: c.id,
       label: c.name,
@@ -170,22 +165,11 @@ export const main = async (
 
   if (selectedConcernIds.length > 0) {
     tui.log.success(ctx, ` Concerns: ${selectedConcernIds.join(", ")}`);
-  } else {
-    tui.log.info(
-      ctx,
-      "No concerns selected. Add later with `concern add <id> [<id2> ...]`.",
-    );
   }
 
   tui.gap(ctx);
 
-  // ── Step 5: Scaffold directories ──
-  const initSpinner = tui.createSpinner(ctx, "Initializing...");
-  initSpinner.start();
-
-  await persistence.scaffoldEserDir(root);
-
-  // Write only selected concerns to .eser/concerns/
+  // ── Step 6: Write concerns ──
   const selectedConcerns = allConcerns.filter((c) =>
     selectedConcernIds.includes(c.id)
   );
@@ -193,11 +177,10 @@ export const main = async (
     await persistence.writeConcern(root, concern);
   }
 
-  // ── Step 6: Capture invocation prefix ──
+  // ── Step 7: Write config ──
   const commandPrefix = await extractPrefix();
   setCommandPrefix(commandPrefix);
 
-  // ── Step 7: Write config ──
   const config: schema.NosManifest = {
     ...schema.createInitialManifest(
       selectedConcernIds,
@@ -209,24 +192,22 @@ export const main = async (
   };
   await persistence.writeManifest(root, config);
 
-  // Write initial state
-  const state = schema.createInitialState();
-  await persistence.writeState(root, state);
+  // Write state only if not already initialized
+  if (!alreadyInitialized) {
+    const state = schema.createInitialState();
+    await persistence.writeState(root, state);
+  }
 
-  initSpinner.succeed("Scaffolded `.eser/`");
-
-  // ── Step 8: Auto-sync ──
+  // ── Step 8: Sync tool files (ALWAYS — this is the key idempotent step) ──
   if (codingTools.length > 0) {
     const syncSpinner = tui.createSpinner(ctx, "Syncing tool files...");
     syncSpinner.start();
     const synced = await syncEngine.syncAll(root, codingTools, config);
     syncSpinner.succeed(`Synced ${synced.length} tool(s)`);
-  } else {
-    tui.log.warn(
-      ctx,
-      "No tools selected. noskills will work in agentless CLI mode only.",
-    );
-    tui.log.info(ctx, "Add tools later with `noskills sync`.");
+
+    for (const id of synced) {
+      tui.log.step(ctx, `  ${id}`);
+    }
   }
 
   // ── Summary ──
@@ -235,8 +216,9 @@ export const main = async (
     `Done. ${codingTools.length} tool(s), ${availableProviders.length} provider(s), ${selectedConcernIds.length} concern(s).`,
   );
 
-  // In agent mode: output the IDLE instruction so the agent knows what to do next
+  // In agent mode: output the IDLE instruction
   if (mode === "agent") {
+    const state = await persistence.readState(root);
     const allConcernDefs = await concernDefs.loadDefaultConcerns();
     const active = allConcernDefs.filter((c) =>
       selectedConcernIds.includes(c.id)
@@ -280,7 +262,7 @@ const ALL_TOOLS: readonly {
   { value: "copilot-cli", label: "Copilot CLI" },
 ];
 
-/** Interactive tool picker — pre-selects auto-detected tools, lets user add more. */
+/** Interactive tool picker. */
 const pickCodingTools = async (
   ctx: tui.TuiContext,
   detected: readonly schema.CodingToolId[],
@@ -311,9 +293,7 @@ const pickCodingTools = async (
     return [...detected];
   }
 
-  // Ensure current agent is always included (disabled items aren't in selection)
   const result = [...selected as schema.CodingToolId[]];
-
   if (currentAgent !== null && !result.includes(currentAgent)) {
     result.unshift(currentAgent);
   }

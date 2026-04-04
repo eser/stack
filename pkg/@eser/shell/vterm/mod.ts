@@ -3,14 +3,11 @@
 /**
  * @module @eser/shell/vterm
  *
- * Virtual terminal emulator -- parses ANSI escape sequences and maintains
- * a 2D character grid. Used by TUI widgets to embed terminal output.
+ * Virtual terminal emulator — powered by @xterm/headless for 100% terminal
+ * compatibility. Parses all ANSI escape sequences and maintains a 2D
+ * character grid. Used by TUI widgets to embed terminal output.
  */
 
-export { type Cell, ScreenBuffer } from "./screen.ts";
-export { Cursor } from "./cursor.ts";
-export { defaultStyle, parseSGR, type RGB, type TextStyle } from "./sgr.ts";
-export { AnsiParser, type ParsedSequence } from "./parser.ts";
 export { VTerminal } from "./terminal.ts";
 export {
   type RenderOptions,

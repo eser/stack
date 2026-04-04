@@ -14,6 +14,7 @@ import type { InteractionHints } from "../sync/adapter.ts";
 import { DEFAULT_CONCERNS } from "../defaults/concerns/mod.ts";
 import * as questions from "./questions.ts";
 import * as concerns from "./concerns.ts";
+import * as learningsModule from "../dashboard/learnings.ts";
 import * as splitDetector from "./split-detector.ts";
 import type { ParsedSpec } from "../spec/parser.ts";
 import type { FolderRule } from "./folder-rules.ts";
@@ -156,6 +157,9 @@ export type DiscoveryOutput = {
   readonly richDescription?: RichDescriptionOutput;
   readonly agreedPremises?: readonly string[];
   readonly revisedPremises?: readonly { original: string; revision: string }[];
+  readonly followUpHints?: readonly string[];
+  readonly pendingFollowUps?: readonly schema.FollowUp[];
+  readonly previousLearnings?: readonly string[];
 };
 
 export type DiscoveryReviewAnswer = {
@@ -315,6 +319,11 @@ export type CompletedOutput = {
     readonly instruction: string;
     readonly examples: readonly string[];
   };
+  readonly staleDiagrams?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly reason: string;
+  }[];
 };
 
 export type InteractiveOption = {
@@ -421,6 +430,10 @@ const buildBehavioral = (
     "Report progress honestly. Not done = 'not done'. Partial = 'partial: [works]/[doesn't]'. Untested = 'untested'. 4 of 6 = '4 of 6 done, 2 remaining'.",
     `Never skip steps or infer decisions. ${askMethod} Recommend first, then ask. One noskills call per interaction — never batch-submit or backfill.`,
     "Display `roadmap` before other content. Display `gate` prominently.",
+    "NEVER suggest bypassing, skipping, or 'breaking out of' noskills. Discovery helps the user — it is not an obstacle. If scope changes: revise spec, reset and create new, or split.",
+    "NEVER ask permission to run the next noskills command. After spec new → run next immediately. After answering questions → run next. After approve → run next. After task completion → run next. The workflow is sequential — each step has one next step. Just run it.",
+    'Discovery questions are adaptive. After each answer, generate 1-3 follow-up questions if the answer reveals ambiguity, risk, dependencies, or missing detail. Submit follow-ups via `noskills spec <name> followup <questionId> "question"`. Max 3 per question. Do NOT rush through discovery.',
+    "Confidence scoring: every technical finding needs a confidence score (1-10). 9-10: verified (read code, ran test). 7-8: strong evidence. 5-6: reasonable inference. 3-4: guess. 1-2: speculation. State basis ('read X', 'inferred from Y'). If confidence < 5, prefix with '\u26A0 Unverified:'.",
   );
   const scopeItems = parsedSpec?.outOfScope ?? [];
 
@@ -810,13 +823,13 @@ const buildRoadmap = (phase: schema.Phase): string => {
   if (phase === "BLOCKED") {
     // Show EXECUTING highlighted with BLOCKED note
     return ROADMAP_PHASES.map((p) =>
-      p.key === "EXECUTING" ? `✦ EXECUTING (BLOCKED) ✦` : p.label
+      p.key === "EXECUTING" ? `[ EXECUTING (BLOCKED) ]` : p.label
     ).join(" → ");
   }
   // Highlight current phase — IDLE highlights the first IDLE in the roadmap
   return ROADMAP_PHASES.map((p) => {
-    if (p.key === "IDLE" && phase === "IDLE") return `✦ IDLE ✦`;
-    if (p.key === phase) return `✦ ${p.label} ✦`;
+    if (p.key === "IDLE" && phase === "IDLE") return `[ IDLE ]`;
+    if (p.key === phase) return `[ ${p.label} ]`;
     return p.label;
   }).join(" → ");
 };
@@ -862,6 +875,7 @@ export const compile = async (
   interactionHints?: InteractionHints,
   currentUser?: { name: string; email: string },
   tier2Count?: number,
+  projectRoot?: string,
 ): Promise<NextOutput> => {
   const meta = buildMeta(state, activeConcerns);
   const maxIter = config?.maxIterationsBeforeRestart ?? 15;
@@ -909,6 +923,7 @@ export const compile = async (
         activeConcerns,
         rules,
         currentUser,
+        projectRoot,
       );
       break;
     case "DISCOVERY_REVIEW":
@@ -934,7 +949,7 @@ export const compile = async (
       phaseOutput = compileBlocked(state);
       break;
     case "COMPLETED":
-      phaseOutput = compileCompleted(state);
+      phaseOutput = await compileCompleted(state, projectRoot);
       break;
     default:
       phaseOutput = compileIdle(
@@ -1265,6 +1280,83 @@ const buildPlanContext = async (
   }
 };
 
+/** Generate follow-up hints based on answer content. */
+const generateFollowUpHints = (answer: string): readonly string[] => {
+  const hints: string[] = [];
+  const lower = answer.toLowerCase();
+
+  // Technology mentions
+  const techPatterns = [
+    "websocket",
+    "graphql",
+    "grpc",
+    "redis",
+    "postgres",
+    "mongodb",
+    "kafka",
+    "rabbitmq",
+    "docker",
+    "kubernetes",
+    "lambda",
+    "s3",
+  ];
+  for (const tech of techPatterns) {
+    if (lower.includes(tech)) {
+      hints.push(
+        `Answer mentions ${tech} — consider: error handling, versioning, fallback strategy`,
+      );
+    }
+  }
+
+  // Vague signals
+  if (
+    lower.includes("should work") || lower.includes("standard approach") ||
+    lower.includes("probably") || lower.includes("i think") ||
+    lower.includes("not sure")
+  ) {
+    hints.push("Answer is vague — ask for specifics");
+  }
+
+  // Scope signals
+  if (
+    lower.includes("and also") || lower.includes("we might") ||
+    lower.includes("could also") || lower.includes("maybe we should")
+  ) {
+    hints.push("Scope expansion signal — clarify if in scope or deferred");
+  }
+
+  // Risk signals
+  if (
+    lower.includes("tricky") || lower.includes("complicated") ||
+    lower.includes("risky") || lower.includes("not sure about")
+  ) {
+    hints.push("Risk signal — dig deeper into what makes it risky");
+  }
+
+  // Dependency signals
+  if (
+    lower.includes("depends on") || lower.includes("after") ||
+    lower.includes("blocked by") || lower.includes("waiting for")
+  ) {
+    hints.push(
+      "Dependency detected — clarify what happens if dependency isn't ready",
+    );
+  }
+
+  // Performance/scale
+  if (
+    lower.includes("real-time") || lower.includes("scalab") ||
+    lower.includes("performance") || lower.includes("latency") ||
+    lower.includes("concurrent")
+  ) {
+    hints.push(
+      "Performance/scale mention — ask about limits, degradation, monitoring",
+    );
+  }
+
+  return hints;
+};
+
 const getModeRules = (mode: schema.DiscoveryMode): readonly string[] => {
   switch (mode) {
     case "full":
@@ -1325,6 +1417,7 @@ const compileDiscovery = async (
   activeConcerns: readonly schema.ConcernDefinition[],
   rules: readonly string[],
   currentUser?: { name: string; email: string },
+  projectRoot?: string,
 ): Promise<DiscoveryOutput> => {
   const specName = state.spec;
   const allQuestions = questions.getQuestionsWithExtras(activeConcerns);
@@ -1407,10 +1500,30 @@ const compileDiscovery = async (
         ],
       },
     };
-    if (currentUser !== undefined) {
-      return { ...modeOutput, currentUser };
+
+    // Inject learnings from previous specs
+    let enrichedMode = modeOutput;
+    if (projectRoot !== undefined) {
+      try {
+        const relevant = await learningsModule.getRelevantLearnings(
+          projectRoot,
+          state.specDescription ?? "",
+        );
+        if (relevant.length > 0) {
+          enrichedMode = {
+            ...enrichedMode,
+            previousLearnings: learningsModule.formatLearnings(relevant),
+          };
+        }
+      } catch {
+        // best effort
+      }
     }
-    return modeOutput;
+
+    if (currentUser !== undefined) {
+      return { ...enrichedMode, currentUser };
+    }
+    return enrichedMode;
   }
 
   // ── Premise challenge step (after mode, before Q1) ──
@@ -1581,6 +1694,25 @@ const compileDiscovery = async (
               "The user provided a detailed description. For each question, extract relevant info and present as a pre-filled suggestion. IMPORTANT: When extracting answers from the description, mark each extraction as [STATED] (directly written by the user) or [INFERRED] (your interpretation). Present extractions individually for confirmation.",
           },
         };
+      }
+    }
+
+    // Enrich with follow-up hints and pending follow-ups
+    const pendingFU = (state.discovery.followUps ?? []).filter(
+      (f) => f.status === "pending",
+    );
+    if (pendingFU.length > 0) {
+      enrichedAgent = { ...enrichedAgent, pendingFollowUps: pendingFU };
+    }
+
+    // Generate follow-up hints based on the last answered question
+    const lastAnswer = state.discovery.answers.length > 0
+      ? state.discovery.answers[state.discovery.answers.length - 1]!
+      : undefined;
+    if (lastAnswer !== undefined) {
+      const hints = generateFollowUpHints(lastAnswer.answer);
+      if (hints.length > 0) {
+        enrichedAgent = { ...enrichedAgent, followUpHints: hints };
       }
     }
 
@@ -2278,22 +2410,58 @@ const compileBlocked = (state: schema.StateFile): BlockedOutput => {
   };
 };
 
-const compileCompleted = (state: schema.StateFile): CompletedOutput => ({
-  phase: "COMPLETED",
-  summary: {
-    spec: state.spec,
-    iterations: state.execution.iteration,
-    decisionsCount: state.decisions.length,
-    completionReason: state.completionReason,
-    completionNote: state.completionNote,
-  },
-  learningPrompt: {
-    instruction:
-      "Before closing this spec, reflect: did you discover any project-specific patterns, pitfalls, or preferences during this work? If so, suggest them as permanent rules.",
-    examples: [
-      "This project uses specific allocators — rule: 'All heap allocations go through the engine allocator, never raw malloc'",
-      "Tests need special flags — rule: 'Always run deno test with --allow-all flag'",
-      "PR titles follow a pattern — rule: 'PR titles follow conventional commits format (feat:/fix:/chore:)'",
-    ],
-  },
-});
+const compileCompleted = async (
+  state: schema.StateFile,
+  projectRoot?: string,
+): Promise<CompletedOutput> => {
+  const base: CompletedOutput = {
+    phase: "COMPLETED",
+    summary: {
+      spec: state.spec,
+      iterations: state.execution.iteration,
+      decisionsCount: state.decisions.length,
+      completionReason: state.completionReason,
+      completionNote: state.completionNote,
+    },
+    learningPrompt: {
+      instruction:
+        `Record learnings. For each insight, decide: one-time learning or permanent rule? One-time ("assumed X, was Y") → \`learn "text"\`. Permanent ("always/never do X") → \`learn "text" --rule\`. Run: \`noskills spec ${
+          state.spec ?? "<name>"
+        } learn "text"\` or \`learn "text" --rule\`.`,
+      examples: [
+        `noskills spec ${
+          state.spec ?? "upload"
+        } learn "Assumed S3 SDK v2, was v3"`,
+        `noskills spec ${
+          state.spec ?? "upload"
+        } learn "Always use Result types" --rule`,
+        `noskills learn promote 1`,
+      ],
+    },
+  };
+
+  // Check for stale diagrams
+  if (projectRoot !== undefined) {
+    try {
+      const { checkStaleness } = await import("../dashboard/diagrams.ts");
+      const stale = await checkStaleness(
+        projectRoot,
+        state.execution.modifiedFiles as string[],
+      );
+      if (stale.length > 0) {
+        return {
+          ...base,
+          staleDiagrams: stale.map((s) => ({
+            file: s.file,
+            line: s.line,
+            reason: s.reason,
+          })),
+        };
+      }
+    } catch {
+      // best effort
+    }
+  }
+
+  return base;
+};

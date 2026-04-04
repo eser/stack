@@ -54,6 +54,35 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
+  // Jidoka C2: verify last status report exists and has no critical remaining items
+  if (state.execution.awaitingStatusReport) {
+    out.writeln(
+      span.red("Cannot complete: status report is pending."),
+    );
+    out.writeln(
+      span.dim(
+        `Submit a status report first: ${
+          cmd('next --answer=\'{"completed":[...],"remaining":[...]}\'')
+        }`,
+      ),
+    );
+    await out.close();
+    return results.fail({ exitCode: 1 });
+  }
+
+  // Check if there are unresolved debt items
+  if (state.execution.debt !== null && state.execution.debt.items.length > 0) {
+    out.writeln(
+      span.yellow(
+        `Warning: ${state.execution.debt.items.length} unresolved debt item(s).`,
+      ),
+    );
+    for (const item of state.execution.debt.items) {
+      out.writeln(span.dim(`  - ${item.id}: ${item.text}`));
+    }
+    out.writeln("");
+  }
+
   // State integrity check: verify active spec directory exists
   if (state.spec !== null) {
     const specDir = `${root}/${persistence.paths.specDir(state.spec)}`;

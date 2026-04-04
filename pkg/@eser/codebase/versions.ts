@@ -161,6 +161,58 @@ const writeVersionFile = async (
 };
 
 /**
+ * Syncs @eserstack/ajan-* optionalDependencies and dist/npm platform
+ * package.json files to match the target version.
+ */
+const syncAjanVersions = async (
+  root: string,
+  version: string,
+): Promise<void> => {
+  const runtime = standards.crossRuntime.runtime;
+
+  // 1. Update optionalDependencies in pkg/@eser/ajan/package.json
+  const ajanPkgPath = stdPath.join(root, "pkg/@eser/ajan/package.json");
+  try {
+    const content = await runtime.fs.readTextFile(ajanPkgPath);
+    const updated = content.replace(
+      /"@eserstack\/ajan-[^"]+": "[^"]+"/g,
+      (match) => {
+        const name = match.split(":")[0]!;
+        return `${name}: "${version}"`;
+      },
+    );
+    if (updated !== content) {
+      await runtime.fs.writeTextFile(ajanPkgPath, updated);
+    }
+  } catch {
+    // ajan package may not exist in all contexts
+  }
+
+  // 2. Update dist/npm platform package.json files
+  const distNpmDir = stdPath.join(root, "pkg/@eser/ajan/dist/npm");
+  try {
+    for await (const entry of runtime.fs.readDir(distNpmDir)) {
+      if (!entry.isDirectory || !entry.name.startsWith("ajan-")) continue;
+      const pkgPath = stdPath.join(distNpmDir, entry.name, "package.json");
+      try {
+        const content = await runtime.fs.readTextFile(pkgPath);
+        const updated = content.replace(
+          /"version": "[^"]+"/,
+          `"version": "${version}"`,
+        );
+        if (updated !== content) {
+          await runtime.fs.writeTextFile(pkgPath, updated);
+        }
+      } catch {
+        // file may not exist
+      }
+    }
+  } catch {
+    // dist/npm directory may not exist
+  }
+};
+
+/**
  * Finds the highest version from an array of version strings.
  */
 const findHighestVersion = (versions: string[]): string => {
@@ -273,6 +325,11 @@ export const versions = async (
       to: targetVersion,
       changed: needsUpdate,
     });
+  }
+
+  // Sync ajan optionalDependencies + dist/npm platform packages
+  if (!dryRun) {
+    await syncAjanVersions(root, targetVersion);
   }
 
   // Update VERSION file

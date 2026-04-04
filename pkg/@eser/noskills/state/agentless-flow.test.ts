@@ -103,7 +103,7 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
       state = machine.addDiscoveryAnswer(
         state,
         q.id,
-        answers[q.id] ?? "default answer",
+        answers[q.id] ?? "default answer with enough detail to pass validation",
       );
     }
 
@@ -362,9 +362,21 @@ describe("Dual entry: CLI and agent produce identical state", () => {
       "spec/dual-test",
     );
     const qs = questions.getQuestionsWithExtras([]);
-    state = machine.addDiscoveryAnswer(state, qs[0]!.id, "cli answer 1");
-    state = machine.addDiscoveryAnswer(state, qs[1]!.id, "cli answer 2");
-    state = machine.addDiscoveryAnswer(state, qs[2]!.id, "cli answer 3");
+    state = machine.addDiscoveryAnswer(
+      state,
+      qs[0]!.id,
+      "cli answer 1 with detailed explanation of the requirement",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      qs[1]!.id,
+      "cli answer 2 covering the implementation approach",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      qs[2]!.id,
+      "cli answer 3 describing the verification strategy",
+    );
 
     assertEquals(state.discovery.answers.length, 3);
 

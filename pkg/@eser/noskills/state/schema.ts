@@ -140,6 +140,10 @@ export type DiscoveryState = {
   readonly contributors?: readonly string[];
   readonly delegations?: readonly Delegation[];
   readonly followUps?: readonly FollowUp[];
+  readonly userContext?: string;
+  readonly userContextProcessed?: boolean;
+  /** Jidoka C1: answers were batch-submitted by agent and need user confirmation. */
+  readonly batchSubmitted?: boolean;
 };
 
 // =============================================================================
@@ -404,6 +408,16 @@ export type ConcernExtra = {
   readonly text: string;
 };
 
+export type ReviewDimensionScope = "all" | "ui" | "api" | "data";
+
+export type ReviewDimension = {
+  readonly id: string;
+  readonly label: string;
+  readonly prompt: string;
+  readonly evidenceRequired: boolean;
+  readonly scope: ReviewDimensionScope;
+};
+
 export type ConcernDefinition = {
   readonly id: string;
   readonly name: string;
@@ -412,4 +426,7 @@ export type ConcernDefinition = {
   readonly specSections: readonly string[];
   readonly reminders: readonly string[];
   readonly acceptanceCriteria: readonly string[];
+  readonly reviewDimensions?: readonly ReviewDimension[];
+  readonly registries?: readonly string[];
+  readonly dreamStatePrompt?: string;
 };

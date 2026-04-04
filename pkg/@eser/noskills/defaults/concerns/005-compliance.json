@@ -22,5 +22,21 @@
     "Audit trail added for state changes",
     "Access control verified",
     "Data handling documented"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "audit-completeness",
+      "label": "Audit Trail Completeness",
+      "prompt": "For every state mutation in this change: is it logged? Who, what, when, from-value, to-value? Can you reconstruct the full history of any record from the audit log alone?",
+      "evidenceRequired": true,
+      "scope": "data"
+    },
+    {
+      "id": "data-lifecycle",
+      "label": "Data Lifecycle & Retention",
+      "prompt": "What data does this feature create, read, update, delete? What's the retention policy? Can a user request deletion (GDPR)? Is PII identified and handled correctly?",
+      "evidenceRequired": true,
+      "scope": "data"
+    }
   ]
 }

@@ -277,10 +277,18 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
 
   const phase = (state["phase"] as string) ?? "UNKNOWN";
 
+  // UNKNOWN phase = default-deny (Jidoka: if phase can't be determined, block)
+  if (phase === "UNKNOWN") {
+    await writeDeny(
+      "Phase unknown — file edit blocked. Run `noskills status` to check state.",
+    );
+    return results.ok(undefined);
+  }
+
   // Allow writes in phases where the agent should be free to work
   if (
     phase === "EXECUTING" || phase === "IDLE" ||
-    phase === "COMPLETED" || phase === "UNKNOWN"
+    phase === "COMPLETED"
   ) {
     // Sub-agent spawning reminder (once per session, non-blocking)
     if (phase === "EXECUTING" && gatedTools.includes(toolName)) {

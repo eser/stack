@@ -191,9 +191,9 @@ describe("--concerns flag parsing", () => {
 // =============================================================================
 
 describe("Built-in concerns", () => {
-  it("all 6 built-in concerns have required fields", async () => {
+  it("all 7 built-in concerns have required fields", async () => {
     const concerns = await loadDefaultConcerns();
-    assertEquals(concerns.length, 6);
+    assertEquals(concerns.length, 7);
 
     for (const c of concerns) {
       assertEquals(typeof c.id, "string");
@@ -218,6 +218,7 @@ describe("Built-in concerns", () => {
       "long-lived",
       "move-fast",
       "open-source",
+      "well-engineered",
     ]);
   });
 });

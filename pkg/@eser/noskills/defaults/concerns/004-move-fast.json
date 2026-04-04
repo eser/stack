@@ -21,5 +21,14 @@
   "acceptanceCriteria": [
     "Core functionality works",
     "v2 items explicitly deferred"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "scope-knife",
+      "label": "Scope Knife",
+      "prompt": "For every task in this spec: is it v1-essential or v2-deferrable? Apply the rule: if removing this task still leaves a usable feature, it's v2. Be aggressive — list everything you'd cut and what remains.",
+      "evidenceRequired": false,
+      "scope": "all"
+    }
   ]
 }

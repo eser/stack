@@ -10,6 +10,10 @@
     {
       "questionId": "user_impact",
       "text": "Does this make contribution harder?"
+    },
+    {
+      "questionId": "verification",
+      "text": "Can a new contributor understand and modify this within 30 minutes of reading?"
     }
   ],
   "specSections": ["Contributor Guide", "Public API Surface"],
@@ -23,5 +27,28 @@
     "Public API documented",
     "Changes reflected in README or relevant docs",
     "No exclusionary patterns introduced"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "contributor-onboarding",
+      "label": "Contributor Onboarding",
+      "prompt": "Walk through the contributor journey: clone → install → run → modify → test → PR. Where does it break? What's undocumented? What would confuse someone seeing this repo for the first time?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "api-surface-quality",
+      "label": "API Surface Quality",
+      "prompt": "Review every public export, CLI flag, and config option touched by this change. Are names self-explanatory? Are defaults sensible? Is progressive disclosure working (simple things simple, complex things possible)?",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "docs-findability",
+      "label": "Documentation Findability",
+      "prompt": "For each new feature: can a user discover it from README? Are code examples copy-paste runnable? Is there a gap between 'documented' and 'findable'?",
+      "evidenceRequired": true,
+      "scope": "all"
+    }
   ]
 }

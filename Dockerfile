@@ -1,4 +1,4 @@
-FROM denoland/deno:2.7.9
+FROM denoland/deno:2.7.11
 
 # Prefer not to run as root.
 USER deno

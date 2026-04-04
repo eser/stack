@@ -95,6 +95,9 @@ export const resolveWasmPath = (
   moduleDirHint?: string,
 ): string => {
   const wasmFile = WASM_FILENAMES[mode] ?? WASM_FILENAMES["command"]!;
+  // Also try .wasm.bin — used in compiled binaries where .wasm is renamed
+  // to avoid Deno's static WASM import validation during deno compile.
+  const wasmVariants = [wasmFile, `${wasmFile}.bin`];
   const distSubdir = mode === "reactor" ? "wasi-reactor" : "wasi";
   const checkedPaths: string[] = [];
 
@@ -110,26 +113,32 @@ export const resolveWasmPath = (
   const moduleDir = getModuleDir(moduleDirHint);
 
   // 2. Adjacent to this module (wasm/ directory)
-  const adjacentPath = `${moduleDir}/${wasmFile}`;
-  checkedPaths.push(adjacentPath);
-  if (fileExists(adjacentPath)) {
-    return adjacentPath;
+  for (const variant of wasmVariants) {
+    const adjacentPath = `${moduleDir}/${variant}`;
+    checkedPaths.push(adjacentPath);
+    if (fileExists(adjacentPath)) {
+      return adjacentPath;
+    }
   }
 
   // 3. In the dist directory for the WASM build output
   // wasm/ is one level below the package root, so go up one level to reach dist/
   const pkgRoot = `${moduleDir}/..`;
-  const distPath = `${pkgRoot}/dist/${distSubdir}/${wasmFile}`;
-  checkedPaths.push(distPath);
-  if (fileExists(distPath)) {
-    return distPath;
+  for (const variant of wasmVariants) {
+    const distPath = `${pkgRoot}/dist/${distSubdir}/${variant}`;
+    checkedPaths.push(distPath);
+    if (fileExists(distPath)) {
+      return distPath;
+    }
   }
 
   // Also try dist/ when moduleDir IS the package root (e.g. cwd fallback)
-  const cwdDistPath = `${moduleDir}/dist/${distSubdir}/${wasmFile}`;
-  checkedPaths.push(cwdDistPath);
-  if (fileExists(cwdDistPath)) {
-    return cwdDistPath;
+  for (const variant of wasmVariants) {
+    const cwdDistPath = `${moduleDir}/dist/${distSubdir}/${variant}`;
+    checkedPaths.push(cwdDistPath);
+    if (fileExists(cwdDistPath)) {
+      return cwdDistPath;
+    }
   }
 
   // Try pkg/@eser/ajan/dist/ from the monorepo root (cwd)
@@ -140,32 +149,39 @@ export const resolveWasmPath = (
       ? g.process.cwd()
       : ".";
   if (cwd !== moduleDir) {
-    const monoDistPath = `${cwd}/pkg/@eser/ajan/dist/${distSubdir}/${wasmFile}`;
-    checkedPaths.push(monoDistPath);
-    if (fileExists(monoDistPath)) {
-      return monoDistPath;
+    for (const variant of wasmVariants) {
+      const monoDistPath =
+        `${cwd}/pkg/@eser/ajan/dist/${distSubdir}/${variant}`;
+      checkedPaths.push(monoDistPath);
+      if (fileExists(monoDistPath)) {
+        return monoDistPath;
+      }
     }
   }
 
   // 4. npm package (e.g. node_modules/@eserstack/ajan-wasm/)
   const searchRoots = [moduleDir, pkgRoot, cwd];
   for (const root of searchRoots) {
-    const npmPath = `${root}/node_modules/@eserstack/ajan-wasm/${wasmFile}`;
-    checkedPaths.push(npmPath);
-    if (fileExists(npmPath)) {
-      return npmPath;
+    for (const variant of wasmVariants) {
+      const npmPath = `${root}/node_modules/@eserstack/ajan-wasm/${variant}`;
+      checkedPaths.push(npmPath);
+      if (fileExists(npmPath)) {
+        return npmPath;
+      }
     }
   }
 
   // 5. System paths
-  const systemPaths = [
-    `/usr/local/lib/${wasmFile}`,
-    `/usr/lib/${wasmFile}`,
-  ];
-  for (const sysPath of systemPaths) {
-    checkedPaths.push(sysPath);
-    if (fileExists(sysPath)) {
-      return sysPath;
+  for (const variant of wasmVariants) {
+    const systemPaths = [
+      `/usr/local/lib/${variant}`,
+      `/usr/lib/${variant}`,
+    ];
+    for (const sysPath of systemPaths) {
+      checkedPaths.push(sysPath);
+      if (fileExists(sysPath)) {
+        return sysPath;
+      }
     }
   }
 

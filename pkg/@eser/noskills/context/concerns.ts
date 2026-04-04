@@ -237,5 +237,78 @@ export const detectTensions = (
     });
   }
 
+  if (ids.includes("well-engineered") && ids.includes("move-fast")) {
+    tensions.push({
+      between: ["well-engineered", "move-fast"],
+      issue:
+        "Engineering rigor vs shipping speed — which quality dimensions (tests, observability, security hardening) can be deferred to v2?",
+    });
+  }
+
+  if (ids.includes("well-engineered") && ids.includes("learning-project")) {
+    tensions.push({
+      between: ["well-engineered", "learning-project"],
+      issue:
+        "Engineering standards vs experimentation freedom — how much test/security/observability rigor is appropriate for an experiment?",
+    });
+  }
+
   return tensions;
+};
+
+// =============================================================================
+// Review Dimensions
+// =============================================================================
+
+export type TaggedReviewDimension = schema.ReviewDimension & {
+  readonly concernId: string;
+};
+
+/** Collect review dimensions from active concerns, filtered by classification scope. */
+export const getReviewDimensions = (
+  activeConcerns: readonly schema.ConcernDefinition[],
+  classification?: schema.SpecClassification | null,
+): readonly TaggedReviewDimension[] => {
+  const dimensions: TaggedReviewDimension[] = [];
+
+  for (const concern of activeConcerns) {
+    for (const dim of concern.reviewDimensions ?? []) {
+      // Scope filter — if classification is null/undefined, include all (safe default)
+      if (classification !== null && classification !== undefined) {
+        if (dim.scope === "ui" && !classification.involvesWebUI) continue;
+        if (dim.scope === "api" && !classification.involvesPublicAPI) continue;
+        if (dim.scope === "data" && !classification.involvesDataHandling) {
+          continue;
+        }
+      }
+
+      dimensions.push({ ...dim, concernId: concern.id });
+    }
+  }
+
+  return dimensions;
+};
+
+/** Collect all registry dimension IDs from active concerns. */
+export const getRegistryDimensionIds = (
+  activeConcerns: readonly schema.ConcernDefinition[],
+): readonly string[] => {
+  const ids: string[] = [];
+  for (const concern of activeConcerns) {
+    for (const reg of concern.registries ?? []) {
+      if (!ids.includes(reg)) ids.push(reg);
+    }
+  }
+  return ids;
+};
+
+/** Collect dream state prompts from active concerns. */
+export const getDreamStatePrompts = (
+  activeConcerns: readonly schema.ConcernDefinition[],
+): readonly string[] => {
+  return activeConcerns
+    .filter((c) =>
+      c.dreamStatePrompt !== undefined && c.dreamStatePrompt.length > 0
+    )
+    .map((c) => c.dreamStatePrompt!);
 };

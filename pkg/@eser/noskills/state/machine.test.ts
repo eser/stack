@@ -20,7 +20,11 @@ const withAnswers = (
 ): schema.StateFile => {
   let s = state;
   for (let i = 0; i < count; i++) {
-    s = machine.addDiscoveryAnswer(s, `q${i}`, `answer-${i}`);
+    s = machine.addDiscoveryAnswer(
+      s,
+      `q${i}`,
+      `answer-${i} with enough detail to pass validation`,
+    );
   }
   return s;
 };
@@ -130,31 +134,59 @@ describe("addDiscoveryAnswer", () => {
     const state = machine.addDiscoveryAnswer(
       inDiscovery(),
       "status_quo",
-      "users do X",
+      "users currently do X and need better tooling",
     );
 
     assertEquals(state.discovery.answers.length, 1);
     assertEquals(state.discovery.answers[0]?.questionId, "status_quo");
-    assertEquals(state.discovery.answers[0]?.answer, "users do X");
+    assertEquals(
+      state.discovery.answers[0]?.answer,
+      "users currently do X and need better tooling",
+    );
   });
 
   it("dedupes by questionId on re-answer", () => {
     let state = machine.addDiscoveryAnswer(
       inDiscovery(),
       "status_quo",
-      "first",
+      "first answer with enough detail",
     );
-    state = machine.addDiscoveryAnswer(state, "status_quo", "updated");
+    state = machine.addDiscoveryAnswer(
+      state,
+      "status_quo",
+      "updated answer with more detail",
+    );
 
     assertEquals(state.discovery.answers.length, 1);
-    assertEquals(state.discovery.answers[0]?.answer, "updated");
+    assertEquals(
+      state.discovery.answers[0]?.answer,
+      "updated answer with more detail",
+    );
   });
 
   it("throws if not in DISCOVERY phase", () => {
     assertThrows(
-      () => machine.addDiscoveryAnswer(idle(), "q1", "a1"),
+      () =>
+        machine.addDiscoveryAnswer(
+          idle(),
+          "q1",
+          "a meaningful answer here",
+        ),
       Error,
       "Cannot add discovery answer in phase: IDLE",
+    );
+  });
+
+  it("rejects short answers (Jidoka: I1)", () => {
+    assertThrows(
+      () => machine.addDiscoveryAnswer(inDiscovery(), "q1", "yes"),
+      Error,
+      "Answer too short",
+    );
+    assertThrows(
+      () => machine.addDiscoveryAnswer(inDiscovery(), "q1", "   short   "),
+      Error,
+      "Answer too short",
     );
   });
 });
@@ -392,6 +424,41 @@ describe("resetToIdle", () => {
 
     assertEquals(state.version, original.version);
   });
+
+  it("allows reset from IDLE, EXECUTING, BLOCKED, COMPLETED (Jidoka I7)", () => {
+    // IDLE → IDLE (noop but allowed)
+    assertEquals(machine.resetToIdle(idle()).phase, "IDLE");
+    // EXECUTING → IDLE
+    assertEquals(machine.resetToIdle(inExecuting()).phase, "IDLE");
+    // BLOCKED → IDLE
+    assertEquals(machine.resetToIdle(inBlocked()).phase, "IDLE");
+    // COMPLETED → IDLE
+    const completed = machine.completeSpec(inExecuting(), "done");
+    assertEquals(machine.resetToIdle(completed).phase, "IDLE");
+  });
+
+  it("rejects reset from DISCOVERY, DISCOVERY_REVIEW, SPEC_DRAFT, SPEC_APPROVED (Jidoka I7)", () => {
+    assertThrows(
+      () => machine.resetToIdle(inDiscovery()),
+      Error,
+      "Cannot reset from DISCOVERY",
+    );
+    assertThrows(
+      () => machine.resetToIdle(inDiscoveryReview()),
+      Error,
+      "Cannot reset from DISCOVERY_REVIEW",
+    );
+    assertThrows(
+      () => machine.resetToIdle(inSpecDraft()),
+      Error,
+      "Cannot reset from SPEC_DRAFT",
+    );
+    assertThrows(
+      () => machine.resetToIdle(inSpecApproved()),
+      Error,
+      "Cannot reset from SPEC_APPROVED",
+    );
+  });
 });
 
 // =============================================================================
@@ -404,7 +471,10 @@ describe("withAnswers helper", () => {
 
     assertEquals(state.discovery.answers.length, 3);
     assertEquals(state.discovery.answers[0]?.questionId, "q0");
-    assertEquals(state.discovery.answers[2]?.answer, "answer-2");
+    assertEquals(
+      state.discovery.answers[2]?.answer,
+      "answer-2 with enough detail to pass validation",
+    );
   });
 });
 
@@ -554,5 +624,89 @@ describe("completeSpec: command-level guards (IDLE)", () => {
   it("machine allows IDLE → COMPLETED", () => {
     const state = machine.completeSpec(idle(), "cancelled");
     assertEquals(state.phase, "COMPLETED");
+  });
+});
+
+// =============================================================================
+// Jidoka I2: follow-up blocking
+// =============================================================================
+
+describe("completeDiscovery follow-up blocking (Jidoka I2)", () => {
+  it("blocks completion when pending follow-ups exist", () => {
+    let state = inDiscovery();
+    state = machine.addFollowUp(state, "q1", "What about edge cases?", "agent");
+
+    assertThrows(
+      () => machine.completeDiscovery(state),
+      Error,
+      "pending follow-up",
+    );
+  });
+
+  it("allows completion when follow-ups are answered", () => {
+    let state = inDiscovery();
+    state = machine.addFollowUp(state, "q1", "What about edge cases?", "agent");
+    state = machine.answerFollowUp(
+      state,
+      "q1a",
+      "Edge cases handled by validation layer",
+    );
+
+    const completed = machine.completeDiscovery(state);
+    assertEquals(completed.phase, "DISCOVERY_REVIEW");
+  });
+
+  it("allows completion when follow-ups are skipped", () => {
+    let state = inDiscovery();
+    state = machine.addFollowUp(state, "q1", "What about edge cases?", "agent");
+    state = machine.skipFollowUp(state, "q1a");
+
+    const completed = machine.completeDiscovery(state);
+    assertEquals(completed.phase, "DISCOVERY_REVIEW");
+  });
+
+  it("allows completion with no follow-ups", () => {
+    const state = inDiscovery();
+    const completed = machine.completeDiscovery(state);
+    assertEquals(completed.phase, "DISCOVERY_REVIEW");
+  });
+});
+
+// =============================================================================
+// Jidoka M2: confidence basis validation
+// =============================================================================
+
+describe("addConfidenceFinding basis validation (Jidoka M2)", () => {
+  it("rejects high confidence without basis", () => {
+    assertThrows(
+      () => machine.addConfidenceFinding(inExecuting(), "claim", 8, ""),
+      Error,
+      "High confidence",
+    );
+    assertThrows(
+      () => machine.addConfidenceFinding(inExecuting(), "claim", 9, "short"),
+      Error,
+      "High confidence",
+    );
+  });
+
+  it("accepts high confidence with proper basis", () => {
+    const state = machine.addConfidenceFinding(
+      inExecuting(),
+      "Upload handler lacks validation",
+      9,
+      "Read upload.ts:45 — no size check present",
+    );
+    assertEquals((state.execution.confidenceFindings ?? []).length, 1);
+  });
+
+  it("accepts low confidence without basis", () => {
+    const state = machine.addConfidenceFinding(
+      inExecuting(),
+      "Might be slow",
+      3,
+      "",
+    );
+    assertEquals((state.execution.confidenceFindings ?? []).length, 1);
   });
 });

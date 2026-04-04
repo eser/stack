@@ -45,9 +45,9 @@ describe("Agent batch discovery", () => {
       status_quo: "Users manually upload files",
       ambition: "Add smart upload with validation",
       reversibility: "No irreversible changes",
-      user_impact: "No breaking changes",
-      verification: "Unit tests pass",
-      scope_boundary: "No admin panel",
+      user_impact: "No breaking changes to existing workflows",
+      verification: "Unit tests pass and coverage meets threshold",
+      scope_boundary: "No admin panel changes in this iteration",
     });
 
     const result = await next.handleAnswer(
@@ -68,15 +68,18 @@ describe("Agent batch discovery", () => {
     );
     assertEquals(answerMap.get("status_quo"), "Users manually upload files");
     assertEquals(answerMap.get("ambition"), "Add smart upload with validation");
-    assertEquals(answerMap.get("scope_boundary"), "No admin panel");
+    assertEquals(
+      answerMap.get("scope_boundary"),
+      "No admin panel changes in this iteration",
+    );
   });
 
   it("partial JSON in agent mode falls through to single-answer mode", async () => {
     const state = inDiscoveryAgent();
     // Only 2 keys — not all 6 → treated as plain string answer for Q1
     const partialAnswer = JSON.stringify({
-      status_quo: "Users manually upload",
-      ambition: "Add smart upload",
+      status_quo: "Users manually upload files today",
+      ambition: "Add smart upload with validation",
     });
 
     const result = await next.handleAnswer(
@@ -118,8 +121,8 @@ describe("Agent batch discovery", () => {
     const state = inDiscoveryHuman();
     // Only 2 keys — human mode accepts any JSON object
     const partialAnswer = JSON.stringify({
-      status_quo: "Users manually upload",
-      ambition: "Add smart upload",
+      status_quo: "Users manually upload files today",
+      ambition: "Add smart upload with validation",
     });
 
     const result = await next.handleAnswer(
@@ -155,9 +158,13 @@ describe("DISCOVERY_REVIEW split gating", () => {
     state = machine.addDiscoveryAnswer(
       state,
       "reversibility",
-      "all reversible",
+      "all reversible — safe to undo at any point",
     );
-    state = machine.addDiscoveryAnswer(state, "user_impact", "positive only");
+    state = machine.addDiscoveryAnswer(
+      state,
+      "user_impact",
+      "positive only — users will benefit from this change",
+    );
     state = machine.addDiscoveryAnswer(
       state,
       "verification",
@@ -166,7 +173,7 @@ describe("DISCOVERY_REVIEW split gating", () => {
     state = machine.addDiscoveryAnswer(
       state,
       "scope_boundary",
-      "no rchat.c rewrite",
+      "no rchat.c rewrite allowed in this scope",
     );
     return machine.completeDiscovery(state);
   };
@@ -183,9 +190,21 @@ describe("DISCOVERY_REVIEW split gating", () => {
       "ambition",
       "extract RegisterAssets helper",
     );
-    state = machine.addDiscoveryAnswer(state, "reversibility", "reversible");
-    state = machine.addDiscoveryAnswer(state, "user_impact", "positive");
-    state = machine.addDiscoveryAnswer(state, "verification", "visual test");
+    state = machine.addDiscoveryAnswer(
+      state,
+      "reversibility",
+      "reversible — can roll back without data loss",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "user_impact",
+      "positive impact on daily workflow and productivity",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "verification",
+      "visual test plus automated regression suite",
+    );
     state = machine.addDiscoveryAnswer(
       state,
       "scope_boundary",

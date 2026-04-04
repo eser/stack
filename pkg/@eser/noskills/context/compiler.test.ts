@@ -336,7 +336,11 @@ describe("agent discovery one-at-a-time", () => {
 
   it("--agent mode after answering Q1 returns Q2 with currentQuestion=1", async () => {
     let state = agentDiscovery();
-    state = machine.addDiscoveryAnswer(state, "status_quo", "Users do X today");
+    state = machine.addDiscoveryAnswer(
+      state,
+      "status_quo",
+      "Users currently do X today and need improvement",
+    );
     state = machine.advanceDiscoveryQuestion(state);
 
     const output = await compiler.compile(
@@ -355,7 +359,11 @@ describe("agent discovery one-at-a-time", () => {
     let state = agentDiscovery();
 
     for (const qId of QUESTION_IDS) {
-      state = machine.addDiscoveryAnswer(state, qId, `Answer for ${qId}`);
+      state = machine.addDiscoveryAnswer(
+        state,
+        qId,
+        `Detailed answer for question ${qId}`,
+      );
       state = machine.advanceDiscoveryQuestion(state);
     }
 
@@ -381,7 +389,11 @@ describe("agent discovery one-at-a-time", () => {
     let state = inDiscovery();
 
     for (const qId of QUESTION_IDS) {
-      state = machine.addDiscoveryAnswer(state, qId, `Answer for ${qId}`);
+      state = machine.addDiscoveryAnswer(
+        state,
+        qId,
+        `Detailed answer for question ${qId}`,
+      );
     }
 
     assertEquals(questions.isDiscoveryComplete(state.discovery.answers), true);
@@ -410,9 +422,13 @@ describe("DISCOVERY_REVIEW split proposal", () => {
     state = machine.addDiscoveryAnswer(
       state,
       "reversibility",
-      "all reversible",
+      "all reversible — safe to undo at any point",
     );
-    state = machine.addDiscoveryAnswer(state, "user_impact", "positive only");
+    state = machine.addDiscoveryAnswer(
+      state,
+      "user_impact",
+      "positive only — users will benefit from this change",
+    );
     state = machine.addDiscoveryAnswer(
       state,
       "verification",
@@ -421,7 +437,7 @@ describe("DISCOVERY_REVIEW split proposal", () => {
     state = machine.addDiscoveryAnswer(
       state,
       "scope_boundary",
-      "no rchat.c rewrite",
+      "no rchat.c rewrite allowed in this scope",
     );
     return machine.completeDiscovery(state);
   };
@@ -438,9 +454,21 @@ describe("DISCOVERY_REVIEW split proposal", () => {
       "ambition",
       "extract RegisterAssets helper",
     );
-    state = machine.addDiscoveryAnswer(state, "reversibility", "reversible");
-    state = machine.addDiscoveryAnswer(state, "user_impact", "positive");
-    state = machine.addDiscoveryAnswer(state, "verification", "visual test");
+    state = machine.addDiscoveryAnswer(
+      state,
+      "reversibility",
+      "reversible — can roll back without data loss",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "user_impact",
+      "positive impact on daily workflow and productivity",
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "verification",
+      "visual test plus automated regression suite",
+    );
     state = machine.addDiscoveryAnswer(
       state,
       "scope_boundary",

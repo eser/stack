@@ -22,7 +22,11 @@ const answerAllQuestions = (state: schema.StateFile): schema.StateFile => {
   const qs = questions.QUESTIONS;
   let s = state;
   for (const q of qs) {
-    s = machine.addDiscoveryAnswer(s, q.id, `answer for ${q.id}`);
+    s = machine.addDiscoveryAnswer(
+      s,
+      q.id,
+      `detailed answer for question ${q.id}`,
+    );
   }
   return s;
 };

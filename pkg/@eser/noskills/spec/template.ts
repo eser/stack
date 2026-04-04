@@ -261,6 +261,53 @@ export const renderSpec = (
     }
   }
 
+  // Registry tables — structured tables from concern review dimensions
+  for (const concern of concerns) {
+    const registryIds = concern.registries ?? [];
+    if (registryIds.length === 0) continue;
+
+    const dimensions = concern.reviewDimensions ?? [];
+    for (const regId of registryIds) {
+      const dim = dimensions.find((d) => d.id === regId);
+      if (dim === undefined) continue;
+
+      lines.push(`## ${dim.label} (${concern.id})`);
+      lines.push("");
+      lines.push(`_${dim.prompt}_`);
+      lines.push("");
+
+      // Generate table skeleton based on registry type
+      if (regId === "error-rescue") {
+        lines.push(
+          "| Codepath | What Can Go Wrong | Exception Class | Rescued? | Recovery Action | User Sees |",
+        );
+        lines.push(
+          "|----------|-------------------|-----------------|----------|----------------|-----------|",
+        );
+        lines.push("| _To be filled during execution._ | | | | | |");
+      } else if (regId === "failure-modes") {
+        lines.push(
+          "| Codepath | Failure Mode | Rescued? | Tested? | User Sees | Logged? |",
+        );
+        lines.push(
+          "|----------|--------------|----------|---------|-----------|---------|",
+        );
+        lines.push("| _To be filled during execution._ | | | | | |");
+      } else if (regId === "test-plan") {
+        lines.push(
+          "| Behavior | Test Layer | Happy Path | Failure Path | Edge Case |",
+        );
+        lines.push(
+          "|----------|------------|------------|--------------|-----------|",
+        );
+        lines.push("| _To be filled during execution._ | | | | |");
+      } else {
+        lines.push("_To be filled during execution._");
+      }
+      lines.push("");
+    }
+  }
+
   // Decisions
   if (decisions.length > 0) {
     lines.push("## Decisions");

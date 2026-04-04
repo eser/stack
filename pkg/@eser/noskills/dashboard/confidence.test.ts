@@ -74,7 +74,12 @@ describe("addConfidenceFinding", () => {
   it("clamps out-of-range confidence", () => {
     let state = createExecutingSpec();
     state = machine.addConfidenceFinding(state, "Low", 0, "guess");
-    state = machine.addConfidenceFinding(state, "High", 15, "certain");
+    state = machine.addConfidenceFinding(
+      state,
+      "High",
+      15,
+      "certain based on direct code reading",
+    );
 
     const findings = state.execution.confidenceFindings ?? [];
     assertEquals(findings[0]!.confidence, 1); // clamped from 0
@@ -83,9 +88,19 @@ describe("addConfidenceFinding", () => {
 
   it("appends multiple findings", () => {
     let state = createExecutingSpec();
-    state = machine.addConfidenceFinding(state, "F1", 9, "verified");
+    state = machine.addConfidenceFinding(
+      state,
+      "F1",
+      9,
+      "verified by reading the source code directly",
+    );
     state = machine.addConfidenceFinding(state, "F2", 4, "guessing");
-    state = machine.addConfidenceFinding(state, "F3", 7, "strong evidence");
+    state = machine.addConfidenceFinding(
+      state,
+      "F3",
+      7,
+      "strong evidence from code analysis",
+    );
 
     assertEquals((state.execution.confidenceFindings ?? []).length, 3);
   });
@@ -98,7 +113,12 @@ describe("addConfidenceFinding", () => {
 describe("getLowConfidenceFindings", () => {
   it("returns findings below threshold", () => {
     let state = createExecutingSpec();
-    state = machine.addConfidenceFinding(state, "Verified", 9, "read code");
+    state = machine.addConfidenceFinding(
+      state,
+      "Verified",
+      9,
+      "read code and confirmed behavior",
+    );
     state = machine.addConfidenceFinding(state, "Guess", 3, "inference");
     state = machine.addConfidenceFinding(state, "Medium", 6, "some evidence");
 
@@ -110,7 +130,12 @@ describe("getLowConfidenceFindings", () => {
   it("custom threshold", () => {
     let state = createExecutingSpec();
     state = machine.addConfidenceFinding(state, "F1", 6, "ok");
-    state = machine.addConfidenceFinding(state, "F2", 8, "good");
+    state = machine.addConfidenceFinding(
+      state,
+      "F2",
+      8,
+      "good evidence from testing",
+    );
 
     const below7 = machine.getLowConfidenceFindings(state, 7);
     assertEquals(below7.length, 1);
@@ -130,9 +155,19 @@ describe("getLowConfidenceFindings", () => {
 describe("getAverageConfidence", () => {
   it("calculates average", () => {
     let state = createExecutingSpec();
-    state = machine.addConfidenceFinding(state, "F1", 8, "a");
+    state = machine.addConfidenceFinding(
+      state,
+      "F1",
+      8,
+      "verified via code review",
+    );
     state = machine.addConfidenceFinding(state, "F2", 6, "b");
-    state = machine.addConfidenceFinding(state, "F3", 10, "c");
+    state = machine.addConfidenceFinding(
+      state,
+      "F3",
+      10,
+      "confirmed by running all tests",
+    );
 
     assertEquals(machine.getAverageConfidence(state), 8);
   });
@@ -151,7 +186,12 @@ describe("dashboard confidence", () => {
   it("getSpecSummary includes confidence metrics", async () => {
     const root = await makeTempDir();
     let state = createExecutingSpec();
-    state = machine.addConfidenceFinding(state, "High", 9, "verified");
+    state = machine.addConfidenceFinding(
+      state,
+      "High",
+      9,
+      "verified by reading source code",
+    );
     state = machine.addConfidenceFinding(state, "Low", 3, "guessing");
 
     await runtime.fs.mkdir(

@@ -169,6 +169,13 @@ export const addDiscoveryAnswer = (
     throw new Error(`Cannot add discovery answer in phase: ${state.phase}`);
   }
 
+  // Jidoka: reject empty/trivially short answers
+  if (answer.trim().length < 20) {
+    throw new Error(
+      "Answer too short. Discovery answers must be meaningful (minimum 20 characters).",
+    );
+  }
+
   // Replace existing answer for this question (backward-compatible behavior)
   const existingAnswers = state.discovery.answers.filter(
     (a) => a.questionId !== questionId,
@@ -228,6 +235,14 @@ export const completeDiscovery = (
 ): schema.StateFile => {
   if (state.phase !== "DISCOVERY") {
     throw new Error(`Cannot complete discovery in phase: ${state.phase}`);
+  }
+
+  // Jidoka I2: block completion if there are pending follow-ups
+  const pendingFollowUps = getPendingFollowUps(state);
+  if (pendingFollowUps.length > 0) {
+    throw new Error(
+      `Cannot complete discovery: ${pendingFollowUps.length} pending follow-up(s). Answer or skip them first.`,
+    );
   }
 
   return {
@@ -542,6 +557,31 @@ export const addSpecNote = (
 // =============================================================================
 
 // =============================================================================
+// User context (listen first)
+// =============================================================================
+
+/** Store user context shared before discovery starts. */
+export const setUserContext = (
+  state: schema.StateFile,
+  context: string,
+): schema.StateFile => ({
+  ...state,
+  discovery: {
+    ...state.discovery,
+    userContext: context,
+    userContextProcessed: false,
+  },
+});
+
+/** Mark user context as processed (pre-fill done). */
+export const markUserContextProcessed = (
+  state: schema.StateFile,
+): schema.StateFile => ({
+  ...state,
+  discovery: { ...state.discovery, userContextProcessed: true },
+});
+
+// =============================================================================
 // Confidence scoring
 // =============================================================================
 
@@ -557,6 +597,14 @@ export const addConfidenceFinding = (
   basis: string,
 ): schema.StateFile => {
   const clamped = clampConfidence(confidence);
+
+  // Jidoka: high confidence requires evidence
+  if (clamped >= 7 && basis.trim().length < 10) {
+    throw new Error(
+      "High confidence (>=7) requires a basis explaining why (minimum 10 characters).",
+    );
+  }
+
   const existing = state.execution.confidenceFindings ?? [];
   const entry: schema.ConfidenceFinding = {
     finding,
@@ -773,6 +821,19 @@ export const getPendingDelegations = (
 export const resetToIdle = (
   state: schema.StateFile,
 ): schema.StateFile => {
+  // Only allow reset from terminal phases (Jidoka: prevent escaping active phases)
+  const allowed = new Set([
+    "IDLE",
+    "EXECUTING",
+    "BLOCKED",
+    "COMPLETED",
+  ]);
+  if (!allowed.has(state.phase)) {
+    throw new Error(
+      `Cannot reset from ${state.phase}. Use \`cancel\` or \`wontfix\` instead.`,
+    );
+  }
+
   return {
     ...state,
     phase: "IDLE",

@@ -16,6 +16,7 @@ import longLived from "./003-long-lived.json" with { type: "json" };
 import moveFast from "./004-move-fast.json" with { type: "json" };
 import compliance from "./005-compliance.json" with { type: "json" };
 import learningProject from "./006-learning-project.json" with { type: "json" };
+import wellEngineered from "./007-well-engineered.json" with { type: "json" };
 
 /** All built-in concerns, ordered by numeric prefix. */
 export const DEFAULT_CONCERNS: readonly schema.ConcernDefinition[] = [
@@ -25,4 +26,5 @@ export const DEFAULT_CONCERNS: readonly schema.ConcernDefinition[] = [
   moveFast as unknown as schema.ConcernDefinition,
   compliance as unknown as schema.ConcernDefinition,
   learningProject as unknown as schema.ConcernDefinition,
+  wellEngineered as unknown as schema.ConcernDefinition,
 ];

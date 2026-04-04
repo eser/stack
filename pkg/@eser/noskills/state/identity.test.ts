@@ -272,10 +272,15 @@ describe("getCombinedAnswer", () => {
 describe("addDiscoveryAnswer with user", () => {
   it("stores attribution when user is provided", () => {
     const state = inDiscovery();
-    const updated = machine.addDiscoveryAnswer(state, "q1", "answer", {
-      name: "Alice",
-      email: "alice@example.com",
-    });
+    const updated = machine.addDiscoveryAnswer(
+      state,
+      "q1",
+      "answer with enough detail for attribution test",
+      {
+        name: "Alice",
+        email: "alice@example.com",
+      },
+    );
     const answer = updated.discovery
       .answers[0] as schema.AttributedDiscoveryAnswer;
     assertEquals(answer.user, "Alice");
@@ -286,7 +291,11 @@ describe("addDiscoveryAnswer with user", () => {
 
   it("defaults to Unknown User when no user provided", () => {
     const state = inDiscovery();
-    const updated = machine.addDiscoveryAnswer(state, "q1", "answer");
+    const updated = machine.addDiscoveryAnswer(
+      state,
+      "q1",
+      "answer with enough detail to pass validation",
+    );
     const answer = updated.discovery
       .answers[0] as schema.AttributedDiscoveryAnswer;
     assertEquals(answer.user, "Unknown User");
@@ -295,18 +304,28 @@ describe("addDiscoveryAnswer with user", () => {
 
   it("replaces existing answer for same question (backward compat)", () => {
     let state = inDiscovery();
-    state = machine.addDiscoveryAnswer(state, "q1", "first", {
-      name: "Alice",
-      email: "",
-    });
-    state = machine.addDiscoveryAnswer(state, "q1", "second", {
-      name: "Bob",
-      email: "",
-    });
+    state = machine.addDiscoveryAnswer(
+      state,
+      "q1",
+      "first answer with sufficient detail for test",
+      {
+        name: "Alice",
+        email: "",
+      },
+    );
+    state = machine.addDiscoveryAnswer(
+      state,
+      "q1",
+      "second answer replaces the first one here",
+      {
+        name: "Bob",
+        email: "",
+      },
+    );
     assertEquals(state.discovery.answers.length, 1);
     const answer = state.discovery
       .answers[0] as schema.AttributedDiscoveryAnswer;
-    assertEquals(answer.answer, "second");
+    assertEquals(answer.answer, "second answer replaces the first one here");
     assertEquals(answer.user, "Bob");
   });
 });
@@ -318,14 +337,19 @@ describe("addDiscoveryAnswer with user", () => {
 describe("addDiscoveryContribution", () => {
   it("adds without replacing existing answers", () => {
     let state = inDiscovery();
-    state = machine.addDiscoveryAnswer(state, "q1", "original answer", {
-      name: "Alice",
-      email: "",
-    });
+    state = machine.addDiscoveryAnswer(
+      state,
+      "q1",
+      "original answer with enough detail to pass validation",
+      {
+        name: "Alice",
+        email: "",
+      },
+    );
     state = machine.addDiscoveryContribution(
       state,
       "q1",
-      "additional insight",
+      "additional insight expanding on the original",
       {
         name: "Bob",
         email: "",
@@ -336,9 +360,12 @@ describe("addDiscoveryContribution", () => {
       .answers[0] as schema.AttributedDiscoveryAnswer;
     const second = state.discovery
       .answers[1] as schema.AttributedDiscoveryAnswer;
-    assertEquals(first.answer, "original answer");
+    assertEquals(
+      first.answer,
+      "original answer with enough detail to pass validation",
+    );
     assertEquals(first.user, "Alice");
-    assertEquals(second.answer, "additional insight");
+    assertEquals(second.answer, "additional insight expanding on the original");
     assertEquals(second.user, "Bob");
     assertEquals(second.type, "addition");
   });

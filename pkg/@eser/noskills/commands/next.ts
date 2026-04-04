@@ -285,10 +285,19 @@ export const handleAnswer = async (
 ): Promise<schema.StateFile> => {
   switch (state.phase) {
     case "DISCOVERY": {
-      // Mode selection (before any questions — only for specs with a description)
+      // Listen first: store user context before mode selection
+      const hasUserContext = state.discovery.userContext !== undefined &&
+        state.discovery.userContext.length > 0;
       const hasDescription = state.specDescription !== null &&
         state.specDescription.length > 0;
       const discoveryMode = state.discovery.mode;
+
+      if (!hasUserContext && discoveryMode === undefined && hasDescription) {
+        // This is the user's initial context response
+        return machine.setUserContext(state, answer);
+      }
+
+      // Mode selection (after user context received)
       if (discoveryMode === undefined && hasDescription) {
         const validModes: readonly schema.DiscoveryMode[] = [
           "full",
@@ -327,13 +336,24 @@ export const handleAnswer = async (
                 user: user?.name ?? "Unknown User",
                 timestamp: new Date().toISOString(),
               }));
+            // Jidoka M3: reject empty premises array
+            if (typedPremises.length === 0) {
+              throw new Error(
+                "Premise challenge requires at least one premise. Empty array rejected.",
+              );
+            }
             return machine.completePremises(state, typedPremises);
           }
         } catch {
-          // Not JSON — skip premises (empty)
+          // Not JSON — reject (Jidoka M3: empty premises = re-prompt)
+          throw new Error(
+            "Premise challenge requires valid JSON with premises array. Re-prompt the user.",
+          );
         }
-        // If answer is not a premises JSON, skip premises step
-        return machine.completePremises(state, []);
+        // If answer is JSON but missing premises key — reject
+        throw new Error(
+          "Premise challenge requires a premises array. Cannot skip with empty input.",
+        );
       }
 
       const isAgent = state.discovery.audience === "agent";
@@ -366,11 +386,20 @@ export const handleAnswer = async (
 
       if (answersMap !== null) {
         // Batch mode: add all answers at once (human/agentless CLI)
+        // Jidoka C1: flag batch submissions for mandatory user confirmation
         for (const [qId, qAnswer] of Object.entries(answersMap)) {
           if (typeof qAnswer === "string" && qAnswer.length > 0) {
             newState = machine.addDiscoveryAnswer(newState, qId, qAnswer, user);
           }
         }
+        // Mark that answers were batch-submitted (needs explicit user confirmation)
+        newState = {
+          ...newState,
+          discovery: {
+            ...newState.discovery,
+            batchSubmitted: true,
+          },
+        };
       } else {
         // Single answer mode (agent one-at-a-time): answer current question and advance
         const allQuestions = questions.getQuestionsWithExtras(activeConcerns);

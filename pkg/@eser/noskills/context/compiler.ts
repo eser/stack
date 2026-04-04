@@ -168,6 +168,21 @@ export type DiscoveryReviewAnswer = {
   readonly answer: string;
 };
 
+export type ReviewChecklistDimension = {
+  readonly id: string;
+  readonly label: string;
+  readonly prompt: string;
+  readonly evidenceRequired: boolean;
+  readonly isRegistry: boolean;
+  readonly concernId: string;
+};
+
+export type ReviewChecklist = {
+  readonly dimensions: readonly ReviewChecklistDimension[];
+  readonly instruction: string;
+  readonly registryInstruction?: string;
+};
+
 export type DiscoveryReviewOutput = {
   readonly phase: "DISCOVERY_REVIEW";
   readonly instruction: string;
@@ -179,6 +194,7 @@ export type DiscoveryReviewOutput = {
   readonly splitProposal?: splitDetector.SplitProposal;
   readonly subPhase?: string;
   readonly alternatives?: AlternativesOutput;
+  readonly reviewChecklist?: ReviewChecklist;
 };
 
 export type ClassificationPrompt = {
@@ -319,11 +335,15 @@ export type CompletedOutput = {
     readonly instruction: string;
     readonly examples: readonly string[];
   };
+  /** Jidoka M1: visible flag that learnings haven't been submitted yet. */
+  readonly learningsPending?: boolean;
   readonly staleDiagrams?: readonly {
     readonly file: string;
     readonly line: number;
     readonly reason: string;
   }[];
+  /** Jidoka M4: stale diagrams are mandatory ACs that must be resolved. */
+  readonly staleDiagramsBlocking?: boolean;
 };
 
 export type InteractiveOption = {
@@ -370,6 +390,12 @@ export type ContextBlock = {
 // Meta Block — self-documenting resume context for every output
 // =============================================================================
 
+export type EnforcementInfo = {
+  readonly level: "enforced" | "behavioral";
+  readonly capabilities: readonly string[];
+  readonly gaps?: readonly string[];
+};
+
 export type MetaBlock = {
   readonly protocol: string;
   readonly spec: string | null;
@@ -378,6 +404,7 @@ export type MetaBlock = {
   readonly lastProgress: string | null;
   readonly activeConcerns: readonly string[];
   readonly resumeHint: string;
+  readonly enforcement?: EnforcementInfo;
 };
 
 export type ProtocolGuide = {
@@ -415,6 +442,7 @@ const buildBehavioral = (
   state: schema.StateFile,
   maxIterationsBeforeRestart: number,
   allowGit: boolean,
+  activeConcerns: readonly schema.ConcernDefinition[],
   parsedSpec?: ParsedSpec | null,
   hints: InteractionHints = DEFAULT_HINTS,
 ): BehavioralBlock => {
@@ -432,6 +460,7 @@ const buildBehavioral = (
     "Display `roadmap` before other content. Display `gate` prominently.",
     "NEVER suggest bypassing, skipping, or 'breaking out of' noskills. Discovery helps the user — it is not an obstacle. If scope changes: revise spec, reset and create new, or split.",
     "NEVER ask permission to run the next noskills command. After spec new → run next immediately. After answering questions → run next. After approve → run next. After task completion → run next. The workflow is sequential — each step has one next step. Just run it.",
+    "Listen first: after spec creation, ask 'Tell me about this — share as much context as you have.' Wait for their response before mode selection. Rich context (>200 chars) → pre-fill discovery answers as STATED/INFERRED. Brief response → proceed normally.",
     'Discovery questions are adaptive. After each answer, generate 1-3 follow-up questions if the answer reveals ambiguity, risk, dependencies, or missing detail. Submit follow-ups via `noskills spec <name> followup <questionId> "question"`. Max 3 per question. Do NOT rush through discovery.',
     "Confidence scoring: every technical finding needs a confidence score (1-10). 9-10: verified (read code, ran test). 7-8: strong evidence. 5-6: reasonable inference. 3-4: guess. 1-2: speculation. State basis ('read X', 'inferred from Y'). If confidence < 5, prefix with '\u26A0 Unverified:'.",
   );
@@ -483,7 +512,13 @@ const buildBehavioral = (
           "When asking questions, offer concrete options from codebase knowledge alongside the open-ended question (e.g., 'I see three scenarios: A)... B)... C)... D) Something else'). Push back on vague answers. Follow up on short answer with 'Can you be more specific?'",
 
           // Dream state + expansions + architecture + error map
-          "After answers, synthesize CURRENT STATE → THIS SPEC → 6-MONTH IDEAL vision. Then: (1) expansion opportunities as numbered proposals with effort (S/M/L/XL), risk, completeness delta — options: Add/Defer/Skip. (2) Architectural decisions that BLOCK implementation — present with options, RECOMMENDATION, completeness scores. Unresolved = risk flag. (3) Error/rescue map: codepath | failure mode | handling. Flag CRITICAL GAPS as decisions.",
+          (() => {
+            const dreamPrompts = concerns.getDreamStatePrompts(activeConcerns);
+            const dreamBase = dreamPrompts.length > 0
+              ? `After answers, ${dreamPrompts.join(" Also: ")}`
+              : "After answers, synthesize CURRENT STATE → THIS SPEC → 6-MONTH IDEAL vision.";
+            return `${dreamBase} Then: (1) expansion opportunities as numbered proposals with effort (S/M/L/XL), risk, completeness delta — options: Add/Defer/Skip. (2) Architectural decisions that BLOCK implementation — present with options, RECOMMENDATION, completeness scores. Unresolved = risk flag. (3) Error/rescue map: codepath | failure mode | handling. Flag CRITICAL GAPS as decisions.`;
+          })(),
 
           // Synthesis + submit
           "Present DISCOVERY SUMMARY for confirmation: intent, scope, dream state, expansions, architectural decisions, error map. Ask for confirmation before generating spec. Submit all answers together in one `noskills next --answer` JSON call.",
@@ -643,6 +678,14 @@ const buildBehavioral = (
         "TDD: (1) Write test. (2) Run it — MUST fail. If it passes before implementation, the test is wrong. (3) Implement. (4) Run test — must pass. Skipping step 2 means the test is unverified.",
         // Parallel vs serial
         "Parallel vs serial sub-agents: PARALLEL when tasks touch different files with no shared state. SERIAL when tasks modify same files or depend on each other. When unsure, default to serial.",
+        // Jidoka I3: verifier enforcement
+        ...(hasSubAgents
+          ? [
+            "VERIFICATION REQUIRED: After EVERY task completion, you MUST spawn noskills-verifier before reporting done. If you skip verification and self-report, the status report will flag it. No exceptions — 'it looks correct' is not verification.",
+          ]
+          : [
+            "VERIFICATION REQUIRED: After EVERY task completion, run type-check + tests before reporting done. Evidence of passing tests must be included in the status report.",
+          ]),
       ];
 
       if (state.execution.lastVerification?.passed === false) {
@@ -707,9 +750,42 @@ const buildBehavioral = (
 
 const STALE_SESSION_MS = 5 * 60 * 1000; // 5 minutes
 
+const buildEnforcement = (
+  hints: InteractionHints,
+): EnforcementInfo | undefined => {
+  const hasHooks = hints.hasSubAgentDelegation;
+  const level = hasHooks ? "enforced" : "behavioral";
+
+  if (level === "enforced") {
+    return {
+      level,
+      capabilities: [
+        "PreToolUse file edit gate",
+        "Git write guard",
+        "Stop iteration tracking",
+        "PostToolUse file logging",
+        "Sub-agent delegation",
+      ],
+    };
+  }
+
+  return {
+    level,
+    capabilities: ["Behavioral rules only"],
+    gaps: [
+      "File edits not blocked in non-execution phases",
+      "Git write commands not blocked",
+      "No iteration tracking",
+      "No file change logging",
+      "No sub-agent delegation available",
+    ],
+  };
+};
+
 const buildMeta = (
   state: schema.StateFile,
   activeConcerns: readonly schema.ConcernDefinition[],
+  hints: InteractionHints = DEFAULT_HINTS,
 ): MetaBlock => {
   const specName = state.spec;
   let resumeHint: string;
@@ -753,6 +829,8 @@ const buildMeta = (
       resumeHint = `Run \`${cs("next", specName)}\` to get started.`;
   }
 
+  const enforcement = buildEnforcement(hints);
+
   return {
     protocol: `Run \`${
       cs('next --answer="..."', specName)
@@ -763,6 +841,7 @@ const buildMeta = (
     lastProgress: state.execution.lastProgress,
     activeConcerns: activeConcerns.map((c) => c.id),
     resumeHint,
+    enforcement,
   };
 };
 
@@ -877,14 +956,15 @@ export const compile = async (
   tier2Count?: number,
   projectRoot?: string,
 ): Promise<NextOutput> => {
-  const meta = buildMeta(state, activeConcerns);
+  const hints = interactionHints ?? DEFAULT_HINTS;
+  const meta = buildMeta(state, activeConcerns, hints);
   const maxIter = config?.maxIterationsBeforeRestart ?? 15;
   const allowGit = config?.allowGit ?? false;
-  const hints = interactionHints ?? DEFAULT_HINTS;
   let behavioral = buildBehavioral(
     state,
     maxIter,
     allowGit,
+    activeConcerns,
     parsedSpec,
     hints,
   );
@@ -1444,13 +1524,47 @@ const compileDiscovery = async (
     ...(specNotes.length > 0 ? { notes: specNotes } : {}),
   };
 
-  // ── Mode selection step (before any questions) ──
-  // Only show mode/premise steps for specs with a description AND no answers yet
-  // AND no plan path (backward compat: old states skip straight to questions).
+  // ── Listen first step (before mode selection) ──
+  // When spec is brand new, ask the user to share context before jumping into
+  // discovery mode selection. Skip if user already provided context or if
+  // there's a plan document.
+  const hasUserContext = state.discovery.userContext !== undefined &&
+    state.discovery.userContext.length > 0;
   const hasDescription = state.specDescription !== null &&
     state.specDescription.length > 0;
   const hasPlan = state.discovery.planPath !== null;
   const mode = state.discovery.mode;
+
+  if (
+    mode === undefined && !hasUserContext && answeredCount === 0 && !hasPlan &&
+    hasDescription
+  ) {
+    const listenOutput: DiscoveryOutput = {
+      phase: "DISCOVERY",
+      instruction:
+        "The user just created this spec. Before starting discovery, ask them to share whatever context they have — requirements, notes, tasks, or just a brief description. Say: 'Tell me about this — share as much context as you have.' Listen first, then proceed.",
+      questions: [],
+      answeredCount: 0,
+      context: {
+        rules,
+        concernReminders: concerns.getReminders(activeConcerns) as string[],
+      },
+      transition: {
+        onComplete: cs(
+          'next --answer="<user context or just start>"',
+          specName,
+        ),
+      },
+      ...multiUserFields,
+    };
+
+    if (currentUser !== undefined) {
+      return { ...listenOutput, currentUser };
+    }
+    return listenOutput;
+  }
+
+  // ── Mode selection step (after user context is received) ──
   if (mode === undefined && hasDescription && answeredCount === 0 && !hasPlan) {
     const modeOutput: DiscoveryOutput = {
       phase: "DISCOVERY",
@@ -1879,11 +1993,47 @@ const compileDiscoveryReview = (
     };
   }
 
+  // Jidoka C1: batch-submitted answers get stronger confirmation language
+  const batchWarning = state.discovery.batchSubmitted === true
+    ? " IMPORTANT: These answers were BATCH-SUBMITTED (not confirmed one-by-one). You MUST present EVERY answer individually and get explicit user confirmation for each. Do NOT auto-approve."
+    : "";
+
+  // Build review checklist from concern review dimensions
+  const allDimensions = concerns.getReviewDimensions(activeConcerns);
+  const registryIds = concerns.getRegistryDimensionIds(activeConcerns);
+  let reviewChecklist: ReviewChecklist | undefined;
+
+  if (allDimensions.length > 0) {
+    const checklistDimensions: ReviewChecklistDimension[] = allDimensions.map(
+      (dim) => ({
+        id: dim.id,
+        label: dim.label,
+        prompt: dim.prompt,
+        evidenceRequired: dim.evidenceRequired,
+        isRegistry: registryIds.includes(dim.id),
+        concernId: dim.concernId,
+      }),
+    );
+
+    const hasRegistries = checklistDimensions.some((d) => d.isRegistry);
+    reviewChecklist = {
+      dimensions: checklistDimensions,
+      instruction:
+        "Before approving, review the plan against each dimension below. For dimensions marked evidenceRequired, cite specific files or code. Present findings to the user for each dimension via AskUserQuestion — one dimension at a time.",
+      ...(hasRegistries
+        ? {
+          registryInstruction:
+            "Registry dimensions (isRegistry=true) require a structured table with every row filled. These tables will be included in the generated spec.",
+        }
+        : {}),
+    };
+  }
+
   return {
     phase: "DISCOVERY_REVIEW",
     instruction: splitProposal.detected
-      ? "Present ALL discovery answers to the user for review. ALSO present the split proposal — noskills detected multiple independent areas."
-      : "Present ALL discovery answers to the user for review. The user must confirm or correct each answer before the spec can be generated. Use AskUserQuestion to ask for confirmation.",
+      ? `Present ALL discovery answers to the user for review. ALSO present the split proposal — noskills detected multiple independent areas.${batchWarning}`
+      : `Present ALL discovery answers to the user for review. The user must confirm or correct each answer before the spec can be generated. Use AskUserQuestion to ask for confirmation.${batchWarning}`,
     answers: reviewAnswers,
     transition: {
       onApprove: cs('next --answer="approve"', specName),
@@ -1893,6 +2043,7 @@ const compileDiscoveryReview = (
       ),
     },
     splitProposal: splitProposal.detected ? splitProposal : undefined,
+    reviewChecklist,
   };
 };
 
@@ -2106,6 +2257,21 @@ const buildAcceptanceCriteria = (
     }
   }
 
+  // Jidoka I4: scope violation check when task declares files
+  if (parsedSpec !== null && parsedSpec !== undefined) {
+    const currentTask = parsedSpec.tasks?.find((t) =>
+      t.files !== undefined && t.files.length > 0
+    );
+    if (currentTask?.files !== undefined && currentTask.files.length > 0) {
+      criteria.push({
+        id: "scope-check",
+        text: `Scope check: only files listed in task (${
+          currentTask.files.join(", ")
+        }) should be modified. Report any out-of-scope changes with justification.`,
+      });
+    }
+  }
+
   // Mandatory ACs — always injected, cannot be N/A'd without justification
   criteria.push({
     id: "mandatory-tests",
@@ -2310,8 +2476,17 @@ const compileExecution = (
     };
   }
 
+  // Jidoka I6: tensions are a blocking gate — require explicit user resolution
   if (tensions.length > 0) {
-    output = { ...output, concernTensions: tensions };
+    const tensionList = tensions.map((t) =>
+      `${t.between.join(" vs ")}: ${t.issue}`
+    ).join("; ");
+    output = {
+      ...output,
+      concernTensions: tensions,
+      instruction:
+        `TENSION GATE: ${tensions.length} concern tension(s) detected: ${tensionList}. You MUST present these to the user and get explicit resolution for each before proceeding. Use AskUserQuestion to ask which side to prioritize.`,
+    };
   }
 
   if (shouldRestart) {
@@ -2414,6 +2589,9 @@ const compileCompleted = async (
   state: schema.StateFile,
   projectRoot?: string,
 ): Promise<CompletedOutput> => {
+  // Jidoka M1: learning pending flag — always true until user submits learnings
+  const learningsPending = true;
+
   const base: CompletedOutput = {
     phase: "COMPLETED",
     summary: {
@@ -2425,7 +2603,7 @@ const compileCompleted = async (
     },
     learningPrompt: {
       instruction:
-        `Record learnings. For each insight, decide: one-time learning or permanent rule? One-time ("assumed X, was Y") → \`learn "text"\`. Permanent ("always/never do X") → \`learn "text" --rule\`. Run: \`noskills spec ${
+        `LEARNING PENDING — Record learnings before moving on. For each insight, decide: one-time learning or permanent rule? One-time ("assumed X, was Y") → \`learn "text"\`. Permanent ("always/never do X") → \`learn "text" --rule\`. Run: \`noskills spec ${
           state.spec ?? "<name>"
         } learn "text"\` or \`learn "text" --rule\`.`,
       examples: [
@@ -2438,6 +2616,7 @@ const compileCompleted = async (
         `noskills learn promote 1`,
       ],
     },
+    learningsPending,
   };
 
   // Check for stale diagrams
@@ -2449,6 +2628,7 @@ const compileCompleted = async (
         state.execution.modifiedFiles as string[],
       );
       if (stale.length > 0) {
+        // Jidoka M4: stale diagrams are blocking — must be resolved before done
         return {
           ...base,
           staleDiagrams: stale.map((s) => ({
@@ -2456,6 +2636,7 @@ const compileCompleted = async (
             line: s.line,
             reason: s.reason,
           })),
+          staleDiagramsBlocking: true,
         };
       }
     } catch {

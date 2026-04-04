@@ -49,7 +49,11 @@ const withAllAnswers = (): schema.StateFile => {
   let s = inDiscovery();
   const qs = questions.getQuestionsWithExtras(activeConcerns);
   for (const q of qs) {
-    s = machine.addDiscoveryAnswer(s, q.id, `answer for ${q.id}`);
+    s = machine.addDiscoveryAnswer(
+      s,
+      q.id,
+      `detailed answer for question ${q.id}`,
+    );
   }
   return s;
 };
@@ -83,7 +87,11 @@ describe("Happy path: full lifecycle with classification", () => {
 
     const qs = questions.getQuestionsWithExtras(activeConcerns);
     for (const q of qs) {
-      s = machine.addDiscoveryAnswer(s, q.id, "answer");
+      s = machine.addDiscoveryAnswer(
+        s,
+        q.id,
+        "answer with enough detail to pass Jidoka validation",
+      );
     }
     s = machine.completeDiscovery(s);
     assertEquals(s.phase, "DISCOVERY_REVIEW");
@@ -336,11 +344,13 @@ describe("Start execution without approve", () => {
 // =============================================================================
 
 describe("Edge case: empty discovery answers", () => {
-  it("addDiscoveryAnswer with empty string stores it without crash", () => {
-    let s = inDiscovery();
-    s = machine.addDiscoveryAnswer(s, "status_quo", "");
-    assertEquals(s.discovery.answers.length, 1);
-    assertEquals(s.discovery.answers[0]!.answer, "");
+  it("addDiscoveryAnswer with empty string rejects with Jidoka validation", () => {
+    const s = inDiscovery();
+    assertThrows(
+      () => machine.addDiscoveryAnswer(s, "status_quo", ""),
+      Error,
+      "Answer too short",
+    );
   });
 });
 

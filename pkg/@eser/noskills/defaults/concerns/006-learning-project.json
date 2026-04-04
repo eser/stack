@@ -21,5 +21,14 @@
   "acceptanceCriteria": [
     "Learnings documented",
     "Experiment outcomes recorded"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "learning-clarity",
+      "label": "Learning Goal Clarity",
+      "prompt": "For each learning goal: what specific question will be answered? How will you know if the experiment succeeded or failed? What's the 'good enough to learn from' threshold?",
+      "evidenceRequired": false,
+      "scope": "all"
+    }
   ]
 }

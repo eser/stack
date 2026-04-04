@@ -14,9 +14,18 @@
     {
       "questionId": "scope_boundary",
       "text": "What technical debt would this introduce?"
+    },
+    {
+      "questionId": "status_quo",
+      "text": "What assumptions in the current architecture would this change rely on? Could any of them break?"
     }
   ],
-  "specSections": ["Migration & Deprecation", "Backward Compatibility"],
+  "specSections": [
+    "Migration & Deprecation",
+    "Backward Compatibility",
+    "Error Recovery",
+    "Deployment Plan"
+  ],
   "reminders": [
     "Favor boring technology over shiny new tools",
     "Every shortcut needs explicit justification",
@@ -27,6 +36,46 @@
     "Backward compatibility preserved",
     "Migration path documented if breaking",
     "No unnecessary new dependencies",
-    "Documentation updated for any public-facing change"
-  ]
+    "Documentation updated for any public-facing change",
+    "Rollback plan exists (how to undo this change if it goes wrong)"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "architecture",
+      "label": "Architecture & Coupling",
+      "prompt": "Draw the dependency graph for this change. Which modules depend on what? Are there circular dependencies? Single points of failure? Would removing one piece break the whole thing? Is the coupling direction correct (stable → volatile, not the reverse)?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "error-rescue",
+      "label": "Error & Rescue Registry",
+      "prompt": "For every new codepath: what can go wrong? Build a table: Method/Codepath | What Can Go Wrong | Exception Class | Rescued? | Recovery Action | User Sees. Flag any row where Rescued=No or User Sees=raw error.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "failure-modes",
+      "label": "Failure Modes Analysis",
+      "prompt": "For every new codepath: Codepath | Failure Mode | Rescued? | Tested? | User Sees | Logged? Flag CRITICAL gaps: unrescued + untested + silent failure. These block ship.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "deployment-safety",
+      "label": "Deployment & Rollback Safety",
+      "prompt": "Can this be deployed incrementally? What happens during partial deployment (old code + new code running simultaneously)? Is rollback safe — can you revert without data loss or schema conflicts? Do you need feature flags?",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "trajectory",
+      "label": "6-Month Trajectory",
+      "prompt": "Fast-forward 6 months. What assumptions in this design might break? What would you regret? Is this creating path dependency that limits future options? What's the cost of changing course later?",
+      "evidenceRequired": false,
+      "scope": "all"
+    }
+  ],
+  "registries": ["error-rescue", "failure-modes"],
+  "dreamStatePrompt": "Synthesize: CURRENT STATE (what exists today) → THIS SPEC (what changes) → 6-MONTH IDEAL (where should this be heading). What does the ideal architecture look like?"
 }

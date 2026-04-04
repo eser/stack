@@ -177,6 +177,7 @@ export const main = async (
       hints,
       user,
       tier2Count,
+      root,
     );
 
     // Inject saved flag when "save" was the answer and phase didn't change
@@ -263,6 +264,7 @@ export const main = async (
     hints,
     user,
     noAnswerTier2Count,
+    root,
   );
   await formatter.writeFormatted(output, fmt);
 

@@ -64,6 +64,7 @@ workflows:
                 - "README.md"
                 - "TODOS.md"
                 - "pkg/*/README.md"
+                - "pkg/@eser/noskills/README-HOW.md"
                 - "*_test.ts"
                 - "*_test.go"
       - validate-submodules

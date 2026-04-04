@@ -52,6 +52,8 @@ export const sync = async (
     "5. When you are UNSURE what to do next",
     "",
     "NEVER proceed with implementation without checking noskills first.",
+    "NEVER suggest bypassing or skipping noskills. Discovery is not overhead.",
+    "NEVER ask permission to run the next noskills command. After spec new → run next. After approve → run next. Each step has one next step. Just run it.",
     "",
     "## Interactive choices",
     "",

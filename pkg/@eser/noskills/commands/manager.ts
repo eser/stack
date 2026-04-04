@@ -136,16 +136,13 @@ export const main = async (
     const rawRightBottom = findPanel("rightBottom");
     const rawStatusBar = findPanel("statusBar");
 
-    // Reserve 1 row for the tab bar above Terminal (always)
+    // Tab bar occupies 1 row taken from the Terminal panel allocation
     const termY = rawRightBottom.y + tabBarRows;
     const termH = rawRightBottom.height - tabBarRows;
-    const monitorH = showMonitor ? rawRightTop.height - tabBarRows : 0;
 
     return {
       left: showSpecs ? rawLeft : emptyPanel("left"),
-      rightTop: showMonitor
-        ? { ...rawRightTop, height: monitorH }
-        : emptyPanel("rightTop"),
+      rightTop: showMonitor ? rawRightTop : emptyPanel("rightTop"),
       rightBottom: {
         ...rawRightBottom,
         y: termY,
@@ -433,8 +430,11 @@ export const main = async (
       const panelHint = `ctrl+e: ${
         state.specsVisible ? "hide" : "show"
       } specs | ctrl+w: ${state.monitorVisible ? "hide" : "show"} monitor`;
+      const shortcuts = state.focus === "terminal"
+        ? "esc: panels | ctrl+c: quit"
+        : `esc/tab: switch | ctrl+d: quit | ctrl+t: new tab | ${panelHint}`;
       const statusText =
-        ` noskills | ${state.tabs.length} tab(s) | [${focusLabel}] tab: switch | ctrl+d: quit | ctrl+t: new tab | ${panelHint}`;
+        ` noskills | ${state.tabs.length} tab(s) | [${focusLabel}] ${shortcuts}`;
       buf.push(tui.ansi.moveTo(panels.statusBar.y, panels.statusBar.x));
       buf.push(
         tui.ansi.inverse(
@@ -475,7 +475,15 @@ export const main = async (
       );
     }
 
-    // Show cursor after render
+    // Position real cursor inside terminal panel (avoids cursor artifact at panel edge)
+    const cursorTab = tabManager.getActiveTab(state);
+    if (cursorTab?.widget !== null && cursorTab?.widget !== undefined) {
+      const cRow = panels.rightBottom.y + 1 +
+        cursorTab.widget.terminal.cursorRow;
+      const cCol = panels.rightBottom.x + 1 +
+        cursorTab.widget.terminal.cursorCol;
+      buf.push(tui.ansi.moveTo(cRow, cCol));
+    }
     buf.push(tui.terminal.showCursorSeq());
 
     dirtyPanels.clear();
@@ -623,6 +631,32 @@ export const main = async (
 
         // ── Keyboard events ──
         const key = input.event;
+
+        // In terminal focus: forward raw bytes to PTY first, only intercept
+        // global shortcuts. This ensures Alt+Arrow, Cmd+Backspace, etc. pass
+        // through without the keypress parser dropping/splitting them.
+        if (state.focus === "terminal") {
+          const globalAction = keyboardRouter.routeKey(
+            state,
+            key.name,
+            key.ctrl,
+          );
+          if (
+            globalAction.type === "passthrough" ||
+            globalAction.type === "none"
+          ) {
+            // Not a global shortcut — forward raw bytes to PTY
+            const activeTab = tabManager.getActiveTab(state);
+            if (activeTab?.process !== null && activeTab !== null) {
+              activeTab.process?.write(
+                new TextDecoder().decode(key.raw),
+              );
+            }
+            continue;
+          }
+          // Global shortcut — fall through to the switch below
+        }
+
         const action = keyboardRouter.routeKey(
           state,
           key.name,

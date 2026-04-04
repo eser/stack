@@ -77,8 +77,17 @@ export const moduleDef: Module = new Module({
       load: () => import("./commands/web.ts"),
     },
     sync: {
-      description: "Regenerate tool-specific files",
+      description: "Regenerate tool-specific files (redirects to init)",
       load: () => import("./commands/sync.ts"),
+    },
+    learn: {
+      description: "Manage cross-session learnings (list, remove)",
+      load: () => import("./commands/learn.ts"),
+    },
+    diagrams: {
+      description:
+        "Diagram registry and staleness checks (scan, list, check, verify)",
+      load: () => import("./commands/diagrams.ts"),
     },
     purge: {
       description:

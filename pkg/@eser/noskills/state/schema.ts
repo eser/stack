@@ -47,6 +47,15 @@ export type AttributedDiscoveryAnswer = {
   readonly email: string;
   readonly timestamp: string;
   readonly type: "original" | "addition" | "revision";
+  readonly confidence?: number; // 1-10
+  readonly basis?: string;
+};
+
+/** Confidence-scored finding from agent analysis. */
+export type ConfidenceFinding = {
+  readonly finding: string;
+  readonly confidence: number; // 1-10
+  readonly basis: string;
 };
 
 export type Premise = {
@@ -94,6 +103,17 @@ export type SpecNote = {
   readonly phase: Phase;
 };
 
+export type FollowUp = {
+  readonly id: string;
+  readonly parentQuestionId: string;
+  readonly question: string;
+  readonly answer: string | null;
+  readonly status: "pending" | "answered" | "skipped";
+  readonly createdBy: string;
+  readonly createdAt: string;
+  readonly answeredAt?: string;
+};
+
 export type Delegation = {
   readonly questionId: string;
   readonly delegatedTo: string;
@@ -119,6 +139,7 @@ export type DiscoveryState = {
   readonly alternativesPresented?: boolean;
   readonly contributors?: readonly string[];
   readonly delegations?: readonly Delegation[];
+  readonly followUps?: readonly FollowUp[];
 };
 
 // =============================================================================
@@ -184,6 +205,7 @@ export type ExecutionState = {
   readonly completedTasks: readonly string[];
   readonly debtCounter: number;
   readonly naItems: readonly string[];
+  readonly confidenceFindings?: readonly ConfidenceFinding[];
 };
 
 // =============================================================================

@@ -111,6 +111,8 @@ const buildProtocol = (
     "- Task refinement → ask the user, don't self-assign",
     "- Rule promotion → ask the user, don't decide",
     'If you think something can be skipped, ASK "would you like to skip this?" — don\'t skip it.',
+    "NEVER suggest bypassing or skipping noskills. Discovery is not overhead.",
+    "NEVER ask permission to run the next noskills command. After spec new → run next. After approve → run next. Just run it.",
     "",
     "### Command execution",
     "",

@@ -35,11 +35,7 @@ export class VTermWidget {
       fullRedraw,
     };
     this.#dirty = false;
-    return renderScreen(
-      this.#terminal.getScreen(),
-      this.#terminal.getCursor(),
-      opts,
-    );
+    return renderScreen(this.#terminal, opts);
   }
 
   /** Resize the virtual terminal. */

@@ -541,6 +541,58 @@ export const addSpecNote = (
 // Contributors + Delegation
 // =============================================================================
 
+// =============================================================================
+// Confidence scoring
+// =============================================================================
+
+/** Clamp confidence to 1-10 range. */
+export const clampConfidence = (value: number): number =>
+  Math.max(1, Math.min(10, Math.round(value)));
+
+/** Add a confidence-scored finding to execution state. */
+export const addConfidenceFinding = (
+  state: schema.StateFile,
+  finding: string,
+  confidence: number,
+  basis: string,
+): schema.StateFile => {
+  const clamped = clampConfidence(confidence);
+  const existing = state.execution.confidenceFindings ?? [];
+  const entry: schema.ConfidenceFinding = {
+    finding,
+    confidence: clamped,
+    basis,
+  };
+
+  return {
+    ...state,
+    execution: {
+      ...state.execution,
+      confidenceFindings: [...existing, entry],
+    },
+  };
+};
+
+/** Get findings with confidence below threshold. */
+export const getLowConfidenceFindings = (
+  state: schema.StateFile,
+  threshold = 5,
+): readonly schema.ConfidenceFinding[] => {
+  return (state.execution.confidenceFindings ?? []).filter(
+    (f) => f.confidence < threshold,
+  );
+};
+
+/** Calculate average confidence across all findings. */
+export const getAverageConfidence = (
+  state: schema.StateFile,
+): number | null => {
+  const findings = state.execution.confidenceFindings ?? [];
+  if (findings.length === 0) return null;
+  const sum = findings.reduce((acc, f) => acc + f.confidence, 0);
+  return Math.round((sum / findings.length) * 10) / 10;
+};
+
 /** Set contributors for a spec. */
 export const setContributors = (
   state: schema.StateFile,
@@ -550,6 +602,111 @@ export const setContributors = (
     ...state,
     discovery: { ...state.discovery, contributors },
   };
+};
+
+// =============================================================================
+// Follow-ups (adaptive discovery)
+// =============================================================================
+
+const MAX_FOLLOWUPS_PER_QUESTION = 3;
+
+/** Add a follow-up question to an answered discovery question. */
+export const addFollowUp = (
+  state: schema.StateFile,
+  parentQuestionId: string,
+  question: string,
+  createdBy: string,
+): schema.StateFile => {
+  const existing = state.discovery.followUps ?? [];
+
+  // Enforce max 3 per parent question
+  const parentCount =
+    existing.filter((f) => f.parentQuestionId === parentQuestionId).length;
+  if (parentCount >= MAX_FOLLOWUPS_PER_QUESTION) {
+    return state; // silently cap
+  }
+
+  const id = `${parentQuestionId}${String.fromCharCode(97 + parentCount)}`; // Q3a, Q3b, Q3c
+  const followUp: schema.FollowUp = {
+    id,
+    parentQuestionId,
+    question,
+    answer: null,
+    status: "pending",
+    createdBy,
+    createdAt: new Date().toISOString(),
+  };
+
+  return {
+    ...state,
+    discovery: {
+      ...state.discovery,
+      followUps: [...existing, followUp],
+    },
+  };
+};
+
+/** Answer a follow-up question. */
+export const answerFollowUp = (
+  state: schema.StateFile,
+  followUpId: string,
+  answer: string,
+): schema.StateFile => {
+  const followUps = state.discovery.followUps ?? [];
+  const updated = followUps.map((f) => {
+    if (f.id === followUpId && f.status === "pending") {
+      return {
+        ...f,
+        answer,
+        status: "answered" as const,
+        answeredAt: new Date().toISOString(),
+      };
+    }
+    return f;
+  });
+
+  return {
+    ...state,
+    discovery: { ...state.discovery, followUps: updated },
+  };
+};
+
+/** Skip a follow-up question. */
+export const skipFollowUp = (
+  state: schema.StateFile,
+  followUpId: string,
+): schema.StateFile => {
+  const followUps = state.discovery.followUps ?? [];
+  const updated = followUps.map((f) => {
+    if (f.id === followUpId && f.status === "pending") {
+      return { ...f, status: "skipped" as const };
+    }
+    return f;
+  });
+
+  return {
+    ...state,
+    discovery: { ...state.discovery, followUps: updated },
+  };
+};
+
+/** Get pending follow-ups (not answered, not skipped). */
+export const getPendingFollowUps = (
+  state: schema.StateFile,
+): readonly schema.FollowUp[] => {
+  return (state.discovery.followUps ?? []).filter(
+    (f) => f.status === "pending",
+  );
+};
+
+/** Get follow-ups for a specific parent question. */
+export const getFollowUpsForQuestion = (
+  state: schema.StateFile,
+  parentQuestionId: string,
+): readonly schema.FollowUp[] => {
+  return (state.discovery.followUps ?? []).filter(
+    (f) => f.parentQuestionId === parentQuestionId,
+  );
 };
 
 /** Delegate a discovery question to another contributor. */

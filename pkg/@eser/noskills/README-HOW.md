@@ -32,21 +32,28 @@ concerns, and configuration. For the overview and getting started, see
 Every spec follows a deterministic phase flow:
 
 ```
-IDLE -> DISCOVERY -> DISCOVERY_REVIEW -> SPEC_DRAFT -> SPEC_APPROVED -> EXECUTING <-> BLOCKED
- ^                                                                          |
- +--------------------------------- DONE <---------------------------------+
+IDLE → DISCOVERY → REVIEW → DRAFT → APPROVED → EXECUTING ↔ BLOCKED
+ ^        ^                                        |
+ |        +-------------- revisit -----------------+
+ |                                                 |
+ +------------------ COMPLETED ←------------------+
+                    (done | cancelled | wontfix)
 ```
 
-| Phase                | What happens                                                           |
-| -------------------- | ---------------------------------------------------------------------- |
-| **IDLE**             | No active spec. Default permissive state — no enforcement              |
-| **DISCOVERY**        | 6 adaptive questions probe product, engineering, and QA simultaneously |
-| **DISCOVERY_REVIEW** | User reviews and confirms all discovery answers before spec generation |
-| **SPEC_DRAFT**       | Spec generated from discovery answers. Human reviews                   |
-| **SPEC_APPROVED**    | Spec approved, waiting to start. A deliberate "ready but not yet" gate |
-| **EXECUTING**        | Agent works through the spec. Reports progress each iteration          |
-| **BLOCKED**          | Agent hit a decision it can't make alone. Human resolves               |
-| **DONE**             | Spec complete. Summary with iteration count and decisions              |
+Any phase can reach COMPLETED via `cancel` or `wontfix`. COMPLETED can return to
+IDLE (reset) or DISCOVERY (reopen). EXECUTING/BLOCKED can return to DISCOVERY
+via `revisit` — progress is preserved so you can re-scope without losing work.
+
+| Phase         | What happens                                                           |
+| ------------- | ---------------------------------------------------------------------- |
+| **IDLE**      | No active spec. Default permissive state — no enforcement              |
+| **DISCOVERY** | 6 adaptive questions probe product, engineering, and QA simultaneously |
+| **REVIEW**    | User reviews and confirms all discovery answers before spec generation |
+| **DRAFT**     | Spec generated from discovery answers. Human reviews                   |
+| **APPROVED**  | Spec approved, waiting to start. A deliberate "ready but not yet" gate |
+| **EXECUTING** | Agent works through the spec. Reports progress each iteration          |
+| **BLOCKED**   | Agent hit a decision it can't make alone. Human resolves               |
+| **COMPLETED** | Spec complete (done, cancelled, or wontfix). Summary + learnings       |
 
 ### Phase Transition Protocol
 
@@ -83,7 +90,17 @@ Every `noskills next` call returns a structured JSON payload:
     "iteration": 3,
     "lastProgress": "implemented auth module",
     "activeConcerns": ["open-source", "beautiful-product"],
-    "resumeHint": "Executing \"photo-upload\", iteration 3. Last progress: implemented auth module."
+    "resumeHint": "Executing \"photo-upload\", iteration 3. Last progress: implemented auth module.",
+    "enforcement": {
+      "level": "enforced",
+      "capabilities": [
+        "PreToolUse file edit gate",
+        "Git write guard",
+        "Stop iteration tracking",
+        "PostToolUse file logging",
+        "Sub-agent delegation"
+      ]
+    }
   },
   "behavioral": {
     "rules": [
@@ -206,19 +223,87 @@ reviewers.
 
 ## Concerns
 
-Concerns define what your project IS. They stack and affect everything:
+Concerns define what your project IS. They stack, but only the current phase's
+slice is delivered — never the full concern payload at once:
 
-| Concern               | Effect                                                 |
-| --------------------- | ------------------------------------------------------ |
-| **open-source**       | Prioritize contributor experience, permissive defaults |
-| **beautiful-product** | Every UI state specified, no AI slop                   |
-| **long-lived**        | Boring technology, justify every shortcut              |
-| **move-fast**         | Good enough is good enough, defer polish               |
-| **compliance**        | Every state change traceable, verification mandatory   |
-| **learning-project**  | Experimentation encouraged, document learnings         |
+| Concern               | Effect                                                                   |
+| --------------------- | ------------------------------------------------------------------------ |
+| **open-source**       | Prioritize contributor experience, permissive defaults                   |
+| **beautiful-product** | Every UI state specified, no AI slop, accessibility                      |
+| **long-lived**        | Boring technology, justify every shortcut, failure mode analysis         |
+| **move-fast**         | Good enough is good enough, defer polish                                 |
+| **compliance**        | Every state change traceable, verification mandatory                     |
+| **learning-project**  | Experimentation encouraged, document learnings                           |
+| **well-engineered**   | Performance measured, tests strategic, errors helpful, security built-in |
 
-Concerns inject into: discovery questions (extras), spec sections, execution
-reminders, and acceptance criteria.
+Each phase gets only what it needs from concerns — not the full definition.
+DISCOVERY gets extras and dream state prompts. REVIEW gets review dimensions
+(scope-filtered). DRAFT gets spec sections and registry skeletons. EXECUTING
+gets reminders and ACs. Zero upfront dump.
+
+### Review Dimensions
+
+Concerns can define **review dimensions** — structured review criteria that
+inject into REVIEW as a checklist. Each dimension is a short prompt (one
+sentence), not a page of instructions. Dimensions are scope-filtered: a CLI-only
+spec never sees UI dimensions.
+
+```jsonc
+// Each dimension is a single prompt — the agent evaluates one at a time
+{
+  "reviewDimensions": [
+    {
+      "id": "test-strategy",
+      "label": "Test Pyramid Strategy",
+      "prompt": "Map every new behavior to a test layer: Unit | Integration | E2E. Flag untested failure paths.",
+      "evidenceRequired": true,
+      "scope": "all" // "all" | "ui" | "api" | "data"
+    }
+  ]
+}
+```
+
+Dimensions are scope-filtered by `SpecClassification`: UI-scoped dimensions only
+appear when `involvesWebUI` is true. Before classification (in REVIEW), all
+dimensions are shown.
+
+### Registries
+
+Concerns can declare **registries** — review dimensions that require a
+structured table in the spec. These are living documents filled during
+execution.
+
+```jsonc
+// long-lived declares two registries
+{ "registries": ["error-rescue", "failure-modes"] }
+```
+
+The spec template renders empty table skeletons:
+
+```markdown
+## Error & Rescue Registry (long-lived)
+
+| Codepath                         | What Can Go Wrong | Exception Class | Rescued? | Recovery Action | User Sees |
+| -------------------------------- | ----------------- | --------------- | -------- | --------------- | --------- |
+| _To be filled during execution._ |                   |                 |          |                 |           |
+```
+
+Built-in registry types: `error-rescue`, `failure-modes`, `test-plan`.
+
+### Dream State Prompts
+
+Concerns can define a **dream state prompt** that customizes the vision
+synthesis step in discovery:
+
+```jsonc
+// long-lived pushes architectural trajectory
+{
+  "dreamStatePrompt": "Synthesize: CURRENT STATE → THIS SPEC → 6-MONTH IDEAL..."
+}
+```
+
+When present, this replaces the default dream state rule in the DISCOVERY
+behavioral block.
 
 ---
 
@@ -247,6 +332,44 @@ files.
    concerns.
 3. **Debt carry-forward** — remaining items persist across iterations with
    increasing urgency. 3+ iterations unaddressed = escalation.
+
+---
+
+## Jidoka Enforcement
+
+noskills implements the Jidoka principle — "automation with a human touch." The
+system runs autonomously but stops at every meaningful decision point.
+
+### Enforcement Summary
+
+| Safeguard                                     | Mechanism                                                        |
+| --------------------------------------------- | ---------------------------------------------------------------- |
+| File edits blocked in DISCOVERY/REVIEW/DRAFT  | PreToolUse hook denies Write/Edit/MultiEdit                      |
+| File edits blocked when phase is UNKNOWN      | Default-deny (Jidoka C4)                                         |
+| Git write commands blocked                    | PreToolUse hook denies git commit/push/checkout                  |
+| Short discovery answers rejected              | 20-char minimum (Jidoka I1)                                      |
+| Empty premises rejected                       | Must provide at least 1 premise (Jidoka M3)                      |
+| Batch answers flagged                         | `batchSubmitted` flag triggers stronger confirmation (Jidoka C1) |
+| Pending follow-ups block discovery completion | Must answer or skip before transitioning (Jidoka I2)             |
+| Done requires status report                   | Blocks if `awaitingStatusReport` is true (Jidoka C2)             |
+| High confidence needs evidence                | Confidence >= 7 requires basis >= 10 chars (Jidoka M2)           |
+| Reset restricted to terminal phases           | Only IDLE/EXECUTING/BLOCKED/COMPLETED can reset (Jidoka I7)      |
+| Concern tensions block execution              | Must get user resolution before proceeding (Jidoka I6)           |
+| Stale diagrams block completion               | Flagged as mandatory ACs (Jidoka M4)                             |
+| Enforcement level self-reported               | `meta.enforcement` in every output (Jidoka C3)                   |
+| Verification required after every task        | Mandatory behavioral rule (Jidoka I3)                            |
+| Scope violations flagged in AC                | File scope check when task declares files (Jidoka I4)            |
+| Learning prompt at completion                 | `learningsPending` flag visible (Jidoka M1)                      |
+
+### Platform Enforcement Levels
+
+| Platform                               | Level          | Capabilities                                                             |
+| -------------------------------------- | -------------- | ------------------------------------------------------------------------ |
+| Claude Code, Kiro, Codex CLI, OpenCode | **Enforced**   | PreToolUse gate, git guard, iteration tracking, file logging, sub-agents |
+| Cursor, Windsurf, Copilot              | **Behavioral** | Rules synced but not enforced — agent can bypass                         |
+
+On behavioral platforms, `meta.enforcement.gaps` lists what's missing. The agent
+self-reports its enforcement level so the user knows the compliance posture.
 
 ---
 
@@ -388,11 +511,14 @@ eser nos <command>             # alias
 | `spec list`                           | List all specs                                    |
 | `spec <name> next`                    | Get instruction for current phase                 |
 | `spec <name> next --answer="..."`     | Submit answer and advance                         |
-| `spec <name> approve`                 | Approve spec → SPEC_APPROVED                      |
-| `spec <name> done`                    | Complete → DONE                                   |
+| `spec <name> approve`                 | Approve spec → APPROVED                           |
+| `spec <name> done`                    | Complete → COMPLETED (reason: done)               |
+| `spec <name> cancel`                  | Cancel spec → COMPLETED (reason: cancelled)       |
+| `spec <name> wontfix`                 | Close as won't fix → COMPLETED (reason: wontfix)  |
 | `spec <name> block "reason"`          | Mark as blocked                                   |
 | `spec <name> reset`                   | Reset to IDLE                                     |
-| `spec <name> revisit "reason"`        | EXECUTING → DISCOVERY with progress               |
+| `spec <name> reopen`                  | COMPLETED → DISCOVERY (re-scope a finished spec)  |
+| `spec <name> revisit "reason"`        | EXECUTING/BLOCKED → DISCOVERY with progress       |
 | `spec <name> review`                  | See delegations assigned to you                   |
 | `spec <name> followup <qId> "text"`   | Add adaptive follow-up question                   |
 | `spec <name> learn "text"`            | Record a learning                                 |
@@ -424,6 +550,8 @@ const state = noskills.machine.startSpec(
 const qs = noskills.questions.getQuestionsWithExtras(activeConcerns);
 const output = noskills.compiler.compile(state, activeConcerns, rules, config);
 const tensions = noskills.concerns.detectTensions(activeConcerns);
+const dimensions = noskills.concerns.getReviewDimensions(activeConcerns);
+const registries = noskills.concerns.getRegistryDimensionIds(activeConcerns);
 const text = noskills.formatter.format(output, "markdown");
 ```
 
@@ -444,14 +572,16 @@ await dashboard.addNote(projectRoot, "upload", "KDV dahil mi?", user);
 
 ### Behavioral Guardrails per Phase
 
-| Phase      | Tone                           | Key rules                                |
-| ---------- | ------------------------------ | ---------------------------------------- |
-| IDLE       | Welcoming                      | No file edits                            |
-| DISCOVERY  | Curious, has a stake           | Push back on shallow answers, don't code |
-| SPEC_DRAFT | The user is reviewing          | Don't modify spec, don't code            |
-| EXECUTING  | Orchestrate — spawn sub-agents | Delegate, don't edit directly            |
-| BLOCKED    | Brief, decision time           | Present as-is, no preferences            |
-| DONE       | Celebrate briefly, then stop   | Don't start new work                     |
+| Phase     | Tone                           | Key rules                                |
+| --------- | ------------------------------ | ---------------------------------------- |
+| IDLE      | Welcoming                      | No file edits                            |
+| DISCOVERY | Curious, has a stake           | Push back on shallow answers, don't code |
+| REVIEW    | Careful reviewer               | User must confirm each answer            |
+| DRAFT     | The user is reviewing          | Don't modify spec, don't code            |
+| APPROVED  | Patient, wait for go signal    | Don't start coding until user says go    |
+| EXECUTING | Orchestrate — spawn sub-agents | Delegate, don't edit directly            |
+| BLOCKED   | Brief, decision time           | Present as-is, no preferences            |
+| COMPLETED | Celebrate briefly, then stop   | Don't start new work, record learnings   |
 
 ### Scoped Folder Rules
 

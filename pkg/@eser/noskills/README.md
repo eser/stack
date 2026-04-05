@@ -75,10 +75,11 @@ execute. Fresh context per task. No context rot, no forgotten requirements, no
 The agent reports against specific acceptance criteria, not vibes. Unfinished
 items carry forward as debt — they don't disappear.
 
-**Your concerns shape everything.** "We're open-source" isn't a label — it's a
-lens. It injects documentation requirements into every spec, contributor checks
-into every review, and license reminders into every task. Stack multiple
-concerns to define your project's character.
+**Your concerns shape everything — without bloating context.** "We're
+open-source" isn't a label — it's a lens. It adds a documentation check to the
+current spec, a contributor question to the current discovery, a license
+reminder to the current task. Only what's relevant to the current phase is
+delivered. Stack multiple concerns to define your project's character.
 
 **One source of truth for all tools.** Write rules once. noskills generates
 CLAUDE.md, AGENTS.md, .cursorrules, Kiro steering files, and more. Your teammate
@@ -124,13 +125,19 @@ Agent: *implements task 2 in fresh context, tests pass, reports progress*
 Every spec moves through phases:
 
 ```
-IDLE → DISCOVERY → REVIEW → DRAFT → APPROVED → EXECUTING → DONE
+IDLE → DISCOVERY → REVIEW → DRAFT → APPROVED → EXECUTING ↔ BLOCKED
+ ^        ^                                        |
+ |        +-------------- revisit -----------------+
+ |                                                 |
+ +------------------ COMPLETED ←------------------+
+                    (done | cancelled | wontfix)
 ```
 
-At each phase, the agent gets exactly the instructions it needs — nothing more.
-In DISCOVERY, it can't edit files (mechanically blocked, not just asked nicely).
-In EXECUTING, it delegates to sub-agents with fresh context per task. At every
-gate, you decide.
+Any phase can exit via `cancel` or `wontfix`. Mid-execution, `revisit` returns
+to DISCOVERY with progress preserved. At each phase, the agent gets exactly the
+instructions it needs — nothing more. In DISCOVERY, it can't edit files
+(mechanically blocked, not just asked nicely). In EXECUTING, it delegates to
+sub-agents with fresh context per task. At every gate, you decide.
 
 The agent calls `noskills next`, gets a JSON payload with its current task,
 behavioral rules, and concern reminders. It does the work, calls `noskills next`
@@ -146,10 +153,10 @@ and "you can't."
 **Discovery** — Adaptive questions that challenge your assumptions, surface edge
 cases, and catch things you'd miss. Discovery modes shape the depth.
 
-**Concerns** — your project's DNA. "open-source" adds documentation requirements
-everywhere. "beautiful-product" demands every UI state is designed. "move-fast"
-accepts good-enough. Concerns stack — they inject into discovery, specs,
-execution, and verification.
+**Concerns** — your project's DNA. "open-source" adds a documentation check.
+"beautiful-product" demands every UI state is designed. "move-fast" accepts
+good-enough. Concerns stack, but only the current phase's slice is delivered —
+no upfront context dump.
 
 **Specs** — living documents with tasks, acceptance criteria, and status
 tracking. Not a plan the agent ignores — a contract it's held to.
@@ -345,15 +352,16 @@ Git write operations are the CLI's responsibility, never the agent's.
 Every `noskills next` output includes a `behavioral` block with phase-specific
 rules. These tell the agent HOW to behave, not just WHAT to do:
 
-| Phase      | Behavioral tone                  | Key rules                                                     |
-| ---------- | -------------------------------- | ------------------------------------------------------------- |
-| IDLE       | "Welcoming. Present choices"     | No file edits until free mode or spec approved                |
-| FREE       | "Quiet. No enforcement."         | No restrictions — work freely                                 |
-| DISCOVERY  | "Curious, has a stake"           | Push back on shallow answers, probe for specifics, don't code |
-| SPEC_DRAFT | "The user is reviewing"          | Don't modify the spec, don't start coding                     |
-| EXECUTING  | "Orchestrate — spawn sub-agents" | Delegate to sub-agents, don't edit files directly             |
-| BLOCKED    | "Brief. Decision time."          | Present decision as-is, don't suggest preferences             |
-| DONE       | "Celebrate briefly, then stop"   | Don't start new work                                          |
+| Phase     | Behavioral tone                  | Key rules                                                     |
+| --------- | -------------------------------- | ------------------------------------------------------------- |
+| IDLE      | "Welcoming. Present choices"     | No file edits until spec approved                             |
+| DISCOVERY | "Curious, has a stake"           | Push back on shallow answers, probe for specifics, don't code |
+| REVIEW    | "Careful reviewer"               | Present answers, user must confirm each one                   |
+| DRAFT     | "The user is reviewing"          | Don't modify the spec, don't start coding                     |
+| APPROVED  | "Patient. Wait for go signal"    | Don't start coding until user triggers execution              |
+| EXECUTING | "Orchestrate — spawn sub-agents" | Delegate to sub-agents, don't edit files directly             |
+| BLOCKED   | "Brief. Decision time."          | Present decision as-is, don't suggest preferences             |
+| COMPLETED | "Celebrate briefly, then stop"   | Don't start new work (done, cancelled, or wontfix)            |
 
 **Git is read-only** for agents (configurable via `allowGit: true` in manifest).
 Agents may read (`git log`, `git diff`, `git status`) but never write
@@ -370,23 +378,27 @@ Concerns define what your project IS. They stack on top of each other and affect
 discovery questions, spec sections, execution reminders, and acceptance
 criteria:
 
-| Concern               | Effect                                                                |
-| --------------------- | --------------------------------------------------------------------- |
-| **open-source**       | Prioritize contributor experience, default to permissive choices      |
-| **beautiful-product** | Every UI state specified — empty, loading, error, success. No AI slop |
-| **long-lived**        | Favor boring technology, every shortcut needs justification           |
-| **move-fast**         | Good enough is good enough, defer polish to v2                        |
-| **compliance**        | Every state change must be traceable, verification is mandatory       |
-| **learning-project**  | Experimentation encouraged, document learnings over polish            |
+| Concern               | Effect                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| **open-source**       | Prioritize contributor experience, default to permissive choices                     |
+| **beautiful-product** | Every UI state specified — empty, loading, error, success. No AI slop                |
+| **long-lived**        | Favor boring technology, every shortcut needs justification                          |
+| **move-fast**         | Good enough is good enough, defer polish to v2                                       |
+| **compliance**        | Every state change must be traceable, verification is mandatory                      |
+| **learning-project**  | Experimentation encouraged, document learnings over polish                           |
+| **well-engineered**   | Performance measured, tests strategic, errors helpful, security built-in, observable |
 
-Concerns inject:
+Concerns inject at every phase (DISCOVERY, REVIEW, EXECUTING, etc.) — but only
+the slice relevant to the current phase. The agent never sees all concern data
+at once:
 
-- **Discovery extras** — sub-questions per concern per question
-- **Spec sections** — e.g., beautiful-product adds "Design States (empty,
-  loading, error, success)"
-- **Execution reminders** — per-iteration context hints
-- **Acceptance criteria** — checked during status reports before task is
-  accepted
+- **DISCOVERY** — extra sub-questions, dream state prompts
+- **REVIEW** — review dimension checklist (scope-filtered by classification — UI
+  dimensions only appear for UI specs)
+- **DRAFT** — spec sections, registry table skeletons
+- **EXECUTING** — reminders (tier 1 at compile-time, tier 2 per-file via hooks),
+  acceptance criteria, tension gates
+- **COMPLETED** — learning prompts (done, cancelled, or wontfix)
 
 When concerns conflict (e.g., move-fast + compliance), noskills surfaces the
 tension to the human rather than resolving it silently.
@@ -446,18 +458,17 @@ Another distinction is that noskills owns the workflow — who does what, when,
 and whether the result was verified — while the others own the thinking or the
 persona.
 
-**noskills vs gstack:** gstack is a collection of behavioral skills — each skill
-is a 2000+ line prompt that tells the agent how to behave. Office hours asks 6
-questions (noskills: discovery). CEO review selects a scope mode (noskills:
-discovery modes). Eng review checks architecture and tests (noskills: verifier
-pipeline + mandatory ACs). The key difference: gstack skills are behavioral
-instructions the agent may or may not follow. noskills pushes exactly the right
-instruction at the right time via a state machine, and enforces compliance via
-hooks. gstack's /office-hours produces a design doc. noskills' discovery
-produces a spec with tasks, ACs, and a state machine that tracks execution.
-gstack solves real problems — but with 2000-line prompts the agent may or may
-not follow. noskills solves the same problems with 10 lines at the right moment,
-enforced by hooks.
+**noskills vs gstack:** gstack achieves planning depth through persona
+multiplication — 4 independent reviewers (CEO, Engineer, Designer, DX advocate)
+each with a 2000+ line prompt. noskills achieves the same depth through concern
+composition — each concern carries review dimensions (one-sentence prompts) that
+push the agent to evaluate specific quality aspects at the right phase.
+`well-engineered` pushes test strategy, performance, observability, threat
+modeling, and error quality. `beautiful-product` pushes information hierarchy,
+interaction states, accessibility, and design system alignment. `long-lived`
+pushes architecture analysis, failure modes, and deployment safety. Same
+planning power, fraction of the tokens: concerns are phase-scoped JSON, not
+monolithic prompts. Enforced by hooks, not hoped for by the agent.
 
 **noskills vs Superpowers:** Superpowers provides detailed execution playbooks —
 step-by-step instructions for brainstorming, dispatching, executing, and
@@ -535,8 +546,8 @@ One key difference: in Scrum, a sprint is time-boxed. In noskills, execution
 runs until the spec is complete — it is a single-story sprint. This is why
 mid-execution checkpoints make no sense: a Scrum Master does not stop a sprint
 halfway through the only story. If the story is too big, you split it _before_
-the sprint starts — not during. That is exactly what noskills does at
-DISCOVERY_REVIEW with the split proposal.
+the sprint starts — not during. That is exactly what noskills does at REVIEW
+with the split proposal.
 
 ## Philosophy — A Scrum Master for Agents
 

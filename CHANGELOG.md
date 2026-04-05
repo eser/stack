@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.1.55 - 2026-04-05
+
+### Added
+
+- **noskills,codebase:** add Jidoka enforcement, review dimensions, ajan version
+  sync
+
 ## 4.1.54 - 2026-04-04
 
 ### Added

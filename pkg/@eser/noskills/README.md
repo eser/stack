@@ -191,6 +191,28 @@ Before the six questions, noskills asks which discovery mode to use:
 
 The mode shapes how questions are asked and which concern extras appear.
 
+### Listen-first merged entry
+
+When you run `noskills spec <name> next` for the first time on a new spec,
+noskills presents a single entry menu combining listen-first and mode selection:
+
+- **(a)** Share context — write requirements, Linear tasks, meeting notes
+  (recursive; you can keep adding)
+- **(b)** Technical depth mode — architecture, data flow, integration focus
+- **(c)** Move fast mode — minimum viable scope
+- **(d)** Validate mode — challenge assumptions, find gaps
+
+Option (a) appends to `discovery.userContext[]` without advancing. Picking b/c/d
+sets `entryComplete: true` and starts discovery.
+
+### Auto-classification
+
+At DISCOVERY_REFINEMENT, noskills automatically classifies your spec across five
+categories (Web UI, CLI, Public API, Migration, Data Handling) by regex-scanning
+your spec description, userContext entries, and discovery answers. The
+classification is shown with keyword evidence for you to confirm or adjust — no
+separate classification prompt step required.
+
 ## Who is this for
 
 **Vibe coders** who are tired of babysitting agents — you want to describe what
@@ -341,11 +363,12 @@ and performance degrades. The Ralph loop solves this by restarting the agent
 every iteration with fresh context while persisting state in files. noskills IS
 the Ralph loop — no separate bash script needed.
 
-State persists in `.eser/.state/state.json` between iterations. The Stop hook
-snapshots git state automatically. Verification backpressure prevents advancing
-past broken tests. When `autoCommit: true` in `manifest.yml`, the `noskills run`
-CLI loop handles git commits between iterations — the agent never touches git.
-Git write operations are the CLI's responsibility, never the agent's.
+State persists in `.eser/.state/progresses/state.json` between iterations. The
+Stop hook snapshots git state automatically. Verification backpressure prevents
+advancing past broken tests. When `autoCommit: true` in `manifest.yml`, the
+`noskills run` CLI loop handles git commits between iterations — the agent never
+touches git. Git write operations are the CLI's responsibility, never the
+agent's.
 
 ### Behavioral Guardrails
 

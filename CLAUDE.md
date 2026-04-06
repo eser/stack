@@ -83,9 +83,10 @@ checkout, etc.).
 
 ### Discovery
 
-Modes: full (default), validate, technical-depth, ship-fast, explore. Pre-scan
-codebase before questions. Challenge premises. Propose alternatives. With
---from-plan: extract answers, present for user confirmation.
+Listen first: after spec creation, ask user to share context before mode
+selection. Modes: full (default), validate, technical-depth, ship-fast, explore.
+Pre-scan codebase before questions. Challenge premises. Propose alternatives.
+With --from-plan: extract answers, present for user confirmation.
 
 ### Execution
 

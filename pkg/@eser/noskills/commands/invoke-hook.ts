@@ -24,6 +24,10 @@ import * as syncEngine from "../sync/engine.ts";
 import * as hookDecisions from "./hook-decisions.ts";
 import * as folderRules from "../context/folder-rules.ts";
 import * as concerns from "../context/concerns.ts";
+import {
+  compareQuestions,
+  SIMILARITY_EXACT_THRESHOLD,
+} from "../context/question-similarity.ts";
 import { cmd } from "../output/cmd.ts";
 import { runtime } from "@eser/standards/cross-runtime";
 
@@ -91,6 +95,8 @@ export const main = async (
       return await handlePostBash();
     case "session-start":
       return await handleSessionStart();
+    case "post-ask-user-question":
+      return await handlePostAskUserQuestion();
     default:
       return results.ok(undefined);
   }
@@ -296,7 +302,7 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
     // Sub-agent spawning reminder (once per session, non-blocking)
     if (phase === "EXECUTING" && gatedTools.includes(toolName)) {
       const flagFile =
-        `${root}/${persistence.paths.stateDir}/executor-warned.flag`;
+        `${root}/${persistence.paths.progressesDir}/executor-warned.flag`;
       try {
         await runtime.fs.readTextFile(flagFile);
         // Flag exists — already warned this session
@@ -304,7 +310,7 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
         // First write attempt in EXECUTING — show reminder
         try {
           await runtime.fs.mkdir(
-            `${root}/${persistence.paths.stateDir}`,
+            `${root}/${persistence.paths.progressesDir}`,
             { recursive: true },
           );
           await runtime.fs.writeTextFile(flagFile, new Date().toISOString());
@@ -429,7 +435,7 @@ const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
 
   // Read tracked files from hook log
   const filesChangedPath =
-    `${root}/${persistence.paths.stateDir}/files-changed.jsonl`;
+    `${root}/${persistence.paths.progressesDir}/files-changed.jsonl`;
   let trackedFiles: string[] = [];
   try {
     const logContent = await runtime.fs.readTextFile(filesChangedPath);
@@ -475,7 +481,7 @@ const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
   const iteration = ((execution["iteration"] as number) ?? 0) + 1;
 
   // Write per-iteration log
-  const iterDir = `${root}/${persistence.paths.stateDir}/iterations`;
+  const iterDir = `${root}/${persistence.paths.progressesDir}/iterations`;
   try {
     await runtime.fs.mkdir(iterDir, { recursive: true });
     await runtime.fs.writeTextFile(
@@ -535,7 +541,7 @@ const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
   // Reset executor warning flag for fresh iteration
   try {
     await runtime.fs.remove(
-      `${root}/${persistence.paths.stateDir}/executor-warned.flag`,
+      `${root}/${persistence.paths.progressesDir}/executor-warned.flag`,
     );
   } catch {
     // best effort — may not exist
@@ -574,7 +580,8 @@ const handlePostFileWrite = async (): Promise<shellArgs.CliResult<void>> => {
 
   const root = (input["cwd"] as string) ??
     runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
-  const logFile = `${root}/${persistence.paths.stateDir}/files-changed.jsonl`;
+  const logFile =
+    `${root}/${persistence.paths.progressesDir}/files-changed.jsonl`;
 
   const entry = JSON.stringify({
     file: filePath,
@@ -584,7 +591,7 @@ const handlePostFileWrite = async (): Promise<shellArgs.CliResult<void>> => {
 
   try {
     await runtime.fs.mkdir(
-      `${root}/${persistence.paths.stateDir}`,
+      `${root}/${persistence.paths.progressesDir}`,
       { recursive: true },
     );
     // Append
@@ -615,7 +622,8 @@ const handlePostBash = async (): Promise<shellArgs.CliResult<void>> => {
 
   const root = (input["cwd"] as string) ??
     runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
-  const logFile = `${root}/${persistence.paths.stateDir}/noskills-calls.jsonl`;
+  const logFile =
+    `${root}/${persistence.paths.progressesDir}/noskills-calls.jsonl`;
 
   const entry = JSON.stringify({
     command,
@@ -624,7 +632,7 @@ const handlePostBash = async (): Promise<shellArgs.CliResult<void>> => {
 
   try {
     await runtime.fs.mkdir(
-      `${root}/${persistence.paths.stateDir}`,
+      `${root}/${persistence.paths.progressesDir}`,
       { recursive: true },
     );
     let existing = "";
@@ -678,5 +686,114 @@ const handleSessionStart = async (): Promise<shellArgs.CliResult<void>> => {
   );
   await writeStdout(output);
 
+  return results.ok(undefined);
+};
+
+// =============================================================================
+// PostToolUse (AskUserQuestion): record a token mapping the asked question
+// to the expected discovery step. Best-effort — never blocks the agent.
+// =============================================================================
+
+/**
+ * Pure-ish core: given a parsed Claude Code hook input and a project root,
+ * write the ask-token.json that `noskills next` will later consume to mark
+ * discovery answers as STATED vs INFERRED. Exported for testing so the logic
+ * can be exercised without simulating stdin.
+ */
+export const processAskUserQuestionHook = async (
+  input: Record<string, unknown>,
+  root: string,
+): Promise<void> => {
+  const toolName = (input["tool_name"] as string) ?? "";
+  if (toolName !== "AskUserQuestion") return;
+
+  const toolInput = (input["tool_input"] as Record<string, unknown>) ?? {};
+  // Claude Code passes questions as an array; take the first question's text.
+  // Fall back to single-string shape if present.
+  let askedQuestion = "";
+  const questions = toolInput["questions"];
+  if (Array.isArray(questions) && questions.length > 0) {
+    const first = questions[0] as Record<string, unknown>;
+    askedQuestion = (first["question"] as string) ?? "";
+  } else if (typeof toolInput["question"] === "string") {
+    askedQuestion = toolInput["question"] as string;
+  }
+  if (askedQuestion.length === 0) return;
+
+  // Best-effort state load to determine expected step id
+  let stepId = "unknown";
+  let specName: string | null = null;
+  const expectedText = "";
+  try {
+    const state = await persistence.readState(root);
+    specName = (state as { spec?: string | null }).spec ?? null;
+    const discovery =
+      (state as { discovery?: Record<string, unknown> }).discovery ?? {};
+    const phase = (state as { phase?: string }).phase ?? "";
+    const currentQuestion =
+      (discovery["currentQuestion"] as number | undefined) ?? 0;
+
+    // Map state → expected step id
+    if (phase === "DISCOVERY") {
+      const questionIds = [
+        "status_quo",
+        "ambition",
+        "reversibility",
+        "user_impact",
+        "verification",
+        "scope_boundary",
+      ];
+      stepId = questionIds[currentQuestion] ?? `Q${currentQuestion + 1}`;
+    } else if (phase === "DISCOVERY_REFINEMENT") {
+      stepId = "refinement";
+    } else if (phase === "SPEC_PROPOSAL") {
+      stepId = "approval";
+    }
+    // expectedText is left empty for now — the similarity compare uses
+    // askedQuestion alone for 0, giving "modified" if empty. A future task
+    // can add expected-text lookup.
+  } catch {
+    // best-effort; fall through with defaults
+  }
+
+  // Compute similarity (against empty expected = 0; result will be "modified" by default)
+  const similarity = compareQuestions(expectedText, askedQuestion);
+  const match: "exact" | "modified" = similarity >= SIMILARITY_EXACT_THRESHOLD
+    ? "exact"
+    : "modified";
+
+  // Generate token
+  const token = crypto.randomUUID().slice(0, 8);
+  const payload = {
+    token,
+    stepId,
+    spec: specName,
+    match,
+    originalQuestion: expectedText,
+    askedQuestion,
+    createdAt: new Date().toISOString(),
+  };
+
+  // Best-effort write — never throw
+  try {
+    await runtime.fs.mkdir(`${root}/${persistence.paths.progressesDir}`, {
+      recursive: true,
+    });
+    await runtime.fs.writeTextFile(
+      `${root}/${persistence.paths.askTokenFile}`,
+      JSON.stringify(payload) + "\n",
+    );
+  } catch {
+    // Silently swallow — hook failure must never break the agent.
+  }
+};
+
+const handlePostAskUserQuestion = async (): Promise<
+  shellArgs.CliResult<void>
+> => {
+  const input = await readStdin();
+  const root = (input["cwd"] as string) ??
+    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
+  await processAskUserQuestionHook(input, root);
   return results.ok(undefined);
 };

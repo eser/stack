@@ -299,10 +299,11 @@ const deleteCategory = (
     case "concerns":
       return removeDir(`${root}/${persistence.paths.concernsDir}`);
     case "specs":
-      // Follow-parent: also remove .eser/.state/
+      // Follow-parent: also remove .eser/.state/progresses/ (the workflow
+      // state sub-tree). Sessions and events are intentionally preserved.
       return removeDirBatch([
         `${root}/${persistence.paths.specsDir}`,
-        `${root}/${persistence.paths.stateDir}`,
+        `${root}/${persistence.paths.progressesDir}`,
       ]);
     case "rules":
       return removeDir(`${root}/${persistence.paths.rulesDir}`);
@@ -334,9 +335,9 @@ const deleteAllCategories = async (
     tui.log.step(ctx, "  Removed `.eser/rules/`");
   }
 
-  // 4. State
-  if (await removeDir(`${root}/${persistence.paths.stateDir}`)) {
-    tui.log.step(ctx, "  Removed `.eser/.state/`");
+  // 4. State (workflow progresses sub-tree only; sessions/events preserved)
+  if (await removeDir(`${root}/${persistence.paths.progressesDir}`)) {
+    tui.log.step(ctx, "  Removed `.eser/.state/progresses/`");
   }
 
   // 5. Manifest

@@ -13,7 +13,7 @@ let tempCounter = 0;
 const makeTempDir = async (): Promise<string> => {
   const base = await runtime.fs.makeTempDir();
   const dir = `${base}/noskills-test-${tempCounter++}`;
-  await runtime.fs.mkdir(`${dir}/.eser/.events`, { recursive: true });
+  await runtime.fs.mkdir(`${dir}/.eser/.state/events`, { recursive: true });
   return dir;
 };
 
@@ -78,11 +78,11 @@ describe("appendEvent", () => {
     }
   });
 
-  it("creates .events directory if missing", async () => {
+  it("creates events directory if missing", async () => {
     const base = await runtime.fs.makeTempDir();
     const root = `${base}/fresh-${tempCounter++}`;
     await runtime.fs.mkdir(`${root}/.eser`, { recursive: true });
-    // No .events dir yet
+    // No .state/events dir yet
 
     await events.appendEvent(root, makeEvent("spec-created", "test"));
 

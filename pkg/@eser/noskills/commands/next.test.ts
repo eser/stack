@@ -6,11 +6,13 @@
  * - Refinement task parsing (split on task-N: prefix, not commas)
  */
 
-import { describe, it } from "@std/testing/bdd";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import { assertEquals } from "@std/assert";
+import * as crossRuntime from "@eser/standards/cross-runtime";
 import * as next from "./next.ts";
 import * as machine from "../state/machine.ts";
 import * as schema from "../state/schema.ts";
+import * as persistence from "../state/persistence.ts";
 
 // =============================================================================
 // Helpers
@@ -336,5 +338,207 @@ describe("parseRefinementTasks", () => {
     assertEquals(tasks.length, 2);
     assertEquals(tasks[0], "task-1: Add endpoint");
     assertEquals(tasks[1], "task-2: Write tests");
+  });
+});
+
+// =============================================================================
+// consumeAskToken — edge cases for the discovery integrity token lifecycle
+// =============================================================================
+
+describe("consumeAskToken", () => {
+  let tempDir: string;
+
+  const writeToken = async (
+    root: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> => {
+    const dir = `${root}/${persistence.paths.progressesDir}`;
+    await crossRuntime.runtime.fs.mkdir(dir, { recursive: true });
+    await crossRuntime.runtime.fs.writeTextFile(
+      `${root}/${persistence.paths.askTokenFile}`,
+      JSON.stringify(payload),
+    );
+  };
+
+  const tokenExists = async (root: string): Promise<boolean> => {
+    try {
+      await crossRuntime.runtime.fs.readTextFile(
+        `${root}/${persistence.paths.askTokenFile}`,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  beforeEach(async () => {
+    tempDir = await crossRuntime.runtime.fs.makeTempDir({
+      prefix: "nos_ask_token_",
+    });
+  });
+
+  afterEach(async () => {
+    await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
+  });
+
+  it("returns STATED with exact match for valid token", async () => {
+    await writeToken(tempDir, {
+      token: "abc12345",
+      stepId: "status_quo",
+      spec: "my-spec",
+      match: "exact",
+      createdAt: new Date().toISOString(),
+      askedQuestion: "What is the current behavior?",
+    });
+
+    const result = await next.consumeAskToken(
+      tempDir,
+      "my-spec",
+      "status_quo",
+    );
+
+    assertEquals(result.source, "STATED");
+    assertEquals(result.questionMatch, "exact");
+  });
+
+  it("returns STATED with modified match when token match=modified", async () => {
+    await writeToken(tempDir, {
+      token: "abc12345",
+      stepId: "ambition",
+      spec: "my-spec",
+      match: "modified",
+      createdAt: new Date().toISOString(),
+      askedQuestion: "Tweaked question text",
+    });
+
+    const result = await next.consumeAskToken(tempDir, "my-spec", "ambition");
+
+    assertEquals(result.source, "STATED");
+    assertEquals(result.questionMatch, "modified");
+  });
+
+  it("returns INFERRED for wrong stepId", async () => {
+    await writeToken(tempDir, {
+      token: "abc12345",
+      stepId: "status_quo",
+      spec: "my-spec",
+      match: "exact",
+      createdAt: new Date().toISOString(),
+    });
+
+    const result = await next.consumeAskToken(tempDir, "my-spec", "ambition");
+
+    assertEquals(result.source, "INFERRED");
+    assertEquals(result.questionMatch, "not-asked");
+  });
+
+  it("returns INFERRED for wrong spec", async () => {
+    await writeToken(tempDir, {
+      token: "abc12345",
+      stepId: "status_quo",
+      spec: "spec-a",
+      match: "exact",
+      createdAt: new Date().toISOString(),
+    });
+
+    const result = await next.consumeAskToken(tempDir, "spec-b", "status_quo");
+
+    assertEquals(result.source, "INFERRED");
+    assertEquals(result.questionMatch, "not-asked");
+  });
+
+  it("returns INFERRED for expired token (> 30 min old)", async () => {
+    const old = new Date(Date.now() - 31 * 60 * 1000).toISOString();
+    await writeToken(tempDir, {
+      token: "abc12345",
+      stepId: "status_quo",
+      spec: "my-spec",
+      match: "exact",
+      createdAt: old,
+    });
+
+    const result = await next.consumeAskToken(
+      tempDir,
+      "my-spec",
+      "status_quo",
+    );
+
+    assertEquals(result.source, "INFERRED");
+    assertEquals(result.questionMatch, "not-asked");
+  });
+
+  it("returns INFERRED for missing token file", async () => {
+    // No file written.
+    const result = await next.consumeAskToken(
+      tempDir,
+      "my-spec",
+      "status_quo",
+    );
+
+    assertEquals(result.source, "INFERRED");
+    assertEquals(result.questionMatch, "not-asked");
+  });
+
+  it("is single-use — deletes file on successful consumption", async () => {
+    await writeToken(tempDir, {
+      token: "abc12345",
+      stepId: "status_quo",
+      spec: "my-spec",
+      match: "exact",
+      createdAt: new Date().toISOString(),
+    });
+
+    assertEquals(await tokenExists(tempDir), true);
+
+    const result = await next.consumeAskToken(
+      tempDir,
+      "my-spec",
+      "status_quo",
+    );
+    assertEquals(result.source, "STATED");
+
+    // File should be gone now.
+    assertEquals(await tokenExists(tempDir), false);
+
+    // Second call must fall through to INFERRED.
+    const second = await next.consumeAskToken(
+      tempDir,
+      "my-spec",
+      "status_quo",
+    );
+    assertEquals(second.source, "INFERRED");
+  });
+
+  it("handles malformed JSON gracefully (returns INFERRED)", async () => {
+    const dir = `${tempDir}/${persistence.paths.progressesDir}`;
+    await crossRuntime.runtime.fs.mkdir(dir, { recursive: true });
+    await crossRuntime.runtime.fs.writeTextFile(
+      `${tempDir}/${persistence.paths.askTokenFile}`,
+      "{ this is not valid json",
+    );
+
+    const result = await next.consumeAskToken(
+      tempDir,
+      "my-spec",
+      "status_quo",
+    );
+
+    assertEquals(result.source, "INFERRED");
+    assertEquals(result.questionMatch, "not-asked");
+  });
+
+  it("null spec in both token and expected is treated as match", async () => {
+    await writeToken(tempDir, {
+      token: "abc12345",
+      stepId: "status_quo",
+      spec: null,
+      match: "exact",
+      createdAt: new Date().toISOString(),
+    });
+
+    const result = await next.consumeAskToken(tempDir, null, "status_quo");
+
+    assertEquals(result.source, "STATED");
+    assertEquals(result.questionMatch, "exact");
   });
 });

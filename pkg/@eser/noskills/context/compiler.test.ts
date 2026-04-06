@@ -87,13 +87,18 @@ describe("compile", () => {
     assertEquals((output.questions[0]?.extras.length ?? 0) > 0, true);
   });
 
-  it("SPEC_PROPOSAL without classification shows classification prompt", async () => {
-    const output = await compiler.compile(inSpecDraft(), noConcerns, noRules);
+  it("SPEC_PROPOSAL auto-infers classification instead of prompting", async () => {
+    const state = inSpecDraft();
+
+    // After approveDiscoveryReview, autoClassifyIfMissing populates classification.
+    assertEquals(state.classification !== null, true);
+    assertEquals(state.classification?.source, "inferred");
+
+    const output = await compiler.compile(state, noConcerns, noRules);
 
     assertEquals(output.phase, "SPEC_PROPOSAL");
     const specDraft = output as compiler.SpecDraftOutput;
-    assertEquals(specDraft.classificationRequired, true);
-    assertEquals(specDraft.classificationPrompt !== undefined, true);
+    assertEquals(specDraft.classificationRequired, undefined);
   });
 
   it("SPEC_PROPOSAL with classification shows approve transition", async () => {
@@ -537,5 +542,154 @@ describe("DISCOVERY_REFINEMENT split proposal", () => {
         .interactiveOptions?.map((o) => o.label) ?? [];
     assertEquals(labels.includes("Approve all answers"), true);
     assertEquals(labels.includes("Revise answers"), true);
+  });
+});
+
+// =============================================================================
+// inferClassification
+// =============================================================================
+
+const createTestState = (
+  partial: Partial<schema.StateFile>,
+): schema.StateFile => ({
+  ...schema.createInitialState(),
+  ...partial,
+});
+
+describe("inferClassification", () => {
+  it("detects Web UI keywords", () => {
+    const state = createTestState({
+      specDescription: "add a loading state and button component",
+    });
+    const result = compiler.inferClassification(state);
+
+    assertEquals(result.involvesWebUI, true);
+    assertEquals(
+      result.inferredFrom?.some((k) => k.startsWith("involvesWebUI:")) ?? false,
+      true,
+    );
+  });
+
+  it("detects CLI keywords", () => {
+    const state = createTestState({
+      specDescription: "update the terminal stdin prompt",
+    });
+    const result = compiler.inferClassification(state);
+
+    assertEquals(result.involvesCLI, true);
+  });
+
+  it("detects API keywords", () => {
+    const state = createTestState({
+      specDescription: "add a REST endpoint with webhook",
+    });
+    const result = compiler.inferClassification(state);
+
+    assertEquals(result.involvesPublicAPI, true);
+  });
+
+  it("detects Migration keywords", () => {
+    const state = createTestState({
+      specDescription: "migration and backward compat",
+    });
+    const result = compiler.inferClassification(state);
+
+    assertEquals(result.involvesMigration, true);
+  });
+
+  it("detects Data Handling keywords", () => {
+    const state = createTestState({
+      specDescription: "handle PII with encrypt at rest",
+    });
+    const result = compiler.inferClassification(state);
+
+    assertEquals(result.involvesDataHandling, true);
+  });
+
+  it("no keywords → all false", () => {
+    const state = createTestState({
+      specDescription: "refactor internal helper",
+    });
+    const result = compiler.inferClassification(state);
+
+    assertEquals(result.involvesWebUI, false);
+    assertEquals(result.involvesCLI, false);
+    assertEquals(result.involvesPublicAPI, false);
+    assertEquals(result.involvesMigration, false);
+    assertEquals(result.involvesDataHandling, false);
+    assertEquals(result.inferredFrom, []);
+  });
+
+  it('source is always "inferred"', () => {
+    const state = createTestState({
+      specDescription: "anything goes here",
+    });
+    const result = compiler.inferClassification(state);
+
+    assertEquals(result.source, "inferred");
+  });
+
+  it("reads userContext array", () => {
+    const state = createTestState({
+      specDescription: null,
+      discovery: {
+        ...schema.createInitialState().discovery,
+        userContext: ["loading state button"],
+      },
+    });
+    const result = compiler.inferClassification(state);
+
+    assertEquals(result.involvesWebUI, true);
+  });
+
+  it("reads discovery answers", () => {
+    const state = createTestState({
+      specDescription: null,
+      discovery: {
+        ...schema.createInitialState().discovery,
+        answers: [
+          { questionId: "status_quo", answer: "REST api endpoint" },
+        ],
+      },
+    });
+    const result = compiler.inferClassification(state);
+
+    assertEquals(result.involvesPublicAPI, true);
+  });
+
+  it("combines all three sources", () => {
+    const state = createTestState({
+      specDescription: "migration",
+      discovery: {
+        ...schema.createInitialState().discovery,
+        userContext: ["button"],
+        answers: [
+          { questionId: "status_quo", answer: "terminal" },
+        ],
+      },
+    });
+    const result = compiler.inferClassification(state);
+
+    assertEquals(result.involvesMigration, true);
+    assertEquals(result.involvesWebUI, true);
+    assertEquals(result.involvesCLI, true);
+  });
+
+  it("matches 'migration' correctly", () => {
+    const migrationState = createTestState({
+      specDescription: "migration",
+    });
+    assertEquals(
+      compiler.inferClassification(migrationState).involvesMigration,
+      true,
+    );
+
+    const deprecatedState = createTestState({
+      specDescription: "this API is deprecated",
+    });
+    assertEquals(
+      compiler.inferClassification(deprecatedState).involvesMigration,
+      true,
+    );
   });
 });

@@ -31,7 +31,8 @@
   "specSections": [
     "Design States (empty, loading, error, success)",
     "Mobile Layout",
-    "Interaction Design"
+    "Interaction Design",
+    "Accessibility"
   ],
   "reminders": [
     "Loading state and error state must be designed, not placeholder",
@@ -48,6 +49,44 @@
     "No placeholder or skeleton UI left unfinished",
     "All UI states specified and implemented: loading, empty, error, success, partial",
     "No placeholder text in shipped UI — every empty state has warmth, a primary action, and context",
-    "Design rated 7+ on intentionality by the spec author"
+    "Design rated 7+ on intentionality by the spec author",
+    "Basic accessibility: keyboard navigation works, focus indicators visible, sufficient contrast"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "info-hierarchy",
+      "label": "Information Hierarchy",
+      "prompt": "What does the user see FIRST, SECOND, THIRD? Is the visual hierarchy intentional or accidental? Would a user arriving cold know what to do within 3 seconds?",
+      "evidenceRequired": true,
+      "scope": "ui"
+    },
+    {
+      "id": "interaction-states",
+      "label": "Interaction State Completeness",
+      "prompt": "For every UI component in this change, verify: loading state, empty state, error state, success state, partial state. Build a matrix — mark any MISSING states.",
+      "evidenceRequired": true,
+      "scope": "ui"
+    },
+    {
+      "id": "user-journey",
+      "label": "User Journey & Emotional Arc",
+      "prompt": "Walk through the user's complete journey for this feature. What's the emotional arc — curiosity → understanding → action → satisfaction? Where does it break? Where does it feel mechanical instead of crafted?",
+      "evidenceRequired": false,
+      "scope": "ui"
+    },
+    {
+      "id": "accessibility",
+      "label": "Accessibility Audit",
+      "prompt": "Keyboard navigation: can every action be completed without a mouse? Focus management: is focus trapped in modals, restored after close? Contrast: WCAG 2.1 AA (4.5:1 text, 3:1 UI)? Touch targets: minimum 44x44px? Screen reader: are interactive elements labeled?",
+      "evidenceRequired": true,
+      "scope": "ui"
+    },
+    {
+      "id": "design-system",
+      "label": "Design System Alignment",
+      "prompt": "Does this change use existing design tokens (colors, spacing, typography) or introduce new ones? If new — is that intentional? Check for consistency with adjacent screens.",
+      "evidenceRequired": true,
+      "scope": "ui"
+    }
   ]
 }

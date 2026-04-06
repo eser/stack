@@ -281,7 +281,7 @@ describe("Spec switching", () => {
     ).paths;
     assertEquals(
       specStateFile("photo-upload"),
-      ".eser/.state/specs/photo-upload.json",
+      ".eser/.state/progresses/specs/photo-upload.json",
     );
   });
 });

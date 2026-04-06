@@ -272,6 +272,122 @@ export const main = async (
 };
 
 // =============================================================================
+// Ask Token Consumption (written by post-ask-user-question hook)
+// =============================================================================
+
+export type AskTokenResult = {
+  readonly source: "STATED" | "INFERRED";
+  readonly questionMatch: "exact" | "modified" | "not-asked";
+};
+
+/**
+ * Read and consume the ask-token.json written by the post-ask-user-question
+ * hook. Validates spec + stepId + 30-min expiry. Single-use: deletes on
+ * successful validation. Best-effort — any IO failure falls through to
+ * INFERRED.
+ */
+export const consumeAskToken = async (
+  root: string,
+  expectedSpec: string | null,
+  expectedStepId: string,
+): Promise<AskTokenResult> => {
+  const tokenPath = `${root}/${persistence.paths.askTokenFile}`;
+  try {
+    const raw = await runtime.fs.readTextFile(tokenPath);
+    const token = JSON.parse(raw) as {
+      stepId?: string;
+      spec?: string | null;
+      match?: "exact" | "modified";
+      createdAt?: string;
+    };
+
+    // Spec must match
+    if ((token.spec ?? null) !== (expectedSpec ?? null)) {
+      return { source: "INFERRED", questionMatch: "not-asked" };
+    }
+    // StepId must match
+    if (token.stepId !== expectedStepId) {
+      return { source: "INFERRED", questionMatch: "not-asked" };
+    }
+    // 30-minute expiry
+    const ageMs = Date.now() - new Date(token.createdAt ?? 0).getTime();
+    if (!isFinite(ageMs) || ageMs < 0 || ageMs > 30 * 60 * 1000) {
+      return { source: "INFERRED", questionMatch: "not-asked" };
+    }
+
+    // Valid — single-use delete
+    try {
+      await runtime.fs.remove(tokenPath);
+    } catch {
+      // best effort
+    }
+
+    return {
+      source: "STATED",
+      questionMatch: token.match ?? "exact",
+    };
+  } catch {
+    // File missing / unparseable / IO error → INFERRED
+    return { source: "INFERRED", questionMatch: "not-asked" };
+  }
+};
+
+/**
+ * Patch the most recently appended discovery answer(s) for the given question
+ * id with token-derived `source` + `questionMatch`. Assumes `addDiscoveryAnswer`
+ * was just called — finds the newest entry matching the question id and
+ * overwrites its source/questionMatch fields.
+ */
+const applyTokenSourceToLastAnswer = (
+  state: schema.StateFile,
+  questionId: string,
+  tokenResult: AskTokenResult,
+): schema.StateFile => {
+  const answers = state.discovery.answers;
+  // Find the last answer with matching questionId
+  let lastIdx = -1;
+  for (let i = answers.length - 1; i >= 0; i--) {
+    const candidate = answers[i];
+    if (candidate !== undefined && candidate.questionId === questionId) {
+      lastIdx = i;
+      break;
+    }
+  }
+  if (lastIdx === -1) return state;
+
+  const existing = answers[lastIdx];
+  if (existing === undefined) return state;
+  const normalized = schema.normalizeAnswer(existing);
+  const patched: schema.AttributedDiscoveryAnswer = {
+    ...normalized,
+    source: tokenResult.source,
+    questionMatch: tokenResult.questionMatch,
+  };
+  const newAnswers = [
+    ...answers.slice(0, lastIdx),
+    patched,
+    ...answers.slice(lastIdx + 1),
+  ];
+  return {
+    ...state,
+    discovery: {
+      ...state.discovery,
+      answers: newAnswers,
+    },
+  };
+};
+
+// Built-in DISCOVERY question IDs in order (mirrors invoke-hook.ts mapping).
+const DISCOVERY_QUESTION_IDS: readonly string[] = [
+  "status_quo",
+  "ambition",
+  "reversibility",
+  "user_impact",
+  "verification",
+  "scope_boundary",
+];
+
+// =============================================================================
 // Answer Handling
 // =============================================================================
 
@@ -413,6 +529,16 @@ export const handleAnswer = async (
           answer,
           user,
         );
+        // Consume ask-token (best-effort) and annotate the just-appended
+        // answer with STATED/INFERRED provenance.
+        const stepId = DISCOVERY_QUESTION_IDS[currentIdx] ??
+          `Q${currentIdx + 1}`;
+        const tokenResult = await consumeAskToken(root, state.spec, stepId);
+        newState = applyTokenSourceToLastAnswer(
+          newState,
+          currentQ.id,
+          tokenResult,
+        );
         newState = machine.advanceDiscoveryQuestion(newState);
       }
 
@@ -509,6 +635,13 @@ export const handleAnswer = async (
         const parsed = JSON.parse(answer);
         if (typeof parsed.revise === "object" && parsed.revise !== null) {
           let newState = state;
+          // One token per user interaction — consume once and reuse provenance
+          // across all revised answers in this batch.
+          const refinementToken = await consumeAskToken(
+            root,
+            state.spec,
+            "refinement",
+          );
           for (
             const [qId, qAnswer] of Object.entries(
               parsed.revise as Record<string, string>,
@@ -520,6 +653,11 @@ export const handleAnswer = async (
                 qId,
                 qAnswer,
                 user,
+              );
+              newState = applyTokenSourceToLastAnswer(
+                newState,
+                qId,
+                refinementToken,
               );
             }
           }
@@ -539,58 +677,23 @@ export const handleAnswer = async (
         return state;
       }
 
-      // Classification answer — parse and store, then generate spec
-      if (state.classification === null) {
-        let classification: schema.SpecClassification;
-
-        // Shortcut: "none" or "skip" means all flags false
-        const trimmed = answer.trim().toLowerCase();
-        if (trimmed === "none" || trimmed === "skip") {
-          classification = {
-            involvesWebUI: false,
-            involvesCLI: false,
-            involvesPublicAPI: false,
-            involvesMigration: false,
-            involvesDataHandling: false,
-          };
-        } else {
-          try {
-            const parsed = JSON.parse(answer);
-            classification = {
-              involvesWebUI: parsed.involvesWebUI === true ||
-                parsed.involvesUI === true,
-              involvesCLI: parsed.involvesCLI === true ||
-                parsed.involvesUI === true,
-              involvesPublicAPI: parsed.involvesPublicAPI === true,
-              involvesMigration: parsed.involvesMigration === true,
-              involvesDataHandling: parsed.involvesDataHandling === true,
-            };
-          } catch {
-            // If not JSON, default to all false
-            classification = {
-              involvesWebUI: false,
-              involvesCLI: false,
-              involvesPublicAPI: false,
-              involvesMigration: false,
-              involvesDataHandling: false,
-            };
-          }
-        }
-
-        const newState = { ...state, classification };
-
-        // Now generate spec.md with classification
+      // Safety net: classification should have been auto-inferred on the
+      // DISCOVERY_REFINEMENT → SPEC_PROPOSAL transition (see
+      // `machine.autoClassifyIfMissing`). If it is still missing — e.g.
+      // state written by older tooling before auto-classification landed —
+      // infer it now and generate the spec draft before handling the answer.
+      let workingState = state;
+      if (workingState.classification === null) {
+        workingState = machine.autoClassifyIfMissing(workingState);
         try {
           await specGenerator.generateSpec(
             root,
-            newState,
+            workingState,
             activeConcerns,
           );
         } catch {
           // Keep classification even if spec gen fails
         }
-
-        return newState;
       }
 
       // Already classified — check for refinement
@@ -602,9 +705,9 @@ export const handleAnswer = async (
         ) {
           const refinementText = parsed.refinement;
 
-          if (state.spec !== null) {
+          if (workingState.spec !== null) {
             const specFile = `${root}/${
-              persistence.paths.specFile(state.spec)
+              persistence.paths.specFile(workingState.spec)
             }`;
             const currentContent = await runtime.fs.readTextFile(specFile);
 
@@ -626,13 +729,13 @@ export const handleAnswer = async (
             }
           }
 
-          return state; // Stay in SPEC_PROPOSAL
+          return workingState; // Stay in SPEC_PROPOSAL
         }
       } catch {
         // Not JSON — ignore
       }
 
-      return state;
+      return workingState;
     }
 
     case "SPEC_APPROVED": {
@@ -1108,7 +1211,8 @@ const runVerification = async (
 /**
  * Collect all touched files from two sources:
  * 1. state.execution.modifiedFiles — snapshot from stop hook at iteration end
- * 2. .eser/.state/files-changed.jsonl — real-time log from post-file-write hook
+ * 2. .eser/.state/progresses/files-changed.jsonl — real-time log from
+ *    post-file-write hook
  *
  * Both sources are merged and deduplicated.
  */
@@ -1126,7 +1230,8 @@ const collectTouchedFiles = async (
 const readFilesChangedLog = async (
   root: string,
 ): Promise<readonly string[]> => {
-  const logFile = `${root}/${persistence.paths.stateDir}/files-changed.jsonl`;
+  const logFile =
+    `${root}/${persistence.paths.progressesDir}/files-changed.jsonl`;
 
   try {
     const content = await runtime.fs.readTextFile(logFile);

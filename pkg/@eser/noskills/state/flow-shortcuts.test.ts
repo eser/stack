@@ -98,9 +98,12 @@ describe("Happy path: full lifecycle with classification", () => {
 
     s = machine.approveDiscoveryReview(s);
     assertEquals(s.phase, "SPEC_PROPOSAL");
-    assertEquals(s.classification, null);
+    // approveDiscoveryReview now auto-infers classification via
+    // autoClassifyIfMissing (task-10), so it is never null at this point.
+    assertEquals(s.classification !== null, true);
+    assertEquals(s.classification?.source, "inferred");
 
-    // Provide classification: all true
+    // Override with manual classification: all true
     s = {
       ...s,
       classification: {
@@ -158,13 +161,19 @@ describe("Happy path: full lifecycle with classification", () => {
 // =============================================================================
 
 describe("Skip classification: approve without classifying", () => {
-  it("approve from SPEC_PROPOSAL with null classification succeeds", () => {
+  it("approve from SPEC_PROPOSAL without manual classification succeeds", () => {
+    // approveDiscoveryReview now auto-infers classification (task-10), so
+    // inSpecDraft() produces a state with an inferred classification rather
+    // than null. The shortcut under test is that the user never had to
+    // manually classify — approveSpec still succeeds.
     const s = inSpecDraft();
-    assertEquals(s.classification, null);
+    assertEquals(s.classification !== null, true);
+    assertEquals(s.classification?.source, "inferred");
 
     const approved = machine.approveSpec(s);
     assertEquals(approved.phase, "SPEC_APPROVED");
-    assertEquals(approved.classification, null);
+    assertEquals(approved.classification !== null, true);
+    assertEquals(approved.classification?.source, "inferred");
   });
 
   it("null classification produces spec with zero concern sections", () => {
@@ -415,7 +424,11 @@ describe("Edge case: concern removed mid-execution", () => {
 
 describe("Edge case: SPEC_PROPOSAL compiler output with null classification", () => {
   it("shows classificationRequired: true when classification is null", async () => {
-    const s = inSpecDraft();
+    // approveDiscoveryReview auto-infers classification (task-10), so we
+    // force it back to null here to exercise the compiler's null-handling
+    // branch. This test targets compileSpecDraft's null path, not the
+    // state machine's classification timing.
+    const s: schema.StateFile = { ...inSpecDraft(), classification: null };
     assertEquals(s.classification, null);
 
     const output = await compiler.compile(

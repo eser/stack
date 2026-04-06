@@ -42,7 +42,7 @@ describe("spec state with planPath", () => {
       prefix: "spec_plan_",
     });
     await crossRuntime.runtime.fs.mkdir(
-      `${tempDir}/.eser/.state/specs/test-plan`,
+      `${tempDir}/.eser/.state/progresses/specs/test-plan`,
       { recursive: true },
     );
   });

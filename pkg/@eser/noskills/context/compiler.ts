@@ -195,6 +195,7 @@ export type DiscoveryReviewOutput = {
   readonly subPhase?: string;
   readonly alternatives?: AlternativesOutput;
   readonly reviewChecklist?: ReviewChecklist;
+  readonly classificationPreview?: string;
 };
 
 export type ClassificationPrompt = {
@@ -424,6 +425,150 @@ export type BehavioralBlock = {
   readonly urgency?: string;
   readonly outOfScope?: readonly string[];
   readonly tier2Summary?: string;
+};
+
+// =============================================================================
+// Spec Classification Inference
+// =============================================================================
+
+/** Category → regex + label for keyword evidence. */
+const CLASSIFICATION_PATTERNS: ReadonlyArray<{
+  readonly key: keyof Omit<
+    schema.SpecClassification,
+    "source" | "inferredFrom"
+  >;
+  readonly pattern: RegExp;
+}> = [
+  {
+    key: "involvesWebUI",
+    pattern:
+      /\b(ui|frontend|component|react|css|html|button|modal|form|page|screen|layout|design|loading state|empty state|error state)\b/i,
+  },
+  {
+    key: "involvesCLI",
+    pattern: /\b(cli|terminal|command.?line|stdout|stdin|ansi|tui|console)\b/i,
+  },
+  {
+    key: "involvesPublicAPI",
+    pattern:
+      /\b(api|endpoint|rest|graphql|webhook|public.?facing|sdk|client.?library)\b/i,
+  },
+  {
+    key: "involvesMigration",
+    pattern:
+      /\b(migrat\w*|schema.?change|breaking.?change|backward.?compat|upgrade|deprecat\w*)\b/i,
+  },
+  {
+    key: "involvesDataHandling",
+    pattern:
+      /\b(pii|gdpr|encrypt|personal.?data|user.?data|data.?retention|data.?safety|sensitive)\b/i,
+  },
+];
+
+/**
+ * Infer a SpecClassification from the spec description + discovery userContext
+ * + answers. Returns source="inferred" and populates inferredFrom with the
+ * matched keywords (not the full regex) so a human reviewer sees evidence.
+ *
+ * This is a REGEX-ONLY heuristic — intentionally boring. If keywords drift,
+ * the REFINEMENT confirmation catches misses.
+ */
+export const inferClassification = (
+  state: schema.StateFile,
+): schema.SpecClassification => {
+  const parts: string[] = [];
+  if (state.specDescription) parts.push(state.specDescription);
+  const userContext = state.discovery?.userContext;
+  if (Array.isArray(userContext)) parts.push(...userContext);
+  for (const a of state.discovery?.answers ?? []) {
+    parts.push(a.answer);
+  }
+  const allText = parts.join(" ");
+
+  const result: {
+    involvesWebUI: boolean;
+    involvesCLI: boolean;
+    involvesPublicAPI: boolean;
+    involvesMigration: boolean;
+    involvesDataHandling: boolean;
+    source: "inferred";
+    inferredFrom: string[];
+  } = {
+    involvesWebUI: false,
+    involvesCLI: false,
+    involvesPublicAPI: false,
+    involvesMigration: false,
+    involvesDataHandling: false,
+    source: "inferred",
+    inferredFrom: [],
+  };
+
+  for (const { key, pattern } of CLASSIFICATION_PATTERNS) {
+    const match = allText.match(pattern);
+    if (match !== null) {
+      result[key] = true;
+      result.inferredFrom.push(`${key}:${match[0].toLowerCase()}`);
+    }
+  }
+
+  return result;
+};
+
+/** Category → human label for preview rendering. */
+const CLASSIFICATION_LABELS: ReadonlyArray<{
+  readonly key: keyof Omit<
+    schema.SpecClassification,
+    "source" | "inferredFrom"
+  >;
+  readonly label: string;
+}> = [
+  { key: "involvesWebUI", label: "Web UI" },
+  { key: "involvesPublicAPI", label: "Public API" },
+  { key: "involvesCLI", label: "CLI" },
+  { key: "involvesMigration", label: "Migration" },
+  { key: "involvesDataHandling", label: "Data Handling" },
+];
+
+/**
+ * Render an inferred classification as calm prose for REFINEMENT confirmation.
+ * Uses ASCII ✓/✗ markers and quotes keyword evidence from inferredFrom.
+ * Pure function — no side effects, no decoration beyond plain indented list.
+ */
+export const formatClassificationPreview = (
+  classification: schema.SpecClassification,
+): string => {
+  // Group keyword evidence by category key (e.g. "involvesWebUI:button" → ["button"]).
+  const evidenceByKey = new Map<string, string[]>();
+  for (const entry of classification.inferredFrom ?? []) {
+    const colonIdx = entry.indexOf(":");
+    if (colonIdx === -1) continue;
+    const key = entry.slice(0, colonIdx);
+    const keyword = entry.slice(colonIdx + 1);
+    const existing = evidenceByKey.get(key);
+    if (existing === undefined) {
+      evidenceByKey.set(key, [keyword]);
+    } else if (!existing.includes(keyword)) {
+      existing.push(keyword);
+    }
+  }
+
+  const lines: string[] = ["Based on your answers, this spec involves:"];
+  for (const { key, label } of CLASSIFICATION_LABELS) {
+    const matched = classification[key] === true;
+    const marker = matched ? "\u2713" : "\u2717";
+    if (matched) {
+      const keywords = evidenceByKey.get(key) ?? [];
+      if (keywords.length > 0) {
+        const quoted = keywords.map((k) => `"${k}"`).join(", ");
+        lines.push(`  ${marker} ${label}  (mentions: ${quoted})`);
+      } else {
+        lines.push(`  ${marker} ${label}`);
+      }
+    } else {
+      lines.push(`  ${marker} ${label}`);
+    }
+  }
+  return lines.join("\n");
 };
 
 // Invariant: applies to every phase, every output. Non-negotiable.
@@ -2029,6 +2174,14 @@ const compileDiscoveryReview = (
     };
   }
 
+  // Task-11: when auto-inference has populated classification at the
+  // DISCOVERY → REFINEMENT transition, surface a calm-prose preview so the
+  // user can approve or toggle before the spec is generated.
+  const classificationPreview =
+    state.classification !== null && state.classification.source === "inferred"
+      ? formatClassificationPreview(state.classification)
+      : undefined;
+
   return {
     phase: "DISCOVERY_REFINEMENT",
     instruction: splitProposal.detected
@@ -2044,6 +2197,7 @@ const compileDiscoveryReview = (
     },
     splitProposal: splitProposal.detected ? splitProposal : undefined,
     reviewChecklist,
+    classificationPreview,
   };
 };
 

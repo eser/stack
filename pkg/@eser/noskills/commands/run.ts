@@ -5,8 +5,8 @@
  *
  * Wraps the EXECUTING phase in a bash-level loop. Each iteration spawns a
  * fresh `claude -p` process — no /clear needed because each process is born
- * with zero context. State persists in .eser/.state/state.json between
- * iterations.
+ * with zero context. State persists in .eser/.state/progresses/state.json
+ * between iterations.
  *
  * Usage:
  *   noskills run                              # default, pauses at BLOCKED
@@ -133,7 +133,9 @@ export const main = async (
         // Log to file and exit — user resolves later
         await logBlocked(root, reason, loopIteration);
         out.writeln(
-          span.dim("Logged to .eser/.state/blocked.log. Resolve and re-run."),
+          span.dim(
+            "Logged to .eser/.state/progresses/blocked.log. Resolve and re-run.",
+          ),
         );
         exitCode = 1;
         break;
@@ -401,7 +403,7 @@ const logBlocked = async (
   reason: string,
   iteration: number,
 ): Promise<void> => {
-  const logFile = `${root}/.eser/.state/blocked.log`;
+  const logFile = `${root}/${persistence.paths.progressesDir}/blocked.log`;
   const entry = `[${
     new Date().toISOString()
   }] iteration=${iteration} reason=${reason}\n`;

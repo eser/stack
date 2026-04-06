@@ -236,7 +236,7 @@ export const loadEserAjan = async (
       const resolvedPath = libraryPath ??
         resolve.resolveLibraryPath(FFI_MODULE_DIR);
       const backend = selectBackend();
-      return backend.open(resolvedPath);
+      return await backend.open(resolvedPath);
     } catch {
       // Native FFI not available — fall through to WASM
     }

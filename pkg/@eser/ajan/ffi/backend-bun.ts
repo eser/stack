@@ -12,18 +12,6 @@
 import type * as types from "./types.ts";
 
 /**
- * `bun:ffi` module resolved once via top-level await.
- * Returns `null` on non-Bun runtimes (the try/catch absorbs the import error).
- */
-// deno-lint-ignore no-explicit-any
-let bunFFI: any = null;
-try {
-  bunFFI = await import("bun:ffi");
-} catch {
-  // Not running under Bun — bunFFI stays null
-}
-
-/**
  * Bun FFI backend. Uses `dlopen` from `bun:ffi` to load C-shared libraries.
  *
  * Bun's `dlopen` takes a path and a symbol map where each symbol describes
@@ -34,14 +22,12 @@ export const backend: types.FFIBackend = {
   name: "bun",
 
   available: (): boolean => {
-    return bunFFI !== null;
+    // deno-lint-ignore no-explicit-any
+    return typeof (globalThis as any).Bun !== "undefined";
   },
 
-  open: (libraryPath: string): types.FFILibrary => {
-    if (bunFFI === null) {
-      throw new Error("bun:ffi is not available — are you running under Bun?");
-    }
-
+  open: async (libraryPath: string): Promise<types.FFILibrary> => {
+    const bunFFI = await import("bun:ffi");
     const { dlopen, CString, ptr: ptrFn } = bunFFI;
 
     const lib = dlopen(libraryPath, {

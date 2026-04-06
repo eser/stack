@@ -69,7 +69,7 @@ describe({
       // --force + --agent runs deleteAllCategories which touches fs.
       // SKIP if live noskills state exists — this test must NOT nuke real project state.
       const { existsSync } = await import("node:fs");
-      if (existsSync(".eser/.state/state.json")) {
+      if (existsSync(".eser/.state/progresses/state.json")) {
         return; // Live project — skip destructive test
       }
 

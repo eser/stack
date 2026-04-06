@@ -311,16 +311,47 @@ behavioral block.
 
 Zero-token bookkeeping. The agent doesn't know hooks exist.
 
-| Hook                | Event        | What it does                                            |
-| ------------------- | ------------ | ------------------------------------------------------- |
-| **pre-tool-use**    | PreToolUse   | Blocks file edits outside EXECUTING. Blocks git writes. |
-| **stop**            | Stop         | Increments iteration, snapshots git diff.               |
-| **post-file-write** | PostToolUse  | Logs modified file paths.                               |
-| **post-bash**       | PostToolUse  | Logs noskills CLI invocations.                          |
-| **session-start**   | SessionStart | Runs `noskills next` so the agent is oriented.          |
+| Hook                       | Event        | What it does                                                           |
+| -------------------------- | ------------ | ---------------------------------------------------------------------- |
+| **pre-tool-use**           | PreToolUse   | Blocks file edits outside EXECUTING. Blocks git writes.                |
+| **stop**                   | Stop         | Increments iteration, snapshots git diff.                              |
+| **post-file-write**        | PostToolUse  | Logs modified file paths.                                              |
+| **post-bash**              | PostToolUse  | Logs noskills CLI invocations.                                         |
+| **post-ask-user-question** | PostToolUse  | Writes single-use confirmation token proving the agent asked the user. |
+| **session-start**          | SessionStart | Runs `noskills next` so the agent is oriented.                         |
 
 Hooks are CLI subcommands (`noskills invoke-hook <name>`), not generated script
 files.
+
+### AskUserQuestion confirmation tokens
+
+noskills cryptographically verifies that agents ask you before submitting
+discovery answers. When an agent calls the `AskUserQuestion` tool, a
+`PostToolUse` hook (`noskills invoke-hook post-ask-user-question`) writes a
+single-use token to `.eser/.state/progresses/ask-token.json` with the step id,
+spec name, match quality, and a timestamp.
+
+When the agent later submits the answer via `noskills next --answer`, the
+consumer validates the token:
+
+- **Spec match** — the token's spec must equal the current activeSpec
+- **Step match** — the stepId must match the currently-expected discovery step
+  (Q1-Q6, refinement, approval)
+- **Expiry** — tokens older than 30 minutes are rejected
+- **Single use** — valid tokens are deleted immediately after consumption
+
+If any check fails, the answer is marked `source: "INFERRED"` rather than
+`"STATED"`, and the REFINEMENT phase will surface it for your confirmation.
+Answers that bypass AskUserQuestion entirely get no token at all and default to
+INFERRED.
+
+**Behavioral platforms** (Cursor, Windsurf, Copilot) do not support PostToolUse
+hooks. On those platforms, all answers default to INFERRED and REFINEMENT always
+shows them for confirmation. This is the safe default.
+
+**Known limitation**: the current `expectedText` in the hook handler is an
+empty-string placeholder, so question similarity always marks as "modified". A
+future pass will add expected-text lookup for exact-match detection.
 
 ---
 
@@ -483,14 +514,15 @@ noskills:
 │       └── spec.md            # generated spec
 ├── learnings.jsonl            # cross-session learnings
 ├── diagrams.json              # diagram registry
-├── .state/                    # git-ignored runtime
-│   ├── state.json
-│   ├── specs/
-│   ├── files-changed.jsonl
-│   └── noskills-calls.jsonl
-├── .events/                   # git-ignored event log
-│   └── events.jsonl
-├── .sessions/                 # git-ignored session bindings
+├── .state/                    # git-ignored runtime (umbrella)
+│   ├── progresses/            #   workflow state machine
+│   │   ├── state.json
+│   │   ├── specs/
+│   │   ├── files-changed.jsonl
+│   │   └── noskills-calls.jsonl
+│   ├── sessions/              #   ephemeral session bindings
+│   └── events/                #   append-only audit log
+│       └── events.jsonl
 └── .gitignore
 ```
 

@@ -133,7 +133,8 @@ const buildSnapshot = async (
 };
 
 const readTrackedFiles = async (root: string): Promise<readonly string[]> => {
-  const logFile = `${root}/.eser/.state/files-changed.jsonl`;
+  const logFile =
+    `${root}/${persistence.paths.progressesDir}/files-changed.jsonl`;
 
   try {
     const content = await runtime.fs.readTextFile(logFile);
@@ -396,7 +397,7 @@ const renderTerminal = (snap: WatchSnapshot): string => {
 
   lines.push(`${DIM}╰${border}╯${RESET}`);
   lines.push(
-    `  ${DIM}watching .eser/.state/ ... ctrl+c to stop${RESET}`,
+    `  ${DIM}watching .eser/.state/progresses/ ... ctrl+c to stop${RESET}`,
   );
 
   return lines.join("\n");
@@ -449,7 +450,7 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  const stateDir = `${root}/.eser/.state`;
+  const stateDir = `${root}/${persistence.paths.progressesDir}`;
 
   // Initial render
   let lastRender = "";

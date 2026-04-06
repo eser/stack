@@ -117,7 +117,14 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
     // Approve discovery review → SPEC_PROPOSAL
     state = machine.approveDiscoveryReview(state);
     assertEquals(state.phase, "SPEC_PROPOSAL");
-    assertEquals(state.classification, null); // not yet classified
+    // approveDiscoveryReview now auto-infers classification via
+    // autoClassifyIfMissing (task-10), so it is never null at this point.
+    assertEquals(state.classification !== null, true);
+    assertEquals(state.classification?.source, "inferred");
+
+    // Force classification back to null to exercise the compiler's
+    // null-handling branch (classificationRequired path).
+    state = { ...state, classification: null };
 
     // SPEC_PROPOSAL without classification → asks for classification
     const output4a = await compiler.compile(

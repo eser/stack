@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **noskills:** AskUserQuestion confirmation tokens — mechanical enforcement
+  that agents asked the user before submitting discovery answers. Per-question
+  STATED/INFERRED marking via PostToolUse hook
+  (`noskills invoke-hook post-ask-user-question`) and next.ts validation.
+- **noskills:** merged listen-first + mode selection entry menu with recursive
+  context-sharing.
+- **noskills:** automatic spec classification from discovery text, with
+  REFINEMENT confirmation.
+- **noskills:** userContext migration from `string` → `readonly string[]` with
+  backward-compat shim in persistence.normalizeStateShape.
+
+### Changed
+
+- **noskills:** behavioral platforms (Cursor, Windsurf, Copilot) now default
+  discovery answers to INFERRED since they lack PostToolUse hook support.
+  REFINEMENT will surface all answers for confirmation on these platforms.
+
 ## 4.1.56 - 2026-04-06
 
 ### Changed

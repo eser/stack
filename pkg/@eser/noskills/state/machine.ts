@@ -8,6 +8,7 @@
 
 import type * as schema from "./schema.ts";
 import { paths } from "./persistence.ts";
+import * as compiler from "../context/compiler.ts";
 
 // =============================================================================
 // Transition Map
@@ -113,8 +114,29 @@ export const setDiscoveryMode = (
   }
   return {
     ...state,
-    discovery: { ...state.discovery, mode },
+    discovery: { ...state.discovery, mode, entryComplete: true },
   };
+};
+
+/** Mark the merged DISCOVERY.entry subPhase as complete. */
+export const markEntryComplete = (
+  state: schema.StateFile,
+): schema.StateFile => ({
+  ...state,
+  discovery: { ...state.discovery, entryComplete: true },
+});
+
+/**
+ * Recommended option for the DISCOVERY.entry subPhase menu.
+ * A rich spec description (> 500 chars) suggests the user already shared
+ * enough context and should jump straight to mode selection.
+ * Otherwise, prefer option (a) to elicit more context first.
+ */
+export const recommendedEntryOption = (
+  state: schema.StateFile,
+): "a" | "mode" => {
+  const desc = state.specDescription ?? "";
+  return desc.length > 500 ? "mode" : "a";
 };
 
 export const completePremises = (
@@ -256,15 +278,31 @@ export const completeDiscovery = (
   };
 };
 
+/**
+ * Auto-classify a spec if no classification has been set yet.
+ *
+ * Called on the DISCOVERY_REFINEMENT → SPEC_PROPOSAL transition so the
+ * user never has to manually answer five boolean questions. If the user
+ * later confirms via the REFINEMENT UI, the `source` field flips from
+ * "inferred" to "confirmed". If a manual classification already exists,
+ * this is a no-op (the existing value is respected).
+ */
+export const autoClassifyIfMissing = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  if (state.classification !== null) return state;
+  return { ...state, classification: compiler.inferClassification(state) };
+};
+
 export const approveDiscoveryReview = (
   state: schema.StateFile,
 ): schema.StateFile => {
   assertTransition(state.phase, "SPEC_PROPOSAL");
 
-  return {
+  return autoClassifyIfMissing({
     ...state,
     phase: "SPEC_PROPOSAL",
-  };
+  });
 };
 
 /**
@@ -568,7 +606,7 @@ export const setUserContext = (
   ...state,
   discovery: {
     ...state.discovery,
-    userContext: context,
+    userContext: [...(state.discovery.userContext ?? []), context],
     userContextProcessed: false,
   },
 });

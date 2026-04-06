@@ -1,12 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Dashboard events — append-only JSONL log at `.eser/.events/events.jsonl`.
+ * Dashboard events — append-only JSONL log at
+ * `.eser/.state/events/events.jsonl`.
  *
  * @module
  */
 
 import { runtime } from "@eser/standards/cross-runtime";
+import * as persistence from "../state/persistence.ts";
 
 // =============================================================================
 // Types
@@ -37,11 +39,10 @@ export type DashboardEvent = {
 // Paths
 // =============================================================================
 
-const EVENTS_DIR = ".eser/.events";
-const EVENTS_FILE = `${EVENTS_DIR}/events.jsonl`;
-
-export const eventsDir = EVENTS_DIR;
-export const eventsFile = EVENTS_FILE;
+// Paths are owned by state/persistence.ts; re-export the two that external
+// dashboard consumers reach for so the import surface stays stable.
+export const eventsDir: string = persistence.paths.eventsDir;
+export const eventsFile: string = persistence.paths.eventsFile;
 
 // =============================================================================
 // Write
@@ -52,8 +53,8 @@ export const appendEvent = async (
   root: string,
   event: DashboardEvent,
 ): Promise<void> => {
-  const dir = `${root}/${EVENTS_DIR}`;
-  const file = `${root}/${EVENTS_FILE}`;
+  const dir = `${root}/${persistence.paths.eventsDir}`;
+  const file = `${root}/${persistence.paths.eventsFile}`;
 
   await runtime.fs.mkdir(dir, { recursive: true });
 
@@ -77,7 +78,7 @@ export const readEvents = async (
   root: string,
   opts?: { limit?: number; since?: string },
 ): Promise<readonly DashboardEvent[]> => {
-  const file = `${root}/${EVENTS_FILE}`;
+  const file = `${root}/${persistence.paths.eventsFile}`;
 
   let content: string;
   try {
@@ -124,7 +125,7 @@ export const watchEvents = (
   root: string,
   callback: (event: DashboardEvent) => void,
 ): () => void => {
-  const file = `${root}/${EVENTS_FILE}`;
+  const file = `${root}/${persistence.paths.eventsFile}`;
   let lastSize = 0;
   let aborted = false;
 

@@ -66,6 +66,12 @@ const buildHooksConfig = (commandPrefix: string): CodexHooksConfig => ({
     },
     {
       _noskills: true,
+      event: "PostToolUse",
+      command: `${commandPrefix} invoke-hook post-ask-user-question`,
+      timeout: 3000,
+    },
+    {
+      _noskills: true,
       event: "Stop",
       command: `${commandPrefix} invoke-hook stop`,
       timeout: 10000,

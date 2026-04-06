@@ -45,7 +45,7 @@ bdd.describe("Session persistence", () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "session_",
     });
-    await crossRuntime.runtime.fs.mkdir(`${tempDir}/.eser/.sessions`, {
+    await crossRuntime.runtime.fs.mkdir(`${tempDir}/.eser/.state/sessions`, {
       recursive: true,
     });
   });
@@ -60,7 +60,7 @@ bdd.describe("Session persistence", () => {
     await persistence.createSession(tempDir, session);
 
     const content = await crossRuntime.runtime.fs.readTextFile(
-      `${tempDir}/.eser/.sessions/test1234.json`,
+      `${tempDir}/.eser/.state/sessions/test1234.json`,
     );
     const parsed = JSON.parse(content) as persistence.Session;
     assert.assertEquals(parsed.id, "test1234");
@@ -206,7 +206,7 @@ bdd.describe("Session staleness", () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "session_stale_",
     });
-    await crossRuntime.runtime.fs.mkdir(`${tempDir}/.eser/.sessions`, {
+    await crossRuntime.runtime.fs.mkdir(`${tempDir}/.eser/.state/sessions`, {
       recursive: true,
     });
   });

@@ -10,6 +10,7 @@
  *   {commandPrefix} invoke-hook stop
  *   {commandPrefix} invoke-hook post-file-write
  *   {commandPrefix} invoke-hook post-bash
+ *   {commandPrefix} invoke-hook post-ask-user-question
  *
  * The hook logic lives in `commands/invoke-hook.ts` — native Deno TypeScript,
  * testable, lintable, no `require()` issues.
@@ -54,6 +55,16 @@ const buildSettings = (commandPrefix: string): Record<string, unknown> => ({
           {
             type: "command",
             command: `${commandPrefix} invoke-hook post-bash`,
+            timeout: 3,
+          },
+        ],
+      },
+      {
+        matcher: "AskUserQuestion",
+        hooks: [
+          {
+            type: "command",
+            command: `${commandPrefix} invoke-hook post-ask-user-question`,
             timeout: 3,
           },
         ],

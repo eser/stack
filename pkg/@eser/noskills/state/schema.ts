@@ -1,7 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * State schema — types for .eser/.state/state.json and .eser/manifest.yml.
+ * State schema — types for .eser/.state/progresses/state.json and
+ * .eser/manifest.yml.
  *
  * @module
  */
@@ -49,6 +50,8 @@ export type AttributedDiscoveryAnswer = {
   readonly type: "original" | "addition" | "revision";
   readonly confidence?: number; // 1-10
   readonly basis?: string;
+  readonly source?: "STATED" | "INFERRED" | "CONFIRMED";
+  readonly questionMatch?: "exact" | "modified" | "not-asked";
 };
 
 /** Confidence-scored finding from agent analysis. */
@@ -140,8 +143,9 @@ export type DiscoveryState = {
   readonly contributors?: readonly string[];
   readonly delegations?: readonly Delegation[];
   readonly followUps?: readonly FollowUp[];
-  readonly userContext?: string;
+  readonly userContext?: readonly string[];
   readonly userContextProcessed?: boolean;
+  readonly entryComplete?: boolean;
   /** Jidoka C1: answers were batch-submitted by agent and need user confirmation. */
   readonly batchSubmitted?: boolean;
 };
@@ -197,6 +201,8 @@ export type SpecClassification = {
   readonly involvesPublicAPI: boolean;
   readonly involvesMigration: boolean;
   readonly involvesDataHandling: boolean;
+  readonly source?: "inferred" | "confirmed" | "manual";
+  readonly inferredFrom?: readonly string[];
 };
 
 export type ExecutionState = {
@@ -236,7 +242,7 @@ export type RevisitEntry = {
 };
 
 // =============================================================================
-// State File (.eser/.state/state.json)
+// State File (.eser/.state/progresses/state.json)
 // =============================================================================
 
 export type StateFile = {

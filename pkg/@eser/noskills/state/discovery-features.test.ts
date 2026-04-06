@@ -234,3 +234,73 @@ describe("Rich description detection", () => {
     assert.assert(desc.length < 500);
   });
 });
+
+// =============================================================================
+// Merged entry subPhase (task-9)
+// =============================================================================
+
+describe("merged entry subPhase", () => {
+  it("setUserContext appends to array (empty start)", () => {
+    const state = inDiscovery();
+    assert.assertEquals(state.discovery.userContext, undefined);
+    const updated = machine.setUserContext(state, "first");
+    assert.assertEquals(updated.discovery.userContext, ["first"]);
+  });
+
+  it("setUserContext appends multiple times", () => {
+    let state = inDiscovery();
+    state = machine.setUserContext(state, "first");
+    state = machine.setUserContext(state, "second");
+    assert.assertEquals(state.discovery.userContext, ["first", "second"]);
+  });
+
+  it("entryComplete starts undefined on a fresh discovery state", () => {
+    const state = inDiscovery();
+    assert.assertEquals(state.discovery.entryComplete, undefined);
+  });
+
+  it("markEntryComplete sets entryComplete flag to true", () => {
+    const state = inDiscovery();
+    const updated = machine.markEntryComplete(state);
+    assert.assertEquals(updated.discovery.entryComplete, true);
+  });
+
+  it("setDiscoveryMode also sets entryComplete to true", () => {
+    const state = inDiscovery();
+    const updated = machine.setDiscoveryMode(state, "full");
+    assert.assertEquals(updated.discovery.mode, "full");
+    assert.assertEquals(updated.discovery.entryComplete, true);
+  });
+
+  it("recommendedEntryOption returns 'a' for short description", () => {
+    let state = inDiscovery();
+    state = { ...state, specDescription: "hi" };
+    assert.assertEquals(machine.recommendedEntryOption(state), "a");
+  });
+
+  it("recommendedEntryOption returns 'mode' for rich description (>500)", () => {
+    let state = inDiscovery();
+    const rich = "x".repeat(501);
+    state = { ...state, specDescription: rich };
+    assert.assertEquals(machine.recommendedEntryOption(state), "mode");
+  });
+
+  it("recommendedEntryOption returns 'a' for exactly 500 chars (boundary)", () => {
+    let state = inDiscovery();
+    const desc = "x".repeat(500);
+    state = { ...state, specDescription: desc };
+    assert.assertEquals(machine.recommendedEntryOption(state), "a");
+  });
+
+  it("recommendedEntryOption returns 'mode' for 501 chars (boundary)", () => {
+    let state = inDiscovery();
+    const desc = "x".repeat(501);
+    state = { ...state, specDescription: desc };
+    assert.assertEquals(machine.recommendedEntryOption(state), "mode");
+  });
+
+  it("recommendedEntryOption returns 'a' when specDescription is null", () => {
+    const state = { ...inDiscovery(), specDescription: null };
+    assert.assertEquals(machine.recommendedEntryOption(state), "a");
+  });
+});

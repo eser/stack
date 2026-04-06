@@ -42,7 +42,7 @@ export interface FFIBackend {
   /** Returns true if this backend can be used in the current runtime. */
   available: () => boolean;
   /** Opens the shared library at `libraryPath` and returns a unified handle. */
-  open: (libraryPath: string) => FFILibrary;
+  open: (libraryPath: string) => Promise<FFILibrary>;
 }
 
 /** Supported runtime identifiers. */

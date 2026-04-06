@@ -130,14 +130,14 @@ export const backend: types.FFIBackend = {
     return typeof Deno !== "undefined" && typeof Deno.dlopen === "function";
   },
 
-  open: (libraryPath: string): types.FFILibrary => {
+  open: (libraryPath: string): Promise<types.FFILibrary> => {
     const lib = Deno.dlopen(libraryPath, SYMBOL_DEFINITIONS);
 
-    return {
+    return Promise.resolve({
       symbols: createSymbolWrappers(lib.symbols),
       close: (): void => {
         lib.close();
       },
-    };
+    });
   },
 };

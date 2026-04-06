@@ -16,46 +16,35 @@
 import type * as types from "./types.ts";
 
 /**
- * koffi module resolved once via top-level await.
- * Returns `null` on non-Node runtimes or when koffi is not installed.
- */
-// deno-lint-ignore no-explicit-any
-let koffi: any = null;
-try {
-  // deno-lint-ignore no-explicit-any
-  const g = globalThis as any;
-
-  // Only attempt import on actual Node.js (not Deno or Bun)
-  if (
-    typeof g.process !== "undefined" &&
-    typeof g.process.versions?.node === "string" &&
-    typeof g.Deno === "undefined" &&
-    typeof g.Bun === "undefined"
-  ) {
-    koffi = await import("koffi");
-    // Handle default export (koffi uses module.exports = ...)
-    if (koffi.default !== undefined) {
-      koffi = koffi.default;
-    }
-  }
-} catch {
-  // koffi not installed — stays null
-}
-
-/**
  * Node.js FFI backend using koffi.
  */
 export const backend: types.FFIBackend = {
   name: "node",
 
   available: (): boolean => {
-    return koffi !== null && typeof koffi.load === "function";
+    // deno-lint-ignore no-explicit-any
+    const g = globalThis as any;
+
+    return (
+      typeof g.process !== "undefined" &&
+      typeof g.process.versions?.node === "string" &&
+      typeof g.Deno === "undefined" &&
+      typeof g.Bun === "undefined"
+    );
   },
 
-  open: (libraryPath: string): types.FFILibrary => {
-    if (koffi === null) {
+  open: async (libraryPath: string): Promise<types.FFILibrary> => {
+    // deno-lint-ignore no-explicit-any
+    let koffi: any = await import("koffi");
+    // Handle default export (koffi uses module.exports = ...)
+    if (koffi.default !== undefined) {
+      koffi = koffi.default;
+    }
+
+    if (typeof koffi.load !== "function") {
       throw new Error(
-        "koffi is not available. Install it: npm install koffi",
+        "koffi module loaded but koffi.load is not a function. " +
+          "Check your koffi version (requires ^2.15.0).",
       );
     }
 

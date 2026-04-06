@@ -98,8 +98,8 @@ const ROADMAP = [
 
 const buildRoadmap = (phase: string): string => {
   const phaseMap: Record<string, string> = {
-    DISCOVERY_REVIEW: "REVIEW",
-    SPEC_DRAFT: "DRAFT",
+    DISCOVERY_REFINEMENT: "REVIEW",
+    SPEC_PROPOSAL: "DRAFT",
     SPEC_APPROVED: "APPROVED",
     COMPLETED: "DONE",
     BLOCKED: "EXECUTING",

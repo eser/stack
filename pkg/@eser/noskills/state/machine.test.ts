@@ -52,9 +52,15 @@ describe("canTransition", () => {
   it("allows valid transitions", () => {
     assertEquals(machine.canTransition("UNINITIALIZED", "IDLE"), true);
     assertEquals(machine.canTransition("IDLE", "DISCOVERY"), true);
-    assertEquals(machine.canTransition("DISCOVERY", "DISCOVERY_REVIEW"), true);
-    assertEquals(machine.canTransition("DISCOVERY_REVIEW", "SPEC_DRAFT"), true);
-    assertEquals(machine.canTransition("SPEC_DRAFT", "SPEC_APPROVED"), true);
+    assertEquals(
+      machine.canTransition("DISCOVERY", "DISCOVERY_REFINEMENT"),
+      true,
+    );
+    assertEquals(
+      machine.canTransition("DISCOVERY_REFINEMENT", "SPEC_PROPOSAL"),
+      true,
+    );
+    assertEquals(machine.canTransition("SPEC_PROPOSAL", "SPEC_APPROVED"), true);
     assertEquals(machine.canTransition("SPEC_APPROVED", "EXECUTING"), true);
     assertEquals(machine.canTransition("EXECUTING", "COMPLETED"), true);
     assertEquals(machine.canTransition("EXECUTING", "BLOCKED"), true);
@@ -65,9 +71,9 @@ describe("canTransition", () => {
 
   it("rejects invalid transitions", () => {
     assertEquals(machine.canTransition("DISCOVERY", "EXECUTING"), false);
-    assertEquals(machine.canTransition("DISCOVERY", "SPEC_DRAFT"), false);
+    assertEquals(machine.canTransition("DISCOVERY", "SPEC_PROPOSAL"), false);
     assertEquals(machine.canTransition("EXECUTING", "IDLE"), false);
-    assertEquals(machine.canTransition("SPEC_DRAFT", "EXECUTING"), false);
+    assertEquals(machine.canTransition("SPEC_PROPOSAL", "EXECUTING"), false);
     assertEquals(machine.canTransition("SPEC_APPROVED", "IDLE"), false);
   });
 });
@@ -196,10 +202,10 @@ describe("addDiscoveryAnswer", () => {
 // =============================================================================
 
 describe("completeDiscovery", () => {
-  it("transitions to DISCOVERY_REVIEW and sets completed", () => {
+  it("transitions to DISCOVERY_REFINEMENT and sets completed", () => {
     const state = machine.completeDiscovery(inDiscovery());
 
-    assertEquals(state.phase, "DISCOVERY_REVIEW");
+    assertEquals(state.phase, "DISCOVERY_REFINEMENT");
     assertEquals(state.discovery.completed, true);
   });
 
@@ -224,13 +230,13 @@ describe("completeDiscovery", () => {
 // =============================================================================
 
 describe("approveDiscoveryReview", () => {
-  it("transitions DISCOVERY_REVIEW to SPEC_DRAFT", () => {
+  it("transitions DISCOVERY_REFINEMENT to SPEC_PROPOSAL", () => {
     const state = machine.approveDiscoveryReview(inDiscoveryReview());
 
-    assertEquals(state.phase, "SPEC_DRAFT");
+    assertEquals(state.phase, "SPEC_PROPOSAL");
   });
 
-  it("throws if not in DISCOVERY_REVIEW", () => {
+  it("throws if not in DISCOVERY_REFINEMENT", () => {
     assertThrows(
       () => machine.approveDiscoveryReview(idle()),
       Error,
@@ -263,7 +269,7 @@ describe("advanceDiscoveryQuestion", () => {
 // =============================================================================
 
 describe("approveSpec", () => {
-  it("transitions SPEC_DRAFT → SPEC_APPROVED", () => {
+  it("transitions SPEC_PROPOSAL → SPEC_APPROVED", () => {
     const state = machine.approveSpec(inSpecDraft());
 
     assertEquals(state.phase, "SPEC_APPROVED");
@@ -437,7 +443,7 @@ describe("resetToIdle", () => {
     assertEquals(machine.resetToIdle(completed).phase, "IDLE");
   });
 
-  it("rejects reset from DISCOVERY, DISCOVERY_REVIEW, SPEC_DRAFT, SPEC_APPROVED (Jidoka I7)", () => {
+  it("rejects reset from DISCOVERY, DISCOVERY_REFINEMENT, SPEC_PROPOSAL, SPEC_APPROVED (Jidoka I7)", () => {
     assertThrows(
       () => machine.resetToIdle(inDiscovery()),
       Error,
@@ -446,12 +452,12 @@ describe("resetToIdle", () => {
     assertThrows(
       () => machine.resetToIdle(inDiscoveryReview()),
       Error,
-      "Cannot reset from DISCOVERY_REVIEW",
+      "Cannot reset from DISCOVERY_REFINEMENT",
     );
     assertThrows(
       () => machine.resetToIdle(inSpecDraft()),
       Error,
-      "Cannot reset from SPEC_DRAFT",
+      "Cannot reset from SPEC_PROPOSAL",
     );
     assertThrows(
       () => machine.resetToIdle(inSpecApproved()),
@@ -544,13 +550,13 @@ describe("completeSpec: cancel from every spec phase", () => {
     assertEquals(state.completionReason, "cancelled");
   });
 
-  it("cancel from DISCOVERY_REVIEW → COMPLETED(cancelled)", () => {
+  it("cancel from DISCOVERY_REFINEMENT → COMPLETED(cancelled)", () => {
     const state = machine.completeSpec(inDiscoveryReview(), "cancelled");
     assertEquals(state.phase, "COMPLETED");
     assertEquals(state.completionReason, "cancelled");
   });
 
-  it("cancel from SPEC_DRAFT → COMPLETED(cancelled)", () => {
+  it("cancel from SPEC_PROPOSAL → COMPLETED(cancelled)", () => {
     const state = machine.completeSpec(inSpecDraft(), "cancelled");
     assertEquals(state.phase, "COMPLETED");
     assertEquals(state.completionReason, "cancelled");
@@ -653,7 +659,7 @@ describe("completeDiscovery follow-up blocking (Jidoka I2)", () => {
     );
 
     const completed = machine.completeDiscovery(state);
-    assertEquals(completed.phase, "DISCOVERY_REVIEW");
+    assertEquals(completed.phase, "DISCOVERY_REFINEMENT");
   });
 
   it("allows completion when follow-ups are skipped", () => {
@@ -662,13 +668,13 @@ describe("completeDiscovery follow-up blocking (Jidoka I2)", () => {
     state = machine.skipFollowUp(state, "q1a");
 
     const completed = machine.completeDiscovery(state);
-    assertEquals(completed.phase, "DISCOVERY_REVIEW");
+    assertEquals(completed.phase, "DISCOVERY_REFINEMENT");
   });
 
   it("allows completion with no follow-ups", () => {
     const state = inDiscovery();
     const completed = machine.completeDiscovery(state);
-    assertEquals(completed.phase, "DISCOVERY_REVIEW");
+    assertEquals(completed.phase, "DISCOVERY_REFINEMENT");
   });
 });
 

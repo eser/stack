@@ -165,10 +165,10 @@ describe("Watch phase-specific display", () => {
     assertEquals(output.includes("3/6 questions"), true);
   });
 
-  it("SPEC_DRAFT shows awaiting approval", () => {
+  it("SPEC_PROPOSAL shows awaiting approval", () => {
     const snap: WatchSnapshot = {
       ...baseSnapshot(),
-      phase: "SPEC_DRAFT",
+      phase: "SPEC_PROPOSAL",
     };
     const output = renderTerminal(snap);
     assertEquals(output.includes("approval"), true);

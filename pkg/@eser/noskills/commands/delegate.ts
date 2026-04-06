@@ -60,7 +60,7 @@ export const main = async (
   }
 
   if (
-    state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REVIEW"
+    state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REFINEMENT"
   ) {
     out.writeln(
       span.red(

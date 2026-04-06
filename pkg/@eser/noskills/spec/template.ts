@@ -37,7 +37,7 @@ const toBulletList = (text: string): string[] => {
 /**
  * Derive tasks from discovery answers and decisions.
  *
- * SPEC_DRAFT behavioral rule: Auto-generated tasks are a starting point.
+ * SPEC_PROPOSAL behavioral rule: Auto-generated tasks are a starting point.
  * If any task is still vague (reads like a goal rather than an action), the
  * agent MUST refine it into a concrete imperative before presenting the spec
  * to the user. A good task starts with a verb and describes a single

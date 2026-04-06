@@ -18,9 +18,9 @@ const VALID_TRANSITIONS: Readonly<
 > = {
   UNINITIALIZED: ["IDLE"],
   IDLE: ["DISCOVERY", "COMPLETED"],
-  DISCOVERY: ["DISCOVERY_REVIEW", "COMPLETED"],
-  DISCOVERY_REVIEW: ["DISCOVERY_REVIEW", "SPEC_DRAFT", "COMPLETED"],
-  SPEC_DRAFT: ["SPEC_DRAFT", "SPEC_APPROVED", "COMPLETED"],
+  DISCOVERY: ["DISCOVERY_REFINEMENT", "COMPLETED"],
+  DISCOVERY_REFINEMENT: ["DISCOVERY_REFINEMENT", "SPEC_PROPOSAL", "COMPLETED"],
+  SPEC_PROPOSAL: ["SPEC_PROPOSAL", "SPEC_APPROVED", "COMPLETED"],
   SPEC_APPROVED: ["EXECUTING", "COMPLETED"],
   EXECUTING: ["COMPLETED", "BLOCKED"],
   BLOCKED: ["EXECUTING", "COMPLETED"],
@@ -134,7 +134,7 @@ export const selectApproach = (
   state: schema.StateFile,
   approach: schema.SelectedApproach,
 ): schema.StateFile => {
-  if (state.phase !== "DISCOVERY_REVIEW") {
+  if (state.phase !== "DISCOVERY_REFINEMENT") {
     throw new Error(`Cannot select approach in phase: ${state.phase}`);
   }
   return {
@@ -150,7 +150,7 @@ export const selectApproach = (
 export const skipAlternatives = (
   state: schema.StateFile,
 ): schema.StateFile => {
-  if (state.phase !== "DISCOVERY_REVIEW") {
+  if (state.phase !== "DISCOVERY_REFINEMENT") {
     throw new Error(`Cannot skip alternatives in phase: ${state.phase}`);
   }
   return {
@@ -165,7 +165,7 @@ export const addDiscoveryAnswer = (
   answer: string,
   user?: { name: string; email: string },
 ): schema.StateFile => {
-  if (state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REVIEW") {
+  if (state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REFINEMENT") {
     throw new Error(`Cannot add discovery answer in phase: ${state.phase}`);
   }
 
@@ -206,7 +206,7 @@ export const addDiscoveryContribution = (
   answer: string,
   user?: { name: string; email: string },
 ): schema.StateFile => {
-  if (state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REVIEW") {
+  if (state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REFINEMENT") {
     throw new Error(
       `Cannot add discovery contribution in phase: ${state.phase}`,
     );
@@ -247,7 +247,7 @@ export const completeDiscovery = (
 
   return {
     ...state,
-    phase: "DISCOVERY_REVIEW",
+    phase: "DISCOVERY_REFINEMENT",
     discovery: { ...state.discovery, completed: true },
     specState: {
       path: paths.specFile(state.spec!),
@@ -259,23 +259,23 @@ export const completeDiscovery = (
 export const approveDiscoveryReview = (
   state: schema.StateFile,
 ): schema.StateFile => {
-  assertTransition(state.phase, "SPEC_DRAFT");
+  assertTransition(state.phase, "SPEC_PROPOSAL");
 
   return {
     ...state,
-    phase: "SPEC_DRAFT",
+    phase: "SPEC_PROPOSAL",
   };
 };
 
 /**
- * Approve discovery answers without transitioning to SPEC_DRAFT.
- * Used when a split proposal is detected — stays in DISCOVERY_REVIEW
+ * Approve discovery answers without transitioning to SPEC_PROPOSAL.
+ * Used when a split proposal is detected — stays in DISCOVERY_REFINEMENT
  * so the user can decide whether to split or keep as one spec.
  */
 export const approveDiscoveryAnswers = (
   state: schema.StateFile,
 ): schema.StateFile => {
-  if (state.phase !== "DISCOVERY_REVIEW") {
+  if (state.phase !== "DISCOVERY_REFINEMENT") {
     throw new Error(
       `Cannot approve discovery answers in phase: ${state.phase}`,
     );

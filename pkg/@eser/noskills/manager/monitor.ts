@@ -23,8 +23,8 @@ const ROADMAP_PHASES = [
 const buildRoadmap = (phase: string | null): string => {
   if (phase === null || phase === "IDLE") return "IDLE";
   const phaseMap: Record<string, string> = {
-    DISCOVERY_REVIEW: "REVIEW",
-    SPEC_DRAFT: "DRAFT",
+    DISCOVERY_REFINEMENT: "REVIEW",
+    SPEC_PROPOSAL: "DRAFT",
     SPEC_APPROVED: "APPROVED",
     COMPLETED: "DONE",
   };

@@ -39,7 +39,7 @@ const inDiscoveryHuman = (): schema.StateFile =>
 // =============================================================================
 
 describe("Agent batch discovery", () => {
-  it("batch JSON with all 6 keys transitions to DISCOVERY_REVIEW", async () => {
+  it("batch JSON with all 6 keys transitions to DISCOVERY_REFINEMENT", async () => {
     const state = inDiscoveryAgent();
     const batchAnswer = JSON.stringify({
       status_quo: "Users manually upload files",
@@ -58,7 +58,7 @@ describe("Agent batch discovery", () => {
       batchAnswer,
     );
 
-    assertEquals(result.phase, "DISCOVERY_REVIEW");
+    assertEquals(result.phase, "DISCOVERY_REFINEMENT");
     assertEquals(result.discovery.completed, true);
     assertEquals(result.discovery.answers.length, 6);
 
@@ -139,10 +139,10 @@ describe("Agent batch discovery", () => {
 });
 
 // =============================================================================
-// DISCOVERY_REVIEW split gating
+// DISCOVERY_REFINEMENT split gating
 // =============================================================================
 
-describe("DISCOVERY_REVIEW split gating", () => {
+describe("DISCOVERY_REFINEMENT split gating", () => {
   const multiAreaDiscoveryReview = (): schema.StateFile => {
     let state = inDiscoveryHuman();
     state = machine.addDiscoveryAnswer(
@@ -213,7 +213,7 @@ describe("DISCOVERY_REVIEW split gating", () => {
     return machine.completeDiscovery(state);
   };
 
-  it("approve with multi-area stays in DISCOVERY_REVIEW", async () => {
+  it("approve with multi-area stays in DISCOVERY_REFINEMENT", async () => {
     const state = multiAreaDiscoveryReview();
 
     const result = await next.handleAnswer(
@@ -224,11 +224,11 @@ describe("DISCOVERY_REVIEW split gating", () => {
       "approve",
     );
 
-    assertEquals(result.phase, "DISCOVERY_REVIEW");
+    assertEquals(result.phase, "DISCOVERY_REFINEMENT");
     assertEquals(result.discovery.approved, true);
   });
 
-  it("approve with single-area transitions to SPEC_DRAFT", async () => {
+  it("approve with single-area transitions to SPEC_PROPOSAL", async () => {
     const state = singleAreaDiscoveryReview();
 
     const result = await next.handleAnswer(
@@ -239,10 +239,10 @@ describe("DISCOVERY_REVIEW split gating", () => {
       "approve",
     );
 
-    assertEquals(result.phase, "SPEC_DRAFT");
+    assertEquals(result.phase, "SPEC_PROPOSAL");
   });
 
-  it("keep records decision and transitions to SPEC_DRAFT", async () => {
+  it("keep records decision and transitions to SPEC_PROPOSAL", async () => {
     const state = machine.approveDiscoveryAnswers(multiAreaDiscoveryReview());
 
     const result = await next.handleAnswer(
@@ -253,7 +253,7 @@ describe("DISCOVERY_REVIEW split gating", () => {
       "keep",
     );
 
-    assertEquals(result.phase, "SPEC_DRAFT");
+    assertEquals(result.phase, "SPEC_PROPOSAL");
     assertEquals(result.decisions.length, 1);
     assertEquals(
       result.decisions[0]!.choice.includes("keep as single spec"),

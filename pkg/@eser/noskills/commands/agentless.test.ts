@@ -152,7 +152,12 @@ describe("Output formatting: -o flag", () => {
   it("-o json for spec list is array", () => {
     const specListData = [
       { name: "photo-upload", phase: "EXECUTING", iteration: 3, active: true },
-      { name: "fix-login", phase: "SPEC_DRAFT", iteration: 0, active: false },
+      {
+        name: "fix-login",
+        phase: "SPEC_PROPOSAL",
+        iteration: 0,
+        active: false,
+      },
     ];
     const json = formatter.format(specListData, "json");
     const parsed = JSON.parse(json);
@@ -254,7 +259,7 @@ describe("Spec switching", () => {
       { name: "photo-upload", phase: "EXECUTING", iteration: 3, active: true },
       {
         name: "fix-login-bug",
-        phase: "SPEC_DRAFT",
+        phase: "SPEC_PROPOSAL",
         iteration: 0,
         active: false,
       },
@@ -296,10 +301,10 @@ describe("Agentless end-to-end: text output at every phase", () => {
     phases.push({ name: "DISCOVERY", state: s });
 
     s = machine.completeDiscovery(s);
-    phases.push({ name: "DISCOVERY_REVIEW", state: s });
+    phases.push({ name: "DISCOVERY_REFINEMENT", state: s });
 
     s = machine.approveDiscoveryReview(s);
-    phases.push({ name: "SPEC_DRAFT", state: s });
+    phases.push({ name: "SPEC_PROPOSAL", state: s });
 
     s = machine.approveSpec(s);
     phases.push({ name: "SPEC_APPROVED", state: s });

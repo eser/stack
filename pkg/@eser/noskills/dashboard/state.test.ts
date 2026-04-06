@@ -143,7 +143,7 @@ describe("dashboard.getSpecSummary", () => {
 // =============================================================================
 
 describe("dashboard.approve", () => {
-  it("transitions SPEC_DRAFT to SPEC_APPROVED and writes event", async () => {
+  it("transitions SPEC_PROPOSAL to SPEC_APPROVED and writes event", async () => {
     const root = await makeTempDir();
     let state = schema.createInitialState();
     state = machine.startSpec(
@@ -154,7 +154,7 @@ describe("dashboard.approve", () => {
     );
     state = machine.completeDiscovery(state);
     state = machine.approveDiscoveryReview(state);
-    // Now in SPEC_DRAFT
+    // Now in SPEC_PROPOSAL
 
     await runtime.fs.mkdir(
       `${root}/${persistence.paths.specDir("test-approve")}`,

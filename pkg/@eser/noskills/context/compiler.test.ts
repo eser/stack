@@ -87,16 +87,16 @@ describe("compile", () => {
     assertEquals((output.questions[0]?.extras.length ?? 0) > 0, true);
   });
 
-  it("SPEC_DRAFT without classification shows classification prompt", async () => {
+  it("SPEC_PROPOSAL without classification shows classification prompt", async () => {
     const output = await compiler.compile(inSpecDraft(), noConcerns, noRules);
 
-    assertEquals(output.phase, "SPEC_DRAFT");
+    assertEquals(output.phase, "SPEC_PROPOSAL");
     const specDraft = output as compiler.SpecDraftOutput;
     assertEquals(specDraft.classificationRequired, true);
     assertEquals(specDraft.classificationPrompt !== undefined, true);
   });
 
-  it("SPEC_DRAFT with classification shows approve transition", async () => {
+  it("SPEC_PROPOSAL with classification shows approve transition", async () => {
     const state = {
       ...inSpecDraft(),
       classification: {
@@ -109,7 +109,7 @@ describe("compile", () => {
     };
     const output = await compiler.compile(state, noConcerns, noRules);
 
-    assertEquals(output.phase, "SPEC_DRAFT");
+    assertEquals(output.phase, "SPEC_PROPOSAL");
     const specDraft = output as compiler.SpecDraftOutput;
     assertEquals(specDraft.classificationRequired, undefined);
     assertEquals(specDraft.transition.onApprove.includes("approve"), true);
@@ -355,7 +355,7 @@ describe("agent discovery one-at-a-time", () => {
     assertEquals(output.questions[0]?.id, "ambition");
   });
 
-  it("--agent mode answer all 6 one by one transitions to DISCOVERY_REVIEW", () => {
+  it("--agent mode answer all 6 one by one transitions to DISCOVERY_REFINEMENT", () => {
     let state = agentDiscovery();
 
     for (const qId of QUESTION_IDS) {
@@ -369,7 +369,7 @@ describe("agent discovery one-at-a-time", () => {
 
     assertEquals(questions.isDiscoveryComplete(state.discovery.answers), true);
     state = machine.completeDiscovery(state);
-    assertEquals(state.phase, "DISCOVERY_REVIEW");
+    assertEquals(state.phase, "DISCOVERY_REFINEMENT");
   });
 
   it("human mode (no --agent) returns all 6 questions", async () => {
@@ -385,7 +385,7 @@ describe("agent discovery one-at-a-time", () => {
     assertEquals(output.totalQuestions, undefined);
   });
 
-  it("human mode JSON answer with all 6 keys transitions to DISCOVERY_REVIEW", () => {
+  it("human mode JSON answer with all 6 keys transitions to DISCOVERY_REFINEMENT", () => {
     let state = inDiscovery();
 
     for (const qId of QUESTION_IDS) {
@@ -398,15 +398,15 @@ describe("agent discovery one-at-a-time", () => {
 
     assertEquals(questions.isDiscoveryComplete(state.discovery.answers), true);
     state = machine.completeDiscovery(state);
-    assertEquals(state.phase, "DISCOVERY_REVIEW");
+    assertEquals(state.phase, "DISCOVERY_REFINEMENT");
   });
 });
 
 // =============================================================================
-// DISCOVERY_REVIEW split proposal
+// DISCOVERY_REFINEMENT split proposal
 // =============================================================================
 
-describe("DISCOVERY_REVIEW split proposal", () => {
+describe("DISCOVERY_REFINEMENT split proposal", () => {
   const multiAreaReview = (): schema.StateFile => {
     let state = inDiscovery();
     state = machine.addDiscoveryAnswer(
@@ -485,7 +485,7 @@ describe("DISCOVERY_REVIEW split proposal", () => {
       noRules,
     ) as compiler.DiscoveryReviewOutput;
 
-    assertEquals(output.phase, "DISCOVERY_REVIEW");
+    assertEquals(output.phase, "DISCOVERY_REFINEMENT");
     assertEquals(output.splitProposal !== undefined, true);
     assertEquals(output.splitProposal!.detected, true);
     assertEquals(output.splitProposal!.proposals.length >= 2, true);
@@ -499,7 +499,7 @@ describe("DISCOVERY_REVIEW split proposal", () => {
       noRules,
     ) as compiler.DiscoveryReviewOutput;
 
-    assertEquals(output.phase, "DISCOVERY_REVIEW");
+    assertEquals(output.phase, "DISCOVERY_REFINEMENT");
     assertEquals(output.splitProposal, undefined);
   });
 
@@ -511,7 +511,7 @@ describe("DISCOVERY_REVIEW split proposal", () => {
       noRules,
     ) as compiler.DiscoveryReviewOutput;
 
-    assertEquals(output.phase, "DISCOVERY_REVIEW");
+    assertEquals(output.phase, "DISCOVERY_REFINEMENT");
     assertEquals(output.splitProposal !== undefined, true);
     assertEquals(output.splitProposal!.detected, true);
     assertEquals(output.instruction.includes("independent work areas"), true);

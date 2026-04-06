@@ -428,3 +428,53 @@ describe("containsGitWriteBypass", () => {
     );
   });
 });
+
+// =============================================================================
+// stripFlagValues — prevents user text from triggering git guard
+// =============================================================================
+
+describe("stripFlagValues", () => {
+  it("strips double-quoted flag values", () => {
+    const result = hookDecisions.stripFlagValues(
+      'noskills next --answer="use git branching strategy"',
+    );
+    assertEquals(result.includes("git branching"), false);
+    assertEquals(result.includes("noskills next"), true);
+  });
+
+  it("strips single-quoted flag values", () => {
+    const result = hookDecisions.stripFlagValues(
+      "noskills next --answer='digital transformation'",
+    );
+    assertEquals(result.includes("digital"), false);
+  });
+
+  it("strips unquoted flag values", () => {
+    const result = hookDecisions.stripFlagValues(
+      "noskills next --answer=legitimate",
+    );
+    assertEquals(result.includes("legitimate"), false);
+  });
+
+  it("preserves actual commands after stripping", () => {
+    const result = hookDecisions.stripFlagValues(
+      'noskills next --answer="test" && git push',
+    );
+    assertEquals(result.includes("git push"), true);
+  });
+
+  it("strips multiple flags", () => {
+    const result = hookDecisions.stripFlagValues(
+      'noskills block --reason="git issue" --spec="git-migration"',
+    );
+    assertEquals(result.includes("git issue"), false);
+    assertEquals(result.includes("git-migration"), false);
+  });
+
+  it("returns command unchanged when no flags", () => {
+    assertEquals(
+      hookDecisions.stripFlagValues("git commit -m test"),
+      "git commit -m test",
+    );
+  });
+});

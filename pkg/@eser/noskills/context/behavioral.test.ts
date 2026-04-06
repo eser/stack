@@ -468,10 +468,10 @@ describe("IDLE behavioral — AskUserQuestion, concerns, user intent", () => {
 });
 
 // =============================================================================
-// DISCOVERY_REVIEW behavioral — split proposal rule
+// DISCOVERY_REFINEMENT behavioral — split proposal rule
 // =============================================================================
 
-describe("DISCOVERY_REVIEW behavioral", () => {
+describe("DISCOVERY_REFINEMENT behavioral", () => {
   const inDiscoveryReview = (): schema.StateFile =>
     machine.completeDiscovery(inDiscovery());
 

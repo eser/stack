@@ -47,7 +47,7 @@ const config = (): schema.NosManifest => ({
 // =============================================================================
 
 describe("Agentless flow: complete lifecycle via CLI", () => {
-  it("walks IDLE → DISCOVERY → all questions → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → COMPLETED", async () => {
+  it("walks IDLE → DISCOVERY → all questions → SPEC_PROPOSAL → SPEC_APPROVED → EXECUTING → COMPLETED", async () => {
     // === Step 1: Start from IDLE ===
     let state = schema.createInitialState();
     const output0 = await compiler.compile(
@@ -109,24 +109,24 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
 
     assertEquals(state.discovery.answers.length, 6);
 
-    // === Step 4: Complete discovery → DISCOVERY_REVIEW ===
+    // === Step 4: Complete discovery → DISCOVERY_REFINEMENT ===
     assertEquals(questions.isDiscoveryComplete(state.discovery.answers), true);
     state = machine.completeDiscovery(state);
-    assertEquals(state.phase, "DISCOVERY_REVIEW");
+    assertEquals(state.phase, "DISCOVERY_REFINEMENT");
 
-    // Approve discovery review → SPEC_DRAFT
+    // Approve discovery review → SPEC_PROPOSAL
     state = machine.approveDiscoveryReview(state);
-    assertEquals(state.phase, "SPEC_DRAFT");
+    assertEquals(state.phase, "SPEC_PROPOSAL");
     assertEquals(state.classification, null); // not yet classified
 
-    // SPEC_DRAFT without classification → asks for classification
+    // SPEC_PROPOSAL without classification → asks for classification
     const output4a = await compiler.compile(
       state,
       activeConcerns,
       rules,
       config(),
     );
-    assertEquals(output4a.phase, "SPEC_DRAFT");
+    assertEquals(output4a.phase, "SPEC_PROPOSAL");
     assertEquals(
       (output4a as compiler.SpecDraftOutput).classificationRequired,
       true,
@@ -167,7 +167,7 @@ describe("Agentless flow: complete lifecycle via CLI", () => {
       rules,
       config(),
     );
-    assertEquals(output4b.phase, "SPEC_DRAFT");
+    assertEquals(output4b.phase, "SPEC_PROPOSAL");
     const specDraft = output4b as compiler.SpecDraftOutput;
     assertEquals(specDraft.transition.onApprove.includes("approve"), true);
 
@@ -295,10 +295,10 @@ describe("Output format consistency across phases", () => {
     const disc = { name: "DISCOVERY", state: s };
 
     s = machine.completeDiscovery(s);
-    const discReview = { name: "DISCOVERY_REVIEW", state: s };
+    const discReview = { name: "DISCOVERY_REFINEMENT", state: s };
 
     s = machine.approveDiscoveryReview(s);
-    const draft = { name: "SPEC_DRAFT", state: s };
+    const draft = { name: "SPEC_PROPOSAL", state: s };
 
     s = machine.approveSpec(s);
     const approved = { name: "SPEC_APPROVED", state: s };

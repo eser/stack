@@ -184,7 +184,7 @@ export type ReviewChecklist = {
 };
 
 export type DiscoveryReviewOutput = {
-  readonly phase: "DISCOVERY_REVIEW";
+  readonly phase: "DISCOVERY_REFINEMENT";
   readonly instruction: string;
   readonly answers: readonly DiscoveryReviewAnswer[];
   readonly transition: {
@@ -212,7 +212,7 @@ export type SelfReview = {
 };
 
 export type SpecDraftOutput = {
-  readonly phase: "SPEC_DRAFT";
+  readonly phase: "SPEC_PROPOSAL";
   readonly instruction: string;
   readonly specPath: string;
   readonly transition: {
@@ -528,7 +528,7 @@ const buildBehavioral = (
       };
     }
 
-    case "DISCOVERY_REVIEW":
+    case "DISCOVERY_REFINEMENT":
       return {
         modeOverride:
           "You are in plan mode. Do not create, edit, or write any files. Present the discovery answers to the user for review and confirmation.",
@@ -547,7 +547,7 @@ const buildBehavioral = (
         tone: "Careful reviewer. The user must confirm every answer.",
       };
 
-    case "SPEC_DRAFT": {
+    case "SPEC_PROPOSAL": {
       // Build delegation status rule if delegations exist
       const delegations = state.discovery.delegations ?? [];
       const delegationRules: string[] = [];
@@ -800,11 +800,11 @@ const buildMeta = (
       resumeHint =
         `Discovery in progress for "${state.spec}". ${state.discovery.answers.length} questions answered so far.`;
       break;
-    case "DISCOVERY_REVIEW":
+    case "DISCOVERY_REFINEMENT":
       resumeHint =
         `Discovery answers ready for review. ${state.discovery.answers.length} answers collected. Waiting for user confirmation.`;
       break;
-    case "SPEC_DRAFT":
+    case "SPEC_PROPOSAL":
       resumeHint =
         `Spec draft ready for review at ${state.specState.path}. Waiting for approval.`;
       break;
@@ -854,7 +854,7 @@ const buildProtocolGuide = (
     // First call ever — include guide
     return {
       what:
-        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE → IDLE",
+        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REFINEMENT → SPEC_PROPOSAL → SPEC_APPROVED → EXECUTING → DONE → IDLE",
       how: `Run \`${
         cs("next", specName)
       }\` for instructions. Submit results with \`${
@@ -870,7 +870,7 @@ const buildProtocolGuide = (
   if (now - lastCalled > STALE_SESSION_MS) {
     return {
       what:
-        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REVIEW → SPEC_DRAFT → SPEC_APPROVED → EXECUTING → DONE → IDLE",
+        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REFINEMENT → SPEC_PROPOSAL → SPEC_APPROVED → EXECUTING → DONE → IDLE",
       how: `Run \`${
         cs("next", specName)
       }\` for instructions. Submit results with \`${
@@ -890,11 +890,11 @@ const buildProtocolGuide = (
 const ROADMAP_PHASES = [
   { key: "IDLE", label: "IDLE" },
   { key: "DISCOVERY", label: "DISCOVERY" },
-  { key: "DISCOVERY_REVIEW", label: "REVIEW" },
-  { key: "SPEC_DRAFT", label: "DRAFT" },
+  { key: "DISCOVERY_REFINEMENT", label: "REFINEMENT" },
+  { key: "SPEC_PROPOSAL", label: "PROPOSAL" },
   { key: "SPEC_APPROVED", label: "APPROVED" },
   { key: "EXECUTING", label: "EXECUTING" },
-  { key: "COMPLETED", label: "DONE" },
+  { key: "COMPLETED", label: "COMPLETED" },
   { key: "IDLE_END", label: "IDLE" },
 ] as const;
 
@@ -918,11 +918,11 @@ const buildGate = (
   parsedSpec?: ParsedSpec | null,
 ): GateInfo | undefined => {
   switch (state.phase) {
-    case "DISCOVERY_REVIEW":
+    case "DISCOVERY_REFINEMENT":
       return {
         message: `${state.discovery.answers.length}/6 answers collected.`,
         action: "Type APPROVE to generate spec, or REVISE to correct answers.",
-        phase: "DISCOVERY_REVIEW",
+        phase: "DISCOVERY_REFINEMENT",
       };
     case "SPEC_APPROVED": {
       const taskCount = parsedSpec?.tasks?.length ?? 0;
@@ -1006,10 +1006,10 @@ export const compile = async (
         projectRoot,
       );
       break;
-    case "DISCOVERY_REVIEW":
+    case "DISCOVERY_REFINEMENT":
       phaseOutput = compileDiscoveryReview(state, activeConcerns);
       break;
-    case "SPEC_DRAFT":
+    case "SPEC_PROPOSAL":
       phaseOutput = compileSpecDraft(state);
       break;
     case "SPEC_APPROVED":
@@ -1154,7 +1154,7 @@ const buildInteractiveOptions = (
       return opts.slice(0, 4);
     }
 
-    case "DISCOVERY_REVIEW": {
+    case "DISCOVERY_REFINEMENT": {
       // Two sub-phases: answer review vs split decision
       if (state.discovery.approved) {
         // Approved + split detected → show keep/split options
@@ -1186,7 +1186,7 @@ const buildInteractiveOptions = (
       ];
     }
 
-    case "SPEC_DRAFT":
+    case "SPEC_PROPOSAL":
       return [
         {
           label: "Approve spec",
@@ -1951,7 +1951,7 @@ const compileDiscoveryReview = (
   // 4. All done → normal transition
   if (state.discovery.approved && splitProposal.detected) {
     return {
-      phase: "DISCOVERY_REVIEW",
+      phase: "DISCOVERY_REFINEMENT",
       instruction:
         "Discovery answers are approved. noskills detected multiple independent work areas in this spec. Present the split proposal to the user and let them decide whether to keep as one spec or split into separate specs.",
       answers: reviewAnswers,
@@ -1970,7 +1970,7 @@ const compileDiscoveryReview = (
   const alternativesPresented = state.discovery.alternativesPresented === true;
   if (state.discovery.approved && !alternativesPresented) {
     return {
-      phase: "DISCOVERY_REVIEW",
+      phase: "DISCOVERY_REFINEMENT",
       subPhase: "alternatives",
       instruction:
         "Based on discovery answers, propose 2-3 distinct implementation approaches. Present each with name, summary, effort (S/M/L/XL), risk (Low/Med/High), pros, and cons. Ask the user to choose one, or skip.",
@@ -2030,7 +2030,7 @@ const compileDiscoveryReview = (
   }
 
   return {
-    phase: "DISCOVERY_REVIEW",
+    phase: "DISCOVERY_REFINEMENT",
     instruction: splitProposal.detected
       ? `Present ALL discovery answers to the user for review. ALSO present the split proposal — noskills detected multiple independent areas.${batchWarning}`
       : `Present ALL discovery answers to the user for review. The user must confirm or correct each answer before the spec can be generated. Use AskUserQuestion to ask for confirmation.${batchWarning}`,
@@ -2053,7 +2053,7 @@ const compileSpecDraft = (state: schema.StateFile): SpecDraftOutput => {
   // If classification not yet provided, ask for it before showing spec
   if (state.classification === null) {
     return {
-      phase: "SPEC_DRAFT",
+      phase: "SPEC_PROPOSAL",
       instruction:
         "Before generating the spec, classify what this spec involves. Ask the user to select all that apply.",
       specPath: state.specState.path ?? "",
@@ -2098,7 +2098,7 @@ const compileSpecDraft = (state: schema.StateFile): SpecDraftOutput => {
   }
 
   return {
-    phase: "SPEC_DRAFT",
+    phase: "SPEC_PROPOSAL",
     instruction: "Spec draft is ready. Self-review before presenting to user.",
     specPath: state.specState.path ?? "",
     transition: { onApprove: cs("approve", specName) },

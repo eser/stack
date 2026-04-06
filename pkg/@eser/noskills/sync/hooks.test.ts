@@ -85,7 +85,7 @@ const enforcePreToolUse = (input: {
   const reasons: Record<string, string> = {
     DISCOVERY:
       "Discovery in progress. Run `npx eser noskills next` to continue.",
-    SPEC_DRAFT: "Spec needs review. Run `npx eser noskills approve`",
+    SPEC_PROPOSAL: "Spec needs review. Run `npx eser noskills approve`",
     SPEC_APPROVED:
       'Start execution first: `npx eser noskills next --answer="start"`',
     BLOCKED:
@@ -117,11 +117,11 @@ describe("PreToolUse: phase gating", () => {
     );
   });
 
-  it("blocks file edit when phase is SPEC_DRAFT", () => {
+  it("blocks file edit when phase is SPEC_PROPOSAL", () => {
     const result = enforcePreToolUse({
       tool_name: "Edit",
       tool_input: { file_path: "/src/api.ts" },
-      state: { phase: "SPEC_DRAFT" },
+      state: { phase: "SPEC_PROPOSAL" },
     });
     assertEquals(result.allow, false);
     assertEquals(
@@ -140,7 +140,7 @@ describe("PreToolUse: phase gating", () => {
   });
 
   it("always allows edits to .eser/ files regardless of phase", () => {
-    for (const phase of ["IDLE", "DISCOVERY", "SPEC_DRAFT", "BLOCKED"]) {
+    for (const phase of ["IDLE", "DISCOVERY", "SPEC_PROPOSAL", "BLOCKED"]) {
       const result = enforcePreToolUse({
         tool_name: "Write",
         tool_input: { file_path: "/project/.eser/rules/test.md" },

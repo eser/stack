@@ -1,6 +1,6 @@
 {
   "name": "@eser/ajan",
-  "version": "4.1.55",
+  "version": "4.1.56",
   "type": "module",
   "exports": {
     ".": "./ffi/mod.ts",
@@ -11,12 +11,12 @@
     "koffi": "^2.15.0"
   },
   "optionalDependencies": {
-    "@eserstack/ajan-darwin-arm64": "4.1.55",
-    "@eserstack/ajan-darwin-x64": "4.1.55",
-    "@eserstack/ajan-linux-arm64": "4.1.55",
-    "@eserstack/ajan-linux-x64": "4.1.55",
-    "@eserstack/ajan-win32-arm64": "4.1.55",
-    "@eserstack/ajan-win32-x64": "4.1.55",
-    "@eserstack/ajan-wasm": "4.1.55"
+    "@eserstack/ajan-darwin-arm64": "4.1.56",
+    "@eserstack/ajan-darwin-x64": "4.1.56",
+    "@eserstack/ajan-linux-arm64": "4.1.56",
+    "@eserstack/ajan-linux-x64": "4.1.56",
+    "@eserstack/ajan-win32-arm64": "4.1.56",
+    "@eserstack/ajan-win32-x64": "4.1.56",
+    "@eserstack/ajan-wasm": "4.1.56"
   }
 }

@@ -19,8 +19,8 @@ const escHtml = (s: string): string =>
 const PHASE_COLORS: Record<string, string> = {
   IDLE: "#6b7280",
   DISCOVERY: "#06b6d4",
-  DISCOVERY_REVIEW: "#06b6d4",
-  SPEC_DRAFT: "#eab308",
+  DISCOVERY_REFINEMENT: "#06b6d4",
+  SPEC_PROPOSAL: "#eab308",
   SPEC_APPROVED: "#eab308",
   EXECUTING: "#22c55e",
   BLOCKED: "#ef4444",
@@ -29,10 +29,9 @@ const PHASE_COLORS: Record<string, string> = {
 
 export const phaseBadge = (phase: string): string => {
   const color = PHASE_COLORS[phase] ?? "#6b7280";
-  const label = phase.replace("DISCOVERY_REVIEW", "REVIEW")
-    .replace("SPEC_DRAFT", "DRAFT")
-    .replace("SPEC_APPROVED", "APPROVED")
-    .replace("COMPLETED", "DONE");
+  const label = phase.replace("DISCOVERY_REFINEMENT", "REFINEMENT")
+    .replace("SPEC_PROPOSAL", "PROPOSAL")
+    .replace("SPEC_APPROVED", "APPROVED");
   return `<span class="phase-badge" style="background:${color}">${
     escHtml(label)
   }</span>`;

@@ -263,7 +263,7 @@ const renderTerminal = (snap: WatchSnapshot): string => {
 
   // ── Detail block for the primary spec ──
   // Phase-specific content
-  if (snap.phase === "DISCOVERY" || snap.phase === "DISCOVERY_REVIEW") {
+  if (snap.phase === "DISCOVERY" || snap.phase === "DISCOVERY_REFINEMENT") {
     lines.push(
       row(
         `Phase: ${
@@ -271,7 +271,7 @@ const renderTerminal = (snap: WatchSnapshot): string => {
         }${snap.phase}${RESET}  Discovery: ${snap.discoveryAnswered}/${snap.discoveryTotal} questions answered`,
       ),
     );
-  } else if (snap.phase === "SPEC_DRAFT") {
+  } else if (snap.phase === "SPEC_PROPOSAL") {
     lines.push(
       row(
         `Phase: ${YELLOW}${snap.phase}${RESET}  ${YELLOW}Awaiting approval${RESET}`,

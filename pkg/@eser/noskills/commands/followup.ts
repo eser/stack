@@ -103,7 +103,7 @@ export const main = async (
   }
 
   if (
-    state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REVIEW"
+    state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REFINEMENT"
   ) {
     out.writeln(
       span.red(`Cannot add follow-ups in phase: ${state.phase}`),

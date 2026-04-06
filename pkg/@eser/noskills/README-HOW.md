@@ -32,7 +32,7 @@ concerns, and configuration. For the overview and getting started, see
 Every spec follows a deterministic phase flow:
 
 ```
-IDLE → DISCOVERY → REVIEW → DRAFT → APPROVED → EXECUTING ↔ BLOCKED
+IDLE → DISCOVERY → REFINEMENT → PROPOSAL → APPROVED → EXECUTING ↔ BLOCKED
  ^        ^                                        |
  |        +-------------- revisit -----------------+
  |                                                 |
@@ -44,16 +44,16 @@ Any phase can reach COMPLETED via `cancel` or `wontfix`. COMPLETED can return to
 IDLE (reset) or DISCOVERY (reopen). EXECUTING/BLOCKED can return to DISCOVERY
 via `revisit` — progress is preserved so you can re-scope without losing work.
 
-| Phase         | What happens                                                           |
-| ------------- | ---------------------------------------------------------------------- |
-| **IDLE**      | No active spec. Default permissive state — no enforcement              |
-| **DISCOVERY** | 6 adaptive questions probe product, engineering, and QA simultaneously |
-| **REVIEW**    | User reviews and confirms all discovery answers before spec generation |
-| **DRAFT**     | Spec generated from discovery answers. Human reviews                   |
-| **APPROVED**  | Spec approved, waiting to start. A deliberate "ready but not yet" gate |
-| **EXECUTING** | Agent works through the spec. Reports progress each iteration          |
-| **BLOCKED**   | Agent hit a decision it can't make alone. Human resolves               |
-| **COMPLETED** | Spec complete (done, cancelled, or wontfix). Summary + learnings       |
+| Phase          | What happens                                                           |
+| -------------- | ---------------------------------------------------------------------- |
+| **IDLE**       | No active spec. Default permissive state — no enforcement              |
+| **DISCOVERY**  | 6 adaptive questions probe product, engineering, and QA simultaneously |
+| **REFINEMENT** | User reviews and confirms all discovery answers before spec generation |
+| **PROPOSAL**   | Spec generated from discovery answers. Human reviews                   |
+| **APPROVED**   | Spec approved, waiting to start. A deliberate "ready but not yet" gate |
+| **EXECUTING**  | Agent works through the spec. Reports progress each iteration          |
+| **BLOCKED**    | Agent hit a decision it can't make alone. Human resolves               |
+| **COMPLETED**  | Spec complete (done, cancelled, or wontfix). Summary + learnings       |
 
 ### Phase Transition Protocol
 
@@ -237,14 +237,14 @@ slice is delivered — never the full concern payload at once:
 | **well-engineered**   | Performance measured, tests strategic, errors helpful, security built-in |
 
 Each phase gets only what it needs from concerns — not the full definition.
-DISCOVERY gets extras and dream state prompts. REVIEW gets review dimensions
-(scope-filtered). DRAFT gets spec sections and registry skeletons. EXECUTING
+DISCOVERY gets extras and dream state prompts. REFINEMENT gets review dimensions
+(scope-filtered). PROPOSAL gets spec sections and registry skeletons. EXECUTING
 gets reminders and ACs. Zero upfront dump.
 
 ### Review Dimensions
 
 Concerns can define **review dimensions** — structured review criteria that
-inject into REVIEW as a checklist. Each dimension is a short prompt (one
+inject into REFINEMENT as a checklist. Each dimension is a short prompt (one
 sentence), not a page of instructions. Dimensions are scope-filtered: a CLI-only
 spec never sees UI dimensions.
 
@@ -264,7 +264,7 @@ spec never sees UI dimensions.
 ```
 
 Dimensions are scope-filtered by `SpecClassification`: UI-scoped dimensions only
-appear when `involvesWebUI` is true. Before classification (in REVIEW), all
+appear when `involvesWebUI` is true. Before classification (in REFINEMENT), all
 dimensions are shown.
 
 ### Registries
@@ -342,24 +342,24 @@ system runs autonomously but stops at every meaningful decision point.
 
 ### Enforcement Summary
 
-| Safeguard                                     | Mechanism                                                        |
-| --------------------------------------------- | ---------------------------------------------------------------- |
-| File edits blocked in DISCOVERY/REVIEW/DRAFT  | PreToolUse hook denies Write/Edit/MultiEdit                      |
-| File edits blocked when phase is UNKNOWN      | Default-deny (Jidoka C4)                                         |
-| Git write commands blocked                    | PreToolUse hook denies git commit/push/checkout                  |
-| Short discovery answers rejected              | 20-char minimum (Jidoka I1)                                      |
-| Empty premises rejected                       | Must provide at least 1 premise (Jidoka M3)                      |
-| Batch answers flagged                         | `batchSubmitted` flag triggers stronger confirmation (Jidoka C1) |
-| Pending follow-ups block discovery completion | Must answer or skip before transitioning (Jidoka I2)             |
-| Done requires status report                   | Blocks if `awaitingStatusReport` is true (Jidoka C2)             |
-| High confidence needs evidence                | Confidence >= 7 requires basis >= 10 chars (Jidoka M2)           |
-| Reset restricted to terminal phases           | Only IDLE/EXECUTING/BLOCKED/COMPLETED can reset (Jidoka I7)      |
-| Concern tensions block execution              | Must get user resolution before proceeding (Jidoka I6)           |
-| Stale diagrams block completion               | Flagged as mandatory ACs (Jidoka M4)                             |
-| Enforcement level self-reported               | `meta.enforcement` in every output (Jidoka C3)                   |
-| Verification required after every task        | Mandatory behavioral rule (Jidoka I3)                            |
-| Scope violations flagged in AC                | File scope check when task declares files (Jidoka I4)            |
-| Learning prompt at completion                 | `learningsPending` flag visible (Jidoka M1)                      |
+| Safeguard                                           | Mechanism                                                        |
+| --------------------------------------------------- | ---------------------------------------------------------------- |
+| File edits blocked in DISCOVERY/REFINEMENT/PROPOSAL | PreToolUse hook denies Write/Edit/MultiEdit                      |
+| File edits blocked when phase is UNKNOWN            | Default-deny (Jidoka C4)                                         |
+| Git write commands blocked                          | PreToolUse hook denies git commit/push/checkout                  |
+| Short discovery answers rejected                    | 20-char minimum (Jidoka I1)                                      |
+| Empty premises rejected                             | Must provide at least 1 premise (Jidoka M3)                      |
+| Batch answers flagged                               | `batchSubmitted` flag triggers stronger confirmation (Jidoka C1) |
+| Pending follow-ups block discovery completion       | Must answer or skip before transitioning (Jidoka I2)             |
+| Done requires status report                         | Blocks if `awaitingStatusReport` is true (Jidoka C2)             |
+| High confidence needs evidence                      | Confidence >= 7 requires basis >= 10 chars (Jidoka M2)           |
+| Reset restricted to terminal phases                 | Only IDLE/EXECUTING/BLOCKED/COMPLETED can reset (Jidoka I7)      |
+| Concern tensions block execution                    | Must get user resolution before proceeding (Jidoka I6)           |
+| Stale diagrams block completion                     | Flagged as mandatory ACs (Jidoka M4)                             |
+| Enforcement level self-reported                     | `meta.enforcement` in every output (Jidoka C3)                   |
+| Verification required after every task              | Mandatory behavioral rule (Jidoka I3)                            |
+| Scope violations flagged in AC                      | File scope check when task declares files (Jidoka I4)            |
+| Learning prompt at completion                       | `learningsPending` flag visible (Jidoka M1)                      |
 
 ### Platform Enforcement Levels
 
@@ -572,16 +572,16 @@ await dashboard.addNote(projectRoot, "upload", "KDV dahil mi?", user);
 
 ### Behavioral Guardrails per Phase
 
-| Phase     | Tone                           | Key rules                                |
-| --------- | ------------------------------ | ---------------------------------------- |
-| IDLE      | Welcoming                      | No file edits                            |
-| DISCOVERY | Curious, has a stake           | Push back on shallow answers, don't code |
-| REVIEW    | Careful reviewer               | User must confirm each answer            |
-| DRAFT     | The user is reviewing          | Don't modify spec, don't code            |
-| APPROVED  | Patient, wait for go signal    | Don't start coding until user says go    |
-| EXECUTING | Orchestrate — spawn sub-agents | Delegate, don't edit directly            |
-| BLOCKED   | Brief, decision time           | Present as-is, no preferences            |
-| COMPLETED | Celebrate briefly, then stop   | Don't start new work, record learnings   |
+| Phase      | Tone                           | Key rules                                |
+| ---------- | ------------------------------ | ---------------------------------------- |
+| IDLE       | Welcoming                      | No file edits                            |
+| DISCOVERY  | Curious, has a stake           | Push back on shallow answers, don't code |
+| REFINEMENT | Careful reviewer               | User must confirm each answer            |
+| PROPOSAL   | The user is reviewing          | Don't modify spec, don't code            |
+| APPROVED   | Patient, wait for go signal    | Don't start coding until user says go    |
+| EXECUTING  | Orchestrate — spawn sub-agents | Delegate, don't edit directly            |
+| BLOCKED    | Brief, decision time           | Present as-is, no preferences            |
+| COMPLETED  | Celebrate briefly, then stop   | Don't start new work, record learnings   |
 
 ### Scoped Folder Rules
 

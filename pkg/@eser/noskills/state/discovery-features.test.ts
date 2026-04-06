@@ -123,10 +123,10 @@ describe("Alternatives", () => {
     let state = inDiscovery();
     state = machine.setDiscoveryMode(state, "full");
     state = machine.completePremises(state, []);
-    // Simulate through to DISCOVERY_REVIEW
+    // Simulate through to DISCOVERY_REFINEMENT
     state = {
       ...state,
-      phase: "DISCOVERY_REVIEW" as schema.Phase,
+      phase: "DISCOVERY_REFINEMENT" as schema.Phase,
       discovery: { ...state.discovery, completed: true, approved: true },
     };
 
@@ -149,7 +149,7 @@ describe("Alternatives", () => {
     let state = inDiscovery();
     state = {
       ...state,
-      phase: "DISCOVERY_REVIEW" as schema.Phase,
+      phase: "DISCOVERY_REFINEMENT" as schema.Phase,
       discovery: { ...state.discovery, approved: true },
     };
 
@@ -158,7 +158,7 @@ describe("Alternatives", () => {
     assert.assertEquals(state.discovery.selectedApproach, undefined);
   });
 
-  it("selectApproach rejects non-DISCOVERY_REVIEW phase", () => {
+  it("selectApproach rejects non-DISCOVERY_REFINEMENT phase", () => {
     const state = inDiscovery();
     let threw = false;
     try {
@@ -177,7 +177,7 @@ describe("Alternatives", () => {
     assert.assertEquals(threw, true);
   });
 
-  it("skipAlternatives rejects non-DISCOVERY_REVIEW phase", () => {
+  it("skipAlternatives rejects non-DISCOVERY_REFINEMENT phase", () => {
     const state = inDiscovery();
     let threw = false;
     try {

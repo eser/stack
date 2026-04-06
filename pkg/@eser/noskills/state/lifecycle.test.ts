@@ -48,17 +48,17 @@ describe("Full lifecycle: IDLE → COMPLETED", () => {
     state = answerAllQuestions(state);
     assertEquals(state.discovery.answers.length, 6);
 
-    // DISCOVERY → DISCOVERY_REVIEW
+    // DISCOVERY → DISCOVERY_REFINEMENT
     state = machine.completeDiscovery(state);
-    assertEquals(state.phase, "DISCOVERY_REVIEW");
+    assertEquals(state.phase, "DISCOVERY_REFINEMENT");
     assertEquals(state.discovery.completed, true);
 
-    // DISCOVERY_REVIEW → SPEC_DRAFT
+    // DISCOVERY_REFINEMENT → SPEC_PROPOSAL
     state = machine.approveDiscoveryReview(state);
-    assertEquals(state.phase, "SPEC_DRAFT");
+    assertEquals(state.phase, "SPEC_PROPOSAL");
     assertEquals(state.specState.status, "draft");
 
-    // SPEC_DRAFT → SPEC_APPROVED
+    // SPEC_PROPOSAL → SPEC_APPROVED
     state = machine.approveSpec(state);
     assertEquals(state.phase, "SPEC_APPROVED");
     assertEquals(state.specState.status, "approved");
@@ -238,7 +238,7 @@ describe("Invalid transition shortcuts blocked", () => {
     assertThrows(() => machine.approveSpec(state), Error);
   });
 
-  it("cannot advanceExecution from DISCOVERY_REVIEW", () => {
+  it("cannot advanceExecution from DISCOVERY_REFINEMENT", () => {
     let state = machine.startSpec(idle(), "x", "spec/x");
     state = machine.completeDiscovery(state);
     assertThrows(() => machine.advanceExecution(state, "x"), Error);

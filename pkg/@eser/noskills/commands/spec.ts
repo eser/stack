@@ -701,14 +701,14 @@ const specSplit = async (
     return results.fail({ exitCode: 1 });
   }
 
-  // Validate parent is in DISCOVERY or DISCOVERY_REVIEW
+  // Validate parent is in DISCOVERY or DISCOVERY_REFINEMENT
   if (
     parentState.phase !== "DISCOVERY" &&
-    parentState.phase !== "DISCOVERY_REVIEW"
+    parentState.phase !== "DISCOVERY_REFINEMENT"
   ) {
     out.writeln(
       span.red(
-        `Cannot split spec in phase ${parentState.phase}. Must be in DISCOVERY or DISCOVERY_REVIEW.`,
+        `Cannot split spec in phase ${parentState.phase}. Must be in DISCOVERY or DISCOVERY_REFINEMENT.`,
       ),
     );
     await out.close();
@@ -910,8 +910,9 @@ const specRevisit = async (
 
   // Phase validation
   if (
-    specState.phase === "DISCOVERY" || specState.phase === "DISCOVERY_REVIEW" ||
-    specState.phase === "SPEC_DRAFT" || specState.phase === "SPEC_APPROVED"
+    specState.phase === "DISCOVERY" ||
+    specState.phase === "DISCOVERY_REFINEMENT" ||
+    specState.phase === "SPEC_PROPOSAL" || specState.phase === "SPEC_APPROVED"
   ) {
     out.writeln(
       span.red("Already in planning phase, no need to revisit."),

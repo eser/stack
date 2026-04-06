@@ -57,7 +57,7 @@ describe("tab-bar", () => {
     const tabs = [
       makeTab("t1", "upload", "EXECUTING"),
       makeTab("t2", null),
-      makeTab("t3", "invoice", "SPEC_DRAFT"),
+      makeTab("t3", "invoice", "SPEC_PROPOSAL"),
     ];
     const output = tabBarMod.render(tabs, 0, 120, 1);
     const visible = tui.ansi.stripAnsi(output);

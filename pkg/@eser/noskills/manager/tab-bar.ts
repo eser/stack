@@ -14,8 +14,8 @@ import type * as types from "./types.ts";
 const abbreviatePhase = (phase: string): string => {
   const map: Record<string, string> = {
     DISCOVERY: "DISC",
-    DISCOVERY_REVIEW: "REVW",
-    SPEC_DRAFT: "DRFT",
+    DISCOVERY_REFINEMENT: "REVW",
+    SPEC_PROPOSAL: "DRFT",
     SPEC_APPROVED: "APPR",
     EXECUTING: "EXEC",
     BLOCKED: "BLKD",
@@ -32,11 +32,11 @@ const phaseColor = (
     case "EXECUTING":
       return "green";
     case "DISCOVERY":
-    case "DISCOVERY_REVIEW":
+    case "DISCOVERY_REFINEMENT":
       return "cyan";
     case "BLOCKED":
       return "red";
-    case "SPEC_DRAFT":
+    case "SPEC_PROPOSAL":
     case "SPEC_APPROVED":
       return "yellow";
     case "COMPLETED":

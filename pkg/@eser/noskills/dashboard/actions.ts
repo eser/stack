@@ -37,7 +37,7 @@ const resolveUser = async (
 // Actions
 // =============================================================================
 
-/** Approve a spec draft — transitions SPEC_DRAFT → SPEC_APPROVED. */
+/** Approve a spec draft — transitions SPEC_PROPOSAL → SPEC_APPROVED. */
 export const approve = async (
   root: string,
   specName: string,
@@ -46,7 +46,7 @@ export const approve = async (
   try {
     let state = await persistence.resolveState(root, specName);
 
-    if (state.phase !== "SPEC_DRAFT") {
+    if (state.phase !== "SPEC_PROPOSAL") {
       return { ok: false, error: `Cannot approve in phase: ${state.phase}` };
     }
 
@@ -54,7 +54,7 @@ export const approve = async (
     state = machine.approveSpec(state);
     state = machine.recordTransition(
       state,
-      "SPEC_DRAFT",
+      "SPEC_PROPOSAL",
       "SPEC_APPROVED",
       resolved,
     );
@@ -65,7 +65,7 @@ export const approve = async (
       type: "phase-change",
       spec: specName,
       user: resolved.name,
-      from: "SPEC_DRAFT",
+      from: "SPEC_PROPOSAL",
       to: "SPEC_APPROVED",
     });
 

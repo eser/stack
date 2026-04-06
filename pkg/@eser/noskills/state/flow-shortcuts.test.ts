@@ -94,10 +94,10 @@ describe("Happy path: full lifecycle with classification", () => {
       );
     }
     s = machine.completeDiscovery(s);
-    assertEquals(s.phase, "DISCOVERY_REVIEW");
+    assertEquals(s.phase, "DISCOVERY_REFINEMENT");
 
     s = machine.approveDiscoveryReview(s);
-    assertEquals(s.phase, "SPEC_DRAFT");
+    assertEquals(s.phase, "SPEC_PROPOSAL");
     assertEquals(s.classification, null);
 
     // Provide classification: all true
@@ -158,7 +158,7 @@ describe("Happy path: full lifecycle with classification", () => {
 // =============================================================================
 
 describe("Skip classification: approve without classifying", () => {
-  it("approve from SPEC_DRAFT with null classification succeeds", () => {
+  it("approve from SPEC_PROPOSAL with null classification succeeds", () => {
     const s = inSpecDraft();
     assertEquals(s.classification, null);
 
@@ -316,7 +316,7 @@ describe("Block from non-executing phase", () => {
     assertThrows(() => machine.blockExecution(inDiscovery(), "reason"));
   });
 
-  it("block from SPEC_DRAFT throws", () => {
+  it("block from SPEC_PROPOSAL throws", () => {
     assertThrows(() => machine.blockExecution(inSpecDraft(), "reason"));
   });
 
@@ -330,7 +330,7 @@ describe("Block from non-executing phase", () => {
 // =============================================================================
 
 describe("Start execution without approve", () => {
-  it("startExecution from SPEC_DRAFT throws", () => {
+  it("startExecution from SPEC_PROPOSAL throws", () => {
     assertThrows(() => machine.startExecution(inSpecDraft()));
   });
 
@@ -413,7 +413,7 @@ describe("Edge case: concern removed mid-execution", () => {
   });
 });
 
-describe("Edge case: SPEC_DRAFT compiler output with null classification", () => {
+describe("Edge case: SPEC_PROPOSAL compiler output with null classification", () => {
   it("shows classificationRequired: true when classification is null", async () => {
     const s = inSpecDraft();
     assertEquals(s.classification, null);
@@ -424,7 +424,7 @@ describe("Edge case: SPEC_DRAFT compiler output with null classification", () =>
       noRules,
     ) as compiler.SpecDraftOutput;
 
-    assertEquals(output.phase, "SPEC_DRAFT");
+    assertEquals(output.phase, "SPEC_PROPOSAL");
     assertEquals(output.classificationRequired, true);
   });
 
@@ -447,7 +447,7 @@ describe("Edge case: SPEC_DRAFT compiler output with null classification", () =>
       noRules,
     ) as compiler.SpecDraftOutput;
 
-    assertEquals(output.phase, "SPEC_DRAFT");
+    assertEquals(output.phase, "SPEC_PROPOSAL");
     assertEquals(output.classificationRequired, undefined);
   });
 });

@@ -62,7 +62,7 @@ export const main = async (
   const pendingDelegations = machine.getPendingDelegations(state);
   if (
     pendingDelegations.length > 0 &&
-    (state.phase === "SPEC_DRAFT" || state.phase === "DISCOVERY_REVIEW")
+    (state.phase === "SPEC_PROPOSAL" || state.phase === "DISCOVERY_REFINEMENT")
   ) {
     out.writeln(
       span.red(
@@ -85,7 +85,7 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  if (state.phase === "SPEC_DRAFT") {
+  if (state.phase === "SPEC_PROPOSAL") {
     // If classification was skipped, generate spec with null classification
     // (defaults all concern sections to not relevant — clean spec)
     if (state.classification === null && state.spec !== null) {
@@ -105,7 +105,7 @@ export const main = async (
     let newState = machine.approveSpec(state);
     newState = machine.recordTransition(
       newState,
-      "SPEC_DRAFT",
+      "SPEC_PROPOSAL",
       "SPEC_APPROVED",
       user,
     );
@@ -130,14 +130,14 @@ export const main = async (
       span.bold(`${cmd('next --answer="start"')}`),
       " to begin execution.",
     );
-  } else if (state.phase === "DISCOVERY_REVIEW") {
-    // Approve discovery review → transition to SPEC_DRAFT
+  } else if (state.phase === "DISCOVERY_REFINEMENT") {
+    // Approve discovery review → transition to SPEC_PROPOSAL
     const user = await identity.resolveUser(root);
     let newState = machine.approveDiscoveryReview(state);
     newState = machine.recordTransition(
       newState,
-      "DISCOVERY_REVIEW",
-      "SPEC_DRAFT",
+      "DISCOVERY_REFINEMENT",
+      "SPEC_PROPOSAL",
       user,
     );
     await persistence.writeState(root, newState);
@@ -148,7 +148,7 @@ export const main = async (
     out.writeln(
       span.green("✔"),
       " Discovery answers approved. Phase: ",
-      span.cyan("SPEC_DRAFT"),
+      span.cyan("SPEC_PROPOSAL"),
     );
     out.writeln(
       "Review the spec and run ",
@@ -161,7 +161,7 @@ export const main = async (
     out.writeln(
       "Review the spec and run ",
       span.bold(cmd("approve")),
-      " again when in SPEC_DRAFT phase.",
+      " again when in SPEC_PROPOSAL phase.",
     );
   } else {
     out.writeln(span.red(`Cannot approve in phase: ${state.phase}`));

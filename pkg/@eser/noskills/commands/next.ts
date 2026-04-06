@@ -185,10 +185,10 @@ export const main = async (
     const phaseSame = touchedState.phase === state.phase;
     if (
       isSaveAnswer && phaseSame &&
-      (touchedState.phase === "SPEC_DRAFT" ||
+      (touchedState.phase === "SPEC_PROPOSAL" ||
         touchedState.phase === "SPEC_APPROVED")
     ) {
-      const savedInstruction = touchedState.phase === "SPEC_DRAFT"
+      const savedInstruction = touchedState.phase === "SPEC_PROPOSAL"
         ? "Spec draft saved. The spec stays in DRAFT and can be reviewed by anyone. Other users can add ACs (`ac add`), notes (`note add`), or tasks (`task add`) while in draft. When ready, any user can approve with `noskills spec <name> approve`."
         : 'Spec is approved and parked. Others can still add ACs or notes. When ready, run `noskills next --answer="start"` to begin execution.';
       const savedOutput = {
@@ -241,7 +241,7 @@ export const main = async (
         iteration: s.state.execution.iteration,
         detail: s.state.phase === "EXECUTING"
           ? `${s.state.execution.completedTasks.length} tasks done, iteration ${s.state.execution.iteration}`
-          : s.state.phase === "SPEC_DRAFT"
+          : s.state.phase === "SPEC_PROPOSAL"
           ? "awaiting approval"
           : s.state.phase === "COMPLETED"
           ? "completed"
@@ -416,7 +416,7 @@ export const handleAnswer = async (
         newState = machine.advanceDiscoveryQuestion(newState);
       }
 
-      // Check if discovery is complete — transition to DISCOVERY_REVIEW
+      // Check if discovery is complete — transition to DISCOVERY_REFINEMENT
       if (questions.isDiscoveryComplete(newState.discovery.answers)) {
         newState = machine.completeDiscovery(newState);
       }
@@ -424,7 +424,7 @@ export const handleAnswer = async (
       return newState;
     }
 
-    case "DISCOVERY_REVIEW": {
+    case "DISCOVERY_REFINEMENT": {
       const trimmed = answer.trim().toLowerCase();
 
       // "approve" → check for split proposal, then alternatives step
@@ -433,15 +433,15 @@ export const handleAnswer = async (
           state.discovery.answers,
         );
         if (proposal.detected && proposal.proposals.length >= 2) {
-          // Stay in DISCOVERY_REVIEW with approved flag — let user decide on split
+          // Stay in DISCOVERY_REFINEMENT with approved flag — let user decide on split
           return machine.approveDiscoveryAnswers(state);
         }
         // No split detected — check if new discovery flow is active (mode set)
-        // If mode is set, stay for alternatives step; otherwise go to SPEC_DRAFT (backward compat)
+        // If mode is set, stay for alternatives step; otherwise go to SPEC_PROPOSAL (backward compat)
         if (state.discovery.mode !== undefined) {
           return machine.approveDiscoveryAnswers(state);
         }
-        // Backward compat: no mode → direct to SPEC_DRAFT
+        // Backward compat: no mode → direct to SPEC_PROPOSAL
         return machine.approveDiscoveryReview(state);
       }
 
@@ -450,7 +450,7 @@ export const handleAnswer = async (
         return await handleSplit(root, state);
       }
 
-      // "keep" → user chose to keep as one spec despite split proposal → transition to SPEC_DRAFT
+      // "keep" → user chose to keep as one spec despite split proposal → transition to SPEC_PROPOSAL
       if (trimmed === "keep") {
         const newState = machine.addDecision(state, {
           id: `decision-split-keep-${Date.now()}`,
@@ -463,7 +463,7 @@ export const handleAnswer = async (
         return machine.approveDiscoveryReview(newState);
       }
 
-      // Alternatives selection (after approved, before SPEC_DRAFT transition)
+      // Alternatives selection (after approved, before SPEC_PROPOSAL transition)
       const alternativesPresented =
         state.discovery.alternativesPresented === true;
       if (state.discovery.approved && !alternativesPresented) {
@@ -500,7 +500,7 @@ export const handleAnswer = async (
             updatedState = machine.skipAlternatives(state);
           }
         }
-        // After alternatives step, transition to SPEC_DRAFT
+        // After alternatives step, transition to SPEC_PROPOSAL
         return machine.approveDiscoveryReview(updatedState!);
       }
 
@@ -523,7 +523,7 @@ export const handleAnswer = async (
               );
             }
           }
-          // Stay in DISCOVERY_REVIEW — updated answers, re-show for confirmation
+          // Stay in DISCOVERY_REFINEMENT — updated answers, re-show for confirmation
           return newState;
         }
       } catch {
@@ -533,8 +533,8 @@ export const handleAnswer = async (
       return state;
     }
 
-    case "SPEC_DRAFT": {
-      // "save" — keep draft as-is, phase stays SPEC_DRAFT
+    case "SPEC_PROPOSAL": {
+      // "save" — keep draft as-is, phase stays SPEC_PROPOSAL
       if (answer.trim().toLowerCase() === "save") {
         return state;
       }
@@ -626,7 +626,7 @@ export const handleAnswer = async (
             }
           }
 
-          return state; // Stay in SPEC_DRAFT
+          return state; // Stay in SPEC_PROPOSAL
         }
       } catch {
         // Not JSON — ignore
@@ -763,7 +763,7 @@ const handleSplit = async (
       (a) => item.relevantAnswers.includes(a.questionId),
     );
 
-    // Create child state at DISCOVERY_REVIEW (answers pre-filled)
+    // Create child state at DISCOVERY_REFINEMENT (answers pre-filled)
     const childState = machine.startSpec(
       schema.createInitialState(),
       item.name,
@@ -780,7 +780,7 @@ const handleSplit = async (
       );
     }
 
-    // Transition to DISCOVERY_REVIEW
+    // Transition to DISCOVERY_REFINEMENT
     filledState = machine.completeDiscovery(filledState);
 
     await persistence.writeSpecState(root, item.name, filledState);

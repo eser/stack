@@ -278,3 +278,17 @@ export const containsGitWriteBypass = (command: string): boolean => {
 
   return false;
 };
+
+// =============================================================================
+// Flag Value Stripping — prevent user text from triggering git guard
+// =============================================================================
+
+/**
+ * Strip quoted flag values from a command string so user-provided text
+ * (e.g. --answer="use git branching") is not scanned as a command.
+ */
+export const stripFlagValues = (command: string): string =>
+  command
+    .replace(/--\w+='[^']*'/g, "")
+    .replace(/--\w+="[^"]*"/g, "")
+    .replace(/--\w+=\S*/g, "");

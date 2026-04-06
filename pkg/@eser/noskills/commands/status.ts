@@ -54,12 +54,13 @@ export const main = async (
     phase: state.phase,
     spec: state.spec,
     branch: state.branch,
-    discovery: state.phase === "DISCOVERY" || state.phase === "DISCOVERY_REVIEW"
-      ? {
-        answered: state.discovery.answers.length,
-        total: QUESTIONS.length,
-      }
-      : undefined,
+    discovery:
+      state.phase === "DISCOVERY" || state.phase === "DISCOVERY_REFINEMENT"
+        ? {
+          answered: state.discovery.answers.length,
+          total: QUESTIONS.length,
+        }
+        : undefined,
     execution: state.phase === "EXECUTING" || state.phase === "BLOCKED"
       ? {
         iteration: state.execution.iteration,
@@ -123,7 +124,7 @@ export const main = async (
     if (state.branch !== null) {
       out.writeln("  Branch:   ", state.branch);
     }
-    if (state.phase === "DISCOVERY" || state.phase === "DISCOVERY_REVIEW") {
+    if (state.phase === "DISCOVERY" || state.phase === "DISCOVERY_REFINEMENT") {
       out.writeln(
         `  Discovery: ${state.discovery.answers.length}/${QUESTIONS.length} questions answered`,
       );

@@ -146,7 +146,7 @@ describe("POST /api/spec/:name/approve", () => {
     );
     state = noskills.machine.completeDiscovery(state);
     state = noskills.machine.approveDiscoveryReview(state);
-    // Now in SPEC_DRAFT
+    // Now in SPEC_PROPOSAL
 
     await runtime.fs.mkdir(`${root}/.eser/specs/approve-web`, {
       recursive: true,
@@ -367,7 +367,7 @@ describe("Templates", () => {
     assert(html.includes("IDLE")); // null spec → IDLE label
   });
 
-  it("spec detail template includes CTAs for SPEC_DRAFT", async () => {
+  it("spec detail template includes CTAs for SPEC_PROPOSAL", async () => {
     const root = await makeTempDir();
     const noskills = await import("@eser/noskills/mod");
 

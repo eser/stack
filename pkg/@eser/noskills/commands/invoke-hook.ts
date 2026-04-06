@@ -124,9 +124,12 @@ const writeAllowWithContext = async (context: string): Promise<void> => {
 /** Check git guard and return denial reason, or null if allowed. */
 const checkGitGuard = (command: string, allowGit: boolean): string | null => {
   if (allowGit) return null;
-  if (!command.includes("git")) return null;
 
-  const segments = command.split(/\s*(?:&&|;)\s*/);
+  // Strip flag values so user text like "digital" or "git strategy" doesn't trigger
+  const commandToScan = hookDecisions.stripFlagValues(command);
+  if (!commandToScan.includes("git")) return null;
+
+  const segments = commandToScan.split(/\s*(?:&&|;)\s*/);
   for (const seg of segments) {
     const trimmed = seg.trim();
     if (trimmed.startsWith("git") && !hookDecisions.isGitAllowed(trimmed)) {
@@ -134,7 +137,7 @@ const checkGitGuard = (command: string, allowGit: boolean): string | null => {
     }
   }
 
-  if (hookDecisions.containsGitWriteBypass(command)) {
+  if (hookDecisions.containsGitWriteBypass(commandToScan)) {
     return "Git write operations detected in subshell or pipe. Only read commands are permitted. The user controls git, the agent controls files.";
   }
 
@@ -210,8 +213,8 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
       // Use most restrictive phase found
       const phaseOrder: Record<string, number> = {
         DISCOVERY: 10,
-        DISCOVERY_REVIEW: 10,
-        SPEC_DRAFT: 10,
+        DISCOVERY_REFINEMENT: 10,
+        SPEC_PROPOSAL: 10,
         SPEC_APPROVED: 8,
         BLOCKED: 8,
         EXECUTING: 2,
@@ -370,18 +373,18 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
     return results.ok(undefined);
   }
 
-  // Block writes only in conversation phases (DISCOVERY, DISCOVERY_REVIEW, SPEC_DRAFT, SPEC_APPROVED, BLOCKED)
+  // Block writes only in conversation phases (DISCOVERY, DISCOVERY_REFINEMENT, SPEC_PROPOSAL, SPEC_APPROVED, BLOCKED)
   const reasons: Record<string, string> = {
     DISCOVERY:
       `You are in DISCOVERY — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, complete discovery and get the spec approved first. Run \`${
         cmd("next")
       }\` to continue.`,
-    DISCOVERY_REVIEW:
-      `You are in DISCOVERY_REVIEW — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, complete discovery and get the spec approved first. Run \`${
+    DISCOVERY_REFINEMENT:
+      `You are in DISCOVERY_REFINEMENT — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, complete discovery and get the spec approved first. Run \`${
         cmd('next --answer="approve"')
       }\` or revise answers.`,
-    SPEC_DRAFT:
-      `You are in SPEC_DRAFT — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, approve the spec first. Run \`${
+    SPEC_PROPOSAL:
+      `You are in SPEC_PROPOSAL — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, approve the spec first. Run \`${
         cmd("approve")
       }\``,
     SPEC_APPROVED: `You are in SPEC_APPROVED — start execution first: \`${

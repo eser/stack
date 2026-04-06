@@ -125,7 +125,7 @@ Agent: *implements task 2 in fresh context, tests pass, reports progress*
 Every spec moves through phases:
 
 ```
-IDLE → DISCOVERY → REVIEW → DRAFT → APPROVED → EXECUTING ↔ BLOCKED
+IDLE → DISCOVERY → REFINEMENT → PROPOSAL → APPROVED → EXECUTING ↔ BLOCKED
  ^        ^                                        |
  |        +-------------- revisit -----------------+
  |                                                 |
@@ -352,16 +352,16 @@ Git write operations are the CLI's responsibility, never the agent's.
 Every `noskills next` output includes a `behavioral` block with phase-specific
 rules. These tell the agent HOW to behave, not just WHAT to do:
 
-| Phase     | Behavioral tone                  | Key rules                                                     |
-| --------- | -------------------------------- | ------------------------------------------------------------- |
-| IDLE      | "Welcoming. Present choices"     | No file edits until spec approved                             |
-| DISCOVERY | "Curious, has a stake"           | Push back on shallow answers, probe for specifics, don't code |
-| REVIEW    | "Careful reviewer"               | Present answers, user must confirm each one                   |
-| DRAFT     | "The user is reviewing"          | Don't modify the spec, don't start coding                     |
-| APPROVED  | "Patient. Wait for go signal"    | Don't start coding until user triggers execution              |
-| EXECUTING | "Orchestrate — spawn sub-agents" | Delegate to sub-agents, don't edit files directly             |
-| BLOCKED   | "Brief. Decision time."          | Present decision as-is, don't suggest preferences             |
-| COMPLETED | "Celebrate briefly, then stop"   | Don't start new work (done, cancelled, or wontfix)            |
+| Phase      | Behavioral tone                  | Key rules                                                     |
+| ---------- | -------------------------------- | ------------------------------------------------------------- |
+| IDLE       | "Welcoming. Present choices"     | No file edits until spec approved                             |
+| DISCOVERY  | "Curious, has a stake"           | Push back on shallow answers, probe for specifics, don't code |
+| REFINEMENT | "Careful reviewer"               | Present answers, user must confirm each one                   |
+| PROPOSAL   | "The user is reviewing"          | Don't modify the spec, don't start coding                     |
+| APPROVED   | "Patient. Wait for go signal"    | Don't start coding until user triggers execution              |
+| EXECUTING  | "Orchestrate — spawn sub-agents" | Delegate to sub-agents, don't edit files directly             |
+| BLOCKED    | "Brief. Decision time."          | Present decision as-is, don't suggest preferences             |
+| COMPLETED  | "Celebrate briefly, then stop"   | Don't start new work (done, cancelled, or wontfix)            |
 
 **Git is read-only** for agents (configurable via `allowGit: true` in manifest).
 Agents may read (`git log`, `git diff`, `git status`) but never write
@@ -388,14 +388,14 @@ criteria:
 | **learning-project**  | Experimentation encouraged, document learnings over polish                           |
 | **well-engineered**   | Performance measured, tests strategic, errors helpful, security built-in, observable |
 
-Concerns inject at every phase (DISCOVERY, REVIEW, EXECUTING, etc.) — but only
-the slice relevant to the current phase. The agent never sees all concern data
-at once:
+Concerns inject at every phase (DISCOVERY, REFINEMENT, EXECUTING, etc.) — but
+only the slice relevant to the current phase. The agent never sees all concern
+data at once:
 
 - **DISCOVERY** — extra sub-questions, dream state prompts
-- **REVIEW** — review dimension checklist (scope-filtered by classification — UI
-  dimensions only appear for UI specs)
-- **DRAFT** — spec sections, registry table skeletons
+- **REFINEMENT** — review dimension checklist (scope-filtered by classification
+  — UI dimensions only appear for UI specs)
+- **PROPOSAL** — spec sections, registry table skeletons
 - **EXECUTING** — reminders (tier 1 at compile-time, tier 2 per-file via hooks),
   acceptance criteria, tension gates
 - **COMPLETED** — learning prompts (done, cancelled, or wontfix)
@@ -546,7 +546,7 @@ One key difference: in Scrum, a sprint is time-boxed. In noskills, execution
 runs until the spec is complete — it is a single-story sprint. This is why
 mid-execution checkpoints make no sense: a Scrum Master does not stop a sprint
 halfway through the only story. If the story is too big, you split it _before_
-the sprint starts — not during. That is exactly what noskills does at REVIEW
+the sprint starts — not during. That is exactly what noskills does at REFINEMENT
 with the split proposal.
 
 ## Philosophy — A Scrum Master for Agents

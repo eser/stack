@@ -22,7 +22,7 @@ export const renderSpecDetail = (
   // Phase-specific CTAs
   const ctas: string[] = [];
 
-  if (spec.phase === "SPEC_DRAFT") {
+  if (spec.phase === "SPEC_PROPOSAL") {
     ctas.push(c.ctaButton("Approve Spec", spec.slug, "approve"));
   }
   if (spec.phase === "SPEC_APPROVED") {

@@ -1,0 +1,17 @@
+{
+  "name": "@eserstack/laroux",
+  "version": "4.1.56",
+  "description": "Framework-agnostic core utilities for laroux.js",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./navigation": "./navigation/mod.ts",
+    "./image": "./image/mod.ts",
+    "./router": "./router/mod.ts",
+    "./config": "./config/mod.ts"
+  },
+  "dependencies": {
+    "@eserstack/standards": "workspace:*"
+  }
+}

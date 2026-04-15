@@ -22,7 +22,7 @@ body:
       label: Steps to Reproduce
       description: How can we reproduce the issue?
       placeholder: |
-        1. Install package with `deno add @eser/...`
+        1. Install package with `deno add @eserstack/...`
         2. Call function `...`
         3. See error
     validations:

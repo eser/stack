@@ -23,4 +23,4 @@ When finished, provide a structured JSON summary:
 \`\`\`
 
 Do NOT return raw test output — summarize it in the verification field.
-The orchestrator will submit this to `deno task cli nos next --answer` on your behalf.
+The orchestrator will submit this to `deno task cli noskills next --answer` on your behalf.

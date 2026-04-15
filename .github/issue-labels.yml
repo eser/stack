@@ -58,47 +58,47 @@
 # Package labels
 - name: "pkg:fp"
   color: "6f42c1"
-  description: "Changes to @eser/fp"
+  description: "Changes to @eserstack/fp"
 
 - name: "pkg:di"
   color: "6f42c1"
-  description: "Changes to @eser/di"
+  description: "Changes to @eserstack/di"
 
 - name: "pkg:cli"
   color: "6f42c1"
-  description: "Changes to @eser/cli"
+  description: "Changes to @eserstack/cli"
 
 - name: "pkg:events"
   color: "6f42c1"
-  description: "Changes to @eser/events"
+  description: "Changes to @eserstack/events"
 
 - name: "pkg:config"
   color: "6f42c1"
-  description: "Changes to @eser/config"
+  description: "Changes to @eserstack/config"
 
 - name: "pkg:http"
   color: "6f42c1"
-  description: "Changes to @eser/http"
+  description: "Changes to @eserstack/http"
 
 - name: "pkg:shell"
   color: "6f42c1"
-  description: "Changes to @eser/shell"
+  description: "Changes to @eserstack/shell"
 
 - name: "pkg:standards"
   color: "6f42c1"
-  description: "Changes to @eser/standards"
+  description: "Changes to @eserstack/standards"
 
 - name: "pkg:laroux"
   color: "6f42c1"
-  description: "Changes to @eser/laroux and related packages"
+  description: "Changes to @eserstack/laroux and related packages"
 
 - name: "pkg:bundler"
   color: "6f42c1"
-  description: "Changes to @eser/bundler"
+  description: "Changes to @eserstack/bundler"
 
 - name: "pkg:jsx-runtime"
   color: "6f42c1"
-  description: "Changes to @eser/jsx-runtime"
+  description: "Changes to @eserstack/jsx-runtime"
 
 # Areas
 - name: go
@@ -116,7 +116,3 @@
 - name: templates
   color: "c2e0c6"
   description: Project template changes
-
-- name: cool
-  color: "bfdadc"
-  description: "Changes to @cool/* packages"

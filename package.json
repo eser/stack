@@ -1,15 +1,14 @@
 {
-  "name": "@eser/stack",
+  "name": "@eserstack/stack",
   "version": "4.1.56",
   "private": true,
   "type": "module",
   "workspaces": [
-    "pkg/@eser/*",
-    "pkg/@cool/*"
+    "pkg/@eserstack/*"
   ],
   "scripts": {
-    "cli": "deno run --allow-all ./pkg/@eser/cli/main.ts",
-    "laroux-cli": "deno run --allow-all ./pkg/@eser/laroux-server/cli.ts",
-    "noskills-cli": "deno run --allow-all ./pkg/@eser/noskills/main.ts"
+    "cli": "deno run --allow-all ./pkg/@eserstack/cli/main.ts",
+    "laroux-cli": "deno run --allow-all ./pkg/@eserstack/laroux-server/cli.ts",
+    "noskills-cli": "deno run --allow-all ./pkg/@eserstack/noskills/main.ts"
   }
 }

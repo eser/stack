@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **noskills:** AskUserQuestion confirmation tokens — mechanical enforcement
+  that agents asked the user before submitting discovery answers. Per-question
+  STATED/INFERRED marking via PostToolUse hook
+  (`noskills invoke-hook post-ask-user-question`) and next.ts validation.
+- **noskills:** merged listen-first + mode selection entry menu with recursive
+  context-sharing.
+- **noskills:** automatic spec classification from discovery text, with
+  REFINEMENT confirmation.
+- **noskills:** userContext migration from `string` → `readonly string[]` with
+  backward-compat shim in persistence.normalizeStateShape.
+
+### Changed
+
+- **noskills:** behavioral platforms (Cursor, Windsurf, Copilot) now default
+  discovery answers to INFERRED since they lack PostToolUse hook support.
+  REFINEMENT will surface all answers for confirmation on these platforms.
+
 ## 4.1.56 - 2026-04-06
 
 ### Changed
@@ -310,7 +331,7 @@ _Maintenance release._
 
 ### Added
 
-- **ai:** introducing @eser/ai
+- **ai:** introducing @eserstack/ai
 
 ## 4.1.15 - 2026-03-26
 
@@ -326,13 +347,13 @@ _Maintenance release._
 
 ### Added
 
-- **streams:** introducing @eser/streams
+- **streams:** introducing @eserstack/streams
 
 ## 4.1.13 - 2026-03-25
 
 ### Added
 
-- **streams:** introducing @eser/streams.
+- **streams:** introducing @eserstack/streams.
 
 ## 4.1.12 - 2026-03-19
 
@@ -424,16 +445,16 @@ _Maintenance release._
 - **laroux:** laroux packages are introduced.
 - **bundler:** introduce new testing framework and enhance CSS processing
   capabilities
-- added formatting utilities in @eser/standards for better number, size,
+- added formatting utilities in @eserstack/standards for better number, size,
   duration, and percentage representation.
-- introduced new utilities in the @eser/standards package, including date and
-  time formatting, internationalization, and string interpolation functions.
+- introduced new utilities in the @eserstack/standards package, including date
+  and time formatting, internationalization, and string interpolation functions.
 - **fp:** introduced new utility functions, including chunk, get, groupBy,
   keyBy, and memoize, along with their respective tests and benchmarks.
-- added @eser/primitives package to provide utility functions and promises.
+- added @eserstack/primitives package to provide utility functions and promises.
 - CLI and documentation enhancements
 - ***:** add FakeServer and temp directory utilities for testing
-- **@eser/cs:** minor changes to ready shipping.
+- **@eserstack/cs:** minor changes to ready shipping.
 - ***:** bump all versions feature
 
 ### Changed
@@ -445,7 +466,7 @@ _Maintenance release._
 - **bundler:** streamline module and chunk manifest generation
 - **standards:** simplify runtime entry points by consolidating to a single
   default path.
-- **@eser/cs:** remove builders and config files; update CLI and generate
+- **@eserstack/cs:** remove builders and config files; update CLI and generate
   functionality
 - bumped to deno version 2.x
 
@@ -494,7 +515,7 @@ _Maintenance release._
 - **bundler:** ensure stop method returns a promise for consistent behavior.
 - updated validation commands in package.json to use the new validation
   structure for licenses.
-- **@eser/cli:** --help identifier fix.
+- **@eserstack/cli:** --help identifier fix.
 - jsr package name resolution bug.
 - ensure output writer lock is released on write failure
 - **scripts:** version bump script

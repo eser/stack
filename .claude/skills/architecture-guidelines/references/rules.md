@@ -123,7 +123,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
       - uses: denoland/setup-deno@v2
       - run: deno test --allow-all
 ```
@@ -272,10 +274,10 @@ Correct:
 
 ```typescript
 // User explicitly imports what they need
-import { bundle } from "@eser/laroux-bundler";
-import { reactPlugin } from "@eser/laroux-bundler/adapters/react";
-import { tailwindPlugin } from "@eser/laroux-bundler/adapters/tailwindcss";
-import { PrebuiltBundler } from "@eser/laroux-bundler/adapters/prebuilt-bundler";
+import { bundle } from "@eserstack/laroux-bundler";
+import { reactPlugin } from "@eserstack/laroux-bundler/adapters/react";
+import { tailwindPlugin } from "@eserstack/laroux-bundler/adapters/tailwindcss";
+import { PrebuiltBundler } from "@eserstack/laroux-bundler/adapters/prebuilt-bundler";
 
 // Pass adapters as parameters
 await bundle(config, {
@@ -485,7 +487,7 @@ project/
 
 ## Multi-Context Tool Design
 
-Scope: @eser/codebase tools
+Scope: @eserstack/codebase tools
 
 Rule: Codebase tools must be context-agnostic. The same pure check/fix logic runs in
 CLI, MCP server, AI agent SDK, or Go service. The runner (Adapter) determines context;
@@ -503,7 +505,7 @@ fixFile() → mutations[]  MCP server (IDE tool)     JSON tool results
 
 ## Mutation-Return Pattern
 
-Scope: @eser/codebase fixers
+Scope: @eserstack/codebase fixers
 
 Rule: Fixers never write to disk directly. They return `{path, oldContent, newContent}`
 mutations (Edit-tool-shaped). The runner decides whether to apply, preview, or pass to

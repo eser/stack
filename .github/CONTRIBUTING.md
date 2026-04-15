@@ -12,7 +12,7 @@ in a pull request.
 ### Code of Conduct
 
 This project and everyone participating in it is governed by the
-[@eser/directives](./pkg/directives/README.md). By participating, you are
+[@eserstack/directives](./pkg/directives/README.md). By participating, you are
 expected to uphold this code. Please report unacceptable behavior as in
 specified in the link.
 
@@ -53,7 +53,7 @@ from:
 
 ## Submitting a Pull Request
 
-- Adhere to [@eser/directives](./pkg/directives/README.md)
+- Adhere to [@eserstack/directives](./pkg/directives/README.md)
 - Fork the repo
 - Make your changes in a new branch
 - Provide tests for your changes, particularly for new features or fixes

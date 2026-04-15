@@ -1,9 +1,0 @@
-{
-  "name": "@eser/ajan",
-  "version": "4.1.56",
-  "exports": {
-    ".": "./ffi/mod.ts",
-    "./ffi": "./ffi/mod.ts",
-    "./wasm": "./wasm/mod.ts"
-  }
-}

@@ -1,0 +1,15 @@
+{
+  "name": "@eserstack/laroux-runtime",
+  "version": "4.1.56",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "publish": {
+    "include": [
+      "mod.ts",
+      "primitives.ts",
+      "README.md",
+      "LICENSE"
+    ]
+  }
+}

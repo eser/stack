@@ -26,13 +26,56 @@
     {
       "questionId": "verification",
       "text": "How will you verify design quality? Will you review empty states, loading states, error states, and edge cases (long text, zero results, slow connection)?"
+    },
+    {
+      "questionId": "user_impact",
+      "text": "What is the emotional arc? Curiosity → understanding → action → satisfaction? Where does it break today? Where does it feel mechanical instead of crafted?"
     }
   ],
   "specSections": [
-    "Design States (empty, loading, error, success)",
-    "Mobile Layout",
-    "Interaction Design"
+    {
+      "id": "design-states",
+      "title": "Design States (empty, loading, error, success)",
+      "placeholder": "_For every UI component in this change, specify: loading state, empty state, error state, success state, partial state. No placeholders — each state must be designed._",
+      "condition": "involvesWebUI",
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "mobile-layout",
+      "title": "Mobile Layout",
+      "placeholder": "_Describe the mobile layout. Touch targets (≥44×44px)? Viewport behavior? Which breakpoints apply? What collapses or reflows on small screens?_",
+      "condition": "involvesWebUI",
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "interaction-design",
+      "title": "Interaction Design",
+      "placeholder": "_Describe the interaction model: tap targets, hover states, focus management, animation intent, keyboard navigation. For multi-step flows: back/escape/abandonment behavior._",
+      "condition": "involvesWebUI",
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "accessibility",
+      "title": "Accessibility",
+      "placeholder": "_Keyboard navigation, focus indicators, ARIA labels, contrast (WCAG 2.1 AA: 4.5:1 text, 3:1 UI), screen reader behavior. List every interactive element and its accessible name._",
+      "condition": "involvesWebUI",
+      "position": "after:acceptance-criteria"
+    }
   ],
+  "conductRules": {
+    "DISCOVERY": [
+      "For any UI work, ask about empty, loading, error, and success states explicitly — do not assume they are obvious.",
+      "For any flow with more than 2 steps, ask about back, escape, and abandonment behavior."
+    ],
+    "DISCOVERY_REFINEMENT": [
+      "During completeness assessment, check the design-states section specifically — missing UI state specs are a verification-strategy gap.",
+      "If classification.involvesWebUI is true (check state.classification), recommend selective-expansion posture to deepen UI state coverage. If classification is null, skip this check."
+    ],
+    "EXECUTING": [
+      "Before marking any UI task complete, check for AI slop patterns (generic gradients, default shadows, Lorem Ipsum, default Bootstrap/Tailwind without customization).",
+      "Rate each UI change 0-10 on design intentionality. Do not mark AC passed if rating is below 7."
+    ]
+  },
   "reminders": [
     "Loading state and error state must be designed, not placeholder",
     "No AI slop — every UI element is intentional",
@@ -40,7 +83,10 @@
     "Rate each UI change 0-10 on design intentionality before marking task complete. If below 7, iterate.",
     "Check all interaction states: loading, empty, error, success, partial. Missing states are bugs, not TODOs.",
     "Edge case check: what happens with 47-character names? Zero results? Network failure mid-action?",
-    "AI SLOP BLACKLIST — reject these patterns in any UI implementation: (1) Purple/violet gradient backgrounds (2) 3-column feature grid with icon-in-circle + bold title + 2-line description (3) Icons in colored circles as decoration (4) Everything centered (text-align: center on all elements) (5) Uniform bubbly border-radius on every element (6) Decorative blobs, floating circles, wavy SVG dividers (7) Emoji as design elements in headings or bullets (8) Colored left-border on cards (9) Generic hero copy ('Welcome to X', 'Unlock the power of...') (10) Cookie-cutter section rhythm (hero → 3 features → testimonials → pricing). If the implementation matches any of these patterns, reject it and ask for a redesign with specific, intentional alternatives."
+    "AI SLOP BLACKLIST — reject these patterns in any UI implementation: (1) Purple/violet gradient backgrounds (2) 3-column feature grid with icon-in-circle + bold title + 2-line description (3) Icons in colored circles as decoration (4) Everything centered (text-align: center on all elements) (5) Uniform bubbly border-radius on every element (6) Decorative blobs, floating circles, wavy SVG dividers (7) Emoji as design elements in headings or bullets (8) Colored left-border on cards (9) Generic hero copy ('Welcome to X', 'Unlock the power of...') (10) Cookie-cutter section rhythm (hero → 3 features → testimonials → pricing). If the implementation matches any of these patterns, reject it and ask for a redesign with specific, intentional alternatives.",
+    "7-PASS DESIGN REVIEW before marking any UI task done: (1) Information hierarchy — what does the user see first? (2) Interaction states — all states specified? (3) Edge cases — long text, zero results, errors? (4) Accessibility — keyboard, contrast, touch targets? (5) Design system — consistent tokens? (6) AI Slop Litmus — does this look generated or designed? (7) Emotional arc — does the journey feel crafted?",
+    "LANDING PAGE RULES (when involvesWebUI): The 5-second test — does a cold visitor know what this does in 5 seconds? The skeptic test — what's the biggest objection a visitor has, and does the page address it above the fold? Social proof before CTA — never ask for commitment before establishing trust.",
+    "Design rating rubric: 0-4 = unacceptable (AI-generated look, missing states, broken on mobile), 5-6 = passable (functional, but generic), 7-8 = good (intentional, complete states, on-brand), 9-10 = exceptional (delightful, memorable, exceeds expectations). Do not ship below 7."
   ],
   "acceptanceCriteria": [
     "All UI states designed (empty, loading, error, success)",
@@ -48,6 +94,61 @@
     "No placeholder or skeleton UI left unfinished",
     "All UI states specified and implemented: loading, empty, error, success, partial",
     "No placeholder text in shipped UI — every empty state has warmth, a primary action, and context",
-    "Design rated 7+ on intentionality by the spec author"
+    "Design rated 7+ on intentionality by the spec author",
+    "Basic accessibility: keyboard navigation works, focus indicators visible, sufficient contrast",
+    "Text contrast passes WCAG 2.1 AA (4.5:1 for normal text, 3:1 for large text)",
+    "Touch targets are minimum 44x44px on mobile",
+    "No AI slop patterns from the blacklist present in the shipped UI"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "info-hierarchy",
+      "label": "Information Hierarchy",
+      "prompt": "What does the user see FIRST, SECOND, THIRD? Is the visual hierarchy intentional or accidental? Would a user arriving cold know what to do within 3 seconds?",
+      "evidenceRequired": true,
+      "scope": "ui"
+    },
+    {
+      "id": "interaction-states",
+      "label": "Interaction State Completeness",
+      "prompt": "For every UI component in this change, verify: loading state, empty state, error state, success state, partial state. Build a matrix — mark any MISSING states.",
+      "evidenceRequired": true,
+      "scope": "ui"
+    },
+    {
+      "id": "user-journey",
+      "label": "User Journey & Emotional Arc",
+      "prompt": "Walk through the user's complete journey for this feature. What's the emotional arc — curiosity → understanding → action → satisfaction? Where does it break? Where does it feel mechanical instead of crafted?",
+      "evidenceRequired": false,
+      "scope": "ui"
+    },
+    {
+      "id": "accessibility",
+      "label": "Accessibility Audit",
+      "prompt": "Keyboard navigation: can every action be completed without a mouse? Focus management: is focus trapped in modals, restored after close? Contrast: WCAG 2.1 AA (4.5:1 text, 3:1 UI)? Touch targets: minimum 44x44px? Screen reader: are interactive elements labeled?",
+      "evidenceRequired": true,
+      "scope": "ui"
+    },
+    {
+      "id": "design-system",
+      "label": "Design System Alignment",
+      "prompt": "Does this change use existing design tokens (colors, spacing, typography) or introduce new ones? If new — is that intentional? Check for consistency with adjacent screens.",
+      "evidenceRequired": true,
+      "scope": "ui"
+    },
+    {
+      "id": "ai-slop-audit",
+      "label": "AI Slop Audit",
+      "prompt": "Run the blacklist check: purple/violet gradients? 3-column icon-grid? Everything centered? Bubbly border-radius everywhere? Decorative blobs? Emoji in headings? Colored left-border cards? Generic hero copy? Cookie-cutter section rhythm? For each pattern found, mark FAIL and describe the intentional alternative.",
+      "evidenceRequired": true,
+      "scope": "ui"
+    },
+    {
+      "id": "landing-page",
+      "label": "Landing Page / Entry Point Quality",
+      "prompt": "5-second test: does a cold visitor understand what this does without reading? Skeptic test: what's the biggest objection and is it addressed above the fold? Is there social proof before the CTA? Does the headline describe the outcome, not the feature? Rate 0-10 and justify.",
+      "evidenceRequired": false,
+      "scope": "ui"
+    }
   ]
 }

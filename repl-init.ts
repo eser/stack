@@ -5,8 +5,8 @@ const COLUMN_WIDTH = 20;
 const COLUMNS_PER_ROW = 3;
 
 // Note: These relative paths are designed to be run from the project root
-import * as pkg from "./pkg/@eser/codebase/package/mod.ts";
-import * as mod from "./pkg/mod.ts";
+import * as pkg from "./pkg/@eserstack/codebase/package/mod.ts";
+import * as mod from "./pkg/@eserstack/mod.ts";
 
 // TODO(@eser) get dependency injection container entries instead of this
 await (async () => {
@@ -41,8 +41,12 @@ await (async () => {
   variables["vars"] = vars;
 
   for (const [key, value] of Object.entries(variables)) {
-    // @ts-ignore globalThis type check
-    globalThis[key] = value;
+    try {
+      // @ts-ignore globalThis type check
+      globalThis[key] = value;
+    } catch {
+      // skip read-only built-ins (e.g. globalThis.crypto)
+    }
   }
 
   console.log(

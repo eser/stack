@@ -1,0 +1,28 @@
+{
+  "name": "@eserstack/ai",
+  "version": "4.1.56",
+  "type": "module",
+  "exports": {
+    ".": "./main.ts",
+    "./mod": "./mod.ts",
+    "./module": "./module.ts",
+    "./adapters": "./adapters/mod.ts",
+    "./streams": "./streams/mod.ts",
+    "./commands/ask": "./commands/ask.ts",
+    "./commands/list": "./commands/list.ts"
+  },
+  "dependencies": {
+    "@eserstack/httpclient": "workspace:*",
+    "@eserstack/primitives": "workspace:*",
+    "@eserstack/shell": "workspace:*",
+    "@eserstack/standards": "workspace:*",
+    "@eserstack/streams": "workspace:*"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
+    "@std/testing": "npm:@jsr/std__testing@^1.0.16",
+    "@anthropic-ai/sdk": "^0.89.0",
+    "openai": "^6.33.0",
+    "@google/genai": "^1.50.1"
+  }
+}

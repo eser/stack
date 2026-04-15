@@ -5,7 +5,7 @@
 Scope: All package README.md files
 
 Rule: README code examples must use the **namespaced import pattern**
-(`import * as pkg from "@eser/pkg"`) and access everything through the
+(`import * as pkg from "@eserstack/pkg"`) and access everything through the
 namespace. Never show sub-path direct imports in README examples. Sub-path
 exports exist in deno.json for advanced users, but READMEs showcase the primary
 namespace pattern.
@@ -13,7 +13,7 @@ namespace pattern.
 Correct:
 
 ```typescript
-import * as functions from "@eser/functions";
+import * as functions from "@eserstack/functions";
 
 // Access through namespace
 const result = await functions.run(async function* () { /* ... */ });
@@ -26,9 +26,9 @@ Incorrect:
 
 ```typescript
 // ❌ Sub-path imports in README examples
-import { collect } from "@eser/functions";
-import * as resources from "@eser/functions/resources";
-import * as task from "@eser/functions/task";
+import { collect } from "@eserstack/functions";
+import * as resources from "@eserstack/functions/resources";
+import * as task from "@eserstack/functions/task";
 ```
 
 ---
@@ -43,7 +43,7 @@ Rule: Never remove existing emojis from files. Package README titles use emojis
 Correct:
 
 ```markdown
-# 🧱 @eser/primitives
+# 🧱 @eserstack/primitives
 ...
 ## 🔗 Links
 ```
@@ -51,7 +51,7 @@ Correct:
 Incorrect:
 
 ```markdown
-# @eser/primitives          <!-- ❌ Removed emoji from title -->
+# @eserstack/primitives          <!-- ❌ Removed emoji from title -->
 ...
 ## Links                     <!-- ❌ Removed emoji from footer -->
 ```
@@ -107,9 +107,9 @@ the correct source package.
 Correct:
 
 ```markdown
-Types and constructors come from `@eser/primitives`:
-import * as results from "@eser/primitives/results";
+Types and constructors come from `@eserstack/primitives`:
+import * as results from "@eserstack/primitives/results";
 
-Pure FP utilities come from `@eser/fp`:
-import * as fp from "@eser/fp";
+Pure FP utilities come from `@eserstack/fp`:
+import * as fp from "@eserstack/fp";
 ```

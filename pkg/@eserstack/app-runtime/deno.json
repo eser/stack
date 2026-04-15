@@ -1,0 +1,10 @@
+{
+  "name": "@eserstack/app-runtime",
+  "version": "4.1.56",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "imports": {
+    "@std/semver": "jsr:@std/semver@^1.0.7"
+  }
+}

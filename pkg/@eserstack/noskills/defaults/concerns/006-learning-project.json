@@ -1,0 +1,99 @@
+{
+  "id": "learning-project",
+  "name": "Learning Project",
+  "description": "Experimentation is the goal. Encourage trying new patterns, don't punish dead ends. Document learnings over polish.",
+  "category": "values",
+  "extras": [
+    {
+      "questionId": "ambition",
+      "text": "What do you want to learn from building this?"
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "What experiments are explicitly allowed?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "What's the specific hypothesis you're testing? Phrase it as a falsifiable statement: 'I believe that X, because Y. I'll know I'm right when Z.' How will you know if the experiment succeeded or failed?"
+    },
+    {
+      "questionId": "status_quo",
+      "text": "What do you already know about this problem from past projects? What's the specific gap that this experiment fills?"
+    },
+    {
+      "questionId": "user_impact",
+      "text": "What would be the most SURPRISING outcome? What would change your mental model completely?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "learning-goals",
+      "title": "Learning Goals",
+      "placeholder": "_What specific questions will this experiment answer? What knowledge gap does it fill? How will you know if the experiment succeeded or failed?_",
+      "condition": null,
+      "position": "after:ambition"
+    },
+    {
+      "id": "hypothesis",
+      "title": "Hypothesis",
+      "placeholder": "_State a falsifiable hypothesis: 'I believe X because Y. I will know I am right when Z.' If the experiment is complete, state the verdict: confirmed, rejected, or inconclusive._",
+      "condition": null,
+      "position": "after:ambition"
+    },
+    {
+      "id": "experiment-log",
+      "title": "Experiment Log",
+      "placeholder": "_Document what was tried, in what order, and what each attempt produced. Include dead ends — they are data. Tag mental model shifts with EUREKA:_",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    }
+  ],
+  "reminders": [
+    "Document learnings, not just outcomes",
+    "Dead ends are acceptable — document why",
+    "Try new patterns freely, polish later",
+    "EUREKA MOMENT: when your mental model shifts — when you realize something is fundamentally different than you assumed — tag it explicitly: 'EUREKA: [what changed]'. These are the most valuable learnings. Capture them in real time.",
+    "Cross-spec learning: before starting, review learnings from similar past specs using `noskills spec list` and `noskills learn search`. Build on what you already know.",
+    "Learning velocity matters: if you're 3 iterations in and the hypothesis is still unclear, stop and restate it. Confusion is data — it means the experiment design is wrong.",
+    "Negative results are results. A failed experiment with clear documentation is more valuable than a successful experiment with no documentation.",
+    "The learning is worth more than the code. If you have to choose between a clean implementation and a documented learning, document the learning."
+  ],
+  "acceptanceCriteria": [
+    "Learnings documented",
+    "Experiment outcomes recorded",
+    "At least one learning captured with `noskills spec learn` (one-time) or `noskills learn --rule` (permanent)",
+    "Eureka moments tagged separately with 'EUREKA:' prefix in the learning",
+    "Hypothesis explicitly stated at the start and evaluated at the end: confirmed, rejected, or inconclusive",
+    "Dead ends documented: why each failed approach was tried and why it was abandoned"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "learning-clarity",
+      "label": "Learning Goal Clarity",
+      "prompt": "For each learning goal: what specific question will be answered? How will you know if the experiment succeeded or failed? What's the 'good enough to learn from' threshold?",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "hypothesis-validity",
+      "label": "Hypothesis Evaluation",
+      "prompt": "Was the hypothesis stated at the start? Was it falsifiable (a clear yes/no outcome)? What was the actual outcome — confirmed, rejected, or inconclusive? If inconclusive: why? What would make it decidable? Were there confounding variables?",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "eureka-capture",
+      "label": "Eureka Moment Capture",
+      "prompt": "What changed in your mental model during this experiment? What did you believe at the start that turned out to be wrong? What surprised you most? Rate the learning density: 0 = built something, learned nothing | 5 = validated a known hypothesis | 10 = mental model completely revised. If score is below 5, why?",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "knowledge-transfer",
+      "label": "Knowledge Transfer",
+      "prompt": "Are the learnings written for your future self — 6 months from now, context forgotten? Are there code comments that explain WHY a choice was made, not just WHAT? Would a new team member reading the experiment log understand what was tried, why, and what was learned?",
+      "evidenceRequired": false,
+      "scope": "all"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "name": "@eserstack/standards",
+  "version": "4.1.56",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./datetimes": "./datetimes/mod.ts",
+    "./formatters": "./formatters/mod.ts",
+    "./http-error": "./http-error.ts",
+    "./i18n": "./i18n/mod.ts",
+    "./logging": "./logging.ts",
+    "./patterns": "./patterns.ts",
+    "./collections": "./collections/mod.ts",
+    "./routes": "./routes/mod.ts",
+    "./run-modes": "./run-modes.ts",
+    "./cross-runtime": "./cross-runtime/mod.ts",
+    "./cross-runtime/browser": "./cross-runtime/adapters/browser.ts",
+    "./cross-runtime/bun": "./cross-runtime/adapters/bun.ts",
+    "./cross-runtime/deno": "./cross-runtime/adapters/deno.ts",
+    "./cross-runtime/node": "./cross-runtime/adapters/node.ts",
+    "./cross-runtime/workerd": "./cross-runtime/adapters/workerd.ts",
+    "./strings": "./strings/mod.ts",
+    "./versions": "./versions.ts"
+  },
+  "dependencies": {
+    "@eserstack/primitives": "workspace:*",
+    "@std/path": "npm:@jsr/std__path@^1.1.4",
+    "@std/semver": "npm:@jsr/std__semver@^1.0.7"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
+    "@std/testing": "npm:@jsr/std__testing@^1.0.16"
+  }
+}

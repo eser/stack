@@ -2,7 +2,7 @@
 
 import * as assert from "@std/assert";
 // import * as mock from "@std/testing/mock";
-// import * as jsxRuntimeInternals from "@eser/jsx-runtime/internals";
+// import * as jsxRuntimeInternals from "@eserstack/jsx-runtime/internals";
 import * as root from "./root.tsx";
 
 Deno.test("should return the root component", () => {

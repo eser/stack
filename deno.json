@@ -1,5 +1,6 @@
 {
-  "nodeModulesDir": "auto",
+  "nodeModulesDir": "manual",
+  "lock": false,
   "unstable": [
     "bundle",
     "sloppy-imports",

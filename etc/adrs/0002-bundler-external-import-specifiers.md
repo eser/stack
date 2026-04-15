@@ -101,7 +101,7 @@ await bundleServerComponents(
 );
 ```
 
-Deno's native resolution with `nodeModulesDir: "auto"` handles npm package
+Deno's native resolution with `nodeModulesDir: "manual"` handles npm package
 resolution from `node_modules`.
 
 ### Client Bundling with Import Map Resolver
@@ -146,11 +146,11 @@ project/
 │   └── lodash/                ← lodash resolves here
 ├── dist/
 │   └── bundle.js              ← bundled code with bare imports
-├── deno.json                  ← nodeModulesDir: "auto" for Deno
+├── deno.json                  ← nodeModulesDir: "manual" for Deno
 └── package.json               ← dependencies for npm/bun
 ```
 
-**Deno**: With `"nodeModulesDir": "auto"` in `deno.json`, Deno creates
+**Deno**: With `"nodeModulesDir": "manual"` in `deno.json`, PNPM creates
 `node_modules` from JSR/npm dependencies and uses it for resolution.
 
 **Node.js**: Standard `node_modules` resolution per Node.js module algorithm.

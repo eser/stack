@@ -1,0 +1,13 @@
+{
+  "name": "@eserstack/ai",
+  "version": "4.1.56",
+  "exports": {
+    ".": "./main.ts",
+    "./mod": "./mod.ts",
+    "./module": "./module.ts",
+    "./adapters": "./adapters/mod.ts",
+    "./streams": "./streams/mod.ts",
+    "./commands/ask": "./commands/ask.ts",
+    "./commands/list": "./commands/list.ts"
+  }
+}

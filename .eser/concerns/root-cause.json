@@ -1,0 +1,105 @@
+{
+  "id": "root-cause",
+  "name": "Root Cause Investigation",
+  "description": "NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST. Symptoms are not bugs. The bug is the condition that allowed the symptom to occur. A fix that addresses the symptom without finding the root cause will recur — guaranteed. Every bugfix must trace the failure to its origin and verify the chain.",
+  "extras": [
+    {
+      "questionId": "status_quo",
+      "text": "What is the exact symptom? What is the FIRST place in the call stack / data flow where the value is wrong — not where it surfaces, where it originates?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "What condition allowed this bug to exist undetected? What would need to be true about the system for this bug to be IMPOSSIBLE — not just fixed?"
+    },
+    {
+      "questionId": "verification",
+      "text": "How will you reproduce this bug in a test BEFORE writing any fix? Name the exact test file and test case."
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "Is this a symptom of a deeper pattern? Check: has this or a similar bug appeared before? Are there related code paths that have the same vulnerability?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "symptom-description",
+      "title": "Symptom Description",
+      "placeholder": "_What is the exact symptom? Reproduce it step by step. What is the expected behavior vs. actual behavior? Which users are affected, and under what conditions?_",
+      "condition": null,
+      "position": "after:problem-statement"
+    },
+    {
+      "id": "root-cause-analysis",
+      "title": "Root Cause Analysis",
+      "placeholder": "_Trace the failure to its origin: what is the FIRST place in the call stack or data flow where the value is wrong — not where it surfaces, where it originates. File:line reference required._",
+      "condition": null,
+      "position": "after:problem-statement"
+    },
+    {
+      "id": "reproduction-test",
+      "title": "Reproduction Test",
+      "placeholder": "_Name the exact test file and test case that reproduces this bug. Confirm it was RED before the fix and GREEN after. The test must target the root cause condition, not just the symptom._",
+      "condition": null,
+      "position": "after:problem-statement"
+    },
+    {
+      "id": "fix-strategy",
+      "title": "Fix Strategy",
+      "placeholder": "_Describe the fix at the root cause level. Why does this fix make the class of bug impossible, not just this instance? What other codepaths have the same vulnerability?_",
+      "condition": null,
+      "position": "after:problem-statement"
+    },
+    {
+      "id": "bug-verification",
+      "title": "Verification",
+      "placeholder": "_How is the fix verified? Regression test name, manual reproduction steps, and any monitoring signals that confirm the fix is effective in production._",
+      "condition": null,
+      "position": "after:problem-statement"
+    }
+  ],
+  "reminders": [
+    "IRON LAW: NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST. Before writing one line of fix code, you must identify the root cause. 'I think it's X' is not a root cause. The root cause is the deepest causal condition in the system that, if changed, would make this class of bug impossible.",
+    "5-Phase Structure — follow this order: (1) INVESTIGATE: reproduce the bug, map the call chain, identify where the wrong value originates. (2) PATTERN ANALYSIS: is this a one-off or a class of bugs? Check for similar patterns nearby. (3) HYPOTHESIS TESTING: state a falsifiable hypothesis about the root cause, test it. (4) IMPLEMENTATION: write the fix at the root, not the symptom. (5) VERIFICATION: run the reproduction test — it must go from RED to GREEN.",
+    "3-Strike Rule: if your first hypothesis is wrong, revise. If your second is wrong, stop and map the full data flow from entry to failure. Three strikes = STOP, write down everything you know, ask for help. Do NOT keep guessing.",
+    "Fault taxonomy — check each: (1) Off-by-one: boundary condition wrong. (2) Race condition: shared state, missing lock, wrong order. (3) Nil/null propagation: unwrap of optional without check. (4) Type coercion: implicit conversion producing wrong type. (5) Stale closure/reference: captured value from wrong scope/time. (6) Missing case: enum or union with an unhandled branch.",
+    "Scope-lock: once you find the root cause, do NOT expand scope. Fix the root cause. If you notice related issues, document them as follow-up tasks. A bugfix PR that adds features or refactors adjacent code is a scope violation.",
+    "Regression test is not optional: write the failing test FIRST (RED), then write the fix (GREEN), then verify no other tests broke. The test must specifically target the root cause condition — not just exercise the code path.",
+    "Every bug is a system failure: ask 'why did the system allow this?' — missing validation, missing test coverage, wrong abstraction, design mismatch. The fix address the root; the retrospective addresses the system."
+  ],
+  "acceptanceCriteria": [
+    "Root cause identified and documented: the exact condition that allowed the bug to exist, with file:line reference",
+    "Reproduction test written BEFORE the fix — test was RED before fix, GREEN after (Regression Iron Law)",
+    "Fix addresses the root cause, not the symptom — symptom disappears as a consequence",
+    "Pattern check completed: adjacent code paths with same vulnerability identified and either fixed or documented as follow-up",
+    "3-Strike Rule applied: if hypothesis changed, documented why each failed hypothesis was wrong",
+    "No scope expansion: fix PR contains only the root cause fix and its test — no adjacent refactors"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "root-cause-depth",
+      "label": "Root Cause Depth",
+      "prompt": "What is the deepest causal condition identified? Does the fix change the condition that ALLOWED the bug, or does it paper over the symptom? Test: if the fix were removed, would the bug recur? If yes, the fix is at the symptom level. Trace the call chain from symptom to origin — name the file and line where the wrong value is introduced.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "reproduction-test",
+      "label": "Reproduction Test (Red-Green Verification)",
+      "prompt": "Name the specific test that reproduces the bug. Confirm it was written BEFORE the fix and was RED before the fix. Confirm it is GREEN after the fix. Is the test testing the ROOT CAUSE condition, or is it testing the symptom? If the root cause is removed, will this test catch a regression?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "pattern-sweep",
+      "label": "Pattern Analysis",
+      "prompt": "Is this bug an instance of a class? Check: are there other code paths with the same vulnerability (same type coercion, same nil propagation, same boundary condition)? Name any you found. If this bug has appeared before, how was it fixed last time — and why did that fix not prevent this recurrence?",
+      "evidenceRequired": false,
+      "scope": "all"
+    }
+  ],
+  "lifecycle": {
+    "appliesToKinds": [
+      "bugfix"
+    ]
+  }
+}

@@ -130,16 +130,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - run: deno install --frozen
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
       - run: deno task build
 
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - run: deno install --frozen
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
       - run: deno test --allow-all
 ```
 
@@ -229,8 +235,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - run: deno install --frozen
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
       - run: deno test --allow-all
 ```
 

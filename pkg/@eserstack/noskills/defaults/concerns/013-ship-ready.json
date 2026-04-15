@@ -1,0 +1,41 @@
+{
+  "id": "ship-ready",
+  "name": "Ship Ready",
+  "description": "Ship readiness is not about whether the feature works. It is about whether the artifact is ready for production: tests passing, coverage adequate, scope contained, changelog updated, version correct, and no outstanding hygiene debt. A feature that works but leaves the repo in worse shape is not ready to ship.",
+  "category": "delivery",
+  "extras": [
+    {
+      "questionId": "verification",
+      "text": "What is the ship checklist? List every gate that must pass before this can merge: test command, coverage threshold, changelog entry, version bump, TODOS.md hygiene."
+    }
+  ],
+  "specSections": [
+    {
+      "id": "ship-checklist",
+      "title": "Ship Checklist",
+      "placeholder": "_Gate checklist before merge: full test suite passes (zero failures), coverage at or above baseline, CHANGELOG updated with version, scope audit complete (built matches spec), no unresolved TODOs without tickets, version bump correct._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    }
+  ],
+  "reminders": [
+    "Tests must pass: run the full test suite (not just the new tests). Zero failures, zero skips on critical paths.",
+    "Coverage threshold: new code must meet or exceed the project's coverage threshold. Do not ship code that drops coverage below the project baseline.",
+    "Scope drift audit: compare what was built to what was specced. If features crept in or out, document why. Scope drift that is unacknowledged is a planning failure.",
+    "CHANGELOG entry: every user-visible change needs a CHANGELOG entry with the version it ships in. Breaking changes need a migration note.",
+    "TODOS hygiene: resolve or ticket every TODO added during this work. A merged TODO without a ticket is lost work.",
+    "Version readiness: is the version bump correct for the change type (patch/minor/major per semver)? Does the package.json / go.mod / deno.json reflect the new version?"
+  ],
+  "acceptanceCriteria": [
+    "Full test suite passes (zero failures, zero skips on critical paths)",
+    "Coverage at or above project baseline — not below",
+    "Scope audit complete: built matches spec, deviations documented",
+    "CHANGELOG updated with user-visible changes and version",
+    "Breaking changes have migration guide with before/after examples",
+    "No unresolved TODOs without associated tickets",
+    "Version bump correct for change type (patch/minor/major)"
+  ],
+  "lifecycle": {
+    "stage": "ship"
+  }
+}

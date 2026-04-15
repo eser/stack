@@ -89,7 +89,7 @@ externals support:
 ```typescript
 // In system.ts - server bundling
 const serverExternals = context.config.serverExternals;
-// Default: ["@eser/laroux", "@eser/laroux-server"]
+// Default: ["@eserstack/laroux", "@eserstack/laroux-server"]
 
 await bundleServerComponents(
   {
@@ -131,7 +131,7 @@ export default {
 };
 ```
 
-Default externals: `["@eser/laroux", "@eser/laroux-server"]`
+Default externals: `["@eserstack/laroux", "@eserstack/laroux-server"]`
 
 ## How Bare Specifiers Resolve at Runtime
 
@@ -140,8 +140,8 @@ All runtimes resolve bare specifiers by looking in `node_modules`:
 ```
 project/
 ├── node_modules/
-│   ├── @eser/
-│   │   └── laroux-server/    ← @eser/laroux-server resolves here
+│   ├── @eserstack/
+│   │   └── laroux-server/    ← @eserstack/laroux-server resolves here
 │   ├── react/                 ← react resolves here
 │   └── lodash/                ← lodash resolves here
 ├── dist/
@@ -163,10 +163,10 @@ project/
 
 ```typescript
 // Source
-import { foo } from "@eser/something";
+import { foo } from "@eserstack/something";
 
 // WRONG output - breaks Node.js and Bun
-import { foo } from "jsr:@eser/something@^4.0.0";
+import { foo } from "jsr:@eserstack/something@^4.0.0";
 ```
 
 ### Mistake 2: Rewriting to npm specifiers
@@ -200,13 +200,15 @@ This policy applies to ALL bundling operations in the stack:
 
 ## Related Files
 
-- `pkg/@eser/bundler/backends/deno-bundler.ts` - Deno bundler backend (server
+- `pkg/@eserstack/bundler/backends/deno-bundler.ts` - Deno bundler backend
+  (server bundling)
+- `pkg/@eserstack/bundler/backends/rolldown.ts` - Rolldown backend (client
   bundling)
-- `pkg/@eser/bundler/backends/rolldown.ts` - Rolldown backend (client bundling)
-- `pkg/@eser/laroux-bundler/import-map-resolver-plugin.ts` - Import resolution
-  for client bundling
-- `pkg/@eser/laroux-bundler/system.ts` - Build system (server bundling config)
-- `pkg/@eser/laroux/config/defaults.ts` - Default server externals list
+- `pkg/@eserstack/laroux-bundler/import-map-resolver-plugin.ts` - Import
+  resolution for client bundling
+- `pkg/@eserstack/laroux-bundler/system.ts` - Build system (server bundling
+  config)
+- `pkg/@eserstack/laroux/config/defaults.ts` - Default server externals list
 
 ## Links
 

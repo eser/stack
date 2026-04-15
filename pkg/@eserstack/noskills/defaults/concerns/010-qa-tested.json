@@ -1,0 +1,90 @@
+{
+  "id": "qa-tested",
+  "name": "QA Tested",
+  "description": "Adversarial QA is not 'clicking around'. It is systematic exploration with the mindset of a user who doesn't know how the system works and is trying to break it. Happy path only is not QA. Every input boundary, every empty state, every error path must be verified. Ship nothing that hasn't been QA'd.",
+  "category": "quality",
+  "extras": [
+    {
+      "questionId": "verification",
+      "text": "What is the QA plan? List the specific flows a tester must exercise — including failure paths, empty states, and edge inputs. Who will do the QA before marking done?"
+    },
+    {
+      "questionId": "user_impact",
+      "text": "What is the worst thing a user could do with this feature that would break it? Have you tested that exact path?"
+    },
+    {
+      "questionId": "status_quo",
+      "text": "What bugs would a fresh-eyes tester find today? Name the top 3 things most likely to be broken in the current implementation."
+    }
+  ],
+  "specSections": [
+    {
+      "id": "qa-plan",
+      "title": "QA Plan",
+      "placeholder": "_List the specific flows a tester must exercise — including failure paths, empty states, and edge inputs. Who does the QA? What is the acceptance threshold (no CRITICAL or HIGH issues)?_",
+      "condition": null,
+      "position": "after:verification-strategy"
+    },
+    {
+      "id": "test-coverage",
+      "title": "Test Coverage",
+      "placeholder": "_Map every new behavior to its test: file name, test case name, what behavior it pins. Include both happy path and failure path coverage. What is explicitly not tested and why?_",
+      "condition": null,
+      "position": "after:verification-strategy"
+    },
+    {
+      "id": "known-edge-cases",
+      "title": "Known Edge Cases",
+      "placeholder": "_List every edge case that must be tested: empty input, very long input, special characters, zero/negative numbers, missing auth, concurrent access, network failure mid-action._",
+      "condition": null,
+      "position": "after:verification-strategy"
+    }
+  ],
+  "reminders": [
+    "QA mindset: you are not testing that the happy path works. You are trying to BREAK the system. Find the input that causes the wrong output, the state that causes the wrong render, the error that shows the wrong message.",
+    "Health Score Rubric — each category must score above threshold before ship: Console errors (0 = clean, -15 per JS error, -10 per warning), Broken links (0 = clean, -10 per 404), Form validation (-10 per unhandled invalid input), Empty states (-5 per missing), Error handling (-10 per unhandled error path), Cross-browser (-5 per layout break).",
+    "6-Phase QA Structure: (1) INITIALIZE — load the feature fresh, no prior state. (2) AUTHENTICATE — verify auth works AND fails correctly. (3) ORIENT — does the UI match the spec? Check labels, order, colors, states. (4) EXPLORE — exercise every input, every button, every state transition. (5) DOCUMENT — record every deviation from expected. (6) WRAP UP — rate severity per issue, block ship on CRITICAL and HIGH.",
+    "Diff-aware mode: QA must focus on the diff, not the whole product. For every file changed, ask: what behavior changed? Test that behavior specifically — including the behavior before the change to catch regressions.",
+    "Severity classification: CRITICAL = data loss or security issue (blocks ship). HIGH = broken core flow (blocks ship). MEDIUM = degraded experience (should fix before ship, can defer if documented). LOW = polish issue (document, ship anyway).",
+    "Adversarial inputs: test with empty strings, null/undefined, very long inputs, special characters (especially `<script>`, `'`, `\"`, `\n`, emoji), negative numbers, zero, numbers at MAX_SAFE_INTEGER, past and future dates, wrong file types."
+  ],
+  "acceptanceCriteria": [
+    "QA plan documented: specific flows, edge cases, and adversarial inputs listed before QA begins",
+    "Happy path verified: the primary user flow works end-to-end without errors",
+    "Error paths verified: every error state shows a helpful message (not a blank screen or stack trace)",
+    "Empty states verified: every list, table, and container has a meaningful empty state",
+    "Boundary inputs tested: empty, very long, special characters, invalid types — all handled",
+    "No CRITICAL or HIGH severity issues open at ship time",
+    "Health score passes threshold: no JS console errors, no broken links on changed pages"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "happy-path-coverage",
+      "label": "Happy Path Coverage",
+      "prompt": "Walk through the primary user flow end-to-end. Does it work? Does every step produce the expected output? Is the completion state correct? Name each step and its actual vs expected output.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "adversarial-inputs",
+      "label": "Adversarial Input Testing",
+      "prompt": "What inputs were tested beyond the happy path? For each form field, API parameter, or user-controlled value: was empty input tested? Very long input? Special characters (`<script>`, SQL quotes, emoji)? Numbers at boundaries (0, negative, MAX_SAFE_INTEGER)? Name the inputs tested and the results.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "error-state-coverage",
+      "label": "Error State & Empty State Coverage",
+      "prompt": "For every error path in the diff: does the UI show a meaningful error message (not a blank screen, not a stack trace, not 'something went wrong')? For every list or data-dependent component: what does it show when empty? Is the empty state meaningful and actionable?",
+      "evidenceRequired": true,
+      "scope": "ui"
+    },
+    {
+      "id": "health-score",
+      "label": "QA Health Score",
+      "prompt": "Run the Health Score Rubric. Console: any JS errors or warnings on the changed pages? Links: any 404s? Forms: any unhandled invalid inputs? Empty states: any missing? Error handling: any unhandled paths? Cross-browser: any layout breaks? Score each category. Report total health score and flag any category below threshold.",
+      "evidenceRequired": true,
+      "scope": "ui"
+    }
+  ]
+}

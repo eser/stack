@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "@eser/jsx-runtime",
+    "jsxImportSource": "@eserstack/jsx-runtime",
     "jsxImportSourceTypes": "@types/react",
     "strict": true,
     "forceConsistentCasingInFileNames": true

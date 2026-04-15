@@ -1,0 +1,845 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * Deno Bundler backend using native Deno.bundle() API.
+ *
+ * This backend wraps the Deno.bundle() API (introduced in Deno 2.4.0)
+ * with the unified Bundler interface. Requires --unstable-bundle flag.
+ *
+ * @module
+ */
+
+/**
+ * Type declarations for Deno.bundle() unstable API.
+ * @see https://deno.land/api?unstable=&s=Deno.bundle
+ */
+declare namespace Deno {
+  namespace bundle {
+    interface Options {
+      entrypoints: string[];
+      outputDir: string;
+      format?: "esm";
+      codeSplitting?: boolean;
+      minify?: boolean;
+      platform?: "browser" | "deno";
+      sourcemap?: "external" | "inline";
+      external?: string[];
+    }
+  }
+
+  interface BundleResult {
+    success: boolean;
+    errors?: unknown[];
+    diagnostics?: unknown[];
+  }
+
+  function bundle(options: bundle.Options): Promise<BundleResult>;
+}
+
+import * as hex from "@std/encoding/hex";
+import * as logging from "@eserstack/logging";
+import { runtime } from "@eserstack/standards/cross-runtime";
+import { replaceJsExtension } from "@eserstack/standards/patterns";
+
+const bundlerLogger = logging.logger.getLogger(["bundler", "deno-bundler"]);
+import type {
+  BundleError,
+  BundleMetafile,
+  BundleOutput,
+  Bundler,
+  BundlerConfig,
+  BundleResult,
+  BundleWatcher,
+  OutputMetadata,
+  SuccessResultOptions,
+} from "../types.ts";
+import { createErrorResult, createSuccessResult } from "../types.ts";
+
+/**
+ * Backend options specific to Deno Bundler.
+ */
+export interface DenoBundlerBackendOptions {
+  /** Build ID for cache busting. */
+  buildId?: string;
+  /** Custom entry point name (default: "main"). */
+  entryName?: string;
+}
+
+/**
+ * Deno Bundler backend implementation.
+ *
+ * Uses the native Deno.bundle() API for bundling.
+ * Best for: Native Deno integration, stable fallback.
+ */
+export class DenoBundlerBackend implements Bundler {
+  readonly name = "deno-bundler";
+  private readonly options: DenoBundlerBackendOptions;
+
+  constructor(options: DenoBundlerBackendOptions = {}) {
+    this.options = options;
+  }
+
+  async bundle(config: BundlerConfig): Promise<BundleResult> {
+    const tempDir = await runtime.fs.makeTempDir({ prefix: "deno-bundle-" });
+
+    try {
+      // Preserve entry keys for output path mapping
+      const entrypointPaths = Object.values(config.entrypoints);
+      const entryKeys = Object.keys(config.entrypoints);
+
+      // Create build ID entry if provided
+      const allEntrypoints = [...entrypointPaths];
+      if (this.options.buildId !== undefined) {
+        const buildIdEntryPath = runtime.path.join(
+          tempDir,
+          "_build-id-entry.ts",
+        );
+        await runtime.fs.writeTextFile(
+          buildIdEntryPath,
+          `export const BUILD_ID = "${this.options.buildId}";\n`,
+        );
+        allEntrypoints.unshift(buildIdEntryPath);
+      }
+
+      // Deno.bundle supports "browser" and "deno" platforms
+      // Map the unified platform config to Deno.bundle's platform options:
+      // - "browser" → "browser"
+      // - "node" → "deno" (server-side)
+      // - "neutral" → "deno" (default to server-side)
+      const platform = config.platform === "browser" ? "browser" : "deno";
+
+      // Convert sourcemap config to Deno.bundle format
+      // Deno.bundle accepts "external" | "inline" | undefined
+      const sourcemapValue = config.sourcemap === true
+        ? "external"
+        : config.sourcemap === false
+        ? undefined
+        : config.sourcemap;
+
+      const options: Deno.bundle.Options = {
+        entrypoints: allEntrypoints,
+        outputDir: tempDir,
+        format: "esm",
+        codeSplitting: config.codeSplitting,
+        minify: config.minify,
+        platform,
+        sourcemap: sourcemapValue,
+      };
+
+      // TODO(@eser) needs implementation
+      // if (config.define !== undefined) {
+      //   options.define = config.define;
+      // }
+
+      if (config.external !== undefined) {
+        options.external = config.external as string[];
+      }
+
+      bundlerLogger.debug("Calling Deno.bundle", {
+        entrypoints: allEntrypoints.slice(0, 3),
+        outputDir: tempDir,
+        external: options.external,
+        platform: options.platform,
+      });
+
+      const result = await Deno.bundle(options);
+
+      bundlerLogger.debug("Deno.bundle result", {
+        success: result.success,
+        errors: (result as unknown as { errors?: unknown[] }).errors?.length ??
+          0,
+      });
+
+      if (!result.success) {
+        // result.errors contains the actual errors from Deno.bundle
+        const bundleErrors =
+          (result as unknown as { errors?: Array<{ text: string }> })
+            .errors ?? [];
+        const errors: BundleError[] = bundleErrors.map((e) => ({
+          message: e.text ?? this.extractErrorMessage(e),
+          severity: "error" as const,
+        }));
+        return createErrorResult(errors);
+      }
+
+      return await this.processOutput(
+        tempDir,
+        config,
+        entryKeys,
+        entrypointPaths,
+      );
+    } catch (error) {
+      return createErrorResult([{
+        message: error instanceof Error ? error.message : String(error),
+        severity: "fatal",
+      }]);
+    } finally {
+      try {
+        await runtime.fs.remove(tempDir, { recursive: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+
+  watch(
+    config: BundlerConfig,
+    onChange: (result: BundleResult) => void,
+  ): Promise<BundleWatcher> {
+    let running = true;
+    const watchPaths = Object.values(config.entrypoints).map((p) =>
+      runtime.path.dirname(p)
+    );
+    const uniquePaths = [...new Set(watchPaths)];
+
+    // Use cross-runtime fs.watch for file watching
+    const watcher = runtime.fs.watch(uniquePaths, { recursive: true });
+
+    const watchLoop = async () => {
+      for await (const _event of watcher) {
+        if (!running) break;
+        const result = await this.bundle(config);
+        onChange(result);
+      }
+    };
+
+    watchLoop().catch((error) => {
+      console.error("Watch loop error:", error);
+    });
+
+    return Promise.resolve({
+      stop: () => {
+        running = false;
+        watcher.close();
+        return Promise.resolve();
+      },
+    });
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    if (error === null || error === undefined) return "Unknown error";
+    if (typeof error === "object" && "message" in error) {
+      return String((error as { message: unknown }).message);
+    }
+    return String(error);
+  }
+
+  private async processOutput(
+    tempDir: string,
+    config: BundlerConfig,
+    entryKeys: string[],
+    entrypointPaths: string[],
+  ): Promise<BundleResult> {
+    const entryName = this.options.entryName ?? "main";
+    const outputs = new Map<string, BundleOutput>();
+    const metaOutputs: Record<string, OutputMetadata> = {};
+    const entrypointManifest: Record<string, string[]> = {};
+    let mainEntrypoint = null;
+    let totalSize = 0;
+
+    // Build mapping from entry path patterns to entry keys
+    // This maps Deno.bundle output names back to desired entry key paths
+    // We store both basename and full key for flexible matching
+    const pathToKeyMap = new Map<string, string>();
+    const entryKeysByPath = new Map<string, string>();
+    for (let i = 0; i < entrypointPaths.length; i++) {
+      const entryPath = entrypointPaths[i];
+      const entryKey = entryKeys[i];
+      if (entryPath !== undefined && entryKey !== undefined) {
+        // Map the entry path basename (without extension) to the entry key
+        const basename = runtime.path.basename(entryPath).replace(
+          /\.[^.]+$/,
+          "",
+        );
+        pathToKeyMap.set(basename, entryKey);
+        // Also store by path suffix for more accurate matching
+        entryKeysByPath.set(
+          replaceJsExtension(entryPath, ".js"),
+          entryKey,
+        );
+      }
+    }
+
+    // Deno.bundle() creates a nested dist/ directory
+    const nestedDistDir = runtime.path.join(tempDir, "dist");
+    let scanDir = tempDir;
+
+    try {
+      const nestedStat = await runtime.fs.stat(nestedDistDir);
+      if (nestedStat.isDirectory) {
+        scanDir = nestedDistDir;
+      }
+    } catch {
+      // FIXME(@eser) expected: directory doesn't exist, use outputDir
+    }
+
+    // Collect all output files (both .js and .map files)
+    const outputFiles: Array<{ name: string; path: string }> = [];
+
+    bundlerLogger.debug(`Scanning output dir: ${scanDir}`);
+
+    // Recursively collect all .js and .map files from output directory
+    const collectFiles = async (dir: string, basePath: string = "") => {
+      for await (const entry of runtime.fs.readDir(dir)) {
+        const fullPath = runtime.path.join(dir, entry.name);
+        const relativeName = basePath
+          ? `${basePath}/${entry.name}`
+          : entry.name;
+
+        if (entry.isDirectory) {
+          // Recursively scan subdirectories
+          await collectFiles(fullPath, relativeName);
+        } else if (
+          entry.isFile &&
+          (entry.name.endsWith(".js") || entry.name.endsWith(".map"))
+        ) {
+          outputFiles.push({
+            name: relativeName,
+            path: fullPath,
+          });
+        }
+      }
+    };
+
+    await collectFiles(scanDir);
+
+    // Also check root tempDir for chunk files if we scanned nested
+    if (scanDir !== tempDir) {
+      for await (const entry of runtime.fs.readDir(tempDir)) {
+        if (
+          entry.isFile &&
+          (entry.name.endsWith(".js") || entry.name.endsWith(".map")) &&
+          (entry.name.startsWith("chunk-") || entry.name.endsWith(".map"))
+        ) {
+          const path = runtime.path.join(tempDir, entry.name);
+          if (!outputFiles.some((f) => f.path === path)) {
+            outputFiles.push({ name: entry.name, path });
+          }
+        }
+      }
+    }
+
+    bundlerLogger.debug(
+      `Found ${outputFiles.length} output files`,
+      outputFiles.map((f) => f.name),
+    );
+
+    // Track source map content to attach to JS outputs
+    const sourceMaps = new Map<string, Uint8Array>();
+
+    // First pass: collect source maps
+    for (const file of outputFiles) {
+      if (file.name.endsWith(".map")) {
+        const mapContent = await runtime.fs.readFile(file.path);
+        // Normalize the map file name to match JS file naming
+        let normalizedMapName = file.name;
+        if (file.name.startsWith("_client-entry")) {
+          normalizedMapName = `${entryName}.js.map`;
+        } else if (file.name.startsWith("_build-id-entry")) {
+          normalizedMapName = "build-id.js.map";
+        }
+        sourceMaps.set(normalizedMapName, mapContent);
+      }
+    }
+
+    // Second pass: process JS files
+    for (const file of outputFiles) {
+      if (file.name.endsWith(".map")) continue; // Skip maps, already processed
+
+      let content = await runtime.fs.readTextFile(file.path);
+
+      // Post-process: Replace URL paths
+      if (config.basePath !== undefined) {
+        content = content.replace(
+          /\/_lime\/alive/g,
+          `${config.basePath}/_lime/alive`,
+        );
+      }
+
+      // Post-process: Apply define replacements
+      if (config.define !== undefined) {
+        content = applyDefineReplacements(
+          content,
+          config.define as Record<string, string>,
+        );
+      }
+
+      // Fix relative import paths (Deno.bundle quirk)
+      content = content.replace(
+        /from\s{0,5}["']\.\.\/chunk-/g,
+        'from"./chunk-',
+      );
+      content = content.replace(/from\s{0,5}["']\.\.chunk-/g, 'from"./chunk-');
+      content = content.replace(
+        /import\s{0,5}\(["']\.\.\/chunk-/g,
+        'import("./chunk-',
+      );
+      content = content.replace(
+        /import\s{0,5}\(["']\.\.chunk-/g,
+        'import("./chunk-',
+      );
+
+      // Normalize file name
+      let normalizedName = file.name;
+      const isMainEntry = normalizedName.startsWith("_client-entry");
+      if (isMainEntry) {
+        normalizedName = `${entryName}.js`;
+        mainEntrypoint = `${entryName}.js`;
+      } else if (normalizedName.startsWith("_build-id-entry")) {
+        normalizedName = "build-id.js";
+      } else if (!normalizedName.startsWith("chunk-")) {
+        // For entry files (not chunks), map output name back to entry key
+        // This preserves directory structure like src/app/page.js
+        // First try to match by path suffix (more accurate)
+        let entryKey: string | undefined;
+        for (const [entryPath, key] of entryKeysByPath) {
+          if (entryPath.endsWith(normalizedName)) {
+            entryKey = key;
+            break;
+          }
+        }
+        // Fall back to basename matching
+        if (entryKey === undefined) {
+          const fileBasename = runtime.path.basename(normalizedName).replace(
+            /\.js$/,
+            "",
+          );
+          entryKey = pathToKeyMap.get(fileBasename);
+        }
+        if (entryKey !== undefined) {
+          normalizedName = `${entryKey}.js`;
+        }
+      }
+
+      // Add or update sourcemap reference for entry files
+      if (isMainEntry && sourceMaps.has(`${entryName}.js.map`)) {
+        content = content.replace(
+          /\/\/# sourceMappingURL=.*$/m,
+          `//# sourceMappingURL=${entryName}.js.map`,
+        );
+        if (!content.includes("//# sourceMappingURL=")) {
+          content += `\n//# sourceMappingURL=${entryName}.js.map`;
+        }
+      }
+
+      const encoded = new TextEncoder().encode(content);
+      const hash = await this.computeHash(encoded);
+      const imports = this.parseImports(content);
+
+      // Get associated source map
+      const mapFileName = `${normalizedName}.map`;
+      const mapContent = sourceMaps.get(mapFileName);
+
+      outputs.set(normalizedName, {
+        path: normalizedName,
+        code: encoded,
+        map: mapContent,
+        size: encoded.length,
+        hash,
+        isEntry: !normalizedName.startsWith("chunk-"),
+      });
+
+      totalSize += encoded.length;
+
+      metaOutputs[normalizedName] = {
+        bytes: encoded.length,
+        inputs: {},
+        imports: imports.map((path) => ({
+          path,
+          kind: "import-statement" as const,
+        })),
+      };
+    }
+
+    // Also add standalone source map files to outputs (for external sourcemaps)
+    for (const [mapName, mapContent] of sourceMaps) {
+      if (!outputs.has(mapName)) {
+        const hash = await this.computeHash(mapContent);
+        outputs.set(mapName, {
+          path: mapName,
+          code: mapContent,
+          size: mapContent.length,
+          hash,
+          isEntry: false,
+        });
+        totalSize += mapContent.length;
+      }
+    }
+
+    // Write outputs to final output directory if specified
+    if (config.outputDir !== undefined) {
+      await runtime.fs.mkdir(config.outputDir, { recursive: true });
+      for (const [fileName, output] of outputs) {
+        const outputPath = runtime.path.join(config.outputDir, fileName);
+        // Create parent directories for nested files (e.g., app/sidebar.js)
+        const parentDir = runtime.path.dirname(outputPath);
+        if (parentDir !== config.outputDir) {
+          await runtime.fs.mkdir(parentDir, { recursive: true });
+        }
+        await runtime.fs.writeFile(outputPath, output.code);
+      }
+    }
+
+    // Build entrypoint manifest by analyzing proxy files
+    // Proxy files are generated by Deno.bundle for each entrypoint
+    // Use entrypoint keys (relative paths) to find proxy files, and values (full paths) for manifest keys
+    for (const [entryKey, entryValue] of Object.entries(config.entrypoints)) {
+      // Skip main entry - it doesn't have a proxy file
+      if (entryKey === "client" || entryKey === "main") continue;
+
+      // Find the corresponding proxy file for this entrypoint
+      // entryKey is the relative path like "src/app/counter.tsx"
+      const chunks = await this.findEntrypointChunks(
+        entryKey,
+        scanDir,
+        tempDir,
+        outputs,
+      );
+
+      if (chunks.length > 0) {
+        // Use the full path (entryValue) as the manifest key for compatibility
+        entrypointManifest[entryValue] = chunks;
+      }
+    }
+
+    const metafile: BundleMetafile = {
+      inputs: {},
+      outputs: metaOutputs,
+    };
+
+    const options: SuccessResultOptions = {
+      metafile,
+      entrypointManifest,
+      entrypoint: mainEntrypoint ?? "main.js",
+      totalSize,
+    };
+
+    return createSuccessResult(outputs, options);
+  }
+
+  /**
+   * Find which chunks an entrypoint depends on by analyzing proxy files.
+   * Also searches all chunks to find where the component is actually exported.
+   */
+  private async findEntrypointChunks(
+    entrypointPath: string,
+    scanDir: string,
+    outputDir: string,
+    outputs: Map<string, BundleOutput>,
+  ): Promise<string[]> {
+    // Convert entrypoint path to expected proxy file path
+    // e.g., "src/app/counter.tsx" -> proxy file at "src/app/counter.js"
+    const relativePath = replaceJsExtension(entrypointPath, ".js");
+    const proxyFilePath = runtime.path.join(scanDir, relativePath);
+
+    // Try to read proxy file
+    let proxyContent: string | null = null;
+    try {
+      proxyContent = await runtime.fs.readTextFile(proxyFilePath);
+    } catch {
+      // Try in the nested directory structure
+      try {
+        const nestedProxyPath = runtime.path.join(
+          outputDir,
+          "dist",
+          relativePath,
+        );
+        proxyContent = await runtime.fs.readTextFile(nestedProxyPath);
+      } catch {
+        // No proxy file found
+      }
+    }
+
+    // If we have a proxy file, use it
+    if (proxyContent !== null) {
+      return this.extractChunksFromProxyFile(proxyContent, outputs);
+    }
+
+    // No proxy file - search all chunks for the component export
+    // This handles cases where Deno.bundle doesn't create proxy files
+    return this.findChunksForComponentName(entrypointPath, outputs);
+  }
+
+  /**
+   * Find chunks containing a component by searching all chunk exports.
+   * Used when no proxy file exists for an entrypoint.
+   */
+  private findChunksForComponentName(
+    entrypointPath: string,
+    outputs: Map<string, BundleOutput>,
+  ): string[] {
+    const chunks: string[] = [];
+
+    // Extract expected export name from file path
+    // e.g., "src/app/icon.tsx" -> "Icon" (PascalCase of basename)
+    const basename = runtime.path.basename(entrypointPath).replace(
+      /\.[^.]+$/,
+      "",
+    );
+    const expectedExport = basename.charAt(0).toUpperCase() +
+      basename.slice(1).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+
+    // Search all chunks for the exported component
+    for (const [chunkFile, chunkOutput] of outputs) {
+      // Only check chunk files
+      if (!chunkFile.startsWith("chunk-") || !chunkFile.endsWith(".js")) {
+        continue;
+      }
+
+      const chunkContent = new TextDecoder().decode(chunkOutput.code);
+
+      // Check if this chunk exports the expected symbol
+      const exportPatterns = [
+        // export { Symbol } or export { Symbol, ... } or export { X as Symbol }
+        // Use bounded quantifier instead of [^}]* to prevent ReDoS
+        new RegExp(
+          `export\\s{0,5}\\{[^}]{0,500}\\b${expectedExport}\\b[^}]{0,500}\\}`,
+        ),
+        // export function Symbol or export const Symbol
+        new RegExp(
+          `export\\s{1,20}(?:function|const|let|var|class)\\s{1,20}${expectedExport}\\b`,
+        ),
+        // minified pattern: Symbol2 as Symbol
+        new RegExp(`\\b\\w+\\s{1,10}as\\s{1,10}${expectedExport}\\b`),
+      ];
+
+      const exportsSymbol = exportPatterns.some((pattern) =>
+        pattern.test(chunkContent)
+      );
+
+      if (exportsSymbol) {
+        // Found the main chunk - add it to the front
+        chunks.unshift(chunkFile);
+
+        // Also find dependency chunks by looking at what this chunk imports
+        // Use bounded quantifier to prevent ReDoS
+        const importPattern =
+          /from\s{0,5}["']\.?\/?([^"']{0,500}chunk-[A-Z0-9]+\.js)["']/gi;
+        let match: RegExpExecArray | null;
+        while ((match = importPattern.exec(chunkContent)) !== null) {
+          const depChunk = runtime.path.basename(match[1] ?? "");
+          if (depChunk && !chunks.includes(depChunk)) {
+            chunks.push(depChunk);
+          }
+        }
+        break;
+      }
+    }
+
+    return chunks;
+  }
+
+  /**
+   * Extract chunk dependencies from a proxy file's import statements.
+   * Returns chunks with the main chunk (containing the exported symbol) first.
+   *
+   * IMPORTANT: Due to code splitting, the proxy file may not import from the chunk
+   * that actually contains the exported component. We must search ALL chunks to find
+   * the one that exports the symbol.
+   */
+  private extractChunksFromProxyFile(
+    content: string,
+    outputs: Map<string, BundleOutput>,
+  ): string[] {
+    const chunks: string[] = [];
+
+    // Pattern: import{...}from"../../chunk-HASH.js" or import"../../chunk-HASH.js"
+    // Use specific character classes to prevent ReDoS (avoid unbounded [^X]* patterns)
+    const chunkImportPattern =
+      /import(?:\{[\w\s,]{0,500}\})?\s{0,100}from\s{0,100}["']([\w./-]*chunk-[A-Z0-9]+\.js)["']/gi;
+    const sideEffectPattern =
+      /import\s{0,100}["']([\w./-]*chunk-[A-Z0-9]+\.js)["']/gi;
+
+    let match: RegExpExecArray | null;
+
+    // Find all chunk imports from proxy file
+    while ((match = chunkImportPattern.exec(content)) !== null) {
+      const importPath = match[1];
+      if (importPath !== undefined) {
+        const chunkFile = runtime.path.basename(importPath);
+        if (!chunks.includes(chunkFile)) {
+          chunks.push(chunkFile);
+        }
+      }
+    }
+
+    // Find side-effect imports
+    while ((match = sideEffectPattern.exec(content)) !== null) {
+      const importPath = match[1];
+      if (importPath !== undefined) {
+        const chunkFile = runtime.path.basename(importPath);
+        if (!chunks.includes(chunkFile)) {
+          chunks.push(chunkFile);
+        }
+      }
+    }
+
+    // Determine main chunk by finding which chunk actually exports the symbol
+    // IMPORTANT: Search ALL chunks in the bundle, not just the ones imported by proxy
+    // Use bounded quantifier to prevent ReDoS
+    const exportMatch = content.match(/export\s{0,5}\{([\w\s,]{1,500})\}/);
+    if (exportMatch !== null) {
+      const exportStatement = exportMatch[1];
+      // Match either "Symbol as ExportName" or just "Symbol"
+      const symbolMatch = exportStatement?.match(/(\w+)(?:\s+as\s+\w+)?/);
+      const exportedSymbol = symbolMatch?.[1] ?? null;
+
+      if (exportedSymbol !== null) {
+        // Search ALL chunks in the bundle to find which one exports the symbol
+        // This handles code splitting where the actual component ends up in a shared chunk
+        let mainChunkFile: string | null = null;
+
+        for (const [chunkFile, chunkOutput] of outputs) {
+          // Only check chunk files (not main entry or other files)
+          if (!chunkFile.startsWith("chunk-") || !chunkFile.endsWith(".js")) {
+            continue;
+          }
+
+          const chunkContent = new TextDecoder().decode(chunkOutput.code);
+
+          // Check if this chunk exports the symbol directly
+          const exportPatterns = [
+            // export { Symbol } or export { Symbol, ... } or export { X as Symbol }
+            // Use bounded quantifier instead of [^}]* to prevent ReDoS
+            new RegExp(
+              `export\\s{0,5}\\{[^}]{0,500}\\b${exportedSymbol}\\b[^}]{0,500}\\}`,
+            ),
+            // export function Symbol or export const Symbol
+            new RegExp(
+              `export\\s{1,20}(?:function|const|let|var|class)\\s{1,20}${exportedSymbol}\\b`,
+            ),
+            // minified pattern: Symbol2 as Symbol (common in bundled code)
+            new RegExp(`\\b\\w+\\s{1,10}as\\s{1,10}${exportedSymbol}\\b`),
+          ];
+
+          const exportsSymbol = exportPatterns.some((pattern) =>
+            pattern.test(chunkContent)
+          );
+
+          if (exportsSymbol) {
+            mainChunkFile = chunkFile;
+            break;
+          }
+        }
+
+        if (mainChunkFile !== null) {
+          // Ensure main chunk is in the list and at the front
+          const mainIndex = chunks.indexOf(mainChunkFile);
+          if (mainIndex > 0) {
+            // Already in list but not first - move to front
+            chunks.splice(mainIndex, 1);
+            chunks.unshift(mainChunkFile);
+          } else if (mainIndex === -1) {
+            // Not in list from proxy imports - add to front
+            // This happens when code splitting puts the component in a shared chunk
+            chunks.unshift(mainChunkFile);
+          }
+          // mainIndex === 0 means already first, no change needed
+        }
+      }
+    }
+
+    return chunks;
+  }
+
+  private async computeHash(content: Uint8Array): Promise<string> {
+    const hashBuffer = await crypto.subtle.digest(
+      "SHA-256",
+      content as BufferSource,
+    );
+    return hex.encodeHex(new Uint8Array(hashBuffer)).slice(0, 16);
+  }
+
+  private parseImports(content: string): string[] {
+    const imports: string[] = [];
+
+    // Match static imports: import ... from "..."
+    // Use bounded quantifiers and non-overlapping character classes to prevent ReDoS
+    const staticImportRegex =
+      /import\s{1,100}[^\n"']{1,500}from\s{0,100}["']([\w./@-]+)["']/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = staticImportRegex.exec(content)) !== null) {
+      const importPath = match[1];
+      if (
+        importPath !== undefined &&
+        (importPath.startsWith("./") ||
+          importPath.startsWith("../") ||
+          importPath.startsWith("/"))
+      ) {
+        const normalized = importPath.startsWith("./")
+          ? importPath.slice(2)
+          : importPath.startsWith("../")
+          ? importPath
+          : importPath.slice(1);
+        imports.push(normalized);
+      }
+    }
+
+    // Match dynamic imports: import("...")
+    const dynamicImportRegex =
+      /import\s{0,5}\(\s{0,5}["']([^"']+)["']\s{0,5}\)/g;
+    while ((match = dynamicImportRegex.exec(content)) !== null) {
+      const importPath = match[1];
+      if (
+        importPath !== undefined &&
+        (importPath.startsWith("./") ||
+          importPath.startsWith("../") ||
+          importPath.startsWith("/"))
+      ) {
+        const normalized = importPath.startsWith("./")
+          ? importPath.slice(2)
+          : importPath.startsWith("../")
+          ? importPath
+          : importPath.slice(1);
+        imports.push(normalized);
+      }
+    }
+
+    return [...new Set(imports)];
+  }
+}
+
+/**
+ * Apply define replacements to bundled code.
+ * Replaces identifiers like `process.env.NODE_ENV` with their defined values.
+ */
+function applyDefineReplacements(
+  code: string,
+  defines: Record<string, string>,
+): string {
+  const keys = Object.keys(defines);
+  if (keys.length === 0) {
+    return code;
+  }
+
+  // Sort by length (longest first) to avoid partial matches
+  keys.sort((a, b) => b.length - a.length);
+
+  // Quick check: does code contain any of the keys?
+  let hasMatch = false;
+  for (const key of keys) {
+    if (code.includes(key)) {
+      hasMatch = true;
+      break;
+    }
+  }
+  if (!hasMatch) {
+    return code;
+  }
+
+  // Escape regex special characters and create pattern
+  const escapedKeys = keys.map((key) =>
+    key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  );
+  const pattern = new RegExp(`\\b(${escapedKeys.join("|")})\\b`, "g");
+
+  return code.replace(pattern, (match) => defines[match] ?? match);
+}
+
+/**
+ * Create a Deno Bundler backend instance.
+ */
+export const createDenoBundlerBackend = (
+  options: DenoBundlerBackendOptions = {},
+): DenoBundlerBackend => new DenoBundlerBackend(options);

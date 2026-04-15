@@ -1,0 +1,83 @@
+{
+  "id": "move-fast",
+  "name": "Move Fast",
+  "description": "Optimize for shipping speed. Acceptable trade-offs on polish. Good enough is good enough. Reduce ceremony.",
+  "category": "values",
+  "extras": [
+    {
+      "questionId": "scope_boundary",
+      "text": "Which polish items can be deferred to v2?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "What is the minimum viable 5-star version?"
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "If you had to cut this spec in half (by task count), what would you cut? Start there."
+    },
+    {
+      "questionId": "user_impact",
+      "text": "Who is the first user of this? What is the single most valuable thing they will do in the first 5 minutes? Build ONLY that."
+    },
+    {
+      "questionId": "reversibility",
+      "text": "What's the fastest path to validated feedback? Shipped is more valuable than perfect."
+    }
+  ],
+  "specSections": [
+    {
+      "id": "v1-vs-v2-scope",
+      "title": "v1 vs v2 Scope",
+      "placeholder": "_Explicitly separate what ships in v1 from what is deferred to v2. For every task, answer: does the first user need this on day 1? If no, it is v2._",
+      "condition": null,
+      "position": "after:scope-boundary"
+    },
+    {
+      "id": "deferred-items",
+      "title": "Deferred Items",
+      "placeholder": "_List every item cut from v1. For each: what it is, why it was deferred, and what user need it would address in a future iteration._",
+      "condition": null,
+      "position": "after:scope-boundary"
+    }
+  ],
+  "reminders": [
+    "Good enough is good enough — ship it",
+    "Reduce ceremony, optimize for feedback speed",
+    "Mark polish items for v2 explicitly",
+    "BOILING THE LAKE anti-pattern: over-engineering the 'minimal' v1 is still over-engineering. If the spec has more than 5 tasks, challenge each one: 'What breaks for the first user if we defer this?' If nothing breaks, it's v2.",
+    "SCOPE REDUCTION mode: if spec tasks exceed 5, enter scope reduction. For each task, ask: (a) Does the first user need this on day 1? (b) Can we ship without this and add it in the next iteration? (c) Are we building this because it's needed or because it feels complete? Defer anything that answers 'no' to (a) or 'yes' to (b).",
+    "Scope creep is invisible — it feels like thoroughness. Challenge every task added after the initial spec: 'What user problem does this solve that wasn't already solved?'",
+    "The right question is not 'is this good enough?' but 'is this good enough to learn from?' Ship to learn, not to be done.",
+    "Feedback is worth more than polish. A shipped rough version generates 10x more useful information than a polished version that never reaches users."
+  ],
+  "acceptanceCriteria": [
+    "Core functionality works",
+    "v2 items explicitly deferred",
+    "Spec contains an explicit 'Deferred to v2' list — items that were cut and why",
+    "No task in the spec is optional for the first user's core use case"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "scope-knife",
+      "label": "Scope Knife",
+      "prompt": "For every task in this spec: is it v1-essential or v2-deferrable? Apply the rule: if removing this task still leaves a usable feature, it's v2. Be aggressive — list everything you'd cut and what remains.",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "lake-check",
+      "label": "Boil-the-Lake Check",
+      "prompt": "Look at the spec holistically: is any task secretly v2 dressed as v1? Signs of lake-boiling: tasks about 'polish', 'cleanup', 'refactor', 'generalization', 'extensibility', 'configurability' in a first-version spec. List each flagged task and what it would take to defer it.",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "feedback-loop",
+      "label": "Feedback Loop Speed",
+      "prompt": "How quickly can real user feedback be obtained after shipping this? What's the measurement plan — how will you know if this worked? Is there a shorter path to the same learning? Could a prototype, feature flag, or smaller release validate the hypothesis faster?",
+      "evidenceRequired": false,
+      "scope": "all"
+    }
+  ]
+}

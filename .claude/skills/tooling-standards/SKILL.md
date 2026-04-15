@@ -10,7 +10,7 @@ Standards for Deno runtime, JSR registry, and project configuration.
 ## Quick Start
 
 ```bash
-deno install    # install dependencies
+pnpm install    # install dependencies
 deno fmt        # format code
 deno lint       # lint code
 deno test       # run tests
@@ -18,7 +18,9 @@ deno test       # run tests
 
 ## Key Principles
 
-**Deno:** Use `deno install/fmt/lint/test` instead of npm commands
+**Package manager:** Use `pnpm install/add` for dependencies; use `pnpm add -g eser` for the CLI tool
+
+**Deno runtime:** Use `deno fmt/lint/test/check/task` for formatting, linting, testing, and running tasks
 
 **Config files:**
 

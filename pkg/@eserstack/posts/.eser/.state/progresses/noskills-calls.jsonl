@@ -1,0 +1,1 @@
+{"command":"deno task cli noskills spec list 2>&1 | head -30","ts":"2026-04-13T21:39:46.373Z"}

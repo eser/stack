@@ -1,0 +1,60 @@
+{
+  "id": "retro-fed",
+  "name": "Retro Fed",
+  "description": "The retrospective is where compounding learning happens. A spec completed without a retro is a missed opportunity to get better. The questions are not 'what went wrong' — they are 'what would you do differently', 'where was the model wrong', 'what did you learn that should change how you approach the next one'. Learnings that stay in one person's head compound for one person. Documented learnings compound for the team.",
+  "category": "delivery",
+  "extras": [
+    {
+      "questionId": "status_quo",
+      "text": "What assumptions did you have at the start that turned out to be wrong? Where was your mental model off?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "If you were starting this spec fresh today with everything you know now, what would you do differently in the first 30 minutes?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "retrospective-notes",
+      "title": "Retrospective Notes",
+      "placeholder": "_Written immediately at completion while context is fresh. What would you do differently if starting fresh today? Where did the plan diverge from reality? What assumptions were wrong?_",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "learnings",
+      "title": "Learnings",
+      "placeholder": "_At least one learning per spec. Tag mental model shifts with EUREKA: Promoted learnings should be added with `noskills learn --rule`. Cross-spec patterns belong here._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "hotspots",
+      "title": "Hotspots",
+      "placeholder": "_Which files were touched most? Why? High-churn files signal wrong abstraction, misallocated responsibility, or wrong spec boundaries. Document each hotspot with a note on why it required so many changes._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    }
+  ],
+  "reminders": [
+    "Retro timing: the retro happens AT COMPLETION, not weeks later. Memory decays fast. Write the retrospective notes while the context is fresh — immediately after marking COMPLETED.",
+    "Hotspot analysis: what files were touched most? These are your system's pain points. High-churn files are a signal: either the abstraction is wrong, the responsibility is misallocated, or the spec boundaries are wrong. Document any hotspot with a note on why it was touched so much.",
+    "Time distribution: where did the time actually go? If planning took 10% and debugging took 60%, that is a signal — either the spec was underspecified, the codebase was more complex than expected, or a wrong hypothesis was held too long. Document where time went.",
+    "Debt that escaped this cycle: what shortcuts were taken that will need to be paid back? Document them now with a rough cost estimate. Debt that is not documented is debt that will surprise you.",
+    "Eureka moments: what changed in your mental model during this spec? What did you believe at the start that you no longer believe? These are the most valuable learnings. Tag them explicitly with 'EUREKA:'.",
+    "Per-spec metrics: how many iterations did this take? How many times did it revisit a phase? How many debt items were carried forward? These numbers compound — track them so you can see improvement over time.",
+    "Cross-spec pattern: did this spec surface a pattern that appears in other specs too? If yes, promote the learning to a permanent rule: `noskills learn --rule 'rule text'`. Learning that only lives in one spec's retro does not compound."
+  ],
+  "acceptanceCriteria": [
+    "Retrospective notes written immediately at completion (while context is fresh)",
+    "Hotspot analysis: high-churn files identified with explanation of why",
+    "At least one learning documented (use `noskills spec learn` or `noskills learn --rule`)",
+    "Eureka moments tagged explicitly with 'EUREKA:' prefix if any mental model shifted",
+    "Debt that escaped this cycle documented with rough cost estimate",
+    "Time distribution noted: where did the majority of time go?"
+  ],
+  "dreamStatePrompt": "RETROSPECTIVE REPORT — spec completed: (1) WHAT CHANGED: [what is different in the codebase/system now]. (2) HOTSPOTS: [files touched most, and why they required so many changes]. (3) MODEL SHIFTS: [what you believed at the start that turned out to be wrong — EUREKA moments]. (4) TIME DISTRIBUTION: [where the time actually went: discovery X%, spec writing Y%, implementation Z%, debugging Q%]. (5) ESCAPED DEBT: [shortcuts taken and their estimated future cost]. (6) CROSS-SPEC PATTERN: [any pattern from this spec that applies to future specs]. (7) WHAT I'D DO DIFFERENTLY: [top 3 changes to approach if starting fresh].",
+  "lifecycle": {
+    "stage": "retro"
+  }
+}

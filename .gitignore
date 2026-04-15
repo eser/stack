@@ -23,18 +23,22 @@ Thumbs.db
 # coverage files
 /etc/coverage/*
 /etc/coverage.lcov
+/coverage.out
 
 # package managers
-node_modules/*
+node_modules/
 
 # temporary files
 /etc/temp/*
 !/etc/temp/.gitkeep
 
+# Go builds
+/bin/
+
 # npm builds
-/pkg/@eser/cli/dist/*
-/pkg/@eser/laroux-server/dist/*
-/pkg/@eser/noskills/dist/*
+/pkg/@eserstack/cli/dist/*
+/pkg/@eserstack/laroux-server/dist/*
+/pkg/@eserstack/noskills/dist/*
 
 # Nix
 result

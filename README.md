@@ -1,4 +1,4 @@
-# `eserstack` - The Portability Solution for Your Code! 🚀
+# eserstack
 
 [![JSR @eser](https://jsr.io/badges/@eser)](https://jsr.io/@eser)
 [![codecov](https://codecov.io/gh/eser/stack/branch/main/graph/badge.svg?token=7TIL2XPJB6)](https://codecov.io/gh/eser/stack)
@@ -11,185 +11,131 @@
   </a>
 </p>
 
-Step into a world where you never have to deal with portability and platform
-issues. Whether you're targeting **web browsers**, **serverless platforms**,
-**chatbots**, **CLI**, or multiple platforms simultaneously, eserstack ensures
-**your code runs** flawlessly **everywhere**.
+eserstack is eser's personal software workshop — a foundation layer, developer
+tools, and product incubator, all built on a single philosophy.
 
-## 📖 Overview
+> This workshop runs on a shared philosophy ([PHILOSOPHY.md](./PHILOSOPHY.md))
+> and a common set of directives that apply across all packages, contributors,
+> and community channels
+> ([@eserstack/directives](./pkg/@eserstack/directives/README.md)).
 
-`eserstack` is a JavaScript toolkit designed to uphold best practices and
-enhance portability across different platforms.
+## Why eserstack?
 
-Beyond being a toolkit, `eserstack` advocates for a philosophy that emphasizes
-writing code driven by algorithms, design and patterns, not by platform-specific
-implementation details.
+Built for developers who:
 
-While `eserstack` offers you a layer of abstraction that isolates you from the
-platforms, **you can focus on your implementation**. Don't worry about the rest,
-your solution will excel across diverse environments.
+- **Think in layers** — foundation first, tools on top, products last
+- **Believe in explicit constraints** — quality is encoded at the start, not
+  gated at the end
+- **Want human-in-the-loop AI** — tools that think but don't decide
+- **Build to ship** — real products, not perpetual side projects
 
-Every [component](#component-set) of `eserstack` is designed to work in harmony,
-strives to offer you an intuitive and delightful development experience.
+## Packages
 
-## 🌟 Why choose eserstack?
+### Foundation
 
-`eserstack` is meticulously designed for developers who:
+Stable, minimal, rarely changes. Axioms the rest builds on.
 
-- **Seek Portability**: If you've ever felt the need for a JavaScript/TypeScript
-  framework that seamlessly works across web browsers, Deno, Supabase, Netlify,
-  AWS Lambda and Cloudflare Workers, `eserstack` is your answer.
-  [See the full list of supported platforms](#platform-support)
+| Package                                             | Description                                              |
+| --------------------------------------------------- | -------------------------------------------------------- |
+| [@eserstack/primitives](pkg/@eserstack/primitives/) | Result\<T,E\>, Option\<T\>, type guards                  |
+| [@eserstack/fp](pkg/@eserstack/fp/)                 | 70+ functional programming combinators                   |
+| [@eserstack/di](pkg/@eserstack/di/)                 | IoC container, Registry, Scope                           |
+| [@eserstack/standards](pkg/@eserstack/standards/)   | Cross-runtime, i18n, formatters, logging levels          |
+| [@eserstack/functions](pkg/@eserstack/functions/)   | Monadic do-notation, middleware, trigger adapters        |
+| [@eserstack/events](pkg/@eserstack/events/)         | Event bus, pub/sub                                       |
+| [@eserstack/directives](pkg/@eserstack/directives/) | Ecosystem ground rules — technical and social directives |
 
-- **Love Functional Programming**: `eserstack` not only supports but encourages
-  a functional programming approach. This means you can write your code once and
-  run it on various platforms without modifications.
-  [Dive into our functional programming tools](pkg/@eser/fp/README.md)
+### Libraries & Tools
 
-- **Want Enhanced Testability**: With the removal of hard-coded dependencies and
-  the promotion of loose coupling, `eserstack` enhances the testability of your
-  codebase, ensuring that your applications run as expected.
-  [Explore our dependency injection system](pkg/@eser/di/README.md)
+Active, maintained, published independently. No CLI (Libraries) or
+workflow-facing (Tools).
 
-- **Desire a Unified Approach**: Instead of juggling multiple libraries and
-  tools, `eserstack` provides a unified toolkit where each component works
-  seamlessly with the others, ensuring a smoother development experience.
-  [Check out our component set](#component-set)
+| Package                                           | Description                                                    |
+| ------------------------------------------------- | -------------------------------------------------------------- |
+| [@eserstack/shell](pkg/@eserstack/shell/)         | CLI framework: args, completions, exec, TUI                    |
+| [@eserstack/formats](pkg/@eserstack/formats/)     | Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL) |
+| [@eserstack/streams](pkg/@eserstack/streams/)     | Pipeline I/O                                                   |
+| [@eserstack/logging](pkg/@eserstack/logging/)     | Hierarchical logging, OpenTelemetry                            |
+| [@eserstack/codebase](pkg/@eserstack/codebase/)   | Git ops, scaffolding, version management                       |
+| [@eserstack/workflows](pkg/@eserstack/workflows/) | Event-driven workflow engine                                   |
+| [@eserstack/ai](pkg/@eserstack/ai/)               | AI provider abstraction (Claude, OpenAI, Gemini)               |
 
-- **Prioritize Best Practices**: If you've been struggling with maintaining best
-  practices in your development process, `eserstack` is here to guide you. With
-  built-in support for principles like 12factor and dependency injection, you
-  can ensure that your code remains clean, maintainable, and scalable.
-  [Learn more about our best practices approach](#best-practices)
+<details>
+<summary>Full list (all Libraries & Tools)</summary>
 
-## 📂 Components
+**Libraries**
 
-### Component Set
+| Package                                               | Description                                                    |
+| ----------------------------------------------------- | -------------------------------------------------------------- |
+| [@eserstack/formats](pkg/@eserstack/formats/)         | Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL) |
+| [@eserstack/streams](pkg/@eserstack/streams/)         | Pipeline I/O                                                   |
+| [@eserstack/parsing](pkg/@eserstack/parsing/)         | Tokenizer, lexer, AST                                          |
+| [@eserstack/logging](pkg/@eserstack/logging/)         | Hierarchical logging, OpenTelemetry                            |
+| [@eserstack/http](pkg/@eserstack/http/)               | HTTP middleware, response helpers                              |
+| [@eserstack/crypto](pkg/@eserstack/crypto/)           | Web Crypto wrappers                                            |
+| [@eserstack/cache](pkg/@eserstack/cache/)             | XDG cache directories                                          |
+| [@eserstack/config](pkg/@eserstack/config/)           | .env + env var configuration                                   |
+| [@eserstack/testing](pkg/@eserstack/testing/)         | fakeFs, fakeServer, tempDir                                    |
+| [@eserstack/jsx-runtime](pkg/@eserstack/jsx-runtime/) | Server-side JSX                                                |
+| [@eserstack/collector](pkg/@eserstack/collector/)     | Export manifest generation                                     |
+| [@eserstack/cs](pkg/@eserstack/cs/)                   | CS utilities (algorithms, data structures)                     |
+| [@eserstack/ajan](pkg/@eserstack/ajan/)               | Go/WASM FFI bridge                                             |
+| [@eserstack/registry](pkg/@eserstack/registry/)       | Recipe registry, distribution protocol, handlers               |
 
-#### Core
+**Tools**
 
-| Component                                    | Description                                                        | Latest Version                                                                    |
-| -------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| 🧩 [@eser/primitives](pkg/@eser/primitives/) | Result types, Option, and base constructors                        | [![JSR](https://jsr.io/badges/@eser/primitives)](https://jsr.io/@eser/primitives) |
-| 📑 [@eser/standards](pkg/@eser/standards/)   | Cross-runtime standards, formatters, i18n, and runtime abstraction | [![JSR](https://jsr.io/badges/@eser/standards)](https://jsr.io/@eser/standards)   |
-| ⚡ [@eser/functions](pkg/@eser/functions/)   | Monadic workflows, tasks, trigger adapters (CLI, HTTP, MCP)        | [![JSR](https://jsr.io/badges/@eser/functions)](https://jsr.io/@eser/functions)   |
-| 🧱 [@eser/fp](pkg/@eser/fp/)                 | Functional programming combinators                                 | [![JSR](https://jsr.io/badges/@eser/fp)](https://jsr.io/@eser/fp)                 |
-| ⚙️ [@eser/di](pkg/@eser/di/)                 | Dependency injection container                                     | [![JSR](https://jsr.io/badges/@eser/di)](https://jsr.io/@eser/di)                 |
-| 📓 [@eser/directives](pkg/@eser/directives/) | Ground rules adhered to by the ecosystem                           | -                                                                                 |
+| Package                                               | Description                                      |
+| ----------------------------------------------------- | ------------------------------------------------ |
+| [@eserstack/bundler](pkg/@eserstack/bundler/)         | Abstract bundler, snapshot AOT                   |
+| [@eserstack/shell](pkg/@eserstack/shell/)             | CLI framework: args, completions, exec, TUI      |
+| [@eserstack/codebase](pkg/@eserstack/codebase/)       | Git ops, scaffolding, version management         |
+| [@eserstack/workflows](pkg/@eserstack/workflows/)     | Event-driven workflow engine                     |
+| [@eserstack/kit](pkg/@eserstack/kit/)                 | Recipe + template distribution                   |
+| [@eserstack/cli](pkg/@eserstack/cli/)                 | Main entrypoint CLI                              |
+| [@eserstack/ai](pkg/@eserstack/ai/)                   | AI provider abstraction (Claude, OpenAI, Gemini) |
+| [@eserstack/app-runtime](pkg/@eserstack/app-runtime/) | Application lifecycle management                 |
 
-#### Infrastructure
+</details>
 
-| Component                              | Description                                         | Latest Version                                                              |
-| -------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------- |
-| 🔐 [@eser/config](pkg/@eser/config/)   | Load configurations from .env files and environment | [![JSR](https://jsr.io/badges/@eser/config)](https://jsr.io/@eser/config)   |
-| 📢 [@eser/events](pkg/@eser/events/)   | Event bus and pub/sub system                        | [![JSR](https://jsr.io/badges/@eser/events)](https://jsr.io/@eser/events)   |
-| 📝 [@eser/logging](pkg/@eser/logging/) | Hierarchical logging with OpenTelemetry integration | [![JSR](https://jsr.io/badges/@eser/logging)](https://jsr.io/@eser/logging) |
-| 💾 [@eser/cache](pkg/@eser/cache/)     | Caching abstractions                                | [![JSR](https://jsr.io/badges/@eser/cache)](https://jsr.io/@eser/cache)     |
-| 🌐 [@eser/http](pkg/@eser/http/)       | HTTP client and server utilities                    | [![JSR](https://jsr.io/badges/@eser/http)](https://jsr.io/@eser/http)       |
-| 🐚 [@eser/shell](pkg/@eser/shell/)     | CLI framework, shell execution, and completions     | [![JSR](https://jsr.io/badges/@eser/shell)](https://jsr.io/@eser/shell)     |
-| 🔑 [@eser/crypto](pkg/@eser/crypto/)   | Cryptographic hashing via Web Crypto API            | [![JSR](https://jsr.io/badges/@eser/crypto)](https://jsr.io/@eser/crypto)   |
+### Products
 
-#### Data & Parsing
+Growing toward — or already with — their own identity.
 
-| Component                                  | Description                                                     | Latest Version                                                                  |
-| ------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 〰️ [@eser/parsing](pkg/@eser/parsing/)     | Parsing tools for strings and streams                           | [![JSR](https://jsr.io/badges/@eser/parsing)](https://jsr.io/@eser/parsing)     |
-| 🔄 [@eser/formats](pkg/@eser/formats/)     | Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL)  | [![JSR](https://jsr.io/badges/@eser/formats)](https://jsr.io/@eser/formats)     |
-| 🌊 [@eser/streams](pkg/@eser/streams/)     | Composable I/O streams with Span-based formatting and renderers | [![JSR](https://jsr.io/badges/@eser/streams)](https://jsr.io/@eser/streams)     |
-| ⚙️ [@eser/collector](pkg/@eser/collector/) | Module export collector and manifest generator                  | [![JSR](https://jsr.io/badges/@eser/collector)](https://jsr.io/@eser/collector) |
-| 🗄️ [@eser/cs](pkg/@eser/cs/)               | Config storage — Kubernetes ConfigMap/Secret sync               | [![JSR](https://jsr.io/badges/@eser/cs)](https://jsr.io/@eser/cs)               |
+| Package                                                     | Status            | Description                                              |
+| ----------------------------------------------------------- | ----------------- | -------------------------------------------------------- |
+| [@eserstack/noskills](pkg/@eserstack/noskills/)             | **GRADUATED**     | AI development orchestrator                              |
+| [@eserstack/noskills-web](pkg/@eserstack/noskills-web/)     | Product           | web dashboard for noskills                               |
+| [@eserstack/laroux](pkg/@eserstack/laroux/)                 | Product-Candidate | framework-agnostic web core — Growing toward graduation. |
+| [@eserstack/laroux-react](pkg/@eserstack/laroux-react/)     | Product-Candidate | React integration for laroux                             |
+| [@eserstack/laroux-server](pkg/@eserstack/laroux-server/)   | Product-Candidate | SSR runtime for laroux                                   |
+| [@eserstack/laroux-bundler](pkg/@eserstack/laroux-bundler/) | Product-Candidate | build pipeline for laroux                                |
 
-#### Web & UI
+### Where to start
 
-| Component                                            | Description                                        | Latest Version                                                                            |
-| ---------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| ⚛️ [@eser/jsx-runtime](pkg/@eser/jsx-runtime/)       | JSX runtime for server-side rendering              | [![JSR](https://jsr.io/badges/@eser/jsx-runtime)](https://jsr.io/@eser/jsx-runtime)       |
-| ⚙️ [@eser/app-runtime](pkg/@eser/app-runtime/)       | Application lifecycle and module management        | [![JSR](https://jsr.io/badges/@eser/app-runtime)](https://jsr.io/@eser/app-runtime)       |
-| 🌐 [@eser/laroux](pkg/@eser/laroux/)                 | Laroux.js framework-agnostic core                  | [![JSR](https://jsr.io/badges/@eser/laroux)](https://jsr.io/@eser/laroux)                 |
-| 🖥️ [@eser/laroux-server](pkg/@eser/laroux-server/)   | Laroux.js HTTP server and SSR runtime              | [![JSR](https://jsr.io/badges/@eser/laroux-server)](https://jsr.io/@eser/laroux-server)   |
-| ⚛️ [@eser/laroux-react](pkg/@eser/laroux-react/)     | Laroux.js React client runtime and hydration       | [![JSR](https://jsr.io/badges/@eser/laroux-react)](https://jsr.io/@eser/laroux-react)     |
-| 📦 [@eser/laroux-bundler](pkg/@eser/laroux-bundler/) | Laroux.js build tooling, CSS, and asset processing | [![JSR](https://jsr.io/badges/@eser/laroux-bundler)](https://jsr.io/@eser/laroux-bundler) |
-| 📦 [@eser/bundler](pkg/@eser/bundler/)               | General-purpose bundler utilities                  | [![JSR](https://jsr.io/badges/@eser/bundler)](https://jsr.io/@eser/bundler)               |
+| Goal                                | Entry point                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------ |
+| AI-assisted project development     | **noskills** → [install](#noskills)                                                  |
+| Add typed utilities to your project | **@eserstack/fp**, **@eserstack/di** → `pnpm add jsr:@eserstack/fp`                  |
+| Build a web app                     | **laroux** → [laroux docs](./pkg/@eserstack/laroux/README.md)                        |
+| Understand the philosophy           | **PHILOSOPHY.md** → [read it](./PHILOSOPHY.md)                                       |
+| Understand how eserstack operates   | **@eserstack/directives** → [ecosystem rules](./pkg/@eserstack/directives/README.md) |
 
-#### Tooling
+## noskills
 
-| Component                                  | Description                                              | Latest Version                                                                  |
-| ------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 🤖 [@eser/ai](pkg/@eser/ai/)               | AI provider interface — cloud APIs and local agents      | [![JSR](https://jsr.io/badges/@eser/ai)](https://jsr.io/@eser/ai)               |
-| 🔧 [@eser/codebase](pkg/@eser/codebase/)   | Codebase validation, scaffolding, and release management | [![JSR](https://jsr.io/badges/@eser/codebase)](https://jsr.io/@eser/codebase)   |
-| 🔄 [@eser/workflows](pkg/@eser/workflows/) | Workflow engine for tool pipelines                       | [![JSR](https://jsr.io/badges/@eser/workflows)](https://jsr.io/@eser/workflows) |
-| 📦 [@eser/registry](pkg/@eser/registry/)   | Recipe registry, distribution protocol, and handlers     | [![JSR](https://jsr.io/badges/@eser/registry)](https://jsr.io/@eser/registry)   |
-| 🧰 [@eser/kit](pkg/@eser/kit/)             | Kit — recipes, templates, project creation               | [![JSR](https://jsr.io/badges/@eser/kit)](https://jsr.io/@eser/kit)             |
-| 🖥️ [@eser/cli](pkg/@eser/cli/)             | Terminal client — ai, kit, codebase, workflows, and more | [![JSR](https://jsr.io/badges/@eser/cli)](https://jsr.io/@eser/cli)             |
-| 🧪 [@eser/testing](pkg/@eser/testing/)     | Testing utilities and helpers                            | [![JSR](https://jsr.io/badges/@eser/testing)](https://jsr.io/@eser/testing)     |
+[![JSR](https://jsr.io/badges/@eserstack/noskills)](https://jsr.io/@eserstack/noskills)
 
-Visit the respective component page for detailed usage instructions.
+> AI development orchestrator — structured discovery, human-in-the-loop, quality
+> gates. Before a single line of code, noskills asks the right questions.
 
-### Our Goal / The Bigger Picture
+**Standalone install:** `pnpm add jsr:@eserstack/noskills` (or curl/npx/brew/nix
+— [see all options](https://eser.run/install)) **In Claude Code:** Add to your
+project and use via `deno task cli noskills spec new "description"`
 
-We strive to run the following code seamlessly across
-[all platforms we support](#platform-support):
+![noskills demo from Claude Code](./etc/noskills-demo.gif)
 
-```ts
-import { runtime } from "@eser/standards/cross-runtime";
+<!-- TODO: record demo GIF showing CC agent workflow -->
 
-const home = (ctx: runtime.Context) => {
-  return ctx.results.jsx(<h1>Hello there!</h1>);
-};
-
-const profile = (ctx: runtime.Context) => {
-  const slug = ctx.input.param("id");
-  const db = ctx.di`db`;
-
-  ctx.logger.info(`Visiting the profile of ${slug}!`);
-
-  return ctx.results.json(
-    db.query("SELECT * FROM users WHERE slug=:slug", { slug }),
-  );
-};
-
-const router = (ctx: runtime.Context) => {
-  switch (true) {
-    case ctx.route.match("/"):
-      return home(ctx);
-    case ctx.route.match("/:id"):
-      return profile(ctx);
-    default:
-      return ctx.results.notFound();
-  }
-};
-
-const app = new runtime.App();
-app.di.register("db", new DatabaseConnection());
-app.listen(router); // or app.execute(fn);
-```
-
-### Platform Support
-
-Since the reason we started to build this project is the feeling of a lack of a
-JavaScript/TypeScript framework that is portable across many platforms, we're
-always looking for the widen this list. By adhering to
-[WinterCG guidelines](https://wintercg.org/) and
-[TC39 standards](https://tc39.es/), we strive to provide a framework that is
-portable across all these platforms.
-
-- [x] Deno
-- [ ] Node.js
-- [x] Web Browsers
-- [ ] Service Workers
-- [x] Deno Deploy
-- [ ] Cloudflare Workers
-- [ ] Supabase Functions
-- [ ] Netlify
-- [ ] AWS Lambda
-- [ ] Google Cloud Functions
-- [ ] Azure Functions
-- [ ] Telegram Bots
-- [ ] Discord Bots
-- [ ] Slack Bots
-
-...and all other platforms that comply with the
-[WinterCG guidelines](https://wintercg.org/).
+[How it works →](./pkg/@eserstack/noskills/README-HOW.md)
 
 ## 🚀 Jumpstart
 
@@ -199,14 +145,22 @@ first.
 ### Install the CLI
 
 ```bash
-# Install script (macOS/Linux)
+# macOS / Linux — install script
 curl -fsSL https://eser.run/install | sh
+# Downloads eser binary to ~/.local/bin. Inspect: https://eser.run/install
 
-# Or via npm
+# Homebrew
+brew install eser
+
+# Nix
+nix run github:eser/stack
+
+# Deno (via JSR)
+deno run jsr:@eserstack/cli
+
+# npm / npx
 npm install -g eser
-
-# Or run without installing
-npx eser <command>
+# or: npx eser <command>
 ```
 
 ### Browse available recipes
@@ -241,7 +195,7 @@ $ eser kit add fp-pipe
 
 ✓ Added 1 file(s) from fp-pipe
   → lib/fp/pipe.ts
-  ✓ deno add jsr:@eser/fp@^4.1.0
+  ✓ pnpm add jsr:@eserstack/fp@^4.1.0
 ```
 
 ## Contributors
@@ -262,7 +216,7 @@ $ eser kit add fp-pipe
 
 If you're going to report a bug or request a new feature, please ensure first
 that you comply with the conditions found under
-[@eser/directives](https://github.com/eser/stack/blob/dev/pkg/directives/README.md).
+[@eserstack/directives](https://github.com/eser/stack/blob/dev/pkg/@eserstack/directives/README.md).
 After that, you can report an issue or request using
 [GitHub Issues](https://github.com/eser/stack/issues). Thanks in advance.
 

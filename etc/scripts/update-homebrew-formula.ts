@@ -13,7 +13,7 @@
  */
 
 import * as distUtils from "./dist-utils.ts";
-import { runtime } from "@eser/standards/cross-runtime";
+import { runtime } from "@eserstack/standards/cross-runtime";
 
 // =============================================================================
 // Types

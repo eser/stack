@@ -59,7 +59,7 @@ jobs:
         with:
           go-version: "1.25"
           cache: true
-          cache-dependency-path: apps/services/go.sum
+          cache-dependency-path: go.sum
 
       - name: Run validation
         run: deno task cli ok
@@ -128,6 +128,8 @@ jobs:
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
 
       - name: Cache Deno dependencies
         uses: actions/cache@v5
@@ -139,49 +141,55 @@ jobs:
           key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
           restore-keys: deno-${{ runner.arch }}-
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "latest"
+          cache: "pnpm"
 
       - name: Build eser npm package
         run: deno task cli build
 
       - name: Build noskills npm package
-        run: deno run --allow-all pkg/@eser/noskills/scripts/npm-build.ts
+        run: deno run --allow-all pkg/@eserstack/noskills/scripts/npm-build.ts
 
       - name: Build laroux npm package
-        run: deno run --allow-all pkg/@eser/laroux-server/scripts/npm-build.ts
+        run: deno run --allow-all pkg/@eserstack/laroux-server/scripts/npm-build.ts
 
       - name: Smoke test — eser help
-        run: node pkg/@eser/cli/dist/eser.js --help
+        run: node pkg/@eserstack/cli/dist/eser.js --help
 
       - name: Smoke test — eser validate-licenses
-        run: node pkg/@eser/cli/dist/eser.js codebase validate-licenses || true
+        run: node pkg/@eserstack/cli/dist/eser.js codebase validate-licenses || true
 
       - name: Smoke test — noskills help
-        run: node pkg/@eser/noskills/dist/noskills.js --help
+        run: node pkg/@eserstack/noskills/dist/noskills.js --help
 
       - name: Smoke test — laroux help
-        run: node pkg/@eser/laroux-server/dist/laroux.js --help
+        run: node pkg/@eserstack/laroux-server/dist/laroux.js --help
 
       - name: Upload eser npm bundle
         uses: actions/upload-artifact@v7
         with:
           name: npm-eser
-          path: pkg/@eser/cli/dist/
+          path: pkg/@eserstack/cli/dist/
 
       - name: Upload noskills npm bundle
         uses: actions/upload-artifact@v7
         with:
           name: npm-noskills
-          path: pkg/@eser/noskills/dist/
+          path: pkg/@eserstack/noskills/dist/
 
       - name: Upload laroux npm bundle
         uses: actions/upload-artifact@v7
         with:
           name: npm-laroux
-          path: pkg/@eser/laroux-server/dist/
+          path: pkg/@eserstack/laroux-server/dist/
 
   # ── npm-only smoke test (no Deno) ──────────────────────────
   npm-no-deno-test:
@@ -194,10 +202,16 @@ jobs:
       contents: read
 
     steps:
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
       - name: Setup Node.js only
         uses: actions/setup-node@v6
         with:
           node-version: "25"
+          cache: "pnpm"
 
       - name: Verify Deno is NOT installed
         run: |
@@ -214,7 +228,7 @@ jobs:
           path: npm-eser/
 
       - name: Install eser globally from artifact
-        run: npm install -g ./npm-eser/
+        run: pnpm add -g ./npm-eser/
 
       - name: Smoke test — eser --help
         run: eser --help
@@ -291,7 +305,7 @@ jobs:
         with:
           go-version: "1.25"
           cache: true
-          cache-dependency-path: apps/services/go.sum
+          cache-dependency-path: go.sum
 
       - name: Setup Node.js
         if: matrix.runtime == 'node'
@@ -306,21 +320,21 @@ jobs:
           bun-version: ${{ matrix.version }}
 
       - name: Build Go shared library (native)
-        run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts
+        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts
 
       - name: Verify FFI — eser ajan version
         env:
           ESER_AJAN_WASM: disabled
-          ESER_AJAN_LIB_PATH: ${{ github.workspace }}/pkg/@eser/ajan/dist/${{ runner.arch == 'ARM64' && 'aarch64' || 'x86_64' }}-${{ runner.os == 'macOS' && 'darwin' || 'linux' }}/libeser_ajan.${{ runner.os == 'macOS' && 'dylib' || 'so' }}
+          ESER_AJAN_LIB_PATH: ${{ github.workspace }}/pkg/@eserstack/ajan/dist/${{ runner.arch == 'ARM64' && 'aarch64' || 'x86_64' }}-${{ runner.os == 'macOS' && 'darwin' || 'linux' }}/libeser_ajan.${{ runner.os == 'macOS' && 'dylib' || 'so' }}
         run: |
           if [ "${{ matrix.runtime }}" = "deno" ]; then
             deno task cli ajan version
           elif [ "${{ matrix.runtime }}" = "node" ]; then
             deno task cli build
-            node pkg/@eser/cli/dist/eser.js ajan version
+            node pkg/@eserstack/cli/dist/eser.js ajan version
           elif [ "${{ matrix.runtime }}" = "bun" ]; then
             deno task cli build
-            bun pkg/@eser/cli/dist/eser.js ajan version
+            bun pkg/@eserstack/cli/dist/eser.js ajan version
           fi
 
       - name: Verify CLI — eser --help
@@ -328,9 +342,9 @@ jobs:
           if [ "${{ matrix.runtime }}" = "deno" ]; then
             deno task cli --help
           elif [ "${{ matrix.runtime }}" = "node" ]; then
-            node pkg/@eser/cli/dist/eser.js --help
+            node pkg/@eserstack/cli/dist/eser.js --help
           elif [ "${{ matrix.runtime }}" = "bun" ]; then
-            bun pkg/@eser/cli/dist/eser.js --help
+            bun pkg/@eserstack/cli/dist/eser.js --help
           fi
 
   # ── Release: publish ────────────────────────────────────────────
@@ -348,10 +362,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          fetch-depth: 2
+          fetch-depth: 1
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
 
       - name: Cache Deno dependencies
         uses: actions/cache@v5
@@ -366,11 +382,17 @@ jobs:
       - name: Publish to JSR
         run: deno publish
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "latest"
           registry-url: "https://registry.npmjs.org"
+          cache: "pnpm"
 
       - name: Download eser npm bundle
         uses: actions/download-artifact@v8
@@ -391,15 +413,15 @@ jobs:
           path: npm-dist/laroux/
 
       - name: Publish eser to npm
-        run: npm publish --provenance --access public
+        run: pnpm publish --provenance --access public --no-git-checks
         working-directory: npm-dist/eser
 
       - name: Publish noskills to npm
-        run: npm publish --provenance --access public
+        run: pnpm publish --provenance --access public --no-git-checks
         working-directory: npm-dist/noskills
 
       - name: Publish laroux to npm
-        run: npm publish --provenance --access public
+        run: pnpm publish --provenance --access public --no-git-checks
         working-directory: npm-dist/laroux
 
       - name: Summary
@@ -429,6 +451,8 @@ jobs:
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
 
       - name: Cache Deno dependencies
         uses: actions/cache@v5
@@ -473,21 +497,21 @@ jobs:
         with:
           go-version: "1.25"
           cache: true
-          cache-dependency-path: apps/services/go.sum
+          cache-dependency-path: go.sum
 
       - name: Build aarch64-darwin (native)
-        run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts --target=aarch64-darwin
+        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=aarch64-darwin
 
       - name: Build x86_64-darwin (cross-compile via clang -arch x86_64)
-        run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts --target=x86_64-darwin
+        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-darwin
 
       - name: Upload darwin dist
         uses: actions/upload-artifact@v7
         with:
           name: ajan-dist-darwin
           path: |
-            pkg/@eser/ajan/dist/aarch64-darwin/
-            pkg/@eser/ajan/dist/x86_64-darwin/
+            pkg/@eserstack/ajan/dist/aarch64-darwin/
+            pkg/@eserstack/ajan/dist/x86_64-darwin/
 
   # ── Release: compile standalone binaries ──────────────────────
   compile-binaries:
@@ -525,7 +549,7 @@ jobs:
         with:
           go-version: "1.25"
           cache: true
-          cache-dependency-path: apps/services/go.sum
+          cache-dependency-path: go.sum
 
       - name: Install cross-compilers
         run: |
@@ -538,22 +562,22 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: ajan-dist-darwin
-          path: pkg/@eser/ajan/dist/
+          path: pkg/@eserstack/ajan/dist/
 
       - name: Build Go shared libraries (linux + windows)
         run: |
-          deno run --allow-all pkg/@eser/ajan/scripts/build.ts --target=aarch64-linux
-          deno run --allow-all pkg/@eser/ajan/scripts/build.ts --target=x86_64-linux
-          deno run --allow-all pkg/@eser/ajan/scripts/build.ts --target=x86_64-windows
+          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=aarch64-linux
+          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-linux
+          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-windows
 
       - name: Build Go WASM modules
-        run: deno run --allow-all pkg/@eser/ajan/scripts/build.ts --wasm
+        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm
 
       - name: Generate npm packages for ajan
-        run: deno run --allow-all pkg/@eser/ajan/npm/generate-packages.ts
+        run: deno run --allow-all pkg/@eserstack/ajan/npm/generate-packages.ts
 
       - name: Compile for all platforms
-        run: deno run --allow-all ./pkg/@eser/cli/scripts/compile.ts
+        run: deno run --allow-all ./pkg/@eserstack/cli/scripts/compile.ts
 
       - name: Upload binary bundle
         uses: actions/upload-artifact@v7
@@ -565,7 +589,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ajan-npm-packages
-          path: pkg/@eser/ajan/dist/npm/
+          path: pkg/@eserstack/ajan/dist/npm/
 
   # ── Release: publish ajan npm packages ─────────────────────
   publish-ajan:
@@ -585,11 +609,17 @@ jobs:
           name: ajan-npm-packages
           path: ajan-npm/
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "latest"
           registry-url: "https://registry.npmjs.org"
+          cache: "pnpm"
 
       - name: Publish ajan platform packages to npm
         run: |
@@ -600,7 +630,7 @@ jobs:
               PKG_NAME=$(node -p "require('./$dir/package.json').name")
               PKG_VERSION=$(node -p "require('./$dir/package.json').version")
               echo "Publishing $PKG_NAME@$PKG_VERSION ..."
-              (cd "$dir" && npm publish --provenance --access public) || echo "  ⚠ Failed (may already exist)"
+              (cd "$dir" && pnpm publish --provenance --access public --no-git-checks) || echo "  ⚠ Failed (may already exist)"
             fi
           done
           # Note: no root @eserstack/ajan meta-package — the eser CLI
@@ -681,6 +711,8 @@ jobs:
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
 
       - name: Cache Deno dependencies
         uses: actions/cache@v5
@@ -725,6 +757,8 @@ jobs:
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
 
       - name: Cache Deno dependencies
         uses: actions/cache@v5

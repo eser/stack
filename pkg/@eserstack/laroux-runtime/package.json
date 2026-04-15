@@ -1,0 +1,15 @@
+{
+  "name": "@eserstack/laroux-runtime",
+  "version": "4.1.56",
+  "description": "Application runtime for laroux.js framework",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "dependencies": {
+    "@eserstack/app-runtime": "workspace:*",
+    "@eserstack/config": "workspace:*",
+    "@eserstack/standards": "workspace:*"
+  }
+}

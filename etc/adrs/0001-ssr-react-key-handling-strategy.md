@@ -6,7 +6,7 @@ Accepted
 
 ## Context and Problem Statement
 
-During Server-Side Rendering (SSR) in `@eser/laroux-react-adapter`, React
+During Server-Side Rendering (SSR) in `@eserstack/laroux-react-adapter`, React
 generates "Each child in a list should have a unique key prop" warnings for
 elements like `<aside>`, `<div>`, `<svg>`, etc. These warnings appear in the
 server terminal during `renderToReadableStream` execution.
@@ -312,7 +312,7 @@ if (Array.isArray(processedChildren)) {
 
 ### Current Implementation (Option 1)
 
-Location: `pkg/@eser/laroux-react-adapter/runtime/ssr-renderer.ts`
+Location: `pkg/@eserstack/laroux-react-adapter/runtime/ssr-renderer.ts`
 
 Key aspects:
 
@@ -362,11 +362,11 @@ If Flight-based SSR is pursued in the future:
 
 ## Related Files
 
-- `pkg/@eser/laroux-react-adapter/runtime/ssr-renderer.ts` - SSR rendering with
-  `ensureArrayKeys`
-- `pkg/@eser/laroux-react-adapter/server.ts` - Flight Server implementation
-- `pkg/@eser/laroux-react-adapter/client.ts` - Flight Client implementation
-- `pkg/@eser/laroux-react-adapter/protocol.ts` - RSC protocol types and
+- `pkg/@eserstack/laroux-react-adapter/runtime/ssr-renderer.ts` - SSR rendering
+  with `ensureArrayKeys`
+- `pkg/@eserstack/laroux-react-adapter/server.ts` - Flight Server implementation
+- `pkg/@eserstack/laroux-react-adapter/client.ts` - Flight Client implementation
+- `pkg/@eserstack/laroux-react-adapter/protocol.ts` - RSC protocol types and
   utilities
 
 ## Notes

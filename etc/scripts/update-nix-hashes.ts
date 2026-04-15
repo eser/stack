@@ -2,7 +2,7 @@
 
 import * as path from "jsr:@std/path@^1.1.4";
 import * as distUtils from "./dist-utils.ts";
-import { runtime } from "@eser/standards/cross-runtime";
+import { runtime } from "@eserstack/standards/cross-runtime";
 
 const TARGETS = [
   "x86_64-unknown-linux-gnu",

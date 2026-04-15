@@ -30,13 +30,17 @@ workflows:
             - ".claude/skills/"
       - validate-filenames:
           rules:
-            - directory: "apps/services/"
+            - directory: "cmd/"
               convention: "snake_case"
               exclude:
-                - "Dockerfile"
                 - "Makefile"
                 - "README.md"
-            - directory: "pkg/@eser/ajan/"
+            - directory: "pkg/ajan/"
+              convention: "snake_case"
+              exclude:
+                - "Makefile"
+                - "README.md"
+            - directory: "pkg/@eserstack/ajan/"
               convention: "snake_case"
               exclude:
                 - "Dockerfile"
@@ -52,9 +56,11 @@ workflows:
                 - "CHANGELOG.md"
                 - "CLAUDE.md"
                 - "Makefile"
+                - "PHILOSOPHY.md"
                 - "VERSION"
-                - "apps/services/"
-                - "pkg/@eser/ajan/"
+                - "cmd/"
+                - "pkg/ajan/"
+                - "pkg/@eserstack/ajan/"
                 - "docs/"
                 - "etc/coverage/"
                 - "etc/temp/"
@@ -64,7 +70,7 @@ workflows:
                 - "README.md"
                 - "TODOS.md"
                 - "pkg/*/README.md"
-                - "pkg/@eser/noskills/README-HOW.md"
+                - "pkg/@eserstack/noskills/README-HOW.md"
                 - "*_test.ts"
                 - "*_test.go"
       - validate-submodules
@@ -73,8 +79,8 @@ workflows:
             - ".eser/recipes/"
       - validate-runtime-js-apis:
           exclude:
-            - "pkg/@eser/standards/cross-runtime/"
-            - "pkg/@eser/cli/scripts/compile.ts"
+            - "pkg/@eserstack/standards/cross-runtime/"
+            - "pkg/@eserstack/cli/scripts/compile.ts"
 
       # Deno checks
       - shell:
@@ -87,7 +93,7 @@ workflows:
           fixCommand: deno lint --fix
       - shell:
           name: deno-type-check
-          command: deno check ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts
+          command: deno check ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts
           timeout: 120
       - shell:
           name: deno-tests
@@ -100,22 +106,19 @@ workflows:
           command: deno publish --dry-run --allow-dirty
           timeout: 120
 
-      # Go checks (apps/services)
+      # Go checks (cmd/ajan, pkg/@eserstack/ajan/go)
       - shell:
           name: go-check
           command: "go vet ./... && go build ./..."
-          workingDirectory: ./apps/services/
           timeout: 120
       - shell:
           name: go-lint
           command: "go tool golangci-lint run ./..."
           fixCommand: "gofmt -w . && go tool golangci-lint run --fix ./..."
-          workingDirectory: ./apps/services/
           timeout: 120
       - shell:
           name: go-tests
           command: "go test -race ./..."
-          workingDirectory: ./apps/services/
           timeout: 300
 
   - id: commit-validation
@@ -141,7 +144,7 @@ scripts:
   fix: eser workflows run -e precommit --fix
 
   # Setup
-  init: deno install && eser codebase install
+  init: pnpm install && eser codebase install
 
   # Testing
   test:
@@ -157,16 +160,16 @@ scripts:
   # Code quality
   lint: deno lint
   fmt: deno fmt
-  check: deno check ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts
+  check: deno check ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts
 
   # Build
-  build: deno run --allow-all ./pkg/@eser/cli/scripts/npm-build.ts
-  compile: deno run --allow-all ./pkg/@eser/cli/scripts/compile.ts
+  build: deno run --allow-all ./pkg/@eserstack/cli/scripts/npm-build.ts
+  compile: deno run --allow-all ./pkg/@eserstack/cli/scripts/compile.ts
 
   # Documentation
   docs: "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html
-    ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts"
-  docs-lint: deno doc --lint ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts
+    ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts"
+  docs-lint: deno doc --lint ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts
 
   # Docker
   container-build: docker build -t eservm .
@@ -174,7 +177,7 @@ scripts:
 
   # Maintenance
   clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./deno.lock && deno check
-    ./pkg/@eser/*/mod.ts ./pkg/@cool/*/mod.ts"
+    ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts"
   repl: deno repl --allow-all --unstable-bundle --eval-file=./repl-init.ts
 
   # Coverage
@@ -188,27 +191,25 @@ scripts:
   changelog: eser codebase changelog-gen
 
   # Go shortcuts
-  go-ok:
-    command: make ok
-    workingDirectory: ./apps/services/
-  go-test:
-    command: make test-coverage
-    workingDirectory: ./apps/services/
-  go-lint:
-    command: make lint
-    workingDirectory: ./apps/services/
-  go-fmt:
-    command: make fix
-    workingDirectory: ./apps/services/
-  go-build:
-    command: make build
-    workingDirectory: ./apps/services/
+  go-ok: make ok
+  go-test: make test-coverage
+  go-lint: make lint
+  go-fmt: make fix
+  go-build: make build
 noskills:
   # noskills orchestrator — inline comments in this section won't be preserved on next write
   concerns:
     - open-source
     - beautiful-product
     - long-lived
+    - well-engineered
+    - developer-experience
+    - root-cause
+    - security-audited
+    - peer-reviewed
+    - ship-ready
+    - documented
+    - deploy-ready
   tools:
     - claude-code
   providers:
@@ -224,4 +225,4 @@ noskills:
   maxIterationsBeforeRestart: 15
   verifyCommand: null
   allowGit: false
-  command: deno task cli nos
+  command: deno task cli noskills

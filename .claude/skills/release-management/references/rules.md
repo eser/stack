@@ -41,7 +41,7 @@ Scope: After PR is approved
 
 6. **Merge PR to main** — triggers the delivery job:
    - Publishes all packages to JSR via `deno publish` (OIDC auth)
-   - Builds and publishes `@eser/cli` to npm with provenance
+   - Builds and publishes `@eserstack/cli` to npm with provenance
 
 7. **Tag the release:**
    ```bash
@@ -61,7 +61,7 @@ Scope: After every release
 
 Rule: Verify all publish targets received the new version.
 
-- Check JSR: packages appear at `jsr.io/@eser/<name>` with correct version
+- Check JSR: packages appear at `jsr.io/@eserstack/<name>` with correct version
 - Check npm: `npm info eser` shows new version
 - Check GitHub: release notes are correct and complete
 - Add `## [Unreleased]` section to CHANGELOG.md for next cycle
@@ -110,10 +110,10 @@ All 29+ packages are versioned together — there are no independent package ver
 
 ### npm (Secondary Registry)
 
-- Only `@eser/cli` is published to npm as the `eser` package
+- Only `@eserstack/cli` is published to npm as the `eser` package
 - Built via esbuild bundling: `deno task npm-build`
 - Published with provenance: `npm publish --provenance --access public`
-- Working directory: `pkg/@eser/cli/dist`
+- Working directory: `pkg/@eserstack/cli/dist`
 - Requires `NODE_AUTH_TOKEN` secret in CI
 
 ---

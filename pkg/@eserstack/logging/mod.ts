@@ -1,0 +1,90 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * @module @eserstack/logging
+ *
+ * A hierarchical, category-based logging system with context propagation,
+ * multiple sinks, filters, and OpenTelemetry integration.
+ *
+ * @example Basic Usage
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ * import * as streams from "@eserstack/streams";
+ *
+ * // Create an Output with a renderer and sink
+ * const out = streams.output({ renderer: streams.renderers.ansi(), sink: streams.sinks.stdout() });
+ *
+ * // Configure once at app startup
+ * await logging.config.configure({
+ *   sinks: {
+ *     console: logging.sinks.getOutputSink(out),
+ *   },
+ *   loggers: [
+ *     { category: ["myapp"], lowestLevel: logging.Severities.Debug, sinks: ["console"] },
+ *   ],
+ * });
+ *
+ * // Get a logger by category
+ * const logger = logging.logger.getLogger(["myapp", "http"]);
+ * await logger.info("Request received");
+ * ```
+ *
+ * @example Context Propagation
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * await logging.context.withContext({ requestId: "abc-123" }, async () => {
+ *   const logger = logging.logger.getLogger(["myapp"]);
+ *   await logger.info("Processing request"); // Includes requestId automatically
+ * });
+ * ```
+ */
+
+// ============================================================================
+// NAMESPACE EXPORTS (primary API)
+// ============================================================================
+
+/** Type definitions and utilities */
+export * as types from "./types.ts";
+
+/** Category utilities for hierarchical logger organization */
+export * as category from "./category.ts";
+
+/** Configuration system - configure(), reset() */
+export * as config from "./config.ts";
+
+/** Logger class and utilities - Logger, getLogger(), DEFAULT_LEVEL */
+export * as logger from "./logger.ts";
+
+/** Context propagation - withContext(), getContext() */
+export * as context from "./context.ts";
+
+/** Sink implementations - console, stream, buffered, etc. */
+export * as sinks from "./sinks.ts";
+
+/** Filter utilities - level, category, rate limit, sampling */
+export * as filters from "./filters.ts";
+
+/** Formatter functions - JSON, text, span-based */
+export * as formatters from "./formatters.ts";
+
+/** OpenTelemetry integration - withSpan(), tracer */
+export * as tracer from "./tracer.ts";
+
+// ============================================================================
+// TYPE RE-EXPORTS (zero runtime cost)
+// ============================================================================
+
+export type {
+  Category,
+  ConfigureOptions,
+  Filter,
+  FormatterFn,
+  LoggerConfig,
+  LogRecord,
+  Sink,
+} from "./types.ts";
+
+// Flat re-exports so callers can use `logging.Severities.Debug` and `logging.Severity`
+export { Severities, SeverityNames } from "@eserstack/standards/logging";
+export type { Severity, SeverityKey } from "@eserstack/standards/logging";

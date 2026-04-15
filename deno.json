@@ -41,8 +41,8 @@
     "etc/temp/",
     ".eser/recipes/",
     "node_modules/",
-    "pkg/@eser/cli/dist/",
-    "pkg/@eser/noskills/dist/",
-    "pkg/@eser/laroux-server/dist/"
+    "pkg/@eserstack/cli/dist/",
+    "pkg/@eserstack/noskills/dist/",
+    "pkg/@eserstack/laroux-server/dist/"
   ]
 }

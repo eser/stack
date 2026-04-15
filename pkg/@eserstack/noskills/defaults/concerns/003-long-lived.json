@@ -1,0 +1,146 @@
+{
+  "id": "long-lived",
+  "name": "Long-Lived",
+  "description": "Built to last. Stability, maintainability, and backward compatibility matter. Every shortcut needs justification. Favor boring technology.",
+  "category": "values",
+  "extras": [
+    {
+      "questionId": "reversibility",
+      "text": "Will this decision still be correct in 2 years?"
+    },
+    {
+      "questionId": "verification",
+      "text": "Is documentation (README, CHANGELOG, API docs) up to date with this change?"
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "What technical debt would this introduce?"
+    },
+    {
+      "questionId": "status_quo",
+      "text": "What assumptions in the current architecture would this change rely on? Could any of them break?"
+    },
+    {
+      "questionId": "reversibility",
+      "text": "What is the rollback plan? Can you revert this change without data loss or migration? How long would reverting take?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "Fast-forward 3 years: what would you regret about this approach? What decision is cheapest to make now vs. expensive to undo later?"
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "What new dependencies does this introduce? What is the maintenance burden of each? Are there lighter alternatives?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "migration-deprecation",
+      "title": "Migration & Deprecation",
+      "placeholder": "_If this change is a breaking change or deprecates existing behavior: what is the migration path? What version gets the breaking change? What is the deprecation timeline?_",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "backward-compatibility",
+      "title": "Backward Compatibility",
+      "placeholder": "_List every public-facing interface this change touches. For each: does it remain backward-compatible? If not, what is the justification and the migration guide?_",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "error-recovery",
+      "title": "Error Recovery",
+      "placeholder": "_For every new codepath: what can go wrong? What is the recovery action? What does the user see? Document every failure mode and its handler._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "deployment-plan",
+      "title": "Deployment Plan",
+      "placeholder": "_How is this deployed? Incremental rollout? Feature flag? Can old and new code run simultaneously? What happens during partial deployment?_",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "runbook",
+      "title": "Runbook",
+      "placeholder": "_Operational runbook for this change: what alerts fire if it breaks, first diagnostic step, rollback command, escalation path._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    }
+  ],
+  "reminders": [
+    "Favor boring technology over shiny new tools",
+    "Every shortcut needs explicit justification",
+    "Consider maintenance burden for new dependencies",
+    "If this task changes public behavior, API, CLI flags, or configuration — update README and relevant docs in the SAME task. Documentation is not a follow-up.",
+    "Every new dependency is a long-term liability. Ask: could we solve this with 50 lines instead of a new package? If the package disappears tomorrow, what breaks?",
+    "Boring is good. A CRUD endpoint written in plain SQL that every engineer understands beats a clever ORM abstraction that only the author understands.",
+    "Path dependency check: does this decision foreclose future options? Lock-in is acceptable only when the trade-off is explicit and documented.",
+    "If this change has a happy path but no documented unhappy path (error recovery, partial failure, timeout), the spec is incomplete."
+  ],
+  "acceptanceCriteria": [
+    "Backward compatibility preserved",
+    "Migration path documented if breaking",
+    "No unnecessary new dependencies",
+    "Documentation updated for any public-facing change",
+    "Rollback plan exists (how to undo this change if it goes wrong)",
+    "Runbook entry added or updated for operational complexity introduced by this change",
+    "Every new dependency has: purpose documented, license checked, no known critical CVEs, alternative considered",
+    "If this change is irreversible (schema migration, external API change, data format change) — a second human has reviewed the decision"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "architecture",
+      "label": "Architecture & Coupling",
+      "prompt": "Draw the dependency graph for this change. Which modules depend on what? Are there circular dependencies? Single points of failure? Would removing one piece break the whole thing? Is the coupling direction correct (stable → volatile, not the reverse)?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "error-rescue",
+      "label": "Error & Rescue Registry",
+      "prompt": "For every new codepath: what can go wrong? Build a table: Method/Codepath | What Can Go Wrong | Exception Class | Rescued? | Recovery Action | User Sees. Flag any row where Rescued=No or User Sees=raw error.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "failure-modes",
+      "label": "Failure Modes Analysis",
+      "prompt": "For every new codepath: Codepath | Failure Mode | Rescued? | Tested? | User Sees | Logged? Flag CRITICAL gaps: unrescued + untested + silent failure. These block ship.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "deployment-safety",
+      "label": "Deployment & Rollback Safety",
+      "prompt": "Can this be deployed incrementally? What happens during partial deployment (old code + new code running simultaneously)? Is rollback safe — can you revert without data loss or schema conflicts? Do you need feature flags?",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "trajectory",
+      "label": "6-Month Trajectory",
+      "prompt": "Fast-forward 6 months. What assumptions in this design might break? What would you regret? Is this creating path dependency that limits future options? What's the cost of changing course later?",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "dependency-health",
+      "label": "Dependency Health Audit",
+      "prompt": "For every new dependency introduced by this change: (1) Is it actively maintained (commits in the last 6 months)? (2) Does it have >1 maintainer? (3) Any known CVEs? (4) License compatible? (5) What's the migration cost if we need to swap it out in 2 years? Flag any single-maintainer, barely-maintained, or copyleft-licensed dependency.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "backward-compat",
+      "label": "Backward Compatibility Audit",
+      "prompt": "List every public-facing interface touched (API endpoints, CLI flags, config keys, file formats, environment variables). For each: does this change break existing consumers? If yes — is there a migration guide? A deprecation period? Is the breaking change explicit in CHANGELOG?",
+      "evidenceRequired": true,
+      "scope": "all"
+    }
+  ],
+  "registries": ["error-rescue", "failure-modes"],
+  "dreamStatePrompt": "Synthesize: CURRENT STATE (what exists today) → THIS SPEC (what changes) → 6-MONTH IDEAL (where should this be heading). What does the ideal architecture look like? Specifically: which decisions made today will still feel right in 3 years? Which ones are you accepting as necessary debt? What's the earliest signal that a debt decision is costing you — and what does the escape hatch look like?"
+}

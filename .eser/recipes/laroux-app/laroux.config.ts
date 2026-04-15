@@ -1,4 +1,4 @@
-import type { UserConfig } from "@eser/laroux-core/config/schema";
+import type { UserConfig } from "@eserstack/laroux-core/config/schema";
 
 const config: UserConfig = {
   // server: {

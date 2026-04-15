@@ -13,15 +13,15 @@ go = "1.25"
 # ESER_AJAN_LIB_PATH is auto-resolved by the FFI module
 
 [tasks.build-go]
-run = "deno run --allow-all pkg/@eser/ajan/scripts/build.ts"
+run = "deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts"
 description = "Build Go shared library for current platform"
 
 [tasks.build-go-all]
-run = "deno run --allow-all pkg/@eser/ajan/scripts/build.ts --all"
+run = "deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --all"
 description = "Build Go shared library for all platforms"
 
 [tasks.build-wasm]
-run = "deno run --allow-all pkg/@eser/ajan/scripts/build.ts --wasm"
+run = "deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm"
 description = "Build Go WASM modules"
 
 [tasks.test-ffi]

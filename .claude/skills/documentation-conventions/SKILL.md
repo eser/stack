@@ -11,7 +11,7 @@ Guidelines for writing and maintaining package documentation and README files.
 
 ```typescript
 // ✅ README examples use namespace imports
-import * as functions from "@eser/functions";
+import * as functions from "@eserstack/functions";
 
 const result = await functions.run(async function* () { /* ... */ });
 const pipeline = functions.collect<string, Error>();
@@ -19,7 +19,7 @@ const pipeline = functions.collect<string, Error>();
 
 ## Key Principles
 
-- README code examples must use **namespace imports** (`import * as pkg from "@eser/pkg"`)
+- README code examples must use **namespace imports** (`import * as pkg from "@eserstack/pkg"`)
 - Never show sub-path direct imports in README examples
 - Never remove existing emojis from files (titles use 🧱, ⚡; footers use 🔗)
 - Never strip descriptive details, comments, or explanatory text when rewriting docs

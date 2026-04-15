@@ -6,14 +6,14 @@
 
 Scope: JS/TS projects using Deno
 
-Rule: Prefer Deno tooling. Don't use npm
-directly. Use deno install for packages. Use built-in formatter, linter,
-benchmarks, testing.
+Rule: Use pnpm for package installation and Deno for runtime operations. Don't
+use npm directly.
 
 Correct:
 
 ```bash
-deno install
+pnpm install
+pnpm add jsr:@eserstack/fp
 deno fmt
 deno lint
 deno test
@@ -25,6 +25,7 @@ Incorrect:
 
 ```bash
 npm install
+deno install
 npm run format
 npm run lint
 npm test
@@ -50,22 +51,22 @@ different roles:
 
 ```json
 {
-  "name": "@eser/stack",
+  "name": "@eserstack/stack",
   "private": true,
-  "workspaces": ["pkg/@eser/*", "pkg/@cool/*"],
-  "scripts": { "cli": "deno run --allow-all ./pkg/@eser/cli/main.ts" }
+  "workspaces": ["pkg/@eserstack/*", "pkg/@cool/*"],
+  "scripts": { "cli": "deno run --allow-all ./pkg/@eserstack/cli/main.ts" }
 }
 ```
 
-Cross-package imports (e.g., `import * as foo from "@eser/bar/baz"`) resolve
-through this npm workspace. Run `deno install` at root after adding a new
+Cross-package imports (e.g., `import * as foo from "@eserstack/bar/baz"`) resolve
+through this npm workspace. Run `pnpm install` at root after adding a new
 package to wire up the graph.
 
 **Per-package `deno.json`:**
 
 ```json
 {
-  "name": "@eser/my-pkg",
+  "name": "@eserstack/my-pkg",
   "version": "4.1.12",
   "exports": { ".": "./mod.ts", "./sub": "./sub.ts" }
 }
@@ -75,7 +76,7 @@ package to wire up the graph.
 
 ```json
 {
-  "name": "@eser/my-pkg",
+  "name": "@eserstack/my-pkg",
   "version": "4.1.12",
   "type": "module",
   "exports": { ".": "./mod.ts", "./sub": "./sub.ts" },
@@ -96,14 +97,14 @@ package to wire up the graph.
 **After adding a new package, ALWAYS run:**
 
 ```bash
-deno install   # at project root — wires up workspace graph
+pnpm install   # at project root — wires up workspace graph
 ```
 
 Incorrect (don't skip package.json — workspace resolution will fail):
 
 ```json
 // Having only deno.json without package.json means other packages
-// cannot import via bare specifiers like "@eser/my-pkg/sub"
+// cannot import via bare specifiers like "@eserstack/my-pkg/sub"
 ```
 
 ---
@@ -138,7 +139,7 @@ package.json with JSR packages:
 Install with:
 
 ```bash
-deno install
+pnpm install
 ```
 
 Incorrect (without npm: prefix or registry config):
@@ -262,7 +263,7 @@ Rule: Use Makefile commands for all Go operations. Don't run go commands
 directly for common tasks.
 
 ```bash
-# In /apps/services directory
+# In /apps/ajan directory
 make restart         # Restart services after changes
 make check           # Run static analysis tools
 make lint            # Run linting (golangci-lint)
@@ -274,15 +275,15 @@ make build           # Build binaries
 Correct:
 
 ```bash
-cd apps/services && make lint
-cd apps/services && make test
+cd apps/ajan && make lint
+cd apps/ajan && make test
 ```
 
 Incorrect:
 
 ```bash
-cd apps/services && go fmt ./...
-cd apps/services && go test ./...
+cd apps/ajan && go fmt ./...
+cd apps/ajan && go test ./...
 ```
 
 ---
@@ -297,7 +298,7 @@ Rule: Use SQLC for database query generation. SQL queries live in
 **Structure:**
 
 ```
-apps/services/
+apps/ajan/
 ├── etc/data/default/
 │   ├── migrations/     # Database migrations
 │   ├── queries/        # SQL queries for SQLC
@@ -314,7 +315,7 @@ apps/services/
 Regenerate after SQL changes:
 
 ```bash
-cd apps/services && make generate
+cd apps/ajan && make generate
 ```
 
 ---
@@ -389,7 +390,7 @@ indent_style = tab
 
 ### File Tool Factory Pattern
 
-Scope: @eser/codebase file check/fix tools
+Scope: @eserstack/codebase file check/fix tools
 
 Rule: Use `createFileTool()` factory for all file-based codebase tools. Pure
 `checkFile`/`checkAll` logic returns issues. Fixers return `{path, oldContent, newContent}`
@@ -418,29 +419,29 @@ fixFile(file, content) {
 
 ---
 
-### @eser/functions Integration
+### @eserstack/functions Integration
 
 Scope: All codebase tools and CLI commands
 
-Rule: Tools use Handler/Adapter/ResponseMapper from `@eser/functions`. Handler = pure
+Rule: Tools use Handler/Adapter/ResponseMapper from `@eserstack/functions`. Handler = pure
 logic, Adapter = input transform (CLI/MCP/agent), ResponseMapper = output format.
 
 ---
 
 ### Runtime Abstraction
 
-Scope: All @eser/* packages
+Scope: All @eserstack/* packages
 
-Rule: Use `@eser/standards/cross-runtime` for all filesystem, exec, and env access.
+Rule: Use `@eserstack/standards/cross-runtime` for all filesystem, exec, and env access.
 Never use `Deno.*` directly. Enables cross-runtime (Deno/Node/Bun) and testability.
 
 Exception: CLI-only code (commands, tools that only run in the CLI context) may
-use `Deno.*` directly when `@eser/standards/cross-runtime` doesn't expose the needed
+use `Deno.*` directly when `@eserstack/standards/cross-runtime` doesn't expose the needed
 API (e.g., `Deno.cwd()`, `Deno.makeTempDir()`). Prefer the abstraction when available.
 
 Correct:
 ```typescript
-import { runtime } from "@eser/standards/cross-runtime";
+import { runtime } from "@eserstack/standards/cross-runtime";
 const content = await runtime.fs.readTextFile(path);
 ```
 
@@ -453,7 +454,7 @@ const content = await Deno.readTextFile(path); // BAD — Deno-specific
 
 ### Walk-Once Pipeline
 
-Scope: @eser/codebase validation system
+Scope: @eserstack/codebase validation system
 
 Rule: When running multiple tools via `validate`, walk the filesystem once and pass the
 file list to all validators. Fixers return mutations; the runner applies between tools

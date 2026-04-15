@@ -6,18 +6,16 @@ This guide explains how the eserstack codebase is organized.
 
 ```
 stack/
-├── apps/
-│   └── services/               # Go services (independent git-tag versioning)
-│       ├── cmd/                # Application entrypoints
-│       ├── pkg/api/            # Core application logic
-│       │   ├── adapters/       # External integrations (composition root)
-│       │   └── business/       # Pure business logic (no external deps)
-│       ├── go.mod, go.sum      # Go module definition + tool directives
-│       ├── Makefile            # Go-specific build targets
-│       └── .golangci.yaml      # Go linting rules
-├── pkg/                        # All publishable TS packages (unified versioning)
-│   ├── @eser/                  # Core packages (29 packages, published to JSR)
-│   └── @cool/                  # Community packages (2 packages, published to JSR)
+├── cmd/
+│   └── ajan/                   # Go CLI entrypoint (go run ./cmd/ajan)
+├── pkg/
+│   ├── ajan/                   # Go library (github.com/eser/stack/pkg/ajan)
+│   │   ├── api/adapters/       # Composition root (appcontext)
+│   │   ├── httpclient/         # HTTP client with circuit breaker
+│   │   ├── logfx/              # Structured logging
+│   │   ├── configfx/           # Configuration loading
+│   │   └── ...                 # Other Go utilities
+│   └── @eserstack/             # TypeScript packages (published to JSR + npm)
 ├── etc/
 │   ├── registry/               # Recipe registry (24 recipes: project templates + Go components)
 │   ├── scripts/                # Automation scripts (version-bump, release-notes)
@@ -42,49 +40,47 @@ stack/
 
 ```
 Layer 0 — Foundation (no internal deps)
-├── @eser/standards             # Cross-platform abstractions (Runtime interface)
-├── @eser/primitives            # Primitive data structures
-└── @eser/directives            # Ground rules/directives
+├── @eserstack/standards             # Cross-platform abstractions (Runtime interface)
+├── @eserstack/primitives            # Primitive data structures
+└── @eserstack/directives            # Ground rules/directives
 
 Layer 1 — Core Utilities (depend on Layer 0)
-├── @eser/fp                    # Functional programming (116+ modules)
-├── @eser/crypto                # Cryptographic utilities
-└── @eser/parsing               # String/stream parsing
+├── @eserstack/fp                    # Functional programming (116+ modules)
+├── @eserstack/crypto                # Cryptographic utilities
+└── @eserstack/parsing               # String/stream parsing
 
 Layer 2 — Infrastructure (depend on Layers 0-1)
-├── @eser/di                    # Dependency injection container
-├── @eser/events                # Event system
-├── @eser/config                # Configuration management
-├── @eser/cache                 # Caching utilities
-├── @eser/logging               # Logging system
-├── @eser/http                  # HTTP utilities
-├── @eser/functions             # Function utilities
-├── @eser/testing               # Testing utilities
-├── @eser/formats               # Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL)
-├── @eser/streams               # Universal I/O streaming with composable middleware
-├── @eser/shell                 # Shell interaction
-├── @eser/collector             # Data collection
-├── @eser/cs                    # Config storage (Kubernetes ConfigMap/Secret sync)
-└── @eser/codebase              # Codebase analysis/validation
+├── @eserstack/di                    # Dependency injection container
+├── @eserstack/events                # Event system
+├── @eserstack/config                # Configuration management
+├── @eserstack/cache                 # Caching utilities
+├── @eserstack/logging               # Logging system
+├── @eserstack/http                  # HTTP utilities
+├── @eserstack/functions             # Function utilities
+├── @eserstack/testing               # Testing utilities
+├── @eserstack/formats               # Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL)
+├── @eserstack/streams               # Universal I/O streaming with composable middleware
+├── @eserstack/shell                 # Shell interaction
+├── @eserstack/collector             # Data collection
+├── @eserstack/cs                    # Config storage (Kubernetes ConfigMap/Secret sync)
+└── @eserstack/codebase              # Codebase analysis/validation
 
 Layer 3 — Framework (depend on Layers 0-2)
-├── @eser/jsx-runtime           # Custom JSX runtime
-├── @eser/laroux                # Framework core
-├── @eser/laroux-server         # Server-side runtime
-├── @eser/laroux-bundler        # Bundler adapters
-├── @eser/laroux-react          # React integration
-├── @eser/bundler               # Bundling system (esbuild WASM)
-└── @eser/app-runtime           # Runtime abstraction
+├── @eserstack/jsx-runtime           # Custom JSX runtime
+├── @eserstack/laroux                # Framework core
+├── @eserstack/laroux-server         # Server-side runtime
+├── @eserstack/laroux-bundler        # Bundler adapters
+├── @eserstack/laroux-react          # React integration
+├── @eserstack/laroux-runtime        # Application runtime (manifest loading, dev mode)
+├── @eserstack/bundler               # Bundling system (esbuild WASM)
+└── @eserstack/app-runtime           # Runtime abstraction
 
 Layer 4 — Application (depend on all layers)
-└── @eser/cli                   # Main CLI tool (published to npm as `eser`)
+└── @eserstack/cli                   # Main CLI tool (published to npm as `eser`)
 
-Community
-├── @cool/cli                   # Cool CLI
-└── @cool/lime                  # Lime utilities
-
-Go Services (independent versioning, apps/services/)
-└── cmd/serve                   # HTTP server (hexagonal architecture)
+Go (module github.com/eser/stack, root go.mod)
+├── cmd/ajan                    # CLI entrypoint (eser ajan / go run ./cmd/ajan)
+└── pkg/ajan                    # Go library (httpclient, logfx, configfx, httpfx...)
 ```
 
 ## Build Pipeline
@@ -138,9 +134,9 @@ Each package follows a double-layered structure:
 
 ### Portability
 
-The `@eser/standards/cross-runtime` module provides a cross-platform abstraction
-layer, enabling code to run on Deno, browsers, Supabase, Netlify, AWS Lambda,
-and Cloudflare Workers.
+The `@eserstack/standards/cross-runtime` module provides a cross-platform
+abstraction layer, enabling code to run on Deno, browsers, Supabase, Netlify,
+AWS Lambda, and Cloudflare Workers.
 
 ### Functional Programming First
 
@@ -151,5 +147,5 @@ and Cloudflare Workers.
 
 ### Dependency Injection
 
-The `@eser/di` package provides a container for managing dependencies, enhancing
-testability by allowing mock injection without modifying source code.
+The `@eserstack/di` package provides a container for managing dependencies,
+enhancing testability by allowing mock injection without modifying source code.

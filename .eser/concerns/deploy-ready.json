@@ -1,0 +1,52 @@
+{
+  "id": "deploy-ready",
+  "name": "Deploy Ready",
+  "description": "Deploy readiness is not about whether the code is correct. It is about whether the infrastructure, configuration, and pipeline are ready to receive it. A correct feature with a broken deploy config ships nothing. Verify the config before the merge — not after.",
+  "extras": [
+    {
+      "questionId": "verification",
+      "text": "What deploy platform is this targeting? Is the deploy config current and correct for this change? Is there a staging environment where this can be verified before production?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "deploy-configuration",
+      "title": "Deploy Configuration",
+      "placeholder": "_What deploy platform? What config files need updating (fly.toml, render.yaml, vercel.json, etc.)? Can old and new config coexist during a rolling deploy? Rollback command?_",
+      "condition": null,
+      "position": "after:premises"
+    },
+    {
+      "id": "environment-variables",
+      "title": "Environment Variables",
+      "placeholder": "_Every new env var: name, purpose, required vs optional, example value, which environments need it. Add to deploy config, .env.example, and README if user-facing._",
+      "condition": null,
+      "position": "after:premises"
+    },
+    {
+      "id": "staging-verification",
+      "title": "Staging Verification",
+      "placeholder": "_Steps to verify on staging before production: deploy command, smoke test steps, health check endpoint, expected output. 'Works on my machine' is not staging verification._",
+      "condition": null,
+      "position": "after:premises"
+    }
+  ],
+  "reminders": [
+    "Deploy config first: if the change requires a new environment variable, a new service, a new deploy target, or a changed build command — the config must be updated BEFORE the code ships.",
+    "Staging verification: the change must be deployed to staging and manually verified before production. 'Works on my machine' is not staging verification.",
+    "Environment variable audit: every new env var must be documented (name, purpose, required vs optional, example value) and added to the deploy config, the local .env.example, and the README if user-facing.",
+    "Health check: after deploy, the first action is to verify the health endpoint responds correctly. Do not declare deploy success until the health check passes.",
+    "Rollback plan: every deploy needs a documented rollback plan. What command reverts to the previous version? How long does rollback take? What data mutations need to be reversed?"
+  ],
+  "acceptanceCriteria": [
+    "Deploy platform detected and config file present (fly.toml / render.yaml / vercel.json / netlify.toml / etc.)",
+    "All new environment variables documented and added to deploy config",
+    "Staging deployment successful and manually verified",
+    "Health check passes after staging deploy",
+    "Rollback plan documented",
+    "No hardcoded staging/production URLs in application code"
+  ],
+  "lifecycle": {
+    "stage": "deploy"
+  }
+}

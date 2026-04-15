@@ -1,0 +1,108 @@
+{
+  "id": "developer-experience",
+  "name": "Developer Experience",
+  "description": "APIs and CLIs are products. Time-To-Hello-World is the north star metric. Friction at any step is a bug. Progressive disclosure, sensible defaults, and honest error messages are non-negotiable.",
+  "extras": [
+    {
+      "questionId": "user_impact",
+      "text": "What is the Time-To-Hello-World (TTHW) for a developer using this for the first time? How many steps from install to first success? Set a target: <5 minutes for simple APIs, <15 minutes for complex ones."
+    },
+    {
+      "questionId": "ambition",
+      "text": "What does 'zero friction' look like for this API/CLI? What would you cut if you could only ship the thing that delivers value in one command?"
+    },
+    {
+      "questionId": "verification",
+      "text": "How will you measure TTHW? Will you do a fresh-install walkthrough before marking done? Name the specific steps."
+    },
+    {
+      "questionId": "status_quo",
+      "text": "What is the current TTHW? Where do developers get stuck today? Name the top 3 friction points."
+    }
+  ],
+  "specSections": [
+    {
+      "id": "developer-onboarding",
+      "title": "Developer Onboarding",
+      "placeholder": "_Walk through the developer journey: install → first run → first success. List every step. Set a TTHW target (<5 min for simple APIs, <15 min for complex ones). Document every friction point._",
+      "condition": null,
+      "position": "after:user-impact"
+    },
+    {
+      "id": "api-ergonomics",
+      "title": "API Ergonomics",
+      "placeholder": "_Review every public function, method, parameter, flag, and config key. Are names self-explanatory without docs? Breaking changes have before/after migration examples?_",
+      "condition": null,
+      "position": "after:user-impact"
+    },
+    {
+      "id": "tthw-benchmark",
+      "title": "TTHW Benchmark",
+      "placeholder": "_Count the exact number of steps from `git clone` to first successful output. Score: 1-3 steps = excellent, 4-6 = acceptable, 7+ = problematic. List every step and flag any that require reading docs._",
+      "condition": null,
+      "position": "after:user-impact"
+    }
+  ],
+  "reminders": [
+    "DX Principle 1: Every breaking change must have a migration guide. Before/after code examples required.",
+    "DX Principle 2: Simple things simple, complex things possible. Progressive disclosure — the first example should be 3 lines, not 30.",
+    "DX Principle 3: Honest errors. When a developer does something wrong, the error message must tell them what to do — not what the system did internally.",
+    "DX Principle 4: Golden path first. The most common use case should work with the fewest steps. Optimize for that path.",
+    "DX Principle 5: Defaults should be production-ready, not just convenient. A developer who never reads docs should still end up with a secure, correct configuration.",
+    "DX Principle 6: Don't add friction to the happy path to handle edge cases. Edge cases get docs, not required configuration.",
+    "DX Principle 7: Every new config option must justify its existence. Configuration is debt. Ask: can we make this automatic?",
+    "Boomerang test: send a developer away with your API and ask them to complete a task without help. If they get stuck, that's a bug — not a documentation gap."
+  ],
+  "acceptanceCriteria": [
+    "TTHW documented: how many steps from install to first success, with a target of <5 min for simple APIs",
+    "Fresh-install walkthrough completed: clone → install → run → first success without undocumented steps",
+    "Every new config option has a sensible default — no required configuration for the happy path",
+    "Every error message tells the developer what to do, not just what went wrong",
+    "Breaking changes have before/after migration examples",
+    "All public API names are self-explanatory — no abbreviations, no internal jargon"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "tthw-measurement",
+      "label": "Time-To-Hello-World",
+      "prompt": "Count the exact number of steps from `git clone` to first successful output. Include: installs, config, environment variables, auth setup, first API call or CLI run. Score: 1-3 steps = excellent, 4-6 = acceptable, 7+ = problematic. List every step and flag any that require reading docs or guessing.",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "progressive-disclosure",
+      "label": "Progressive Disclosure",
+      "prompt": "Can a developer do the simplest thing in 3 lines of code? Does complexity only appear when needed? Review the README, getting started guide, and API docs: is the first example minimal? Is advanced configuration buried appropriately, not front-loaded? Score the progressive disclosure quality 0-10.",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "error-messages-dx",
+      "label": "Error Message Quality (DX)",
+      "prompt": "Find every error a developer might encounter during setup or first use. For each: does it say what went wrong, why, AND what to do? Does it point to the right docs section? Can a developer fix the issue without leaving their terminal? Flag any error that says 'invalid' without saying what valid looks like.",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "api-naming",
+      "label": "API Naming & Ergonomics",
+      "prompt": "Review every public function, method, parameter, flag, and config key. Are names self-explanatory without docs? Are boolean parameters avoided in favor of named enums? Are similar operations named consistently? Would a developer using a competing tool find the API intuitive?",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "breaking-change-migration",
+      "label": "Breaking Change Migration Path",
+      "prompt": "List every breaking change in this diff: renamed functions, changed parameter types, removed options, changed defaults, modified CLI flags. For each: is there a migration guide with before/after code examples? Is the change announced in CHANGELOG with the version? Is there a deprecation period?",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "dx-defaults",
+      "label": "Default Configuration Safety",
+      "prompt": "For every default value introduced or changed: what does a developer get if they never read the docs? Is the default secure? Is it production-appropriate? Is it consistent with community conventions for this language/framework? List each default and rate it: safe/acceptable/risky.",
+      "evidenceRequired": false,
+      "scope": "api"
+    }
+  ]
+}

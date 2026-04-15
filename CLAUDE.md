@@ -49,12 +49,12 @@ provides everything via JSON.
 
 ### Protocol
 
-    deno task cli nos spec <name> next                           # get instruction
-    deno task cli nos spec <name> next --answer="response"       # submit and advance
-    deno task cli nos spec new "description"                     # create spec (name auto-generated)
+    deno task cli noskills spec <name> next                           # get instruction
+    deno task cli noskills spec <name> next --answer="response"       # submit and advance
+    deno task cli noskills spec new "description"                     # create spec (name auto-generated)
 
-Every spec command MUST include `spec <name>`. Use `deno task cli nos spec list`
-for available specs.
+Every spec command MUST include `spec <name>`. Use
+`deno task cli noskills spec list` for available specs.
 
 ### Core rules
 
@@ -74,7 +74,7 @@ for available specs.
 - Use AskUserQuestion for `interactiveOptions`. Use `commandMap` to resolve
   selections.
 - On recurring patterns or corrections: ask 'Permanent rule?' →
-  `deno task cli nos rule add "description"`.
+  `deno task cli noskills rule add "description"`.
 
 ### Git
 
@@ -83,9 +83,26 @@ checkout, etc.).
 
 ### Discovery
 
-Modes: full (default), validate, technical-depth, ship-fast, explore. Pre-scan
-codebase before questions. Challenge premises. Propose alternatives. With
---from-plan: extract answers, present for user confirmation.
+Listen first: after spec creation, ask user to share context before mode
+selection. Modes: full (default), validate, technical-depth, ship-fast, explore.
+Pre-scan codebase before questions. Challenge premises. Propose alternatives.
+With --from-plan: extract answers, present for user confirmation.
+
+### Mode Management
+
+noskills manages Claude Code plan mode transitions automatically. Follow the
+`modeDirective` field in each `noskills next` output.
+
+| Phase                                          | Mode                                               |
+| ---------------------------------------------- | -------------------------------------------------- |
+| IDLE                                           | plan mode optional — no active spec                |
+| DISCOVERY, DISCOVERY_REFINEMENT, SPEC_PROPOSAL | **plan mode** — read-only, no file edits           |
+| EXECUTING                                      | **normal mode** — full write access for sub-agents |
+| BLOCKED                                        | **plan mode** — analyze the blocker, do not edit   |
+| COMPLETED                                      | plan mode optional                                 |
+
+Non-Claude-Code platforms: `modeDirective` is advisory. Hooks enforce file
+restrictions mechanically.
 
 ### Execution
 

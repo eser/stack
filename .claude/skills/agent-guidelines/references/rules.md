@@ -9,7 +9,7 @@ Scope: Writing code within a single package
 Rule: Stay within one package per task. Follow package conventions from `eserstack-monorepo` skill.
 
 Responsibilities:
-- Write code within `pkg/@eser/<name>/` or `pkg/@cool/<name>/`
+- Write code within `pkg/@eserstack/<name>/` or `pkg/@cool/<name>/`
 - Run `deno task validate` after changes
 - Follow package conventions (mod.ts entry, license headers, kebab-case)
 - Write tests for new functionality
@@ -49,18 +49,18 @@ Rule: Each area has specific concerns. Respect ownership boundaries.
 
 | Area | Owner Concern |
 |------|--------------|
-| `pkg/@eser/fp/` | Functional programming — pure functions, immutability |
-| `pkg/@eser/di/` | Dependency injection — container patterns |
-| `pkg/@eser/cli/` | CLI tool — also the npm publishing target |
-| `pkg/@eser/laroux*/` | Framework — server, bundler, React integration |
-| `pkg/@eser/standards/` | Cross-platform abstractions — **high impact, change carefully** |
-| `pkg/@eser/config/` | Configuration management — dotenv, file loaders |
-| `pkg/@eser/events/` | Event system — pub/sub patterns |
-| `pkg/@eser/shell/` | Shell interaction — args, exec, env, completions |
-| `apps/services/pkg/api/business/` | Go business logic — pure domain, no external deps |
-| `apps/services/pkg/api/adapters/` | Go adapters — external integrations |
-| `apps/services/cmd/` | Go entry points — server, CLI |
-| `apps/services/Makefile` | Go build targets — test in branch |
+| `pkg/@eserstack/fp/` | Functional programming — pure functions, immutability |
+| `pkg/@eserstack/di/` | Dependency injection — container patterns |
+| `pkg/@eserstack/cli/` | CLI tool — also the npm publishing target |
+| `pkg/@eserstack/laroux*/` | Framework — server, bundler, React integration |
+| `pkg/@eserstack/standards/` | Cross-platform abstractions — **high impact, change carefully** |
+| `pkg/@eserstack/config/` | Configuration management — dotenv, file loaders |
+| `pkg/@eserstack/events/` | Event system — pub/sub patterns |
+| `pkg/@eserstack/shell/` | Shell interaction — args, exec, env, completions |
+| `apps/ajan/pkg/api/business/` | Go business logic — pure domain, no external deps |
+| `apps/ajan/pkg/api/adapters/` | Go adapters — external integrations |
+| `apps/ajan/cmd/` | Go entry points — server, CLI |
+| `apps/ajan/Makefile` | Go build targets — test in branch |
 | `etc/templates/` | Project templates — validate after changes |
 | `.github/workflows/` | CI/CD — test in a branch before merging |
 | `.claude/skills/` | AI guidance — update when conventions change |
@@ -99,10 +99,10 @@ Scope: Actions requiring explicit approval
 
 Rule: Get user confirmation before proceeding with these actions.
 
-- Cross-package dependency changes (adding imports between `@eser/*` packages)
+- Cross-package dependency changes (adding imports between `@eserstack/*` packages)
 - Adding new external dependencies (JSR or npm packages)
 - Modifying CI/CD workflows (`.github/workflows/`)
-- Schema changes in `@eser/standards` (affects all packages)
+- Schema changes in `@eserstack/standards` (affects all packages)
 - Changes to publishing configuration (deno.json exports, publish fields)
 - Removing or deprecating public API functions
 
@@ -121,13 +121,13 @@ Rule: These must be done before considering work complete.
 - Use explicit file extensions in imports (`.ts`, `.tsx`)
 - Keep functions pure when possible (side effects at the edges)
 - Use `@std/*` for standard library imports
-- Use `@eser/*` for internal package imports
+- Use `@eserstack/*` for internal package imports
 
 ---
 
 ## Cross-Package Change Protocol
 
-Scope: Changes that span multiple `@eser/*` packages
+Scope: Changes that span multiple `@eserstack/*` packages
 
 Rule: Follow this 5-step protocol. Never skip steps.
 
@@ -135,16 +135,16 @@ Rule: Follow this 5-step protocol. Never skip steps.
 
 2. **Plan** — List all affected packages and describe the change in each:
    ```
-   @eser/standards: Add new Runtime interface method
-   @eser/config: Implement the new method
-   @eser/cli: Use the new method
+   @eserstack/standards: Add new Runtime interface method
+   @eserstack/config: Implement the new method
+   @eserstack/cli: Use the new method
    ```
 
 3. **Order** — Change dependencies before dependents:
-   - Layer 0 (`@eser/standards`) first
+   - Layer 0 (`@eserstack/standards`) first
    - Then Layer 1-2 (utilities, infrastructure)
    - Then Layer 3 (framework)
-   - Then Layer 4 (`@eser/cli`) last
+   - Then Layer 4 (`@eserstack/cli`) last
 
 4. **Test** — Run `deno task validate` after ALL changes (validates entire monorepo)
 
@@ -158,9 +158,9 @@ Rule: Follow this 5-step protocol. Never skip steps.
 |-----------|-----------|
 | Runtime | Deno 2.x (TS primary), Go 1.24+ (services), Node.js (npm publishing only) |
 | Language | TypeScript (strict mode), Go |
-| Package Registry | JSR (primary), npm (secondary — only `@eser/cli`) |
+| Package Registry | JSR (primary), npm (secondary — only `@eserstack/cli`) |
 | Testing | `@std/assert`, `@std/testing` from Deno standard library |
 | Linting | Deno built-in linter with 23 custom rules |
 | Formatting | Deno built-in formatter |
 | CI/CD | GitHub Actions with Codecov coverage |
-| @eser/codebase | 20+ hooks including validation, kebab-case, typos, conventional commits |
+| @eserstack/codebase | 20+ hooks including validation, kebab-case, typos, conventional commits |

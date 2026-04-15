@@ -1,0 +1,193 @@
+{
+  "id": "well-engineered",
+  "name": "Well-Engineered",
+  "description": "Engineering craftsmanship. Performance is measured, not assumed. Tests are strategic, not ceremonial. Errors are helpful, not cryptic. Security is a design constraint, not a checklist. Observability is built-in, not bolted on. The system is debuggable by someone who didn't write it.",
+  "extras": [
+    {
+      "questionId": "verification",
+      "text": "What's the test strategy? Which layer (unit/integration/e2e) covers which behavior? What's explicitly NOT worth testing?"
+    },
+    {
+      "questionId": "status_quo",
+      "text": "Are there known performance bottlenecks, missing logs, security concerns, or confusing error messages in the area you're changing?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "If a developer encounters an error from this code at 3am — will the error message tell them the problem, the cause, and the fix?"
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "Does this change introduce new inputs, new trust boundaries, or new attack surface? What's the threat model?"
+    },
+    {
+      "questionId": "user_impact",
+      "text": "What's the Time-To-Hello-World for a developer using this for the first time? How many steps from install to first success?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "test-strategy",
+      "title": "Test Strategy",
+      "placeholder": "_Map every new behavior to a test layer: Unit (pure logic), Integration (boundaries, real deps), E2E (critical user flows). Name the specific test files. List explicitly what is NOT worth testing._",
+      "condition": null,
+      "position": "after:verification-strategy"
+    },
+    {
+      "id": "performance-considerations",
+      "title": "Performance Considerations",
+      "placeholder": "_For every new codepath: time complexity, any N+1 queries, missing indexes, unbounded memory growth. Measure, do not guess. Include benchmark numbers where applicable._",
+      "condition": null,
+      "position": "after:verification-strategy"
+    },
+    {
+      "id": "observability-plan",
+      "title": "Observability Plan",
+      "placeholder": "_For every new codepath: structured logging at entry/exit, latency metrics, trace ID propagation, alert tiers. If a page is not in a dashboard, it does not exist in production._",
+      "condition": null,
+      "position": "after:verification-strategy"
+    },
+    {
+      "id": "error-handling",
+      "title": "Error Handling",
+      "placeholder": "_For every error path: what does the error message contain (problem, cause, remediation)? Is it logged with enough context to debug at 3am without reading source code?_",
+      "condition": null,
+      "position": "after:verification-strategy"
+    },
+    {
+      "id": "security-threat-model",
+      "title": "Security & Threat Model",
+      "placeholder": "_What are the trust boundaries? Where does untrusted input enter? What could an attacker do — injection, privilege escalation, data exfiltration, DoS? For every new endpoint: who can access it?_",
+      "condition": null,
+      "position": "after:verification-strategy"
+    },
+    {
+      "id": "developer-ergonomics",
+      "title": "Developer Ergonomics",
+      "placeholder": "_After this change: does `git clone && install && run` still work without manual steps? Any new env vars or services? What is the Time-To-Hello-World for a new developer?_",
+      "condition": null,
+      "position": "after:verification-strategy"
+    }
+  ],
+  "conductRules": {
+    "DISCOVERY": [
+      "For every change touching shared state, ask about failure modes and recovery paths explicitly.",
+      "For every async operation, ask about timeouts, cancellation, and partial-failure semantics."
+    ]
+  },
+  "reminders": [
+    "Every error message should contain: what went wrong, why, and what to do about it. 'Something went wrong' is never acceptable.",
+    "Test at the right level: unit for logic, integration for boundaries, e2e for critical paths. More tests is better than fewer — but pointless tests are noise.",
+    "Performance claims need evidence: run the benchmark, check the query plan, measure the memory. 'Should be fast' is not engineering.",
+    "Every new codepath must be observable: structured log at entry/exit, metric for latency, trace ID for correlation. If you can't see it in production, it doesn't exist.",
+    "Escape hatches: every opinionated default should be overridable via config, env var, or parameter. Don't trap users.",
+    "Every user input is hostile until validated. Validate at system boundaries, not deep inside business logic.",
+    "Never log secrets, tokens, passwords, or PII. Check log output for accidental exposure.",
+    "New endpoints need auth/authz. Default to deny.",
+    "Progressive disclosure: simple things simple, complex things possible. Don't front-load complexity.",
+    "REGRESSION IRON LAW: NEVER fix a bug without first writing a failing test that reproduces it. Red → Green → Refactor. No exceptions. A fix without a reproduction test will recur.",
+    "Make the change easy, then make the easy change (Beck). Separate refactoring PRs from feature PRs. Never refactor and feature in the same commit.",
+    "Confidence calibration: when making a claim ('this is secure', 'this is fast', 'this handles edge cases'), provide a 1-10 confidence score with explicit basis: '7/10 because X is tested but Y is not verified under load'. Overconfidence is a bug.",
+    "TEST FRAMEWORK DETECTION: before writing tests, check what framework is already in use (Deno/Jest/pytest/Go test/etc.). Don't introduce a second test runner. Match the existing style (describe/it vs. Test/t.Run vs. def test_).",
+    "Engineering cognitive patterns — check before every significant decision: (1) Minimal viable diff: achieve the goal with the fewest changes. (2) Boring is good: prefer stable, understood tech over novel. (3) Explicit over implicit: name your assumptions. (4) System over heroes: the code should be understandable without knowing the author. (5) Essential vs. accidental complexity: eliminate complexity that doesn't come from the problem itself."
+  ],
+  "acceptanceCriteria": [
+    "Test strategy covers happy path AND failure paths at appropriate layers",
+    "No N+1 queries or obvious performance regressions (evidence required)",
+    "New codepaths have structured logging with trace correlation",
+    "Error messages include problem, cause, and remediation",
+    "All user inputs validated at system boundaries",
+    "No hardcoded secrets or credentials in code",
+    "New endpoints have explicit auth/authz",
+    "Getting started path works end-to-end without undocumented steps",
+    "Every bug fix includes a regression test that was failing before the fix and passing after (Regression Iron Law)"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "test-strategy",
+      "label": "Test Pyramid Strategy",
+      "prompt": "Map every new behavior to a test layer: Unit (pure logic, fast, isolated) | Integration (boundaries, I/O, real deps) | E2E (critical user flows). Flag: untested failure paths, tests that test framework instead of behavior, missing edge cases. Too many tests > too few.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "performance",
+      "label": "Performance Analysis",
+      "prompt": "For every new codepath: What's the time complexity? Any N+1 queries? Missing database indexes? Unbounded memory growth? Unnecessary serialization? Are there hot paths that need caching? Measure, don't guess.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "observability",
+      "label": "Observability & Debuggability",
+      "prompt": "For every new codepath: Is there structured logging at entry and exit? Metrics for latency and error rate? Trace ID propagation? If this breaks at 3am, can oncall diagnose it from dashboards and logs without reading source code? What alerts should fire?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "error-quality",
+      "label": "Error Message Quality",
+      "prompt": "Find every error message, exception, and user-facing failure in this change. For each: does it state the PROBLEM (what happened), CAUSE (why), and FIX (what to do)? Does it include enough context to debug (IDs, paths, values)? Would a user or developer at 3am understand it without reading source code?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "threat-model",
+      "label": "Threat Model & Security",
+      "prompt": "What are the trust boundaries in this change? Where does untrusted input enter? What could an attacker do — injection (SQL, XSS, command), privilege escalation, data exfiltration, denial of service? For every new endpoint: who can access it? Is authorization checked at the right layer (not just UI)?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "input-validation",
+      "label": "Input Validation Audit",
+      "prompt": "Find every point where external data enters the system (HTTP params, file uploads, env vars, webhook payloads, user-controlled DB fields). For each: what validation exists? Maximum size/length? Types enforced? Sanitized before rendering (XSS) or query construction (injection)?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "secrets-lifecycle",
+      "label": "Secrets & Credentials",
+      "prompt": "What secrets does this change use or introduce (API keys, tokens, passwords, encryption keys)? Where stored? How rotated? Ever logged, serialized to JSON, or included in error messages? Dependencies: any new ones with known CVEs?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "escape-hatches",
+      "label": "Escape Hatches & Overridability",
+      "prompt": "List every opinionated default introduced by this change (timeouts, limits, formats, behaviors). For each: can the user override it? Via config, env var, or parameter? If not — should they be able to? Every opinion needs an escape hatch.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "dev-friction",
+      "label": "Developer Environment & Onboarding",
+      "prompt": "After this change: does `git clone && install && run` still work without manual steps? Any new env vars, services, or tools required? What's the Time-To-Hello-World? Is the dev setup documented? Would a new team member be blocked?",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "api-ergonomics",
+      "label": "API/CLI Ergonomics",
+      "prompt": "Review every public API method, CLI command, and config option touched by this change. Names self-explanatory? Defaults sensible? Progressive disclosure working (simple things simple, complex things possible)? Breaking changes have migration guide with before/after?",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "regression-coverage",
+      "label": "Regression Coverage",
+      "prompt": "For every bug fix in this change: is there a test that was RED before the fix and GREEN after? For every behavior change: is there a test that pins the new behavior? If a future refactor silently breaks this, which test will catch it? Name the specific test files and test names.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "confidence-calibration",
+      "label": "Confidence Calibration",
+      "prompt": "Rate your overall confidence in the correctness of this change: 1-10. For each major claim made in the implementation ('this handles concurrency', 'this is secure', 'this performs within SLA'): what's your specific confidence score (1-10) and what's the basis? What would it take to raise a 6 to a 9? What's unverified?",
+      "evidenceRequired": false,
+      "scope": "all"
+    }
+  ],
+  "registries": [
+    "test-plan"
+  ]
+}

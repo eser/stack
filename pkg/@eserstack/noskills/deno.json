@@ -1,0 +1,15 @@
+{
+  "name": "@eserstack/noskills",
+  "version": "4.1.56",
+  "exports": {
+    ".": "./main.ts",
+    "./mod": "./mod.ts",
+    "./module": "./module.ts",
+    "./dashboard": "./dashboard/mod.ts",
+    "./persistence": "./state/persistence.ts"
+  },
+  "imports": {
+    "esbuild": "npm:esbuild@^0.24.2",
+    "yaml": "npm:yaml@^2"
+  }
+}

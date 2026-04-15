@@ -2,12 +2,12 @@
 
 ## Package Layout
 
-Scope: All packages under `pkg/@eser/*` and `pkg/@cool/*`
+Scope: All packages under `pkg/@eserstack/*` and `pkg/@cool/*`
 
 Rule: Every package follows a standard directory structure with specific file conventions.
 
 ```
-pkg/@eser/<name>/
+pkg/@eserstack/<name>/
 ├── deno.json          # Package config (name, version, exports, publish)
 ├── mod.ts             # Entry point (barrel exports with license header)
 ├── mod.test.ts        # Entry point tests
@@ -29,7 +29,7 @@ Correct:
 
 ```json
 {
-  "name": "@eser/my-package",
+  "name": "@eserstack/my-package",
   "version": "4.0.43",
   "exports": {
     ".": "./mod.ts"
@@ -44,7 +44,7 @@ Incorrect:
 
 ```json
 {
-  "name": "@eser/my-package",
+  "name": "@eserstack/my-package",
   "version": "1.0.0",
   "exports": "./mod.ts"
 }
@@ -121,23 +121,23 @@ Rule: Use deno tasks defined in root `package.json`. Makefile targets wrap these
 | `eser check` | Type-check all package entry points |
 | `eser lint` | Run linter |
 | `eser fmt` | Run formatter |
-| `eser build` | Build @eser/cli for npm |
+| `eser build` | Build @eserstack/cli for npm |
 | `eser --help` | Show all available commands and scripts |
 
 ---
 
 ## Adding a New Package
 
-Scope: Creating new `@eser/*` packages
+Scope: Creating new `@eserstack/*` packages
 
 Rule: Follow this exact sequence:
 
-1. Create directory: `pkg/@eser/<name>/`
+1. Create directory: `pkg/@eserstack/<name>/`
 2. Create `deno.json` with name, version (matching current root version), exports, publish
 3. Create `mod.ts` with license header and barrel exports
 4. Create `mod.test.ts` with initial tests using `@std/assert`
 5. Create `README.md` with package description, installation, usage
-6. Package is auto-included via `pkg/@eser/*` glob in root `package.json`
+6. Package is auto-included via `pkg/@eserstack/*` glob in root `package.json`
 7. Run `deno task validate` to verify
 
 Template available at: `etc/templates/library-pkg/`
@@ -162,7 +162,7 @@ Incorrect:
 
 ```bash
 # Manually editing one deno.json — breaks synchronization
-vim ./pkg/@eser/fp/deno.json
+vim ./pkg/@eserstack/fp/deno.json
 ```
 
 ---
@@ -174,12 +174,12 @@ vim ./pkg/@eser/fp/deno.json
 | `deno.json` | Root config (lint rules, unstable features, excludes) |
 | `package.json` | npm workspace root, deno task scripts |
 | `.eser/manifest.yml` | Pre-commit hooks (20+ checks) |
-| `pkg/@eser/*/deno.json` | Per-package TS config |
-| `pkg/@eser/*/mod.ts` | TS package entry points |
-| `apps/services/go.mod` | Go module definition + tool directives |
-| `apps/services/Makefile` | Go-specific build targets |
-| `apps/services/.golangci.yaml` | Go linting configuration |
-| `pkg/@eser/codebase/versions.ts` | Synchronized TS version bumping |
+| `pkg/@eserstack/*/deno.json` | Per-package TS config |
+| `pkg/@eserstack/*/mod.ts` | TS package entry points |
+| `apps/ajan/go.mod` | Go module definition + tool directives |
+| `apps/ajan/Makefile` | Go-specific build targets |
+| `apps/ajan/.golangci.yaml` | Go linting configuration |
+| `pkg/@eserstack/codebase/versions.ts` | Synchronized TS version bumping |
 | `etc/templates/library-pkg/` | New TS package template |
 | `etc/templates/go-service/` | New Go service template |
 | `Makefile` | Unified command interface (Deno + Go) |
@@ -188,12 +188,12 @@ vim ./pkg/@eser/fp/deno.json
 
 ## Go Package Layout
 
-Scope: Go services under `apps/services/`
+Scope: Go services under `apps/ajan/`
 
-Rule: Go services live in `apps/services/` with independent git-tag versioning. They do NOT participate in the unified TS version-bump script.
+Rule: Go services live in `apps/ajan/` with independent git-tag versioning. They do NOT participate in the unified TS version-bump script.
 
 ```
-apps/services/
+apps/ajan/
 ├── go.mod                          # Module definition + tool directives
 ├── go.sum
 ├── Makefile                        # Go targets: ok, check, lint, fix, test, build
@@ -209,9 +209,9 @@ apps/services/
         └── business/               # Pure business logic (no external deps)
 ```
 
-**Go module path:** `github.com/eser/stack/apps/services`
+**Go module path:** `github.com/eser/stack/apps/ajan`
 
-**Go versioning:** Uses git tags (e.g., `apps/services/v0.1.0`), NOT the unified version-bump script.
+**Go versioning:** Uses git tags (e.g., `apps/ajan/v0.1.0`), NOT the unified version-bump script.
 
 ---
 
@@ -226,7 +226,7 @@ Scope: Go development workflow
 | `make go-lint` | Run golangci-lint |
 | `make go-fmt` | Auto-fix Go formatting |
 | `make go-build` | Build Go binaries |
-| `cd apps/services && make ok` | Same as `make go-ok` |
+| `cd apps/ajan && make ok` | Same as `make go-ok` |
 
 ---
 
@@ -236,11 +236,11 @@ Scope: Adding new business logic to Go services
 
 Rule: Follow hexagonal architecture — business logic has zero external dependencies.
 
-1. Create directory: `apps/services/pkg/api/business/<domain>/`
+1. Create directory: `apps/ajan/pkg/api/business/<domain>/`
 2. Define interfaces (ports) for external interactions
 3. Implement pure business logic with no imports outside stdlib
-4. Create adapters in `apps/services/pkg/api/adapters/` for external implementations
-5. Wire in composition root (`apps/services/pkg/api/adapters/appcontext/`)
+4. Create adapters in `apps/ajan/pkg/api/adapters/` for external implementations
+5. Wire in composition root (`apps/ajan/pkg/api/adapters/appcontext/`)
 6. Run `make go-ok` to validate
 
 See `go-practices` skill for detailed conventions.
@@ -256,5 +256,5 @@ Rule: Templates are excluded from linting/formatting via `deno.json` excludes.
 Available templates:
 - `laroux-app/` — Full framework app with TypeScript, Tailwind
 - `jsx-runtime-app/` — JSX runtime test app
-- `library-pkg/` — New `@eser/*` package starter (with placeholders)
+- `library-pkg/` — New `@eserstack/*` package starter (with placeholders)
 - `go-service/` — Go service with hexagonal architecture

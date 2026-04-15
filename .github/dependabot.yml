@@ -19,7 +19,7 @@ updates:
           - "*"
 
   - package-ecosystem: "gomod"
-    directory: "/apps/services"
+    directory: "/"
     schedule:
       interval: "weekly"
     commit-message:

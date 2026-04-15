@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@eser/standards": "workspace:*"
+    "@eserstack/standards": "workspace:*"
   }
 }

@@ -31,7 +31,7 @@
         { "source": "recipes/fp-pipe/pipe.ts", "target": "lib/fp/pipe.ts" }
       ],
       "dependencies": {
-        "jsr": ["jsr:@eser/fp@^4.1.0"]
+        "jsr": ["jsr:@eserstack/fp@^4.1.0"]
       }
     },
     {
@@ -100,7 +100,11 @@
         }
       ],
       "dependencies": {
-        "npm": ["@eser/laroux", "@eser/laroux-server", "@eser/laroux-react"]
+        "npm": [
+          "@eserstack/laroux",
+          "@eserstack/laroux-server",
+          "@eserstack/laroux-react"
+        ]
       }
     },
     {

@@ -1,0 +1,73 @@
+{
+  "id": "documented",
+  "name": "Documented",
+  "description": "Documentation is not a post-ship task. It is part of the definition of done. If a feature ships without documentation, it does not exist for the user who finds it six months later. Every public API change, every CLI flag change, every behavior change needs a corresponding documentation update. The diff in code must have a diff in docs.",
+  "extras": [
+    {
+      "questionId": "user_impact",
+      "text": "If a developer discovers this feature without talking to you, what do they need to know? What is the minimum documentation they would need to use it correctly?"
+    },
+    {
+      "questionId": "verification",
+      "text": "Which documentation files need to change as a result of this work? Name each file. What sections will be added, changed, or removed?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "documentation-updates",
+      "title": "Documentation Updates",
+      "placeholder": "_Name every documentation file that changes as a result of this work. For each: what sections are added, changed, or removed? The diff in code must have a diff in docs._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "api-documentation",
+      "title": "API Documentation",
+      "placeholder": "_For every public API surface changed: updated function signatures, parameter descriptions, return types, and runnable code examples. Before/after examples for breaking changes._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "user-guide-changes",
+      "title": "User Guide Changes",
+      "placeholder": "_What does the user-facing guide say about this feature? Which getting-started steps change? Is the README accurate for install, config, and first-run after this change?_",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    }
+  ],
+  "reminders": [
+    "Every public API change needs a documentation update. New function, new parameter, changed behavior, changed default — update the docs before marking done.",
+    "CHANGELOG is documentation: every user-visible change must appear in CHANGELOG.md with the version, a one-line description, and a link to the relevant issue or PR.",
+    "README accuracy: if you changed how the project is installed, configured, or run, update the README. Stale README instructions are a DX failure.",
+    "Inline code comments explain WHY, not WHAT: the code explains what. Comments explain why a non-obvious choice was made. If you wrote something unusual, leave a comment that future-you will thank you for.",
+    "Migration guides for breaking changes: if any existing user would need to change their code to upgrade, write a before/after example. 'See CHANGELOG' is not a migration guide.",
+    "API reference sync: if the project has generated or maintained API reference documentation, verify it reflects the new state after this change."
+  ],
+  "acceptanceCriteria": [
+    "All changed public APIs have updated documentation (function signatures, parameters, return types, examples)",
+    "CHANGELOG updated with user-visible changes, version, and description",
+    "README accurate for install, config, and first-run steps",
+    "Breaking changes have before/after migration examples",
+    "No stale documentation describing behavior that no longer exists",
+    "Inline comments added where non-obvious choices were made"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "docs-diff-sync",
+      "label": "Documentation-to-Code Diff Sync",
+      "prompt": "For every public API surface changed in this diff (functions, methods, parameters, CLI flags, config keys, environment variables, HTTP endpoints): is there a corresponding documentation update? Find the doc file. Check the section. Confirm it reflects the new state. Flag any public change that has no documentation counterpart.",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "changelog-quality",
+      "label": "CHANGELOG Entry Quality",
+      "prompt": "Does the CHANGELOG have an entry for this change? Is it under the correct version? Does the entry describe the change from the user's perspective (not the implementation perspective)? Does it include migration instructions for any breaking change?",
+      "evidenceRequired": true,
+      "scope": "all"
+    }
+  ],
+  "lifecycle": {
+    "stage": "document"
+  }
+}

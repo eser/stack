@@ -1,0 +1,16 @@
+{
+  "name": "@eserstack/posts",
+  "version": "4.1.56",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./domain": "./domain/mod.ts",
+    "./ports": "./ports/mod.ts",
+    "./application": "./application/mod.ts"
+  },
+  "dependencies": {
+    "@eserstack/functions": "workspace:*",
+    "@eserstack/httpclient": "workspace:*",
+    "@eserstack/primitives": "workspace:*"
+  }
+}

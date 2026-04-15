@@ -314,7 +314,7 @@ deno task build        # Build for production
 **Backend Quality Gates:**
 
 ```bash
-# In /apps/services directory
+# In /apps/ajan directory
 make check            # Run static analysis tools
 make lint             # Run linting
 make fix              # Fix formatting and linting issues

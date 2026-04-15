@@ -36,15 +36,15 @@ body:
       label: Related Package
       description: Which package does this relate to?
       options:
-        - "@eser/fp"
-        - "@eser/di"
-        - "@eser/events"
-        - "@eser/config"
-        - "@eser/cli"
-        - "@eser/standards"
-        - "@eser/laroux"
-        - "@eser/shell"
-        - "@eser/http"
+        - "@eserstack/fp"
+        - "@eserstack/di"
+        - "@eserstack/events"
+        - "@eserstack/config"
+        - "@eserstack/cli"
+        - "@eserstack/standards"
+        - "@eserstack/laroux"
+        - "@eserstack/shell"
+        - "@eserstack/http"
         - "Go services"
         - "Other / Multiple"
 

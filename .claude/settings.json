@@ -73,7 +73,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "deno task cli nos invoke-hook pre-tool-use",
+            "command": "deno task cli noskills invoke-hook pre-tool-use",
             "timeout": 5
           }
         ]
@@ -85,7 +85,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "deno task cli nos invoke-hook post-file-write",
+            "command": "deno task cli noskills invoke-hook post-file-write",
             "timeout": 3
           }
         ]
@@ -95,7 +95,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "deno task cli nos invoke-hook post-bash",
+            "command": "deno task cli noskills invoke-hook post-bash",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "deno task cli noskills invoke-hook post-ask-user-question",
             "timeout": 3
           }
         ]
@@ -106,7 +116,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "deno task cli nos invoke-hook stop",
+            "command": "deno task cli noskills invoke-hook stop",
             "timeout": 10
           }
         ]
@@ -117,7 +127,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "deno task cli nos invoke-hook session-start",
+            "command": "deno task cli noskills invoke-hook session-start",
             "timeout": 5
           }
         ]

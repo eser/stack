@@ -1,0 +1,39 @@
+{
+  "id": "security-audit",
+  "name": "Security Audit",
+  "description": "Security-focused review for every spec",
+  "extras": [
+    {
+      "questionId": "verification",
+      "text": "Has the change been reviewed for injection, XSS, CSRF, and auth bypass?"
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "What security boundaries must NOT be crossed?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "security-review",
+      "title": "Security Review",
+      "placeholder": "_Summarize the security review: injection (SQL/XSS/command), auth bypass, CSRF, hardcoded secrets, missing input validation. File:line reference for each finding. CRITICAL findings block merge._",
+      "condition": null,
+      "position": "after:scope-boundary"
+    }
+  ],
+  "conductRules": {
+    "DISCOVERY": [
+      "For any auth or session question, ask about token storage, expiry, rotation, and revocation — all four.",
+      "For any input that crosses a trust boundary, ask about validation and sanitization strategy.",
+      "Surface threat-model implications proactively — do not wait for the user to ask."
+    ]
+  },
+  "reminders": [
+    "Check for hardcoded secrets, unsanitized input, and missing auth checks"
+  ],
+  "acceptanceCriteria": [
+    "No hardcoded secrets",
+    "All user input validated",
+    "Auth checks present on protected routes"
+  ]
+}

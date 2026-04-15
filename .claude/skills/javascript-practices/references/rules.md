@@ -37,14 +37,14 @@ collisions and make the source of every symbol explicit. This is a strict
 convention — violations will be caught in review.
 
 This only exception is:
-- `import { runtime } from "@eser/standards/cross-runtime";`
+- `import { runtime } from "@eserstack/standards/cross-runtime";`
 
 Correct:
 
 ```typescript
 import * as path from "@std/path";
 import * as fs from "@std/fs";
-import * as shellFormatting from "@eser/shell/formatting";
+import * as shellFormatting from "@eserstack/shell/formatting";
 
 const filePath = path.join(dir, "config.ts");
 const exists = await fs.exists(filePath);
@@ -56,21 +56,21 @@ Incorrect:
 ```typescript
 import { join, resolve } from "@std/path";        // ❌ named import
 import { copy, exists } from "@std/fs";            // ❌ named import
-import { createOutput } from "@eser/shell/formatting"; // ❌ named import
+import { createOutput } from "@eserstack/shell/formatting"; // ❌ named import
 
 const filePath = join(dir, "config.ts"); // potential collision with other 'join'
 ```
 
 **Consolidated package imports:**
-When a package has namespace sub-module exports in its `mod.ts` (like `@eser/shell`,
-`@eser/primitives`, `@eser/functions`, `@eser/standards`), import the top-level
+When a package has namespace sub-module exports in its `mod.ts` (like `@eserstack/shell`,
+`@eserstack/primitives`, `@eserstack/functions`, `@eserstack/standards`), import the top-level
 package and access sub-modules via dot notation:
 
 ```typescript
-import * as shell from "@eser/shell";
-import * as primitives from "@eser/primitives";
-import * as functions from "@eser/functions";
-import { runtime } from "@eser/standards/cross-runtime";
+import * as shell from "@eserstack/shell";
+import * as primitives from "@eserstack/primitives";
+import * as functions from "@eserstack/functions";
+import { runtime } from "@eserstack/standards/cross-runtime";
 
 const output = shell.formatting.createOutput();
 const result = primitives.results.ok(value);
@@ -82,9 +82,9 @@ Do NOT import sub-modules individually when the root exports them:
 
 ```typescript
 // ❌ Separate sub-module imports
-import * as shellFormatting from "@eser/shell/formatting";
-import * as shellExec from "@eser/shell/exec";
-import type * as shellArgs from "@eser/shell/args";
+import * as shellFormatting from "@eserstack/shell/formatting";
+import * as shellExec from "@eserstack/shell/exec";
+import type * as shellArgs from "@eserstack/shell/args";
 ```
 
 **Naming convention for namespace aliases:**
@@ -132,8 +132,8 @@ Correct:
 
 ```typescript
 // Consumer imports directly from the specific module
-import { getCommits } from "@eser/codebase/git";
-import { discoverPackages } from "@eser/codebase/workspace-discovery";
+import { getCommits } from "@eserstack/codebase/git";
+import { discoverPackages } from "@eserstack/codebase/workspace-discovery";
 ```
 
 ```typescript
@@ -733,15 +733,15 @@ Incorrect:
 
 Scope: Deno projects
 
-Rule: Don't add wrapper scripts for built-in Deno commands. Use `deno lint`,
-`deno fmt`, `deno install --allow-scripts` directly.
+Rule: Don't add wrapper scripts for built-in commands. Use `deno lint`,
+`deno fmt`, `pnpm install` directly.
 
 Correct:
 
 ```bash
 deno lint
 deno fmt
-deno install --allow-scripts
+pnpm install
 ```
 
 Incorrect:
@@ -751,7 +751,7 @@ Incorrect:
   "scripts": {
     "lint": "deno lint",
     "fmt": "deno fmt",
-    "install:deps": "deno install --allow-scripts"
+    "install:deps": "pnpm install"
   }
 }
 ```

@@ -1,0 +1,93 @@
+{
+  "id": "production-ready",
+  "name": "Production Ready",
+  "description": "Production readiness is measured in how fast you can detect and recover from failure — not whether failure is possible. Every system fails. The question is whether you know about it in minutes or days, and whether you can recover in minutes or days. Observability, alerting, and runbooks are not optional. They are the difference between a production system and a production disaster waiting to happen.",
+  "category": "delivery",
+  "extras": [
+    {
+      "questionId": "verification",
+      "text": "What alerts will fire if this feature breaks in production? Who gets paged? What does the runbook say to do first?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "What does a healthy canary look like 24 hours after deploy? What metrics, error rates, and latency numbers would signal that the feature is working correctly?"
+    },
+    {
+      "questionId": "status_quo",
+      "text": "What observability exists today for the area being changed? What gaps will this change introduce? What new metrics, logs, or traces are needed?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "prod-observability-plan",
+      "title": "Observability Plan",
+      "placeholder": "_For every new codepath: structured logging at entry/exit (JSON, with correlation IDs), latency percentiles (P50/P95/P99), trace ID propagation. If it is not in a dashboard, it does not exist._",
+      "condition": null,
+      "position": "after:verification-strategy"
+    },
+    {
+      "id": "alert-tiers",
+      "title": "Alert Tiers",
+      "placeholder": "_For every new codepath: what alert fires if it breaks? Tier: CRITICAL (page immediately), HIGH (page business hours), MEDIUM (ticket 24h), LOW (weekly review). Name the condition and the recipient._",
+      "condition": null,
+      "position": "after:verification-strategy"
+    },
+    {
+      "id": "prod-runbook",
+      "title": "Runbook",
+      "placeholder": "_For every CRITICAL alert: (1) what it means, (2) first diagnostic step, (3) rollback command, (4) who to escalate to. Write this before shipping, not after the first incident._",
+      "condition": null,
+      "position": "after:verification-strategy"
+    },
+    {
+      "id": "canary-criteria",
+      "title": "Canary Criteria",
+      "placeholder": "_24-hour canary verdict: which metrics, at what thresholds, over what window, indicate success vs failure? Example: 'Error rate on /api/checkout < 0.5% for 24h; P99 latency < 800ms; no CRITICAL alerts.'_",
+      "condition": null,
+      "position": "after:verification-strategy"
+    }
+  ],
+  "reminders": [
+    "Alert tiers — every new codepath needs at least one alert: CRITICAL = data loss, security breach, complete service unavailability (page immediately, any time). HIGH = significant degradation, major feature broken (page during business hours). MEDIUM = partial degradation, minor feature broken (ticket within 24h). LOW = cosmetic issue, performance degradation within SLA (log for weekly review).",
+    "Structured logging: every new codepath must emit structured log entries at entry and exit (JSON format, with request ID, user ID if applicable, duration, outcome). No unstructured log.Printf / console.log with interpolated strings.",
+    "Latency percentiles: P50, P95, P99 must be measurable for any new HTTP handler or background job. If you can't measure latency, you can't detect regressions.",
+    "Error rate baseline: establish the pre-deploy error rate for the affected endpoint or job. Post-deploy, the error rate must not exceed the pre-deploy baseline by more than 0.1%.",
+    "Canary criteria: define the 24-hour canary verdict before deploy. What specific metrics, at what thresholds, over what window, would indicate success vs failure? Write the canary criteria in the spec before shipping.",
+    "Runbook: for every CRITICAL alert, there must be a runbook section that describes: (1) what the alert means, (2) the first diagnostic step, (3) the rollback command if needed, (4) who to escalate to."
+  ],
+  "acceptanceCriteria": [
+    "Structured logging added to all new codepaths (JSON format, with correlation IDs)",
+    "At least one alert configured per new codepath (tier assigned: CRITICAL/HIGH/MEDIUM/LOW)",
+    "Latency percentiles (P50/P95/P99) measurable for all new HTTP handlers",
+    "Pre-deploy error rate baseline documented for affected endpoints",
+    "Canary criteria defined: specific metrics, thresholds, and window for 24-hour verdict",
+    "Runbook entry exists for every CRITICAL-tier alert"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "observability-coverage",
+      "label": "Observability Coverage",
+      "prompt": "For every new codepath in the diff: is there structured logging at entry and exit? Does each log entry include correlation IDs (request ID, user ID, trace ID)? Is the outcome (success/failure) logged? Is the duration logged? Would an oncall engineer be able to diagnose a failure using only dashboards and logs, without reading source code?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "alert-coverage",
+      "label": "Alert Coverage",
+      "prompt": "What alerts exist for the new codepaths? For each alert: what tier is it (CRITICAL/HIGH/MEDIUM/LOW)? What condition triggers it? Who receives it? Is there a runbook? Are there any new CRITICAL codepaths with no alert configured?",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "canary-criteria",
+      "label": "Canary Criteria",
+      "prompt": "What are the canary criteria for this change? Name the specific metrics, their thresholds, and the time window for the 24-hour verdict. Example: 'Error rate on /api/checkout < 0.5% for 24 hours; P99 latency < 800ms; no CRITICAL alerts fired'. If canary criteria are not defined, this is a red flag — a deploy without success criteria is a deploy you cannot confidently declare successful.",
+      "evidenceRequired": false,
+      "scope": "all"
+    }
+  ],
+  "dreamStatePrompt": "CANARY VERDICT — 24 hours post-deploy: What do the dashboards show? Error rate on affected endpoints: [X]% (baseline was [Y]%). P99 latency: [X]ms (baseline was [Y]ms). CRITICAL alerts fired: [N]. HIGH alerts fired: [N]. Any unexpected patterns in logs? Any user reports of degradation? Verdict: GO (metrics within spec) or NO-GO (rollback triggered). Write the actual numbers.",
+  "lifecycle": {
+    "stage": "monitor"
+  }
+}

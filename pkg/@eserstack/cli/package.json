@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.16",
-    "esbuild": "^0.27.3"
+    "esbuild": "^0.28.0"
   },
   "optionalDependencies": {
     "@eserstack/ajan-darwin-arm64": "^4.1.47",

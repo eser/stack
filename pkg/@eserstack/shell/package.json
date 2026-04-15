@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@eserstack/standards": "workspace:*",
-    "@xterm/headless": "^5.5.0"
+    "@xterm/headless": "^6.0.0"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.16",

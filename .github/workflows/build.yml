@@ -142,7 +142,7 @@ jobs:
           restore-keys: deno-${{ runner.arch }}-
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -203,7 +203,7 @@ jobs:
 
     steps:
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -383,7 +383,7 @@ jobs:
         run: deno publish
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -610,7 +610,7 @@ jobs:
           path: ajan-npm/
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 

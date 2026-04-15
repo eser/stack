@@ -33,6 +33,11 @@
       "verbatim-module-syntax"
     ]
   },
+  "fmt": {
+    "exclude": [
+      "pnpm-lock.yaml"
+    ]
+  },
   "exclude": [
     ".claude/",
     ".git",

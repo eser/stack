@@ -186,7 +186,7 @@ describe("dashboard.approve", () => {
 
     const result = await actions.approve(root, "wrong-phase");
     assertEquals(result.ok, false);
-    assert(!result.ok && result.error.includes("Cannot approve"));
+    assert(!result.ok && result.error.message.includes("Cannot approve"));
   });
 });
 

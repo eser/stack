@@ -10,7 +10,7 @@ Rule: These are absolute prohibitions for this project. No exceptions.
 - **NEVER** use `--allow-all` in production code (only acceptable in `scripts/` and `*.test.ts`)
 - **NEVER** bypass pre-commit hooks with `--no-verify`
 - **NEVER** push directly to `main` — always use the PR workflow
-- **NEVER** modify `deno.lock` manually — let Deno manage it
+- **NEVER** modify lock files manually — let tools manage it
 
 Correct:
 

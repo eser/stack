@@ -14,7 +14,9 @@ const json = (data: unknown, status = 200): Response => {
   // which may contain stack traces or internal details.
   if (status >= 400 && typeof data === "object" && data !== null) {
     const obj = data as Record<string, unknown>;
-    const safeError = typeof obj["error"] === "string"
+    const safeError = obj["error"] instanceof Error
+      ? obj["error"].message
+      : typeof obj["error"] === "string"
       ? obj["error"].split("\n")[0]!
       : "Unknown error";
     return new Response(

@@ -80,7 +80,7 @@ Rule: These actions are **strictly prohibited**. No exceptions without explicit 
 - Skip pre-commit hooks (`--no-verify`)
 - Commit secrets or `.env` files
 - Use `--allow-all` in production code (only in scripts/tests)
-- Modify `deno.lock` manually
+- Modify lock files manually
 - Push directly to `main` branch
 
 ## Red Flags

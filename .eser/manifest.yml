@@ -176,7 +176,7 @@ scripts:
   container-run: docker run --interactive --tty --rm eservm
 
   # Maintenance
-  clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./deno.lock && deno check
+  clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./pnpm-lock.yaml && deno check
     ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts"
   repl: deno repl --allow-all --unstable-bundle --eval-file=./repl-init.ts
 

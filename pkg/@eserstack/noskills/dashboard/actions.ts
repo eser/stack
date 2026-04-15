@@ -19,7 +19,7 @@ import type { User } from "./state.ts";
 
 export type ActionResult =
   | { readonly ok: true }
-  | { readonly ok: false; readonly error: string };
+  | { readonly ok: false; readonly error: Error };
 
 // =============================================================================
 // Helpers
@@ -47,7 +47,10 @@ export const approve = async (
     let state = await persistence.resolveState(root, specName);
 
     if (state.phase !== "SPEC_PROPOSAL") {
-      return { ok: false, error: `Cannot approve in phase: ${state.phase}` };
+      return {
+        ok: false,
+        error: new Error(`Cannot approve in phase: ${state.phase}`),
+      };
     }
 
     const resolved = await resolveUser(root, user);
@@ -73,7 +76,7 @@ export const approve = async (
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: err instanceof Error ? err : new Error(String(err)),
     };
   }
 };
@@ -104,7 +107,7 @@ export const addNote = async (
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: err instanceof Error ? err : new Error(String(err)),
     };
   }
 };
@@ -138,7 +141,7 @@ export const addQuestion = async (
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: err instanceof Error ? err : new Error(String(err)),
     };
   }
 };
@@ -165,7 +168,7 @@ export const signoff = async (
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: err instanceof Error ? err : new Error(String(err)),
     };
   }
 };
@@ -202,7 +205,7 @@ export const replyMention = async (
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: err instanceof Error ? err : new Error(String(err)),
     };
   }
 };
@@ -217,7 +220,10 @@ export const complete = async (
     const state = await persistence.resolveState(root, specName);
 
     if (state.phase !== "EXECUTING") {
-      return { ok: false, error: `Cannot complete in phase: ${state.phase}` };
+      return {
+        ok: false,
+        error: new Error(`Cannot complete in phase: ${state.phase}`),
+      };
     }
 
     const resolved = await resolveUser(root, user);
@@ -257,7 +263,7 @@ export const complete = async (
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: err instanceof Error ? err : new Error(String(err)),
     };
   }
 };

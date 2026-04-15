@@ -5,7 +5,7 @@
 # Treat lock files as binary (don't diff)
 *.lock binary
 go.sum linguist-generated
-deno.lock linguist-generated
+pnpm-lock.yaml linguist-generated
 
 # Prevent lock files from skewing GitHub language statistics
 *.lock linguist-vendored

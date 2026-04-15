@@ -1,0 +1,131 @@
+{
+  "id": "security-audited",
+  "name": "Security Audited",
+  "description": "Security is a design constraint, not a post-ship checklist. Every trust boundary, every user-controlled input, every secret, every endpoint is a potential attack surface. The job is to enumerate the attack surface completely, then verify each vector. OWASP Top 10 is the minimum bar, not the ceiling.",
+  "extras": [
+    {
+      "questionId": "scope_boundary",
+      "text": "What new trust boundaries does this change introduce? Where does untrusted input enter the system? What can an external caller control, and what can they do with that control?"
+    },
+    {
+      "questionId": "verification",
+      "text": "Which OWASP Top 10 categories apply to this change? For each applicable category, what specific test verifies this change does not introduce a vulnerability?"
+    },
+    {
+      "questionId": "status_quo",
+      "text": "What secrets does this change use, create, or expose? Where are they stored? When were they last rotated? Are they ever logged, serialized, or included in error messages?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "If an attacker had 30 minutes with this feature, what would they try first? What is the highest-value target? Have you tested that path?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "trust-boundary-model",
+      "title": "Trust Boundary Model",
+      "placeholder": "_Map all trust zones, entry points, and data flows. What components are involved? Where does untrusted input enter? Sketch the architecture before opening the code._",
+      "condition": null,
+      "position": "after:scope-boundary"
+    },
+    {
+      "id": "attack-surface-census",
+      "title": "Attack Surface Census",
+      "placeholder": "_Enumerate every external input: HTTP params, headers, cookies, file uploads, env vars, webhook payloads, OAuth callbacks, CLI args. For each: what validation is applied?_",
+      "condition": null,
+      "position": "after:scope-boundary"
+    },
+    {
+      "id": "owasp-top10-checklist",
+      "title": "OWASP Top 10 Checklist",
+      "placeholder": "_For each applicable OWASP category (A01–A10), state: does this change touch it? What specific test verifies this change does not introduce a vulnerability? File:line reference per check._",
+      "condition": null,
+      "position": "after:scope-boundary"
+    },
+    {
+      "id": "secrets-lifecycle",
+      "title": "Secrets Lifecycle",
+      "placeholder": "_Find every secret (API key, token, password, signing key). For each: where stored, how rotated, ever in logs/error messages/serialized responses? Any hardcoded? Last rotation date?_",
+      "condition": null,
+      "position": "after:scope-boundary"
+    },
+    {
+      "id": "dependency-supply-chain",
+      "title": "Dependency Supply Chain",
+      "placeholder": "_For every new dependency: CVE check (npm audit / go vuln / pip-audit), maintainer verification, download count, license compatibility. No new dependency without evidence of review._",
+      "condition": null,
+      "position": "after:scope-boundary"
+    }
+  ],
+  "conductRules": {
+    "DISCOVERY": [
+      "Ask which OWASP Top 10 categories the change touches — enumerate them, do not assume none apply.",
+      "For any new endpoint, ask about authentication, authorization, rate limiting, and input validation — all four, separately."
+    ]
+  },
+  "reminders": [
+    "Phase 0 — Architecture Mental Model FIRST: before reviewing any specific vulnerability, build a complete mental model of the system: what data flows in, through, and out? What components are involved? What are the trust zones? Sketch this before opening the code.",
+    "Phase 1 — Attack Surface Census: enumerate every external input (HTTP params, headers, cookies, file uploads, env vars, webhook payloads, OAuth callbacks, websocket messages, CLI args). Each is a potential injection point. Name them all.",
+    "Phase 2 — Secrets Archaeology: find every secret (API key, token, password, private key, signing secret). For each: where is it stored? How does it get to the runtime? Is it ever in a log, response body, error message, or serialized object?",
+    "Phase 3 — Dependency Supply Chain: any new npm/go/pip dependency is untrusted code. For each new dependency: check CVE databases, verify maintainer, check download counts, review the actual code for obvious backdoors. No 'it looked fine' without evidence.",
+    "OWASP Top 10 minimum: A01 Broken Access Control (check authz at every route), A02 Cryptographic Failures (check for plaintext secrets, weak ciphers), A03 Injection (check every input that touches SQL/shell/HTML/LDAP), A04 Insecure Design (check threat model exists), A05 Security Misconfiguration (check defaults), A06 Vulnerable Components (check CVEs), A07 Authentication Failures (check session management), A08 Software Integrity (check supply chain), A09 Logging Failures (check for secrets in logs, missing audit trail), A10 SSRF (check for URL-based fetches using user input).",
+    "Authorization check: every new endpoint must have explicit authorization at the handler level — not just middleware. Check: what happens if the auth middleware is misconfigured? The handler should still check. Default to deny.",
+    "STRIDE per new component: for each new component, run STRIDE: Spoofing (can an attacker impersonate?), Tampering (can they modify data in transit?), Repudiation (can they deny an action without audit trail?), Information Disclosure (can they read data they shouldn't?), Denial of Service (can they exhaust resources?), Elevation of Privilege (can they gain capabilities they shouldn't have?).",
+    "Hard FALSE POSITIVE rules — do NOT flag as vulnerabilities: (1) Hashed passwords in DB (that's correct). (2) HTTPS URLs in public config (not a secret). (3) Test/fixture secrets in test files (expected). (4) Error messages that say 'invalid' without leaking data. (5) Rate limiting that returns 429. (6) Auth redirects to login. (7) Public API keys in client-side code (designed to be public). (8) Stack traces in development mode. (9) Verbose logging in DEBUG mode. (10) Localhost-only services."
+  ],
+  "acceptanceCriteria": [
+    "Trust boundary model documented: all trust zones, entry points, and data flows mapped",
+    "Attack surface census complete: every external input enumerated with validation strategy",
+    "OWASP Top 10 checked: each applicable category verified with evidence (file:line for each check)",
+    "All user inputs validated at system boundaries — not deep in business logic",
+    "No hardcoded secrets, credentials, or private keys in code or config files",
+    "All new endpoints have explicit authorization checks — not just middleware reliance",
+    "New dependencies checked for CVEs and reviewed for supply chain risk",
+    "Secrets never appear in logs, error messages, or serialized responses",
+    "STRIDE analysis completed for each new component"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "owasp-a01-access-control",
+      "label": "A01 — Broken Access Control",
+      "prompt": "For every new endpoint, action, or resource: who can access it? Is the authorization check at the handler level (not just middleware)? What happens if the auth middleware is bypassed or misconfigured? Can a regular user access admin data? Can user A access user B's data? Test the denial paths explicitly.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "owasp-a03-injection",
+      "label": "A03 — Injection",
+      "prompt": "Find every input that flows into a query (SQL, NoSQL, LDAP, XPath), command (shell, subprocess), or rendered output (HTML, SVG, markdown). For each: is it parameterized/escaped before use? Can an attacker inject SQL via a string field? Execute shell commands via a filename? Run XSS via a user-controlled string in HTML? Name the specific input and the sanitization/parameterization applied.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "secrets-audit",
+      "label": "Secrets & Credentials Audit",
+      "prompt": "Find every secret in this change (API keys, tokens, passwords, signing keys, private keys). For each: (1) Is it ever in a log statement? (2) Is it ever in an error message? (3) Is it ever serialized to JSON or included in a response body? (4) Is it stored in a secure store (env var, secrets manager) or hardcoded? (5) When was it last rotated? Flag any instance where a secret could leak.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "dependency-supply-chain",
+      "label": "Dependency Supply Chain",
+      "prompt": "List every new dependency added in this change. For each: (1) Check CVE databases (npm audit / go vuln / pip-audit). (2) Verify the maintainer. (3) Check download volume (low download count = higher risk). (4) Is the dependency necessary or could built-in stdlib do the same? Report any dependency with known CVEs or suspicious characteristics.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "stride-analysis",
+      "label": "STRIDE Threat Model",
+      "prompt": "For each new component or endpoint, run STRIDE: (S) Spoofing — can an attacker impersonate a user or service? (T) Tampering — can they modify data in transit or at rest? (R) Repudiation — can they deny an action without an audit trail? (I) Information Disclosure — can they read data they shouldn't? (D) Denial of Service — can they exhaust resources (CPU, memory, disk, API rate limits)? (E) Elevation of Privilege — can they gain capabilities they shouldn't? Name the attack vector and the mitigation for each.",
+      "evidenceRequired": true,
+      "scope": "all"
+    }
+  ],
+  "lifecycle": {
+    "outsideVoice": true
+  },
+  "registries": [
+    "security-audit"
+  ],
+  "suggestsPosture": "selective-expansion"
+}

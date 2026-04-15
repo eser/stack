@@ -27,100 +27,96 @@ templates:
 pkg:fp:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/fp/**"
+          - "pkg/@eserstack/fp/**"
 
 pkg:di:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/di/**"
+          - "pkg/@eserstack/di/**"
 
 pkg:cli:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/cli/**"
+          - "pkg/@eserstack/cli/**"
 
 pkg:events:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/events/**"
+          - "pkg/@eserstack/events/**"
 
 pkg:config:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/config/**"
+          - "pkg/@eserstack/config/**"
 
 pkg:http:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/http/**"
+          - "pkg/@eserstack/http/**"
 
 pkg:shell:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/shell/**"
+          - "pkg/@eserstack/shell/**"
 
 pkg:standards:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/standards/**"
+          - "pkg/@eserstack/standards/**"
 
 pkg:testing:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/testing/**"
+          - "pkg/@eserstack/testing/**"
 
 pkg:bundler:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/bundler/**"
+          - "pkg/@eserstack/bundler/**"
 
 pkg:laroux:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/laroux/**"
-          - "pkg/@eser/laroux-*/**"
+          - "pkg/@eserstack/laroux/**"
+          - "pkg/@eserstack/laroux-*/**"
 
 pkg:jsx-runtime:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/jsx-runtime/**"
+          - "pkg/@eserstack/jsx-runtime/**"
 
 pkg:cache:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/cache/**"
+          - "pkg/@eserstack/cache/**"
 
 pkg:logging:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/logging/**"
+          - "pkg/@eserstack/logging/**"
 
 pkg:primitives:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/primitives/**"
+          - "pkg/@eserstack/primitives/**"
 
 pkg:parsing:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/parsing/**"
+          - "pkg/@eserstack/parsing/**"
 
 pkg:crypto:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/crypto/**"
+          - "pkg/@eserstack/crypto/**"
 
 pkg:writer:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eser/writer/**"
+          - "pkg/@eserstack/writer/**"
 
 go:
   - changed-files:
       - any-glob-to-any-file:
-          - "apps/services/**"
-
-cool:
-  - changed-files:
-      - any-glob-to-any-file:
-          - "pkg/@cool/**"
+          - "cmd/ajan/**"
+          - "pkg/ajan/**"

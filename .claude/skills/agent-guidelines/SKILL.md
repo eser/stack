@@ -24,7 +24,7 @@ Rules for AI coding agents working on the eserstack monorepo.
 
 **Never Do:** destructive git, modify outside assigned package, edit versions manually, weaken types, skip hooks, commit secrets
 
-**Ask First:** cross-package deps, new external deps, CI/CD changes, `@eser/standards` changes, publishing config
+**Ask First:** cross-package deps, new external deps, CI/CD changes, `@eserstack/standards` changes, publishing config
 
 **Always Do:** run validate, follow existing patterns, write tests, use explicit extensions, keep functions pure
 

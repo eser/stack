@@ -1,0 +1,76 @@
+{
+  "id": "peer-reviewed",
+  "name": "Peer Reviewed",
+  "description": "Code review is not approval-seeking. It is adversarial verification by someone who cares about the outcome. A good reviewer finds what the author missed — not to be difficult, but because the author is too close to the code to see its failure modes. Critical findings block merge. Informational findings inform. Both require a response.",
+  "extras": [
+    {
+      "questionId": "verification",
+      "text": "Who will review this? What specific aspects of the code are most important to get a second pair of eyes on? Name the reviewer and the scope."
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "What parts of this change are you LEAST confident about? Those are the parts the reviewer should focus on most."
+    }
+  ],
+  "specSections": [
+    {
+      "id": "review-scope",
+      "title": "Review Scope",
+      "placeholder": "_Who will review this change? What specific aspects need a second pair of eyes? What are you LEAST confident about? Name the reviewer and the focus area._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "critical-pass-items",
+      "title": "Critical Pass Items",
+      "placeholder": "_Run the Critical Pass checklist: SQL/data safety, race conditions, LLM trust boundary, shell injection, enum completeness, auth bypass. Report each finding with file:line. All must be resolved before merge._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "informational-pass-items",
+      "title": "Informational Pass Items",
+      "placeholder": "_Run the Informational Pass: async/sync mixing, dead code, time window safety, overly broad catch, missing readonly, magic numbers, inconsistent naming, TODO without ticket. Non-blocking but must be documented._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    }
+  ],
+  "reminders": [
+    "Critical Pass — these block merge if found: (1) SQL/data safety: raw SQL concatenation, unparameterized queries. (2) Race conditions: shared mutable state without synchronization. (3) LLM trust boundary: user-controlled input injected into LLM prompts without sanitization. (4) Shell injection: user input in subprocess/exec calls. (5) Enum completeness: switch/match on an enum without a default/exhaustive check. (6) Auth bypass: any path that reaches privileged data without checking auth.",
+    "Informational Pass — flag but do not block merge: (1) Async/sync mixing: awaiting a sync function or not awaiting an async one. (2) Dead code: unreachable branches, unused variables, commented-out blocks. (3) Time window safety: `new Date()` called in a loop where a consistent timestamp matters. (4) Overly broad catch: catch(e) that swallows the error type. (5) Missing readonly: mutable state that should be immutable. (6) Magic numbers: hardcoded values without named constants. (7) Inconsistent naming: similar operations named differently. (8) TODO without ticket: a TODO comment with no associated issue or owner.",
+    "Suppressions — do NOT flag these as review findings: (1) Test-only global state. (2) Generated code. (3) Vendored/copied external code. (4) Deliberate type assertions with comments explaining why. (5) Performance trade-offs explicitly called out in comments. (6) Platform-specific workarounds with comments. (7) Migration-era compatibility code. (8) Intentional empty catch blocks for cleanup paths. (9) Non-cryptographic use of Math.random().",
+    "Fix-First heuristic: before writing the review, fix any obvious typos, formatting issues, or trivial naming problems in the diff yourself. Review comments should be reserved for semantic issues, not cosmetic ones. The review is not a style guide session.",
+    "Review Army specialist groups: (1) Testing specialist — focus on test coverage, test quality, missing edge cases. (2) Maintainability specialist — focus on readability, complexity, naming, coupling. (3) Performance specialist (activate when the diff touches hot paths) — focus on N+1 queries, missing indexes, memory growth. (4) Security specialist (activate when the diff touches auth/input/data) — focus on injection, auth bypass, data exposure."
+  ],
+  "acceptanceCriteria": [
+    "Critical Pass completed: all 6 critical categories checked with evidence",
+    "No open Critical findings at merge time",
+    "Informational Pass completed: all findings documented with suggested fix or accepted trade-off",
+    "Every finding has a response: fixed, deferred with reason, or explicitly accepted",
+    "Suppressions applied correctly: no false positives in the review findings",
+    "At least one reviewer who did not write the code reviewed the Critical Pass items"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "critical-pass",
+      "label": "Critical Pass (Merge Blockers)",
+      "prompt": "Run the Critical Pass checklist against the diff. For each: (1) SQL/data safety — any raw string interpolation in queries? (2) Race conditions — any shared mutable state accessed without synchronization? (3) LLM trust boundary — any user input flowing into LLM prompts? (4) Shell injection — any user input in exec/spawn/subprocess calls? (5) Enum completeness — any switch/match on an enum type without handling all cases or providing a default? (6) Auth bypass — any path to privileged data without an auth check? Report each finding with file:line.",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "informational-pass",
+      "label": "Informational Pass (Non-Blocking Flags)",
+      "prompt": "Run the Informational Pass checklist. For each finding: (1) Async/sync mixing. (2) Dead code. (3) Time window safety. (4) Overly broad catch. (5) Missing readonly. (6) Magic numbers. (7) Inconsistent naming. (8) TODO without ticket. Report with file:line and severity (info only — these do not block merge).",
+      "evidenceRequired": false,
+      "scope": "all"
+    },
+    {
+      "id": "test-coverage-review",
+      "label": "Testing Specialist Review",
+      "prompt": "Review the test coverage in the diff. Are there tests for the new behaviors? Are there tests for the failure paths? Are any edge cases obviously missing? Do the tests actually test the behavior (not just call the function)? Would a future refactor that broke the behavior cause these tests to fail?",
+      "evidenceRequired": true,
+      "scope": "all"
+    }
+  ]
+}

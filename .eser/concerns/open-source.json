@@ -10,21 +10,98 @@
     {
       "questionId": "user_impact",
       "text": "Does this make contribution harder?"
+    },
+    {
+      "questionId": "verification",
+      "text": "Can a new contributor understand and modify this within 30 minutes of reading?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "What does a thriving, active contributor community look like for this project in 12 months? What would make someone want to contribute vs. just use it?"
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "Does this change affect the contributor path (CONTRIBUTING.md, dev setup, CI, issue templates)? If yes, update it in the same task."
     }
   ],
   "specSections": [
-    "Contributor Guide",
-    "Public API Surface"
+    {
+      "id": "contributor-guide",
+      "title": "Contributor Guide",
+      "placeholder": "_Describe the contributor pathway: forking, dev environment setup, submitting a PR. What is the Time-To-First-Contribution? List every manual step._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "public-api-surface",
+      "title": "Public API Surface",
+      "placeholder": "_Map every public export, CLI flag, and config option touched by this change. Are names self-explanatory without docs? Any breaking changes?_",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "release-notes",
+      "title": "Release Notes",
+      "placeholder": "_Draft the release notes for this change. Audience: users upgrading from the previous version. Focus on what changes for them, not on implementation details._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    }
   ],
   "reminders": [
     "Endpoint should be documented in API docs",
     "Consider contributor experience for new patterns",
     "Default to permissive, well-documented choices",
-    "New features and API changes must be documented so contributors can discover and use them"
+    "New features and API changes must be documented so contributors can discover and use them",
+    "OSS Prime Directive: a first-time contributor should be able to fork, modify, and submit a PR within 30 minutes. Track your setup steps — every undocumented step is a contributor you lose.",
+    "OSS Prime Directive: CHANGELOG must be updated with every user-facing change. Contributors need to know what changed between releases.",
+    "OSS Prime Directive: Default to the simplest thing that works. Clever code is a barrier; readable code is a welcome mat.",
+    "Permissive licenses (MIT, Apache 2.0) by default. Any copyleft dependency needs explicit justification and legal review."
   ],
   "acceptanceCriteria": [
     "Public API documented",
     "Changes reflected in README or relevant docs",
-    "No exclusionary patterns introduced"
-  ]
+    "No exclusionary patterns introduced",
+    "CHANGELOG updated for any user-facing change",
+    "CONTRIBUTING.md exists and is accurate after this change",
+    "CI pipeline passes — external contributors can fork and get green CI without manual intervention",
+    "No new hard-coded environment assumptions (absolute paths, machine-specific config) that would break on a contributor's machine"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "contributor-onboarding",
+      "label": "Contributor Onboarding",
+      "prompt": "Walk through the contributor journey: clone → install → run → modify → test → PR. Where does it break? What's undocumented? What would confuse someone seeing this repo for the first time?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "api-surface-quality",
+      "label": "API Surface Quality",
+      "prompt": "Review every public export, CLI flag, and config option touched by this change. Are names self-explanatory? Are defaults sensible? Is progressive disclosure working (simple things simple, complex things possible)?",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "docs-findability",
+      "label": "Documentation Findability",
+      "prompt": "For each new feature: can a user discover it from README? Are code examples copy-paste runnable? Is there a gap between 'documented' and 'findable'?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "contributor-friction",
+      "label": "Contributor Friction Score",
+      "prompt": "Count the number of manual steps a new contributor must take from `git clone` to `first successful test run`. Score: 0-2 steps = excellent, 3-5 = acceptable, 6+ = blocking. List every step, flag every friction point. Are setup prerequisites documented? Are error messages helpful when setup fails?",
+      "evidenceRequired": true,
+      "scope": "all"
+    },
+    {
+      "id": "license-consistency",
+      "label": "License Consistency",
+      "prompt": "Check every new dependency introduced by this change: is its license compatible with this project's license? Any copyleft (GPL, LGPL, AGPL) license in a library used by an MIT project is a legal landmine. List every new dependency, its license, and compatibility verdict.",
+      "evidenceRequired": false,
+      "scope": "all"
+    }
+  ],
+  "dreamStatePrompt": "In 12 months, what does a healthy contributor community look like for this codebase? New contributors submit first PRs within a day. Existing contributors can find their way around any module. Issues have clear reproduction steps. PRs get reviewed in 48 hours. CHANGELOG reads like a product changelog, not a commit log."
 }

@@ -2,7 +2,7 @@
 // NOTE: Routes are auto-generated at build time to dist/server/_generated-routes.ts
 // The server loads directly from that file - this file is for manual overrides only
 
-import type { RouteDefinition } from "@eser/laroux-core/router";
+import type { RouteDefinition } from "@eserstack/laroux-core/router";
 
 /**
  * Manual route overrides

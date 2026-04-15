@@ -1,0 +1,114 @@
+{
+  "id": "compliance",
+  "name": "Compliance",
+  "description": "Audit trails, access controls, data handling rules. Every change is traceable. Verification is mandatory, not optional.",
+  "category": "engineering",
+  "extras": [
+    {
+      "questionId": "reversibility",
+      "text": "Is the audit trail preserved on rollback?"
+    },
+    {
+      "questionId": "verification",
+      "text": "Is there an audit/traceability requirement?"
+    },
+    {
+      "questionId": "scope_boundary",
+      "text": "Which data handling regulations apply to this change (GDPR, CCPA, HIPAA, PCI-DSS, SOC 2)? What specific requirements do they impose on this feature?"
+    },
+    {
+      "questionId": "user_impact",
+      "text": "Does this change handle PII (names, emails, IPs, device IDs, location)? If yes, is there a data minimization plan — only collect what's needed, only retain as long as needed?"
+    },
+    {
+      "questionId": "ambition",
+      "text": "What does 'fully auditable' mean for this feature? Can a compliance officer reconstruct every action taken by every user on any given day?"
+    }
+  ],
+  "specSections": [
+    {
+      "id": "audit-trail",
+      "title": "Audit Trail",
+      "placeholder": "_For every state mutation in this change: what is logged? Who, what, when, from-value, to-value? Can a compliance officer reconstruct the full history of any record from the audit log?_",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "access-control",
+      "title": "Access Control",
+      "placeholder": "_For every new endpoint, action, or resource: what is the authorization check? Is it deny-by-default? Can user A access user B's data? Document each authorization rule._",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "data-handling",
+      "title": "Data Handling",
+      "placeholder": "_What data does this feature create, read, update, or delete? What PII is involved? How is it stored, encrypted, and protected? Which regulations apply (GDPR, CCPA, HIPAA)?_",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    },
+    {
+      "id": "retention-policy",
+      "title": "Retention Policy",
+      "placeholder": "_What is the retention policy for every new data element? How long is it kept? Who can request deletion? What is the deletion mechanism?_",
+      "condition": null,
+      "position": "after:acceptance-criteria"
+    }
+  ],
+  "reminders": [
+    "Every state change must be traceable",
+    "Verification is mandatory, not optional",
+    "Document data handling and retention policies",
+    "OWASP Top 10 (always check): A01 Broken Access Control, A02 Cryptographic Failures, A03 Injection (SQL/XSS/command), A04 Insecure Design, A05 Security Misconfiguration, A06 Vulnerable Components, A07 Auth Failures, A08 Software Integrity Failures, A09 Logging Failures, A10 SSRF. For any compliance-tagged change, explicitly verify that A01 (authz) and A03 (injection) are addressed.",
+    "PII is toxic — minimize it. Never store more than you need, never longer than required. If you don't need the IP address, don't log it. If you don't need the full name, store initials.",
+    "Deny by default: every new endpoint, every new data access path starts with no permissions granted. Authorization is opt-in, not opt-out.",
+    "Encryption at rest AND in transit for any field classified as PII or sensitive. 'We'll add it later' is not acceptable for compliance data."
+  ],
+  "acceptanceCriteria": [
+    "Audit trail added for state changes",
+    "Access control verified",
+    "Data handling documented",
+    "Retention policy defined for any new data stored",
+    "PII fields identified, documented, and encrypted at rest",
+    "Every new access path has explicit authorization — no 'assume authenticated = authorized'",
+    "OWASP A01 (access control) and A03 (injection) explicitly checked and documented"
+  ],
+  "reviewDimensions": [
+    {
+      "id": "audit-completeness",
+      "label": "Audit Trail Completeness",
+      "prompt": "For every state mutation in this change: is it logged? Who, what, when, from-value, to-value? Can you reconstruct the full history of any record from the audit log alone?",
+      "evidenceRequired": true,
+      "scope": "data"
+    },
+    {
+      "id": "data-lifecycle",
+      "label": "Data Lifecycle & Retention",
+      "prompt": "What data does this feature create, read, update, delete? What's the retention policy? Can a user request deletion (GDPR)? Is PII identified and handled correctly?",
+      "evidenceRequired": true,
+      "scope": "data"
+    },
+    {
+      "id": "access-control",
+      "label": "Access Control (OWASP A01)",
+      "prompt": "For every endpoint, data access, and action in this change: what's the authorization check? Is it deny-by-default? Can a user elevate their own privileges? Can user A access user B's data by guessing an ID? Is authorization checked at the data layer (not just the UI layer)?",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "injection-surface",
+      "label": "Injection Surface (OWASP A03)",
+      "prompt": "For every user-controlled input that flows into a database query, OS command, template engine, or HTML context: is it parameterized/escaped? Check for SQL injection, XSS, command injection, template injection, and path traversal. Enumerate every input → sink path.",
+      "evidenceRequired": true,
+      "scope": "api"
+    },
+    {
+      "id": "data-minimization",
+      "label": "PII Minimization",
+      "prompt": "List every piece of PII this change collects, stores, or processes: names, emails, IPs, device IDs, location, behavioral data. For each: is it necessary? Could the feature work with less? Is it encrypted at rest? Is it excluded from logs? Does it have a deletion path?",
+      "evidenceRequired": true,
+      "scope": "data"
+    }
+  ],
+  "suggestsPosture": "hold-scope"
+}

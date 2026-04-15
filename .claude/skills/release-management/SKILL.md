@@ -17,7 +17,7 @@ Unified release process for 29+ synchronized packages.
 ## Key Principles
 
 - All packages share one version — no independent releases
-- JSR primary (OIDC auth), npm secondary (only `@eser/cli` as `eser`)
+- JSR primary (OIDC auth), npm secondary (only `@eserstack/cli` as `eser`)
 - **patch:** bug fixes, docs, deps. **minor:** new features. **major:** breaking changes
 - Always update CHANGELOG before releasing
 - Tag format: `vx.y.z` (triggers release-notes-sync workflow)

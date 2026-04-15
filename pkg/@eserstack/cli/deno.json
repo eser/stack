@@ -1,0 +1,10 @@
+{
+  "name": "@eserstack/cli",
+  "version": "4.1.56",
+  "exports": "./main.ts",
+  "imports": {
+    "@std/cli": "jsr:@std/cli@^1.0.25",
+    "@std/fmt": "jsr:@std/fmt@^1.0.8",
+    "esbuild": "npm:esbuild@^0.24.2"
+  }
+}

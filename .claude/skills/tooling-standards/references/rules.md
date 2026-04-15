@@ -88,7 +88,7 @@ package to wire up the graph.
 
 ```json
 {
-  "nodeModulesDir": "auto",
+  "nodeModulesDir": "manual",
   "lint": { "rules": { "tags": ["recommended"] } },
   "exclude": [".git", "node_modules/", "etc/templates/"]
 }

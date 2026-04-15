@@ -14,7 +14,6 @@
  */
 
 import { cloneElement, createElement, Fragment, Suspense } from "react";
-// @ts-ignore - react-dom/server types
 import { renderToReadableStream } from "react-dom/server";
 import {
   isClientReference,
@@ -678,7 +677,7 @@ export async function renderSSR(
 
     // Render to HTML using React's renderToReadableStream
     const stream = await renderToReadableStream(processedElement, {
-      onError: (error: Error) => {
+      onError: (error: unknown) => {
         ssrLogger.error("SSR render error:", error);
       },
     });

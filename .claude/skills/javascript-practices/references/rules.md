@@ -801,7 +801,7 @@ Correct:
 ```json
 // Root deno.json
 {
-  "nodeModulesDir": "auto",
+  "nodeModulesDir": "manual",
   "workspace": ["./apps/webclient"],
   "compilerOptions": {
     "jsx": "react-jsx",
@@ -825,7 +825,7 @@ Incorrect:
 // apps/webclient/deno.json - workspace member with root-only keys
 {
   "name": "@aya/webclient",
-  "nodeModulesDir": "auto",
+  "nodeModulesDir": "manual",
   "compilerOptions": { "jsx": "react-jsx" }
 }
 ```

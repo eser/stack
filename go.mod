@@ -10,8 +10,8 @@ tool (
 
 require (
 	github.com/BurntSushi/toml v1.6.0
-	github.com/anthropics/anthropic-sdk-go v1.27.1
-	github.com/getkin/kin-openapi v0.134.0
+	github.com/anthropics/anthropic-sdk-go v1.36.0
+	github.com/getkin/kin-openapi v0.135.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/nicksnyder/go-i18n/v2 v2.6.1
@@ -21,21 +21,21 @@ require (
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.43.0
-	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.18.0
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.42.0
+	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.19.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.43.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.43.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.43.0
-	go.opentelemetry.io/otel/log v0.18.0
+	go.opentelemetry.io/otel/log v0.19.0
 	go.opentelemetry.io/otel/metric v1.43.0
 	go.opentelemetry.io/otel/sdk v1.43.0
-	go.opentelemetry.io/otel/sdk/log v0.18.0
+	go.opentelemetry.io/otel/sdk/log v0.19.0
 	go.opentelemetry.io/otel/sdk/metric v1.43.0
 	go.opentelemetry.io/otel/trace v1.43.0
-	golang.org/x/net v0.52.0
-	golang.org/x/sys v0.42.0
-	golang.org/x/text v0.35.0
-	google.golang.org/genai v1.52.0
-	modernc.org/sqlite v1.48.0
+	golang.org/x/net v0.53.0
+	golang.org/x/sys v0.43.0
+	golang.org/x/text v0.36.0
+	google.golang.org/genai v1.54.0
+	modernc.org/sqlite v1.48.2
 )
 
 require (
@@ -197,8 +197,8 @@ require (
 	github.com/nishanths/exhaustive v0.12.0 // indirect
 	github.com/nishanths/predeclared v0.2.2 // indirect
 	github.com/nunnatsa/ginkgolinter v0.23.0 // indirect
-	github.com/oasdiff/yaml v0.0.0-20260313112342-a3ea61cb4d4c // indirect
-	github.com/oasdiff/yaml3 v0.0.0-20260224194419-61cd415a242b // indirect
+	github.com/oasdiff/yaml v0.0.9 // indirect
+	github.com/oasdiff/yaml3 v0.0.9 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
@@ -268,12 +268,12 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260209203927-2842357ff358 // indirect
-	golang.org/x/mod v0.33.0 // indirect
+	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260209163413-e7419c687ee4 // indirect
-	golang.org/x/tools v0.42.0 // indirect
+	golang.org/x/telemetry v0.0.0-20260311193753-579e4da9a98c // indirect
+	golang.org/x/tools v0.43.0 // indirect
 	golang.org/x/vuln v1.1.4 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9 // indirect

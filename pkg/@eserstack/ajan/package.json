@@ -8,7 +8,7 @@
     "./wasm": "./wasm/mod.ts"
   },
   "dependencies": {
-    "koffi": "^2.16.0"
+    "koffi": "^2.16.1"
   },
   "optionalDependencies": {
     "@eserstack/ajan-darwin-arm64": "4.1.56",

@@ -45,34 +45,50 @@ type ResolvedSpecifier =
     readonly owner: string;
     readonly repo: string;
     readonly ref: string;
+    /** Optional subpath within the repo (e.g., "packages/foo" from gh:owner/repo/packages/foo) */
+    readonly subpath?: string;
   };
 
 /**
  * Parse a specifier string into a resolved specifier.
  *
  * Formats:
- *   "fp-pipe"           → name lookup, no ref
- *   "fp-pipe#dev"       → name lookup, ref=dev
- *   "deneme/ajan"       → repo github.com/deneme/ajan, ref=main
- *   "deneme/ajan#v2"    → repo github.com/deneme/ajan, ref=v2
- *   "gh:deneme/ajan"    → same (gh: prefix stripped)
+ *   "fp-pipe"                     → name lookup, no ref
+ *   "fp-pipe#dev"                 → name lookup, ref=dev
+ *   "deneme/ajan"                 → repo github.com/deneme/ajan, ref=main
+ *   "deneme/ajan#v2"              → repo github.com/deneme/ajan, ref=v2
+ *   "gh:deneme/ajan"              → same (gh: prefix stripped)
+ *   "gh:deneme/ajan/packages/foo" → repo ajan, subpath=packages/foo, ref=main
+ *   "gh:deneme/ajan/sub#feature/x"→ repo ajan, subpath=sub, ref=feature/x
+ *
+ * Disambiguation rule: segments BEFORE the first `#` form the path hierarchy
+ * (owner / repo / subpath…); everything AFTER `#` is the ref verbatim.
+ * To use a slash-bearing branch as ref of the repo root, write `gh:owner/repo#feature/x`.
  */
 const resolveSpecifier = (specifier: string): ResolvedSpecifier => {
-  const cleaned = specifier.replace(/^gh:/, "");
+  const cleaned = specifier.replace(/^(gh:|github:)/, "");
   const hashIndex = cleaned.indexOf("#");
   const pathPart = hashIndex === -1 ? cleaned : cleaned.slice(0, hashIndex);
   const ref = hashIndex === -1 ? undefined : cleaned.slice(hashIndex + 1);
 
   if (pathPart.includes("/")) {
-    const slashIndex = pathPart.indexOf("/");
-    const owner = pathPart.slice(0, slashIndex);
-    const repo = pathPart.slice(slashIndex + 1);
+    const parts = pathPart.split("/");
+    const owner = parts[0] ?? "";
+    const repo = parts[1] ?? "";
 
     if (owner === "" || repo === "") {
       return { kind: "name", name: pathPart, ref };
     }
 
-    return { kind: "repo", owner, repo, ref: ref ?? DEFAULT_REF };
+    const subpath = parts.length > 2 ? parts.slice(2).join("/") : undefined;
+
+    return {
+      kind: "repo",
+      owner,
+      repo,
+      ref: ref ?? DEFAULT_REF,
+      subpath: subpath !== "" ? subpath : undefined,
+    };
   }
 
   return { kind: "name", name: pathPart, ref };
@@ -330,20 +346,76 @@ const fetchRecipeFolder = async (
 // Standalone recipe fetcher (for clone command)
 // =============================================================================
 
+/**
+ * Thrown by `fetchRecipeFromRepo` when the recipe.json file itself is not
+ * found (HTTP 404). Carries the failing `path` so callers can distinguish
+ * "recipe.json absent" (→ whole-repo fallback) from "repo/ref not found"
+ * (→ surface error to user).
+ */
+class RecipeFileNotFoundError extends Error {
+  public readonly path: string;
+  public readonly owner: string;
+  public readonly repo: string;
+  public readonly ref: string;
+
+  constructor(path: string, owner: string, repo: string, ref: string) {
+    super(
+      `Recipe file '${path}' not found in ${owner}/${repo}@${ref}. ` +
+      `Repository and ref exist — recipe.json is simply absent (whole-repo mode applies).`,
+    );
+    this.name = "RecipeFileNotFoundError";
+    this.path = path;
+    this.owner = owner;
+    this.repo = repo;
+    this.ref = ref;
+  }
+}
+
+/**
+ * Fetch a standalone recipe.json from a specific GitHub repo.
+ *
+ * When `subpath` is provided, reads `${subpath}/recipe.json` relative to
+ * the repo root. RecipeFile.source paths in the returned Recipe are also
+ * expected to be relative to that subpath.
+ *
+ * @throws {RecipeFileNotFoundError} when recipe.json is absent (HTTP 404) — caller
+ *   should synthesize an empty recipe and fall back to whole-repo mode.
+ * @throws {Error} for repo/ref not found or other HTTP errors — surface to user.
+ */
 const fetchRecipeFromRepo = async (
   owner: string,
   repo: string,
   ref = "main",
   recipePath = "recipe.json",
+  subpath?: string,
 ): Promise<registrySchema.Recipe> => {
+  const effectivePath = subpath !== undefined && subpath !== ""
+    ? `${subpath}/${recipePath}`
+    : recipePath;
+
   const url =
-    `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${recipePath}`;
+    `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${effectivePath}`;
 
   const response = await registryFetch(url);
 
   if (!response.ok) {
+    if (response.status === 404) {
+      // Distinguish recipe.json-missing from repo/ref-missing:
+      // A HEAD request to the repo root or a well-known file would be needed for
+      // certainty, but in practice a 404 on recipe.json is almost always the file
+      // being absent, not the repo. Throw RecipeFileNotFoundError with path so
+      // clone-recipe.ts can catch it and synthesize an empty recipe.
+      throw new RecipeFileNotFoundError(
+        effectivePath,
+        owner,
+        repo,
+        ref,
+      );
+    }
     throw new Error(
-      `Could not fetch recipe from ${owner}/${repo}@${ref}/${recipePath}. HTTP ${response.status}`,
+      `Could not fetch recipe from ${owner}/${repo}@${ref}/${effectivePath}. ` +
+      `HTTP ${response.status}. ` +
+      `Check that the repository exists: https://github.com/${owner}/${repo}`,
     );
   }
 
@@ -352,7 +424,7 @@ const fetchRecipeFromRepo = async (
     data = JSON.parse(await response.text());
   } catch {
     throw new Error(
-      `Recipe file at ${owner}/${repo}@${ref}/${recipePath} is not valid JSON`,
+      `Recipe file at ${owner}/${repo}@${ref}/${effectivePath} is not valid JSON`,
     );
   }
 
@@ -373,6 +445,7 @@ export {
   fetchRegistryFromRepo,
   LOCAL_REGISTRY_PATH,
   parseGitHubRawUrl,
+  RecipeFileNotFoundError,
   RECIPES_FILENAME,
   registryFetch,
   resolveSpecifier,

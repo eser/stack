@@ -52,3 +52,7 @@ export function registerBuiltinFormats(): void {
   registerFormat(_csvFormat);
   registerFormat(_tomlFormat);
 }
+
+// FFI layer
+export * from "./business/mod.ts";
+export * from "./adapters/ffi/mod.ts";

@@ -4,6 +4,7 @@ import {
   type PatternFunction,
   type TokenDefinitions,
 } from "./tokens/definition.ts";
+import { getLib } from "../ffi-client.ts";
 
 export type Token = {
   kind: string;
@@ -26,6 +27,24 @@ export const createTokenizerState = (
   };
 };
 
+/**
+ * Returns serializable string-only definitions, or undefined when any pattern
+ * is a function (callers should then let Go use its built-in simple-token set).
+ */
+const toStringDefinitions = (
+  tokenDefs: TokenDefinitions,
+): Array<{ name: string; pattern: string }> | undefined => {
+  const hasFunctions = Object.values(tokenDefs).some(
+    (p) => typeof p === "function",
+  );
+  if (hasFunctions) {
+    return undefined;
+  }
+  return Object.entries(tokenDefs)
+    .filter(([, p]) => p !== null)
+    .map(([name, pattern]) => ({ name, pattern: pattern as string }));
+};
+
 export class Tokenizer {
   readonly state: TokenizerState;
 
@@ -36,6 +55,29 @@ export class Tokenizer {
   *tokenizeFromString(input: string): Generator<Token> {
     this._reset();
 
+    const lib = getLib();
+    if (lib !== null) {
+      // Definitions: undefined → Go uses its built-in simple tokens (matches
+      // the TS simpleTokens set which has function-based patterns).
+      const definitions = toStringDefinitions(this.state.tokenDefs);
+      const req: Record<string, unknown> = { input };
+      if (definitions !== undefined) req["definitions"] = definitions;
+
+      const raw = lib.symbols.EserAjanParsingTokenize(JSON.stringify(req));
+      const result = JSON.parse(raw) as {
+        tokens: Array<{ kind: string; value: string }>;
+        error?: string;
+      };
+
+      if (!result.error) {
+        for (const tok of result.tokens) {
+          yield { kind: tok.kind, value: tok.value };
+        }
+        return;
+      }
+    }
+
+    // Fallback: TS tokenizer
     yield* this._tokenizeChunk(input);
     yield* this._tokenizeChunk(null);
   }
@@ -43,6 +85,34 @@ export class Tokenizer {
   async *tokenize(input: ReadableStream): AsyncGenerator<Token> {
     this._reset();
 
+    const lib = getLib();
+    if (lib !== null) {
+      // Accumulate all chunks, then tokenize in one Go call
+      const chunks: string[] = [];
+      for await (const chunk of input) {
+        chunks.push(chunk as string);
+      }
+      const fullInput = chunks.join("");
+      const definitions = toStringDefinitions(this.state.tokenDefs);
+      const req: Record<string, unknown> = { input: fullInput };
+      if (definitions !== undefined) req["definitions"] = definitions;
+
+      const raw = lib.symbols.EserAjanParsingTokenize(JSON.stringify(req));
+      const result = JSON.parse(raw) as {
+        tokens: Array<{ kind: string; value: string }>;
+        error?: string;
+      };
+
+      if (!result.error) {
+        for (const tok of result.tokens) {
+          yield { kind: tok.kind, value: tok.value };
+        }
+        return;
+      }
+    }
+
+    // Fallback: TS chunk-by-chunk tokenizer
+    this._reset();
     for await (const chunk of input) {
       yield* this._tokenizeChunk(chunk);
     }

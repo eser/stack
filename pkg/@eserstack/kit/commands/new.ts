@@ -21,8 +21,9 @@ export const main = async (
 ): Promise<shellArgs.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(cliArgs as string[] ?? [], {
     string: ["name", "registry", "var"],
-    boolean: ["local"],
+    boolean: ["local", "interactive", "no-interactive", "no-post-install"],
     collect: ["var"],
+    alias: { i: "interactive" },
   });
 
   const templateName = parsed._[0] as string | undefined;
@@ -30,6 +31,20 @@ export const main = async (
     (templateName as string | undefined);
   const registryUrl = parsed["registry"] as string | undefined;
   const local = parsed["local"] === true;
+
+  const explicitInteractive = parsed["interactive"] === true;
+  const noInteractive = parsed["no-interactive"] === true;
+  const isTty = runtime.process.isTerminal("stdin");
+  const interactive = !noInteractive && (explicitInteractive || isTty);
+
+  if (!explicitInteractive && !noInteractive && isTty) {
+    // deno-lint-ignore no-console
+    console.error(
+      "Prompting for missing variables (use --no-interactive to disable)",
+    );
+  }
+
+  const skipPostInstall = parsed["no-post-install"] === true;
 
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -62,7 +77,7 @@ export const main = async (
 
       for (const tmpl of templates) {
         out.writeln(
-          `  ${tmpl.name.padEnd(20)} ${tmpl.description} `,
+          `  ${(tmpl.name ?? "").padEnd(20)} ${tmpl.description} `,
           span.dim(`[${tmpl.language}]`),
         );
       }
@@ -95,6 +110,8 @@ export const main = async (
       registrySource: registryUrl,
       local,
       variables,
+      interactive,
+      skipPostInstall,
     }),
     { out },
   );

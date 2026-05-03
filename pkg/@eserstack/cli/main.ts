@@ -16,7 +16,6 @@
 
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { Command } from "@eserstack/shell/args";
 import { Module } from "@eserstack/shell/module";
 import { moduleDef as aiModule } from "@eserstack/ai/module";
 import { moduleDef as kitModule } from "@eserstack/kit/module";
@@ -57,48 +56,10 @@ const app = cliModule
       return mod.systemCommand;
     },
   })
-  // Convenience aliases (lazy handlers)
-  .lazyCommand("install", {
-    description: "Install eser CLI globally (alias for system install)",
-    load: async () => {
-      const mod = await import("./commands/handlers/mod.ts");
-      return new Command("install").run(mod.installHandler);
-    },
-  })
-  .lazyCommand("update", {
-    description: "Update eser CLI to latest version (alias for system update)",
-    load: async () => {
-      const mod = await import("./commands/handlers/mod.ts");
-      return new Command("update").run(mod.updateHandler);
-    },
-  })
-  .lazyCommand("version", {
-    description: "Show version number",
-    load: async () => {
-      const mod = await import("./commands/handlers/mod.ts");
-      return new Command("version")
-        .flag({
-          name: "bare",
-          type: "boolean",
-          description: "Print raw version only",
-        })
-        .run(mod.versionHandler);
-    },
-  })
-  .lazyCommand("doctor", {
-    description: "Run diagnostic checks",
-    load: async () => {
-      const mod = await import("./commands/handlers/mod.ts");
-      return new Command("doctor").run(mod.doctorHandler);
-    },
-  })
-  .lazyCommand("ajan", {
-    description: "Ajan native bridge commands",
-    load: async () => {
-      const mod = await import("./commands/ajan.ts");
-      return mod.ajanCommand;
-    },
-  })
+  .shortcut("install", "system install", "Install eser CLI globally")
+  .shortcut("update", "system update", "Update eser CLI to latest version")
+  .shortcut("version", "system version", "Show version number")
+  .shortcut("doctor", "system doctor", "Run diagnostic checks")
   // Manifest scripts (loaded only on unrecognized commands)
   .fallback(async (commandName, args) => {
     const configManifest = await import("@eserstack/config/manifest");

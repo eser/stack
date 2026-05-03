@@ -16,6 +16,7 @@ import * as results from "@eserstack/primitives/results";
 import type * as types from "./types.ts";
 import * as errors from "./errors.ts";
 import * as interceptors from "./interceptors.ts";
+import * as goClientModule from "./go-client.ts";
 
 // =============================================================================
 // Defaults
@@ -146,6 +147,8 @@ const errorMessageFromBody = (body: unknown): string | null => {
 
 export class HttpClient {
   private readonly config: types.HttpClientConfig;
+  #goClient: goClientModule.GoHttpClient | null = null;
+  #goClientInit: Promise<void> | null = null;
 
   constructor(config?: types.HttpClientConfig) {
     this.config = config ?? {};
@@ -167,11 +170,15 @@ export class HttpClient {
   // Throw-style API
   // ---------------------------------------------------------------------------
 
-  request<T>(
+  async request<T>(
     method: types.HttpMethod,
     url: string,
     options?: types.RequestOptions,
   ): Promise<types.HttpResponse<T>> {
+    await this.#ensureGoClient();
+    if (this.#goClient !== null) {
+      return this.#executeViaGoClient<T>(method, url, options);
+    }
     return this._execute<T>(method, url, options);
   }
 
@@ -224,11 +231,15 @@ export class HttpClient {
    * - Timeout applies to the initial connection, not stream duration.
    * - Response interceptors do NOT run (they require a parsed `data` field).
    */
-  requestStream(
+  async requestStream(
     method: types.HttpMethod,
     url: string,
     options?: types.RequestOptions,
   ): Promise<types.HttpStreamResponse> {
+    await this.#ensureGoClient();
+    if (this.#goClient !== null) {
+      return this.#executeStreamViaGoClient(method, url, options);
+    }
     return this._executeStream(method, url, options);
   }
 
@@ -241,7 +252,7 @@ export class HttpClient {
     url: string,
     options?: types.RequestOptions,
   ): Promise<types.HttpStreamResponse> {
-    return this._executeStream("POST", url, options);
+    return this.requestStream("POST", url, options);
   }
 
   // ---------------------------------------------------------------------------
@@ -630,6 +641,191 @@ export class HttpClient {
         });
       },
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Go FFI bridge (private)
+  // ---------------------------------------------------------------------------
+
+  #classifyGoHttpError(err: unknown): errors.HttpClientError {
+    if (err instanceof goClientModule.GoHttpError) {
+      if (err.status > 0) {
+        let body: unknown = err.body;
+        try { body = JSON.parse(err.body); } catch { /* keep as string */ }
+        const retryAfterMs = parseRetryAfterMs(
+          err.headers["Retry-After"] ?? err.headers["retry-after"] ?? null,
+        );
+        const opts: errors.HttpClientErrorOptions = {
+          statusCode: err.status,
+          body,
+          ...(retryAfterMs !== null && { retryAfter: retryAfterMs / 1_000 }),
+        };
+        if (err.status === 429) return new errors.HttpRateLimitError(`HTTP ${err.status}`, opts);
+        return new errors.HttpResponseError(`HTTP ${err.status}`, opts);
+      }
+      return new errors.HttpNetworkError(err.message, { cause: err });
+    }
+    const e = err instanceof Error ? err : new Error(String(err));
+    return errors.classifyError(e);
+  }
+
+  async #ensureGoClient(): Promise<void> {
+    // Custom fetchFn signals test/mock mode — always use the TS path.
+    if (this.config.fetchFn !== undefined) {
+      return;
+    }
+    if (this.#goClientInit !== null) {
+      return this.#goClientInit;
+    }
+    this.#goClientInit = goClientModule.createGoHttpClient({
+      baseUrl: this.config.baseUrl,
+      timeout: this.config.timeout,
+      headers: this.config.headers,
+    }).then(
+      (client) => { this.#goClient = client; },
+      () => { /* native library unavailable — #goClient stays null */ },
+    );
+    return this.#goClientInit;
+  }
+
+  async #executeViaGoClient<T>(
+    method: types.HttpMethod,
+    url: string,
+    options?: types.RequestOptions,
+  ): Promise<types.HttpResponse<T>> {
+    const resolvedUrl = resolveUrl(this.config.baseUrl, url);
+    const headers: Record<string, string> = {
+      ...(this.config.headers ?? {}),
+      ...(options?.headers ?? {}),
+    };
+    const bodyValue = options?.body;
+    let bodyStr: string | undefined;
+    if (bodyValue !== undefined) {
+      if (typeof bodyValue === "string") {
+        bodyStr = bodyValue;
+      } else if (
+        typeof bodyValue === "object" && bodyValue !== null &&
+        !(bodyValue instanceof ReadableStream)
+      ) {
+        bodyStr = JSON.stringify(bodyValue);
+        if (headers["Content-Type"] === undefined) {
+          headers["Content-Type"] = "application/json";
+        }
+      }
+    }
+
+    const goReq: goClientModule.GoHttpRequest = {
+      method: method as goClientModule.GoHttpMethod,
+      url: resolvedUrl,
+      headers,
+      ...(bodyStr !== undefined && { body: bodyStr }),
+      ...(options?.timeout !== undefined && { timeout: options.timeout }),
+    };
+
+    let resp: Awaited<ReturnType<goClientModule.GoHttpClient["request"]>>;
+    try {
+      resp = await this.#goClient!.request(goReq);
+    } catch (err) {
+      throw this.#classifyGoHttpError(err);
+    }
+
+    const contentType = resp.headers["content-type"] ??
+      resp.headers["Content-Type"] ?? "";
+    let data: T;
+    if (contentType.includes("application/json")) {
+      data = JSON.parse(resp.body) as T;
+    } else {
+      try {
+        data = JSON.parse(resp.body) as T;
+      } catch {
+        data = resp.body as unknown as T;
+      }
+    }
+
+    const raw = new Response(resp.body, {
+      status: resp.status,
+      statusText: resp.statusText,
+      headers: resp.headers,
+    });
+    const rateLimit = extractRateLimitInfo(raw.headers);
+
+    return {
+      data,
+      status: resp.status,
+      statusText: resp.statusText,
+      headers: raw.headers,
+      request: new Request(resolvedUrl, { method, headers }),
+      raw,
+      retries: resp.retries,
+      ...(rateLimit !== undefined && { rateLimit }),
+    };
+  }
+
+  async #executeStreamViaGoClient(
+    method: types.HttpMethod,
+    url: string,
+    options?: types.RequestOptions,
+  ): Promise<types.HttpStreamResponse> {
+    const resolvedUrl = resolveUrl(this.config.baseUrl, url);
+    const headers: Record<string, string> = {
+      ...(this.config.headers ?? {}),
+      ...(options?.headers ?? {}),
+    };
+    const bodyValue = options?.body;
+    let bodyStr: string | undefined;
+    if (bodyValue !== undefined) {
+      if (typeof bodyValue === "string") {
+        bodyStr = bodyValue;
+      } else if (
+        typeof bodyValue === "object" && bodyValue !== null &&
+        !(bodyValue instanceof ReadableStream)
+      ) {
+        bodyStr = JSON.stringify(bodyValue);
+        if (headers["Content-Type"] === undefined) {
+          headers["Content-Type"] = "application/json";
+        }
+      }
+    }
+
+    const goReq: goClientModule.GoHttpRequest = {
+      method: method as goClientModule.GoHttpMethod,
+      url: resolvedUrl,
+      headers,
+      ...(bodyStr !== undefined && { body: bodyStr }),
+      ...(options?.timeout !== undefined && { timeout: options.timeout }),
+    };
+
+    let resp: Awaited<ReturnType<goClientModule.GoHttpClient["requestStream"]>>;
+    try {
+      resp = await this.#goClient!.requestStream(goReq);
+    } catch (err) {
+      throw this.#classifyGoHttpError(err);
+    }
+
+    const rawHeaders = new Headers(resp.headers);
+    const rateLimit = extractRateLimitInfo(rawHeaders);
+
+    return {
+      body: resp.body,
+      status: resp.status,
+      statusText: resp.statusText,
+      headers: rawHeaders,
+      request: new Request(resolvedUrl, { method, headers }),
+      raw: new Response(resp.body, {
+        status: resp.status,
+        statusText: resp.statusText,
+        headers: resp.headers,
+      }),
+      retries: 0,
+      ...(rateLimit !== undefined && { rateLimit }),
+    };
+  }
+
+  /** Release the underlying Go HTTP client handle. */
+  close(): void {
+    this.#goClient?.close();
+    this.#goClient = null;
+    this.#goClientInit = null;
   }
 }
 

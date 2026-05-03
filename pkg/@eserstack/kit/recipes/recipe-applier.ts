@@ -19,6 +19,8 @@ import * as registrySchema from "./registry-schema.ts";
 import * as registryFetcher from "./registry-fetcher.ts";
 import * as variableProcessor from "./variable-processor.ts";
 import * as requiresResolver from "./requires-resolver.ts";
+import * as processor from "./processor.ts";
+import * as providers from "./providers/mod.ts";
 
 // =============================================================================
 // Types
@@ -32,6 +34,12 @@ interface ApplyOptions {
   readonly dryRun?: boolean;
   readonly verbose?: boolean;
   readonly variables?: Readonly<Record<string, string>>;
+  /** For whole-repo mode: the original specifier used to resolve the provider. */
+  readonly specifier?: string;
+  /** Whether to prompt for missing variables (only when stdin is a TTY). */
+  readonly interactive?: boolean;
+  /** Skip post-install commands. */
+  readonly skipPostInstall?: boolean;
 }
 
 interface ApplyResult {
@@ -263,50 +271,54 @@ const runPostInstall = async (
 };
 
 // =============================================================================
-// Recipe application (single recipe)
+// Variables pretty-print
 // =============================================================================
 
-/**
- * Apply a single recipe to the current project.
- *
- * Security: validates all target paths are within cwd before any writes.
- * Supports file and folder entries, variable substitution, and post-install.
- */
-const applyRecipe = async (
+const printVariablesApplied = (
+  variables: Readonly<Record<string, string>>,
+): void => {
+  const entries = Object.entries(variables).sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
+  if (entries.length === 0) return;
+
+  // deno-lint-ignore no-console
+  console.error("Variables applied:");
+  for (const [name, value] of entries) {
+    // deno-lint-ignore no-console
+    console.error(`  ${name} = ${value}`);
+  }
+};
+
+// =============================================================================
+// Recipe application — files mode (original per-file fetch path)
+// =============================================================================
+
+const applyFromFiles = async (
   recipe: registrySchema.Recipe,
   options: ApplyOptions,
+  resolvedVariables: Readonly<Record<string, string>>,
 ): Promise<ApplyResult> => {
+  const files = recipe.files!;
   const written: string[] = [];
   const skipped: string[] = [];
-  const total = recipe.files.length;
-
-  // Resolve variables if recipe defines them
-  let resolvedVariables = options.variables;
-  if (
-    recipe.variables !== undefined && recipe.variables.length > 0
-  ) {
-    resolvedVariables = variableProcessor.resolveVariables(
-      recipe.variables,
-      options.variables ?? {},
-    );
-  }
+  const total = files.length;
 
   const effectiveOptions = { ...options, variables: resolvedVariables };
 
   // Phase 1: Validate all file-level target paths
-  for (const file of recipe.files) {
+  for (const file of files) {
     const kind = file.kind ?? "file";
     if (kind === "file" && !isPathSafe(options.cwd, file.target)) {
       throw new Error(
-        `Recipe '${recipe.name}' contains path traversal in target '${file.target}'. Aborting.`,
+        `Recipe '${recipe.name ?? "<unknown>"}' contains path traversal in target '${file.target}'. Aborting.`,
       );
     }
-    // Folder targets are validated during applyFolder after listing contents
   }
 
   // Phase 2: Check for conflicts (file-level only, unless force/skip)
   if (options.force !== true && options.skipExisting !== true) {
-    for (const file of recipe.files) {
+    for (const file of files) {
       const kind = file.kind ?? "file";
       if (kind !== "file") continue;
 
@@ -329,7 +341,7 @@ const applyRecipe = async (
   }
 
   // Phase 3: Download and write files
-  for (const file of recipe.files) {
+  for (const file of files) {
     const kind = file.kind ?? "file";
 
     try {
@@ -342,14 +354,18 @@ const applyRecipe = async (
       const msg = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Failed applying '${file.target}'. ${written.length} files written so far. ` +
-          `Retry with \`eser kit add ${recipe.name} --force\`. Cause: ${msg}`,
+          `Retry with \`eser kit add ${recipe.name ?? ""} --force\`. Cause: ${msg}`,
       );
     }
   }
 
   // Phase 4: Run post-install commands
   let postInstallRan: readonly string[] = [];
-  if (recipe.postInstall !== undefined && recipe.postInstall.length > 0) {
+  if (
+    options.skipPostInstall !== true &&
+    recipe.postInstall !== undefined &&
+    recipe.postInstall.length > 0
+  ) {
     postInstallRan = await runPostInstall(
       recipe.postInstall,
       options.cwd,
@@ -359,6 +375,151 @@ const applyRecipe = async (
   }
 
   return { written, skipped, total, postInstallRan };
+};
+
+// =============================================================================
+// Recipe application — whole-repo mode (tarball fetch + walk)
+// =============================================================================
+
+const applyWholeRepo = async (
+  recipe: registrySchema.Recipe,
+  options: ApplyOptions,
+  resolvedVariables: Readonly<Record<string, string>>,
+): Promise<ApplyResult> => {
+  if (options.specifier === undefined) {
+    throw new Error(
+      "applyWholeRepo requires options.specifier — the original clone specifier",
+    );
+  }
+
+  const written: string[] = [];
+  const skipped: string[] = [];
+
+  const provider = providers.resolveProvider(options.specifier);
+  const parsed = provider.parse(options.specifier);
+  const stream = await provider.fetch(parsed);
+
+  const tempDir = await runtime.fs.makeTempDir({ prefix: "kit-clone-" });
+  try {
+    const { extractTarball } = await import("./tar.ts");
+    await extractTarball(stream, tempDir, {
+      stripComponents: parsed.stripComponents,
+      subpath: parsed.subpath,
+    });
+
+    const alwaysIgnore = [".git", "recipe.json", "eser-registry.json"];
+    const ignore = [...alwaysIgnore, ...(recipe.ignore ?? [])];
+
+    for await (const entry of runtime.fs.walk(tempDir, { includeDirs: false })) {
+      const relPath = runtime.path.relative(tempDir, entry.path);
+
+      if (processor.shouldIgnore(relPath, ignore)) continue;
+
+      // Substitute vars in path (file and directory names)
+      const targetRel = processor.substituteInPath(relPath, resolvedVariables);
+      const targetAbs = runtime.path.join(options.cwd, targetRel);
+
+      // Path-traversal guard (file layer, independent of tarball-layer guard)
+      if (!isPathSafe(options.cwd, targetAbs)) continue;
+
+      // Conflict check
+      if (await fileExists(targetAbs) && options.force !== true) {
+        if (options.skipExisting === true) {
+          skipped.push(targetRel);
+          if (options.verbose === true) {
+            // deno-lint-ignore no-console
+            console.log(`  [skip] ${targetRel} (already exists)`);
+          }
+          continue;
+        }
+        // deno-lint-ignore no-console
+        console.warn(
+          `  Warning: ${targetRel} already exists. Use --force to overwrite or --skip-existing to skip.`,
+        );
+        skipped.push(targetRel);
+        continue;
+      }
+
+      await runtime.fs.ensureDir(runtime.path.dirname(targetAbs));
+
+      if (options.dryRun === true) {
+        // deno-lint-ignore no-console
+        console.log(`  [dry-run] would write ${targetRel}`);
+        written.push(targetRel);
+        continue;
+      }
+
+      if (options.verbose === true) {
+        // deno-lint-ignore no-console
+        console.log(`  [write] ${targetRel}`);
+      }
+
+      // Binary detection: copy bytes; text: substitute and write
+      if (processor.isBinaryFile(relPath)) {
+        await runtime.fs.copyFile(entry.path, targetAbs);
+      } else {
+        const content = await runtime.fs.readTextFile(entry.path);
+        const substituted = variableProcessor.substituteVariables(
+          content,
+          resolvedVariables,
+        );
+        await runtime.fs.writeTextFile(targetAbs, substituted);
+      }
+
+      written.push(targetRel);
+    }
+
+    // Post-install (shared with files mode)
+    let postInstallRan: readonly string[] = [];
+    if (
+      options.skipPostInstall !== true &&
+      recipe.postInstall !== undefined &&
+      recipe.postInstall.length > 0
+    ) {
+      postInstallRan = await runPostInstall(
+        recipe.postInstall,
+        options.cwd,
+        options.dryRun,
+        options.verbose,
+      );
+    }
+
+    return { written, skipped, total: written.length + skipped.length, postInstallRan };
+  } finally {
+    await runtime.fs.remove(tempDir, { recursive: true }).catch(() => {});
+  }
+};
+
+// =============================================================================
+// Recipe application — dispatcher (single recipe)
+// =============================================================================
+
+/**
+ * Apply a single recipe to the current project.
+ *
+ * Routes to `applyFromFiles` (per-file fetch, recipe.files present) or
+ * `applyWholeRepo` (tarball fetch, recipe.files absent) based on the recipe.
+ *
+ * Security: validates all target paths are within cwd before any writes.
+ * Supports variable substitution, post-install, force/skip-existing, dry-run.
+ */
+const applyRecipe = async (
+  recipe: registrySchema.Recipe,
+  options: ApplyOptions,
+): Promise<ApplyResult> => {
+  // Resolve variables (interactive prompt if enabled and stdin is a TTY)
+  const resolvedVariables = await variableProcessor.resolveVariables(
+    recipe.variables,
+    options.variables ?? {},
+    { interactive: options.interactive },
+  );
+
+  printVariablesApplied(resolvedVariables);
+
+  if (recipe.files === undefined) {
+    return await applyWholeRepo(recipe, options, resolvedVariables);
+  }
+  return await applyFromFiles(recipe, options, resolvedVariables);
 };
 
 // =============================================================================
@@ -388,17 +549,20 @@ const applyRecipeChain = async (
     }
 
     const result = await applyRecipe(recipe, options);
-    results.push({ name: recipe.name, result });
+    results.push({ name: recipe.name ?? "", result });
   }
 
   return { recipes: results };
 };
 
 export {
+  applyFromFiles,
   applyRecipe,
   applyRecipeChain,
+  applyWholeRepo,
   fileExists,
   isPathSafe,
+  printVariablesApplied,
   processContent,
   runPostInstall,
 };

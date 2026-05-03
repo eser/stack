@@ -1,11 +1,21 @@
 package httpclient
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
+
+type contextRetryKey struct{}
+
+// WithRetryCounter returns a child context carrying a retry counter.
+// ResilientTransport increments it on each retry attempt (not the first).
+func WithRetryCounter(ctx context.Context, counter *atomic.Int32) context.Context {
+	return context.WithValue(ctx, contextRetryKey{}, counter)
+}
 
 const (
 	DefaultServerErrorThreshold = 500
@@ -83,6 +93,10 @@ func (t *ResilientTransport) RoundTrip( //nolint:cyclop,gocognit,funlen
 	for attempt := range maxAttempts {
 		// Handle retry backoff (skip on first attempt)
 		if attempt > 0 && t.Config.RetryStrategy.Enabled {
+			if counter, ok := req.Context().Value(contextRetryKey{}).(*atomic.Int32); ok {
+				counter.Add(1)
+			}
+
 			var err error
 
 			req, err = t.handleRetry(req, attempt)

@@ -19,6 +19,8 @@ import * as modExports from "./validators/mod-exports.ts";
 import * as exportNames from "./validators/export-names.ts";
 import * as docs from "./validators/docs.ts";
 import * as packageConfigs from "./validators/package-configs.ts";
+import * as serverLoc from "./validators/server-loc.ts";
+import * as errorCoverage from "./validators/error-coverage.ts";
 
 // File tools (factory-generated — import tool objects for full adapter access)
 import * as validateEof from "../validate-eof.ts";
@@ -67,6 +69,8 @@ const initializeBuiltinValidators = (): void => {
   registerValidator(exportNames.exportNamesValidator);
   registerValidator(docs.docsValidator);
   registerValidator(packageConfigs.packageConfigsValidator);
+  registerValidator(serverLoc.serverLocValidator);
+  registerValidator(errorCoverage.errorCoverageValidator);
 
   // File tool validators
   registerValidator(validateEof.validator);
@@ -262,6 +266,8 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
     exportNames.exportNamesValidator,
     docs.docsValidator,
     packageConfigs.packageConfigsValidator,
+    serverLoc.serverLocValidator,
+    errorCoverage.errorCoverageValidator,
   ];
 
   for (const v of validators) {

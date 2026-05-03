@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@eserstack/codebase": "workspace:*",
+    "@eserstack/functions": "workspace:*",
     "@eserstack/http": "workspace:*",
     "@eserstack/laroux": "workspace:*",
     "@eserstack/laroux-bundler": "workspace:*",

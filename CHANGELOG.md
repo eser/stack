@@ -10,6 +10,54 @@ and this project adheres to
 
 ### Added
 
+- **codebase:** `validate-server-loc` — generic per-directory LOC ceiling
+  validator. Configurable via `directory` (required), `maxLines`, `excludeSuffix`,
+  `extension`. Replaces `scripts/noskills-server-loc-check.ts`; now wired into
+  precommit on `pkg/ajan/noskillsserverfx`.
+- **codebase:** `validate-error-coverage` — generic error-struct field-coverage
+  validator. Configurable via `file` (required), `errorObjects`, `requiredFields`.
+  Replaces `scripts/noskills-error-coverage.ts`; now wired into precommit on
+  `pkg/ajan/noskillsserverfx/errors.go`.
+
+- **kit:** `kit clone` whole-repo mode — repos without `recipe.json` (or with
+  an empty one) now copy the entire tree via tarball fetch instead of failing.
+- **kit:** `--interactive`/`-i` flag and TTY auto-detect — prompts for missing
+  variables when stdin is a terminal, with regex retry on `pattern`.
+- **kit:** `--no-post-install` flag — skips post-install commands.
+- **kit:** GitHub subpath specifier `gh:owner/repo/sub/path[#ref]`.
+- **kit:** stub providers for `npm:` and `jsr:` — parse accepted, `fetch`
+  throws "not yet implemented" with a tracking URL.
+- **kit:** "Variables applied:" pretty-print to stderr before writing files.
+- **kit:** positional target dir — `eser kit clone <specifier> [target-dir]`.
+- **kit:** binary file detection in whole-repo mode (33-extension blocklist)
+  to avoid mangling PNGs, ZIPs, fonts, etc.
+- **kit:** `{{.var}}` substitution now applies to file and directory **names**
+  in addition to file contents.
+
+### Changed
+
+- **kit:** `Recipe` schema fields `name`, `description`, `language`, `scale`,
+  `files` are now optional in standalone `recipe.json` (lenient clone path).
+  Registry entries still require them via `isRegistryRecipe`.
+
+### Removed
+
+- **codebase:** `eser codebase scaffolding` command — use
+  `eser kit clone <specifier>` instead.
+- **codebase:** `eser codebase init` alias for scaffolding — removed without
+  shim; use `eser kit clone`.
+- **codebase:** `@eserstack/codebase/scaffolding` JSR export — replaced by
+  `@eserstack/kit/recipes`.
+
+### Migration
+
+- `eser codebase scaffolding gh:owner/repo` → `eser kit clone gh:owner/repo`
+- `eser codebase init` → `eser kit clone <specifier>`
+- `--var key=value` and `--interactive` work identically
+- `--skip-post-install` is now `--no-post-install`
+- YAML `.eser/manifest.yml` is no longer read; use `recipe.json`
+  (`variables`, `postInstall`, `ignore`) instead
+
 - **noskills:** AskUserQuestion confirmation tokens — mechanical enforcement
   that agents asked the user before submitting discovery answers. Per-question
   STATED/INFERRED marking via PostToolUse hook

@@ -15,7 +15,7 @@
 
 import * as standards from "@eserstack/standards";
 import { JS_FILE_EXTENSIONS } from "@eserstack/standards/patterns";
-import { createFileTool, type FileTool } from "./file-tool.ts";
+import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
 type ForbiddenPattern = {
   readonly pattern: RegExp;
@@ -93,7 +93,7 @@ const isInString = (line: string, matchIndex: number): boolean => {
   return inSingle || inDouble || inTemplate;
 };
 
-export const tool: FileTool = createFileTool({
+export const tool: FileTool = withGoValidator(createFileTool({
   name: "validate-runtime-js-apis",
   description:
     "Detect direct usage of runtime-specific APIs (use @eserstack/standards/cross-runtime instead)",
@@ -130,7 +130,7 @@ export const tool: FileTool = createFileTool({
 
     return issues;
   },
-});
+}), "runtime-js-apis");
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

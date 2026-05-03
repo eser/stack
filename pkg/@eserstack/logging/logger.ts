@@ -2,18 +2,37 @@
 
 import * as logging from "@eserstack/standards/logging";
 import * as functions from "@eserstack/primitives/functions";
-import type { Category, Filter, LogRecord, Sink } from "./types.ts";
-import { createLogRecord } from "./types.ts";
+import type { Category, Filter, Sink } from "./types.ts";
 import {
   categoryKey,
   categoryToString,
   extendCategory,
   normalizeCategory,
 } from "./category.ts";
-import { getEffectiveConfig, registerLoggerCacheClear } from "./config.ts";
+import {
+  getEffectiveConfig,
+  registerConfigureHook,
+  registerLoggerCacheClear,
+} from "./config.ts";
 import { applyPrefixToCategory, getContext } from "./context.ts";
+import { ensureLib, requireLib } from "./ffi-client.ts";
 
 export const DEFAULT_LEVEL = logging.Severities.Info;
+
+/** Maps OTel severity numbers to Go slog level name strings. */
+const severityToGoLevel = (s: logging.Severity): string => {
+  if (s <= 4) return "TRACE";
+  if (s <= 8) return "DEBUG";
+  if (s <= 12) return "INFO";
+  if (s <= 16) return "WARN";
+  if (s <= 20) return "ERROR";
+  if (s <= 24) return "FATAL";
+
+  return "PANIC";
+};
+
+/** Module-level map from category key → Go handle, shared with configure hook. */
+const goHandles = new Map<string, string>();
 
 /**
  * Logger class with hierarchical category support.
@@ -34,6 +53,10 @@ export class Logger implements logging.Logger {
     filters: Filter[];
     lowestLevel: logging.Severity;
   } | null = null;
+
+  /** Go FFI handle for this logger (null until first log or if FFI unavailable). */
+  #goHandle: string | null = null;
+  #goHandleInitialized = false;
 
   constructor(
     category: Category | string,
@@ -59,6 +82,29 @@ export class Logger implements logging.Logger {
     }
 
     return this.#effectiveConfig;
+  }
+
+  /** Lazily creates and caches a Go FFI handle for this logger. Throws if FFI unavailable. */
+  async #ensureGoHandle(): Promise<void> {
+    if (this.#goHandleInitialized) return;
+
+    this.#goHandleInitialized = true;
+    await ensureLib();
+
+    const lib = requireLib();
+    const config = this.#getEffectiveConfig();
+    const raw = lib.symbols.EserAjanLogCreate(
+      JSON.stringify({
+        scopeName: categoryToString(this.category),
+        level: severityToGoLevel(config.lowestLevel),
+      }),
+    );
+    const result = JSON.parse(raw) as { handle?: string; error?: string };
+
+    if (result.handle) {
+      this.#goHandle = result.handle;
+      goHandles.set(categoryKey(this.category), result.handle);
+    }
   }
 
   /**
@@ -145,7 +191,8 @@ export class Logger implements logging.Logger {
   }
 
   /**
-   * Logs a message at the given severity level.
+   * Logs a message at the given severity level. Delegates entirely to Go FFI.
+   * Throws if the native library is unavailable.
    */
   async log<T>(
     severity: logging.Severity,
@@ -156,14 +203,15 @@ export class Logger implements logging.Logger {
     // deno-lint-ignore no-explicit-any
     ...args: functions.ArgList<any>
   ): Promise<T | undefined> {
+    // TS-side level gate — WASM command mode is stateless so Go handles are ephemeral;
+    // we use the locally-known lowestLevel to decide whether to proceed.
     const config = this.#getEffectiveConfig();
 
-    // Check severity threshold (higher numbers = more severe in OpenTelemetry model)
     if (severity < config.lowestLevel) {
       return message instanceof Function ? undefined : message;
     }
 
-    // Evaluate lazy message
+    // Evaluate lazy message only when level passes.
     let fnResult: T | undefined;
     let logMessage: string;
     if (message instanceof Function) {
@@ -173,32 +221,22 @@ export class Logger implements logging.Logger {
       logMessage = this.asString(message);
     }
 
-    // Get context from AsyncLocalStorage
+    await this.#ensureGoHandle();
+    const lib = requireLib();
     const context = getContext();
+    const attrs: Record<string, unknown> = {
+      ...this.#properties,
+      ...(context ?? {}),
+    };
 
-    // Create log record
-    const record: LogRecord = createLogRecord({
-      message: logMessage,
-      rawMessage: logMessage,
-      args,
-      datetime: new Date(),
-      severity,
-      category: this.category,
-      properties: this.#properties,
-      context,
-    });
-
-    // Apply filters
-    for (const filter of config.filters) {
-      if (!filter(record)) {
-        return message instanceof Function ? fnResult : message;
-      }
-    }
-
-    // Send to sinks
-    if (config.sinks.length > 0) {
-      await Promise.all(config.sinks.map((sink) => sink(record)));
-    }
+    lib.symbols.EserAjanLogWrite(
+      JSON.stringify({
+        handle: this.#goHandle,
+        level: severityToGoLevel(severity),
+        message: logMessage,
+        attrs,
+      }),
+    );
 
     return message instanceof Function ? fnResult : message;
   }
@@ -439,6 +477,9 @@ export const getLogger = (category: Category | string): Logger => {
     loggerInstances.set(key, logger);
   }
 
+  // Pre-warm FFI library so the first log() call doesn't block on it.
+  void ensureLib();
+
   return logger;
 };
 
@@ -452,6 +493,26 @@ export const clearLoggerCache = (): void => {
 
 // Register the logger cache clear callback with config.ts
 registerLoggerCacheClear(clearLoggerCache);
+
+// When TS configure() runs, push updated levels to any live Go handles.
+registerConfigureHook(async (loggerConfigs) => {
+  await ensureLib();
+  const lib = requireLib(); // throws if FFI never loaded — not a silent skip
+
+  for (const loggerConfig of loggerConfigs) {
+    if (loggerConfig.lowestLevel === undefined) continue;
+
+    const normalized = normalizeCategory(loggerConfig.category);
+    const key = categoryKey(normalized);
+    const handle = goHandles.get(key);
+
+    if (handle !== undefined) {
+      lib.symbols.EserAjanLogConfigure(
+        JSON.stringify({ handle, level: severityToGoLevel(loggerConfig.lowestLevel) }),
+      );
+    }
+  }
+});
 
 /**
  * Default logger instance (for backward compatibility).

@@ -6,9 +6,11 @@
     "./mod": "./mod.ts",
     "./module": "./module.ts",
     "./dashboard": "./dashboard/mod.ts",
-    "./persistence": "./state/persistence.ts"
+    "./persistence": "./state/persistence.ts",
+    "./go-noskills": "./go-noskills.ts"
   },
   "imports": {
+    "@eserstack/ajan": "jsr:@eserstack/ajan@^4.1.56",
     "esbuild": "npm:esbuild@^0.24.2",
     "yaml": "npm:yaml@^2"
   }

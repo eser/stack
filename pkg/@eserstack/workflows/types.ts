@@ -18,8 +18,8 @@ export type WorkflowStepConfig =
 /**
  * A parsed step with resolved name, tool options, and engine directives.
  *
- * Engine directives (`continueOnError`, `timeout`) are extracted from the
- * step config and removed from `options` before passing to the tool.
+ * Engine directives (`continueOnError`, `timeout`, `bypass`, `inputSchema`) are
+ * extracted from the step config and consumed by the engine, not passed to the tool.
  */
 export type ResolvedStep = {
   readonly name: string;
@@ -28,6 +28,10 @@ export type ResolvedStep = {
   readonly continueOnError: boolean;
   /** Per-step timeout in milliseconds. Overrides RunOptions.defaultTimeout. */
   readonly timeout?: number;
+  /** If true, skip tool execution; step output = previous step's stats. Default: false. */
+  readonly bypass?: boolean;
+  /** JSON Schema (draft-2020-12) to validate merged options before tool.run(). Nil = no validation. */
+  readonly inputSchema?: Record<string, unknown>;
 };
 
 /** A workflow definition with an id, triggering events, and ordered steps. */

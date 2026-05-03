@@ -1,0 +1,165 @@
+# GoReleaser configuration for noskills-server.
+# Run: goreleaser release --clean
+# Dry-run: goreleaser build --snapshot --clean
+
+version: 2
+
+project_name: noskills-server
+
+before:
+  hooks:
+    - go mod tidy
+
+# ── Build ──────────────────────────────────────────────────────────────────────
+
+builds:
+  - id: noskills-server
+    main: ./cmd/noskills-server
+    binary: noskills-server
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/eser/stack/pkg/ajan/noskillsserverfx.Version={{.Version}}
+      - -X github.com/eser/stack/pkg/ajan/noskillsserverfx.Commit={{.ShortCommit}}
+      - -X github.com/eser/stack/pkg/ajan/noskillsserverfx.BuildDate={{.Date}}
+
+  - id: noskills
+    main: ./cmd/noskills
+    binary: noskills
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+
+# ── Archive ────────────────────────────────────────────────────────────────────
+
+archives:
+  - id: noskills-server
+    builds:
+      - noskills-server
+      - noskills
+    name_template: >-
+      noskills_{{ .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "arm64" }}arm64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+
+# ── Checksums ─────────────────────────────────────────────────────────────────
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+# ── Snapshots (for local testing) ────────────────────────────────────────────
+
+snapshot:
+  version_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+
+# ── Changelog ─────────────────────────────────────────────────────────────────
+
+changelog:
+  sort: asc
+  use: github
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - "^chore"
+      - "^docs"
+      - "^ci"
+      - "merge conflict"
+      - "Merge pull request"
+      - "Merge remote-tracking branch"
+
+# ── GitHub Release ─────────────────────────────────────────────────────────────
+
+release:
+  github:
+    owner: eser
+    name: stack
+  name_template: "v{{.Version}}"
+  footer: |
+    ## Quick install (macOS/Linux)
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/eser/stack/main/scripts/install.sh | sh
+    ```
+
+    ## Homebrew
+    ```sh
+    brew install eserstack/tap/noskills-server
+    ```
+
+# ── Homebrew tap ───────────────────────────────────────────────────────────────
+
+brews:
+  - name: noskills-server
+    ids:
+      - noskills-server
+    repository:
+      owner: eser
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    homepage: "https://github.com/eser/stack"
+    description: "noskills-server — persistent Claude Code sessions that survive reboots"
+    license: "Apache-2.0"
+    install: |
+      bin.install "noskills-server"
+      bin.install "noskills"
+    service: |
+      run [opt_bin/"noskills-server", "start"]
+      keep_alive true
+      log_path var/"log/noskills-server.log"
+      error_log_path var/"log/noskills-server.log"
+    caveats: |
+      To start noskills-server now and at login:
+        brew services start noskills-server
+
+      Or start manually:
+        noskills-server start
+
+      Get your session PIN:
+        noskills-server pin
+
+      Run a health check:
+        noskills-server doctor

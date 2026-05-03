@@ -28,7 +28,9 @@ export const layout = (
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#7c3aed" />
   <title>${escHtml(title)}</title>
+  <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/static/style.css" />
   ${terminalScripts}
 </head>
@@ -39,6 +41,20 @@ export const layout = (
   </header>
   ${body}
   <script src="/static/client.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").then((reg) => {
+        fetch("/api/cert-fingerprint")
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.fingerprint && reg.active) {
+              reg.active.postMessage({ type: "store_cert_fingerprint", fingerprint: d.fingerprint });
+            }
+          })
+          .catch(() => {});
+      }).catch(() => {});
+    }
+  </script>
 </body>
 </html>`;
 };

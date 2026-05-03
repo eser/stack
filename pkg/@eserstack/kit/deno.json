@@ -16,5 +16,10 @@
     "./recipes/handlers/new-project": "./recipes/handlers/new-project.ts",
     "./recipes/handlers/clone-recipe": "./recipes/handlers/clone-recipe.ts",
     "./recipes/handlers/update-recipe": "./recipes/handlers/update-recipe.ts"
+  },
+  "imports": {
+    "@eserstack/ajan": "jsr:@eserstack/ajan@^4.1.56",
+    "@std/path/glob-to-regexp": "jsr:@std/path@^1.1.4/glob-to-regexp",
+    "@std/tar": "jsr:@std/tar@^0.1.9"
   }
 }

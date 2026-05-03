@@ -16,6 +16,7 @@ import * as recipeApplier from "../recipe-applier.ts";
 import * as dependencyResolver from "../dependency-resolver.ts";
 import type * as registrySchema from "../registry-schema.ts";
 import type { HandlerContext } from "../handler-context.ts";
+import { ensureLib, getLib } from "../../ffi-client.ts";
 
 // =============================================================================
 // Types
@@ -35,6 +36,8 @@ type CloneRecipeInput = {
   readonly skipExisting?: boolean;
   readonly verbose?: boolean;
   readonly variables?: Readonly<Record<string, string>>;
+  readonly interactive?: boolean;
+  readonly skipPostInstall?: boolean;
 };
 
 type CloneRecipeOutput = {
@@ -47,6 +50,32 @@ type CloneRecipeOutput = {
 type CloneRecipeError =
   | { readonly _tag: "FetchError"; readonly message: string }
   | { readonly _tag: "ApplyError"; readonly message: string };
+
+// =============================================================================
+// FFI eligibility — features the Go bridge does NOT implement
+// =============================================================================
+
+const canUseFfiPath = (
+  recipe: registrySchema.Recipe,
+  input: CloneRecipeInput,
+): boolean => {
+  if (recipe.files === undefined) return false;          // whole-repo mode
+  if (recipe.ignore !== undefined) return false;         // FFI has no ignore-glob support
+  if (input.interactive === true) return false;          // FFI has no prompt loop
+  if (input.skipPostInstall === true) return false;      // FFI runs post-install unconditionally
+
+  const hasNameSubstitution = recipe.files.some(
+    (f) => f.source.includes("{{.") || f.target.includes("{{."),
+  );
+  if (hasNameSubstitution) return false;                 // FFI substitutes content only
+
+  const hasPatternedVar = recipe.variables?.some(
+    (v) => v.pattern !== undefined,
+  ) ?? false;
+  if (hasPatternedVar) return false;                     // FFI doesn't validate regex patterns
+
+  return true;
+};
 
 // =============================================================================
 // Specifier parsing (delegates to shared resolver)
@@ -75,22 +104,117 @@ const cloneRecipe = (
         const { specifier } = input;
         const recipePath = input.recipePath ?? "recipe.json";
 
-        const recipe = await registryFetcher.fetchRecipeFromRepo(
-          specifier.owner,
-          specifier.repo,
-          specifier.ref,
-          recipePath,
-        );
+        // ── Step 1: Fetch recipe.json (synthesize empty recipe on path-specific 404) ──
+        let recipe: registrySchema.Recipe;
+        try {
+          recipe = await registryFetcher.fetchRecipeFromRepo(
+            specifier.owner,
+            specifier.repo,
+            specifier.ref,
+            recipePath,
+            specifier.subpath,
+          );
+        } catch (e) {
+          if (e instanceof registryFetcher.RecipeFileNotFoundError) {
+            // recipe.json absent → whole-repo mode with empty recipe
+            recipe = { schema: "registry/v1" } as registrySchema.Recipe;
+          } else {
+            throw e;
+          }
+        }
 
+        // ── Step 2: Try Go FFI fast path when eligible ──
+        if (canUseFfiPath(recipe, input)) {
+          await ensureLib();
+          const lib = getLib();
+
+          if (lib !== null) {
+            const specifierStr = specifier.subpath !== undefined
+              ? `gh:${specifier.owner}/${specifier.repo}/${specifier.subpath}#${specifier.ref}`
+              : `gh:${specifier.owner}/${specifier.repo}#${specifier.ref}`;
+
+            const raw = lib.symbols.EserAjanKitCloneRecipe(
+              JSON.stringify({
+                specifier: specifierStr,
+                cwd: input.cwd,
+                projectName: input.projectName,
+                dryRun: input.dryRun,
+                force: input.force,
+                skipExisting: input.skipExisting,
+                verbose: input.verbose,
+                variables: input.variables,
+              }),
+            );
+            const goResult = JSON.parse(raw) as {
+              recipes?: Array<{
+                name: string;
+                written: string[];
+                skipped: string[];
+                total: number;
+                postInstallRan: string[];
+              }>;
+              error?: string;
+            };
+
+            if (!goResult.error && goResult.recipes !== undefined) {
+              let totalWritten = 0;
+              for (const entry of goResult.recipes) {
+                totalWritten += entry.written.length;
+              }
+
+              const targetDir = input.projectName !== undefined
+                ? `${input.cwd}/${input.projectName}`
+                : input.cwd;
+
+              const verb = input.dryRun ? "Would write" : "Cloned";
+              ctx.out.writeln(
+                span.green(`✓ ${verb} ${totalWritten} file(s)`),
+              );
+
+              const mainRecipe = goResult.recipes.find(
+                (r) => r.name === specifier.repo,
+              ) ?? goResult.recipes[0];
+
+              if (mainRecipe !== undefined) {
+                for (const file of mainRecipe.written) {
+                  ctx.out.writeln(`  → ${file}`);
+                }
+              }
+
+              const fakeRecipe = {
+                name: specifier.repo,
+              } as unknown as registrySchema.Recipe;
+              const fakeResult = {
+                written: goResult.recipes.flatMap((r) => r.written),
+                skipped: goResult.recipes.flatMap((r) => r.skipped ?? []),
+                total: goResult.recipes.reduce((s, r) => s + r.total, 0),
+                postInstallRan: goResult.recipes.flatMap(
+                  (r) => r.postInstallRan ?? [],
+                ),
+              } as unknown as recipeApplier.ApplyResult;
+              const fakeDepInfo = {
+                instructions: [],
+                warnings: [],
+              } as unknown as dependencyResolver.DependencyInstructions;
+
+              return results.ok({
+                recipe: fakeRecipe,
+                result: fakeResult,
+                depInfo: fakeDepInfo,
+                targetDir,
+              });
+            }
+          }
+        }
+
+        // ── Step 3: TypeScript path (files mode or whole-repo mode) ──
         let targetDir = input.cwd;
         if (input.projectName !== undefined) {
           targetDir = `${input.cwd}/${input.projectName}`;
-          await runtime.fs.mkdir(targetDir, {
-            recursive: true,
-          });
+          await runtime.fs.mkdir(targetDir, { recursive: true });
         }
 
-        const variables = { ...input.variables };
+        const variables: Record<string, string> = { ...input.variables };
         if (
           input.projectName !== undefined &&
           variables["project_name"] === undefined
@@ -101,14 +225,21 @@ const cloneRecipe = (
         const registryUrl =
           `https://raw.githubusercontent.com/${specifier.owner}/${specifier.repo}/${specifier.ref}`;
 
+        const specifierStr = specifier.subpath !== undefined
+          ? `gh:${specifier.owner}/${specifier.repo}/${specifier.subpath}#${specifier.ref}`
+          : `gh:${specifier.owner}/${specifier.repo}#${specifier.ref}`;
+
         const result = await recipeApplier.applyRecipe(recipe, {
           cwd: targetDir,
           registryUrl,
+          specifier: specifierStr,
           force: input.force,
           skipExisting: input.skipExisting,
           dryRun: input.dryRun,
           verbose: input.verbose,
           variables,
+          interactive: input.interactive,
+          skipPostInstall: input.skipPostInstall,
         });
 
         const project = await dependencyResolver.detectProjectType(targetDir);
@@ -117,11 +248,10 @@ const cloneRecipe = (
           project,
         );
 
-        // Format output
         const verb = input.dryRun ? "Would write" : "Cloned";
         ctx.out.writeln(
           span.green(
-            `✓ ${verb} ${result.written.length} file(s) from ${recipe.name}`,
+            `✓ ${verb} ${result.written.length} file(s) from ${recipe.name ?? specifier.repo}`,
           ),
         );
 

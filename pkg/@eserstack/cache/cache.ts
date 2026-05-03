@@ -4,6 +4,7 @@
  * Cache manager implementation.
  *
  * Provides versioned cache storage with XDG-compliant directory structure.
+ * Delegates filesystem operations to the native Go library.
  *
  * @example
  * ```typescript
@@ -35,6 +36,7 @@ import type {
   CacheManagerOptions,
 } from "./primitives.ts";
 import * as xdg from "./xdg.ts";
+import { ensureLib, getLib } from "./ffi-client.ts";
 
 /**
  * Creates a cache manager for the specified application.
@@ -58,6 +60,30 @@ export const createCacheManager = (
 ): CacheManager => {
   const { app, baseDir } = options;
 
+  // Go handle for this cache instance (created lazily on first async operation).
+  let _handlePromise: Promise<string> | null = null;
+
+  const getHandle = (): Promise<string> => {
+    if (_handlePromise === null) {
+      _handlePromise = ensureLib().then(() => {
+        const lib = getLib();
+        if (lib === null) {
+          throw new Error("native library unavailable");
+        }
+        const raw = lib.symbols.EserAjanCacheCreate(
+          JSON.stringify({ app: { name: app.name, org: app.org }, baseDir }),
+        );
+        const result = JSON.parse(raw) as { handle: string; error?: string };
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        return result.handle;
+      });
+    }
+    return _handlePromise;
+  };
+
+  // Sync methods: path computation stays in TS (interface requires sync return)
   const getCacheDir = (): string => {
     if (baseDir) {
       if (app.org) {
@@ -77,90 +103,86 @@ export const createCacheManager = (
 
   const getVersionedPath = (version: string, name: string): string => {
     if (baseDir) {
-      // Normalize version to always have 'v' prefix
-      const normalizedVersion = version.startsWith("v")
-        ? version
-        : `v${version}`;
-      return runtime.path.join(
-        getCacheDir(),
-        normalizedVersion,
-        name,
-      );
+      const normalizedVersion = version.startsWith("v") ? version : `v${version}`;
+      return runtime.path.join(getCacheDir(), normalizedVersion, name);
     }
     return xdg.getVersionedCachePath(app, version, name);
   };
 
-  const exists = async (path: string): Promise<boolean> => {
-    const resolvedPath = resolvePath(path);
-    return await runtime.fs.exists(resolvedPath);
+  // Filesystem existence/mkdir stay in TS: no Go FFI equivalent
+  const exists = (path: string): Promise<boolean> => {
+    return runtime.fs.exists(resolvePath(path));
   };
 
   const ensureDir = async (path: string): Promise<void> => {
-    const resolvedPath = resolvePath(path);
-    await runtime.fs.mkdir(resolvedPath, { recursive: true });
+    await runtime.fs.mkdir(resolvePath(path), { recursive: true });
   };
 
   const list = async (): Promise<CacheEntry[]> => {
-    const cacheDir = getCacheDir();
-    const entries: CacheEntry[] = [];
-
-    try {
-      const dirExists = await runtime.fs.exists(cacheDir);
-      if (!dirExists) {
-        return entries;
-      }
-
-      for await (const entry of runtime.fs.readDir(cacheDir)) {
-        const entryPath = runtime.path.join(
-          cacheDir,
-          entry.name,
-        );
-
-        let size = 0;
-        let mtime: Date | null = null;
-
-        try {
-          const stat = await runtime.fs.stat(entryPath);
-          size = stat.size;
-          mtime = stat.mtime;
-        } catch {
-          // Ignore stat errors
-        }
-
-        entries.push({
-          path: entry.name,
-          name: entry.name,
-          isDirectory: entry.isDirectory,
-          size,
-          mtime,
-        });
-      }
-    } catch {
-      // Return empty if directory doesn't exist or can't be read
+    const handle = await getHandle();
+    const lib = getLib()!;
+    const raw = lib.symbols.EserAjanCacheList(JSON.stringify({ handle }));
+    const result = JSON.parse(raw) as {
+      entries: Array<{
+        path: string;
+        name: string;
+        isDirectory: boolean;
+        size: number;
+        mtimeUnix: number;
+      }>;
+      error?: string;
+    };
+    if (result.error) {
+      throw new Error(result.error);
     }
-
-    return entries;
+    return (result.entries ?? []).map((e) => ({
+      path: e.path,
+      name: e.name,
+      isDirectory: e.isDirectory,
+      size: e.size,
+      mtime: e.mtimeUnix ? new Date(e.mtimeUnix * 1000) : null,
+    }));
   };
 
   const remove = async (path: string): Promise<void> => {
-    const resolvedPath = resolvePath(path);
-
-    try {
-      await runtime.fs.remove(resolvedPath, {
-        recursive: true,
-      });
-    } catch {
-      // Ignore if path doesn't exist
+    const handle = await getHandle();
+    const lib = getLib()!;
+    // Resolve to absolute path — Go's Manager.Remove calls os.RemoveAll(path)
+    // directly (not relative to cache dir), so we must pass the absolute path.
+    const raw = lib.symbols.EserAjanCacheRemove(
+      JSON.stringify({ handle, path: resolvePath(path) }),
+    );
+    const result = JSON.parse(raw) as { error?: string };
+    if (result.error) {
+      throw new Error(result.error);
     }
   };
 
   const clear = async (): Promise<void> => {
-    const cacheDir = getCacheDir();
+    const handle = await getHandle();
+    const lib = getLib()!;
+    const raw = lib.symbols.EserAjanCacheClear(JSON.stringify({ handle }));
+    const result = JSON.parse(raw) as { error?: string };
+    if (result.error) {
+      throw new Error(result.error);
+    }
+  };
 
+  // Reset _handlePromise to null BEFORE calling Go so a concurrent second close
+  // sees null and returns early rather than closing an already-freed handle.
+  const close = async (): Promise<void> => {
+    if (_handlePromise === null) return;
+    let handle: string;
     try {
-      await runtime.fs.remove(cacheDir, { recursive: true });
+      handle = await _handlePromise;
     } catch {
-      // Ignore if directory doesn't exist
+      _handlePromise = null;
+      return;
+    }
+    _handlePromise = null;
+    const lib = getLib();
+    if (lib !== null) {
+      lib.symbols.EserAjanCacheClose(JSON.stringify({ handle }));
     }
   };
 
@@ -172,5 +194,7 @@ export const createCacheManager = (
     list,
     remove,
     clear,
+    close,
+    [Symbol.asyncDispose]: close,
   };
 };

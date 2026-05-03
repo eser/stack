@@ -102,4 +102,12 @@ export interface CacheManager {
    * Clears the entire cache directory.
    */
   clear(): Promise<void>;
+
+  /**
+   * Releases the Go-side cache handle. Idempotent — safe to call multiple times.
+   */
+  close(): Promise<void>;
+
+  /** Explicit resource management support (`await using cache = ...`). */
+  [Symbol.asyncDispose](): Promise<void>;
 }

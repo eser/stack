@@ -14,6 +14,14 @@ export { ollamaFactory, OllamaModel } from "./ollama.ts";
 export { openCodeFactory, OpenCodeModel } from "./opencode.ts";
 export { kiroFactory, KiroModel } from "./kiro.ts";
 
+// Go FFI bridge (requires @eserstack/ajan native library or WASM)
+export {
+  AjanBridgeModel,
+  AjanBridgeModelFactory,
+  createBridgeFactories,
+  tryLoadBridgeFactories,
+} from "./ajan-bridge.ts";
+
 // Shared utilities
 export {
   classifyGenAIError,
@@ -39,6 +47,13 @@ export {
 
 let cachedFactories: readonly model.ProviderFactory[] | null = null;
 
+/**
+ * Returns the default set of provider factories.
+ *
+ * Attempts to load Go FFI bridge factories first (via @eserstack/ajan).
+ * Falls back to pure-TypeScript factories for any provider where FFI is
+ * unavailable. The result is cached after the first call.
+ */
 export const defaultFactories = async (): Promise<
   readonly model.ProviderFactory[]
 > => {
@@ -46,13 +61,20 @@ export const defaultFactories = async (): Promise<
     return cachedFactories;
   }
 
-  // API adapters
+  // Try Go FFI bridge first — provides better performance for all providers.
+  const { tryLoadBridgeFactories } = await import("./ajan-bridge.ts");
+  const bridgeFactories = await tryLoadBridgeFactories();
+
+  if (bridgeFactories.length > 0) {
+    cachedFactories = bridgeFactories;
+    return cachedFactories;
+  }
+
+  // Pure-TypeScript fallback when FFI is unavailable.
   const { anthropicFactory } = await import("./anthropic.ts");
   const { openaiFactory } = await import("./openai.ts");
   const { geminiFactory } = await import("./gemini.ts");
   const { vertexaiFactory } = await import("./vertexai.ts");
-
-  // CLI / local adapters
   const { claudeCodeFactory } = await import("./claude-code.ts");
   const { ollamaFactory } = await import("./ollama.ts");
   const { openCodeFactory } = await import("./opencode.ts");

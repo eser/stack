@@ -6,14 +6,16 @@
     "./domain": "./domain/mod.ts",
     "./application": "./application/mod.ts",
     "./testing": "./application/testing.ts",
-    "./module": "./module.ts"
+    "./module": "./module.ts",
+    "./go-posts": "./go-posts.ts"
   },
   "tasks": {
     "tui": "deno run --allow-net --allow-env --allow-read --allow-write adapters/tui/app.ts",
-    "test": "deno test",
-    "test:coverage": "deno test --coverage=etc/coverage && deno coverage etc/coverage"
+    "test": "deno test --allow-env --allow-read",
+    "test:coverage": "deno test --coverage=etc/coverage --allow-env --allow-read && deno coverage etc/coverage"
   },
   "imports": {
+    "@eserstack/ajan": "jsr:@eserstack/ajan@^4.1.56",
     "@std/assert": "jsr:@std/assert@^1.0.19",
     "@std/testing": "jsr:@std/testing@^1.0.17"
   }

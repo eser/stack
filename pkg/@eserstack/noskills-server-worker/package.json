@@ -1,0 +1,21 @@
+{
+  "name": "@eserstack/noskills-server-worker",
+  "version": "4.1.56",
+  "description": "noskills-server TS worker — runs one Claude Code session via claude-agent-sdk",
+  "type": "module",
+  "main": "worker.js",
+  "scripts": {
+    "build": "tsc --outDir dist",
+    "start": "node dist/worker.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.112"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

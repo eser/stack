@@ -26,7 +26,11 @@ import {
   extractFlags,
   validateRequiredFlags,
 } from "./flags.ts";
-import { generateHelp, type HelpCommandMeta } from "./help.ts";
+import {
+  generateHelp,
+  type HelpCommandMeta,
+  type HelpShortcutMeta,
+} from "./help.ts";
 import { generate as generateCompletions } from "../completions/mod.ts";
 import type {
   CompletionFlag,
@@ -49,6 +53,7 @@ export class Command implements CommandLike {
   #lazyChildren: Map<string, LazyCommandOptions> = new Map();
   #groups: Map<string, GroupOptions> = new Map();
   #groupAliases: Map<string, string> = new Map(); // alias → primary name
+  #shortcuts = new Map<string, { target: readonly string[]; description: string }>();
   #groupOptions?: GroupOptions;
   #fallbackHandler?: FallbackHandler;
   #handler?: CommandHandler;
@@ -177,6 +182,18 @@ export class Command implements CommandLike {
   }
 
   /**
+   * Register a shortcut — a top-level name that re-dispatches to a nested path.
+   * Renders in a dedicated "Shortcuts:" section in help output, separate from Commands.
+   * Example: `cmd.shortcut("install", "system install", "Install globally")`
+   *   makes `eser install --foo` behave identically to `eser system install --foo`.
+   */
+  shortcut(name: string, target: string, description: string): this {
+    const segments = target.split(/\s+/).filter(Boolean);
+    this.#shortcuts.set(name, { target: segments, description });
+    return this;
+  }
+
+  /**
    * Register modules for flat dispatch — no namespace prefix.
    * Used by standalone CLIs (e.g., `noskills init` instead of `eser noskills init`).
    * Internally used by Module.toCommand().
@@ -293,7 +310,8 @@ export class Command implements CommandLike {
     const hasSubcommands = this.#children.length > 0 ||
       this.#lazyChildren.size > 0 ||
       this.#groups.size > 0 ||
-      this.#groupOptions !== undefined;
+      this.#groupOptions !== undefined ||
+      this.#shortcuts.size > 0;
 
     const parsed = cliParseArgs.parseArgs(argv, {
       ...parseOptions,
@@ -320,6 +338,15 @@ export class Command implements CommandLike {
     // Check for subcommand
     const firstArg = positional[0];
     if (firstArg !== undefined && hasSubcommands) {
+      // 0. Check shortcuts (rewrite args to nested target path)
+      if (this.#shortcuts.has(firstArg)) {
+        const { target } = this.#shortcuts.get(firstArg)!;
+        return await this.#execute(
+          [...target, ...positional.slice(1)],
+          parentPath,
+        );
+      }
+
       // 1. Check regular children
       const child = this.#findChild(firstArg);
       if (child !== undefined) {
@@ -518,6 +545,10 @@ export class Command implements CommandLike {
         }),
     ];
 
+    const shortcuts: HelpShortcutMeta[] = [...this.#shortcuts.entries()].map(
+      ([name, e]) => ({ name, target: e.target, description: e.description }),
+    );
+
     const meta: HelpCommandMeta = {
       name: this.#name,
       description: this.#description,
@@ -525,6 +556,7 @@ export class Command implements CommandLike {
       examples: this.#examples,
       flags: this.#getAllFlags(),
       children: allChildren,
+      shortcuts: shortcuts.length > 0 ? shortcuts : undefined,
     };
     return generateHelp(meta, this.#getPath());
   }

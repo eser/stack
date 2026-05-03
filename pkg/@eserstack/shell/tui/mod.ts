@@ -50,6 +50,15 @@ export {
   withRawMode,
 } from "./keypress.ts";
 
+// FFI-backed TUI event source (Go-side keypress, raw mode, terminal size)
+export {
+  getTerminalSizeFFI,
+  type KeypressFFIEvent,
+  readKeypressFFI,
+  setStdinRawFFI,
+  type TerminalSize,
+} from "./keypress-go.ts";
+
 // Interactive prompts
 export { confirm } from "./confirm.ts";
 export { text } from "./text.ts";

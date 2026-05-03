@@ -12,6 +12,7 @@
 import { runtime } from "@eserstack/standards/cross-runtime";
 import { hasExtension } from "@eserstack/standards/patterns";
 import * as shellExec from "@eserstack/shell/exec";
+import { ensureLib, getLib } from "./ffi-client.ts";
 
 // =============================================================================
 // Types
@@ -112,6 +113,47 @@ export const walkSourceFiles = async (
   options: WalkOptions = {},
 ): Promise<FileEntry[]> => {
   const { root = ".", extensions, exclude = [] } = options;
+
+  await ensureLib();
+  const lib = getLib();
+  if (lib !== null) {
+    try {
+      // Go expects dot-prefixed extensions (".ts"), TS uses bare ("ts")
+      const goExtensions = extensions !== undefined && extensions.length > 0
+        ? extensions.map((e) => e.startsWith(".") ? e : `.${e}`)
+        : undefined;
+      // Pass only string patterns to Go; regex patterns are applied post-fetch
+      const goExcludes = exclude.filter((e): e is string => typeof e === "string");
+
+      const raw = lib.symbols.EserAjanCodebaseWalkFiles(
+        JSON.stringify({ dir: root, extensions: goExtensions, exclude: goExcludes, gitAware: true }),
+      );
+      const parsed = JSON.parse(raw) as {
+        files?: Array<{ path: string; name: string; size: number; isSymlink: boolean }>;
+        error?: string;
+      };
+
+      if (!parsed.error && parsed.files !== undefined) {
+        const allExcludes = [
+          ...DEFAULT_EXCLUDES,
+          ...exclude.map((e) => (typeof e === "string" ? new RegExp(e) : e)),
+        ];
+
+        let files: FileEntry[] = parsed.files
+          .filter((f) => !allExcludes.some((re) => re.test(f.path)))
+          .map((f) => ({ path: f.path, name: f.name, size: f.size, isSymlink: f.isSymlink }));
+
+        if (options.includeOnly !== undefined && options.includeOnly.length > 0) {
+          const allowList = options.includeOnly;
+          files = files.filter((file) =>
+            allowList.some((entry) => file.path.endsWith(entry) || file.path.includes(entry))
+          );
+        }
+
+        return files;
+      }
+    } catch { /* fall through to TS */ }
+  }
 
   const allExcludes = [
     ...DEFAULT_EXCLUDES,

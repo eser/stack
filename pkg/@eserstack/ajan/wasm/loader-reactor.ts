@@ -105,10 +105,9 @@ export const loadReactorWasm = async (
       EserAjanFree: (_ptr: unknown) => {
         // No-op in WASM mode — Go's GC handles memory.
       },
-      EserAjanConfigLoad: (_path: string) => {
-        // Reactor mode currently doesn't support string args for config_load.
-        // The Go side reads an empty path. A future shared-memory protocol
-        // will enable passing string args.
+      EserAjanConfigLoad: (_optionsJSON: string) => {
+        // Reactor mode doesn't support string args for config_load yet.
+        // A future shared-memory protocol will enable passing args.
         const len = exports.eser_ajan_config_load();
         return readResult(len);
       },
@@ -117,6 +116,188 @@ export const loadReactorWasm = async (
         const len = exports.eser_ajan_di_resolve();
         return readResult(len);
       },
+      // Format, log, and AI methods require string args which reactor mode doesn't yet support.
+      EserAjanFormatEncode: (_requestJSON: string) =>
+        '{"error":"Format calls require native FFI or command-mode WASM"}',
+      EserAjanFormatDecode: (_requestJSON: string) =>
+        '{"error":"Format calls require native FFI or command-mode WASM"}',
+      EserAjanFormatList: () =>
+        '{"error":"Format calls require native FFI or command-mode WASM"}',
+      EserAjanFormatEncodeDocument: (_requestJSON: string) =>
+        '{"error":"Format calls require native FFI or command-mode WASM"}',
+      // Log and AI methods require string args which reactor mode doesn't yet support.
+      // Return error JSON so callers can propagate a clean error.
+      EserAjanLogCreate: (_configJSON: string) =>
+        '{"error":"Log calls require native FFI or command-mode WASM"}',
+      EserAjanLogWrite: (_requestJSON: string) =>
+        '{"error":"Log calls require native FFI or command-mode WASM"}',
+      EserAjanLogClose: (_handle: string) => "",
+      EserAjanLogShouldLog: (_requestJSON: string) =>
+        '{"error":"Log calls require native FFI or command-mode WASM"}',
+      EserAjanLogConfigure: (_requestJSON: string) =>
+        '{"error":"Log calls require native FFI or command-mode WASM"}',
+      EserAjanAiCreateModel: (_configJSON: string) =>
+        '{"error":"AI calls require native FFI or command-mode WASM"}',
+      EserAjanAiGenerateText: (_modelHandle: string, _optionsJSON: string) =>
+        '{"error":"AI calls require native FFI or command-mode WASM"}',
+      EserAjanAiStreamText: (_modelHandle: string, _optionsJSON: string) =>
+        '{"error":"AI calls require native FFI or command-mode WASM"}',
+      EserAjanAiStreamRead: (_streamHandle: string) =>
+        '{"error":"AI calls require native FFI or command-mode WASM"}',
+      EserAjanAiCloseModel: (_modelHandle: string) => "",
+      EserAjanAiFreeStream: (_streamHandle: string) => "",
+      // Batch methods require stateful server-side resources which reactor mode doesn't support.
+      EserAjanAiBatchCreate: (_requestJSON: string) =>
+        '{"error":"AI batch calls require native FFI or command-mode WASM"}',
+      EserAjanAiBatchGet: (_requestJSON: string) =>
+        '{"error":"AI batch calls require native FFI or command-mode WASM"}',
+      EserAjanAiBatchList: (_requestJSON: string) =>
+        '{"error":"AI batch calls require native FFI or command-mode WASM"}',
+      EserAjanAiBatchDownload: (_requestJSON: string) =>
+        '{"error":"AI batch calls require native FFI or command-mode WASM"}',
+      EserAjanAiBatchCancel: (_requestJSON: string) =>
+        '{"error":"AI batch calls require native FFI or command-mode WASM"}',
+      // HTTP methods require string args which reactor mode doesn't yet support.
+      EserAjanHttpCreate: (_configJSON: string) =>
+        '{"error":"HTTP calls require native FFI or command-mode WASM"}',
+      EserAjanHttpRequest: (_requestJSON: string) =>
+        '{"error":"HTTP calls require native FFI or command-mode WASM"}',
+      EserAjanHttpClose: (_handle: string) => "",
+      // HTTP streaming requires stateful handles which reactor mode doesn't support.
+      EserAjanHttpRequestStream: (_requestJSON: string) =>
+        '{"error":"HTTP stream calls require native FFI or command-mode WASM"}',
+      EserAjanHttpStreamRead: (_handle: string) =>
+        '{"error":"HTTP stream calls require native FFI or command-mode WASM"}',
+      EserAjanHttpStreamClose: (_handle: string) => "",
+      // Noskills methods require string args which reactor mode doesn't yet support.
+      EserAjanNoskillsInit: (_requestJSON: string) =>
+        '{"error":"Noskills calls require native FFI or command-mode WASM"}',
+      EserAjanNoskillsSpecNew: (_requestJSON: string) =>
+        '{"error":"Noskills calls require native FFI or command-mode WASM"}',
+      EserAjanNoskillsNext: (_requestJSON: string) =>
+        '{"error":"Noskills calls require native FFI or command-mode WASM"}',
+      // Workflow methods require string args which reactor mode doesn't yet support.
+      EserAjanWorkflowRun: (_requestJSON: string) =>
+        '{"error":"Workflow calls require native FFI or command-mode WASM"}',
+      // Crypto and cache methods require string args which reactor mode doesn't yet support.
+      EserAjanCryptoHash: (_requestJSON: string) =>
+        '{"error":"Crypto calls require native FFI or command-mode WASM"}',
+      EserAjanCacheCreate: (_requestJSON: string) =>
+        '{"error":"Cache calls require native FFI or command-mode WASM"}',
+      EserAjanCacheGetDir: (_requestJSON: string) =>
+        '{"error":"Cache calls require native FFI or command-mode WASM"}',
+      EserAjanCacheGetVersionedPath: (_requestJSON: string) =>
+        '{"error":"Cache calls require native FFI or command-mode WASM"}',
+      EserAjanCacheList: (_requestJSON: string) =>
+        '{"error":"Cache calls require native FFI or command-mode WASM"}',
+      EserAjanCacheRemove: (_requestJSON: string) =>
+        '{"error":"Cache calls require native FFI or command-mode WASM"}',
+      EserAjanCacheClear: (_requestJSON: string) =>
+        '{"error":"Cache calls require native FFI or command-mode WASM"}',
+      EserAjanCacheClose: (_requestJSON: string) => "",
+      // CS methods require string args which reactor mode doesn't yet support.
+      EserAjanCsGenerate: (_requestJSON: string) =>
+        '{"error":"CS calls require native FFI or command-mode WASM"}',
+      EserAjanCsSync: (_requestJSON: string) =>
+        '{"error":"CS calls require native FFI or command-mode WASM"}',
+      // Kit methods require string args which reactor mode doesn't yet support.
+      EserAjanKitListRecipes: (_requestJSON: string) =>
+        '{"error":"Kit calls require native FFI or command-mode WASM"}',
+      EserAjanKitApplyRecipe: (_requestJSON: string) =>
+        '{"error":"Kit calls require native FFI or command-mode WASM"}',
+      EserAjanKitCloneRecipe: (_requestJSON: string) =>
+        '{"error":"Kit calls require native FFI or command-mode WASM"}',
+      EserAjanKitNewProject: (_requestJSON: string) =>
+        '{"error":"Kit calls require native FFI or command-mode WASM"}',
+      EserAjanKitUpdateRecipe: (_requestJSON: string) =>
+        '{"error":"Kit calls require native FFI or command-mode WASM"}',
+      // Posts methods require string args which reactor mode doesn't yet support.
+      EserAjanPostsCreateService: (_requestJSON: string) =>
+        '{"error":"Posts calls require native FFI or command-mode WASM"}',
+      EserAjanPostsCompose: (_requestJSON: string) =>
+        '{"error":"Posts calls require native FFI or command-mode WASM"}',
+      EserAjanPostsGetTimeline: (_requestJSON: string) =>
+        '{"error":"Posts calls require native FFI or command-mode WASM"}',
+      EserAjanPostsSearch: (_requestJSON: string) =>
+        '{"error":"Posts calls require native FFI or command-mode WASM"}',
+      EserAjanPostsClose: (_requestJSON: string) =>
+        '{"error":"Posts calls require native FFI or command-mode WASM"}',
+      // Codebase methods require string args which reactor mode doesn't yet support.
+      EserAjanCodebaseGitCurrentBranch: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseGitLatestTag: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseGitLog: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseValidateCommitMsg: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseGenerateChangelog: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseBumpVersion: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseWalkFiles: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseValidateFiles: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseCheckCircularDeps: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseCheckExportNames: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseCheckModExports: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseCheckPackageConfigs: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseCheckDocs: (_requestJSON: string) =>
+        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
+      EserAjanCodebaseWalkFilesStreamCreate: (_requestJSON: string) =>
+        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
+      EserAjanCodebaseWalkFilesStreamRead: (_handle: string) => "null",
+      EserAjanCodebaseWalkFilesStreamClose: (_handle: string) => "{}",
+      EserAjanCodebaseValidateFilesStreamCreate: (_requestJSON: string) =>
+        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
+      EserAjanCodebaseValidateFilesStreamRead: (_handle: string) => "null",
+      EserAjanCodebaseValidateFilesStreamClose: (_handle: string) => "{}",
+      // Collector methods require string args which reactor mode doesn't yet support.
+      EserAjanCollectorSpecifierToIdentifier: (_requestJSON: string) =>
+        '{"error":"Collector calls require native FFI or command-mode WASM"}',
+      EserAjanCollectorWalkFiles: (_requestJSON: string) =>
+        '{"error":"Collector calls require native FFI or command-mode WASM"}',
+      EserAjanCollectorGenerateManifest: (_requestJSON: string) =>
+        '{"error":"Collector calls require native FFI or command-mode WASM"}',
+      // Parsing methods require string args which reactor mode doesn't yet support.
+      EserAjanParsingTokenize: (_requestJSON: string) =>
+        '{"error":"Parsing calls require native FFI or command-mode WASM"}',
+      EserAjanParsingSimpleTokens: () =>
+        '{"error":"Parsing calls require native FFI or command-mode WASM"}',
+      EserAjanParsingTokenizeStreamCreate: (_requestJSON: string) =>
+        '{"error":"Parsing calls require native FFI or command-mode WASM"}',
+      EserAjanParsingTokenizeStreamPush: (_requestJSON: string) =>
+        '{"error":"Parsing calls require native FFI or command-mode WASM"}',
+      EserAjanParsingTokenizeStreamClose: (_requestJSON: string) =>
+        '{"error":"Parsing calls require native FFI or command-mode WASM"}',
+      // Shell exec requires string args which reactor mode doesn't yet support.
+      EserAjanShellExec: (_requestJSON: string) =>
+        '{"error":"Shell exec calls require native FFI or command-mode WASM"}',
+      // Shell TUI requires stdin/terminal which reactor mode doesn't support.
+      EserAjanShellTuiKeypressCreate: (_requestJSON: string) =>
+        '{"error":"Shell TUI calls require native FFI or command-mode WASM"}',
+      EserAjanShellTuiKeypressRead: (_handle: string) =>
+        '{"error":"Shell TUI calls require native FFI or command-mode WASM"}',
+      EserAjanShellTuiKeypressClose: (_handle: string) =>
+        '{"error":"Shell TUI calls require native FFI or command-mode WASM"}',
+      EserAjanShellTuiSetStdinRaw: (_requestJSON: string) =>
+        '{"error":"Shell TUI calls require native FFI or command-mode WASM"}',
+      EserAjanShellTuiGetSize: (_requestJSON: string) =>
+        '{"error":"Shell TUI calls require native FFI or command-mode WASM"}',
+      // Shell exec spawn requires stdin/stdout I/O which reactor mode doesn't support.
+      EserAjanShellExecSpawn: (_requestJSON: string) =>
+        '{"error":"Shell exec spawn requires native FFI or command-mode WASM"}',
+      EserAjanShellExecRead: (_handle: string) =>
+        '{"error":"Shell exec spawn requires native FFI or command-mode WASM"}',
+      EserAjanShellExecWrite: (_requestJSON: string) =>
+        '{"error":"Shell exec spawn requires native FFI or command-mode WASM"}',
+      EserAjanShellExecClose: (_handle: string) =>
+        '{"error":"Shell exec spawn requires native FFI or command-mode WASM"}',
     },
     close: () => {
       // The WASM instance will be garbage collected.

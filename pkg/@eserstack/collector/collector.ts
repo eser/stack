@@ -7,7 +7,7 @@
 // Copyright (c) 2021-2023 Luca Casonato
 
 import * as patterns from "@eserstack/standards/patterns";
-import { runtime } from "@eserstack/standards/cross-runtime";
+import { ensureLib, getLib } from "./ffi-client.ts";
 
 /**
  * Convert a simple glob pattern to a RegExp.
@@ -26,21 +26,33 @@ export async function* walkFiles(
   globFilter: string | undefined,
   ignoreFilePattern: RegExp,
 ): AsyncGenerator<string> {
-  const routesFolder = runtime.fs.walk(baseDir, {
-    includeDirs: false,
-    includeFiles: true,
-    exts: patterns.JS_FILE_EXTENSIONS,
-    skip: [ignoreFilePattern],
-  });
+  await ensureLib();
+  const lib = getLib();
 
-  for await (const entry of routesFolder) {
-    const rel = runtime.path.relative(baseDir, entry.path);
+  if (lib === null) {
+    throw new Error("native library unavailable");
+  }
 
-    if (globFilter !== undefined && !simpleGlobToRegExp(globFilter).test(rel)) {
+  const raw = lib.symbols.EserAjanCollectorWalkFiles(
+    JSON.stringify({ dir: baseDir, ignoreFilePattern: ignoreFilePattern.source }),
+  );
+  const result = JSON.parse(raw) as {
+    files: Array<{ relPath: string; absPath: string }>;
+    error?: string;
+  };
+
+  if (result.error) {
+    throw new Error(result.error);
+  }
+
+  for (const { relPath } of result.files) {
+    if (
+      globFilter !== undefined &&
+      !simpleGlobToRegExp(globFilter).test(relPath)
+    ) {
       continue;
     }
-
-    yield rel;
+    yield relPath;
   }
 }
 
@@ -56,7 +68,6 @@ export type ExportItem = [string, Array<[string, unknown]>];
 export const collectExports = async (
   options: CollectExportsOptions,
 ): Promise<Array<ExportItem>> => {
-  // const mainModule = runtime.getMainModule();
   const ignoreFilePattern = options.ignoreFilePattern ??
     patterns.JS_TEST_FILE_PATTERN;
 
@@ -72,10 +83,6 @@ export const collectExports = async (
     const entryUri = `${options.baseDir}/${entry}`;
 
     try {
-      // if (`file://${entryUri}` === mainModule) {
-      //   continue;
-      // }
-
       const entryModule = await import(entryUri);
       const moduleExports = Object.entries(entryModule);
 

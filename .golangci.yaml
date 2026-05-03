@@ -24,6 +24,10 @@ linters:
     gosec:
       excludes:
         - G115
+        - G101  # Example/test credentials — not real secrets
+        - G204  # exec.Command("git", ...) is intentional throughout; production sites have //nolint:gosec
+        - G301  # 0o755 is appropriate for project/test dirs; production sites have //nolint:gosec
+        - G306  # 0o644 is appropriate for text files; production sites have //nolint:gosec
 
 issues:
   max-issues-per-linter: 50

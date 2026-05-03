@@ -13,7 +13,9 @@ import * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as results from "@eserstack/primitives/results";
+import * as task from "@eserstack/functions/task";
 import { runtime } from "@eserstack/standards/cross-runtime";
+import * as cloneRecipeHandler from "@eserstack/kit/recipes/handlers/clone-recipe";
 
 const TEMPLATES = ["minimal", "blog", "dashboard", "docs"] as const;
 type TemplateName = (typeof TEMPLATES)[number];
@@ -66,106 +68,47 @@ export const main = async (
 
   const specOwner = "eser";
   const specRepo = `laroux-template-${templateName}`;
-  const specRef = "main";
-
-  // Create target directory
-  const targetDir = `${runtime.process.cwd()}/${folder}`;
-  try {
-    await runtime.fs.mkdir(targetDir, { recursive: true });
-  } catch {
-    await out.close();
-    return results.fail({
-      message: renderer.render([
-        span.red(`\nCould not create directory: ${targetDir}`),
-      ]),
-      exitCode: 1,
-    });
-  }
 
   out.writeln(
     span.dim(`   Fetching from gh:${specOwner}/${specRepo}...\n`),
   );
 
-  try {
-    const registryFetcher = await import("@eserstack/kit/recipes/fetcher");
-    const recipeApplier = await import("@eserstack/kit/recipes/applier");
+  const specifierStr = `gh:${specOwner}/${specRepo}`;
+  const specifier = cloneRecipeHandler.parseSpecifier(specifierStr);
 
-    const recipe = await results.tryCatchAsync(
-      () =>
-        registryFetcher.fetchRecipeFromRepo(
-          specOwner,
-          specRepo,
-          specRef,
-          "recipe.json",
-        ),
-      () => undefined,
-    );
+  if (specifier === undefined) {
+    await out.close();
+    return results.fail({
+      message: renderer.render([
+        span.red(`\nCould not parse specifier: ${specifierStr}`),
+      ]),
+      exitCode: 1,
+    });
+  }
 
-    if (recipe._tag === "Ok" && recipe.value !== undefined) {
-      const repoUrl =
-        `https://raw.githubusercontent.com/${specOwner}/${specRepo}/${specRef}`;
+  const handlerResult = await task.runTask(
+    cloneRecipeHandler.cloneRecipe({
+      specifier,
+      cwd: runtime.process.cwd(),
+      projectName: folder,
+      force,
+      variables: { project_name: folder },
+      interactive: true,
+      skipPostInstall: noGit,
+    }),
+    { out },
+  );
 
-      const result = await recipeApplier.applyRecipe(recipe.value, {
-        cwd: targetDir,
-        registryUrl: repoUrl,
-        force,
-        variables: { project_name: folder },
-      });
-
-      out.writeln(span.green(`\n🎉 Project created successfully!`));
-      out.writeln(
-        span.dim(`   ${result.written.length} files written`),
-      );
-    } else {
-      const scaffolding = await import("@eserstack/codebase/scaffolding");
-      const specifier = `gh:${specOwner}/${specRepo}`;
-
-      const scaffoldResult = await results.tryCatchAsync(
-        () =>
-          scaffolding.scaffold({
-            specifier,
-            targetDir: folder,
-            force,
-            skipPostInstall: noGit,
-            interactive: true,
-          }),
-        (error) => ({ message: (error as Error).message }),
-      );
-
-      if (scaffoldResult._tag === "Fail") {
-        await out.close();
-        return results.fail({
-          message: renderer.render([
-            span.red(
-              `\nScaffolding failed: ${scaffoldResult.error.message}`,
-            ),
-          ]),
-          exitCode: 1,
-        });
-      }
-
-      const result = scaffoldResult.value;
-      out.writeln(span.green(`\n🎉 Project created successfully!`));
-
-      if (Object.keys(result.variables).length > 0) {
-        out.writeln(span.text("\nVariables applied:"));
-        for (const [key, value] of Object.entries(result.variables)) {
-          out.writeln(
-            span.text("  "),
-            span.dim(key),
-            span.text(`: ${value}`),
-          );
-        }
-      }
-    }
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
+  if (results.isFail(handlerResult)) {
+    const msg = handlerResult.error.message;
     await out.close();
     return results.fail({
       message: renderer.render([span.red(`\nFailed: ${msg}`)]),
       exitCode: 1,
     });
   }
+
+  out.writeln(span.green(`\n🎉 Project created successfully!`));
 
   out.writeln();
   out.writeln(span.bold("Next steps:"));

@@ -11,6 +11,12 @@ import type { FlagDef } from "./types.ts";
 /**
  * Internal command metadata for help generation
  */
+export type HelpShortcutMeta = {
+  readonly name: string;
+  readonly target: readonly string[];
+  readonly description: string;
+};
+
 export type HelpCommandMeta = {
   readonly name: string;
   readonly aliases?: readonly string[];
@@ -19,6 +25,7 @@ export type HelpCommandMeta = {
   readonly examples?: readonly string[];
   readonly flags: readonly FlagDef[];
   readonly children: readonly HelpCommandMeta[];
+  readonly shortcuts?: readonly HelpShortcutMeta[];
 };
 
 const padRight = (str: string, len: number): string =>
@@ -70,6 +77,22 @@ const generateCommands = (children: readonly HelpCommandMeta[]): string[] => {
   return ["Commands:", ...lines, ""];
 };
 
+const generateShortcuts = (
+  shortcuts: readonly HelpShortcutMeta[] | undefined,
+): string[] => {
+  if (shortcuts === undefined || shortcuts.length === 0) return [];
+
+  const targetCol = (t: readonly string[]): string => `-> "${t.join(" ")}"`;
+  const maxName = Math.max(...shortcuts.map((s) => s.name.length));
+  const maxTarget = Math.max(...shortcuts.map((s) => targetCol(s.target).length));
+
+  const lines = shortcuts.map(
+    (s) =>
+      `  ${padRight(s.name, maxName + 2)}${padRight(targetCol(s.target), maxTarget + 2)}${s.description}`,
+  );
+  return ["Shortcuts:", ...lines, ""];
+};
+
 const generateOptions = (flags: readonly FlagDef[]): string[] => {
   if (flags.length === 0) return [];
 
@@ -102,6 +125,7 @@ export const generateHelp = (
     ...generateTitle(meta, fullName),
     ...generateUsage(meta, fullName),
     ...generateCommands(meta.children),
+    ...generateShortcuts(meta.shortcuts),
     ...generateOptions(meta.flags),
     ...generateExamples(meta.examples),
   ];

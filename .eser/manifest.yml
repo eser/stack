@@ -81,6 +81,12 @@ workflows:
           exclude:
             - "pkg/@eserstack/standards/cross-runtime/"
             - "pkg/@eserstack/cli/scripts/compile.ts"
+      - validate-server-loc:
+          directory: "pkg/ajan/noskillsserverfx"
+      - validate-error-coverage:
+          file: "pkg/ajan/noskillsserverfx/errors.go"
+          errorObjects:
+            - NSError
 
       # Deno checks
       - shell:
@@ -196,6 +202,7 @@ scripts:
   go-lint: make lint
   go-fmt: make fix
   go-build: make build
+
 noskills:
   # noskills orchestrator — inline comments in this section won't be preserved on next write
   concerns:

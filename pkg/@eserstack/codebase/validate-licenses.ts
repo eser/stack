@@ -35,6 +35,7 @@ import {
   type FileTool,
   type ToolIssue,
   type ToolOptions,
+  withGoValidator,
 } from "./file-tool.ts";
 
 // =============================================================================
@@ -143,7 +144,7 @@ const fixLicenseHeader = (
 // Tool
 // =============================================================================
 
-export const tool: FileTool = createFileTool({
+export const tool: FileTool = withGoValidator(createFileTool({
   name: "validate-licenses",
   description: "Validate license headers",
   canFix: true,
@@ -154,7 +155,7 @@ export const tool: FileTool = createFileTool({
 
   checkFile: checkLicenseHeader,
   fixFile: fixLicenseHeader,
-});
+}), "license");
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

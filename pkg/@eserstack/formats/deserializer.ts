@@ -3,12 +3,34 @@
 import type { FormatOptions } from "./types.ts";
 import { FormatNotFoundError } from "./types.ts";
 import { getFormat } from "./format-registry.ts";
+import { ensureLib, getLib } from "./ffi-client.ts";
 
-export const deserialize = (
+export const deserialize = async (
   input: string,
   format: string,
   options?: FormatOptions,
-): unknown[] => {
+): Promise<unknown[]> => {
+  await ensureLib();
+
+  const lib = getLib();
+  if (lib !== null) {
+    try {
+      const requestJSON = JSON.stringify({ format, text: input, headers: options?.headers });
+      const raw = lib.symbols.EserAjanFormatDecode(requestJSON);
+      const parsed = JSON.parse(raw) as {
+        items?: unknown[];
+        error?: string;
+      };
+      if (!parsed.error) {
+        return parsed.items ?? [];
+      }
+      // Non-fatal: fall through to TS fallback (e.g. format only registered in TS)
+    } catch {
+      // Fall through to TS fallback
+    }
+  }
+
+  // TS fallback: pure TypeScript implementation.
   const formatAdapter = getFormat(format);
   if (formatAdapter === undefined) {
     throw new FormatNotFoundError(format);

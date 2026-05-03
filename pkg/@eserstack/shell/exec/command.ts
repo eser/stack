@@ -7,8 +7,12 @@
  */
 
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
+import { ensureLib, getLib } from "../ffi-client.ts";
 import type { CommandOptions, CommandResult, StdioOption } from "./types.ts";
 import { CommandError } from "./types.ts";
+import * as childGo from "./child-go.ts";
+
+const encoder = new TextEncoder();
 
 const decoder = new TextDecoder();
 
@@ -120,6 +124,57 @@ export class CommandBuilder {
 
   /** Execute command and return result */
   async spawn(): Promise<CommandResult> {
+    // Try Go FFI path first (not applicable when stdin is piped — streaming not supported)
+    if (this.#options.stdin !== "piped") {
+      await ensureLib();
+      const lib = getLib();
+
+      if (lib !== null) {
+        try {
+          const raw = lib.symbols.EserAjanShellExec(
+            JSON.stringify({
+              command: this.#cmd,
+              args: this.#args,
+              cwd: this.#options.cwd,
+              env: this.#options.env,
+              timeout: this.#options.timeout,
+            }),
+          );
+          const goResult = JSON.parse(raw) as {
+            stdout: string;
+            stderr: string;
+            code: number;
+            error?: string;
+          };
+
+          if (!goResult.error) {
+            const stdoutBytes = encoder.encode(goResult.stdout);
+            const stderrBytes = encoder.encode(goResult.stderr);
+            const result: CommandResult = {
+              code: goResult.code,
+              success: goResult.code === 0,
+              stdout: stdoutBytes,
+              stderr: stderrBytes,
+            };
+
+            if (!result.success && this.#options.throwOnError === true) {
+              throw new CommandError(
+                `Command failed with exit code ${result.code}: ${this.#cmd}`,
+                this.#cmd,
+                result.code,
+                goResult.stderr,
+              );
+            }
+
+            return result;
+          }
+        } catch (err) {
+          if (err instanceof CommandError) throw err;
+          // fall through to TS runtime
+        }
+      }
+    }
+
     const { runtime } = standardsCrossRuntime;
 
     const result = await runtime.exec.spawn(this.#cmd, this.#args, {
@@ -192,8 +247,8 @@ export class CommandBuilder {
   }
 
   /**
-   * Spawn child process with streaming I/O support.
-   * Returns a handle with stdin/stdout/stderr streams for advanced use cases.
+   * Spawn child process with streaming I/O support (Option B — FFI only).
+   * Throws if the native library is not available.
    *
    * @example
    * ```ts
@@ -203,14 +258,24 @@ export class CommandBuilder {
    * ```
    */
   child(): standardsCrossRuntime.ChildProcess {
-    const { runtime } = standardsCrossRuntime;
+    const lib = getLib();
 
-    return runtime.exec.spawnChild(this.#cmd, this.#args, {
+    if (lib === null) {
+      throw new Error(
+        "@eserstack/ajan native library is not available — " +
+          "exec.child() requires FFI or command-mode WASM",
+      );
+    }
+
+    const env = this.#options.env !== undefined
+      ? Object.entries(this.#options.env).map(([k, v]) => `${k}=${v}`)
+      : undefined;
+
+    return childGo.spawnChildGoSync(lib, {
+      command: this.#cmd,
+      args: this.#args,
       cwd: this.#options.cwd,
-      env: this.#options.env,
-      stdin: this.#options.stdin ?? "piped",
-      stdout: this.#options.stdout ?? "piped",
-      stderr: this.#options.stderr ?? "piped",
+      env,
     });
   }
 }

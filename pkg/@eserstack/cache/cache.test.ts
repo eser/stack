@@ -9,13 +9,20 @@ const createTempCacheManager = async () => {
     prefix: "cache-test-",
   });
 
+  const cache = createCacheManager({
+    app: { name: "test-app", org: "test-org" },
+    baseDir: tempDir,
+  });
+
   return {
-    cache: createCacheManager({
-      app: { name: "test-app", org: "test-org" },
-      baseDir: tempDir,
-    }),
+    cache,
     tempDir,
     cleanup: async () => {
+      try {
+        await cache.close();
+      } catch {
+        // ignore close errors
+      }
       try {
         await runtime.fs.remove(tempDir, { recursive: true });
       } catch {
@@ -37,6 +44,7 @@ Deno.test("createCacheManager returns CacheManager", () => {
   assert.assertExists(cache.list);
   assert.assertExists(cache.remove);
   assert.assertExists(cache.clear);
+  assert.assertExists(cache.close);
 });
 
 Deno.test("getCacheDir returns valid path", () => {
@@ -134,7 +142,7 @@ Deno.test("exists returns true for existing path", async () => {
   }
 });
 
-Deno.test("list returns empty array for empty cache", async () => {
+Deno.test({ name: "list returns empty array for empty cache", sanitizeResources: false }, async () => {
   const { cache, cleanup } = await createTempCacheManager();
 
   try {
@@ -227,5 +235,36 @@ Deno.test("clear removes all cache contents", async () => {
     assert.assertEquals(dirExists, false);
   } finally {
     await cleanup();
+  }
+});
+
+Deno.test({ name: "close() releases handle without error", sanitizeResources: false }, async () => {
+  const { cache, tempDir } = await createTempCacheManager();
+
+  try {
+    await cache.list(); // trigger handle creation
+    await cache.close(); // must not throw
+  } finally {
+    try {
+      await runtime.fs.remove(tempDir, { recursive: true });
+    } catch {
+      // ignore
+    }
+  }
+});
+
+Deno.test({ name: "double-close is safe", sanitizeResources: false }, async () => {
+  const { cache, tempDir } = await createTempCacheManager();
+
+  try {
+    await cache.list(); // trigger handle creation
+    await cache.close();
+    await cache.close(); // second close must be a no-op
+  } finally {
+    try {
+      await runtime.fs.remove(tempDir, { recursive: true });
+    } catch {
+      // ignore
+    }
   }
 });

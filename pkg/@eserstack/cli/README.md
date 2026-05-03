@@ -48,7 +48,6 @@ eser
 │   ├── clone             Clone a recipe from any GitHub repo
 │   └── update            Re-fetch and update an applied recipe
 ├── codebase              Codebase management tools
-│   ├── scaffolding       Initialize project from template
 │   ├── install           Install git hooks from .eser/manifest.yml
 │   ├── uninstall         Remove managed git hooks
 │   ├── status            Show git hook installation status
@@ -77,7 +76,9 @@ eser
 │   ├── validate-export-names
 │   ├── validate-licenses
 │   ├── validate-mod-exports
-│   └── validate-package-configs
+│   ├── validate-package-configs
+│   ├── validate-server-loc
+│   └── validate-error-coverage
 ├── workflows             Workflow engine — run tool pipelines
 │   ├── run               Run workflows by event or id
 │   └── list              List available workflows and tools
@@ -162,12 +163,14 @@ eser kit new <template> [options]
 eser kit create <template> [options]   # alias
 ```
 
-| Option            | Description                         |
-| ----------------- | ----------------------------------- |
-| `--name`          | Project name (defaults to template) |
-| `--var key=value` | Set template variables (repeatable) |
-| `--registry`      | Custom registry URL                 |
-| `--local`         | Use local registry (auto-detected)  |
+| Option                | Description                                                            |
+| --------------------- | ---------------------------------------------------------------------- |
+| `--name`              | Project name (defaults to template)                                    |
+| `--var key=value`     | Set template variables (repeatable)                                    |
+| `--interactive, -i`   | Prompt for missing variables interactively (auto-enabled in a TTY)     |
+| `--no-post-install`   | Skip post-install commands                                             |
+| `--registry`          | Custom registry URL                                                    |
+| `--local`             | Use local registry (auto-detected)                                     |
 
 **Available templates:** `library-pkg`, `laroux-app`, `go-service`,
 `cf-workers-app`, `vite-app`, `cool-lime-app`, `jsx-runtime-app`, `vanilla-app`
@@ -175,11 +178,36 @@ eser kit create <template> [options]   # alias
 #### kit clone
 
 ```bash
-eser kit clone <owner/repo> [options]
+eser kit clone <specifier> [target-dir] [options]
 ```
 
-Clones a recipe from any GitHub repository that contains a `recipe.json` file.
-Not limited to the built-in registry.
+Clone a recipe from any GitHub repository. Works with or without a `recipe.json` — repos without one copy the entire tree (whole-repo mode).
+
+| Option                  | Description                                                            |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `--name, -p`            | Set the `name` variable (shorthand for `--var name=value`)             |
+| `--var key=value`       | Set a template variable (repeatable)                                   |
+| `--interactive, -i`     | Prompt for missing variables interactively (auto-enabled in a TTY)     |
+| `--no-post-install`     | Skip post-install commands                                             |
+| `--dry-run`             | Preview files without writing                                          |
+| `--force`               | Overwrite existing files                                               |
+| `--skip-existing`       | Skip files that already exist                                          |
+| `--verbose`             | Show detailed output                                                   |
+
+**Specifier syntax:**
+
+| Format                       | Description                                          |
+| ---------------------------- | ---------------------------------------------------- |
+| `gh:owner/repo`              | Clone from GitHub repo root                          |
+| `gh:owner/repo#ref`          | Clone at a specific branch, tag, or commit           |
+| `gh:owner/repo/sub/path`     | Clone from a subpath within the repo                 |
+| `gh:owner/repo/sub/path#ref` | Subpath at a specific ref                            |
+| `owner/repo`                 | Shorthand — treated as `gh:owner/repo`               |
+
+**Clone modes:**
+
+- **Files mode** — `recipe.json` declares a `files` array → per-file fetch, Go FFI fast path for common recipes
+- **Whole-repo mode** — `recipe.json` has no `files`, or `recipe.json` is absent → full tree copy with `ignore` glob filtering and binary-file preservation
 
 #### Custom registries
 
@@ -211,9 +239,8 @@ npx eser workflows list
 Codebase management, validation, and release tools.
 
 ```bash
-# Initialize a new project from template
-npx eser codebase scaffolding
-npx eser codebase init    # alias for scaffolding
+# Initialize a new project — use kit clone instead
+npx eser kit clone gh:owner/repo
 
 # Install git hooks
 npx eser codebase install

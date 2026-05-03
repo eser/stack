@@ -190,7 +190,7 @@ bdd.describe("loadPostsConfig", () => {
       const cfg = await loadPostsConfig();
       assert.assertEquals(
         cfg.twitter.redirectUri,
-        "http://127.0.0.1:8080/callback",
+        "http://localhost:3000/callback",
       );
     },
   );
@@ -232,7 +232,7 @@ bdd.describe("loadPostsConfig", () => {
     async () => {
       runtime.env.delete("POSTS_TOKEN_STORE_PATH");
       const cfg = await loadPostsConfig();
-      assert.assertEquals(cfg.tokenStorePath, undefined);
+      assert.assertEquals(cfg.tokenStorePath, "~/.eser/posts/tokens");
     },
   );
 

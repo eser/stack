@@ -12,11 +12,6 @@ export const moduleDef: Module = new Module({
   description: "Codebase management tools",
   modules: {
     // Setup
-    scaffolding: {
-      description: "Initialize project from template",
-      category: "Setup",
-      load: () => import("./scaffolding/mod.ts"),
-    },
     install: {
       description: "Install git hooks from .eser/manifest.yml",
       category: "Setup",
@@ -197,8 +192,16 @@ export const moduleDef: Module = new Module({
       category: "Validation",
       load: () => import("./validate-package-configs.ts"),
     },
+    "validate-server-loc": {
+      description: "Fail if any non-test file in a directory exceeds the line ceiling",
+      category: "Validation",
+      load: () => import("./validate-server-loc.ts"),
+    },
+    "validate-error-coverage": {
+      description: "Verify error-struct entries have non-empty required fields",
+      category: "Validation",
+      load: () => import("./validate-error-coverage.ts"),
+    },
   },
-  aliases: {
-    init: "scaffolding",
-  },
+  aliases: {},
 });

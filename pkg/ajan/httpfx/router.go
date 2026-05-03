@@ -215,3 +215,56 @@ func (r *Router) Route(pattern string, handlers ...Handler) *Route { //nolint:fu
 
 	return route
 }
+
+// RouteRaw registers a pattern directly on the underlying mux without the
+// Result-wrapping closure. Use this ONLY for hijacking endpoints such as
+// WebTransport upgrades or raw streaming responses.
+//
+// The full middleware chain still executes; each middleware receives a Context
+// with IsRaw=true so it can skip post-response work (e.g. timing log body-size
+// measurements). If a middleware calls WriteEarly, the raw handler receives a
+// Context with EarlyWritten=true and MUST return without writing further.
+//
+// Panics if the router has been frozen.
+func (r *Router) RouteRaw(pattern string, handler http.HandlerFunc) {
+	if r.frozen.Load() {
+		panic("httpfx: cannot register route on frozen router")
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	current := r.table.Load()
+
+	middlewareSnapshot := make([]Handler, len(current.handlers))
+	copy(middlewareSnapshot, current.handlers)
+
+	r.mux.HandleFunc(pattern, func(responseWriter http.ResponseWriter, req *http.Request) {
+		ctx := &Context{
+			Request:        req,
+			ResponseWriter: responseWriter,
+			Results:        Results{},
+			routeDef:       nil,
+			handlers:       middlewareSnapshot,
+			index:          0,
+			IsRaw:          true,
+			EarlyWritten:   false,
+		}
+
+		if len(middlewareSnapshot) > 0 {
+			result := middlewareSnapshot[0](ctx)
+
+			// If a middleware called WriteEarly (e.g. auth rejection), the
+			// response is already sent — honour the redirect header if set.
+			if ctx.EarlyWritten {
+				if result.RedirectToURI() != "" {
+					responseWriter.Header().Set("Location", result.RedirectToURI())
+				}
+
+				return
+			}
+		}
+
+		handler(responseWriter, req)
+	})
+}

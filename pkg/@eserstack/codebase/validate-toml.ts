@@ -8,9 +8,9 @@
 
 import * as toml from "@std/toml";
 import * as standards from "@eserstack/standards";
-import { createFileTool, type FileTool } from "./file-tool.ts";
+import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = createFileTool({
+export const tool: FileTool = withGoValidator(createFileTool({
   name: "validate-toml",
   description: "Validate TOML syntax",
   canFix: false,
@@ -31,7 +31,7 @@ export const tool: FileTool = createFileTool({
       return [{ path: file.path, message }];
     }
   },
-});
+}), "toml");
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

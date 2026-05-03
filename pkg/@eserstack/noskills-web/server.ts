@@ -55,6 +55,14 @@ const route = async (
   const path = url.pathname;
   const method = request.method;
 
+  // PWA root-level files — service worker must be at / scope, not /static/
+  if (path === "/sw.js" && method === "GET") {
+    return serveStatic("sw.js");
+  }
+  if (path === "/manifest.json" && method === "GET") {
+    return serveStatic("manifest.json");
+  }
+
   // Static files
   if (path.startsWith("/static/")) {
     return serveStatic(path.slice("/static/".length));

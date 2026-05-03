@@ -23,7 +23,9 @@ test-coverage: ## Run tests with race detector and coverage report
 	go test -race -coverprofile=coverage.out ./...
 
 build: ## Build binaries
-	go build -o bin/ajan ./cmd/ajan/
+	@mkdir -p bin
+	go build -o bin/noskills-server ./cmd/noskills-server/
+	go build -o bin/noskills ./cmd/noskills/
 
 tools: ## Download tool dependencies declared in go.mod
 	go mod download

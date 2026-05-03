@@ -39,6 +39,7 @@ import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
 import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
 import * as pkg from "./package/mod.ts";
+import { requireLib } from "./ffi-client.ts";
 
 const { ctx, output: out } = createCliContext();
 
@@ -144,6 +145,34 @@ export const readVersionFile = async (
   } catch {
     return undefined;
   }
+};
+
+/**
+ * Purely calculates the next version from a current version and a command.
+ * Delegates to Go FFI when available; falls back to @std/semver.
+ *
+ * @param current - The current semver version string
+ * @param command - The bump command: "patch" | "minor" | "major" | "explicit" | "sync"
+ * @param explicit - Required when command is "explicit"
+ * @returns The resulting version string
+ */
+export const bumpVersion = async (
+  current: string,
+  command: VersionCommand,
+  explicit?: string,
+): Promise<string> => {
+  const lib = await requireLib();
+  const raw = lib.symbols.EserAjanCodebaseBumpVersion(
+    JSON.stringify({ current, command, explicit }),
+  );
+  const parsed = JSON.parse(raw) as { version?: string; error?: string };
+  if (parsed.error !== undefined) {
+    throw new Error(parsed.error);
+  }
+  if (parsed.version === undefined) {
+    throw new Error("bumpVersion: FFI returned no version");
+  }
+  return parsed.version;
 };
 
 /**

@@ -3,6 +3,7 @@
 import * as formats from "@eserstack/formats";
 import * as dotenv from "@eserstack/config/dotenv";
 import * as shellExec from "@eserstack/shell/exec";
+import { ensureLib, getLib } from "./ffi-client.ts";
 import type {
   ConfigMap,
   KubectlResourceReference,
@@ -225,6 +226,30 @@ export const buildConfigMapFromContext = (
  * ```
  */
 export const sync = async (options: SyncOptions): Promise<string> => {
+  // FFI path: delegate to Go csfx.Sync when an explicit env file path is given.
+  // When options.env is undefined, TS loads process.env — no Go equivalent.
+  await ensureLib();
+  const lib = getLib();
+  if (lib !== null && typeof options.env === "string") {
+    try {
+      const requestJSON = JSON.stringify({
+        resource: options.resource,
+        envFile: options.env,
+        format: options.format ?? "json",
+        stringOnly: options.stringOnly ?? false,
+      });
+      const raw = lib.symbols.EserAjanCsSync(requestJSON);
+      const parsed = JSON.parse(raw) as { result?: string; error?: string };
+      if (!parsed.error) {
+        return parsed.result ?? "";
+      }
+      // Non-fatal: fall through to TS fallback
+    } catch {
+      // Fall through to TS fallback
+    }
+  }
+
+  // TS fallback: pure TypeScript implementation.
   // Register formats lazily when needed
   formats.registerBuiltinFormats();
 
@@ -280,7 +305,7 @@ export const sync = async (options: SyncOptions): Promise<string> => {
 
     let patchString: string;
     if (format === "yaml") {
-      patchString = formats.serialize([patchObject], "yaml", { pretty: true })
+      patchString = (await formats.serialize([patchObject], "yaml", { pretty: true }))
         .trim();
     } else {
       patchString = JSON.stringify(patchObject);

@@ -7,12 +7,12 @@
  */
 
 import * as standards from "@eserstack/standards";
-import { createFileTool, type FileTool } from "./file-tool.ts";
+import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
 /** UTF-8 BOM: 0xEF 0xBB 0xBF */
 const BOM = "\uFEFF";
 
-export const tool: FileTool = createFileTool({
+export const tool: FileTool = withGoValidator(createFileTool({
   name: "validate-bom",
   description: "Remove UTF-8 byte order markers",
   canFix: true,
@@ -39,7 +39,7 @@ export const tool: FileTool = createFileTool({
     const fixed = content.slice(1);
     return { path: file.path, oldContent: content, newContent: fixed };
   },
-});
+}), "bom");
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

@@ -1,19 +1,27 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Content hashing utilities using Web Crypto API.
+ * Content hashing utilities.
  *
- * Provides functions for computing cryptographic hashes of binary and string content.
+ * Delegates all operations to the native Go library.
  *
  * @module
  */
 
-import * as hex from "@std/encoding/hex";
+import { ensureLib, getLib } from "./ffi-client.ts";
 
 /**
- * Hash algorithm options supported by Web Crypto API.
+ * Hash algorithm options.
  */
 export type HashAlgorithm = "SHA-256" | "SHA-384" | "SHA-512" | "SHA-1";
+
+const toBase64 = (bytes: Uint8Array): string => {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+};
 
 /**
  * Compute a content hash.
@@ -29,17 +37,26 @@ export type HashAlgorithm = "SHA-256" | "SHA-384" | "SHA-512" | "SHA-1";
  * console.log(hash); // "039058c6f2c0cb49"
  * ```
  */
-export async function computeHash(
+export const computeHash = async (
   content: Uint8Array,
   algorithm: HashAlgorithm = "SHA-256",
   length = 16,
-): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest(
-    algorithm,
-    content as BufferSource,
+): Promise<string> => {
+  await ensureLib();
+  const lib = getLib();
+  if (lib === null) {
+    throw new Error("native library unavailable");
+  }
+
+  const raw = lib.symbols.EserAjanCryptoHash(
+    JSON.stringify({ data: toBase64(content), algorithm, length }),
   );
-  return hex.encodeHex(new Uint8Array(hashBuffer)).slice(0, length);
-}
+  const result = JSON.parse(raw) as { hash: string; error?: string };
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.hash;
+};
 
 /**
  * Compute a hash for string content.
@@ -55,14 +72,26 @@ export async function computeHash(
  * console.log(hash); // "b94d27b9934d3e08"
  * ```
  */
-export function computeStringHash(
+export const computeStringHash = async (
   content: string,
   algorithm: HashAlgorithm = "SHA-256",
   length = 16,
-): Promise<string> {
-  const encoded = new TextEncoder().encode(content);
-  return computeHash(encoded, algorithm, length);
-}
+): Promise<string> => {
+  await ensureLib();
+  const lib = getLib();
+  if (lib === null) {
+    throw new Error("native library unavailable");
+  }
+
+  const raw = lib.symbols.EserAjanCryptoHash(
+    JSON.stringify({ text: content, algorithm, length }),
+  );
+  const result = JSON.parse(raw) as { hash: string; error?: string };
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.hash;
+};
 
 /**
  * Compute a hash for multiple pieces of content.
@@ -80,11 +109,11 @@ export function computeStringHash(
  * ]);
  * ```
  */
-export function computeCombinedHash(
+export const computeCombinedHash = (
   contents: readonly Uint8Array[],
   algorithm: HashAlgorithm = "SHA-256",
   length = 16,
-): Promise<string> {
+): Promise<string> => {
   const totalLength = contents.reduce((sum, c) => sum + c.length, 0);
   const combined = new Uint8Array(totalLength);
   let offset = 0;
@@ -93,4 +122,4 @@ export function computeCombinedHash(
     offset += content.length;
   }
   return computeHash(combined, algorithm, length);
-}
+};

@@ -8,6 +8,7 @@
  */
 
 import * as shellExec from "@eserstack/shell/exec";
+import { ensureLib, getLib } from "./ffi-client.ts";
 
 /**
  * Represents a git commit with its metadata.
@@ -69,6 +70,17 @@ const parseCommitLog = (text: string): Commit[] => {
  * ```
  */
 export const getLatestTag = async (): Promise<string> => {
+  await ensureLib();
+  const lib = getLib();
+  if (lib !== null) {
+    try {
+      const raw = lib.symbols.EserAjanCodebaseGitLatestTag("{}");
+      const parsed = JSON.parse(raw) as { tag?: string; error?: string };
+      if (!parsed.error && parsed.tag !== undefined) {
+        return parsed.tag.trim();
+      }
+    } catch { /* fall through to TS */ }
+  }
   return await shellExec.exec`git describe --tags --abbrev=0`.text();
 };
 
@@ -85,6 +97,17 @@ export const getLatestTag = async (): Promise<string> => {
  * ```
  */
 export const getCurrentBranch = async (): Promise<string> => {
+  await ensureLib();
+  const lib = getLib();
+  if (lib !== null) {
+    try {
+      const raw = lib.symbols.EserAjanCodebaseGitCurrentBranch("{}");
+      const parsed = JSON.parse(raw) as { branch?: string; error?: string };
+      if (!parsed.error && parsed.branch !== undefined) {
+        return parsed.branch.trim();
+      }
+    } catch { /* fall through to TS */ }
+  }
   return await shellExec.exec`git branch --show-current`.text();
 };
 
@@ -151,6 +174,22 @@ export const getCommitsBetween = async (
   start: string,
   end: string,
 ): Promise<Commit[]> => {
+  await ensureLib();
+  const lib = getLib();
+  if (lib !== null) {
+    try {
+      const raw = lib.symbols.EserAjanCodebaseGitLog(
+        JSON.stringify({ start, end }),
+      );
+      const parsed = JSON.parse(raw) as {
+        commits?: Commit[];
+        error?: string;
+      };
+      if (!parsed.error && parsed.commits !== undefined) {
+        return parsed.commits;
+      }
+    } catch { /* fall through to TS */ }
+  }
   const format = `--pretty=format:${COMMIT_SEPARATOR}%H%B`;
   const range = `${start}..${end}`;
   const text = await shellExec.exec`git --no-pager log ${format} ${range}`
@@ -176,6 +215,22 @@ export const getCommitsBetween = async (
 export const getCommitsSinceDate = async (
   date: string,
 ): Promise<Commit[]> => {
+  await ensureLib();
+  const lib = getLib();
+  if (lib !== null) {
+    try {
+      const raw = lib.symbols.EserAjanCodebaseGitLog(
+        JSON.stringify({ since: date }),
+      );
+      const parsed = JSON.parse(raw) as {
+        commits?: Commit[];
+        error?: string;
+      };
+      if (!parsed.error && parsed.commits !== undefined) {
+        return parsed.commits;
+      }
+    } catch { /* fall through to TS */ }
+  }
   // Convert YYYY.MM.DD to YYYY-MM-DD if needed
   const gitDate = date.replace(/\./g, "-");
   const after = `--after=${gitDate}`;

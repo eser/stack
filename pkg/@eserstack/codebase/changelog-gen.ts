@@ -31,9 +31,9 @@ import * as standards from "@eserstack/standards";
 import * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
-import * as git from "./git.ts";
-import { readVersionFile } from "./versions.ts";
+import type * as git from "./git.ts";
 import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
+import { requireLib } from "./ffi-client.ts";
 
 const { ctx, output: out } = createCliContext();
 
@@ -360,72 +360,15 @@ export const insertIntoChangelog = (
 export const generateChangelog = async (
   options: GenerateChangelogOptions = {},
 ): Promise<GenerateChangelogResult> => {
-  const { root = ".", dryRun = false } = options;
-
-  // Read the already-bumped VERSION (versions.ts runs first in release flow)
-  const version = await readVersionFile({ root });
-  if (version === undefined || version === "") {
-    throw new Error("VERSION file is missing or empty.");
+  const lib = await requireLib();
+  const raw = lib.symbols.EserAjanCodebaseGenerateChangelog(
+    JSON.stringify({ dir: options.root ?? ".", dryRun: options.dryRun ?? false }),
+  );
+  const parsed = JSON.parse(raw) as GenerateChangelogResult | { error: string };
+  if ("error" in parsed) {
+    throw new Error((parsed as { error: string }).error);
   }
-
-  // Get the last tag
-  let lastTag: string;
-  try {
-    lastTag = await git.getLatestTag();
-  } catch {
-    throw new Error(
-      "No git tags found. Create an initial tag first (e.g., git tag v0.0.0).",
-    );
-  }
-
-  // Get commits since last tag
-  const commits = await git.getCommitsBetween(lastTag, "HEAD");
-  if (commits.length === 0) {
-    throw new Error(
-      `No commits found since ${lastTag}. Nothing to release.`,
-    );
-  }
-
-  // Parse, deduplicate, and generate
-  const parsed = parseConventionalCommits(commits);
-  const deduped = deduplicateCommits(parsed);
-  const content = generateChangelogSection(version, deduped);
-
-  if (!dryRun) {
-    const changelogPath = standards.crossRuntime.runtime.path.join(
-      root,
-      "CHANGELOG.md",
-    );
-
-    let existingContent: string;
-    try {
-      existingContent = await standards.crossRuntime.runtime.fs.readTextFile(
-        changelogPath,
-      );
-    } catch {
-      throw new Error(
-        `CHANGELOG.md not found at ${changelogPath}. Create one first.`,
-      );
-    }
-
-    const updatedContent = insertIntoChangelog(
-      existingContent,
-      content,
-      version,
-    );
-    await standards.crossRuntime.runtime.fs.writeTextFile(
-      changelogPath,
-      updatedContent,
-    );
-  }
-
-  return {
-    version,
-    commitCount: commits.length,
-    entryCount: deduped.filter((c) => !SKIP_TYPES.has(c.type)).length,
-    content,
-    dryRun,
-  };
+  return parsed as GenerateChangelogResult;
 };
 
 // =============================================================================

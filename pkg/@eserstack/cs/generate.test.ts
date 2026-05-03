@@ -40,7 +40,7 @@ async function cleanupTempDir(tempDir: string) {
   }
 }
 
-Deno.test("generate() should work without environment name", async () => {
+Deno.test({ name: "generate() should work without environment name", sanitizeResources: false }, async () => {
   const tempDir = await createDefaultEnvFiles({
     "DEFAULT_VAR_1": "default-value-1",
     "DEFAULT_VAR_2": "default-value-2",

@@ -1,0 +1,45 @@
+name: Developer Experience
+description: Report a friction point, confusing behavior, or DX improvement idea
+labels: ["dx"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        DX reports help keep noskills-server delightful to use. Paste your `noskills-server doctor --json` output below.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `noskills-server version`
+      placeholder: "noskills-server v1.0.0 (darwin/arm64)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor output
+      description: Run `noskills-server doctor --json` and paste the result
+      render: json
+
+  - type: textarea
+    id: friction
+    attributes:
+      label: What was the friction?
+      description: What step confused you, felt slow, or required unexpected effort?
+      placeholder: "When I ran 'noskills-server start' for the first time, the mkcert sudo prompt appeared without explanation…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      placeholder: "I expected to see a message explaining what mkcert is and why a password is needed."
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, terminal recordings, or anything else that helps

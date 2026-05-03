@@ -9,8 +9,9 @@
 import { runtime, toPosix } from "@eserstack/standards/cross-runtime";
 import * as logger from "@eserstack/logging/logger";
 import * as validatorIdentifier from "./validator-identifier/mod.ts";
-import * as collector from "./collector.ts";
 import * as formatter from "./formatter.ts";
+import * as collector from "./collector.ts";
+import { ensureLib, getLib } from "./ffi-client.ts";
 
 const IMPORT_PREFIX = "$$";
 const PLACEHOLDER_PREFIX = `##!!//__`;
@@ -31,35 +32,41 @@ const toImportSpecifier = (file: string) => {
 };
 
 // Create a valid JS identifier out of the project relative specifier.
-// Note that we only need to deal with strings that _must_ have been
-// valid file names in Windows, macOS and Linux and every identifier we
-// create here will be prefixed with at least one "$". This greatly
-// simplifies the invalid characters we have to account for.
 export const specifierToIdentifier = (
   specifier: string,
   used: Set<string>,
 ): string => {
-  // specifier = specifier.replace(/^(?:\.\/pkg)\//, "");
-  const ext = runtime.path.extname(specifier);
-  if (ext) {
-    specifier = specifier.slice(0, -ext.length);
+  const lib = getLib();
+
+  if (lib !== null) {
+    const raw = lib.symbols.EserAjanCollectorSpecifierToIdentifier(
+      JSON.stringify({ specifier, used: [...used] }),
+    );
+    const result = JSON.parse(raw) as { identifier: string; error?: string };
+    if (!result.error) {
+      used.add(result.identifier);
+      return result.identifier;
+    }
   }
 
-  // Turn the specifier into a readable JS identifier
+  // Fallback: TS implementation
+  const ext = runtime.path.extname(specifier);
+  let spec = ext ? specifier.slice(0, -ext.length) : specifier;
+
   let ident = "";
-  for (let i = 0; i < specifier.length; i++) {
-    const char = specifier.charCodeAt(i);
+  for (let i = 0; i < spec.length; i++) {
+    const char = spec.charCodeAt(i);
     if (i === 0 && !validatorIdentifier.isIdentifierStart(char)) {
       ident += "_";
       if (validatorIdentifier.isIdentifierChar(char)) {
-        ident += specifier[i];
+        ident += spec[i];
       }
     } else if (!validatorIdentifier.isIdentifierChar(char)) {
       if (ident[ident.length - 1] !== "_") {
         ident += "_";
       }
-    } else if (ident[ident.length - 1] !== "_" || specifier[i] !== "_") {
-      ident += specifier[i];
+    } else if (ident[ident.length - 1] !== "_" || spec[i] !== "_") {
+      ident += spec[i];
     }
   }
 
@@ -81,7 +88,6 @@ export const specifierToIdentifier = (
 
 const getSortFn = () => {
   const naturalCollator = new Intl.Collator(undefined, { numeric: true });
-
   return naturalCollator.compare;
 };
 
@@ -92,12 +98,28 @@ const placeholder = (text: string) => {
 export const writeManifestToString = async (
   collection: Array<[string, Array<[string, unknown]>]>,
 ): Promise<string> => {
-  const sortFn = getSortFn();
+  await ensureLib();
+  const lib = getLib();
 
+  if (lib !== null) {
+    const entries = collection.map(([relPath, exports]) => ({
+      relPath,
+      exports: exports.map(([name]) => name),
+    }));
+    const raw = lib.symbols.EserAjanCollectorGenerateManifest(
+      JSON.stringify({ entries }),
+    );
+    const result = JSON.parse(raw) as { source: string; error?: string };
+    if (!result.error) {
+      return result.source;
+    }
+  }
+
+  // Fallback: TS manifest generation
+  const sortFn = getSortFn();
   const used = new Set<string>();
   const imports: Array<string> = [];
   const manifest = {
-    // baseUrl: placeholder("import.meta.url"),
     exports: [] as Array<string>,
   };
 
@@ -111,7 +133,6 @@ export const writeManifestToString = async (
 
     const ref = (target: unknown) => {
       const name = (target as { name: string }).name;
-
       return placeholder(`${IMPORT_PREFIX}${identifier}.${name}`);
     };
 
@@ -136,9 +157,7 @@ ${importsSerialized}
 export const manifest = ${manifestSerialized};
 `;
 
-  const manifestStr = await formatter.format(output);
-
-  return manifestStr;
+  return formatter.format(output);
 };
 
 export const buildManifest = async (
@@ -146,17 +165,14 @@ export const buildManifest = async (
   options: collector.CollectExportsOptions,
 ): Promise<void> => {
   const collection = await collector.collectExports(options);
-
   const manifestStr = await writeManifestToString(collection);
 
   const outputWriter = target.getWriter();
   try {
     await outputWriter.ready;
-
     const encoded = new TextEncoder().encode(manifestStr);
     await outputWriter.write(encoded);
   } finally {
-    // Always release the lock, even if write fails
     outputWriter.releaseLock();
   }
 

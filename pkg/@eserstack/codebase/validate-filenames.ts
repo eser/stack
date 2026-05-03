@@ -12,7 +12,7 @@
  */
 
 import * as standards from "@eserstack/standards";
-import { createFileTool, type FileTool } from "./file-tool.ts";
+import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
 // =============================================================================
 // Naming rules
@@ -86,7 +86,7 @@ const isExcluded = (
   return false;
 };
 
-export const tool: FileTool = createFileTool({
+export const tool: FileTool = withGoValidator(createFileTool({
   name: "validate-filenames",
   description: "Enforce filename conventions (kebab-case / snake_case)",
   canFix: false,
@@ -173,7 +173,7 @@ export const tool: FileTool = createFileTool({
 
     return issues;
   },
-});
+}), "filenames");
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

@@ -42,6 +42,7 @@ import {
   walkSourceFiles,
 } from "./file-tools-shared.ts";
 import { createCliContext, toCliEvent } from "./cli-support.ts";
+import { ensureLib, getLib } from "./ffi-client.ts";
 
 const { ctx, output: _out } = createCliContext();
 
@@ -343,6 +344,67 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
   };
 
   return { config, run, validator, main };
+};
+
+/**
+ * Wraps a FileTool so its registry-facing `validator.validate` delegates to Go's
+ * built-in file validators when the native FFI library is available.
+ *
+ * `run` and `main` are left unchanged so that `--fix` mode still works through
+ * the TypeScript path (Go validators are check-only).
+ *
+ * @param tool - The original FileTool created by `createFileTool`
+ * @param goValidatorName - The short name used by the Go bridge
+ *   (`"eof"`, `"bom"`, `"trailing"`, `"line-endings"`, `"merge-conflicts"`, `"secrets"`)
+ */
+export const withGoValidator = (
+  tool: FileTool,
+  goValidatorName: string,
+): FileTool => {
+  // Pre-compute dot-prefixed extensions from the tool config (e.g. "ts" → ".ts").
+  // Passed to Go so the walker only reads relevant files — saves I/O.
+  const goExtensions = tool.config.extensions !== undefined
+    ? [...tool.config.extensions.map((e) => `.${e}`)]
+    : undefined;
+
+  const goValidator: Validator = {
+    ...tool.validator,
+    validate: async (options): Promise<ValidatorResult> => {
+      await ensureLib();
+      const lib = getLib();
+      if (lib === null) {
+        throw new Error(
+          `FFI library unavailable — cannot run validator "${goValidatorName}"`,
+        );
+      }
+      const raw = lib.symbols.EserAjanCodebaseValidateFiles(
+        JSON.stringify({
+          dir: options.root,
+          validators: [goValidatorName],
+          extensions: goExtensions,
+          validatorOptions: { [goValidatorName]: options },
+          gitAware: true,
+        }),
+      );
+      const parsed = JSON.parse(raw) as {
+        results?: ValidatorResult[];
+        error?: string;
+      };
+      if (parsed.error) {
+        throw new Error(
+          `Go validator "${goValidatorName}" error: ${parsed.error}`,
+        );
+      }
+      if (!parsed.results?.length) {
+        throw new Error(
+          `Go validator "${goValidatorName}" returned no results`,
+        );
+      }
+      return { ...parsed.results[0]!, name: tool.validator.name } as ValidatorResult;
+    },
+  };
+
+  return { ...tool, validator: goValidator };
 };
 
 // Re-export types for tool implementations

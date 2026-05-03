@@ -21,3 +21,21 @@ Deno.test("setting config meta", () => {
 
   assert.assertInstanceOf(result, config.Config);
 });
+
+Deno.test({ name: "FFI round-trip: load values from json_file", sanitizeResources: false }, async () => {
+  const tmpDir = await Deno.makeTempDir();
+  const configPath = `${tmpDir}/round-trip.json`;
+  try {
+    await Deno.writeTextFile(
+      configPath,
+      JSON.stringify({ ESER_TEST_KEY: "hello", ESER_TEST_NUM: 42 }),
+    );
+    const values = await config.load([
+      `json_file:${configPath}` as config.ConfigSource,
+    ]);
+    assert.assertEquals(values["ESER_TEST_KEY"], "hello");
+    assert.assertEquals(values["ESER_TEST_NUM"], "42"); // Go coerces all JSON values to strings
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});

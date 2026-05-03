@@ -45,22 +45,36 @@ interface RecipeDependencies {
 /** A template variable definition for substitution */
 interface TemplateVariable {
   readonly name: string;
-  readonly description: string;
+  readonly description?: string;
   readonly default?: string;
   readonly prompt?: string;
+  /** Regex pattern applied during interactive validation */
+  readonly pattern?: string;
+  /** Whether the variable is required when no default is provided (default: true) */
+  readonly required?: boolean;
 }
 
-/** A single recipe definition */
+/**
+ * A single recipe definition.
+ *
+ * All fields are optional for standalone `recipe.json` usage (clone path).
+ * Registry entries have stricter requirements enforced by `isRegistryRecipe`.
+ */
 interface Recipe {
-  readonly name: string;
-  readonly description: string;
-  readonly language: string;
-  readonly scale: RecipeScale;
+  /** Accepted sentinel: "registry/v1". Used for the empty-fallback synthesis. */
+  readonly schema?: string;
+  readonly name?: string;
+  readonly description?: string;
+  readonly language?: string;
+  readonly scale?: RecipeScale;
   readonly tags?: readonly string[];
   readonly requires?: readonly string[];
   readonly variables?: readonly TemplateVariable[];
   readonly postInstall?: readonly string[];
-  readonly files: readonly RecipeFile[];
+  /** File list for recipe mode. Absent → whole-repo mode. */
+  readonly files?: readonly RecipeFile[];
+  /** Glob patterns for whole-repo mode file exclusion. */
+  readonly ignore?: readonly string[];
   readonly dependencies?: RecipeDependencies;
   readonly transforms?: readonly unknown[];
 }
@@ -147,7 +161,7 @@ const isTemplateVariable = (value: unknown): value is TemplateVariable => {
   if (typeof obj["name"] !== "string" || obj["name"] === "") {
     return false;
   }
-  if (typeof obj["description"] !== "string") {
+  if (obj["description"] !== undefined && typeof obj["description"] !== "string") {
     return false;
   }
   if (obj["default"] !== undefined && typeof obj["default"] !== "string") {
@@ -156,12 +170,133 @@ const isTemplateVariable = (value: unknown): value is TemplateVariable => {
   if (obj["prompt"] !== undefined && typeof obj["prompt"] !== "string") {
     return false;
   }
+  if (obj["pattern"] !== undefined && typeof obj["pattern"] !== "string") {
+    return false;
+  }
+  if (obj["required"] !== undefined && typeof obj["required"] !== "boolean") {
+    return false;
+  }
 
   return true;
 };
 
+/**
+ * Lenient type guard for a standalone `recipe.json` (clone path).
+ * All fields are optional — an empty object `{}` is a valid recipe that
+ * triggers whole-repo mode with no variables and no post-install.
+ *
+ * For registry-listed recipes that require name/description/language/scale/files,
+ * use `isRegistryRecipe` instead.
+ */
 const isRecipe = (value: unknown): value is Recipe => {
   if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  // schema — if present, must be a string
+  if (obj["schema"] !== undefined && typeof obj["schema"] !== "string") {
+    return false;
+  }
+  // name — if present, must be a non-empty string
+  if (
+    obj["name"] !== undefined &&
+    (typeof obj["name"] !== "string" || obj["name"] === "")
+  ) {
+    return false;
+  }
+  // description — if present, must be a string
+  if (obj["description"] !== undefined && typeof obj["description"] !== "string") {
+    return false;
+  }
+  // language — if present, must be a string
+  if (obj["language"] !== undefined && typeof obj["language"] !== "string") {
+    return false;
+  }
+  // scale — if present, must be a valid scale value
+  if (obj["scale"] !== undefined && !isValidScale(obj["scale"])) {
+    return false;
+  }
+
+  // files — if present, must be a non-empty array of valid RecipeFile entries
+  if (obj["files"] !== undefined) {
+    if (!Array.isArray(obj["files"])) {
+      return false;
+    }
+    for (const file of obj["files"]) {
+      if (!isRecipeFile(file)) {
+        return false;
+      }
+    }
+  }
+
+  // ignore — if present, must be an array of strings
+  if (obj["ignore"] !== undefined) {
+    if (!Array.isArray(obj["ignore"])) {
+      return false;
+    }
+    for (const pattern of obj["ignore"]) {
+      if (typeof pattern !== "string") {
+        return false;
+      }
+    }
+  }
+
+  if (
+    obj["dependencies"] !== undefined &&
+    !isRecipeDependencies(obj["dependencies"])
+  ) {
+    return false;
+  }
+
+  if (obj["tags"] !== undefined && !Array.isArray(obj["tags"])) {
+    return false;
+  }
+
+  if (obj["requires"] !== undefined) {
+    if (!Array.isArray(obj["requires"])) {
+      return false;
+    }
+    for (const req of obj["requires"]) {
+      if (typeof req !== "string") {
+        return false;
+      }
+    }
+  }
+
+  if (obj["variables"] !== undefined) {
+    if (!Array.isArray(obj["variables"])) {
+      return false;
+    }
+    for (const v of obj["variables"]) {
+      if (!isTemplateVariable(v)) {
+        return false;
+      }
+    }
+  }
+
+  if (obj["postInstall"] !== undefined) {
+    if (!Array.isArray(obj["postInstall"])) {
+      return false;
+    }
+    for (const cmd of obj["postInstall"]) {
+      if (typeof cmd !== "string" && !Array.isArray(cmd)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+};
+
+/**
+ * Strict type guard for recipes listed in a registry manifest.
+ * Retains the original required-field contract:
+ * name, description, language, scale, and files are all required.
+ */
+const isRegistryRecipe = (value: unknown): value is Recipe => {
+  if (!isRecipe(value)) {
     return false;
   }
 
@@ -179,62 +314,8 @@ const isRecipe = (value: unknown): value is Recipe => {
   if (!isValidScale(obj["scale"])) {
     return false;
   }
-
   if (!Array.isArray(obj["files"]) || obj["files"].length === 0) {
     return false;
-  }
-
-  for (const file of obj["files"]) {
-    if (!isRecipeFile(file)) {
-      return false;
-    }
-  }
-
-  if (
-    obj["dependencies"] !== undefined &&
-    !isRecipeDependencies(obj["dependencies"])
-  ) {
-    return false;
-  }
-
-  if (obj["tags"] !== undefined && !Array.isArray(obj["tags"])) {
-    return false;
-  }
-
-  // Validate requires (optional array of strings)
-  if (obj["requires"] !== undefined) {
-    if (!Array.isArray(obj["requires"])) {
-      return false;
-    }
-    for (const req of obj["requires"]) {
-      if (typeof req !== "string") {
-        return false;
-      }
-    }
-  }
-
-  // Validate variables (optional array of TemplateVariable)
-  if (obj["variables"] !== undefined) {
-    if (!Array.isArray(obj["variables"])) {
-      return false;
-    }
-    for (const v of obj["variables"]) {
-      if (!isTemplateVariable(v)) {
-        return false;
-      }
-    }
-  }
-
-  // Validate postInstall (optional array of strings)
-  if (obj["postInstall"] !== undefined) {
-    if (!Array.isArray(obj["postInstall"])) {
-      return false;
-    }
-    for (const cmd of obj["postInstall"]) {
-      if (typeof cmd !== "string") {
-        return false;
-      }
-    }
   }
 
   return true;
@@ -284,9 +365,9 @@ const validateRegistryManifest = (data: unknown): RegistryManifest => {
     throw new Error("Registry manifest requires a 'recipes' array");
   }
 
-  // Validate each recipe
+  // Validate each recipe (strict — registry entries require all five fields)
   for (const recipe of obj["recipes"]) {
-    if (!isRecipe(recipe)) {
+    if (!isRegistryRecipe(recipe)) {
       const name = typeof recipe === "object" && recipe !== null
         ? (recipe as Record<string, unknown>)["name"] ?? "<unknown>"
         : "<invalid>";
@@ -296,13 +377,14 @@ const validateRegistryManifest = (data: unknown): RegistryManifest => {
 
   const recipes = obj["recipes"] as Recipe[];
 
-  // Validate recipe name uniqueness
+  // Validate recipe name uniqueness (names are guaranteed non-empty by isRegistryRecipe)
   const names = new Set<string>();
   for (const recipe of recipes) {
-    if (names.has(recipe.name)) {
-      throw new Error(`Duplicate recipe name '${recipe.name}' in registry`);
+    const recipeName = recipe.name!;
+    if (names.has(recipeName)) {
+      throw new Error(`Duplicate recipe name '${recipeName}' in registry`);
     }
-    names.add(recipe.name);
+    names.add(recipeName);
   }
 
   return data as RegistryManifest;
@@ -338,6 +420,7 @@ const resolveRegistryUrl = (base: string, path: string): string => {
 export {
   isRecipe,
   isRecipeFile,
+  isRegistryRecipe,
   isTemplateVariable,
   resolveRegistryUrl,
   SUPPORTED_SCHEMA_VERSIONS,

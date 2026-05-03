@@ -42,20 +42,27 @@ const writeFile = async (dir: string, name: string, content: string) => {
 // Access the check/fix functions indirectly through tool.run() with temp files
 // since the factory doesn't expose them directly.
 
-Deno.test("validate-licenses: correct header → no issues", async () => {
-  const dir = await makeTempDir();
-  try {
-    await writeFile(
-      dir,
-      "valid.ts",
-      `${CORRECT_HEADER}\nexport const x = 1;\n`,
-    );
-    const result = await tool.run({ root: dir });
-    assert.assertEquals(result.issues.length, 0);
-    assert.assertEquals(result.filesChecked, 1);
-  } finally {
-    await runtime.fs.remove(dir, { recursive: true });
-  }
+// sanitizeResources: false — file-tool.ts transitively loads the FFI DynamicLibrary
+// (file-tool.ts → ffi-client.ts → ensureLib). The singleton persists for the process
+// lifetime; only this first test needs the annotation. See ffi-wiring-pattern.md §14 #17.
+Deno.test({
+  name: "validate-licenses: correct header → no issues",
+  sanitizeResources: false,
+  fn: async () => {
+    const dir = await makeTempDir();
+    try {
+      await writeFile(
+        dir,
+        "valid.ts",
+        `${CORRECT_HEADER}\nexport const x = 1;\n`,
+      );
+      const result = await tool.run({ root: dir });
+      assert.assertEquals(result.issues.length, 0);
+      assert.assertEquals(result.filesChecked, 1);
+    } finally {
+      await runtime.fs.remove(dir, { recursive: true });
+    }
+  },
 });
 
 Deno.test("validate-licenses: missing header → issue reported", async () => {

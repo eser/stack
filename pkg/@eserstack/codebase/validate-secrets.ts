@@ -12,7 +12,7 @@
  */
 
 import * as standards from "@eserstack/standards";
-import { createFileTool, type FileTool } from "./file-tool.ts";
+import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
 // =============================================================================
 // Detection patterns
@@ -50,7 +50,7 @@ const SKIP_FILE_PATTERNS = [
   /\.min\./,
 ];
 
-export const tool: FileTool = createFileTool({
+export const tool: FileTool = withGoValidator(createFileTool({
   name: "validate-secrets",
   description: "Detect credentials and private keys",
   canFix: false,
@@ -89,7 +89,7 @@ export const tool: FileTool = createFileTool({
 
     return issues;
   },
-});
+}), "secrets");
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

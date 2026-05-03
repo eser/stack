@@ -39,6 +39,9 @@ deno task cli go-ok    # Go-only validation
 - TS packages share one version — load `release-management` for bumping
 - Go modules use independent git-tag versioning (NOT the version-bump script)
 - Business logic stays dependency-free (hexagonal architecture)
+- `package.json` dependency syntax must be portable: use `workspace:*` for
+  internal monorepo packages, plain semver (e.g. `^4.1.0`) for external — never
+  use `catalog:` (pnpm-only, breaks deno/bun/npm)
 
 <!-- noskills:start -->
 

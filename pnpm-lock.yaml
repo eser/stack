@@ -49,13 +49,13 @@ importers:
         version: 2.16.0
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
-        specifier: 4.1.56
+        specifier: ^4.1.0
         version: 4.1.56
       '@eserstack/ajan-darwin-x64':
-        specifier: 4.1.56
+        specifier: ^4.1.0
         version: 4.1.56
       '@eserstack/ajan-wasm':
-        specifier: 4.1.56
+        specifier: ^4.1.0
         version: 4.1.56
 
   pkg/@eserstack/app-runtime:
@@ -143,13 +143,13 @@ importers:
         version: 0.28.0
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
-        specifier: ^4.1.47
+        specifier: ^4.1.0
         version: 4.1.56
       '@eserstack/ajan-darwin-x64':
-        specifier: ^4.1.47
+        specifier: ^4.1.0
         version: 4.1.56
       '@eserstack/ajan-wasm':
-        specifier: ^4.1.47
+        specifier: ^4.1.0
         version: 4.1.56
 
   pkg/@eserstack/codebase:
@@ -157,6 +157,9 @@ importers:
       '@eserstack/ai':
         specifier: workspace:*
         version: link:../ai
+      '@eserstack/ajan':
+        specifier: workspace:*
+        version: link:../ajan
       '@eserstack/config':
         specifier: workspace:*
         version: link:../config
@@ -219,6 +222,9 @@ importers:
 
   pkg/@eserstack/config:
     dependencies:
+      '@eserstack/ajan':
+        specifier: workspace:*
+        version: link:../ajan
       '@eserstack/primitives':
         specifier: workspace:*
         version: link:../primitives
@@ -250,6 +256,9 @@ importers:
 
   pkg/@eserstack/crypto:
     dependencies:
+      '@eserstack/ajan':
+        specifier: workspace:*
+        version: link:../ajan
       '@std/encoding':
         specifier: npm:@jsr/std__encoding@^1.0.10
         version: '@jsr/std__encoding@1.0.10'
@@ -260,6 +269,9 @@ importers:
 
   pkg/@eserstack/cs:
     dependencies:
+      '@eserstack/ajan':
+        specifier: workspace:*
+        version: link:../ajan
       '@std/cli':
         specifier: npm:@jsr/std__cli@^1.0.25
         version: '@jsr/std__cli@1.0.28'
@@ -301,6 +313,9 @@ importers:
 
   pkg/@eserstack/formats:
     dependencies:
+      '@eserstack/ajan':
+        specifier: workspace:*
+        version: link:../ajan
       '@std/csv':
         specifier: npm:@jsr/std__csv@^1.0.6
         version: '@jsr/std__csv@1.0.6'
@@ -603,6 +618,10 @@ importers:
         version: '@jsr/std__testing@1.0.17'
 
   pkg/@eserstack/parsing:
+    dependencies:
+      '@eserstack/ajan':
+        specifier: workspace:*
+        version: link:../ajan
     devDependencies:
       '@std/assert':
         specifier: npm:@jsr/std__assert@^1.0.16

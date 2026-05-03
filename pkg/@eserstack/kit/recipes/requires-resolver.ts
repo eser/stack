@@ -55,7 +55,7 @@ const resolveRequires = (
 ): readonly Recipe[] => {
   const recipeMap = new Map<string, Recipe>();
   for (const recipe of recipes) {
-    recipeMap.set(recipe.name, recipe);
+    recipeMap.set(recipe.name ?? "", recipe);
   }
 
   const root = recipeMap.get(recipeName);

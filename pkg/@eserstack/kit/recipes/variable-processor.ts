@@ -25,30 +25,121 @@ class MissingVariableError extends Error {
 }
 
 // =============================================================================
-// Variable Resolution
+// Variable Validation
 // =============================================================================
 
 /**
- * Resolve variable values from provided overrides and definitions.
- * Priority: overrides (CLI flags) → definition defaults.
- * Throws MissingVariableError if a variable has no value and no default.
+ * Validate a variable value against its optional regex pattern.
  */
-const resolveVariables = (
-  definitions: readonly TemplateVariable[],
+const validateVariable = (
+  variable: TemplateVariable,
+  value: string,
+): { ok: true } | { ok: false; reason: string } => {
+  if (variable.pattern === undefined) {
+    return { ok: true };
+  }
+
+  const regex = new RegExp(variable.pattern);
+  if (!regex.test(value)) {
+    return {
+      ok: false,
+      reason: `value "${value}" does not match pattern ${variable.pattern}`,
+    };
+  }
+
+  return { ok: true };
+};
+
+// =============================================================================
+// Interactive Prompt
+// =============================================================================
+
+/**
+ * Interactively prompt for a single variable value.
+ * Loops until the entered value passes regex validation (if any).
+ */
+const promptVariable = async (variable: TemplateVariable): Promise<string> => {
+  const description = variable.description ?? variable.name;
+  const defaultHint = variable.default !== undefined
+    ? ` [${variable.default}]`
+    : "";
+
+  while (true) {
+    const promptText = `${description}${defaultHint}: `;
+    const raw = globalThis.prompt(promptText);
+
+    if (raw === null || raw === "") {
+      if (variable.default !== undefined) {
+        return variable.default;
+      }
+      // Keep prompting until we get a value
+      continue;
+    }
+
+    const validation = validateVariable(variable, raw);
+    if (validation.ok === false) {
+      // deno-lint-ignore no-console
+      console.error(`  Error: ${validation.reason}. Try again.`);
+      continue;
+    }
+
+    return raw;
+  }
+};
+
+// =============================================================================
+// Variable Resolution
+// =============================================================================
+
+type ResolveVariablesOptions = {
+  /** Prompt for missing variables (only effective when stdin is a TTY). */
+  readonly interactive?: boolean;
+};
+
+/**
+ * Resolve variable values from provided overrides and definitions.
+ * Priority: overrides (CLI flags) → defaults → (if interactive) prompt → throw.
+ *
+ * Accepts `undefined` for `definitions` (when recipe has no variables section).
+ */
+const resolveVariables = async (
+  definitions: readonly TemplateVariable[] | undefined,
   overrides: Readonly<Record<string, string>>,
-): Readonly<Record<string, string>> => {
+  options: ResolveVariablesOptions = {},
+): Promise<Record<string, string>> => {
+  if (definitions === undefined || definitions.length === 0) {
+    return { ...overrides };
+  }
+
+  const { interactive = false } = options;
   const resolved: Record<string, string> = {};
 
   for (const def of definitions) {
-    const value = overrides[def.name];
+    const override = overrides[def.name];
 
-    if (value !== undefined) {
-      resolved[def.name] = value;
-    } else if (def.default !== undefined) {
-      resolved[def.name] = def.default;
-    } else {
-      throw new MissingVariableError(def.name);
+    if (override !== undefined) {
+      // Override provided — validate it if a pattern is set
+      const validation = validateVariable(def, override);
+      if (validation.ok === false) {
+        throw new Error(
+          `Variable '${def.name}': ${validation.reason}`,
+        );
+      }
+      resolved[def.name] = override;
+      continue;
     }
+
+    if (def.default !== undefined) {
+      resolved[def.name] = def.default;
+      continue;
+    }
+
+    if (interactive) {
+      resolved[def.name] = await promptVariable(def);
+      continue;
+    }
+
+    throw new MissingVariableError(def.name);
   }
 
   return resolved;
@@ -89,6 +180,10 @@ const hasVariables = (content: string): boolean => {
 export {
   hasVariables,
   MissingVariableError,
+  promptVariable,
   resolveVariables,
   substituteVariables,
+  validateVariable,
 };
+
+export type { ResolveVariablesOptions };

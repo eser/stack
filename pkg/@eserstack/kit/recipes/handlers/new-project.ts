@@ -16,6 +16,7 @@ import * as recipeApplier from "../recipe-applier.ts";
 import * as dependencyResolver from "../dependency-resolver.ts";
 import type * as registrySchema from "../registry-schema.ts";
 import type { HandlerContext } from "../handler-context.ts";
+import { ensureLib, getLib } from "../../ffi-client.ts";
 
 // =============================================================================
 // Types
@@ -28,6 +29,8 @@ type NewProjectInput = {
   readonly registrySource?: string;
   readonly local?: boolean;
   readonly variables?: Readonly<Record<string, string>>;
+  readonly interactive?: boolean;
+  readonly skipPostInstall?: boolean;
 };
 
 type NewProjectOutput = {
@@ -51,6 +54,85 @@ const newProject = (
   task.task<NewProjectOutput, NewProjectError, HandlerContext>(
     async (ctx: HandlerContext) => {
       try {
+        const canUseFfi = input.interactive !== true && input.skipPostInstall !== true;
+
+        await ensureLib();
+        const lib = canUseFfi ? getLib() : null;
+
+        if (lib !== null) {
+          const raw = lib.symbols.EserAjanKitNewProject(
+            JSON.stringify({
+              templateName: input.templateName,
+              projectName: input.projectName,
+              targetDir: input.targetDir,
+              registrySource: input.registrySource,
+              variables: input.variables,
+            }),
+          );
+          const goResult = JSON.parse(raw) as {
+            recipes?: Array<{
+              name: string;
+              written: string[];
+              skipped: string[];
+              total: number;
+              postInstallRan: string[];
+            }>;
+            error?: string;
+          };
+
+          if (!goResult.error && goResult.recipes !== undefined) {
+            let totalWritten = 0;
+            for (const entry of goResult.recipes) {
+              totalWritten += entry.written.length;
+            }
+
+            ctx.out.writeln(
+              span.green(
+                `✓ Created ${input.projectName} with ${totalWritten} file(s)`,
+              ),
+            );
+
+            const mainRecipe = goResult.recipes.find(
+              (r) => r.name === input.templateName,
+            ) ?? goResult.recipes[0];
+
+            if (mainRecipe !== undefined) {
+              for (const file of mainRecipe.written) {
+                ctx.out.writeln(`  → ${file}`);
+              }
+            }
+
+            const fakeTemplate = {
+              name: input.templateName,
+            } as unknown as registrySchema.Recipe;
+            const fakeResult = {
+              written: goResult.recipes.flatMap((r) => r.written),
+              skipped: goResult.recipes.flatMap((r) => r.skipped ?? []),
+              total: goResult.recipes.reduce((s, r) => s + r.total, 0),
+              postInstallRan: goResult.recipes.flatMap(
+                (r) => r.postInstallRan ?? [],
+              ),
+            } as unknown as recipeApplier.ApplyResult;
+            const fakeDepInfo = {
+              instructions: [],
+              warnings: [],
+            } as unknown as dependencyResolver.DependencyInstructions;
+
+            return results.ok({
+              template: fakeTemplate,
+              result: fakeResult,
+              depInfo: fakeDepInfo,
+            });
+          }
+
+          if (goResult.error?.includes("not found")) {
+            return results.fail({
+              _tag: "TemplateNotFound" as const,
+              message: goResult.error,
+            });
+          }
+        }
+
         const manifest = await registryFetcher.fetchRegistry(
           input.registrySource,
           { local: input.local },
@@ -86,6 +168,8 @@ const newProject = (
           registryUrl: manifest.registryUrl,
           force: true,
           variables,
+          interactive: input.interactive,
+          skipPostInstall: input.skipPostInstall,
         });
 
         const project = await dependencyResolver.detectProjectType(

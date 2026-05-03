@@ -15,3 +15,15 @@ export {
   DotenvSource,
   type DotenvSourceState,
 } from "./dotenv-source.ts";
+
+// FFI-backed config value loader
+export * from "./business/mod.ts";
+export * from "./adapters/ffi/mod.ts";
+
+import * as business from "./business/config.ts";
+import * as ffiAdapter from "./adapters/ffi/mod.ts";
+
+export const load = (
+  sources: business.ConfigSource[],
+  opts?: business.ConfigOptions,
+): Promise<business.ConfigValues> => business.loadWith(ffiAdapter.ffiLoader, sources, opts);

@@ -4,11 +4,14 @@
   "type": "module",
   "exports": {
     ".": "./mod.ts",
+    "./business": "./business/mod.ts",
+    "./adapters/ffi": "./adapters/ffi/mod.ts",
     "./file": "./file/mod.ts",
     "./dotenv": "./dotenv/mod.ts",
     "./manifest": "./manifest.ts"
   },
   "dependencies": {
+    "@eserstack/ajan": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@std/collections": "npm:@jsr/std__collections@^1.1.3",

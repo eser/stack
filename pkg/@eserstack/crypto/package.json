@@ -4,9 +4,12 @@
   "type": "module",
   "exports": {
     ".": "./mod.ts",
-    "./hash": "./hash.ts"
+    "./hash": "./hash.ts",
+    "./business": "./business/mod.ts",
+    "./adapters/ffi": "./adapters/ffi/mod.ts"
   },
   "dependencies": {
+    "@eserstack/ajan": "workspace:*",
     "@std/encoding": "npm:@jsr/std__encoding@^1.0.10"
   },
   "devDependencies": {

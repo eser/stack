@@ -7,9 +7,9 @@
  */
 
 import * as standards from "@eserstack/standards";
-import { createFileTool, type FileTool } from "./file-tool.ts";
+import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = createFileTool({
+export const tool: FileTool = withGoValidator(createFileTool({
   name: "validate-case-conflict",
   description: "Detect filenames that differ only by case",
   canFix: false,
@@ -36,7 +36,7 @@ export const tool: FileTool = createFileTool({
 
     return issues;
   },
-});
+}), "case-conflict");
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

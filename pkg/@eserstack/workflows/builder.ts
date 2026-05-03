@@ -19,6 +19,8 @@
 
 import type { WorkflowDefinition, WorkflowStepConfig } from "./types.ts";
 
+type InternalStep = { name: string; options: Record<string, unknown> };
+
 /** Fluent builder for workflow definitions. */
 export type WorkflowBuilder = {
   /** Add events that trigger this workflow. */
@@ -28,6 +30,10 @@ export type WorkflowBuilder = {
     name: string,
     options?: Record<string, unknown>,
   ) => WorkflowBuilder;
+  /** Mark the last step as bypass — skip tool execution; output = previous step's stats. */
+  readonly bypass: () => WorkflowBuilder;
+  /** Set a JSON Schema (draft-2020-12) that validates the last step's merged options before tool.run(). */
+  readonly inputSchema: (schema: Record<string, unknown>) => WorkflowBuilder;
   /** Build the immutable WorkflowDefinition. */
   readonly build: () => WorkflowDefinition;
 };
@@ -40,7 +46,10 @@ export type WorkflowBuilder = {
  */
 export const createWorkflow = (id: string): WorkflowBuilder => {
   const events: string[] = [];
-  const steps: WorkflowStepConfig[] = [];
+  const steps: InternalStep[] = [];
+
+  const toStepConfig = (s: InternalStep): WorkflowStepConfig =>
+    Object.keys(s.options).length > 0 ? { [s.name]: s.options } : s.name;
 
   const builder: WorkflowBuilder = {
     on: (...newEvents) => {
@@ -48,17 +57,27 @@ export const createWorkflow = (id: string): WorkflowBuilder => {
       return builder;
     },
     step: (name, options) => {
-      if (options !== undefined && Object.keys(options).length > 0) {
-        steps.push({ [name]: options });
-      } else {
-        steps.push(name);
+      steps.push({ name, options: { ...(options ?? {}) } });
+      return builder;
+    },
+    bypass: () => {
+      const last = steps[steps.length - 1];
+      if (last !== undefined) {
+        last.options["bypass"] = true;
+      }
+      return builder;
+    },
+    inputSchema: (schema) => {
+      const last = steps[steps.length - 1];
+      if (last !== undefined) {
+        last.options["inputSchema"] = schema;
       }
       return builder;
     },
     build: () => ({
       id,
       on: [...events],
-      steps: [...steps],
+      steps: steps.map(toStepConfig),
     }),
   };
 

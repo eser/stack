@@ -30,6 +30,8 @@
     "./cli-support": "./cli-support.ts",
     "./file-tool": "./file-tool.ts",
     "./file-tools-shared": "./file-tools-shared.ts",
+    "./walk-stream": "./walk-stream.ts",
+    "./validate-stream": "./validate-stream.ts",
     "./validate-eof": "./validate-eof.ts",
     "./validate-trailing-whitespace": "./validate-trailing-whitespace.ts",
     "./validate-bom": "./validate-bom.ts",
@@ -49,6 +51,7 @@
     "./install": "./install.ts"
   },
   "dependencies": {
+    "@eserstack/ajan": "workspace:*",
     "@eserstack/ai": "workspace:*",
     "@eserstack/config": "workspace:*",
     "@eserstack/primitives": "workspace:*",

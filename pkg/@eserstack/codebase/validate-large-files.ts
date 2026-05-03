@@ -7,11 +7,11 @@
  */
 
 import * as standards from "@eserstack/standards";
-import { createFileTool, type FileTool } from "./file-tool.ts";
+import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
 const DEFAULT_MAX_KB = 1024;
 
-export const tool: FileTool = createFileTool({
+export const tool: FileTool = withGoValidator(createFileTool({
   name: "validate-large-files",
   description: "Detect files exceeding size limit",
   canFix: false,
@@ -35,7 +35,7 @@ export const tool: FileTool = createFileTool({
 
     return issues;
   },
-});
+}), "large-file");
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

@@ -12,3 +12,7 @@ export {
   computeStringHash,
   type HashAlgorithm,
 } from "./hash.ts";
+
+// FFI layer
+export * from "./business/mod.ts";
+export * from "./adapters/ffi/mod.ts";

@@ -7,7 +7,7 @@ import { computeCombinedHash, computeHash, computeStringHash } from "./hash.ts";
 // computeHash tests
 // ============================================================================
 
-Deno.test("computeHash returns hex string with default length", async () => {
+Deno.test({ name: "computeHash returns hex string with default length", sanitizeResources: false }, async () => {
   const content = new Uint8Array([1, 2, 3, 4, 5]);
   const hash = await computeHash(content);
 

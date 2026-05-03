@@ -5,6 +5,7 @@
  * from the registry to an existing project.
  *
  * No CLI dependency. Output goes through ctx.out (Span-based).
+ * Delegates to native Go library when available; falls back to TS apply chain.
  *
  * @module
  */
@@ -17,6 +18,7 @@ import * as recipeApplier from "../recipe-applier.ts";
 import * as dependencyResolver from "../dependency-resolver.ts";
 import type * as registrySchema from "../registry-schema.ts";
 import type { HandlerContext } from "../handler-context.ts";
+import { ensureLib, getLib } from "../../ffi-client.ts";
 
 // =============================================================================
 // Types
@@ -57,6 +59,92 @@ const addRecipe = (
   task.task<AddRecipeOutput, AddRecipeError, HandlerContext>(
     async (ctx: HandlerContext) => {
       try {
+        await ensureLib();
+        const lib = getLib();
+
+        if (lib !== null) {
+          const raw = lib.symbols.EserAjanKitApplyRecipe(
+            JSON.stringify({
+              recipeName: input.recipeName,
+              registryUrl: input.registrySource,
+              cwd: input.cwd,
+              force: input.force,
+              skipExisting: input.skipExisting,
+              dryRun: input.dryRun,
+              verbose: input.verbose,
+              variables: input.variables,
+            }),
+          );
+          const goResult = JSON.parse(raw) as {
+            recipes?: Array<{
+              name: string;
+              result: { written: string[]; skipped: string[] };
+            }>;
+            error?: string;
+          };
+
+          if (!goResult.error && goResult.recipes !== undefined) {
+            let totalWritten = 0;
+            let totalSkipped = 0;
+            for (const entry of goResult.recipes) {
+              totalWritten += entry.result.written.length;
+              totalSkipped += entry.result.skipped.length;
+            }
+
+            ctx.out.writeln(span.green(`✓ Added ${totalWritten} file(s)`));
+
+            if (goResult.recipes.length > 1) {
+              ctx.out.writeln(
+                span.dim(
+                  `  Applied ${goResult.recipes.length} recipes (including dependencies)`,
+                ),
+              );
+            }
+
+            if (totalSkipped > 0) {
+              ctx.out.writeln(
+                span.dim(`  Skipped ${totalSkipped} existing file(s)`),
+              );
+            }
+
+            const targetResult = goResult.recipes.find(
+              (r) => r.name === input.recipeName,
+            );
+            if (targetResult !== undefined) {
+              for (const file of targetResult.result.written) {
+                ctx.out.writeln(`  → ${file}`);
+              }
+            }
+
+            const chainResult = {
+              recipes: goResult.recipes,
+            } as unknown as recipeApplier.ApplyChainResult;
+            const depInfo = {
+              instructions: [],
+              warnings: [],
+            } as unknown as dependencyResolver.DependencyInstructions;
+            const fakeRecipe = {
+              name: input.recipeName,
+            } as unknown as registrySchema.Recipe;
+
+            return results.ok({
+              recipe: fakeRecipe,
+              chainResult,
+              depInfo,
+              installResults: undefined,
+            });
+          }
+
+          if (goResult.error?.includes("not found")) {
+            return results.fail({
+              _tag: "RecipeNotFound" as const,
+              message:
+                `Recipe '${input.recipeName}' not found. Run \`eser kit list\` to see available recipes.`,
+            });
+          }
+        }
+
+        // Fallback: TS apply chain
         const manifest = await registryFetcher.fetchRegistry(
           input.registrySource,
           { verbose: input.verbose, local: input.local },
@@ -74,19 +162,16 @@ const addRecipe = (
           });
         }
 
-        // Detect project type
         const project = await dependencyResolver.detectProjectType(input.cwd);
         const depInfo = dependencyResolver.getDependencyInstructions(
           recipe,
           project,
         );
 
-        // Show language mismatch warnings
         for (const warning of depInfo.warnings) {
           ctx.out.writeln(span.yellow(`Warning: ${warning}`));
         }
 
-        // Apply recipe chain
         const chainResult = await recipeApplier.applyRecipeChain(
           input.recipeName,
           manifest.recipes,
@@ -101,7 +186,6 @@ const addRecipe = (
           },
         );
 
-        // Format output
         let totalWritten = 0;
         let totalSkipped = 0;
         for (const entry of chainResult.recipes) {
@@ -109,9 +193,7 @@ const addRecipe = (
           totalSkipped += entry.result.skipped.length;
         }
 
-        ctx.out.writeln(
-          span.green(`✓ Added ${totalWritten} file(s)`),
-        );
+        ctx.out.writeln(span.green(`✓ Added ${totalWritten} file(s)`));
 
         if (chainResult.recipes.length > 1) {
           ctx.out.writeln(
@@ -136,7 +218,6 @@ const addRecipe = (
           }
         }
 
-        // Install dependencies
         let installResults:
           | readonly dependencyResolver.InstallResult[]
           | undefined;
@@ -155,9 +236,7 @@ const addRecipe = (
             if (ir.success) {
               ctx.out.writeln(span.green(`  ✓ ${ir.command}`));
             } else {
-              ctx.out.writeln(
-                span.red(`  ✗ ${ir.command}: ${ir.error}`),
-              );
+              ctx.out.writeln(span.red(`  ✗ ${ir.command}: ${ir.error}`));
             }
           }
         } else if (depInfo.instructions.length > 0) {

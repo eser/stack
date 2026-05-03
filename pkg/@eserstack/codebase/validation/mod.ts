@@ -34,6 +34,7 @@ import { runtime } from "@eserstack/standards/cross-runtime";
 import { createCliContext } from "../cli-support.ts";
 import { loadProjectConfig } from "./config.ts";
 import { getValidators } from "./registry.ts";
+import { ensureLib, getLib } from "../ffi-client.ts";
 import type {
   SkippedValidator,
   ValidateOptions,
@@ -69,6 +70,65 @@ export {
   getWorkflowTools,
   registerValidator,
 } from "./registry.ts";
+
+/**
+ * Options for running Go's built-in file validators.
+ */
+export type BuiltinValidatorOptions = {
+  /** Root directory to scan (default: ".") */
+  readonly dir?: string;
+  /** Validator names to run (default: all built-ins: eof, bom, trailing-whitespace, line-endings, merge-conflicts, secrets, large-file) */
+  readonly validators?: readonly string[];
+  /** File extensions to include (default: all) */
+  readonly extensions?: readonly string[];
+  /** Use git ls-files for file enumeration (default: true) */
+  readonly gitAware?: boolean;
+};
+
+/**
+ * Run Go's built-in language-agnostic file validators.
+ *
+ * Covers: EOF newline, BOM markers, trailing whitespace, line endings,
+ * merge conflict markers, secret patterns, large file detection.
+ *
+ * Falls back to an empty result when the native library is unavailable.
+ * For the full TS validation registry (including JS/TS-specific checks),
+ * use `validate()` instead.
+ *
+ * @param options - Validator options
+ * @returns Array of validator results, one per built-in validator
+ */
+export const runBuiltinValidators = async (
+  options: BuiltinValidatorOptions = {},
+): Promise<ValidatorResult[]> => {
+  await ensureLib();
+  const lib = getLib();
+  if (lib === null) {
+    return [];
+  }
+  try {
+    const raw = lib.symbols.EserAjanCodebaseValidateFiles(
+      JSON.stringify({
+        dir: options.dir,
+        validators: options.validators !== undefined
+          ? [...options.validators]
+          : undefined,
+        extensions: options.extensions !== undefined
+          ? [...options.extensions]
+          : undefined,
+        gitAware: options.gitAware ?? true,
+      }),
+    );
+    const parsed = JSON.parse(raw) as {
+      results?: ValidatorResult[];
+      error?: string;
+    };
+    if (!parsed.error && parsed.results !== undefined) {
+      return parsed.results;
+    }
+  } catch { /* library loaded but call failed — return empty */ }
+  return [];
+};
 
 /**
  * Run all applicable validators

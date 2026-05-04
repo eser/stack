@@ -75,7 +75,13 @@ const buildExecutorAgentMd = (commandPrefix: string): string => {
     "---",
     "name: noskills-executor",
     'description: "Executes a single noskills task. Follows spec behavioral rules and reports structured results."',
-    "tools: read, write, glob, grep, shell, delegate",
+    "tools:",
+    "  read: true",
+    "  write: true",
+    "  glob: true",
+    "  grep: true",
+    "  shell: true",
+    "  delegate: true",
     "---",
     "",
     "You are executing a single task from a noskills spec.",
@@ -109,7 +115,11 @@ const buildVerifierAgentMd = (): string => {
     "---",
     "name: noskills-verifier",
     'description: "Independently verifies completed task work. Read-only. Never sees the executor\'s context."',
-    "tools: read, glob, grep, shell",
+    "tools:",
+    "  read: true",
+    "  glob: true",
+    "  grep: true",
+    "  shell: true",
     "---",
     "",
     "You are verifying another agent's work. You have NO context about how it was done.",
@@ -248,8 +258,8 @@ const buildSkillMd = (spec: ParsedSpec): string => {
 
 type OpenCodeMcpEntry = {
   readonly type: "local";
-  readonly command: string;
-  readonly args: readonly string[];
+  readonly command: readonly string[];
+  readonly enabled: boolean;
   readonly env?: Record<string, string>;
 };
 
@@ -386,8 +396,7 @@ export const opencodeAdapter: adapter.ToolAdapter = {
 
     // Build noskills MCP entry
     const parts = ctx.commandPrefix.split(/\s+/);
-    const command = parts[0] ?? "npx";
-    const args = [...parts.slice(1), "mcp-serve"];
+    const command = [...parts, "mcp-serve"];
 
     // Merge
     const merged: OpenCodeConfig = {
@@ -397,7 +406,7 @@ export const opencodeAdapter: adapter.ToolAdapter = {
         noskills: {
           type: "local",
           command,
-          args,
+          enabled: true,
         },
       },
     };

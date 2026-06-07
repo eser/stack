@@ -51,7 +51,7 @@ export const specifierToIdentifier = (
 
   // Fallback: TS implementation
   const ext = runtime.path.extname(specifier);
-  let spec = ext ? specifier.slice(0, -ext.length) : specifier;
+  const spec = ext ? specifier.slice(0, -ext.length) : specifier;
 
   let ident = "";
   for (let i = 0; i < spec.length; i++) {

@@ -19,11 +19,13 @@
     "./cross-runtime/deno": "./cross-runtime/adapters/deno.ts",
     "./cross-runtime/node": "./cross-runtime/adapters/node.ts",
     "./cross-runtime/workerd": "./cross-runtime/adapters/workerd.ts",
+    "./cross-runtime/execution-context": "./cross-runtime/execution-context.ts",
     "./strings": "./strings/mod.ts",
     "./versions": "./versions.ts"
   },
   "dependencies": {
     "@eserstack/primitives": "workspace:*",
+    "@std/fs": "npm:@jsr/std__fs@^1.0.23",
     "@std/path": "npm:@jsr/std__path@^1.1.4",
     "@std/semver": "npm:@jsr/std__semver@^1.0.7"
   },

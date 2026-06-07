@@ -103,7 +103,9 @@ export const createCacheManager = (
 
   const getVersionedPath = (version: string, name: string): string => {
     if (baseDir) {
-      const normalizedVersion = version.startsWith("v") ? version : `v${version}`;
+      const normalizedVersion = version.startsWith("v")
+        ? version
+        : `v${version}`;
       return runtime.path.join(getCacheDir(), normalizedVersion, name);
     }
     return xdg.getVersionedCachePath(app, version, name);

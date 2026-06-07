@@ -11,10 +11,13 @@
     "./list": "./list.ts"
   },
   "dependencies": {
+    "@eserstack/ajan": "workspace:*",
     "@eserstack/config": "workspace:*",
+    "@eserstack/functions": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
+    "@eserstack/streams": "workspace:*",
     "@std/cli": "npm:@jsr/std__cli@^1.0.25",
     "yaml": "^2"
   },

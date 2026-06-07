@@ -229,6 +229,12 @@ export class Logger implements logging.Logger {
       ...(context ?? {}),
     };
 
+    // Forward any variadic call args as a structured attr so they reach the Go
+    // slog sink instead of being silently dropped (e.g. logger.info("msg", obj)).
+    if (args.length > 0) {
+      attrs["args"] = args;
+    }
+
     lib.symbols.EserAjanLogWrite(
       JSON.stringify({
         handle: this.#goHandle,
@@ -508,7 +514,10 @@ registerConfigureHook(async (loggerConfigs) => {
 
     if (handle !== undefined) {
       lib.symbols.EserAjanLogConfigure(
-        JSON.stringify({ handle, level: severityToGoLevel(loggerConfig.lowestLevel) }),
+        JSON.stringify({
+          handle,
+          level: severityToGoLevel(loggerConfig.lowestLevel),
+        }),
       );
     }
   }

@@ -9,7 +9,7 @@
  * @module
  */
 
-import { runtime } from "@eserstack/standards/cross-runtime";
+import { runtime, toPosix } from "@eserstack/standards/cross-runtime";
 import { hasExtension } from "@eserstack/standards/patterns";
 import * as shellExec from "@eserstack/shell/exec";
 import { ensureLib, getLib } from "./ffi-client.ts";
@@ -123,13 +123,22 @@ export const walkSourceFiles = async (
         ? extensions.map((e) => e.startsWith(".") ? e : `.${e}`)
         : undefined;
       // Pass only string patterns to Go; regex patterns are applied post-fetch
-      const goExcludes = exclude.filter((e): e is string => typeof e === "string");
+      const goExcludes = exclude.filter((e): e is string =>
+        typeof e === "string"
+      );
 
       const raw = lib.symbols.EserAjanCodebaseWalkFiles(
-        JSON.stringify({ dir: root, extensions: goExtensions, exclude: goExcludes, gitAware: true }),
+        JSON.stringify({
+          dir: root,
+          extensions: goExtensions,
+          exclude: goExcludes,
+          gitAware: true,
+        }),
       );
       const parsed = JSON.parse(raw) as {
-        files?: Array<{ path: string; name: string; size: number; isSymlink: boolean }>;
+        files?: Array<
+          { path: string; name: string; size: number; isSymlink: boolean }
+        >;
         error?: string;
       };
 
@@ -140,13 +149,27 @@ export const walkSourceFiles = async (
         ];
 
         let files: FileEntry[] = parsed.files
-          .filter((f) => !allExcludes.some((re) => re.test(f.path)))
-          .map((f) => ({ path: f.path, name: f.name, size: f.size, isSymlink: f.isSymlink }));
+          .filter((f) => {
+            // Exclude patterns use POSIX "/" separators; normalize the path so
+            // they match on Windows (backslash) too. No-op on POSIX runtimes.
+            const posixPath = toPosix(f.path);
+            return !allExcludes.some((re) => re.test(posixPath));
+          })
+          .map((f) => ({
+            path: f.path,
+            name: f.name,
+            size: f.size,
+            isSymlink: f.isSymlink,
+          }));
 
-        if (options.includeOnly !== undefined && options.includeOnly.length > 0) {
+        if (
+          options.includeOnly !== undefined && options.includeOnly.length > 0
+        ) {
           const allowList = options.includeOnly;
           files = files.filter((file) =>
-            allowList.some((entry) => file.path.endsWith(entry) || file.path.includes(entry))
+            allowList.some((entry) =>
+              file.path.endsWith(entry) || file.path.includes(entry)
+            )
           );
         }
 
@@ -178,9 +201,14 @@ export const walkSourceFiles = async (
         }
       }
 
-      // Apply exclude patterns
+      // Apply exclude patterns. Patterns use POSIX "/" separators, so normalize
+      // the OS-native fullPath before testing (relativePath from git is already
+      // POSIX). No-op on POSIX runtimes.
+      const posixFullPath = toPosix(fullPath);
       if (
-        allExcludes.some((re) => re.test(fullPath) || re.test(relativePath))
+        allExcludes.some((re) =>
+          re.test(posixFullPath) || re.test(relativePath)
+        )
       ) {
         continue;
       }
@@ -212,6 +240,15 @@ export const walkSourceFiles = async (
       })
     ) {
       if (!entry.isFile && !entry.isSymlink) {
+        continue;
+      }
+
+      // The walk's `skip` regexes are POSIX-slash based and the walker tests
+      // them against OS-native paths, so they silently miss on Windows. Re-apply
+      // the excludes here against a POSIX-normalized path to guarantee matches
+      // cross-platform. No-op on POSIX runtimes.
+      const posixPath = toPosix(entry.path);
+      if (allExcludes.some((re) => re.test(posixPath))) {
         continue;
       }
 
@@ -318,12 +355,15 @@ export const matchesAnyPattern = (
   path: string,
   patterns: readonly (string | RegExp)[],
 ): boolean => {
+  // Patterns are authored with POSIX "/" separators; normalize the path so they
+  // match OS-native (backslash) paths on Windows too. No-op on POSIX runtimes.
+  const normalized = toPosix(path);
   for (const pattern of patterns) {
     if (typeof pattern === "string") {
-      if (path.includes(pattern) || path.endsWith(pattern)) {
+      if (normalized.includes(pattern) || normalized.endsWith(pattern)) {
         return true;
       }
-    } else if (pattern.test(path)) {
+    } else if (pattern.test(normalized)) {
       return true;
     }
   }

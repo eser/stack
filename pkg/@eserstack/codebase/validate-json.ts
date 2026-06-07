@@ -10,40 +10,43 @@ import * as jsonc from "@std/jsonc";
 import * as standards from "@eserstack/standards";
 import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-json",
-  description: "Validate JSON syntax",
-  canFix: false,
-  stacks: [],
-  defaults: {},
-  extensions: ["json", "jsonc"],
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-json",
+    description: "Validate JSON syntax",
+    canFix: false,
+    stacks: [],
+    defaults: {},
+    extensions: ["json", "jsonc"],
 
-  checkFile(file, content, options) {
-    if (content === undefined) {
-      return [];
-    }
-
-    // Check excludes from .eser/manifest.yml config
-    const excludes = (options["exclude"] as string[] | undefined) ?? [];
-    if (excludes.some((pattern) => file.path.includes(pattern))) {
-      return [];
-    }
-
-    try {
-      if (file.name.endsWith(".jsonc")) {
-        jsonc.parse(content);
-      } else {
-        JSON.parse(content);
+    checkFile(file, content, options) {
+      if (content === undefined) {
+        return [];
       }
-      return [];
-    } catch (error) {
-      const message = error instanceof SyntaxError
-        ? error.message
-        : "invalid JSON";
-      return [{ path: file.path, message }];
-    }
-  },
-}), "json");
+
+      // Check excludes from .eser/manifest.yml config
+      const excludes = (options["exclude"] as string[] | undefined) ?? [];
+      if (excludes.some((pattern) => file.path.includes(pattern))) {
+        return [];
+      }
+
+      try {
+        if (file.name.endsWith(".jsonc")) {
+          jsonc.parse(content);
+        } else {
+          JSON.parse(content);
+        }
+        return [];
+      } catch (error) {
+        const message = error instanceof SyntaxError
+          ? error.message
+          : "invalid JSON";
+        return [{ path: file.path, message }];
+      }
+    },
+  }),
+  "json",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

@@ -15,7 +15,11 @@ export const deserialize = async (
   const lib = getLib();
   if (lib !== null) {
     try {
-      const requestJSON = JSON.stringify({ format, text: input, headers: options?.headers });
+      const requestJSON = JSON.stringify({
+        format,
+        text: input,
+        headers: options?.headers,
+      });
       const raw = lib.symbols.EserAjanFormatDecode(requestJSON);
       const parsed = JSON.parse(raw) as {
         items?: unknown[];

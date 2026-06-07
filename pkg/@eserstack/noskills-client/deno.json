@@ -7,9 +7,5 @@
     "./cert": "./cert.ts",
     "./client": "./client.ts",
     "./attach": "./attach.ts"
-  },
-  "imports": {
-    "@eserstack/httpclient": "jsr:@eserstack/httpclient@^4.1.56",
-    "@eserstack/webtransport": "jsr:@eserstack/webtransport@^4.1.56"
   }
 }

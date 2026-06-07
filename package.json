@@ -10,5 +10,8 @@
     "cli": "deno run --allow-all ./pkg/@eserstack/cli/main.ts",
     "laroux-cli": "deno run --allow-all ./pkg/@eserstack/laroux-server/cli.ts",
     "noskills-cli": "deno run --allow-all ./pkg/@eserstack/noskills/main.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
   }
 }

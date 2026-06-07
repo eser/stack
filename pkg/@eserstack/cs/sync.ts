@@ -305,8 +305,9 @@ export const sync = async (options: SyncOptions): Promise<string> => {
 
     let patchString: string;
     if (format === "yaml") {
-      patchString = (await formats.serialize([patchObject], "yaml", { pretty: true }))
-        .trim();
+      patchString =
+        (await formats.serialize([patchObject], "yaml", { pretty: true }))
+          .trim();
     } else {
       patchString = JSON.stringify(patchObject);
     }

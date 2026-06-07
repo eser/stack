@@ -50,15 +50,31 @@ type ExecResult struct {
 // ExecResult.Code. An actual error (spawn failure, timeout, context cancel)
 // is returned as the second value.
 func Exec(ctx context.Context, command string, opts ExecOptions) (ExecResult, error) {
+	// Wrap the command string in `sh -c`, appending opts.Args as positional
+	// parameters, then run it directly via Run.
+	shArgs := append([]string{"-c", command}, opts.Args...) //nolint:gocritic
+	return Run(ctx, "sh", shArgs, opts)
+}
+
+// Run executes command with the given args as its argv directly, with NO shell
+// wrapping, capturing stdout, stderr, and the exit code. It blocks until the
+// process exits or the context is cancelled.
+//
+// This is the right primitive for callers that already supply a complete argv
+// (e.g. command "sh" with args ["-c", script]); routing such a call through
+// Exec would double-wrap it into `sh -c "sh" -c script`, which runs a nested
+// no-op shell. opts.Args is ignored here — args is the full argv.
+//
+// A non-zero exit code is not treated as an error — inspect ExecResult.Code.
+// Spawn failures, timeouts, and cancellation are returned as the error.
+func Run(ctx context.Context, command string, args []string, opts ExecOptions) (ExecResult, error) {
 	if opts.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
 		defer cancel()
 	}
 
-	// Build the argument list: ["sh", "-c", command, <extra args...>]
-	args := append([]string{"-c", command}, opts.Args...) //nolint:gocritic
-	cmd := exec.CommandContext(ctx, "sh", args...)
+	cmd := exec.CommandContext(ctx, command, args...)
 
 	if opts.Cwd != "" {
 		cmd.Dir = opts.Cwd

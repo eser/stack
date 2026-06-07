@@ -7,27 +7,48 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/csfx"
 )
 
-// fakeKubectl writes a shell script that echoes a JSON response and exits with
-// the given code, then prepends its directory to PATH so exec.Command picks it up.
+// fakeKubectl creates a fake "kubectl" executable on PATH that prints a fixed
+// JSON response and exits with the given code, so exec.Command("kubectl", ...)
+// picks it up. The response is written to a sidecar file and emitted via the
+// platform's file-printing command, which avoids per-shell quote escaping.
+//
+// On Windows a "kubectl.bat" is written (resolved via PATHEXT); on Unix a
+// "kubectl" shell script with the executable bit set is written.
 func fakeKubectl(t *testing.T, jsonResponse string, exitCode int) {
 	t.Helper()
 
 	dir := t.TempDir()
-	script := filepath.Join(dir, "kubectl")
-	content := fmt.Sprintf("#!/bin/sh\necho '%s'\nexit %d\n",
-		strings.ReplaceAll(jsonResponse, "'", `'"'"'`), exitCode)
+
+	responseFile := filepath.Join(dir, "response.json")
+	if err := os.WriteFile(responseFile, []byte(jsonResponse), 0o600); err != nil {
+		t.Fatalf("write fake kubectl response: %v", err)
+	}
+
+	var (
+		script  string
+		content string
+	)
+
+	if runtime.GOOS == "windows" {
+		script = filepath.Join(dir, "kubectl.bat")
+		content = fmt.Sprintf("@echo off\r\ntype \"%s\"\r\nexit /b %d\r\n", responseFile, exitCode)
+	} else {
+		script = filepath.Join(dir, "kubectl")
+		content = fmt.Sprintf("#!/bin/sh\ncat \"%s\"\nexit %d\n", responseFile, exitCode)
+	}
 
 	if err := os.WriteFile(script, []byte(content), 0o755); err != nil { //nolint:gosec
 		t.Fatalf("write fake kubectl: %v", err)
 	}
 
-	t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 // buildKubectlJSON returns a minimal kubectl get JSON response with the given data keys.

@@ -84,11 +84,15 @@ const generateShortcuts = (
 
   const targetCol = (t: readonly string[]): string => `-> "${t.join(" ")}"`;
   const maxName = Math.max(...shortcuts.map((s) => s.name.length));
-  const maxTarget = Math.max(...shortcuts.map((s) => targetCol(s.target).length));
+  const maxTarget = Math.max(
+    ...shortcuts.map((s) => targetCol(s.target).length),
+  );
 
   const lines = shortcuts.map(
     (s) =>
-      `  ${padRight(s.name, maxName + 2)}${padRight(targetCol(s.target), maxTarget + 2)}${s.description}`,
+      `  ${padRight(s.name, maxName + 2)}${
+        padRight(targetCol(s.target), maxTarget + 2)
+      }${s.description}`,
   );
   return ["Shortcuts:", ...lines, ""];
 };

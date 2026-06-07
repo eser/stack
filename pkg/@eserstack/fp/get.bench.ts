@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { get } from "./get.ts";
-import lodashGet from "npm:lodash.get@^4.4.2";
+import lodashGet from "lodash.get";
 
 const group = "get";
 

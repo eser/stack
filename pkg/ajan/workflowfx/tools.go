@@ -32,6 +32,11 @@ func (t *shellTool) Run(ctx context.Context, opts map[string]any) (*WorkflowTool
 	//nolint:gosec // command comes from trusted workflow definition
 	cmd := exec.CommandContext(ctx, "sh", "-c", command)
 	cmd.Dir = root
+	// Ensure context cancellation/timeout terminates the command AND any child
+	// processes it spawned (platform-specific — see tools_unix.go /
+	// tools_windows.go). Without this, killing the `sh` parent can leave a
+	// long-running child alive (and holding the output pipe) on Windows.
+	setupCancelKill(cmd)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {

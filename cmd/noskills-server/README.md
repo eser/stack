@@ -1,6 +1,7 @@
 # noskills-server
 
-Persistent Claude Code sessions that survive reboots. Attach from any device — laptop, phone, second terminal — and resume exactly where you left off.
+Persistent Claude Code sessions that survive reboots. Attach from any device —
+laptop, phone, second terminal — and resume exactly where you left off.
 
 <!-- asciinema recording: run `agg assets/asciinema/quickstart.cast assets/asciinema/quickstart.gif` to regenerate -->
 <!-- TODO: record and embed 60-second quickstart.cast once v1 ships -->
@@ -8,16 +9,19 @@ Persistent Claude Code sessions that survive reboots. Attach from any device —
 ## Install
 
 **macOS / Linux (one-liner):**
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/eser/stack/main/scripts/install.sh | sh
 ```
 
 **Homebrew:**
+
 ```sh
 brew install eserstack/tap/noskills-server
 ```
 
 **Auto-start on login (macOS):**
+
 ```sh
 brew services start noskills-server
 ```
@@ -45,14 +49,15 @@ noskills-server pin
 
 Every other Claude tool restarts when you close it. This one doesn't.
 
-| Tool | Persistent sessions | Multi-device | TTHW |
-|------|---------------------|--------------|------|
-| Claude CLI | No | No | ~30s |
-| Aider | No | No | ~2m |
-| Clay | No (local only) | No | ~5m |
-| **noskills-server** | **Yes** | **Yes** | **<2m** |
+| Tool                | Persistent sessions | Multi-device | TTHW    |
+| ------------------- | ------------------- | ------------ | ------- |
+| Claude CLI          | No                  | No           | ~30s    |
+| Aider               | No                  | No           | ~2m     |
+| Clay                | No (local only)     | No           | ~5m     |
+| **noskills-server** | **Yes**             | **Yes**      | **<2m** |
 
-The magical moment: close your laptop, reopen it tomorrow, attach, and the session replay shows every message from yesterday before live mode resumes.
+The magical moment: close your laptop, reopen it tomorrow, attach, and the
+session replay shows every message from yesterday before live mode resumes.
 
 ## How it works
 
@@ -73,30 +78,32 @@ noskills-server (Go daemon)
     cwd = your project root
 ```
 
-Sessions persist across daemon restarts via an append-only JSONL ledger (`~/.noskills/sessions/`). On reattach the client receives a full transcript replay before entering live mode.
+Sessions persist across daemon restarts via an append-only JSONL ledger
+(`~/.noskills/sessions/`). On reattach the client receives a full transcript
+replay before entering live mode.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `noskills-server start` | Start the daemon |
-| `noskills-server doctor` | Run health checks (mkcert, port, Node, cert) |
-| `noskills-server pin` | Reprint or reset the auth PIN |
-| `noskills-server version` | Print version, commit, build date, platform |
-| `noskills-server feedback` | Open a pre-filled GitHub issue |
-| `noskills-server quickstart` | Print this guide offline |
+| Command                      | Description                                  |
+| ---------------------------- | -------------------------------------------- |
+| `noskills-server start`      | Start the daemon                             |
+| `noskills-server doctor`     | Run health checks (mkcert, port, Node, cert) |
+| `noskills-server pin`        | Reprint or reset the auth PIN                |
+| `noskills-server version`    | Print version, commit, build date, platform  |
+| `noskills-server feedback`   | Open a pre-filled GitHub issue               |
+| `noskills-server quickstart` | Print this guide offline                     |
 
 ## Start flags
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--listen` | `:4433` | UDP address to listen on |
-| `--data-dir` | `~/.noskills` | Daemon state directory |
-| `--self-signed` | `true` | Generate a self-signed TLS cert |
-| `--cert` | — | PEM cert file (overrides `--self-signed`) |
-| `--key` | — | PEM key file |
-| `--log-level` | `INFO` | `DEBUG`, `INFO`, `WARN`, `ERROR` |
-| `--log-format` | `text` | `text` or `json` |
+| Flag            | Default       | Description                               |
+| --------------- | ------------- | ----------------------------------------- |
+| `--listen`      | `:4433`       | UDP address to listen on                  |
+| `--data-dir`    | `~/.noskills` | Daemon state directory                    |
+| `--self-signed` | `true`        | Generate a self-signed TLS cert           |
+| `--cert`        | —             | PEM cert file (overrides `--self-signed`) |
+| `--key`         | —             | PEM key file                              |
+| `--log-level`   | `INFO`        | `DEBUG`, `INFO`, `WARN`, `ERROR`          |
+| `--log-format`  | `text`        | `text` or `json`                          |
 
 ## Storage layout
 
@@ -113,15 +120,20 @@ Sessions persist across daemon restarts via an append-only JSONL ledger (`~/.nos
 
 ## Certificate trust
 
-By default, `noskills-server` generates a self-signed ECDSA-P256 cert valid for 14 days. The SHA-256 fingerprint is printed on startup and available at `GET /api/cert-fingerprint` (unauthenticated).
+By default, `noskills-server` generates a self-signed ECDSA-P256 cert valid for
+14 days. The SHA-256 fingerprint is printed on startup and available at
+`GET /api/cert-fingerprint` (unauthenticated).
 
 - **CLI**: `noskills` pins the fingerprint automatically.
-- **Browser**: use `--ignore-certificate-errors-spki-list=<fingerprint>` or the PWA's automatic cert-pinning flow.
-- **mkcert** support (planned Phase 6): installs a local CA for zero-setup browser trust.
+- **Browser**: use `--ignore-certificate-errors-spki-list=<fingerprint>` or the
+  PWA's automatic cert-pinning flow.
+- **mkcert** support (planned Phase 6): installs a local CA for zero-setup
+  browser trust.
 
 ## Security
 
-- PIN-based auth with rate limiting (5 attempts/min/IP, lockout after 10 failures)
+- PIN-based auth with rate limiting (5 attempts/min/IP, lockout after 10
+  failures)
 - Bearer token with 24-hour TTL; invalidated on `noskills-server pin`
 - TLS 1.3 only
 - Runtime dir permissions 0700; socket files 0600
@@ -129,16 +141,16 @@ By default, `noskills-server` generates a self-signed ECDSA-P256 cert valid for 
 
 ## DX scorecard
 
-| Pass | Score |
-|------|-------|
-| Getting Started | 10/10 |
-| API / CLI / SDK | 10/10 |
-| Errors & Debugging | 10/10 |
-| Docs & Learning | 10/10 |
-| Upgrade & Migration | 8/10 |
-| Dev Environment | 10/10 |
-| Community | 7/10 |
-| DX Measurement | 6/10 |
+| Pass                | Score |
+| ------------------- | ----- |
+| Getting Started     | 10/10 |
+| API / CLI / SDK     | 10/10 |
+| Errors & Debugging  | 10/10 |
+| Docs & Learning     | 10/10 |
+| Upgrade & Migration | 8/10  |
+| Dev Environment     | 10/10 |
+| Community           | 7/10  |
+| DX Measurement      | 6/10  |
 
 ## Contributing
 

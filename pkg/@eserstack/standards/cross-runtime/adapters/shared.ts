@@ -295,7 +295,16 @@ export const getHomedir = (): string => {
  * Gets the system temporary directory.
  */
 export const getTmpdir = (): string => {
-  const tmp = getFirstEnvVar("TMPDIR", "TMP", "TEMP");
+  const isWindows = getPlatform() === "windows";
+
+  // Use the platform's own temp-dir env-var precedence. On Windows the
+  // canonical vars are TMP/TEMP (what os.tmpdir(), Deno.makeTempDir, and the
+  // Win32 GetTempPath API consult); TMPDIR is a POSIX convention the Windows
+  // runtime ignores. Checking them in platform order keeps getTmpdir()
+  // consistent with where temp files are actually created.
+  const tmp = isWindows
+    ? getFirstEnvVar("TMP", "TEMP", "TMPDIR")
+    : getFirstEnvVar("TMPDIR", "TMP", "TEMP");
   if (tmp) return tmp;
 
   const os = tryRequire<NodeOsModule>("os");
@@ -303,7 +312,7 @@ export const getTmpdir = (): string => {
     return os.tmpdir();
   }
 
-  return getPlatform() === "windows" ? "C:\\Windows\\Temp" : "/tmp";
+  return isWindows ? "C:\\Windows\\Temp" : "/tmp";
 };
 
 /**

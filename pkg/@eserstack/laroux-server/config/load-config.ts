@@ -68,7 +68,7 @@ export async function loadConfig(projectRoot?: string): Promise<AppConfig> {
 
   // Return with project root
   return {
-    projectRoot: root,
     ...deepMerge(DEFAULT_CONFIG, userConfig),
+    projectRoot: root,
   };
 }

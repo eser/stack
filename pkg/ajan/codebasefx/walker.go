@@ -63,7 +63,10 @@ func walkViaGit(ctx context.Context, root string, opts WalkOptions) ([]FileEntry
 			continue
 		}
 
-		abs := filepath.Join(root, rel)
+		// Use forward slashes so downstream validators and exclude patterns
+		// (all written with "/") match consistently on Windows. Go's os calls
+		// accept "/" separators on Windows, so file reads still work.
+		abs := filepath.ToSlash(filepath.Join(root, rel))
 
 		if shouldExclude(abs, opts.Exclude) {
 			continue
@@ -97,6 +100,10 @@ func walkViaFS(root string, opts WalkOptions) ([]FileEntry, error) {
 		if err != nil {
 			return nil // skip unreadable entries
 		}
+
+		// Normalize to forward slashes so "/"-based exclude patterns and
+		// validators match consistently on Windows (see walkViaGit).
+		path = filepath.ToSlash(path)
 
 		if d.IsDir() {
 			if shouldExclude(path, opts.Exclude) || shouldExclude(path, defaultExcludeSubstrings) {

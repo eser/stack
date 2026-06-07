@@ -5,9 +5,16 @@ import { ffiFormats } from "./adapters/ffi/mod.ts";
 import { FORMAT_NOT_FOUND, FormatFfiError } from "./business/errors.ts";
 
 Deno.test(
-  { name: "FFI round-trip: encodeDocument JSON via EserAjanFormatEncodeDocument", sanitizeResources: false },
+  {
+    name:
+      "FFI round-trip: encodeDocument JSON via EserAjanFormatEncodeDocument",
+    sanitizeResources: false,
+  },
   async () => {
-    const result = await ffiFormats.encodeDocument("json", [{ name: "app1", count: 42 }]);
+    const result = await ffiFormats.encodeDocument("json", [{
+      name: "app1",
+      count: 42,
+    }]);
     const parsed = JSON.parse(result);
     assert.assert(Array.isArray(parsed));
     assert.assertEquals(parsed[0].name, "app1");
@@ -16,16 +23,25 @@ Deno.test(
 );
 
 Deno.test(
-  { name: "FFI round-trip: decode JSON via EserAjanFormatDecode", sanitizeResources: false },
+  {
+    name: "FFI round-trip: decode JSON via EserAjanFormatDecode",
+    sanitizeResources: false,
+  },
   async () => {
-    const items = await ffiFormats.decode("json", '[{"key":"value"},{"key":"other"}]');
+    const items = await ffiFormats.decode(
+      "json",
+      '[{"key":"value"},{"key":"other"}]',
+    );
     assert.assertEquals(items.length, 2);
     assert.assertEquals((items[0] as Record<string, unknown>)["key"], "value");
   },
 );
 
 Deno.test(
-  { name: "FFI round-trip: list formats via EserAjanFormatList", sanitizeResources: false },
+  {
+    name: "FFI round-trip: list formats via EserAjanFormatList",
+    sanitizeResources: false,
+  },
   async () => {
     const formats = await ffiFormats.list();
     assert.assert(formats.length > 0);
@@ -36,7 +52,10 @@ Deno.test(
 );
 
 Deno.test(
-  { name: "FFI round-trip: JSON encode+decode roundtrip", sanitizeResources: false },
+  {
+    name: "FFI round-trip: JSON encode+decode roundtrip",
+    sanitizeResources: false,
+  },
   async () => {
     const data = [{ id: 1, label: "test" }];
     const encoded = await ffiFormats.encodeDocument("json", data);
@@ -46,7 +65,10 @@ Deno.test(
 );
 
 Deno.test(
-  { name: "FFI error: unknown format throws FormatFfiError", sanitizeResources: false },
+  {
+    name: "FFI error: unknown format throws FormatFfiError",
+    sanitizeResources: false,
+  },
   async () => {
     await assert.assertRejects(
       () => ffiFormats.decode("no-such-format", "data"),

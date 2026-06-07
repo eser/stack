@@ -8,10 +8,12 @@
     "./errors": "./errors.ts",
     "./interceptors": "./interceptors.ts",
     "./types": "./types.ts",
+    "./go-client": "./go-client.ts",
     "./h3-fetch": "./h3-fetch.ts"
   },
   "dependencies": {
-    "@eserstack/primitives": "workspace:*"
+    "@eserstack/primitives": "workspace:*",
+    "@eserstack/ajan": "workspace:*"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.16",

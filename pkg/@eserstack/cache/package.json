@@ -7,7 +7,8 @@
     "./xdg": "./xdg.ts"
   },
   "dependencies": {
-    "@eserstack/standards": "workspace:*"
+    "@eserstack/standards": "workspace:*",
+    "@eserstack/ajan": "workspace:*"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.16"

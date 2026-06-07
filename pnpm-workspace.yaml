@@ -1,2 +1,7 @@
 packages:
   - "pkg/@eserstack/*"
+allowBuilds:
+  esbuild: true
+  koffi: true
+  protobufjs: false
+  sharp: true

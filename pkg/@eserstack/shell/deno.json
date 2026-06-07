@@ -12,9 +12,5 @@
     "./tui/colors": "./tui/colors.ts",
     "./vterm": "./vterm/mod.ts",
     "./go-exec": "./go-exec.ts"
-  },
-  "imports": {
-    "@eserstack/ajan": "jsr:@eserstack/ajan@^4.1.56",
-    "@std/cli": "jsr:@std/cli@^1.0.25"
   }
 }

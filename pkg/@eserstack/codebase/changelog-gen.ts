@@ -362,7 +362,10 @@ export const generateChangelog = async (
 ): Promise<GenerateChangelogResult> => {
   const lib = await requireLib();
   const raw = lib.symbols.EserAjanCodebaseGenerateChangelog(
-    JSON.stringify({ dir: options.root ?? ".", dryRun: options.dryRun ?? false }),
+    JSON.stringify({
+      dir: options.root ?? ".",
+      dryRun: options.dryRun ?? false,
+    }),
   );
   const parsed = JSON.parse(raw) as GenerateChangelogResult | { error: string };
   if ("error" in parsed) {

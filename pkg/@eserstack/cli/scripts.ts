@@ -16,7 +16,7 @@ import * as shellExec from "@eserstack/shell/exec";
 import * as results from "@eserstack/primitives/results";
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
-import { runtime } from "@eserstack/standards/cross-runtime";
+import { runtime, toPosix } from "@eserstack/standards/cross-runtime";
 import type * as shellArgs from "@eserstack/shell/args";
 import type { ScriptConfig } from "@eserstack/workflows/mod";
 
@@ -104,16 +104,23 @@ export const resolveDependencies = (
 /**
  * Resolve the CLI self-invocation prefix.
  *
- * When scripts reference `eser` as a command, we replace it with the
- * current runtime's exec path + the CLI entrypoint so scripts work
- * without requiring a global `eser` installation.
+ * When scripts reference `eser` as a command, we replace it with the current
+ * runtime's exec path + the CLI entrypoint so scripts work without requiring a
+ * global `eser` installation.
+ *
+ * The prefix is spliced into a command string that runs under `sh -c`, where
+ * "\" is an escape character. Native paths are therefore passed through
+ * `toPosix()` so they use "/" separators (msys/git-bash `sh` accept "C:/…"
+ * paths; on real POSIX systems this is a no-op).
  */
 const resolveCliPrefix = (): string => {
-  const mainUrl = new URL("./main.ts", import.meta.url);
-  const mainPath = mainUrl.protocol === "file:"
-    ? mainUrl.pathname
-    : mainUrl.href;
-  const execPath = runtime.process.execPath();
+  const execPath = toPosix(runtime.process.execPath());
+  const dir = import.meta.dirname;
+  // `import.meta.dirname` is the native module directory (no file: URL pathname
+  // quirks). The remote-execution fallback is already a URL, so it is used as-is.
+  const mainPath = dir !== undefined
+    ? toPosix(runtime.path.join(dir, "main.ts"))
+    : new URL("./main.ts", import.meta.url).href;
 
   return `${execPath} run --allow-all ${mainPath}`;
 };

@@ -764,9 +764,13 @@ export const backend: types.FFIBackend = {
             symbols.EserAjanCodebaseCheckDocs(toCString(requestJSON)),
           );
         },
-        EserAjanCodebaseWalkFilesStreamCreate: (requestJSON: string): string => {
+        EserAjanCodebaseWalkFilesStreamCreate: (
+          requestJSON: string,
+        ): string => {
           return readAndFree(
-            symbols.EserAjanCodebaseWalkFilesStreamCreate(toCString(requestJSON)),
+            symbols.EserAjanCodebaseWalkFilesStreamCreate(
+              toCString(requestJSON),
+            ),
           );
         },
         EserAjanCodebaseWalkFilesStreamRead: (handle: string): string => {
@@ -779,9 +783,13 @@ export const backend: types.FFIBackend = {
             symbols.EserAjanCodebaseWalkFilesStreamClose(toCString(handle)),
           );
         },
-        EserAjanCodebaseValidateFilesStreamCreate: (requestJSON: string): string => {
+        EserAjanCodebaseValidateFilesStreamCreate: (
+          requestJSON: string,
+        ): string => {
           return readAndFree(
-            symbols.EserAjanCodebaseValidateFilesStreamCreate(toCString(requestJSON)),
+            symbols.EserAjanCodebaseValidateFilesStreamCreate(
+              toCString(requestJSON),
+            ),
           );
         },
         EserAjanCodebaseValidateFilesStreamRead: (handle: string): string => {
@@ -794,9 +802,13 @@ export const backend: types.FFIBackend = {
             symbols.EserAjanCodebaseValidateFilesStreamClose(toCString(handle)),
           );
         },
-        EserAjanCollectorSpecifierToIdentifier: (requestJSON: string): string => {
+        EserAjanCollectorSpecifierToIdentifier: (
+          requestJSON: string,
+        ): string => {
           return readAndFree(
-            symbols.EserAjanCollectorSpecifierToIdentifier(toCString(requestJSON)),
+            symbols.EserAjanCollectorSpecifierToIdentifier(
+              toCString(requestJSON),
+            ),
           );
         },
         EserAjanCollectorWalkFiles: (requestJSON: string): string => {

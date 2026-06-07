@@ -47,8 +47,7 @@ class WebTransportSessionImpl implements IWebTransportSession {
   }
 
   acceptBidirectionalStream(): Promise<WebTransportBidirectionalStream> {
-    const reader =
-      this.inner.incomingBidirectionalStreams.getReader();
+    const reader = this.inner.incomingBidirectionalStreams.getReader();
 
     return reader.read().then(({ value, done }) => {
       reader.releaseLock();
@@ -95,9 +94,10 @@ class WebTransportClientImpl implements IWebTransportClient {
         wt.ready,
         new Promise<never>((_, reject) =>
           setTimeout(
-            () => reject(new Error(`WebTransport dial timeout after ${timeout}ms`)),
+            () =>
+              reject(new Error(`WebTransport dial timeout after ${timeout}ms`)),
             timeout,
-          ),
+          )
         ),
       ]);
     } else {
@@ -108,7 +108,10 @@ class WebTransportClientImpl implements IWebTransportClient {
   }
 
   #resolveUrl(urlOrPath: string): string {
-    if (!this.#config.baseUrl || urlOrPath.startsWith("https://") || urlOrPath.startsWith("http://")) {
+    if (
+      !this.#config.baseUrl || urlOrPath.startsWith("https://") ||
+      urlOrPath.startsWith("http://")
+    ) {
       return urlOrPath;
     }
 

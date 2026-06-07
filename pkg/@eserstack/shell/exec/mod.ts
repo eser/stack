@@ -64,4 +64,8 @@ export { type PtyOptions, type PtyProcess, spawnPty } from "./pty.ts";
 export { type ManagedProcess, ProcessGroup } from "./process-group.ts";
 
 // FFI-backed child process (Go side)
-export { spawnChildGo, spawnChildGoSync, type SpawnGoOptions } from "./child-go.ts";
+export {
+  spawnChildGo,
+  spawnChildGoSync,
+  type SpawnGoOptions,
+} from "./child-go.ts";

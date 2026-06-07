@@ -86,94 +86,97 @@ const isExcluded = (
   return false;
 };
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-filenames",
-  description: "Enforce filename conventions (kebab-case / snake_case)",
-  canFix: false,
-  stacks: [],
-  defaults: {},
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-filenames",
+    description: "Enforce filename conventions (kebab-case / snake_case)",
+    canFix: false,
+    stacks: [],
+    defaults: {},
 
-  checkAll(files, options) {
-    const issues = [];
+    checkAll(files, options) {
+      const issues = [];
 
-    // Read config-driven rules or use defaults
-    const configRules = options["rules"] as
-      | Array<{
-        directory: string;
-        convention: string;
-        exclude?: string[];
-      }>
-      | undefined;
+      // Read config-driven rules or use defaults
+      const configRules = options["rules"] as
+        | Array<{
+          directory: string;
+          convention: string;
+          exclude?: string[];
+        }>
+        | undefined;
 
-    // Build exclude list from config or defaults
-    const globalExcludes = (options["exclude"] as string[] | undefined) ??
-      DEFAULT_EXCLUDES;
+      // Build exclude list from config or defaults
+      const globalExcludes = (options["exclude"] as string[] | undefined) ??
+        DEFAULT_EXCLUDES;
 
-    for (const file of files) {
-      // Skip globally excluded paths
-      if (isExcluded(file.path, globalExcludes)) {
-        continue;
-      }
+      for (const file of files) {
+        // Skip globally excluded paths
+        if (isExcluded(file.path, globalExcludes)) {
+          continue;
+        }
 
-      const basename = file.name;
-      const baseWithoutExt = basename.replace(/\.[^.]+$/, "");
+        const basename = file.name;
+        const baseWithoutExt = basename.replace(/\.[^.]+$/, "");
 
-      // Check for Windows reserved names
-      if (WINDOWS_RESERVED.has(baseWithoutExt.toLowerCase())) {
-        issues.push({
-          path: file.path,
-          message: `Windows-reserved filename: ${basename}`,
-        });
-        continue;
-      }
+        // Check for Windows reserved names
+        if (WINDOWS_RESERVED.has(baseWithoutExt.toLowerCase())) {
+          issues.push({
+            path: file.path,
+            message: `Windows-reserved filename: ${basename}`,
+          });
+          continue;
+        }
 
-      // Find matching rule from config
-      if (configRules !== undefined) {
-        let matched = false;
-        for (const rule of configRules) {
-          if (
-            rule.directory === "*" || file.path.includes(rule.directory)
-          ) {
-            // Check rule-level excludes
+        // Find matching rule from config
+        if (configRules !== undefined) {
+          let matched = false;
+          for (const rule of configRules) {
             if (
-              rule.exclude !== undefined &&
-              isExcluded(file.path, rule.exclude)
+              rule.directory === "*" || file.path.includes(rule.directory)
             ) {
+              // Check rule-level excludes
+              if (
+                rule.exclude !== undefined &&
+                isExcluded(file.path, rule.exclude)
+              ) {
+                matched = true;
+                break;
+              }
+
+              const pattern = rule.convention === "snake_case"
+                ? SNAKE_CASE
+                : KEBAB_CASE;
+
+              if (!pattern.test(basename)) {
+                issues.push({
+                  path: file.path,
+                  message: `filename must be ${rule.convention}`,
+                });
+              }
               matched = true;
               break;
             }
-
-            const pattern = rule.convention === "snake_case"
-              ? SNAKE_CASE
-              : KEBAB_CASE;
-
-            if (!pattern.test(basename)) {
-              issues.push({
-                path: file.path,
-                message: `filename must be ${rule.convention}`,
-              });
-            }
-            matched = true;
-            break;
+          }
+          if (matched) {
+            continue;
           }
         }
-        if (matched) {
-          continue;
+
+        // Default: kebab-case for everything (no hardcoded directory rules)
+        if (!KEBAB_CASE.test(basename)) {
+          issues.push({
+            path: file.path,
+            message: "filename must be kebab-case",
+          });
         }
       }
 
-      // Default: kebab-case for everything (no hardcoded directory rules)
-      if (!KEBAB_CASE.test(basename)) {
-        issues.push({
-          path: file.path,
-          message: "filename must be kebab-case",
-        });
-      }
-    }
-
-    return issues;
-  },
-}), "filenames");
+      return issues;
+    },
+  }),
+  "filenames",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

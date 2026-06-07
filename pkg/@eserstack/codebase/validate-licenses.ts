@@ -28,6 +28,7 @@
  */
 
 import * as standards from "@eserstack/standards";
+import { toPosix } from "@eserstack/standards/cross-runtime";
 import { JS_FILE_EXTENSIONS } from "@eserstack/standards/patterns";
 import {
   createFileTool,
@@ -63,8 +64,13 @@ const SKIP_PATTERNS = [
   /manifest\.gen\.ts$/,
 ];
 
-const shouldSkip = (path: string): boolean =>
-  SKIP_PATTERNS.some((p) => p.test(path));
+// SKIP_PATTERNS are written with POSIX "/" separators. File paths arrive in the
+// OS-native form ("\" on Windows), so normalize to forward slashes before testing
+// — otherwise patterns like /docs\// never match on Windows. No-op on POSIX.
+const shouldSkip = (path: string): boolean => {
+  const normalized = toPosix(path);
+  return SKIP_PATTERNS.some((p) => p.test(normalized));
+};
 
 // =============================================================================
 // Check function
@@ -144,18 +150,21 @@ const fixLicenseHeader = (
 // Tool
 // =============================================================================
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-licenses",
-  description: "Validate license headers",
-  canFix: true,
-  stacks: ["javascript"],
-  defaults: {},
-  // Dotted format required — matches path.extname() output in walkSourceFiles git-aware path
-  extensions: JS_FILE_EXTENSIONS,
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-licenses",
+    description: "Validate license headers",
+    canFix: true,
+    stacks: ["javascript"],
+    defaults: {},
+    // Dotted format required — matches path.extname() output in walkSourceFiles git-aware path
+    extensions: JS_FILE_EXTENSIONS,
 
-  checkFile: checkLicenseHeader,
-  fixFile: fixLicenseHeader,
-}), "license");
+    checkFile: checkLicenseHeader,
+    fixFile: fixLicenseHeader,
+  }),
+  "license",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

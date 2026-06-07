@@ -63,13 +63,30 @@ interface ApplyChainResult {
 /**
  * Validate that a target path does not escape the project directory.
  * Prevents malicious registries from writing to arbitrary locations.
+ *
+ * Separator-agnostic: resolves the target against the base directory using the
+ * runtime's platform-aware path API, then ensures the resulting path stays
+ * within the base. Works for both POSIX ("/") and Windows ("\\") separators
+ * and rejects "../" traversal, absolute targets, and resolved traversal.
  */
 const isPathSafe = (cwd: string, target: string): boolean => {
-  const resolvedCwd = cwd.endsWith("/") ? cwd : `${cwd}/`;
-  const resolvedTarget = new URL(target, `file://${resolvedCwd}`).pathname;
+  const base = runtime.path.resolve(cwd);
+  const resolved = runtime.path.resolve(base, target);
 
-  return resolvedTarget.startsWith(resolvedCwd) ||
-    resolvedTarget === cwd;
+  // The path is the base itself.
+  if (resolved === base) return true;
+
+  // Relative path from base to target must stay inside base: it must not be
+  // absolute (different drive/root) and must not climb out via "..".
+  const rel = runtime.path.relative(base, resolved);
+
+  if (rel === "" || rel === ".") return true;
+  if (runtime.path.isAbsolute(rel)) return false;
+
+  // Reject "..", "../foo", "..\\foo" — anything that escapes the base.
+  return rel !== ".." &&
+    !rel.startsWith(`..${runtime.path.sep}`) &&
+    !rel.startsWith("../");
 };
 
 // =============================================================================
@@ -311,7 +328,9 @@ const applyFromFiles = async (
     const kind = file.kind ?? "file";
     if (kind === "file" && !isPathSafe(options.cwd, file.target)) {
       throw new Error(
-        `Recipe '${recipe.name ?? "<unknown>"}' contains path traversal in target '${file.target}'. Aborting.`,
+        `Recipe '${
+          recipe.name ?? "<unknown>"
+        }' contains path traversal in target '${file.target}'. Aborting.`,
       );
     }
   }
@@ -354,7 +373,9 @@ const applyFromFiles = async (
       const msg = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Failed applying '${file.target}'. ${written.length} files written so far. ` +
-          `Retry with \`eser kit add ${recipe.name ?? ""} --force\`. Cause: ${msg}`,
+          `Retry with \`eser kit add ${
+            recipe.name ?? ""
+          } --force\`. Cause: ${msg}`,
       );
     }
   }
@@ -410,7 +431,9 @@ const applyWholeRepo = async (
     const alwaysIgnore = [".git", "recipe.json", "eser-registry.json"];
     const ignore = [...alwaysIgnore, ...(recipe.ignore ?? [])];
 
-    for await (const entry of runtime.fs.walk(tempDir, { includeDirs: false })) {
+    for await (
+      const entry of runtime.fs.walk(tempDir, { includeDirs: false })
+    ) {
       const relPath = runtime.path.relative(tempDir, entry.path);
 
       if (processor.shouldIgnore(relPath, ignore)) continue;
@@ -484,7 +507,12 @@ const applyWholeRepo = async (
       );
     }
 
-    return { written, skipped, total: written.length + skipped.length, postInstallRan };
+    return {
+      written,
+      skipped,
+      total: written.length + skipped.length,
+      postInstallRan,
+    };
   } finally {
     await runtime.fs.remove(tempDir, { recursive: true }).catch(() => {});
   }

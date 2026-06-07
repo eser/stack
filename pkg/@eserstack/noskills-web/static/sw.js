@@ -1,12 +1,11 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 // noskills-server service worker
 // Handles Web Push notifications and notificationclick → PWA focus.
 // Served at /sw.js (root scope) by the daemon's HTTP/3 server.
 
-const SW_VERSION = "1";
-
 // ── Install & activate ────────────────────────────────────────────────────────
 
-self.addEventListener("install", (event) => {
+self.addEventListener("install", () => {
   // Activate immediately — no waiting for existing tabs to close.
   // This ensures cert fingerprint refreshes reach the SW promptly.
   self.skipWaiting();
@@ -36,8 +35,8 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body,
-    tag,               // collapses duplicate notifications for same session+kind
-    renotify: false,   // don't vibrate if same tag is already shown
+    tag, // collapses duplicate notifications for same session+kind
+    renotify: false, // don't vibrate if same tag is already shown
     requireInteraction: kind === "permission_request", // stay visible for permission requests
     data: { sessionId, projectSlug: payload.projectSlug ?? "", kind, url: "/" },
     icon: "/static/icons/icon.svg",

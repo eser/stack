@@ -9,51 +9,57 @@
 import * as standards from "@eserstack/standards";
 import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-eof",
-  description: "Ensure files end with exactly one newline",
-  canFix: true,
-  stacks: [],
-  defaults: {},
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-eof",
+    description: "Ensure files end with exactly one newline",
+    canFix: true,
+    stacks: [],
+    defaults: {},
 
-  checkFile(file, content) {
-    if (content === undefined) {
+    checkFile(file, content) {
+      if (content === undefined) {
+        return [];
+      }
+
+      if (content.length === 0) {
+        return [];
+      }
+
+      if (!content.endsWith("\n")) {
+        return [{
+          path: file.path,
+          message: "file does not end with a newline",
+        }];
+      }
+
+      if (content.endsWith("\n\n")) {
+        return [{
+          path: file.path,
+          message: "file has multiple trailing newlines",
+        }];
+      }
+
       return [];
-    }
+    },
 
-    if (content.length === 0) {
-      return [];
-    }
+    fixFile(file, content) {
+      if (content.length === 0) {
+        return undefined;
+      }
 
-    if (!content.endsWith("\n")) {
-      return [{ path: file.path, message: "file does not end with a newline" }];
-    }
+      const trimmed = content.replace(/\n+$/, "");
+      const fixed = `${trimmed}\n`;
 
-    if (content.endsWith("\n\n")) {
-      return [{
-        path: file.path,
-        message: "file has multiple trailing newlines",
-      }];
-    }
+      if (fixed === content) {
+        return undefined;
+      }
 
-    return [];
-  },
-
-  fixFile(file, content) {
-    if (content.length === 0) {
-      return undefined;
-    }
-
-    const trimmed = content.replace(/\n+$/, "");
-    const fixed = `${trimmed}\n`;
-
-    if (fixed === content) {
-      return undefined;
-    }
-
-    return { path: file.path, oldContent: content, newContent: fixed };
-  },
-}), "eof");
+      return { path: file.path, oldContent: content, newContent: fixed };
+    },
+  }),
+  "eof",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

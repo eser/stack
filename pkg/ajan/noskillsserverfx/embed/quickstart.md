@@ -6,7 +6,8 @@
 brew install eserstack/tap/noskills-server
 ```
 
-Or download a binary from https://github.com/eser/stack/releases and add it to your PATH.
+Or download a binary from https://github.com/eser/stack/releases and add it to
+your PATH.
 
 ## Start the daemon
 
@@ -14,7 +15,8 @@ Or download a binary from https://github.com/eser/stack/releases and add it to y
 noskills-server start
 ```
 
-First run: prints a PIN and a URL. Open the URL in your browser, log in with the PIN.
+First run: prints a PIN and a URL. Open the URL in your browser, log in with the
+PIN.
 
 ## Health check
 
@@ -22,7 +24,8 @@ First run: prints a PIN and a URL. Open the URL in your browser, log in with the
 noskills-server doctor
 ```
 
-Checks: port availability, Node.js version, cert validity, ledger dir permissions.
+Checks: port availability, Node.js version, cert validity, ledger dir
+permissions.
 
 ## Attach a project
 

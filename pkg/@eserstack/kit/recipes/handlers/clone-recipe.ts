@@ -59,20 +59,20 @@ const canUseFfiPath = (
   recipe: registrySchema.Recipe,
   input: CloneRecipeInput,
 ): boolean => {
-  if (recipe.files === undefined) return false;          // whole-repo mode
-  if (recipe.ignore !== undefined) return false;         // FFI has no ignore-glob support
-  if (input.interactive === true) return false;          // FFI has no prompt loop
-  if (input.skipPostInstall === true) return false;      // FFI runs post-install unconditionally
+  if (recipe.files === undefined) return false; // whole-repo mode
+  if (recipe.ignore !== undefined) return false; // FFI has no ignore-glob support
+  if (input.interactive === true) return false; // FFI has no prompt loop
+  if (input.skipPostInstall === true) return false; // FFI runs post-install unconditionally
 
   const hasNameSubstitution = recipe.files.some(
     (f) => f.source.includes("{{.") || f.target.includes("{{."),
   );
-  if (hasNameSubstitution) return false;                 // FFI substitutes content only
+  if (hasNameSubstitution) return false; // FFI substitutes content only
 
   const hasPatternedVar = recipe.variables?.some(
     (v) => v.pattern !== undefined,
   ) ?? false;
-  if (hasPatternedVar) return false;                     // FFI doesn't validate regex patterns
+  if (hasPatternedVar) return false; // FFI doesn't validate regex patterns
 
   return true;
 };
@@ -251,7 +251,9 @@ const cloneRecipe = (
         const verb = input.dryRun ? "Would write" : "Cloned";
         ctx.out.writeln(
           span.green(
-            `✓ ${verb} ${result.written.length} file(s) from ${recipe.name ?? specifier.repo}`,
+            `✓ ${verb} ${result.written.length} file(s) from ${
+              recipe.name ?? specifier.repo
+            }`,
           ),
         );
 

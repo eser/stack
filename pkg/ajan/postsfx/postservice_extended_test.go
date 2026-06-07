@@ -5,6 +5,7 @@ package postsfx_test
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -418,11 +419,16 @@ func TestPostService_GetUnifiedTimeline_SkipsFailures(t *testing.T) {
 // ─── DefaultTokenStoreDir ─────────────────────────────────────────────────────
 
 func TestDefaultTokenStoreDir_WithXDG(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", "/tmp/myconfig")
+	// Use a platform-appropriate absolute base so the expected prefix matches
+	// the OS path separator that DefaultTokenStoreDir produces via filepath.Join.
+	base := filepath.Join(t.TempDir(), "myconfig")
+	t.Setenv("XDG_CONFIG_HOME", base)
 
 	dir := postsfx.DefaultTokenStoreDir()
-	if !strings.HasPrefix(dir, "/tmp/myconfig") {
-		t.Errorf("expected XDG-based path, got %q", dir)
+
+	wantPrefix := filepath.Join(base, "eser", "posts")
+	if !strings.HasPrefix(dir, wantPrefix) {
+		t.Errorf("expected XDG-based path with prefix %q, got %q", wantPrefix, dir)
 	}
 }
 
@@ -456,8 +462,8 @@ func TestFileTokenStore_Load_CorruptJSON(t *testing.T) {
 	dir := t.TempDir()
 	store := postsfx.NewFileTokenStore(dir)
 
-	// Write a corrupt JSON file directly.
-	path := dir + "/twitter.json"
+	// Write a corrupt JSON file directly, matching the production tokenPath layout.
+	path := filepath.Join(dir, "twitter.json")
 	if err := os.WriteFile(path, []byte(`{invalid json`), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}

@@ -53,7 +53,10 @@ export class Command implements CommandLike {
   #lazyChildren: Map<string, LazyCommandOptions> = new Map();
   #groups: Map<string, GroupOptions> = new Map();
   #groupAliases: Map<string, string> = new Map(); // alias → primary name
-  #shortcuts = new Map<string, { target: readonly string[]; description: string }>();
+  #shortcuts = new Map<
+    string,
+    { target: readonly string[]; description: string }
+  >();
   #groupOptions?: GroupOptions;
   #fallbackHandler?: FallbackHandler;
   #handler?: CommandHandler;

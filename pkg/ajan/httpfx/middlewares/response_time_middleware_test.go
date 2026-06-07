@@ -75,9 +75,11 @@ func TestResponseTimeMiddleware(t *testing.T) { //nolint:funlen
 			duration, err := time.ParseDuration(responseTime)
 			require.NoError(t, err)
 
-			// For fast requests, just verify it's a positive duration
+			// For fast requests the elapsed time can legitimately be 0 on
+			// platforms with coarse monotonic-clock resolution (e.g. Windows),
+			// so only require a valid, non-negative duration here.
 			if tt.delay == 0 {
-				assert.Positive(t, duration.Nanoseconds())
+				assert.GreaterOrEqual(t, duration.Nanoseconds(), int64(0))
 			} else {
 				// For slow requests, verify it's at least the expected delay
 				assert.GreaterOrEqual(t, duration.Nanoseconds(), tt.delay.Nanoseconds())

@@ -4,6 +4,7 @@ package cachefx_test
 
 import (
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/cachefx"
@@ -204,6 +205,10 @@ func TestManager_EnsureDir_PathBlockedByFile(t *testing.T) {
 func TestManager_Remove_PermissionDenied(t *testing.T) {
 	t.Parallel()
 
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix file-permission semantics: Windows ignores chmod mode bits, so a read-only parent dir does not block file removal")
+	}
+
 	if os.Getuid() == 0 {
 		t.Skip("running as root; permission checks do not apply")
 	}
@@ -233,6 +238,10 @@ func TestManager_Remove_PermissionDenied(t *testing.T) {
 
 func TestManager_Clear_PermissionDenied(t *testing.T) {
 	t.Parallel()
+
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix file-permission semantics: Windows ignores chmod mode bits, so a read-only cache dir does not block RemoveAll")
+	}
 
 	if os.Getuid() == 0 {
 		t.Skip("running as root; permission checks do not apply")

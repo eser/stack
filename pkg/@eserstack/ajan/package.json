@@ -8,6 +8,7 @@
     "./wasm": "./wasm/mod.ts"
   },
   "dependencies": {
+    "@eserstack/standards": "workspace:*",
     "koffi": "^2.16.0"
   },
   "optionalDependencies": {

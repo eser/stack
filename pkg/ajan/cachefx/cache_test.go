@@ -22,8 +22,11 @@ func TestNewManagerDir(t *testing.T) {
 			App:     cachefx.AppIdentifier{Name: "myapp"},
 		})
 
-		if m.Dir() != "/tmp/testcache/myapp" {
-			t.Errorf("Dir() = %q, want %q", m.Dir(), "/tmp/testcache/myapp")
+		// Build expected value with filepath.Join so the separator matches the
+		// host OS (backslash on Windows, slash elsewhere).
+		want := filepath.Join("/tmp/testcache", "myapp")
+		if m.Dir() != want {
+			t.Errorf("Dir() = %q, want %q", m.Dir(), want)
 		}
 	})
 
@@ -35,7 +38,9 @@ func TestNewManagerDir(t *testing.T) {
 			App:     cachefx.AppIdentifier{Org: "eser", Name: "ajan"},
 		})
 
-		want := "/tmp/testcache/eser/ajan"
+		// Build expected value with filepath.Join so the separator matches the
+		// host OS (backslash on Windows, slash elsewhere).
+		want := filepath.Join("/tmp/testcache", "eser", "ajan")
 		if m.Dir() != want {
 			t.Errorf("Dir() = %q, want %q", m.Dir(), want)
 		}
@@ -68,9 +73,11 @@ func TestVersionedPath(t *testing.T) {
 		name     string
 		expected string
 	}{
-		{"1.2.3", "pkg.tar.gz", "/cache/app/v1.2.3/pkg.tar.gz"},
-		{"v1.2.3", "pkg.tar.gz", "/cache/app/v1.2.3/pkg.tar.gz"}, // v prefix normalised
-		{"0.0.1", "data", "/cache/app/v0.0.1/data"},
+		// Expected paths are built with filepath.Join so separators match the
+		// host OS (backslash on Windows, slash elsewhere).
+		{"1.2.3", "pkg.tar.gz", filepath.Join("/cache", "app", "v1.2.3", "pkg.tar.gz")},
+		{"v1.2.3", "pkg.tar.gz", filepath.Join("/cache", "app", "v1.2.3", "pkg.tar.gz")}, // v prefix normalised
+		{"0.0.1", "data", filepath.Join("/cache", "app", "v0.0.1", "data")},
 	}
 
 	for _, tc := range cases {

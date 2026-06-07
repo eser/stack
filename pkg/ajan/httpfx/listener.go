@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-
-	"golang.org/x/sys/unix"
 )
 
 // ListenerConfig holds configuration for the high-performance TCP listener.
@@ -37,54 +35,19 @@ type HighPerfListener struct {
 
 // NewHighPerfListener creates a high-performance TCP listener with optimized socket options.
 // It configures TCP_NODELAY, SO_REUSEADDR, and optionally limits concurrent connections.
-func NewHighPerfListener( //nolint:funlen
+//
+// Listener-level socket options are applied by applySocketOptions, whose
+// implementation is platform-specific (see listener_unix.go and
+// listener_windows.go).
+func NewHighPerfListener(
 	ctx context.Context,
 	addr string,
 	config *ListenerConfig,
 ) (*HighPerfListener, error) {
 	// Create listener config with socket options
 	listenCfg := &net.ListenConfig{ //nolint:exhaustruct
-		Control: func(network, address string, c syscall.RawConn) error {
-			var sockErr error
-
-			controlErr := c.Control(func(fileDescriptor uintptr) {
-				// Enable SO_REUSEADDR for faster restarts
-				sockErr = unix.SetsockoptInt(
-					int(fileDescriptor),
-					unix.SOL_SOCKET,
-					unix.SO_REUSEADDR,
-					1,
-				)
-				if sockErr != nil {
-					return
-				}
-
-				// Enable TCP_NODELAY for lower latency (disable Nagle's algorithm)
-				if config.TCPNoDelay {
-					sockErr = unix.SetsockoptInt(
-						int(fileDescriptor),
-						unix.IPPROTO_TCP,
-						unix.TCP_NODELAY,
-						1,
-					)
-					if sockErr != nil {
-						return
-					}
-				}
-
-				// SO_REUSEPORT allows multiple listeners on same port (load balancing)
-				// Note: Only enable if you're running multiple server instances
-				// sockErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEPORT, 1)
-			})
-			if controlErr != nil {
-				return fmt.Errorf("listener socket control: %w", controlErr)
-			}
-
-			if sockErr != nil {
-				return fmt.Errorf("listener setsockopt: %w", sockErr)
-			}
-
-			return nil
+		Control: func(_, _ string, c syscall.RawConn) error {
+			return applySocketOptions(c, config)
 		},
 		KeepAlive: config.KeepAlivePeriod,
 	}

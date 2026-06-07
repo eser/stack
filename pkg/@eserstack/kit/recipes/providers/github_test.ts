@@ -6,7 +6,7 @@ import { provider } from "./github.ts";
 
 describe("github provider — parse", () => {
   it("bare owner/repo", () => {
-    const parsed = provider.parse("eser/stack") as {
+    const parsed = provider.parse("eser/stack") as unknown as {
       owner: string;
       repo: string;
       ref: string;
@@ -19,7 +19,7 @@ describe("github provider — parse", () => {
   });
 
   it("gh: prefix stripped", () => {
-    const parsed = provider.parse("gh:eser/stack") as {
+    const parsed = provider.parse("gh:eser/stack") as unknown as {
       owner: string;
       repo: string;
     };
@@ -28,7 +28,7 @@ describe("github provider — parse", () => {
   });
 
   it("github: prefix stripped", () => {
-    const parsed = provider.parse("github:eser/stack") as {
+    const parsed = provider.parse("github:eser/stack") as unknown as {
       owner: string;
       repo: string;
     };
@@ -37,14 +37,14 @@ describe("github provider — parse", () => {
   });
 
   it("ref from #fragment", () => {
-    const parsed = provider.parse("eser/stack#v2.0") as {
+    const parsed = provider.parse("eser/stack#v2.0") as unknown as {
       ref: string;
     };
     assert.assertEquals(parsed.ref, "v2.0");
   });
 
   it("subpath from extra path segments", () => {
-    const parsed = provider.parse("eser/monorepo/packages/foo") as {
+    const parsed = provider.parse("eser/monorepo/packages/foo") as unknown as {
       owner: string;
       repo: string;
       subpath?: string;
@@ -55,7 +55,9 @@ describe("github provider — parse", () => {
   });
 
   it("subpath with ref", () => {
-    const parsed = provider.parse("eser/monorepo/packages/foo#v1.0") as {
+    const parsed = provider.parse(
+      "eser/monorepo/packages/foo#v1.0",
+    ) as unknown as {
       subpath?: string;
       ref: string;
     };

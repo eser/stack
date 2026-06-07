@@ -10,28 +10,31 @@ import * as toml from "@std/toml";
 import * as standards from "@eserstack/standards";
 import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-toml",
-  description: "Validate TOML syntax",
-  canFix: false,
-  stacks: [],
-  defaults: {},
-  extensions: ["toml"],
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-toml",
+    description: "Validate TOML syntax",
+    canFix: false,
+    stacks: [],
+    defaults: {},
+    extensions: ["toml"],
 
-  checkFile(file, content) {
-    if (content === undefined) {
-      return [];
-    }
+    checkFile(file, content) {
+      if (content === undefined) {
+        return [];
+      }
 
-    try {
-      toml.parse(content);
-      return [];
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "invalid TOML";
-      return [{ path: file.path, message }];
-    }
-  },
-}), "toml");
+      try {
+        toml.parse(content);
+        return [];
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "invalid TOML";
+        return [{ path: file.path, message }];
+      }
+    },
+  }),
+  "toml",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

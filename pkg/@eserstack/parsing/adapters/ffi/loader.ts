@@ -1,7 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as ffi from "@eserstack/ajan/ffi";
-import type { FfiToken, Loader, SimpleTokensResult, TokenizeInput } from "../../business/parsing.ts";
+import type {
+  FfiToken,
+  Loader,
+  SimpleTokensResult,
+  TokenizeInput,
+} from "../../business/parsing.ts";
 import {
   PARSING_INVALID_PATTERN,
   PARSING_TOKENIZE_FAILED,
@@ -37,7 +42,10 @@ export const ffiLoader: Loader = {
     await ensureLib();
     const lib = getLib();
     if (lib === null) {
-      throw new ParsingError("native library unavailable", PARSING_TOKENIZE_FAILED);
+      throw new ParsingError(
+        "native library unavailable",
+        PARSING_TOKENIZE_FAILED,
+      );
     }
 
     const req: Record<string, unknown> = { input: input.input };
@@ -57,7 +65,10 @@ export const ffiLoader: Loader = {
     await ensureLib();
     const lib = getLib();
     if (lib === null) {
-      throw new ParsingError("native library unavailable", PARSING_TOKENIZE_FAILED);
+      throw new ParsingError(
+        "native library unavailable",
+        PARSING_TOKENIZE_FAILED,
+      );
     }
 
     const raw = lib.symbols.EserAjanParsingSimpleTokens();

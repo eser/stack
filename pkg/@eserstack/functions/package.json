@@ -4,10 +4,10 @@
   "type": "module",
   "exports": {
     ".": "./mod.ts",
-    "./results": "./results.ts",
-    "./options": "./options.ts",
-    "./resources": "./resources.ts",
     "./handler": "./handler.ts",
+    "./pipeline": "./pipeline.ts",
+    "./resources": "./resources.ts",
+    "./task": "./task.ts",
     "./triggers": "./triggers.ts"
   },
   "dependencies": {

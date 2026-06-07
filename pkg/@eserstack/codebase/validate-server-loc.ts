@@ -135,5 +135,5 @@ export const main = async (
 
 if (import.meta.main) {
   const { output: out } = createCliContext();
-  runCliMain(await main(Deno.args), out);
+  runCliMain(await main(runtime.process.args as string[]), out);
 }

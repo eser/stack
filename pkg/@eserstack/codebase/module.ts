@@ -193,7 +193,8 @@ export const moduleDef: Module = new Module({
       load: () => import("./validate-package-configs.ts"),
     },
     "validate-server-loc": {
-      description: "Fail if any non-test file in a directory exceeds the line ceiling",
+      description:
+        "Fail if any non-test file in a directory exceeds the line ceiling",
       category: "Validation",
       load: () => import("./validate-server-loc.ts"),
     },

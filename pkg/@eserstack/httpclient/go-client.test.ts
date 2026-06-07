@@ -65,8 +65,8 @@ describe("typed error reconstruction from GoHttpError", () => {
       } catch {
         /* keep string */
       }
-      const retryAfterHeader =
-        goErr.headers["Retry-After"] ?? goErr.headers["retry-after"] ?? null;
+      const retryAfterHeader = goErr.headers["Retry-After"] ??
+        goErr.headers["retry-after"] ?? null;
       const retryAfterMs = retryAfterHeader !== null
         ? (() => {
           const s = Number(retryAfterHeader);
@@ -78,7 +78,9 @@ describe("typed error reconstruction from GoHttpError", () => {
         body,
         ...(retryAfterMs !== null && { retryAfter: retryAfterMs / 1000 }),
       };
-      if (goErr.status === 429) return new errors.HttpRateLimitError(`HTTP ${goErr.status}`, opts);
+      if (goErr.status === 429) {
+        return new errors.HttpRateLimitError(`HTTP ${goErr.status}`, opts);
+      }
       return new errors.HttpResponseError(`HTTP ${goErr.status}`, opts);
     }
     return new errors.HttpNetworkError(goErr.message, { cause: goErr });
@@ -133,6 +135,9 @@ describe("typed error reconstruction from GoHttpError", () => {
 
     const typed = classify(goErr);
     assertInstanceOf(typed, errors.HttpResponseError);
-    assertEquals((typed.body as Record<string, string>)["message"], "validation failed");
+    assertEquals(
+      (typed.body as Record<string, string>)["message"],
+      "validation failed",
+    );
   });
 });

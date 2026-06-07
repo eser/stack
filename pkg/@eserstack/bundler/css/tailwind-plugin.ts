@@ -38,8 +38,8 @@
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 // Lazily loaded Tailwind dependencies
-let tailwindNode: typeof import("npm:@tailwindcss/node@4") | null = null;
-let tailwindOxide: typeof import("npm:@tailwindcss/oxide@4") | null = null;
+let tailwindNode: typeof import("@tailwindcss/node") | null = null;
+let tailwindOxide: typeof import("@tailwindcss/oxide") | null = null;
 
 /**
  * Tailwind feature flags from @tailwindcss/node.
@@ -96,10 +96,10 @@ export interface TailwindCompileResult {
 
 // Internal type aliases for Tailwind compiler
 type TailwindCompiler = Awaited<
-  ReturnType<typeof import("npm:@tailwindcss/node@4").compile>
+  ReturnType<typeof import("@tailwindcss/node").compile>
 >;
 type TailwindScanner = InstanceType<
-  typeof import("npm:@tailwindcss/oxide@4").Scanner
+  typeof import("@tailwindcss/oxide").Scanner
 >;
 
 /**
@@ -107,13 +107,13 @@ type TailwindScanner = InstanceType<
  * This allows the bundler to work without Tailwind if not needed.
  */
 async function loadTailwindDeps(): Promise<{
-  node: typeof import("npm:@tailwindcss/node@4");
-  oxide: typeof import("npm:@tailwindcss/oxide@4");
+  node: typeof import("@tailwindcss/node");
+  oxide: typeof import("@tailwindcss/oxide");
 }> {
   if (tailwindNode === null || tailwindOxide === null) {
     const [node, oxide] = await Promise.all([
-      import("npm:@tailwindcss/node@4"),
-      import("npm:@tailwindcss/oxide@4"),
+      import("@tailwindcss/node"),
+      import("@tailwindcss/oxide"),
     ]);
     tailwindNode = node;
     tailwindOxide = oxide;

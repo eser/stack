@@ -281,7 +281,9 @@ export const backend: types.FFIBackend = {
     const rawParsingTokenize = lib.func(
       "char* EserAjanParsingTokenize(const char* requestJSON)",
     );
-    const rawParsingSimpleTokens = lib.func("char* EserAjanParsingSimpleTokens()");
+    const rawParsingSimpleTokens = lib.func(
+      "char* EserAjanParsingSimpleTokens()",
+    );
     const rawParsingTokenizeStreamCreate = lib.func(
       "char* EserAjanParsingTokenizeStreamCreate(const char* requestJSON)",
     );
@@ -537,7 +539,9 @@ export const backend: types.FFIBackend = {
         EserAjanCodebaseCheckDocs: (requestJSON: string): string => {
           return rawCodebaseCheckDocs(requestJSON) ?? "";
         },
-        EserAjanCodebaseWalkFilesStreamCreate: (requestJSON: string): string => {
+        EserAjanCodebaseWalkFilesStreamCreate: (
+          requestJSON: string,
+        ): string => {
           return rawCodebaseWalkFilesStreamCreate(requestJSON) ?? "";
         },
         EserAjanCodebaseWalkFilesStreamRead: (handle: string): string => {
@@ -546,7 +550,9 @@ export const backend: types.FFIBackend = {
         EserAjanCodebaseWalkFilesStreamClose: (handle: string): string => {
           return rawCodebaseWalkFilesStreamClose(handle) ?? "";
         },
-        EserAjanCodebaseValidateFilesStreamCreate: (requestJSON: string): string => {
+        EserAjanCodebaseValidateFilesStreamCreate: (
+          requestJSON: string,
+        ): string => {
           return rawCodebaseValidateFilesStreamCreate(requestJSON) ?? "";
         },
         EserAjanCodebaseValidateFilesStreamRead: (handle: string): string => {
@@ -555,7 +561,9 @@ export const backend: types.FFIBackend = {
         EserAjanCodebaseValidateFilesStreamClose: (handle: string): string => {
           return rawCodebaseValidateFilesStreamClose(handle) ?? "";
         },
-        EserAjanCollectorSpecifierToIdentifier: (requestJSON: string): string => {
+        EserAjanCollectorSpecifierToIdentifier: (
+          requestJSON: string,
+        ): string => {
           return rawCollectorSpecifierToIdentifier(requestJSON) ?? "";
         },
         EserAjanCollectorWalkFiles: (requestJSON: string): string => {

@@ -306,7 +306,7 @@ export class RolldownBackend implements Bundler {
       // Try to import rolldown - it should be installed via npm
       // In Deno, this uses the npm: specifier
       // deno-lint-ignore no-explicit-any
-      const rolldownImport = await import("npm:rolldown@latest") as any;
+      const rolldownImport = await import("rolldown") as any;
 
       // Adapt the actual rolldown API to our internal interface
       const module: RolldownModule = {

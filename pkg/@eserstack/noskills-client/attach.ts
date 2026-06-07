@@ -194,9 +194,13 @@ export async function attachSession(
   // cannot set custom headers on the CONNECT request.
   const params = new URLSearchParams();
   if (config.token) params.set("token", config.token);
-  if (opts.afterSeq && opts.afterSeq > 0) params.set("after", String(opts.afterSeq));
+  if (opts.afterSeq && opts.afterSeq > 0) {
+    params.set("after", String(opts.afterSeq));
+  }
   const query = params.size > 0 ? `?${params.toString()}` : "";
-  const path = `/attach/${encodeURIComponent(slug)}/${encodeURIComponent(sessionId)}${query}`;
+  const path = `/attach/${encodeURIComponent(slug)}/${
+    encodeURIComponent(sessionId)
+  }${query}`;
 
   const wtSession = await wtClient.connect(path, opts.headers);
   const stream = await wtSession.openBidirectionalStream();

@@ -6,6 +6,8 @@
     ".": "./mod.ts"
   },
   "dependencies": {
-    "@std/semver": "npm:@jsr/std__semver@^1.0.7"
+    "@eserstack/di": "workspace:*",
+    "@eserstack/events": "workspace:*",
+    "@eserstack/standards": "workspace:*"
   }
 }

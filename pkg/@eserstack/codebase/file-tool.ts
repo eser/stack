@@ -400,7 +400,10 @@ export const withGoValidator = (
           `Go validator "${goValidatorName}" returned no results`,
         );
       }
-      return { ...parsed.results[0]!, name: tool.validator.name } as ValidatorResult;
+      return {
+        ...parsed.results[0]!,
+        name: tool.validator.name,
+      } as ValidatorResult;
     },
   };
 

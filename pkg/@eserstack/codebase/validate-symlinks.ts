@@ -9,36 +9,39 @@
 import * as standards from "@eserstack/standards";
 import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-symlinks",
-  description: "Detect broken symlinks",
-  canFix: false,
-  stacks: [],
-  defaults: {},
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-symlinks",
+    description: "Detect broken symlinks",
+    canFix: false,
+    stacks: [],
+    defaults: {},
 
-  async checkAll(files) {
-    const issues = [];
+    async checkAll(files) {
+      const issues = [];
 
-    for (const file of files) {
-      if (!file.isSymlink) {
-        continue;
+      for (const file of files) {
+        if (!file.isSymlink) {
+          continue;
+        }
+
+        // Only flag BROKEN symlinks (target doesn't exist).
+        // Valid symlinks like AGENTS.md → CLAUDE.md pass silently.
+        try {
+          await standards.crossRuntime.runtime.fs.stat(file.path);
+        } catch {
+          issues.push({
+            path: file.path,
+            message: "broken symlink — target not found",
+          });
+        }
       }
 
-      // Only flag BROKEN symlinks (target doesn't exist).
-      // Valid symlinks like AGENTS.md → CLAUDE.md pass silently.
-      try {
-        await standards.crossRuntime.runtime.fs.stat(file.path);
-      } catch {
-        issues.push({
-          path: file.path,
-          message: "broken symlink — target not found",
-        });
-      }
-    }
-
-    return issues;
-  },
-}), "symlinks");
+      return issues;
+    },
+  }),
+  "symlinks",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

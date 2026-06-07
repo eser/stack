@@ -47,7 +47,9 @@ const parseGitHub = (specifier: string): GitHubParsedSpec => {
 
   const [owner, repo, ...pathParts] = parts;
 
-  if (owner === undefined || repo === undefined) {
+  // Reject empty segments too (e.g. "gh:/repo" splits to ["", "repo"]), not
+  // just missing ones — an empty owner or repo is not a valid specifier.
+  if (!owner || !repo) {
     throw new Error(
       `Invalid GitHub specifier: ${specifier}. Expected format: [gh:|github:]owner/repo[/path][#ref]`,
     );

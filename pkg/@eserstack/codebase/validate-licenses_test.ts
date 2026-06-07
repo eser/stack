@@ -11,7 +11,7 @@
 
 import * as assert from "@std/assert";
 import * as path from "@std/path";
-import { runtime } from "@eserstack/standards/cross-runtime";
+import { runtime, toPosix } from "@eserstack/standards/cross-runtime";
 import { tool } from "./validate-licenses.ts";
 
 // =============================================================================
@@ -72,7 +72,10 @@ Deno.test("validate-licenses: missing header → issue reported", async () => {
     const result = await tool.run({ root: dir });
     assert.assertEquals(result.issues.length, 1);
     assert.assertEquals(result.issues[0]!.message, "missing copyright header");
-    assert.assertEquals(result.issues[0]!.path, path.join(dir, "missing.ts"));
+    assert.assertEquals(
+      result.issues[0]!.path,
+      toPosix(path.join(dir, "missing.ts")),
+    );
   } finally {
     await runtime.fs.remove(dir, { recursive: true });
   }

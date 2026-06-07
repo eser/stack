@@ -58,7 +58,7 @@ const validateVariable = (
  * Interactively prompt for a single variable value.
  * Loops until the entered value passes regex validation (if any).
  */
-const promptVariable = async (variable: TemplateVariable): Promise<string> => {
+const promptVariable = (variable: TemplateVariable): string => {
   const description = variable.description ?? variable.name;
   const defaultHint = variable.default !== undefined
     ? ` [${variable.default}]`
@@ -108,7 +108,10 @@ const resolveVariables = async (
   options: ResolveVariablesOptions = {},
 ): Promise<Record<string, string>> => {
   if (definitions === undefined || definitions.length === 0) {
-    return { ...overrides };
+    // No declared variables → nothing to resolve. Overrides that don't map to a
+    // declared variable are ignored (consistent with the loop below, which only
+    // emits values for declared variables).
+    return {};
   }
 
   const { interactive = false } = options;

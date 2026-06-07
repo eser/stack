@@ -1,14 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
+import { fromFileUrl } from "@std/path";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import { main } from "./add.ts";
 
-const REGISTRY_PATH = new URL(
-  "../../../../.eser/recipes.json",
-  import.meta.url,
-).pathname;
+const REGISTRY_PATH = fromFileUrl(
+  new URL("../../../../.eser/recipes.json", import.meta.url),
+);
 
 Deno.test("add — succeeds with no recipe (shows usage)", async () => {
   const result = await main(["--registry", REGISTRY_PATH]);

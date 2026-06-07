@@ -265,6 +265,14 @@ func (s *Server) registerRoutes() {
 		HasSummary("Spec action").
 		HasDescription("Run a spec action: next, approve, done, or block")
 
+	s.router.Route("GET /api/projects/{slug}/specs/{name}/ledger", s.handleSpecLedger).
+		HasSummary("Spec decision ledger").
+		HasDescription("Read-only decision ledger (records + maturity summary) for a spec")
+
+	s.router.Route("GET /api/projects/{slug}/specs/{name}/summary", s.handleSpecSummary).
+		HasSummary("Spec maturity summary").
+		HasDescription("Read-only spec-maturity summary (provenance breakdown, specificity)")
+
 	// ── Sessions ───────────────────────────────────────────────────────────
 	s.router.Route("GET /api/projects/{slug}/sessions", s.handleListSessions).
 		HasSummary("List sessions").

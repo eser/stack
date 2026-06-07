@@ -111,6 +111,16 @@ const route = async (
     return api.handleCloseTab(ptyManager, tabId);
   }
 
+  // API spec reads: GET /api/spec/:name/ledger | summary (decision ledger)
+  const specReadMatch = path.match(/^\/api\/spec\/([^/]+)\/(ledger|summary)$/);
+  if (specReadMatch !== null && method === "GET") {
+    return api.handleSpecRead(
+      root,
+      specReadMatch[1]!,
+      specReadMatch[2]! as "ledger" | "summary",
+    );
+  }
+
   // API spec actions: /api/spec/:name/:action
   const specActionMatch = path.match(/^\/api\/spec\/([^/]+)\/([^/]+)$/);
   if (specActionMatch !== null && method === "POST") {

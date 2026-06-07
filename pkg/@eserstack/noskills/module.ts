@@ -27,6 +27,10 @@ export const moduleDef: Module = new Module({
       description: "Read-only completeness check for a spec (CI-friendly)",
       load: () => import("./commands/validate.ts"),
     },
+    ledger: {
+      description: "Read-only decision ledger + maturity summary for a spec",
+      load: () => import("./commands/ledger.ts"),
+    },
     next: {
       description: "Get next instruction for agent",
       load: () => import("./commands/next.ts"),

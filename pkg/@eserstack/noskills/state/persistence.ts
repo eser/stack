@@ -37,6 +37,7 @@ const ACTIVE_FILE: string = `${PROGRESSES_DIR}/active.json`;
 const SESSIONS_DIR: string = `${STATE_DIR}/sessions`;
 const EVENTS_DIR: string = `${STATE_DIR}/events`;
 const EVENTS_FILE: string = `${EVENTS_DIR}/events.jsonl`;
+const LEDGER_DIR: string = `${PROGRESSES_DIR}/ledger`;
 
 export const paths: {
   readonly eserDir: string;
@@ -59,6 +60,10 @@ export const paths: {
   readonly sessionFile: (sessionId: string) => string;
   readonly eventsDir: string;
   readonly eventsFile: string;
+  readonly ledgerDir: string;
+  readonly ledgerRunDir: (spec: string) => string;
+  readonly ledgerFile: (spec: string) => string;
+  readonly ledgerSummaryFile: (spec: string) => string;
   readonly eserGitignore: string;
 } = {
   eserDir: ESER_DIR,
@@ -85,6 +90,11 @@ export const paths: {
     `${SESSIONS_DIR}/${sessionId}.json`,
   eventsDir: EVENTS_DIR,
   eventsFile: EVENTS_FILE,
+  ledgerDir: LEDGER_DIR,
+  ledgerRunDir: (spec: string): string => `${LEDGER_DIR}/${spec}`,
+  ledgerFile: (spec: string): string => `${LEDGER_DIR}/${spec}/ledger.jsonl`,
+  ledgerSummaryFile: (spec: string): string =>
+    `${LEDGER_DIR}/${spec}/summary.json`,
   eserGitignore: `${ESER_DIR}/.gitignore`,
 };
 
@@ -306,11 +316,31 @@ export const writeSpecState = async (
   const dirPath = `${root}/${SPEC_STATES_DIR}`;
   const filePath = `${root}/${paths.specStateFile(specName)}`;
 
+  // Snapshot the prior on-disk state before overwriting, for decision capture.
+  // readSpecState never throws (returns the initial state on miss/parse error).
+  let prev: schema.StateFile;
+  try {
+    prev = await readSpecState(root, specName);
+  } catch {
+    prev = schema.createInitialState();
+  }
+
   await runtime.fs.mkdir(dirPath, { recursive: true });
   await runtime.fs.writeTextFile(
     filePath,
     JSON.stringify(state, null, 2) + "\n",
   );
+
+  // Additive, fault-isolated decision-ledger capture. Runs AFTER the canonical
+  // write so it can never prevent or corrupt state persistence; any failure is
+  // swallowed and never surfaced to the run. The dynamic import keeps the ledger
+  // module out of the static graph, so it cannot introduce an import cycle.
+  try {
+    const ledger = await import("./decision-ledger.ts");
+    await ledger.captureTransition(root, prev, state);
+  } catch {
+    // best effort — capture must never break the run
+  }
 };
 
 /** List all spec names that have state files. */

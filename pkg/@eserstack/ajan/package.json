@@ -16,7 +16,6 @@
     "@eserstack/ajan-darwin-x64": "^4.1.0",
     "@eserstack/ajan-linux-arm64": "^4.1.0",
     "@eserstack/ajan-linux-x64": "^4.1.0",
-    "@eserstack/ajan-win32-arm64": "^4.1.0",
     "@eserstack/ajan-win32-x64": "^4.1.0",
     "@eserstack/ajan-wasm": "^4.1.0"
   }

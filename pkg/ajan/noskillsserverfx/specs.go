@@ -1,6 +1,7 @@
 package noskillsserverfx
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -119,6 +120,58 @@ func (s *Server) handleCreateSpec(ctx *httpfx.Context) httpfx.Result {
 	return ctx.Results.JSON(&createSpecResponse{
 		Name:  name,
 		Phase: newState.Phase,
+	})
+}
+
+// ── Decision ledger (read-only) ─────────────────────────────────────────────
+
+type ledgerResponse struct {
+	Spec    string            `json:"spec"`
+	Records []json.RawMessage `json:"records"`
+	Summary json.RawMessage   `json:"summary"`
+}
+
+func (s *Server) handleSpecLedger(ctx *httpfx.Context) httpfx.Result {
+	slug := ctx.Request.PathValue("slug")
+	name := ctx.Request.PathValue("name")
+
+	root, ok := s.projectPath(slug)
+	if !ok {
+		return ctx.Results.Error(http.StatusNotFound,
+			httpfx.WithSanitizedError(fmt.Errorf("project %q not found", slug))) //nolint:err113
+	}
+
+	records, err := noskillsfx.ReadLedgerRaw(root, name)
+	if err != nil {
+		return ctx.Results.Error(http.StatusInternalServerError,
+			httpfx.WithSanitizedError(fmt.Errorf("read ledger: %w", err)))
+	}
+
+	return ctx.Results.JSON(&ledgerResponse{
+		Spec:    name,
+		Records: records,
+		Summary: noskillsfx.ReadSummaryRaw(root, name),
+	})
+}
+
+type summaryResponse struct {
+	Spec    string          `json:"spec"`
+	Summary json.RawMessage `json:"summary"`
+}
+
+func (s *Server) handleSpecSummary(ctx *httpfx.Context) httpfx.Result {
+	slug := ctx.Request.PathValue("slug")
+	name := ctx.Request.PathValue("name")
+
+	root, ok := s.projectPath(slug)
+	if !ok {
+		return ctx.Results.Error(http.StatusNotFound,
+			httpfx.WithSanitizedError(fmt.Errorf("project %q not found", slug))) //nolint:err113
+	}
+
+	return ctx.Results.JSON(&summaryResponse{
+		Spec:    name,
+		Summary: noskillsfx.ReadSummaryRaw(root, name),
 	})
 }
 

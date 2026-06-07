@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { wthout } from "./wthout.ts";
-import lodashReject from "npm:lodash.reject@^4.6.0";
+import lodashReject from "lodash.reject";
 
 const group = "wthout";
 

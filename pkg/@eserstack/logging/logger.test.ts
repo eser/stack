@@ -181,7 +181,9 @@ Deno.test("Logger.log() with additional arguments", async () => {
   });
 
   const logger = getLogger(["app"]);
-  const result = await logger.info("test message", "arg1", 42, { key: "value" });
+  const result = await logger.info("test message", "arg1", 42, {
+    key: "value",
+  });
 
   assert.assertEquals(result, "test message");
 });
@@ -205,7 +207,10 @@ Deno.test("Logger convenience methods work correctly", async () => {
   assert.assertEquals(await logger.info("info message"), "info message");
   assert.assertEquals(await logger.warn("warn message"), "warn message");
   assert.assertEquals(await logger.error("error message"), "error message");
-  assert.assertEquals(await logger.critical("critical message"), "critical message");
+  assert.assertEquals(
+    await logger.critical("critical message"),
+    "critical message",
+  );
 });
 
 // Table-driven tests for Logger.asString()

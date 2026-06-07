@@ -2,6 +2,7 @@
 
 import { describe, it } from "@std/testing/bdd";
 import { assert, assertEquals } from "@std/assert";
+import { fromFileUrl } from "@std/path";
 import * as tarModule from "./tar.ts";
 
 // ---------------------------------------------------------------------------
@@ -9,50 +10,11 @@ import * as tarModule from "./tar.ts";
 // ---------------------------------------------------------------------------
 
 /**
- * Build a minimal fake tar entry object that satisfies the shape expected by
- * extractTarball tests.  The real @std/tar UntarStream yields objects with an
- * optional `readable` property; we replicate that here so tests do not need
- * actual fixture archives.
+ * Tar extraction is verified with real gzipped tarballs from a fixtures
+ * directory when present; when absent, the fixture-based tests become skipped
+ * stubs so the file still compiles and is ready for fixtures to be added.
  */
-function makeFakeEntry(
-  path: string,
-  content: Uint8Array,
-  extra: Record<string, unknown> = {},
-): Record<string, unknown> {
-  let cancelled = false;
-  const readable = new ReadableStream<Uint8Array>({
-    start(controller) {
-      if (!cancelled) {
-        controller.enqueue(content);
-        controller.close();
-      }
-    },
-    cancel() {
-      cancelled = true;
-    },
-  });
-
-  return { path, readable, _cancelled: () => cancelled, ...extra };
-}
-
-/**
- * Build a ReadableStream<Uint8Array> that wraps a sequence of fake tar entries.
- * extractTarball expects a *gzipped* tar stream; because we cannot easily
- * produce one in a unit test we instead stub DecompressionStream + UntarStream
- * by monkey-patching globalThis in each test scope.
- *
- * The approach used here is simpler: we expose a helper that calls the internal
- * entry-processing logic directly by constructing a minimal async iterable that
- * mimics what `for await (const entry of untarStream)` produces, and we test
- * the observable side-effects (files written / not written).
- *
- * Since the real extractTarball implementation is opaque to patching we instead
- * verify behaviour by creating temporary directories and running real gzipped
- * tarballs when a fixture directory is present.  When fixtures are absent the
- * tests are marked as skipped stubs so the file compiles and the structure is
- * ready for fixture files to be added.
- */
-const FIXTURES_DIR = new URL("./test-fixtures/", import.meta.url).pathname;
+const FIXTURES_DIR = fromFileUrl(new URL("./test-fixtures/", import.meta.url));
 
 async function fixturesExist(): Promise<boolean> {
   try {

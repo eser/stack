@@ -53,8 +53,8 @@ export const checkErrorCoverage = async (
   let checked = 0;
 
   for (const match of content.matchAll(blockRe)) {
-    const entryName = match[1];
-    const body = match[2];
+    const entryName = match[1] ?? "";
+    const body = match[2] ?? "";
     checked++;
 
     const missing: string[] = [];
@@ -66,7 +66,7 @@ export const checkErrorCoverage = async (
       );
       const fieldMatch = body.match(fieldRe);
 
-      if (!fieldMatch || fieldMatch[1].trim() === "") {
+      if (!fieldMatch || (fieldMatch[1] ?? "").trim() === "") {
         missing.push(field);
       }
     }
@@ -151,5 +151,5 @@ export const main = async (
 
 if (import.meta.main) {
   const { output: out } = createCliContext();
-  runCliMain(await main(Deno.args), out);
+  runCliMain(await main(runtime.process.args as string[]), out);
 }

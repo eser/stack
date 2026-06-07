@@ -140,7 +140,10 @@ Deno.test("buildSecretFromContext() should handle empty data", () => {
   assert.assertEquals(Object.keys(secret.data ?? {}).length, 0);
 });
 
-Deno.test({ name: "sync() should handle empty kubectl response", sanitizeResources: false }, async () => {
+Deno.test({
+  name: "sync() should handle empty kubectl response",
+  sanitizeResources: false,
+}, async () => {
   try {
     // We can't easily mock the import, so we test the expected behavior
     const result = await sync({
@@ -304,7 +307,10 @@ Deno.test("CLI should handle secret resource format", () => {
 });
 
 // Test integration with @eserstack/formats for YAML/JSON output
-Deno.test({ name: "ConfigMap YAML output should be properly formatted", sanitizeResources: false }, async () => {
+Deno.test({
+  name: "ConfigMap YAML output should be properly formatted",
+  sanitizeResources: false,
+}, async () => {
   const configMap = buildConfigMapFromContext(
     "format-test",
     "test-ns",
@@ -314,7 +320,9 @@ Deno.test({ name: "ConfigMap YAML output should be properly formatted", sanitize
     ]),
   );
 
-  const yamlOutput = await formats.serialize([configMap], "yaml", { pretty: true });
+  const yamlOutput = await formats.serialize([configMap], "yaml", {
+    pretty: true,
+  });
 
   assert.assertStringIncludes(yamlOutput, "apiVersion: v1");
   assert.assertStringIncludes(yamlOutput, "kind: ConfigMap");
@@ -334,7 +342,9 @@ Deno.test("Secret YAML output should be properly formatted", async () => {
     ]),
   );
 
-  const yamlOutput = await formats.serialize([secret], "yaml", { pretty: true });
+  const yamlOutput = await formats.serialize([secret], "yaml", {
+    pretty: true,
+  });
 
   assert.assertStringIncludes(yamlOutput, "apiVersion: v1");
   assert.assertStringIncludes(yamlOutput, "kind: Secret");
@@ -355,7 +365,9 @@ Deno.test("JSON output should be valid JSON", async () => {
     ]),
   );
 
-  const jsonOutput = await formats.serialize([configMap], "json", { pretty: true });
+  const jsonOutput = await formats.serialize([configMap], "json", {
+    pretty: true,
+  });
 
   // Should be parseable as JSON
   const parsed = JSON.parse(jsonOutput);
@@ -407,7 +419,9 @@ Deno.test("Full workflow test with mock data", async () => {
     );
 
     // Generate YAML output
-    const yamlOutput = await formats.serialize([configMap], "yaml", { pretty: true });
+    const yamlOutput = await formats.serialize([configMap], "yaml", {
+      pretty: true,
+    });
 
     // Verify the complete workflow
     assert.assertStringIncludes(yamlOutput, "kind: ConfigMap");
@@ -422,7 +436,9 @@ Deno.test("Full workflow test with mock data", async () => {
       "test-ns",
       envValues,
     );
-    const secretYaml = await formats.serialize([secret], "yaml", { pretty: true });
+    const secretYaml = await formats.serialize([secret], "yaml", {
+      pretty: true,
+    });
 
     assert.assertStringIncludes(secretYaml, "kind: Secret");
     assert.assertStringIncludes(secretYaml, "name: workflow-secret");

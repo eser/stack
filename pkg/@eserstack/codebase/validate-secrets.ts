@@ -45,51 +45,56 @@ const SKIP_FILE_PATTERNS = [
   /\.lock$/,
   /package-lock\.json$/,
   /\.test\./,
+  /_test\.go$/,
+  /_test\.ts$/,
   /testdata\//,
   /\.snap$/,
   /\.min\./,
 ];
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-secrets",
-  description: "Detect credentials and private keys",
-  canFix: false,
-  stacks: [],
-  defaults: {},
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-secrets",
+    description: "Detect credentials and private keys",
+    canFix: false,
+    stacks: [],
+    defaults: {},
 
-  checkFile(file, content) {
-    if (content === undefined) {
-      return [];
-    }
-
-    // Skip known-safe files
-    for (const skipPattern of SKIP_FILE_PATTERNS) {
-      if (skipPattern.test(file.path)) {
+    checkFile(file, content) {
+      if (content === undefined) {
         return [];
       }
-    }
 
-    const issues = [];
-    const lines = content.split("\n");
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-
-      for (const { name, pattern } of SECRET_PATTERNS) {
-        if (pattern.test(line)) {
-          issues.push({
-            path: file.path,
-            line: i + 1,
-            message: `potential ${name} detected`,
-          });
-          break; // One issue per line max
+      // Skip known-safe files
+      for (const skipPattern of SKIP_FILE_PATTERNS) {
+        if (skipPattern.test(file.path)) {
+          return [];
         }
       }
-    }
 
-    return issues;
-  },
-}), "secrets");
+      const issues = [];
+      const lines = content.split("\n");
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+
+        for (const { name, pattern } of SECRET_PATTERNS) {
+          if (pattern.test(line)) {
+            issues.push({
+              path: file.path,
+              line: i + 1,
+              message: `potential ${name} detected`,
+            });
+            break; // One issue per line max
+          }
+        }
+      }
+
+      return issues;
+    },
+  }),
+  "secrets",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

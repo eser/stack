@@ -3,6 +3,8 @@
 package exec_test
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -11,12 +13,51 @@ import (
 	"github.com/eser/stack/pkg/ajan/shellfx/exec"
 )
 
+// shellCommand returns the platform shell command and the args needed to run
+// the given shell script. On Windows it uses cmd.exe ("/c"); on Unix it uses
+// /bin/sh ("-c"). This keeps the spawn tests cross-platform without weakening
+// what they assert.
+func shellCommand(script string) (string, []string) {
+	if runtime.GOOS == "windows" {
+		return "cmd", []string{"/c", script}
+	}
+
+	return "sh", []string{"-c", script}
+}
+
+// shellEnv returns an Env slice suitable for spawning the platform shell with
+// the given extra entries. On Windows cmd.exe needs SystemRoot/ComSpec/PATH to
+// behave, so we keep the current process environment and append. On Unix we use
+// a minimal PATH so the assertions stay deterministic.
+func shellEnv(extra ...string) []string {
+	if runtime.GOOS == "windows" {
+		// Inherit the parent environment (cmd.exe relies on SystemRoot etc.),
+		// then append overrides — later entries win in os/exec.
+		return append(append([]string(nil), os.Environ()...), extra...)
+	}
+
+	return append([]string{"PATH=/usr/bin:/bin"}, extra...)
+}
+
+// catCommand returns a spawn command that reads stdin (used to validate stdin
+// writes). On Windows "sort" reads all of stdin and writes it back; on Unix we
+// use "cat".
+func catCommand() string {
+	if runtime.GOOS == "windows" {
+		return "sort"
+	}
+
+	return "cat"
+}
+
 func TestSpawnChildProcess_SimpleEcho(t *testing.T) {
 	t.Parallel()
 
+	cmd, args := shellCommand("echo hello")
+
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "sh",
-		Args:    []string{"-c", "echo hello"},
+		Command: cmd,
+		Args:    args,
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -44,9 +85,11 @@ func TestSpawnChildProcess_SimpleEcho(t *testing.T) {
 func TestSpawnChildProcess_ExitCode(t *testing.T) {
 	t.Parallel()
 
+	cmd, args := shellCommand("exit 42")
+
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "sh",
-		Args:    []string{"-c", "exit 42"},
+		Command: cmd,
+		Args:    args,
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -69,7 +112,8 @@ func TestSpawnChildProcess_StdinWrite(t *testing.T) {
 	t.Parallel()
 
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "cat",
+		Command: catCommand(),
+		Args:    nil,
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -79,19 +123,21 @@ func TestSpawnChildProcess_StdinWrite(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	// Close stdin to signal EOF to cat
+	// Close stdin to signal EOF to the reader
 	// (Close() does this internally but we can test write before close)
 	code := h.Close()
 
-	_ = code // cat may exit non-zero after context cancel — that's acceptable
+	_ = code // reader may exit non-zero after context cancel — that's acceptable
 }
 
 func TestSpawnChildProcess_StdinWrite_AfterClose(t *testing.T) {
 	t.Parallel()
 
+	cmd, args := shellCommand("echo done")
+
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "sh",
-		Args:    []string{"-c", "echo done"},
+		Command: cmd,
+		Args:    args,
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -116,9 +162,11 @@ func TestSpawnChildProcess_StdinWrite_AfterClose(t *testing.T) {
 func TestSpawnChildProcess_Pid(t *testing.T) {
 	t.Parallel()
 
+	cmd, args := shellCommand(sleepScript())
+
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "sh",
-		Args:    []string{"-c", "sleep 0.01"},
+		Command: cmd,
+		Args:    args,
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -139,12 +187,33 @@ func TestSpawnChildProcess_Pid(t *testing.T) {
 	h.Close()
 }
 
+// sleepScript returns a shell script that sleeps briefly, in a form the
+// platform shell understands.
+func sleepScript() string {
+	if runtime.GOOS == "windows" {
+		// ping with a single packet introduces a short, reliable delay without
+		// requiring sub-second precision (which cmd's timeout lacks).
+		return "ping -n 1 127.0.0.1 > NUL"
+	}
+
+	return "sleep 0.01"
+}
+
 func TestSpawnChildProcess_MultilineOutput(t *testing.T) {
 	t.Parallel()
 
+	var script string
+	if runtime.GOOS == "windows" {
+		script = "echo line1 & echo line2 & echo line3"
+	} else {
+		script = "printf 'line1\\nline2\\nline3\\n'"
+	}
+
+	cmd, args := shellCommand(script)
+
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "sh",
-		Args:    []string{"-c", "printf 'line1\\nline2\\nline3\\n'"},
+		Command: cmd,
+		Args:    args,
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -175,9 +244,12 @@ func TestSpawnChildProcess_MultilineOutput(t *testing.T) {
 func TestSpawnChildProcess_Stderr(t *testing.T) {
 	t.Parallel()
 
+	// "echo err >&2" redirects stdout to stderr in both cmd.exe and sh.
+	cmd, args := shellCommand("echo err >&2")
+
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "sh",
-		Args:    []string{"-c", "echo err >&2"},
+		Command: cmd,
+		Args:    args,
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -204,8 +276,9 @@ func TestSpawnChildProcess_Stderr(t *testing.T) {
 func TestSpawnChildProcess_InvalidCommand(t *testing.T) {
 	t.Parallel()
 
+	// A path that does not exist on any platform — spawn must fail to find it.
 	_, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "/no/such/binary/xyz123",
+		Command: filepath.Join("no", "such", "binary", "xyz123"),
 	})
 	if err == nil {
 		t.Fatal("expected error for missing binary, got nil")
@@ -215,10 +288,22 @@ func TestSpawnChildProcess_InvalidCommand(t *testing.T) {
 func TestSpawnChildProcess_WorkingDir(t *testing.T) {
 	t.Parallel()
 
+	dir := t.TempDir()
+
+	// Print the working directory using the platform shell.
+	var script string
+	if runtime.GOOS == "windows" {
+		script = "cd"
+	} else {
+		script = "pwd"
+	}
+
+	cmd, args := shellCommand(script)
+
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "sh",
-		Args:    []string{"-c", "pwd"},
-		Cwd:     "/tmp",
+		Command: cmd,
+		Args:    args,
+		Cwd:     dir,
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -236,19 +321,58 @@ func TestSpawnChildProcess_WorkingDir(t *testing.T) {
 	h.Close()
 
 	got := strings.TrimSpace(out.String())
-	// /tmp may be a symlink on macOS (→ /private/tmp), so accept both
-	if got != "/tmp" && got != "/private/tmp" {
-		t.Errorf("cwd output = %q, want /tmp or /private/tmp", got)
+
+	// The reported directory may differ from the requested one by symlink
+	// resolution (e.g. /tmp → /private/tmp on macOS, or 8.3/long-path and
+	// drive-letter casing on Windows). Compare resolved base names and accept
+	// a resolved-path match.
+	if !sameDir(got, dir) {
+		t.Errorf("cwd output = %q, want %q", got, dir)
 	}
+}
+
+// sameDir reports whether two directory paths refer to the same location,
+// tolerating symlink resolution and case-insensitivity on Windows.
+func sameDir(got, want string) bool {
+	if got == want {
+		return true
+	}
+
+	gotResolved, err1 := filepath.EvalSymlinks(got)
+	wantResolved, err2 := filepath.EvalSymlinks(want)
+	if err1 == nil && err2 == nil {
+		if runtime.GOOS == "windows" {
+			return strings.EqualFold(gotResolved, wantResolved)
+		}
+
+		return gotResolved == wantResolved
+	}
+
+	// Fall back to base-name comparison if symlink resolution is unavailable.
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(filepath.Base(got), filepath.Base(want))
+	}
+
+	return filepath.Base(got) == filepath.Base(want)
 }
 
 func TestSpawnChildProcess_EnvVar(t *testing.T) {
 	t.Parallel()
 
+	// Reference the env var using the platform shell's expansion syntax.
+	var script string
+	if runtime.GOOS == "windows" {
+		script = "echo %MY_VAR%"
+	} else {
+		script = "echo $MY_VAR"
+	}
+
+	cmd, args := shellCommand(script)
+
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "sh",
-		Args:    []string{"-c", "echo $MY_VAR"},
-		Env:     []string{"MY_VAR=hello_env", "PATH=/usr/bin:/bin"},
+		Command: cmd,
+		Args:    args,
+		Env:     shellEnv("MY_VAR=hello_env"),
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -304,10 +428,12 @@ func TestLeakGate_1000Cycles(t *testing.T) {
 
 	const iterations = 1000
 
+	cmd, args := shellCommand("echo x")
+
 	for i := range iterations {
 		h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-			Command: "sh",
-			Args:    []string{"-c", "echo x"},
+			Command: cmd,
+			Args:    args,
 		})
 		if err != nil {
 			t.Fatalf("iteration %d: spawn: %v", i, err)
@@ -340,9 +466,11 @@ func TestLeakGate_1000Cycles(t *testing.T) {
 func TestSection20_ReadReturnsFalseWhenDone(t *testing.T) {
 	t.Parallel()
 
+	cmd, args := shellCommand("echo done")
+
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "sh",
-		Args:    []string{"-c", "echo done"},
+		Command: cmd,
+		Args:    args,
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -377,9 +505,11 @@ func TestSection20_ReadReturnsFalseWhenDone(t *testing.T) {
 func TestSection20_DoubleClose(t *testing.T) {
 	t.Parallel()
 
+	cmd, args := shellCommand("echo hi")
+
 	h, err := exec.SpawnChildProcess(exec.SpawnOptions{
-		Command: "sh",
-		Args:    []string{"-c", "echo hi"},
+		Command: cmd,
+		Args:    args,
 	})
 	if err != nil {
 		t.Fatalf("spawn: %v", err)

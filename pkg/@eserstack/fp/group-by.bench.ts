@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { groupBy } from "./group-by.ts";
-import lodashGroupBy from "npm:lodash.groupby@^4.6.0";
+import lodashGroupBy from "lodash.groupby";
 
 const group = "group-by";
 

@@ -361,7 +361,7 @@ class RecipeFileNotFoundError extends Error {
   constructor(path: string, owner: string, repo: string, ref: string) {
     super(
       `Recipe file '${path}' not found in ${owner}/${repo}@${ref}. ` +
-      `Repository and ref exist — recipe.json is simply absent (whole-repo mode applies).`,
+        `Repository and ref exist — recipe.json is simply absent (whole-repo mode applies).`,
     );
     this.name = "RecipeFileNotFoundError";
     this.path = path;
@@ -414,8 +414,8 @@ const fetchRecipeFromRepo = async (
     }
     throw new Error(
       `Could not fetch recipe from ${owner}/${repo}@${ref}/${effectivePath}. ` +
-      `HTTP ${response.status}. ` +
-      `Check that the repository exists: https://github.com/${owner}/${repo}`,
+        `HTTP ${response.status}. ` +
+        `Check that the repository exists: https://github.com/${owner}/${repo}`,
     );
   }
 

@@ -651,7 +651,9 @@ export class HttpClient {
     if (err instanceof goClientModule.GoHttpError) {
       if (err.status > 0) {
         let body: unknown = err.body;
-        try { body = JSON.parse(err.body); } catch { /* keep as string */ }
+        try {
+          body = JSON.parse(err.body);
+        } catch { /* keep as string */ }
         const retryAfterMs = parseRetryAfterMs(
           err.headers["Retry-After"] ?? err.headers["retry-after"] ?? null,
         );
@@ -660,7 +662,9 @@ export class HttpClient {
           body,
           ...(retryAfterMs !== null && { retryAfter: retryAfterMs / 1_000 }),
         };
-        if (err.status === 429) return new errors.HttpRateLimitError(`HTTP ${err.status}`, opts);
+        if (err.status === 429) {
+          return new errors.HttpRateLimitError(`HTTP ${err.status}`, opts);
+        }
         return new errors.HttpResponseError(`HTTP ${err.status}`, opts);
       }
       return new errors.HttpNetworkError(err.message, { cause: err });
@@ -669,10 +673,10 @@ export class HttpClient {
     return errors.classifyError(e);
   }
 
-  async #ensureGoClient(): Promise<void> {
+  #ensureGoClient(): Promise<void> {
     // Custom fetchFn signals test/mock mode — always use the TS path.
     if (this.config.fetchFn !== undefined) {
-      return;
+      return Promise.resolve();
     }
     if (this.#goClientInit !== null) {
       return this.#goClientInit;
@@ -682,8 +686,10 @@ export class HttpClient {
       timeout: this.config.timeout,
       headers: this.config.headers,
     }).then(
-      (client) => { this.#goClient = client; },
-      () => { /* native library unavailable — #goClient stays null */ },
+      (client) => {
+        this.#goClient = client;
+      },
+      () => {/* native library unavailable — #goClient stays null */},
     );
     return this.#goClientInit;
   }

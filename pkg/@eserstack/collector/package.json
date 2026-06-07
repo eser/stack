@@ -6,8 +6,10 @@
     ".": "./mod.ts"
   },
   "dependencies": {
-    "@std/path": "npm:@jsr/std__path@^1.1.4",
-    "@std/fs": "npm:@jsr/std__fs@^1.0.21"
+    "@eserstack/ajan": "workspace:*",
+    "@eserstack/logging": "workspace:*",
+    "@eserstack/shell": "workspace:*",
+    "@eserstack/standards": "workspace:*"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.16"

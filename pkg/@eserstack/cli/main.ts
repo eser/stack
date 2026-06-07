@@ -15,11 +15,11 @@
  */
 
 import * as results from "@eserstack/primitives/results";
-import { runtime } from "@eserstack/standards/cross-runtime";
 import { Module } from "@eserstack/shell/module";
 import { moduleDef as aiModule } from "@eserstack/ai/module";
 import { moduleDef as kitModule } from "@eserstack/kit/module";
 import { moduleDef as codebaseModule } from "@eserstack/codebase/module";
+import { exitCli } from "@eserstack/codebase/cli-support";
 import { createModuleDef as createWorkflowsModule } from "@eserstack/workflows/module";
 
 import { moduleDef as noskillsModule } from "@eserstack/noskills/module";
@@ -99,15 +99,7 @@ export const main = async (): Promise<
 };
 
 if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
-    fail: (error) => {
-      if (error.message !== undefined) {
-        // deno-lint-ignore no-console
-        console.error(error.message);
-      }
-      runtime.process.setExitCode(error.exitCode);
-    },
-  });
+  // exitCli drains buffered output then hard-exits — see its docs for why the
+  // native FFI teardown makes a natural exit unsafe here.
+  await exitCli(await main());
 }

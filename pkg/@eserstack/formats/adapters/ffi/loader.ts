@@ -33,12 +33,18 @@ const ensureLib = (): Promise<void> => {
 const getLib = (): ffi.FFILibrary | null => _lib;
 
 const mapEncodeErrorCode = (msg: string): string => {
-  if (msg.includes("format not found") || msg.includes("not registered") || msg.includes("not found in registry")) return FORMAT_NOT_FOUND;
+  if (
+    msg.includes("format not found") || msg.includes("not registered") ||
+    msg.includes("not found in registry")
+  ) return FORMAT_NOT_FOUND;
   return FORMAT_ENCODE_FAILED;
 };
 
 const mapDecodeErrorCode = (msg: string): string => {
-  if (msg.includes("format not found") || msg.includes("not registered") || msg.includes("not found in registry")) return FORMAT_NOT_FOUND;
+  if (
+    msg.includes("format not found") || msg.includes("not registered") ||
+    msg.includes("not found in registry")
+  ) return FORMAT_NOT_FOUND;
   return FORMAT_DECODE_FAILED;
 };
 
@@ -51,7 +57,10 @@ export const ffiFormats: Loader = {
     await ensureLib();
     const lib = getLib();
     if (lib === null) {
-      throw new FormatFfiError("native library unavailable", FORMAT_ENCODE_FAILED);
+      throw new FormatFfiError(
+        "native library unavailable",
+        FORMAT_ENCODE_FAILED,
+      );
     }
 
     const raw = lib.symbols.EserAjanFormatEncode(
@@ -78,7 +87,10 @@ export const ffiFormats: Loader = {
     await ensureLib();
     const lib = getLib();
     if (lib === null) {
-      throw new FormatFfiError("native library unavailable", FORMAT_ENCODE_FAILED);
+      throw new FormatFfiError(
+        "native library unavailable",
+        FORMAT_ENCODE_FAILED,
+      );
     }
 
     const raw = lib.symbols.EserAjanFormatEncodeDocument(
@@ -100,10 +112,15 @@ export const ffiFormats: Loader = {
     await ensureLib();
     const lib = getLib();
     if (lib === null) {
-      throw new FormatFfiError("native library unavailable", FORMAT_DECODE_FAILED);
+      throw new FormatFfiError(
+        "native library unavailable",
+        FORMAT_DECODE_FAILED,
+      );
     }
 
-    const raw = lib.symbols.EserAjanFormatDecode(JSON.stringify({ format, text }));
+    const raw = lib.symbols.EserAjanFormatDecode(
+      JSON.stringify({ format, text }),
+    );
     const result = JSON.parse(raw) as { items?: unknown[]; error?: string };
     if (result.error) {
       throw new FormatFfiError(result.error, mapDecodeErrorCode(result.error));
@@ -115,7 +132,10 @@ export const ffiFormats: Loader = {
     await ensureLib();
     const lib = getLib();
     if (lib === null) {
-      throw new FormatFfiError("native library unavailable", FORMAT_LIST_FAILED);
+      throw new FormatFfiError(
+        "native library unavailable",
+        FORMAT_LIST_FAILED,
+      );
     }
 
     const raw = lib.symbols.EserAjanFormatList();

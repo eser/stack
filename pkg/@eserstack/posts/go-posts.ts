@@ -50,9 +50,10 @@ export type GoPostService = {
  * @example
  * ```typescript
  * import { createGoPostService } from "@eserstack/posts/go-posts";
+ * import { runtime } from "@eserstack/standards/cross-runtime";
  *
  * const svc = await createGoPostService({
- *   twitter: { accessToken: Deno.env.get("TWITTER_TOKEN")! },
+ *   twitter: { accessToken: runtime.env.get("TWITTER_TOKEN")! },
  * });
  * await svc.compose("Hello from Go!");
  * svc.close();
@@ -82,7 +83,9 @@ export const createGoPostService = async (
   return {
     compose(text: string, platform?: GoPlatform): Promise<GoPost> {
       const lib2 = getLib();
-      if (lib2 === null) return Promise.reject(new Error("native library unavailable"));
+      if (lib2 === null) {
+        return Promise.reject(new Error("native library unavailable"));
+      }
 
       const raw2 = lib2.symbols.EserAjanPostsCompose(
         JSON.stringify({ handle, text, platform }),
@@ -96,7 +99,9 @@ export const createGoPostService = async (
       options: { platform?: GoPlatform; maxResults?: number } = {},
     ): Promise<GoPost[]> {
       const lib2 = getLib();
-      if (lib2 === null) return Promise.reject(new Error("native library unavailable"));
+      if (lib2 === null) {
+        return Promise.reject(new Error("native library unavailable"));
+      }
 
       const raw2 = lib2.symbols.EserAjanPostsGetTimeline(
         JSON.stringify({ handle, ...options }),
@@ -111,7 +116,9 @@ export const createGoPostService = async (
       options: { platform?: GoPlatform; maxResults?: number } = {},
     ): Promise<GoPost[]> {
       const lib2 = getLib();
-      if (lib2 === null) return Promise.reject(new Error("native library unavailable"));
+      if (lib2 === null) {
+        return Promise.reject(new Error("native library unavailable"));
+      }
 
       const raw2 = lib2.symbols.EserAjanPostsSearch(
         JSON.stringify({ handle, query, ...options }),

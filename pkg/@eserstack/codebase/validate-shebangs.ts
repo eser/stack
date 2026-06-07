@@ -14,17 +14,20 @@
 import * as standards from "@eserstack/standards";
 import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-shebangs",
-  description: "Validate shebang/executable consistency",
-  canFix: false,
-  stacks: [],
-  defaults: {},
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-shebangs",
+    description: "Validate shebang/executable consistency",
+    canFix: false,
+    stacks: [],
+    defaults: {},
 
-  checkFile(_file, _content) {
-    return [];
-  },
-}), "shebangs");
+    checkFile(_file, _content) {
+      return [];
+    },
+  }),
+  "shebangs",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

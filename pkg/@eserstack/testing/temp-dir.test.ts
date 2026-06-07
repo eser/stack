@@ -1,7 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { runtime } from "@eserstack/standards/cross-runtime";
+import {
+  getPlatform,
+  getTmpdir,
+  runtime,
+} from "@eserstack/standards/cross-runtime";
 import { delay, withTmpDir, writeFiles } from "./temp-dir.ts";
 
 Deno.test("withTmpDir should create temporary directory", async () => {
@@ -9,7 +13,23 @@ Deno.test("withTmpDir should create temporary directory", async () => {
 
   try {
     assert.assertExists(temp.dir);
-    assert.assertStringIncludes(temp.dir, runtime.env.get("TMPDIR") ?? "/tmp");
+
+    // The temp dir is created under the OS temporary directory. Derive the
+    // expected base with the same resolution the runtime uses (TMPDIR/TMP/TEMP
+    // then os.tmpdir()) so the check is correct on Windows as well as POSIX,
+    // instead of hardcoding the POSIX-only "TMPDIR" env var and "/tmp".
+    // Normalize both sides (separator-agnostic) and compare case-insensitively
+    // on Windows, where filesystem paths are case-insensitive.
+    const expectedBase = runtime.path.normalize(getTmpdir());
+    const actualDir = runtime.path.normalize(temp.dir);
+    if (getPlatform() === "windows") {
+      assert.assertStringIncludes(
+        actualDir.toLowerCase(),
+        expectedBase.toLowerCase(),
+      );
+    } else {
+      assert.assertStringIncludes(actualDir, expectedBase);
+    }
 
     // Verify directory exists
     const stat = await runtime.fs.stat(temp.dir);

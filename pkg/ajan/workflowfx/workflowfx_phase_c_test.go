@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,6 +17,19 @@ import (
 
 	"github.com/eser/stack/pkg/ajan/workflowfx"
 )
+
+// requireShell skips the test when no POSIX "sh" interpreter is available on PATH.
+//
+// The production shellTool always spawns commands via "sh -c" (see tools.go), so any
+// test that exercises shell execution needs a real "sh" on PATH. On Linux/macOS CI
+// "sh" is always present, so these tests still run there; on Windows (where "sh" is
+// usually absent) they are skipped with a clear reason instead of failing to spawn.
+func requireShell(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("POSIX 'sh' interpreter not available on PATH (production shellTool requires 'sh -c')")
+	}
+}
 
 // directRun is a test helper that calls tool.Run directly without the workflow engine.
 func directRun(t *testing.T, tool workflowfx.WorkflowTool, opts map[string]any) *workflowfx.WorkflowToolResult {
@@ -63,6 +77,8 @@ func TestShellTool_EmptyCommand_FailedStep(t *testing.T) {
 }
 
 func TestShellTool_ExitZero_PassedTrue(t *testing.T) {
+	requireShell(t)
+
 	r := workflowfx.NewDefaultRegistry()
 	wf := workflowfx.Create("wf").On("push").
 		Step("shell", workflowfx.StepOpts{"command": "echo hello"}).
@@ -78,6 +94,8 @@ func TestShellTool_ExitZero_PassedTrue(t *testing.T) {
 }
 
 func TestShellTool_NonZeroExit_IssueMessage(t *testing.T) {
+	requireShell(t)
+
 	r := workflowfx.NewDefaultRegistry()
 
 	// Non-zero exit returns a failed result (not an engine error) — the tool itself handles it.
@@ -100,6 +118,8 @@ func TestShellTool_NonZeroExit_IssueMessage(t *testing.T) {
 }
 
 func TestShellTool_ContextCancel_Kills(t *testing.T) {
+	requireShell(t)
+
 	r := workflowfx.NewDefaultRegistry()
 	wf := workflowfx.Create("wf").On("push").
 		Step("shell", workflowfx.StepOpts{

@@ -161,7 +161,9 @@ const isTemplateVariable = (value: unknown): value is TemplateVariable => {
   if (typeof obj["name"] !== "string" || obj["name"] === "") {
     return false;
   }
-  if (obj["description"] !== undefined && typeof obj["description"] !== "string") {
+  if (
+    obj["description"] !== undefined && typeof obj["description"] !== "string"
+  ) {
     return false;
   }
   if (obj["default"] !== undefined && typeof obj["default"] !== "string") {
@@ -207,7 +209,9 @@ const isRecipe = (value: unknown): value is Recipe => {
     return false;
   }
   // description — if present, must be a string
-  if (obj["description"] !== undefined && typeof obj["description"] !== "string") {
+  if (
+    obj["description"] !== undefined && typeof obj["description"] !== "string"
+  ) {
     return false;
   }
   // language — if present, must be a string

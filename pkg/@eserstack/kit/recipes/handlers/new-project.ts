@@ -54,7 +54,8 @@ const newProject = (
   task.task<NewProjectOutput, NewProjectError, HandlerContext>(
     async (ctx: HandlerContext) => {
       try {
-        const canUseFfi = input.interactive !== true && input.skipPostInstall !== true;
+        const canUseFfi = input.interactive !== true &&
+          input.skipPostInstall !== true;
 
         await ensureLib();
         const lib = canUseFfi ? getLib() : null;

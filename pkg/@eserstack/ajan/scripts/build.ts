@@ -244,7 +244,9 @@ const main = async (): Promise<void> => {
     throw new Error("Cannot determine script directory");
   }
 
-  const pkgDir = scriptDir.replace(/\/scripts$/, "");
+  // Strip the trailing "scripts" segment regardless of path separator
+  // (import.meta.dirname uses backslashes on Windows).
+  const pkgDir = scriptDir.replace(/[/\\]scripts$/, "");
   const distDir = `${pkgDir}/dist`;
 
   const args = runtime.process.args as string[];

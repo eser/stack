@@ -31,7 +31,7 @@ import * as results from "@eserstack/primitives/results";
 import * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { createCliContext } from "../cli-support.ts";
+import { createCliContext, exitCli } from "../cli-support.ts";
 import { loadProjectConfig } from "./config.ts";
 import { getValidators } from "./registry.ts";
 import { ensureLib, getLib } from "../ffi-client.ts";
@@ -587,14 +587,5 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
-    fail: (error) => {
-      if (error.message !== undefined) {
-        console.error(error.message);
-      }
-      runtime.process.setExitCode(error.exitCode);
-    },
-  });
+  await exitCli(await main());
 }

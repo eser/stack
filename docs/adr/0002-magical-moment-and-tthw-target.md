@@ -1,7 +1,7 @@
 # ADR 0002 — Magical Moment and Time-to-Hello-World Target
 
-**Status**: Accepted  
-**Date**: 2026-05-01  
+**Status**: Accepted
+**Date**: 2026-05-01
 **Deciders**: Eser Ozvataf
 
 ## Context

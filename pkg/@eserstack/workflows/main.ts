@@ -24,15 +24,22 @@ export const main = async (): Promise<
 };
 
 if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
+  const exitCode = results.match(await main(), {
+    ok: () => 0,
     fail: (error) => {
       if (error.message !== undefined) {
         // deno-lint-ignore no-console
         console.error(error.message);
       }
-      runtime.process.setExitCode(error.exitCode);
+      return error.exitCode;
     },
   });
+
+  // Hard-exit (not setExitCode + natural exit): the workflow engine loads the
+  // native @eserstack/ajan FFI lib, which intermittently SIGSEGVs the host on
+  // teardown and discards the exit code. Workflow commands (run/list) flush
+  // their own output before returning, so nothing is buffered here. This logic
+  // is inlined rather than sharing codebase's exitCli — workflows must not
+  // depend on codebase (would be circular).
+  runtime.process.exit(exitCode);
 }

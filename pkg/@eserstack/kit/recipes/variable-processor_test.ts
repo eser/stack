@@ -191,7 +191,9 @@ describe("substituteVariables", () => {
   });
 
   it("handles whitespace in template", () => {
-    const result = substituteVariables("Hello, {{ .name }}!", { name: "World" });
+    const result = substituteVariables("Hello, {{ .name }}!", {
+      name: "World",
+    });
     assert.assertEquals(result, "Hello, World!");
   });
 
@@ -224,7 +226,8 @@ describe("substituteVariables", () => {
   });
 
   it("handles multiline content", () => {
-    const content = `{\n  "name": "{{.project_name}}",\n  "version": "{{.version}}"\n}`;
+    const content =
+      `{\n  "name": "{{.project_name}}",\n  "version": "{{.version}}"\n}`;
     const result = substituteVariables(content, {
       project_name: "my-lib",
       version: "1.0.0",

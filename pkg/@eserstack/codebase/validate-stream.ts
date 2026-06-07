@@ -84,11 +84,12 @@ export class ValidateStream
     }
   }
 
-  async [Symbol.asyncDispose](): Promise<void> {
+  [Symbol.asyncDispose](): Promise<void> {
     const lib = getLib();
     if (lib !== null) {
       lib.symbols.EserAjanCodebaseValidateFilesStreamClose(this.#handle);
     }
+    return Promise.resolve();
   }
 }
 

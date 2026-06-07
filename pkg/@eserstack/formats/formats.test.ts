@@ -182,7 +182,8 @@ describe("deserialize()", () => {
   });
 
   it("should deserialize YAML multi-document", async () => {
-    const input = "name: app1\nversion: 1.0.0\n---\nname: app2\nversion: 2.0.0\n";
+    const input =
+      "name: app1\nversion: 1.0.0\n---\nname: app2\nversion: 2.0.0\n";
     const result = await deserialize(input, "yaml");
     assert.assertEquals(result.length, 2);
     assert.assertEquals((result[0] as Record<string, unknown>)["name"], "app1");

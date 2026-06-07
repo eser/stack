@@ -9,39 +9,42 @@
 import * as standards from "@eserstack/standards";
 import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-line-endings",
-  description: "Normalize line endings to LF",
-  canFix: true,
-  stacks: [],
-  defaults: {},
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-line-endings",
+    description: "Normalize line endings to LF",
+    canFix: true,
+    stacks: [],
+    defaults: {},
 
-  checkFile(file, content) {
-    if (content === undefined) {
+    checkFile(file, content) {
+      if (content === undefined) {
+        return [];
+      }
+
+      if (content.includes("\r")) {
+        return [{
+          path: file.path,
+          message: "file contains CRLF or CR line endings",
+        }];
+      }
+
       return [];
-    }
+    },
 
-    if (content.includes("\r")) {
-      return [{
-        path: file.path,
-        message: "file contains CRLF or CR line endings",
-      }];
-    }
+    fixFile(file, content) {
+      // Replace CRLF first, then standalone CR
+      const fixed = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
-    return [];
-  },
+      if (fixed === content) {
+        return undefined;
+      }
 
-  fixFile(file, content) {
-    // Replace CRLF first, then standalone CR
-    const fixed = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
-    if (fixed === content) {
-      return undefined;
-    }
-
-    return { path: file.path, oldContent: content, newContent: fixed };
-  },
-}), "line-endings");
+      return { path: file.path, oldContent: content, newContent: fixed };
+    },
+  }),
+  "line-endings",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

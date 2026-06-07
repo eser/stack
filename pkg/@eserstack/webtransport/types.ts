@@ -61,5 +61,8 @@ export interface WebTransportSession {
  */
 export interface WebTransportClient {
   connect(url: string): Promise<WebTransportSession>;
-  connect(url: string, headers?: Record<string, string>): Promise<WebTransportSession>;
+  connect(
+    url: string,
+    headers?: Record<string, string>,
+  ): Promise<WebTransportSession>;
 }

@@ -23,7 +23,11 @@ export type GoLoggerOptions = {
 
 export type GoLogger = {
   /** Write a log entry. */
-  write(level: GoLogLevel, message: string, attrs?: Record<string, unknown>): void;
+  write(
+    level: GoLogLevel,
+    message: string,
+    attrs?: Record<string, unknown>,
+  ): void;
   /** Release the Go handle. */
   close(): void;
 };

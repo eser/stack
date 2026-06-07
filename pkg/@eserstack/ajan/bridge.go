@@ -31,10 +31,10 @@ import (
 	"github.com/eser/stack/pkg/ajan/logfx"
 	"github.com/eser/stack/pkg/ajan/noskillsfx"
 	"github.com/eser/stack/pkg/ajan/parsingfx"
-	"github.com/eser/stack/pkg/ajan/processfx"
 	"github.com/eser/stack/pkg/ajan/postsfx"
 	"github.com/eser/stack/pkg/ajan/postsfx/bluesky"
 	"github.com/eser/stack/pkg/ajan/postsfx/twitter"
+	"github.com/eser/stack/pkg/ajan/processfx"
 	shellfxexec "github.com/eser/stack/pkg/ajan/shellfx/exec"
 	shelltui "github.com/eser/stack/pkg/ajan/shellfx/tui"
 	"github.com/eser/stack/pkg/ajan/workflowfx"
@@ -59,14 +59,14 @@ var (
 // ---------------------------------------------------------------------------
 
 var (
-	aiRegistry           = aifx.NewRegistry(aifx.WithDefaultFactories())
-	modelHandles         = make(map[string]aifx.LanguageModel)
-	streamHandles        = make(map[string]*streamState)
-	execHandles          = make(map[string]*shellfxexec.ChildProcessHandle)
-	tokenizerHandles     = make(map[string]*parsingfx.Tokenizer)
-	tuiKeypressHandles   = make(map[string]*shelltui.KeypressReader)
-	handleMu             sync.RWMutex
-	handleSeq            int64
+	aiRegistry         = aifx.NewRegistry(aifx.WithDefaultFactories())
+	modelHandles       = make(map[string]aifx.LanguageModel)
+	streamHandles      = make(map[string]*streamState)
+	execHandles        = make(map[string]*shellfxexec.ChildProcessHandle)
+	tokenizerHandles   = make(map[string]*parsingfx.Tokenizer)
+	tuiKeypressHandles = make(map[string]*shelltui.KeypressReader)
+	handleMu           sync.RWMutex
+	handleSeq          int64
 )
 
 type streamState struct {
@@ -209,7 +209,7 @@ type aiBatchResultItemJSON struct {
 
 type aiBatchDownloadResponse struct {
 	Results []*aiBatchResultItemJSON `json:"results,omitempty"`
-	Error   string                  `json:"error,omitempty"`
+	Error   string                   `json:"error,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -2158,10 +2158,10 @@ type workflowRunRequest struct {
 }
 
 type workflowDefInput struct {
-	Includes []string              `json:"includes,omitempty"`
-	ID       string                `json:"id"`
-	On       []string              `json:"on"`
-	Steps    []workflowStepInput   `json:"steps"`
+	Includes []string            `json:"includes,omitempty"`
+	ID       string              `json:"id"`
+	On       []string            `json:"on"`
+	Steps    []workflowStepInput `json:"steps"`
 }
 
 type workflowStepInput struct {
@@ -2810,14 +2810,14 @@ type kitListRecipesResponse struct {
 
 // kitApplyRecipeRequest is the JSON request for EserAjanKitApplyRecipe.
 type kitApplyRecipeRequest struct {
-	RecipeName  string            `json:"recipeName"`
-	RegistryURL string            `json:"registryUrl,omitempty"`
-	CWD         string            `json:"cwd,omitempty"`
-	Force       bool              `json:"force,omitempty"`
-	SkipExisting bool             `json:"skipExisting,omitempty"`
-	DryRun      bool              `json:"dryRun,omitempty"`
-	Verbose     bool              `json:"verbose,omitempty"`
-	Variables   map[string]string `json:"variables,omitempty"`
+	RecipeName   string            `json:"recipeName"`
+	RegistryURL  string            `json:"registryUrl,omitempty"`
+	CWD          string            `json:"cwd,omitempty"`
+	Force        bool              `json:"force,omitempty"`
+	SkipExisting bool              `json:"skipExisting,omitempty"`
+	DryRun       bool              `json:"dryRun,omitempty"`
+	Verbose      bool              `json:"verbose,omitempty"`
+	Variables    map[string]string `json:"variables,omitempty"`
 }
 
 // kitApplyRecipeResponse is the JSON response for EserAjanKitApplyRecipe.
@@ -3492,10 +3492,10 @@ type codebaseValidateRequest struct {
 }
 
 type codebaseValidatorResultJSON struct {
-	Name         string                     `json:"name"`
-	Passed       bool                       `json:"passed"`
+	Name         string                       `json:"name"`
+	Passed       bool                         `json:"passed"`
 	Issues       []codebaseValidatorIssueJSON `json:"issues,omitempty"`
-	FilesChecked int                        `json:"filesChecked"`
+	FilesChecked int                          `json:"filesChecked"`
 }
 
 type codebaseValidatorIssueJSON struct {
@@ -3770,23 +3770,23 @@ func resolveFilenameValidator(opts map[string]interface{}) codebasefx.ValidatorF
 // resolveValidators maps names to ValidatorFuncs. Empty/nil = all builtins.
 func resolveValidators(names []string, opts map[string]interface{}) []codebasefx.ValidatorFunc {
 	all := map[string]codebasefx.ValidatorFunc{
-		"eof":              codebasefx.ValidateEOF,
-		"bom":              codebasefx.ValidateBOM,
-		"trailing":         codebasefx.ValidateTrailingWhitespace,
-		"line-endings":     codebasefx.ValidateLineEndings,
-		"merge-conflicts":  codebasefx.ValidateMergeConflicts,
-		"secrets":          codebasefx.ValidateSecrets,
-		"large-file":       codebasefx.ValidateLargeFile(1024 * 1024),
-		"json":             codebasefx.ValidateJSON,
-		"yaml":             codebasefx.ValidateYAML,
-		"toml":             codebasefx.ValidateTOML,
-		"license":          codebasefx.ValidateLicenseHeader,
-		"case-conflict":    codebasefx.ValidateCaseConflict(),
-		"symlinks":         codebasefx.ValidateSymlinks(),
-		"submodules":       codebasefx.ValidateSubmodules(),
-		"shebangs":         codebasefx.ValidateShebangs,
-		"runtime-js-apis":  codebasefx.ValidateRuntimeJSAPIs,
-		"filenames":        resolveFilenameValidator(opts),
+		"eof":             codebasefx.ValidateEOF,
+		"bom":             codebasefx.ValidateBOM,
+		"trailing":        codebasefx.ValidateTrailingWhitespace,
+		"line-endings":    codebasefx.ValidateLineEndings,
+		"merge-conflicts": codebasefx.ValidateMergeConflicts,
+		"secrets":         codebasefx.ValidateSecrets,
+		"large-file":      codebasefx.ValidateLargeFile(1024 * 1024),
+		"json":            codebasefx.ValidateJSON,
+		"yaml":            codebasefx.ValidateYAML,
+		"toml":            codebasefx.ValidateTOML,
+		"license":         codebasefx.ValidateLicenseHeader,
+		"case-conflict":   codebasefx.ValidateCaseConflict(),
+		"symlinks":        codebasefx.ValidateSymlinks(),
+		"submodules":      codebasefx.ValidateSubmodules(),
+		"shebangs":        codebasefx.ValidateShebangs,
+		"runtime-js-apis": codebasefx.ValidateRuntimeJSAPIs,
+		"filenames":       resolveFilenameValidator(opts),
 	}
 
 	if len(names) == 0 {
@@ -4478,12 +4478,12 @@ func bridgeParsingTokenizerClose(requestJSON string) string {
 // ---------------------------------------------------------------------------
 
 type shellExecRequest struct {
-	Command string        `json:"command"`
-	Args    []string      `json:"args,omitempty"`
-	Cwd     string        `json:"cwd,omitempty"`
-	Env     []string      `json:"env,omitempty"`
-	Stdin   string        `json:"stdin,omitempty"`
-	Timeout string        `json:"timeout,omitempty"` // Go duration string e.g. "30s"
+	Command string   `json:"command"`
+	Args    []string `json:"args,omitempty"`
+	Cwd     string   `json:"cwd,omitempty"`
+	Env     []string `json:"env,omitempty"`
+	Stdin   string   `json:"stdin,omitempty"`
+	Timeout string   `json:"timeout,omitempty"` // Go duration string e.g. "30s"
 }
 
 type shellExecResponse struct {
@@ -4501,9 +4501,8 @@ func bridgeShellExec(requestJSON string) string {
 	}
 
 	opts := processfx.ExecOptions{
-		Args: req.Args,
-		Cwd:  req.Cwd,
-		Env:  req.Env,
+		Cwd: req.Cwd,
+		Env: req.Env,
 	}
 
 	if req.Stdin != "" {
@@ -4519,7 +4518,10 @@ func bridgeShellExec(requestJSON string) string {
 		opts.Timeout = d
 	}
 
-	result, err := processfx.Exec(context.Background(), req.Command, opts)
+	// command + args form a complete argv (callers pre-wrap, e.g.
+	// command "sh" with args ["-c", script]). Run executes it directly — using
+	// Exec here would re-wrap into `sh -c "sh" -c script`, a nested no-op shell.
+	result, err := processfx.Run(context.Background(), req.Command, req.Args, opts)
 	if err != nil {
 		return marshalResponse(shellExecResponse{Error: err.Error()}) //nolint:exhaustruct
 	}

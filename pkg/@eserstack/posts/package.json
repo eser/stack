@@ -5,12 +5,24 @@
   "exports": {
     ".": "./mod.ts",
     "./domain": "./domain/mod.ts",
-    "./ports": "./ports/mod.ts",
-    "./application": "./application/mod.ts"
+    "./application": "./application/mod.ts",
+    "./testing": "./application/testing.ts",
+    "./module": "./module.ts",
+    "./go-posts": "./go-posts.ts"
   },
   "dependencies": {
+    "@eserstack/ai": "workspace:*",
+    "@eserstack/ajan": "workspace:*",
+    "@eserstack/config": "workspace:*",
     "@eserstack/functions": "workspace:*",
     "@eserstack/httpclient": "workspace:*",
-    "@eserstack/primitives": "workspace:*"
+    "@eserstack/primitives": "workspace:*",
+    "@eserstack/shell": "workspace:*",
+    "@eserstack/standards": "workspace:*",
+    "@eserstack/streams": "workspace:*"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.19",
+    "@std/testing": "npm:@jsr/std__testing@^1.0.17"
   }
 }

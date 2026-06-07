@@ -55,6 +55,7 @@ workflows:
                 - "AGENTS.md"
                 - "CHANGELOG.md"
                 - "CLAUDE.md"
+                - "CONTRIBUTING.md"
                 - "Makefile"
                 - "PHILOSOPHY.md"
                 - "VERSION"
@@ -69,6 +70,7 @@ workflows:
                 - "LICENSE"
                 - "README.md"
                 - "TODOS.md"
+                - "WIRING.md"
                 - "pkg/*/README.md"
                 - "pkg/@eserstack/noskills/README-HOW.md"
                 - "*_test.ts"
@@ -81,6 +83,10 @@ workflows:
           exclude:
             - "pkg/@eserstack/standards/cross-runtime/"
             - "pkg/@eserstack/cli/scripts/compile.ts"
+            - "scripts/hybrid-sniffer.ts"
+            # Tests and benches run only under Deno — exempt from the portable-API rule.
+            - "_test.ts"
+            - ".test.ts"
       - validate-server-loc:
           directory: "pkg/ajan/noskillsserverfx"
       - validate-error-coverage:
@@ -182,8 +188,8 @@ scripts:
   container-run: docker run --interactive --tty --rm eservm
 
   # Maintenance
-  clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./pnpm-lock.yaml && deno check
-    ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts"
+  clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./pnpm-lock.yaml && deno
+    check ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts"
   repl: deno repl --allow-all --unstable-bundle --eval-file=./repl-init.ts
 
   # Coverage
@@ -202,34 +208,3 @@ scripts:
   go-lint: make lint
   go-fmt: make fix
   go-build: make build
-
-noskills:
-  # noskills orchestrator — inline comments in this section won't be preserved on next write
-  concerns:
-    - open-source
-    - beautiful-product
-    - long-lived
-    - well-engineered
-    - developer-experience
-    - root-cause
-    - security-audited
-    - peer-reviewed
-    - ship-ready
-    - documented
-    - deploy-ready
-  tools:
-    - claude-code
-  providers:
-    - claude-code
-    - opencode
-  project:
-    languages:
-      - typescript
-    frameworks: []
-    ci:
-      - github-actions
-    testRunner: deno
-  maxIterationsBeforeRestart: 15
-  verifyCommand: null
-  allowGit: false
-  command: deno task cli noskills

@@ -9,44 +9,47 @@
 import * as standards from "@eserstack/standards";
 import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-trailing-whitespace",
-  description: "Remove trailing whitespace from lines",
-  canFix: true,
-  stacks: [],
-  defaults: {},
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-trailing-whitespace",
+    description: "Remove trailing whitespace from lines",
+    canFix: true,
+    stacks: [],
+    defaults: {},
 
-  checkFile(file, content) {
-    if (content === undefined) {
-      return [];
-    }
-
-    const issues = [];
-    const lines = content.split("\n");
-
-    for (let i = 0; i < lines.length; i++) {
-      if (/[ \t]+$/.test(lines[i]!)) {
-        issues.push({
-          path: file.path,
-          line: i + 1,
-          message: "trailing whitespace",
-        });
+    checkFile(file, content) {
+      if (content === undefined) {
+        return [];
       }
-    }
 
-    return issues;
-  },
+      const issues = [];
+      const lines = content.split("\n");
 
-  fixFile(file, content) {
-    const fixed = content.replace(/[ \t]+$/gm, "");
+      for (let i = 0; i < lines.length; i++) {
+        if (/[ \t]+$/.test(lines[i]!)) {
+          issues.push({
+            path: file.path,
+            line: i + 1,
+            message: "trailing whitespace",
+          });
+        }
+      }
 
-    if (fixed === content) {
-      return undefined;
-    }
+      return issues;
+    },
 
-    return { path: file.path, oldContent: content, newContent: fixed };
-  },
-}), "trailing");
+    fixFile(file, content) {
+      const fixed = content.replace(/[ \t]+$/gm, "");
+
+      if (fixed === content) {
+        return undefined;
+      }
+
+      return { path: file.path, oldContent: content, newContent: fixed };
+    },
+  }),
+  "trailing",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

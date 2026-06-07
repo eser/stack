@@ -1066,7 +1066,9 @@ const createSymbolWrappers = (
       freePtr(ptr);
       return value;
     },
-    EserAjanCodebaseValidateFilesStreamCreate: (requestJSON: string): string => {
+    EserAjanCodebaseValidateFilesStreamCreate: (
+      requestJSON: string,
+    ): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseValidateFilesStreamCreate(
         Deno.UnsafePointer.of(cStr),

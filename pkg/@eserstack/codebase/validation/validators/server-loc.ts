@@ -11,7 +11,8 @@ import type { Validator, ValidatorResult } from "../types.ts";
 
 export const serverLocValidator: Validator = {
   name: "validate-server-loc",
-  description: "Fail if any non-test file in a directory exceeds the line ceiling",
+  description:
+    "Fail if any non-test file in a directory exceeds the line ceiling",
   requiredStacks: ["golang"],
 
   async validate(options): Promise<ValidatorResult> {

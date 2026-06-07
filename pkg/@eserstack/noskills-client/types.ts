@@ -192,24 +192,26 @@ export interface CertRotatingEvent {
 // seq is injected by the server's wtSend helper on every outbound message.
 // Clients save the last received seq and pass it as ?after=<seq> on reconnect
 // so the server can skip already-delivered events (mobile network partition recovery).
-export type DaemonEvent = (
-  | SessionMetaEvent
-  | TranscriptReplayStartEvent
-  | TranscriptReplayEndEvent
-  | DeltaEvent
-  | ToolStartEvent
-  | ToolResultEvent
-  | PermissionRequestEvent
-  | PermissionResponseRejectedEvent
-  | ClientCountEvent
-  | FanoutEvent
-  | WorkerDiedEvent
-  | WorkerReadyEvent
-  | SpawnProgressEvent
-  | ForkCreatedEvent
-  | ErrorEvent
-  | CertRotatingEvent
-) & { seq?: number };
+export type DaemonEvent =
+  & (
+    | SessionMetaEvent
+    | TranscriptReplayStartEvent
+    | TranscriptReplayEndEvent
+    | DeltaEvent
+    | ToolStartEvent
+    | ToolResultEvent
+    | PermissionRequestEvent
+    | PermissionResponseRejectedEvent
+    | ClientCountEvent
+    | FanoutEvent
+    | WorkerDiedEvent
+    | WorkerReadyEvent
+    | SpawnProgressEvent
+    | ForkCreatedEvent
+    | ErrorEvent
+    | CertRotatingEvent
+  )
+  & { seq?: number };
 
 // =============================================================================
 // Client → server messages (sent over the bidi stream)

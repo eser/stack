@@ -197,8 +197,7 @@ export const loadCommandWasm = async (
         call("cacheClose", { requestJSON }),
       EserAjanCsGenerate: (requestJSON: string) =>
         call("csGenerate", { requestJSON }),
-      EserAjanCsSync: (requestJSON: string) =>
-        call("csSync", { requestJSON }),
+      EserAjanCsSync: (requestJSON: string) => call("csSync", { requestJSON }),
       EserAjanKitListRecipes: (requestJSON: string) =>
         call("kitListRecipes", { requestJSON }),
       EserAjanKitApplyRecipe: (requestJSON: string) =>

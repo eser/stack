@@ -43,7 +43,7 @@ export function initializeHMR(): void {
   }
 
   // Debouncing for reload
-  let reloadTimeout: number | null = null;
+  let reloadTimeout: ReturnType<typeof setTimeout> | null = null;
   const RELOAD_DEBOUNCE_MS = 100; // Wait 100ms for multiple updates
 
   function connect() {

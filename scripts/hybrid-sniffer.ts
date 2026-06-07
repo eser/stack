@@ -36,8 +36,7 @@ const NOOP_FALLBACK_RE =
 // Optional chaining on a lib reference: `lib?.symbols.X()` or `getLib()?.symbols.X()`
 // This is a silent-skip pattern — semantically identical to `if (lib !== null) { ... }`
 // with no fallback, i.e. FFI_WITH_EMPTY_FALLBACK.
-const LIB_OPTIONAL_CHAIN_RE =
-  /(?:getLib\s*\(\s*\)|lib\w*)\s*\?\./;
+const LIB_OPTIONAL_CHAIN_RE = /(?:getLib\s*\(\s*\)|lib\w*)\s*\?\./;
 // Throw-on-null: `if (lib === null) { throw new Error(...)` — Option B pattern.
 // The null guard exists only to enforce availability; the function is PURE_FFI.
 const THROW_ON_NULL_RE = /throw\s+new\s+Error/;
@@ -58,9 +57,15 @@ interface FileReport {
 async function* walkDir(dir: string): AsyncGenerator<string> {
   for await (const entry of Deno.readDir(dir)) {
     const path = `${dir}/${entry.name}`;
-    if (entry.isDirectory && !entry.name.startsWith(".") && entry.name !== "node_modules") {
+    if (
+      entry.isDirectory && !entry.name.startsWith(".") &&
+      entry.name !== "node_modules"
+    ) {
       yield* walkDir(path);
-    } else if (entry.isFile && entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) {
+    } else if (
+      entry.isFile && entry.name.endsWith(".ts") &&
+      !entry.name.endsWith(".test.ts")
+    ) {
       yield path;
     }
   }
@@ -104,13 +109,16 @@ function classifyFile(source: string, filePath: string): FileReport {
     if (fallbackSection > 0) {
       const beforeFallback = source.slice(0, fallbackSection);
       const formatBeforeFallback =
-        /if\s*\([^)]*(?:format|type)\s*===?\s*["'][^"']+["']/.test(beforeFallback);
+        /if\s*\([^)]*(?:format|type)\s*===?\s*["'][^"']+["']/.test(
+          beforeFallback,
+        );
       if (!formatBeforeFallback) {
         return {
           file: filePath,
           ffiSymbols: uniqueSymbols,
           classification: "POST_FFI_FORMAT_DISPATCH",
-          evidence: "format/type dispatch found inside TS fallback body, not in FFI routing",
+          evidence:
+            "format/type dispatch found inside TS fallback body, not in FFI routing",
         };
       }
     }
@@ -130,7 +138,9 @@ function classifyFile(source: string, filePath: string): FileReport {
         file: filePath,
         ffiSymbols: uniqueSymbols,
         classification: "PURE_FFI",
-        evidence: `lib null-guard + throw (Option B — requires native lib): "${throwWindow.slice(0, 80).replace(/\n/g, " ").trim()}"`,
+        evidence: `lib null-guard + throw (Option B — requires native lib): "${
+          throwWindow.slice(0, 80).replace(/\n/g, " ").trim()
+        }"`,
       };
     }
 
@@ -146,7 +156,9 @@ function classifyFile(source: string, filePath: string): FileReport {
         file: filePath,
         ffiSymbols: uniqueSymbols,
         classification: "FFI_WITH_EMPTY_FALLBACK",
-        evidence: `lib null-guard with noop/null fallback near: "${afterGuard.slice(0, 80).replace(/\n/g, " ").trim()}"`,
+        evidence: `lib null-guard with noop/null fallback near: "${
+          afterGuard.slice(0, 80).replace(/\n/g, " ").trim()
+        }"`,
       };
     }
 
@@ -154,7 +166,9 @@ function classifyFile(source: string, filePath: string): FileReport {
       file: filePath,
       ffiSymbols: uniqueSymbols,
       classification: "FFI_WITH_TS_FALLBACK",
-      evidence: `lib null-guard with substantial TS fallback near: "${afterGuard.slice(0, 80).replace(/\n/g, " ").trim()}"`,
+      evidence: `lib null-guard with substantial TS fallback near: "${
+        afterGuard.slice(0, 80).replace(/\n/g, " ").trim()
+      }"`,
     };
   }
 
@@ -163,7 +177,10 @@ function classifyFile(source: string, filePath: string): FileReport {
   const optChainMatch = LIB_OPTIONAL_CHAIN_RE.exec(source);
   if (optChainMatch) {
     const snippet = source
-      .slice(optChainMatch.index, Math.min(source.length, optChainMatch.index + 80))
+      .slice(
+        optChainMatch.index,
+        Math.min(source.length, optChainMatch.index + 80),
+      )
       .replace(/\n/g, " ")
       .trim();
     return {
@@ -208,8 +225,12 @@ function renderTable(reports: FileReport[]): void {
   }
 
   const colWidths = { file: 55, cls: 28, evidence: 60 };
-  const header = `| ${"file".padEnd(colWidths.file)} | ${"classification".padEnd(colWidths.cls)} | ${"evidence".padEnd(colWidths.evidence)} |`;
-  const sep = `|${"-".repeat(colWidths.file + 2)}|${"-".repeat(colWidths.cls + 2)}|${"-".repeat(colWidths.evidence + 2)}|`;
+  const header = `| ${"file".padEnd(colWidths.file)} | ${
+    "classification".padEnd(colWidths.cls)
+  } | ${"evidence".padEnd(colWidths.evidence)} |`;
+  const sep = `|${"-".repeat(colWidths.file + 2)}|${
+    "-".repeat(colWidths.cls + 2)
+  }|${"-".repeat(colWidths.evidence + 2)}|`;
   console.log(header);
   console.log(sep);
 
@@ -221,7 +242,9 @@ function renderTable(reports: FileReport[]): void {
       ? "..." + r.file.slice(-(colWidths.file - 3))
       : r.file;
     console.log(
-      `| ${file.padEnd(colWidths.file)} | ${r.classification.padEnd(colWidths.cls)} | ${evidence.padEnd(colWidths.evidence)} |`,
+      `| ${file.padEnd(colWidths.file)} | ${
+        r.classification.padEnd(colWidths.cls)
+      } | ${evidence.padEnd(colWidths.evidence)} |`,
     );
   }
 }
@@ -230,7 +253,9 @@ function renderTable(reports: FileReport[]): void {
 
 const args = Deno.args;
 if (args.length === 0) {
-  console.error("Usage: deno run --allow-read scripts/hybrid-sniffer.ts <pkg-path> [...]");
+  console.error(
+    "Usage: deno run --allow-read scripts/hybrid-sniffer.ts <pkg-path> [...]",
+  );
   Deno.exit(1);
 }
 

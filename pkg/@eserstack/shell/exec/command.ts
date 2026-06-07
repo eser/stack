@@ -17,6 +17,18 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 /**
+ * Convert an env record to the `KEY=VALUE` string list the Go FFI expects
+ * (its `shellExecRequest.Env` is `[]string`). The runtime spawn path takes a
+ * `Record` directly, so this is only for the FFI/child paths.
+ */
+const envToPairs = (
+  env: Record<string, string> | undefined,
+): string[] | undefined =>
+  env !== undefined
+    ? Object.entries(env).map(([k, v]) => `${k}=${v}`)
+    : undefined;
+
+/**
  * CommandBuilder provides a fluent API for building and executing shell commands
  */
 export class CommandBuilder {
@@ -124,8 +136,17 @@ export class CommandBuilder {
 
   /** Execute command and return result */
   async spawn(): Promise<CommandResult> {
-    // Try Go FFI path first (not applicable when stdin is piped — streaming not supported)
-    if (this.#options.stdin !== "piped") {
+    // The Go FFI one-shot path captures stdout/stderr into buffers and returns
+    // them — it can neither stream to the terminal nor connect inherited stdin.
+    // It is therefore only valid when output is captured ("piped") or discarded
+    // ("null"). For any "inherit" stdio we fall through to the runtime spawn,
+    // which wires the streams to the terminal directly.
+    const stdioNeedsRuntime = this.#options.stdin === "piped" ||
+      this.#options.stdin === "inherit" ||
+      this.#options.stdout === "inherit" ||
+      this.#options.stderr === "inherit";
+
+    if (!stdioNeedsRuntime) {
       await ensureLib();
       const lib = getLib();
 
@@ -136,8 +157,12 @@ export class CommandBuilder {
               command: this.#cmd,
               args: this.#args,
               cwd: this.#options.cwd,
-              env: this.#options.env,
-              timeout: this.#options.timeout,
+              // Go wants env as KEY=VALUE strings and timeout as a Go duration
+              // string; sending a JS object / number fails its JSON unmarshal.
+              env: envToPairs(this.#options.env),
+              timeout: this.#options.timeout !== undefined
+                ? `${this.#options.timeout}ms`
+                : undefined,
             }),
           );
           const goResult = JSON.parse(raw) as {
@@ -183,6 +208,10 @@ export class CommandBuilder {
       stdin: this.#options.stdin,
       stdout: this.#options.stdout,
       stderr: this.#options.stderr,
+      // Honor timeout on the runtime path too (it was previously dropped here).
+      signal: this.#options.timeout !== undefined
+        ? AbortSignal.timeout(this.#options.timeout)
+        : undefined,
     });
 
     if (!result.success && this.#options.throwOnError === true) {
@@ -267,9 +296,7 @@ export class CommandBuilder {
       );
     }
 
-    const env = this.#options.env !== undefined
-      ? Object.entries(this.#options.env).map(([k, v]) => `${k}=${v}`)
-      : undefined;
+    const env = envToPairs(this.#options.env);
 
     return childGo.spawnChildGoSync(lib, {
       command: this.#cmd,

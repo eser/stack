@@ -378,7 +378,7 @@ Deno.test("validateRegistryManifest — accepts file with kind and provider", ()
   };
 
   const result = registrySchema.validateRegistryManifest(manifest);
-  const file = result.recipes[0]!.files[0]!;
+  const file = result.recipes[0]!.files![0]!;
 
   assert.assertEquals(file.kind, "folder");
   assert.assertEquals(file.provider, "github");

@@ -2,6 +2,7 @@
 
 import { describe, it } from "@std/testing/bdd";
 import { assert, assertEquals } from "@std/assert";
+import { fromFileUrl } from "@std/path";
 import * as persistence from "@eserstack/noskills/persistence";
 import * as schema from "@eserstack/noskills/mod";
 import * as dashboard from "@eserstack/noskills/dashboard";
@@ -305,7 +306,7 @@ describe("GET /events (SSE)", () => {
 describe("Static files", () => {
   it("style.css exists and is valid CSS", async () => {
     const css = await runtime.fs.readTextFile(
-      new URL("./static/style.css", import.meta.url).pathname,
+      fromFileUrl(new URL("./static/style.css", import.meta.url)),
     );
     assert(css.includes(":root"));
     assert(css.includes("--bg"));
@@ -313,7 +314,7 @@ describe("Static files", () => {
 
   it("client.js exists and is valid JS", async () => {
     const js = await runtime.fs.readTextFile(
-      new URL("./static/client.js", import.meta.url).pathname,
+      fromFileUrl(new URL("./static/client.js", import.meta.url)),
     );
     assert(js.includes("EventSource"));
     assert(js.includes("WebSocket"));

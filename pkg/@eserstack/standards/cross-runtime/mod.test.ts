@@ -1,6 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
+import { join as stdJoin } from "@std/path";
 import {
   createRuntime,
   detectRuntime,
@@ -56,8 +57,11 @@ Deno.test("current singleton should be Deno runtime", () => {
 });
 
 Deno.test("runtime.path should work", () => {
+  // runtime.path is the platform-native path API (@std/path), so the
+  // separator is "/" on POSIX and "\" on Windows. Derive the expected value
+  // with the same API instead of hardcoding "/" to stay cross-platform.
   const joined = runtime.path.join("src", "lib", "utils.ts");
-  assert.assertEquals(joined, "src/lib/utils.ts");
+  assert.assertEquals(joined, stdJoin("src", "lib", "utils.ts"));
 
   const dir = runtime.path.dirname("/home/user/file.txt");
   assert.assertEquals(dir, "/home/user");

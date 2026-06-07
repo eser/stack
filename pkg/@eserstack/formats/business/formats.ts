@@ -18,8 +18,16 @@ export type FormatListItem = {
 };
 
 export type Loader = {
-  encode(format: string, data: unknown, opts?: FormatEncodeOptions): Promise<string>;
-  encodeDocument(format: string, items: unknown[], opts?: FormatEncodeDocumentOptions): Promise<string>;
+  encode(
+    format: string,
+    data: unknown,
+    opts?: FormatEncodeOptions,
+  ): Promise<string>;
+  encodeDocument(
+    format: string,
+    items: unknown[],
+    opts?: FormatEncodeDocumentOptions,
+  ): Promise<string>;
   decode(format: string, text: string): Promise<unknown[]>;
   list(): Promise<FormatListItem[]>;
 };

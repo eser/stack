@@ -113,7 +113,12 @@ const listRecipes = (
           JSON.stringify({ registryUrl: input.registrySource, cwd: "." }),
         );
         const goResult = JSON.parse(raw) as {
-          manifest?: { name: string; description: string; author: string; registryUrl: string };
+          manifest?: {
+            name: string;
+            description: string;
+            author: string;
+            registryUrl: string;
+          };
           recipes?: registrySchema.Recipe[];
           error?: string;
         };

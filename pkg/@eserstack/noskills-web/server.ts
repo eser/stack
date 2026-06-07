@@ -12,12 +12,16 @@ import * as sse from "./routes/sse.ts";
 import { handleTerminalWs } from "./terminal/ws-bridge.ts";
 import { PtyManager } from "./terminal/pty-manager.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
+import { fromFileUrl, join, relative } from "@std/path";
 
 // =============================================================================
 // Static file serving
 // =============================================================================
 
-const STATIC_DIR = new URL("./static/", import.meta.url);
+// Resolve the static directory to a real filesystem path. Using fromFileUrl
+// (instead of URL.pathname) is required for cross-platform correctness — on
+// Windows, URL.pathname yields "/C:/..." which is not a valid OS path.
+const STATIC_DIR = fromFileUrl(new URL("./static/", import.meta.url));
 
 const MIME_TYPES: Record<string, string> = {
   ".css": "text/css",
@@ -30,7 +34,13 @@ const MIME_TYPES: Record<string, string> = {
 
 const serveStatic = async (path: string): Promise<Response> => {
   try {
-    const filePath = new URL(path, STATIC_DIR).pathname;
+    // Join against the static dir, then guard against path traversal in a
+    // separator-agnostic way: the resolved file must stay inside STATIC_DIR.
+    const filePath = join(STATIC_DIR, path);
+    const rel = relative(STATIC_DIR, filePath);
+    if (rel.startsWith("..") || runtime.path.isAbsolute(rel)) {
+      return new Response("Not found", { status: 404 });
+    }
     const content = await runtime.fs.readTextFile(filePath);
     const ext = path.includes(".") ? `.${path.split(".").pop()!}` : "";
     const contentType = MIME_TYPES[ext] ?? "application/octet-stream";

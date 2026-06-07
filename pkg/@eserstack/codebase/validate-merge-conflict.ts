@@ -15,37 +15,40 @@ const CONFLICT_PATTERNS = [
   /^>{7}\s/,
 ];
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-merge-conflict",
-  description: "Detect merge conflict markers",
-  canFix: false,
-  stacks: [],
-  defaults: {},
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-merge-conflict",
+    description: "Detect merge conflict markers",
+    canFix: false,
+    stacks: [],
+    defaults: {},
 
-  checkFile(file, content) {
-    if (content === undefined) {
-      return [];
-    }
+    checkFile(file, content) {
+      if (content === undefined) {
+        return [];
+      }
 
-    const issues = [];
-    const lines = content.split("\n");
+      const issues = [];
+      const lines = content.split("\n");
 
-    for (let i = 0; i < lines.length; i++) {
-      for (const pattern of CONFLICT_PATTERNS) {
-        if (pattern.test(lines[i]!)) {
-          issues.push({
-            path: file.path,
-            line: i + 1,
-            message: `merge conflict marker: ${lines[i]!.slice(0, 20)}`,
-          });
-          break;
+      for (let i = 0; i < lines.length; i++) {
+        for (const pattern of CONFLICT_PATTERNS) {
+          if (pattern.test(lines[i]!)) {
+            issues.push({
+              path: file.path,
+              line: i + 1,
+              message: `merge conflict marker: ${lines[i]!.slice(0, 20)}`,
+            });
+            break;
+          }
         }
       }
-    }
 
-    return issues;
-  },
-}), "merge-conflicts");
+      return issues;
+    },
+  }),
+  "merge-conflicts",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

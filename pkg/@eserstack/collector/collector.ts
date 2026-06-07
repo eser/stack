@@ -34,7 +34,10 @@ export async function* walkFiles(
   }
 
   const raw = lib.symbols.EserAjanCollectorWalkFiles(
-    JSON.stringify({ dir: baseDir, ignoreFilePattern: ignoreFilePattern.source }),
+    JSON.stringify({
+      dir: baseDir,
+      ignoreFilePattern: ignoreFilePattern.source,
+    }),
   );
   const result = JSON.parse(raw) as {
     files: Array<{ relPath: string; absPath: string }>;

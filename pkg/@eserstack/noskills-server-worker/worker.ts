@@ -1,3 +1,5 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
 /**
  * noskills-server TS worker — one process per Claude Code session.
  *
@@ -46,20 +48,44 @@ interface MessageQueue {
 }
 
 // Daemon → Worker message discriminated union.
-interface QueryStartMsg { type: "query_start"; cwd: string; sessionId: string; prompt?: string; resume?: string }
-interface PushMessageMsg { type: "push_message"; content: string }
-interface PermissionResponseMsg { type: "permission_response"; requestId: string; behavior: string; message?: string }
-interface SimpleMsg { type: "stop_task" | "abort" | "shutdown" }
-type DaemonMsg = QueryStartMsg | PushMessageMsg | PermissionResponseMsg | SimpleMsg;
+interface QueryStartMsg {
+  type: "query_start";
+  cwd: string;
+  sessionId: string;
+  prompt?: string;
+  resume?: string;
+}
+interface PushMessageMsg {
+  type: "push_message";
+  content: string;
+}
+interface PermissionResponseMsg {
+  type: "permission_response";
+  requestId: string;
+  behavior: string;
+  message?: string;
+}
+interface SimpleMsg {
+  type: "stop_task" | "abort" | "shutdown";
+}
+type DaemonMsg =
+  | QueryStartMsg
+  | PushMessageMsg
+  | PermissionResponseMsg
+  | SimpleMsg;
 
 // Pending permission requests: requestId → resolver.
-const pendingPermissions = new Map<string, (result: { behavior: string; message?: string }) => void>();
+const pendingPermissions = new Map<
+  string,
+  (result: { behavior: string; message?: string }) => void
+>();
 
 // ── Message queue ──────────────────────────────────────────────────────────────
 
 function createMessageQueue(): MessageQueue {
   const queue: string[] = [];
-  let waiting: ((result: { value: string; done: boolean }) => void) | null = null;
+  let waiting: ((result: { value: string; done: boolean }) => void) | null =
+    null;
   let ended = false;
 
   return {
@@ -142,7 +168,9 @@ let currentAbortController: AbortController | null = null;
 // Minimal interface for what we call on the Claude Agent SDK.
 interface ClaudeSDK {
   // deno-lint-ignore no-explicit-any
-  query(opts: { prompt: AsyncIterable<string>; options: Record<string, unknown> }): AsyncIterable<any>;
+  query(
+    opts: { prompt: AsyncIterable<string>; options: Record<string, unknown> },
+  ): AsyncIterable<any>;
 }
 
 let cachedSDK: ClaudeSDK | null = null;
@@ -164,7 +192,12 @@ async function getSDK(): Promise<ClaudeSDK> {
 
 async function handleQueryStart(msg: QueryStartMsg): Promise<void> {
   const sdk = await getSDK().catch((err: Error) => {
-    sendToDaemon({ type: "query_error", error: `Failed to load SDK: ${err.message}`, exitCode: null, stderr: null });
+    sendToDaemon({
+      type: "query_error",
+      error: `Failed to load SDK: ${err.message}`,
+      exitCode: null,
+      stderr: null,
+    });
 
     return null;
   });
@@ -195,7 +228,12 @@ async function handleQueryStart(msg: QueryStartMsg): Promise<void> {
     queryInstance = sdk.query({ prompt: currentMessageQueue, options });
   } catch (err) {
     const e = err as Error;
-    sendToDaemon({ type: "query_error", error: `Failed to create query: ${e.message}`, exitCode: null, stderr: null });
+    sendToDaemon({
+      type: "query_error",
+      error: `Failed to create query: ${e.message}`,
+      exitCode: null,
+      stderr: null,
+    });
     currentMessageQueue = null;
     currentAbortController = null;
 
@@ -227,7 +265,11 @@ function handlePushMessage(content: string): void {
   currentMessageQueue?.push(content);
 }
 
-function handlePermissionResponse(requestId: string, behavior: string, message?: string): void {
+function handlePermissionResponse(
+  requestId: string,
+  behavior: string,
+  message?: string,
+): void {
   const resolve = pendingPermissions.get(requestId);
 
   if (!resolve) return;
@@ -284,7 +326,9 @@ client.on("data", (chunk) => {
     try {
       const msg = JSON.parse(trimmed);
       handleDaemonMessage(msg).catch((err: Error) => {
-        process.stderr.write(`[worker] handleDaemonMessage error: ${err.message}\n`);
+        process.stderr.write(
+          `[worker] handleDaemonMessage error: ${err.message}\n`,
+        );
       });
     } catch {
       process.stderr.write(`[worker] failed to parse message: ${trimmed}\n`);

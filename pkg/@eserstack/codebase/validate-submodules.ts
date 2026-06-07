@@ -10,35 +10,38 @@ import * as standards from "@eserstack/standards";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-submodules",
-  description: "Detect new git submodules",
-  canFix: false,
-  stacks: [],
-  defaults: {},
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-submodules",
+    description: "Detect new git submodules",
+    canFix: false,
+    stacks: [],
+    defaults: {},
 
-  async checkAll(_files, options) {
-    const gitmodulesPath = runtime.path.join(options.root, ".gitmodules");
+    async checkAll(_files, options) {
+      const gitmodulesPath = runtime.path.join(options.root, ".gitmodules");
 
-    const exists = await runtime.fs.exists(gitmodulesPath);
-    if (!exists) {
+      const exists = await runtime.fs.exists(gitmodulesPath);
+      if (!exists) {
+        return [];
+      }
+
+      const content = await runtime.fs.readTextFile(gitmodulesPath);
+      const submoduleCount = (content.match(/\[submodule\s/g) ?? []).length;
+
+      if (submoduleCount > 0) {
+        return [{
+          path: gitmodulesPath,
+          message:
+            `found ${submoduleCount} submodule(s) — submodules are not allowed`,
+        }];
+      }
+
       return [];
-    }
-
-    const content = await runtime.fs.readTextFile(gitmodulesPath);
-    const submoduleCount = (content.match(/\[submodule\s/g) ?? []).length;
-
-    if (submoduleCount > 0) {
-      return [{
-        path: gitmodulesPath,
-        message:
-          `found ${submoduleCount} submodule(s) — submodules are not allowed`,
-      }];
-    }
-
-    return [];
-  },
-}), "submodules");
+    },
+  }),
+  "submodules",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

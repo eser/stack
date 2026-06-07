@@ -12,34 +12,37 @@ import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 /** UTF-8 BOM: 0xEF 0xBB 0xBF */
 const BOM = "\uFEFF";
 
-export const tool: FileTool = withGoValidator(createFileTool({
-  name: "validate-bom",
-  description: "Remove UTF-8 byte order markers",
-  canFix: true,
-  stacks: [],
-  defaults: {},
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-bom",
+    description: "Remove UTF-8 byte order markers",
+    canFix: true,
+    stacks: [],
+    defaults: {},
 
-  checkFile(file, content) {
-    if (content === undefined) {
+    checkFile(file, content) {
+      if (content === undefined) {
+        return [];
+      }
+
+      if (content.startsWith(BOM)) {
+        return [{ path: file.path, message: "file has UTF-8 BOM" }];
+      }
+
       return [];
-    }
+    },
 
-    if (content.startsWith(BOM)) {
-      return [{ path: file.path, message: "file has UTF-8 BOM" }];
-    }
+    fixFile(file, content) {
+      if (!content.startsWith(BOM)) {
+        return undefined;
+      }
 
-    return [];
-  },
-
-  fixFile(file, content) {
-    if (!content.startsWith(BOM)) {
-      return undefined;
-    }
-
-    const fixed = content.slice(1);
-    return { path: file.path, oldContent: content, newContent: fixed };
-  },
-}), "bom");
+      const fixed = content.slice(1);
+      return { path: file.path, oldContent: content, newContent: fixed };
+    },
+  }),
+  "bom",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

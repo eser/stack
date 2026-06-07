@@ -125,7 +125,13 @@ export class NoskillsClient {
   }
 
   async logout(): Promise<void> {
-    await apiPost<void>(this.#fetch, this.#base, "/auth/logout", {}, this.#token);
+    await apiPost<void>(
+      this.#fetch,
+      this.#base,
+      "/auth/logout",
+      {},
+      this.#token,
+    );
     this.#token = undefined;
   }
 
@@ -159,7 +165,12 @@ export class NoskillsClient {
   }
 
   deleteProject(slug: string): Promise<void> {
-    return apiDelete(this.#fetch, this.#base, `/api/projects/${slug}`, this.#token);
+    return apiDelete(
+      this.#fetch,
+      this.#base,
+      `/api/projects/${slug}`,
+      this.#token,
+    );
   }
 
   // ---------------------------------------------------------------------------

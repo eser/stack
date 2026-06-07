@@ -7,8 +7,11 @@ import (
 )
 
 // These tests exercise SpawnCliProcess, WaitForExit, and CaptureStderr by
-// running /bin/sh with arguments that cause it to exit immediately with an
-// error — covering the subprocess lifecycle without needing a real CLI tool.
+// running the host shell with arguments that cause it to exit immediately with
+// an error — covering the subprocess lifecycle without needing a real CLI tool.
+// Shell binary, args and script syntax are selected per-OS via the helpers in
+// cli_shared_test.go (shellBinary, shellArgs, echoScript, printFileCommand,
+// catBinary, ...).
 
 func TestClaudeCodeModel_GenerateText_SpawnError(t *testing.T) {
 	t.Parallel()
@@ -35,22 +38,22 @@ func TestClaudeCodeModel_GenerateText_SpawnError(t *testing.T) {
 func TestClaudeCodeModel_GenerateText_ExitError(t *testing.T) {
 	t.Parallel()
 
-	// /bin/sh with unrecognized args exits with a non-zero code.
+	// The host shell with unrecognized args exits with a non-zero code.
 	// This covers SpawnCliProcess, WaitForExit, CaptureStderr paths.
 	m := &ClaudeCodeModel{
 		config:     &ConfigTarget{Model: "claude-opus-4-5"},
-		binaryPath: "/bin/sh",
+		binaryPath: shellBinary(),
 	}
 
 	_, err := m.GenerateText(context.Background(), &GenerateTextOptions{
 		Messages: []Message{NewTextMessage(RoleUser, "hello")},
 	})
 
-	// Expected to error — sh exits non-zero with unknown flags.
+	// Expected to error — the shell exits non-zero with unknown flags.
 	if err == nil {
-		// Occasionally sh may succeed (e.g., if args happen to be valid).
+		// Occasionally the shell may succeed (e.g., if args happen to be valid).
 		// Don't fail the test — just accept both outcomes.
-		t.Log("GenerateText unexpectedly succeeded with /bin/sh")
+		t.Log("GenerateText unexpectedly succeeded with the host shell")
 	}
 }
 
@@ -113,10 +116,10 @@ func TestSpawnCliProcess_NonExistentBinary(t *testing.T) {
 func TestSpawnCliProcess_ValidBinary(t *testing.T) {
 	t.Parallel()
 
-	// Use /bin/sh -c 'echo hello' — exits 0, stdout = "hello\n"
+	// Run the host shell with `echo hello` — exits 0, stdout = "hello\n".
 	proc, err := SpawnCliProcess(context.Background(), SpawnOptions{ //nolint:exhaustruct
-		Binary:    "/bin/sh",
-		Args:      []string{"-c", "echo hello"},
+		Binary:    shellBinary(),
+		Args:      shellArgs("echo hello"),
 		StdinData: "",
 	})
 
@@ -155,10 +158,11 @@ func TestSpawnCliProcess_ValidBinary(t *testing.T) {
 func TestSpawnCliProcess_WithStdin(t *testing.T) {
 	t.Parallel()
 
-	// Uses cat to echo stdin to stdout — covers the StdinData path.
+	// Echoes stdin to stdout (cat on Unix, findstr "^" on Windows) — covers
+	// the StdinData path.
 	proc, err := SpawnCliProcess(context.Background(), SpawnOptions{ //nolint:exhaustruct
-		Binary:    "/bin/sh",
-		Args:      []string{"-c", "cat"},
+		Binary:    catBinary(),
+		Args:      catArgs(),
 		StdinData: "stdin test data",
 	})
 
@@ -184,10 +188,17 @@ func TestSpawnCliProcess_WithStdin(t *testing.T) {
 func TestKiroModel_GenerateText_Success(t *testing.T) {
 	t.Parallel()
 
-	// /usr/bin/true ignores all args, outputs nothing, exits 0.
+	// /usr/bin/true ignores all args/stdin, outputs nothing, exits 0. The
+	// model's buildArgs prepends provider flags (--output json --model ...),
+	// so the binary must tolerate arbitrary trailing arguments and exit 0 — a
+	// semantic with no clean Windows analog (.bat/.cmd cannot be exec'd
+	// directly, and no shipped .exe swallows unknown flags and exits 0).
+	// Skipped on Windows; runs fully on Unix CI.
+	skipIfNoUnixTrue(t)
+
 	m := &KiroModel{
 		config:     &ConfigTarget{Model: "kiro-v1"},
-		binaryPath: "/usr/bin/true",
+		binaryPath: unixTruePath,
 	}
 
 	result, err := m.GenerateText(context.Background(), &GenerateTextOptions{
@@ -206,9 +217,11 @@ func TestKiroModel_GenerateText_Success(t *testing.T) {
 func TestOpenCodeModel_GenerateText_Success(t *testing.T) {
 	t.Parallel()
 
+	skipIfNoUnixTrue(t)
+
 	m := &OpenCodeModel{
 		config:     &ConfigTarget{Model: "gpt-4o"},
-		binaryPath: "/usr/bin/true",
+		binaryPath: unixTruePath,
 	}
 
 	result, err := m.GenerateText(context.Background(), &GenerateTextOptions{
@@ -227,9 +240,11 @@ func TestOpenCodeModel_GenerateText_Success(t *testing.T) {
 func TestClaudeCodeModel_GenerateText_Success(t *testing.T) {
 	t.Parallel()
 
+	skipIfNoUnixTrue(t)
+
 	m := &ClaudeCodeModel{
 		config:     &ConfigTarget{Model: "claude-opus-4-5"},
-		binaryPath: "/usr/bin/true",
+		binaryPath: unixTruePath,
 	}
 
 	result, err := m.GenerateText(context.Background(), &GenerateTextOptions{
@@ -315,13 +330,14 @@ func TestClaudeCodeModel_ProcessStream_JsonFormat(t *testing.T) {
 
 	m := &ClaudeCodeModel{
 		config:     &ConfigTarget{Model: "claude-opus-4-5"},
-		binaryPath: "/bin/sh",
+		binaryPath: shellBinary(),
 	}
 
 	// Spawn a process that outputs a single JSONL result event.
+	bin, args := printFileCommand(t, `{"type":"result","usage":{"input_tokens":5,"output_tokens":3}}`)
 	proc, err := SpawnCliProcess(context.Background(), SpawnOptions{ //nolint:exhaustruct
-		Binary: "/bin/sh",
-		Args:   []string{"-c", `echo '{"type":"result","usage":{"input_tokens":5,"output_tokens":3}}'`},
+		Binary: bin,
+		Args:   args,
 	})
 	if err != nil {
 		t.Fatalf("SpawnCliProcess error: %v", err)
@@ -354,13 +370,13 @@ func TestClaudeCodeModel_ProcessStream_TextFormat(t *testing.T) {
 
 	m := &ClaudeCodeModel{
 		config:     &ConfigTarget{Model: "claude-opus-4-5"},
-		binaryPath: "/bin/sh",
+		binaryPath: shellBinary(),
 	}
 
 	// Text format reads raw output as content deltas.
 	proc, err := SpawnCliProcess(context.Background(), SpawnOptions{ //nolint:exhaustruct
-		Binary: "/bin/sh",
-		Args:   []string{"-c", "echo 'hello from text stream'"},
+		Binary: shellBinary(),
+		Args:   shellArgs(echoScript("hello from text stream")),
 	})
 	if err != nil {
 		t.Fatalf("SpawnCliProcess error: %v", err)
@@ -386,13 +402,14 @@ func TestKiroModel_ProcessStream_Success(t *testing.T) {
 
 	m := &KiroModel{
 		config:     &ConfigTarget{Model: "kiro-v1"},
-		binaryPath: "/bin/sh",
+		binaryPath: shellBinary(),
 	}
 
 	// Spawn a process that outputs a Kiro JSONL event then exits 0.
+	bin, args := printFileCommand(t, `{"type":"done","usage":{"input_tokens":2,"output_tokens":1}}`)
 	proc, err := SpawnCliProcess(context.Background(), SpawnOptions{ //nolint:exhaustruct
-		Binary: "/bin/sh",
-		Args:   []string{"-c", `echo '{"type":"done","usage":{"input_tokens":2,"output_tokens":1}}'`},
+		Binary: bin,
+		Args:   args,
 	})
 	if err != nil {
 		t.Fatalf("SpawnCliProcess error: %v", err)
@@ -425,13 +442,13 @@ func TestKiroModel_ProcessStream_PlainTextFallback(t *testing.T) {
 
 	m := &KiroModel{
 		config:     &ConfigTarget{Model: "kiro-v1"},
-		binaryPath: "/bin/sh",
+		binaryPath: shellBinary(),
 	}
 
 	// Non-JSON output triggers plain text fallback path.
 	proc, err := SpawnCliProcess(context.Background(), SpawnOptions{ //nolint:exhaustruct
-		Binary: "/bin/sh",
-		Args:   []string{"-c", "echo 'plain text output'"},
+		Binary: shellBinary(),
+		Args:   shellArgs(echoScript("plain text output")),
 	})
 	if err != nil {
 		t.Fatalf("SpawnCliProcess error: %v", err)
@@ -464,12 +481,13 @@ func TestOpenCodeModel_ProcessStream_Success(t *testing.T) {
 
 	m := &OpenCodeModel{
 		config:     &ConfigTarget{Model: "gpt-4o"},
-		binaryPath: "/bin/sh",
+		binaryPath: shellBinary(),
 	}
 
+	bin, args := printFileCommand(t, `{"type":"result","usage":{"input_tokens":3,"output_tokens":2}}`)
 	proc, err := SpawnCliProcess(context.Background(), SpawnOptions{ //nolint:exhaustruct
-		Binary: "/bin/sh",
-		Args:   []string{"-c", `echo '{"type":"result","usage":{"input_tokens":3,"output_tokens":2}}'`},
+		Binary: bin,
+		Args:   args,
 	})
 	if err != nil {
 		t.Fatalf("SpawnCliProcess error: %v", err)
@@ -524,8 +542,8 @@ func TestSpawnCliProcess_WithEnv(t *testing.T) {
 
 	// Pass a custom environment variable and verify it reaches the subprocess.
 	proc, err := SpawnCliProcess(context.Background(), SpawnOptions{ //nolint:exhaustruct
-		Binary: "/bin/sh",
-		Args:   []string{"-c", "echo $MY_TEST_VAR"},
+		Binary: shellBinary(),
+		Args:   shellArgs(echoEnvScript("MY_TEST_VAR")),
 		Env:    []string{"MY_TEST_VAR=hello_env"},
 	})
 
@@ -551,11 +569,11 @@ func TestSpawnCliProcess_WithEnv(t *testing.T) {
 func TestSpawnCliProcess_WithCwd(t *testing.T) {
 	t.Parallel()
 
-	// Use /tmp as working directory and verify pwd reports it.
+	// Use a temp dir as working directory and verify the shell reports it.
 	proc, err := SpawnCliProcess(context.Background(), SpawnOptions{ //nolint:exhaustruct
-		Binary: "/bin/sh",
-		Args:   []string{"-c", "pwd"},
-		Cwd:    "/tmp",
+		Binary: shellBinary(),
+		Args:   shellArgs(printCwdScript()),
+		Cwd:    t.TempDir(),
 	})
 
 	if err != nil {
@@ -580,10 +598,10 @@ func TestSpawnCliProcess_WithCwd(t *testing.T) {
 func TestSpawnCliProcess_StderrCapture(t *testing.T) {
 	t.Parallel()
 
-	// Use sh -c 'echo "err" >&2; exit 1' to produce stderr output.
+	// Write to stderr and exit non-zero to produce captured stderr output.
 	proc, err := SpawnCliProcess(context.Background(), SpawnOptions{ //nolint:exhaustruct
-		Binary:    "/bin/sh",
-		Args:      []string{"-c", "echo 'error output' >&2; exit 1"},
+		Binary:    shellBinary(),
+		Args:      shellArgs(stderrAndFailScript("error output")),
 		StdinData: "",
 	})
 

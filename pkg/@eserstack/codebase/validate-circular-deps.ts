@@ -41,7 +41,9 @@ export const checkCircularDeps = async (
   const raw = lib.symbols.EserAjanCodebaseCheckCircularDeps(
     JSON.stringify({ dir: root }),
   );
-  const result = JSON.parse(raw) as CheckCircularDepsResult & { error?: string };
+  const result = JSON.parse(raw) as CheckCircularDepsResult & {
+    error?: string;
+  };
 
   if (result.error) {
     throw new Error(result.error);

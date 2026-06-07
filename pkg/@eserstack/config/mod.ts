@@ -26,4 +26,5 @@ import * as ffiAdapter from "./adapters/ffi/mod.ts";
 export const load = (
   sources: business.ConfigSource[],
   opts?: business.ConfigOptions,
-): Promise<business.ConfigValues> => business.loadWith(ffiAdapter.ffiLoader, sources, opts);
+): Promise<business.ConfigValues> =>
+  business.loadWith(ffiAdapter.ffiLoader, sources, opts);

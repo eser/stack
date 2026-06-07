@@ -70,11 +70,12 @@ export class WalkStream implements AsyncIterable<FileEntry>, AsyncDisposable {
     }
   }
 
-  async [Symbol.asyncDispose](): Promise<void> {
+  [Symbol.asyncDispose](): Promise<void> {
     const lib = getLib();
     if (lib !== null) {
       lib.symbols.EserAjanCodebaseWalkFilesStreamClose(this.#handle);
     }
+    return Promise.resolve();
   }
 }
 

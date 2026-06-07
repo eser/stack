@@ -1,7 +1,7 @@
 # ADR 0001 — HTTP/3 + WebTransport as the noskills-server public transport
 
-**Status**: Accepted  
-**Date**: 2026-04-30  
+**Status**: Accepted
+**Date**: 2026-04-30
 **Deciders**: Eser Ozvataf
 
 ---

@@ -150,6 +150,8 @@ func secretsSkipFile(path string) bool {
 	return strings.HasSuffix(path, ".lock") ||
 		strings.HasSuffix(path, "package-lock.json") ||
 		strings.Contains(path, ".test.") ||
+		strings.HasSuffix(path, "_test.go") ||
+		strings.HasSuffix(path, "_test.ts") ||
 		strings.Contains(path, "testdata/") ||
 		strings.HasSuffix(path, ".snap") ||
 		strings.Contains(path, ".min.")

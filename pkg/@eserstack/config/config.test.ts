@@ -22,7 +22,10 @@ Deno.test("setting config meta", () => {
   assert.assertInstanceOf(result, config.Config);
 });
 
-Deno.test({ name: "FFI round-trip: load values from json_file", sanitizeResources: false }, async () => {
+Deno.test({
+  name: "FFI round-trip: load values from json_file",
+  sanitizeResources: false,
+}, async () => {
   const tmpDir = await Deno.makeTempDir();
   const configPath = `${tmpDir}/round-trip.json`;
   try {

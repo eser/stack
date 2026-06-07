@@ -6,9 +6,15 @@ import { CRYPTO_UNKNOWN_ALGORITHM, CryptoError } from "./business/errors.ts";
 import type { HashOptions } from "./business/crypto.ts";
 
 Deno.test(
-  { name: "FFI round-trip: hash text via EserAjanCryptoHash", sanitizeResources: false },
+  {
+    name: "FFI round-trip: hash text via EserAjanCryptoHash",
+    sanitizeResources: false,
+  },
   async () => {
-    const result = await ffiLoader.hash({ text: "hello" }, { algorithm: "SHA-256", length: 64 });
+    const result = await ffiLoader.hash({ text: "hello" }, {
+      algorithm: "SHA-256",
+      length: 64,
+    });
     assert.assertMatch(result, /^[0-9a-f]{64}$/);
     assert.assertEquals(
       result,
@@ -18,7 +24,10 @@ Deno.test(
 );
 
 Deno.test(
-  { name: "FFI round-trip: hash bytes via EserAjanCryptoHash", sanitizeResources: false },
+  {
+    name: "FFI round-trip: hash bytes via EserAjanCryptoHash",
+    sanitizeResources: false,
+  },
   async () => {
     const result = await ffiLoader.hash(
       { data: new Uint8Array([1, 2, 3]) },
@@ -30,7 +39,10 @@ Deno.test(
 );
 
 Deno.test(
-  { name: "FFI error: unknown algorithm throws CryptoError", sanitizeResources: false },
+  {
+    name: "FFI error: unknown algorithm throws CryptoError",
+    sanitizeResources: false,
+  },
   async () => {
     const badOpts = { algorithm: "MD5" } as unknown as HashOptions;
     await assert.assertRejects(

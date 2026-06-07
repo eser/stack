@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/http",
-  "version": "4.1.56",
+  "version": "4.1.57",
   "exports": {
     ".": "./mod.ts",
     "./adapter": "./adapter.ts",

@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/crypto",
-  "version": "4.1.56",
+  "version": "4.1.57",
   "exports": {
     ".": "./mod.ts",
     "./hash": "./hash.ts",

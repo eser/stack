@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/workflows",
-  "version": "4.1.56",
+  "version": "4.1.57",
   "exports": {
     ".": "./main.ts",
     "./mod": "./mod.ts",

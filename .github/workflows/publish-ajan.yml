@@ -48,6 +48,22 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "latest"
+          cache: "pnpm"
+
+      # build.ts imports @eserstack/standards (→ @std/path); under
+      # nodeModulesDir:manual deno needs node_modules populated to resolve it.
+      - name: Install dependencies (no frozen — platform pkgs not yet published)
+        run: pnpm install --no-frozen-lockfile
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:

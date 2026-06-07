@@ -441,6 +441,54 @@ describe("countOpenQuestions", () => {
 });
 
 // =============================================================================
+// toMeasurementDraft — guided-only measurement-report/v1 projection
+// =============================================================================
+
+describe("toMeasurementDraft", () => {
+  const recs: ledger.LedgerRecord[] = [
+    {
+      id: "ans:scope_boundary:original:1",
+      state: "DISCOVERY",
+      category: "out-of-scope",
+      question: "What should this NOT do?",
+      resolution: "No video uploads",
+      provenance: "ratified",
+      timestamp: "2024-01-01T00:00:00.000Z",
+      artifacts: [],
+    },
+    {
+      id: "class:involvesWebUI",
+      state: "SPEC_PROPOSAL",
+      category: "constraint",
+      question: "Spec classification",
+      resolution: "involvesWebUI",
+      provenance: "inferred",
+      timestamp: "",
+      artifacts: [],
+    },
+  ];
+
+  it("projects records into a measurement-report/v1 guided draft (state→phase)", () => {
+    const draft = ledger.toMeasurementDraft("photo-upload", recs);
+    assertEquals(draft.schemaVersion, "measurement-report/v1");
+    assertEquals(draft.specId, "photo-upload");
+    assertEquals(draft.guided.decisions.length, 2);
+    assertEquals(draft.guided.decisions[0]!.phase, "DISCOVERY");
+    assertEquals(draft.guided.decisions[0]!.provenance, "ratified");
+    assertEquals(draft.guided.decisions[1]!.phase, "SPEC_PROPOSAL");
+    // timestamp/artifacts are not part of the measurement contract — dropped.
+    assertEquals("timestamp" in draft.guided.decisions[0]!, false);
+    assertEquals("artifacts" in draft.guided.decisions[0]!, false);
+  });
+
+  it("yields an empty guided ledger for no records", () => {
+    const draft = ledger.toMeasurementDraft("s", []);
+    assertEquals(draft.guided.decisions.length, 0);
+    assertEquals(draft.schemaVersion, "measurement-report/v1");
+  });
+});
+
+// =============================================================================
 // captureTransition (IO) — idempotency, dedup, resilience
 // =============================================================================
 

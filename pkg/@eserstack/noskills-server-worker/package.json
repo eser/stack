@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/noskills-server-worker",
-  "version": "4.1.56",
+  "version": "4.1.57",
   "description": "noskills-server TS worker — runs one Claude Code session via claude-agent-sdk",
   "type": "module",
   "main": "worker.js",

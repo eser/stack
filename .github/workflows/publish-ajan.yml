@@ -9,11 +9,25 @@
 # bootstrap deadlock: the release that would publish the packages can't run
 # until they're already published.
 #
-# This workflow breaks the deadlock: it builds and publishes the ajan platform
-# packages on demand, without `validate`, using `--no-frozen-lockfile`. Run it
-# once to publish any not-yet-published platform packages (it skips versions
-# already on npm), then update pnpm-lock.yaml (`pnpm install --lockfile-only`)
-# and push — `validate` then passes and the normal release flow self-sustains.
+# This workflow breaks the deadlock: it builds the ajan platform packages on
+# demand, without `validate`, using `--no-frozen-lockfile`. It has two modes:
+#
+#   bootstrap (default) — build all platforms and upload the generated tarballs
+#     as an artifact. Use this for the FIRST EVER publish of a package: npm (
+#     unlike PyPI) cannot attach a trusted publisher to a package that does not
+#     exist yet, so OIDC can't create it (it 404s). Download the artifact and
+#     `npm publish` each package locally as the eserstack org owner. THEN add a
+#     GitHub-Actions trusted publisher to each package (repo eser/stack, workflow
+#     publish-ajan.yml) so future releases can go over OIDC token-lessly.
+#
+#   publish — build all platforms and publish via OIDC (--provenance, no token).
+#     Use this once every target package exists AND has a trusted publisher
+#     configured. Versions already on npm are skipped; a real error fails the job.
+#
+# Either way, after the platform packages are on npm, run
+# `pnpm install --lockfile-only` and push so the lockfile gains their specifiers
+# and the main pipeline's `validate` passes — the normal release flow then
+# self-sustains.
 #
 # Platforms come from NATIVE_TARGETS (pkg/@eserstack/ajan/targets.ts):
 # darwin-arm64, darwin-x64, linux-arm64, linux-x64, win32-x64, plus wasm.
@@ -24,6 +38,14 @@ name: Publish ajan platform packages
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "bootstrap = build + upload tarballs for manual first publish; publish = build + publish via OIDC (needs trusted publishing already configured)"
+        type: choice
+        default: bootstrap
+        options:
+          - bootstrap
+          - publish
 
 permissions:
   contents: read
@@ -156,18 +178,33 @@ jobs:
       - name: Generate npm packages for ajan
         run: deno run --allow-all pkg/@eserstack/ajan/npm/generate-packages.ts
 
-      # Publish each generated package whose exact version isn't on npm yet.
-      # Unlike the release pipeline's publish step, a real publish error FAILS
-      # the job (only already-published versions are skipped) so silent publish
-      # failures can't hide again.
+      # ── bootstrap mode: upload the generated tarballs so they can be published
+      # manually (npm login as the eserstack org owner). Needed for the FIRST
+      # publish of any package, because npm can't pre-configure a trusted
+      # publisher for a not-yet-existing package, so OIDC can't create it.
+      # The artifact's least-common-ancestor is .../dist/npm/, so it extracts to
+      # `ajan-<platform>/` dirs at the top level — ready for a publish loop.
+      - name: Upload generated ajan platform packages (manual first publish)
+        if: inputs.mode == 'bootstrap'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ajan-npm-packages
+          path: pkg/@eserstack/ajan/dist/npm/ajan-*/
+          if-no-files-found: error
+
+      # ── publish mode: publish each generated package whose exact version isn't
+      # on npm yet. A real publish error FAILS the job (only already-published
+      # versions are skipped) so silent publish failures can't hide again.
       #
       # Auth: this mirrors build.yml's `publish` job exactly — npm OIDC trusted
       # publishing (id-token:write + --provenance + setup-node registry-url),
       # NOT a token. There is no NPM_TOKEN secret in this project. Do NOT add
       # `env: NODE_AUTH_TOKEN` here: an empty token writes `_authToken=` into the
       # .npmrc, which makes pnpm attempt (and fail) token auth — ENEEDAUTH —
-      # instead of falling back to OIDC.
-      - name: Publish ajan platform packages to npm
+      # instead of falling back to OIDC. Requires each target package to already
+      # exist AND have a trusted publisher configured (use bootstrap mode first).
+      - name: Publish ajan platform packages to npm (OIDC)
+        if: inputs.mode == 'publish'
         run: |
           set -euo pipefail
           published=0

@@ -50,6 +50,7 @@ const RESERVED_NAMES = new Set([
   "delegate",
   "followup",
   "plan-export",
+  "ledger",
 ]);
 
 // Stop words to strip when generating slugs from descriptions
@@ -169,6 +170,7 @@ const SPEC_SUBCOMMANDS: ReadonlyMap<
   ["followup", () => import("./followup.ts")],
   ["learn", () => import("./learn.ts")],
   ["plan-export", () => import("./plan-export.ts")],
+  ["ledger", () => import("./ledger.ts")],
 ]);
 
 export { looksLikeDescription, RESERVED_NAMES, slugFromDescription };
@@ -202,7 +204,7 @@ export const main = async (
     out.writeln(span.dim("  Commands for a spec:"));
     out.writeln(
       span.dim(
-        "    next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note",
+        "    next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note, ledger",
       ),
     );
     out.writeln("");
@@ -274,7 +276,7 @@ export const main = async (
   );
   out.writeln(
     span.dim(
-      `  Valid: next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note`,
+      `  Valid: next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note, ledger`,
     ),
   );
   await out.close();

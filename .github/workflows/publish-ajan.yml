@@ -1,0 +1,167 @@
+# Standalone, manually-triggered publish of the @eserstack/ajan platform
+# packages, DECOUPLED from the Integrity Pipeline's `validate` job.
+#
+# Why this exists: the main release flow gates the ajan platform publish behind
+# `validate` (publish-ajan → compile-binaries → tag-release → validate). But
+# `validate` runs `pnpm install --frozen-lockfile`, which fails whenever
+# pkg/@eserstack/{ajan,cli}/package.json reference platform packages that aren't
+# on npm yet — and pnpm can't lock packages that don't exist. That is a
+# bootstrap deadlock: the release that would publish the packages can't run
+# until they're already published.
+#
+# This workflow breaks the deadlock: it builds and publishes the ajan platform
+# packages on demand, without `validate`, using `--no-frozen-lockfile`. Run it
+# once to publish any not-yet-published platform packages (it skips versions
+# already on npm), then update pnpm-lock.yaml (`pnpm install --lockfile-only`)
+# and push — `validate` then passes and the normal release flow self-sustains.
+#
+# Platforms come from NATIVE_TARGETS (pkg/@eserstack/ajan/targets.ts):
+# darwin-arm64, darwin-x64, linux-arm64, linux-x64, win32-x64, plus wasm.
+# win32-arm64 is intentionally absent — Go has no `-buildmode=c-shared` for
+# windows/arm64 (WASM covers that platform).
+
+name: Publish ajan platform packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-darwin:
+    name: Build ajan (darwin)
+    runs-on: macos-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Build aarch64-darwin (native)
+        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=aarch64-darwin
+
+      - name: Build x86_64-darwin (cross-compile via clang -arch x86_64)
+        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-darwin
+
+      - name: Upload darwin dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: ajan-dist-darwin
+          path: |
+            pkg/@eserstack/ajan/dist/aarch64-darwin/
+            pkg/@eserstack/ajan/dist/x86_64-darwin/
+
+  build-and-publish:
+    name: Build (linux/windows/wasm) & publish
+    needs: build-darwin
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "latest"
+          registry-url: "https://registry.npmjs.org"
+          cache: "pnpm"
+
+      # --no-frozen-lockfile is deliberate: the platform packages this workflow
+      # publishes aren't on npm yet, so a frozen install would fail on their
+      # unresolved optionalDependencies — the very deadlock this workflow breaks.
+      - name: Install dependencies (no frozen — platform pkgs not yet published)
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Install cross-compilers
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            gcc-x86-64-linux-gnu \
+            gcc-mingw-w64-x86-64
+
+      - name: Download darwin dist
+        uses: actions/download-artifact@v8
+        with:
+          name: ajan-dist-darwin
+          path: pkg/@eserstack/ajan/dist/
+
+      - name: Build Go shared libraries (linux + windows)
+        run: |
+          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=aarch64-linux
+          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-linux
+          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-windows
+
+      - name: Build Go WASM modules
+        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm
+
+      - name: Generate npm packages for ajan
+        run: deno run --allow-all pkg/@eserstack/ajan/npm/generate-packages.ts
+
+      # Publish each generated package whose exact version isn't on npm yet.
+      # Unlike the release pipeline's publish step, a real publish error FAILS
+      # the job (only already-published versions are skipped) so silent publish
+      # failures can't hide again.
+      - name: Publish ajan platform packages to npm
+        run: |
+          set -euo pipefail
+          published=0
+          skipped=0
+          for dir in pkg/@eserstack/ajan/dist/npm/ajan-*/; do
+            [ -f "$dir/package.json" ] || continue
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "✓ $name@$version already on npm — skipping"
+              skipped=$((skipped + 1))
+              continue
+            fi
+            echo "→ Publishing $name@$version ..."
+            (cd "$dir" && pnpm publish --provenance --access public --no-git-checks)
+            published=$((published + 1))
+          done
+          echo "Done: $published published, $skipped already-present."
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

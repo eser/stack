@@ -36,6 +36,24 @@ export const handleGetState = async (root: string): Promise<Response> => {
   return json(state);
 };
 
+/**
+ * GET /api/spec/:name/ledger | summary — read-only decision-ledger data.
+ * `ledger` returns the full records + summary; `summary` returns only the
+ * maturity summary. Missing files yield empty records / null summary, never 404.
+ */
+export const handleSpecRead = async (
+  root: string,
+  specName: string,
+  kind: "ledger" | "summary",
+): Promise<Response> => {
+  const summary = await dashboard.readSummary(root, specName);
+  if (kind === "summary") {
+    return json({ ok: true, spec: specName, summary });
+  }
+  const records = await dashboard.readLedger(root, specName);
+  return json({ ok: true, spec: specName, records, summary });
+};
+
 /** POST /api/spec/:name/:action — Execute an action. */
 export const handleAction = async (
   root: string,

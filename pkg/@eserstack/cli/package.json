@@ -19,7 +19,7 @@
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
     "@eserstack/workflows": "workspace:*",
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.25.0"
   },
   "devDependencies": {},
   "optionalDependencies": {

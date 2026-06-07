@@ -38,6 +38,6 @@
     "@std/assert": "npm:@jsr/std__assert@^1.0.16",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.0.0",
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.25.0"
   }
 }

@@ -399,6 +399,57 @@ export const computeSummary = (
 };
 
 // =============================================================================
+// Measurement-report projection (headless / CI bridge)
+// =============================================================================
+//
+// Projects the ledger into the guided half of a `measurement-report/v1` draft —
+// the shared contract consumed by the measurement dashboard / judging harness.
+// Field rename: the ledger's `state` becomes the report's `phase`; `timestamp`
+// and `artifacts` are not part of the measurement contract and are dropped. The
+// provenance vocabulary (ratified | inferred | default) is identical on both
+// sides. No baseline or judge results are produced here — that remains the
+// downstream harness's job — so a built report's status is `guided_only`.
+
+/** One decision in a `measurement-report/v1` guided ledger. */
+export type MeasurementDecisionEntry = {
+  readonly id: string;
+  readonly category: LedgerCategory;
+  readonly question: string;
+  readonly resolution: string;
+  readonly provenance: LedgerProvenance;
+  readonly phase: schema.Phase;
+};
+
+/** A guided-only `measurement-report/v1` draft built from the ledger. */
+export type MeasurementDraft = {
+  readonly schemaVersion: "measurement-report/v1";
+  readonly specId: string;
+  readonly title: string;
+  readonly guided: {
+    readonly decisions: readonly MeasurementDecisionEntry[];
+  };
+};
+
+export const toMeasurementDraft = (
+  spec: string,
+  records: readonly LedgerRecord[],
+): MeasurementDraft => ({
+  schemaVersion: "measurement-report/v1",
+  specId: spec,
+  title: `${spec} (live ledger)`,
+  guided: {
+    decisions: records.map((record) => ({
+      id: record.id,
+      category: record.category,
+      question: record.question,
+      resolution: record.resolution,
+      provenance: record.provenance,
+      phase: record.state,
+    })),
+  },
+});
+
+// =============================================================================
 // Persistence (the only IO surface) — every path is fault-isolated
 // =============================================================================
 

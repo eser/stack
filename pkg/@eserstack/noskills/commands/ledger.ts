@@ -13,6 +13,11 @@
  *   noskills spec <name> ledger        (preferred — injects --spec=<name>)
  *   noskills ledger <name>
  *   noskills ledger --spec=<name> -o json
+ *   noskills spec <name> ledger --format=measurement-draft   (CI/harness bridge)
+ *
+ * `--format=measurement-draft` emits a guided-only `measurement-report/v1` draft
+ * (schemaVersion + guided.decisions) instead of the raw records + summary, so a
+ * headless harness can feed it straight into the measurement/judging pipeline.
  *
  * @module
  */
@@ -31,6 +36,24 @@ export type LedgerOutput = {
   readonly spec: string;
   readonly records: readonly ledger.LedgerRecord[];
   readonly summary: ledger.LedgerSummary | null;
+};
+
+type LedgerShape = "ledger" | "measurement-draft";
+
+/** Parse `--format=<ledger|measurement-draft>` (default: ledger). */
+const parseShape = (args: readonly string[]): LedgerShape => {
+  for (const arg of args) {
+    if (arg.startsWith("--format=")) {
+      const value = arg.slice("--format=".length).toLowerCase();
+      if (
+        value === "measurement-draft" || value === "measurement" ||
+        value === "draft"
+      ) {
+        return "measurement-draft";
+      }
+    }
+  }
+  return "ledger";
 };
 
 export const main = async (
@@ -62,10 +85,19 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  // Both reads are resilient: missing files yield [] / null, never throw.
+  // Reads are resilient: missing files yield [] / null, never throw.
   const records = await ledger.readLedger(root, specName);
-  const summary = await ledger.readSummary(root, specName);
 
+  // Headless bridge: emit a guided-only measurement-report/v1 draft.
+  if (parseShape(rawArgs) === "measurement-draft") {
+    await formatter.writeFormatted(
+      ledger.toMeasurementDraft(specName, records),
+      fmt,
+    );
+    return results.ok(undefined);
+  }
+
+  const summary = await ledger.readSummary(root, specName);
   const output: LedgerOutput = { spec: specName, records, summary };
   await formatter.writeFormatted(output, fmt);
 

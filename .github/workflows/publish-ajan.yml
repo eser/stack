@@ -160,6 +160,13 @@ jobs:
       # Unlike the release pipeline's publish step, a real publish error FAILS
       # the job (only already-published versions are skipped) so silent publish
       # failures can't hide again.
+      #
+      # Auth: this mirrors build.yml's `publish` job exactly — npm OIDC trusted
+      # publishing (id-token:write + --provenance + setup-node registry-url),
+      # NOT a token. There is no NPM_TOKEN secret in this project. Do NOT add
+      # `env: NODE_AUTH_TOKEN` here: an empty token writes `_authToken=` into the
+      # .npmrc, which makes pnpm attempt (and fail) token auth — ENEEDAUTH —
+      # instead of falling back to OIDC.
       - name: Publish ajan platform packages to npm
         run: |
           set -euo pipefail
@@ -179,5 +186,3 @@ jobs:
             published=$((published + 1))
           done
           echo "Done: $published published, $skipped already-present."
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

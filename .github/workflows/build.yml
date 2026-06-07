@@ -681,22 +681,41 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: "pnpm"
 
+      # Auth = npm OIDC trusted publishing (id-token:write + --provenance + the
+      # setup-node registry-url above), EXACTLY like the main `publish` job. Do
+      # NOT add `env: NODE_AUTH_TOKEN` — there is no NPM_TOKEN secret in this
+      # project, and an empty token writes `_authToken=` into .npmrc, making pnpm
+      # attempt (and fail) token auth (ENEEDAUTH) instead of using OIDC. Each
+      # @eserstack/ajan-* package must have a trusted publisher configured on npm
+      # (publisher: GitHub Actions, repo: eser/stack, workflow: build.yml). The
+      # FIRST publish of a brand-new package name can't use OIDC (npm can't attach
+      # a trusted publisher to a nonexistent package) — bootstrap it once via
+      # .github/workflows/publish-ajan.yml, then this job self-sustains.
+      #
+      # A real publish error FAILS the job (only versions already on npm are
+      # skipped) — the previous `|| echo "may already exist"` swallowed ENEEDAUTH
+      # and published nothing while going green.
       - name: Publish ajan platform packages to npm
         run: |
-          # Publish platform-specific packages first, then the root package last
-          # (root has optionalDependencies on the platform packages)
+          set -euo pipefail
+          published=0
+          skipped=0
           for dir in ajan-npm/ajan-*/; do
-            if [ -f "$dir/package.json" ]; then
-              PKG_NAME=$(node -p "require('./$dir/package.json').name")
-              PKG_VERSION=$(node -p "require('./$dir/package.json').version")
-              echo "Publishing $PKG_NAME@$PKG_VERSION ..."
-              (cd "$dir" && pnpm publish --provenance --access public --no-git-checks) || echo "  ⚠ Failed (may already exist)"
+            [ -f "$dir/package.json" ] || continue
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "✓ $name@$version already on npm — skipping"
+              skipped=$((skipped + 1))
+              continue
             fi
+            echo "→ Publishing $name@$version ..."
+            (cd "$dir" && pnpm publish --provenance --access public --no-git-checks)
+            published=$((published + 1))
           done
-          # Note: no root @eserstack/ajan meta-package — the eser CLI
-          # lists @eserstack/ajan-* as optionalDependencies directly.
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          echo "Done: $published published, $skipped already-present."
+          # No root @eserstack/ajan meta-package — the eser CLI lists
+          # @eserstack/ajan-* as optionalDependencies directly.
 
   # ── Release: upload assets + sign ─────────────────────────────
   upload-assets:

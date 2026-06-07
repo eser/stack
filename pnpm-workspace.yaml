@@ -5,3 +5,9 @@ allowBuilds:
   koffi: true
   protobufjs: false
   sharp: true
+# pnpm 11 enables a default minimum-release-age supply-chain gate that refuses to
+# lock just-published versions — which breaks this repo's own pattern of
+# publishing the @eserstack/ajan-* platform packages and immediately locking
+# them. The current-platform package is dropped even when listed in
+# minimumReleaseAgeExclude, so the gate is disabled here (0) rather than excluded.
+minimumReleaseAge: 0

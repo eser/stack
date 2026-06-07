@@ -62,14 +62,23 @@ importers:
         version: 2.16.0
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
-        specifier: ^4.1.0
-        version: 4.1.56
+        specifier: 4.1.57
+        version: 4.1.57
       '@eserstack/ajan-darwin-x64':
-        specifier: ^4.1.0
-        version: 4.1.56
+        specifier: 4.1.57
+        version: 4.1.57
+      '@eserstack/ajan-linux-arm64':
+        specifier: 4.1.57
+        version: 4.1.57
+      '@eserstack/ajan-linux-x64':
+        specifier: 4.1.57
+        version: 4.1.57
       '@eserstack/ajan-wasm':
-        specifier: ^4.1.0
-        version: 4.1.56
+        specifier: 4.1.57
+        version: 4.1.57
+      '@eserstack/ajan-win32-x64':
+        specifier: 4.1.57
+        version: 4.1.57
 
   pkg/@eserstack/app-runtime:
     dependencies:
@@ -178,9 +187,18 @@ importers:
       '@eserstack/ajan-darwin-x64':
         specifier: ^4.1.0
         version: 4.1.56
+      '@eserstack/ajan-linux-arm64':
+        specifier: ^4.1.0
+        version: 4.1.57
+      '@eserstack/ajan-linux-x64':
+        specifier: ^4.1.0
+        version: 4.1.57
       '@eserstack/ajan-wasm':
         specifier: ^4.1.0
         version: 4.1.56
+      '@eserstack/ajan-win32-x64':
+        specifier: ^4.1.0
+        version: 4.1.57
 
   pkg/@eserstack/codebase:
     dependencies:
@@ -1307,13 +1325,41 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
+  '@eserstack/ajan-darwin-arm64@4.1.57':
+    resolution: {integrity: sha512-nXHJKQE2XqYPbvbETIi+FZo6aQtJlm7NXVVzzFrFUw/raWtFlPJH2NSrz7h1oykzJFFjWVnBFqr5aVj8v0P3UA==}
+    cpu: [arm64]
+    os: [darwin]
+
   '@eserstack/ajan-darwin-x64@4.1.56':
     resolution: {integrity: sha512-N9icl8L0MR+1M+pkAkwYYOIlpMU0E8SLc1a9c6a10i3aVFQrL7VGMGB0aJrppGEYggNJfJVA1P7eEjBdnpb+Xg==}
     cpu: [x64]
     os: [darwin]
 
+  '@eserstack/ajan-darwin-x64@4.1.57':
+    resolution: {integrity: sha512-JsEGqalx7o2hEBgLetGaCzrh7gvxrNXpj49IyJShHAIe5SKoG6VDVBOodAByQZjYljZi9sQz+6CujR7DLXqNfA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@eserstack/ajan-linux-arm64@4.1.57':
+    resolution: {integrity: sha512-0WI8hk4a1zkg1CnOHQ6qzGemo8XtqyA6j8dIXm3FXTUBHRJgoPDjCktVRoE7xH8furlVUmDR/wSeehNLSgcySw==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@eserstack/ajan-linux-x64@4.1.57':
+    resolution: {integrity: sha512-wQKlVgoeA1Eyc9RVmuEr6iDPIcZFzSKW546VqZgNLwfMYl6zBadlwjdIx0gZJ3dx5wFTZUu+JEWWjmzeznzdig==}
+    cpu: [x64]
+    os: [linux]
+
   '@eserstack/ajan-wasm@4.1.56':
     resolution: {integrity: sha512-1yannRSP5zx8EXqz12M0M6I5lg9IXqtYcLfe7jUB+mcMTjY90rAGZgKWVjwwoAov2J0E/CjDTdLsBzLixLf5Pw==}
+
+  '@eserstack/ajan-wasm@4.1.57':
+    resolution: {integrity: sha512-FW5pXr1EhPoEmqhcOROkONIhcw5atyeW6O2Mlg8ZFsloC0vRPU4ud+YzBv0LDsl6VcO4yl3aGOXQpx5SbsPYHA==}
+
+  '@eserstack/ajan-win32-x64@4.1.57':
+    resolution: {integrity: sha512-rd2nrqqbn8S+oKce7CASoehGB9U99t8ymbCMf1tduOndOL7p9M4CXO2XZCWdBTzRUL5PTC9c+v/+9H0hSkuSZA==}
+    cpu: [x64]
+    os: [win32]
 
   '@google/genai@1.50.1':
     resolution: {integrity: sha512-YbkX7H9+1Pt8wOt7DDREy8XSoiL6fRDzZQRyaVBarFf8MR3zHGqVdvM4cLbDXqPhxqvegZShgfxb8kw9C7YhAQ==}
@@ -2698,10 +2744,28 @@ snapshots:
   '@eserstack/ajan-darwin-arm64@4.1.56':
     optional: true
 
+  '@eserstack/ajan-darwin-arm64@4.1.57':
+    optional: true
+
   '@eserstack/ajan-darwin-x64@4.1.56':
     optional: true
 
+  '@eserstack/ajan-darwin-x64@4.1.57':
+    optional: true
+
+  '@eserstack/ajan-linux-arm64@4.1.57':
+    optional: true
+
+  '@eserstack/ajan-linux-x64@4.1.57':
+    optional: true
+
   '@eserstack/ajan-wasm@4.1.56':
+    optional: true
+
+  '@eserstack/ajan-wasm@4.1.57':
+    optional: true
+
+  '@eserstack/ajan-win32-x64@4.1.57':
     optional: true
 
   '@google/genai@1.50.1(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))':

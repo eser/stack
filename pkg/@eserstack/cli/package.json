@@ -19,15 +19,15 @@
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
     "@eserstack/workflows": "workspace:*",
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.1"
   },
   "devDependencies": {},
   "optionalDependencies": {
-    "@eserstack/ajan-darwin-arm64": "^4.1.0",
-    "@eserstack/ajan-darwin-x64": "^4.1.0",
+    "@eserstack/ajan-darwin-arm64": "^4.1.57",
+    "@eserstack/ajan-darwin-x64": "^4.1.57",
     "@eserstack/ajan-linux-arm64": "^4.1.0",
     "@eserstack/ajan-linux-x64": "^4.1.0",
     "@eserstack/ajan-win32-x64": "^4.1.0",
-    "@eserstack/ajan-wasm": "^4.1.0"
+    "@eserstack/ajan-wasm": "^4.1.57"
   }
 }

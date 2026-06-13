@@ -12,6 +12,6 @@
     "noskills-cli": "deno run --allow-all ./pkg/@eserstack/noskills/main.ts"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0"
+    "@types/node": "^25.9.3"
   }
 }

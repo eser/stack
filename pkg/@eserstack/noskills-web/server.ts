@@ -9,8 +9,8 @@
 import * as pages from "./routes/pages.ts";
 import * as api from "./routes/api.ts";
 import * as sse from "./routes/sse.ts";
-import { handleTerminalWs } from "./terminal/ws-bridge.ts";
-import { PtyManager } from "./terminal/pty-manager.ts";
+import { handleMuxWs } from "./terminal/ws-bridge.ts";
+import { MuxHost } from "./terminal/mux-host.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import { fromFileUrl, join, relative } from "@std/path";
 
@@ -59,7 +59,7 @@ const serveStatic = async (path: string): Promise<Response> => {
 const route = async (
   request: Request,
   root: string,
-  ptyManager: PtyManager,
+  host: MuxHost,
 ): Promise<Response> => {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -83,11 +83,10 @@ const route = async (
     return sse.handleSSE(root);
   }
 
-  // WebSocket terminal
-  if (path.startsWith("/terminal/")) {
-    const tabId = path.slice("/terminal/".length);
+  // WebSocket: the whole multiplexer rides one socket (scene + every pane).
+  if (path === "/mux") {
     if (request.headers.get("upgrade")?.toLowerCase() === "websocket") {
-      return handleTerminalWs(request, tabId, ptyManager);
+      return handleMuxWs(request, host);
     }
     return new Response("WebSocket upgrade required", { status: 426 });
   }
@@ -98,17 +97,17 @@ const route = async (
   }
 
   if (path === "/api/tabs" && method === "GET") {
-    return api.handleListTabs(ptyManager);
+    return api.handleListTabs(host);
   }
 
   if (path === "/api/tab" && method === "POST") {
     const body = await request.json().catch(() => ({}));
-    return api.handleCreateTab(ptyManager, body as Record<string, unknown>);
+    return api.handleCreateTab(host, body as Record<string, unknown>);
   }
 
   if (path.startsWith("/api/tab/") && method === "DELETE") {
     const tabId = path.slice("/api/tab/".length);
-    return api.handleCloseTab(ptyManager, tabId);
+    return api.handleCloseTab(host, tabId);
   }
 
   // API spec reads: GET /api/spec/:name/ledger | summary (decision ledger)
@@ -130,7 +129,7 @@ const route = async (
       specActionMatch[1]!,
       specActionMatch[2]!,
       body as Record<string, unknown>,
-      ptyManager,
+      host,
     );
   }
 
@@ -142,7 +141,7 @@ const route = async (
 
   // Dashboard (home)
   if (path === "/" && method === "GET") {
-    return pages.handleDashboard(root, ptyManager);
+    return pages.handleDashboard(root, host);
   }
 
   return new Response("Not found", { status: 404 });
@@ -160,10 +159,10 @@ export type ServerOptions = {
 
 export const startServer = async (opts: ServerOptions): Promise<void> => {
   const port = opts.port ?? 3000;
-  const ptyManager = new PtyManager(opts.root);
+  const host = new MuxHost(opts.root);
 
   const handler = (request: Request): Promise<Response> =>
-    route(request, opts.root, ptyManager);
+    route(request, opts.root, host);
 
   const server = Deno.serve({ port, hostname: "127.0.0.1" }, handler);
 
@@ -187,10 +186,10 @@ export const startServer = async (opts: ServerOptions): Promise<void> => {
   // deno-lint-ignore no-explicit-any
   (globalThis as any).Deno?.addSignalListener?.("SIGINT", async () => {
     console.log("\nShutting down...");
-    await ptyManager.killAll();
+    await host.killAll();
     runtime.process.exit(0);
   });
 
   await server.finished;
-  await ptyManager.killAll();
+  await host.killAll();
 };

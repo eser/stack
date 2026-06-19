@@ -521,6 +521,43 @@ export interface FFILibrary {
      * Returns JSON: { code: number } | { error: string }
      */
     EserAjanShellExecClose: (handle: string) => string;
+    /**
+     * Spawns a real pseudo-terminal child and returns a streaming handle (§20).
+     * Accepts JSON: { command, args?, cwd?, env?: string[], cols?, rows? }
+     * Returns JSON: { handle: string, pid: number } | { error: string }
+     */
+    EserAjanShellPtySpawn: (requestJSON: string) => string;
+    /**
+     * Reads the next merged output chunk from the PTY. Nonblocking on Deno
+     * (resolves when bytes arrive) — always returns a Promise for uniformity.
+     * Accepts: handle string
+     * Returns JSON: { chunk: string } | "null" (§20 done) | { error: string }
+     */
+    EserAjanShellPtyRead: (handle: string) => Promise<string>;
+    /**
+     * Writes base64-encoded data to the PTY.
+     * Accepts JSON: { handle: string, data: string }
+     * Returns: {} on success | { error: string }
+     */
+    EserAjanShellPtyWrite: (requestJSON: string) => string;
+    /**
+     * Resizes the PTY window.
+     * Accepts JSON: { handle: string, cols: number, rows: number }
+     * Returns: {} on success | { error: string }
+     */
+    EserAjanShellPtyResize: (requestJSON: string) => string;
+    /**
+     * Signals the PTY child without removing the handle.
+     * Accepts JSON: { handle: string, signal?: string }
+     * Returns: {} on success | { error: string }
+     */
+    EserAjanShellPtyKill: (requestJSON: string) => string;
+    /**
+     * Terminates the PTY and removes the handle.
+     * Accepts: handle string
+     * Returns JSON: { code: number } | { error: string }
+     */
+    EserAjanShellPtyClose: (handle: string) => string;
   };
   /** Closes the shared library handle and releases resources. */
   close: () => void;

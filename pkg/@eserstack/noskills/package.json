@@ -8,11 +8,14 @@
     "./module": "./module.ts",
     "./dashboard": "./dashboard/mod.ts",
     "./persistence": "./state/persistence.ts",
+    "./session": "./manager/session-binding.ts",
     "./go-noskills": "./go-noskills.ts"
   },
   "dependencies": {
+    "@eserstack/agents": "workspace:*",
     "@eserstack/ai": "workspace:*",
     "@eserstack/ajan": "workspace:*",
+    "@eserstack/mux": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",

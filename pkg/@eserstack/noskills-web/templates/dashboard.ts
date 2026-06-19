@@ -37,7 +37,7 @@ export const renderDashboard = (
     </aside>
     <main class="main-area">
       ${c.tabBar(tabs, activeTabId)}
-      ${c.terminalContainer(activeTabId)}
+      ${c.terminalContainer()}
     </main>
   </div>`;
 

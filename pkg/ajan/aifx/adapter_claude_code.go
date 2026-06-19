@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Sentinel errors for the Claude Code adapter.
@@ -234,17 +235,81 @@ func (m *ClaudeCodeModel) buildArgs(opts *GenerateTextOptions, outputFormat stri
 
 // parseClaudeCodeJsonResult parses the claude CLI JSON output into a GenerateTextResult.
 func parseClaudeCodeJsonResult(rawOutput, modelID string) (*GenerateTextResult, error) {
-	var parsed map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(rawOutput), &parsed); err != nil {
-		// Treat as plain text on parse failure.
+	trimmed := strings.TrimSpace(rawOutput)
+
+	plain := func(text string) *GenerateTextResult {
 		return &GenerateTextResult{ //nolint:exhaustruct
-			Content:    []ContentBlock{{Type: ContentBlockText, Text: rawOutput}}, //nolint:exhaustruct
+			Content:    []ContentBlock{{Type: ContentBlockText, Text: text}}, //nolint:exhaustruct
 			StopReason: StopReasonEndTurn,
 			ModelID:    modelID,
-		}, nil
+		}
+	}
+
+	// Claude Code CLI v2 `--output-format json` emits an ARRAY of stream events
+	// ([{type:"system"}, {type:"assistant"}, …, {type:"result", result}]) rather
+	// than a single object. Unmarshalling that into a map fails, which previously
+	// fell through to "plain text" and returned the entire transcript as the
+	// message. Handle the array form first.
+	if strings.HasPrefix(trimmed, "[") {
+		var events []map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(trimmed), &events); err == nil {
+			return mapClaudeCodeJsonArray(events, modelID), nil
+		}
+	}
+
+	var parsed map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(trimmed), &parsed); err != nil {
+		// Not JSON at all → the model printed the bare line; use it. But never
+		// echo a JSON-looking blob back as the message (that was the bug).
+		if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
+			return plain(""), nil
+		}
+
+		return plain(trimmed), nil
 	}
 
 	return mapClaudeCodeJsonResult(parsed, modelID), nil
+}
+
+// mapClaudeCodeJsonArray reduces the Claude Code v2 event array to a single
+// result: the {type:"result", result} event's text (the canonical final answer),
+// then the last {type:"assistant"} message, delegating to mapClaudeCodeJsonResult.
+func mapClaudeCodeJsonArray(events []map[string]json.RawMessage, modelID string) *GenerateTextResult {
+	eventType := func(e map[string]json.RawMessage) string {
+		typeRaw, ok := e["type"]
+		if !ok {
+			return ""
+		}
+
+		var t string
+		if err := json.Unmarshal(typeRaw, &t); err != nil {
+			return ""
+		}
+
+		return t
+	}
+
+	for _, e := range events {
+		if eventType(e) == "result" {
+			if _, ok := e["result"]; ok {
+				return mapClaudeCodeJsonResult(e, modelID)
+			}
+		}
+	}
+
+	for i := len(events) - 1; i >= 0; i-- {
+		if eventType(events[i]) == "assistant" {
+			if _, ok := events[i]["message"]; ok {
+				return mapClaudeCodeJsonResult(events[i], modelID)
+			}
+		}
+	}
+
+	return &GenerateTextResult{ //nolint:exhaustruct
+		Content:    []ContentBlock{{Type: ContentBlockText, Text: ""}}, //nolint:exhaustruct
+		StopReason: StopReasonEndTurn,
+		ModelID:    modelID,
+	}
 }
 
 // mapClaudeCodeJsonResult maps the parsed Claude Code JSON output.

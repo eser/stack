@@ -388,6 +388,33 @@ const SYMBOL_DEFINITIONS = {
     parameters: ["pointer"],
     result: "pointer",
   },
+  EserAjanShellPtySpawn: {
+    parameters: ["pointer"],
+    result: "pointer",
+  },
+  // Nonblocking: a PTY read may wait indefinitely for output; running it on the
+  // FFI threadpool keeps the isolate (and every other pane's pump) responsive.
+  EserAjanShellPtyRead: {
+    parameters: ["pointer"],
+    result: "pointer",
+    nonblocking: true,
+  },
+  EserAjanShellPtyWrite: {
+    parameters: ["pointer"],
+    result: "pointer",
+  },
+  EserAjanShellPtyResize: {
+    parameters: ["pointer"],
+    result: "pointer",
+  },
+  EserAjanShellPtyKill: {
+    parameters: ["pointer"],
+    result: "pointer",
+  },
+  EserAjanShellPtyClose: {
+    parameters: ["pointer"],
+    result: "pointer",
+  },
 } as const;
 
 /**
@@ -1248,6 +1275,62 @@ const createSymbolWrappers = (
     EserAjanShellExecClose: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanShellExecClose(
+        Deno.UnsafePointer.of(cStr),
+      );
+      const { value, ptr } = readCString(rawPtr);
+      freePtr(ptr);
+      return value;
+    },
+    EserAjanShellPtySpawn: (requestJSON: string): string => {
+      const cStr = toCString(requestJSON);
+      const rawPtr = rawSymbols.EserAjanShellPtySpawn(
+        Deno.UnsafePointer.of(cStr),
+      );
+      const { value, ptr } = readCString(rawPtr);
+      freePtr(ptr);
+      return value;
+    },
+    EserAjanShellPtyRead: async (handle: string): Promise<string> => {
+      const cStr = toCString(handle);
+      // nonblocking symbol → returns a Promise<pointer>; keep cStr referenced
+      // until it resolves (the closure frame does this).
+      const rawPtr = await rawSymbols.EserAjanShellPtyRead(
+        Deno.UnsafePointer.of(cStr),
+      );
+      const { value, ptr } = readCString(rawPtr);
+      freePtr(ptr);
+      return value;
+    },
+    EserAjanShellPtyWrite: (requestJSON: string): string => {
+      const cStr = toCString(requestJSON);
+      const rawPtr = rawSymbols.EserAjanShellPtyWrite(
+        Deno.UnsafePointer.of(cStr),
+      );
+      const { value, ptr } = readCString(rawPtr);
+      freePtr(ptr);
+      return value;
+    },
+    EserAjanShellPtyResize: (requestJSON: string): string => {
+      const cStr = toCString(requestJSON);
+      const rawPtr = rawSymbols.EserAjanShellPtyResize(
+        Deno.UnsafePointer.of(cStr),
+      );
+      const { value, ptr } = readCString(rawPtr);
+      freePtr(ptr);
+      return value;
+    },
+    EserAjanShellPtyKill: (requestJSON: string): string => {
+      const cStr = toCString(requestJSON);
+      const rawPtr = rawSymbols.EserAjanShellPtyKill(
+        Deno.UnsafePointer.of(cStr),
+      );
+      const { value, ptr } = readCString(rawPtr);
+      freePtr(ptr);
+      return value;
+    },
+    EserAjanShellPtyClose: (handle: string): string => {
+      const cStr = toCString(handle);
+      const rawPtr = rawSymbols.EserAjanShellPtyClose(
         Deno.UnsafePointer.of(cStr),
       );
       const { value, ptr } = readCString(rawPtr);

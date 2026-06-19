@@ -36,6 +36,7 @@ import (
 	"github.com/eser/stack/pkg/ajan/postsfx/twitter"
 	"github.com/eser/stack/pkg/ajan/processfx"
 	shellfxexec "github.com/eser/stack/pkg/ajan/shellfx/exec"
+	shellfxpty "github.com/eser/stack/pkg/ajan/shellfx/pty"
 	shelltui "github.com/eser/stack/pkg/ajan/shellfx/tui"
 	"github.com/eser/stack/pkg/ajan/workflowfx"
 )
@@ -63,6 +64,7 @@ var (
 	modelHandles       = make(map[string]aifx.LanguageModel)
 	streamHandles      = make(map[string]*streamState)
 	execHandles        = make(map[string]*shellfxexec.ChildProcessHandle)
+	ptyHandles         = make(map[string]*shellfxpty.Session)
 	tokenizerHandles   = make(map[string]*parsingfx.Tokenizer)
 	tuiKeypressHandles = make(map[string]*shelltui.KeypressReader)
 	handleMu           sync.RWMutex
@@ -4770,4 +4772,183 @@ func bridgeShellExecClose(handle string) string {
 	code := h.Close()
 
 	return marshalResponse(shellExecCloseResponse{Code: code})
+}
+
+// ---------------------------------------------------------------------------
+// Shell PTY bridge (real pseudo-terminal)
+// ---------------------------------------------------------------------------
+
+type shellPtySpawnRequest struct {
+	Command string   `json:"command"`
+	Args    []string `json:"args,omitempty"`
+	Cwd     string   `json:"cwd,omitempty"`
+	Env     []string `json:"env,omitempty"`
+	Cols    int      `json:"cols,omitempty"`
+	Rows    int      `json:"rows,omitempty"`
+}
+
+type shellPtySpawnResponse struct {
+	Handle string `json:"handle,omitempty"`
+	Pid    int    `json:"pid,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+type shellPtyReadResponse struct {
+	Chunk string `json:"chunk,omitempty"` // base64; PTY merges stdout+stderr (no stream tag)
+	Error string `json:"error,omitempty"`
+}
+
+type shellPtyWriteRequest struct {
+	Handle string `json:"handle"`
+	Data   string `json:"data"` // base64
+}
+
+type shellPtyResizeRequest struct {
+	Handle string `json:"handle"`
+	Cols   int    `json:"cols"`
+	Rows   int    `json:"rows"`
+}
+
+type shellPtyKillRequest struct {
+	Handle string `json:"handle"`
+	Signal string `json:"signal,omitempty"`
+}
+
+type shellPtyCloseResponse struct {
+	Code  int    `json:"code"`
+	Error string `json:"error,omitempty"`
+}
+
+// bridgeShellPtySpawn starts a PTY child process and returns a handle + pid.
+func bridgeShellPtySpawn(requestJSON string) string {
+	var req shellPtySpawnRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return marshalResponse(shellPtySpawnResponse{Error: "invalid request JSON: " + err.Error()}) //nolint:exhaustruct
+	}
+
+	s, err := shellfxpty.Spawn(shellfxpty.SpawnOptions{
+		Command: req.Command,
+		Args:    req.Args,
+		Cwd:     req.Cwd,
+		Env:     req.Env,
+		Cols:    req.Cols,
+		Rows:    req.Rows,
+	})
+	if err != nil {
+		return marshalResponse(shellPtySpawnResponse{Error: err.Error()}) //nolint:exhaustruct
+	}
+
+	handle := newHandle("pty")
+
+	handleMu.Lock()
+	ptyHandles[handle] = s
+	handleMu.Unlock()
+
+	return marshalResponse(shellPtySpawnResponse{Handle: handle, Pid: s.Pid()}) //nolint:exhaustruct
+}
+
+// bridgeShellPtyRead returns the next output chunk. Returns "null" when done (§20).
+func bridgeShellPtyRead(handle string) string {
+	handleMu.RLock()
+	s := ptyHandles[handle]
+	handleMu.RUnlock()
+
+	if s == nil {
+		return marshalResponse(shellPtyReadResponse{Error: "unknown handle: " + handle}) //nolint:exhaustruct
+	}
+
+	chunk, ok := s.Read()
+	if !ok {
+		return "null"
+	}
+
+	return marshalResponse(shellPtyReadResponse{Chunk: shellfxpty.EncodeChunk(chunk)}) //nolint:exhaustruct
+}
+
+// bridgeShellPtyWrite sends base64-encoded data to the PTY.
+func bridgeShellPtyWrite(requestJSON string) string {
+	var req shellPtyWriteRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return marshalError("invalid request JSON: " + err.Error())
+	}
+
+	handleMu.RLock()
+	s := ptyHandles[req.Handle]
+	handleMu.RUnlock()
+
+	if s == nil {
+		return marshalError("unknown handle: " + req.Handle)
+	}
+
+	data, err := shellfxpty.DecodeChunk(req.Data)
+	if err != nil {
+		return marshalError("invalid base64 data: " + err.Error())
+	}
+
+	if err := s.Write(data); err != nil {
+		return marshalError("write failed: " + err.Error())
+	}
+
+	return "{}"
+}
+
+// bridgeShellPtyResize updates the PTY window size.
+func bridgeShellPtyResize(requestJSON string) string {
+	var req shellPtyResizeRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return marshalError("invalid request JSON: " + err.Error())
+	}
+
+	handleMu.RLock()
+	s := ptyHandles[req.Handle]
+	handleMu.RUnlock()
+
+	if s == nil {
+		return marshalError("unknown handle: " + req.Handle)
+	}
+
+	if err := s.Resize(req.Cols, req.Rows); err != nil {
+		return marshalError("resize failed: " + err.Error())
+	}
+
+	return "{}"
+}
+
+// bridgeShellPtyKill signals the PTY child without removing the handle (the exit
+// code still resolves via Close).
+func bridgeShellPtyKill(requestJSON string) string {
+	var req shellPtyKillRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return marshalError("invalid request JSON: " + err.Error())
+	}
+
+	handleMu.RLock()
+	s := ptyHandles[req.Handle]
+	handleMu.RUnlock()
+
+	if s == nil {
+		return marshalError("unknown handle: " + req.Handle)
+	}
+
+	if err := s.Kill(req.Signal); err != nil {
+		return marshalError("kill failed: " + err.Error())
+	}
+
+	return "{}"
+}
+
+// bridgeShellPtyClose terminates the PTY and removes the handle.
+func bridgeShellPtyClose(handle string) string {
+	handleMu.Lock()
+	s := ptyHandles[handle]
+	delete(ptyHandles, handle)
+	handleMu.Unlock()
+
+	if s == nil {
+		return marshalResponse(shellPtyCloseResponse{Error: "unknown handle: " + handle}) //nolint:exhaustruct
+	}
+
+	code := s.Close()
+
+	return marshalResponse(shellPtyCloseResponse{Code: code}) //nolint:exhaustruct
 }

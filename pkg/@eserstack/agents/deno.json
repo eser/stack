@@ -1,0 +1,11 @@
+{
+  "name": "@eserstack/agents",
+  "version": "4.1.57",
+  "exports": {
+    ".": "./mod.ts",
+    "./adapter": "./adapter.ts",
+    "./registry": "./registry.ts",
+    "./drive": "./drive/mod.ts",
+    "./guards": "./guards/git.ts"
+  }
+}

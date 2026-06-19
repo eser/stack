@@ -10,6 +10,7 @@
     "./attach": "./attach.ts"
   },
   "dependencies": {
+    "@eserstack/mux": "workspace:*",
     "@eserstack/webtransport": "workspace:*"
   }
 }

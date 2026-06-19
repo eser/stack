@@ -15,6 +15,7 @@ type SessionEntry struct {
 	SID         string
 	Root        string
 	Slug        string
+	Kind        string // "" / "agent" | "mux"
 	Worker      WorkerHandle
 	Ledger      *Ledger
 	Broadcaster *FanoutBroadcaster
@@ -27,6 +28,7 @@ type SessionEntry struct {
 type SessionManager struct {
 	mu       sync.Mutex
 	sessions map[string]*SessionEntry // key: "<slug>/<sid>"
+	kinds    map[string]string        // key: "<slug>/<sid>" → worker kind, set at create
 	server   *Server
 	logger   *logfx.Logger
 }
@@ -34,6 +36,7 @@ type SessionManager struct {
 func newSessionManager(server *Server, logger *logfx.Logger) *SessionManager {
 	return &SessionManager{
 		sessions: make(map[string]*SessionEntry),
+		kinds:    make(map[string]string),
 		server:   server,
 		logger:   logger,
 	}
@@ -41,12 +44,25 @@ func newSessionManager(server *Server, logger *logfx.Logger) *SessionManager {
 
 func sessionKey(slug, sid string) string { return slug + "/" + sid }
 
+// RecordKind remembers the worker flavour chosen at session-create time so the
+// worker spawned on first attach matches, regardless of which client attaches or
+// what its query string says. A durable fact about the session, not the request.
+func (sm *SessionManager) RecordKind(slug, sid, kind string) {
+	if kind == "" {
+		return
+	}
+
+	sm.mu.Lock()
+	sm.kinds[sessionKey(slug, sid)] = kind
+	sm.mu.Unlock()
+}
+
 // GetOrCreate looks up an existing session or creates a new one (spawning the
 // TS worker, opening the ledger, and starting the pump goroutine).
 // Returns the entry and whether it was newly created.
 func (sm *SessionManager) GetOrCreate(
 	ctx context.Context,
-	slug, sid string,
+	slug, sid, kind string,
 ) (*SessionEntry, bool, error) {
 	sm.mu.Lock()
 
@@ -56,6 +72,13 @@ func (sm *SessionManager) GetOrCreate(
 		sm.mu.Unlock()
 
 		return e, false, nil
+	}
+
+	// The kind recorded at session-create wins over the per-attach query, so a
+	// session's worker flavour is fixed by its creation, not by whoever attaches.
+	effectiveKind := kind
+	if recorded, ok := sm.kinds[key]; ok {
+		effectiveKind = recorded
 	}
 
 	root, ok := sm.server.projectPath(slug)
@@ -71,6 +94,7 @@ func (sm *SessionManager) GetOrCreate(
 		root,
 		sm.server.config.DataDir,
 		"", // workerPath: resolved inside SpawnWorker
+		effectiveKind,
 		sm.logger,
 	)
 	if err != nil {
@@ -93,6 +117,7 @@ func (sm *SessionManager) GetOrCreate(
 		SID:         sid,
 		Root:        root,
 		Slug:        slug,
+		Kind:        effectiveKind,
 		Worker:      worker,
 		Ledger:      ledger,
 		Broadcaster: newFanoutBroadcaster(),
@@ -115,7 +140,9 @@ func (sm *SessionManager) Remove(slug, sid string) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	delete(sm.sessions, sessionKey(slug, sid))
+	key := sessionKey(slug, sid)
+	delete(sm.sessions, key)
+	delete(sm.kinds, key)
 }
 
 // ListBySlug returns all active session entries for the given project slug.

@@ -63,7 +63,8 @@ export const drawBox = (
 ): string => {
   const style = opts.borderStyle ?? "single";
   const b = BORDERS[style];
-  const inner = opts.width - 2;
+  // Clamp so a sub-2-wide box never feeds a negative count to String.repeat.
+  const inner = Math.max(0, opts.width - 2);
   const lines: string[] = [];
 
   // Top border with optional title

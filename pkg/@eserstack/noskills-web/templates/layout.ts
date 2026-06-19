@@ -6,9 +6,7 @@
  * @module
  */
 
-const escHtml = (s: string): string =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+import { escHtml } from "./escape.ts";
 
 export const layout = (
   title: string,
@@ -40,6 +38,7 @@ export const layout = (
     <span class="user-info" id="user-info"></span>
   </header>
   ${body}
+  <script src="/static/mux-render.js"></script>
   <script src="/static/client.js"></script>
   <script>
     if ("serviceWorker" in navigator) {

@@ -35,7 +35,28 @@ const makeTempDir = async (): Promise<string> => {
 import * as pages from "./routes/pages.ts";
 import * as api from "./routes/api.ts";
 import * as _sse from "./routes/sse.ts";
-import { PtyManager } from "./terminal/pty-manager.ts";
+import { MuxHost } from "./terminal/mux-host.ts";
+import type * as mux from "@eserstack/mux";
+
+// MuxHost options that keep tab-creation tests pure API-contract checks: a no-op
+// PTY host (no real spawn) and a stubbed agent discovery (the real one shells
+// out via `where`/`which`, which goes through the native ajan FFI). This mirrors
+// the fake host used in @eserstack/mux's own server tests.
+const fakeHostOpts = (): {
+  createHost: (cb: mux.PtyHostCallbacks) => mux.PtyHost;
+  resolveCommand: () => Promise<string>;
+} => ({
+  createHost: () => ({
+    spawn: () => Promise.resolve(),
+    write: () => {},
+    resize: () => {},
+    kill: () => {},
+    forget: () => {},
+    killAll: () => Promise.resolve(),
+    has: () => true,
+  }),
+  resolveCommand: () => Promise.resolve("claude"),
+});
 
 // =============================================================================
 // API: GET /api/state
@@ -83,9 +104,9 @@ describe("GET /api/state", () => {
 describe("GET / (dashboard page)", () => {
   it("returns HTML with spec list", async () => {
     const root = await makeTempDir();
-    const ptyManager = new PtyManager(root);
+    const host = new MuxHost(root);
 
-    const response = await pages.handleDashboard(root, ptyManager);
+    const response = await pages.handleDashboard(root, host);
 
     assertEquals(response.status, 200);
     const html = await response.text();
@@ -156,13 +177,13 @@ describe("POST /api/spec/:name/approve", () => {
     });
     await persistence.writeSpecState(root, "approve-web", state);
 
-    const ptyManager = new PtyManager(root);
+    const host = new MuxHost(root);
     const response = await api.handleAction(
       root,
       "approve-web",
       "approve",
       { user: { name: "Tester", email: "t@test.com" } },
-      ptyManager,
+      host,
     );
 
     const result = await response.json();
@@ -194,13 +215,13 @@ describe("POST /api/spec/:name/note", () => {
     await runtime.fs.mkdir(`${root}/.eser/specs/note-web`, { recursive: true });
     await persistence.writeSpecState(root, "note-web", state);
 
-    const ptyManager = new PtyManager(root);
+    const host = new MuxHost(root);
     const response = await api.handleAction(
       root,
       "note-web",
       "note",
       { text: "Important note from web" },
-      ptyManager,
+      host,
     );
 
     const result = await response.json();
@@ -218,38 +239,38 @@ describe(
   () => {
     it("lists tabs (initially empty)", async () => {
       const root = await makeTempDir();
-      const ptyManager = new PtyManager(root);
+      const host = new MuxHost(root);
 
-      const response = api.handleListTabs(ptyManager);
+      const response = api.handleListTabs(host);
       const tabs = await response.json();
       assertEquals(tabs.length, 0);
     });
 
-    // Note: tab creation tests that spawn PTYs are skipped in CI because
-    // they require `claude` binary. We test the API contract only.
+    // Tab creation goes through a fake PTY host so these stay pure API-contract
+    // tests — no `claude` binary, no native PTY spawn.
 
     it("create tab returns ok with tabId", async () => {
       const root = await makeTempDir();
-      const ptyManager = new PtyManager(root);
+      const host = new MuxHost(root, fakeHostOpts());
 
       try {
-        const response = await api.handleCreateTab(ptyManager, {});
+        const response = await api.handleCreateTab(host, {});
         const result = await response.json();
 
         assertEquals(result.ok, true);
         assert(typeof result.tabId === "string");
         assertEquals(result.specName, null);
       } finally {
-        await ptyManager.killAll();
+        await host.killAll();
       }
     });
 
     it("create tab with spec assignment", async () => {
       const root = await makeTempDir();
-      const ptyManager = new PtyManager(root);
+      const host = new MuxHost(root, fakeHostOpts());
 
       try {
-        const response = await api.handleCreateTab(ptyManager, {
+        const response = await api.handleCreateTab(host, {
           spec: "my-feature",
         });
         const result = await response.json();
@@ -257,25 +278,25 @@ describe(
         assertEquals(result.ok, true);
         assertEquals(result.specName, "my-feature");
       } finally {
-        await ptyManager.killAll();
+        await host.killAll();
       }
     });
 
     it("close tab removes it from list", async () => {
       const root = await makeTempDir();
-      const ptyManager = new PtyManager(root);
+      const host = new MuxHost(root, fakeHostOpts());
 
       try {
-        const createRes = await api.handleCreateTab(ptyManager, {});
+        const createRes = await api.handleCreateTab(host, {});
         const { tabId } = await createRes.json();
 
-        await api.handleCloseTab(ptyManager, tabId);
+        await api.handleCloseTab(host, tabId);
 
-        const listRes = api.handleListTabs(ptyManager);
+        const listRes = api.handleListTabs(host);
         const tabs = await listRes.json();
         assertEquals(tabs.length, 0);
       } finally {
-        await ptyManager.killAll();
+        await host.killAll();
       }
     });
   },

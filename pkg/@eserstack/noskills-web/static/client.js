@@ -1,28 +1,19 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
-// noskills web — client-side JS (vanilla, no build step)
+// noskills web — local mux client (vanilla, no build step).
+//
+// Thin WebSocket adapter over the shared transport-agnostic renderer
+// (mux-render.js): one /mux socket carries the whole multiplexer (neutral scene
+// + per-pane output in, actions out). noskills-web glue (SSE dashboard feed,
+// REST tab create/close, spec CTAs) lives here; all rendering is in MuxRender.
 
 (() => {
   "use strict";
 
-  // ==========================================================================
-  // State
-  // ==========================================================================
-
-  let activeTabId = null;
-  let terminal = null;
-  let fitAddon = null;
-  let ws = null;
-
-  // ==========================================================================
-  // SSE — real-time event stream
-  // ==========================================================================
-
+  // ── SSE — dashboard event stream ──────────────────────────────────────────
   const events = new EventSource("/events");
-
   events.onmessage = (e) => {
     try {
       const event = JSON.parse(e.data);
-      // Refresh spec list on state changes
       if (
         event.type === "phase-change" || event.type === "spec-created" ||
         event.type === "task-completed"
@@ -30,167 +21,108 @@
         refreshSpecList();
       }
     } catch {
-      // Ignore malformed events
+      // ignore malformed events
     }
   };
+  events.onerror = () => {/* EventSource auto-reconnects */};
 
-  events.onerror = () => {
-    // SSE will auto-reconnect
-  };
-
-  // ==========================================================================
-  // Terminal — xterm.js
-  // ==========================================================================
-
-  function connectTerminal(tabId) {
-    const container = document.getElementById("terminal-container");
-    if (!container) return;
-
-    // Cleanup previous
-    if (ws) {
-      ws.close();
-      ws = null;
+  async function refreshSpecList() {
+    try {
+      const res = await fetch("/api/state");
+      const state = await res.json();
+      if (document.querySelector(".spec-list") && state.specs) {
+        location.reload();
+      }
+    } catch {
+      // ignore — SSE will retry
     }
-    if (terminal) {
-      terminal.dispose();
-      terminal = null;
-    }
+  }
 
-    container.innerHTML = "";
-    activeTabId = tabId;
+  // ── Mux renderer + WebSocket transport ────────────────────────────────────
+  const root = document.getElementById("terminal-container");
+  let ws = null;
+  let renderer = null;
+  let reconnectTimer = null;
 
-    // Check if xterm is loaded
-    if (typeof Terminal === "undefined") {
-      container.innerHTML =
-        '<div class="terminal-placeholder">Terminal loading...</div>';
+  function send(frame) {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(frame));
+  }
+
+  function connect() {
+    if (!root || typeof Terminal === "undefined" || !globalThis.MuxRender) {
       return;
     }
 
-    terminal = new Terminal({
-      fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', monospace",
-      fontSize: 13,
-      theme: {
-        background: "#000000",
-        foreground: "#e6edf3",
-        cursor: "#58a6ff",
-        selectionBackground: "#264f78",
-      },
-      allowProposedApi: true,
-    });
-
-    fitAddon = new FitAddon.FitAddon();
-    terminal.loadAddon(fitAddon);
-
-    if (typeof WebLinksAddon !== "undefined") {
-      terminal.loadAddon(new WebLinksAddon.WebLinksAddon());
+    if (renderer === null) {
+      const cell = MuxRender.measureCell(
+        "'SF Mono', 'Cascadia Code', 'Fira Code', monospace",
+        13,
+      );
+      renderer = MuxRender.createRenderer({
+        root,
+        cell,
+        send,
+        tabBar: document.querySelector(".tab-bar"),
+      });
     }
 
-    terminal.open(container);
-    fitAddon.fit();
-
-    // WebSocket connection
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    ws = new WebSocket(`${proto}//${location.host}/terminal/${tabId}`);
+    ws = new WebSocket(`${proto}//${location.host}/mux`);
 
-    ws.onopen = () => {
-      // Send initial size
-      ws.send(
-        JSON.stringify({
-          type: "resize",
-          cols: terminal.cols,
-          rows: terminal.rows,
-        }),
-      );
+    ws.onopen = () => send({ t: "attach", viewport: renderer.viewport() });
+    ws.onmessage = (ev) => {
+      let frame;
+      try {
+        frame = JSON.parse(ev.data);
+      } catch {
+        return;
+      }
+      renderer.applyFrame(frame);
     };
-
-    ws.onmessage = (event) => {
-      terminal.write(event.data);
-    };
-
     ws.onclose = () => {
-      terminal.write("\r\n[connection closed]\r\n");
+      if (reconnectTimer === null) {
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          connect();
+        }, 1000);
+      }
     };
-
-    // Terminal input → WebSocket
-    terminal.onData((data) => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
-      }
-    });
-
-    // Resize handling
-    terminal.onResize(({ cols, rows }) => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "resize", cols, rows }));
-      }
-    });
-
-    globalThis.addEventListener("resize", () => {
-      if (fitAddon) fitAddon.fit();
-    });
+    ws.onerror = () => {/* close handler retries */};
   }
 
-  // ==========================================================================
-  // Tab management
-  // ==========================================================================
-
+  // ── Click delegation: tab switch (mux), tab add/close (REST), spec CTAs ────
   document.addEventListener("click", async (e) => {
     const target = e.target;
 
-    // Tab click
-    if (target.classList.contains("tab") && target.dataset.tab) {
-      document.querySelectorAll(".tab").forEach((t) =>
-        t.classList.remove("active")
-      );
-      target.classList.add("active");
-      connectTerminal(target.dataset.tab);
+    if (target.classList.contains("tab") && target.dataset.index) {
+      send({
+        t: "action",
+        action: { type: "gotoTab", index: Number(target.dataset.index) },
+      });
       return;
     }
 
-    // Tab close
     if (target.classList.contains("tab-close") && target.dataset.close) {
       e.stopPropagation();
-      const tabId = target.dataset.close;
-      await fetch(`/api/tab/${tabId}`, { method: "DELETE" });
-      target.parentElement.remove();
-      if (activeTabId === tabId) {
-        const remaining = document.querySelector(".tab[data-tab]");
-        if (remaining) {
-          remaining.click();
-        } else {
-          activeTabId = null;
-          if (terminal) {
-            terminal.dispose();
-            terminal = null;
-          }
-        }
-      }
+      await fetch(`/api/tab/${target.dataset.close}`, { method: "DELETE" });
       return;
     }
 
-    // Add tab
     if (target.id === "add-tab" || target.closest("#add-tab")) {
-      const res = await fetch("/api/tab", {
+      await fetch("/api/tab", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
       });
-      const data = await res.json();
-      if (data.ok) {
-        // Reload to show new tab
-        location.reload();
-      }
       return;
     }
 
-    // CTA button click
     if (target.classList.contains("cta-btn")) {
       const spec = target.dataset.spec;
       const action = target.dataset.action;
       if (!spec || !action) return;
 
       let body = {};
-
       if (action === "note" || action === "question") {
         const text = prompt(
           action === "note" ? "Add a note:" : "Ask a question:",
@@ -198,7 +130,6 @@
         if (!text) return;
         body = { text };
       }
-
       if (action === "reply") {
         const text = prompt("Your reply:");
         if (!text) return;
@@ -210,54 +141,31 @@
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-
       const result = await res.json();
-      if (result.ok) {
-        // Refresh the page to show updated state
-        location.reload();
-      } else {
-        alert(`Action failed: ${result.error || "Unknown error"}`);
-      }
+      if (result.ok) location.reload();
+      else alert(`Action failed: ${result.error || "Unknown error"}`);
       return;
     }
   });
 
-  // ==========================================================================
-  // Spec list refresh
-  // ==========================================================================
+  // ── Resize → recompute grid and tell the server ───────────────────────────
+  let resizeTimer = null;
+  globalThis.addEventListener("resize", () => {
+    if (resizeTimer !== null) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      resizeTimer = null;
+      if (renderer) send({ t: "resize", viewport: renderer.viewport() });
+    }, 150);
+  });
 
-  async function refreshSpecList() {
-    try {
-      const res = await fetch("/api/state");
-      const state = await res.json();
-      // Update spec count in sidebar if available
-      const specList = document.querySelector(".spec-list");
-      if (specList && state.specs) {
-        // Full refresh — simpler than DOM diffing
-        location.reload();
-      }
-    } catch {
-      // Ignore — SSE will retry
-    }
-  }
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  connect();
 
-  // ==========================================================================
-  // Auto-connect to first tab on load
-  // ==========================================================================
-
-  const firstTab = document.querySelector(".tab[data-tab]");
-  if (firstTab) {
-    connectTerminal(firstTab.dataset.tab);
-  }
-
-  // Load user info
   fetch("/api/state")
     .then((r) => r.json())
     .then((state) => {
       const el = document.getElementById("user-info");
-      if (el && state.currentUser) {
-        el.textContent = state.currentUser.name;
-      }
+      if (el && state.currentUser) el.textContent = state.currentUser.name;
     })
     .catch(() => {});
 })();

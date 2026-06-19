@@ -392,10 +392,16 @@ func (s *Server) handleListSessions(ctx *httpfx.Context) httpfx.Result {
 
 type createSessionRequest struct {
 	ResumeFrom string `json:"resumeFrom,omitempty"`
+	// Kind selects the worker flavour the client will attach with: "agent"
+	// (default, Claude Agent SDK) or "mux" (terminal multiplexer). The daemon
+	// stores no per-session state here, so the client must pass the same kind as
+	// ?kind= on /attach; it is echoed back for convenience.
+	Kind string `json:"kind,omitempty"`
 }
 
 type createSessionResponse struct {
 	SessionID string `json:"sessionId"`
+	Kind      string `json:"kind,omitempty"`
 }
 
 func (s *Server) handleCreateSession(ctx *httpfx.Context) httpfx.Result {
@@ -417,7 +423,11 @@ func (s *Server) handleCreateSession(ctx *httpfx.Context) httpfx.Result {
 		sid = newSessionID()
 	}
 
-	return ctx.Results.JSON(&createSessionResponse{SessionID: sid})
+	// Record the worker flavour now so the worker spawned on first attach matches,
+	// independent of the attach query string.
+	s.sessions.RecordKind(slug, sid, req.Kind)
+
+	return ctx.Results.JSON(&createSessionResponse{SessionID: sid, Kind: req.Kind})
 }
 
 // newSessionID generates a ULID-based session ID.

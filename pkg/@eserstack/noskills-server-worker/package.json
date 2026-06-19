@@ -9,7 +9,8 @@
     "start": "node dist/worker.js"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.112"
+    "@anthropic-ai/claude-agent-sdk": "^0.2.112",
+    "@eserstack/mux": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

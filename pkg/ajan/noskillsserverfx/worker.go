@@ -34,6 +34,9 @@ type WorkerHandle interface {
 	PushMessage(content string) error
 	// PermissionResponse resolves a pending canUseTool request.
 	PermissionResponse(requestID, behavior, message string) error
+	// SendMux relays a raw mux frontend frame (a {"t":...} object) to a mux
+	// worker. No-op semantics for agent workers (they ignore unknown messages).
+	SendMux(frame json.RawMessage) error
 	// StopTask asks the worker to abort the current task gracefully.
 	StopTask() error
 	// Close tears down the worker process.
@@ -56,19 +59,30 @@ type workerImpl struct {
 	once      sync.Once
 }
 
-// SpawnWorker creates a Unix socket listener, spawns the TS worker process,
-// waits for "ready", and returns a WorkerHandle. Returns when the worker is
-// ready to accept query_start.
+// SpawnWorker creates a Unix socket listener, spawns the worker process, waits
+// for "ready", and returns a WorkerHandle. Returns when the worker is ready to
+// accept query_start.
+//
+// kind selects the worker flavour: "" / "agent" runs the Claude Agent SDK
+// worker (worker.js under node/tsx); "mux" runs the terminal-multiplexer worker
+// (mux-worker.ts under Deno, which resolves @eserstack/mux's workspace imports).
 func SpawnWorker(
 	ctx context.Context,
-	sessionID, cwd, dataDir, workerPath string,
+	sessionID, cwd, dataDir, workerPath, kind string,
 	logger *logfx.Logger,
 ) (WorkerHandle, error) {
+	isMux := kind == "mux"
+
 	if workerPath == "" {
-		// Check NOSKILLS_WORKER_PATH env; fall back to binary sibling.
-		if p := os.Getenv("NOSKILLS_WORKER_PATH"); p != "" {
-			workerPath = p
-		} else {
+		switch {
+		case isMux && os.Getenv("NOSKILLS_MUX_WORKER_PATH") != "":
+			workerPath = os.Getenv("NOSKILLS_MUX_WORKER_PATH")
+		case isMux:
+			exe, _ := os.Executable()
+			workerPath = filepath.Join(filepath.Dir(exe), "mux-worker.ts")
+		case os.Getenv("NOSKILLS_WORKER_PATH") != "":
+			workerPath = os.Getenv("NOSKILLS_WORKER_PATH")
+		default:
 			exe, _ := os.Executable()
 			workerPath = filepath.Join(filepath.Dir(exe), "worker.js")
 		}
@@ -92,19 +106,25 @@ func SpawnWorker(
 		_ = listener.Close()
 	}()
 
-	// Determine runner command. .ts files → tsx; .js/.mjs → node.
+	// Determine runner command. The mux worker imports @eserstack/mux (workspace
+	// + .ts specifiers) so it must run under Deno; the agent worker is tsc-built
+	// (.js → node) or .ts → tsx.
 	var runCmd string
 
 	var runArgs []string
 
-	if strings.HasSuffix(workerPath, ".ts") {
+	switch {
+	case isMux:
+		runCmd = "deno"
+		runArgs = append(runArgs, "run", "-A")
+	case strings.HasSuffix(workerPath, ".ts"):
 		if _, err := exec.LookPath("tsx"); err == nil {
 			runCmd = "tsx"
 		} else {
 			runCmd = "node"
 			runArgs = append(runArgs, "--loader", "tsx")
 		}
-	} else {
+	default:
 		runCmd = "node"
 	}
 
@@ -278,6 +298,15 @@ func (w *workerImpl) PermissionResponse(requestID, behavior, message string) err
 	})
 }
 
+func (w *workerImpl) SendMux(frame json.RawMessage) error {
+	// {"type":"mux","frame":<frontend frame>} — the mux worker delivers `frame`
+	// straight to its mux server.
+	return w.send(struct {
+		Type  string          `json:"type"`
+		Frame json.RawMessage `json:"frame"`
+	}{Type: "mux", Frame: frame})
+}
+
 func (w *workerImpl) StopTask() error {
 	return w.send(map[string]string{"type": "stop_task"})
 }
@@ -302,12 +331,4 @@ func (w *workerImpl) Events() <-chan WorkerEvent {
 
 func (w *workerImpl) SessionID() string {
 	return w.sessionID
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-
-	return b
 }

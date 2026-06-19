@@ -323,6 +323,24 @@ export const backend: types.FFIBackend = {
     const rawShellExecClose = lib.func(
       "char* EserAjanShellExecClose(const char* handle)",
     );
+    const rawShellPtySpawn = lib.func(
+      "char* EserAjanShellPtySpawn(const char* requestJSON)",
+    );
+    const rawShellPtyRead = lib.func(
+      "char* EserAjanShellPtyRead(const char* handle)",
+    );
+    const rawShellPtyWrite = lib.func(
+      "char* EserAjanShellPtyWrite(const char* requestJSON)",
+    );
+    const rawShellPtyResize = lib.func(
+      "char* EserAjanShellPtyResize(const char* requestJSON)",
+    );
+    const rawShellPtyKill = lib.func(
+      "char* EserAjanShellPtyKill(const char* requestJSON)",
+    );
+    const rawShellPtyClose = lib.func(
+      "char* EserAjanShellPtyClose(const char* handle)",
+    );
 
     return {
       symbols: {
@@ -616,6 +634,31 @@ export const backend: types.FFIBackend = {
         },
         EserAjanShellExecClose: (handle: string): string => {
           return rawShellExecClose(handle) ?? "";
+        },
+        EserAjanShellPtySpawn: (requestJSON: string): string => {
+          return rawShellPtySpawn(requestJSON) ?? "";
+        },
+        // LIMITATION: this is a BLOCKING koffi call wrapped in a resolved
+        // Promise to satisfy the interface. While an idle PTY waits for output
+        // the Node event loop is parked, so write()/kill()/render can't run and
+        // multiple panes can't interleave. A true fix needs koffi's async call
+        // API; only Deno (nonblocking:true) is fully supported for the
+        // interactive multiplexer today. Running it under Node degrades
+        // responsiveness.
+        EserAjanShellPtyRead: (handle: string): Promise<string> => {
+          return Promise.resolve(rawShellPtyRead(handle) ?? "");
+        },
+        EserAjanShellPtyWrite: (requestJSON: string): string => {
+          return rawShellPtyWrite(requestJSON) ?? "";
+        },
+        EserAjanShellPtyResize: (requestJSON: string): string => {
+          return rawShellPtyResize(requestJSON) ?? "";
+        },
+        EserAjanShellPtyKill: (requestJSON: string): string => {
+          return rawShellPtyKill(requestJSON) ?? "";
+        },
+        EserAjanShellPtyClose: (handle: string): string => {
+          return rawShellPtyClose(handle) ?? "";
         },
       },
       close: (): void => {

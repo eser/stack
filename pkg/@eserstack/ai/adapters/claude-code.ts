@@ -268,23 +268,90 @@ const buildArgs = (
   return args;
 };
 
-const parseJsonResult = (
+export const parseJsonResult = (
   rawOutput: string,
   modelId: string,
 ): generation.GenerateTextResult => {
-  try {
-    const parsed = JSON.parse(rawOutput);
+  const trimmed = rawOutput.trim();
 
-    return mapResultFromJson(parsed, modelId);
+  const plain = (text: string): generation.GenerateTextResult => ({
+    content: [{ kind: "text", text }],
+    stopReason: "end_turn",
+    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+    modelId,
+  });
+
+  // 1. A single JSON value — either a result object or (Claude Code CLI v2
+  //    `--output-format json`) an ARRAY of stream events
+  //    [{type:"system"}, {type:"assistant"}, …, {type:"result", result}].
+  try {
+    const parsed = JSON.parse(trimmed);
+
+    return Array.isArray(parsed)
+      ? mapResultFromArray(parsed, modelId)
+      : mapResultFromJson(parsed, modelId);
   } catch {
-    // If JSON parsing fails, treat as plain text
-    return {
-      content: [{ kind: "text", text: rawOutput.trim() }],
-      stopReason: "end_turn",
-      usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
-      modelId,
-    };
+    // not a single JSON value — fall through
   }
+
+  // 2. JSONL: one JSON event per line (other CLI versions stream this way).
+  const events: unknown[] = [];
+  for (const line of trimmed.split(/\r?\n/)) {
+    const l = line.trim();
+    if (l.length === 0) continue;
+    try {
+      events.push(JSON.parse(l));
+    } catch {
+      // skip non-JSON line
+    }
+  }
+  if (events.length > 0) {
+    return mapResultFromArray(events, modelId);
+  }
+
+  // 3. Not JSON at all → the model printed the bare line; use it. But never echo
+  //    a JSON-looking blob back as a commit message (that's the bug we guard).
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    return plain("");
+  }
+
+  return plain(trimmed);
+};
+
+/**
+ * Reduce the Claude Code v2 event array to a single result. Prefers the
+ * `{type:"result"}` event's `result` field (the canonical final text), then the
+ * last `{type:"assistant"}` message, delegating to {@link mapResultFromJson} for
+ * the actual mapping.
+ */
+const mapResultFromArray = (
+  events: readonly unknown[],
+  modelId: string,
+): generation.GenerateTextResult => {
+  const isObj = (e: unknown): e is Record<string, unknown> =>
+    e !== null && typeof e === "object";
+
+  const resultEvent = events.find(
+    (e) => isObj(e) && e["type"] === "result" && e["result"] !== undefined,
+  );
+  if (resultEvent !== undefined) {
+    return mapResultFromJson(resultEvent, modelId);
+  }
+
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (isObj(e) && e["type"] === "assistant" && isObj(e["message"])) {
+      return mapResultFromJson(e, modelId);
+    }
+  }
+
+  // Nothing recognizable — return empty text rather than the raw transcript.
+  return {
+    content: [{ kind: "text", text: "" }],
+    stopReason: "end_turn",
+    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+    modelId,
+  };
 };
 
 const mapResultFromJson = (
@@ -317,7 +384,9 @@ const mapResultFromJson = (
   }
 
   if (contentBlocks.length === 0) {
-    contentBlocks.push({ kind: "text", text: JSON.stringify(parsed) });
+    // Unrecognized shape: emit empty text rather than dumping the raw JSON as
+    // if it were the model's answer (that produced the JSON-as-commit-msg bug).
+    contentBlocks.push({ kind: "text", text: "" });
   }
 
   return {

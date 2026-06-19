@@ -298,6 +298,21 @@ export const loadReactorWasm = async (
         '{"error":"Shell exec spawn requires native FFI or command-mode WASM"}',
       EserAjanShellExecClose: (_handle: string) =>
         '{"error":"Shell exec spawn requires native FFI or command-mode WASM"}',
+      // Shell PTY requires a real terminal which reactor mode doesn't support.
+      EserAjanShellPtySpawn: (_requestJSON: string) =>
+        '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
+      EserAjanShellPtyRead: (_handle: string): Promise<string> =>
+        Promise.resolve(
+          '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
+        ),
+      EserAjanShellPtyWrite: (_requestJSON: string) =>
+        '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
+      EserAjanShellPtyResize: (_requestJSON: string) =>
+        '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
+      EserAjanShellPtyKill: (_requestJSON: string) =>
+        '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
+      EserAjanShellPtyClose: (_handle: string) =>
+        '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
     },
     close: () => {
       // The WASM instance will be garbage collected.

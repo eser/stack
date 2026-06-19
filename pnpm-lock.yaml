@@ -12,6 +12,25 @@ importers:
         specifier: ^22.0.0
         version: 22.19.19
 
+  pkg/@eserstack/agents:
+    dependencies:
+      '@eserstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
+      '@eserstack/shell':
+        specifier: workspace:*
+        version: link:../shell
+      '@eserstack/standards':
+        specifier: workspace:*
+        version: link:../standards
+    devDependencies:
+      '@std/assert':
+        specifier: npm:@jsr/std__assert@^1.0.16
+        version: '@jsr/std__assert@1.0.19'
+      '@std/testing':
+        specifier: npm:@jsr/std__testing@^1.0.9
+        version: '@jsr/std__testing@1.0.17'
+
   pkg/@eserstack/ai:
     dependencies:
       '@anthropic-ai/sdk':
@@ -697,14 +716,39 @@ importers:
         specifier: npm:@jsr/std__assert@^1.0.16
         version: '@jsr/std__assert@1.0.19'
 
+  pkg/@eserstack/mux:
+    dependencies:
+      '@eserstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
+      '@eserstack/shell':
+        specifier: workspace:*
+        version: link:../shell
+      '@eserstack/standards':
+        specifier: workspace:*
+        version: link:../standards
+    devDependencies:
+      '@std/assert':
+        specifier: npm:@jsr/std__assert@^1.0.16
+        version: '@jsr/std__assert@1.0.19'
+      '@std/testing':
+        specifier: npm:@jsr/std__testing@^1.0.9
+        version: '@jsr/std__testing@1.0.17'
+
   pkg/@eserstack/noskills:
     dependencies:
+      '@eserstack/agents':
+        specifier: workspace:*
+        version: link:../agents
       '@eserstack/ai':
         specifier: workspace:*
         version: link:../ai
       '@eserstack/ajan':
         specifier: workspace:*
         version: link:../ajan
+      '@eserstack/mux':
+        specifier: workspace:*
+        version: link:../mux
       '@eserstack/primitives':
         specifier: workspace:*
         version: link:../primitives

@@ -1,0 +1,12 @@
+{
+  "name": "@eserstack/mux",
+  "version": "4.1.57",
+  "exports": {
+    ".": "./mod.ts",
+    "./engine": "./engine/mod.ts",
+    "./keybindings": "./keybindings/mod.ts",
+    "./scene": "./scene/mod.ts",
+    "./server": "./server/server.ts",
+    "./runner": "./runner/inprocess.ts"
+  }
+}

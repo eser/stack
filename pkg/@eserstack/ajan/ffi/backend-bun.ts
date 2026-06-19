@@ -403,6 +403,30 @@ export const backend: types.FFIBackend = {
         args: ["ptr"],
         returns: "ptr",
       },
+      EserAjanShellPtySpawn: {
+        args: ["ptr"],
+        returns: "ptr",
+      },
+      EserAjanShellPtyRead: {
+        args: ["ptr"],
+        returns: "ptr",
+      },
+      EserAjanShellPtyWrite: {
+        args: ["ptr"],
+        returns: "ptr",
+      },
+      EserAjanShellPtyResize: {
+        args: ["ptr"],
+        returns: "ptr",
+      },
+      EserAjanShellPtyKill: {
+        args: ["ptr"],
+        returns: "ptr",
+      },
+      EserAjanShellPtyClose: {
+        args: ["ptr"],
+        returns: "ptr",
+      },
     });
 
     const { symbols } = lib;
@@ -892,6 +916,42 @@ export const backend: types.FFIBackend = {
         EserAjanShellExecClose: (handle: string): string => {
           return readAndFree(
             symbols.EserAjanShellExecClose(toCString(handle)),
+          );
+        },
+        EserAjanShellPtySpawn: (requestJSON: string): string => {
+          return readAndFree(
+            symbols.EserAjanShellPtySpawn(toCString(requestJSON)),
+          );
+        },
+        // LIMITATION: bun:ffi has no per-call async, so this PTY read is a
+        // BLOCKING FFI call wrapped in a resolved Promise to satisfy the
+        // interface. While an idle PTY waits for output the Bun event loop is
+        // parked, so write()/kill()/render can't run and multiple panes can't
+        // interleave. Only Deno (nonblocking:true) is fully supported for the
+        // interactive multiplexer; running it under Bun degrades responsiveness.
+        EserAjanShellPtyRead: (handle: string): Promise<string> => {
+          return Promise.resolve(
+            readAndFree(symbols.EserAjanShellPtyRead(toCString(handle))),
+          );
+        },
+        EserAjanShellPtyWrite: (requestJSON: string): string => {
+          return readAndFree(
+            symbols.EserAjanShellPtyWrite(toCString(requestJSON)),
+          );
+        },
+        EserAjanShellPtyResize: (requestJSON: string): string => {
+          return readAndFree(
+            symbols.EserAjanShellPtyResize(toCString(requestJSON)),
+          );
+        },
+        EserAjanShellPtyKill: (requestJSON: string): string => {
+          return readAndFree(
+            symbols.EserAjanShellPtyKill(toCString(requestJSON)),
+          );
+        },
+        EserAjanShellPtyClose: (handle: string): string => {
+          return readAndFree(
+            symbols.EserAjanShellPtyClose(toCString(handle)),
           );
         },
       },

@@ -41,6 +41,10 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// ?kind=mux selects a terminal-multiplexer worker; default is the agent
+	// worker. Only honoured on first attach (when the worker is spawned).
+	kind := r.URL.Query().Get("kind")
+
 	sess, err := s.h3svc.Upgrader().Upgrade(w, r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("WebTransport upgrade failed: %v", err), http.StatusBadRequest)
@@ -48,7 +52,7 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, isNew, err := s.sessions.GetOrCreate(ctx, slug, sid)
+	entry, isNew, err := s.sessions.GetOrCreate(ctx, slug, sid, kind)
 	if err != nil {
 		_ = sess.CloseWithError(1, fmt.Sprintf("session error: %v", err))
 
@@ -173,11 +177,12 @@ func withSeq(line []byte, seq int64) []byte {
 // the appropriate WorkerHandle method.
 func dispatchClientMessage(line string, entry *SessionEntry, logger *logfx.Logger) {
 	var raw struct {
-		Type     string `json:"type"`
-		Content  string `json:"content,omitempty"`
-		ID       string `json:"id,omitempty"`
-		Decision string `json:"decision,omitempty"`
-		Message  string `json:"message,omitempty"`
+		Type     string          `json:"type"`
+		Content  string          `json:"content,omitempty"`
+		ID       string          `json:"id,omitempty"`
+		Decision string          `json:"decision,omitempty"`
+		Message  string          `json:"message,omitempty"`
+		Frame    json.RawMessage `json:"frame,omitempty"`
 	}
 
 	if err := json.Unmarshal([]byte(line), &raw); err != nil {
@@ -196,6 +201,8 @@ func dispatchClientMessage(line string, entry *SessionEntry, logger *logfx.Logge
 		}
 
 		_ = entry.Worker.PermissionResponse(raw.ID, behavior, raw.Message)
+	case "mux":
+		_ = entry.Worker.SendMux(raw.Frame)
 	case "stop", "abort":
 		_ = entry.Worker.StopTask()
 	}

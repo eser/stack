@@ -291,6 +291,18 @@ export const loadCommandWasm = async (
         call("shellExecWrite", { requestJSON }),
       EserAjanShellExecClose: (handle: string) =>
         call("shellExecClose", { handle }),
+      EserAjanShellPtySpawn: (requestJSON: string) =>
+        call("shellPtySpawn", { requestJSON }),
+      EserAjanShellPtyRead: (handle: string): Promise<string> =>
+        Promise.resolve(call("shellPtyRead", { handle })),
+      EserAjanShellPtyWrite: (requestJSON: string) =>
+        call("shellPtyWrite", { requestJSON }),
+      EserAjanShellPtyResize: (requestJSON: string) =>
+        call("shellPtyResize", { requestJSON }),
+      EserAjanShellPtyKill: (requestJSON: string) =>
+        call("shellPtyKill", { requestJSON }),
+      EserAjanShellPtyClose: (handle: string) =>
+        call("shellPtyClose", { handle }),
     },
     close: () => {
       // No persistent resources to release in command mode.

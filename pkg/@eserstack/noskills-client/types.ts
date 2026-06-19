@@ -9,6 +9,11 @@
  * @module
  */
 
+import type {
+  FrontendToServer as MuxFrontendFrame,
+  ServerToFrontend as MuxServerFrame,
+} from "@eserstack/mux";
+
 // =============================================================================
 // Config
 // =============================================================================
@@ -71,10 +76,17 @@ export interface Session {
 export interface CreateSessionRequest {
   /** Resume from an existing session ID. */
   resumeFrom?: string;
+  /**
+   * Worker flavour to attach with: "agent" (default, Claude Agent SDK) or "mux"
+   * (terminal multiplexer). The daemon stores no per-session state, so the same
+   * value must be passed as `?kind=` on attach.
+   */
+  kind?: "agent" | "mux";
 }
 
 export interface CreateSessionResponse {
   sessionId: string;
+  kind?: "agent" | "mux";
 }
 
 // =============================================================================
@@ -189,6 +201,21 @@ export interface CertRotatingEvent {
   newFingerprint: string;
 }
 
+/**
+ * A mux multiplexer frame, for sessions whose worker hosts a {@link
+ * https://jsr.io/@eserstack/mux | mux} server (terminal panes) instead of the
+ * one-shot AI agent worker. The whole neutral mux protocol rides inside `frame`,
+ * so the daemon's ledger seq / `?after=` replay / fanout keep working unchanged —
+ * each mux frame is just one more sequenced ledger entry. `frame` is one of the
+ * mux server→frontend messages: `scene` (full or delta), `output` (per-pane VT
+ * bytes), or `exit`.
+ */
+export interface MuxFrameEvent {
+  type: "mux";
+  v: number;
+  frame: MuxServerFrame;
+}
+
 // seq is injected by the server's wtSend helper on every outbound message.
 // Clients save the last received seq and pass it as ?after=<seq> on reconnect
 // so the server can skip already-delivered events (mobile network partition recovery).
@@ -210,6 +237,7 @@ export type DaemonEvent =
     | ForkCreatedEvent
     | ErrorEvent
     | CertRotatingEvent
+    | MuxFrameEvent
   )
   & { seq?: number };
 
@@ -246,13 +274,24 @@ export interface SetPermissionModeCommand {
   mode: string;
 }
 
+/**
+ * A mux frontend command for a mux-hosting session: the whole neutral mux
+ * frontend→server protocol rides inside `frame` (one of `attach`, `action`, or
+ * `resize`). The daemon relays it straight to that session's mux server.
+ */
+export interface MuxCommand {
+  type: "mux";
+  frame: MuxFrontendFrame;
+}
+
 export type ClientCommand =
   | UserMessageCommand
   | PermissionResponseCommand
   | StopCommand
   | AbortCommand
   | SetModelCommand
-  | SetPermissionModeCommand;
+  | SetPermissionModeCommand
+  | MuxCommand;
 
 // =============================================================================
 // Attach session handle

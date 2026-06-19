@@ -150,6 +150,12 @@ export interface AttachOptions {
    * ```
    */
   afterSeq?: number;
+  /**
+   * Worker flavour to attach with — must match the session's `kind` (sent as
+   * `?kind=` so the daemon spawns the right worker on first attach). Use "mux"
+   * for a terminal-multiplexer session; omit/"agent" for the Claude Agent SDK.
+   */
+  kind?: "agent" | "mux";
 }
 
 /**
@@ -197,6 +203,7 @@ export async function attachSession(
   if (opts.afterSeq && opts.afterSeq > 0) {
     params.set("after", String(opts.afterSeq));
   }
+  if (opts.kind) params.set("kind", opts.kind);
   const query = params.size > 0 ? `?${params.toString()}` : "";
   const path = `/attach/${encodeURIComponent(slug)}/${
     encodeURIComponent(sessionId)

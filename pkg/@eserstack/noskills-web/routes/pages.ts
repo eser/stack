@@ -10,16 +10,16 @@ import * as dashboard from "@eserstack/noskills/dashboard";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import { renderDashboard } from "../templates/dashboard.ts";
 import { renderSpecDetail } from "../templates/spec-detail.ts";
-import type { PtyManager } from "../terminal/pty-manager.ts";
+import type { MuxHost } from "../terminal/mux-host.ts";
 
 /** GET / — Dashboard page. */
 export const handleDashboard = async (
   root: string,
-  ptyManager: PtyManager,
+  host: MuxHost,
 ): Promise<Response> => {
   const state = await dashboard.getState(root);
 
-  const tabs = ptyManager.listTabs().map((t) => ({
+  const tabs = host.listTabs().map((t) => ({
     id: t.id,
     specName: t.specName,
     phase: null as string | null,

@@ -102,7 +102,7 @@ func translateWorkerEvent(evt WorkerEvent, logger *logfx.Logger) any {
 
 		return map[string]any{"type": "error", "code": "query_error", "message": qe.Error}
 
-	case "sdk_event", "permission_request", "query_done", "spawn_progress", "fork_created":
+	case "sdk_event", "permission_request", "query_done", "spawn_progress", "fork_created", "mux":
 		var raw map[string]any
 		if err := json.Unmarshal(evt.Payload, &raw); err != nil {
 			logger.Warn("fanout: malformed event payload", "type", evt.Type, "err", err)
@@ -120,6 +120,15 @@ func translateWorkerEvent(evt WorkerEvent, logger *logfx.Logger) any {
 // marshalEventForLedger translates evt to client-wire JSON for persistent storage.
 // Returns nil for events that should not be persisted (unknown types, marshal errors).
 func marshalEventForLedger(evt WorkerEvent, logger *logfx.Logger) []byte {
+	// Mux frames are a live terminal stream, not durable transcript: per-pane
+	// output would grow the ledger without bound and scene frames are deltas that
+	// only reconstruct from a fresh full scene. A reattaching mux client sends
+	// `attach`, which makes the mux server emit a current full scene, so nothing
+	// needs replaying from the ledger. Broadcast them live, never persist.
+	if evt.Type == "mux" {
+		return nil
+	}
+
 	msg := translateWorkerEvent(evt, logger)
 	if msg == nil {
 		return nil

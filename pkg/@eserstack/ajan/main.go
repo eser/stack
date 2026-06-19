@@ -530,6 +530,40 @@ func EserAjanShellExecClose(handle *C.char) *C.char {
 }
 
 // ---------------------------------------------------------------------------
+// Shell PTY exports (real pseudo-terminal, bidirectional, §20 streaming)
+// ---------------------------------------------------------------------------
+
+//export EserAjanShellPtySpawn
+func EserAjanShellPtySpawn(requestJSON *C.char) *C.char {
+	return C.CString(bridgeShellPtySpawn(C.GoString(requestJSON)))
+}
+
+//export EserAjanShellPtyRead
+func EserAjanShellPtyRead(handle *C.char) *C.char {
+	return C.CString(bridgeShellPtyRead(C.GoString(handle)))
+}
+
+//export EserAjanShellPtyWrite
+func EserAjanShellPtyWrite(requestJSON *C.char) *C.char {
+	return C.CString(bridgeShellPtyWrite(C.GoString(requestJSON)))
+}
+
+//export EserAjanShellPtyResize
+func EserAjanShellPtyResize(requestJSON *C.char) *C.char {
+	return C.CString(bridgeShellPtyResize(C.GoString(requestJSON)))
+}
+
+//export EserAjanShellPtyKill
+func EserAjanShellPtyKill(requestJSON *C.char) *C.char {
+	return C.CString(bridgeShellPtyKill(C.GoString(requestJSON)))
+}
+
+//export EserAjanShellPtyClose
+func EserAjanShellPtyClose(handle *C.char) *C.char {
+	return C.CString(bridgeShellPtyClose(C.GoString(handle)))
+}
+
+// ---------------------------------------------------------------------------
 // Shell TUI exports
 // ---------------------------------------------------------------------------
 

@@ -11,4 +11,5 @@
 
 export { startServer } from "./server.ts";
 export type { ServerOptions } from "./server.ts";
-export { PtyManager } from "./terminal/pty-manager.ts";
+export { MuxHost } from "./terminal/mux-host.ts";
+export type { WebTab } from "./terminal/mux-host.ts";

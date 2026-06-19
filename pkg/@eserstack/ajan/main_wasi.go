@@ -762,6 +762,54 @@ func main() {
 		}
 		writeOK(bridgeShellExecClose(handle))
 
+	case "shellPtySpawn":
+		requestJSON, err := extractStringArg(req.Args, "requestJSON")
+		if err != nil {
+			writeError(err.Error())
+			return
+		}
+		writeOK(bridgeShellPtySpawn(requestJSON))
+
+	case "shellPtyRead":
+		handle, err := extractStringArg(req.Args, "handle")
+		if err != nil {
+			writeError(err.Error())
+			return
+		}
+		writeOK(bridgeShellPtyRead(handle))
+
+	case "shellPtyWrite":
+		requestJSON, err := extractStringArg(req.Args, "requestJSON")
+		if err != nil {
+			writeError(err.Error())
+			return
+		}
+		writeOK(bridgeShellPtyWrite(requestJSON))
+
+	case "shellPtyResize":
+		requestJSON, err := extractStringArg(req.Args, "requestJSON")
+		if err != nil {
+			writeError(err.Error())
+			return
+		}
+		writeOK(bridgeShellPtyResize(requestJSON))
+
+	case "shellPtyKill":
+		requestJSON, err := extractStringArg(req.Args, "requestJSON")
+		if err != nil {
+			writeError(err.Error())
+			return
+		}
+		writeOK(bridgeShellPtyKill(requestJSON))
+
+	case "shellPtyClose":
+		handle, err := extractStringArg(req.Args, "handle")
+		if err != nil {
+			writeError(err.Error())
+			return
+		}
+		writeOK(bridgeShellPtyClose(handle))
+
 	default:
 		writeError("unknown function: " + req.Fn)
 	}

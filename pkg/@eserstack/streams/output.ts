@@ -36,6 +36,7 @@ export const output = (options?: OutputOptions): Output => {
   const renderer = options?.renderer ?? plainRenderer();
 
   let drainScheduled = false;
+  let draining = false;
   let chunkIndex = 0;
   let closed = false;
 
@@ -77,6 +78,13 @@ export const output = (options?: OutputOptions): Output => {
   const writer = target.getWriter();
 
   const drain = async () => {
+    // Single-flight: a writeln during an in-flight `await writer.write` would
+    // otherwise schedule a second concurrent drain (drainScheduled is reset
+    // below), and two drains racing close() throws "stream is closing". The one
+    // running drain re-checks pendingChunks each iteration, so it still picks up
+    // chunks enqueued while it was awaiting.
+    if (draining) return;
+    draining = true;
     drainScheduled = false;
 
     while (pendingChunks.length > 0) {
@@ -97,6 +105,8 @@ export const output = (options?: OutputOptions): Output => {
         break;
       }
     }
+
+    draining = false;
 
     if (flushResolve !== undefined) {
       flushResolve();
@@ -131,7 +141,10 @@ export const output = (options?: OutputOptions): Output => {
     },
 
     flush: (): Promise<void> => {
-      if (pendingChunks.length === 0 && !drainScheduled) {
+      // Also wait when a drain is mid-write with an empty queue — otherwise
+      // close() would proceed to writer.close() while a write is still in
+      // flight, rejecting it with "stream is closing or is closed".
+      if (pendingChunks.length === 0 && !drainScheduled && !draining) {
         return Promise.resolve();
       }
       return new Promise<void>((resolve) => {

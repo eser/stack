@@ -214,9 +214,24 @@ body {
 /* Terminal */
 .terminal-container {
   flex: 1;
-  padding: 0.25rem;
+  position: relative; /* mux panes are absolutely positioned within */
   background: #000;
   overflow: hidden;
+}
+
+/* A single mux pane: an xterm.js instance positioned from scene geometry. */
+.mux-pane {
+  background: #000;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.mux-pane.focused {
+  border-color: var(--accent, #58a6ff);
+}
+
+.mux-pane.exited {
+  opacity: 0.6;
 }
 
 .terminal-placeholder {

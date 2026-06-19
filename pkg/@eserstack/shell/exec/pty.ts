@@ -13,6 +13,8 @@
  */
 
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import { ensureLib, getLib } from "../ffi-client.ts";
+import { spawnPtyGo } from "./pty-go.ts";
 
 // =============================================================================
 // Types
@@ -119,13 +121,50 @@ const buildPtyCommand = (
 // =============================================================================
 
 /**
- * Spawn a process with a real PTY via `script` wrapper.
+ * Spawn a process with a real PTY.
  *
- * The child process sees a real terminal (isatty=true), enabling
- * interactive programs like Claude Code to run in full interactive mode.
+ * Prefers the native FFI PTY (ConPTY on Windows, openpty on Unix, with working
+ * resize) when the @eserstack/ajan library loads, and falls back to the
+ * `script`-wrapper implementation otherwise. Set `ESERSTACK_PTY=script` to force
+ * the fallback path for debugging.
+ *
+ * The child process sees a real terminal (isatty=true), enabling interactive
+ * programs like Claude Code to run in full interactive mode.
+ */
+export const spawnPty = async (opts: PtyOptions): Promise<PtyProcess> => {
+  let force: string | undefined;
+  try {
+    force = crossRuntime.runtime.env.get("ESERSTACK_PTY");
+  } catch {
+    // env not accessible — ignore
+  }
+
+  let nativeAvailable = false;
+  if (force !== "script") {
+    try {
+      await ensureLib();
+      nativeAvailable = getLib() !== null;
+    } catch {
+      // native library not loadable — fall back to script
+      nativeAvailable = false;
+    }
+  }
+
+  if (nativeAvailable) {
+    // The native library is loaded: use it and let genuine spawn errors (e.g. a
+    // missing command) propagate to the caller, rather than masking them behind
+    // a different, less specific failure from the script fallback.
+    return await spawnPtyGo(opts);
+  }
+
+  return spawnPtyScript(opts);
+};
+
+/**
+ * Spawn a process with a real PTY via the `script` wrapper (fallback path).
  */
 // deno-lint-ignore require-await
-export const spawnPty = async (opts: PtyOptions): Promise<PtyProcess> => {
+const spawnPtyScript = async (opts: PtyOptions): Promise<PtyProcess> => {
   const { runtime } = crossRuntime;
   const userArgs = opts.args !== undefined ? [...opts.args] : [];
   const wrapped = buildPtyCommand(opts.command, userArgs);

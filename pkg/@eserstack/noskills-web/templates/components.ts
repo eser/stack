@@ -7,10 +7,7 @@
  */
 
 import type * as dashboard from "@eserstack/noskills/dashboard";
-
-const escHtml = (s: string): string =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+import { escHtml } from "./escape.ts";
 
 // =============================================================================
 // Phase badge
@@ -73,14 +70,16 @@ export const tabBar = (
   tabs: readonly TabInfo[],
   activeTabId: string | null,
 ): string => {
-  const items = tabs.map((t) => {
+  const items = tabs.map((t, i) => {
     const active = t.id === activeTabId ? " active" : "";
     const label = t.specName !== null
       ? `${escHtml(t.specName)}${t.phase ? ` (${t.phase})` : ""}`
       : "IDLE";
+    // data-index drives the client's gotoTab so SSR tabs are switchable before
+    // the /mux socket re-renders the bar (the client keys off data-index).
     return `<button class="tab${active}" data-tab="${
       escHtml(t.id)
-    }">${label}<span class="tab-close" data-close="${
+    }" data-index="${i}">${label}<span class="tab-close" data-close="${
       escHtml(t.id)
     }">&times;</span></button>`;
   }).join("");
@@ -132,11 +131,9 @@ export const pendingMentions = (
 // Terminal container
 // =============================================================================
 
-export const terminalContainer = (tabId: string | null): string => {
-  if (tabId === null) {
-    return `<div class="terminal-container"><div class="terminal-placeholder">No tab selected. Click + to create one.</div></div>`;
-  }
-  return `<div class="terminal-container" id="terminal-container" data-tab="${
-    escHtml(tabId)
-  }"></div>`;
-};
+// The mux frontend (client.js) fills this container with one xterm.js per pane,
+// positioned from the scene geometry it receives over the /mux WebSocket. It is
+// always rendered (even with no tabs) so the browser has a mount point; an empty
+// multiplexer just shows a black canvas plus the "+" in the tab bar.
+export const terminalContainer = (): string =>
+  `<div class="terminal-container" id="terminal-container"></div>`;

@@ -1,9 +1,0 @@
-{
-  "name": "@eserstack/formats",
-  "version": "4.1.57",
-  "exports": {
-    ".": "./mod.ts",
-    "./business": "./business/mod.ts",
-    "./adapters/ffi": "./adapters/ffi/mod.ts"
-  }
-}

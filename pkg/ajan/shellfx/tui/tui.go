@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -49,7 +50,15 @@ type KeypressReader struct {
 	once   sync.Once
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+	reader io.Reader
 }
+
+// closeWaitTimeout bounds how long Close waits for the read goroutine to
+// unwind. Close is reached from a synchronous FFI symbol
+// (EserAjanShellTuiKeypressClose), so a hang here stalls the calling JS
+// runtime's main thread. It must return even on a platform where the pending
+// read cannot be interrupted.
+const closeWaitTimeout = 2 * time.Second
 
 // NewKeypressReader creates a reader from r and immediately starts the read
 // goroutine. r is typically os.Stdin for production; use io.Pipe for tests.
@@ -59,6 +68,7 @@ func NewKeypressReader(ctx context.Context, r io.Reader) *KeypressReader {
 		events: make(chan KeypressEvent, 64),
 		done:   make(chan struct{}),
 		cancel: cancel,
+		reader: r,
 	}
 
 	kr.wg.Add(1)
@@ -118,9 +128,39 @@ func (kr *KeypressReader) Read() (KeypressEvent, bool) {
 
 // Close cancels the read loop, waits for all goroutines to exit, then
 // signals done so subsequent Read calls return false.
+//
+// Close never blocks indefinitely. readLoop only checks ctx *between* reads, so
+// a goroutine parked inside r.Read (raw-mode stdin, which blocks until a key
+// arrives) cannot see the cancel at all -- waiting on it unconditionally hung
+// until the user happened to press a key.
 func (kr *KeypressReader) Close() {
 	kr.cancel()
-	kr.wg.Wait()
+
+	// Expiring the read deadline interrupts the pending read without closing
+	// the caller's descriptor. A terminal stdin is pollable, so this is the
+	// common path; readers that do not support deadlines fall through to the
+	// bounded wait below.
+	if rd, ok := kr.reader.(interface {
+		SetReadDeadline(t time.Time) error
+	}); ok {
+		_ = rd.SetReadDeadline(time.Now())
+	}
+
+	waited := make(chan struct{})
+
+	go func() {
+		kr.wg.Wait()
+		close(waited)
+	}()
+
+	select {
+	case <-waited:
+	case <-time.After(closeWaitTimeout):
+		// The read could not be interrupted on this platform. Returning is
+		// still correct: the context is cancelled, so readLoop publishes
+		// nothing further and exits on its next read.
+	}
+
 	kr.once.Do(func() { close(kr.done) })
 }
 

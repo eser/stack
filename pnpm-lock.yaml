@@ -777,6 +777,9 @@ importers:
 
   pkg/@eserstack/noskills-client:
     dependencies:
+      '@eserstack/mux':
+        specifier: workspace:*
+        version: link:../mux
       '@eserstack/webtransport':
         specifier: workspace:*
         version: link:../webtransport
@@ -786,6 +789,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.2.112
         version: 0.2.141(zod@4.4.3)
+      '@eserstack/mux':
+        specifier: workspace:*
+        version: link:../mux
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -796,6 +802,12 @@ importers:
 
   pkg/@eserstack/noskills-web:
     dependencies:
+      '@eserstack/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@eserstack/mux':
+        specifier: workspace:*
+        version: link:../mux
       '@eserstack/noskills':
         specifier: workspace:*
         version: link:../noskills

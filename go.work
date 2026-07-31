@@ -1,0 +1,19 @@
+go 1.25.0
+
+use (
+	.
+	./pkg/@eserstack/ajan
+)
+
+// The root module pulls golangci-lint (a `tool` dependency), which drags in
+// spf13/viper v1.12.0 -> cloud.google.com/go/compute v1.6.1. That version still
+// vendors the `metadata` package, which has since been split into its own
+// module (cloud.google.com/go/compute/metadata) that pkg/@eserstack/ajan
+// depends on. In workspace mode both land in one module graph and every build
+// fails with "ambiguous import: found package
+// cloud.google.com/go/compute/metadata in multiple modules". Bumping compute
+// past the split resolves it.
+//
+// This lives in go.work rather than either go.mod so neither published module's
+// dependency set changes -- it only affects local/CI workspace builds.
+replace cloud.google.com/go/compute => cloud.google.com/go/compute v1.65.0

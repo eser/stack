@@ -4,10 +4,32 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sync/atomic"
 	"time"
 )
+
+// drainLimit bounds how much of a discarded response body we read back before
+// closing. Draining is what lets net/http hand the connection to the idle pool;
+// the cap stops a huge error body from stalling the retry.
+const drainLimit = 64 << 10
+
+// drainAndClose releases a response that will not be returned to the caller.
+//
+// Closing alone is not enough: net/http only reuses a connection whose body was
+// read to completion, so a bare Close forces a fresh TCP+TLS handshake for every
+// retry. Leaving it entirely unclosed -- the original behaviour -- leaks the
+// connection outright, and with this package's default zero client timeout it is
+// never reclaimed.
+func drainAndClose(resp *http.Response) {
+	if resp == nil || resp.Body == nil {
+		return
+	}
+
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, drainLimit))
+	_ = resp.Body.Close()
+}
 
 type contextRetryKey struct{}
 
@@ -115,6 +137,8 @@ func (t *ResilientTransport) RoundTrip( //nolint:cyclop,gocognit,funlen
 
 		// Check circuit breaker after failure (only if enabled)
 		if t.Config.CircuitBreaker.Enabled && !t.CircuitBreaker.IsAllowed() {
+			drainAndClose(resp)
+
 			return nil, ErrCircuitOpen
 		}
 
@@ -122,6 +146,12 @@ func (t *ResilientTransport) RoundTrip( //nolint:cyclop,gocognit,funlen
 		if !t.Config.RetryStrategy.Enabled || attempt == maxAttempts-1 {
 			break
 		}
+
+		// About to retry: this response never reaches the caller, so release it
+		// here or the connection leaks for every failed attempt.
+		drainAndClose(resp)
+
+		resp = nil
 	}
 
 	// Handle final response based on what we have
@@ -138,6 +168,8 @@ func (t *ResilientTransport) RoundTrip( //nolint:cyclop,gocognit,funlen
 	if resp != nil && resp.StatusCode >= t.Config.ServerErrorThreshold {
 		// If retries were enabled and exhausted, return retry error
 		if t.Config.RetryStrategy.Enabled && maxAttempts > 1 {
+			drainAndClose(resp)
+
 			return nil, ErrMaxRetries
 		}
 		// Otherwise return the server error response
@@ -205,5 +237,29 @@ func (t *ResilientTransport) handleRetry(req *http.Request, attempt uint) (*http
 	case <-timer.C:
 	}
 
-	return req.Clone(req.Context()), nil
+	cloned := req.Clone(req.Context())
+
+	// Clone shallow-copies Body, and the previous attempt already drained it.
+	//
+	// For bodies net/http recognises (bytes.Reader, strings.Reader, bytes.Buffer)
+	// the transport rewinds internally via GetBody, which masks the problem. For
+	// any other reader it does not: the retry then sends an EMPTY body, the
+	// server processes it, and a 200 comes back -- silent data loss with no
+	// error anywhere. Rewinding explicitly here makes every attempt carry the
+	// payload regardless of body type. RoundTrip already refuses bodies without
+	// GetBody, so it is always available.
+	if req.Body != nil {
+		if req.GetBody == nil {
+			return nil, ErrRequestBodyNotRetriable
+		}
+
+		body, err := req.GetBody()
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrRequestBodyNotRetriable, err)
+		}
+
+		cloned.Body = body
+	}
+
+	return cloned, nil
 }

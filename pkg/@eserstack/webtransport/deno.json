@@ -1,9 +1,0 @@
-{
-  "name": "@eserstack/webtransport",
-  "version": "4.1.57",
-  "exports": {
-    ".": "./mod.ts",
-    "./client": "./client.ts",
-    "./types": "./types.ts"
-  }
-}

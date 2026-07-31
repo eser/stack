@@ -144,7 +144,7 @@ func (m *ClaudeCodeModel) StreamText(
 
 // processStream reads from the subprocess stdout and sends events to eventCh.
 func (m *ClaudeCodeModel) processStream(
-	_ context.Context,
+	ctx context.Context,
 	proc *CliProcess,
 	streamFormat string,
 	eventCh chan<- StreamEvent,
@@ -160,7 +160,7 @@ func (m *ClaudeCodeModel) processStream(
 	}()
 
 	if streamFormat == "stream-json" {
-		ParseJsonlStream(proc.Stdout, eventCh, mapClaudeCodeStreamEvent)
+		ParseJsonlStream(ctx, proc.Stdout, eventCh, mapClaudeCodeStreamEvent)
 	} else {
 		// Raw text streaming: each read chunk becomes a content delta.
 		buf := make([]byte, 4096) //nolint:mnd
@@ -168,7 +168,7 @@ func (m *ClaudeCodeModel) processStream(
 		for {
 			n, readErr := proc.Stdout.Read(buf)
 			if n > 0 {
-				eventCh <- newStreamEventContentDelta(string(buf[:n]))
+				sendStreamEvent(ctx, eventCh, newStreamEventContentDelta(string(buf[:n])))
 			}
 
 			if readErr != nil {
@@ -181,20 +181,20 @@ func (m *ClaudeCodeModel) processStream(
 	stderr := <-stderrCh
 
 	if waitErr != nil {
-		eventCh <- newStreamEventError(fmt.Errorf("%w: wait: %w", ErrClaudeCodeStreamFailed, waitErr))
+		sendStreamEvent(ctx, eventCh, newStreamEventError(fmt.Errorf("%w: wait: %w", ErrClaudeCodeStreamFailed, waitErr)))
 
 		return
 	}
 
 	if exitErr := ClassifyExitCode(claudeCodeProviderName, exitCode, stderr); exitErr != nil {
-		eventCh <- newStreamEventError(fmt.Errorf("%w: %w", ErrClaudeCodeStreamFailed, exitErr))
+		sendStreamEvent(ctx, eventCh, newStreamEventError(fmt.Errorf("%w: %w", ErrClaudeCodeStreamFailed, exitErr)))
 
 		return
 	}
 
 	if streamFormat != "stream-json" {
 		// For raw text streaming, emit the done event here.
-		eventCh <- newStreamEventDone(StopReasonEndTurn, &Usage{})
+		sendStreamEvent(ctx, eventCh, newStreamEventDone(StopReasonEndTurn, &Usage{}))
 	}
 }
 

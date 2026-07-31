@@ -267,7 +267,7 @@ func TestParseJsonlStream(t *testing.T) {
 		reader := bytes.NewBufferString(input)
 		ch := make(chan StreamEvent, 10)
 
-		ParseJsonlStream(reader, ch, func(raw json.RawMessage) *StreamEvent {
+		ParseJsonlStream(t.Context(), reader, ch, func(raw json.RawMessage) *StreamEvent {
 			var m map[string]string
 			_ = json.Unmarshal(raw, &m)
 
@@ -293,7 +293,7 @@ func TestParseJsonlStream(t *testing.T) {
 		reader := bytes.NewBufferString(input)
 		ch := make(chan StreamEvent, 10)
 
-		ParseJsonlStream(reader, ch, func(raw json.RawMessage) *StreamEvent {
+		ParseJsonlStream(t.Context(), reader, ch, func(raw json.RawMessage) *StreamEvent {
 			var m map[string]string
 			_ = json.Unmarshal(raw, &m)
 
@@ -321,7 +321,7 @@ func TestParseJsonlStream(t *testing.T) {
 		reader := bytes.NewBufferString(input)
 		ch := make(chan StreamEvent, 10)
 
-		ParseJsonlStream(reader, ch, func(_ json.RawMessage) *StreamEvent {
+		ParseJsonlStream(t.Context(), reader, ch, func(_ json.RawMessage) *StreamEvent {
 			return nil
 		})
 
@@ -339,7 +339,7 @@ func TestParseJsonlStream(t *testing.T) {
 		reader := bytes.NewBufferString(input)
 		ch := make(chan StreamEvent, 10)
 
-		ParseJsonlStream(reader, ch, func(raw json.RawMessage) *StreamEvent {
+		ParseJsonlStream(t.Context(), reader, ch, func(raw json.RawMessage) *StreamEvent {
 			var m map[string]string
 			_ = json.Unmarshal(raw, &m)
 

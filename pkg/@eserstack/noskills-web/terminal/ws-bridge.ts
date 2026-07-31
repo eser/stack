@@ -13,8 +13,15 @@
 
 import * as mux from "@eserstack/mux";
 import type { MuxHost } from "./mux-host.ts";
+import { sanitizeRemoteMessage } from "./sanitize.ts";
 
-/** Handle a WebSocket upgrade and attach it to the mux server. */
+/**
+ * Handle a WebSocket upgrade and attach it to the mux server.
+ *
+ * The caller is responsible for authenticating the upgrade (see `../auth.ts`);
+ * by the time this runs the request has already cleared the Origin and token
+ * checks.
+ */
 export const handleMuxWs = (request: Request, host: MuxHost): Response => {
   const { socket, response } = Deno.upgradeWebSocket(request);
 
@@ -24,10 +31,20 @@ export const handleMuxWs = (request: Request, host: MuxHost): Response => {
   // the onMessage handler is set before any frame can arrive (the WS spec fires
   // `open` before any `message`). onClose drops the sink so the server stops
   // addressing a dead socket; the server keeps every pane alive for reconnect.
-  const transport = mux.wsTransport<mux.ServerToFrontend, mux.FrontendToServer>(
+  const raw = mux.wsTransport<mux.ServerToFrontend, mux.FrontendToServer>(
     socket,
     { onClose: () => host.server.disconnect(transport) },
   );
+
+  // Every inbound frame crosses a trust boundary here. Sanitizing in the
+  // transport wrapper (rather than at each call site downstream) means no
+  // future handler can accidentally consume the unsanitized form.
+  const transport: mux.Transport<mux.ServerToFrontend, mux.FrontendToServer> = {
+    send: (msg) => raw.send(msg),
+    onMessage: (handler) =>
+      raw.onMessage((msg) => handler(sanitizeRemoteMessage(msg))),
+    close: () => raw.close(),
+  };
 
   host.server.connect(transport);
 

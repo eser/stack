@@ -263,7 +263,164 @@ func bridgeShutdown() {
 	initMu.Lock()
 	defer initMu.Unlock()
 
+	if !initialized {
+		return
+	}
+
 	initialized = false
+
+	closeAllHandles()
+}
+
+// closeAllHandles drains every handle registry and releases the resource behind
+// each live handle.
+//
+// Handles are caller-owned during normal operation: every Create has a matching
+// Close on the TypeScript side, and callers do release them. This is the
+// backstop for a host that tears the library down without releasing everything
+// first -- without it, child processes and PTY sessions survive shutdown.
+func closeAllHandles() {
+	// Snapshot each registry and clear it under its own lock, then release
+	// outside the lock. Several release paths block (wg.Wait, process reap) and
+	// must not hold a registry mutex while they do.
+	handleMu.Lock()
+
+	streams := make([]*streamState, 0, len(streamHandles))
+	for _, s := range streamHandles {
+		streams = append(streams, s)
+	}
+
+	models := make([]aifx.LanguageModel, 0, len(modelHandles))
+	for _, m := range modelHandles {
+		models = append(models, m)
+	}
+
+	execs := make([]*shellfxexec.ChildProcessHandle, 0, len(execHandles))
+	for _, h := range execHandles {
+		execs = append(execs, h)
+	}
+
+	ptys := make([]*shellfxpty.Session, 0, len(ptyHandles))
+	for _, s := range ptyHandles {
+		ptys = append(ptys, s)
+	}
+
+	keypresses := make([]*shelltui.KeypressReader, 0, len(tuiKeypressHandles))
+	for _, r := range tuiKeypressHandles {
+		keypresses = append(keypresses, r)
+	}
+
+	clear(streamHandles)
+	clear(modelHandles)
+	clear(execHandles)
+	clear(ptyHandles)
+	clear(tokenizerHandles)
+	clear(tuiKeypressHandles)
+	handleMu.Unlock()
+
+	httpStreamMu.Lock()
+
+	httpStreams := make([]*httpStreamEntry, 0, len(httpStreamHandles))
+	for _, e := range httpStreamHandles {
+		httpStreams = append(httpStreams, e)
+	}
+
+	clear(httpStreamHandles)
+	httpStreamMu.Unlock()
+
+	codebaseWalkStreamMu.Lock()
+
+	walks := make([]*codebaseWalkStreamState, 0, len(codebaseWalkStreamHandles))
+	for _, s := range codebaseWalkStreamHandles {
+		walks = append(walks, s)
+	}
+
+	clear(codebaseWalkStreamHandles)
+	codebaseWalkStreamMu.Unlock()
+
+	codebaseValidateStreamMu.Lock()
+
+	validates := make(
+		[]*codebaseValidateStreamState,
+		0,
+		len(codebaseValidateStreamHandles),
+	)
+	for _, s := range codebaseValidateStreamHandles {
+		validates = append(validates, s)
+	}
+
+	clear(codebaseValidateStreamHandles)
+	codebaseValidateStreamMu.Unlock()
+
+	// These registries hold no OS resource of their own; dropping the entries
+	// is the whole release path (matching their per-handle Close functions).
+	httpMu.Lock()
+	clear(httpClientHandles)
+	httpMu.Unlock()
+
+	logMu.Lock()
+	clear(logHandles)
+	logMu.Unlock()
+
+	cacheMu.Lock()
+	clear(cacheHandles)
+	cacheMu.Unlock()
+
+	postsHandleMu.Lock()
+	clear(postsHandles)
+	postsHandleMu.Unlock()
+
+	// Cancel producers before reaping them so the blocking waits below return.
+	for _, s := range streams {
+		s.cancel()
+	}
+
+	for _, s := range walks {
+		s.cancel()
+	}
+
+	for _, s := range validates {
+		s.cancel()
+	}
+
+	for _, s := range streams {
+		s.wg.Wait()
+	}
+
+	for _, s := range walks {
+		s.wg.Wait()
+	}
+
+	for _, s := range validates {
+		s.wg.Wait()
+	}
+
+	for _, e := range httpStreams {
+		e.mu.Lock()
+
+		if !e.done {
+			e.done = true
+			e.body.Close() //nolint:errcheck,gosec // best-effort teardown
+		}
+
+		e.mu.Unlock()
+	}
+
+	for _, m := range models {
+		_ = m.Close(context.Background())
+	}
+
+	for _, h := range execs {
+		_ = h.Close()
+	}
+
+	for _, s := range ptys {
+		_ = s.Close()
+	}
+
+	for _, r := range keypresses {
+		r.Close()
+	}
 }
 
 // bridgeDIResolve is a stub for future ajan bridge DI resolution.
@@ -354,7 +511,7 @@ func bridgeAiStreamText(modelHandle, optionsJSON string) string {
 		return errorResponse("invalid options: " + err.Error())
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // cancel is stored in state.cancel and invoked by Close and by the drain path in ...StreamRead
 
 	iter, err := model.StreamText(ctx, opts)
 	if err != nil {
@@ -429,6 +586,8 @@ func bridgeAiCloseModel(modelHandle string) string {
 }
 
 // bridgeAiFreeStream cancels and removes a stream handle.
+//
+//nolint:unparam // uniform string return is part of the exported C ABI
 func bridgeAiFreeStream(streamHandle string) string {
 	handleMu.Lock()
 	state, ok := streamHandles[streamHandle]
@@ -914,7 +1073,7 @@ func bridgeHttpRequest(requestJSON string) string {
 	if err != nil {
 		return marshalResponse(httpResponseOutput{Error: "request failed: " + err.Error(), Retries: retries}) //nolint:exhaustruct
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer resp.Body.Close() //nolint:errcheck,gosec // body already drained above
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -1051,7 +1210,7 @@ func bridgeHttpRequestStream(requestJSON string) string {
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		resp.Body.Close() //nolint:errcheck
+		resp.Body.Close() //nolint:errcheck,gosec // body already drained above
 		respHeaders := make(map[string]string, len(resp.Header))
 		for k, vals := range resp.Header {
 			if len(vals) > 0 {
@@ -1114,7 +1273,7 @@ func bridgeHttpStreamRead(handle string) string {
 		chunk := base64.StdEncoding.EncodeToString(buf[:n])
 		if err == io.EOF {
 			entry.done = true
-			entry.body.Close() //nolint:errcheck
+			entry.body.Close() //nolint:errcheck,gosec // best-effort teardown
 		}
 
 		return marshalResponse(httpStreamReadOutput{Chunk: chunk, Done: entry.done}) //nolint:exhaustruct
@@ -1122,14 +1281,14 @@ func bridgeHttpStreamRead(handle string) string {
 
 	if err == io.EOF {
 		entry.done = true
-		entry.body.Close() //nolint:errcheck
+		entry.body.Close() //nolint:errcheck,gosec // best-effort teardown
 
 		return marshalResponse(httpStreamReadOutput{Done: true}) //nolint:exhaustruct
 	}
 
 	if err != nil {
 		entry.done = true
-		entry.body.Close() //nolint:errcheck
+		entry.body.Close() //nolint:errcheck,gosec // best-effort teardown
 
 		return errorResponse("stream read error: " + err.Error())
 	}
@@ -1157,7 +1316,7 @@ func bridgeHttpStreamClose(handle string) string {
 
 	if !entry.done {
 		entry.done = true
-		entry.body.Close() //nolint:errcheck
+		entry.body.Close() //nolint:errcheck,gosec // best-effort teardown
 	}
 
 	return "{}"
@@ -2675,6 +2834,8 @@ func bridgeCacheClear(requestJSON string) string {
 }
 
 // bridgeCacheClose removes a cache handle and frees the reference.
+//
+//nolint:unparam // uniform string return is part of the exported C ABI
 func bridgeCacheClose(requestJSON string) string {
 	var req cacheHandleRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
@@ -3956,7 +4117,7 @@ func bridgeCodebaseWalkFilesStreamCreate(requestJSON string) string {
 		return marshalError("invalid request JSON: " + err.Error())
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // cancel is stored in state.cancel and invoked by Close and by the drain path in ...StreamRead
 
 	state := &codebaseWalkStreamState{
 		ch:     make(chan string, 64),
@@ -4030,6 +4191,10 @@ func bridgeCodebaseWalkFilesStreamRead(handle string) string {
 		delete(codebaseWalkStreamHandles, handle)
 		codebaseWalkStreamMu.Unlock()
 
+		// The producer finished on its own, so Close will never run for this
+		// handle. Release the context here or its resources outlive the stream.
+		state.cancel()
+
 		return "null"
 	}
 
@@ -4037,6 +4202,8 @@ func bridgeCodebaseWalkFilesStreamRead(handle string) string {
 }
 
 // bridgeCodebaseWalkFilesStreamClose cancels and removes a walk stream handle.
+//
+//nolint:unparam // uniform string return is part of the exported C ABI
 func bridgeCodebaseWalkFilesStreamClose(handle string) string {
 	codebaseWalkStreamMu.Lock()
 	state, ok := codebaseWalkStreamHandles[handle]
@@ -4063,7 +4230,7 @@ func bridgeCodebaseValidateFilesStreamCreate(requestJSON string) string {
 		return marshalError("invalid request JSON: " + err.Error())
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // cancel is stored in state.cancel and invoked by Close and by the drain path in ...StreamRead
 
 	state := &codebaseValidateStreamState{
 		ch:     make(chan string, 16),
@@ -4155,6 +4322,10 @@ func bridgeCodebaseValidateFilesStreamRead(handle string) string {
 		delete(codebaseValidateStreamHandles, handle)
 		codebaseValidateStreamMu.Unlock()
 
+		// The producer finished on its own, so Close will never run for this
+		// handle. Release the context here or its resources outlive the stream.
+		state.cancel()
+
 		return "null"
 	}
 
@@ -4162,6 +4333,8 @@ func bridgeCodebaseValidateFilesStreamRead(handle string) string {
 }
 
 // bridgeCodebaseValidateFilesStreamClose cancels and removes a validate stream handle.
+//
+//nolint:unparam // uniform string return is part of the exported C ABI
 func bridgeCodebaseValidateFilesStreamClose(handle string) string {
 	codebaseValidateStreamMu.Lock()
 	state, ok := codebaseValidateStreamHandles[handle]

@@ -167,10 +167,12 @@ let currentAbortController: AbortController | null = null;
 
 // Minimal interface for what we call on the Claude Agent SDK.
 interface ClaudeSDK {
-  // deno-lint-ignore no-explicit-any
+  // The SDK yields heterogeneous message objects. `unknown` rather than `any`
+  // so consumers have to narrow before use -- the shape is the SDK's to define,
+  // not ours to assert.
   query(
     opts: { prompt: AsyncIterable<string>; options: Record<string, unknown> },
-  ): AsyncIterable<any>;
+  ): AsyncIterable<unknown>;
 }
 
 let cachedSDK: ClaudeSDK | null = null;

@@ -1,9 +1,0 @@
-{
-  "name": "@eserstack/streams",
-  "version": "4.1.57",
-  "exports": {
-    ".": "./mod.ts",
-    "./span": "./span.ts",
-    "./renderers": "./renderers/mod.ts"
-  }
-}

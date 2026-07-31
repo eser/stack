@@ -1,0 +1,8 @@
+{
+  "//": "Fields the generated deno.json cannot derive from package.json. Merged in by etc/scripts/gen-jsr-manifests.ts.",
+  "tasks": {
+    "tui": "deno run --allow-net --allow-env --allow-read --allow-write adapters/tui/app.ts",
+    "test": "deno test --allow-env --allow-read",
+    "test:coverage": "deno test --coverage=etc/coverage --allow-env --allow-read && deno coverage etc/coverage"
+  }
+}

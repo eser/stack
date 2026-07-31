@@ -132,7 +132,12 @@ func (p *CliProcess) CaptureStderr() string {
 // ParseJsonlStream reads a JSONL stream line by line and sends each parsed
 // message to the provided event channel. Malformed lines are silently skipped.
 // The channel is closed when the stream ends or an error occurs.
-func ParseJsonlStream(reader io.Reader, eventCh chan<- StreamEvent, mapFn func(json.RawMessage) *StreamEvent) {
+func ParseJsonlStream(
+	ctx context.Context,
+	reader io.Reader,
+	eventCh chan<- StreamEvent,
+	mapFn func(json.RawMessage) *StreamEvent,
+) {
 	scanner := bufio.NewScanner(reader)
 
 	for scanner.Scan() {
@@ -148,7 +153,7 @@ func ParseJsonlStream(reader io.Reader, eventCh chan<- StreamEvent, mapFn func(j
 
 		event := mapFn(json.RawMessage(line))
 		if event != nil {
-			eventCh <- *event
+			sendStreamEvent(ctx, eventCh, *event)
 		}
 	}
 }

@@ -185,7 +185,15 @@ func (hs *HTTPService) Start(ctx context.Context) (func(), error) { //nolint:fun
 			slog.Int64("total_connections_served", hs.TotalConnections()),
 		)
 
-		newCtx, cancel := context.WithTimeout(ctx, hs.Config.GracefulShutdownTimeout)
+		// WithoutCancel is load-bearing: cleanup is invoked *because* ctx was
+		// cancelled, so deriving the shutdown deadline from ctx directly
+		// produced an already-cancelled context. Shutdown then returned
+		// immediately and severed every in-flight request, making
+		// GracefulShutdownTimeout dead configuration.
+		newCtx, cancel := context.WithTimeout(
+			context.WithoutCancel(ctx),
+			hs.Config.GracefulShutdownTimeout,
+		)
 		defer cancel()
 
 		err := hs.InnerServer.Shutdown(newCtx)

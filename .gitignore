@@ -43,3 +43,8 @@ node_modules/
 # Nix
 result
 result-*
+
+# Per-package JSR publish manifests are generated from package.json + VERSION
+# by etc/scripts/gen-jsr-manifests.ts. Hand-editing them reintroduces the
+# exports-map duplication (and the drift) they were removed to prevent.
+/pkg/@eserstack/*/deno.json

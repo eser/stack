@@ -1,0 +1,23 @@
+{
+  "//": "Fields the generated deno.json cannot derive from package.json. Merged in by etc/scripts/gen-jsr-manifests.ts.",
+  "publish": {
+    "include": [
+      "main.ts",
+      "options.ts",
+      "module.ts",
+      "cli.ts",
+      "commands/**/*.ts",
+      "domain/**/*.ts",
+      "adapters/**/*.ts",
+      "adapters/**/*.tsx",
+      "runtime/**/*.ts",
+      "config/**/*.ts",
+      "proxy/**/*.ts",
+      "error-formatting.ts",
+      "product-info.ts",
+      "package.json",
+      "README.md",
+      "LICENSE"
+    ]
+  }
+}

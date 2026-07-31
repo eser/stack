@@ -1,7 +1,0 @@
-{
-  "name": "@eserstack/app-runtime",
-  "version": "4.1.57",
-  "exports": {
-    ".": "./mod.ts"
-  }
-}

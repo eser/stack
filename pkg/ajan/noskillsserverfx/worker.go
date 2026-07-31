@@ -253,11 +253,18 @@ func (w *workerImpl) readLoop(logger *logfx.Logger) {
 	w.once.Do(func() { close(w.events) })
 }
 
+// sendLocked encodes msg onto the worker's stdin. The caller must already hold
+// w.mu -- w.mu is a plain sync.Mutex and is not reentrant, so any path that
+// already holds it must use this rather than send.
+func (w *workerImpl) sendLocked(msg any) error {
+	return w.enc.Encode(msg) //nolint:wrapcheck
+}
+
 func (w *workerImpl) send(msg any) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	return w.enc.Encode(msg) //nolint:wrapcheck
+	return w.sendLocked(msg)
 }
 
 func (w *workerImpl) SendQueryStart(ctx context.Context, cwd, sessionID, resume string) error {
@@ -315,7 +322,8 @@ func (w *workerImpl) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	_ = w.send(map[string]string{"type": "shutdown"})
+	// sendLocked, not send: we already hold w.mu and it is not reentrant.
+	_ = w.sendLocked(map[string]string{"type": "shutdown"})
 	_ = w.conn.Close()
 
 	if w.cmd.Process != nil {

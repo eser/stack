@@ -143,7 +143,7 @@ func (m *KiroModel) StreamText(
 // processStream reads stdout line by line, attempting JSON parse on each line.
 // Lines that fail JSON parse are emitted as plain text content deltas.
 func (m *KiroModel) processStream(
-	_ context.Context,
+	ctx context.Context,
 	proc *CliProcess,
 	eventCh chan<- StreamEvent,
 	cancel context.CancelFunc,
@@ -169,14 +169,14 @@ func (m *KiroModel) processStream(
 		if json.Valid([]byte(line)) {
 			event := mapKiroStreamEvent(json.RawMessage(line))
 			if event != nil {
-				eventCh <- *event
+				sendStreamEvent(ctx, eventCh, *event)
 
 				continue
 			}
 		}
 
 		// Fallback: emit as plain text delta.
-		eventCh <- newStreamEventContentDelta(line + "\n")
+		sendStreamEvent(ctx, eventCh, newStreamEventContentDelta(line+"\n"))
 	}
 
 	// Flush any partial last line (no trailing newline).
@@ -184,18 +184,22 @@ func (m *KiroModel) processStream(
 	stderr := <-stderrCh
 
 	if waitErr != nil {
-		eventCh <- newStreamEventError(fmt.Errorf("%w: wait: %w", ErrKiroStreamFailed, waitErr))
+		sendStreamEvent(ctx, eventCh, newStreamEventError(fmt.Errorf("%w: wait: %w", ErrKiroStreamFailed, waitErr)))
 
 		return
 	}
 
 	if exitErr := ClassifyExitCode(kiroProviderName, exitCode, stderr); exitErr != nil {
-		eventCh <- newStreamEventError(fmt.Errorf("%w: %w", ErrKiroStreamFailed, exitErr))
+		sendStreamEvent(ctx, eventCh, newStreamEventError(fmt.Errorf("%w: %w", ErrKiroStreamFailed, exitErr)))
 
 		return
 	}
 
-	eventCh <- newStreamEventDone(StopReasonEndTurn, &Usage{}) //nolint:exhaustruct
+	sendStreamEvent(
+		ctx,
+		eventCh,
+		newStreamEventDone(StopReasonEndTurn, &Usage{}), //nolint:exhaustruct
+	)
 }
 
 // buildArgs constructs the kiro CLI argument list.

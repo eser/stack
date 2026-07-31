@@ -22,8 +22,11 @@ type CircuitBreaker struct {
 	state           atomic.Int32 // CircuitState
 	lastFailureNano atomic.Int64 // Unix nanoseconds
 
+	// failureCount is atomic so OnSuccess can clear it on the lock-free fast
+	// path; every other mutation happens under mu.
+	failureCount atomic.Uint32
+
 	// Protected by mutex for state transitions
-	failureCount         uint
 	halfOpenSuccessCount uint
 	mu                   sync.Mutex
 }
@@ -81,8 +84,17 @@ func (cb *CircuitBreaker) IsAllowed() bool {
 func (cb *CircuitBreaker) OnSuccess() {
 	state := CircuitState(cb.state.Load())
 
-	// Fast path: if closed, nothing to do
+	// Fast path: a closed circuit still has to clear its failure tally.
+	//
+	// This reset is what makes the breaker count *consecutive* failures, as its
+	// README documents. Previously the fast path returned before reaching the
+	// StateClosed reset below, leaving that branch unreachable in normal
+	// operation: failureCount accumulated for the lifetime of the process, so
+	// the circuit eventually opened on failures spread across thousands of
+	// unrelated successful calls.
 	if state == StateClosed {
+		cb.failureCount.Store(0)
+
 		return
 	}
 
@@ -97,10 +109,10 @@ func (cb *CircuitBreaker) OnSuccess() {
 		cb.halfOpenSuccessCount++
 		if cb.halfOpenSuccessCount >= cb.Config.HalfOpenSuccessNeeded {
 			cb.state.Store(int32(StateClosed))
-			cb.failureCount = 0
+			cb.failureCount.Store(0)
 		}
 	case StateClosed:
-		cb.failureCount = 0
+		cb.failureCount.Store(0)
 	case StateOpen:
 		// Success in Open state should not happen (IsAllowed returns false),
 		// but if it does, do nothing and let the timeout handle the transition.
@@ -111,12 +123,12 @@ func (cb *CircuitBreaker) OnFailure() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 
-	cb.failureCount++
+	count := uint(cb.failureCount.Add(1))
 	cb.lastFailureNano.Store(time.Now().UnixNano())
 
 	state := CircuitState(cb.state.Load())
 	if state == StateHalfOpen ||
-		(state == StateClosed && cb.failureCount >= cb.Config.FailureThreshold) {
+		(state == StateClosed && count >= cb.Config.FailureThreshold) {
 		cb.state.Store(int32(StateOpen))
 	}
 }

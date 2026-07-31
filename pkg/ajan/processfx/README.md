@@ -124,10 +124,17 @@ type Process struct {
     Logger          *logfx.Logger
     Cancel          context.CancelFunc
     Signal          chan os.Signal
-    WaitGroups      map[string]*sync.WaitGroup
     ShutdownTimeout time.Duration
+    // unexported: a single sync.WaitGroup tracking every started goroutine,
+    // plus a mutex-guarded name slice for diagnostics (see RunningNames).
 }
 ```
+
+> **Changed:** `WaitGroups map[string]*sync.WaitGroup` was exported and written
+> by `StartGoroutine` with no synchronisation, so concurrent starts aborted the
+> process with `fatal error: concurrent map writes` — which `recover()` cannot
+> catch. It is now an unexported `sync.WaitGroup`. Use `RunningNames()` if you
+> need the registered goroutine names.
 
 #### Creating a Process
 
@@ -660,9 +667,16 @@ func main() {
 
 ProcessFX is designed to be thread-safe:
 
-- Safe to call `StartGoroutine` concurrently
+- Safe to call `StartGoroutine` concurrently — the goroutine registry is a
+  single `sync.WaitGroup` with a mutex-guarded name slice, so concurrent starts
+  need no external locking
 - Safe to call `Wait` and `Shutdown` from any goroutine
 - Internal wait groups and atomic operations ensure consistency
+
+`Wait` and `Shutdown` are separate steps and both are needed: `Wait` blocks
+until the context is cancelled, `Shutdown` then waits (bounded by
+`ShutdownTimeout`) for the managed goroutines to actually finish. Calling only
+`Wait` before returning from `main` races the cleanup goroutines into `os.Exit`.
 
 ## Performance Considerations
 

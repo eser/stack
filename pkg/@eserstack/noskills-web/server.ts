@@ -11,6 +11,7 @@ import * as api from "./routes/api.ts";
 import * as sse from "./routes/sse.ts";
 import { handleMuxWs } from "./terminal/ws-bridge.ts";
 import { MuxHost } from "./terminal/mux-host.ts";
+import * as auth from "./auth.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import { fromFileUrl, join, relative } from "@std/path";
 
@@ -60,10 +61,34 @@ const route = async (
   request: Request,
   root: string,
   host: MuxHost,
+  guard: { readonly token: string; readonly port: number },
 ): Promise<Response> => {
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;
+
+  // Anything that mutates server state, spawns a process, or opens the
+  // multiplexer socket must clear the trust boundary first. Reads of static
+  // assets and pages stay open so the dashboard can bootstrap and hand the
+  // browser its token.
+  const isMutating = method === "POST" || method === "DELETE" ||
+    method === "PUT" || method === "PATCH";
+
+  if (path === "/mux" || isMutating) {
+    if (!auth.isOriginAllowed(request, guard.port)) {
+      return auth.forbidden("origin not allowed");
+    }
+  }
+
+  if (isMutating && !auth.hasJsonContentType(request) && method !== "DELETE") {
+    // Blocks the form-postable content types, which are the ones a
+    // cross-origin page can send without triggering a preflight.
+    return auth.forbidden("expected application/json");
+  }
+
+  if (isMutating && !auth.hasValidHeaderToken(request, guard.token)) {
+    return auth.forbidden("missing or invalid token");
+  }
 
   // PWA root-level files — service worker must be at / scope, not /static/
   if (path === "/sw.js" && method === "GET") {
@@ -84,11 +109,22 @@ const route = async (
   }
 
   // WebSocket: the whole multiplexer rides one socket (scene + every pane).
+  //
+  // This socket can spawn PTYs, so it is the highest-value route on the server.
+  // WebSockets are exempt from the same-origin policy, which means binding to
+  // 127.0.0.1 keeps out nothing: any page the developer happens to visit can
+  // dial it. The token is what actually gates it — a browser can only learn it
+  // by reading the dashboard HTML, which the Origin check confines to us.
   if (path === "/mux") {
-    if (request.headers.get("upgrade")?.toLowerCase() === "websocket") {
-      return handleMuxWs(request, host);
+    if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+      return new Response("WebSocket upgrade required", { status: 426 });
     }
-    return new Response("WebSocket upgrade required", { status: 426 });
+
+    if (!auth.hasValidQueryToken(request, guard.token)) {
+      return auth.forbidden("missing or invalid token");
+    }
+
+    return handleMuxWs(request, host);
   }
 
   // API routes
@@ -141,7 +177,7 @@ const route = async (
 
   // Dashboard (home)
   if (path === "/" && method === "GET") {
-    return pages.handleDashboard(root, host);
+    return pages.handleDashboard(root, host, guard.token);
   }
 
   return new Response("Not found", { status: 404 });
@@ -155,16 +191,29 @@ export type ServerOptions = {
   readonly root: string;
   readonly port?: number;
   readonly open?: boolean;
+  /**
+   * Aborts the listener. Without it the only way to stop the server is the
+   * SIGINT handler, which makes it untestable in-process.
+   */
+  readonly signal?: AbortSignal;
 };
 
 export const startServer = async (opts: ServerOptions): Promise<void> => {
   const port = opts.port ?? 3000;
   const host = new MuxHost(opts.root);
 
-  const handler = (request: Request): Promise<Response> =>
-    route(request, opts.root, host);
+  // Minted per process unless the operator supplied one. The dashboard embeds
+  // it so the browser can open /mux; nothing persists it to disk.
+  const token = auth.tokenFromEnv() ?? auth.createToken();
+  const guard = { token, port } as const;
 
-  const server = Deno.serve({ port, hostname: "127.0.0.1" }, handler);
+  const handler = (request: Request): Promise<Response> =>
+    route(request, opts.root, host, guard);
+
+  const server = Deno.serve(
+    { port, hostname: "127.0.0.1", signal: opts.signal },
+    handler,
+  );
 
   console.log(`noskills web → http://localhost:${port}`);
 

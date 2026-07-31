@@ -171,7 +171,16 @@ func (hs *HTTP3Service) Start(ctx context.Context) (func(), error) {
 	cleanup := func() {
 		hs.logger.InfoContext(ctx, "Shutting down HTTP3Service...")
 
-		shutCtx, cancel := context.WithTimeout(ctx, hs.Config.GracefulShutdownTimeout)
+		// WithoutCancel is load-bearing: cleanup is invoked *because* ctx was
+		// cancelled, so deriving the deadline from ctx yielded an
+		// already-cancelled context. On quic-go that is worse than a no-op --
+		// Shutdown observes the dead context and falls through to Close,
+		// force-killing live QUIC/WebTransport sessions instead of draining
+		// them.
+		shutCtx, cancel := context.WithTimeout(
+			context.WithoutCancel(ctx),
+			hs.Config.GracefulShutdownTimeout,
+		)
 		defer cancel()
 
 		shutErr := hs.InnerServer.Shutdown(shutCtx)

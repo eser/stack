@@ -37,15 +37,19 @@
  * @module
  */
 
-import { runtime } from "@eserstack/standards/cross-runtime";
-import * as stdPath from "@std/path";
+// This script deliberately uses no imports and no cross-runtime helpers.
+//
+// It runs BEFORE the package graph it generates manifests for, from etc/scripts/
+// which is not a workspace member -- so bare specifiers resolve against the root
+// deno.json, which declares no imports. Depending on @std/path here failed CI
+// with `Import "@std/path" not a dependency`. A bootstrap step must not depend
+// on what it bootstraps.
 
-const REPO_ROOT = stdPath.resolve(
-  stdPath.dirname(stdPath.fromFileUrl(import.meta.url)),
-  "../..",
-);
+/** Join path segments with "/" -- adequate here; Deno accepts "/" on Windows too. */
+const join = (...parts: string[]): string => parts.join("/");
 
-const PACKAGES_DIR = stdPath.join(REPO_ROOT, "pkg/@eserstack");
+const REPO_ROOT = join(import.meta.dirname ?? ".", "..", "..");
+const PACKAGES_DIR = join(REPO_ROOT, "pkg/@eserstack");
 
 /** Marker so a human (or a stray `git add`) can tell these are derived. */
 const GENERATED_NOTE =
@@ -61,14 +65,14 @@ type Manifest = {
 };
 
 const readJson = async (path: string): Promise<Record<string, unknown>> => {
-  const text = await runtime.fs.readTextFile(path);
+  const text = await Deno.readTextFile(path);
 
   return JSON.parse(text) as Record<string, unknown>;
 };
 
 const exists = async (path: string): Promise<boolean> => {
   try {
-    await runtime.fs.stat(path);
+    await Deno.stat(path);
 
     return true;
   } catch {
@@ -81,7 +85,7 @@ const buildManifest = async (
   pkgDir: string,
   version: string,
 ): Promise<Manifest | null> => {
-  const pkgJsonPath = stdPath.join(pkgDir, "package.json");
+  const pkgJsonPath = join(pkgDir, "package.json");
 
   if (!(await exists(pkgJsonPath))) {
     return null;
@@ -105,7 +109,7 @@ const buildManifest = async (
   };
 
   // Merge the irreducible bits that package.json cannot express.
-  const extraPath = stdPath.join(pkgDir, "deno.extra.json");
+  const extraPath = join(pkgDir, "deno.extra.json");
 
   if (await exists(extraPath)) {
     const extra = await readJson(extraPath);
@@ -128,25 +132,23 @@ const serialize = (manifest: Manifest): string =>
 const listPackageDirs = async (): Promise<string[]> => {
   const dirs: string[] = [];
 
-  for await (const entry of runtime.fs.readDir(PACKAGES_DIR)) {
+  for await (const entry of Deno.readDir(PACKAGES_DIR)) {
     if (!entry.isDirectory) {
       continue;
     }
 
-    dirs.push(stdPath.join(PACKAGES_DIR, entry.name));
+    dirs.push(join(PACKAGES_DIR, entry.name));
   }
 
   return dirs.sort();
 };
 
 const main = async (): Promise<void> => {
-  const args = runtime.process.args as string[];
+  const args = Deno.args;
   const check = args.includes("--check");
   const clean = args.includes("--clean");
 
-  const version =
-    (await runtime.fs.readTextFile(stdPath.join(REPO_ROOT, "VERSION")))
-      .trim();
+  const version = (await Deno.readTextFile(join(REPO_ROOT, "VERSION"))).trim();
 
   const dirs = await listPackageDirs();
 
@@ -155,7 +157,7 @@ const main = async (): Promise<void> => {
   const drifted: string[] = [];
 
   for (const dir of dirs) {
-    const target = stdPath.join(dir, "deno.json");
+    const target = join(dir, "deno.json");
     const manifest = await buildManifest(dir, version);
 
     if (manifest === null) {
@@ -163,7 +165,7 @@ const main = async (): Promise<void> => {
 
       // A stale manifest for a now-unpublishable package is still drift.
       if (clean && (await exists(target))) {
-        await runtime.fs.remove(target);
+        await Deno.remove(target);
       }
 
       continue;
@@ -173,7 +175,7 @@ const main = async (): Promise<void> => {
 
     if (clean) {
       if (await exists(target)) {
-        await runtime.fs.remove(target);
+        await Deno.remove(target);
         written++;
       }
 
@@ -182,17 +184,17 @@ const main = async (): Promise<void> => {
 
     if (check) {
       const actual = (await exists(target))
-        ? await runtime.fs.readTextFile(target)
+        ? await Deno.readTextFile(target)
         : "";
 
       if (actual !== expected) {
-        drifted.push(stdPath.relative(REPO_ROOT, target));
+        drifted.push(target);
       }
 
       continue;
     }
 
-    await runtime.fs.writeTextFile(target, expected);
+    await Deno.writeTextFile(target, expected);
     written++;
   }
 

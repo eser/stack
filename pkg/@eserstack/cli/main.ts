@@ -60,6 +60,13 @@ const app = cliModule
   .shortcut("update", "system update", "Update eser CLI to latest version")
   .shortcut("version", "system version", "Show version number")
   .shortcut("doctor", "system doctor", "Run diagnostic checks")
+  .lazyCommand("ajan", {
+    description: "Ajan native bridge commands",
+    load: async () => {
+      const mod = await import("./commands/ajan.ts");
+      return mod.ajanCommand;
+    },
+  })
   // Manifest scripts (loaded only on unrecognized commands)
   .fallback(async (commandName, args) => {
     const configManifest = await import("@eserstack/config/manifest");

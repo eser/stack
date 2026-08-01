@@ -45,7 +45,14 @@ const EXTERNAL_PACKAGES = [
   "tailwindcss",
   "@tailwindcss/*",
   "lightningcss",
-  // FFI / platform packages — loaded at runtime via dynamic import + dlopen
+  // FFI / platform packages — loaded at runtime via dynamic import + dlopen.
+  //
+  // `@eserstack/ajan` itself must be listed: the glob above only matches the
+  // hyphenated platform packages (ajan-darwin-arm64 etc), so without this the
+  // loader gets bundled and its `await import("@eserstack/ajan")` resolves
+  // against dist/, where nothing by that name exists -- which is what broke
+  // `eser ajan version` under node and bun.
+  "@eserstack/ajan",
   "@eserstack/ajan-*",
   "@eserstack/ajan-wasm",
   "koffi",
@@ -244,6 +251,10 @@ const main = async (): Promise<void> => {
     type: "module",
     bin: { eser: "./eser.js" },
     dependencies: {
+      // Range, not the version being released: that version is not on npm
+      // until the publish jobs run later in the same pipeline (see the 4.1.58
+      // lockfile deadlock). Matches how the platform packages are pinned.
+      "@eserstack/ajan": "^4.1.0",
       "@tailwindcss/oxide": "^4.1.8",
       koffi: "^2.15.0",
       lightningcss: "^1.30.0",

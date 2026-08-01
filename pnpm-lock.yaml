@@ -81,22 +81,22 @@ importers:
         version: 2.16.0
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
-        specifier: 4.1.57
-        version: 4.1.57
+        specifier: ^4.1.0
+        version: 4.1.56
       '@eserstack/ajan-darwin-x64':
-        specifier: 4.1.57
-        version: 4.1.57
+        specifier: ^4.1.0
+        version: 4.1.56
       '@eserstack/ajan-linux-arm64':
-        specifier: 4.1.57
+        specifier: ^4.1.0
         version: 4.1.57
       '@eserstack/ajan-linux-x64':
-        specifier: 4.1.57
+        specifier: ^4.1.0
         version: 4.1.57
       '@eserstack/ajan-wasm':
-        specifier: 4.1.57
-        version: 4.1.57
+        specifier: ^4.1.0
+        version: 4.1.56
       '@eserstack/ajan-win32-x64':
-        specifier: 4.1.57
+        specifier: ^4.1.0
         version: 4.1.57
 
   pkg/@eserstack/app-runtime:
@@ -1381,18 +1381,8 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
-  '@eserstack/ajan-darwin-arm64@4.1.57':
-    resolution: {integrity: sha512-nXHJKQE2XqYPbvbETIi+FZo6aQtJlm7NXVVzzFrFUw/raWtFlPJH2NSrz7h1oykzJFFjWVnBFqr5aVj8v0P3UA==}
-    cpu: [arm64]
-    os: [darwin]
-
   '@eserstack/ajan-darwin-x64@4.1.56':
     resolution: {integrity: sha512-N9icl8L0MR+1M+pkAkwYYOIlpMU0E8SLc1a9c6a10i3aVFQrL7VGMGB0aJrppGEYggNJfJVA1P7eEjBdnpb+Xg==}
-    cpu: [x64]
-    os: [darwin]
-
-  '@eserstack/ajan-darwin-x64@4.1.57':
-    resolution: {integrity: sha512-JsEGqalx7o2hEBgLetGaCzrh7gvxrNXpj49IyJShHAIe5SKoG6VDVBOodAByQZjYljZi9sQz+6CujR7DLXqNfA==}
     cpu: [x64]
     os: [darwin]
 
@@ -1408,9 +1398,6 @@ packages:
 
   '@eserstack/ajan-wasm@4.1.56':
     resolution: {integrity: sha512-1yannRSP5zx8EXqz12M0M6I5lg9IXqtYcLfe7jUB+mcMTjY90rAGZgKWVjwwoAov2J0E/CjDTdLsBzLixLf5Pw==}
-
-  '@eserstack/ajan-wasm@4.1.57':
-    resolution: {integrity: sha512-FW5pXr1EhPoEmqhcOROkONIhcw5atyeW6O2Mlg8ZFsloC0vRPU4ud+YzBv0LDsl6VcO4yl3aGOXQpx5SbsPYHA==}
 
   '@eserstack/ajan-win32-x64@4.1.57':
     resolution: {integrity: sha512-rd2nrqqbn8S+oKce7CASoehGB9U99t8ymbCMf1tduOndOL7p9M4CXO2XZCWdBTzRUL5PTC9c+v/+9H0hSkuSZA==}
@@ -2800,13 +2787,7 @@ snapshots:
   '@eserstack/ajan-darwin-arm64@4.1.56':
     optional: true
 
-  '@eserstack/ajan-darwin-arm64@4.1.57':
-    optional: true
-
   '@eserstack/ajan-darwin-x64@4.1.56':
-    optional: true
-
-  '@eserstack/ajan-darwin-x64@4.1.57':
     optional: true
 
   '@eserstack/ajan-linux-arm64@4.1.57':
@@ -2816,9 +2797,6 @@ snapshots:
     optional: true
 
   '@eserstack/ajan-wasm@4.1.56':
-    optional: true
-
-  '@eserstack/ajan-wasm@4.1.57':
     optional: true
 
   '@eserstack/ajan-win32-x64@4.1.57':

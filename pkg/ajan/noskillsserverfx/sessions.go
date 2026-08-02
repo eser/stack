@@ -29,6 +29,7 @@ type SessionManager struct {
 	mu       sync.Mutex
 	sessions map[string]*SessionEntry // key: "<slug>/<sid>"
 	kinds    map[string]string        // key: "<slug>/<sid>" → worker kind, set at create
+	pending  map[string]chan struct{} // key: "<slug>/<sid>" → in-flight creation
 	server   *Server
 	logger   *logfx.Logger
 }
@@ -37,6 +38,7 @@ func newSessionManager(server *Server, logger *logfx.Logger) *SessionManager {
 	return &SessionManager{
 		sessions: make(map[string]*SessionEntry),
 		kinds:    make(map[string]string),
+		pending:  make(map[string]chan struct{}),
 		server:   server,
 		logger:   logger,
 	}
@@ -60,78 +62,120 @@ func (sm *SessionManager) RecordKind(slug, sid, kind string) {
 // GetOrCreate looks up an existing session or creates a new one (spawning the
 // TS worker, opening the ledger, and starting the pump goroutine).
 // Returns the entry and whether it was newly created.
+//
+// Creation is expensive -- SpawnWorker carries a 30s deadline -- so it runs
+// with sm.mu released; holding the global session mutex across a spawn stalls
+// every other session operation behind the slowest one. To keep "one worker per
+// key" without the lock, the creating caller publishes a placeholder channel in
+// sm.pending and concurrent callers for the same key wait on that instead of
+// starting a second worker.
 func (sm *SessionManager) GetOrCreate(
 	ctx context.Context,
 	slug, sid, kind string,
 ) (*SessionEntry, bool, error) {
-	sm.mu.Lock()
-
 	key := sessionKey(slug, sid)
 
-	if e, ok := sm.sessions[key]; ok {
+	for {
+		sm.mu.Lock()
+
+		if e, ok := sm.sessions[key]; ok {
+			sm.mu.Unlock()
+
+			return e, false, nil
+		}
+
+		if done, ok := sm.pending[key]; ok {
+			sm.mu.Unlock()
+
+			select {
+			case <-done:
+				// The in-flight creation finished. It may have failed, so loop
+				// and re-check: this iteration either finds the entry or claims
+				// the creation itself.
+				continue
+			case <-ctx.Done():
+				return nil, false, ctx.Err() //nolint:wrapcheck
+			}
+		}
+
+		// The kind recorded at session-create wins over the per-attach query, so a
+		// session's worker flavour is fixed by its creation, not by whoever attaches.
+		effectiveKind := kind
+		if recorded, ok := sm.kinds[key]; ok {
+			effectiveKind = recorded
+		}
+
+		root, ok := sm.server.projectPath(slug)
+		if !ok {
+			sm.mu.Unlock()
+
+			return nil, false, fmt.Errorf("project %q not found", slug) //nolint:err113
+		}
+
+		dataDir := sm.server.config.DataDir
+
+		done := make(chan struct{})
+		sm.pending[key] = done
 		sm.mu.Unlock()
 
-		return e, false, nil
-	}
+		entry, err := sm.spawnSession(ctx, slug, sid, root, effectiveKind, dataDir)
 
-	// The kind recorded at session-create wins over the per-attach query, so a
-	// session's worker flavour is fixed by its creation, not by whoever attaches.
-	effectiveKind := kind
-	if recorded, ok := sm.kinds[key]; ok {
-		effectiveKind = recorded
-	}
+		sm.mu.Lock()
+		delete(sm.pending, key)
 
-	root, ok := sm.server.projectPath(slug)
-	if !ok {
+		if err == nil {
+			sm.sessions[key] = entry
+		}
+
 		sm.mu.Unlock()
+		close(done)
 
-		return nil, false, fmt.Errorf("project %q not found", slug) //nolint:err113
+		if err != nil {
+			return nil, false, err
+		}
+
+		go sm.runPump(entry)
+
+		return entry, true, nil
 	}
+}
 
+// spawnSession performs the expensive half of GetOrCreate. It must be called
+// with sm.mu released: it spawns a child process and opens a file, and on the
+// failure path it tears the worker back down (which kills that child).
+func (sm *SessionManager) spawnSession(
+	ctx context.Context,
+	slug, sid, root, kind, dataDir string,
+) (*SessionEntry, error) {
 	worker, err := SpawnWorker(
 		ctx,
 		sid,
 		root,
-		sm.server.config.DataDir,
+		dataDir,
 		"", // workerPath: resolved inside SpawnWorker
-		effectiveKind,
+		kind,
 		sm.logger,
 	)
 	if err != nil {
-		sm.mu.Unlock()
-
-		return nil, false, fmt.Errorf("spawn worker: %w", err)
+		return nil, fmt.Errorf("spawn worker: %w", err)
 	}
 
-	lpath := ledgerPath(sm.server.config.DataDir, root, sid)
-
-	ledger, err := openLedger(lpath)
+	ledger, err := openLedger(ledgerPath(dataDir, root, sid))
 	if err != nil {
 		_ = worker.Close()
-		sm.mu.Unlock()
 
-		return nil, false, fmt.Errorf("open ledger: %w", err)
+		return nil, fmt.Errorf("open ledger: %w", err)
 	}
 
-	entry := &SessionEntry{
+	return &SessionEntry{
 		SID:         sid,
 		Root:        root,
 		Slug:        slug,
-		Kind:        effectiveKind,
+		Kind:        kind,
 		Worker:      worker,
 		Ledger:      ledger,
 		Broadcaster: newFanoutBroadcaster(),
-	}
-
-	sm.sessions[key] = entry
-
-	// Release the lock before starting the goroutine to avoid holding it
-	// while the scheduler queues the pump.
-	sm.mu.Unlock()
-
-	go sm.runPump(entry)
-
-	return entry, true, nil
+	}, nil
 }
 
 // Remove cleans up a session entry. Called by the pump goroutine when the

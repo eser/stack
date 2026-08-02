@@ -1,7 +1,0 @@
-{
-  "name": "@eserstack/collector",
-  "version": "4.1.57",
-  "exports": {
-    ".": "./mod.ts"
-  }
-}

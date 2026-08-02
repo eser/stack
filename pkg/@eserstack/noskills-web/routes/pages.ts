@@ -16,6 +16,7 @@ import type { MuxHost } from "../terminal/mux-host.ts";
 export const handleDashboard = async (
   root: string,
   host: MuxHost,
+  token?: string,
 ): Promise<Response> => {
   const state = await dashboard.getState(root);
 
@@ -26,7 +27,7 @@ export const handleDashboard = async (
   }));
 
   const activeTabId = tabs.length > 0 ? tabs[0]!.id : null;
-  const html = renderDashboard(state, tabs, activeTabId);
+  const html = renderDashboard(state, tabs, activeTabId, token);
 
   return new Response(html, {
     headers: { "content-type": "text/html; charset=utf-8" },

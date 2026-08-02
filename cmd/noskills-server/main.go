@@ -155,6 +155,12 @@ func runStart(args []string) int {
 
 	process.Wait()
 
+	// Wait blocks until the context is cancelled, but it does not wait on the
+	// goroutines that context is telling to stop. Without Shutdown, returning
+	// here races the cleanup goroutine straight into os.Exit and truncates
+	// in-flight work.
+	process.Shutdown()
+
 	return 0
 }
 

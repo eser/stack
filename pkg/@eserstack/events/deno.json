@@ -1,9 +1,0 @@
-{
-  "name": "@eserstack/events",
-  "version": "4.1.57",
-  "exports": {
-    ".": "./mod.ts",
-    "./container": "./container.ts",
-    "./events": "./events.ts"
-  }
-}

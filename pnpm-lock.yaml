@@ -57,6 +57,9 @@ importers:
       '@eserstack/streams':
         specifier: workspace:*
         version: link:../streams
+      '@anthropic-ai/sdk':
+        specifier: ^0.91.1
+        version: 0.91.1
       '@google/genai':
         specifier: ^2.10.0
         version: 2.10.0(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))
@@ -81,22 +84,22 @@ importers:
         version: 3.1.0
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
-        specifier: 4.1.57
-        version: 4.1.57
+        specifier: ^4.1.0
+        version: 4.1.56
       '@eserstack/ajan-darwin-x64':
-        specifier: 4.1.57
-        version: 4.1.57
+        specifier: ^4.1.0
+        version: 4.1.56
       '@eserstack/ajan-linux-arm64':
-        specifier: 4.1.57
+        specifier: ^4.1.0
         version: 4.1.57
       '@eserstack/ajan-linux-x64':
-        specifier: 4.1.57
+        specifier: ^4.1.0
         version: 4.1.57
       '@eserstack/ajan-wasm':
-        specifier: 4.1.57
-        version: 4.1.57
+        specifier: ^4.1.0
+        version: 4.1.56
       '@eserstack/ajan-win32-x64':
-        specifier: 4.1.57
+        specifier: ^4.1.0
         version: 4.1.57
 
   pkg/@eserstack/app-runtime:
@@ -163,6 +166,9 @@ importers:
       '@eserstack/ai':
         specifier: workspace:*
         version: link:../ai
+      '@eserstack/ajan':
+        specifier: workspace:*
+        version: link:../ajan
       '@eserstack/codebase':
         specifier: workspace:*
         version: link:../codebase

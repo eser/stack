@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
@@ -45,7 +45,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/deno
@@ -84,7 +84,7 @@ jobs:
 
       - name: Upload coverage
         if: hashFiles('etc/coverage.lcov') != ''
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
@@ -104,7 +104,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -136,7 +136,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -146,7 +146,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/deno
@@ -298,7 +298,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -308,7 +308,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/deno
@@ -385,7 +385,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -395,7 +395,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/deno
@@ -418,6 +418,12 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # pkg/@eserstack/*/deno.json are generated from each package's
+      # package.json + the root VERSION file and are gitignored, so a fresh
+      # checkout has none. Without this step `deno publish` finds no packages.
+      - name: Generate JSR manifests
+        run: deno run -A ./etc/scripts/gen-jsr-manifests.ts
 
       - name: Publish to JSR
         run: deno publish
@@ -473,7 +479,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -483,7 +489,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/deno
@@ -519,7 +525,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -577,7 +583,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -587,7 +593,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/deno
@@ -730,7 +736,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -784,7 +790,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -794,7 +800,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/deno
@@ -838,7 +844,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -848,7 +854,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/deno

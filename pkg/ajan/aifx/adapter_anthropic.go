@@ -152,7 +152,7 @@ func (m *AnthropicModel) StreamText(
 
 	eventCh := make(chan StreamEvent, 64) //nolint:mnd
 
-	go m.runStreamReader(stream, eventCh, cancel)
+	go m.runStreamReader(streamCtx, stream, eventCh, cancel)
 
 	return NewStreamIterator(eventCh, cancel), nil
 }
@@ -278,6 +278,7 @@ func (m *AnthropicModel) CancelBatchJob(
 
 // runStreamReader reads from the Anthropic stream and pushes events to the channel.
 func (m *AnthropicModel) runStreamReader(
+	ctx context.Context,
 	stream *ssestream.Stream[anthropic.MessageStreamEventUnion],
 	eventCh chan<- StreamEvent,
 	cancel context.CancelFunc,
@@ -292,50 +293,52 @@ func (m *AnthropicModel) runStreamReader(
 
 		accErr := accumulated.Accumulate(event)
 		if accErr != nil {
-			eventCh <- newStreamEventError(
+			sendStreamEvent(ctx, eventCh, newStreamEventError(
 				classifyAnthropicError(ErrAnthropicStreamFailed, accErr),
-			)
+			))
 
 			return
 		}
 
 		switch variant := event.AsAny().(type) {
 		case anthropic.ContentBlockDeltaEvent:
-			m.handleContentBlockDelta(variant, eventCh)
+			m.handleContentBlockDelta(ctx, variant, eventCh)
 		case anthropic.MessageDeltaEvent:
-			m.handleMessageDelta(variant, &accumulated, eventCh)
+			m.handleMessageDelta(ctx, variant, &accumulated, eventCh)
 		}
 	}
 
 	if stream.Err() != nil {
-		eventCh <- newStreamEventError(
+		sendStreamEvent(ctx, eventCh, newStreamEventError(
 			classifyAnthropicError(ErrAnthropicStreamFailed, stream.Err()),
-		)
+		))
 
 		return
 	}
 
 	// Send final message-done event if not already sent via MessageDeltaEvent.
-	eventCh <- newStreamEventDone(
+	sendStreamEvent(ctx, eventCh, newStreamEventDone(
 		mapAnthropicStopReason(accumulated.StopReason),
 		newAnthropicUsage(accumulated.Usage.InputTokens, accumulated.Usage.OutputTokens),
-	)
+	))
 }
 
 func (m *AnthropicModel) handleContentBlockDelta(
+	ctx context.Context,
 	variant anthropic.ContentBlockDeltaEvent,
 	eventCh chan<- StreamEvent,
 ) {
 	switch delta := variant.Delta.AsAny().(type) {
 	case anthropic.TextDelta:
-		eventCh <- newStreamEventContentDelta(delta.Text)
+		sendStreamEvent(ctx, eventCh, newStreamEventContentDelta(delta.Text))
 	case anthropic.InputJSONDelta:
 		// Partial JSON for tool call arguments; accumulate and emit as delta.
-		eventCh <- newStreamEventToolCallTextDelta(delta.PartialJSON)
+		sendStreamEvent(ctx, eventCh, newStreamEventToolCallTextDelta(delta.PartialJSON))
 	}
 }
 
 func (m *AnthropicModel) handleMessageDelta(
+	ctx context.Context,
 	variant anthropic.MessageDeltaEvent,
 	accumulated *anthropic.Message,
 	eventCh chan<- StreamEvent,
@@ -348,20 +351,20 @@ func (m *AnthropicModel) handleMessageDelta(
 				continue
 			}
 
-			eventCh <- newStreamEventToolCall(&ToolCall{
+			sendStreamEvent(ctx, eventCh, newStreamEventToolCall(&ToolCall{
 				ID:        toolUse.ID,
 				Name:      toolUse.Name,
 				Arguments: inputJSON,
-			})
+			}))
 		}
 	}
 
 	outputTokens := accumulated.Usage.OutputTokens + variant.Usage.OutputTokens
 
-	eventCh <- newStreamEventDone(
+	sendStreamEvent(ctx, eventCh, newStreamEventDone(
 		mapAnthropicStopReason(variant.Delta.StopReason),
 		newAnthropicUsage(accumulated.Usage.InputTokens, outputTokens),
-	)
+	))
 }
 
 // buildMessageParams maps unified GenerateTextOptions to Anthropic MessageNewParams.

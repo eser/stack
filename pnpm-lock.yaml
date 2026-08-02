@@ -57,6 +57,9 @@ importers:
       '@eserstack/streams':
         specifier: workspace:*
         version: link:../streams
+      '@anthropic-ai/sdk':
+        specifier: ^0.91.1
+        version: 0.91.1
       '@google/genai':
         specifier: ^1.50.1
         version: 1.50.1(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))
@@ -81,22 +84,22 @@ importers:
         version: 2.16.0
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
-        specifier: 4.1.57
-        version: 4.1.57
+        specifier: ^4.1.0
+        version: 4.1.56
       '@eserstack/ajan-darwin-x64':
-        specifier: 4.1.57
-        version: 4.1.57
+        specifier: ^4.1.0
+        version: 4.1.56
       '@eserstack/ajan-linux-arm64':
-        specifier: 4.1.57
+        specifier: ^4.1.0
         version: 4.1.57
       '@eserstack/ajan-linux-x64':
-        specifier: 4.1.57
+        specifier: ^4.1.0
         version: 4.1.57
       '@eserstack/ajan-wasm':
-        specifier: 4.1.57
-        version: 4.1.57
+        specifier: ^4.1.0
+        version: 4.1.56
       '@eserstack/ajan-win32-x64':
-        specifier: 4.1.57
+        specifier: ^4.1.0
         version: 4.1.57
 
   pkg/@eserstack/app-runtime:
@@ -163,6 +166,9 @@ importers:
       '@eserstack/ai':
         specifier: workspace:*
         version: link:../ai
+      '@eserstack/ajan':
+        specifier: workspace:*
+        version: link:../ajan
       '@eserstack/codebase':
         specifier: workspace:*
         version: link:../codebase
@@ -777,6 +783,9 @@ importers:
 
   pkg/@eserstack/noskills-client:
     dependencies:
+      '@eserstack/mux':
+        specifier: workspace:*
+        version: link:../mux
       '@eserstack/webtransport':
         specifier: workspace:*
         version: link:../webtransport
@@ -786,6 +795,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.2.112
         version: 0.2.141(zod@4.4.3)
+      '@eserstack/mux':
+        specifier: workspace:*
+        version: link:../mux
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -796,6 +808,12 @@ importers:
 
   pkg/@eserstack/noskills-web:
     dependencies:
+      '@eserstack/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@eserstack/mux':
+        specifier: workspace:*
+        version: link:../mux
       '@eserstack/noskills':
         specifier: workspace:*
         version: link:../noskills
@@ -976,7 +994,6 @@ importers:
         version: '@jsr/std__assert@1.0.19'
 
 packages:
-
   '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.2.141':
     resolution: {integrity: sha512-9HZ0ot6+FwOfQ1aeMqQLH4IJGMm/DcP08SysDxscVjBm6l2JjqleHohxi3zid0DurfGweqT+4x9GScJffwg55g==}
     cpu: [arm64]
@@ -1027,8 +1044,8 @@ packages:
     peerDependencies:
       zod: ^4.0.0
 
-  '@anthropic-ai/sdk@0.89.0':
-    resolution: {integrity: sha512-nyGau0zex62EpU91hsHa0zod973YEoiMgzWZ9hC55WdiOLrE4AGpcg4wXI7lFqtvMLqMcLfewQU9sHgQB6psow==}
+  '@anthropic-ai/sdk@0.91.1':
+    resolution: {integrity: sha512-LAmu761tSN9r66ixvmciswUj/ZC+1Q4iAfpedTfSVLeswRwnY3n2Nb6Tsk+cLPP28aLOPWeMgIuTuCcMC6W/iw==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -1369,18 +1386,8 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
-  '@eserstack/ajan-darwin-arm64@4.1.57':
-    resolution: {integrity: sha512-nXHJKQE2XqYPbvbETIi+FZo6aQtJlm7NXVVzzFrFUw/raWtFlPJH2NSrz7h1oykzJFFjWVnBFqr5aVj8v0P3UA==}
-    cpu: [arm64]
-    os: [darwin]
-
   '@eserstack/ajan-darwin-x64@4.1.56':
     resolution: {integrity: sha512-N9icl8L0MR+1M+pkAkwYYOIlpMU0E8SLc1a9c6a10i3aVFQrL7VGMGB0aJrppGEYggNJfJVA1P7eEjBdnpb+Xg==}
-    cpu: [x64]
-    os: [darwin]
-
-  '@eserstack/ajan-darwin-x64@4.1.57':
-    resolution: {integrity: sha512-JsEGqalx7o2hEBgLetGaCzrh7gvxrNXpj49IyJShHAIe5SKoG6VDVBOodAByQZjYljZi9sQz+6CujR7DLXqNfA==}
     cpu: [x64]
     os: [darwin]
 
@@ -1396,9 +1403,6 @@ packages:
 
   '@eserstack/ajan-wasm@4.1.56':
     resolution: {integrity: sha512-1yannRSP5zx8EXqz12M0M6I5lg9IXqtYcLfe7jUB+mcMTjY90rAGZgKWVjwwoAov2J0E/CjDTdLsBzLixLf5Pw==}
-
-  '@eserstack/ajan-wasm@4.1.57':
-    resolution: {integrity: sha512-FW5pXr1EhPoEmqhcOROkONIhcw5atyeW6O2Mlg8ZFsloC0vRPU4ud+YzBv0LDsl6VcO4yl3aGOXQpx5SbsPYHA==}
 
   '@eserstack/ajan-win32-x64@4.1.57':
     resolution: {integrity: sha512-rd2nrqqbn8S+oKce7CASoehGB9U99t8ymbCMf1tduOndOL7p9M4CXO2XZCWdBTzRUL5PTC9c+v/+9H0hSkuSZA==}
@@ -1808,28 +1812,24 @@ packages:
     engines: {node: '>= 20'}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   '@tailwindcss/oxide-linux-arm64-musl@4.2.2':
     resolution: {integrity: sha512-oCfG/mS+/+XRlwNjnsNLVwnMWYH7tn/kYPsNPh+JSOMlnt93mYNCKHYzylRhI51X+TbR+ufNhhKKzm6QkqX8ag==}
     engines: {node: '>= 20'}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   '@tailwindcss/oxide-linux-x64-gnu@4.2.2':
     resolution: {integrity: sha512-rTAGAkDgqbXHNp/xW0iugLVmX62wOp2PoE39BTCGKjv3Iocf6AFbRP/wZT/kuCxC9QBh9Pu8XPkv/zCZB2mcMg==}
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@tailwindcss/oxide-linux-x64-musl@4.2.2':
     resolution: {integrity: sha512-XW3t3qwbIwiSyRCggeO2zxe3KWaEbM0/kW9e8+0XpBgyKU4ATYzcVSMKteZJ1iukJ3HgHBjbg9P5YPRCVUxlnQ==}
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   '@tailwindcss/oxide-wasm32-wasi@4.2.2':
     resolution: {integrity: sha512-eKSztKsmEsn1O5lJ4ZAfyn41NfG7vzCg496YiGtMDV86jz1q/irhms5O0VrY6ZwTUkFy/EKG3RfWgxSI3VbZ8Q==}
@@ -2225,28 +2225,24 @@ packages:
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   lightningcss-linux-arm64-musl@1.32.0:
     resolution: {integrity: sha512-UpQkoenr4UJEzgVIYpI80lDFvRmPVg6oqboNHfoH4CQIfNA+HOrZ7Mo7KZP02dC6LjghPQJeBsvXhJod/wnIBg==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   lightningcss-linux-x64-gnu@1.32.0:
     resolution: {integrity: sha512-V7Qr52IhZmdKPVr+Vtw8o+WLsQJYCTd8loIfpDaMRWGUZfBOYEJeyJIkqGIDMZPwPx24pUMfwSxxI8phr/MbOA==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   lightningcss-linux-x64-musl@1.32.0:
     resolution: {integrity: sha512-bYcLp+Vb0awsiXg/80uCRezCYHNg1/l3mt0gzHnWV9XP1W5sKa5/TCdGWaR/zBM2PeF/HbsQv/j2URNOiVuxWg==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   lightningcss-win32-arm64-msvc@1.32.0:
     resolution: {integrity: sha512-8SbC8BR40pS6baCM8sbtYDSwEVQd4JlFTOlaD3gWGHfThTcABnNDBda6eTZeqbofalIJhFx0qKzgHJmcPTnGdw==}
@@ -2559,7 +2555,6 @@ packages:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
-
   '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.2.141':
     optional: true
 
@@ -2788,13 +2783,7 @@ snapshots:
   '@eserstack/ajan-darwin-arm64@4.1.56':
     optional: true
 
-  '@eserstack/ajan-darwin-arm64@4.1.57':
-    optional: true
-
   '@eserstack/ajan-darwin-x64@4.1.56':
-    optional: true
-
-  '@eserstack/ajan-darwin-x64@4.1.57':
     optional: true
 
   '@eserstack/ajan-linux-arm64@4.1.57':
@@ -2804,9 +2793,6 @@ snapshots:
     optional: true
 
   '@eserstack/ajan-wasm@4.1.56':
-    optional: true
-
-  '@eserstack/ajan-wasm@4.1.57':
     optional: true
 
   '@eserstack/ajan-win32-x64@4.1.57':

@@ -199,25 +199,28 @@ const syncAjanVersions = async (
 ): Promise<void> => {
   const runtime = standards.crossRuntime.runtime;
 
-  // 1. Update optionalDependencies in pkg/@eserstack/ajan/package.json
-  const ajanPkgPath = stdPath.join(root, "pkg/@eserstack/ajan/package.json");
-  try {
-    const content = await runtime.fs.readTextFile(ajanPkgPath);
-    const updated = content.replace(
-      /"@eserstack\/ajan-[^"]+": "[^"]+"/g,
-      (match) => {
-        const name = match.split(":")[0]!;
-        return `${name}: "${version}"`;
-      },
-    );
-    if (updated !== content) {
-      await runtime.fs.writeTextFile(ajanPkgPath, updated);
-    }
-  } catch {
-    // ajan package may not exist in all contexts
-  }
+  // 1. pkg/@eserstack/ajan/package.json's optionalDependencies are deliberately
+  //    NOT rewritten to the new version.
+  //
+  //    Those six @eserstack/ajan-* platform packages are published by the
+  //    `publish-ajan` CI job, which runs *after* the tag -- which runs after
+  //    `Validate`. Pinning them to the version being released therefore names a
+  //    version that does not exist on npm yet, and `pnpm install
+  //    --frozen-lockfile` in Validate fails with ERR_PNPM_OUTDATED_LOCKFILE:
+  //    pnpm cannot resolve it, and because they are *optional* it silently
+  //    omits them from the lockfile instead of erroring, so the mismatch is
+  //    never repairable by `--lockfile-only` either. That deadlocked the
+  //    pipeline on 4.1.58.
+  //
+  //    They carry a `^4.1.0` range instead -- the same constraint
+  //    pkg/@eserstack/cli/package.json has always used for the same six
+  //    packages without ever deadlocking. A range resolves against whatever is
+  //    already published, so Validate passes, and the newly published platform
+  //    binaries are picked up on the next lockfile refresh.
 
-  // 2. Update dist/npm platform package.json files
+  // Update dist/npm platform package.json files. These are build outputs that
+  // become the published @eserstack/ajan-* packages, so they DO carry the exact
+  // version being released -- that is what defines it.
   const distNpmDir = stdPath.join(root, "pkg/@eserstack/ajan/dist/npm");
   try {
     for await (const entry of runtime.fs.readDir(distNpmDir)) {

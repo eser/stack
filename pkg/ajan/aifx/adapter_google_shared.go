@@ -612,9 +612,3 @@ func emitGenAIUsageMetadata(
 }
 
 // sendStreamEvent sends an event to the channel, respecting context cancellation.
-func sendStreamEvent(ctx context.Context, eventCh chan<- StreamEvent, event StreamEvent) {
-	select {
-	case eventCh <- event:
-	case <-ctx.Done():
-	}
-}

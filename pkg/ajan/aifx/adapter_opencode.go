@@ -140,7 +140,7 @@ func (m *OpenCodeModel) StreamText(
 
 // processStream reads the JSONL stream from the subprocess stdout.
 func (m *OpenCodeModel) processStream(
-	_ context.Context,
+	ctx context.Context,
 	proc *CliProcess,
 	eventCh chan<- StreamEvent,
 	cancel context.CancelFunc,
@@ -154,19 +154,19 @@ func (m *OpenCodeModel) processStream(
 		stderrCh <- proc.CaptureStderr()
 	}()
 
-	ParseJsonlStream(proc.Stdout, eventCh, mapOpenCodeStreamEvent)
+	ParseJsonlStream(ctx, proc.Stdout, eventCh, mapOpenCodeStreamEvent)
 
 	exitCode, waitErr := proc.WaitForExit()
 	stderr := <-stderrCh
 
 	if waitErr != nil {
-		eventCh <- newStreamEventError(fmt.Errorf("%w: wait: %w", ErrOpenCodeStreamFailed, waitErr))
+		sendStreamEvent(ctx, eventCh, newStreamEventError(fmt.Errorf("%w: wait: %w", ErrOpenCodeStreamFailed, waitErr)))
 
 		return
 	}
 
 	if exitErr := ClassifyExitCode(openCodeProviderName, exitCode, stderr); exitErr != nil {
-		eventCh <- newStreamEventError(fmt.Errorf("%w: %w", ErrOpenCodeStreamFailed, exitErr))
+		sendStreamEvent(ctx, eventCh, newStreamEventError(fmt.Errorf("%w: %w", ErrOpenCodeStreamFailed, exitErr)))
 	}
 }
 

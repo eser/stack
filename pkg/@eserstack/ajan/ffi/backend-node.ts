@@ -50,302 +50,320 @@ export const backend: types.FFIBackend = {
 
     const lib = koffi.load(libraryPath);
 
-    // koffi auto-decodes char* to JS string, so we just call and return.
-    // Go's C.CString allocates via malloc — we should call EserAjanFree,
-    // but koffi's char* return already copies the string. The Go side
-    // still holds the pointer until freed. For safety we use opaque
-    // pointers for the free call.
-    const rawVersion = lib.func("char* EserAjanVersion()");
+    // Every string the bridge returns was allocated by Go with C.CString, i.e.
+    // malloc. Declaring the return as `char*` lets koffi copy it into a JS
+    // string, but the original allocation then becomes unreachable and leaks --
+    // across 96 symbols that is every call this process ever makes. So the
+    // returns are declared as opaque `void*`, decoded explicitly, and freed.
+    //
+    // The decode form matters: koffi.decode(ptr, "str" | "string" | "char*")
+    // all treat ptr as pointing *to* a char* and dereference it, which
+    // segfaults. koffi.decode(ptr, "char", -1) reads the NUL-terminated bytes
+    // at ptr itself, which is what the bridge actually returns.
+    const rawFree = lib.func("void EserAjanFree(void* ptr)");
+
+    const takeString = (ptr: unknown): string => {
+      if (ptr === null || ptr === undefined) {
+        return "";
+      }
+
+      const decoded = koffi.decode(ptr, "char", -1) as string | null;
+      rawFree(ptr);
+
+      return decoded ?? "";
+    };
+
+    const rawVersion = lib.func("void* EserAjanVersion()");
     const rawInit = lib.func("int EserAjanInit()");
     const rawShutdown = lib.func("void EserAjanShutdown()");
     const rawConfigLoad = lib.func(
-      "char* EserAjanConfigLoad(const char* path)",
+      "void* EserAjanConfigLoad(const char* path)",
     );
     const rawDIResolve = lib.func(
-      "char* EserAjanDIResolve(const char* name)",
+      "void* EserAjanDIResolve(const char* name)",
     );
     const rawAiCreateModel = lib.func(
-      "char* EserAjanAiCreateModel(const char* configJSON)",
+      "void* EserAjanAiCreateModel(const char* configJSON)",
     );
     const rawAiGenerateText = lib.func(
-      "char* EserAjanAiGenerateText(const char* modelHandle, const char* optionsJSON)",
+      "void* EserAjanAiGenerateText(const char* modelHandle, const char* optionsJSON)",
     );
     const rawAiStreamText = lib.func(
-      "char* EserAjanAiStreamText(const char* modelHandle, const char* optionsJSON)",
+      "void* EserAjanAiStreamText(const char* modelHandle, const char* optionsJSON)",
     );
     const rawAiStreamRead = lib.func(
-      "char* EserAjanAiStreamRead(const char* streamHandle)",
+      "void* EserAjanAiStreamRead(const char* streamHandle)",
     );
     const rawAiCloseModel = lib.func(
-      "char* EserAjanAiCloseModel(const char* modelHandle)",
+      "void* EserAjanAiCloseModel(const char* modelHandle)",
     );
     const rawAiFreeStream = lib.func(
-      "char* EserAjanAiFreeStream(const char* streamHandle)",
+      "void* EserAjanAiFreeStream(const char* streamHandle)",
     );
     const rawAiBatchCreate = lib.func(
-      "char* EserAjanAiBatchCreate(const char* requestJSON)",
+      "void* EserAjanAiBatchCreate(const char* requestJSON)",
     );
     const rawAiBatchGet = lib.func(
-      "char* EserAjanAiBatchGet(const char* requestJSON)",
+      "void* EserAjanAiBatchGet(const char* requestJSON)",
     );
     const rawAiBatchList = lib.func(
-      "char* EserAjanAiBatchList(const char* requestJSON)",
+      "void* EserAjanAiBatchList(const char* requestJSON)",
     );
     const rawAiBatchDownload = lib.func(
-      "char* EserAjanAiBatchDownload(const char* requestJSON)",
+      "void* EserAjanAiBatchDownload(const char* requestJSON)",
     );
     const rawAiBatchCancel = lib.func(
-      "char* EserAjanAiBatchCancel(const char* requestJSON)",
+      "void* EserAjanAiBatchCancel(const char* requestJSON)",
     );
     const rawFormatEncode = lib.func(
-      "char* EserAjanFormatEncode(const char* requestJSON)",
+      "void* EserAjanFormatEncode(const char* requestJSON)",
     );
     const rawFormatDecode = lib.func(
-      "char* EserAjanFormatDecode(const char* requestJSON)",
+      "void* EserAjanFormatDecode(const char* requestJSON)",
     );
-    const rawFormatList = lib.func("char* EserAjanFormatList()");
+    const rawFormatList = lib.func("void* EserAjanFormatList()");
     const rawFormatEncodeDocument = lib.func(
-      "char* EserAjanFormatEncodeDocument(const char* requestJSON)",
+      "void* EserAjanFormatEncodeDocument(const char* requestJSON)",
     );
     const rawLogCreate = lib.func(
-      "char* EserAjanLogCreate(const char* configJSON)",
+      "void* EserAjanLogCreate(const char* configJSON)",
     );
     const rawLogWrite = lib.func(
-      "char* EserAjanLogWrite(const char* requestJSON)",
+      "void* EserAjanLogWrite(const char* requestJSON)",
     );
     const rawLogClose = lib.func(
-      "char* EserAjanLogClose(const char* handle)",
+      "void* EserAjanLogClose(const char* handle)",
     );
     const rawLogShouldLog = lib.func(
-      "char* EserAjanLogShouldLog(const char* requestJSON)",
+      "void* EserAjanLogShouldLog(const char* requestJSON)",
     );
     const rawLogConfigure = lib.func(
-      "char* EserAjanLogConfigure(const char* requestJSON)",
+      "void* EserAjanLogConfigure(const char* requestJSON)",
     );
     const rawHttpCreate = lib.func(
-      "char* EserAjanHttpCreate(const char* configJSON)",
+      "void* EserAjanHttpCreate(const char* configJSON)",
     );
     const rawHttpRequest = lib.func(
-      "char* EserAjanHttpRequest(const char* requestJSON)",
+      "void* EserAjanHttpRequest(const char* requestJSON)",
     );
     const rawHttpClose = lib.func(
-      "char* EserAjanHttpClose(const char* handle)",
+      "void* EserAjanHttpClose(const char* handle)",
     );
     const rawHttpRequestStream = lib.func(
-      "char* EserAjanHttpRequestStream(const char* requestJSON)",
+      "void* EserAjanHttpRequestStream(const char* requestJSON)",
     );
     const rawHttpStreamRead = lib.func(
-      "char* EserAjanHttpStreamRead(const char* handle)",
+      "void* EserAjanHttpStreamRead(const char* handle)",
     );
     const rawHttpStreamClose = lib.func(
-      "char* EserAjanHttpStreamClose(const char* handle)",
+      "void* EserAjanHttpStreamClose(const char* handle)",
     );
     const rawNoskillsInit = lib.func(
-      "char* EserAjanNoskillsInit(const char* requestJSON)",
+      "void* EserAjanNoskillsInit(const char* requestJSON)",
     );
     const rawNoskillsSpecNew = lib.func(
-      "char* EserAjanNoskillsSpecNew(const char* requestJSON)",
+      "void* EserAjanNoskillsSpecNew(const char* requestJSON)",
     );
     const rawNoskillsNext = lib.func(
-      "char* EserAjanNoskillsNext(const char* requestJSON)",
+      "void* EserAjanNoskillsNext(const char* requestJSON)",
     );
     const rawWorkflowRun = lib.func(
-      "char* EserAjanWorkflowRun(const char* requestJSON)",
+      "void* EserAjanWorkflowRun(const char* requestJSON)",
     );
     const rawCryptoHash = lib.func(
-      "char* EserAjanCryptoHash(const char* requestJSON)",
+      "void* EserAjanCryptoHash(const char* requestJSON)",
     );
     const rawCacheCreate = lib.func(
-      "char* EserAjanCacheCreate(const char* requestJSON)",
+      "void* EserAjanCacheCreate(const char* requestJSON)",
     );
     const rawCacheGetDir = lib.func(
-      "char* EserAjanCacheGetDir(const char* handle)",
+      "void* EserAjanCacheGetDir(const char* handle)",
     );
     const rawCacheGetVersionedPath = lib.func(
-      "char* EserAjanCacheGetVersionedPath(const char* requestJSON)",
+      "void* EserAjanCacheGetVersionedPath(const char* requestJSON)",
     );
     const rawCacheList = lib.func(
-      "char* EserAjanCacheList(const char* handle)",
+      "void* EserAjanCacheList(const char* handle)",
     );
     const rawCacheRemove = lib.func(
-      "char* EserAjanCacheRemove(const char* requestJSON)",
+      "void* EserAjanCacheRemove(const char* requestJSON)",
     );
     const rawCacheClear = lib.func(
-      "char* EserAjanCacheClear(const char* handle)",
+      "void* EserAjanCacheClear(const char* handle)",
     );
     const rawCacheClose = lib.func(
-      "char* EserAjanCacheClose(const char* handle)",
+      "void* EserAjanCacheClose(const char* handle)",
     );
     const rawCsGenerate = lib.func(
-      "char* EserAjanCsGenerate(const char* requestJSON)",
+      "void* EserAjanCsGenerate(const char* requestJSON)",
     );
     const rawCsSync = lib.func(
-      "char* EserAjanCsSync(const char* requestJSON)",
+      "void* EserAjanCsSync(const char* requestJSON)",
     );
     const rawKitListRecipes = lib.func(
-      "char* EserAjanKitListRecipes(const char* requestJSON)",
+      "void* EserAjanKitListRecipes(const char* requestJSON)",
     );
     const rawKitApplyRecipe = lib.func(
-      "char* EserAjanKitApplyRecipe(const char* requestJSON)",
+      "void* EserAjanKitApplyRecipe(const char* requestJSON)",
     );
     const rawKitCloneRecipe = lib.func(
-      "char* EserAjanKitCloneRecipe(const char* requestJSON)",
+      "void* EserAjanKitCloneRecipe(const char* requestJSON)",
     );
     const rawKitNewProject = lib.func(
-      "char* EserAjanKitNewProject(const char* requestJSON)",
+      "void* EserAjanKitNewProject(const char* requestJSON)",
     );
     const rawKitUpdateRecipe = lib.func(
-      "char* EserAjanKitUpdateRecipe(const char* requestJSON)",
+      "void* EserAjanKitUpdateRecipe(const char* requestJSON)",
     );
     const rawPostsCreateService = lib.func(
-      "char* EserAjanPostsCreateService(const char* requestJSON)",
+      "void* EserAjanPostsCreateService(const char* requestJSON)",
     );
     const rawPostsCompose = lib.func(
-      "char* EserAjanPostsCompose(const char* requestJSON)",
+      "void* EserAjanPostsCompose(const char* requestJSON)",
     );
     const rawPostsGetTimeline = lib.func(
-      "char* EserAjanPostsGetTimeline(const char* requestJSON)",
+      "void* EserAjanPostsGetTimeline(const char* requestJSON)",
     );
     const rawPostsSearch = lib.func(
-      "char* EserAjanPostsSearch(const char* requestJSON)",
+      "void* EserAjanPostsSearch(const char* requestJSON)",
     );
     const rawPostsClose = lib.func(
-      "char* EserAjanPostsClose(const char* requestJSON)",
+      "void* EserAjanPostsClose(const char* requestJSON)",
     );
     const rawCodebaseGitCurrentBranch = lib.func(
-      "char* EserAjanCodebaseGitCurrentBranch(const char* requestJSON)",
+      "void* EserAjanCodebaseGitCurrentBranch(const char* requestJSON)",
     );
     const rawCodebaseGitLatestTag = lib.func(
-      "char* EserAjanCodebaseGitLatestTag(const char* requestJSON)",
+      "void* EserAjanCodebaseGitLatestTag(const char* requestJSON)",
     );
     const rawCodebaseGitLog = lib.func(
-      "char* EserAjanCodebaseGitLog(const char* requestJSON)",
+      "void* EserAjanCodebaseGitLog(const char* requestJSON)",
     );
     const rawCodebaseValidateCommitMsg = lib.func(
-      "char* EserAjanCodebaseValidateCommitMsg(const char* requestJSON)",
+      "void* EserAjanCodebaseValidateCommitMsg(const char* requestJSON)",
     );
     const rawCodebaseGenerateChangelog = lib.func(
-      "char* EserAjanCodebaseGenerateChangelog(const char* requestJSON)",
+      "void* EserAjanCodebaseGenerateChangelog(const char* requestJSON)",
     );
     const rawCodebaseBumpVersion = lib.func(
-      "char* EserAjanCodebaseBumpVersion(const char* requestJSON)",
+      "void* EserAjanCodebaseBumpVersion(const char* requestJSON)",
     );
     const rawCodebaseWalkFiles = lib.func(
-      "char* EserAjanCodebaseWalkFiles(const char* requestJSON)",
+      "void* EserAjanCodebaseWalkFiles(const char* requestJSON)",
     );
     const rawCodebaseValidateFiles = lib.func(
-      "char* EserAjanCodebaseValidateFiles(const char* requestJSON)",
+      "void* EserAjanCodebaseValidateFiles(const char* requestJSON)",
     );
     const rawCodebaseCheckCircularDeps = lib.func(
-      "char* EserAjanCodebaseCheckCircularDeps(const char* requestJSON)",
+      "void* EserAjanCodebaseCheckCircularDeps(const char* requestJSON)",
     );
     const rawCodebaseCheckExportNames = lib.func(
-      "char* EserAjanCodebaseCheckExportNames(const char* requestJSON)",
+      "void* EserAjanCodebaseCheckExportNames(const char* requestJSON)",
     );
     const rawCodebaseCheckModExports = lib.func(
-      "char* EserAjanCodebaseCheckModExports(const char* requestJSON)",
+      "void* EserAjanCodebaseCheckModExports(const char* requestJSON)",
     );
     const rawCodebaseCheckPackageConfigs = lib.func(
-      "char* EserAjanCodebaseCheckPackageConfigs(const char* requestJSON)",
+      "void* EserAjanCodebaseCheckPackageConfigs(const char* requestJSON)",
     );
     const rawCodebaseCheckDocs = lib.func(
-      "char* EserAjanCodebaseCheckDocs(const char* requestJSON)",
+      "void* EserAjanCodebaseCheckDocs(const char* requestJSON)",
     );
     const rawCodebaseWalkFilesStreamCreate = lib.func(
-      "char* EserAjanCodebaseWalkFilesStreamCreate(const char* requestJSON)",
+      "void* EserAjanCodebaseWalkFilesStreamCreate(const char* requestJSON)",
     );
     const rawCodebaseWalkFilesStreamRead = lib.func(
-      "char* EserAjanCodebaseWalkFilesStreamRead(const char* handle)",
+      "void* EserAjanCodebaseWalkFilesStreamRead(const char* handle)",
     );
     const rawCodebaseWalkFilesStreamClose = lib.func(
-      "char* EserAjanCodebaseWalkFilesStreamClose(const char* handle)",
+      "void* EserAjanCodebaseWalkFilesStreamClose(const char* handle)",
     );
     const rawCodebaseValidateFilesStreamCreate = lib.func(
-      "char* EserAjanCodebaseValidateFilesStreamCreate(const char* requestJSON)",
+      "void* EserAjanCodebaseValidateFilesStreamCreate(const char* requestJSON)",
     );
     const rawCodebaseValidateFilesStreamRead = lib.func(
-      "char* EserAjanCodebaseValidateFilesStreamRead(const char* handle)",
+      "void* EserAjanCodebaseValidateFilesStreamRead(const char* handle)",
     );
     const rawCodebaseValidateFilesStreamClose = lib.func(
-      "char* EserAjanCodebaseValidateFilesStreamClose(const char* handle)",
+      "void* EserAjanCodebaseValidateFilesStreamClose(const char* handle)",
     );
     const rawCollectorSpecifierToIdentifier = lib.func(
-      "char* EserAjanCollectorSpecifierToIdentifier(const char* requestJSON)",
+      "void* EserAjanCollectorSpecifierToIdentifier(const char* requestJSON)",
     );
     const rawCollectorWalkFiles = lib.func(
-      "char* EserAjanCollectorWalkFiles(const char* requestJSON)",
+      "void* EserAjanCollectorWalkFiles(const char* requestJSON)",
     );
     const rawCollectorGenerateManifest = lib.func(
-      "char* EserAjanCollectorGenerateManifest(const char* requestJSON)",
+      "void* EserAjanCollectorGenerateManifest(const char* requestJSON)",
     );
     const rawParsingTokenize = lib.func(
-      "char* EserAjanParsingTokenize(const char* requestJSON)",
+      "void* EserAjanParsingTokenize(const char* requestJSON)",
     );
     const rawParsingSimpleTokens = lib.func(
-      "char* EserAjanParsingSimpleTokens()",
+      "void* EserAjanParsingSimpleTokens()",
     );
     const rawParsingTokenizeStreamCreate = lib.func(
-      "char* EserAjanParsingTokenizeStreamCreate(const char* requestJSON)",
+      "void* EserAjanParsingTokenizeStreamCreate(const char* requestJSON)",
     );
     const rawParsingTokenizeStreamPush = lib.func(
-      "char* EserAjanParsingTokenizeStreamPush(const char* requestJSON)",
+      "void* EserAjanParsingTokenizeStreamPush(const char* requestJSON)",
     );
     const rawParsingTokenizeStreamClose = lib.func(
-      "char* EserAjanParsingTokenizeStreamClose(const char* requestJSON)",
+      "void* EserAjanParsingTokenizeStreamClose(const char* requestJSON)",
     );
     const rawShellExec = lib.func(
-      "char* EserAjanShellExec(const char* requestJSON)",
+      "void* EserAjanShellExec(const char* requestJSON)",
     );
     const rawShellTuiKeypressCreate = lib.func(
-      "char* EserAjanShellTuiKeypressCreate(const char* requestJSON)",
+      "void* EserAjanShellTuiKeypressCreate(const char* requestJSON)",
     );
     const rawShellTuiKeypressRead = lib.func(
-      "char* EserAjanShellTuiKeypressRead(const char* handle)",
+      "void* EserAjanShellTuiKeypressRead(const char* handle)",
     );
     const rawShellTuiKeypressClose = lib.func(
-      "char* EserAjanShellTuiKeypressClose(const char* handle)",
+      "void* EserAjanShellTuiKeypressClose(const char* handle)",
     );
     const rawShellTuiSetStdinRaw = lib.func(
-      "char* EserAjanShellTuiSetStdinRaw(const char* requestJSON)",
+      "void* EserAjanShellTuiSetStdinRaw(const char* requestJSON)",
     );
     const rawShellTuiGetSize = lib.func(
-      "char* EserAjanShellTuiGetSize(const char* requestJSON)",
+      "void* EserAjanShellTuiGetSize(const char* requestJSON)",
     );
     const rawShellExecSpawn = lib.func(
-      "char* EserAjanShellExecSpawn(const char* requestJSON)",
+      "void* EserAjanShellExecSpawn(const char* requestJSON)",
     );
     const rawShellExecRead = lib.func(
-      "char* EserAjanShellExecRead(const char* handle)",
+      "void* EserAjanShellExecRead(const char* handle)",
     );
     const rawShellExecWrite = lib.func(
-      "char* EserAjanShellExecWrite(const char* requestJSON)",
+      "void* EserAjanShellExecWrite(const char* requestJSON)",
     );
     const rawShellExecClose = lib.func(
-      "char* EserAjanShellExecClose(const char* handle)",
+      "void* EserAjanShellExecClose(const char* handle)",
     );
     const rawShellPtySpawn = lib.func(
-      "char* EserAjanShellPtySpawn(const char* requestJSON)",
+      "void* EserAjanShellPtySpawn(const char* requestJSON)",
     );
     const rawShellPtyRead = lib.func(
-      "char* EserAjanShellPtyRead(const char* handle)",
+      "void* EserAjanShellPtyRead(const char* handle)",
     );
     const rawShellPtyWrite = lib.func(
-      "char* EserAjanShellPtyWrite(const char* requestJSON)",
+      "void* EserAjanShellPtyWrite(const char* requestJSON)",
     );
     const rawShellPtyResize = lib.func(
-      "char* EserAjanShellPtyResize(const char* requestJSON)",
+      "void* EserAjanShellPtyResize(const char* requestJSON)",
     );
     const rawShellPtyKill = lib.func(
-      "char* EserAjanShellPtyKill(const char* requestJSON)",
+      "void* EserAjanShellPtyKill(const char* requestJSON)",
     );
     const rawShellPtyClose = lib.func(
-      "char* EserAjanShellPtyClose(const char* handle)",
+      "void* EserAjanShellPtyClose(const char* handle)",
     );
 
     return {
       symbols: {
         EserAjanVersion: (): string => {
-          return rawVersion() ?? "";
+          return takeString(rawVersion());
         },
         EserAjanInit: (): number => {
           return rawInit() as number;
@@ -353,290 +371,292 @@ export const backend: types.FFIBackend = {
         EserAjanShutdown: (): void => {
           rawShutdown();
         },
-        EserAjanFree: (_ptr: unknown): void => {
-          // koffi handles string copying — no manual free needed
+        EserAjanFree: (ptr: unknown): void => {
+          if (ptr !== null && ptr !== undefined) {
+            rawFree(ptr);
+          }
         },
         EserAjanConfigLoad: (path: string): string => {
-          return rawConfigLoad(path) ?? "";
+          return takeString(rawConfigLoad(path));
         },
         EserAjanDIResolve: (name: string): string => {
-          return rawDIResolve(name) ?? "";
+          return takeString(rawDIResolve(name));
         },
         EserAjanAiCreateModel: (configJSON: string): string => {
-          return rawAiCreateModel(configJSON) ?? "";
+          return takeString(rawAiCreateModel(configJSON));
         },
         EserAjanAiGenerateText: (
           modelHandle: string,
           optionsJSON: string,
         ): string => {
-          return rawAiGenerateText(modelHandle, optionsJSON) ?? "";
+          return takeString(rawAiGenerateText(modelHandle, optionsJSON));
         },
         EserAjanAiStreamText: (
           modelHandle: string,
           optionsJSON: string,
         ): string => {
-          return rawAiStreamText(modelHandle, optionsJSON) ?? "";
+          return takeString(rawAiStreamText(modelHandle, optionsJSON));
         },
         EserAjanAiStreamRead: (streamHandle: string): string => {
-          return rawAiStreamRead(streamHandle) ?? "";
+          return takeString(rawAiStreamRead(streamHandle));
         },
         EserAjanAiCloseModel: (modelHandle: string): string => {
-          return rawAiCloseModel(modelHandle) ?? "";
+          return takeString(rawAiCloseModel(modelHandle));
         },
         EserAjanAiFreeStream: (streamHandle: string): string => {
-          return rawAiFreeStream(streamHandle) ?? "";
+          return takeString(rawAiFreeStream(streamHandle));
         },
         EserAjanAiBatchCreate: (requestJSON: string): string => {
-          return rawAiBatchCreate(requestJSON) ?? "";
+          return takeString(rawAiBatchCreate(requestJSON));
         },
         EserAjanAiBatchGet: (requestJSON: string): string => {
-          return rawAiBatchGet(requestJSON) ?? "";
+          return takeString(rawAiBatchGet(requestJSON));
         },
         EserAjanAiBatchList: (requestJSON: string): string => {
-          return rawAiBatchList(requestJSON) ?? "";
+          return takeString(rawAiBatchList(requestJSON));
         },
         EserAjanAiBatchDownload: (requestJSON: string): string => {
-          return rawAiBatchDownload(requestJSON) ?? "";
+          return takeString(rawAiBatchDownload(requestJSON));
         },
         EserAjanAiBatchCancel: (requestJSON: string): string => {
-          return rawAiBatchCancel(requestJSON) ?? "";
+          return takeString(rawAiBatchCancel(requestJSON));
         },
         EserAjanFormatEncode: (requestJSON: string): string => {
-          return rawFormatEncode(requestJSON) ?? "";
+          return takeString(rawFormatEncode(requestJSON));
         },
         EserAjanFormatDecode: (requestJSON: string): string => {
-          return rawFormatDecode(requestJSON) ?? "";
+          return takeString(rawFormatDecode(requestJSON));
         },
         EserAjanFormatList: (): string => {
-          return rawFormatList() ?? "";
+          return takeString(rawFormatList());
         },
         EserAjanFormatEncodeDocument: (requestJSON: string): string => {
-          return rawFormatEncodeDocument(requestJSON) ?? "";
+          return takeString(rawFormatEncodeDocument(requestJSON));
         },
         EserAjanLogCreate: (configJSON: string): string => {
-          return rawLogCreate(configJSON) ?? "";
+          return takeString(rawLogCreate(configJSON));
         },
         EserAjanLogWrite: (requestJSON: string): string => {
-          return rawLogWrite(requestJSON) ?? "";
+          return takeString(rawLogWrite(requestJSON));
         },
         EserAjanLogClose: (handle: string): string => {
-          return rawLogClose(handle) ?? "";
+          return takeString(rawLogClose(handle));
         },
         EserAjanLogShouldLog: (requestJSON: string): string => {
-          return rawLogShouldLog(requestJSON) ?? "";
+          return takeString(rawLogShouldLog(requestJSON));
         },
         EserAjanLogConfigure: (requestJSON: string): string => {
-          return rawLogConfigure(requestJSON) ?? "";
+          return takeString(rawLogConfigure(requestJSON));
         },
         EserAjanHttpCreate: (configJSON: string): string => {
-          return rawHttpCreate(configJSON) ?? "";
+          return takeString(rawHttpCreate(configJSON));
         },
         EserAjanHttpRequest: (requestJSON: string): string => {
-          return rawHttpRequest(requestJSON) ?? "";
+          return takeString(rawHttpRequest(requestJSON));
         },
         EserAjanHttpClose: (handle: string): string => {
-          return rawHttpClose(handle) ?? "";
+          return takeString(rawHttpClose(handle));
         },
         EserAjanHttpRequestStream: (requestJSON: string): string => {
-          return rawHttpRequestStream(requestJSON) ?? "";
+          return takeString(rawHttpRequestStream(requestJSON));
         },
         EserAjanHttpStreamRead: (handle: string): string => {
-          return rawHttpStreamRead(handle) ?? "";
+          return takeString(rawHttpStreamRead(handle));
         },
         EserAjanHttpStreamClose: (handle: string): string => {
-          return rawHttpStreamClose(handle) ?? "";
+          return takeString(rawHttpStreamClose(handle));
         },
         EserAjanNoskillsInit: (requestJSON: string): string => {
-          return rawNoskillsInit(requestJSON) ?? "";
+          return takeString(rawNoskillsInit(requestJSON));
         },
         EserAjanNoskillsSpecNew: (requestJSON: string): string => {
-          return rawNoskillsSpecNew(requestJSON) ?? "";
+          return takeString(rawNoskillsSpecNew(requestJSON));
         },
         EserAjanNoskillsNext: (requestJSON: string): string => {
-          return rawNoskillsNext(requestJSON) ?? "";
+          return takeString(rawNoskillsNext(requestJSON));
         },
         EserAjanWorkflowRun: (requestJSON: string): string => {
-          return rawWorkflowRun(requestJSON) ?? "";
+          return takeString(rawWorkflowRun(requestJSON));
         },
         EserAjanCryptoHash: (requestJSON: string): string => {
-          return rawCryptoHash(requestJSON) ?? "";
+          return takeString(rawCryptoHash(requestJSON));
         },
         EserAjanCacheCreate: (requestJSON: string): string => {
-          return rawCacheCreate(requestJSON) ?? "";
+          return takeString(rawCacheCreate(requestJSON));
         },
         EserAjanCacheGetDir: (requestJSON: string): string => {
-          return rawCacheGetDir(requestJSON) ?? "";
+          return takeString(rawCacheGetDir(requestJSON));
         },
         EserAjanCacheGetVersionedPath: (requestJSON: string): string => {
-          return rawCacheGetVersionedPath(requestJSON) ?? "";
+          return takeString(rawCacheGetVersionedPath(requestJSON));
         },
         EserAjanCacheList: (requestJSON: string): string => {
-          return rawCacheList(requestJSON) ?? "";
+          return takeString(rawCacheList(requestJSON));
         },
         EserAjanCacheRemove: (requestJSON: string): string => {
-          return rawCacheRemove(requestJSON) ?? "";
+          return takeString(rawCacheRemove(requestJSON));
         },
         EserAjanCacheClear: (requestJSON: string): string => {
-          return rawCacheClear(requestJSON) ?? "";
+          return takeString(rawCacheClear(requestJSON));
         },
         EserAjanCacheClose: (requestJSON: string): string => {
-          return rawCacheClose(requestJSON) ?? "";
+          return takeString(rawCacheClose(requestJSON));
         },
         EserAjanCsGenerate: (requestJSON: string): string => {
-          return rawCsGenerate(requestJSON) ?? "";
+          return takeString(rawCsGenerate(requestJSON));
         },
         EserAjanCsSync: (requestJSON: string): string => {
-          return rawCsSync(requestJSON) ?? "";
+          return takeString(rawCsSync(requestJSON));
         },
         EserAjanKitListRecipes: (requestJSON: string): string => {
-          return rawKitListRecipes(requestJSON) ?? "";
+          return takeString(rawKitListRecipes(requestJSON));
         },
         EserAjanKitApplyRecipe: (requestJSON: string): string => {
-          return rawKitApplyRecipe(requestJSON) ?? "";
+          return takeString(rawKitApplyRecipe(requestJSON));
         },
         EserAjanKitCloneRecipe: (requestJSON: string): string => {
-          return rawKitCloneRecipe(requestJSON) ?? "";
+          return takeString(rawKitCloneRecipe(requestJSON));
         },
         EserAjanKitNewProject: (requestJSON: string): string => {
-          return rawKitNewProject(requestJSON) ?? "";
+          return takeString(rawKitNewProject(requestJSON));
         },
         EserAjanKitUpdateRecipe: (requestJSON: string): string => {
-          return rawKitUpdateRecipe(requestJSON) ?? "";
+          return takeString(rawKitUpdateRecipe(requestJSON));
         },
         EserAjanPostsCreateService: (requestJSON: string): string => {
-          return rawPostsCreateService(requestJSON) ?? "";
+          return takeString(rawPostsCreateService(requestJSON));
         },
         EserAjanPostsCompose: (requestJSON: string): string => {
-          return rawPostsCompose(requestJSON) ?? "";
+          return takeString(rawPostsCompose(requestJSON));
         },
         EserAjanPostsGetTimeline: (requestJSON: string): string => {
-          return rawPostsGetTimeline(requestJSON) ?? "";
+          return takeString(rawPostsGetTimeline(requestJSON));
         },
         EserAjanPostsSearch: (requestJSON: string): string => {
-          return rawPostsSearch(requestJSON) ?? "";
+          return takeString(rawPostsSearch(requestJSON));
         },
         EserAjanPostsClose: (requestJSON: string): string => {
-          return rawPostsClose(requestJSON) ?? "";
+          return takeString(rawPostsClose(requestJSON));
         },
         EserAjanCodebaseGitCurrentBranch: (requestJSON: string): string => {
-          return rawCodebaseGitCurrentBranch(requestJSON) ?? "";
+          return takeString(rawCodebaseGitCurrentBranch(requestJSON));
         },
         EserAjanCodebaseGitLatestTag: (requestJSON: string): string => {
-          return rawCodebaseGitLatestTag(requestJSON) ?? "";
+          return takeString(rawCodebaseGitLatestTag(requestJSON));
         },
         EserAjanCodebaseGitLog: (requestJSON: string): string => {
-          return rawCodebaseGitLog(requestJSON) ?? "";
+          return takeString(rawCodebaseGitLog(requestJSON));
         },
         EserAjanCodebaseValidateCommitMsg: (requestJSON: string): string => {
-          return rawCodebaseValidateCommitMsg(requestJSON) ?? "";
+          return takeString(rawCodebaseValidateCommitMsg(requestJSON));
         },
         EserAjanCodebaseGenerateChangelog: (requestJSON: string): string => {
-          return rawCodebaseGenerateChangelog(requestJSON) ?? "";
+          return takeString(rawCodebaseGenerateChangelog(requestJSON));
         },
         EserAjanCodebaseBumpVersion: (requestJSON: string): string => {
-          return rawCodebaseBumpVersion(requestJSON) ?? "";
+          return takeString(rawCodebaseBumpVersion(requestJSON));
         },
         EserAjanCodebaseWalkFiles: (requestJSON: string): string => {
-          return rawCodebaseWalkFiles(requestJSON) ?? "";
+          return takeString(rawCodebaseWalkFiles(requestJSON));
         },
         EserAjanCodebaseValidateFiles: (requestJSON: string): string => {
-          return rawCodebaseValidateFiles(requestJSON) ?? "";
+          return takeString(rawCodebaseValidateFiles(requestJSON));
         },
         EserAjanCodebaseCheckCircularDeps: (requestJSON: string): string => {
-          return rawCodebaseCheckCircularDeps(requestJSON) ?? "";
+          return takeString(rawCodebaseCheckCircularDeps(requestJSON));
         },
         EserAjanCodebaseCheckExportNames: (requestJSON: string): string => {
-          return rawCodebaseCheckExportNames(requestJSON) ?? "";
+          return takeString(rawCodebaseCheckExportNames(requestJSON));
         },
         EserAjanCodebaseCheckModExports: (requestJSON: string): string => {
-          return rawCodebaseCheckModExports(requestJSON) ?? "";
+          return takeString(rawCodebaseCheckModExports(requestJSON));
         },
         EserAjanCodebaseCheckPackageConfigs: (requestJSON: string): string => {
-          return rawCodebaseCheckPackageConfigs(requestJSON) ?? "";
+          return takeString(rawCodebaseCheckPackageConfigs(requestJSON));
         },
         EserAjanCodebaseCheckDocs: (requestJSON: string): string => {
-          return rawCodebaseCheckDocs(requestJSON) ?? "";
+          return takeString(rawCodebaseCheckDocs(requestJSON));
         },
         EserAjanCodebaseWalkFilesStreamCreate: (
           requestJSON: string,
         ): string => {
-          return rawCodebaseWalkFilesStreamCreate(requestJSON) ?? "";
+          return takeString(rawCodebaseWalkFilesStreamCreate(requestJSON));
         },
         EserAjanCodebaseWalkFilesStreamRead: (handle: string): string => {
-          return rawCodebaseWalkFilesStreamRead(handle) ?? "";
+          return takeString(rawCodebaseWalkFilesStreamRead(handle));
         },
         EserAjanCodebaseWalkFilesStreamClose: (handle: string): string => {
-          return rawCodebaseWalkFilesStreamClose(handle) ?? "";
+          return takeString(rawCodebaseWalkFilesStreamClose(handle));
         },
         EserAjanCodebaseValidateFilesStreamCreate: (
           requestJSON: string,
         ): string => {
-          return rawCodebaseValidateFilesStreamCreate(requestJSON) ?? "";
+          return takeString(rawCodebaseValidateFilesStreamCreate(requestJSON));
         },
         EserAjanCodebaseValidateFilesStreamRead: (handle: string): string => {
-          return rawCodebaseValidateFilesStreamRead(handle) ?? "";
+          return takeString(rawCodebaseValidateFilesStreamRead(handle));
         },
         EserAjanCodebaseValidateFilesStreamClose: (handle: string): string => {
-          return rawCodebaseValidateFilesStreamClose(handle) ?? "";
+          return takeString(rawCodebaseValidateFilesStreamClose(handle));
         },
         EserAjanCollectorSpecifierToIdentifier: (
           requestJSON: string,
         ): string => {
-          return rawCollectorSpecifierToIdentifier(requestJSON) ?? "";
+          return takeString(rawCollectorSpecifierToIdentifier(requestJSON));
         },
         EserAjanCollectorWalkFiles: (requestJSON: string): string => {
-          return rawCollectorWalkFiles(requestJSON) ?? "";
+          return takeString(rawCollectorWalkFiles(requestJSON));
         },
         EserAjanCollectorGenerateManifest: (requestJSON: string): string => {
-          return rawCollectorGenerateManifest(requestJSON) ?? "";
+          return takeString(rawCollectorGenerateManifest(requestJSON));
         },
         EserAjanParsingTokenize: (requestJSON: string): string => {
-          return rawParsingTokenize(requestJSON) ?? "";
+          return takeString(rawParsingTokenize(requestJSON));
         },
         EserAjanParsingSimpleTokens: (): string => {
-          return rawParsingSimpleTokens() ?? "";
+          return takeString(rawParsingSimpleTokens());
         },
         EserAjanParsingTokenizeStreamCreate: (requestJSON: string): string => {
-          return rawParsingTokenizeStreamCreate(requestJSON) ?? "";
+          return takeString(rawParsingTokenizeStreamCreate(requestJSON));
         },
         EserAjanParsingTokenizeStreamPush: (requestJSON: string): string => {
-          return rawParsingTokenizeStreamPush(requestJSON) ?? "";
+          return takeString(rawParsingTokenizeStreamPush(requestJSON));
         },
         EserAjanParsingTokenizeStreamClose: (requestJSON: string): string => {
-          return rawParsingTokenizeStreamClose(requestJSON) ?? "";
+          return takeString(rawParsingTokenizeStreamClose(requestJSON));
         },
         EserAjanShellExec: (requestJSON: string): string => {
-          return rawShellExec(requestJSON) ?? "";
+          return takeString(rawShellExec(requestJSON));
         },
         EserAjanShellTuiKeypressCreate: (requestJSON: string): string => {
-          return rawShellTuiKeypressCreate(requestJSON) ?? "";
+          return takeString(rawShellTuiKeypressCreate(requestJSON));
         },
         EserAjanShellTuiKeypressRead: (handle: string): string => {
-          return rawShellTuiKeypressRead(handle) ?? "";
+          return takeString(rawShellTuiKeypressRead(handle));
         },
         EserAjanShellTuiKeypressClose: (handle: string): string => {
-          return rawShellTuiKeypressClose(handle) ?? "";
+          return takeString(rawShellTuiKeypressClose(handle));
         },
         EserAjanShellTuiSetStdinRaw: (requestJSON: string): string => {
-          return rawShellTuiSetStdinRaw(requestJSON) ?? "";
+          return takeString(rawShellTuiSetStdinRaw(requestJSON));
         },
         EserAjanShellTuiGetSize: (requestJSON: string): string => {
-          return rawShellTuiGetSize(requestJSON) ?? "";
+          return takeString(rawShellTuiGetSize(requestJSON));
         },
         EserAjanShellExecSpawn: (requestJSON: string): string => {
-          return rawShellExecSpawn(requestJSON) ?? "";
+          return takeString(rawShellExecSpawn(requestJSON));
         },
         EserAjanShellExecRead: (handle: string): string => {
-          return rawShellExecRead(handle) ?? "";
+          return takeString(rawShellExecRead(handle));
         },
         EserAjanShellExecWrite: (requestJSON: string): string => {
-          return rawShellExecWrite(requestJSON) ?? "";
+          return takeString(rawShellExecWrite(requestJSON));
         },
         EserAjanShellExecClose: (handle: string): string => {
-          return rawShellExecClose(handle) ?? "";
+          return takeString(rawShellExecClose(handle));
         },
         EserAjanShellPtySpawn: (requestJSON: string): string => {
-          return rawShellPtySpawn(requestJSON) ?? "";
+          return takeString(rawShellPtySpawn(requestJSON));
         },
         // LIMITATION: this is a BLOCKING koffi call wrapped in a resolved
         // Promise to satisfy the interface. While an idle PTY waits for output
@@ -646,19 +666,19 @@ export const backend: types.FFIBackend = {
         // interactive multiplexer today. Running it under Node degrades
         // responsiveness.
         EserAjanShellPtyRead: (handle: string): Promise<string> => {
-          return Promise.resolve(rawShellPtyRead(handle) ?? "");
+          return Promise.resolve(takeString(rawShellPtyRead(handle)));
         },
         EserAjanShellPtyWrite: (requestJSON: string): string => {
-          return rawShellPtyWrite(requestJSON) ?? "";
+          return takeString(rawShellPtyWrite(requestJSON));
         },
         EserAjanShellPtyResize: (requestJSON: string): string => {
-          return rawShellPtyResize(requestJSON) ?? "";
+          return takeString(rawShellPtyResize(requestJSON));
         },
         EserAjanShellPtyKill: (requestJSON: string): string => {
-          return rawShellPtyKill(requestJSON) ?? "";
+          return takeString(rawShellPtyKill(requestJSON));
         },
         EserAjanShellPtyClose: (handle: string): string => {
-          return rawShellPtyClose(handle) ?? "";
+          return takeString(rawShellPtyClose(handle));
         },
       },
       close: (): void => {

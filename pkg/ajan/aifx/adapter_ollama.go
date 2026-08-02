@@ -151,7 +151,7 @@ func (m *OllamaModel) processStream(
 
 	payload, err := json.Marshal(body)
 	if err != nil {
-		eventCh <- newStreamEventError(fmt.Errorf("%w: marshal request: %w", ErrOllamaStreamFailed, err))
+		sendStreamEvent(ctx, eventCh, newStreamEventError(fmt.Errorf("%w: marshal request: %w", ErrOllamaStreamFailed, err)))
 
 		return
 	}
@@ -160,7 +160,7 @@ func (m *OllamaModel) processStream(
 		ctx, http.MethodPost, m.baseURL+"/api/chat", bytes.NewReader(payload),
 	)
 	if err != nil {
-		eventCh <- newStreamEventError(fmt.Errorf("%w: build request: %w", ErrOllamaStreamFailed, err))
+		sendStreamEvent(ctx, eventCh, newStreamEventError(fmt.Errorf("%w: build request: %w", ErrOllamaStreamFailed, err)))
 
 		return
 	}
@@ -169,7 +169,7 @@ func (m *OllamaModel) processStream(
 
 	resp, err := m.client.Do(req)
 	if err != nil {
-		eventCh <- newStreamEventError(fmt.Errorf("%w: %w", ErrOllamaStreamFailed, err))
+		sendStreamEvent(ctx, eventCh, newStreamEventError(fmt.Errorf("%w: %w", ErrOllamaStreamFailed, err)))
 
 		return
 	}
@@ -177,14 +177,14 @@ func (m *OllamaModel) processStream(
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		eventCh <- newStreamEventError(fmt.Errorf(
+		sendStreamEvent(ctx, eventCh, newStreamEventError(fmt.Errorf(
 			"%w: HTTP %d", ErrOllamaStreamFailed, resp.StatusCode,
-		))
+		)))
 
 		return
 	}
 
-	ParseJsonlStream(resp.Body, eventCh, mapOllamaStreamEvent)
+	ParseJsonlStream(ctx, resp.Body, eventCh, mapOllamaStreamEvent)
 }
 
 // buildChatBody constructs the Ollama /api/chat request body.

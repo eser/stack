@@ -1,8 +1,0 @@
-{
-  "name": "@eserstack/cache",
-  "version": "4.1.57",
-  "exports": {
-    ".": "./mod.ts",
-    "./xdg": "./xdg.ts"
-  }
-}

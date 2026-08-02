@@ -246,7 +246,7 @@ describe("OpenCode adapter: snapshot tests", () => {
       assertStringIncludes(content, "name: noskills-executor");
     });
 
-    it("noskills-executor.md has tools list including write, shell, delegate", async () => {
+    it("noskills-executor.md has tools object with all required keys", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
 
@@ -254,9 +254,17 @@ describe("OpenCode adapter: snapshot tests", () => {
         `${tempDir}/.opencode/agents/noskills-executor.md`,
       );
 
-      assertStringIncludes(content, "write");
-      assertStringIncludes(content, "shell");
-      assertStringIncludes(content, "delegate");
+      const toolsMatch = content.match(/\ntools:\n((?:[ ]{2}\w+: [^\n]+\n)+)/);
+      assert(toolsMatch !== null, "tools section not found in YAML frontmatter");
+
+      const toolsBlock = toolsMatch![1]!;
+      assertStringIncludes(toolsBlock, "read: true");
+      assertStringIncludes(toolsBlock, "write: true");
+      assertStringIncludes(toolsBlock, "glob: true");
+      assertStringIncludes(toolsBlock, "grep: true");
+      assertStringIncludes(toolsBlock, "shell: true");
+      assertStringIncludes(toolsBlock, "delegate: true");
+      assertEquals(toolsBlock.includes(","), false, "tools should not use comma-separated format");
     });
 
     it("noskills-verifier.md has YAML frontmatter with name: noskills-verifier", async () => {
@@ -271,7 +279,7 @@ describe("OpenCode adapter: snapshot tests", () => {
       assertStringIncludes(content, "name: noskills-verifier");
     });
 
-    it("noskills-verifier.md has read-only tool set (no write)", async () => {
+    it("noskills-verifier.md has read-only tools object (no write, no delegate)", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
 
@@ -279,19 +287,16 @@ describe("OpenCode adapter: snapshot tests", () => {
         `${tempDir}/.opencode/agents/noskills-verifier.md`,
       );
 
-      // Extract frontmatter tools line
-      const toolsMatch = content.match(/^tools:\s*(.+)$/m);
-      assert(toolsMatch !== null);
+      const toolsMatch = content.match(/\ntools:\n((?:[ ]{2}\w+: [^\n]+\n)+)/);
+      assert(toolsMatch !== null, "tools section not found in YAML frontmatter");
 
-      const toolsList = toolsMatch![1]!;
-
-      // Should have read-only tools
-      assertStringIncludes(toolsList, "read");
-      assertStringIncludes(toolsList, "shell");
-
-      // Should NOT have write or delegate
-      assertEquals(toolsList.includes("write"), false);
-      assertEquals(toolsList.includes("delegate"), false);
+      const toolsBlock = toolsMatch![1]!;
+      assertStringIncludes(toolsBlock, "read: true");
+      assertStringIncludes(toolsBlock, "glob: true");
+      assertStringIncludes(toolsBlock, "grep: true");
+      assertStringIncludes(toolsBlock, "shell: true");
+      assertEquals(toolsBlock.includes("write"), false);
+      assertEquals(toolsBlock.includes("delegate"), false);
     });
   });
 
@@ -433,7 +438,7 @@ describe("OpenCode adapter: snapshot tests", () => {
   // ---------------------------------------------------------------------------
 
   describe("syncMcp: opencode.json", () => {
-    it("has mcp.noskills entry with type: local", async () => {
+    it("has mcp.noskills entry with type: local and enabled: true", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
 
@@ -445,9 +450,10 @@ describe("OpenCode adapter: snapshot tests", () => {
       assert(parsed.mcp !== undefined);
       assert(parsed.mcp.noskills !== undefined);
       assertEquals(parsed.mcp.noskills.type, "local");
+      assertEquals(parsed.mcp.noskills.enabled, true);
     });
 
-    it("has command field (string) and args array ending with mcp-serve", async () => {
+    it("has command array ending with mcp-serve", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
 
@@ -456,12 +462,10 @@ describe("OpenCode adapter: snapshot tests", () => {
       );
       const parsed = JSON.parse(raw);
 
-      assertEquals(typeof parsed.mcp.noskills.command, "string");
-      assert(parsed.mcp.noskills.command.length > 0);
-
-      const args = parsed.mcp.noskills.args;
-      assert(Array.isArray(args));
-      assertEquals(args[args.length - 1], "mcp-serve");
+      const cmd = parsed.mcp.noskills.command;
+      assert(Array.isArray(cmd));
+      assert(cmd.length > 0);
+      assertEquals(cmd[cmd.length - 1], "mcp-serve");
     });
 
     it("preserves existing non-noskills config in opencode.json", async () => {
@@ -614,7 +618,7 @@ describe("OpenCode adapter: structure validation", () => {
   // ---------------------------------------------------------------------------
 
   describe("MCP JSON structure", () => {
-    it("has mcp object with server entries having command + args", async () => {
+    it("has mcp object with server entries having command array + enabled", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
 
@@ -627,9 +631,9 @@ describe("OpenCode adapter: structure validation", () => {
       assert(parsed.mcp !== null);
 
       for (const [_key, server] of Object.entries(parsed.mcp)) {
-        const srv = server as { command: string; args: string[] };
-        assertEquals(typeof srv.command, "string");
-        assert(Array.isArray(srv.args));
+        const srv = server as { command: string[]; enabled: boolean };
+        assert(Array.isArray(srv.command));
+        assertEquals(srv.enabled, true);
       }
     });
   });

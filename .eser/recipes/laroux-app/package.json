@@ -13,11 +13,11 @@
     "@eserstack/laroux": "npm:@jsr/eser__laroux@^4.0.43",
     "@eserstack/laroux-react": "npm:@jsr/eser__laroux-react@^4.0.43",
     "@eserstack/logging": "npm:@jsr/eser__logging@^4.0.43",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "tailwindcss": "^4.1.18"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@types/react": "^19.2.7"
+    "@types/react": "^19.2.18"
   }
 }

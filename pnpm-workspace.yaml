@@ -1,6 +1,11 @@
 packages:
   - "pkg/@eserstack/*"
 allowBuilds:
+  # false: its only install script is `prepare: node scripts/prepare.js`, but
+  # scripts/ is not shipped in the published tarball -- that entry is a leftover
+  # from the source repo. dist/ ships prebuilt and the package imports fine
+  # (162 exports) with the script never run. Nothing native to compile.
+  "@google/genai": false
   esbuild: true
   koffi: true
   protobufjs: false
@@ -11,3 +16,15 @@ allowBuilds:
 # them. The current-platform package is dropped even when listed in
 # minimumReleaseAgeExclude, so the gate is disabled here (0) rather than excluded.
 minimumReleaseAge: 0
+
+# This repo pulls unusually large platform binaries -- the Claude Agent SDK's
+# darwin-arm64 build is ~75 MB, @eserstack/ajan-wasm ~22 MB, sharp's libvips
+# ~8 MB. pnpm's default fetchTimeout is 60s and it does NOT resume partial
+# downloads, so on an ordinary connection those tarballs abort mid-transfer
+# (error 23) and every retry restarts from zero -- the install never converges.
+#
+# 10 minutes per request, and fewer parallel sockets so a 75 MB tarball gets
+# real bandwidth instead of competing with 16 concurrent small ones.
+fetchTimeout: 600000
+fetchRetries: 5
+networkConcurrency: 6

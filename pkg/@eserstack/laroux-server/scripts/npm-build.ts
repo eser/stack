@@ -218,7 +218,7 @@ const main = async (): Promise<void> => {
     type: "module",
     bin: { laroux: "./laroux.js" },
     dependencies: {
-      "@tailwindcss/oxide": "^4.1.8",
+      "@tailwindcss/oxide": "^4.3.3",
       lightningcss: "^1.30.0",
       tailwindcss: "^4.1.8",
     },

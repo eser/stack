@@ -279,7 +279,7 @@ const code = `
 const rewritten = rewriteImports(code, {
   baseUrl: "/src",
   externals: {
-    "react": "https://esm.sh/react@18",
+    "react": "https://esm.sh/react@19.2.8",
   },
 });
 

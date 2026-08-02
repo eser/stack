@@ -255,7 +255,10 @@ describe("OpenCode adapter: snapshot tests", () => {
       );
 
       const toolsMatch = content.match(/\ntools:\n((?:[ ]{2}\w+: [^\n]+\n)+)/);
-      assert(toolsMatch !== null, "tools section not found in YAML frontmatter");
+      assert(
+        toolsMatch !== null,
+        "tools section not found in YAML frontmatter",
+      );
 
       const toolsBlock = toolsMatch![1]!;
       assertStringIncludes(toolsBlock, "read: true");
@@ -264,7 +267,11 @@ describe("OpenCode adapter: snapshot tests", () => {
       assertStringIncludes(toolsBlock, "grep: true");
       assertStringIncludes(toolsBlock, "shell: true");
       assertStringIncludes(toolsBlock, "delegate: true");
-      assertEquals(toolsBlock.includes(","), false, "tools should not use comma-separated format");
+      assertEquals(
+        toolsBlock.includes(","),
+        false,
+        "tools should not use comma-separated format",
+      );
     });
 
     it("noskills-verifier.md has YAML frontmatter with name: noskills-verifier", async () => {
@@ -288,7 +295,10 @@ describe("OpenCode adapter: snapshot tests", () => {
       );
 
       const toolsMatch = content.match(/\ntools:\n((?:[ ]{2}\w+: [^\n]+\n)+)/);
-      assert(toolsMatch !== null, "tools section not found in YAML frontmatter");
+      assert(
+        toolsMatch !== null,
+        "tools section not found in YAML frontmatter",
+      );
 
       const toolsBlock = toolsMatch![1]!;
       assertStringIncludes(toolsBlock, "read: true");

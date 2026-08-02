@@ -15,6 +15,7 @@ export const renderDashboard = (
   state: dashboard.DashboardState,
   tabs: readonly TabInfo[],
   activeTabId: string | null,
+  token?: string,
 ): string => {
   // Spec list
   const specItems = state.specs.length > 0
@@ -37,9 +38,9 @@ export const renderDashboard = (
     </aside>
     <main class="main-area">
       ${c.tabBar(tabs, activeTabId)}
-      ${c.terminalContainer(activeTabId)}
+      ${c.terminalContainer()}
     </main>
   </div>`;
 
-  return layout("noskills", body, { includeTerminal: true });
+  return layout("noskills", body, { includeTerminal: true, token });
 };

@@ -1,20 +1,26 @@
 {
   "name": "@eserstack/noskills",
-  "version": "4.1.56",
+  "version": "4.1.58",
   "type": "module",
   "exports": {
     ".": "./main.ts",
     "./mod": "./mod.ts",
     "./module": "./module.ts",
     "./dashboard": "./dashboard/mod.ts",
-    "./persistence": "./state/persistence.ts"
+    "./persistence": "./state/persistence.ts",
+    "./session": "./manager/session-binding.ts",
+    "./go-noskills": "./go-noskills.ts"
   },
   "dependencies": {
+    "@eserstack/agents": "workspace:*",
     "@eserstack/ai": "workspace:*",
+    "@eserstack/ajan": "workspace:*",
+    "@eserstack/mux": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
+    "esbuild": "^0.24.2",
     "yaml": "^2"
   },
   "devDependencies": {

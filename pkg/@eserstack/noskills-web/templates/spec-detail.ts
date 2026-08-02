@@ -9,10 +9,7 @@
 import type * as dashboard from "@eserstack/noskills/dashboard";
 import { layout } from "./layout.ts";
 import * as c from "./components.ts";
-
-const escHtml = (s: string): string =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+import { escHtml } from "./escape.ts";
 
 export const renderSpecDetail = (
   spec: dashboard.SpecSummary,

@@ -25,6 +25,18 @@ export type CliContext = {
   readonly output: streams.Output;
 };
 
+// Every Output created through the helpers below is registered here so
+// {@link exitCli} can drain it before a hard process exit. The streams Output
+// is sync-write / async-flush; `runtime.process.exit` (Deno.exit) terminates
+// synchronously and would drop any not-yet-flushed buffer.
+const liveOutputs = new Set<streams.Output>();
+
+const flushLiveOutputs = async (): Promise<void> => {
+  await Promise.all(
+    [...liveOutputs].map((out) => out.flush().catch(() => {})),
+  );
+};
+
 /**
  * Creates a `TuiContext` configured for the current environment.
  *
@@ -42,6 +54,8 @@ export const createCliContext = (): CliContext => {
 
   const ctx = tui.createTuiContext({ interaction });
 
+  liveOutputs.add(ctx.output);
+
   return { ctx, output: ctx.output };
 };
 
@@ -50,11 +64,16 @@ export const createCliContext = (): CliContext => {
  *
  * @deprecated Prefer {@link createCliContext} which returns a full `TuiContext`.
  */
-export const createCliOutput = (): streams.Output =>
-  streams.output({
+export const createCliOutput = (): streams.Output => {
+  const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
+
+  liveOutputs.add(out);
+
+  return out;
+};
 
 /**
  * Convert a `@std/cli/parse-args` result to a `CliEvent`.
@@ -100,4 +119,37 @@ export const runCliMain = (
       runtime.process.setExitCode(error.exitCode);
     },
   });
+};
+
+/**
+ * Terminal `import.meta.main` handler for CLI entry points that may load the
+ * native `@eserstack/ajan` FFI library (the `eser` dispatcher, `codebase`,
+ * `validation`).
+ *
+ * Resolves the exit code from `result`, prints any error, drains buffered CLI
+ * output, then **hard-exits** via `runtime.process.exit`. The hard exit is
+ * deliberate: once the Go c-shared library is loaded it intermittently SIGSEGVs
+ * the host on natural teardown and discards the exit code; `Deno.exit` commits
+ * the status deterministically. Because that skips the streams async flush, we
+ * drain every helper-created Output first (see {@link liveOutputs}).
+ *
+ * @param result - The CliResult from the command dispatch
+ */
+export const exitCli = async (
+  result: shellArgs.CliResult<void>,
+): Promise<never> => {
+  const exitCode = results.match(result, {
+    ok: () => 0,
+    fail: (error) => {
+      if (error.message !== undefined) {
+        // deno-lint-ignore no-console
+        console.error(error.message);
+      }
+      return error.exitCode;
+    },
+  });
+
+  await flushLiveOutputs();
+
+  return runtime.process.exit(exitCode);
 };

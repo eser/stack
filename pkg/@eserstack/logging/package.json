@@ -1,14 +1,18 @@
 {
   "name": "@eserstack/logging",
-  "version": "4.1.56",
+  "version": "4.1.58",
   "type": "module",
   "exports": {
     ".": "./mod.ts",
     "./logger": "./logger.ts",
-    "./tracer": "./tracer.ts"
+    "./tracer": "./tracer.ts",
+    "./go-logger": "./go-logger.ts"
   },
   "dependencies": {
+    "@eserstack/ajan": "workspace:*",
     "@eserstack/primitives": "workspace:*",
+    "@eserstack/standards": "workspace:*",
+    "@eserstack/streams": "workspace:*",
     "@opentelemetry/api": "^1.9.0"
   },
   "devDependencies": {

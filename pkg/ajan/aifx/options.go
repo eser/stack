@@ -17,5 +17,9 @@ func WithDefaultFactories() NewRegistryOption {
 		r.RegisterFactory(NewOpenAIModelFactory())
 		r.RegisterFactory(NewGeminiModelFactory())
 		r.RegisterFactory(NewVertexAIModelFactory())
+		r.RegisterFactory(NewOllamaModelFactory())
+		r.RegisterFactory(NewClaudeCodeModelFactory())
+		r.RegisterFactory(NewOpenCodeModelFactory())
+		r.RegisterFactory(NewKiroModelFactory())
 	}
 }

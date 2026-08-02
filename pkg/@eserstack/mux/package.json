@@ -1,0 +1,22 @@
+{
+  "name": "@eserstack/mux",
+  "version": "4.1.58",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./engine": "./engine/mod.ts",
+    "./keybindings": "./keybindings/mod.ts",
+    "./scene": "./scene/mod.ts",
+    "./server": "./server/server.ts",
+    "./runner": "./runner/inprocess.ts"
+  },
+  "dependencies": {
+    "@eserstack/primitives": "workspace:*",
+    "@eserstack/shell": "workspace:*",
+    "@eserstack/standards": "workspace:*"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
+    "@std/testing": "npm:@jsr/std__testing@^1.0.9"
+  }
+}

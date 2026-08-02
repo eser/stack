@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { keyBy } from "./key-by.ts";
-import lodashKeyBy from "npm:lodash.keyby@^4.6.0";
+import lodashKeyBy from "lodash.keyby";
 
 const group = "key-by";
 

@@ -1,11 +1,15 @@
 {
   "name": "@eserstack/formats",
-  "version": "4.1.56",
+  "version": "4.1.58",
   "type": "module",
   "exports": {
-    ".": "./mod.ts"
+    ".": "./mod.ts",
+    "./business": "./business/mod.ts",
+    "./adapters/ffi": "./adapters/ffi/mod.ts"
   },
   "dependencies": {
+    "@eserstack/ajan": "workspace:*",
+    "@eserstack/streams": "workspace:*",
     "yaml": "^2",
     "@std/toml": "npm:@jsr/std__toml@^1.0.11",
     "@std/csv": "npm:@jsr/std__csv@^1.0.6"

@@ -7,7 +7,7 @@
  */
 
 import * as dashboard from "@eserstack/noskills/dashboard";
-import type { PtyManager } from "../terminal/pty-manager.ts";
+import type { MuxHost } from "../terminal/mux-host.ts";
 
 const json = (data: unknown, status = 200): Response => {
   // For error responses, return only { ok, error } — never serialize raw data
@@ -36,13 +36,31 @@ export const handleGetState = async (root: string): Promise<Response> => {
   return json(state);
 };
 
+/**
+ * GET /api/spec/:name/ledger | summary — read-only decision-ledger data.
+ * `ledger` returns the full records + summary; `summary` returns only the
+ * maturity summary. Missing files yield empty records / null summary, never 404.
+ */
+export const handleSpecRead = async (
+  root: string,
+  specName: string,
+  kind: "ledger" | "summary",
+): Promise<Response> => {
+  const summary = await dashboard.readSummary(root, specName);
+  if (kind === "summary") {
+    return json({ ok: true, spec: specName, summary });
+  }
+  const records = await dashboard.readLedger(root, specName);
+  return json({ ok: true, spec: specName, records, summary });
+};
+
 /** POST /api/spec/:name/:action — Execute an action. */
 export const handleAction = async (
   root: string,
   specName: string,
   action: string,
   body: Record<string, unknown>,
-  ptyManager: PtyManager,
+  host: MuxHost,
 ): Promise<Response> => {
   const user = body["user"] as dashboard.User | undefined;
   let result: dashboard.ActionResult;
@@ -86,15 +104,13 @@ export const handleAction = async (
       return json({ ok: false, error: `Unknown action: ${action}` }, 400);
   }
 
-  // Send stdin notification to the tab assigned to this spec
+  // Notify the pane bound to this spec, without stealing focus from the user.
   if (result.ok) {
-    const tab = ptyManager.findTabBySpec(specName);
-    if (tab?.pty !== null && tab?.pty !== undefined) {
-      const userName = user?.name ?? "someone";
-      tab.pty.write(
-        `\n[noskills: spec ${specName} ${action} by ${userName}]\n`,
-      );
-    }
+    const userName = user?.name ?? "someone";
+    host.notifySpec(
+      specName,
+      `\n[noskills: spec ${specName} ${action} by ${userName}]\n`,
+    );
   }
 
   return json(result, result.ok ? 200 : 400);
@@ -102,29 +118,28 @@ export const handleAction = async (
 
 /** POST /api/tab — Create a new tab. */
 export const handleCreateTab = async (
-  ptyManager: PtyManager,
+  host: MuxHost,
   body: Record<string, unknown>,
 ): Promise<Response> => {
   const specName = body["spec"] as string | undefined;
-  const tab = await ptyManager.createTab(specName);
+  const tab = await host.createTab(specName);
   return json({ ok: true, tabId: tab.id, specName: tab.specName });
 };
 
 /** DELETE /api/tab/:id — Close a tab. */
-export const handleCloseTab = async (
-  ptyManager: PtyManager,
+export const handleCloseTab = (
+  host: MuxHost,
   tabId: string,
-): Promise<Response> => {
-  await ptyManager.closeTab(tabId);
+): Response => {
+  host.closeTab(tabId);
   return json({ ok: true });
 };
 
 /** GET /api/tabs — List tabs. */
-export const handleListTabs = (ptyManager: PtyManager): Response => {
-  const tabs = ptyManager.listTabs().map((t) => ({
+export const handleListTabs = (host: MuxHost): Response => {
+  const tabs = host.listTabs().map((t) => ({
     id: t.id,
     specName: t.specName,
-    createdAt: t.createdAt,
   }));
   return json(tabs);
 };

@@ -1,16 +1,19 @@
 {
   "name": "@eserstack/httpclient",
-  "version": "4.1.56",
+  "version": "4.1.58",
   "type": "module",
   "exports": {
     ".": "./mod.ts",
     "./client": "./client.ts",
     "./errors": "./errors.ts",
     "./interceptors": "./interceptors.ts",
-    "./types": "./types.ts"
+    "./types": "./types.ts",
+    "./go-client": "./go-client.ts",
+    "./h3-fetch": "./h3-fetch.ts"
   },
   "dependencies": {
-    "@eserstack/primitives": "workspace:*"
+    "@eserstack/primitives": "workspace:*",
+    "@eserstack/ajan": "workspace:*"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.16",

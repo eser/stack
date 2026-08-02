@@ -28,6 +28,7 @@ import { createRegistry } from "./registry.ts";
 import { runByEvent, runWorkflowWithConfig } from "./engine.ts";
 import { loadFromFile } from "./loader.ts";
 import { shellTool } from "./shell-tool.ts";
+import { ensureLib, getLib } from "./ffi-client.ts";
 
 // =============================================================================
 // Output formatting
@@ -244,6 +245,72 @@ export const main = async (
     let allPassed = true;
     let totalIssues = 0;
     let totalFailed = 0;
+
+    // --- Try Go FFI (faster path for event/workflow runs with built-in tools only) ---
+    if (cliOptions?.tools === undefined) {
+      try {
+        await ensureLib();
+        const lib = getLib();
+
+        if (lib !== null) {
+          const raw = lib.symbols.EserAjanWorkflowRun(
+            JSON.stringify({
+              root: configDir,
+              event: eventArg ?? "",
+              workflowId: workflowArg ?? "",
+              fix: fixMode,
+              only: onlyArg,
+              changedFiles,
+              workflows: config.workflows,
+            }),
+          );
+          const goResult = JSON.parse(raw) as {
+            results?: WorkflowResult[];
+            error?: string;
+          };
+
+          if (!goResult.error && goResult.results !== undefined) {
+            for (const wfResult of goResult.results) {
+              allResults.push(wfResult);
+              if (!wfResult.passed) allPassed = false;
+              for (const step of wfResult.steps) {
+                if (!step.passed) {
+                  totalFailed++;
+                  totalIssues += step.issues.length;
+                }
+                if (runOptions.onStepEnd !== undefined) {
+                  runOptions.onStepEnd(step);
+                }
+              }
+            }
+
+            if (jsonOutput) {
+              console.log(JSON.stringify(allResults, null, 2));
+            }
+
+            if (!allPassed) {
+              if (!jsonOutput) {
+                out.writeln(
+                  span.red(
+                    `\n${totalFailed} check(s) failed with ${totalIssues} issue(s)`,
+                  ),
+                );
+              }
+              await out.close();
+              return results.fail({ exitCode: 1 });
+            }
+
+            if (!jsonOutput) {
+              out.writeln(span.green("\nAll checks passed!"));
+            }
+            await out.close();
+            return results.ok(undefined);
+          }
+        }
+      } catch {
+        // Go unavailable or failed — fall through to TS engine
+      }
+    }
 
     if (eventArg !== undefined) {
       const eventResult = await task.runTask(

@@ -472,7 +472,7 @@ func reflectSetField( //nolint:cyclop,funlen
 		finalValue = reflect.ValueOf(uint64Value)
 	case reflect.TypeFor[float32]():
 		floatValue, _ := strconv.ParseFloat(value, 32)
-		finalValue = reflect.ValueOf(floatValue)
+		finalValue = reflect.ValueOf(float32(floatValue))
 	case reflect.TypeFor[float64]():
 		floatValue, _ := strconv.ParseFloat(value, 64)
 		finalValue = reflect.ValueOf(floatValue)

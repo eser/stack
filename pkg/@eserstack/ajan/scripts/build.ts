@@ -139,6 +139,12 @@ const buildTarget = async (
   const env: Record<string, string> = {
     GOOS: target.goos,
     GOARCH: target.goarch,
+    // The repo root carries a go.work joining this module with the root module
+    // so the quality gate can vet/lint/test the bridge. That workspace also
+    // carries a `replace` needed only to reconcile the two dependency graphs
+    // locally. Shipped artifacts must resolve from this module's own go.mod
+    // alone, so the workspace is disabled for release builds.
+    GOWORK: "off",
   };
 
   // Read version from monorepo VERSION file for -ldflags injection
@@ -244,7 +250,9 @@ const main = async (): Promise<void> => {
     throw new Error("Cannot determine script directory");
   }
 
-  const pkgDir = scriptDir.replace(/\/scripts$/, "");
+  // Strip the trailing "scripts" segment regardless of path separator
+  // (import.meta.dirname uses backslashes on Windows).
+  const pkgDir = scriptDir.replace(/[/\\]scripts$/, "");
   const distDir = `${pkgDir}/dist`;
 
   const args = runtime.process.args as string[];

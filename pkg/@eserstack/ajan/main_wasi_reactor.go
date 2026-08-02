@@ -63,6 +63,44 @@ func eserGoDIResolve() int32 {
 	return setResult(bridgeDIResolve(""))
 }
 
+//go:wasmexport eser_ajan_ai_create_model
+func eserGoAiCreateModel(configJSONLen int32) int32 {
+	configJSON := string(resultBuf[:configJSONLen])
+	return setResult(bridgeAiCreateModel(configJSON))
+}
+
+//go:wasmexport eser_ajan_ai_generate_text
+func eserGoAiGenerateText(modelHandleLen, optionsJSONOffset, optionsJSONLen int32) int32 {
+	modelHandle := string(resultBuf[:modelHandleLen])
+	optionsJSON := string(resultBuf[optionsJSONOffset : optionsJSONOffset+optionsJSONLen])
+	return setResult(bridgeAiGenerateText(modelHandle, optionsJSON))
+}
+
+//go:wasmexport eser_ajan_ai_stream_text
+func eserGoAiStreamText(modelHandleLen, optionsJSONOffset, optionsJSONLen int32) int32 {
+	modelHandle := string(resultBuf[:modelHandleLen])
+	optionsJSON := string(resultBuf[optionsJSONOffset : optionsJSONOffset+optionsJSONLen])
+	return setResult(bridgeAiStreamText(modelHandle, optionsJSON))
+}
+
+//go:wasmexport eser_ajan_ai_stream_read
+func eserGoAiStreamRead(streamHandleLen int32) int32 {
+	streamHandle := string(resultBuf[:streamHandleLen])
+	return setResult(bridgeAiStreamRead(streamHandle))
+}
+
+//go:wasmexport eser_ajan_ai_close_model
+func eserGoAiCloseModel(modelHandleLen int32) int32 {
+	modelHandle := string(resultBuf[:modelHandleLen])
+	return setResult(bridgeAiCloseModel(modelHandle))
+}
+
+//go:wasmexport eser_ajan_ai_free_stream
+func eserGoAiFreeStream(streamHandleLen int32) int32 {
+	streamHandle := string(resultBuf[:streamHandleLen])
+	return setResult(bridgeAiFreeStream(streamHandle))
+}
+
 // main is required by wasip1 but does nothing in reactor mode.
 // The WASM host calls exported functions directly.
 func main() {}

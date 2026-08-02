@@ -40,10 +40,12 @@ const versionHandler = async (
     );
     out.writeln();
     out.writeln(span.text("To fix this, try one of:"));
-    out.writeln(span.text("  Install via npm: npm install @eserstack/ajan"));
     out.writeln(
-      span.text("  Or via Homebrew: brew install eser/tap/eser"),
+      span.text(
+        "  Build with: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts",
+      ),
     );
+    out.writeln(span.text("  Install via npm: npm install @eserstack/ajan"));
 
     await out.close();
     return results.fail({ exitCode: 1 });

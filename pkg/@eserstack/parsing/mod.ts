@@ -11,3 +11,7 @@ export {
   type TokenizerState,
 } from "./lexer/mod.ts";
 export { type ASTNode, type Parser, sequence, token } from "./parser.ts";
+
+// FFI layer
+export * from "./business/mod.ts";
+export * from "./adapters/ffi/mod.ts";

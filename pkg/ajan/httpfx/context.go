@@ -11,6 +11,7 @@ import (
 var (
 	ErrRequestBodyNil    = errors.New("request body is nil")
 	ErrFailedToParseJSON = errors.New("failed to parse JSON body")
+	ErrAlreadyWritten    = errors.New("response already written")
 )
 
 type ContextKey string
@@ -29,6 +30,37 @@ type Context struct {
 	handlers HandlerChain
 	index    int
 	// isAborted bool
+
+	// IsRaw is true for routes registered via RouteRaw (WebTransport, raw streaming).
+	// Middlewares that depend on Result body bytes (e.g. response_time timing log)
+	// must no-op when this flag is set.
+	IsRaw bool
+
+	// EarlyWritten is set by WriteEarly. When true, the raw handler and all
+	// downstream middleware steps must abort without writing a second response.
+	EarlyWritten bool
+}
+
+// WriteEarly writes status and body directly to the ResponseWriter and marks
+// the context as EarlyWritten. Used by middlewares on raw routes (e.g. PIN auth
+// rejecting an unauth WebTransport upgrade) to short-circuit before the raw
+// handler hijacks the connection. Subsequent middleware steps and the raw
+// handler must check EarlyWritten and return without writing.
+func (c *Context) WriteEarly(status int, body []byte) error {
+	if c.EarlyWritten {
+		return ErrAlreadyWritten
+	}
+
+	c.ResponseWriter.WriteHeader(status)
+
+	_, err := c.ResponseWriter.Write(body)
+	if err != nil {
+		return fmt.Errorf("WriteEarly write: %w", err)
+	}
+
+	c.EarlyWritten = true
+
+	return nil
 }
 
 func (c *Context) Next() Result {

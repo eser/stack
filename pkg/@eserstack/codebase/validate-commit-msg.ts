@@ -16,6 +16,11 @@ import * as standards from "@eserstack/standards";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
 import { createCliOutput, runCliMain } from "./cli-support.ts";
+import { ensureLib, getLib } from "./ffi-client.ts";
+
+// Eagerly kick off FFI loading — by the time validateCommitMsg is called
+// (after async CLI arg parsing / file I/O), the library is usually ready.
+ensureLib();
 
 const out = createCliOutput();
 
@@ -66,6 +71,31 @@ export const validateCommitMsg = (
   message: string,
   options: CommitMsgOptions = {},
 ): CommitMsgResult => {
+  // FFI path: synchronous call — works when library was pre-loaded via ensureLib().
+  // Falls through to TS if library is not yet loaded or call fails.
+  const lib = getLib();
+  if (lib !== null) {
+    try {
+      const raw = lib.symbols.EserAjanCodebaseValidateCommitMsg(
+        JSON.stringify({
+          message,
+          allowAsterisk: options.allowAsterisk,
+          allowMultipleScopes: options.allowMultipleScopes,
+          forceScope: options.forceScope,
+          types: options.types !== undefined ? [...options.types] : undefined,
+        }),
+      );
+      const parsed = JSON.parse(raw) as {
+        valid?: boolean;
+        issues?: string[];
+        error?: string;
+      };
+      if (!parsed.error && parsed.valid !== undefined) {
+        return { valid: parsed.valid, issues: parsed.issues ?? [] };
+      }
+    } catch { /* fall through to TS */ }
+  }
+
   const allowAsterisk = options.allowAsterisk ?? true;
   const allowMultipleScopes = options.allowMultipleScopes ?? true;
   const forceScope = options.forceScope ?? false;

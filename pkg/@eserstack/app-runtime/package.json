@@ -1,11 +1,13 @@
 {
   "name": "@eserstack/app-runtime",
-  "version": "4.1.56",
+  "version": "4.1.58",
   "type": "module",
   "exports": {
     ".": "./mod.ts"
   },
   "dependencies": {
-    "@std/semver": "npm:@jsr/std__semver@^1.0.7"
+    "@eserstack/di": "workspace:*",
+    "@eserstack/events": "workspace:*",
+    "@eserstack/standards": "workspace:*"
   }
 }

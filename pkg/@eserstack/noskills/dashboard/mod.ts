@@ -50,3 +50,11 @@ export {
   writeRegistry,
 } from "./diagrams.ts";
 export type { DiagramEntry, DiagramType, StaleDiagram } from "./diagrams.ts";
+
+export { readLedger, readSummary } from "../state/decision-ledger.ts";
+export type {
+  LedgerCategory,
+  LedgerProvenance,
+  LedgerRecord,
+  LedgerSummary,
+} from "../state/decision-ledger.ts";

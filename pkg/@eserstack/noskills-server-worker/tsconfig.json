@@ -1,0 +1,4 @@
+{
+  "//": "mux-worker.ts is a Deno entrypoint (imports @eserstack/mux's workspace/.ts specifiers) and is run via `deno run`, not built by tsc. Excluded so `tsc --outDir dist` keeps building only the node agent worker.",
+  "exclude": ["mux-worker.ts", "node_modules", "dist"]
+}

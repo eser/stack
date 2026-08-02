@@ -160,7 +160,32 @@ export const generateCommitMessage = async (
 
   await registry.close();
 
-  return results.map(generateResult, (r) => ai.text(r).trim());
+  return results.map(generateResult, (r) => extractCommitLine(ai.text(r)));
+};
+
+const CONVENTIONAL_COMMIT =
+  /^(?:feat|fix|chore|docs|refactor|test|style|perf|ci|build|revert)(?:\([^)]+\))?!?:\s.+/;
+
+/**
+ * Pull the conventional-commit line out of a model response. Agent-style
+ * providers (claude-code) often wrap the answer in reasoning ("Let me craft…")
+ * or emit several candidate lines; we want the single commit line, preferring
+ * the last conforming one (the model's final answer), and fall back to the first
+ * non-empty line if none match.
+ */
+export const extractCommitLine = (text: string): string => {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (CONVENTIONAL_COMMIT.test(lines[i]!)) {
+      return lines[i]!;
+    }
+  }
+
+  return lines[0] ?? text.trim();
 };
 
 // =============================================================================

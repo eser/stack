@@ -18,7 +18,7 @@ let sharpModule: any = null;
 async function getSharp(): Promise<any> {
   if (sharpModule === null) {
     // deno-lint-ignore no-import-prefix
-    sharpModule = await import("npm:sharp@^0.33.5");
+    sharpModule = await import("sharp");
   }
   return sharpModule.default ?? sharpModule;
 }

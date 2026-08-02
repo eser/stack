@@ -15,7 +15,7 @@
 
 import * as standards from "@eserstack/standards";
 import { JS_FILE_EXTENSIONS } from "@eserstack/standards/patterns";
-import { createFileTool, type FileTool } from "./file-tool.ts";
+import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
 type ForbiddenPattern = {
   readonly pattern: RegExp;
@@ -93,44 +93,47 @@ const isInString = (line: string, matchIndex: number): boolean => {
   return inSingle || inDouble || inTemplate;
 };
 
-export const tool: FileTool = createFileTool({
-  name: "validate-runtime-js-apis",
-  description:
-    "Detect direct usage of runtime-specific APIs (use @eserstack/standards/cross-runtime instead)",
-  canFix: false,
-  stacks: ["javascript"],
-  defaults: {},
-  extensions: JS_FILE_EXTENSIONS,
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-runtime-js-apis",
+    description:
+      "Detect direct usage of runtime-specific APIs (use @eserstack/standards/cross-runtime instead)",
+    canFix: false,
+    stacks: ["javascript"],
+    defaults: {},
+    extensions: JS_FILE_EXTENSIONS,
 
-  checkFile(file, content) {
-    if (content === undefined) return [];
-    if (isSkipped(file.path)) return [];
+    checkFile(file, content) {
+      if (content === undefined) return [];
+      if (isSkipped(file.path)) return [];
 
-    const issues: { path: string; line: number; message: string }[] = [];
-    const lines = content.split("\n");
+      const issues: { path: string; line: number; message: string }[] = [];
+      const lines = content.split("\n");
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
 
-      for (const { pattern, replacement } of DENO_PATTERNS) {
-        const match = pattern.exec(line);
-        if (match === null) continue;
-        if (isInComment(line, match.index)) continue;
-        if (isInString(line, match.index)) continue;
+        for (const { pattern, replacement } of DENO_PATTERNS) {
+          const match = pattern.exec(line);
+          if (match === null) continue;
+          if (isInComment(line, match.index)) continue;
+          if (isInString(line, match.index)) continue;
 
-        issues.push({
-          path: file.path,
-          line: i + 1,
-          message: `direct Deno API usage: ${
-            match[0]
-          } — use @eserstack/standards/cross-runtime (${replacement})`,
-        });
+          issues.push({
+            path: file.path,
+            line: i + 1,
+            message: `direct Deno API usage: ${
+              match[0]
+            } — use @eserstack/standards/cross-runtime (${replacement})`,
+          });
+        }
       }
-    }
 
-    return issues;
-  },
-});
+      return issues;
+    },
+  }),
+  "runtime-js-apis",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

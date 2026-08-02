@@ -51,4 +51,10 @@ type Config struct {
 
 	// TCPNoDelay disables Nagle's algorithm for lower latency (TCP_NODELAY)
 	TCPNoDelay bool `conf:"tcp_no_delay" default:"true"`
+
+	// HTTP/3 + WebTransport (QUIC, TLS 1.3 only)
+	H3Enabled    bool   `conf:"h3_enabled"     default:"false"`
+	H3ListenAddr string `conf:"h3_listen_addr" default:":4433"`
+	// H3MaxStreams caps concurrent QUIC streams per connection.
+	H3MaxStreams uint64 `conf:"h3_max_streams" default:"100"`
 }

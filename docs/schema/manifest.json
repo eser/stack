@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/eser/stack/main/docs/schema/manifest.json",
+  "title": "noskills manifest (.eser/manifest.yml)",
+  "description": "Schema for the .eser/manifest.yml project configuration file used by noskills.",
+  "type": "object",
+  "properties": {
+    "concerns": {
+      "type": "array",
+      "description": "List of concern IDs from .eser/concerns/ to apply to all specs.",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "tools": {
+      "type": "array",
+      "description": "Coding assistant tools available in this project.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "claude-code",
+          "cursor",
+          "kiro",
+          "copilot",
+          "windsurf",
+          "opencode",
+          "codex",
+          "copilot-cli"
+        ]
+      },
+      "default": []
+    },
+    "providers": {
+      "type": "array",
+      "description": "AI provider identifiers (e.g. \"anthropic\", \"openai\").",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "project": {
+      "type": "object",
+      "description": "Detected tech-stack traits for this project.",
+      "properties": {
+        "languages": {
+          "type": "array",
+          "description": "Programming languages used.",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "frameworks": {
+          "type": "array",
+          "description": "Frameworks and runtimes used.",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "ci": {
+          "type": "array",
+          "description": "CI/CD systems in use (e.g. \"github-actions\").",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "testRunner": {
+          "type": ["string", "null"],
+          "description": "Primary test runner (e.g. \"deno\", \"jest\", \"go\").",
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "maxIterationsBeforeRestart": {
+      "type": "integer",
+      "description": "Maximum Claude iterations in one turn before prompting a context reset. 0 means unlimited.",
+      "minimum": 0,
+      "default": 10
+    },
+    "verifyCommand": {
+      "type": ["string", "null"],
+      "description": "Shell command run after each execution turn to verify correctness (e.g. \"deno task ok\").",
+      "default": null
+    },
+    "allowGit": {
+      "type": "boolean",
+      "description": "Whether Claude is permitted to run destructive git write commands (commit, push, checkout --). Defaults to false for safety.",
+      "default": false
+    },
+    "command": {
+      "type": "string",
+      "description": "Custom shell command used to launch the coding assistant (overrides the tool default). Leave empty to use the tool default.",
+      "default": ""
+    },
+    "user": {
+      "type": ["object", "null"],
+      "description": "Per-user identity, used in spec metadata (contributors, approvals).",
+      "properties": {
+        "name": { "type": "string", "description": "Display name." },
+        "email": { "type": "string", "format": "email", "description": "Email address." }
+      },
+      "required": ["name", "email"],
+      "additionalProperties": false,
+      "default": null
+    },
+    "defaultReviewPosture": {
+      "type": ["string", "null"],
+      "description": "Controls how the spec refinement phase expands or contracts scope.",
+      "enum": [
+        "selective-expansion",
+        "hold-scope",
+        "scope-expansion",
+        "scope-reduction",
+        null
+      ],
+      "default": null
+    }
+  },
+  "additionalProperties": false
+}

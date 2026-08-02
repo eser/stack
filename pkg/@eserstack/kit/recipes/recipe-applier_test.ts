@@ -1,6 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
+import { describe, it } from "@std/testing/bdd";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as recipeApplier from "./recipe-applier.ts";
 
@@ -304,4 +305,60 @@ Deno.test("applyRecipe — dry-run with folder kind reports correctly", async ()
   } finally {
     await runtime.fs.remove(tmpDir, { recursive: true });
   }
+});
+
+// =============================================================================
+// applyRecipe — whole-repo mode dispatch (no files array)
+// =============================================================================
+
+describe("applyRecipe — whole-repo mode routing", () => {
+  it("throws when specifier is missing and recipe has no files", async () => {
+    const tmpDir = await runtime.fs.makeTempDir();
+    try {
+      await assert.assertRejects(
+        () =>
+          recipeApplier.applyRecipe(
+            { schema: "registry/v1" }, // empty recipe — no files
+            {
+              cwd: tmpDir,
+              registryUrl: "https://example.com",
+              // specifier intentionally absent
+            },
+          ),
+        Error,
+        "specifier",
+      );
+    } finally {
+      await runtime.fs.remove(tmpDir, { recursive: true });
+    }
+  });
+});
+
+// =============================================================================
+// applyRecipe — skipPostInstall flag
+// =============================================================================
+
+describe("applyRecipe — skipPostInstall", () => {
+  it("skips post-install commands when flag is set", async () => {
+    const recipe = {
+      name: "post-install-recipe",
+      description: "Test",
+      language: "typescript",
+      scale: "utility" as const,
+      files: [{ source: "src/a.ts", target: "lib/a.ts" }],
+      postInstall: ["echo should-not-run"],
+    };
+    const tmpDir = await runtime.fs.makeTempDir();
+    try {
+      const result = await recipeApplier.applyRecipe(recipe, {
+        cwd: tmpDir,
+        registryUrl: "https://example.com",
+        dryRun: true,
+        skipPostInstall: true,
+      });
+      assert.assertEquals(result.postInstallRan.length, 0);
+    } finally {
+      await runtime.fs.remove(tmpDir, { recursive: true });
+    }
+  });
 });

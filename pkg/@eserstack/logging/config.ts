@@ -33,6 +33,24 @@ export const registerLoggerCacheClear = (callback: () => void): void => {
 };
 
 /**
+ * External callback invoked after configure() completes.
+ * Set by logger.ts to push level changes to Go handles without circular imports.
+ * May return a Promise — configure() awaits it.
+ */
+let onConfigureHook:
+  | ((loggers: readonly LoggerConfig[]) => Promise<void> | void)
+  | null = null;
+
+/**
+ * Registers a callback invoked after every configure() call.
+ */
+export const registerConfigureHook = (
+  callback: (loggers: readonly LoggerConfig[]) => Promise<void> | void,
+): void => {
+  onConfigureHook = callback;
+};
+
+/**
  * Global registry state for loggers.
  */
 let registryState: LoggerRegistryState | null = null;
@@ -110,42 +128,9 @@ export const configure = async (
 
   // Clear logger cache
   loggerCache.clear();
-};
 
-/**
- * Synchronous version of configure.
- */
-export const configureSync = (options: ConfigureOptions): void => {
-  // Reset if requested or if no previous state
-  if (options.reset || registryState === null) {
-    resetSync();
-  }
-
-  // Create new state
-  registryState = {
-    sinks: new Map(Object.entries(options.sinks)),
-    filters: new Map(Object.entries(options.filters ?? {})),
-    loggers: new Map(),
-    contextLocalStorage: options.contextLocalStorage,
-  };
-
-  // Register logger configs
-  for (const loggerConfig of options.loggers) {
-    const normalized = normalizeCategory(loggerConfig.category);
-    const key = categoryKey(normalized);
-    registryState.loggers.set(key, {
-      ...loggerConfig,
-      category: normalized,
-    });
-  }
-
-  // Set custom context storage if provided
-  if (options.contextLocalStorage) {
-    setContextStorage(options.contextLocalStorage);
-  }
-
-  // Clear logger cache
-  loggerCache.clear();
+  // Notify logger.ts so Go handles can be reconfigured (awaited — hook may be async)
+  await onConfigureHook?.(options.loggers);
 };
 
 /**
@@ -161,31 +146,6 @@ export const reset = async (): Promise<void> => {
         await disposable.dispose();
       } else if (typeof disposable[Symbol.asyncDispose] === "function") {
         await disposable[Symbol.asyncDispose]();
-      }
-    }
-  }
-
-  registryState = null;
-  loggerCache.clear();
-  clearLoggerCacheCallback?.();
-  setContextStorage(undefined);
-  setCategoryPrefixStorage(undefined);
-  clearDefaultStorages();
-};
-
-/**
- * Synchronous version of reset.
- */
-export const resetSync = (): void => {
-  // Dispose sinks if they have a disposeSync method
-  if (registryState) {
-    for (const sink of registryState.sinks.values()) {
-      // deno-lint-ignore no-explicit-any
-      const disposable = sink as any;
-      if (typeof disposable.disposeSync === "function") {
-        disposable.disposeSync();
-      } else if (typeof disposable[Symbol.dispose] === "function") {
-        disposable[Symbol.dispose]();
       }
     }
   }

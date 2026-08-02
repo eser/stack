@@ -6,15 +6,20 @@
  * @module
  */
 
-const escHtml = (s: string): string =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+import { escHtml } from "./escape.ts";
 
 export const layout = (
   title: string,
   body: string,
-  opts?: { includeTerminal?: boolean },
+  opts?: { includeTerminal?: boolean; token?: string },
 ): string => {
+  // The per-process token, handed to the browser the only way it can legally
+  // obtain one: by loading a page from an allowed origin. client.js reads it
+  // from here for the /mux upgrade and for every mutating fetch.
+  const tokenMeta = opts?.token === undefined
+    ? ""
+    : `\n  <meta name="noskills-token" content="${escHtml(opts.token)}" />`;
+
   const terminalScripts = opts?.includeTerminal
     ? `
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css" />
@@ -28,7 +33,9 @@ export const layout = (
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#7c3aed" />${tokenMeta}
   <title>${escHtml(title)}</title>
+  <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/static/style.css" />
   ${terminalScripts}
 </head>
@@ -38,7 +45,22 @@ export const layout = (
     <span class="user-info" id="user-info"></span>
   </header>
   ${body}
+  <script src="/static/mux-render.js"></script>
   <script src="/static/client.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").then((reg) => {
+        fetch("/api/cert-fingerprint")
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.fingerprint && reg.active) {
+              reg.active.postMessage({ type: "store_cert_fingerprint", fingerprint: d.fingerprint });
+            }
+          })
+          .catch(() => {});
+      }).catch(() => {});
+    }
+  </script>
 </body>
 </html>`;
 };

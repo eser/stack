@@ -11,8 +11,8 @@
  */
 
 import * as results from "@eserstack/primitives/results";
-import { runtime } from "@eserstack/standards/cross-runtime";
 import { moduleDef } from "./module.ts";
+import { exitCli } from "./cli-support.ts";
 import config from "./package.json" with { type: "json" };
 
 const app = moduleDef.toCommand("codebase", config.version);
@@ -24,15 +24,5 @@ export const main = async (): Promise<
 };
 
 if (import.meta.main) {
-  const result = await main();
-  results.match(result, {
-    ok: () => {},
-    fail: (error) => {
-      if (error.message !== undefined) {
-        // deno-lint-ignore no-console
-        console.error(error.message);
-      }
-      runtime.process.setExitCode(error.exitCode);
-    },
-  });
+  await exitCli(await main());
 }

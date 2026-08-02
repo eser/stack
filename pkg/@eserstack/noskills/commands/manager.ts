@@ -1,10 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * `noskills manager` — Multi-spec TUI with tab management.
+ * `noskills manager` — multi-spec TUI, now a thin client of @eserstack/mux.
  *
- * Each tab runs its own Claude Code instance with automatic session binding.
- * Uses @eserstack/shell/tui for rendering and @eserstack/shell/exec for process management.
+ * mux owns the tabs, panes, PTYs, rendering, and input loop. noskills keeps its
+ * product glue: the spec-list + monitor sidebars (drawn as mux "decorations"),
+ * session binding (NOSKILLS_SESSION), spec navigation, and the dashboard watch.
+ * Each tab runs a coding agent resolved via @eserstack/agents (Claude Code).
  *
  * @module
  */
@@ -12,17 +14,18 @@
 import * as results from "@eserstack/primitives/results";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
-import * as exec from "@eserstack/shell/exec";
+import * as mux from "@eserstack/mux";
+import { defaultAgentAdapter, getAgentAdapter } from "@eserstack/agents";
 import * as persistence from "../state/persistence.ts";
 import * as dashboard from "../dashboard/mod.ts";
-import * as managerTypes from "../manager/types.ts";
 import * as specList from "../manager/spec-list.ts";
 import * as monitor from "../manager/monitor.ts";
-import * as terminalPanel from "../manager/terminal-panel.ts";
-import * as tabManager from "../manager/tab-manager.ts";
-import * as keyboardRouter from "../manager/keyboard-router.ts";
+import * as sessionBinding from "../manager/session-binding.ts";
+import type * as managerTypes from "../manager/types.ts";
 import { cmdPrefix } from "../output/cmd.ts";
-import { runtime } from "@eserstack/standards/cross-runtime";
+
+const SIDEBAR_COLS = 30;
+const MONITOR_ROWS = 8;
 
 export const main = async (
   args?: readonly string[],
@@ -35,754 +38,266 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  // Load specs via dashboard core
-  const dashboardState = await dashboard.getState(root);
-  const specs: specList.SpecInfo[] = dashboardState.specs.map((s) => ({
-    name: s.name,
-    phase: s.phase,
-    hasActiveSession: false,
-  }));
+  const adapter = getAgentAdapter("claude-code") ?? defaultAgentAdapter();
 
-  const state = managerTypes.createInitialState();
-  const { cols, rows } = tui.terminal.getTerminalSize();
-
-  /** Build layout — supports independent panel toggles.
-   *  Uses the flex layout engine from @eserstack/shell/tui/flex-layout.ts. */
-  const buildLayout = (
-    showSpecs: boolean,
-    showMonitor: boolean,
-  ): tui.layout.LayoutResult => {
-    const tabBarRows = 1;
-    const usableRows = rows - 1; // reserve 1 row for status bar
-
-    const emptyPanel = (id: string): tui.layout.Panel => ({
-      id,
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
-    });
-
-    if (!showSpecs && !showMonitor) {
-      // Full-width terminal
-      return {
-        left: emptyPanel("left"),
-        rightTop: emptyPanel("rightTop"),
-        rightBottom: {
-          id: "rightBottom",
-          x: 1,
-          y: tabBarRows + 1,
-          width: cols,
-          height: usableRows - tabBarRows,
-        },
-        statusBar: { id: "statusBar", x: 1, y: rows, width: cols, height: 1 },
-      };
-    }
-
-    // Compute absolute panel sizes matching the old fractional config
-    const leftWidth = showSpecs ? Math.min(Math.floor(cols * 0.25), cols) : 0;
-    const rightTopFraction = showMonitor ? 0.35 : 0;
-    const rightTopHeight = Math.floor(usableRows * rightTopFraction);
-
-    // Build a FlexNode tree that reproduces the 3-panel + status bar layout
-    const rightChildren: tui.layoutTypes.FlexNode[] = [];
-    if (showMonitor) {
-      rightChildren.push({
-        id: "rightTop",
-        size: { type: "fixed", value: rightTopHeight },
-      });
-    }
-    rightChildren.push({
-      id: "rightBottom",
-      size: { type: "flex", grow: 1 },
-    });
-
-    const mainRowChildren: tui.layoutTypes.FlexNode[] = [];
-    if (showSpecs) {
-      mainRowChildren.push({
-        id: "left",
-        size: { type: "fixed", value: leftWidth },
-      });
-    }
-    mainRowChildren.push({
-      direction: "column",
-      size: { type: "flex", grow: 1 },
-      children: rightChildren,
-    });
-
-    const root: tui.layoutTypes.FlexNode = {
-      direction: "column",
-      children: [
-        {
-          direction: "row",
-          size: { type: "flex", grow: 1 },
-          children: mainRowChildren,
-        },
-        { id: "statusBar", size: { type: "fixed", value: 1 } },
-      ],
-    };
-
-    const computed = tui.flexLayout.computeLayout(root, cols, rows);
-
-    // Helper to find a panel and convert 0-based coords to 1-based
-    const findPanel = (id: string): tui.layout.Panel => {
-      const p = tui.flexLayout.findPanel(computed, id);
-      if (p === undefined) return emptyPanel(id);
-      return { id, x: p.x + 1, y: p.y + 1, width: p.width, height: p.height };
-    };
-
-    const rawLeft = findPanel("left");
-    const rawRightTop = findPanel("rightTop");
-    const rawRightBottom = findPanel("rightBottom");
-    const rawStatusBar = findPanel("statusBar");
-
-    // Tab bar occupies 1 row taken from the Terminal panel allocation
-    const termY = rawRightBottom.y + tabBarRows;
-    const termH = rawRightBottom.height - tabBarRows;
-
-    return {
-      left: showSpecs ? rawLeft : emptyPanel("left"),
-      rightTop: showMonitor ? rawRightTop : emptyPanel("rightTop"),
-      rightBottom: {
-        ...rawRightBottom,
-        y: termY,
-        height: termH,
-      },
-      statusBar: rawStatusBar,
-    };
-  };
-
-  let panels = buildLayout(state.specsVisible, state.monitorVisible);
-
-  /** Get terminal content dimensions (inside borders). */
-  const getTerminalSize = (): { cols: number; rows: number } => ({
-    cols: panels.rightBottom.width - 2,
-    rows: panels.rightBottom.height - 2,
-  });
-
-  // Render helpers
-  const encoder = new TextEncoder();
-  const write = (s: string): void => {
-    runtime.process.writeToStdout(encoder.encode(s));
-  };
+  // ── noskills-owned UI state ──
+  let specs: specList.SpecInfo[] = (await dashboard.getState(root)).specs.map(
+    (s) => ({ name: s.name, phase: s.phase, hasActiveSession: false }),
+  );
+  let selectedSpec = 0;
+  let specFocus = false;
+  /** mux tab id → noskills tab metadata (for the sidebar/monitor). */
+  const tabInfo = new Map<string, managerTypes.ManagerTab>();
 
   if (isDryRun) {
-    // Dry run: render one frame to stdout and exit
-    write(tui.terminal.clearScreenSeq());
-
-    // Status bar
-    const statusText =
-      ` noskills manager | ${specs.length} spec(s) | ${cmdPrefix()} | Ctrl+C to quit`;
-    write(tui.ansi.moveTo(panels.statusBar.y, panels.statusBar.x));
-    write(
-      tui.ansi.inverse(
-        tui.ansi.truncate(statusText, panels.statusBar.width),
-      ),
-    );
-
-    // Spec list
-    write(
-      specList.render(specs, state.tabs, state.selectedTabIndex, panels.left),
-    );
-
-    // Monitor
-    const activeTab = tabManager.getActiveTab(state);
-    write(monitor.render(activeTab, panels.rightTop));
-
-    // Terminal (with tab bar inside)
-    write(
-      terminalPanel.render(
-        activeTab,
-        panels.rightBottom,
-        state.tabs,
-        state.selectedTabIndex,
-      ),
-    );
-
-    // Move cursor to bottom
-    write(tui.ansi.moveTo(rows, 1));
-    write("\n");
-
+    console.log(`noskills manager | ${specs.length} spec(s) | ${cmdPrefix()}`);
     return results.ok(undefined);
   }
 
-  // Process group for graceful shutdown
-  const processGroup = new exec.ProcessGroup();
+  // ── mux server ──
+  let sidebarVisible = true;
+  const buildChrome = (): mux.engine.geometry.Chrome => ({
+    tabBarRows: 1,
+    statusBarRows: 1,
+    leftCols: sidebarVisible ? SIDEBAR_COLS : 0,
+    topRows: MONITOR_ROWS,
+  });
 
-  // Render callback — set later, called by PTY onData to refresh terminal panel
-  let scheduleRender: (() => void) | null = null;
+  const resolveSpawn = sessionBinding.buildAgentSpawnResolver(root);
 
-  // Resolve the command to spawn (fallback chain)
-  const resolveCommand = async (): Promise<string> => {
-    for (const candidate of ["claude", "claude-code"]) {
-      try {
-        const code = await exec.exec`which ${candidate}`.noThrow().code();
-        if (code === 0) return candidate;
-      } catch {
-        // which not available or candidate not found
+  const { cols, rows } = tui.terminal.getTerminalSize();
+
+  const server = mux.createServer({
+    initialState: mux.engine.createInitialState({ cols, rows }),
+    resolveSpawn,
+    chrome: buildChrome(),
+  });
+
+  // ── tab creation ──
+  const openTab = async (
+    binding: sessionBinding.SessionBinding,
+  ): Promise<void> => {
+    const command = (await adapter.resolveCommand()) ?? "claude";
+    server.dispatch({
+      type: "newTab",
+      command,
+      cwd: root,
+      title: binding.spec ?? "free",
+      meta: { sessionId: binding.sessionId },
+    });
+
+    // The newest tab is now active; record its metadata by id.
+    const state = server.getState();
+    const tab = state.tabs[state.activeTab];
+    if (tab !== undefined) {
+      tabInfo.set(tab.id, {
+        id: tab.id,
+        spec: binding.spec,
+        mode: binding.mode,
+        sessionId: binding.sessionId,
+        phase: binding.phase,
+      });
+    }
+  };
+
+  const openFreeTab = async (): Promise<void> => {
+    await openTab(await sessionBinding.createFreeSession(root, adapter.id));
+  };
+
+  const openSpecTab = async (specName: string): Promise<void> => {
+    // Switch to an existing tab for this spec instead of opening a duplicate.
+    for (const info of tabInfo.values()) {
+      if (info.spec === specName) {
+        const idx = server.getState().tabs.findIndex((t) => t.id === info.id);
+        if (idx >= 0) {
+          server.dispatch({ type: "gotoTab", index: idx });
+          return;
+        }
       }
     }
-    return "claude"; // fallback — will fail with informative error
-  };
 
-  // Build list items (refreshed on spec changes)
-  let listItems = specList.buildListItems(specs, state.tabs);
-
-  // Set initial selection to first selectable item
-  state.selectedTabIndex = tui.list.nextSelectableIndex(listItems, -1, "down");
-
-  // ── Helper: create a free-mode tab with PTY ──
-  const createFreeTab = async (): Promise<void> => {
-    const sessionId = persistence.generateSessionId();
-    await persistence.createSession(root, {
-      id: sessionId,
-      spec: null,
-      mode: "free",
-      phase: null,
-      pid: 0,
-      startedAt: new Date().toISOString(),
-      lastActiveAt: new Date().toISOString(),
-      tool: "claude-code",
-    });
-
-    const termSize = getTerminalSize();
-    const widget = new tui.VTermWidget(termSize.rows, termSize.cols);
-
-    const tab: managerTypes.ManagerTab = {
-      id: `tab-${sessionId}`,
-      spec: null,
-      mode: "free",
-      sessionId,
-      process: null,
-      buffer: [],
-      widget,
-      active: true,
-      phase: null,
-    };
-
-    // Spawn PTY process with command fallback
-    try {
-      const cmd = await resolveCommand();
-      const pty = await exec.spawnPty({
-        command: cmd,
-        cwd: root,
-        env: {
-          ...runtime.env.toObject(),
-          NOSKILLS_SESSION: sessionId,
-          NOSKILLS_PROJECT_ROOT: root,
-        },
-        cols: termSize.cols,
-        rows: termSize.rows,
-      });
-
-      tab.process = pty;
-      processGroup.add(tab.id, pty);
-
-      // Wire PTY output to VTermWidget + trigger re-render
-      pty.onData((data) => {
-        widget.write(data);
-        tabManager.appendToBuffer(tab, data); // keep raw buffer too
-        scheduleRender?.();
-      });
-
-      // Auto-close tab when PTY exits
-      pty.exitCode.then(() => {
-        Object.assign(state, tabManager.closeTab(state, tab.id));
-        listItems = specList.buildListItems(specs, state.tabs);
-        markAllDirty();
-        if (state.running) renderFrame();
-      }).catch(() => {});
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      widget.write(`[noskills manager] Failed to spawn claude: ${msg}\r\n`);
-      widget.write("Is Claude Code installed? Set command in manifest.yml\r\n");
-    }
-
-    Object.assign(state, tabManager.createTab(state, tab));
-    state.focus = "terminal";
-    listItems = specList.buildListItems(specs, state.tabs);
-  };
-
-  // ── Helper: create a spec-bound tab with PTY ──
-  const createSpecTab = async (specName: string): Promise<void> => {
-    // Check if tab already exists for this spec
-    const existing = state.tabs.find((t) => t.spec === specName);
-    if (existing !== undefined) {
-      const idx = state.tabs.indexOf(existing);
-      Object.assign(state, tabManager.switchTab(state, idx));
-      state.focus = "terminal";
-      return;
-    }
-
-    // Load spec phase
-    let phase: string | null = null;
-    try {
-      const specState = await persistence.resolveState(root, specName);
-      phase = specState.phase;
-    } catch {
-      // spec not found
-    }
-
-    const sessionId = persistence.generateSessionId();
-    await persistence.createSession(root, {
-      id: sessionId,
-      spec: specName,
-      mode: "spec",
-      phase,
-      pid: 0,
-      startedAt: new Date().toISOString(),
-      lastActiveAt: new Date().toISOString(),
-      tool: "claude-code",
-    });
-
-    const specTermSize = getTerminalSize();
-    const specWidget = new tui.VTermWidget(
-      specTermSize.rows,
-      specTermSize.cols,
+    await openTab(
+      await sessionBinding.createSpecSession(root, specName, adapter.id),
     );
+  };
 
-    const tab: managerTypes.ManagerTab = {
-      id: `tab-${sessionId}`,
-      spec: specName,
-      mode: "spec",
-      sessionId,
-      process: null,
-      buffer: [],
-      widget: specWidget,
-      active: true,
-      phase,
-    };
+  // ── decorations: spec-list sidebar + monitor strip ──
+  // Forward-declared: the decorate/onKey/onMouse closures below reference
+  // frontend.refresh() but are created before createTuiFrontend assigns it.
+  // deno-lint-ignore prefer-const
+  let frontend: mux.Frontend;
 
-    try {
-      const cmd = await resolveCommand();
-      const pty = await exec.spawnPty({
-        command: cmd,
-        cwd: root,
-        env: {
-          ...runtime.env.toObject(),
-          NOSKILLS_SESSION: sessionId,
-          NOSKILLS_PROJECT_ROOT: root,
-        },
-        cols: specTermSize.cols,
-        rows: specTermSize.rows,
-      });
+  const decorate = (
+    ctx: {
+      regions: mux.engine.geometry.DecorationRegions;
+      scene: mux.scene.Scene;
+    },
+  ): string => {
+    // Reconcile metadata against the live scene: clean up closed tabs.
+    const liveIds = new Set(ctx.scene.tabs.map((t) => t.id));
+    for (const id of [...tabInfo.keys()]) {
+      if (!liveIds.has(id)) {
+        const info = tabInfo.get(id)!;
+        tabInfo.delete(id);
+        persistence.deleteSession(root, info.sessionId).catch(() => {});
+      }
+    }
 
-      tab.process = pty;
-      processGroup.add(tab.id, pty);
+    const tabs = [...tabInfo.values()];
+    let out = "";
 
-      pty.onData((data) => {
-        specWidget.write(data);
-        tabManager.appendToBuffer(tab, data);
-        scheduleRender?.();
-      });
-
-      // Auto-close tab when PTY exits
-      pty.exitCode.then(() => {
-        Object.assign(state, tabManager.closeTab(state, tab.id));
-        listItems = specList.buildListItems(specs, state.tabs);
-        markAllDirty();
-        if (state.running) renderFrame();
-      }).catch(() => {});
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      specWidget.write(
-        `[noskills manager] Failed to spawn claude for spec "${specName}": ${msg}\r\n`,
+    if (ctx.regions.left !== undefined) {
+      out += specList.render(
+        specs,
+        tabs,
+        selectedSpec,
+        { id: "specs", ...ctx.regions.left },
       );
     }
 
-    Object.assign(state, tabManager.createTab(state, tab));
-    state.focus = "terminal";
-    listItems = specList.buildListItems(specs, state.tabs);
+    if (ctx.regions.top !== undefined) {
+      const activeId = ctx.scene.tabs[ctx.scene.activeTab]?.id;
+      const activeInfo = activeId !== undefined
+        ? tabInfo.get(activeId) ?? null
+        : null;
+      out += monitor.render(activeInfo, { id: "monitor", ...ctx.regions.top });
+    }
+
+    return out;
   };
 
-  // Auto-create first tab on startup
-  await createFreeTab();
-
-  // Interactive mode — full TUI loop
-  write(tui.terminal.enterAlternateScreen());
-  write(tui.terminal.hideCursorSeq());
-  write(tui.terminal.clearScreenSeq());
-  write(tui.mouse.enableMouse());
-
-  // Dirty panel tracking — only re-render what changed
-  const dirtyPanels = new Set<string>([
-    "specs",
-    "monitor",
-    "terminal",
-    "status",
-  ]);
-
-  const renderFrame = (): void => {
-    const activeTab = tabManager.getActiveTab(state);
-    const buf: string[] = [];
-
-    // Hide cursor during render to prevent flicker
-    buf.push(tui.terminal.hideCursorSeq());
-
-    // Full clear when all panels dirty (startup, resize, tab changes)
-    if (dirtyPanels.size >= 4) {
-      buf.push("\x1b[2J\x1b[H"); // clear screen + cursor home
+  // ── input: spec navigation + tab management (intercepts before mux) ──
+  const onKey = (key: tui.KeypressEvent): boolean => {
+    if (specFocus) {
+      switch (key.name) {
+        case "up":
+          selectedSpec = Math.max(0, selectedSpec - 1);
+          frontend.refresh();
+          return true;
+        case "down":
+          selectedSpec = Math.min(
+            Math.max(0, specs.length - 1),
+            selectedSpec + 1,
+          );
+          frontend.refresh();
+          return true;
+        case "return": {
+          const spec = specs[selectedSpec];
+          specFocus = false;
+          if (spec !== undefined) void openSpecTab(spec.name).catch(() => {});
+          frontend.refresh();
+          return true;
+        }
+        case "x": // close the active tab from the sidebar
+          specFocus = false;
+          server.dispatch({ type: "closeFocusedPane" });
+          frontend.refresh();
+          return true;
+        case "escape":
+        case "tab":
+          specFocus = false;
+          frontend.refresh();
+          return true;
+        default:
+          return true; // consume everything while the sidebar is focused
+      }
     }
 
-    // Status bar — always render (cheap, 1 line)
-    if (dirtyPanels.has("status") || dirtyPanels.size === 0) {
-      const focusLabel = state.focus === "list" ? "LIST" : "TERM";
-      const panelHint = `ctrl+e: ${
-        state.specsVisible ? "hide" : "show"
-      } specs | ctrl+w: ${state.monitorVisible ? "hide" : "show"} monitor`;
-      const shortcuts = state.focus === "terminal"
-        ? "esc: panels | ctrl+c: quit"
-        : `esc/tab: switch | ctrl+d: quit | ctrl+t: new tab | ${panelHint}`;
-      const statusText =
-        ` noskills | ${state.tabs.length} tab(s) | [${focusLabel}] ${shortcuts}`;
-      buf.push(tui.ansi.moveTo(panels.statusBar.y, panels.statusBar.x));
-      buf.push(
-        tui.ansi.inverse(
-          tui.ansi.truncate(statusText, panels.statusBar.width) +
-            " ".repeat(
-              Math.max(
-                0,
-                panels.statusBar.width - tui.ansi.visibleLength(statusText),
-              ),
-            ),
-        ),
-      );
+    if (key.ctrl && key.name === "e") {
+      specFocus = true;
+      frontend.refresh();
+      return true;
+    }
+    if (key.ctrl && key.name === "t") {
+      void openFreeTab().catch(() => {});
+      return true;
+    }
+    if (key.ctrl && key.name === "w") {
+      sidebarVisible = !sidebarVisible;
+      server.setChrome(buildChrome());
+      return true;
+    }
+    // ctrl+1..9 → switch tab
+    if (key.ctrl && /^[1-9]$/.test(key.name)) {
+      server.dispatch({ type: "gotoTab", index: Number(key.name) - 1 });
+      return true;
     }
 
-    if (state.specsVisible && dirtyPanels.has("specs")) {
-      buf.push(
-        specList.render(
-          specs,
-          state.tabs,
-          state.selectedTabIndex,
-          panels.left,
-        ),
-      );
-    }
-
-    if (state.monitorVisible && dirtyPanels.has("monitor")) {
-      buf.push(monitor.render(activeTab, panels.rightTop));
-    }
-
-    if (dirtyPanels.has("terminal")) {
-      buf.push(
-        terminalPanel.render(
-          activeTab,
-          panels.rightBottom,
-          state.tabs,
-          state.selectedTabIndex,
-        ),
-      );
-    }
-
-    // Position real cursor inside terminal panel (avoids cursor artifact at panel edge)
-    const cursorTab = tabManager.getActiveTab(state);
-    if (cursorTab?.widget !== null && cursorTab?.widget !== undefined) {
-      const cRow = panels.rightBottom.y + 1 +
-        cursorTab.widget.terminal.cursorRow;
-      const cCol = panels.rightBottom.x + 1 +
-        cursorTab.widget.terminal.cursorCol;
-      buf.push(tui.ansi.moveTo(cRow, cCol));
-    }
-    buf.push(tui.terminal.showCursorSeq());
-
-    dirtyPanels.clear();
-    write(buf.join(""));
+    return false; // pass through to mux (the focused agent)
   };
 
-  /** Mark all panels dirty (for first render and full redraws). */
-  const markAllDirty = (): void => {
-    dirtyPanels.add("specs");
-    dirtyPanels.add("monitor");
-    dirtyPanels.add("terminal");
-    dirtyPanels.add("status");
+  // Click a spec in the sidebar to open it; pane clicks fall through to mux focus.
+  const onMouse = (
+    ev: tui.mouse.MouseEvent,
+    scene: mux.scene.Scene | null,
+  ): boolean => {
+    if (scene === null) return false;
+    const left = scene.chrome.leftCols ?? 0;
+    if (left > 0 && ev.x <= left && ev.type === "mousedown") {
+      // Sidebar box: border at row 2 (1-based), items start at row 3.
+      const idx = ev.y - 3;
+      if (idx >= 0 && idx < specs.length) {
+        selectedSpec = idx;
+        void openSpecTab(specs[idx]!.name).catch(() => {});
+        frontend.refresh();
+      }
+      return true;
+    }
+
+    return false;
   };
 
-  // Debounced render — PTY data can arrive faster than we can draw
-  let renderPending = false;
-  scheduleRender = (): void => {
-    dirtyPanels.add("terminal"); // PTY output only dirties terminal panel
-    if (renderPending) return;
-    renderPending = true;
-    setTimeout(() => {
-      renderPending = false;
-      if (state.running) renderFrame();
-    }, 16); // ~60fps cap
-  };
+  // ── wire server ↔ frontend over an in-process transport ──
+  const [serverSide, frontendSide] = mux.createInProcessPair<
+    mux.ServerToFrontend,
+    mux.FrontendToServer
+  >();
+  server.connect(serverSide);
 
-  // Watch for dashboard events — refresh spec list on state changes
+  frontend = mux.createTuiFrontend({
+    transport: frontendSide,
+    keymap: mux.keybindings.buildKeymap({
+      normal: { "ctrl+q": { type: "quit" } },
+    }),
+    decorate,
+    onKey,
+    onMouse,
+    statusText:
+      " noskills | ctrl+e specs · ctrl+t new tab · ctrl+1-9 switch · ctrl+w hide · ctrl+q quit",
+  });
+
+  // Refresh the spec list when the dashboard changes.
   const unsubEvents = dashboard.watchEvents(root, async () => {
     try {
       const updated = await dashboard.getState(root);
-      specs.length = 0;
-      for (const s of updated.specs) {
-        specs.push({ name: s.name, phase: s.phase, hasActiveSession: false });
+      specs = updated.specs.map((s) => ({
+        name: s.name,
+        phase: s.phase,
+        hasActiveSession: false,
+      }));
+      if (selectedSpec >= specs.length) {
+        selectedSpec = Math.max(0, specs.length - 1);
       }
-      listItems = specList.buildListItems(specs, state.tabs);
-      dirtyPanels.add("specs");
-      dirtyPanels.add("monitor");
-      if (state.running) renderFrame();
+      frontend.refresh();
     } catch {
       // best effort
     }
   });
 
-  markAllDirty();
-  renderFrame();
-
-  // ── Mouse handler (delegates to keyboard-router) ──
-  const handleMouse = async (
-    ev: tui.mouse.MouseEvent,
-  ): Promise<void> => {
-    const action = keyboardRouter.routeMouseEvent(
-      ev,
-      panels,
-      listItems,
-      state.focus,
-    );
-
-    switch (action.type) {
-      case "clickSpec": {
-        state.focus = "list";
-        state.selectedTabIndex = action.index;
-        const specName = specs.find(
-          (s) => s.name === listItems[action.index]?.label,
-        )?.name;
-        if (specName !== undefined) {
-          await createSpecTab(specName);
-          markAllDirty();
-          return;
-        }
-        dirtyPanels.add("specs");
-        dirtyPanels.add("monitor");
-        dirtyPanels.add("status");
-        break;
-      }
-
-      case "clickTerminal": {
-        state.focus = "terminal";
-        dirtyPanels.add("status");
-        break;
-      }
-
-      case "clickMonitor": {
-        state.focus = "list";
-        dirtyPanels.add("status");
-        break;
-      }
-
-      case "scrollSpecs": {
-        Object.assign(
-          state,
-          keyboardRouter.navigateList(state, action.direction, listItems),
-        );
-        dirtyPanels.add("specs");
-        dirtyPanels.add("monitor");
-        break;
-      }
-
-      case "scrollTerminal": {
-        const activeTab = tabManager.getActiveTab(state);
-        if (activeTab?.process !== null && activeTab !== null) {
-          const scrollKey = action.direction === "up" ? "\x1b[A" : "\x1b[B";
-          activeTab.process?.write(scrollKey.repeat(3));
-        }
-        break;
-      }
-
-      case "forwardMouse": {
-        state.focus = "terminal";
-        dirtyPanels.add("status");
-        const activeTab = tabManager.getActiveTab(state);
-        if (activeTab?.process !== null && activeTab !== null) {
-          const relX = ev.x + 1 - panels.rightBottom.x;
-          const relY = ev.y + 1 - panels.rightBottom.y;
-          let code = ev.button;
-          if (ev.type === "mousemove") code |= 32;
-          if (ev.type === "wheel") {
-            code = (64 | (ev.direction === "down" ? 1 : 0)) as 0 | 1 | 2;
-          }
-          if (ev.shift) code |= 4;
-          if (ev.ctrl) code |= 16;
-          const suffix = ev.type === "mouseup" ? "m" : "M";
-          activeTab.process?.write(
-            `\x1b[<${code};${relX};${relY}${suffix}`,
-          );
-        }
-        break;
-      }
-
-      case "none":
-        break;
-    }
-  };
+  await openFreeTab();
 
   try {
-    await tui.withRawMode(async () => {
-      for await (const input of tui.readInput(runtime.process.stdin)) {
-        if (!state.running) break;
-
-        // ── Mouse events ──
-        if (input.kind === "mouse") {
-          await handleMouse(input.event);
-          if (dirtyPanels.size > 0) renderFrame();
-          continue;
-        }
-
-        // ── Keyboard events ──
-        const key = input.event;
-
-        // In terminal focus: forward raw bytes to PTY first, only intercept
-        // global shortcuts. This ensures Alt+Arrow, Cmd+Backspace, etc. pass
-        // through without the keypress parser dropping/splitting them.
-        if (state.focus === "terminal") {
-          const globalAction = keyboardRouter.routeKey(
-            state,
-            key.name,
-            key.ctrl,
-          );
-          if (
-            globalAction.type === "passthrough" ||
-            globalAction.type === "none"
-          ) {
-            // Not a global shortcut — forward raw bytes to PTY
-            const activeTab = tabManager.getActiveTab(state);
-            if (activeTab?.process !== null && activeTab !== null) {
-              activeTab.process?.write(
-                new TextDecoder().decode(key.raw),
-              );
-            }
-            continue;
-          }
-          // Global shortcut — fall through to the switch below
-        }
-
-        const action = keyboardRouter.routeKey(
-          state,
-          key.name,
-          key.ctrl,
-        );
-
-        switch (action.type) {
-          case "quit":
-            state.running = false;
-            break;
-
-          case "toggleFocus":
-            Object.assign(state, keyboardRouter.toggleFocus(state));
-            dirtyPanels.add("status");
-            break;
-
-          case "navigate":
-            Object.assign(
-              state,
-              keyboardRouter.navigateList(state, action.direction, listItems),
-            );
-            dirtyPanels.add("specs");
-            dirtyPanels.add("monitor");
-            dirtyPanels.add("terminal");
-            break;
-
-          case "newTab":
-            await createFreeTab();
-            markAllDirty();
-            break;
-
-          case "toggleSpecs": {
-            state.specsVisible = !state.specsVisible;
-            if (!state.specsVisible && !state.monitorVisible) {
-              state.focus = "terminal";
-            }
-            panels = buildLayout(state.specsVisible, state.monitorVisible);
-            const specSize = getTerminalSize();
-            for (const t of state.tabs) {
-              if (t.process !== null) {
-                t.process.resize(specSize.cols, specSize.rows);
-              }
-              if (t.widget !== null) {
-                t.widget.resize(specSize.rows, specSize.cols);
-              }
-            }
-            markAllDirty();
-            break;
-          }
-
-          case "toggleMonitor": {
-            state.monitorVisible = !state.monitorVisible;
-            if (!state.specsVisible && !state.monitorVisible) {
-              state.focus = "terminal";
-            }
-            panels = buildLayout(state.specsVisible, state.monitorVisible);
-            const monSize = getTerminalSize();
-            for (const t of state.tabs) {
-              if (t.process !== null) {
-                t.process.resize(monSize.cols, monSize.rows);
-              }
-              if (t.widget !== null) {
-                t.widget.resize(monSize.rows, monSize.cols);
-              }
-            }
-            markAllDirty();
-            break;
-          }
-
-          case "select": {
-            const selectedItem = listItems[state.selectedTabIndex];
-            if (selectedItem === undefined) break;
-
-            const label = selectedItem.label;
-            {
-              const specName = specs.find((s) => s.name === label)?.name;
-              if (specName !== undefined) {
-                await createSpecTab(specName);
-              }
-            }
-            markAllDirty();
-            break;
-          }
-
-          case "closeTab": {
-            const activeTab = tabManager.getActiveTab(state);
-            if (activeTab !== null) {
-              if (activeTab.process !== null) {
-                processGroup.remove(activeTab.id);
-              }
-              await persistence.deleteSession(root, activeTab.sessionId);
-              Object.assign(state, tabManager.closeTab(state, activeTab.id));
-              listItems = specList.buildListItems(specs, state.tabs);
-              state.focus = "list";
-            }
-            markAllDirty();
-            break;
-          }
-
-          case "passthrough": {
-            const activeTab = tabManager.getActiveTab(state);
-            if (activeTab?.process !== null && activeTab !== null) {
-              activeTab.process?.write(
-                new TextDecoder().decode(key.raw),
-              );
-            }
-            break;
-          }
-
-          case "none":
-            break;
-        }
-
-        if (!state.running) break;
-        if (dirtyPanels.size > 0) renderFrame();
-      }
-    });
+    await frontend.run();
   } finally {
-    // Graceful shutdown
     unsubEvents();
-    await processGroup.killAll();
-    processGroup.forceKillAll();
+    frontend.stop();
+    // decorate() only deletes sessions for tabs that leave the scene; on quit
+    // the still-open tabs are torn down without that, so sweep them here.
+    for (const info of tabInfo.values()) {
+      await persistence.deleteSession(root, info.sessionId).catch(() => {});
+    }
+    await server.dispose();
     await persistence.gcStaleSessions(root);
-    write(tui.mouse.disableMouse());
-    write(tui.terminal.showCursorSeq());
-    write(tui.terminal.exitAlternateScreen());
   }
 
   return results.ok(undefined);

@@ -8,30 +8,33 @@
 
 import * as yaml from "yaml";
 import * as standards from "@eserstack/standards";
-import { createFileTool, type FileTool } from "./file-tool.ts";
+import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
 
-export const tool: FileTool = createFileTool({
-  name: "validate-yaml",
-  description: "Validate YAML syntax",
-  canFix: false,
-  stacks: [],
-  defaults: {},
-  extensions: ["yml", "yaml"],
+export const tool: FileTool = withGoValidator(
+  createFileTool({
+    name: "validate-yaml",
+    description: "Validate YAML syntax",
+    canFix: false,
+    stacks: [],
+    defaults: {},
+    extensions: ["yml", "yaml"],
 
-  checkFile(file, content) {
-    if (content === undefined) {
-      return [];
-    }
+    checkFile(file, content) {
+      if (content === undefined) {
+        return [];
+      }
 
-    try {
-      yaml.parse(content);
-      return [];
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "invalid YAML";
-      return [{ path: file.path, message }];
-    }
-  },
-});
+      try {
+        yaml.parse(content);
+        return [];
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "invalid YAML";
+        return [{ path: file.path, message }];
+      }
+    },
+  }),
+  "yaml",
+);
 
 export const run: FileTool["run"] = tool.run;
 export const validator: FileTool["validator"] = tool.validator;

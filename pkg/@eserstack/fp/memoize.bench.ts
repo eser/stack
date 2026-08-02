@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { memoize } from "./memoize.ts";
-import lodashMemoize from "npm:lodash.memoize@^4.1.2";
+import lodashMemoize from "lodash.memoize";
 
 const group = "memoize";
 

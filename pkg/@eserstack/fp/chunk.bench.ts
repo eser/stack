@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { chunk } from "./chunk.ts";
-import lodashChunk from "npm:lodash.chunk@^4.2.0";
+import lodashChunk from "lodash.chunk";
 
 const group = "chunk";
 

@@ -7,10 +7,26 @@
  */
 
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
+import { ensureLib, getLib } from "../ffi-client.ts";
 import type { CommandOptions, CommandResult, StdioOption } from "./types.ts";
 import { CommandError } from "./types.ts";
+import * as childGo from "./child-go.ts";
+
+const encoder = new TextEncoder();
 
 const decoder = new TextDecoder();
+
+/**
+ * Convert an env record to the `KEY=VALUE` string list the Go FFI expects
+ * (its `shellExecRequest.Env` is `[]string`). The runtime spawn path takes a
+ * `Record` directly, so this is only for the FFI/child paths.
+ */
+const envToPairs = (
+  env: Record<string, string> | undefined,
+): string[] | undefined =>
+  env !== undefined
+    ? Object.entries(env).map(([k, v]) => `${k}=${v}`)
+    : undefined;
 
 /**
  * CommandBuilder provides a fluent API for building and executing shell commands
@@ -120,6 +136,70 @@ export class CommandBuilder {
 
   /** Execute command and return result */
   async spawn(): Promise<CommandResult> {
+    // The Go FFI one-shot path captures stdout/stderr into buffers and returns
+    // them — it can neither stream to the terminal nor connect inherited stdin.
+    // It is therefore only valid when output is captured ("piped") or discarded
+    // ("null"). For any "inherit" stdio we fall through to the runtime spawn,
+    // which wires the streams to the terminal directly.
+    const stdioNeedsRuntime = this.#options.stdin === "piped" ||
+      this.#options.stdin === "inherit" ||
+      this.#options.stdout === "inherit" ||
+      this.#options.stderr === "inherit";
+
+    if (!stdioNeedsRuntime) {
+      await ensureLib();
+      const lib = getLib();
+
+      if (lib !== null) {
+        try {
+          const raw = lib.symbols.EserAjanShellExec(
+            JSON.stringify({
+              command: this.#cmd,
+              args: this.#args,
+              cwd: this.#options.cwd,
+              // Go wants env as KEY=VALUE strings and timeout as a Go duration
+              // string; sending a JS object / number fails its JSON unmarshal.
+              env: envToPairs(this.#options.env),
+              timeout: this.#options.timeout !== undefined
+                ? `${this.#options.timeout}ms`
+                : undefined,
+            }),
+          );
+          const goResult = JSON.parse(raw) as {
+            stdout: string;
+            stderr: string;
+            code: number;
+            error?: string;
+          };
+
+          if (!goResult.error) {
+            const stdoutBytes = encoder.encode(goResult.stdout);
+            const stderrBytes = encoder.encode(goResult.stderr);
+            const result: CommandResult = {
+              code: goResult.code,
+              success: goResult.code === 0,
+              stdout: stdoutBytes,
+              stderr: stderrBytes,
+            };
+
+            if (!result.success && this.#options.throwOnError === true) {
+              throw new CommandError(
+                `Command failed with exit code ${result.code}: ${this.#cmd}`,
+                this.#cmd,
+                result.code,
+                goResult.stderr,
+              );
+            }
+
+            return result;
+          }
+        } catch (err) {
+          if (err instanceof CommandError) throw err;
+          // fall through to TS runtime
+        }
+      }
+    }
+
     const { runtime } = standardsCrossRuntime;
 
     const result = await runtime.exec.spawn(this.#cmd, this.#args, {
@@ -128,6 +208,10 @@ export class CommandBuilder {
       stdin: this.#options.stdin,
       stdout: this.#options.stdout,
       stderr: this.#options.stderr,
+      // Honor timeout on the runtime path too (it was previously dropped here).
+      signal: this.#options.timeout !== undefined
+        ? AbortSignal.timeout(this.#options.timeout)
+        : undefined,
     });
 
     if (!result.success && this.#options.throwOnError === true) {
@@ -192,8 +276,8 @@ export class CommandBuilder {
   }
 
   /**
-   * Spawn child process with streaming I/O support.
-   * Returns a handle with stdin/stdout/stderr streams for advanced use cases.
+   * Spawn child process with streaming I/O support (Option B — FFI only).
+   * Throws if the native library is not available.
    *
    * @example
    * ```ts
@@ -203,14 +287,22 @@ export class CommandBuilder {
    * ```
    */
   child(): standardsCrossRuntime.ChildProcess {
-    const { runtime } = standardsCrossRuntime;
+    const lib = getLib();
 
-    return runtime.exec.spawnChild(this.#cmd, this.#args, {
+    if (lib === null) {
+      throw new Error(
+        "@eserstack/ajan native library is not available — " +
+          "exec.child() requires FFI or command-mode WASM",
+      );
+    }
+
+    const env = envToPairs(this.#options.env);
+
+    return childGo.spawnChildGoSync(lib, {
+      command: this.#cmd,
+      args: this.#args,
       cwd: this.#options.cwd,
-      env: this.#options.env,
-      stdin: this.#options.stdin ?? "piped",
-      stdout: this.#options.stdout ?? "piped",
-      stderr: this.#options.stderr ?? "piped",
+      env,
     });
   }
 }

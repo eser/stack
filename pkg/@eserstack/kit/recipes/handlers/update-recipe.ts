@@ -14,6 +14,7 @@ import * as registryFetcher from "../registry-fetcher.ts";
 import * as recipeApplier from "../recipe-applier.ts";
 import type * as registrySchema from "../registry-schema.ts";
 import type { HandlerContext } from "../handler-context.ts";
+import { ensureLib, getLib } from "../../ffi-client.ts";
 
 // =============================================================================
 // Types
@@ -48,6 +49,76 @@ const updateRecipe = (
   task.task<UpdateRecipeOutput, UpdateRecipeError, HandlerContext>(
     async (ctx: HandlerContext) => {
       try {
+        await ensureLib();
+        const lib = getLib();
+
+        if (lib !== null) {
+          const raw = lib.symbols.EserAjanKitUpdateRecipe(
+            JSON.stringify({
+              recipeName: input.recipeName,
+              cwd: input.cwd,
+              registrySource: input.registrySource,
+              dryRun: input.dryRun,
+              verbose: input.verbose,
+            }),
+          );
+          const goResult = JSON.parse(raw) as {
+            recipes?: Array<{
+              name: string;
+              written: string[];
+              skipped: string[];
+              total: number;
+              postInstallRan: string[];
+            }>;
+            error?: string;
+          };
+
+          if (!goResult.error && goResult.recipes !== undefined) {
+            let totalWritten = 0;
+            for (const entry of goResult.recipes) {
+              totalWritten += entry.written.length;
+            }
+
+            const verb = input.dryRun ? "Would update" : "Updated";
+            ctx.out.writeln(
+              span.green(
+                `✓ ${verb} ${totalWritten} file(s) from ${input.recipeName}`,
+              ),
+            );
+
+            const mainRecipe = goResult.recipes.find(
+              (r) => r.name === input.recipeName,
+            ) ?? goResult.recipes[0];
+
+            if (mainRecipe !== undefined) {
+              for (const file of mainRecipe.written) {
+                ctx.out.writeln(`  → ${file}`);
+              }
+            }
+
+            const fakeRecipe = {
+              name: input.recipeName,
+            } as unknown as registrySchema.Recipe;
+            const fakeResult = {
+              written: goResult.recipes.flatMap((r) => r.written),
+              skipped: goResult.recipes.flatMap((r) => r.skipped ?? []),
+              total: goResult.recipes.reduce((s, r) => s + r.total, 0),
+              postInstallRan: goResult.recipes.flatMap(
+                (r) => r.postInstallRan ?? [],
+              ),
+            } as unknown as recipeApplier.ApplyResult;
+
+            return results.ok({ recipe: fakeRecipe, result: fakeResult });
+          }
+
+          if (goResult.error?.includes("not found")) {
+            return results.fail({
+              _tag: "RecipeNotFound" as const,
+              message: goResult.error,
+            });
+          }
+        }
+
         const manifest = await registryFetcher.fetchRegistry(
           input.registrySource,
           { verbose: input.verbose, local: input.local },

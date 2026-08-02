@@ -11,8 +11,15 @@ import { escHtml } from "./escape.ts";
 export const layout = (
   title: string,
   body: string,
-  opts?: { includeTerminal?: boolean },
+  opts?: { includeTerminal?: boolean; token?: string },
 ): string => {
+  // The per-process token, handed to the browser the only way it can legally
+  // obtain one: by loading a page from an allowed origin. client.js reads it
+  // from here for the /mux upgrade and for every mutating fetch.
+  const tokenMeta = opts?.token === undefined
+    ? ""
+    : `\n  <meta name="noskills-token" content="${escHtml(opts.token)}" />`;
+
   const terminalScripts = opts?.includeTerminal
     ? `
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css" />
@@ -26,7 +33,7 @@ export const layout = (
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#7c3aed" />
+  <meta name="theme-color" content="#7c3aed" />${tokenMeta}
   <title>${escHtml(title)}</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/static/style.css" />

@@ -84,6 +84,9 @@ workflows:
             - "pkg/@eserstack/standards/cross-runtime/"
             - "pkg/@eserstack/cli/scripts/compile.ts"
             - "scripts/hybrid-sniffer.ts"
+            # Bootstrap: generates the package manifests, so it runs before the
+            # package graph exists and cannot import from it.
+            - "etc/scripts/gen-jsr-manifests.ts"
             # Tests and benches run only under Deno — exempt from the portable-API rule.
             - "_test.ts"
             - ".test.ts"
@@ -94,6 +97,34 @@ workflows:
           errorObjects:
             - NSError
 
+      # Regenerate the per-package JSR publish manifests.
+      #
+      # pkg/@eserstack/*/deno.json is derived from each package's package.json
+      # plus the root VERSION file (and deno.extra.json where a package needs
+      # `publish.include` or `tasks`, which package.json cannot express). They
+      # are gitignored: keeping them checked in duplicated every exports map in
+      # two places, which is what made a one-line version bump rewrite ~70
+      # files and had already drifted once.
+      - shell:
+          name: gen-jsr-manifests
+          command: deno run -A ./etc/scripts/gen-jsr-manifests.ts
+          timeout: 60
+
+      # Build the native FFI library before any Deno step that loads it.
+      #
+      # ~20 TS packages reach Go through pkg/@eserstack/ajan's c-shared library.
+      # Without this step the *.ffi.test.ts suites fail with "native library
+      # unavailable" on a clean checkout, and CI otherwise type-checks and tests
+      # the whole TS half against whatever binary was last *published* -- so an
+      # ABI change cannot fail the build that introduces it.
+      #
+      # GOWORK=off: the artifact must resolve from pkg/@eserstack/ajan/go.mod
+      # alone, not the repo-root workspace (see go.work).
+      - shell:
+          name: build-native-lib
+          command: deno run -A ./pkg/@eserstack/ajan/scripts/build.ts
+          timeout: 300
+
       # Deno checks
       - shell:
           name: deno-formatter
@@ -101,8 +132,8 @@ workflows:
           fixCommand: deno fmt
       - shell:
           name: deno-linter
-          command: deno lint
-          fixCommand: deno lint --fix
+          command: deno lint .
+          fixCommand: deno lint --fix .
       - shell:
           name: deno-type-check
           command: deno check ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts
@@ -118,20 +149,29 @@ workflows:
           command: deno publish --dry-run --allow-dirty
           timeout: 120
 
-      # Go checks (cmd/ajan, pkg/@eserstack/ajan/go)
+      # Go checks.
+      #
+      # This repo is TWO Go modules: github.com/eser/stack (root) and
+      # github.com/eser/ajan (pkg/@eserstack/ajan, the cgo/WASI FFI bridge).
+      # go.work joins them, but `./...` is still resolved against the module
+      # containing the working directory -- it does NOT fan out across
+      # workspace modules. Both patterns must be listed explicitly or the
+      # bridge (bridge.go + main*.go, ~5.9k LOC) and its tests go unchecked.
       - shell:
           name: go-check
-          command: "go vet ./... && go build ./..."
-          timeout: 120
+          command: "go vet ./... ./pkg/@eserstack/ajan/... && go build ./...
+            ./pkg/@eserstack/ajan/..."
+          timeout: 180
       - shell:
           name: go-lint
-          command: "go tool golangci-lint run ./..."
-          fixCommand: "gofmt -w . && go tool golangci-lint run --fix ./..."
-          timeout: 120
+          command: "go tool golangci-lint run ./... ./pkg/@eserstack/ajan/..."
+          fixCommand: "gofmt -w . && go tool golangci-lint run --fix ./...
+            ./pkg/@eserstack/ajan/..."
+          timeout: 180
       - shell:
           name: go-tests
-          command: "go test -race ./..."
-          timeout: 300
+          command: "go test -race ./... ./pkg/@eserstack/ajan/..."
+          timeout: 420
 
   - id: commit-validation
     on: [commitmsg]
@@ -170,7 +210,7 @@ scripts:
     description: Run tests in watch mode
 
   # Code quality
-  lint: deno lint
+  lint: deno lint .
   fmt: deno fmt
   check: deno check ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts
 

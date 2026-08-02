@@ -219,16 +219,33 @@ func NewStreamIterator(eventCh <-chan StreamEvent, cancel context.CancelFunc) *S
 // Returns true if there is a new event, false when the stream is done or errored.
 func (iter *StreamIterator) Next() bool {
 	iter.mu.Lock()
-	defer iter.mu.Unlock()
 
 	if iter.done {
+		iter.mu.Unlock()
+
 		return false
 	}
 
-	event, ok := <-iter.eventCh
+	eventCh := iter.eventCh
+	iter.mu.Unlock()
+
+	// The receive happens with the mutex released. Holding it across a blocking
+	// receive meant Close -- which takes the same mutex -- could not run, so the
+	// documented remedy for a stalled Next deadlocked against Next itself.
+	event, ok := <-eventCh
+
+	iter.mu.Lock()
+	defer iter.mu.Unlock()
+
 	if !ok {
 		iter.done = true
 
+		return false
+	}
+
+	// Close may have run while the receive was in flight. Honour it rather than
+	// publishing an event the caller has already said it does not want.
+	if iter.done {
 		return false
 	}
 

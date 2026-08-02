@@ -419,6 +419,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # pkg/@eserstack/*/deno.json are generated from each package's
+      # package.json + the root VERSION file and are gitignored, so a fresh
+      # checkout has none. Without this step `deno publish` finds no packages.
+      - name: Generate JSR manifests
+        run: deno run -A ./etc/scripts/gen-jsr-manifests.ts
+
       - name: Publish to JSR
         run: deno publish
 

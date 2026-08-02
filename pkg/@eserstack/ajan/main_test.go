@@ -233,7 +233,7 @@ func TestBridgeParsingTokenize(t *testing.T) {
 		t.Parallel()
 		got := bridgeParsingTokenize("not-json")
 		var resp parsingTokenizeResponse
-		json.Unmarshal([]byte(got), &resp) //nolint:errcheck
+		json.Unmarshal([]byte(got), &resp) //nolint:errcheck,gosec // error surfaces via resp.Error
 		if resp.Error == "" {
 			t.Fatal("expected error for invalid JSON input")
 		}

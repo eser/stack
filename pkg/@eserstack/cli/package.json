@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/cli",
-  "version": "4.1.57",
+  "version": "4.1.58",
   "type": "module",
   "exports": "./main.ts",
   "bin": {
@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@eserstack/ai": "workspace:*",
+    "@eserstack/ajan": "workspace:*",
     "@eserstack/codebase": "workspace:*",
     "@eserstack/config": "workspace:*",
     "@eserstack/kit": "workspace:*",
@@ -19,7 +20,7 @@
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
     "@eserstack/workflows": "workspace:*",
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.1"
   },
   "devDependencies": {},
   "optionalDependencies": {

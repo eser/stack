@@ -6,6 +6,24 @@
 // + per-pane output in, actions out). noskills-web glue (SSE dashboard feed,
 // REST tab create/close, spec CTAs) lives here; all rendering is in MuxRender.
 
+// The per-process token the server embedded in the page head. Every mutating
+// call and the /mux upgrade must carry it: binding to 127.0.0.1 is not an
+// authorization boundary, and WebSockets ignore the same-origin policy.
+const AUTH_TOKEN =
+  document.querySelector('meta[name="noskills-token"]')?.content ?? "";
+
+// fetch wrapper that attaches the token to anything that is not a plain read.
+const authedFetch = (url, init = {}) => {
+  const method = (init.method ?? "GET").toUpperCase();
+  if (method === "GET" || method === "HEAD") {
+    return fetch(url, init);
+  }
+  return fetch(url, {
+    ...init,
+    headers: { ...(init.headers ?? {}), "x-noskills-token": AUTH_TOKEN },
+  });
+};
+
 (() => {
   "use strict";
 
@@ -67,7 +85,9 @@
     }
 
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    ws = new WebSocket(`${proto}//${location.host}/mux`);
+    ws = new WebSocket(
+      `${proto}//${location.host}/mux?token=${encodeURIComponent(AUTH_TOKEN)}`,
+    );
 
     ws.onopen = () => send({ t: "attach", viewport: renderer.viewport() });
     ws.onmessage = (ev) => {
@@ -104,12 +124,14 @@
 
     if (target.classList.contains("tab-close") && target.dataset.close) {
       e.stopPropagation();
-      await fetch(`/api/tab/${target.dataset.close}`, { method: "DELETE" });
+      await authedFetch(`/api/tab/${target.dataset.close}`, {
+        method: "DELETE",
+      });
       return;
     }
 
     if (target.id === "add-tab" || target.closest("#add-tab")) {
-      await fetch("/api/tab", {
+      await authedFetch("/api/tab", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
@@ -136,7 +158,7 @@
         body = { text, mentionId: target.dataset.questionId || "" };
       }
 
-      const res = await fetch(`/api/spec/${spec}/${action}`, {
+      const res = await authedFetch(`/api/spec/${spec}/${action}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),

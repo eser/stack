@@ -1,0 +1,18 @@
+{
+  "//": "Fields the generated deno.json cannot derive from package.json. Merged in by etc/scripts/gen-jsr-manifests.ts.",
+  "publish": {
+    "include": [
+      "mod.ts",
+      "client.ts",
+      "protocol.ts",
+      "span-renderer.tsx",
+      "use-function.ts",
+      "runtime/**/*.ts",
+      "runtime/**/*.tsx",
+      "client/**/*.ts",
+      "client/**/*.tsx",
+      "README.md",
+      "LICENSE"
+    ]
+  }
+}

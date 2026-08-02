@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"slices"
 	"sync"
 	"syscall"
 	"time"
@@ -26,9 +27,22 @@ type Process struct {
 
 	Signal chan os.Signal
 
-	WaitGroups map[string]*sync.WaitGroup
-
 	ShutdownTimeout time.Duration
+
+	// wg tracks every goroutine started via StartGoroutine.
+	//
+	// This replaces a former exported `WaitGroups map[string]*sync.WaitGroup`.
+	// StartGoroutine wrote to that map with no synchronisation while Shutdown
+	// ranged over it, so concurrent starts aborted the process with
+	// "fatal error: concurrent map writes" -- a runtime throw that recover()
+	// cannot catch -- even though the README documented StartGoroutine as safe
+	// to call concurrently. A single WaitGroup needs no locking and cannot be
+	// misused from outside the package.
+	wg sync.WaitGroup
+
+	// namesMu guards names, which exists only for diagnostics.
+	namesMu sync.Mutex
+	names   []string
 }
 
 func New(baseCtx context.Context, logger *logfx.Logger) *Process {
@@ -63,18 +77,26 @@ func New(baseCtx context.Context, logger *logfx.Logger) *Process {
 		Signal: sigChan,
 
 		ShutdownTimeout: DefaultShutdownTimeout,
-		WaitGroups:      map[string]*sync.WaitGroup{},
 	}
+}
+
+// RunningNames returns the names registered via StartGoroutine, for diagnostics.
+func (p *Process) RunningNames() []string {
+	p.namesMu.Lock()
+	defer p.namesMu.Unlock()
+
+	return slices.Clone(p.names)
 }
 
 func (p *Process) StartGoroutine(
 	name string,
 	fn func(ctx context.Context) error, //nolint:varnamelen
 ) {
-	wg := &sync.WaitGroup{}
-	p.WaitGroups[name] = wg
+	p.namesMu.Lock()
+	p.names = append(p.names, name)
+	p.namesMu.Unlock()
 
-	wg.Go(func() {
+	p.wg.Go(func() {
 		if p.Logger != nil {
 			p.Logger.DebugContext(p.Ctx, "Goroutine starting", "name", name)
 		}
@@ -116,9 +138,7 @@ func (p *Process) Shutdown() {
 	shutdownComplete := make(chan struct{})
 
 	go func() {
-		for _, wg := range p.WaitGroups {
-			wg.Wait()
-		}
+		p.wg.Wait()
 
 		close(shutdownComplete)
 	}()

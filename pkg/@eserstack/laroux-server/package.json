@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/laroux-server",
-  "version": "4.1.57",
+  "version": "4.1.58",
   "description": "Server runtime for the laroux.js framework",
   "license": "Apache-2.0",
   "type": "module",
@@ -38,6 +38,6 @@
     "@std/assert": "npm:@jsr/std__assert@^1.0.16",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.0.0",
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.1"
   }
 }

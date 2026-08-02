@@ -158,7 +158,7 @@ func (m *OpenAIModel) StreamText(
 
 	stream := m.client.Chat.Completions.NewStreaming(streamCtx, params)
 
-	go m.processStream(stream, eventCh, cancel)
+	go m.processStream(streamCtx, stream, eventCh, cancel)
 
 	return NewStreamIterator(eventCh, cancel), nil
 }
@@ -282,6 +282,7 @@ func (m *OpenAIModel) CancelBatchJob(
 // processStream reads from the OpenAI streaming response and maps events to the
 // unified StreamEvent channel.
 func (m *OpenAIModel) processStream(
+	ctx context.Context,
 	stream *ssestream.Stream[openai.ChatCompletionChunk],
 	eventCh chan<- StreamEvent,
 	cancel context.CancelFunc,
@@ -297,22 +298,22 @@ func (m *OpenAIModel) processStream(
 
 		// Emit text content deltas.
 		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-			eventCh <- newStreamEventContentDelta(chunk.Choices[0].Delta.Content)
+			sendStreamEvent(ctx, eventCh, newStreamEventContentDelta(chunk.Choices[0].Delta.Content))
 		}
 
 		// Detect finished tool calls via the accumulator.
 		if tool, ok := acc.JustFinishedToolCall(); ok {
-			eventCh <- newStreamEventToolCall(&ToolCall{
+			sendStreamEvent(ctx, eventCh, newStreamEventToolCall(&ToolCall{
 				ID:        tool.ID,
 				Name:      tool.Name,
 				Arguments: json.RawMessage(tool.Arguments),
-			})
+			}))
 		}
 	}
 
 	err := stream.Err()
 	if err != nil {
-		eventCh <- newStreamEventError(classifyOpenAIError(ErrOpenAIStreamFailed, err))
+		sendStreamEvent(ctx, eventCh, newStreamEventError(classifyOpenAIError(ErrOpenAIStreamFailed, err)))
 
 		return
 	}
@@ -333,7 +334,7 @@ func (m *OpenAIModel) processStream(
 		stopReason = mapOpenAIFinishReason(acc.Choices[0].FinishReason)
 	}
 
-	eventCh <- newStreamEventDone(stopReason, usage)
+	sendStreamEvent(ctx, eventCh, newStreamEventDone(stopReason, usage))
 }
 
 // buildParams maps unified GenerateTextOptions to OpenAI ChatCompletionNewParams.

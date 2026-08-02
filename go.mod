@@ -21,7 +21,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/openai/openai-go v1.12.0
 	github.com/quic-go/quic-go v0.60.0
-	github.com/quic-go/webtransport-go v0.11.0
+	github.com/quic-go/webtransport-go v0.11.1
 	github.com/rabbitmq/amqp091-go v1.12.0
 	github.com/redis/go-redis/v9 v9.20.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2

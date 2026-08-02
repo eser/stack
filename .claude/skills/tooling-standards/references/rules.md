@@ -131,7 +131,7 @@ package.json with JSR packages:
   "dependencies": {
     "@std/path": "npm:@jsr/std__path@^1.0.0",
     "@std/fs": "npm:@jsr/std__fs@^1.0.0",
-    "react": "^19.0.0"
+    "react": "^19.2.8"
   }
 }
 ```
@@ -177,8 +177,8 @@ Correct (no JSR alternative):
 ```json
 {
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   }
 }
 ```

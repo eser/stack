@@ -19,12 +19,12 @@
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "@anthropic-ai/sdk": "^0.110.0",
-    "openai": "^6.45.0",
-    "@google/genai": "^2.10.0"
+    "@anthropic-ai/sdk": "^0.115.0",
+    "openai": "^7.3.0",
+    "@google/genai": "^2.15.0"
   },
   "devDependencies": {
-    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
-    "@std/testing": "npm:@jsr/std__testing@^1.0.16"
+    "@std/assert": "npm:@jsr/std__assert@^1.0.19",
+    "@std/testing": "npm:@jsr/std__testing@^1.0.20"
   }
 }

@@ -255,7 +255,7 @@ const main = async (): Promise<void> => {
       // until the publish jobs run later in the same pipeline (see the 4.1.58
       // lockfile deadlock). Matches how the platform packages are pinned.
       "@eserstack/ajan": "^4.1.0",
-      "@tailwindcss/oxide": "^4.1.8",
+      "@tailwindcss/oxide": "^4.3.3",
       koffi: "^2.15.0",
       lightningcss: "^1.30.0",
       tailwindcss: "^4.1.8",

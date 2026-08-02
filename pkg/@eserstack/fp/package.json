@@ -59,7 +59,7 @@
     "@eserstack/primitives": "workspace:*"
   },
   "devDependencies": {
-    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
+    "@std/assert": "npm:@jsr/std__assert@^1.0.19",
     "lodash.chunk": "^4.2.0",
     "lodash.get": "^4.4.2",
     "lodash.groupby": "^4.6.0",

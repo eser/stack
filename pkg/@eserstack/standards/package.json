@@ -25,12 +25,12 @@
   },
   "dependencies": {
     "@eserstack/primitives": "workspace:*",
-    "@std/fs": "npm:@jsr/std__fs@^1.0.23",
-    "@std/path": "npm:@jsr/std__path@^1.1.4",
-    "@std/semver": "npm:@jsr/std__semver@^1.0.7"
+    "@std/fs": "npm:@jsr/std__fs@^1.0.24",
+    "@std/path": "npm:@jsr/std__path@^1.1.6",
+    "@std/semver": "npm:@jsr/std__semver@^1.0.8"
   },
   "devDependencies": {
-    "@std/assert": "npm:@jsr/std__assert@^1.0.16",
-    "@std/testing": "npm:@jsr/std__testing@^1.0.16"
+    "@std/assert": "npm:@jsr/std__assert@^1.0.19",
+    "@std/testing": "npm:@jsr/std__testing@^1.0.20"
   }
 }

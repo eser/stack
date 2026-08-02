@@ -17,7 +17,7 @@ import (
 // Create one per logical endpoint; sessions are created via Connect.
 type Client struct {
 	config *Config
-	dialer *webtransport.Dialer
+	dialer *webtransport.Transport
 }
 
 // NewClient creates a Client with the supplied options. The underlying QUIC
@@ -42,7 +42,7 @@ func NewClient(opts ...Option) *Client {
 		quicCfg.HandshakeIdleTimeout = c.config.DialTimeout
 	}
 
-	c.dialer = &webtransport.Dialer{ //nolint:exhaustruct
+	c.dialer = &webtransport.Transport{ //nolint:exhaustruct
 		TLSClientConfig: tlsCfg,
 		QUICConfig:      quicCfg,
 	}

@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@eserstack/ai": "workspace:*",
+    "@eserstack/ajan": "workspace:*",
     "@eserstack/codebase": "workspace:*",
     "@eserstack/config": "workspace:*",
     "@eserstack/kit": "workspace:*",

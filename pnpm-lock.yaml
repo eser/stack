@@ -163,6 +163,9 @@ importers:
       '@eserstack/ai':
         specifier: workspace:*
         version: link:../ai
+      '@eserstack/ajan':
+        specifier: workspace:*
+        version: link:../ajan
       '@eserstack/codebase':
         specifier: workspace:*
         version: link:../codebase

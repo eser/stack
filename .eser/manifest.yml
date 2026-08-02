@@ -153,24 +153,41 @@ workflows:
       #
       # This repo is TWO Go modules: github.com/eser/stack (root) and
       # github.com/eser/ajan (pkg/@eserstack/ajan, the cgo/WASI FFI bridge).
-      # go.work joins them, but `./...` is still resolved against the module
-      # containing the working directory -- it does NOT fan out across
-      # workspace modules. Both patterns must be listed explicitly or the
-      # bridge (bridge.go + main*.go, ~5.9k LOC) and its tests go unchecked.
+      # `./...` never crosses a module boundary, so each module is checked in
+      # its own directory -- otherwise the bridge (bridge.go + main*.go, ~5.9k
+      # LOC) and its tests go completely unchecked, which was the case until
+      # 2026-08.
+      #
+      # There is deliberately NO go.work. A workspace would let one command
+      # cover both modules, but it also merges golangci-lint's dependency graph
+      # into the bridge's, which produced an "ambiguous import" on
+      # cloud.google.com/go/compute that needed a `replace` to paper over, and
+      # forced GOWORK=off on release builds so shipped artifacts still resolved
+      # from the bridge's own go.mod. Two `cd`s are cheaper than that.
       - shell:
           name: go-check
-          command: "go vet ./... ./pkg/@eserstack/ajan/... && go build ./...
-            ./pkg/@eserstack/ajan/..."
+          command: "go vet ./... && go build ./... &&
+            cd pkg/@eserstack/ajan && go vet ./... && go build ./..."
           timeout: 180
+      # golangci-lint is declared in the ROOT module's `tool` block, so
+      # `go tool golangci-lint` cannot resolve it from inside the bridge
+      # module. Build it once from root, then run that binary in both.
       - shell:
           name: go-lint
-          command: "go tool golangci-lint run ./... ./pkg/@eserstack/ajan/..."
-          fixCommand: "gofmt -w . && go tool golangci-lint run --fix ./...
-            ./pkg/@eserstack/ajan/..."
-          timeout: 180
+          command: "go build -o etc/temp/golangci-lint
+            github.com/golangci/golangci-lint/v2/cmd/golangci-lint &&
+            ./etc/temp/golangci-lint run ./... &&
+            cd pkg/@eserstack/ajan && ../../../etc/temp/golangci-lint run ./..."
+          fixCommand: "gofmt -w . && go build -o etc/temp/golangci-lint
+            github.com/golangci/golangci-lint/v2/cmd/golangci-lint &&
+            ./etc/temp/golangci-lint run --fix ./... &&
+            cd pkg/@eserstack/ajan && ../../../etc/temp/golangci-lint run --fix
+            ./..."
+          timeout: 300
       - shell:
           name: go-tests
-          command: "go test -race ./... ./pkg/@eserstack/ajan/..."
+          command: "go test -race ./... &&
+            cd pkg/@eserstack/ajan && go test -race ./..."
           timeout: 420
 
   - id: commit-validation

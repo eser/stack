@@ -139,11 +139,10 @@ const buildTarget = async (
   const env: Record<string, string> = {
     GOOS: target.goos,
     GOARCH: target.goarch,
-    // The repo root carries a go.work joining this module with the root module
-    // so the quality gate can vet/lint/test the bridge. That workspace also
-    // carries a `replace` needed only to reconcile the two dependency graphs
-    // locally. Shipped artifacts must resolve from this module's own go.mod
-    // alone, so the workspace is disabled for release builds.
+    // Belt-and-braces: there is deliberately no go.work in this repo (see
+    // .eser/manifest.yml), but if anyone adds one, shipped artifacts must still
+    // resolve from this module's own go.mod alone rather than a merged
+    // workspace graph.
     GOWORK: "off",
   };
 

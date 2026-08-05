@@ -140,6 +140,16 @@ func TestStreamExitCodeAndStderrTail(t *testing.T) {
 	}
 }
 
+// NOTE on the test above: it is platform-sensitive, and that is worth knowing
+// rather than discovering twice.
+//
+// reap once closed the stderr read end the instant the child was reaped, which
+// aborted the drain before it had copied anything. This test caught that on
+// Linux and NOT on darwin -- 50 consecutive runs against the broken code passed
+// on darwin, and a high-volume variant did too. The window depends on pipe
+// buffering and goroutine scheduling, so a green local run proves nothing here.
+// CI is the detector. Do not "fix a flake" by relaxing this assertion.
+
 // TestStreamCloseReleasesParkedReader pins the teardown property acpfx depends
 // on: a decoder parked in Read must be released by Close.
 //

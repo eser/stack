@@ -46,8 +46,14 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version-file: go.mod
+          # "stable", not go-version-file: go.mod. This job can be dispatched
+          # against an arbitrary tag, and go.mod has not always been at the repo
+          # root -- at v4.1.56 it does not exist, so setup-go failed before
+          # goreleaser ever ran. Every other setup-go in this repo already uses
+          # "stable"; this was the outlier.
+          go-version: "stable"
           cache: true
+          cache-dependency-path: go.sum
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6

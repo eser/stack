@@ -871,50 +871,17 @@ const BRIDGE_PROVIDERS: ReadonlyArray<{
 /**
  * Bridge providers whose Go implementation drives an external ACP agent.
  *
- * pkg/ajan/aifx/adapter_acp.go spawns `eser-acp` by name for each of these, so
+ * pkg/ajan/aifx/adapter_acp.go drives its in-process shim for each of these, so
  * the bridge can only serve them where that binary exists. It is not part of the
  * ajan npm packages, which carry the shared library only.
  */
-const ACP_BACKED_PROVIDERS = new Set(["claude-code", "opencode", "kiro"]);
-
-/** The shim binary the ACP-backed providers spawn. */
-const ACP_SHIM_BINARY = "eser-acp";
-
-const shimIsAvailable = async (): Promise<boolean> => {
-  try {
-    const [shellExec, { getPlatform }] = await Promise.all([
-      import("@eserstack/shell/exec"),
-      import("@eserstack/standards/cross-runtime"),
-    ]);
-
-    // getPlatform(), not Deno.build.os. This module ships inside the npm
-    // package, where `Deno` is undefined; the ReferenceError was swallowed by
-    // the catch below and the function silently returned false, so the bridge
-    // never advertised claude-code/opencode/kiro on Node or Bun even with
-    // eser-acp installed.
-    const probe = getPlatform() === "windows" ? "where" : "which";
-
-    return await shellExec.exec`${probe} ${ACP_SHIM_BINARY}`.noThrow()
-      .code() ===
-      0;
-  } catch {
-    return false;
-  }
-};
-
 export const createBridgeFactories = (
   lib: ffiTypes.FFILibrary,
-  options?: { readonly includeACPBacked?: boolean },
-): readonly model.ProviderFactory[] => {
-  const includeACP = options?.includeACPBacked ?? true;
-
-  return BRIDGE_PROVIDERS
-    .filter(({ provider }) => includeACP || !ACP_BACKED_PROVIDERS.has(provider))
-    .map(
-      ({ provider, capabilities }) =>
-        new AjanBridgeModelFactory(lib, provider, capabilities),
-    );
-};
+): readonly model.ProviderFactory[] =>
+  BRIDGE_PROVIDERS.map(
+    ({ provider, capabilities }) =>
+      new AjanBridgeModelFactory(lib, provider, capabilities),
+  );
 
 /**
  * Attempts to load the ajan FFI library and returns bridge factories.
@@ -936,14 +903,12 @@ export const tryLoadBridgeFactories = async (): Promise<
 
     lib.symbols.EserAjanInit();
 
-    // Advertise the ACP-backed providers only where the shim they spawn exists.
-    // Otherwise the bridge would win the merge for claude-code/opencode/kiro and
-    // then fail at spawn time, displacing pure-TypeScript adapters that drive
-    // the vendor CLI directly and work. Same shape as the WASM case above: a
-    // provider that is present and broken is worse than one that is absent.
-    return createBridgeFactories(lib, {
-      includeACPBacked: await shimIsAvailable(),
-    });
+    // No shim probe. claude-code/opencode/kiro used to be gated on an `eser-acp`
+    // binary being on PATH; the shim is now Go code linked into the library that
+    // just loaded, so if the library is here the backends are here. The vendor
+    // CLI each one drives still has to be installed, but that is a spawn-time
+    // failure with its own message, not something a PATH lookup can predict.
+    return createBridgeFactories(lib);
   } catch {
     // FFI not available — caller falls back to pure-TS factories.
     return [];

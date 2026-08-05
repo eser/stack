@@ -471,38 +471,29 @@ Deno.test("a classified bridge error rebuilds its typed class", async () => {
   assertEquals(result.error.statusCode, 429);
 });
 
-// ── ACP-backed provider gating ───────────────────────────────────────────────
+// ── ACP-backed providers ─────────────────────────────────────────────────────
 
-Deno.test("ACP-backed providers are withheld when the shim is missing", () => {
+// These three used to be gated on an `eser-acp` binary being on PATH, because
+// aifx reached its own shim through a subprocess. The shim is now linked into
+// the library, so the library loading IS the availability check — there is
+// nothing left that can be absent independently.
+Deno.test("every bridge provider is advertised once the library loads", () => {
   const lib = { symbols: {} } as unknown as ffiTypes.FFILibrary;
 
-  const providers = createBridgeFactories(lib, { includeACPBacked: false })
-    .map((factory) => factory.provider);
+  const providers = createBridgeFactories(lib).map((factory) =>
+    factory.provider
+  );
 
-  // pkg/ajan/aifx/adapter_acp.go spawns `eser-acp` for these three. Advertising
-  // them without it means the bridge wins the merge and then fails at spawn
-  // time, displacing pure-TypeScript adapters that drive the vendor CLI
-  // directly and work.
-  for (const provider of ["claude-code", "opencode", "kiro"]) {
-    assert(
-      !providers.includes(provider),
-      `${provider} was advertised with no shim binary`,
-    );
-  }
-
-  // The HTTP providers are unaffected — they never spawn anything.
-  for (const provider of ["anthropic", "openai", "gemini"]) {
-    assert(providers.includes(provider), `${provider} was withheld needlessly`);
-  }
-});
-
-Deno.test("ACP-backed providers are offered when the shim exists", () => {
-  const lib = { symbols: {} } as unknown as ffiTypes.FFILibrary;
-
-  const providers = createBridgeFactories(lib, { includeACPBacked: true })
-    .map((factory) => factory.provider);
-
-  for (const provider of ["claude-code", "opencode", "kiro"]) {
+  for (
+    const provider of [
+      "claude-code",
+      "opencode",
+      "kiro",
+      "anthropic",
+      "openai",
+      "gemini",
+    ]
+  ) {
     assert(providers.includes(provider), `${provider} was withheld`);
   }
 });

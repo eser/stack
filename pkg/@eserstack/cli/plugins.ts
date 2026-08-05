@@ -122,10 +122,9 @@ const isExecutableFile = async (path: string): Promise<boolean> => {
 /**
  * Runs a resolved plugin, returning its exit code.
  *
- * stdio is inherited, not captured. That is not a convenience: `eser-acp`
- * speaks JSON-RPC over stdin/stdout, so buffering or re-encoding the streams
- * would corrupt the protocol. Inheriting also means an interactive plugin keeps
- * its TTY.
+ * stdio is inherited, not captured. A plugin may speak a binary protocol on
+ * stdin/stdout, where buffering or re-encoding would corrupt the stream, and an
+ * interactive one needs to keep its TTY.
  */
 export const runPlugin = async (
   executable: string,

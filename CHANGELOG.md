@@ -39,6 +39,27 @@ and this project adheres to
 - **kit:** `Recipe` schema fields `name`, `description`, `language`, `scale`,
   `files` are now optional in standalone `recipe.json` (lenient clone path).
   Registry entries still require them via `isRegistryRecipe`.
+- **acp:** the `eser-acp` binary is gone. `pkg/ajan/acpfx/shim` is Go code
+  linked into the same binary as its callers, so reaching it through a
+  subprocess meant `aifx` and `noskillsserverfx` serialising JSON down a pipe to
+  a struct they already had in memory — and paying for a second executable to be
+  built, shipped, installed, put on PATH, probed for, and explained when absent.
+  `acpfx.InProcess` links the two over an in-memory pipe instead; the protocol,
+  handshake and capability negotiation are unchanged. `acpfx.Spawn` remains for
+  agents that genuinely are other programs (`gemini --acp`, `claude-agent-acp`),
+  selectable with `NOSKILLS_ACP_COMMAND`.
+
+  Removed with it: the goreleaser build and brew install line, `ShimCommand` and
+  `ShimMissingHint`, the `shimIsAvailable()` PATH probe and ACP provider gating
+  in `ajan-bridge.ts`, the shim half of both installers, and the `eser-acp`
+  steps in the Windows CI job. **`binPath` on an ACP provider now names the
+  vendor CLI** (claude, kiro, opencode) rather than the shim.
+
+  The rewritten tests also corrected a claim the old ones only appeared to
+  prove: tool-call surfacing was asserted against the `opencode` backend, but
+  passed only because the fake replaced the whole shim. `mapOpenCodeEvent`
+  classifies text, done and error and has no tool-call path, so opencode cannot
+  surface one. That test now runs against `claude-code`, which does.
 - **repo:** the top-level `scripts/` directory is gone; its four files moved
   into `etc/scripts/`, which already held the repo's tooling. The two
   `install.sh` files that resulted are named for what they install: `install.sh`

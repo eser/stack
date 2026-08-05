@@ -13,30 +13,14 @@
  * Prerequisites: run `scripts/build.ts` first so that `dist/` contains the
  * built shared libraries.
  *
- * ## What is deliberately NOT here: the eser-acp binary
+ * ## What is deliberately NOT here: Go executables
  *
- * These packages carry the c-shared library and its header, nothing else. It is
- * tempting to add `eser-acp` alongside — `pkg/ajan/aifx` and
- * `pkg/ajan/noskillsserverfx` both spawn it, so an npm consumer using the
- * claude-code / kiro / opencode providers needs it — but shipping it here would
- * not work, and the reason is structural rather than a missing feature:
+ * These packages carry the shared LIBRARY only. The `noskills-server` and
+ * `noskills` executables are distributed through GitHub releases, not npm.
  *
- * Both spawn sites resolve it with Go's `exec.LookPath`, and that Go code is
- * running inside `libeser_ajan` after being dlopen'd into the host process. So
- * LookPath reads the HOST process's PATH. A file at
- * `node_modules/@eserstack/ajan-<platform>/eser-acp` is never on PATH, and Go
- * has no way to learn where node_modules is. Adding it to `files` would ship
- * bytes nobody can execute.
- *
- * It is also only half the requirement: eser-acp is a shim that drives a vendor
- * CLI (`claude`, `kiro`, `opencode`), which has to be installed regardless.
- *
- * What happens instead: the bridge declines to advertise those three providers
- * when the shim is not resolvable (see `shimIsAvailable` in
- * `pkg/@eserstack/ai/adapters/ajan-bridge.ts`), so the pure-TypeScript adapters
- * — which drive the vendor CLI directly and need no shim — serve them. Users
- * who want the Go path install the release tarball or the Homebrew formula,
- * both of which put eser-acp on PATH.
+ * The ACP shim used to be a third executable with the same problem; it is now
+ * linked into the library itself, so there is nothing left to ship separately
+ * for it.
  *
  * Usage:
  *   deno run --allow-all npm/generate-packages.ts          # all available targets

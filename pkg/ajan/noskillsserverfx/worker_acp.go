@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -28,12 +27,14 @@ const (
 	envACPArgs    = "NOSKILLS_ACP_ARGS"
 )
 
-// defaultACPCommand is the agent binary spawned when nothing overrides it.
+// defaultACPBackend is the vendor the in-process shim drives when nothing
+// overrides it.
 //
-// Our own shim rather than a vendor's: it speaks ACP for every backend we
-// support, so the daemon needs no per-vendor knowledge, and it is a binary we
-// ship rather than a third-party Node adapter the user has to install.
-const defaultACPCommand = acpfx.ShimCommand
+// There is no default *binary*. The shim is our own Go code linked into this
+// daemon, so the common case needs no executable on PATH at all -- see
+// acpfx.InProcess. NOSKILLS_ACP_COMMAND is what selects an external agent
+// instead (gemini --acp, claude-agent-acp), which genuinely is another program.
+const defaultACPBackend = "claude-code"
 
 // promptQueueDepth bounds how many turns may be waiting to run.
 //
@@ -116,32 +117,19 @@ func spawnACPWorker(
 
 	command, args := acpAgentCommand()
 
-	// The worker is its own client handler, so it has to exist before the
-	// connection does: the agent may call back the moment initialize completes.
-	client, err := acpfx.Spawn(ctx, acpfx.SpawnOptions{ //nolint:exhaustruct
-		Command: command,
-		Args:    args,
-		Cwd:     cwd,
-	}, worker, &acpfx.Implementation{
+	info := &acpfx.Implementation{
 		Name:    "noskills",
 		Title:   "noskills daemon",
 		Version: "1",
-	})
+	}
+
+	// The worker is its own client handler, so it has to exist before the
+	// connection does: the agent may call back the moment initialize completes.
+	client, err := connectACPAgent(ctx, command, args, cwd, worker, info)
 	if err != nil {
 		close(worker.done)
 
-		// A missing shim is by far the most common cause here, and the exec
-		// error alone names a path without saying where it should have come
-		// from. Checking after the failure rather than before keeps the happy
-		// path free of an extra PATH lookup.
-		if _, lookErr := exec.LookPath(command); lookErr != nil {
-			return nil, fmt.Errorf(
-				"%w: %q not found (%s, or set %s to its path)",
-				ErrACPAgentMissing, command, acpfx.ShimMissingHint, envACPCommand,
-			)
-		}
-
-		return nil, fmt.Errorf("spawn acp agent %q: %w", command, err)
+		return nil, err
 	}
 
 	worker.attach(client)
@@ -181,10 +169,8 @@ func (w *acpWorker) attach(client *acpfx.Client) {
 
 // acpAgentCommand resolves the agent binary and its arguments.
 func acpAgentCommand() (string, []string) {
+	// Empty means "use the in-process shim" -- there is no default binary.
 	command := os.Getenv(envACPCommand)
-	if command == "" {
-		command = defaultACPCommand
-	}
 
 	var args []string
 

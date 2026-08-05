@@ -59,7 +59,7 @@ if command -v shasum >/dev/null 2>&1; then
   cd - >/dev/null
 fi
 
-tar -xzf "${TMP}/${TARBALL}" -C "$TMP" noskills-server noskills eser-acp 2>/dev/null || \
+tar -xzf "${TMP}/${TARBALL}" -C "$TMP" noskills-server noskills 2>/dev/null || \
   tar -xzf "${TMP}/${TARBALL}" -C "$TMP"
 
 # ── Install ──────────────────────────────────────────────────────────────────
@@ -74,19 +74,7 @@ fi
 $SUDO mv "${TMP}/noskills-server" "${INSTALL_DIR}/noskills-server"
 $SUDO chmod +x "${INSTALL_DIR}/noskills-server"
 
-# eser-acp is not optional tooling. The daemon's kind="acp" worker and aifx's
-# claude-code / kiro / opencode providers both resolve it with exec.LookPath, so
-# it only works if it lands on PATH.
-#
-# NOTE: this loop is necessary but not yet sufficient. No release has ever
-# carried the noskills_* archive this script downloads -- goreleaser has never
-# run, because the tag is pushed with GITHUB_TOKEN and GitHub does not dispatch
-# workflows for that. See the P0 in TODOS.md. Until that is fixed the download
-# above 404s and this loop is never reached.
-#
-# The [ -f ] guard keeps this script working against older archives that predate
-# the eser-acp build.
-for bin in noskills eser-acp; do
+for bin in noskills; do
   [ -f "${TMP}/${bin}" ] || continue
   $SUDO mv "${TMP}/${bin}" "${INSTALL_DIR}/${bin}"
   $SUDO chmod +x "${INSTALL_DIR}/${bin}"

@@ -5,15 +5,12 @@
 .DESCRIPTION
   The PowerShell counterpart to etc/scripts/install-noskills.sh. The release pipeline has
   always built and archived Windows binaries -- .goreleaser.yaml builds
-  noskills-server, noskills and eser-acp for windows/amd64 and overrides the
-  archive format to zip -- but there was no installer, so the Windows artifact
-  was a bare zip a user had to unpack and wire onto PATH by hand.
+  noskills-server and noskills for windows/amd64 and overrides the archive
+  format to zip -- but there was no installer, so the Windows artifact was a
+  bare zip a user had to unpack and wire onto PATH by hand.
 
-  That mattered most for eser-acp. It is not optional tooling: the daemon's
-  kind="acp" worker and aifx's claude-code / kiro / opencode providers resolve
-  it with exec.LookPath, so it only works if it is ON PATH under that exact
-  name. install.sh installs into /usr/local/bin, which is already on PATH on
-  every POSIX system. Windows has no such directory, so this script must put the
+  install.sh installs into /usr/local/bin, which is already on PATH on every
+  POSIX system. Windows has no such directory, so this script must put the
   install directory on PATH itself -- see Add-ToUserPath below.
 
 .PARAMETER InstallDir
@@ -55,7 +52,7 @@ $Repo = 'eser/stack'
 
 # The three binaries the archive carries. noskills-server is the headline
 # install; the other two are what make a released artifact actually functional.
-$Binaries = @('noskills-server', 'noskills', 'eser-acp')
+$Binaries = @('noskills-server', 'noskills')
 
 # ── Detect platform ──────────────────────────────────────────────────────────
 
@@ -247,8 +244,8 @@ try {
     $exe = "$name.exe"
     $src = Join-Path $extract $exe
 
-    # The guard keeps this working against older archives published before the
-    # eser-acp build existed, matching the [ -f ] check in install.sh.
+    # The guard keeps this working against archives that carry a different set
+    # of binaries, matching the [ -f ] check in install.sh.
     if (-not (Test-Path -LiteralPath $src)) {
       Write-Warning "$exe not present in archive; skipping."
 
@@ -288,10 +285,6 @@ try {
 
   Write-Host ''
   Write-Host "Installed to ${InstallDir}: $($installed -join ', ')"
-
-  if ($installed -notcontains 'eser-acp') {
-    Write-Warning 'eser-acp was NOT installed. ACP-backed providers (claude-code, kiro, opencode) will fail with "binary not found".'
-  }
 
   Write-Host ''
   Write-Host 'Start the daemon:'

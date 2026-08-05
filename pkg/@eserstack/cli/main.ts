@@ -96,7 +96,7 @@ const app = cliModule
 
     // External subcommands, the git way: `eser <name>` runs `eser-<name>` from
     // PATH. Generic on purpose — the stack ships Go binaries this CLI cannot
-    // absorb (eser-acp speaks JSON-RPC on stdio and is spawned by Go), and a
+    // absorb, and a
     // one-off case for each would be a registry nobody remembers to update.
     //
     // After manifest scripts, so project-local intent wins over an installed

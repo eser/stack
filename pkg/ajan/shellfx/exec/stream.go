@@ -8,10 +8,20 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 )
 
 // stderrTailBytes caps how much of a child's stderr is retained for diagnosis.
 const stderrTailBytes = 8 << 10
+
+// stderrDrainGrace bounds how long reap waits for the stderr drain to finish on
+// its own after the child is reaped.
+//
+// A normally-exited child's write end is already closed, so the drain sees EOF
+// almost immediately and this never elapses. It only matters when a surviving
+// grandchild still holds the write end -- there the pipe never reaches EOF, and
+// waiting forever is the hang Close exists to prevent.
+const stderrDrainGrace = 2 * time.Second
 
 // StreamHandle is a child process whose stdout is handed to the caller as an
 // untouched byte stream.
@@ -118,15 +128,31 @@ func SpawnStreamProcess(opts SpawnOptions) (*StreamHandle, error) {
 
 // reap waits for the child and then unwinds the stderr drain.
 //
-// Order matters. Waiting on the drain first would reintroduce the hang class
-// Close exists to prevent: a surviving grandchild keeps stderr's write end
-// open, so the drain would block on an EOF that never arrives. Reaping first
-// and then closing the read end bounds it -- at the cost of a few trailing
-// bytes from a process that has already outlived its parent.
+// Order matters. Waiting on the drain unconditionally would reintroduce the
+// hang class Close exists to prevent: a surviving grandchild keeps stderr's
+// write end open, so the drain would block on an EOF that never arrives.
+//
+// But closing the read end the instant the child is reaped is a race, not a
+// bound. waitExitCode returns as soon as the child dies, while its last words
+// are usually still sitting in the pipe buffer unread -- so the close aborted
+// io.Copy before it had transferred anything and StderrTail came back empty.
+// That is precisely the diagnosis this type exists to preserve, and it failed
+// exactly where it matters most: on the machine that runs the tests, not the
+// one that wrote them.
+//
+// A bounded wait gets both. A normally-exited child hits EOF at once and this
+// costs nothing; only an outliving grandchild pays the grace, and it still
+// cannot hang.
 func (h *StreamHandle) reap(stderrR *os.File, stderrDone <-chan struct{}) {
 	defer close(h.exited)
 
 	h.exitCode = waitExitCode(h.cmd)
+
+	select {
+	case <-stderrDone:
+		return
+	case <-time.After(stderrDrainGrace):
+	}
 
 	_ = stderrR.Close()
 

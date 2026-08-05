@@ -23,14 +23,23 @@ import * as errors from "../errors.ts";
 // Wire types (must match bridge.go JSON schemas)
 // =============================================================================
 
-type BridgeHandleResp = {
-  readonly handle?: string;
+/** Every envelope that can carry an error carries its classification with it. */
+type BridgeErrorFields = {
   readonly error?: string;
+  readonly errorKind?: string;
+  readonly errorStatus?: number;
+};
+
+type BridgeHandleResp = BridgeErrorFields & {
+  readonly handle?: string;
 };
 
 type BridgeContentBlock = {
-  readonly type: "text" | "tool_call";
+  readonly type: "text" | "tool_call" | "tool_result";
   readonly text?: string;
+  readonly id?: string;
+  readonly name?: string;
+  readonly arguments?: Record<string, unknown>;
 };
 
 type BridgeUsage = {
@@ -40,20 +49,24 @@ type BridgeUsage = {
   readonly thinkingTokens?: number;
 };
 
-type BridgeGenerateResp = {
+type BridgeGenerateResp = BridgeErrorFields & {
   readonly content?: readonly BridgeContentBlock[];
   readonly stopReason?: string;
   readonly usage?: BridgeUsage;
   readonly modelId?: string;
-  readonly error?: string;
 };
 
 type BridgeStreamEvent = {
   readonly type: "content_delta" | "tool_call_delta" | "message_done" | "error";
   readonly textDelta?: string;
+  readonly toolCallId?: string;
+  readonly toolCallName?: string;
+  readonly argumentsDelta?: Record<string, unknown>;
   readonly stopReason?: string;
   readonly usage?: BridgeUsage;
   readonly error?: string;
+  readonly errorKind?: string;
+  readonly errorStatus?: number;
 };
 
 type BridgeBatchStorage = {
@@ -75,14 +88,12 @@ type BridgeBatchJob = {
   readonly error?: string;
 };
 
-type BridgeBatchJobResp = {
+type BridgeBatchJobResp = BridgeErrorFields & {
   readonly job?: BridgeBatchJob;
-  readonly error?: string;
 };
 
-type BridgeBatchListResp = {
+type BridgeBatchListResp = BridgeErrorFields & {
   readonly jobs?: readonly BridgeBatchJob[];
-  readonly error?: string;
 };
 
 type BridgeBatchResultItem = {
@@ -91,9 +102,8 @@ type BridgeBatchResultItem = {
   readonly error?: string;
 };
 
-type BridgeBatchDownloadResp = {
+type BridgeBatchDownloadResp = BridgeErrorFields & {
   readonly results?: readonly BridgeBatchResultItem[];
-  readonly error?: string;
 };
 
 // =============================================================================
@@ -102,6 +112,24 @@ type BridgeBatchDownloadResp = {
 
 const parseJson = <T>(raw: string): T => {
   return JSON.parse(raw) as T;
+};
+
+/**
+ * Base64-encode binary content for the wire.
+ *
+ * Chunked rather than `btoa(String.fromCharCode(...bytes))`, which the rest of
+ * the repo uses: spreading a multi-megabyte array into a call blows the
+ * argument limit and throws, and image payloads are exactly that size.
+ */
+const encodeBase64 = (bytes: Uint8Array): string => {
+  const chunkSize = 0x8000;
+  let binary = "";
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+
+  return btoa(binary);
 };
 
 const mapStopReason = (raw: string | undefined): generation.StopReason => {
@@ -138,6 +166,38 @@ const mapContent = (
   for (const block of blocks) {
     if (block.type === "text" && block.text !== undefined) {
       result.push({ kind: "text", text: block.text });
+
+      continue;
+    }
+
+    // Tool calls used to be dropped here silently. A model that answered by
+    // calling a tool therefore produced an empty content array, which reads as
+    // "the model said nothing" rather than "the transport discarded it".
+    if (
+      block.type === "tool_call" && block.id !== undefined &&
+      block.name !== undefined
+    ) {
+      result.push({
+        kind: "tool_call",
+        toolCall: {
+          id: block.id,
+          name: block.name,
+          arguments: block.arguments ?? {},
+        },
+      });
+
+      continue;
+    }
+
+    if (block.type === "tool_result" && block.id !== undefined) {
+      result.push({
+        kind: "tool_result",
+        toolResult: {
+          toolCallId: block.id,
+          content: block.text ?? "",
+          isError: false,
+        },
+      });
     }
   }
 
@@ -160,23 +220,169 @@ const mapBatchJob = (j: BridgeBatchJob): batch.BatchJob => {
   };
 };
 
-const buildOptionsJSON = (options: generation.GenerateTextOptions): string => {
+/**
+ * Serialize one content block for the wire.
+ *
+ * Every kind carries its payload. The previous `{ type: b.kind }` fallthrough
+ * named the kind and dropped everything in it, so an image reached the provider
+ * as the bare word "image" and the model answered confidently about a picture
+ * it was never shown.
+ */
+const buildContentBlock = (block: types.ContentBlock): unknown => {
+  switch (block.kind) {
+    case "text":
+      return { type: "text", text: block.text };
+
+    case "image":
+      return {
+        type: "image",
+        image: {
+          url: block.image.url,
+          mimeType: block.image.mimeType,
+          detail: block.image.detail,
+          // Base64: a Uint8Array does not survive JSON.stringify, which turns
+          // it into {"0":..,"1":..} rather than anything Go can decode.
+          data: block.image.data === undefined
+            ? undefined
+            : encodeBase64(block.image.data),
+        },
+      };
+
+    case "audio":
+      return {
+        type: "audio",
+        audio: {
+          url: block.audio.url,
+          mimeType: block.audio.mimeType,
+          data: block.audio.data === undefined
+            ? undefined
+            : encodeBase64(block.audio.data),
+        },
+      };
+
+    case "file":
+      return {
+        type: "file",
+        file: { uri: block.file.uri, mimeType: block.file.mimeType },
+      };
+
+    case "tool_call":
+      return {
+        type: "tool_call",
+        toolCall: {
+          id: block.toolCall.id,
+          name: block.toolCall.name,
+          arguments: block.toolCall.arguments,
+        },
+      };
+
+    case "tool_result":
+      return {
+        type: "tool_result",
+        toolResult: {
+          toolCallId: block.toolResult.toolCallId,
+          content: block.toolResult.content,
+          isError: block.toolResult.isError,
+        },
+      };
+
+    default:
+      return { type: (block as { kind: string }).kind };
+  }
+};
+
+/**
+ * Bind an AbortSignal to a bridge request for the duration of a call.
+ *
+ * Returns the request id to send with the call, and a `release` that must run
+ * when the call finishes — otherwise the listener keeps the signal (and through
+ * it this model) alive for as long as the caller holds the controller.
+ *
+ * An already-aborted signal still sends its cancel. Go records it against the
+ * id and the request stops the instant it registers, which closes the race that
+ * makes abort unreliable exactly when it is easiest to write:
+ *
+ *     const c = new AbortController();
+ *     const p = model.generateText(opts, c.signal);
+ *     c.abort();                      // may reach Go before the call registers
+ */
+const bindAbort = (
+  lib: ffiTypes.FFILibrary,
+  signal: AbortSignal | undefined,
+): { requestId: string; release: () => void } => {
+  const requestId = crypto.randomUUID();
+
+  if (signal === undefined) {
+    return { requestId, release: () => {} };
+  }
+
+  const cancel = () => {
+    try {
+      lib.symbols.EserAjanAiCancelRequest(JSON.stringify({ requestId }));
+    } catch {
+      // The library may already be closed while a signal is still live. A
+      // cancel that cannot be delivered is not worth failing the caller over.
+    }
+  };
+
+  if (signal.aborted) {
+    cancel();
+
+    return { requestId, release: () => {} };
+  }
+
+  signal.addEventListener("abort", cancel, { once: true });
+
+  return {
+    requestId,
+    release: () => signal.removeEventListener("abort", cancel),
+  };
+};
+
+/** Rebuild the typed error a bridge envelope describes. */
+const wireError = (
+  provider: string,
+  resp: BridgeErrorFields,
+  fallback: string,
+): errors.AiError =>
+  errors.classifyWireError(
+    provider,
+    resp.error ?? fallback,
+    resp.errorKind,
+    resp.errorStatus,
+  );
+
+/** The error a caller gets when their AbortSignal fired. */
+const abortError = (provider: string): errors.AiError =>
+  new errors.AiError("request aborted", { provider });
+
+const buildOptionsJSON = (
+  options: generation.GenerateTextOptions,
+  requestId?: string,
+): string => {
   const messages = options.messages.map((m) => ({
     role: m.role,
-    content: m.content.map((b) => {
-      if (b.kind === "text") {
-        return { type: "text", text: b.text };
-      }
-
-      return { type: b.kind };
-    }),
+    content: m.content.map(buildContentBlock),
   }));
 
+  // Optionals are passed through as-is rather than defaulted. JSON.stringify
+  // omits `undefined`, so an unset option stays absent and the Go pointer stays
+  // nil -- whereas `?? 0` would pin every request to temperature 0, which is a
+  // real setting and not the same as "unspecified".
   return JSON.stringify({
+    requestId,
     messages,
     system: options.system ?? "",
     maxTokens: options.maxTokens ?? 0,
     toolChoice: options.toolChoice ?? "",
+    tools: options.tools,
+    temperature: options.temperature,
+    topP: options.topP,
+    stopWords: options.stopWords,
+    responseFormat: options.responseFormat,
+    thinkingBudget: options.thinkingBudget,
+    safetySettings: options.safetySettings,
+    extensions: options.extensions,
   });
 };
 
@@ -206,44 +412,55 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     this.capabilities = capabilities;
   }
 
-  generateText(
+  async generateText(
     options: generation.GenerateTextOptions,
-    _signal?: AbortSignal,
+    signal?: AbortSignal,
   ): Promise<results.Result<generation.GenerateTextResult, errors.AiError>> {
-    const optionsJSON = buildOptionsJSON(options);
+    const { requestId, release } = bindAbort(this.#lib, signal);
 
-    const raw = this.#lib.symbols.EserAjanAiGenerateText(
-      this.#modelHandle,
-      optionsJSON,
-    );
+    try {
+      const optionsJSON = buildOptionsJSON(options, requestId);
 
-    const resp = parseJson<BridgeGenerateResp>(raw);
-
-    if (resp.error !== undefined) {
-      return Promise.resolve(
-        results.fail(
-          new errors.AiError(resp.error, { provider: this.provider }),
-        ),
+      // Awaited, and on Deno genuinely off-thread. A blocking call here froze
+      // the isolate for the whole model round-trip, which also made the signal
+      // above unobservable: nothing could run to fire it.
+      const raw = await this.#lib.symbols.EserAjanAiGenerateText(
+        this.#modelHandle,
+        optionsJSON,
       );
-    }
 
-    return Promise.resolve(
-      results.ok({
+      const resp = parseJson<BridgeGenerateResp>(raw);
+
+      if (resp.error !== undefined) {
+        // A cancelled request surfaces as a Go context error. Report the
+        // caller's own intent rather than the plumbing that carried it out.
+        return results.fail(
+          signal?.aborted === true
+            ? abortError(this.provider)
+            : wireError(this.provider, resp, "generation failed"),
+        );
+      }
+
+      return results.ok({
         content: mapContent(resp.content),
         stopReason: mapStopReason(resp.stopReason),
         usage: mapUsage(resp.usage),
         modelId: resp.modelId ?? this.modelId,
-      }),
-    );
+      });
+    } finally {
+      release();
+    }
   }
 
   async *streamText(
     options: generation.GenerateTextOptions,
-    _signal?: AbortSignal,
+    signal?: AbortSignal,
   ): AsyncIterable<generation.StreamEvent> {
-    const optionsJSON = buildOptionsJSON(options);
+    const { requestId, release } = bindAbort(this.#lib, signal);
 
-    const streamRaw = this.#lib.symbols.EserAjanAiStreamText(
+    const optionsJSON = buildOptionsJSON(options, requestId);
+
+    const streamRaw = await this.#lib.symbols.EserAjanAiStreamText(
       this.#modelHandle,
       optionsJSON,
     );
@@ -251,12 +468,13 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     const streamResp = parseJson<BridgeHandleResp>(streamRaw);
 
     if (streamResp.error !== undefined || streamResp.handle === undefined) {
+      release();
+
       yield {
         kind: "error",
-        error: new errors.AiError(
-          streamResp.error ?? "stream start failed",
-          { provider: this.provider },
-        ),
+        error: signal?.aborted === true
+          ? abortError(this.provider)
+          : wireError(this.provider, streamResp, "stream start failed"),
       };
 
       return;
@@ -266,10 +484,18 @@ export class AjanBridgeModel implements model.BatchCapableModel {
 
     try {
       while (true) {
-        // Yield to the JS event loop between polls.
-        await Promise.resolve();
+        // Stop before asking for another event rather than after receiving one:
+        // a consumer that aborted does not want one more token, and the read
+        // below would otherwise wait on the provider for it.
+        if (signal?.aborted === true) {
+          yield { kind: "error", error: abortError(this.provider) };
 
-        const eventRaw = this.#lib.symbols.EserAjanAiStreamRead(streamHandle);
+          return;
+        }
+
+        const eventRaw = await this.#lib.symbols.EserAjanAiStreamRead(
+          streamHandle,
+        );
 
         if (eventRaw === "null" || eventRaw === "") {
           break;
@@ -283,7 +509,18 @@ export class AjanBridgeModel implements model.BatchCapableModel {
             break;
 
           case "tool_call_delta":
-            yield { kind: "tool_call_delta", textDelta: event.textDelta };
+            // The tool call arrives in its own fields. Go used to put the
+            // tool's NAME in textDelta, so a consumer concatenating deltas
+            // spliced tool names into the prose and never saw the arguments.
+            yield {
+              kind: "tool_call_delta",
+              textDelta: event.textDelta,
+              toolCall: event.toolCallId === undefined ? undefined : {
+                id: event.toolCallId,
+                name: event.toolCallName ?? "",
+                arguments: event.argumentsDelta ?? {},
+              },
+            };
             break;
 
           case "message_done":
@@ -298,91 +535,112 @@ export class AjanBridgeModel implements model.BatchCapableModel {
           case "error":
             yield {
               kind: "error",
-              error: new errors.AiError(
-                event.error ?? "stream error",
-                { provider: this.provider },
-              ),
+              error: wireError(this.provider, event, "stream error"),
             };
 
             return;
         }
       }
     } finally {
+      // Both, in this order. FreeStream cancels the underlying context and
+      // drops the handle; release detaches the abort listener so an abandoned
+      // stream does not keep the caller's controller tethered to this model.
       this.#lib.symbols.EserAjanAiFreeStream(streamHandle);
+      release();
     }
   }
 
-  submitBatch(
+  async submitBatch(
     request: batch.BatchRequest,
-    _signal?: AbortSignal,
+    signal?: AbortSignal,
   ): Promise<batch.BatchJob> {
-    const items = request.items.map((item) => ({
-      customId: item.customId,
-      options: JSON.parse(buildOptionsJSON(item.options)) as unknown,
-    }));
+    const { requestId, release } = bindAbort(this.#lib, signal);
 
-    const raw = this.#lib.symbols.EserAjanAiBatchCreate(
-      JSON.stringify({ modelHandle: this.#modelHandle, requests: items }),
-    );
+    try {
+      const items = request.items.map((item) => ({
+        customId: item.customId,
+        options: JSON.parse(buildOptionsJSON(item.options)) as unknown,
+      }));
 
-    const resp = parseJson<BridgeBatchJobResp>(raw);
-
-    if (resp.error !== undefined || resp.job === undefined) {
-      return Promise.reject(
-        new errors.AiError(resp.error ?? "batch create failed", {
-          provider: this.provider,
-        }),
+      const raw = await this.#lib.symbols.EserAjanAiBatchCreate(
+        JSON.stringify({ requestId, modelHandle: this.#modelHandle, items }),
       );
-    }
 
-    return Promise.resolve(mapBatchJob(resp.job));
+      const resp = parseJson<BridgeBatchJobResp>(raw);
+
+      if (resp.error !== undefined || resp.job === undefined) {
+        throw signal?.aborted === true
+          ? abortError(this.provider)
+          : wireError(this.provider, resp, "batch create failed");
+      }
+
+      return mapBatchJob(resp.job);
+    } finally {
+      release();
+    }
   }
 
-  getBatchJob(jobId: string, _signal?: AbortSignal): Promise<batch.BatchJob> {
-    const raw = this.#lib.symbols.EserAjanAiBatchGet(
-      JSON.stringify({ modelHandle: this.#modelHandle, jobId }),
-    );
+  async getBatchJob(
+    jobId: string,
+    signal?: AbortSignal,
+  ): Promise<batch.BatchJob> {
+    const { requestId, release } = bindAbort(this.#lib, signal);
 
-    const resp = parseJson<BridgeBatchJobResp>(raw);
-
-    if (resp.error !== undefined || resp.job === undefined) {
-      return Promise.reject(
-        new errors.AiError(resp.error ?? "batch get failed", {
-          provider: this.provider,
-        }),
+    try {
+      const raw = await this.#lib.symbols.EserAjanAiBatchGet(
+        JSON.stringify({ requestId, modelHandle: this.#modelHandle, jobId }),
       );
-    }
 
-    return Promise.resolve(mapBatchJob(resp.job));
+      const resp = parseJson<BridgeBatchJobResp>(raw);
+
+      if (resp.error !== undefined || resp.job === undefined) {
+        throw signal?.aborted === true
+          ? abortError(this.provider)
+          : wireError(this.provider, resp, "batch get failed");
+      }
+
+      return mapBatchJob(resp.job);
+    } finally {
+      release();
+    }
   }
 
-  listBatchJobs(
+  async listBatchJobs(
     options?: batch.ListBatchOptions,
-    _signal?: AbortSignal,
+    signal?: AbortSignal,
   ): Promise<readonly batch.BatchJob[]> {
-    const raw = this.#lib.symbols.EserAjanAiBatchList(
-      JSON.stringify({
-        modelHandle: this.#modelHandle,
-        limit: options?.limit,
-        afterId: options?.after,
-      }),
-    );
+    const { requestId, release } = bindAbort(this.#lib, signal);
 
-    const resp = parseJson<BridgeBatchListResp>(raw);
-
-    if (resp.error !== undefined) {
-      return Promise.reject(
-        new errors.AiError(resp.error, { provider: this.provider }),
+    try {
+      const raw = await this.#lib.symbols.EserAjanAiBatchList(
+        JSON.stringify({
+          requestId,
+          modelHandle: this.#modelHandle,
+          limit: options?.limit,
+          after: options?.after,
+        }),
       );
-    }
 
-    return Promise.resolve((resp.jobs ?? []).map(mapBatchJob));
+      const resp = parseJson<BridgeBatchListResp>(raw);
+
+      if (resp.error !== undefined) {
+        throw signal?.aborted === true
+          ? abortError(this.provider)
+          : wireError(this.provider, resp, "batch call failed");
+      }
+
+      return (resp.jobs ?? []).map(mapBatchJob);
+    } finally {
+      release();
+    }
   }
 
-  downloadBatchResults(
+  async downloadBatchResults(
     job: batch.BatchJob,
-    _signal?: AbortSignal,
+    signal?: AbortSignal,
   ): Promise<readonly batch.BatchResult[]> {
+    const { requestId, release } = bindAbort(this.#lib, signal);
+
     const bridgeJob: BridgeBatchJob = {
       id: job.id,
       status: job.status,
@@ -395,48 +653,66 @@ export class AjanBridgeModel implements model.BatchCapableModel {
       error: job.error,
     };
 
-    const raw = this.#lib.symbols.EserAjanAiBatchDownload(
-      JSON.stringify({ modelHandle: this.#modelHandle, job: bridgeJob }),
-    );
-
-    const resp = parseJson<BridgeBatchDownloadResp>(raw);
-
-    if (resp.error !== undefined) {
-      return Promise.reject(
-        new errors.AiError(resp.error, { provider: this.provider }),
+    try {
+      const raw = await this.#lib.symbols.EserAjanAiBatchDownload(
+        JSON.stringify({
+          requestId,
+          modelHandle: this.#modelHandle,
+          job: bridgeJob,
+        }),
       );
+
+      const resp = parseJson<BridgeBatchDownloadResp>(raw);
+
+      if (resp.error !== undefined) {
+        throw signal?.aborted === true
+          ? abortError(this.provider)
+          : wireError(this.provider, resp, "batch call failed");
+      }
+
+      return (resp.results ?? []).map((item) => ({
+        customId: item.customId,
+        result: item.result !== undefined
+          ? {
+            content: mapContent(item.result.content),
+            stopReason: mapStopReason(item.result.stopReason),
+            usage: mapUsage(item.result.usage),
+            modelId: item.result.modelId ?? this.modelId,
+          }
+          : undefined,
+        error: item.error,
+      }));
+    } finally {
+      release();
     }
-
-    const results: batch.BatchResult[] = (resp.results ?? []).map((item) => ({
-      customId: item.customId,
-      result: item.result !== undefined
-        ? {
-          content: mapContent(item.result.content),
-          stopReason: mapStopReason(item.result.stopReason),
-          usage: mapUsage(item.result.usage),
-          modelId: item.result.modelId ?? this.modelId,
-        }
-        : undefined,
-      error: item.error,
-    }));
-
-    return Promise.resolve(results);
   }
 
-  cancelBatchJob(jobId: string, _signal?: AbortSignal): Promise<void> {
-    const raw = this.#lib.symbols.EserAjanAiBatchCancel(
-      JSON.stringify({ modelHandle: this.#modelHandle, jobId }),
-    );
+  /**
+   * Asks the provider to cancel a batch job.
+   *
+   * Distinct from aborting this call. `signal` aborts the local request that
+   * asks for the cancellation; the cancellation itself is a durable change of
+   * state at the provider, and aborting the ask does not undo it if it already
+   * landed.
+   */
+  async cancelBatchJob(jobId: string, signal?: AbortSignal): Promise<void> {
+    const { requestId, release } = bindAbort(this.#lib, signal);
 
-    const resp = parseJson<{ error?: string }>(raw);
-
-    if (resp.error !== undefined) {
-      return Promise.reject(
-        new errors.AiError(resp.error, { provider: this.provider }),
+    try {
+      const raw = await this.#lib.symbols.EserAjanAiBatchCancel(
+        JSON.stringify({ requestId, modelHandle: this.#modelHandle, jobId }),
       );
-    }
 
-    return Promise.resolve();
+      const resp = parseJson<{ error?: string }>(raw);
+
+      if (resp.error !== undefined) {
+        throw signal?.aborted === true
+          ? abortError(this.provider)
+          : wireError(this.provider, resp, "batch call failed");
+      }
+    } finally {
+      release();
+    }
   }
 
   close(): Promise<void> {
@@ -496,10 +772,7 @@ export class AjanBridgeModelFactory implements model.ProviderFactory {
 
     if (resp.error !== undefined || resp.handle === undefined) {
       return Promise.reject(
-        new errors.AiError(
-          resp.error ?? "failed to create model",
-          { provider: cfg.provider },
-        ),
+        wireError(cfg.provider, resp, "failed to create model"),
       );
     }
 
@@ -520,6 +793,12 @@ export class AjanBridgeModelFactory implements model.ProviderFactory {
 // =============================================================================
 
 /** Providers supported by the Go bridge and their default capabilities. */
+// `vision` is declared only because image payloads genuinely cross the wire
+// now. It was removed for a while: buildOptionsJSON used to reduce an image
+// block to `{ type: "image" }` with no payload and Go had no field to receive
+// one, so a caller who attached an image got a confident answer about nothing
+// while the capability said that should work. The declaration follows the
+// transport, in both directions.
 const BRIDGE_PROVIDERS: ReadonlyArray<{
   readonly provider: string;
   readonly capabilities: readonly types.ProviderCapability[];
@@ -589,13 +868,52 @@ const BRIDGE_PROVIDERS: ReadonlyArray<{
  * Creates AjanBridgeModelFactory instances for all supported providers.
  * Returns an empty array if the FFI library is not available.
  */
+/**
+ * Bridge providers whose Go implementation drives an external ACP agent.
+ *
+ * pkg/ajan/aifx/adapter_acp.go spawns `eser-acp` by name for each of these, so
+ * the bridge can only serve them where that binary exists. It is not part of the
+ * ajan npm packages, which carry the shared library only.
+ */
+const ACP_BACKED_PROVIDERS = new Set(["claude-code", "opencode", "kiro"]);
+
+/** The shim binary the ACP-backed providers spawn. */
+const ACP_SHIM_BINARY = "eser-acp";
+
+const shimIsAvailable = async (): Promise<boolean> => {
+  try {
+    const [shellExec, { getPlatform }] = await Promise.all([
+      import("@eserstack/shell/exec"),
+      import("@eserstack/standards/cross-runtime"),
+    ]);
+
+    // getPlatform(), not Deno.build.os. This module ships inside the npm
+    // package, where `Deno` is undefined; the ReferenceError was swallowed by
+    // the catch below and the function silently returned false, so the bridge
+    // never advertised claude-code/opencode/kiro on Node or Bun even with
+    // eser-acp installed.
+    const probe = getPlatform() === "windows" ? "where" : "which";
+
+    return await shellExec.exec`${probe} ${ACP_SHIM_BINARY}`.noThrow()
+      .code() ===
+      0;
+  } catch {
+    return false;
+  }
+};
+
 export const createBridgeFactories = (
   lib: ffiTypes.FFILibrary,
+  options?: { readonly includeACPBacked?: boolean },
 ): readonly model.ProviderFactory[] => {
-  return BRIDGE_PROVIDERS.map(
-    ({ provider, capabilities }) =>
-      new AjanBridgeModelFactory(lib, provider, capabilities),
-  );
+  const includeACP = options?.includeACPBacked ?? true;
+
+  return BRIDGE_PROVIDERS
+    .filter(({ provider }) => includeACP || !ACP_BACKED_PROVIDERS.has(provider))
+    .map(
+      ({ provider, capabilities }) =>
+        new AjanBridgeModelFactory(lib, provider, capabilities),
+    );
 };
 
 /**
@@ -607,11 +925,25 @@ export const tryLoadBridgeFactories = async (): Promise<
 > => {
   try {
     const ffiMod = await import("@eserstack/ajan/ffi");
-    const lib = await ffiMod.loadEserAjan();
+
+    // Native only. loadEserAjan otherwise falls back to WASM, which LOADS
+    // successfully and then fails every AI call — so the bridge factories would
+    // register, displace the pure-TS adapters that do work, and turn a missing
+    // native binary into a provider that is present and broken rather than
+    // absent. Refusing here lets defaultFactories keep the TS adapter for that
+    // provider, which is the whole point of the per-provider merge.
+    const lib = await ffiMod.loadEserAjan({ wasm: false });
 
     lib.symbols.EserAjanInit();
 
-    return createBridgeFactories(lib);
+    // Advertise the ACP-backed providers only where the shim they spawn exists.
+    // Otherwise the bridge would win the merge for claude-code/opencode/kiro and
+    // then fail at spawn time, displacing pure-TypeScript adapters that drive
+    // the vendor CLI directly and work. Same shape as the WASM case above: a
+    // provider that is present and broken is worse than one that is absent.
+    return createBridgeFactories(lib, {
+      includeACPBacked: await shimIsAvailable(),
+    });
   } catch {
     // FFI not available — caller falls back to pure-TS factories.
     return [];

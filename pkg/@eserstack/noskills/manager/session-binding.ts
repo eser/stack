@@ -24,25 +24,63 @@ export type SessionBinding = {
 
 const nowIso = (): string => new Date().toISOString();
 
-/**
- * The canonical mux spawn resolver for noskills agent panes: launches the
- * coding agent (default `claude`) and stamps the per-session noskills env
- * (`NOSKILLS_SESSION` from the pane meta, `NOSKILLS_PROJECT_ROOT`). Shared by the
- * TUI manager and the web host so the agent environment never diverges.
- */
-export const buildAgentSpawnResolver = (root: string): mux.SpawnResolver => {
-  const baseEnv = runtime.env.toObject();
+/** Optional behaviour for {@link buildAgentSpawnResolver}. */
+export type AgentSpawnOptions = {
+  /**
+   * Session id stamped into panes that carry none of their own.
+   *
+   * A getter, not a value: the daemon's mux worker learns its session at
+   * `query_start`, which arrives after the server — and therefore the resolver
+   * — has been built.
+   */
+  readonly sessionId?: () => string;
+};
 
-  return (pane) => ({
-    command: pane.command ?? "claude",
-    args: pane.args ?? [],
-    cwd: pane.cwd ?? root,
-    env: {
-      ...baseEnv,
-      NOSKILLS_SESSION: pane.meta?.["sessionId"] ?? "",
-      NOSKILLS_PROJECT_ROOT: root,
-    },
-  });
+/**
+ * The canonical mux spawn resolver for noskills panes.
+ *
+ * It stamps the per-session noskills environment (`NOSKILLS_SESSION` from the
+ * pane meta, `NOSKILLS_PROJECT_ROOT`) and runs whatever the pane names. Shared
+ * by the TUI manager, the web host and the daemon's mux worker, which each had
+ * their own copy before — copies that had already drifted apart in two ways,
+ * both preserved here as parameters rather than as a third variant.
+ *
+ * # A pane with no command is a shell, not an agent
+ *
+ * The three copies all fell back to `claude`. That is wrong for the case it
+ * actually fires in: an agent pane always has its binary resolved by whoever
+ * dispatched it, so the fallback is reached only by `splitPane` and the default
+ * `newPane` keybinding — neither of which carries a command. Splitting inside
+ * an agent tab therefore launched a *second* agent, with an empty
+ * `NOSKILLS_SESSION`, when the user asked for another terminal.
+ *
+ * `root` may be a getter for the same reason `sessionId` is.
+ */
+export const buildAgentSpawnResolver = (
+  root: string | (() => string),
+  options: AgentSpawnOptions = {},
+): mux.SpawnResolver => {
+  const projectRoot = typeof root === "function" ? root : () => root;
+
+  return (pane) => {
+    // Read per spawn rather than snapshotting at construction: a long-lived
+    // manager would otherwise never see an environment change, and the mux
+    // default resolver already reads it per spawn.
+    const baseEnv = runtime.env.toObject();
+    const here = projectRoot();
+
+    return {
+      command: pane.command ?? baseEnv["SHELL"] ?? "/bin/sh",
+      args: pane.args ?? [],
+      cwd: pane.cwd ?? here,
+      env: {
+        ...baseEnv,
+        NOSKILLS_SESSION: pane.meta?.["sessionId"] ?? options.sessionId?.() ??
+          "",
+        NOSKILLS_PROJECT_ROOT: here,
+      },
+    };
+  };
 };
 
 /** Create a free-mode session (unbound to any spec). */

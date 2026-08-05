@@ -60,8 +60,16 @@ var (
 // ---------------------------------------------------------------------------
 
 var (
-	aiRegistry         = aifx.NewRegistry(aifx.WithDefaultFactories())
-	modelHandles       = make(map[string]aifx.LanguageModel)
+	aiRegistry   = aifx.NewRegistry(aifx.WithDefaultFactories())
+	modelHandles = make(map[string]aifx.LanguageModel)
+	// modelRegistryNames maps a model handle to the name aiRegistry knows it by.
+	//
+	// The two identifiers differ: AddModel is called with a generated "cfg-N"
+	// name and the caller is handed a separate "model-N" handle, so without this
+	// there is no way to reach back into the registry to remove the entry. That
+	// is why every model created ever since has stayed in aiRegistry for the
+	// process lifetime, closed but still referenced.
+	modelRegistryNames = make(map[string]string)
 	streamHandles      = make(map[string]*streamState)
 	execHandles        = make(map[string]*shellfxexec.ChildProcessHandle)
 	ptyHandles         = make(map[string]*shellfxpty.Session)
@@ -74,7 +82,12 @@ var (
 type streamState struct {
 	iter   *aifx.StreamIterator
 	cancel context.CancelFunc
-	wg     sync.WaitGroup
+
+	// requestID names this stream for cancellation. Its registration lives as
+	// long as the stream does, not as long as the call that created it.
+	requestID string
+
+	wg sync.WaitGroup
 }
 
 // ---------------------------------------------------------------------------
@@ -99,26 +112,132 @@ type aiMessageRequest struct {
 	Content []aiContentBlockReq `json:"content"`
 }
 
+// aiImagePartReq mirrors aifx.ImagePart. Data is base64 because a Uint8Array
+// does not survive JSON.stringify -- it serialises as {"0":..,"1":..}.
+type aiImagePartReq struct {
+	URL      string `json:"url,omitempty"`
+	MIMEType string `json:"mimeType,omitempty"`
+	Detail   string `json:"detail,omitempty"`
+	Data     string `json:"data,omitempty"`
+}
+
+type aiAudioPartReq struct {
+	URL      string `json:"url,omitempty"`
+	MIMEType string `json:"mimeType,omitempty"`
+	Data     string `json:"data,omitempty"`
+}
+
+type aiFilePartReq struct {
+	URI      string `json:"uri,omitempty"`
+	MIMEType string `json:"mimeType,omitempty"`
+}
+
+// aiToolCallReq is a tool call travelling *into* the model, i.e. replayed as
+// part of an assistant turn in the message history.
+type aiToolCallReq struct {
+	Arguments json.RawMessage `json:"arguments,omitempty"`
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+}
+
+type aiToolResultReq struct {
+	ToolCallID string `json:"toolCallId"`
+	Content    string `json:"content"`
+	IsError    bool   `json:"isError,omitempty"`
+}
+
+// aiContentBlockReq carries one block of a message.
+//
+// Everything but Text used to be missing, and the effect was not a decode
+// error: a block of any other kind arrived as {"type":"image"} with no payload,
+// so the model was asked to describe an image it was never sent and answered
+// confidently about nothing.
 type aiContentBlockReq struct {
-	Type string `json:"type"`
-	Text string `json:"text,omitempty"`
+	Image      *aiImagePartReq  `json:"image,omitempty"`
+	Audio      *aiAudioPartReq  `json:"audio,omitempty"`
+	File       *aiFilePartReq   `json:"file,omitempty"`
+	ToolCall   *aiToolCallReq   `json:"toolCall,omitempty"`
+	ToolResult *aiToolResultReq `json:"toolResult,omitempty"`
+	Type       string           `json:"type"`
+	Text       string           `json:"text,omitempty"`
 }
 
+// aiToolDefinitionReq mirrors aifx.ToolDefinition.
+//
+// Parameters is json.RawMessage rather than []byte: []byte would demand a
+// base64 string and reject the JSON Schema object TypeScript actually sends.
+type aiToolDefinitionReq struct {
+	Parameters  json.RawMessage `json:"parameters,omitempty"`
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+}
+
+type aiResponseFormatReq struct {
+	JSONSchema json.RawMessage `json:"jsonSchema,omitempty"`
+	Type       string          `json:"type"`
+	Name       string          `json:"name,omitempty"`
+}
+
+type aiSafetySettingReq struct {
+	Category  string `json:"category"`
+	Threshold string `json:"threshold"`
+}
+
+// aiGenerateRequest is the full generation request.
+//
+// Temperature, TopP and ThinkingBudget are pointers so that "unset" stays
+// distinguishable from a deliberate zero -- temperature 0 is a real, meaningful
+// setting, and a non-pointer field would pin every request to it.
 type aiGenerateRequest struct {
-	Messages   []aiMessageRequest `json:"messages"`
-	System     string             `json:"system"`
-	ToolChoice string             `json:"toolChoice"`
-	MaxTokens  int                `json:"maxTokens"`
+	Extensions     map[string]any        `json:"extensions,omitempty"`
+	Temperature    *float64              `json:"temperature,omitempty"`
+	TopP           *float64              `json:"topP,omitempty"`
+	ThinkingBudget *int                  `json:"thinkingBudget,omitempty"`
+	ResponseFormat *aiResponseFormatReq  `json:"responseFormat,omitempty"`
+	Messages       []aiMessageRequest    `json:"messages"`
+	Tools          []aiToolDefinitionReq `json:"tools,omitempty"`
+	StopWords      []string              `json:"stopWords,omitempty"`
+	SafetySettings []aiSafetySettingReq  `json:"safetySettings,omitempty"`
+	System         string                `json:"system"`
+	ToolChoice     string                `json:"toolChoice"`
+	// RequestID names this call so it can be cancelled while it runs. Optional:
+	// a caller that supplies none gets an uncancellable request, which is what
+	// every caller got before cancellation existed.
+	RequestID string `json:"requestId,omitempty"`
+	MaxTokens int    `json:"maxTokens"`
 }
 
+// aiHandleResponse is the generic AI response envelope.
+//
+// ErrorKind and ErrorStatus exist because an error used to cross this bridge as
+// a bare sentence. TypeScript builds a typed hierarchy off the status (401 ->
+// AuthFailedError, 429 -> RateLimitedError), so without them every failure
+// arrived as an undifferentiated AiError and a caller could neither retry a
+// rate limit nor re-authenticate.
+//
+// ErrorStatus is omitempty: a zero would be forwarded into a TypeScript
+// constructor as a real value, and `0 ?? 429` is 0, so every typed error would
+// end up reporting statusCode 0 instead of its class default.
 type aiHandleResponse struct {
-	Handle string `json:"handle,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Handle      string `json:"handle,omitempty"`
+	Error       string `json:"error,omitempty"`
+	ErrorKind   string `json:"errorKind,omitempty"`
+	ErrorStatus int    `json:"errorStatus,omitempty"`
 }
 
+// aiContentBlockResp carries one block of a model's answer.
+//
+// ID/Name/Arguments exist because a tool call used to be flattened into Text:
+// the response said `{"type":"tool_call","text":"get_weather"}`, which names the
+// tool and discards the call id and the arguments -- everything a caller needs
+// to actually run it. TypeScript then dropped the block entirely, so the loss
+// was invisible from either end.
 type aiContentBlockResp struct {
-	Type string `json:"type"`
-	Text string `json:"text,omitempty"`
+	Arguments json.RawMessage `json:"arguments,omitempty"`
+	Type      string          `json:"type"`
+	Text      string          `json:"text,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	Name      string          `json:"name,omitempty"`
 }
 
 type aiUsageResp struct {
@@ -136,12 +255,23 @@ type aiGenerateResponse struct {
 	Error      string               `json:"error,omitempty"`
 }
 
+// aiStreamEventResponse is one streamed event.
+//
+// The tool-call fields are separate from TextDelta on purpose: a tool-call
+// delta used to be sent by putting the tool's *name* in TextDelta, so a
+// consumer concatenating deltas into the answer spliced tool names into the
+// prose, and the arguments never arrived at all.
 type aiStreamEventResponse struct {
-	Type       string       `json:"type"`
-	TextDelta  string       `json:"textDelta,omitempty"`
-	StopReason string       `json:"stopReason,omitempty"`
-	Usage      *aiUsageResp `json:"usage,omitempty"`
-	Error      string       `json:"error,omitempty"`
+	Usage          *aiUsageResp    `json:"usage,omitempty"`
+	ArgumentsDelta json.RawMessage `json:"argumentsDelta,omitempty"`
+	Type           string          `json:"type"`
+	TextDelta      string          `json:"textDelta,omitempty"`
+	StopReason     string          `json:"stopReason,omitempty"`
+	Error          string          `json:"error,omitempty"`
+	ErrorKind      string          `json:"errorKind,omitempty"`
+	ToolCallID     string          `json:"toolCallId,omitempty"`
+	ToolCallName   string          `json:"toolCallName,omitempty"`
+	ErrorStatus    int             `json:"errorStatus,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -173,22 +303,30 @@ type aiBatchItemRequest struct {
 }
 
 type aiBatchSubmitRequest struct {
+	// RequestID names this call so it can be cancelled while it runs.
+	RequestID   string               `json:"requestId,omitempty"`
 	Items       []aiBatchItemRequest `json:"items"`
 	ModelHandle string               `json:"modelHandle"`
 }
 
 type aiBatchHandleRequest struct {
+	// RequestID names this call so it can be cancelled while it runs.
+	RequestID   string `json:"requestId,omitempty"`
 	ModelHandle string `json:"modelHandle"`
 	JobID       string `json:"jobId"`
 }
 
 type aiBatchListRequest struct {
+	// RequestID names this call so it can be cancelled while it runs.
+	RequestID   string `json:"requestId,omitempty"`
 	After       string `json:"after,omitempty"`
 	ModelHandle string `json:"modelHandle"`
 	Limit       int    `json:"limit,omitempty"`
 }
 
 type aiBatchDownloadRequest struct {
+	// RequestID names this call so it can be cancelled while it runs.
+	RequestID   string         `json:"requestId,omitempty"`
 	Job         aiBatchJobJSON `json:"job"`
 	ModelHandle string         `json:"modelHandle"`
 }
@@ -234,6 +372,20 @@ func marshalResponse(v any) string {
 
 func errorResponse(msg string) string {
 	return marshalResponse(aiHandleResponse{Error: msg}) //nolint:exhaustruct
+}
+
+// aiErrorResponse is errorResponse for AI failures: it takes the error VALUE.
+//
+// That distinction is the whole point. errorResponse's parameter is a string,
+// so every AI call site had already run err.Error() before calling it -- the
+// classification was destroyed at the call site, and widening the envelope
+// alone would have produced fields that were empty on every response.
+func aiErrorResponse(prefix string, err error) string {
+	return marshalResponse(aiHandleResponse{ //nolint:exhaustruct
+		Error:       prefix + err.Error(),
+		ErrorKind:   aifx.ErrorKind(err),
+		ErrorStatus: aifx.ErrorStatus(err),
+	})
 }
 
 func marshalError(msg string) string {
@@ -290,11 +442,6 @@ func closeAllHandles() {
 		streams = append(streams, s)
 	}
 
-	models := make([]aifx.LanguageModel, 0, len(modelHandles))
-	for _, m := range modelHandles {
-		models = append(models, m)
-	}
-
 	execs := make([]*shellfxexec.ChildProcessHandle, 0, len(execHandles))
 	for _, h := range execHandles {
 		execs = append(execs, h)
@@ -312,6 +459,7 @@ func closeAllHandles() {
 
 	clear(streamHandles)
 	clear(modelHandles)
+	clear(modelRegistryNames)
 	clear(execHandles)
 	clear(ptyHandles)
 	clear(tokenizerHandles)
@@ -406,9 +554,11 @@ func closeAllHandles() {
 		e.mu.Unlock()
 	}
 
-	for _, m := range models {
-		_ = m.Close(context.Background())
-	}
+	// Through the registry, which owns every model this bridge created and
+	// closes each one itself. Closing a snapshot of modelHandles here as well
+	// would close each model twice -- undetectable today because every adapter's
+	// Close returns nil, and a real fault the first time one owns a resource.
+	_ = aiRegistry.Close(context.Background())
 
 	for _, h := range execs {
 		_ = h.Close()
@@ -459,15 +609,18 @@ func bridgeAiCreateModel(configJSON string) string {
 		Properties:     req.Properties,
 	}
 
-	model, err := aiRegistry.AddModel(context.Background(), newHandle("cfg"), cfg)
+	registryName := newHandle("cfg")
+
+	model, err := aiRegistry.AddModel(context.Background(), registryName, cfg)
 	if err != nil {
-		return errorResponse("create model: " + err.Error())
+		return aiErrorResponse("create model: ", err)
 	}
 
 	handle := newHandle("model")
 
 	handleMu.Lock()
 	modelHandles[handle] = model
+	modelRegistryNames[handle] = registryName
 	handleMu.Unlock()
 
 	return marshalResponse(aiHandleResponse{Handle: handle}) //nolint:exhaustruct
@@ -483,14 +636,23 @@ func bridgeAiGenerateText(modelHandle, optionsJSON string) string {
 		return errorResponse("model handle not found: " + modelHandle)
 	}
 
-	opts, err := parseGenerateRequest(optionsJSON)
+	opts, requestID, err := parseGenerateRequestWithID(optionsJSON)
 	if err != nil {
 		return errorResponse("invalid options: " + err.Error())
 	}
 
-	result, err := model.GenerateText(context.Background(), opts)
+	// Registered before any provider work starts, so a cancel that arrives
+	// first is honoured rather than racing past an unregistered request.
+	ctx, done, ok := beginCancellable(requestID)
+	defer done()
+
+	if !ok {
+		return aiErrorResponse("generation cancelled: ", context.Canceled)
+	}
+
+	result, err := model.GenerateText(ctx, opts)
 	if err != nil {
-		return errorResponse("generation failed: " + err.Error())
+		return aiErrorResponse("generation failed: ", err)
 	}
 
 	return marshalResponse(mapGenerateResult(result))
@@ -506,24 +668,32 @@ func bridgeAiStreamText(modelHandle, optionsJSON string) string {
 		return errorResponse("model handle not found: " + modelHandle)
 	}
 
-	opts, err := parseGenerateRequest(optionsJSON)
+	opts, requestID, err := parseGenerateRequestWithID(optionsJSON)
 	if err != nil {
 		return errorResponse("invalid options: " + err.Error())
 	}
 
 	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // cancel is stored in state.cancel and invoked by Close and by the drain path in ...StreamRead
 
+	// A stream's cancel outlives this function -- it is what stops the
+	// iterator mid-flight -- so the registration is dropped when the stream is
+	// freed rather than when this returns.
+	if !beginAIRequest(requestID, cancel) {
+		return aiErrorResponse("stream cancelled: ", context.Canceled)
+	}
+
 	iter, err := model.StreamText(ctx, opts)
 	if err != nil {
+		endAIRequest(requestID)
 		cancel()
 
-		return errorResponse("stream failed: " + err.Error())
+		return aiErrorResponse("stream failed: ", err)
 	}
 
 	handle := newHandle("stream")
 
 	handleMu.Lock()
-	streamHandles[handle] = &streamState{iter: iter, cancel: cancel}
+	streamHandles[handle] = &streamState{iter: iter, cancel: cancel, requestID: requestID}
 	handleMu.Unlock()
 
 	return marshalResponse(aiHandleResponse{Handle: handle}) //nolint:exhaustruct
@@ -550,10 +720,14 @@ func bridgeAiStreamRead(streamHandle string) string {
 		delete(streamHandles, streamHandle)
 		handleMu.Unlock()
 
+		endAIRequest(state.requestID)
+
 		if err := state.iter.Err(); err != nil {
 			return marshalResponse(aiStreamEventResponse{ //nolint:exhaustruct
-				Type:  "error",
-				Error: err.Error(),
+				Type:        "error",
+				Error:       err.Error(),
+				ErrorKind:   aifx.ErrorKind(err),
+				ErrorStatus: aifx.ErrorStatus(err),
 			})
 		}
 
@@ -569,17 +743,33 @@ func bridgeAiStreamRead(streamHandle string) string {
 func bridgeAiCloseModel(modelHandle string) string {
 	handleMu.Lock()
 	model, ok := modelHandles[modelHandle]
+	registryName := modelRegistryNames[modelHandle]
+
 	if ok {
 		delete(modelHandles, modelHandle)
+		delete(modelRegistryNames, modelHandle)
 	}
+
 	handleMu.Unlock()
 
 	if !ok {
 		return errorResponse("model handle not found: " + modelHandle)
 	}
 
+	// Through the registry when we know its name: RemoveModel closes the model
+	// itself, so calling Close here as well would close it twice. Providers
+	// mostly tolerate that today, which is exactly why it would go unnoticed
+	// until one of them did not.
+	if registryName != "" {
+		if err := aiRegistry.RemoveModel(context.Background(), registryName); err != nil {
+			return aiErrorResponse("close failed: ", err)
+		}
+
+		return "{}"
+	}
+
 	if err := model.Close(context.Background()); err != nil {
-		return errorResponse("close failed: " + err.Error())
+		return aiErrorResponse("close failed: ", err)
 	}
 
 	return "{}"
@@ -595,6 +785,10 @@ func bridgeAiFreeStream(streamHandle string) string {
 		delete(streamHandles, streamHandle)
 	}
 	handleMu.Unlock()
+
+	if ok {
+		endAIRequest(state.requestID)
+	}
 
 	if !ok {
 		return "{}"
@@ -617,11 +811,8 @@ func convertOptions(req *aiGenerateRequest) *aifx.GenerateTextOptions {
 		blocks := make([]aifx.ContentBlock, 0, len(m.Content))
 
 		for _, b := range m.Content {
-			if b.Type == "text" {
-				blocks = append(blocks, aifx.ContentBlock{ //nolint:exhaustruct
-					Type: aifx.ContentBlockText,
-					Text: b.Text,
-				})
+			if block, ok := convertContentBlock(b); ok {
+				blocks = append(blocks, block)
 			}
 		}
 
@@ -632,25 +823,162 @@ func convertOptions(req *aiGenerateRequest) *aifx.GenerateTextOptions {
 	}
 
 	opts := &aifx.GenerateTextOptions{ //nolint:exhaustruct
-		Messages:  messages,
-		System:    req.System,
-		MaxTokens: req.MaxTokens,
+		Messages:       messages,
+		System:         req.System,
+		MaxTokens:      req.MaxTokens,
+		Temperature:    req.Temperature,
+		TopP:           req.TopP,
+		StopWords:      req.StopWords,
+		ThinkingBudget: req.ThinkingBudget,
+		Extensions:     req.Extensions,
 	}
 
 	if req.ToolChoice != "" {
 		opts.ToolChoice = aifx.ToolChoice(req.ToolChoice)
 	}
 
+	for _, tool := range req.Tools {
+		opts.Tools = append(opts.Tools, aifx.ToolDefinition{
+			Name:        tool.Name,
+			Description: tool.Description,
+			Parameters:  tool.Parameters,
+		})
+	}
+
+	for _, setting := range req.SafetySettings {
+		opts.SafetySettings = append(opts.SafetySettings, aifx.SafetySetting{
+			Category:  setting.Category,
+			Threshold: setting.Threshold,
+		})
+	}
+
+	if req.ResponseFormat != nil {
+		opts.ResponseFormat = &aifx.ResponseFormat{
+			Type:       req.ResponseFormat.Type,
+			Name:       req.ResponseFormat.Name,
+			JSONSchema: []byte(req.ResponseFormat.JSONSchema),
+		}
+	}
+
 	return opts
 }
 
-func parseGenerateRequest(optionsJSON string) (*aifx.GenerateTextOptions, error) {
-	var req aiGenerateRequest
-	if err := json.Unmarshal([]byte(optionsJSON), &req); err != nil {
-		return nil, err
+// convertContentBlock turns one wire block into an aifx block.
+//
+// A block whose payload is missing is skipped rather than passed through empty:
+// `{"type":"image"}` with no image is a malformed request, and forwarding it
+// would ask the provider to look at nothing. The false return says so instead
+// of panicking on the nil pointer.
+func convertContentBlock(b aiContentBlockReq) (aifx.ContentBlock, bool) {
+	switch b.Type {
+	case "text":
+		return aifx.ContentBlock{Type: aifx.ContentBlockText, Text: b.Text}, true //nolint:exhaustruct
+
+	case "image":
+		if b.Image == nil {
+			return aifx.ContentBlock{}, false //nolint:exhaustruct
+		}
+
+		return aifx.ContentBlock{ //nolint:exhaustruct
+			Type: aifx.ContentBlockImage,
+			Image: &aifx.ImagePart{
+				URL:      b.Image.URL,
+				MIMEType: b.Image.MIMEType,
+				Detail:   aifx.ImageDetail(b.Image.Detail),
+				Data:     decodeBase64Payload(b.Image.Data),
+			},
+		}, true
+
+	case "audio":
+		if b.Audio == nil {
+			return aifx.ContentBlock{}, false //nolint:exhaustruct
+		}
+
+		return aifx.ContentBlock{ //nolint:exhaustruct
+			Type: aifx.ContentBlockAudio,
+			Audio: &aifx.AudioPart{
+				URL:      b.Audio.URL,
+				MIMEType: b.Audio.MIMEType,
+				Data:     decodeBase64Payload(b.Audio.Data),
+			},
+		}, true
+
+	case "file":
+		if b.File == nil {
+			return aifx.ContentBlock{}, false //nolint:exhaustruct
+		}
+
+		return aifx.ContentBlock{ //nolint:exhaustruct
+			Type: aifx.ContentBlockFile,
+			File: &aifx.FilePart{URI: b.File.URI, MIMEType: b.File.MIMEType},
+		}, true
+
+	case "tool_call":
+		if b.ToolCall == nil {
+			return aifx.ContentBlock{}, false //nolint:exhaustruct
+		}
+
+		return aifx.ContentBlock{ //nolint:exhaustruct
+			Type: aifx.ContentBlockToolCall,
+			ToolCall: &aifx.ToolCall{
+				ID:        b.ToolCall.ID,
+				Name:      b.ToolCall.Name,
+				Arguments: b.ToolCall.Arguments,
+			},
+		}, true
+
+	case "tool_result":
+		if b.ToolResult == nil {
+			return aifx.ContentBlock{}, false //nolint:exhaustruct
+		}
+
+		return aifx.ContentBlock{ //nolint:exhaustruct
+			Type: aifx.ContentBlockToolResult,
+			ToolResult: &aifx.ToolResult{
+				ToolCallID: b.ToolResult.ToolCallID,
+				Content:    b.ToolResult.Content,
+				IsError:    b.ToolResult.IsError,
+			},
+		}, true
+
+	default:
+		return aifx.ContentBlock{}, false //nolint:exhaustruct
+	}
+}
+
+// decodeBase64Payload decodes an inline binary payload, yielding nil for both
+// "absent" and "undecodable" -- the URL field is the alternative carrier, so a
+// bad blob should not fail the whole request.
+func decodeBase64Payload(encoded string) []byte {
+	if encoded == "" {
+		return nil
 	}
 
-	return convertOptions(&req), nil
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil
+	}
+
+	return decoded
+}
+
+func parseGenerateRequest(optionsJSON string) (*aifx.GenerateTextOptions, error) {
+	opts, _, err := parseGenerateRequestWithID(optionsJSON)
+
+	return opts, err
+}
+
+// parseGenerateRequestWithID also yields the caller's request id, which names
+// the call for cancellation.
+func parseGenerateRequestWithID(
+	optionsJSON string,
+) (*aifx.GenerateTextOptions, string, error) {
+	var req aiGenerateRequest
+	if err := json.Unmarshal([]byte(optionsJSON), &req); err != nil {
+		return nil, "", err
+	}
+
+	return convertOptions(&req), req.RequestID, nil
 }
 
 func mapGenerateResult(r *aifx.GenerateTextResult) aiGenerateResponse {
@@ -662,7 +990,21 @@ func mapGenerateResult(r *aifx.GenerateTextResult) aiGenerateResponse {
 			blocks = append(blocks, aiContentBlockResp{Type: "text", Text: b.Text})
 		case aifx.ContentBlockToolCall:
 			if b.ToolCall != nil {
-				blocks = append(blocks, aiContentBlockResp{Type: "tool_call", Text: b.ToolCall.Name})
+				blocks = append(blocks, aiContentBlockResp{ //nolint:exhaustruct
+					Type:      "tool_call",
+					ID:        b.ToolCall.ID,
+					Name:      b.ToolCall.Name,
+					Arguments: b.ToolCall.Arguments,
+				})
+			}
+
+		case aifx.ContentBlockToolResult:
+			if b.ToolResult != nil {
+				blocks = append(blocks, aiContentBlockResp{ //nolint:exhaustruct
+					Type: "tool_result",
+					ID:   b.ToolResult.ToolCallID,
+					Text: b.ToolResult.Content,
+				})
 			}
 		}
 	}
@@ -776,9 +1118,16 @@ func bridgeAiBatchCreate(requestJSON string) string {
 		})
 	}
 
-	job, err := batchModel.SubmitBatch(context.Background(), &aifx.BatchRequest{Items: items})
+	ctx, done, ok := beginCancellable(req.RequestID)
+	defer done()
+
+	if !ok {
+		return aiErrorResponse("batch submit cancelled: ", context.Canceled)
+	}
+
+	job, err := batchModel.SubmitBatch(ctx, &aifx.BatchRequest{Items: items})
 	if err != nil {
-		return errorResponse("batch create: " + err.Error())
+		return aiErrorResponse("batch create: ", err)
 	}
 
 	return marshalResponse(aiBatchJobResponse{Job: mapBatchJob(job)}) //nolint:exhaustruct
@@ -796,9 +1145,16 @@ func bridgeAiBatchGet(requestJSON string) string {
 		return errorResponse(errMsg)
 	}
 
-	job, err := batchModel.GetBatchJob(context.Background(), req.JobID)
+	ctx, done, ok := beginCancellable(req.RequestID)
+	defer done()
+
+	if !ok {
+		return aiErrorResponse("batch get cancelled: ", context.Canceled)
+	}
+
+	job, err := batchModel.GetBatchJob(ctx, req.JobID)
 	if err != nil {
-		return errorResponse("batch get: " + err.Error())
+		return aiErrorResponse("batch get: ", err)
 	}
 
 	return marshalResponse(aiBatchJobResponse{Job: mapBatchJob(job)}) //nolint:exhaustruct
@@ -824,9 +1180,16 @@ func bridgeAiBatchList(requestJSON string) string {
 		}
 	}
 
-	jobs, err := batchModel.ListBatchJobs(context.Background(), opts)
+	ctx, done, ok := beginCancellable(req.RequestID)
+	defer done()
+
+	if !ok {
+		return aiErrorResponse("batch list cancelled: ", context.Canceled)
+	}
+
+	jobs, err := batchModel.ListBatchJobs(ctx, opts)
 	if err != nil {
-		return errorResponse("batch list: " + err.Error())
+		return aiErrorResponse("batch list: ", err)
 	}
 
 	jsonJobs := make([]*aiBatchJobJSON, 0, len(jobs))
@@ -852,9 +1215,16 @@ func bridgeAiBatchDownload(requestJSON string) string {
 
 	job := unmapBatchJob(&req.Job)
 
-	results, err := batchModel.DownloadBatchResults(context.Background(), job)
+	ctx, done, ok := beginCancellable(req.RequestID)
+	defer done()
+
+	if !ok {
+		return aiErrorResponse("batch download cancelled: ", context.Canceled)
+	}
+
+	results, err := batchModel.DownloadBatchResults(ctx, job)
 	if err != nil {
-		return errorResponse("batch download: " + err.Error())
+		return aiErrorResponse("batch download: ", err)
 	}
 
 	jsonResults := make([]*aiBatchResultItemJSON, 0, len(results))
@@ -885,8 +1255,15 @@ func bridgeAiBatchCancel(requestJSON string) string {
 		return errorResponse(errMsg)
 	}
 
-	if err := batchModel.CancelBatchJob(context.Background(), req.JobID); err != nil {
-		return errorResponse("batch cancel: " + err.Error())
+	ctx, done, ok := beginCancellable(req.RequestID)
+	defer done()
+
+	if !ok {
+		return aiErrorResponse("batch cancel aborted: ", context.Canceled)
+	}
+
+	if err := batchModel.CancelBatchJob(ctx, req.JobID); err != nil {
+		return aiErrorResponse("batch cancel: ", err)
 	}
 
 	return "{}"
@@ -1923,7 +2300,9 @@ func mapStreamEvent(event aifx.StreamEvent) aiStreamEventResponse {
 	case aifx.StreamEventToolCallDelta:
 		resp.Type = "tool_call_delta"
 		if event.ToolCall != nil {
-			resp.TextDelta = event.ToolCall.Name
+			resp.ToolCallID = event.ToolCall.ID
+			resp.ToolCallName = event.ToolCall.Name
+			resp.ArgumentsDelta = event.ToolCall.Arguments
 		}
 
 	case aifx.StreamEventMessageDone:
@@ -1943,6 +2322,8 @@ func mapStreamEvent(event aifx.StreamEvent) aiStreamEventResponse {
 		resp.Type = "error"
 		if event.Error != nil {
 			resp.Error = event.Error.Error()
+			resp.ErrorKind = aifx.ErrorKind(event.Error)
+			resp.ErrorStatus = aifx.ErrorStatus(event.Error)
 		}
 	}
 

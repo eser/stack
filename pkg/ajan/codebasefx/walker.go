@@ -47,9 +47,20 @@ func WalkSourceFiles(ctx context.Context, opts WalkOptions) ([]FileEntry, error)
 	return walkViaFS(root, opts)
 }
 
-// walkViaGit uses git ls-files to enumerate tracked source files.
+// walkViaGit uses git ls-files to enumerate source files.
+//
+// --others --exclude-standard are not optional extras: without them ls-files
+// reports only files already in the index, so a file that has been created but
+// never committed is invisible to every validator built on this walker. That is
+// exactly backwards -- new code is the code most likely to be wrong, and it
+// stayed unchecked until its first commit. The doc comment on WalkSourceFiles
+// has always claimed untracked-but-not-ignored files were included; this makes
+// that true. --exclude-standard keeps .gitignore honoured, so build output and
+// node_modules stay out.
 func walkViaGit(ctx context.Context, root string, opts WalkOptions) ([]FileEntry, error) {
-	out, err := runGit(ctx, root, "ls-files", "--full-name", "-z")
+	out, err := runGit(
+		ctx, root, "ls-files", "--full-name", "-z", "--cached", "--others", "--exclude-standard",
+	)
 	if err != nil {
 		return nil, err
 	}

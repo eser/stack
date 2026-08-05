@@ -32,6 +32,8 @@
 import process from "node:process";
 import * as net from "node:net";
 import * as mux from "@eserstack/mux";
+import { sanitizeRemoteTransport } from "@eserstack/mux/engine";
+import { buildAgentSpawnResolver } from "@eserstack/noskills/session";
 
 const socketPath = process.argv[2];
 
@@ -56,23 +58,15 @@ const sendToDaemon = (msg: Record<string, unknown>): void => {
 let sessionCwd = process.cwd();
 let sessionId = "";
 
-const baseEnv: Record<string, string> = {};
-for (const [k, v] of Object.entries(process.env)) {
-  if (v !== undefined) baseEnv[k] = v;
-}
-
 const server = mux.createServer({
   // The browser frontend reports its own viewport on attach; this is just a seed.
   initialState: mux.engine.createInitialState({ cols: 120, rows: 40 }),
-  resolveSpawn: (pane) => ({
-    command: pane.command ?? "claude",
-    args: pane.args ?? [],
-    cwd: pane.cwd ?? sessionCwd,
-    env: {
-      ...baseEnv,
-      NOSKILLS_SESSION: pane.meta?.["sessionId"] ?? sessionId,
-      NOSKILLS_PROJECT_ROOT: sessionCwd,
-    },
+  // The shared resolver, not a fourth copy. Both values are getters because
+  // this worker learns its cwd and session at query_start, which arrives after
+  // the server is built -- passing them by value would freeze them at whatever
+  // they were at process start.
+  resolveSpawn: buildAgentSpawnResolver(() => sessionCwd, {
+    sessionId: () => sessionId,
   }),
   // A remote session outlives any single tab; closing the last one leaves an
   // empty multiplexer the client can repopulate.
@@ -96,7 +90,12 @@ const transport: mux.Transport<mux.ServerToFrontend, mux.FrontendToServer> = {
   },
 };
 
-server.connect(transport);
+// Sanitised at the transport, not relayed verbatim. Every frame here arrived
+// over WebTransport and the daemon forwards it as opaque JSON, so without this
+// a remote client could send `newTab`/`newPane` naming any command, args and
+// cwd and have this process execute it with the daemon's full environment. The
+// in-process web bridge has always done this; the daemon path never did.
+server.connect(sanitizeRemoteTransport(transport));
 
 // ── Daemon → worker dispatch ───────────────────────────────────────────────────
 

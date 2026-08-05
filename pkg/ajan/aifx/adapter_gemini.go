@@ -63,7 +63,8 @@ func (f *geminiModelFactory) CreateModel(
 	ctx context.Context,
 	config *ConfigTarget,
 ) (LanguageModel, error) { //nolint:ireturn
-	if config.APIKey == "" {
+	apiKey := ResolveAPIKey(config)
+	if apiKey == "" {
 		return nil, fmt.Errorf("%w: %w", ErrGeminiClientCreate, ErrInvalidAPIKey)
 	}
 
@@ -72,7 +73,7 @@ func (f *geminiModelFactory) CreateModel(
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{ //nolint:exhaustruct
-		APIKey:  config.APIKey,
+		APIKey:  apiKey,
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {

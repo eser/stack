@@ -635,3 +635,20 @@ func TestJoinStrings(t *testing.T) {
 		}
 	})
 }
+
+// TestOllamaModel_GetCapabilities constructs the model directly.
+//
+// It lived in adapter_cli_stream_test.go, which was about the CLI adapters and
+// has been deleted with them. Its own comment explains why it exists: the other
+// Ollama tests go through the factory, so this method was uncovered.
+func TestOllamaModel_GetCapabilities(t *testing.T) {
+	t.Parallel()
+
+	m := &OllamaModel{ //nolint:exhaustruct
+		config: &ConfigTarget{Model: "llama3"}, //nolint:exhaustruct
+	}
+
+	if caps := m.GetCapabilities(); len(caps) == 0 {
+		t.Error("expected non-empty capabilities")
+	}
+}

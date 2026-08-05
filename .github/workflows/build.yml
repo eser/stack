@@ -372,6 +372,134 @@ jobs:
             bun pkg/@eserstack/cli/dist/eser.js --help
           fi
 
+  # ── Windows ─────────────────────────────────────────────────────
+  # The only job that runs on Windows at all. Two things were unexercised
+  # before it existed, both of which fail late and expensively:
+  #
+  #   1. pin_image_windows.go. Its cgo constructor pins the shared library so
+  #      FreeLibrary can never unmap it -- the fix for the Go-runtime crash when
+  #      a host dlclose/dlopens the image. It is compiled ONLY by
+  #      publish-ajan.yml, which is workflow_dispatch-only, so a mistake there
+  #      surfaced during a manual publish rather than on the PR that caused it.
+  #   2. etc/scripts/install-noskills.ps1. Windows binaries have always been built and
+  #      archived, but nothing ever unpacked that archive and checked the
+  #      binaries land somewhere resolvable.
+  #
+  # Installing into a scratch directory and asserting Get-Command finds all
+  # three is the whole point: eser-acp is resolved by name via exec.LookPath, so
+  # "extracted" is not the property that matters -- "on PATH" is.
+  windows-smoke:
+    name: Windows Smoke Test
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+
+    # Explicit rather than relying on the Windows runner default, so the
+    # PowerShell in every step below is unambiguous.
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Build Windows binaries
+        run: |
+          New-Item -ItemType Directory -Path dist-windows -Force | Out-Null
+          go build -o dist-windows/ ./cmd/noskills-server ./cmd/noskills ./cmd/eser-acp
+          Get-ChildItem dist-windows
+
+      # Compiles pin_image_windows.go for the first time outside a manual
+      # publish. CGO_ENABLED=1 is required: the pin is a cgo constructor, and
+      # with cgo off the file is dropped and the check becomes vacuous.
+      - name: Build ajan shared library (compiles pin_image_windows.go)
+        working-directory: pkg/@eserstack/ajan
+        env:
+          CGO_ENABLED: "1"
+        run: go build -buildmode=c-shared -o eser_ajan.dll .
+
+      - name: Verify the pin symbol is actually in the DLL
+        working-directory: pkg/@eserstack/ajan
+        run: |
+          if (-not (Test-Path eser_ajan.dll)) { throw "eser_ajan.dll was not produced" }
+          # A constructor that compiled but got stripped would leave the crash
+          # unfixed while the build stayed green, so assert the symbol survived
+          # into the artifact rather than trusting the exit code.
+          $found = & go tool nm eser_ajan.dll 2>$null | Select-String 'eserAjanPinImage'
+          if (-not $found) { throw "eserAjanPinImage not present in eser_ajan.dll" }
+          Write-Host "pin constructor present: $found"
+
+      - name: Run Go tests for the ajan module
+        working-directory: pkg/@eserstack/ajan
+        env:
+          CGO_ENABLED: "1"
+        run: go test ./...
+
+      # Named as .goreleaser.yaml would name it, for realism. Note this does NOT
+      # exercise the installer's own name construction or its download and
+      # checksum path: -ArchivePath deliberately bypasses both so the job tests
+      # the current tree rather than whatever is already published. Those two
+      # remain covered only by the first real release.
+      - name: Package a release-shaped archive
+        run: |
+          Compress-Archive -Path dist-windows/* -DestinationPath noskills_0.0.0_Windows_x86_64.zip -Force
+
+      - name: Install via etc/scripts/install-noskills.ps1
+        run: |
+          ./etc/scripts/install-noskills.ps1 `
+            -ArchivePath noskills_0.0.0_Windows_x86_64.zip `
+            -InstallDir "$env:RUNNER_TEMP\eser-bin"
+
+      - name: Assert all three binaries resolve on PATH
+        run: |
+          # Re-read the stored user PATH the installer wrote. A fresh step gets a
+          # new process whose $env:PATH is the value from when the job started,
+          # so without this the assertion would test the installer's in-session
+          # mutation rather than the persisted registry change it makes.
+          $env:PATH = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+                      [Environment]::GetEnvironmentVariable('Path', 'User')
+
+          foreach ($bin in @('noskills-server', 'noskills', 'eser-acp')) {
+            $cmd = Get-Command $bin -ErrorAction SilentlyContinue
+
+            if (-not $cmd) { throw "$bin did not resolve on PATH after install" }
+
+            Write-Host "$bin -> $($cmd.Source)"
+          }
+
+      # exec.LookPath is how aifx and noskillsserverfx find the shim, so prove
+      # the installed binary is the real thing and not merely a file of the
+      # right name.
+      # An installer that silently rewrites unrelated PATH entries is worse than
+      # one that fails, and the Get-Command assertion above cannot see it:
+      # reading back through [Environment] expands either value type, so a
+      # corrupted REG_SZ and an intact REG_EXPAND_SZ look identical.
+      - name: Assert the user PATH value type survived
+        run: |
+          $kind = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment').GetValueKind('Path')
+          if ($kind -ne 'ExpandString') { throw "installer downgraded user PATH to $kind" }
+          Write-Host "user PATH is still $kind"
+
+      - name: Assert eser-acp is executable
+        run: |
+          $env:PATH = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+                      [Environment]::GetEnvironmentVariable('Path', 'User')
+          $output = & eser-acp --help 2>&1 | Out-String
+          if ($output -notmatch 'backend') { throw "eser-acp --help did not mention -backend; got: $output" }
+          Write-Host 'eser-acp responds to --help'
+
   # ── Release: publish ────────────────────────────────────────────
   publish:
     name: Publish

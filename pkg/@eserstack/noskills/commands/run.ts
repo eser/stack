@@ -3,10 +3,16 @@
 /**
  * `noskills run` — Autonomous execution loop (Ralph loop).
  *
- * Wraps the EXECUTING phase in a bash-level loop. Each iteration spawns a
- * fresh `claude -p` process — no /clear needed because each process is born
- * with zero context. State persists in .eser/.state/progresses/state.json
- * between iterations.
+ * Wraps the EXECUTING phase in a loop. Each iteration runs one agent turn in a
+ * fresh process — no /clear needed because each process is born with zero
+ * context. State persists in .eser/.state/progresses/state.json between
+ * iterations.
+ *
+ * The turn goes through the ai package's claude-code provider, which uses the
+ * ACP-backed Go bridge when the `eser-acp` shim is on PATH and the pure
+ * TypeScript adapter otherwise. Either way the loop learns the turn's outcome
+ * in band and records the iteration itself, rather than discarding the output
+ * and hoping Claude Code's Stop hook wrote state.json for it.
  *
  * Usage:
  *   noskills run                              # default, pauses at BLOCKED
@@ -28,9 +34,14 @@ import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
+import * as iteration from "../state/iteration.ts";
 import * as compiler from "../context/compiler.ts";
 import * as syncEngine from "../sync/engine.ts";
 import { cmd, cmdPrefix } from "../output/cmd.ts";
+
+// The agent model for one loop iteration. Matches the `ai ask` default for
+// claude-code so the two entry points do not silently diverge.
+const AGENT_MODEL = "claude-sonnet-5";
 
 export const main = async (
   args?: readonly string[],
@@ -104,168 +115,288 @@ export const main = async (
   let loopIteration = 0;
   let exitCode = 0;
 
-  while (loopIteration < maxIterations) {
-    loopIteration++;
+  // Claim iteration recording for this loop before the first turn.
+  //
+  // Written into state.json rather than passed as an environment variable: the
+  // agent is reached through the FFI bridge, whose Go library caches its
+  // environment at load, so a variable exported now would not reach the process
+  // that needs to read it. The hook reads state.json regardless.
+  await iteration.setDriver(root, "acp");
 
-    // Read fresh state each iteration
-    const state = await persistence.readState(root);
+  try {
+    while (loopIteration < maxIterations) {
+      loopIteration++;
 
-    // ── Exit: COMPLETED ──
-    if (state.phase === "COMPLETED") {
-      out.writeln("");
-      out.writeln(span.green("✔"), " Spec completed!");
-      out.writeln(`  Iterations: ${state.execution.iteration}`);
-      out.writeln(`  Decisions:  ${state.decisions.length}`);
-      break;
-    }
+      // Read fresh state each iteration
+      const state = await persistence.readState(root);
 
-    // ── Exit: BLOCKED ──
-    if (state.phase === "BLOCKED") {
-      const reason = state.execution.lastProgress ?? "Unknown";
-      out.writeln("");
-      out.writeln(
-        span.yellow("⚠"),
-        " Execution blocked: ",
-        span.dim(reason),
+      // ── Exit: COMPLETED ──
+      if (state.phase === "COMPLETED") {
+        out.writeln("");
+        out.writeln(span.green("✔"), " Spec completed!");
+        out.writeln(`  Iterations: ${state.execution.iteration}`);
+        out.writeln(`  Decisions:  ${state.decisions.length}`);
+        break;
+      }
+
+      // ── Exit: BLOCKED ──
+      if (state.phase === "BLOCKED") {
+        const reason = state.execution.lastProgress ?? "Unknown";
+        out.writeln("");
+        out.writeln(
+          span.yellow("⚠"),
+          " Execution blocked: ",
+          span.dim(reason),
+        );
+
+        if (unattended) {
+          // Log to file and exit — user resolves later
+          await logBlocked(root, reason, loopIteration);
+          out.writeln(
+            span.dim(
+              "Logged to .eser/.state/progresses/blocked.log. Resolve and re-run.",
+            ),
+          );
+          exitCode = 1;
+          break;
+        }
+
+        // Interactive: prompt for resolution via tui.text
+        const tuiCtx = tui.createTuiContext();
+        const resolution = await tui.text(tuiCtx, {
+          message: "Enter resolution (or leave empty to stop):",
+        });
+
+        if (tui.isCancel(resolution) || resolution === "") {
+          out.writeln(span.dim("Stopped by user."));
+          break;
+        }
+
+        // Submit resolution via library API (not shell)
+        const unblocked = machine.transition(state, "EXECUTING");
+        await persistence.writeState(root, {
+          ...unblocked,
+          execution: {
+            ...unblocked.execution,
+            lastProgress: `Resolved: ${resolution}`,
+          },
+        });
+
+        continue;
+      }
+
+      // ── Exit: unexpected phase ──
+      if (state.phase !== "EXECUTING") {
+        out.writeln(span.red(`Unexpected phase: ${state.phase}. Stopping.`));
+        exitCode = 1;
+        break;
+      }
+
+      // ── Build agent prompt from compiler output ──
+      const allConcerns = await persistence.listConcerns(root);
+      const activeConcerns = allConcerns.filter((c) =>
+        config.concerns.includes(c.id)
+      );
+      const rules = await syncEngine.loadRules(root);
+      const hints = syncEngine.resolveInteractionHints(config.tools);
+      const output = await compiler.compile(
+        state,
+        activeConcerns,
+        rules,
+        config,
+        undefined,
+        undefined,
+        undefined,
+        hints,
       );
 
-      if (unattended) {
-        // Log to file and exit — user resolves later
-        await logBlocked(root, reason, loopIteration);
+      const prompt = buildAgentPrompt(output);
+
+      // ── Log iteration ──
+      out.writeln(
+        span.cyan(`── Iteration ${loopIteration}`),
+        span.dim(
+          ` (execution: ${state.execution.iteration}, debt: ${
+            state.execution.debt?.items.length ?? 0
+          })`,
+        ),
+      );
+
+      if (state.execution.lastProgress !== null) {
+        out.writeln(span.dim(`  Last: ${state.execution.lastProgress}`));
+      }
+
+      if (state.execution.lastVerification?.passed === false) {
+        out.writeln(span.red("  Verification failed — agent will fix"));
+      }
+
+      if (state.execution.debt !== null) {
         out.writeln(
-          span.dim(
-            "Logged to .eser/.state/progresses/blocked.log. Resolve and re-run.",
-          ),
+          span.yellow(`  Debt: ${state.execution.debt.items.length} items`),
+        );
+      }
+
+      // ── Spawn fresh claude process ──
+      out.writeln(span.dim("  Spawning agent..."));
+
+      // The turn runs through the ai package's claude-code provider rather than a
+      // raw `claude -p` shell-out.
+      //
+      // factoryFor picks the ACP-backed Go bridge when the `eser-acp` shim is on
+      // PATH and the pure-TypeScript adapter otherwise, so this is strictly better
+      // where the shim exists and unchanged where it does not. Both paths run the
+      // same vendor binary in the same non-interactive mode -- the shim spawns
+      // `claude --print --output-format stream-json`, and `-p` IS `--print` -- so
+      // the agent behaves identically and its own hooks still fire. What changes
+      // is that the turn's outcome comes back IN BAND.
+      //
+      // That is the point. This loop used to discard stdout entirely and learn
+      // what happened only by re-reading state.json, which the Stop hook was
+      // expected to have written. Nothing verified that it had. With the hook
+      // absent or misconfigured the state never moved, the same prompt was rebuilt
+      // and re-sent, and the loop burned every one of maxIterations before exiting
+      // "Max iterations reached" -- never reporting the actual fault.
+      let stopReason: string;
+
+      try {
+        // Imported from the package's declared entry points. `./registry` and
+        // `./content` are NOT in the ai package's exports map, so importing them
+        // directly threw ERR_PACKAGE_PATH_NOT_EXPORTED at runtime on Deno AND
+        // Node -- and `deno check` did not notice, because type resolution and
+        // runtime module resolution disagree here.
+        const [ai, adapters] = await Promise.all([
+          import("@eserstack/ai/mod"),
+          import("@eserstack/ai/adapters"),
+        ]);
+
+        const factory = await adapters.factoryFor("claude-code");
+
+        if (factory === undefined) {
+          throw new Error("no claude-code provider available");
+        }
+
+        const registry = new ai.Registry({ factories: [factory] });
+
+        await registry.addModel("default", {
+          provider: "claude-code",
+          // A real id, not "". The TypeScript adapter builds `--model` from
+          // this value, so an empty string spawned `claude --model ` with a
+          // dangling flag and exited 1.
+          model: AGENT_MODEL,
+          // maxTurns was already a flag on this command and cwd keeps the agent
+          // rooted at the project rather than wherever the loop was launched from.
+          properties: { maxTurns, cwd: root },
+        });
+
+        const model = registry.getDefault();
+
+        if (model === null) {
+          throw new Error("failed to initialise the claude-code model");
+        }
+
+        // The prompt travels as a message, so it is never argv. It is assembled
+        // from the spec, the acceptance criteria and -- when a previous iteration
+        // failed -- the whole verification output, which is arbitrary test output
+        // of arbitrary length. As argv that is bounded by ARG_MAX, and the loop
+        // would die with an opaque spawn failure exactly on the iterations where
+        // the most had gone wrong.
+        const turn = await model.generateText({
+          messages: [ai.textMessage("user", prompt)],
+        });
+
+        await model.close();
+
+        if (results.isFail(turn)) {
+          const failure = turn.error as { message?: string };
+
+          out.writeln(
+            span.red(
+              `  Agent turn failed: ${failure.message ?? "unknown error"}`,
+            ),
+          );
+          exitCode = 1;
+          break;
+        }
+
+        stopReason = turn.value.stopReason;
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+
+        out.writeln(
+          span.red(`  Failed to run the agent: ${detail}`),
+          span.dim(" Is the claude CLI installed?"),
         );
         exitCode = 1;
         break;
       }
 
-      // Interactive: prompt for resolution via tui.text
-      const tuiCtx = tui.createTuiContext();
-      const resolution = await tui.text(tuiCtx, {
-        message: "Enter resolution (or leave empty to stop):",
-      });
+      // Record the iteration here, from the turn we just watched finish, rather
+      // than trusting the in-agent Stop hook to have done it. setDriver told the
+      // hook to stand down for exactly this reason -- two writers doing a
+      // read-modify-write on state.json for one turn lose updates.
+      const record = await iteration.recordIteration(root);
 
-      if (tui.isCancel(resolution) || resolution === "") {
-        out.writeln(span.dim("Stopped by user."));
+      if (record === null) {
+        out.writeln(
+          span.red("  Could not record the iteration (state unreadable)."),
+        );
+        exitCode = 1;
         break;
       }
 
-      // Submit resolution via library API (not shell)
-      const unblocked = machine.transition(state, "EXECUTING");
-      await persistence.writeState(root, {
-        ...unblocked,
-        execution: {
-          ...unblocked.execution,
-          lastProgress: `Resolved: ${resolution}`,
-        },
-      });
-
-      continue;
-    }
-
-    // ── Exit: unexpected phase ──
-    if (state.phase !== "EXECUTING") {
-      out.writeln(span.red(`Unexpected phase: ${state.phase}. Stopping.`));
-      exitCode = 1;
-      break;
-    }
-
-    // ── Build agent prompt from compiler output ──
-    const allConcerns = await persistence.listConcerns(root);
-    const activeConcerns = allConcerns.filter((c) =>
-      config.concerns.includes(c.id)
-    );
-    const rules = await syncEngine.loadRules(root);
-    const hints = syncEngine.resolveInteractionHints(config.tools);
-    const output = await compiler.compile(
-      state,
-      activeConcerns,
-      rules,
-      config,
-      undefined,
-      undefined,
-      undefined,
-      hints,
-    );
-
-    const prompt = buildAgentPrompt(output);
-
-    // ── Log iteration ──
-    out.writeln(
-      span.cyan(`── Iteration ${loopIteration}`),
-      span.dim(
-        ` (execution: ${state.execution.iteration}, debt: ${
-          state.execution.debt?.items.length ?? 0
-        })`,
-      ),
-    );
-
-    if (state.execution.lastProgress !== null) {
-      out.writeln(span.dim(`  Last: ${state.execution.lastProgress}`));
-    }
-
-    if (state.execution.lastVerification?.passed === false) {
-      out.writeln(span.red("  Verification failed — agent will fix"));
-    }
-
-    if (state.execution.debt !== null) {
       out.writeln(
-        span.yellow(`  Debt: ${state.execution.debt.items.length} items`),
+        span.dim(
+          `  Agent finished (${stopReason}). Iteration ${record.iteration}: ${
+            record.gitStat || "no file changes"
+          }`,
+        ),
       );
-    }
 
-    // ── Spawn fresh claude process ──
-    out.writeln(span.dim("  Spawning agent..."));
+      // A turn that ended for any reason other than finishing normally is worth
+      // surfacing: the loop would otherwise re-prompt into the same wall.
+      if (stopReason !== "end_turn") {
+        out.writeln(
+          span.yellow(`  Turn ended early: ${stopReason}`),
+        );
+      }
 
-    try {
-      const shellExec = await import("@eserstack/shell/exec");
-      await shellExec
-        .exec`claude -p ${prompt} --max-turns ${
-        String(maxTurns)
-      } --output-format json`
-        .noThrow()
-        .text();
-    } catch {
-      out.writeln(span.red("  Failed to spawn claude CLI. Is it installed?"));
-      exitCode = 1;
-      break;
-    }
+      // ── Auto-commit if configured (CLI commits, not agent) ──
+      const freshState = await persistence.readState(root);
 
-    // Stop hook fires automatically on claude exit, updating state.json
-    out.writeln(span.dim("  Agent exited. Stop hook captured state."));
-
-    // ── Auto-commit if configured (CLI commits, not agent) ──
-    const freshState = await persistence.readState(root);
-
-    if (
-      (config as Record<string, unknown>)["autoCommit"] === true &&
-      config.allowGit !== false
-    ) {
-      try {
-        const shellExec = await import("@eserstack/shell/exec");
-        const diffOutput = await shellExec
-          .exec`git diff --name-only`
-          .noThrow()
-          .text();
-
-        if (diffOutput.trim().length > 0) {
-          await shellExec.exec`git add -A`.noThrow().text();
-          const msg =
-            `noskills: iteration ${freshState.execution.iteration} — ${
-              freshState.execution.lastProgress ?? "progress"
-            }`;
-          await shellExec
-            .exec`git commit -m ${msg}`
+      if (
+        (config as Record<string, unknown>)["autoCommit"] === true &&
+        config.allowGit !== false
+      ) {
+        try {
+          const shellExec = await import("@eserstack/shell/exec");
+          const diffOutput = await shellExec
+            .exec`git diff --name-only`
             .noThrow()
             .text();
-          out.writeln(span.dim("  Auto-committed."));
+
+          if (diffOutput.trim().length > 0) {
+            await shellExec.exec`git add -A`.noThrow().text();
+            const msg =
+              `noskills: iteration ${freshState.execution.iteration} — ${
+                freshState.execution.lastProgress ?? "progress"
+              }`;
+            await shellExec
+              .exec`git commit -m ${msg}`
+              .noThrow()
+              .text();
+            out.writeln(span.dim("  Auto-committed."));
+          }
+        } catch {
+          out.writeln(span.dim("  Auto-commit failed (non-fatal)."));
         }
-      } catch {
-        out.writeln(span.dim("  Auto-commit failed (non-fatal)."));
       }
     }
+  } finally {
+    // Release the claim even if the loop threw or broke out early. A stale
+    // "acp" left in state.json would silently disable the Stop hook for every
+    // later agent-driven session in this project -- the exact silent-no-write
+    // failure this change exists to remove, just pointed the other way.
+    await iteration.setDriver(root, null);
   }
 
   // ── Safety valve ──

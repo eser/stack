@@ -17,7 +17,26 @@ export type PaneId = string;
 /** Stable identifier for a tab (e.g. "tab-2"). */
 export type TabId = string;
 
-/** A terminal pane runs a shell/command; an agent pane is driven programmatically. */
+/**
+ * A terminal pane runs a shell/command.
+ *
+ * `"agent"` is DEAD and has never been used: nothing sets it, nothing branches
+ * on it, and every agent tab in this repo is dispatched as an ordinary terminal
+ * pane whose binary was resolved by the caller.
+ *
+ * It is deliberately not a hook for ACP-backed panes. A pane has exactly one
+ * content channel — VT bytes, via the `output` frame — and both renderers write
+ * unconditionally into a VT screen. An ACP session emits structured
+ * session/update events with no VT representation, so backing a pane with one
+ * would mean inventing a second content channel, a second renderer, and a
+ * `ScenePane.kind` wire change shared by the TUI, the browser and the daemon
+ * relay. Agent sessions already run over ACP through the daemon
+ * (noskillsserverfx WorkerHandle kind="acp"), which is where structured events
+ * have somewhere to go.
+ *
+ * If `kind` should ever mean something, the question is which binary runs in a
+ * VT pane — a spawn-resolution concern, not an ACP one.
+ */
 export type PaneKind = "terminal" | "agent";
 
 /** Absolute, 1-based-friendly rectangle in terminal cells (0-based here). */

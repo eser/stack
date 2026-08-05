@@ -112,41 +112,96 @@ export interface TranscriptReplayEndEvent {
   v: number;
 }
 
-export interface DeltaEvent {
-  type: "delta";
+/**
+ * One streamed change within an agent turn.
+ *
+ * This is the event that actually carries model output, and until now it had no
+ * variant in {@link DaemonEvent} at all — clients had to cast out of the union
+ * to read assistant text.
+ *
+ * `event` is an ACP `SessionUpdate`: a schema-defined object discriminated by
+ * its `sessionUpdate` field (`agent_message_chunk`, `agent_thought_chunk`,
+ * `tool_call`, `tool_call_update`, `plan`, …). Sessions still backed by the
+ * Claude Agent SDK worker put the SDK's own untyped message here instead, so
+ * narrow on `sessionUpdate` being present before relying on the ACP shape.
+ */
+export interface SdkEvent {
+  type: "sdk_event";
   v: number;
-  text: string;
+  event: { sessionUpdate?: string } & Record<string, unknown>;
 }
 
-export interface ToolStartEvent {
-  type: "tool_start";
+/**
+ * A turn finished. `stopReason` is present for ACP-backed sessions only — the
+ * SDK worker had no way to report one.
+ */
+export interface QueryDoneEvent {
+  type: "query_done";
   v: number;
-  id: string;
-  tool: string;
-  input: unknown;
+  stopReason?:
+    | "end_turn"
+    | "max_tokens"
+    | "max_turn_requests"
+    | "refusal"
+    | "cancelled";
 }
 
-export interface ToolResultEvent {
-  type: "tool_result";
-  v: number;
-  id: string;
-  output: string;
-}
-
+/**
+ * The agent is asking to run a tool.
+ *
+ * Field names here are the ones actually on the wire. The previous declaration
+ * claimed `id` and `tool`; the daemon has always sent `requestId` and
+ * `toolName`, so any client written against the old type read `undefined`.
+ */
 export interface PermissionRequestEvent {
   type: "permission_request";
   v: number;
-  id: string;
-  tool: string;
+  requestId: string;
+  toolName: string;
   input: unknown;
+  toolUseId: string;
+  /** ACP only: the exact choices the agent offered. */
+  options?: Array<{
+    optionId: string;
+    name: string;
+    kind: "allow_once" | "allow_always" | "reject_once" | "reject_always";
+  }>;
+  /** ACP only: the tool's category, e.g. `read`, `edit`, `execute`. */
+  kind?: string;
 }
 
+/**
+ * A decision the daemon refused to act on.
+ *
+ * `reason` distinguishes the two causes: a decision it could not interpret, and
+ * one it could not journal durably. An unrecognised decision is rejected rather
+ * than interpreted — it used to be rewritten to `allow`, which granted a
+ * permission the user was never asked about.
+ */
 export interface PermissionResponseRejectedEvent {
   type: "permission_response_rejected";
   v: number;
   id: string;
-  winnerClientId: string;
   decision: string;
+  reason?: string;
+  winnerClientId?: string;
+}
+
+/**
+ * A permission decision, journalled before the agent was told about it.
+ *
+ * `class` is `write` for tools that change state and `read` otherwise. A
+ * `write` decision reaches disk with fdatasync before the agent may act on it,
+ * so a crash in between leaves this record absent rather than showing an
+ * approval for a tool that never ran.
+ */
+export interface PermissionDecisionEvent {
+  type: "permission_decision";
+  v: number;
+  id: string;
+  tool: string;
+  decision: string;
+  class: "read" | "write";
 }
 
 export interface ClientCountEvent {
@@ -224,11 +279,11 @@ export type DaemonEvent =
     | SessionMetaEvent
     | TranscriptReplayStartEvent
     | TranscriptReplayEndEvent
-    | DeltaEvent
-    | ToolStartEvent
-    | ToolResultEvent
+    | SdkEvent
+    | QueryDoneEvent
     | PermissionRequestEvent
     | PermissionResponseRejectedEvent
+    | PermissionDecisionEvent
     | ClientCountEvent
     | FanoutEvent
     | WorkerDiedEvent

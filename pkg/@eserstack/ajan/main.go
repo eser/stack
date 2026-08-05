@@ -62,6 +62,11 @@ func EserAjanAiStreamRead(streamHandle *C.char) *C.char {
 	return C.CString(bridgeAiStreamRead(C.GoString(streamHandle)))
 }
 
+//export EserAjanAiCancelRequest
+func EserAjanAiCancelRequest(requestJSON *C.char) *C.char {
+	return C.CString(bridgeAiCancelRequest(C.GoString(requestJSON)))
+}
+
 //export EserAjanAiCloseModel
 func EserAjanAiCloseModel(modelHandle *C.char) *C.char {
 	return C.CString(bridgeAiCloseModel(C.GoString(modelHandle)))

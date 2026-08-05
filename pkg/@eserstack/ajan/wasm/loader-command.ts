@@ -130,6 +130,8 @@ export const loadCommandWasm = async (
         call("aiStreamText", { modelHandle, optionsJSON }),
       EserAjanAiStreamRead: (streamHandle: string) =>
         call("aiStreamRead", { streamHandle }),
+      EserAjanAiCancelRequest: (requestJSON: string) =>
+        call("aiCancelRequest", { requestJSON }),
       EserAjanAiCloseModel: (modelHandle: string) =>
         call("aiCloseModel", { modelHandle }),
       EserAjanAiFreeStream: (streamHandle: string) =>

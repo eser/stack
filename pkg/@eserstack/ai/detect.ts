@@ -100,9 +100,16 @@ export const detectAllProviders = async (): Promise<
       name: "anthropic",
       alias: "ant",
       type: "API",
-      available: checkEnvVar("ANTHROPIC_API_KEY"),
+      // Both, matching the SDK's credential chain and pkg/ajan/aifx's
+      // credentialEnvVars. Checking only the key would report anthropic
+      // unavailable on a token-only machine that the providers themselves
+      // authenticate fine — telling the user to set something they do not need.
+      available: checkEnvVar("ANTHROPIC_API_KEY") ||
+        checkEnvVar("ANTHROPIC_AUTH_TOKEN"),
       detail: checkEnvVar("ANTHROPIC_API_KEY")
         ? "ANTHROPIC_API_KEY set"
+        : checkEnvVar("ANTHROPIC_AUTH_TOKEN")
+        ? "ANTHROPIC_AUTH_TOKEN set"
         : "ANTHROPIC_API_KEY not set",
     },
     {

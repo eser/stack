@@ -47,12 +47,26 @@ const nodeSpawn = (
   options?: SpawnOptions,
 ): Promise<ProcessOutput> => {
   return new Promise((resolve, reject) => {
+    const stdio = shared.getNodeStdioArray(options);
+
+    if (options?.stdinText !== undefined) {
+      stdio[0] = "pipe";
+    }
+
     const proc = nodeChildProcess.spawn(cmd, args, {
       cwd: options?.cwd,
       env: options?.env ? { ...nodeProcess.env, ...options.env } : undefined,
-      stdio: shared.getNodeStdioArray(options),
+      stdio,
       signal: options?.signal,
     });
+
+    if (options?.stdinText !== undefined && proc.stdin !== null) {
+      // A process that exits without draining stdin closes the pipe, which
+      // surfaces here as EPIPE. That is the process's business, not a failure
+      // of this call -- its exit code is the outcome that matters.
+      proc.stdin.on("error", () => {});
+      proc.stdin.end(options.stdinText);
+    }
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];

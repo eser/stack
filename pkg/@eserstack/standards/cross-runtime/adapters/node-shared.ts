@@ -47,6 +47,7 @@ const mapStats = (stats: nodeFs.Stats): FileInfo => ({
   mtime: stats.mtime,
   atime: stats.atime,
   birthtime: stats.birthtime,
+  mode: stats.mode,
 });
 
 const handleFsError = (error: unknown, path: string): never => {
@@ -438,6 +439,17 @@ export const createNodeCompatProcess = (): RuntimeProcess => ({
   args: nodeProcess.argv.slice(2),
 
   pid: nodeProcess.pid,
+  isAlive(pid: number): boolean {
+    try {
+      // Signal 0 checks existence and permission without delivering anything.
+      nodeProcess.kill(pid, 0);
+
+      return true;
+    } catch (error) {
+      // EPERM means it exists but belongs to another user — still alive.
+      return (error as { code?: string }).code === "EPERM";
+    }
+  },
 
   stdin: Readable.toWeb(nodeProcess.stdin) as ReadableStream<Uint8Array>,
 

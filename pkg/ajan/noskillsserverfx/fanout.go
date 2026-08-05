@@ -102,7 +102,8 @@ func translateWorkerEvent(evt WorkerEvent, logger *logfx.Logger) any {
 
 		return map[string]any{"type": "error", "code": "query_error", "message": qe.Error}
 
-	case "sdk_event", "permission_request", "query_done", "spawn_progress", "fork_created", "mux":
+	case "sdk_event", "permission_request", "query_done", "spawn_progress", "fork_created",
+		"mux", "permission_response_rejected":
 		var raw map[string]any
 		if err := json.Unmarshal(evt.Payload, &raw); err != nil {
 			logger.Warn("fanout: malformed event payload", "type", evt.Type, "err", err)

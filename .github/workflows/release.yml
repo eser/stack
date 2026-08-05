@@ -5,6 +5,25 @@ on:
     tags:
       - "v*"
 
+  # Manual trigger, because the automatic one has never fired.
+  #
+  # `build.yml`'s tag-release job pushes the tag using the default GITHUB_TOKEN,
+  # and GitHub deliberately does not dispatch workflows for events created with
+  # that token -- it is the recursion guard. So `on: push: tags` above has never
+  # matched, goreleaser has never run, and no release has ever carried the
+  # noskills_* archives or checksums.txt that etc/scripts/install-noskills.sh downloads.
+  # Verified against the API for v4.1.47 through v4.1.56: zero such assets.
+  #
+  # This is the stopgap, not the fix. It makes a release runnable by hand today.
+  # The real fix is to push the tag with a PAT or GitHub App token so the
+  # trigger above works unattended -- see the P0 entry in TODOS.md.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release (e.g. v4.1.58)"
+        required: true
+        type: string
+
 permissions:
   contents: write
   packages: write
@@ -17,6 +36,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          # goreleaser derives the version from the tag it is built at, so a
+          # manual run must check out that tag rather than the default branch.
+          # fetch-depth: 0 is required either way -- goreleaser reads history to
+          # build the changelog.
+          ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
 
       - name: Set up Go

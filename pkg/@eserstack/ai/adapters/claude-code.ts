@@ -45,6 +45,11 @@ export class ClaudeCodeModel implements model.LanguageModel {
     const process = cliShared.spawnCliProcess(this.binary, args, {
       signal,
       stdinData: prompt,
+      // The ACP path honours properties.cwd; this one silently did not, so the
+      // same config produced an agent rooted at the project on one path and at
+      // whatever directory the caller happened to be in on the other. Undefined
+      // still means "inherit", which is the previous behaviour when unset.
+      cwd: this.config.properties?.["cwd"] as string | undefined,
     });
     const stderrPromise = cliShared.captureStderr(process.stderr);
 
@@ -102,6 +107,11 @@ export class ClaudeCodeModel implements model.LanguageModel {
     const process = cliShared.spawnCliProcess(this.binary, args, {
       signal,
       stdinData: prompt,
+      // The ACP path honours properties.cwd; this one silently did not, so the
+      // same config produced an agent rooted at the project on one path and at
+      // whatever directory the caller happened to be in on the other. Undefined
+      // still means "inherit", which is the previous behaviour when unset.
+      cwd: this.config.properties?.["cwd"] as string | undefined,
     });
     const stderrPromise = cliShared.captureStderr(process.stderr);
 
@@ -239,7 +249,13 @@ const buildArgs = (
     args.push("--verbose");
   }
 
-  args.push("--model", cfg.model);
+  // Only when set. Pushed unconditionally, an empty model produced
+  // `claude --model ` with a dangling flag, which the CLI rejects with exit 1 --
+  // so a caller that legitimately wanted the CLI's own default could not express
+  // it, and got a spawn failure instead.
+  if (cfg.model !== "") {
+    args.push("--model", cfg.model);
+  }
 
   // Only limit turns if explicitly configured
   const maxTurns = cfg.properties?.["maxTurns"] as number | undefined;

@@ -1,13 +1,17 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * `@eserstack/agents` — runtime adapters for interactive coding agents and an
- * autonomous driving loop.
+ * `@eserstack/agents` — binary discovery and spawn specs for interactive coding
+ * agents.
  *
- * An {@link AgentAdapter} knows how to discover, launch, and read the state of a
- * coding agent (Claude Code, OpenCode, Codex); the driving loop reads a pane's
- * terminal and injects gated messages. Pairs with `@eserstack/mux` (which owns
- * panes/PTYs) and reuses the shared git guard for safety.
+ * An {@link AgentAdapter} knows how to find and launch a coding agent (Claude
+ * Code, OpenCode, Codex). Pairs with `@eserstack/mux`, which owns panes and
+ * PTYs, and reuses the shared git guard.
+ *
+ * The autonomous driving loop that used to live here is gone, along with the
+ * regex state matchers it depended on: an agent's state now arrives as ACP
+ * session/update events reported by the agent itself, rather than being guessed
+ * from the last ten rows of its TUI.
  *
  * @module
  */
@@ -15,19 +19,14 @@
 export type {
   AgentAdapter,
   AgentCapabilities,
-  AgentState,
   CliAdapterOptions,
   SpawnContext,
   SpawnSpec,
-  StateMatchers,
-  TerminalView,
 } from "./adapter.ts";
 export {
   createCliAgentAdapter,
-  detectStateFromMatchers,
   isOnPath,
   resolveFirstOnPath,
-  terminalTail,
 } from "./adapter.ts";
 
 export {
@@ -39,5 +38,4 @@ export { claudeCodeAdapter } from "./adapters/claude-code.ts";
 export { opencodeAdapter } from "./adapters/opencode.ts";
 export { codexAdapter } from "./adapters/codex.ts";
 
-export * as drive from "./drive/mod.ts";
 export * as gitGuard from "./guards/git.ts";

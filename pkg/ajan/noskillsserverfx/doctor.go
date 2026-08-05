@@ -58,6 +58,7 @@ func RunDoctor(cfg *ServerConfig) *DoctorReport {
 		checkLedgerDir(cfg),
 		checkRuntimeDirPerms(cfg),
 		checkCertValid,
+		checkACPShim,
 	}
 
 	if runtime.GOOS == "darwin" {
@@ -135,6 +136,34 @@ func checkNodeInstalled(_ *ServerConfig) CheckResult {
 
 	return CheckResult{
 		Name:    "Node.js installed",
+		Status:  CheckOK,
+		Message: path,
+	}
+}
+
+// checkACPShim reports whether the ACP agent binary is reachable.
+//
+// A warning rather than a failure: only sessions created with kind="acp" spawn
+// it, so a daemon serving only SDK or mux sessions runs perfectly without it.
+// But when it is missing those sessions fail at spawn time with a message about
+// a binary the user has no reason to have heard of, which is exactly the kind of
+// thing doctor exists to say up front.
+func checkACPShim(_ *ServerConfig) CheckResult {
+	command, _ := acpAgentCommand()
+
+	path, err := exec.LookPath(command)
+	if err != nil {
+		return CheckResult{
+			Name:    "ACP agent available",
+			Status:  CheckWarn,
+			Message: command + " not found in PATH (only kind=\"acp\" sessions need it)",
+			Fix: "Install the eserstack release, which ships " + command +
+				", or set " + envACPCommand + " to its path.",
+		}
+	}
+
+	return CheckResult{ //nolint:exhaustruct
+		Name:    "ACP agent available",
 		Status:  CheckOK,
 		Message: path,
 	}

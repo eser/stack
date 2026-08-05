@@ -44,15 +44,29 @@ const SYMBOL_DEFINITIONS = {
     parameters: ["pointer"],
     result: "pointer",
   },
+  // Nonblocking: a model round-trip takes seconds to minutes, and running it
+  // on the isolate froze every timer, socket and other request for its whole
+  // duration. It is also what makes cancellation work -- an AbortSignal cannot
+  // fire while the isolate is blocked inside the call it would cancel.
   EserAjanAiGenerateText: {
     parameters: ["pointer", "pointer"],
     result: "pointer",
+    nonblocking: true,
   },
   EserAjanAiStreamText: {
     parameters: ["pointer", "pointer"],
     result: "pointer",
+    nonblocking: true,
   },
   EserAjanAiStreamRead: {
+    parameters: ["pointer"],
+    result: "pointer",
+    nonblocking: true,
+  },
+  // Deliberately blocking: it only flips a flag under a mutex, and it must be
+  // callable from an abort listener without waiting on the threadpool the call
+  // it is cancelling is occupying.
+  EserAjanAiCancelRequest: {
     parameters: ["pointer"],
     result: "pointer",
   },
@@ -67,22 +81,27 @@ const SYMBOL_DEFINITIONS = {
   EserAjanAiBatchCreate: {
     parameters: ["pointer"],
     result: "pointer",
+    nonblocking: true,
   },
   EserAjanAiBatchGet: {
     parameters: ["pointer"],
     result: "pointer",
+    nonblocking: true,
   },
   EserAjanAiBatchList: {
     parameters: ["pointer"],
     result: "pointer",
+    nonblocking: true,
   },
   EserAjanAiBatchDownload: {
     parameters: ["pointer"],
     result: "pointer",
+    nonblocking: true,
   },
   EserAjanAiBatchCancel: {
     parameters: ["pointer"],
     result: "pointer",
+    nonblocking: true,
   },
   EserAjanFormatEncode: {
     parameters: ["pointer"],
@@ -501,13 +520,16 @@ const createSymbolWrappers = (
       freePtr(ptr);
       return value;
     },
-    EserAjanAiGenerateText: (
+    EserAjanAiGenerateText: async (
       modelHandle: string,
       optionsJSON: string,
-    ): string => {
+    ): Promise<string> => {
       const cHandle = toCString(modelHandle);
       const cOpts = toCString(optionsJSON);
-      const rawPtr = rawSymbols.EserAjanAiGenerateText(
+      // nonblocking symbol → returns a Promise<pointer>; both buffers must stay
+      // referenced until it resolves or the GC could free memory Go is reading
+      // (the closure frame does this).
+      const rawPtr = await rawSymbols.EserAjanAiGenerateText(
         Deno.UnsafePointer.of(cHandle),
         Deno.UnsafePointer.of(cOpts),
       );
@@ -515,13 +537,14 @@ const createSymbolWrappers = (
       freePtr(ptr);
       return value;
     },
-    EserAjanAiStreamText: (
+    EserAjanAiStreamText: async (
       modelHandle: string,
       optionsJSON: string,
-    ): string => {
+    ): Promise<string> => {
       const cHandle = toCString(modelHandle);
       const cOpts = toCString(optionsJSON);
-      const rawPtr = rawSymbols.EserAjanAiStreamText(
+      // nonblocking → keep both buffers referenced until it resolves.
+      const rawPtr = await rawSymbols.EserAjanAiStreamText(
         Deno.UnsafePointer.of(cHandle),
         Deno.UnsafePointer.of(cOpts),
       );
@@ -529,9 +552,21 @@ const createSymbolWrappers = (
       freePtr(ptr);
       return value;
     },
-    EserAjanAiStreamRead: (streamHandle: string): string => {
+    EserAjanAiStreamRead: async (streamHandle: string): Promise<string> => {
       const cStr = toCString(streamHandle);
-      const rawPtr = rawSymbols.EserAjanAiStreamRead(
+      // nonblocking → keep cStr referenced until it resolves. A stream read
+      // waits on the provider, so blocking here stalled the isolate between
+      // every pair of tokens.
+      const rawPtr = await rawSymbols.EserAjanAiStreamRead(
+        Deno.UnsafePointer.of(cStr),
+      );
+      const { value, ptr } = readCString(rawPtr);
+      freePtr(ptr);
+      return value;
+    },
+    EserAjanAiCancelRequest: (requestJSON: string): string => {
+      const cStr = toCString(requestJSON);
+      const rawPtr = rawSymbols.EserAjanAiCancelRequest(
         Deno.UnsafePointer.of(cStr),
       );
       const { value, ptr } = readCString(rawPtr);
@@ -556,45 +591,50 @@ const createSymbolWrappers = (
       freePtr(ptr);
       return value;
     },
-    EserAjanAiBatchCreate: (requestJSON: string): string => {
+    EserAjanAiBatchCreate: async (requestJSON: string): Promise<string> => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanAiBatchCreate(
+      // nonblocking → keep cStr referenced until it resolves.
+      const rawPtr = await rawSymbols.EserAjanAiBatchCreate(
         Deno.UnsafePointer.of(cStr),
       );
       const { value, ptr } = readCString(rawPtr);
       freePtr(ptr);
       return value;
     },
-    EserAjanAiBatchGet: (requestJSON: string): string => {
+    EserAjanAiBatchGet: async (requestJSON: string): Promise<string> => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanAiBatchGet(
+      // nonblocking → keep cStr referenced until it resolves.
+      const rawPtr = await rawSymbols.EserAjanAiBatchGet(
         Deno.UnsafePointer.of(cStr),
       );
       const { value, ptr } = readCString(rawPtr);
       freePtr(ptr);
       return value;
     },
-    EserAjanAiBatchList: (requestJSON: string): string => {
+    EserAjanAiBatchList: async (requestJSON: string): Promise<string> => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanAiBatchList(
+      // nonblocking → keep cStr referenced until it resolves.
+      const rawPtr = await rawSymbols.EserAjanAiBatchList(
         Deno.UnsafePointer.of(cStr),
       );
       const { value, ptr } = readCString(rawPtr);
       freePtr(ptr);
       return value;
     },
-    EserAjanAiBatchDownload: (requestJSON: string): string => {
+    EserAjanAiBatchDownload: async (requestJSON: string): Promise<string> => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanAiBatchDownload(
+      // nonblocking → keep cStr referenced until it resolves.
+      const rawPtr = await rawSymbols.EserAjanAiBatchDownload(
         Deno.UnsafePointer.of(cStr),
       );
       const { value, ptr } = readCString(rawPtr);
       freePtr(ptr);
       return value;
     },
-    EserAjanAiBatchCancel: (requestJSON: string): string => {
+    EserAjanAiBatchCancel: async (requestJSON: string): Promise<string> => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanAiBatchCancel(
+      // nonblocking → keep cStr referenced until it resolves.
+      const rawPtr = await rawSymbols.EserAjanAiBatchCancel(
         Deno.UnsafePointer.of(cStr),
       );
       const { value, ptr } = readCString(rawPtr);

@@ -68,6 +68,7 @@ const createDenoFs = (): RuntimeFs => {
     mtime: info.mtime,
     atime: info.atime,
     birthtime: info.birthtime,
+    mode: info.mode,
   });
 
   return {
@@ -357,13 +358,33 @@ const createDenoExec = (): RuntimeExec => {
         args,
         cwd: options?.cwd,
         env: options?.env,
-        stdin: modes.stdin,
+        stdin: options?.stdinText === undefined ? modes.stdin : "piped",
         stdout: modes.stdout,
         stderr: modes.stderr,
         signal: options?.signal,
       });
 
-      const result = await command.output();
+      // output() cannot write stdin, so a payload needs the streaming form.
+      // The write must not be awaited before output(): a process that answers
+      // as it reads would fill the pipe buffer and both sides would block.
+      let result: Deno.CommandOutput;
+
+      if (options?.stdinText === undefined) {
+        result = await command.output();
+      } else {
+        const child = command.spawn();
+        const writer = child.stdin.getWriter();
+        const written = writer
+          .write(new TextEncoder().encode(options.stdinText))
+          .then(() => writer.close())
+          .catch(() => {
+            // The process may exit without reading all of stdin, which closes
+            // the pipe under us. That is the process's business, not an error
+            // here -- its exit code is the outcome that matters.
+          });
+
+        [result] = await Promise.all([child.output(), written]);
+      }
 
       return {
         success: result.success,
@@ -528,6 +549,19 @@ const createDenoProcess = (): RuntimeProcess => {
     args: Deno.args,
 
     pid: Deno.pid,
+    isAlive(pid: number): boolean {
+      try {
+        // SIGCONT on a running process is a no-op; what matters is that the
+        // call performs the existence and permission checks.
+        Deno.kill(pid, "SIGCONT");
+
+        return true;
+      } catch (error) {
+        // NotFound is Deno's ESRCH. PermissionDenied means it exists but is
+        // owned by another user, which is still alive.
+        return !(error instanceof Deno.errors.NotFound);
+      }
+    },
 
     stdin: Deno.stdin.readable,
 

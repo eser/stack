@@ -108,6 +108,14 @@ func main() {
 		}
 		writeOK(bridgeAiStreamRead(streamHandle))
 
+	case "aiCancelRequest":
+		requestJSON, err := extractStringArg(req.Args, "requestJSON")
+		if err != nil {
+			writeError(err.Error())
+			return
+		}
+		writeOK(bridgeAiCancelRequest(requestJSON))
+
 	case "aiCloseModel":
 		modelHandle, err := extractStringArg(req.Args, "modelHandle")
 		if err != nil {

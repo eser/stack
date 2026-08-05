@@ -12,3 +12,9 @@ export * from "./effects.ts";
 export * as tree from "./split-tree.ts";
 export * as geometry from "./geometry.ts";
 export { createInitialState, reduce } from "./reducer.ts";
+export {
+  sanitizeRemoteAction,
+  sanitizeRemoteMessage,
+  sanitizeRemoteTransport,
+} from "./sanitize.ts";
+export type { InboundTransport } from "./sanitize.ts";

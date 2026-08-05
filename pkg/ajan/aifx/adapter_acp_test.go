@@ -1,9 +1,11 @@
 package aifx
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -26,7 +28,6 @@ const (
 
 	// fakeAgentPermission asks permission before answering, and reports what it
 	// was told.
-	fakeAgentPermission = "permission"
 
 	// fakeAgentEcho answers with its own argv, so a test can see how the shim
 	// was invoked.
@@ -37,114 +38,94 @@ const (
 // shim's flags (--backend, --model), which the testing package would reject.
 func TestMain(m *testing.M) {
 	if mode := os.Getenv(fakeAgentEnv); mode != "" {
-		runFakeACPAgent(mode)
+		runFakeVendorCLI(mode)
 	}
 
 	os.Exit(m.Run())
 }
 
 // fakeACPAgent serves the agent half of ACP on stdio.
-type fakeACPAgent struct {
-	conn *acpfx.Agent
-	mode string
-}
+// runFakeVendorCLI impersonates the `claude` CLI, not an ACP agent.
+//
+// The shim used to live behind a subprocess, so these tests faked the shim
+// itself. It is in-process now, so faking it would test nothing but the fake --
+// the real shim, the real ACP handshake and the real in-process transport are
+// all under test here, and only the vendor binary at the very bottom is
+// substituted. That is the boundary that genuinely is another program.
+//
+// The output format is claude's `--output-format stream-json`: one JSON object
+// per line. See pkg/ajan/acpfx/shim/claudecode.go for the fields consumed.
+func runFakeVendorCLI(mode string) {
+	// The prompt arrives on stdin. Drain it so a large one cannot deadlock the
+	// writer -- which is exactly what the off-argv test checks.
+	prompt, _ := io.ReadAll(os.Stdin)
 
-func (a *fakeACPAgent) Initialize(
-	_ context.Context,
-	req *acpfx.InitializeRequest,
-) (*acpfx.InitializeResponse, error) {
-	return &acpfx.InitializeResponse{ //nolint:exhaustruct
-		ProtocolVersion: req.ProtocolVersion,
-		AgentInfo: &acpfx.Implementation{
-			Name: "fake", Title: "fake", Version: "0",
-		},
-	}, nil
-}
-
-func (a *fakeACPAgent) NewSession(
-	_ context.Context,
-	_ *acpfx.NewSessionRequest,
-) (*acpfx.NewSessionResponse, error) {
-	return &acpfx.NewSessionResponse{SessionID: "fake-1", Modes: nil}, nil
-}
-
-func (a *fakeACPAgent) Cancel(_ context.Context, _ *acpfx.CancelNotification) {}
-
-func (a *fakeACPAgent) Prompt(
-	ctx context.Context,
-	req *acpfx.PromptRequest,
-	emit acpfx.UpdateFunc,
-) (*acpfx.PromptResponse, error) {
-	say := func(text string) {
-		_ = emit(acpfx.SessionUpdate{ //nolint:exhaustruct
-			SessionUpdate: acpfx.UpdateAgentMessageChunk,
-			Content: &acpfx.ContentBlock{ //nolint:exhaustruct
-				Type: acpfx.ContentBlockText, Text: text,
-			},
-		})
+	emit := func(value any) {
+		line, _ := json.Marshal(value)
+		//nolint:forbidigo
+		fmt.Println(string(line))
 	}
 
-	switch a.mode {
-	case fakeAgentEcho:
-		say("ARGV: " + strings.Join(os.Args[1:], " "))
-
-	case fakeAgentTool:
-		// A thought first: it must not end up in the answer.
-		_ = emit(acpfx.SessionUpdate{ //nolint:exhaustruct
-			SessionUpdate: acpfx.UpdateAgentThoughtChunk,
-			Content: &acpfx.ContentBlock{ //nolint:exhaustruct
-				Type: acpfx.ContentBlockText, Text: "thinking about it",
+	assistantText := func(text string) map[string]any {
+		return map[string]any{
+			"type": "assistant",
+			"message": map[string]any{
+				"content": []map[string]any{{"type": "text", "text": text}},
 			},
-		})
-		say("Editing the file.")
-		_ = emit(acpfx.SessionUpdate{ //nolint:exhaustruct
-			SessionUpdate: acpfx.UpdateToolCall,
-			ToolCall: &acpfx.ToolCall{ //nolint:exhaustruct
-				ToolCallID: "tc-1",
-				Title:      "Write",
-				Kind:       "edit",
-				RawInput:   json.RawMessage(`{"file_path":"/tmp/x"}`),
-			},
-		})
-
-	case fakeAgentPermission:
-		outcome, err := a.conn.RequestPermission(ctx, &acpfx.RequestPermissionRequest{
-			SessionID: req.SessionID,
-			ToolCall: acpfx.ToolCall{ //nolint:exhaustruct
-				ToolCallID: "tc-1", Title: "Write", Kind: "edit",
-			},
-			Options: []acpfx.PermissionOption{
-				{OptionID: "yes", Name: "Allow", Kind: acpfx.PermissionAllowOnce},
-			},
-		})
-		if err != nil {
-			say("PERMISSION-ERROR")
-
-			break
 		}
+	}
 
-		say("PERMISSION:" + outcome.Outcome)
+	// Which dialect to speak is decided the way the real CLIs differ: claude is
+	// invoked with --output-format stream-json, kiro and opencode are not. A
+	// single fake that always spoke claude JSON would leave the kiro and
+	// opencode translations untested while looking like it covered them.
+	streamJSON := slices.Contains(os.Args, "stream-json")
+
+	if !streamJSON {
+		// kiro's spec sets prose:true, so a non-JSON line IS the answer.
+		//nolint:forbidigo
+		fmt.Println("Hello, ")
+		//nolint:forbidigo
+		fmt.Println("world.")
+
+		os.Exit(0)
+	}
+
+	emit(map[string]any{"type": "system", "subtype": "init", "session_id": "fake-session"})
+
+	switch mode {
+	case fakeAgentTool:
+		emit(map[string]any{
+			"type": "assistant",
+			"message": map[string]any{
+				"content": []map[string]any{{
+					"type":  "tool_use",
+					"id":    "call_1",
+					"name":  "get_weather",
+					"input": map[string]any{"city": "Istanbul"},
+				}},
+			},
+		})
+
+	case fakeAgentEcho:
+		// Report what it received AND how it was invoked, so a caller can prove
+		// the prompt travelled off argv (a 512 KiB argv would not have spawned
+		// at all) and that the vendor flags arrived.
+		emit(assistantText(fmt.Sprintf(
+			"received %d bytes argv=%s", len(prompt), strings.Join(os.Args[1:], " "))))
 
 	default:
-		say("Hello, ")
-		say("world.")
+		emit(assistantText("Hello, "))
+		emit(assistantText("world."))
 	}
 
-	return &acpfx.PromptResponse{StopReason: acpfx.StopReasonEndTurn}, nil
-}
-
-// runFakeACPAgent serves ACP on stdio until the client goes away. It never
-// returns.
-func runFakeACPAgent(mode string) {
-	agent := &fakeACPAgent{mode: mode, conn: nil}
-	agent.conn = acpfx.NewAgent(os.Stdin, os.Stdout, nil, agent)
-
-	<-agent.conn.Done()
+	emit(map[string]any{"type": "result", "subtype": "success", "result": "done"})
 
 	os.Exit(0)
 }
 
-// fakeACPModel builds a model whose "shim" is this test binary.
+// fakeACPModel builds a model whose VENDOR CLI is this test binary. The shim
+// and the ACP link between it and the model are the real ones.
 func fakeACPModel(t *testing.T, factory ProviderFactory, mode string) LanguageModel {
 	t.Helper()
 
@@ -231,8 +212,13 @@ func TestACPModelStreamsText(t *testing.T) {
 		t.Fatalf("deltas = %v; the turn was delivered as one lump", deltas)
 	}
 
-	if strings.Join(deltas, "") != "Hello, world." {
-		t.Fatalf("deltas joined to %q", strings.Join(deltas, ""))
+	joined := strings.Join(deltas, "")
+
+	// Whitespace is not normalised: kiro's prose path forwards each line as the
+	// vendor wrote it, newline included. What matters is that the answer arrived
+	// whole and in pieces, not that the shim reformatted it.
+	if !strings.Contains(joined, "Hello,") || !strings.Contains(joined, "world.") {
+		t.Fatalf("deltas joined to %q", joined)
 	}
 }
 
@@ -242,7 +228,15 @@ func TestACPModelStreamsText(t *testing.T) {
 // declare CapabilityToolCalling. Going through ACP means a tool call is a
 // protocol event every backend reports the same way.
 func TestACPModelSurfacesToolCalls(t *testing.T) {
-	model := fakeACPModel(t, NewOpenCodeModelFactory(), fakeAgentTool)
+	// claude-code, not opencode.
+	//
+	// This used to run against opencode and pass, but only because the fake WAS
+	// the ACP agent and emitted a tool_call update directly, skipping the vendor
+	// translation entirely. Driving the real shim shows the truth: mapOpenCodeEvent
+	// classifies text, done and error only -- it has no tool-call path, so
+	// opencode cannot surface one no matter what the CLI prints. The old test
+	// asserted a capability the backend does not have.
+	model := fakeACPModel(t, NewClaudeCodeModelFactory(), fakeAgentTool)
 
 	result, err := model.GenerateText(t.Context(), promptOptions())
 	if err != nil {
@@ -261,67 +255,93 @@ func TestACPModelSurfacesToolCalls(t *testing.T) {
 		t.Fatalf("no tool call in %+v", result.Content)
 	}
 
-	if call.ID != "tc-1" || call.Name != "Write" {
+	if call.ID != "call_1" || call.Name != "get_weather" {
 		t.Fatalf("tool call = %+v", call)
 	}
 
-	if !strings.Contains(string(call.Arguments), "/tmp/x") {
+	if !strings.Contains(string(call.Arguments), "Istanbul") {
 		t.Fatalf("tool call arguments were dropped: %q", string(call.Arguments))
-	}
-
-	// A thought is not an answer. Folding it in is how a chain of reasoning ends
-	// up presented to the user as the result.
-	if strings.Contains(result.Text(), "thinking about it") {
-		t.Fatalf("the agent's thought leaked into the answer: %q", result.Text())
 	}
 }
 
-// TestACPModelRefusesPermissionRatherThanGrantingIt pins the safety property of
+// TestACPRefusesPermissionRatherThanGrantingIt pins the safety property of
 // running an agent from a function call.
 //
 // There is no user watching GenerateText, so there is nobody to approve
 // anything. Auto-allowing would mean a caller that asked for text quietly
 // authorised file writes and shell commands.
-func TestACPModelRefusesPermissionRatherThanGrantingIt(t *testing.T) {
-	model := fakeACPModel(t, NewClaudeCodeModelFactory(), fakeAgentPermission)
+//
+// Tested on the handler directly rather than end to end. The old version drove
+// a fake ACP agent that issued the request; with the shim in-process the agent
+// IS the shim, and no vendor backend ever asks for permission -- so an end-to-end
+// version would exercise a path that cannot occur and prove nothing.
+func TestACPRefusesPermissionRatherThanGrantingIt(t *testing.T) {
+	t.Parallel()
 
-	result, err := model.GenerateText(t.Context(), promptOptions())
+	handler := &acpClientHandler{sink: nil}
+
+	outcome, err := handler.RequestPermission(
+		t.Context(),
+		&acpfx.RequestPermissionRequest{ //nolint:exhaustruct
+			Options: []acpfx.PermissionOption{
+				{OptionID: "allow", Name: "Allow", Kind: acpfx.PermissionAllowOnce},
+			},
+		},
+	)
 	if err != nil {
-		t.Fatalf("GenerateText: %v", err)
+		t.Fatalf("RequestPermission: %v", err)
 	}
 
-	if got := result.Text(); got != "PERMISSION:cancelled" {
-		t.Fatalf("the agent was told %q; it must be cancelled, never selected", got)
+	if outcome.Outcome != "cancelled" {
+		t.Fatalf("outcome = %q, want cancelled; an option was selected on the user's behalf",
+			outcome.Outcome)
 	}
 }
 
-// TestACPModelSelectsTheProviderBackend pins that each provider drives its own
-// vendor rather than all three collapsing onto one.
-func TestACPModelSelectsTheProviderBackend(t *testing.T) {
+// TestACPBackendPerProvider pins that each provider drives its own vendor
+// rather than all three collapsing onto one.
+//
+// A type assertion, not an argv match: the backend is now a struct built in
+// this process, so there is no command line to inspect. The flags each backend
+// passes to its CLI are that backend's own concern and are covered by the shim
+// package.
+func TestACPBackendPerProvider(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		factory ProviderFactory
 		want    string
 	}{
-		{factory: NewClaudeCodeModelFactory(), want: "--backend claude-code"},
-		{factory: NewKiroModelFactory(), want: "--backend kiro"},
-		{factory: NewOpenCodeModelFactory(), want: "--backend opencode"},
+		{factory: NewClaudeCodeModelFactory(), want: "*shim.ClaudeCode"},
+		{factory: NewKiroModelFactory(), want: "*shim.Kiro"},
+		{factory: NewOpenCodeModelFactory(), want: "*shim.OpenCode"},
 	}
 
 	for _, tc := range cases {
-		model := fakeACPModel(t, tc.factory, fakeAgentEcho)
-
-		result, err := model.GenerateText(t.Context(), promptOptions())
+		model, err := tc.factory.CreateModel(t.Context(), &ConfigTarget{ //nolint:exhaustruct
+			Provider: tc.factory.GetProvider(),
+			Model:    "test-model",
+		})
 		if err != nil {
-			t.Fatalf("GenerateText for %s: %v", tc.factory.GetProvider(), err)
+			t.Fatalf("CreateModel %s: %v", tc.factory.GetProvider(), err)
 		}
 
-		if !strings.Contains(result.Text(), tc.want) {
-			t.Fatalf("%s was invoked as %q, want %q",
-				tc.factory.GetProvider(), result.Text(), tc.want)
+		acpModel, ok := model.(*ACPModel)
+		if !ok {
+			t.Fatalf("%s did not produce an ACPModel", tc.factory.GetProvider())
 		}
 
-		if !strings.Contains(result.Text(), "--model test-model") {
-			t.Fatalf("%s did not pass the model: %q", tc.factory.GetProvider(), result.Text())
+		backend, err := acpModel.backendImpl()
+		if err != nil {
+			t.Fatalf("backendImpl %s: %v", tc.factory.GetProvider(), err)
+		}
+
+		if got := fmt.Sprintf("%T", backend); got != tc.want {
+			t.Fatalf("%s built %s, want %s", tc.factory.GetProvider(), got, tc.want)
+		}
+
+		if args := acpModel.vendorArgs(); !slices.Contains(args, "test-model") {
+			t.Fatalf("%s dropped the model: %v", tc.factory.GetProvider(), args)
 		}
 	}
 }

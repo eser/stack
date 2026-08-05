@@ -10,14 +10,11 @@ import (
 	"sync"
 
 	"github.com/eser/stack/pkg/ajan/acpfx"
+	"github.com/eser/stack/pkg/ajan/acpfx/shim"
 )
 
 // ErrACPFailed wraps failures from an ACP agent session.
 var ErrACPFailed = errors.New("acp agent failed")
-
-// defaultACPCommand is the shim binary that presents a vendor CLI as an ACP
-// agent. It is ours, so no third-party adapter has to be installed.
-const defaultACPCommand = acpfx.ShimCommand
 
 // acpBackendProperty lets a config target override which vendor the shim drives
 // without adding a provider. Rarely needed: the provider name already selects it.
@@ -79,15 +76,15 @@ func (f *acpModelFactory) CreateModel(
 	_ context.Context,
 	config *ConfigTarget,
 ) (LanguageModel, error) { //nolint:ireturn
-	command, err := ResolveBinary(defaultACPCommand, config)
-	if err != nil {
-		// The bare error names the binary and stops there. Say where it comes
-		// from, and that the shim alone is not enough.
-		return nil, fmt.Errorf(
-			"%w: %w (%s, or set the %q config property to its path)",
-			ErrACPFailed, err, acpfx.ShimMissingHint, "binPath",
-		)
-	}
+	// binPath now names the VENDOR binary (claude, kiro, opencode), not a shim.
+	//
+	// It used to resolve `eser-acp` here and fail the whole CreateModel when that
+	// binary was absent. There is no shim binary any more -- it is linked in --
+	// so there is nothing to resolve, and empty means "let the backend use its
+	// own default name". A missing vendor CLI now surfaces at spawn time, from
+	// the process that actually tried to run it, which is where the useful error
+	// text comes from anyway.
+	command, _ := config.Properties["binPath"].(string)
 
 	backend := f.backend
 	if override, ok := config.Properties[acpBackendProperty].(string); ok && override != "" {
@@ -135,25 +132,46 @@ func (m *ACPModel) Close(_ context.Context) error { return nil }
 // rather than dropped: --max-turns and --allowed-tools were config properties
 // callers already set, and silently ignoring them would look like the setting
 // had no effect rather than like it was unsupported.
-func (m *ACPModel) spawnArgs() []string {
-	args := []string{"--backend", m.backend}
+func (m *ACPModel) vendorArgs() []string {
+	args := stringSliceProperty(m.config.Properties, "args")
 
 	if m.config.Model != "" {
-		args = append(args, "--model", m.config.Model)
+		args = append([]string{"--model", m.config.Model}, args...)
 	}
 
-	// Everything after the flags this binary owns is passed to the vendor CLI.
-	vendor := stringSliceProperty(m.config.Properties, "args")
-
 	if maxTurns := intProperty(m.config.Properties, "maxTurns"); maxTurns > 0 {
-		vendor = append(vendor, "--max-turns", strconv.Itoa(maxTurns))
+		args = append(args, "--max-turns", strconv.Itoa(maxTurns))
 	}
 
 	if allowed := stringSliceProperty(m.config.Properties, "allowedTools"); len(allowed) > 0 {
-		vendor = append(vendor, "--allowedTools", strings.Join(allowed, ","))
+		args = append(args, "--allowedTools", strings.Join(allowed, ","))
 	}
 
-	return append(args, vendor...)
+	return args
+}
+
+// acpShimVersion is what the in-process shim reports in its initialize
+// response. It is our own code, so there is no separate binary to version.
+const acpShimVersion = "1"
+
+// backendImpl builds the vendor backend this model drives.
+//
+// This is what `eser-acp --backend <name> --command <path> ...` used to do by
+// parsing flags; the flags existed only to carry these three values across a
+// process boundary that no longer exists.
+func (m *ACPModel) backendImpl() (shim.Backend, error) { //nolint:ireturn
+	args := m.vendorArgs()
+
+	switch m.backend {
+	case claudeCodeProviderName:
+		return &shim.ClaudeCode{Command: m.command, ExtraArgs: args}, nil
+	case kiroProviderName:
+		return &shim.Kiro{Command: m.command, ExtraArgs: args}, nil //nolint:exhaustruct
+	case openCodeProviderName:
+		return &shim.OpenCode{Command: m.command, ExtraArgs: args}, nil //nolint:exhaustruct
+	default:
+		return nil, fmt.Errorf("%w: unknown backend %q", ErrACPFailed, m.backend)
+	}
 }
 
 // stringSliceProperty reads a list-of-strings config property.
@@ -266,15 +284,24 @@ func (m *ACPModel) runTurn(
 ) (StopReason, error) {
 	handler := &acpClientHandler{sink: sink}
 
-	client, err := acpfx.Spawn(ctx, acpfx.SpawnOptions{ //nolint:exhaustruct
-		Command: m.command,
-		Args:    m.spawnArgs(),
-		Cwd:     m.workingDirectory(),
-	}, handler, &acpfx.Implementation{
-		Name: "aifx", Title: "aifx", Version: "1",
-	})
+	// The shim runs in this process, not as a subprocess.
+	//
+	// It is our own Go code (pkg/ajan/acpfx/shim) compiled into this binary, so
+	// spawning it meant serialising JSON down a pipe to reach a struct already
+	// in memory -- and paying for a separate `eser-acp` executable to be built,
+	// shipped, installed, put on PATH and probed for. acpfx.Spawn remains the
+	// entry point for agents that genuinely are other programs.
+	backend, err := m.backendImpl()
 	if err != nil {
-		return "", fmt.Errorf("%w: spawn %s: %w", ErrACPFailed, m.command, err)
+		return "", err
+	}
+
+	client, err := acpfx.InProcess(ctx, shim.New(backend, acpShimVersion), handler,
+		&acpfx.Implementation{
+			Name: "aifx", Title: "aifx", Version: "1",
+		})
+	if err != nil {
+		return "", fmt.Errorf("%w: %s: %w", ErrACPFailed, m.backend, err)
 	}
 
 	defer func() { _ = client.Close() }()

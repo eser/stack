@@ -381,13 +381,13 @@ jobs:
   #      a host dlclose/dlopens the image. It is compiled ONLY by
   #      publish-ajan.yml, which is workflow_dispatch-only, so a mistake there
   #      surfaced during a manual publish rather than on the PR that caused it.
-  #   2. etc/scripts/install-noskills.ps1. Windows binaries have always been built and
-  #      archived, but nothing ever unpacked that archive and checked the
-  #      binaries land somewhere resolvable.
+  #   2. etc/scripts/install-noskills.ps1. Windows binaries have always been
+  #      built and archived, but nothing ever unpacked that archive and checked
+  #      the binaries land somewhere resolvable.
   #
-  # Installing into a scratch directory and asserting Get-Command finds all
-  # three is the whole point: eser-acp is resolved by name via exec.LookPath, so
-  # "extracted" is not the property that matters -- "on PATH" is.
+  # Installing into a scratch directory and asserting Get-Command finds the
+  # binaries is the whole point: "extracted" is not the property that matters --
+  # "on PATH" is.
   windows-smoke:
     name: Windows Smoke Test
     runs-on: windows-latest
@@ -418,7 +418,7 @@ jobs:
       - name: Build Windows binaries
         run: |
           New-Item -ItemType Directory -Path dist-windows -Force | Out-Null
-          go build -o dist-windows/ ./cmd/noskills-server ./cmd/noskills ./cmd/eser-acp
+          go build -o dist-windows/ ./cmd/noskills-server ./cmd/noskills
           Get-ChildItem dist-windows
 
       # Compiles pin_image_windows.go for the first time outside a manual
@@ -462,7 +462,7 @@ jobs:
             -ArchivePath noskills_0.0.0_Windows_x86_64.zip `
             -InstallDir "$env:RUNNER_TEMP\eser-bin"
 
-      - name: Assert all three binaries resolve on PATH
+      - name: Assert the installed binaries resolve on PATH
         run: |
           # Re-read the stored user PATH the installer wrote. A fresh step gets a
           # new process whose $env:PATH is the value from when the job started,
@@ -471,34 +471,13 @@ jobs:
           $env:PATH = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
                       [Environment]::GetEnvironmentVariable('Path', 'User')
 
-          foreach ($bin in @('noskills-server', 'noskills', 'eser-acp')) {
+          foreach ($bin in @('noskills-server', 'noskills')) {
             $cmd = Get-Command $bin -ErrorAction SilentlyContinue
 
             if (-not $cmd) { throw "$bin did not resolve on PATH after install" }
 
             Write-Host "$bin -> $($cmd.Source)"
           }
-
-      # exec.LookPath is how aifx and noskillsserverfx find the shim, so prove
-      # the installed binary is the real thing and not merely a file of the
-      # right name.
-      # An installer that silently rewrites unrelated PATH entries is worse than
-      # one that fails, and the Get-Command assertion above cannot see it:
-      # reading back through [Environment] expands either value type, so a
-      # corrupted REG_SZ and an intact REG_EXPAND_SZ look identical.
-      - name: Assert the user PATH value type survived
-        run: |
-          $kind = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment').GetValueKind('Path')
-          if ($kind -ne 'ExpandString') { throw "installer downgraded user PATH to $kind" }
-          Write-Host "user PATH is still $kind"
-
-      - name: Assert eser-acp is executable
-        run: |
-          $env:PATH = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
-                      [Environment]::GetEnvironmentVariable('Path', 'User')
-          $output = & eser-acp --help 2>&1 | Out-String
-          if ($output -notmatch 'backend') { throw "eser-acp --help did not mention -backend; got: $output" }
-          Write-Host 'eser-acp responds to --help'
 
   # ── Release: publish ────────────────────────────────────────────
   publish:

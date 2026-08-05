@@ -26,20 +26,6 @@ const DefaultHandshakeTimeout = 30 * time.Second
 // after stdin EOF before the connection close kills it.
 const shutdownGrace = 3 * time.Second
 
-// ShimCommand is the ACP shim this stack ships and spawns by name.
-const ShimCommand = "eser-acp"
-
-// ShimMissingHint explains how to obtain the shim.
-//
-// It lives here so the two packages that spawn it -- aifx and noskillsserverfx
-// -- say the same thing without importing each other, and so the second half of
-// the requirement is not forgotten: the shim is a *shim*. It translates ACP to
-// a vendor CLI, so that CLI has to be installed too. An error naming only
-// eser-acp sends someone to install one binary and hit the same wall again.
-const ShimMissingHint = "install the eserstack release, which ships " +
-	ShimCommand + "; note it drives a vendor CLI (claude, kiro or opencode) " +
-	"that must be on PATH as well"
-
 // SpawnOptions describes how to launch an ACP agent subprocess.
 type SpawnOptions struct {
 	// Command is the agent binary: "gemini", "claude-agent-acp", "codex-acp".

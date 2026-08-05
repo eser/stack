@@ -9,7 +9,7 @@
  * iterations.
  *
  * The turn goes through the ai package's claude-code provider, which uses the
- * ACP-backed Go bridge when the `eser-acp` shim is on PATH and the pure
+ * ACP-backed Go bridge when the native library loads and the pure
  * TypeScript adapter otherwise. Either way the loop learns the turn's outcome
  * in band and records the iteration itself, rather than discarding the output
  * and hoping Claude Code's Stop hook wrote state.json for it.
@@ -242,9 +242,9 @@ export const main = async (
       // The turn runs through the ai package's claude-code provider rather than a
       // raw `claude -p` shell-out.
       //
-      // factoryFor picks the ACP-backed Go bridge when the `eser-acp` shim is on
-      // PATH and the pure-TypeScript adapter otherwise, so this is strictly better
-      // where the shim exists and unchanged where it does not. Both paths run the
+      // factoryFor picks the ACP-backed Go bridge when the native library loads
+      // and the pure-TypeScript adapter otherwise, so this is strictly better where
+      // the library is present and unchanged where it is not. Both paths run the
       // same vendor binary in the same non-interactive mode -- the shim spawns
       // `claude --print --output-format stream-json`, and `-p` IS `--print` -- so
       // the agent behaves identically and its own hooks still fire. What changes

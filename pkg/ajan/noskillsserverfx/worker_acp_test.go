@@ -612,17 +612,19 @@ func TestACPWorkerEndsWhenTheAgentDies(t *testing.T) {
 	}
 }
 
-// TestMissingAgentErrorIsActionable pins the daemon's half of the same message.
+// TestMissingAgentErrorIsActionable pins the error for an EXTERNAL agent that
+// is not installed.
 //
-// A session created with kind="acp" spawns the shim. When it is absent the raw
-// exec error names a path and nothing else — not where the binary comes from,
-// not that it drives a vendor CLI which must also be installed, and not that
-// this daemon has an env override.
+// This is now the only path that can fail this way. The default agent is the
+// in-process shim, which cannot be missing -- it is linked in. Only
+// NOSKILLS_ACP_COMMAND, which points at a third-party binary like gemini or
+// claude-agent-acp, reintroduces a thing that can be absent, so the message has
+// to say both what is missing and that unsetting the variable is a way out.
 func TestMissingAgentErrorIsActionable(t *testing.T) {
-	// Empty PATH so the shim is unresolvable regardless of the machine, and a
+	// Empty PATH so the agent is unresolvable regardless of the machine, and a
 	// command name nothing could shadow.
 	t.Setenv("PATH", t.TempDir())
-	t.Setenv(envACPCommand, "definitely-not-installed-eser-acp")
+	t.Setenv(envACPCommand, "definitely-not-installed-acp-agent")
 
 	_, err := spawnACPWorker(
 		t.Context(), "sess-missing", t.TempDir(), "", logfx.NewLogger(),
@@ -638,10 +640,9 @@ func TestMissingAgentErrorIsActionable(t *testing.T) {
 	message := err.Error()
 
 	for _, want := range []string{
-		"definitely-not-installed-eser-acp", // what is missing
-		"eserstack",                         // where it comes from
-		"claude",                            // the vendor CLI it drives
-		envACPCommand,                       // the override this caller honours
+		"definitely-not-installed-acp-agent", // what is missing
+		envACPCommand,                        // the override that selected it
+		"unset",                              // how to fall back to the built-in
 	} {
 		if !strings.Contains(message, want) {
 			t.Fatalf("error %q does not mention %q", message, want)

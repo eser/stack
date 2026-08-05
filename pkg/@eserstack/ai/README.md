@@ -57,7 +57,7 @@ const registry = new ai.Registry({
 
 await registry.addModel("default", {
   provider: "anthropic",
-  model: "claude-sonnet-4-20250514",
+  model: "claude-sonnet-5",
   apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
 });
 
@@ -174,7 +174,7 @@ const config: ai.Config = {
   targets: {
     default: {
       provider: "claude-code",
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5",
       properties: { maxTurns: 1 },
     },
     ollama: {

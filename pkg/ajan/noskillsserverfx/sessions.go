@@ -19,6 +19,11 @@ type SessionEntry struct {
 	Worker      WorkerHandle
 	Ledger      *Ledger
 	Broadcaster *FanoutBroadcaster
+
+	// Pending joins the two halves of a permission exchange: the tool name
+	// arrives from the worker, the decision arrives from a client, and only
+	// together do they say how durably the decision must be journalled.
+	Pending *pendingPermissions
 }
 
 // ── Session manager ───────────────────────────────────────────────────────────
@@ -175,6 +180,7 @@ func (sm *SessionManager) spawnSession(
 		Worker:      worker,
 		Ledger:      ledger,
 		Broadcaster: newFanoutBroadcaster(),
+		Pending:     newPendingPermissions(),
 	}, nil
 }
 
@@ -215,6 +221,15 @@ func (sm *SessionManager) ListBySlug(slug string) []*SessionEntry {
 // the session from the map.
 func (sm *SessionManager) runPump(entry *SessionEntry) {
 	for evt := range entry.Worker.Events() {
+		// Remember what each permission request is about. The decision comes back
+		// on a different path carrying only the request id, so this is the only
+		// point at which the tool name and the id are both in hand.
+		if evt.Type == "permission_request" {
+			if requestID, tool := permissionRequestTool(evt.Payload); requestID != "" {
+				entry.Pending.record(requestID, tool)
+			}
+		}
+
 		if data := marshalEventForLedger(evt, sm.logger); data != nil {
 			_ = entry.Ledger.Append(data)
 		}

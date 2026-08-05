@@ -37,57 +37,78 @@ export interface FFILibrary {
      */
     EserAjanAiCreateModel: (configJSON: string) => string;
     /**
-     * Performs a blocking text generation.
+     * Performs a text generation.
+     *
+     * Awaitable, and on Deno genuinely off-thread: a model round-trip takes
+     * seconds to minutes, and running it on the isolate froze every timer,
+     * socket and other request for its whole duration. It is also what makes
+     * cancellation possible at all — an AbortSignal cannot fire while the
+     * isolate is blocked inside the call it would cancel.
+     *
+     * Pass `requestId` in optionsJSON to make the call cancellable via
+     * {@link FFILibrary.symbols.EserAjanAiCancelRequest}.
+     *
      * Returns JSON: { content, stopReason, usage, modelId } | { error: string }
      */
     EserAjanAiGenerateText: (
       modelHandle: string,
       optionsJSON: string,
-    ) => string;
+    ) => string | Promise<string>;
     /**
      * Starts a streaming text generation. Returns JSON: { handle: string } | { error: string }
      * Poll the stream with EserAjanAiStreamRead until it returns "null".
      */
-    EserAjanAiStreamText: (modelHandle: string, optionsJSON: string) => string;
+    EserAjanAiStreamText: (
+      modelHandle: string,
+      optionsJSON: string,
+    ) => string | Promise<string>;
     /**
      * Reads the next event from a stream.
      * Returns JSON event object or "null" when stream is complete.
      */
-    EserAjanAiStreamRead: (streamHandle: string) => string;
+    EserAjanAiStreamRead: (streamHandle: string) => string | Promise<string>;
+    /**
+     * Cancels an in-flight generation or stream by its `requestId`.
+     *
+     * Safe to call for a request that has already finished, or one that has not
+     * started yet: an id with nothing behind it records the cancellation so the
+     * request stops the moment it registers. Returns JSON: {}
+     */
+    EserAjanAiCancelRequest: (requestJSON: string) => string;
     /** Closes a model handle and releases resources. Returns JSON: {} | { error: string } */
     EserAjanAiCloseModel: (modelHandle: string) => string;
     /** Cancels a stream and releases resources. Returns JSON: {} */
     EserAjanAiFreeStream: (streamHandle: string) => string;
     /**
      * Submits a batch of AI requests for async processing.
-     * Accepts JSON: { modelHandle, requests: Array<{customId, options}> }
+     * Accepts JSON: { modelHandle, items: Array<{customId, options}> }
      * Returns JSON: { job: BatchJob } | { error: string }
      */
-    EserAjanAiBatchCreate: (requestJSON: string) => string;
+    EserAjanAiBatchCreate: (requestJSON: string) => string | Promise<string>;
     /**
      * Gets the status of a batch job.
      * Accepts JSON: { modelHandle, jobId }
      * Returns JSON: { job: BatchJob } | { error: string }
      */
-    EserAjanAiBatchGet: (requestJSON: string) => string;
+    EserAjanAiBatchGet: (requestJSON: string) => string | Promise<string>;
     /**
      * Lists batch jobs for a model.
-     * Accepts JSON: { modelHandle, limit?, afterId? }
+     * Accepts JSON: { modelHandle, limit?, after? }
      * Returns JSON: { jobs: BatchJob[] } | { error: string }
      */
-    EserAjanAiBatchList: (requestJSON: string) => string;
+    EserAjanAiBatchList: (requestJSON: string) => string | Promise<string>;
     /**
      * Downloads results for a completed batch job.
      * Accepts JSON: { modelHandle, job: BatchJob }
      * Returns JSON: { results: BatchResultItem[] } | { error: string }
      */
-    EserAjanAiBatchDownload: (requestJSON: string) => string;
+    EserAjanAiBatchDownload: (requestJSON: string) => string | Promise<string>;
     /**
      * Cancels a pending batch job.
      * Accepts JSON: { modelHandle, jobId }
      * Returns JSON: { job: BatchJob } | { error: string }
      */
-    EserAjanAiBatchCancel: (requestJSON: string) => string;
+    EserAjanAiBatchCancel: (requestJSON: string) => string | Promise<string>;
     /**
      * Serializes a JSON value to the named format (json, yaml, toml, csv, jsonl).
      * Accepts JSON: { format: string, data: unknown, pretty?: bool, indent?: int, isFirst?: bool }

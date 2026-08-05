@@ -29,11 +29,14 @@ type ChildProcessHandle struct {
 	done   chan struct{}
 	cancel context.CancelFunc
 	wg     sync.WaitGroup // tracks stdout+stderr reader goroutines
-	exitCh chan int
 
-	// closeOnce ensures idempotent Close; exitCode cached after first call.
+	// exited is closed once the child is reaped and exitCode is final. The
+	// close is what orders the write in watcherLoop against every later read,
+	// so exitCode needs no lock of its own.
+	exited   chan struct{}
+	exitCode int
+
 	closeOnce sync.Once
-	exitCode  int
 }
 
 // closeWaitDelay bounds how long cmd.Wait tolerates a child that has exited but
@@ -49,9 +52,15 @@ type SpawnOptions struct {
 	Env     []string
 }
 
-// SpawnChildProcess starts a child process and returns a handle.
-func SpawnChildProcess(opts SpawnOptions) (*ChildProcessHandle, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+// newCommand builds a hardened, not-yet-started child command.
+//
+// Both spawn paths go through here so the process-group and WaitDelay
+// hardening cannot drift apart: a future change to how children are contained
+// has exactly one place to land.
+func newCommand(opts SpawnOptions) (*exec.Cmd, context.CancelFunc) {
+	// G118: cancel is handed to the caller, which owns it -- every spawn path
+	// calls it on the error return and again in Close.
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec
 
 	cmd := exec.CommandContext(ctx, opts.Command, opts.Args...)
 
@@ -68,6 +77,16 @@ func SpawnChildProcess(opts SpawnOptions) (*ChildProcessHandle, error) {
 	setProcessGroup(cmd)
 
 	cmd.WaitDelay = closeWaitDelay
+
+	return cmd, cancel
+}
+
+// SpawnChildProcess starts a child process and returns a handle.
+//
+// Output is merged into a single stream-tagged channel. See SpawnStreamProcess
+// when the caller needs stdout as an untouched byte stream instead.
+func SpawnChildProcess(opts SpawnOptions) (*ChildProcessHandle, error) {
+	cmd, cancel := newCommand(opts)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -100,7 +119,7 @@ func SpawnChildProcess(opts SpawnOptions) (*ChildProcessHandle, error) {
 		merged: make(chan OutputChunk, 64),
 		done:   make(chan struct{}),
 		cancel: cancel,
-		exitCh: make(chan int, 1),
+		exited: make(chan struct{}),
 	}
 
 	h.wg.Add(2)
@@ -136,21 +155,33 @@ func (h *ChildProcessHandle) readerLoop(r io.Reader, stream string) {
 }
 
 // watcherLoop waits for readers to finish, reaps the process, and closes merged.
+//
+// exited is closed before merged so that a consumer draining output sees the
+// exit status already final the instant its reads stop -- the natural way to
+// write such a loop is to ask for the code as soon as the channel closes.
 func (h *ChildProcessHandle) watcherLoop() {
 	h.wg.Wait()
 
-	code := 0
-	if err := h.cmd.Wait(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			code = exitErr.ExitCode()
-		} else {
-			code = -1
-		}
+	h.exitCode = waitExitCode(h.cmd)
+
+	close(h.exited)
+	close(h.merged)
+}
+
+// waitExitCode reaps a child and reduces the outcome to an exit code. A death
+// by signal, or any non-ExitError failure, reports -1.
+func waitExitCode(cmd *exec.Cmd) int {
+	err := cmd.Wait()
+	if err == nil {
+		return 0
 	}
 
-	h.exitCh <- code
-	close(h.merged)
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode()
+	}
+
+	return -1
 }
 
 // Pid returns the process ID of the child process.
@@ -159,6 +190,23 @@ func (h *ChildProcessHandle) Pid() int {
 		return -1
 	}
 	return h.cmd.Process.Pid
+}
+
+// Exited is closed once the child has been reaped and ExitCode is final.
+func (h *ChildProcessHandle) Exited() <-chan struct{} { return h.exited }
+
+// ExitCode reports the child's exit status, or -1 while it is still running.
+//
+// This exists so a caller can learn how a process ended without calling Close.
+// Close kills: using it merely to read the status of a process that already
+// finished on its own means signalling a pid this handle no longer owns.
+func (h *ChildProcessHandle) ExitCode() int {
+	select {
+	case <-h.exited:
+		return h.exitCode
+	default:
+		return -1
+	}
 }
 
 // Read returns the next output chunk. Returns ("", false) when the process has finished.
@@ -202,7 +250,7 @@ func (h *ChildProcessHandle) Close() int {
 		h.stdout.Close() //nolint:errcheck,gosec
 		h.stderr.Close() //nolint:errcheck,gosec
 
-		h.exitCode = <-h.exitCh
+		<-h.exited
 	})
 
 	return h.exitCode

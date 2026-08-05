@@ -493,6 +493,11 @@ export const createStubProcess = (
     chdir: throwProcess,
     hostname: throwProcess,
     execPath: throwProcess,
+    // Answered rather than thrown. A runtime with no process model has no live
+    // processes to speak of, and callers use this to decide whether a recorded
+    // claim still stands — throwing would turn "no process model" into a crash
+    // on a question that has a correct answer here.
+    isAlive: (): boolean => false,
     get argv(): readonly string[] {
       throw new RuntimeCapabilityError("process", runtimeName);
     },

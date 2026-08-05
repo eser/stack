@@ -182,6 +182,8 @@ func dispatchClientMessage(line string, entry *SessionEntry, logger *logfx.Logge
 		ID       string          `json:"id,omitempty"`
 		Decision string          `json:"decision,omitempty"`
 		Message  string          `json:"message,omitempty"`
+		Mode     string          `json:"mode,omitempty"`
+		Model    string          `json:"model,omitempty"`
 		Frame    json.RawMessage `json:"frame,omitempty"`
 	}
 
@@ -195,15 +197,90 @@ func dispatchClientMessage(line string, entry *SessionEntry, logger *logfx.Logge
 	case "user_message":
 		_ = entry.Worker.PushMessage(raw.Content)
 	case "permission_response":
-		behavior := raw.Decision
-		if behavior == "" {
-			behavior = "allow"
-		}
-
-		_ = entry.Worker.PermissionResponse(raw.ID, behavior, raw.Message)
+		dispatchPermissionResponse(entry, raw.ID, raw.Decision, raw.Message, logger)
 	case "mux":
 		_ = entry.Worker.SendMux(raw.Frame)
+	case "set_permission_mode":
+		if err := entry.Worker.SetMode(raw.Mode); err != nil {
+			logger.Warn("wt_attach: set_permission_mode failed", "mode", raw.Mode, "err", err)
+		}
+	case "set_model":
+		// Declared by the client protocol, with no analogue in ACP v1 -- the
+		// draft moves this to session/set_config_option. Logged rather than
+		// dropped in silence, so a client that sends it can find out why nothing
+		// happened instead of concluding the daemon ignored a working command.
+		logger.Warn("wt_attach: set_model is not supported by the agent protocol",
+			"model", raw.Model)
 	case "stop", "abort":
 		_ = entry.Worker.StopTask()
 	}
+}
+
+// dispatchPermissionResponse validates a decision, journals it with the
+// durability its tool requires, and only then lets the worker act on it.
+//
+// Two things changed here, both of them safety properties that were stated in
+// comments elsewhere in this package but not actually in force:
+//
+// An unrecognised decision -- including the empty string a truncated or
+// malformed client message produces -- used to be rewritten to "allow". That
+// granted a permission the user was never asked about. It is now rejected and
+// the client is told, using the permission_response_rejected event the protocol
+// already defines for exactly this.
+//
+// The decision is journalled before the worker hears it. Ledger.AppendSync's
+// own comment says "the worker must not execute a write tool until the decision
+// is on disk"; until now nothing called it, so the ordering it describes did not
+// exist. If the sync fails the decision is not forwarded at all -- running the
+// tool with no durable record is the state the contract forbids.
+func dispatchPermissionResponse(
+	entry *SessionEntry,
+	requestID, decision, message string,
+	logger *logfx.Logger,
+) {
+	if !validPermissionDecisions[decision] {
+		logger.Warn(
+			"wt_attach: rejecting permission response",
+			"id", requestID, "decision", decision,
+		)
+
+		entry.Broadcaster.Broadcast(WorkerEvent{
+			Type: "permission_response_rejected",
+			Payload: rejectionPayload(
+				requestID, decision, "unrecognised decision",
+			),
+		})
+
+		return
+	}
+
+	if !journalPermissionDecision(entry, requestID, decision) {
+		logger.Warn("wt_attach: permission decision did not reach disk", "id", requestID)
+
+		entry.Broadcaster.Broadcast(WorkerEvent{
+			Type: "permission_response_rejected",
+			Payload: rejectionPayload(
+				requestID, decision, "decision could not be journalled",
+			),
+		})
+
+		return
+	}
+
+	_ = entry.Worker.PermissionResponse(requestID, decision, message)
+}
+
+// rejectionPayload builds the client-wire bytes for a refused decision.
+func rejectionPayload(requestID, decision, reason string) []byte {
+	payload, err := json.Marshal(map[string]any{
+		"type":     "permission_response_rejected",
+		"id":       requestID,
+		"decision": decision,
+		"reason":   reason,
+	})
+	if err != nil {
+		return []byte(`{"type":"permission_response_rejected"}`)
+	}
+
+	return payload
 }

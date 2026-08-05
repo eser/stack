@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -54,7 +55,8 @@ func (f *anthropicModelFactory) CreateModel(
 	ctx context.Context,
 	config *ConfigTarget,
 ) (LanguageModel, error) { //nolint:ireturn
-	if config.APIKey == "" {
+	credential := ResolveCredential(config)
+	if !credential.Found() {
 		return nil, fmt.Errorf("%w: %w", ErrAnthropicGenerationFailed, ErrInvalidAPIKey)
 	}
 
@@ -62,19 +64,7 @@ func (f *anthropicModelFactory) CreateModel(
 		return nil, fmt.Errorf("%w: %w", ErrAnthropicGenerationFailed, ErrInvalidModel)
 	}
 
-	opts := []option.RequestOption{
-		option.WithAPIKey(config.APIKey),
-	}
-
-	if config.BaseURL != "" {
-		opts = append(opts, option.WithBaseURL(config.BaseURL))
-	}
-
-	if config.RequestTimeout > 0 {
-		opts = append(opts, option.WithRequestTimeout(config.RequestTimeout))
-	}
-
-	client := anthropic.NewClient(opts...)
+	client := anthropic.NewClient(anthropicClientOptions(config, credential)...)
 
 	return &AnthropicModel{
 		client: client,
@@ -304,7 +294,9 @@ func (m *AnthropicModel) runStreamReader(
 		case anthropic.ContentBlockDeltaEvent:
 			m.handleContentBlockDelta(ctx, variant, eventCh)
 		case anthropic.MessageDeltaEvent:
-			m.handleMessageDelta(ctx, variant, &accumulated, eventCh)
+			_ = variant
+
+			m.emitAccumulatedToolCalls(ctx, &accumulated, eventCh)
 		}
 	}
 
@@ -316,7 +308,11 @@ func (m *AnthropicModel) runStreamReader(
 		return
 	}
 
-	// Send final message-done event if not already sent via MessageDeltaEvent.
+	// The one and only message_done, reached only when the stream ended cleanly.
+	//
+	// Usage comes from the accumulated message alone. The SDK's Accumulate
+	// REPLACES usage rather than summing it, so adding a delta's usage on top --
+	// as this adapter used to -- reported exactly twice the real output tokens.
 	sendStreamEvent(ctx, eventCh, newStreamEventDone(
 		mapAnthropicStopReason(accumulated.StopReason),
 		newAnthropicUsage(accumulated.Usage.InputTokens, accumulated.Usage.OutputTokens),
@@ -337,13 +333,23 @@ func (m *AnthropicModel) handleContentBlockDelta(
 	}
 }
 
-func (m *AnthropicModel) handleMessageDelta(
+// emitAccumulatedToolCalls streams the tool calls the message has accumulated.
+//
+// It deliberately does NOT emit message_done. There is exactly one done event
+// per stream and it is emitted after the loop, once stream.Err() has been
+// checked -- which is what makes a late failure reportable.
+//
+// Emitting one here as well was worse than a duplicate: StreamIterator latches
+// on the FIRST done (generation.go, "iter.done = true"), so the in-loop done
+// ended the iteration and the error event raised afterwards was never
+// delivered. A stream that failed after its final delta was reported as a clean
+// success. The comment on the post-loop emit claimed a guard against this that
+// the code never had.
+func (m *AnthropicModel) emitAccumulatedToolCalls(
 	ctx context.Context,
-	variant anthropic.MessageDeltaEvent,
 	accumulated *anthropic.Message,
 	eventCh chan<- StreamEvent,
 ) {
-	// Extract completed tool calls from the accumulated message.
 	for _, block := range accumulated.Content {
 		if toolUse, ok := block.AsAny().(anthropic.ToolUseBlock); ok {
 			inputJSON, marshalErr := json.Marshal(toolUse.Input)
@@ -359,12 +365,6 @@ func (m *AnthropicModel) handleMessageDelta(
 		}
 	}
 
-	outputTokens := accumulated.Usage.OutputTokens + variant.Usage.OutputTokens
-
-	sendStreamEvent(ctx, eventCh, newStreamEventDone(
-		mapAnthropicStopReason(variant.Delta.StopReason),
-		newAnthropicUsage(accumulated.Usage.InputTokens, outputTokens),
-	))
 }
 
 // buildMessageParams maps unified GenerateTextOptions to Anthropic MessageNewParams.
@@ -642,12 +642,26 @@ func (m *AnthropicModel) mapToolDefinitions(tools []ToolDefinition) []anthropic.
 	for _, tool := range tools {
 		inputSchema := anthropic.ToolInputSchemaParam{} //nolint:exhaustruct
 
+		// ToolDefinition.Parameters is a whole JSON Schema document, but
+		// ToolInputSchemaParam.Properties is the schema's *inner* properties
+		// map. Assigning the document to it nested the schema inside itself --
+		// the model received `properties: {type, properties, required}` and no
+		// required list at all, so every argument looked optional and the tool
+		// was described as having properties named "type" and "required".
+		//
+		// The other two adapters already treat Parameters as the whole document
+		// (openai's shared.FunctionParameters, google's ParametersJsonSchema);
+		// this one is the outlier.
 		if len(tool.Parameters) > 0 {
 			var schema map[string]any
 
-			err := json.Unmarshal(tool.Parameters, &schema)
-			if err == nil {
-				inputSchema.Properties = schema
+			if err := json.Unmarshal(tool.Parameters, &schema); err == nil {
+				if properties, ok := schema["properties"].(map[string]any); ok {
+					inputSchema.Properties = properties
+				}
+
+				inputSchema.Required = schemaRequired(schema)
+				inputSchema.ExtraFields = schemaExtraFields(schema)
 			}
 		}
 
@@ -855,3 +869,117 @@ var (
 	_ LanguageModel     = (*AnthropicModel)(nil)
 	_ BatchCapableModel = (*AnthropicModel)(nil)
 )
+
+// schemaRequired extracts a JSON Schema's "required" list.
+//
+// JSON decoding yields []any, so the []string the SDK wants has to be rebuilt
+// rather than asserted.
+func schemaRequired(schema map[string]any) []string {
+	raw, ok := schema["required"].([]any)
+	if !ok {
+		return nil
+	}
+
+	required := make([]string, 0, len(raw))
+
+	for _, item := range raw {
+		if name, ok := item.(string); ok {
+			required = append(required, name)
+		}
+	}
+
+	return required
+}
+
+// credentialOption routes a resolved credential to the header its kind belongs
+// in.
+func credentialOption(credential Credential) option.RequestOption {
+	if credential.Kind == CredentialAuthToken {
+		return option.WithAuthToken(credential.Value)
+	}
+
+	return option.WithAPIKey(credential.Value)
+}
+
+// schemaExtraFields carries the rest of a JSON Schema document through.
+//
+// Only "properties" and "required" have dedicated fields on
+// ToolInputSchemaParam; everything else at the top level -- additionalProperties,
+// $defs, description, oneOf -- had nowhere to go and was silently dropped, so a
+// tool declared with `additionalProperties: false` was described to the model as
+// accepting anything.
+//
+// ExtraFields is merged into the top level of input_schema by the SDK
+// (ToolInputSchemaParam.MarshalJSON -> param.MarshalWithExtras), so these keys
+// land exactly where they were written.
+//
+// "type" is excluded deliberately, though not because it would duplicate --
+// MarshalWithExtras merges, so a passed-through "type":"object" appears once.
+// The reason is that ToolInputSchemaParam.Type is a constant that always
+// marshals as "object", and an extra of the same name OVERRIDES it. A schema
+// declaring anything else ("type":"array", say) would therefore emit an
+// input_schema the API rejects, replacing a well-formed request with a
+// malformed one.
+func schemaExtraFields(schema map[string]any) map[string]any {
+	extras := make(map[string]any, len(schema))
+
+	for key, value := range schema {
+		switch key {
+		case "properties", "required", "type":
+			continue
+		default:
+			extras[key] = value
+		}
+	}
+
+	if len(extras) == 0 {
+		return nil
+	}
+
+	return extras
+}
+
+// anthropicClientOptions builds the option list the client is constructed from.
+//
+// Extracted so a test can exercise the real list rather than a hand-rolled copy
+// of it: a test that rebuilds the options itself passes whatever the factory
+// does, which is exactly how the credential leak below survived its first test.
+//
+// # WithoutEnvironmentDefaults comes first, and is not optional
+//
+// anthropic.NewClient otherwise PREPENDS DefaultClientOptions, which runs its
+// own ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN chain and applies whatever it
+// finds. Those set DIFFERENT headers, so neither clears the other: with a key
+// configured here and a token in the environment, the request went out carrying
+// X-Api-Key from the config AND Authorization: Bearer from the environment. A
+// credential the caller never chose was being transmitted.
+//
+// Suppressing the SDK's chain means exactly one credential is sent: the one
+// ResolveCredential picked.
+//
+// It also suppresses the SDK's ANTHROPIC_BASE_URL autoload, which does NOT come
+// for free: config.BaseURL is only applied when set, so without the fallback
+// below a machine pointing at a proxy purely through the environment would
+// silently start talking to the public API instead. It is honoured explicitly
+// here, with the configured value still winning.
+func anthropicClientOptions(
+	config *ConfigTarget,
+	credential Credential,
+) []option.RequestOption {
+	opts := []option.RequestOption{
+		option.WithoutEnvironmentDefaults(),
+		credentialOption(credential),
+	}
+
+	if baseURL := config.BaseURL; baseURL != "" {
+		opts = append(opts, option.WithBaseURL(baseURL))
+	} else if baseURL := os.Getenv("ANTHROPIC_BASE_URL"); baseURL != "" {
+		opts = append(opts, option.WithBaseURL(baseURL))
+	}
+
+	if config.RequestTimeout > 0 {
+		opts = append(opts, option.WithRequestTimeout(config.RequestTimeout))
+	}
+
+	return opts
+}

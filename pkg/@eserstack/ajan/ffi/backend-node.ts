@@ -94,6 +94,9 @@ export const backend: types.FFIBackend = {
     const rawAiStreamRead = lib.func(
       "void* EserAjanAiStreamRead(const char* streamHandle)",
     );
+    const rawAiCancelRequest = lib.func(
+      "void* EserAjanAiCancelRequest(const char* requestJSON)",
+    );
     const rawAiCloseModel = lib.func(
       "void* EserAjanAiCloseModel(const char* modelHandle)",
     );
@@ -399,6 +402,12 @@ export const backend: types.FFIBackend = {
         },
         EserAjanAiStreamRead: (streamHandle: string): string => {
           return takeString(rawAiStreamRead(streamHandle));
+        },
+        // Synchronous here: koffi has no off-thread mode in this binding, so
+        // the type's Promise option is honoured by Deno alone. Cancellation
+        // still works for streams, where the loop yields between reads.
+        EserAjanAiCancelRequest: (requestJSON: string): string => {
+          return takeString(rawAiCancelRequest(requestJSON));
         },
         EserAjanAiCloseModel: (modelHandle: string): string => {
           return takeString(rawAiCloseModel(modelHandle));

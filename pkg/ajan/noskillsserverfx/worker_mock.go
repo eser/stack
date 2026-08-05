@@ -31,6 +31,7 @@ func (m *MockWorkerHandle) SendQueryStart(_ context.Context, _, _, _ string) err
 func (m *MockWorkerHandle) PushMessage(_ string) error                             { return nil }
 func (m *MockWorkerHandle) PermissionResponse(_, _, _ string) error                { return nil }
 func (m *MockWorkerHandle) SendMux(_ json.RawMessage) error                        { return nil }
+func (m *MockWorkerHandle) SetMode(_ string) error                                 { return nil }
 func (m *MockWorkerHandle) StopTask() error                                        { return nil }
 func (m *MockWorkerHandle) Events() <-chan WorkerEvent                             { return m.events }
 func (m *MockWorkerHandle) SessionID() string                                      { return m.sid }

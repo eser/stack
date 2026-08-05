@@ -2,7 +2,11 @@
 
 import type * as ffiTypes from "@eserstack/ajan/ffi";
 
-// Lazy FFI singleton — loaded once per process, reused for every crypto call.
+// Lazy FFI singleton — one per isolate, reused for every crypto call.
+// `deno test` gives each test file a fresh isolate, so this is NOT once per
+// process. The native image pins itself at load time so repeated dlopen/
+// dlclose cycles cannot restart the Go runtime; see
+// pkg/@eserstack/ajan/pin_image_posix.go.
 let _lib: ffiTypes.FFILibrary | null = null;
 let _libPromise: Promise<void> | null = null;
 

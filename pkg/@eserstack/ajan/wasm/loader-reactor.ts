@@ -144,6 +144,8 @@ export const loadReactorWasm = async (
         '{"error":"AI calls require native FFI or command-mode WASM"}',
       EserAjanAiStreamRead: (_streamHandle: string) =>
         '{"error":"AI calls require native FFI or command-mode WASM"}',
+      // Nothing to cancel: reactor mode never starts an AI call.
+      EserAjanAiCancelRequest: (_requestJSON: string) => "{}",
       EserAjanAiCloseModel: (_modelHandle: string) => "",
       EserAjanAiFreeStream: (_streamHandle: string) => "",
       // Batch methods require stateful server-side resources which reactor mode doesn't support.

@@ -94,8 +94,31 @@ const app = cliModule
       }
     }
 
+    // External subcommands, the git way: `eser <name>` runs `eser-<name>` from
+    // PATH. Generic on purpose — the stack ships Go binaries this CLI cannot
+    // absorb (eser-acp speaks JSON-RPC on stdio and is spawned by Go), and a
+    // one-off case for each would be a registry nobody remembers to update.
+    //
+    // After manifest scripts, so project-local intent wins over an installed
+    // plugin of the same name.
+    const { resolvePlugin, runPlugin } = await import("./plugins.ts");
+    const executable = await resolvePlugin(commandName);
+
+    if (executable !== null) {
+      const exitCode = await runPlugin(executable, args as string[]);
+
+      return exitCode === 0
+        ? results.ok(undefined)
+        : results.fail({ exitCode });
+    }
+
     // deno-lint-ignore no-console
-    console.error(`Unknown subcommand "${commandName}"`);
+    console.error(
+      `Unknown subcommand "${commandName}"\n` +
+        `  No built-in command, manifest script, or "eser-${commandName}" ` +
+        `executable on PATH.`,
+    );
+
     return results.fail({ exitCode: 1 });
   });
 

@@ -109,6 +109,14 @@ export interface FileInfo {
   readonly atime: Date | null;
   /** Creation time (may be null on some systems) */
   readonly birthtime: Date | null;
+  /**
+   * POSIX mode bits, or null where the platform does not report them.
+   *
+   * Needed to answer "could this process execute that file", which is not
+   * derivable from isFile. Windows has no execute bit, so callers must treat
+   * null as "cannot tell from the mode" rather than as "not executable".
+   */
+  readonly mode: number | null;
 }
 
 /**
@@ -474,6 +482,14 @@ export interface SpawnOptions {
   env?: Record<string, string>;
   /** Standard input handling */
   stdin?: "inherit" | "piped" | "null";
+  /**
+   * Data to write to the process's stdin, which is then closed.
+   *
+   * Setting it implies `stdin: "piped"`. This exists so a large payload can be
+   * handed to a process without going through argv, which every platform bounds
+   * (ARG_MAX / E2BIG) at a size real prompts and file contents reach.
+   */
+  stdinText?: string;
   /** Standard output handling */
   stdout?: "inherit" | "piped" | "null";
   /** Standard error handling */
@@ -742,6 +758,17 @@ export interface RuntimeProcess {
    * The process ID of the current process.
    */
   readonly pid: number;
+
+  /**
+   * Reports whether a process id is currently alive.
+   *
+   * Exists because "is the process that wrote this claim still running" is not
+   * answerable from `pid` alone, and the alternative — trusting a recorded pid
+   * forever — turns any interrupted run into permanently wrong state. A pid
+   * owned by another user counts as alive: only a definite "no such process"
+   * is false.
+   */
+  isAlive(pid: number): boolean;
 
   /**
    * Standard input as a readable stream.

@@ -58,7 +58,8 @@ func (f *openAIModelFactory) CreateModel(
 	ctx context.Context,
 	config *ConfigTarget,
 ) (LanguageModel, error) { //nolint:ireturn
-	if config.APIKey == "" {
+	apiKey := ResolveAPIKey(config)
+	if apiKey == "" {
 		return nil, fmt.Errorf("%w: %w", ErrOpenAIGenerationFailed, ErrInvalidAPIKey)
 	}
 
@@ -67,7 +68,7 @@ func (f *openAIModelFactory) CreateModel(
 	}
 
 	opts := []option.RequestOption{
-		option.WithAPIKey(config.APIKey),
+		option.WithAPIKey(apiKey),
 	}
 
 	if config.BaseURL != "" {

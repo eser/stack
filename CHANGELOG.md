@@ -39,6 +39,67 @@ and this project adheres to
 - **kit:** `Recipe` schema fields `name`, `description`, `language`, `scale`,
   `files` are now optional in standalone `recipe.json` (lenient clone path).
   Registry entries still require them via `isRegistryRecipe`.
+- **repo:** the top-level `scripts/` directory is gone; its four files moved
+  into `etc/scripts/`, which already held the repo's tooling. The two
+  `install.sh` files that resulted are named for what they install: `install.sh`
+  (the `eser` CLI) and `install-noskills.sh` (noskills-server, noskills,
+  eser-acp), plus `install-noskills.ps1` for Windows. **The public install URL
+  changed** — `main/scripts/install.sh` is now
+  `main/etc/scripts/install-noskills.sh`. That URL has never completed a
+  successful install (see the GoReleaser P0), so no working setup breaks.
+- **codebase:** `WalkSourceFiles` now enumerates untracked-but-not-ignored files
+  via `git ls-files --others --exclude-standard`. It previously listed only
+  files already in the index, so every validator built on it — runtime-API
+  portability, licence headers, filenames, secrets — silently skipped files that
+  had been created but never committed. New code is the code most likely to be
+  wrong, and it was the only code exempt. The function's own doc comment had
+  always claimed untracked files were included.
+- **standards:** `FileInfo.mode` and `RuntimeProcess.isAlive(pid)` added to the
+  cross-runtime surface. Both existed only as runtime-specific globals before,
+  which meant callers either reached for `Deno.*` (breaking under Node) or could
+  not express the check at all.
+- **ai:** the `claude-code` adapter honours `properties.cwd`, and omits
+  `--model` when the configured model is empty. It previously ignored cwd — so
+  the same config rooted the agent at the project on the ACP path and at the
+  caller's directory on the TypeScript one — and pushed a dangling `--model`
+  flag that the CLI rejects.
+- **noskills:** `noskills run` drives each iteration through the ai package's
+  `claude-code` provider instead of a raw `claude -p` shell-out, and records the
+  iteration itself. Previously it discarded the agent's output entirely and
+  learned what happened only by re-reading `state.json`, which Claude Code's
+  Stop hook was expected to have written — with nothing verifying that it had.
+  If the hook was absent or misconfigured, state never moved, the same prompt
+  was rebuilt and re-sent, and the loop burned every one of `--max-iterations`
+  before reporting "Max iterations reached" rather than the real fault. The loop
+  now also surfaces the turn's `stopReason`, so `end_turn`, `max_tokens`,
+  `refusal` and `cancelled` are no longer indistinguishable. `execution.driver`
+  marks which writer owns the turn so the Stop hook stands down while the loop
+  is driving; the two used to be capable of racing read-modify-writes on one
+  file. Iteration recording is now a single shared implementation
+  (`state/iteration.ts`) with both callers routed through it. Provider selection
+  is unchanged in effect where `eser-acp` is absent: the pure-TypeScript adapter
+  runs the same vendor binary in the same mode.
+- **ai:** `ai ask` default models refreshed across every provider whose default
+  had gone stale: `anthropic` and `claude-code` to `claude-sonnet-5` (from the
+  dated snapshot `claude-sonnet-4-20250514`), `openai` to `gpt-5.6-terra` (from
+  `gpt-4o`, whose `2024-05-13` snapshot has an announced shutdown), and `gemini`
+  and `vertexai` to `gemini-3.6-flash` (from `gemini-2.0-flash`, already past
+  its shutdown date — Google names 3.6 Flash as its replacement). Two rules now
+  govern the table: aliased IDs rather than dated snapshots, so a default tracks
+  its tier instead of freezing on the day it was typed; and the balanced tier
+  rather than the flagship, since this is what a bare `ai ask` gets. Pass
+  `--model` or set `ConfigTarget.Model` for a flagship or a pinned snapshot.
+  Note Gemini 3.6 Flash silently ignores `temperature`/`topP`; the Google
+  adapters send only those two, so no request breaks, but they have no effect.
+- **ajan:** the six `@eserstack/ajan-*` platform `optionalDependencies` (and the
+  generated `@eserstack/ajan` dependency of the published CLI) widened to admit
+  `^5.0.0` alongside their existing floor. Resolution is unchanged today — no
+  resolved version in `pnpm-lock.yaml` moved — but the ranges no longer have to
+  be edited during the v5.0.0 bump, which is the step whose omission would be
+  silent: an `optionalDependency` matching nothing is dropped by pnpm rather
+  than erroring, leaving a stale native binary against a new ABI.
+  `codebase/ajan-ranges.test.ts` now enforces that every declared range admits
+  the root `VERSION`.
 
 ### Removed
 
@@ -48,6 +109,13 @@ and this project adheres to
   shim; use `eser kit clone`.
 - **codebase:** `@eserstack/codebase/scaffolding` JSR export — replaced by
   `@eserstack/kit/recipes`.
+- **noskills-client:** `DeltaEvent`, `ToolStartEvent` and `ToolResultEvent`
+  removed from the `DaemonEvent` union. **Breaking.** Nothing has ever emitted
+  them — the daemon's only translation point (`noskillsserverfx/fanout.go`) has
+  no case for `delta`, `tool_start` or `tool_result`, and neither worker sends
+  them. A client narrowing on those variants was matching on dead branches.
+  Assistant text and tool calls arrive inside `SdkEvent` (`sdk_event`), which
+  the same release adds to the union for the first time.
 
 ### Migration
 

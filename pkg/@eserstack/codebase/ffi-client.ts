@@ -2,7 +2,11 @@
 
 import type * as ffiTypes from "@eserstack/ajan/ffi";
 
-// Lazy FFI singleton — loaded once per process, reused for every codebase call.
+// Lazy FFI singleton — one per isolate, reused for every codebase call.
+// `deno test` gives each test file a fresh isolate, so this is NOT once per
+// process. The native image pins itself at load time so repeated dlopen/
+// dlclose cycles cannot restart the Go runtime; see
+// pkg/@eserstack/ajan/pin_image_posix.go.
 // If the native library is unavailable the promise resolves without setting _lib,
 // and callers fall back to the pure TypeScript implementation.
 let _lib: ffiTypes.FFILibrary | null = null;

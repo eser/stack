@@ -83,7 +83,7 @@ workflows:
           exclude:
             - "pkg/@eserstack/standards/cross-runtime/"
             - "pkg/@eserstack/cli/scripts/compile.ts"
-            - "scripts/hybrid-sniffer.ts"
+            - "etc/scripts/hybrid-sniffer.ts"
             # Bootstrap: generates the package manifests, so it runs before the
             # package graph exists and cannot import from it.
             - "etc/scripts/gen-jsr-manifests.ts"

@@ -24,6 +24,19 @@ type WorkerEvent struct {
 	Payload []byte // raw JSON of the entire message
 }
 
+// Worker flavours accepted by SpawnWorker and by the ?kind= attach parameter.
+const (
+	// WorkerKindAgent is the Claude Agent SDK worker. It is also the zero value:
+	// an unset kind means this one.
+	WorkerKindAgent = "agent"
+
+	// WorkerKindMux is the terminal-multiplexer worker.
+	WorkerKindMux = "mux"
+
+	// WorkerKindACP drives an ACP agent from Go, with no TS worker in between.
+	WorkerKindACP = "acp"
+)
+
 // ── Interface ─────────────────────────────────────────────────────────────────
 
 // WorkerHandle is the daemon-side handle to a running TS worker process.
@@ -37,6 +50,10 @@ type WorkerHandle interface {
 	// SendMux relays a raw mux frontend frame (a {"t":...} object) to a mux
 	// worker. No-op semantics for agent workers (they ignore unknown messages).
 	SendMux(frame json.RawMessage) error
+	// SetMode switches the session's mode, e.g. plan vs edit. Workers that have
+	// no mode concept return nil rather than an error: the client's request was
+	// well-formed and there is nothing to fail.
+	SetMode(mode string) error
 	// StopTask asks the worker to abort the current task gracefully.
 	StopTask() error
 	// Close tears down the worker process.
@@ -46,6 +63,18 @@ type WorkerHandle interface {
 	// SessionID returns the session this handle is bound to.
 	SessionID() string
 }
+
+// Compile-time interface assertions.
+//
+// Without these an implementation that falls behind the interface fails only
+// where it is assigned -- one line in sessions.go for the real worker, and a
+// test file for the mock. Naming them here makes an interface change point at
+// every implementation that has to follow it.
+var (
+	_ WorkerHandle = (*workerImpl)(nil)
+	_ WorkerHandle = (*acpWorker)(nil)
+	_ WorkerHandle = (*MockWorkerHandle)(nil)
+)
 
 // ── Implementation ────────────────────────────────────────────────────────────
 
@@ -65,13 +94,22 @@ type workerImpl struct {
 //
 // kind selects the worker flavour: "" / "agent" runs the Claude Agent SDK
 // worker (worker.js under node/tsx); "mux" runs the terminal-multiplexer worker
-// (mux-worker.ts under Deno, which resolves @eserstack/mux's workspace imports).
+// (mux-worker.ts under Deno, which resolves @eserstack/mux's workspace imports);
+// "acp" drives an Agent Client Protocol agent directly from Go, with no TS
+// worker process in between.
 func SpawnWorker(
 	ctx context.Context,
 	sessionID, cwd, dataDir, workerPath, kind string,
 	logger *logfx.Logger,
 ) (WorkerHandle, error) {
-	isMux := kind == "mux"
+	// The ACP path shares none of the socket handshake below: the protocol is
+	// the transport, so there is no listener, no ready message and no worker
+	// script to resolve.
+	if kind == WorkerKindACP {
+		return spawnACPWorker(ctx, sessionID, cwd, dataDir, logger)
+	}
+
+	isMux := kind == WorkerKindMux
 
 	if workerPath == "" {
 		switch {
@@ -312,6 +350,16 @@ func (w *workerImpl) SendMux(frame json.RawMessage) error {
 		Type  string          `json:"type"`
 		Frame json.RawMessage `json:"frame"`
 	}{Type: "mux", Frame: frame})
+}
+
+// SetMode forwards the request to the worker.
+//
+// The Claude Agent SDK worker has no mode concept and ignores unknown messages,
+// so today this reaches nothing. It is still sent rather than dropped here: the
+// daemon should not be the component that decides a worker cannot do something,
+// and a worker that grows the capability needs no change on this side.
+func (w *workerImpl) SetMode(mode string) error {
+	return w.send(map[string]string{"type": "set_mode", "mode": mode})
 }
 
 func (w *workerImpl) StopTask() error {

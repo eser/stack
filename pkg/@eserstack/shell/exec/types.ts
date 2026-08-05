@@ -21,6 +21,15 @@ export type CommandOptions = {
   env?: Record<string, string>;
   /** Stdin handling */
   stdin?: StdioOption;
+  /**
+   * Data to write to the process's stdin, which is then closed.
+   *
+   * This is the way to hand a process a large payload. argv is bounded by
+   * ARG_MAX on every platform, at a size real prompts and file contents reach,
+   * and the failure is an opaque spawn error rather than anything naming the
+   * cause.
+   */
+  stdinText?: string;
   /** Stdout handling */
   stdout?: StdioOption;
   /** Stderr handling */

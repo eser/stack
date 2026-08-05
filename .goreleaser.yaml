@@ -52,6 +52,28 @@ builds:
     ldflags:
       - -s -w
 
+  # The ACP shim. It is not optional tooling: the daemon's ACP worker
+  # (kind="acp") and aifx's claude-code / kiro / opencode providers both spawn
+  # `eser-acp` by name, so leaving it unbuilt makes those providers fail at
+  # runtime with "binary not found" on every released artifact.
+  - id: eser-acp
+    main: ./cmd/eser-acp
+    binary: eser-acp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+
 # ── Archive ────────────────────────────────────────────────────────────────────
 
 archives:
@@ -59,6 +81,7 @@ archives:
     builds:
       - noskills-server
       - noskills
+      - eser-acp
     name_template: >-
       noskills_{{ .Version }}_
       {{- title .Os }}_
@@ -118,7 +141,7 @@ release:
   footer: |
     ## Quick install (macOS/Linux)
     ```sh
-    curl -fsSL https://raw.githubusercontent.com/eser/stack/main/scripts/install.sh | sh
+    curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install-noskills.sh | sh
     ```
 
     ## Homebrew
@@ -146,6 +169,10 @@ brews:
     install: |
       bin.install "noskills-server"
       bin.install "noskills"
+      # The ACP shim. Both the daemon's kind="acp" worker and aifx's
+      # claude-code / kiro / opencode providers resolve it with exec.LookPath,
+      # so it is only usable once it is on PATH.
+      bin.install "eser-acp"
     service: |
       run [opt_bin/"noskills-server", "start"]
       keep_alive true

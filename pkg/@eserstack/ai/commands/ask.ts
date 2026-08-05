@@ -133,7 +133,10 @@ const detectProvider = async (log: logging.logger.Logger): Promise<string> => {
 
   // 4. Check env vars for API providers
   if (runtime.capabilities.env) {
-    if (runtime.env.has("ANTHROPIC_API_KEY")) {
+    if (
+      runtime.env.has("ANTHROPIC_API_KEY") ||
+      runtime.env.has("ANTHROPIC_AUTH_TOKEN")
+    ) {
       await log.info("Anthropic API key detected.");
       return "anthropic";
     }
@@ -144,7 +147,7 @@ const detectProvider = async (log: logging.logger.Logger): Promise<string> => {
   }
 
   throw new Error(
-    "No AI provider detected. Install claude, ollama, or set ANTHROPIC_API_KEY / OPENAI_API_KEY.",
+    "No AI provider detected. Install claude, ollama, or set ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN / OPENAI_API_KEY.",
   );
 };
 
@@ -152,46 +155,23 @@ const detectProvider = async (log: logging.logger.Logger): Promise<string> => {
 // Factory Loader
 // =============================================================================
 
+// Delegates to the adapters barrel rather than switching over the TS adapters
+// directly, which is what this used to do -- and which meant `ai ask` silently
+// never used the Go bridge for any provider, however the rest of the package
+// was configured. factoryFor applies the same bridge-first preference as
+// defaultFactories while still importing only the one adapter it needs.
 const loadFactory = async (
   providerName: string,
 ): Promise<import("../model.ts").ProviderFactory> => {
-  switch (providerName) {
-    case "claude-code": {
-      const mod = await import("../adapters/claude-code.ts");
-      return mod.claudeCodeFactory;
-    }
-    case "ollama": {
-      const mod = await import("../adapters/ollama.ts");
-      return mod.ollamaFactory;
-    }
-    case "opencode": {
-      const mod = await import("../adapters/opencode.ts");
-      return mod.openCodeFactory;
-    }
-    case "kiro": {
-      const mod = await import("../adapters/kiro.ts");
-      return mod.kiroFactory;
-    }
-    case "anthropic": {
-      const mod = await import("../adapters/anthropic.ts");
-      return mod.anthropicFactory;
-    }
-    case "openai": {
-      const mod = await import("../adapters/openai.ts");
-      return mod.openaiFactory;
-    }
-    case "gemini": {
-      const mod = await import("../adapters/gemini.ts");
-      return mod.geminiFactory;
-    }
-    case "vertexai": {
-      const mod = await import("../adapters/vertexai.ts");
-      return mod.vertexaiFactory;
-    }
-    default: {
-      throw new Error(`Unknown provider: ${providerName}`);
-    }
+  const { factoryFor } = await import("../adapters/mod.ts");
+
+  const factory = await factoryFor(providerName);
+
+  if (factory === undefined) {
+    throw new Error(`Unknown provider: ${providerName}`);
   }
+
+  return factory;
 };
 
 // =============================================================================
@@ -386,10 +366,30 @@ const typewriterSink = (
 // Default Models
 // =============================================================================
 
+// Two rules govern this table.
+//
+// Aliased IDs, never dated snapshots. A snapshot ("claude-sonnet-4-20250514")
+// is frozen at the day it was typed and silently rots into a model nobody meant
+// to pin -- which is how every entry here fell several releases behind. An alias
+// tracks the current release of its tier. Pin a snapshot in config when
+// reproducibility matters; that is what `--model` and ConfigTarget.Model are for.
+//
+// The BALANCED tier, not the flagship. These are the models a user gets for
+// simply typing `eser ai ask`, so cost and latency matter more than peak
+// capability, and anyone who wants the flagship can name it. That is why this is
+// claude-sonnet-5 rather than claude-opus-5, and gpt-5.6-terra rather than
+// gpt-5.6-sol -- note OpenAI's own deprecation page names sol (not terra) as the
+// successor to gpt-4o, so this deliberately trades a little capability for the
+// ~2.5x lower cost of the balanced tier.
+//
+// Avoid family-level floating aliases such as bare "gpt-5.6": it currently
+// resolves to the flagship sol, and the vendor can silently repoint it to a
+// future model, changing cost and behaviour with no change here. The per-tier
+// IDs below are stable and undated, so they give the alias benefit without that.
 const getDefaultModel = (providerName: string): string => {
   switch (providerName) {
     case "claude-code":
-      return "claude-sonnet-4-20250514";
+      return "claude-sonnet-5";
     case "ollama":
       return "llama3";
     case "opencode":
@@ -397,13 +397,18 @@ const getDefaultModel = (providerName: string): string => {
     case "kiro":
       return "default";
     case "anthropic":
-      return "claude-sonnet-4-20250514";
+      return "claude-sonnet-5";
     case "openai":
-      return "gpt-4o";
+      return "gpt-5.6-terra";
+    // Gemini 3.6 Flash is Google's own documented replacement for the retired
+    // gemini-2.0-flash, and Vertex takes the same bare ID as the Gemini API for
+    // GA models. Note this generation silently IGNORES temperature/topP rather
+    // than erroring -- the Google adapters send those two and nothing else, so
+    // no request breaks, but a user-supplied --temperature has no effect here.
     case "gemini":
-      return "gemini-2.0-flash";
+      return "gemini-3.6-flash";
     case "vertexai":
-      return "gemini-2.0-flash";
+      return "gemini-3.6-flash";
     default:
       return "default";
   }

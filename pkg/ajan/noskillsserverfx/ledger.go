@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 )
 
 // Ledger is an append-only JSONL file for a session. Each line is a complete
@@ -22,7 +23,19 @@ type Ledger struct {
 	path string   // kept for opening replay copies
 	file *os.File // opened with O_APPEND; write position always at EOF
 	bw   *bufio.Writer
+
+	// syncs counts completed fdatasyncs.
+	//
+	// It exists because the durability split is otherwise unobservable: Append
+	// and AppendSync leave identical bytes in the file, so a caller that picks
+	// the wrong one is invisible to any test that reads the file back. It is
+	// also the cost worth knowing about -- fdatasync is the expensive part of a
+	// write-tool decision.
+	syncs atomic.Int64
 }
+
+// Syncs reports how many times this ledger has fdatasynced.
+func (l *Ledger) Syncs() int64 { return l.syncs.Load() }
 
 // openLedger creates parent directories then opens (or creates) the JSONL
 // ledger at path with O_APPEND. Existing content is preserved.
@@ -80,7 +93,13 @@ func (l *Ledger) AppendSync(line []byte) error {
 		return fmt.Errorf("ledger flush: %w", err)
 	}
 
-	return l.file.Sync()
+	if err := l.file.Sync(); err != nil {
+		return fmt.Errorf("ledger sync: %w", err)
+	}
+
+	l.syncs.Add(1)
+
+	return nil
 }
 
 // Replay opens a fresh read-only file descriptor and calls send for each line.
@@ -143,12 +162,17 @@ func (l *Ledger) Close() error {
 	return l.file.Close()
 }
 
-// ledgerPath returns the JSONL path for (dataDir, projectRoot, sid).
+// sessionDir returns the per-project directory holding a session's files.
 // The project root is encoded as hex(sha256(projectRoot))[:16] — 16 hex chars
 // provide 64-bit collision resistance, which is ample for a personal daemon.
-func ledgerPath(dataDir, projectRoot, sid string) string {
+func sessionDir(dataDir, projectRoot string) string {
 	sum := sha256.Sum256([]byte(projectRoot))
 	encoded := hex.EncodeToString(sum[:])[:16]
 
-	return filepath.Join(dataDir, "sessions", encoded, sid+".jsonl")
+	return filepath.Join(dataDir, "sessions", encoded)
+}
+
+// ledgerPath returns the JSONL path for (dataDir, projectRoot, sid).
+func ledgerPath(dataDir, projectRoot, sid string) string {
+	return filepath.Join(sessionDir(dataDir, projectRoot), sid+".jsonl")
 }

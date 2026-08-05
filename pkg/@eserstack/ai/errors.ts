@@ -133,3 +133,66 @@ export const classifyAndWrap = (
     cause: original,
   });
 };
+
+// =============================================================================
+// Wire Classification (FFI bridge)
+// =============================================================================
+
+/**
+ * Classification slugs emitted by `pkg/ajan/aifx`'s `ErrorKind`.
+ *
+ * These are wire values shared with Go. Renaming one here without changing
+ * `ErrorKind` in lockstep silently drops every error of that class back to a
+ * bare {@link AiError} — the exact failure this classification exists to fix,
+ * and one nothing would report.
+ */
+export type AiErrorKind =
+  | "rate_limited"
+  | "auth_failed"
+  | "insufficient_credits"
+  | "bad_request"
+  | "service_unavailable"
+  | "cancelled";
+
+const WIRE_KINDS: Record<string, typeof AiError> = {
+  rate_limited: RateLimitedError,
+  auth_failed: AuthFailedError,
+  insufficient_credits: InsufficientCreditsError,
+  bad_request: BadRequestError,
+  service_unavailable: ServiceUnavailableError,
+};
+
+/**
+ * Rebuild the typed error described by a bridge response.
+ *
+ * `kind` is preferred over `statusCode`: Go classifies once, and a status with
+ * no sentinel (404, 408, 413, 422) must not be re-derived into the wrong class
+ * here. When there is no kind, the status is still carried on a bare
+ * {@link AiError} so a caller can see it.
+ *
+ * `cancelled` is deliberately NOT mapped to a subclass. Go wraps a cancelled
+ * context with its service-unavailable sentinel, which is a *retryable* class —
+ * telling a caller to retry the request they just deliberately cancelled.
+ *
+ * A zero or absent status yields `undefined`, never `0`: `0 ?? 429` is `0`, so
+ * forwarding a defaulted zero would make every typed error report statusCode 0
+ * instead of its class default.
+ */
+export const classifyWireError = (
+  provider: string,
+  message: string,
+  kind?: string,
+  statusCode?: number,
+): AiError => {
+  const status = statusCode !== undefined && statusCode > 0
+    ? statusCode
+    : undefined;
+
+  const ErrorClass = kind === undefined ? undefined : WIRE_KINDS[kind];
+
+  if (ErrorClass === undefined) {
+    return new AiError(message, { provider, statusCode: status });
+  }
+
+  return new ErrorClass(message, { provider, statusCode: status });
+};

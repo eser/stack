@@ -99,7 +99,12 @@ const bunSpawn = async (
   const proc = Bun.spawn([cmd, ...args], {
     cwd: options?.cwd,
     env: options?.env,
-    stdin: stdinMode,
+    // Bun accepts a buffer directly as stdin, so there is no pipe to manage.
+    // The cast is needed because the shared stdio typing describes only the
+    // three mode strings the other runtimes use.
+    stdin: (options?.stdinText === undefined
+      ? stdinMode
+      : new TextEncoder().encode(options.stdinText)) as typeof stdinMode,
     stdout: stdoutMode,
     stderr: stderrMode,
   });

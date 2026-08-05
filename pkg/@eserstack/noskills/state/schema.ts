@@ -319,6 +319,15 @@ export type ExecutionState = {
   readonly debt: DebtState | null;
   readonly completedTasks: readonly string[];
   readonly debtCounter: number;
+  /**
+   * Who records iterations for the turn in flight.
+   *
+   * "acp" means `noskills run` is driving the agent through a typed turn and
+   * will record the iteration itself when that call returns; the in-agent Stop
+   * hook stands down so the two do not race on this file. Absent means the Stop
+   * hook is the only thing that can notice a turn ended, and it records.
+   */
+  readonly driver?: "acp";
   readonly naItems: readonly string[];
   readonly confidenceFindings?: readonly ConfidenceFinding[];
   /**

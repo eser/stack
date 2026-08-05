@@ -71,6 +71,10 @@ export const backend: types.FFIBackend = {
         args: ["ptr"],
         returns: "ptr",
       },
+      EserAjanAiCancelRequest: {
+        args: ["ptr"],
+        returns: "ptr",
+      },
       EserAjanAiCloseModel: {
         args: ["ptr"],
         returns: "ptr",
@@ -503,6 +507,11 @@ export const backend: types.FFIBackend = {
         EserAjanAiStreamRead: (streamHandle: string): string => {
           return readAndFree(
             symbols.EserAjanAiStreamRead(toCString(streamHandle)),
+          );
+        },
+        EserAjanAiCancelRequest: (requestJSON: string): string => {
+          return readAndFree(
+            symbols.EserAjanAiCancelRequest(toCString(requestJSON)),
           );
         },
         EserAjanAiCloseModel: (modelHandle: string): string => {

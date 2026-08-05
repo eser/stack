@@ -19,6 +19,7 @@
 import * as results from "@eserstack/primitives/results";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
+import * as iteration_ from "../state/iteration.ts";
 import * as compiler from "../context/compiler.ts";
 import * as syncEngine from "../sync/engine.ts";
 import * as hookDecisions from "./hook-decisions.ts";
@@ -452,112 +453,26 @@ const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
 
   if (state["phase"] !== "EXECUTING") return results.ok(undefined);
 
-  const execution = state["execution"] as Record<string, unknown> ?? {};
-
-  // Read tracked files from hook log
-  const filesChangedPath =
-    `${root}/${persistence.paths.progressesDir}/files-changed.jsonl`;
-  let trackedFiles: string[] = [];
-  try {
-    const logContent = await runtime.fs.readTextFile(filesChangedPath);
-    const entries = logContent.trim().split("\n").filter(Boolean);
-    trackedFiles = [
-      ...new Set(
-        entries.map((e) => {
-          try {
-            return (JSON.parse(e) as { file: string }).file;
-          } catch {
-            return null;
-          }
-        }).filter((f): f is string => f !== null),
-      ),
-    ];
-  } catch {
-    // No tracked files yet
+  // Stand down when `noskills run` is driving the turn.
+  //
+  // It records the iteration itself once its typed call returns, so writing
+  // here too would mean two processes doing a read-modify-write on state.json
+  // for the same turn -- a lost update, not a redundant one. The loop clears
+  // the flag when it finishes, so an ordinary agent-driven session is
+  // unaffected.
+  if (
+    iteration_.isDriverAuthoritative(
+      state["execution"] as Record<string, unknown> | undefined,
+    )
+  ) {
+    return results.ok(undefined);
   }
 
-  // Git diff for completeness
-  let gitFiles: string[] = [];
-  let gitStat = "no changes";
-  try {
-    const { execSync } = await import("node:child_process");
-    const diff = execSync("git diff --name-only", {
-      cwd: root,
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-    gitFiles = diff.trim().split("\n").filter(Boolean);
-    const stat = execSync("git diff --stat", {
-      cwd: root,
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-    const lines = stat.trim().split("\n");
-    gitStat = lines[lines.length - 1] ?? "no changes";
-  } catch {
-    // git not available
-  }
+  // Everything below used to live here inline. It is shared with `noskills run`
+  // so the two callers cannot drift on what an iteration means.
+  const record = await iteration_.recordIteration(root);
 
-  const allFiles = [...new Set([...trackedFiles, ...gitFiles])];
-  const iteration = ((execution["iteration"] as number) ?? 0) + 1;
-
-  // Write per-iteration log
-  const iterDir = `${root}/${persistence.paths.progressesDir}/iterations`;
-  try {
-    await runtime.fs.mkdir(iterDir, { recursive: true });
-    await runtime.fs.writeTextFile(
-      `${iterDir}/iteration-${iteration}.json`,
-      JSON.stringify(
-        {
-          iteration,
-          files: allFiles,
-          gitStat: gitStat.trim(),
-          timestamp: new Date().toISOString(),
-        },
-        null,
-        2,
-      ) + "\n",
-    );
-  } catch {
-    // best effort
-  }
-
-  // Check threshold
-  let maxIter = 15;
-  try {
-    const config = await persistence.readManifest(root);
-    if (config !== null) {
-      maxIter = config.maxIterationsBeforeRestart;
-    }
-  } catch {
-    // use default
-  }
-
-  // Update state
-  state["execution"] = {
-    ...execution,
-    iteration,
-    modifiedFiles: allFiles,
-    lastProgress: gitStat.trim() ||
-      (execution["lastProgress"] as string | null) || null,
-  };
-  state["lastCalledAt"] = new Date().toISOString();
-
-  try {
-    await runtime.fs.writeTextFile(
-      `${root}/${persistence.paths.stateFile}`,
-      JSON.stringify(state, null, 2) + "\n",
-    );
-  } catch {
-    // best effort
-  }
-
-  // Reset files-changed log for next iteration
-  try {
-    await runtime.fs.writeTextFile(filesChangedPath, "");
-  } catch {
-    // best effort
-  }
+  if (record === null) return results.ok(undefined);
 
   // Reset executor warning flag for fresh iteration
   try {
@@ -568,13 +483,23 @@ const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
     // best effort — may not exist
   }
 
-  if (iteration >= maxIter) {
+  let maxIter = 15;
+  try {
+    const config = await persistence.readManifest(root);
+    if (config !== null) {
+      maxIter = config.maxIterationsBeforeRestart;
+    }
+  } catch {
+    // use default
+  }
+
+  if (record.iteration >= maxIter) {
     // Write to stderr (user sees, agent doesn't)
     const encoder = new TextEncoder();
     const writer = runtime.process.stderr.getWriter();
     await writer.write(
       encoder.encode(
-        `noskills: iteration ${iteration} reached threshold (${maxIter}). Consider starting a fresh conversation.\n`,
+        `noskills: iteration ${record.iteration} reached threshold (${maxIter}). Consider starting a fresh conversation.\n`,
       ),
     );
     writer.releaseLock();

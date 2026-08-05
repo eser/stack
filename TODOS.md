@@ -2,6 +2,53 @@
 
 Tracked deferred work for the eserstack project.
 
+## P1 — v5.0.0 major bump (release-blocker prerequisites)
+
+**What:** `pkg/@eserstack/noskills-client` dropped three `DaemonEvent` variants
+(`DeltaEvent`, `ToolStartEvent`, `ToolResultEvent`). That is a breaking change
+to a published package, so the next release is a **major**: 4.1.58 → 5.0.0.
+
+**Why this was NOT bumped alongside the change.** Two reasons, both concrete:
+
+1. `deno task cli codebase versions major` rewrites ~43 `package.json` files
+   plus `VERSION` and makes no git commit of its own (`versions.ts` has no git
+   calls — the commit lives in `release.ts`). Run on a feature branch it rides
+   along as unrelated churn.
+2. A **major** is the one bump type the ajan platform caret ranges cannot
+   absorb. `pkg/@eserstack/ajan/package.json` pins its six platform binaries at
+   `^4.1.0`, and `npm/generate-packages.ts` stamps those packages from the root
+   `VERSION`. Publishing them as `5.0.0` would no longer satisfy `^4.1.0`, so an
+   install resolves a stale 4.x binary against a 5.x ABI. Pinning them exactly
+   is NOT the fix — that is what `0d5c9cbf` reverted, because the platform
+   packages are published _after_ the tag and `--frozen-lockfile` then fails on
+   a version that does not exist yet.
+
+**Step 1 is DONE — the ranges are already widened.** It was the
+ordering-sensitive half and it does not have to wait for the release branch:
+`^4.1.0 || ^5.0.0` resolves to exactly the same 4.x today, so widening early is
+inert until the bump. Three files carried a constraint, not the one named above:
+
+- `pkg/@eserstack/ajan/package.json` — six platform deps
+- `pkg/@eserstack/cli/package.json` — the same six, at _mixed_ floors (three
+  `^4.1.57`, three `^4.1.0`). Each floor was preserved and widened in place
+  rather than flattened, since the `^4.1.57` floors may be deliberate.
+- `pkg/@eserstack/cli/scripts/npm-build.ts` — the generated `@eserstack/ajan`
+  dependency of the published CLI.
+
+`pkg/@eserstack/codebase/ajan-ranges.test.ts` now enforces the constraint: every
+`@eserstack/ajan*` range declared anywhere in the workspace must admit the root
+`VERSION`. That converts a silent failure into a failing test at the moment of
+the bump — an optionalDependency whose range matches nothing is _omitted_ by
+pnpm rather than erroring, which is why this needed a guard and not a note.
+
+**Do at release time, on a dedicated release branch:**
+
+1. `deno task cli codebase versions major`, and commit the whole bump as one
+   release commit.
+2. `pnpm install --lockfile-only`, verify with `pnpm install --frozen-lockfile`.
+
+**Effort:** S. The ordering hazard is now enforced rather than remembered.
+
 ## P2 — Submit to nixpkgs upstream
 
 **What:** Submit the `eser` package to the official nixpkgs repository.
@@ -109,7 +156,96 @@ sites; `writeStateAndSpec` exists and is used 3 times against ~39 hand-rolled
 dual-writes. Most fixes below are "route the existing correct thing through the
 call sites", not "build something new".
 
-## P0 — Go runtime crash under the FFI library (NEW, surfaced 2026-08-01)
+## P1 — Two installers, and the working one is the undocumented one
+
+**What:** the repo ships two POSIX installers that install different things, and
+the documented one is the broken one.
+
+- `etc/scripts/install.sh` downloads `eser-<tag>-<triple>.tar.gz` +
+  `SHA256SUMS.txt` — assets that **exist on every release**, produced by
+  `build.yml`'s `compile-binaries` / `upload-assets`. It works. **Nothing
+  references it** — not the README, not a workflow, not the brew formula.
+- `etc/scripts/install-noskills.sh` downloads `noskills_<version>_<os>_<arch>`
+  - `checksums.txt` — assets that **have never existed** (see the P0 above). It
+    is the one advertised in `cmd/noskills-server/README.md` and in
+    `.goreleaser.yaml`'s brew instructions.
+
+So the install command in the docs has never worked, while the installer that
+does work is invisible.
+
+**Why it matters beyond the P0:** even once goreleaser publishes, a user needs
+BOTH — `eser` is the CLI, and `eser-acp` is what its claude-code / kiro /
+opencode providers spawn. Two separate curl-pipe-sh commands to get one working
+tool is the wrong end state.
+
+**Fix:** after the P0 lands and `noskills_*` archives exist, merge the two into
+a single `etc/scripts/install.sh` that installs the `eser` CLI and the Go
+binaries together, and point the README and brew formula at it. Not done now
+because a merged installer would half-fail until the archives are published.
+
+**Effort:** S, blocked on the P0.
+
+## P0 — GoReleaser has never published; `install.sh` 404s on every release
+
+**What:** `.goreleaser.yaml` builds `noskills-server`, `noskills` and `eser-acp`
+and archives them as `noskills_<version>_<Os>_<Arch>.tar.gz` (`.zip` on Windows)
+plus `checksums.txt`. **None of those assets has ever existed on any release.**
+
+Verified against the GitHub API for the eight most recent tags (v4.1.47 →
+v4.1.56): every release carries either 0 assets or the same 11 `eser-v*` files
+produced by `build.yml`'s `compile-binaries` / `upload-assets` jobs, with
+`SHA256SUMS.txt`. `noskills_*`: zero. `checksums.txt`: never present.
+
+**Consequences, all currently live:**
+
+1. `etc/scripts/install-noskills.sh` — the install command documented in
+   `cmd/noskills-server/README.md:14` and in the goreleaser brew instructions —
+   downloads a URL that 404s. It has never worked.
+2. `eser-acp` has never shipped in any artifact, so ACP-backed providers
+   (`claude-code`, `kiro`, `opencode`) and the daemon's `kind="acp"` worker
+   cannot work from a release install. The `ShimMissingHint` error text tells
+   users to "install the eserstack release", which does not deliver the shim.
+3. The brew formula's `bin.install "eser-acp"` (`.goreleaser.yaml:175`) never
+   runs, so the tap is stale too.
+4. `etc/scripts/install-noskills.ps1` inherits the same 404 for the same reason.
+
+**Root cause:** `build.yml`'s `tag-release` job pushes the tag with the default
+`GITHUB_TOKEN` supplied by `actions/checkout`. GitHub deliberately does **not**
+dispatch workflows for events created with `GITHUB_TOKEN` — it is the recursion
+guard. `release.yml` triggers only on `push: tags: "v*"`, so it has never fired.
+This is not a goreleaser misconfiguration; goreleaser is simply never invoked.
+
+**Fix — needs a decision, because the options differ in blast radius:**
+
+1. Push the tag with a PAT (or a GitHub App token) instead of `GITHUB_TOKEN`.
+   Smallest change and keeps the two workflows separate, but requires a repo
+   secret that only the owner can create.
+2. Add a `workflow_dispatch` trigger with a `tag` input to `release.yml`, so a
+   release can at least be run by hand. Additive and safe; matches the existing
+   precedent in `publish-ajan.yml`. Does not make it automatic.
+3. Invoke goreleaser directly from `build.yml` after `tag-release`, dropping
+   `release.yml`. Fully automatic, but restructures the release pipeline.
+
+**Option 2 is DONE** — `release.yml` now also accepts `workflow_dispatch` with a
+`tag` input, and checks out that tag so goreleaser derives the right version. A
+release can be cut by hand today. It is additive: the `on: push: tags` trigger
+is untouched, so nothing changes if the token issue is fixed separately.
+
+Still open, and still the owner's call: (1) needs a repo secret, and (3) rewires
+release infrastructure. **Recommend 1** — it is the only option that makes
+releases work unattended again.
+
+**Verify after fixing:** a release must carry
+`noskills_<version>_Darwin_arm64.tar.gz` and `checksums.txt`, and
+`curl -fsSL .../install.sh | sh` must land `eser-acp` on PATH. The
+`windows-smoke` job already covers the Windows half via `-ArchivePath`, which
+deliberately bypasses the download so it tests the installer rather than the
+release.
+
+**Effort:** S for the fix; the value is that it makes three shipped features
+reachable for the first time.
+
+## ~~P0~~ DONE — Go runtime crash under the FFI library (surfaced 2026-08-01)
 
 **What:** Investigate the intermittent
 `fatal error: runtime: unexpected waitm - semaphore out of sync` thrown from
@@ -130,6 +266,27 @@ concurrency — most likely `Deno.dlopen` of one c-shared Go library from severa
 parallel test isolates. Start there.
 
 **Effort:** M to diagnose; unknown to fix
+
+**Done (2026-08-02).** The "concurrency" hypothesis above was wrong, and so were
+two others I tried (FFI callbacks re-entering Go; `nonblocking: true` threadpool
+dispatch — A/B'd at 3/8 vs 5/8 crashes, p = 0.62, i.e. no effect).
+
+The actual cause is **sequential, not concurrent**: Deno disposes a test-file
+isolate, which `dlclose`s the library; the next file `dlopen`s it again. A Go
+runtime cannot be unloaded and reloaded — the second init runs while threads
+from the first are still parked, and the scheduler dies. That is why isolating
+the five FFI packages never reproduced it: one file, one load.
+
+Fixed by making the image un-unloadable from inside itself — a cgo constructor
+re-opens its own image with `RTLD_LAZY|RTLD_NOLOAD|RTLD_NODELETE`
+(`pin_image_posix.go`), so `dlclose` drops the refcount but never unmaps.
+Measured: **0 crashes / 8 full runs, against a pooled baseline of 8 / 16. Fisher
+exact p = 0.022.**
+
+**Caveat — not verified on Windows.** `pin_image_windows.go` uses
+`GET_MODULE_HANDLE_EX_FLAG_PIN` and has never been compiled (no mingw toolchain
+available here). It is also not in any published npm platform binary yet; those
+need a rebuild to carry the pin. See the P3 Windows item below.
 
 ## ~~P0~~ DONE — Add `go.work` so the FFI bridge is actually checked
 
@@ -165,14 +322,27 @@ registries.
 the **previously published** native binary, so an ABI change cannot fail CI in
 the commit that introduces it.
 
-**Context:** Compounding this, `pkg/@eserstack/cli/package.json:25-32` pins the
-six ABI-coupled platform binaries at `^4.1.0` while
-`pkg/@eserstack/ajan/package.json` pins exactly. The committed lockfile
-currently has three platforms on 4.1.56 and three on 4.1.57, across an ABI that
-gained six exports at HEAD.
+**Context (corrected 2026-08-04):** the paragraph that used to sit here had the
+two packages the wrong way round, and prescribed the change that broke the
+release pipeline.
 
-**Effort:** S — pin cli's six platform deps exactly and extend
-`syncAjanVersions` to cover them.
+What is actually true: `pkg/@eserstack/ajan/package.json` is the one on caret
+ranges (all six platform deps at `^4.1.0`); `pkg/@eserstack/cli/package.json` is
+the _mixed_ one — three at `^4.1.57`, three at `^4.1.0`. The alleged
+4.1.56/4.1.57 lockfile straddle is stale: every one of the twelve entries in
+`pnpm-lock.yaml` resolves to 4.1.57 at HEAD.
+
+More importantly, the remedy it prescribed — pinning the platform deps exactly —
+**was tried and reverted**. See `0d5c9cbf` ("fix(build): unpin ajan platform
+deps to unblock frozen-lockfile"), which put all six back to `^4.1.0`. The
+reason is written down in `pkg/@eserstack/codebase/versions.ts` inside
+`syncAjanVersions`: the platform packages are published _after_ the version
+bump, so pinning them exactly makes the lockfile reference versions that do not
+exist yet and `--frozen-lockfile` fails.
+
+**Do not re-apply the old advice.** If the ABI-coupling risk is to be addressed,
+it needs a different mechanism — an install-time ABI check, or publishing the
+platform packages before the bump — not exact pins.
 
 **Done (2026-08-01):** `build-native-lib` step added to `.eser/manifest.yml`
 ahead of every Deno step; `scripts/build.ts` pins `GOWORK=off` so released
@@ -180,9 +350,11 @@ artifacts still resolve from the module's own go.mod. This also fixed the
 `*.ffi.test.ts` suites, which had been failing with "native library
 unavailable".
 
-**Still open from this entry:** pinning `pkg/@eserstack/cli`'s six platform
-binaries exactly and extending `syncAjanVersions` to cover them. The lockfile
-still straddles 4.1.56/4.1.57 across an ABI that gained six exports.
+**Nothing open from this entry.** An earlier revision listed "pin cli's six
+platform binaries exactly and extend `syncAjanVersions` to cover them" as
+remaining work. That is the advice corrected above: it was tried, it broke
+`--frozen-lockfile`, and it was reverted in `0d5c9cbf`. The lockfile no longer
+straddles two versions either — all twelve entries resolve to 4.1.57.
 
 ## ~~P0~~ DONE — Fix `workerImpl.Close()` self-deadlock (freezes the whole daemon)
 

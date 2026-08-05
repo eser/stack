@@ -85,6 +85,20 @@ export class CommandBuilder {
     });
   }
 
+  /**
+   * Write `data` to the process's stdin and close it.
+   *
+   * Prefer this over interpolating a large value into the command: argv is
+   * bounded, stdin is not.
+   */
+  stdinText(data: string): CommandBuilder {
+    return new CommandBuilder(this.#cmd, this.#args, {
+      ...this.#options,
+      stdin: "piped",
+      stdinText: data,
+    });
+  }
+
   /** Set stdout handling */
   stdout(option: StdioOption): CommandBuilder {
     return new CommandBuilder(this.#cmd, this.#args, {
@@ -206,6 +220,7 @@ export class CommandBuilder {
       cwd: this.#options.cwd,
       env: this.#options.env,
       stdin: this.#options.stdin,
+      stdinText: this.#options.stdinText,
       stdout: this.#options.stdout,
       stderr: this.#options.stderr,
       // Honor timeout on the runtime path too (it was previously dropped here).

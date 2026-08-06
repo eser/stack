@@ -14,7 +14,6 @@ import * as shellEnv from "@eserstack/shell/env";
 export { detectShell, type Shell } from "@eserstack/shell/env";
 
 const COMPLETION_MARKER = "# eser CLI completions";
-const APP_NAME = "eser";
 
 /**
  * Read file contents, returns empty string if file doesn't exist
@@ -44,23 +43,27 @@ const fileExists = async (path: string): Promise<boolean> => {
  */
 export const hasCompletions = async (
   shell: shellEnv.Shell,
+  appName: string,
 ): Promise<boolean> => {
-  const config = shellEnv.getShellConfig(shell, APP_NAME);
+  const config = shellEnv.getShellConfig(shell, appName);
 
   if (config.completionType === "file") {
     return await fileExists(config.completionsFile!);
   }
 
   const content = await readFileOrEmpty(config.rcFile);
-  const line = shellEnv.getCompletionEvalLine(shell, APP_NAME);
+  const line = shellEnv.getCompletionSourceLine(shell, appName);
   return content.includes(line);
 };
 
 /**
  * Add completions to shell configuration
  */
-export const addCompletions = async (shell: shellEnv.Shell): Promise<void> => {
-  const config = shellEnv.getShellConfig(shell, APP_NAME);
+export const addCompletions = async (
+  shell: shellEnv.Shell,
+  appName: string,
+): Promise<void> => {
+  const config = shellEnv.getShellConfig(shell, appName);
 
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -99,7 +102,7 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Ge
       );
     } else {
       const content = await readFileOrEmpty(config.rcFile);
-      const line = shellEnv.getCompletionEvalLine(shell, APP_NAME);
+      const line = shellEnv.getCompletionSourceLine(shell, appName);
 
       if (!content.includes(line)) {
         const addition = `\n${COMPLETION_MARKER}\n${line}\n`;
@@ -130,8 +133,9 @@ complete -c eser -n "__fish_seen_subcommand_from system" -a "completions" -d "Ge
  */
 export const removeCompletions = async (
   shell: shellEnv.Shell,
+  appName: string,
 ): Promise<void> => {
-  const config = shellEnv.getShellConfig(shell, APP_NAME);
+  const config = shellEnv.getShellConfig(shell, appName);
 
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -157,7 +161,7 @@ export const removeCompletions = async (
         return;
       }
 
-      const line = shellEnv.getCompletionEvalLine(shell, APP_NAME);
+      const line = shellEnv.getCompletionSourceLine(shell, appName);
       if (!content.includes(line)) {
         await out.close();
         return;

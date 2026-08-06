@@ -9,6 +9,7 @@
 import * as results from "@eserstack/primitives/results";
 import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
+import * as shellEnv from "@eserstack/shell/env";
 import * as shellExec from "@eserstack/shell/exec";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as ai from "@eserstack/ai/mod";
@@ -118,25 +119,29 @@ export const generateCommitMessage = async (
 
   const registry = new ai.Registry({ factories });
 
-  // Determine provider
+  // Determine provider.
+  //
+  // hasExecutable walks PATH in-process instead of spawning `which`, which cost
+  // a subprocess on every invocation, does not exist on Windows, and — because
+  // the shared exec path goes through the Go native library, which caches the
+  // environment it was loaded with — could not see a PATH exported after load.
   let provider = providerName;
-  if (provider === undefined) {
-    // Try claude-code first
-    try {
-      const code = await shellExec.exec`which claude`.noThrow().code();
-      if (code === 0) {
-        provider = "claude-code";
-      }
-    } catch {
-      // Not found
-    }
-  }
 
   if (provider === undefined) {
-    provider = "anthropic"; // fallback to API
+    provider = (await shellEnv.hasExecutable("claude"))
+      ? "claude-code"
+      : "anthropic";
   }
 
-  const model = "default";
+  // An empty model means "let the provider choose".
+  //
+  // This used to pass the literal string "default", which is the REGISTRY's key
+  // for the entry, not a model id. It reached the claude CLI as
+  // `--model default`; the CLI tolerates it, but it is a sentinel leaking into
+  // a vendor argument. An API provider needs a real id, so only the CLI-backed
+  // one gets the empty string.
+  const model = provider === "claude-code" ? "" : "claude-sonnet-5";
+
   await registry.addModel("default", { provider, model });
 
   const languageModel = registry.getDefault();

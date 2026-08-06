@@ -40,3 +40,5 @@ export {
   getRcFilePath,
   getShellConfig,
 } from "./detector.ts";
+
+export { hasExecutable, resolveExecutable } from "./executable.ts";

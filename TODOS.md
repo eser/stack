@@ -156,6 +156,38 @@ sites; `writeStateAndSpec` exists and is used 3 times against ~39 hand-rolled
 dual-writes. Most fixes below are "route the existing correct thing through the
 call sites", not "build something new".
 
+## P3 — `deno compile --engine quickjs` hangs on lazily-dispatched commands
+
+**What:** Deno 2.9's experimental QuickJS backend (denoland/deno#36194, merged
+2026-08-04) compiles this CLI 31 MB smaller (268.0 → 236.9 MB) and then fails
+every command except `--help`, with `Top-level await promise never resolved`.
+
+The trigger is `Command.lazyCommand` dispatch combined with a real dynamic
+import: the load promise never settles, so the handler never runs. Since the
+whole command tree is lazily loaded, that is every real command.
+
+**Ruled out** (each verified inside a compiled quickjs binary): dynamic import
+generally, including nested in awaited async functions and of modules with their
+own top-level await; the size of the imported graph — importing
+`cli-system/mod.ts` directly and building the command from it works;
+`setTimeout`; `fetch`; `Deno.dlopen` plus a full FFI load; `@eserstack/streams`
+output and `close()`; and the `async`/`await` vs `.then()` shape of the loader.
+
+**Not minimised.** It reproduces reliably in this repo but I could not reduce it
+to a dependency-free script, which is what an upstream issue needs. Module
+dispatch (`modules: { x: { load: () => import(...) } }`) works under quickjs
+while `lazyCommand` does not — that difference is the most promising thread for
+whoever picks this up, and it is also the workaround.
+
+**Why P3:** we are not adopting the backend. 31 MB is small next to the 278 MB
+that removing the Claude Agent SDK took off every binary, and the failure mode
+is severe. Worth filing upstream once minimised, because "call a function that
+dynamically imports, then `.parse()` the result" is an ordinary CLI pattern and
+the backend is young.
+
+**Do not** add `--engine quickjs` without testing a lazily-dispatched command
+end to end; `--help` passing proves nothing, as it never triggers a lazy load.
+
 ## P1 — Two installers, and the working one is the undocumented one
 
 **What:** the repo ships two POSIX installers that install different things, and

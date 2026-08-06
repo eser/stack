@@ -33,7 +33,8 @@ type UpdateConfig = {
   readonly args: readonly string[];
 };
 
-const UPDATE_CONFIGS: Record<string, UpdateConfig> = {
+// A function of the app: the same table updates eser, noskills or laroux.
+const updateConfigs = (app: CliApp): Record<string, UpdateConfig> => ({
   deno: {
     cmd: "deno",
     args: [
@@ -43,19 +44,19 @@ const UPDATE_CONFIGS: Record<string, UpdateConfig> = {
       "-A",
       "-f",
       "--name",
-      "eser",
+      app.command,
       "jsr:@eserstack/cli",
     ],
   },
   node: {
     cmd: "npm",
-    args: ["update", "-g", "-f", "eser"],
+    args: ["update", "-g", "-f", app.npmPackage ?? app.command],
   },
   bun: {
     cmd: "bun",
-    args: ["update", "-g", "-f", "eser"],
+    args: ["update", "-g", "-f", app.npmPackage ?? app.command],
   },
-};
+});
 
 const DENO_TARGET_MAP: Record<string, string> = {
   "linux-amd64": "x86_64-unknown-linux-gnu",
@@ -80,7 +81,7 @@ const detectPlatformTarget = (): string | undefined => {
  * Self-updates a compiled binary from GitHub Releases.
  */
 const updateCompiledBinary = async (
-  _app: CliApp,
+  app: CliApp,
   currentVersion: string,
 ): Promise<shellArgs.CliResult<void>> => {
   const out = streams.output({
@@ -135,7 +136,7 @@ const updateCompiledBinary = async (
   const tag = `v${check.latestVersion}`;
   const isWindows = standardsCrossRuntime.getPlatform() === "windows";
   const archiveExt = isWindows ? "zip" : "tar.gz";
-  const archiveName = `eser-${tag}-${target}.${archiveExt}`;
+  const archiveName = `${app.command}-${tag}-${target}.${archiveExt}`;
   const baseUrl = `https://github.com/eser/stack/releases/download/${tag}`;
 
   // Download archive
@@ -197,7 +198,7 @@ const updateCompiledBinary = async (
 
     const newBinaryPath = isWindows
       ? runtime.path.join(tempDir, "eser.exe")
-      : runtime.path.join(tempDir, "eser");
+      : runtime.path.join(tempDir, app.command);
     const currentBinaryPath = runtime.process.execPath();
 
     if (isWindows) {
@@ -230,7 +231,7 @@ const updateCompiledBinary = async (
     ) {
       out.writeln(
         span.red(
-          `\nPermission denied. Try running with sudo:\n  sudo eser update`,
+          `\nPermission denied. Try running with sudo:\n  sudo ${app.command} update`,
         ),
       );
       await out.close();
@@ -277,8 +278,8 @@ export const updateHandler = async (
     span.cyan(execContext.runtime),
   );
 
-  const runtimeConfig = UPDATE_CONFIGS[execContext.runtime as string] ??
-    UPDATE_CONFIGS["node"]!;
+  const runtimeConfig = updateConfigs(app)[execContext.runtime as string] ??
+    updateConfigs(app)["node"]!;
 
   const { cmd, args } = runtimeConfig;
 
@@ -300,7 +301,7 @@ export const updateHandler = async (
   out.writeln(span.green("\nUpdate complete!"));
   out.writeln(
     span.text("The "),
-    span.cyan("eser"),
+    span.cyan(app.command),
     span.text(" command has been updated to the latest version."),
   );
 

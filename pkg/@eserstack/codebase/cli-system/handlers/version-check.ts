@@ -14,6 +14,13 @@ import * as versions from "@eserstack/standards/versions";
 
 const runtime = standardsCrossRuntime.runtime;
 
+// Deliberately shared across binaries, not per-app.
+//
+// eser, noskills and laroux are built from one repo, released at one version by
+// one pipeline, and this check asks that repo's releases endpoint. The answer is
+// identical for all three, so sharing the cache means one fetch serves whichever
+// binary you happen to run next — and a per-app cache would multiply the network
+// call this file exists to avoid.
 const CACHE_DIR = ".cache/eser";
 const CACHE_FILE = "latest-version.json";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours

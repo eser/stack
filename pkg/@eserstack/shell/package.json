@@ -10,6 +10,7 @@
     "./exec": "./exec/mod.ts",
     "./env": "./env/mod.ts",
     "./tui": "./tui/mod.ts",
+    "./tui/types": "./tui/types.ts",
     "./tui/colors": "./tui/colors.ts",
     "./vterm": "./vterm/mod.ts",
     "./go-exec": "./go-exec.ts"

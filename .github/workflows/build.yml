@@ -42,7 +42,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.5
 
       - name: Cache Deno dependencies
         uses: actions/cache@v6
@@ -143,7 +143,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.5
 
       - name: Cache Deno dependencies
         uses: actions/cache@v6
@@ -287,7 +287,7 @@ jobs:
         runtime: [deno, node, bun]
         include:
           - runtime: deno
-            version: "2.7"
+            version: "2.9.5"
           - runtime: node
             version: "25"
           - runtime: bun
@@ -305,7 +305,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.5
 
       - name: Cache Deno dependencies
         uses: actions/cache@v6
@@ -381,7 +381,7 @@ jobs:
   #      a host dlclose/dlopens the image. It is compiled ONLY by
   #      publish-ajan.yml, which is workflow_dispatch-only, so a mistake there
   #      surfaced during a manual publish rather than on the PR that caused it.
-  #   2. etc/scripts/install-noskills.ps1. Windows binaries have always been
+  #   2. etc/scripts/install-noskills-server.ps1. Windows binaries have always been
   #      built and archived, but nothing ever unpacked that archive and checked
   #      the binaries land somewhere resolvable.
   #
@@ -418,7 +418,7 @@ jobs:
       - name: Build Windows binaries
         run: |
           New-Item -ItemType Directory -Path dist-windows -Force | Out-Null
-          go build -o dist-windows/ ./cmd/noskills-server ./cmd/noskills
+          go build -o dist-windows/ ./cmd/noskills-server
           Get-ChildItem dist-windows
 
       # Compiles pin_image_windows.go for the first time outside a manual
@@ -447,18 +447,18 @@ jobs:
           CGO_ENABLED: "1"
         run: go test ./...
 
-      # Named as .goreleaser.yaml would name it, for realism. Note this does NOT
-      # exercise the installer's own name construction or its download and
-      # checksum path: -ArchivePath deliberately bypasses both so the job tests
-      # the current tree rather than whatever is already published. Those two
-      # remain covered only by the first real release.
+      # A release-shaped archive, for realism. Note this does NOT exercise the
+      # installer's own name construction or its download and checksum path:
+      # -ArchivePath deliberately bypasses both so the job tests the current tree
+      # rather than whatever is already published. Those two remain covered only
+      # by the first real release.
       - name: Package a release-shaped archive
         run: |
           Compress-Archive -Path dist-windows/* -DestinationPath noskills_0.0.0_Windows_x86_64.zip -Force
 
-      - name: Install via etc/scripts/install-noskills.ps1
+      - name: Install via etc/scripts/install-noskills-server.ps1
         run: |
-          ./etc/scripts/install-noskills.ps1 `
+          ./etc/scripts/install-noskills-server.ps1 `
             -ArchivePath noskills_0.0.0_Windows_x86_64.zip `
             -InstallDir "$env:RUNNER_TEMP\eser-bin"
 
@@ -471,7 +471,7 @@ jobs:
           $env:PATH = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
                       [Environment]::GetEnvironmentVariable('Path', 'User')
 
-          foreach ($bin in @('noskills-server', 'noskills')) {
+          foreach ($bin in @('noskills-server')) {
             $cmd = Get-Command $bin -ErrorAction SilentlyContinue
 
             if (-not $cmd) { throw "$bin did not resolve on PATH after install" }
@@ -499,7 +499,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.5
 
       - name: Cache Deno dependencies
         uses: actions/cache@v6
@@ -593,7 +593,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.5
 
       - name: Cache Deno dependencies
         uses: actions/cache@v6
@@ -639,7 +639,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -697,7 +697,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.5
 
       - name: Cache Deno dependencies
         uses: actions/cache@v6
@@ -904,7 +904,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.5
 
       - name: Cache Deno dependencies
         uses: actions/cache@v6
@@ -958,7 +958,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.5
 
       - name: Cache Deno dependencies
         uses: actions/cache@v6

@@ -11,7 +11,7 @@ laptop, phone, second terminal — and resume exactly where you left off.
 **macOS / Linux (one-liner):**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install-noskills.sh | sh
+curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install-noskills-server.sh | sh
 ```
 
 **Homebrew:**

@@ -30,37 +30,82 @@ type TargetHashes = {
 // Formula template
 // =============================================================================
 
-const generateFormula = (version: string, hashes: TargetHashes): string =>
-  `class Eser < Formula
-  desc "Terminal client for Eser's work"
+/**
+ * The binaries that get a tap formula.
+ *
+ * `noskills` and `laroux` are submodules of the `eser` CLI shipped as their own
+ * entry points, so that `brew install noskills` works for someone who wants only
+ * that tool. They are not separate implementations -- see BINARIES in
+ * pkg/@eserstack/cli/scripts/compile.ts -- so this list must stay in step with
+ * that one. Keep the class names capitalised as Homebrew expects.
+ */
+const FORMULAS: readonly {
+  binary: string;
+  className: string;
+  description: string;
+}[] = [
+  {
+    binary: "eser",
+    className: "Eser",
+    description: "Terminal client for Eser's work",
+  },
+  {
+    binary: "noskills",
+    className: "Noskills",
+    description: "State-machine orchestrator for AI agents",
+  },
+  {
+    binary: "laroux",
+    className: "Laroux",
+    description: "laroux.js framework CLI",
+  },
+  // A Go daemon rather than a deno-compiled CLI, but released from the same
+  // pipeline at the same version, so its formula belongs here too. GoReleaser
+  // used to generate this one separately, which is how the family drifted into
+  // two release workflows and two asset sets.
+  {
+    binary: "noskills-server",
+    className: "NoskillsServer",
+    description:
+      "noskills-server — persistent Claude Code sessions that survive reboots",
+  },
+];
+
+const generateFormula = (
+  spec: { binary: string; className: string; description: string },
+  version: string,
+  hashes: TargetHashes,
+): string =>
+  `class ${spec.className} < Formula
+  desc "${spec.description}"
   homepage "https://github.com/eser/stack"
   version "${version}"
   license "Apache-2.0"
 
   on_macos do
     on_arm do
-      url "https://github.com/eser/stack/releases/download/v${version}/eser-v${version}-aarch64-apple-darwin.tar.gz"
+      url "https://github.com/eser/stack/releases/download/v${version}/${spec.binary}-v${version}-aarch64-apple-darwin.tar.gz"
       sha256 "${hashes.aarch64_darwin}"
     end
     on_intel do
-      url "https://github.com/eser/stack/releases/download/v${version}/eser-v${version}-x86_64-apple-darwin.tar.gz"
+      url "https://github.com/eser/stack/releases/download/v${version}/${spec.binary}-v${version}-x86_64-apple-darwin.tar.gz"
       sha256 "${hashes.x86_64_darwin}"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/eser/stack/releases/download/v${version}/eser-v${version}-aarch64-unknown-linux-gnu.tar.gz"
+      url "https://github.com/eser/stack/releases/download/v${version}/${spec.binary}-v${version}-aarch64-unknown-linux-gnu.tar.gz"
       sha256 "${hashes.aarch64_linux}"
     end
     on_intel do
-      url "https://github.com/eser/stack/releases/download/v${version}/eser-v${version}-x86_64-unknown-linux-gnu.tar.gz"
+      url "https://github.com/eser/stack/releases/download/v${version}/${spec.binary}-v${version}-x86_64-unknown-linux-gnu.tar.gz"
       sha256 "${hashes.x86_64_linux}"
     end
   end
 
   def install
-    bin.install "eser"
+    bin.install "${spec.binary}"
 
     # Install the Go shared library if present in the archive (added in newer releases).
     # On macOS the library is a .dylib; on Linux it is a .so.
@@ -77,11 +122,11 @@ const generateFormula = (version: string, hashes: TargetHashes): string =>
   end
 
   test do
-    assert_match version.to_s, shell_output("\#{bin}/eser version --bare")
+    assert_match version.to_s, shell_output("\#{bin}/${spec.binary} --version")
 
     # Verify the Go bridge is functional when the shared library is installed.
     if (lib/"libeser_ajan.dylib").exist? || (lib/"libeser_ajan.so").exist?
-      assert_match(/\\d+\\.\\d+/, shell_output("\#{bin}/eser go version"))
+      assert_match(/\\d+\\.\\d+/, shell_output("\#{bin}/${spec.binary} --version"))
     end
   end
 end
@@ -123,8 +168,9 @@ const lookupHash = (
   hashes: Map<string, string>,
   version: string,
   target: string,
+  binary: string,
 ): string => {
-  const filename = `eser-v${version}-${target}.tar.gz`;
+  const filename = `${binary}-v${version}-${target}.tar.gz`;
   const hash = hashes.get(filename);
 
   if (hash === undefined) {
@@ -191,18 +237,38 @@ const main = async (): Promise<void> => {
   // deno-lint-ignore no-console
   console.log(`Parsed ${hashes.size} hash entries.`);
 
-  const targetHashes: TargetHashes = {
-    x86_64_linux: lookupHash(hashes, version, "x86_64-unknown-linux-gnu"),
-    aarch64_linux: lookupHash(hashes, version, "aarch64-unknown-linux-gnu"),
-    x86_64_darwin: lookupHash(hashes, version, "x86_64-apple-darwin"),
-    aarch64_darwin: lookupHash(hashes, version, "aarch64-apple-darwin"),
-  };
-
-  // 5. Generate formula
-  const formula = generateFormula(version, targetHashes);
+  const formulas = FORMULAS.map((spec) => ({
+    spec,
+    body: generateFormula(spec, version, {
+      x86_64_linux: lookupHash(
+        hashes,
+        version,
+        "x86_64-unknown-linux-gnu",
+        spec.binary,
+      ),
+      aarch64_linux: lookupHash(
+        hashes,
+        version,
+        "aarch64-unknown-linux-gnu",
+        spec.binary,
+      ),
+      x86_64_darwin: lookupHash(
+        hashes,
+        version,
+        "x86_64-apple-darwin",
+        spec.binary,
+      ),
+      aarch64_darwin: lookupHash(
+        hashes,
+        version,
+        "aarch64-apple-darwin",
+        spec.binary,
+      ),
+    }),
+  }));
 
   // deno-lint-ignore no-console
-  console.log("Generated Homebrew formula.");
+  console.log(`Generated ${formulas.length} Homebrew formulas.`);
 
   // 6. Clone homebrew-tap repo
   const tmpDir = await runtime.fs.makeTempDir();
@@ -236,14 +302,16 @@ const main = async (): Promise<void> => {
     // Directory may already exist — that's fine
   }
 
-  const formulaPath = `${formulaDir}/eser.rb`;
-  await runtime.fs.writeTextFile(formulaPath, formula);
+  for (const { spec, body } of formulas) {
+    const formulaPath = `${formulaDir}/${spec.binary}.rb`;
+    await runtime.fs.writeTextFile(formulaPath, body);
 
-  // deno-lint-ignore no-console
-  console.log(`Wrote formula to ${formulaPath}`);
+    // deno-lint-ignore no-console
+    console.log(`Wrote formula to ${formulaPath}`);
+  }
 
   // 8. Commit and push
-  await run(["git", "add", "Formula/eser.rb"], { cwd: tmpDir });
+  await run(["git", "add", "Formula"], { cwd: tmpDir });
 
   // Check if there are changes to commit
   const diff = await run(

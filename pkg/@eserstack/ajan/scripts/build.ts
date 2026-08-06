@@ -156,9 +156,14 @@ const buildTarget = async (
     // Fall back to "dev" if VERSION file not found
   }
 
+  // -s -w strips the symbol table and DWARF debug info: 40.9 MB -> 34.7 MB
+  // measured on darwin/arm64, and this library is copied into every release
+  // archive, so it is paid per binary per platform. Nothing needs the symbols --
+  // the library is loaded through a C ABI by FFI, and a Go panic still prints
+  // its stack because that is built from runtime tables, not DWARF.
   const buildArgs: string[] = [
     "build",
-    `-ldflags=-X main.Version=${version}`,
+    `-ldflags=-s -w -X main.Version=${version}`,
   ];
 
   if (target.buildMode === "c-shared") {

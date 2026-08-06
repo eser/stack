@@ -34,8 +34,20 @@ export const backend: types.FFIBackend = {
   },
 
   open: async (libraryPath: string): Promise<types.FFILibrary> => {
+    // Opaque specifier, so `deno compile` cannot resolve it statically.
+    //
+    // This backend only ever runs under Node -- isAvailable() above requires
+    // process.versions.node and the absence of Deno and Bun. But a literal
+    // `import("koffi")` is resolvable at compile time, so deno compile embedded
+    // koffi AND all 16 of its per-platform native packages (darwin, linux,
+    // freebsd, openbsd, ia32, riscv64, loong64 ...) into every Deno binary,
+    // which uses Deno.dlopen and can never call this code.
+    //
+    // Same trick as noskills/commands/web.ts. Under Node the import resolves
+    // normally at runtime.
+    const specifier = "koffi";
     // deno-lint-ignore no-explicit-any
-    let koffi: any = await import("koffi");
+    let koffi: any = await import(specifier);
     // Handle default export (koffi uses module.exports = ...)
     if (koffi.default !== undefined) {
       koffi = koffi.default;

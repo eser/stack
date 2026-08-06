@@ -15,6 +15,7 @@
     "@eserstack/agents": "workspace:*",
     "@eserstack/ai": "workspace:*",
     "@eserstack/ajan": "workspace:*",
+    "@eserstack/codebase": "workspace:*",
     "@eserstack/mux": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",

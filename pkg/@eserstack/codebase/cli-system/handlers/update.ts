@@ -19,20 +19,14 @@
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
+import { appOpts } from "../app-opts.ts";
+import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
 import * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
 import * as versionCheck from "./version-check.ts";
-import config from "../../package.json" with { type: "json" };
 
 const runtime = standardsCrossRuntime.runtime;
-
-const ESER_OPTS: standardsCrossRuntime.CliCommandOptions = {
-  command: "eser",
-  devCommand: "deno task cli",
-  npmPackage: "eser",
-  jsrPackage: "@eserstack/cli",
-};
 
 type UpdateConfig = {
   readonly cmd: string;
@@ -85,7 +79,10 @@ const detectPlatformTarget = (): string | undefined => {
 /**
  * Self-updates a compiled binary from GitHub Releases.
  */
-const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
+const updateCompiledBinary = async (
+  _app: CliApp,
+  currentVersion: string,
+): Promise<shellArgs.CliResult<void>> => {
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -97,13 +94,13 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   );
   out.writeln(
     span.text("Current version: "),
-    span.cyan(config.version),
+    span.cyan(currentVersion),
     span.text("\n"),
   );
 
   // Check for updates
   out.writeln(span.text("Checking for updates..."));
-  const check = await versionCheck.checkForUpdate();
+  const check = await versionCheck.checkForUpdate(currentVersion);
 
   if (check === undefined) {
     out.writeln(span.red("Could not check for updates."));
@@ -112,7 +109,7 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   }
 
   if (!check.updateAvailable) {
-    out.writeln(span.green(`\nAlready up to date (v${config.version}).`));
+    out.writeln(span.green(`\nAlready up to date (v${currentVersion}).`));
     await out.close();
     return results.ok(undefined);
   }
@@ -258,14 +255,15 @@ const updateCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
  */
 export const updateHandler = async (
   _ctx: shellArgs.CommandContext,
+  app: CliApp,
 ): Promise<shellArgs.CliResult<void>> => {
   const execContext = await standardsCrossRuntime.detectExecutionContext(
-    ESER_OPTS,
+    appOpts(app),
   );
 
   // Compiled binary: self-update from GitHub Releases
   if (execContext.invoker === "binary") {
-    return await updateCompiledBinary();
+    return await updateCompiledBinary(app, _ctx.root.versionString ?? "0.0.0");
   }
 
   const out = streams.output({

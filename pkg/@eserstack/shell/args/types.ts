@@ -83,6 +83,14 @@ export type ArgsConfig = {
  */
 export interface CommandLike {
   readonly name: string;
+  /**
+   * The version the binary was built with, when one was configured.
+   *
+   * Part of the root reference so a shared `version` command can report it
+   * without every binary passing its own value down. Optional because a
+   * Command is not required to declare one.
+   */
+  readonly versionString?: string;
   completions(shell: "bash" | "zsh" | "fish"): string;
   help(): string;
 }
@@ -126,6 +134,15 @@ export type LazyCommandOptions = {
   readonly description: string;
   /** Async factory that loads and returns the Command */
   readonly load: () => Promise<CommandLike>;
+  /**
+   * Alternative names that dispatch to this command.
+   *
+   * Eagerly-registered commands have had aliases from the start; lazy ones did
+   * not, which silently forced anything with an alias to stay eager. That is
+   * the wrong way round -- a command big enough to be worth loading lazily is
+   * exactly the kind users give a short name to.
+   */
+  readonly aliases?: readonly string[];
 };
 
 /**

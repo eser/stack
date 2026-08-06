@@ -26,14 +26,20 @@ type WorkerEvent struct {
 
 // Worker flavours accepted by SpawnWorker and by the ?kind= attach parameter.
 const (
-	// WorkerKindAgent is the Claude Agent SDK worker. It is also the zero value:
-	// an unset kind means this one.
+	// WorkerKindAgent is an agent session. It is also the zero value: an unset
+	// kind means this one.
+	//
+	// It is served by the ACP worker. It used to mean the Claude Agent SDK
+	// worker -- a TypeScript subprocess wrapping @anthropic-ai/claude-agent-sdk
+	// -- which ACP replaced. The SDK is gone, so "agent" and "acp" now name the
+	// same thing; both are accepted because clients and stored sessions carry
+	// either string.
 	WorkerKindAgent = "agent"
 
 	// WorkerKindMux is the terminal-multiplexer worker.
 	WorkerKindMux = "mux"
 
-	// WorkerKindACP drives an ACP agent from Go, with no TS worker in between.
+	// WorkerKindACP is an explicit spelling of WorkerKindAgent.
 	WorkerKindACP = "acp"
 )
 
@@ -92,37 +98,34 @@ type workerImpl struct {
 // for "ready", and returns a WorkerHandle. Returns when the worker is ready to
 // accept query_start.
 //
-// kind selects the worker flavour: "" / "agent" runs the Claude Agent SDK
-// worker (worker.js under node/tsx); "mux" runs the terminal-multiplexer worker
-// (mux-worker.ts under Deno, which resolves @eserstack/mux's workspace imports);
-// "acp" drives an Agent Client Protocol agent directly from Go, with no TS
-// worker process in between.
+// kind selects the worker flavour: "mux" runs the terminal-multiplexer worker
+// (mux-worker.ts under Deno, which resolves @eserstack/mux's workspace
+// imports); anything else -- "", "agent", "acp" -- drives an Agent Client
+// Protocol agent directly from Go, with no TypeScript worker in between.
 func SpawnWorker(
 	ctx context.Context,
 	sessionID, cwd, dataDir, workerPath, kind string,
 	logger *logfx.Logger,
 ) (WorkerHandle, error) {
-	// The ACP path shares none of the socket handshake below: the protocol is
-	// the transport, so there is no listener, no ready message and no worker
-	// script to resolve.
-	if kind == WorkerKindACP {
+	// Every agent session is an ACP session now. The ACP path shares none of the
+	// socket handshake below: the protocol is the transport, so there is no
+	// listener, no ready message and no worker script to resolve.
+	//
+	// Only mux still needs a TypeScript worker, because a terminal pane's
+	// content channel is VT bytes rather than protocol messages.
+	if kind != WorkerKindMux {
 		return spawnACPWorker(ctx, sessionID, cwd, dataDir, logger)
 	}
 
-	isMux := kind == WorkerKindMux
-
+	// Only the mux worker is left, so the resolution collapses to it. The
+	// worker.js branch belonged to the Claude Agent SDK worker, which no longer
+	// exists -- NOSKILLS_WORKER_PATH pointed at a script that is gone.
 	if workerPath == "" {
-		switch {
-		case isMux && os.Getenv("NOSKILLS_MUX_WORKER_PATH") != "":
-			workerPath = os.Getenv("NOSKILLS_MUX_WORKER_PATH")
-		case isMux:
+		if override := os.Getenv("NOSKILLS_MUX_WORKER_PATH"); override != "" {
+			workerPath = override
+		} else {
 			exe, _ := os.Executable()
 			workerPath = filepath.Join(filepath.Dir(exe), "mux-worker.ts")
-		case os.Getenv("NOSKILLS_WORKER_PATH") != "":
-			workerPath = os.Getenv("NOSKILLS_WORKER_PATH")
-		default:
-			exe, _ := os.Executable()
-			workerPath = filepath.Join(filepath.Dir(exe), "worker.js")
 		}
 	}
 
@@ -144,29 +147,11 @@ func SpawnWorker(
 		_ = listener.Close()
 	}()
 
-	// Determine runner command. The mux worker imports @eserstack/mux (workspace
-	// + .ts specifiers) so it must run under Deno; the agent worker is tsc-built
-	// (.js → node) or .ts → tsx.
-	var runCmd string
-
-	var runArgs []string
-
-	switch {
-	case isMux:
-		runCmd = "deno"
-		runArgs = append(runArgs, "run", "-A")
-	case strings.HasSuffix(workerPath, ".ts"):
-		if _, err := exec.LookPath("tsx"); err == nil {
-			runCmd = "tsx"
-		} else {
-			runCmd = "node"
-			runArgs = append(runArgs, "--loader", "tsx")
-		}
-	default:
-		runCmd = "node"
-	}
-
-	runArgs = append(runArgs, workerPath, sockPath)
+	// The mux worker imports @eserstack/mux (workspace + .ts specifiers), so it
+	// runs under Deno. The node/tsx branches here served the Claude Agent SDK
+	// worker, which is gone.
+	runCmd := "deno"
+	runArgs := []string{"run", "-A", workerPath, sockPath}
 
 	cmd := exec.CommandContext(ctx, runCmd, runArgs...) //nolint:gosec
 	cmd.Dir = cwd

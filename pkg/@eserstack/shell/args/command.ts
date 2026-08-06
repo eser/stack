@@ -51,6 +51,7 @@ export class Command implements CommandLike {
   #persistentFlags: FlagDef[] = [];
   #children: Command[] = [];
   #lazyChildren: Map<string, LazyCommandOptions> = new Map();
+  #lazyAliases: Map<string, string> = new Map();
   #groups: Map<string, GroupOptions> = new Map();
   #groupAliases: Map<string, string> = new Map(); // alias → primary name
   #shortcuts = new Map<
@@ -69,6 +70,16 @@ export class Command implements CommandLike {
   }
 
   /** Get the command name */
+  /**
+   * The configured version string, if any.
+   *
+   * Named `versionString` rather than `version` because `version(v)` is already
+   * the fluent setter, and a getter cannot share the name.
+   */
+  get versionString(): string | undefined {
+    return this.#version;
+  }
+
   get name(): string {
     return this.#name;
   }
@@ -162,6 +173,14 @@ export class Command implements CommandLike {
    */
   lazyCommand(name: string, options: LazyCommandOptions): this {
     this.#lazyChildren.set(name, options);
+
+    // Aliases are registered as additional keys pointing at the same options,
+    // so dispatch stays a single map lookup. They are filtered out of help
+    // output below, exactly as an eager command's aliases are.
+    for (const alias of options.aliases ?? []) {
+      this.#lazyAliases.set(alias, name);
+    }
+
     return this;
   }
 
@@ -360,8 +379,12 @@ export class Command implements CommandLike {
       }
 
       // 2. Check lazy children
-      if (this.#lazyChildren.has(firstArg)) {
-        const lazy = this.#lazyChildren.get(firstArg)!;
+      const lazyName = this.#lazyChildren.has(firstArg)
+        ? firstArg
+        : this.#lazyAliases.get(firstArg);
+
+      if (lazyName !== undefined) {
+        const lazy = this.#lazyChildren.get(lazyName)!;
         const loaded = await lazy.load();
         // loaded implements CommandLike — use its parse() if available
         if (loaded instanceof Command) {
@@ -515,6 +538,12 @@ export class Command implements CommandLike {
       // Lazy children (show description without loading)
       ...[...this.#lazyChildren.entries()].map(([name, opts]) => ({
         name,
+        // Rendered the same as an eager command's, so `workflows, wf` reads
+        // like `codebase, cb, .`. Without this a lazily-loaded command's alias
+        // works but is undiscoverable, which is worse than not having one.
+        aliases: opts.aliases !== undefined && opts.aliases.length > 0
+          ? [...opts.aliases]
+          : undefined,
         description: opts.description,
         flags: [] as FlagDef[],
         children: [] as HelpCommandMeta[],

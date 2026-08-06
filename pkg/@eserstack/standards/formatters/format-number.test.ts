@@ -9,10 +9,17 @@ Deno.test("formatNumber formats small numbers", () => {
 });
 
 Deno.test("formatNumber adds thousands separators", () => {
-  // Note: exact format depends on locale, but should contain separators
-  const result = formatNumber(1000000);
-  assert.assertEquals(result.includes("1"), true);
-  assert.assertEquals(result.includes("000"), true);
+  // Asserts the EXACT string, not that it contains "1" and "000".
+  //
+  // The old version passed against a function that added no separators at all --
+  // "1000000" contains both substrings -- so it could not observe the one
+  // behaviour it was named for. That matters now: under `deno compile
+  // --engine quickjs` there is no Intl, and the previous toLocaleString
+  // implementation returned exactly that unseparated string.
+  assert.assertEquals(formatNumber(1000000), "1,000,000");
+  assert.assertEquals(formatNumber(1000), "1,000");
+  assert.assertEquals(formatNumber(999), "999");
+  assert.assertEquals(formatNumber(1234567.5), "1,234,567.5");
 });
 
 Deno.test("formatNumber handles negative numbers", () => {

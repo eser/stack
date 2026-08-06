@@ -11,15 +11,16 @@
 
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
+import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
 import * as shellArgs from "@eserstack/shell/args";
 import * as versionCheck from "./version-check.ts";
-import config from "../../package.json" with { type: "json" };
 
 const UPDATE_CHECK_TIMEOUT_MS = 200;
 
 export const versionHandler = async (
   ctx: shellArgs.CommandContext,
+  app: CliApp,
 ): Promise<shellArgs.CliResult<void>> => {
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -28,12 +29,14 @@ export const versionHandler = async (
 
   // --bare: print raw version only (Homebrew compatibility)
   if (ctx.flags["bare"] === true) {
-    out.writeln(span.text(config.version));
+    out.writeln(span.text(ctx.root.versionString ?? "unknown"));
     await out.close();
     return results.ok(undefined);
   }
 
-  out.writeln(span.text(`eser ${config.version}`));
+  out.writeln(
+    span.text(`${app.command} ${ctx.root.versionString ?? "unknown"}`),
+  );
 
   // Race the update check against a short timeout so the command stays snappy
   try {
@@ -42,7 +45,7 @@ export const versionHandler = async (
     });
 
     const result = await Promise.race([
-      versionCheck.checkForUpdate(),
+      versionCheck.checkForUpdate(ctx.root.versionString ?? "0.0.0"),
       timeoutPromise,
     ]);
 

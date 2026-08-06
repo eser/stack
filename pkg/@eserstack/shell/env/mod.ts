@@ -33,6 +33,7 @@ export {
   detectShell,
   getCompletionEvalLine,
   getCompletionsFilePath,
+  getCompletionSourceLine,
   getCompletionType,
   getEnvironmentConfig,
   getHomeDir,

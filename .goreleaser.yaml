@@ -146,9 +146,6 @@ brews:
     install: |
       bin.install "noskills-server"
       bin.install "noskills"
-      # The ACP shim. Both the daemon's kind="acp" worker and aifx's
-      # claude-code / kiro / opencode providers resolve it with exec.LookPath,
-      # so it is only usable once it is on PATH.
     service: |
       run [opt_bin/"noskills-server", "start"]
       keep_alive true

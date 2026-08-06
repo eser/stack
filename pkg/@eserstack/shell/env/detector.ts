@@ -66,10 +66,27 @@ export const getCompletionsFilePath = (
   const home = getHomeDir();
 
   switch (shell) {
+    // A real completions FILE, not the rc file.
+    //
+    // These used to return .zshrc / .bashrc -- where the eval LINE goes, not
+    // where a completion script lives. Under the XDG cache dir so nothing needs
+    // elevated permissions and $HOME stays clean.
     case "zsh":
-      return runtime.path.join(home, ".zshrc");
+      return runtime.path.join(
+        home,
+        ".cache",
+        appName,
+        "completions",
+        `_${appName}`,
+      );
     case "bash":
-      return runtime.path.join(home, ".bashrc");
+      return runtime.path.join(
+        home,
+        ".cache",
+        appName,
+        "completions",
+        `${appName}.bash`,
+      );
     case "fish":
       return runtime.path.join(
         home,
@@ -92,10 +109,39 @@ export const getCompletionEvalLine = (
 };
 
 /**
+ * The rc-file line that loads a generated completions file.
+ *
+ * Sourcing a file, not eval-ing a command substitution. The eval form runs the
+ * entire CLI every time a terminal opens, to produce a string that does not
+ * change until the CLI is upgraded.
+ */
+export const getCompletionSourceLine = (
+  shell: Shell,
+  appName: string,
+): string => {
+  const file = getCompletionsFilePath(shell, appName);
+  const dir = file.slice(0, file.lastIndexOf("/"));
+
+  // zsh loads completions by scanning fpath, so it wants the DIRECTORY; bash
+  // has no such mechanism and sources the file itself.
+  if (shell === "zsh") {
+    return `fpath=(${dir} $fpath); autoload -Uz compinit && compinit`;
+  }
+
+  return `[ -f "${file}" ] && source "${file}"`;
+};
+
+/**
  * Get the completion type for a shell
  */
-export const getCompletionType = (shell: Shell): "eval" | "file" => {
-  return shell === "fish" ? "file" : "eval";
+export const getCompletionType = (_shell: Shell): "eval" | "file" => {
+  // Always a file now.
+  //
+  // The eval form -- `eval "$(eser system completions --shell zsh)"` in an rc
+  // file -- boots the whole CLI on every terminal open to print a static string
+  // that only changes when the CLI is upgraded. Sourcing a generated file costs
+  // nothing and produces identical completions.
+  return "file";
 };
 
 /**

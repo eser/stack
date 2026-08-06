@@ -48,3 +48,9 @@ result-*
 # by etc/scripts/gen-jsr-manifests.ts. Hand-editing them reintroduces the
 # exports-map duplication (and the drift) they were removed to prevent.
 /pkg/@eserstack/*/deno.json
+
+# `deno compile` writes a bundle next to the CWD while it works and removes it
+# on success. A failed or interrupted compile leaves it behind, where the
+# repo validators -- which now scan untracked files -- would flag it as an
+# unlicensed, non-kebab-case source file.
+.deno_compile_bundle_*.mjs

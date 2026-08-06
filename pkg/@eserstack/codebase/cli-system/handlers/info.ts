@@ -6,6 +6,8 @@
  * @module
  */
 
+import { appOpts } from "../app-opts.ts";
+import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
 import * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
@@ -13,13 +15,6 @@ import * as streams from "@eserstack/streams";
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 
 const runtime = standardsCrossRuntime.runtime;
-
-const ESER_OPTS: standardsCrossRuntime.CliCommandOptions = {
-  command: "eser",
-  devCommand: "deno task cli",
-  npmPackage: "eser",
-  jsrPackage: "@eserstack/cli",
-};
 
 const LABEL_WIDTH = 20;
 
@@ -36,6 +31,7 @@ const info = (label: string, value: string): void => {
 
 export const infoHandler = async (
   _ctx: shellArgs.CommandContext,
+  app: CliApp,
 ): Promise<shellArgs.CliResult<void>> => {
   out.writeln(span.text("eser system info"));
 
@@ -67,7 +63,7 @@ export const infoHandler = async (
 
   // ── Execution Context ──
   out.writeln(span.dim("\n  Execution Context"));
-  const ctx = await standardsCrossRuntime.detectExecutionContext(ESER_OPTS);
+  const ctx = await standardsCrossRuntime.detectExecutionContext(appOpts(app));
   info("Runtime", ctx.runtime);
   info("Invoker", `${ctx.invoker} (${ctx.mode})`);
   info("Command", ctx.command);

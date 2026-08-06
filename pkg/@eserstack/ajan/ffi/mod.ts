@@ -92,10 +92,26 @@ const isDisabledByEnv = (envVar: string): boolean => {
   return value !== undefined && value.toLowerCase() === "disabled";
 };
 
-/** Emit a debug-level log message. */
+/**
+ * Emit a diagnostic about FFI backend selection.
+ *
+ * Off unless ESER_AJAN_DEBUG is set, and on stderr when it is. It used to call
+ * console.debug unconditionally, which Deno writes to STDOUT -- so every single
+ * CLI invocation printed "[eser-ajan/ffi] WASM fallback disabled" into its own
+ * output. That is not merely noise: `eser . commitmsg` documents piping its
+ * result to pbcopy, and the line went into the clipboard along with the commit
+ * message.
+ *
+ * Diagnostics belong on stderr regardless of the flag, so that a caller
+ * enabling them can still pipe stdout.
+ */
 const debugLog = (message: string): void => {
+  if (getEnv("ESER_AJAN_DEBUG") === undefined) {
+    return;
+  }
+
   // deno-lint-ignore no-console
-  console.debug(`[eser-ajan/ffi] ${message}`);
+  console.error(`[eser-ajan/ffi] ${message}`);
 };
 
 // ---------------------------------------------------------------------------
@@ -222,12 +238,26 @@ export const loadEserAjan = async (
   const wasmAllowed = !isDisabledByEnv("ESER_AJAN_WASM") &&
     (opts?.wasm !== false);
 
+  // Say WHICH of the two causes applied. "disabled" alone reads like a global
+  // capability being switched off, when the usual cause is a single caller
+  // declining a fallback that cannot serve it -- @eserstack/ai passes
+  // `wasm: false` because WASM loads and then fails every request (Go's wasip1
+  // target has no outbound network), and a provider that is present and broken
+  // is worse than one that is absent.
   if (!nativeAllowed) {
-    debugLog("Native FFI disabled — skipping to WASM fallback");
+    debugLog(
+      isDisabledByEnv("ESER_AJAN_NATIVE")
+        ? "native disabled by ESER_AJAN_NATIVE — trying WASM fallback"
+        : "native not requested by caller — trying WASM fallback",
+    );
   }
 
   if (!wasmAllowed) {
-    debugLog("WASM fallback disabled");
+    debugLog(
+      isDisabledByEnv("ESER_AJAN_WASM")
+        ? "WASM fallback disabled by ESER_AJAN_WASM"
+        : "WASM fallback not offered by caller (native only)",
+    );
   }
 
   // --- Try native FFI ---

@@ -6,6 +6,8 @@
  * @module
  */
 
+import type { CliApp } from "../app.ts";
+import { appOpts } from "../app-opts.ts";
 import * as results from "@eserstack/primitives/results";
 import * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
@@ -13,16 +15,8 @@ import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 import * as versionCheck from "./version-check.ts";
-import config from "../../package.json" with { type: "json" };
 
 const runtime = standardsCrossRuntime.runtime;
-
-const ESER_OPTS: standardsCrossRuntime.CliCommandOptions = {
-  command: "eser",
-  devCommand: "deno task cli",
-  npmPackage: "eser",
-  jsrPackage: "@eserstack/cli",
-};
 
 const LABEL_WIDTH = 17;
 
@@ -187,18 +181,21 @@ const checkNode = async (): Promise<void> => {
 
 export const doctorHandler = async (
   _ctx: shellArgs.CommandContext,
+  app: CliApp,
 ): Promise<shellArgs.CliResult<void>> => {
   out.writeln(span.text("eser doctor\n"));
 
   // Install method & version
   const execContext = await standardsCrossRuntime.detectExecutionContext(
-    ESER_OPTS,
+    appOpts(app),
   );
   info("Install method", `${execContext.invoker} (${execContext.mode})`);
-  info("Version", config.version);
+  info("Version", _ctx.root.versionString ?? "unknown");
 
   // Update check
-  const updateResult = await versionCheck.checkForUpdate();
+  const updateResult = await versionCheck.checkForUpdate(
+    _ctx.root.versionString ?? "0.0.0",
+  );
 
   if (updateResult === undefined) {
     neutral("Update", "Could not check for updates");

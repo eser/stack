@@ -9,6 +9,7 @@
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
+import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
 import * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
@@ -19,23 +20,21 @@ type UninstallConfig = {
   readonly args: readonly string[];
 };
 
-const UNINSTALL_CONFIGS: Record<string, UninstallConfig> = {
-  deno: {
-    cmd: "deno",
-    args: ["uninstall", "-g", "eser"],
-  },
-  node: {
-    cmd: "npm",
-    args: ["uninstall", "-g", "eser"],
-  },
-  bun: {
-    cmd: "bun",
-    args: ["remove", "-g", "eser"],
-  },
+// A function of the app, not a constant: the same table describes uninstalling
+// eser, noskills or laroux, and only the package name differs.
+const uninstallConfigs = (app: CliApp): Record<string, UninstallConfig> => {
+  const pkg = app.npmPackage ?? app.command;
+
+  return {
+    deno: { cmd: "deno", args: ["uninstall", "-g", app.command] },
+    node: { cmd: "npm", args: ["uninstall", "-g", pkg] },
+    bun: { cmd: "bun", args: ["remove", "-g", pkg] },
+  };
 };
 
 export const uninstallHandler = async (
   _ctx: shellArgs.CommandContext,
+  app: CliApp,
 ): Promise<shellArgs.CliResult<void>> => {
   const runtimeName = standardsCrossRuntime.detectRuntime();
 
@@ -46,7 +45,7 @@ export const uninstallHandler = async (
 
   out.writeln(span.text("Detected runtime: "), span.cyan(runtimeName));
 
-  const config = UNINSTALL_CONFIGS[runtimeName];
+  const config = uninstallConfigs(app)[runtimeName];
 
   if (config === undefined) {
     const renderer = streams.renderers.ansi();
@@ -90,7 +89,7 @@ export const uninstallHandler = async (
   out.writeln(span.green("\nUninstallation complete!"));
   out.writeln(
     span.text("The "),
-    span.cyan("eser"),
+    span.cyan(app.command),
     span.text(" command has been removed from your system."),
   );
 

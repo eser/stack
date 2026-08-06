@@ -8,40 +8,54 @@
 
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
+import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
 import * as shellArgs from "@eserstack/shell/args";
 import * as shellEnv from "@eserstack/shell/env";
 
-const getInstallInstructions = (shell: shellEnv.Shell): string => {
-  const config = shellEnv.getShellConfig(shell, "eser");
+const getInstallInstructions = (
+  shell: shellEnv.Shell,
+  appName: string,
+): string => {
+  const config = shellEnv.getShellConfig(shell, appName);
   const renderer = streams.renderers.ansi();
 
-  if (config.completionType === "file") {
+  // Every shell gets a generated file now, so the instructions are the same
+  // shape for all of them: write it once, then load it. fish discovers its
+  // completions directory automatically and needs no rc line; zsh and bash need
+  // one, but it SOURCES a file rather than eval-ing a command substitution --
+  // the latter booted the CLI on every terminal open.
+  const dir = config.completionsFile !== undefined
+    ? config.completionsFile.slice(0, config.completionsFile.lastIndexOf("/"))
+    : "";
+
+  const write =
+    `mkdir -p ${dir} && ${appName} system completions --shell ${shell} > ${config.completionsFile}`;
+
+  if (shell === "fish") {
     return `
 To install, run:
 
-  ${
-      renderer.render([
-        span.dim(
-          `eser system completions --shell fish > ${config.completionsFile}`,
-        ),
-      ])
-    }
+  ${renderer.render([span.dim(write)])}
 `;
   }
 
-  const evalLine = shellEnv.getCompletionEvalLine(shell, "eser");
-  return `
-To install, add the following to your ${
-    renderer.render([span.cyan(config.rcFile)])
-  }:
+  const sourceLine = shellEnv.getCompletionSourceLine(shell, appName);
 
-  ${renderer.render([span.dim(evalLine)])}
+  return `
+To install, run:
+
+  ${renderer.render([span.dim(write)])}
+
+Then add the following to your ${renderer.render([span.cyan(config.rcFile)])}:
+
+  ${renderer.render([span.dim(sourceLine)])}
 `;
 };
 
 export const completionsHandler = (
   ctx: shellArgs.CommandContext,
+  app: CliApp,
 ): shellArgs.CliResult<void> => {
   const shellFlag = ctx.flags["shell"] as string | undefined;
   const renderer = streams.renderers.ansi();
@@ -78,7 +92,7 @@ export const completionsHandler = (
       span.text(" completions..."),
     );
     // deno-lint-ignore no-console
-    console.log(getInstallInstructions(shell));
+    console.log(getInstallInstructions(shell, app.command));
     out.writeln(span.dim("--- Completion script ---\n"));
   }
 

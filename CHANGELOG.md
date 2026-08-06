@@ -39,6 +39,37 @@ and this project adheres to
 - **kit:** `Recipe` schema fields `name`, `description`, `language`, `scale`,
   `files` are now optional in standalone `recipe.json` (lenient clone path).
   Registry entries still require them via `isRegistryRecipe`.
+- **repo:** `install-noskills-server.{sh,ps1}` renamed from
+  `install-noskills.*`. The name had stopped matching: those scripts install the
+  daemon and nothing else now that the `noskills` CLI ships from the `eser`
+  archive path. The daemon stays a separate Go binary deliberately — 10.7 MB
+  against a Deno runtime plus the 34.7 MB shared library, and a long-running
+  server does not belong inside a JS runtime holding a C ABI open.
+- **build:** the Go shared library is built with `-ldflags=-s -w`, dropping the
+  symbol table and DWARF: 40.9 MB → 34.7 MB, measured on darwin/arm64. It is
+  copied into every archive that needs FFI, so the saving is paid per binary per
+  platform. Nothing consumed the symbols — the library is loaded through a C
+  ABI, and Go panics still print stacks from runtime tables.
+- **standards:** `formatNumber` no longer uses `toLocaleString`. Its documented
+  contract is `"1,000,000"` — a fixed format, not a localised one — so a
+  locale-dependent implementation was already wrong, and it returns the
+  unseparated string entirely under `deno compile --engine quickjs`, which has
+  no Intl. Its test asserted `.includes("1")` and `.includes("000")`, both true
+  of `"1000000"`, so it could not observe the behaviour it was named for; it now
+  asserts the exact string.
+- **cli:** `noskills` and `laroux` ship as standalone binaries again, but are no
+  longer separate implementations. `cmd/noskills` was 1,563 lines of Go covering
+  a subset of the same commands as `eser noskills` — a fork of the behaviour,
+  free to drift, and it had. Both binaries are now `deno compile` entry points
+  that mount the SAME module object the `eser` CLI mounts, re-rooted, so
+  `noskills next` and `eser noskills next` are one code path with nothing to
+  keep in sync. `brew install noskills` and `brew install eser` both work; the
+  tap gets a formula per binary.
+
+  `compile.ts` grew a `BINARIES` list and the homebrew updater a matching
+  `FORMULAS` list — adding a binary is an entry in each, never an
+  implementation. GoReleaser now builds only `noskills-server`, which is a
+  genuine daemon rather than a CLI subset.
 - **acp:** the `eser-acp` binary is gone. `pkg/ajan/acpfx/shim` is Go code
   linked into the same binary as its callers, so reaching it through a
   subprocess meant `aifx` and `noskillsserverfx` serialising JSON down a pipe to
@@ -63,10 +94,10 @@ and this project adheres to
 - **repo:** the top-level `scripts/` directory is gone; its four files moved
   into `etc/scripts/`, which already held the repo's tooling. The two
   `install.sh` files that resulted are named for what they install: `install.sh`
-  (the `eser` CLI) and `install-noskills.sh` (noskills-server, noskills,
-  eser-acp), plus `install-noskills.ps1` for Windows. **The public install URL
-  changed** — `main/scripts/install.sh` is now
-  `main/etc/scripts/install-noskills.sh`. That URL has never completed a
+  (the `eser` CLI) and `install-noskills-server.sh` (noskills-server, noskills,
+  eser-acp), plus `install-noskills-server.ps1` for Windows. **The public
+  install URL changed** — `main/scripts/install.sh` is now
+  `main/etc/scripts/install-noskills-server.sh`. That URL has never completed a
   successful install (see the GoReleaser P0), so no working setup breaks.
 - **codebase:** `WalkSourceFiles` now enumerates untracked-but-not-ignored files
   via `git ls-files --others --exclude-standard`. It previously listed only

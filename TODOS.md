@@ -165,7 +165,8 @@ the documented one is the broken one.
   `SHA256SUMS.txt` — assets that **exist on every release**, produced by
   `build.yml`'s `compile-binaries` / `upload-assets`. It works. **Nothing
   references it** — not the README, not a workflow, not the brew formula.
-- `etc/scripts/install-noskills.sh` downloads `noskills_<version>_<os>_<arch>`
+- `etc/scripts/install-noskills-server.sh` downloads
+  `noskills_<version>_<os>_<arch>`
   - `checksums.txt` — assets that **have never existed** (see the P0 above). It
     is the one advertised in `cmd/noskills-server/README.md` and in
     `.goreleaser.yaml`'s brew instructions.
@@ -198,7 +199,7 @@ produced by `build.yml`'s `compile-binaries` / `upload-assets` jobs, with
 
 **Consequences, all currently live:**
 
-1. `etc/scripts/install-noskills.sh` — the install command documented in
+1. `etc/scripts/install-noskills-server.sh` — the install command documented in
    `cmd/noskills-server/README.md:14` and in the goreleaser brew instructions —
    downloads a URL that 404s. It has never worked.
 2. `eser-acp` has never shipped in any artifact, so ACP-backed providers
@@ -207,7 +208,8 @@ produced by `build.yml`'s `compile-binaries` / `upload-assets` jobs, with
    users to "install the eserstack release", which does not deliver the shim.
 3. The brew formula's `bin.install "eser-acp"` (`.goreleaser.yaml:175`) never
    runs, so the tap is stale too.
-4. `etc/scripts/install-noskills.ps1` inherits the same 404 for the same reason.
+4. `etc/scripts/install-noskills-server.ps1` inherits the same 404 for the same
+   reason.
 
 **Root cause:** `build.yml`'s `tag-release` job pushes the tag with the default
 `GITHUB_TOKEN` supplied by `actions/checkout`. GitHub deliberately does **not**

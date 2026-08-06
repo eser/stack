@@ -28,12 +28,11 @@ Deno.test("add — fails for unknown recipe", async () => {
 
 Deno.test("add — dry-run succeeds without writing files", async () => {
   const tmpDir = await runtime.fs.makeTempDir();
-  const origCwd = runtime.process.cwd();
 
   try {
-    runtime.process.chdir(tmpDir);
-
     const result = await main([
+      "--cwd",
+      tmpDir,
       "fp-pipe",
       "--registry",
       REGISTRY_PATH,
@@ -53,7 +52,6 @@ Deno.test("add — dry-run succeeds without writing files", async () => {
 
     assert.assertEquals(fileExists, false);
   } finally {
-    runtime.process.chdir(origCwd);
     await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });

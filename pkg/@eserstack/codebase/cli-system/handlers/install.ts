@@ -12,6 +12,8 @@
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
+import type { CliApp } from "../app.ts";
+import { appOpts } from "../app-opts.ts";
 import * as results from "@eserstack/primitives/results";
 import * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
@@ -23,13 +25,6 @@ import {
 } from "./completions-setup.ts";
 
 const runtime = standardsCrossRuntime.runtime;
-
-const ESER_OPTS: standardsCrossRuntime.CliCommandOptions = {
-  command: "eser",
-  devCommand: "deno task cli",
-  npmPackage: "eser",
-  jsrPackage: "@eserstack/cli",
-};
 
 type InstallConfig = {
   readonly cmd: string;
@@ -145,9 +140,10 @@ const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
 
 export const installHandler = async (
   _ctx: shellArgs.CommandContext,
+  app: CliApp,
 ): Promise<shellArgs.CliResult<void>> => {
   const execContext = await standardsCrossRuntime.detectExecutionContext(
-    ESER_OPTS,
+    appOpts(app),
   );
 
   // Compiled binary: copy self to install directory

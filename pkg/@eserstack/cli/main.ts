@@ -19,7 +19,10 @@ import { Module } from "@eserstack/shell/module";
 import { moduleDef as aiModule } from "@eserstack/ai/module";
 import { moduleDef as kitModule } from "@eserstack/kit/module";
 import { moduleDef as codebaseModule } from "@eserstack/codebase/module";
-import { exitCli } from "@eserstack/codebase/cli-support";
+import {
+  attachStandardCommands,
+  exitCli,
+} from "@eserstack/codebase/cli-support";
 import { createModuleDef as createWorkflowsModule } from "@eserstack/workflows/module";
 
 import { moduleDef as noskillsModule } from "@eserstack/noskills/module";
@@ -36,30 +39,39 @@ cliModule.addSubmodule(
   { name: "codebase", aliases: ["cb", "."] },
   codebaseModule,
 );
-await cliModule.addSubmoduleAsync(
-  { name: "workflows", aliases: ["wf"] },
-  (async () => {
-    const { getWorkflowTools } = await import("@eserstack/codebase/validation");
-    return createWorkflowsModule(getWorkflowTools());
-  })(),
-);
 cliModule.addSubmodule({ name: "noskills", aliases: ["nos"] }, noskillsModule);
 cliModule.addSubmodule({ name: "posts" }, postsModule);
 cliModule.addSubmodule({ name: "laroux" }, larouxModule);
 
-const app = cliModule
-  .toCommand("eser", config.version)
-  .lazyCommand("system", {
-    description: "Commands related with this CLI",
+const app = attachStandardCommands(
+  cliModule.toCommand("eser", config.version),
+  {
+    npmPackage: "eser",
+    jsrPackage: "@eserstack/cli",
+    devCommand: "deno task cli",
+  },
+)
+  // Lazy, not eager.
+  //
+  // This was a TOP-LEVEL await, so `@eserstack/codebase/validation` -- which
+  // eagerly imports ~25 validator modules -- was loaded on every single
+  // invocation, including `eser --help` and `eser version`. Measured at ~25ms of
+  // marginal cost on a ~100ms command, paid by every user who never runs a
+  // workflow.
+  .lazyCommand("workflows", {
+    description: "Workflow engine — run tool pipelines",
+    aliases: ["wf"],
     load: async () => {
-      const mod = await import("./commands/system.ts");
-      return mod.systemCommand;
+      const { getWorkflowTools } = await import(
+        "@eserstack/codebase/validation"
+      );
+
+      return createWorkflowsModule(getWorkflowTools()).toCommand(
+        "workflows",
+        config.version,
+      );
     },
   })
-  .shortcut("install", "system install", "Install eser CLI globally")
-  .shortcut("update", "system update", "Update eser CLI to latest version")
-  .shortcut("version", "system version", "Show version number")
-  .shortcut("doctor", "system doctor", "Run diagnostic checks")
   .lazyCommand("ajan", {
     description: "Ajan native bridge commands",
     load: async () => {

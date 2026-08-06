@@ -31,19 +31,20 @@ type InstallConfig = {
   readonly args: readonly string[];
 };
 
-const INSTALL_CONFIGS: Record<string, InstallConfig> = {
-  deno: {
-    cmd: "deno",
-    args: ["install", "-r", "-g", "-A", "--name", "eser", "jsr:@eserstack/cli"],
-  },
-  node: {
-    cmd: "npm",
-    args: ["install", "-g", "-f", "eser"],
-  },
-  bun: {
-    cmd: "bun",
-    args: ["install", "-g", "-f", "eser"],
-  },
+// A function of the app, not a constant. The same table installs eser,
+// noskills or laroux; only the package coordinates differ.
+const installConfigs = (app: CliApp): Record<string, InstallConfig> => {
+  const pkg = app.npmPackage ?? app.command;
+  const jsr = app.jsrPackage ?? `@eserstack/${app.command}`;
+
+  return {
+    deno: {
+      cmd: "deno",
+      args: ["install", "-r", "-g", "-A", "--name", app.command, `jsr:${jsr}`],
+    },
+    node: { cmd: "npm", args: ["install", "-g", "-f", pkg] },
+    bun: { cmd: "bun", args: ["install", "-g", "-f", pkg] },
+  };
 };
 
 /**
@@ -67,10 +68,12 @@ const getInstallDir = async (): Promise<string> => {
 /**
  * Installs a compiled binary by copying itself to the install directory.
  */
-const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
+const installCompiledBinary = async (
+  app: CliApp,
+): Promise<shellArgs.CliResult<void>> => {
   const currentPath = runtime.process.execPath();
   const installDir = await getInstallDir();
-  const targetPath = runtime.path.join(installDir, "eser");
+  const targetPath = runtime.path.join(installDir, app.command);
 
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -95,7 +98,7 @@ const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
     ) {
       out.writeln(
         span.red(
-          `\nPermission denied writing to ${installDir}.\nTry: sudo eser install`,
+          `\nPermission denied writing to ${installDir}.\nTry: sudo ${app.command} install`,
         ),
       );
       await out.close();
@@ -108,13 +111,13 @@ const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
   out.writeln(span.green("\nInstallation complete!"));
   out.writeln(
     span.text("You can now use "),
-    span.cyan("eser"),
+    span.cyan(app.command),
     span.text(" from anywhere in your terminal."),
   );
 
   // Setup shell completions
   const shell = detectShell();
-  const alreadyHasCompletions = await hasCompletions(shell);
+  const alreadyHasCompletions = await hasCompletions(shell, app.command);
 
   if (!alreadyHasCompletions) {
     out.writeln(
@@ -122,7 +125,7 @@ const installCompiledBinary = async (): Promise<shellArgs.CliResult<void>> => {
       span.cyan(shell),
       span.text(" completions..."),
     );
-    await addCompletions(shell);
+    await addCompletions(shell, app.command);
 
     const shellConfig = shellEnv.getShellConfig(shell);
     if (shellConfig.completionType === "eval") {
@@ -148,7 +151,7 @@ export const installHandler = async (
 
   // Compiled binary: copy self to install directory
   if (execContext.invoker === "binary") {
-    return await installCompiledBinary();
+    return await installCompiledBinary(app);
   }
 
   const out = streams.output({
@@ -159,8 +162,8 @@ export const installHandler = async (
   // Runtime-based: use package manager
   out.writeln(span.text("Detected runtime: "), span.cyan(execContext.runtime));
 
-  const config = INSTALL_CONFIGS[execContext.runtime as string] ??
-    INSTALL_CONFIGS["node"]!;
+  const config = installConfigs(app)[execContext.runtime as string] ??
+    installConfigs(app)["node"]!;
 
   const { cmd, args } = config;
 
@@ -182,13 +185,13 @@ export const installHandler = async (
   out.writeln(span.green("\nInstallation complete!"));
   out.writeln(
     span.text("You can now use "),
-    span.cyan("eser"),
+    span.cyan(app.command),
     span.text(" from anywhere in your terminal."),
   );
 
   // Setup shell completions
   const shell = detectShell();
-  const alreadyHasCompletions = await hasCompletions(shell);
+  const alreadyHasCompletions = await hasCompletions(shell, app.command);
 
   if (!alreadyHasCompletions) {
     out.writeln(
@@ -196,7 +199,7 @@ export const installHandler = async (
       span.cyan(shell),
       span.text(" completions..."),
     );
-    await addCompletions(shell);
+    await addCompletions(shell, app.command);
 
     const shellConfig = shellEnv.getShellConfig(shell);
     if (shellConfig.completionType === "eval") {

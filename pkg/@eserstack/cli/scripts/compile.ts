@@ -194,6 +194,47 @@ const buildGoLibraries = async (projectRoot: string): Promise<void> => {
 };
 
 /**
+ * On `deno compile --engine quickjs` — evaluated, not adopted.
+ *
+ * Deno 2.9 added an experimental QuickJS backend (denoland/deno#36194, merged
+ * 2026-08-04). It is a large size win and it does NOT work for this CLI.
+ *
+ * Measured on pkg/@eserstack/noskills/bin-main.ts, same tree, same flags:
+ *
+ *     v8       268.0 MB   every command works
+ *     quickjs  236.9 MB   only `--help` works
+ *
+ * Any command that dispatches through `Command.lazyCommand` dies with
+ * "Top-level await promise never resolved" — the load promise never settles, so
+ * the handler never runs. Since the whole command tree is lazily loaded, that is
+ * every real command.
+ *
+ * What was ruled OUT, each verified in a compiled quickjs binary:
+ *   - dynamic import in general, including nested inside awaited async
+ *     functions, and of modules that themselves contain top-level await
+ *   - the size of the imported graph: importing cli-system/mod.ts directly and
+ *     constructing the command from it works fine
+ *   - setTimeout, fetch, Deno.dlopen and a full FFI library load
+ *   - @eserstack/streams output + close()
+ *   - `async () => { await import() }` vs `() => import().then()` — both fail
+ *     identically, so it is not the await shape
+ *
+ * What still works under quickjs: MODULE dispatch, i.e.
+ * `modules: { x: { load: () => import(...) } }`. Only lazyCommand fails. That is
+ * also the workaround, if the 31 MB ever becomes worth restructuring dispatch
+ * for -- it is not today, next to the 278 MB that removing the Claude Agent SDK
+ * took off every binary.
+ *
+ * Related upstream, same shape but not the same backend: bellard/quickjs#113
+ * (import() promise callbacks never fire — QuickJS only supports synchronous
+ * module loading) and denoland/deno#24069.
+ *
+ * Do not add --engine quickjs here without re-testing a lazily-dispatched
+ * command end to end. `--help` passing proves nothing: it is the one path that
+ * never triggers a lazy load.
+ */
+
+/**
  * Go executables released alongside the TypeScript ones.
  *
  * These are NOT deno-compiled. `noskills-server` is a long-running daemon, and

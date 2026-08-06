@@ -69,7 +69,7 @@ export const uninstallHandler = async (
     span.cyan(shell),
     span.text(" completions..."),
   );
-  await removeCompletions(shell);
+  await removeCompletions(shell, app.command);
 
   out.writeln(span.dim(`\nRunning: ${cmd} ${args.join(" ")}`));
   out.writeln();

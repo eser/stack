@@ -83,7 +83,7 @@ const parseToolVersion = (
   return match?.[1];
 };
 
-const checkGitHooks = async (): Promise<void> => {
+const checkGitHooks = async (appName: string): Promise<void> => {
   const hookPath = runtime.path.join(
     ".",
     ".git",
@@ -99,7 +99,9 @@ const checkGitHooks = async (): Promise<void> => {
 
   const content = await readFileOrEmpty(hookPath);
 
-  if (content.includes("eser")) {
+  // The hook is ours if it invokes this binary. Hardcoding "eser"
+  // reported "Not installed" for a perfectly good noskills hook.
+  if (content.includes(appName)) {
     ok("Git hooks", "Installed");
   } else {
     fail("Git hooks", "Not installed");
@@ -208,7 +210,7 @@ export const doctorHandler = async (
   out.writeln();
 
   // Project checks
-  await checkGitHooks();
+  await checkGitHooks(app.command);
   await checkManifest();
 
   out.writeln();

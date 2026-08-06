@@ -52,7 +52,7 @@ export const versionHandler = async (
     if (result !== undefined && result.updateAvailable) {
       out.writeln(
         span.dim(
-          `  Update available: v${result.latestVersion} — run 'eser update'`,
+          `  Update available: v${result.latestVersion} — run '${app.command} update'`,
         ),
       );
     }

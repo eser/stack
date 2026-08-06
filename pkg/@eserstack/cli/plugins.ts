@@ -22,7 +22,7 @@
  */
 
 import * as shellExec from "@eserstack/shell/exec";
-import { getPlatform, runtime } from "@eserstack/standards/cross-runtime";
+import * as shellEnv from "@eserstack/shell/env";
 
 /** Prefix an executable must carry to be reachable as a subcommand. */
 export const PLUGIN_PREFIX = "eser-";
@@ -40,83 +40,19 @@ export const PLUGIN_PREFIX = "eser-";
 export const resolvePlugin = async (name: string): Promise<string | null> => {
   // Reject path-like names early.
   //
-  // This is defence in depth, NOT the thing that prevents traversal — the
-  // prefix already does that. Every candidate is `<dir>/eser-<name>`, so a
-  // `..` in the name lands inside the component `eser-..` and is never its own
-  // path segment. The guard exists so that stays true if candidate
-  // construction is ever changed, and so `eser ../x` fails as a bad subcommand
-  // rather than as a mysterious missing file.
+  // Defence in depth, NOT the thing that prevents traversal — the prefix already
+  // does that. Every candidate is `<dir>/eser-<name>`, so a `..` in the name
+  // lands inside the component `eser-..` and is never its own path segment. The
+  // guard keeps that true if candidate construction ever changes, and makes
+  // `eser ../x` fail as a bad subcommand rather than a mysterious missing file.
   if (name.includes("/") || name.includes("\\") || name.includes("..")) {
     return null;
   }
 
-  const binary = `${PLUGIN_PREFIX}${name}`;
-  const isWindows = getPlatform() === "windows";
-  const pathValue = runtime.env.get("PATH") ?? runtime.env.get("Path") ?? "";
-
-  if (pathValue === "") {
-    return null;
-  }
-
-  // PATHEXT is what makes `eser foo` find `eser-foo.cmd` on Windows; an empty
-  // suffix covers every POSIX case and a Windows binary named without one.
-  const extensions = isWindows
-    ? ["", ...(runtime.env.get("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD").split(";")]
-    : [""];
-
-  const separator = isWindows ? "\\" : "/";
-
-  for (const dir of pathValue.split(isWindows ? ";" : ":")) {
-    if (dir === "") {
-      continue;
-    }
-
-    for (const extension of extensions) {
-      const candidate = `${dir}${separator}${binary}${
-        isWindows ? extension : extension.toLowerCase()
-      }`;
-
-      if (await isExecutableFile(candidate)) {
-        return candidate;
-      }
-    }
-  }
-
-  return null;
-};
-
-/**
- * Reports whether path is a file this process could execute.
- *
- * The mode check matters: a non-executable file with the right name would
- * otherwise be "found" and then fail at spawn with a confusing error, which is
- * the failure mode PATH lookup exists to prevent.
- */
-const isExecutableFile = async (path: string): Promise<boolean> => {
-  try {
-    // runtime.fs.stat, not the Deno global. This module ships inside the npm
-    // CLI, which runs under Node -- there `Deno` is undefined, the ReferenceError
-    // was swallowed by this very catch, and every lookup silently returned
-    // false. The whole `eser <name>` dispatch was dead on the published binary
-    // while passing its Deno-only tests.
-    const info = await runtime.fs.stat(path);
-
-    if (!info.isFile) {
-      return false;
-    }
-
-    // Windows has no execute bit; existence plus a PATHEXT match is the test.
-    if (getPlatform() === "windows") {
-      return true;
-    }
-
-    // null means the platform did not report mode. Treating that as "not
-    // executable" would make resolution fail closed on any runtime whose stat
-    // omits it, so only an explicitly clear execute bit rejects.
-    return info.mode === null || (info.mode & 0o111) !== 0;
-  } catch {
-    return false;
-  }
+  // The PATH walk itself lives in @eserstack/shell/env, shared with every other
+  // caller that needs to know whether a binary exists. This module only owns
+  // the naming convention.
+  return await shellEnv.resolveExecutable(`${PLUGIN_PREFIX}${name}`);
 };
 
 /**

@@ -15,13 +15,19 @@ export class ThreadPartialError extends Error {
   /** The error that caused the post at failedIndex to fail. */
   readonly failureCause: Error;
 
+  /** Posts that were successfully published before the failure. */
+  readonly postedTweets: readonly Post[];
+  /** Zero-based index of the post that failed to publish. */
+  readonly failedIndex: number;
+  /** Total number of posts in the thread. */
+  readonly totalCount: number;
+
+  // Explicit assignment, not parameter properties — Node's erase-only type
+  // stripping cannot emit them.
   constructor(
-    /** Posts that were successfully published before the failure. */
-    readonly postedTweets: readonly Post[],
-    /** Zero-based index of the post that failed to publish. */
-    readonly failedIndex: number,
-    /** Total number of posts in the thread. */
-    readonly totalCount: number,
+    postedTweets: readonly Post[],
+    failedIndex: number,
+    totalCount: number,
     cause: Error,
   ) {
     super(
@@ -30,5 +36,8 @@ export class ThreadPartialError extends Error {
     );
     this.name = "ThreadPartialError";
     this.failureCause = cause;
+    this.postedTweets = postedTweets;
+    this.failedIndex = failedIndex;
+    this.totalCount = totalCount;
   }
 }

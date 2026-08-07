@@ -69,7 +69,7 @@ Rule: Follow consistent directory structure. Avoid
 **Standard Structure:**
 
 ```
-apps/go-project/
+pkg/ajan/<name>fx/
 ├── cmd/                 # Application entrypoints
 │   ├── serve/           # HTTP server and workers
 │   └── cli/             # Command-line interface

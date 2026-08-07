@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -29,11 +30,9 @@ const (
 	// WorkerKindAgent is an agent session. It is also the zero value: an unset
 	// kind means this one.
 	//
-	// It is served by the ACP worker. It used to mean the Claude Agent SDK
-	// worker -- a TypeScript subprocess wrapping @anthropic-ai/claude-agent-sdk
-	// -- which ACP replaced. The SDK is gone, so "agent" and "acp" now name the
-	// same thing; both are accepted because clients and stored sessions carry
-	// either string.
+	// It is served by the ACP worker. "agent" and "acp" name the same thing;
+	// both are accepted because clients and stored sessions carry either
+	// string.
 	WorkerKindAgent = "agent"
 
 	// WorkerKindMux is the terminal-multiplexer worker.
@@ -94,6 +93,57 @@ type workerImpl struct {
 	once      sync.Once
 }
 
+// ErrWorkerRuntimeMissing is returned when no JavaScript runtime can run the
+// mux worker.
+var ErrWorkerRuntimeMissing = errors.New("worker: no javascript runtime found")
+
+// workerRuntime picks a JavaScript runtime to run the worker under.
+//
+// Any of the three will do. The worker imports node: builtins plus workspace
+// packages by bare specifier, which resolve to .ts sources -- Deno and Bun both
+// execute that directly, and Node needs a TypeScript loader. Nothing about the
+// worker is Deno-specific.
+//
+// All three run the file as written: Deno and Bun execute TypeScript natively,
+// and Node >= 26 strips types on its own (which is why the engines floor is 26,
+// and why the few parameter properties in this workspace were converted to
+// explicit assignments -- strip-only mode cannot emit the assignment a
+// parameter property implies). NOSKILLS_WORKER_RUNTIME overrides the search.
+func workerRuntime(workerPath, sockPath string) (string, []string, error) {
+	if forced := os.Getenv(envWorkerRuntime); forced != "" {
+		switch forced {
+		case "deno":
+			return "deno", []string{"run", "-A", workerPath, sockPath}, nil
+		case "bun":
+			return "bun", []string{"run", workerPath, sockPath}, nil
+		case "node":
+			return "node", []string{workerPath, sockPath}, nil
+		default:
+			return "", nil, fmt.Errorf(
+				"%w: %s=%q (expected deno, bun or node)",
+				ErrWorkerRuntimeMissing, envWorkerRuntime, forced,
+			)
+		}
+	}
+
+	if _, err := exec.LookPath("deno"); err == nil {
+		return "deno", []string{"run", "-A", workerPath, sockPath}, nil
+	}
+
+	if _, err := exec.LookPath("bun"); err == nil {
+		return "bun", []string{"run", workerPath, sockPath}, nil
+	}
+
+	if _, err := exec.LookPath("node"); err == nil {
+		return "node", []string{workerPath, sockPath}, nil
+	}
+
+	return "", nil, fmt.Errorf(
+		"%w: install deno, bun or node (set %s to choose one explicitly)",
+		ErrWorkerRuntimeMissing, envWorkerRuntime,
+	)
+}
+
 // SpawnWorker creates a Unix socket listener, spawns the worker process, waits
 // for "ready", and returns a WorkerHandle. Returns when the worker is ready to
 // accept query_start.
@@ -117,9 +167,8 @@ func SpawnWorker(
 		return spawnACPWorker(ctx, sessionID, cwd, dataDir, logger)
 	}
 
-	// Only the mux worker is left, so the resolution collapses to it. The
-	// worker.js branch belonged to the Claude Agent SDK worker, which no longer
-	// exists -- NOSKILLS_WORKER_PATH pointed at a script that is gone.
+	// Only the mux worker needs a script on disk, so path resolution collapses
+	// to it.
 	if workerPath == "" {
 		if override := os.Getenv("NOSKILLS_MUX_WORKER_PATH"); override != "" {
 			workerPath = override
@@ -147,11 +196,10 @@ func SpawnWorker(
 		_ = listener.Close()
 	}()
 
-	// The mux worker imports @eserstack/mux (workspace + .ts specifiers), so it
-	// runs under Deno. The node/tsx branches here served the Claude Agent SDK
-	// worker, which is gone.
-	runCmd := "deno"
-	runArgs := []string{"run", "-A", workerPath, sockPath}
+	runCmd, runArgs, runErr := workerRuntime(workerPath, sockPath)
+	if runErr != nil {
+		return nil, runErr
+	}
 
 	cmd := exec.CommandContext(ctx, runCmd, runArgs...) //nolint:gosec
 	cmd.Dir = cwd
@@ -339,10 +387,10 @@ func (w *workerImpl) SendMux(frame json.RawMessage) error {
 
 // SetMode forwards the request to the worker.
 //
-// The Claude Agent SDK worker has no mode concept and ignores unknown messages,
-// so today this reaches nothing. It is still sent rather than dropped here: the
-// daemon should not be the component that decides a worker cannot do something,
-// and a worker that grows the capability needs no change on this side.
+// The mux worker has no mode concept and ignores unknown messages, so today
+// this reaches nothing. It is still sent rather than dropped here: the daemon
+// should not be the component that decides a worker cannot do something, and a
+// worker that grows the capability needs no change on this side.
 func (w *workerImpl) SetMode(mode string) error {
 	return w.send(map[string]string{"type": "set_mode", "mode": mode})
 }

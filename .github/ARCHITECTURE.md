@@ -7,32 +7,40 @@ This guide explains how the eserstack codebase is organized.
 ```
 stack/
 ├── cmd/
-│   └── ajan/                   # Go CLI entrypoint (go run ./cmd/ajan)
+│   └── noskills-server/        # The only Go executable (a daemon)
 ├── pkg/
 │   ├── ajan/                   # Go library (github.com/eser/stack/pkg/ajan)
-│   │   ├── api/adapters/       # Composition root (appcontext)
+│   │   ├── acpfx/              # Agent Client Protocol: client, agent, in-process shim
+│   │   ├── aifx/               # AI providers (reaches acpfx/shim in-process)
+│   │   ├── noskillsserverfx/   # The daemon: sessions, ledger, workers
 │   │   ├── httpclient/         # HTTP client with circuit breaker
-│   │   ├── logfx/              # Structured logging
+│   │   ├── logfx/              # Structured logging (also metrics + tracing)
 │   │   ├── configfx/           # Configuration loading
 │   │   └── ...                 # Other Go utilities
 │   └── @eserstack/             # TypeScript packages (published to JSR + npm)
 ├── etc/
-│   ├── registry/               # Recipe registry (24 recipes: project templates + Go components)
-│   ├── scripts/                # Automation scripts (version-bump, release-notes)
+│   ├── scripts/                # install.sh, install.ps1, manifest + formula generators
+│   ├── temp/                   # Build output (gitignored)
 │   └── coverage/               # Test coverage output (gitignored)
-├── docs/                       # Generated HTML documentation
+├── docs/
+│   ├── api/                    # Generated HTML reference (deno task docs)
+│   ├── adr/                    # Architecture decision records (hand-written)
+│   └── schema/                 # JSON schemas (hand-written)
+├── .eser/
+│   ├── recipes/                # Project templates (9)
+│   ├── recipes.json            # Recipe registry
+│   └── manifest.yml            # Workflows, validators, scripts
 ├── .claude/
-│   ├── skills/                 # Claude Code skill definitions (14 skills)
+│   ├── skills/                 # Claude Code skill definitions (15 skills)
 │   └── hooks/                  # Claude Code PostToolUse hooks
 ├── .github/
-│   ├── workflows/              # CI/CD pipelines (7 workflows)
+│   ├── workflows/              # CI/CD pipelines (6 workflows)
 │   ├── ARCHITECTURE.md         # This file
 │   ├── pr-labeler.yml          # PR auto-labeling rules
 │   └── issue-labels.yml        # Issue label definitions
 ├── deno.json                   # Root Deno config (lint, format, excludes)
 ├── package.json                # npm workspace root + deno task scripts
-├── CLAUDE.md                   # AI development guidelines (symlink → AGENTS.md)
-├── AGENTS.md                   # Multi-agent coordination rules
+├── CLAUDE.md                   # AI development guidelines
 └── CHANGELOG.md                # Release history
 ```
 
@@ -75,15 +83,60 @@ Layer 3 — Framework (depend on Layers 0-2)
 ├── @eserstack/bundler               # Bundling system (esbuild WASM)
 └── @eserstack/app-runtime           # Runtime abstraction
 
-Layer 4 — Application (depend on all layers)
-└── @eserstack/cli                   # Main CLI tool (published to npm as `eser`)
+Layer 4 — Shipped binaries (depend on all layers)
+├── @eserstack/cli               # `eser` — the full CLI
+├── @eserstack/noskills          # `noskills` — the same module `eser` mounts, re-rooted
+└── @eserstack/laroux-server     # `laroux` — likewise
+
+All three are `deno compile` entry points over the SAME module objects; see
+BINARIES in pkg/@eserstack/cli/scripts/compile.ts. They are not forks.
 
 Go (module github.com/eser/stack, root go.mod)
-├── cmd/ajan                    # CLI entrypoint (eser ajan / go run ./cmd/ajan)
-└── pkg/ajan                    # Go library (httpclient, logfx, configfx, httpfx...)
+├── cmd/noskills-server         # `noskills-server` — the daemon, the only Go executable
+└── pkg/ajan                    # Go library (acpfx, aifx, httpclient, logfx, configfx...)
 ```
 
+## Agent execution (ACP)
+
+Agent sessions speak the Agent Client Protocol, and the shim that translates ACP
+to a vendor CLI is **linked in, not spawned**:
+
+```
+aifx / noskillsserverfx
+   │  acpfx.InProcess  (net.Pipe — no subprocess, nothing on PATH)
+   ▼
+pkg/ajan/acpfx/shim
+   │
+   ▼
+claude --print --output-format stream-json   (or kiro / opencode)
+```
+
+The shim is Go code compiled into the same binary as its callers, so it is
+reached in process rather than over a subprocess pipe: spawning it would mean
+shipping, installing and PATH-resolving a program in order to talk to a struct
+already in memory. `acpfx.Spawn` is for agents that genuinely are other programs
+(`gemini --acp`, `claude-agent-acp`), selected with `NOSKILLS_ACP_COMMAND`.
+
+Only mux sessions still spawn a TypeScript worker, because a terminal pane's
+content channel is VT bytes rather than protocol messages. That worker runs
+under whichever JS runtime is present — Deno, Bun, or Node ≥ 26, which strips
+types natively.
+
+## Shared `system` command tree
+
+`pkg/@eserstack/codebase/cli-system/` owns `install`, `uninstall`, `update`,
+`completions`, `version`, `doctor` and `info`, parameterised by a `CliApp` so
+each binary gets a tree describing itself. `attachStandardCommands` binds it to
+a binary's ROOT command — which is what gives `noskills version` without
+`eser noskills version`, since `eser` mounts the very same module object the
+standalone binary re-roots.
+
 ## Build Pipeline
+
+One pipeline builds and releases the whole family. GoReleaser and a separate
+`release.yml` used to publish the Go binaries independently, which is why
+releases once carried either the TypeScript artifacts or the Go ones and never
+both; both are gone.
 
 ```
 Developer runs:  eser codebase release patch
@@ -92,29 +145,29 @@ Developer runs:  eser codebase release patch
                  └─ git commit + git push (commit only, no tag)
                     │
                     ▼
-┌─ PUSH TO MAIN ────────────────────────┐
-│  build.yml (Integrity Pipeline)       │
-│  ├─ integration.yml (reusable)        │
-│  │   └─ deno task cli ok              │
-│  └─ tag-release (if release commit    │
-│      && integration passed)           │
-│      └─ creates + pushes v*.*.* tag   │
-└───────────────────────────────────────┘
-              │ tag push
+┌─ PUSH TO MAIN ─────────────────────────────────────────────┐
+│  build.yml (Integrity Pipeline)                            │
+│  ├─ validate            deno task cli ok (Deno + Go)       │
+│  ├─ windows-smoke       compiles the Windows artifacts and │
+│  │                      runs etc/scripts/install.ps1       │
+│  ├─ cross-runtime-test  deno / node / bun × linux / macos  │
+│  └─ tag-release         only on a `chore(codebase): release│
+│                         v…` commit; pushes the v*.*.* tag  │
+└────────────────────────────────────────────────────────────┘
+              │
               ▼
-┌─ TAG v*.*.* ──────────────────────────┐
-│  deployment.yml (Deployment Pipeline) │
-│  ├─ version-check (tag == VERSION)    │
-│  ├─ smoke-test (node dist/eser.js)    │
-│  │   └─ uploads npm bundle artifact   │
-│  └─ publish (JSR + npm + summary)     │
-│       └─ downloads npm bundle artifact│
-└───────────────────────────────────────┘
-
-┌─ TAG v* ──────────────────────────────┐
-│  release-notes-sync.yml               │
-│  └─ CHANGELOG.md → GitHub Release     │
-└───────────────────────────────────────┘
+┌─ RELEASE JOBS (same workflow) ─────────────────────────────┐
+│  compile-binaries   compile.ts → eser, noskills, laroux    │
+│                     (deno compile) + noskills-server (go)  │
+│                     → <binary>-v<version>-<triple>.tar.gz  │
+│                       and SHA256SUMS.txt                   │
+│  upload-assets      signs and uploads every archive        │
+│  publish            JSR + npm (eser, noskills, laroux)     │
+│  publish-ajan       @eserstack/ajan platform packages      │
+│  update-homebrew    one formula per binary → eser/tap      │
+│  update-nix-hashes  flake.nix                              │
+│  release-notes      CHANGELOG.md → GitHub Release          │
+└────────────────────────────────────────────────────────────┘
 
 ┌─ OTHER ────────────────────────────────┐
 │  pr-labeler.yml (PRs only)             │

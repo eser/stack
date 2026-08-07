@@ -8,7 +8,7 @@ modules for codebase management, workflow automation, framework scaffolding, and
 more.
 
 Built on a hexagonal architecture: business logic lives in pure handlers
-(`@eserstack/registry/handlers`), output flows through Span-based formatting
+(`@eserstack/kit/recipes/handlers`), output flows through Span-based formatting
 (`@eserstack/streams`), and the CLI is just one adapter — the same handlers can
 serve MCP tool calls, HTTP APIs, or tests.
 
@@ -16,7 +16,10 @@ serve MCP tool calls, HTTP APIs, or tests.
 
 ```bash
 # Install script (macOS/Linux)
-curl -fsSL https://eser.run/install | sh
+curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.ps1 | iex
 
 # Homebrew (macOS/Linux)
 brew install eser/tap/eser
@@ -41,57 +44,60 @@ deno run --allow-all jsr:@eserstack/cli <command>
 
 ```
 eser
-├── kit                   Recipe distribution & project scaffolding
+├── kit                   Kit — recipes, templates, project creation
 │   ├── list              Browse available recipes and templates
 │   ├── add               Add a recipe to your project
 │   ├── new               Create a new project from a template
+│   ├── create            Create a new recipe
 │   ├── clone             Clone a recipe from any GitHub repo
 │   └── update            Re-fetch and update an applied recipe
-├── codebase              Codebase management tools
+├── codebase, cb, .       Codebase management tools
 │   ├── install           Install git hooks from .eser/manifest.yml
 │   ├── uninstall         Remove managed git hooks
 │   ├── status            Show git hook installation status
+│   ├── commitmsg         Generate commit message from git diff
+│   ├── gh                GitHub operations (contributors, releases, tags)
 │   ├── versions          Manage workspace package versions
 │   ├── changelog-gen     Generate CHANGELOG from commits
-│   ├── release-notes     Sync changelog to GitHub Releases
-│   ├── release-tag       Create and push release git tags
-│   ├── validate-eof      Ensure files end with newline
-│   ├── validate-trailing-whitespace
-│   ├── validate-bom      Remove UTF-8 byte order markers
-│   ├── validate-line-endings
-│   ├── validate-large-files
-│   ├── validate-case-conflict
-│   ├── validate-merge-conflict
-│   ├── validate-json     Validate JSON syntax
-│   ├── validate-toml     Validate TOML syntax
-│   ├── validate-yaml     Validate YAML syntax
-│   ├── validate-symlinks
-│   ├── validate-shebangs
-│   ├── validate-secrets  Detect credentials and private keys
-│   ├── validate-filenames
-│   ├── validate-submodules
-│   ├── validate-commit-msg
-│   ├── validate-docs     Validate JSDoc documentation
-│   ├── validate-circular-deps
-│   ├── validate-export-names
-│   ├── validate-licenses
-│   ├── validate-mod-exports
-│   ├── validate-package-configs
-│   ├── validate-server-loc
-│   └── validate-error-coverage
-├── workflows             Workflow engine — run tool pipelines
+│   ├── release           Create a release (bump, changelog, commit, push)
+│   ├── rerelease         Delete and recreate the current version tag
+│   ├── unrelease         Delete the current version tag
+│   └── validate-*        24 validators — eof, secrets, licenses, circular-deps,
+│                         mod-exports, error-coverage, … (`--help` for the list)
+├── workflows, wf         Workflow engine — run tool pipelines
 │   ├── run               Run workflows by event or id
 │   └── list              List available workflows and tools
+├── ai                    AI provider interface — ask questions, generate content
+│   ├── ask               Send a prompt to an AI provider
+│   └── list              List available AI providers
+├── noskills, nos         State-machine orchestrator for AI agents
+│   ├── init              Initialize noskills in project
+│   ├── status            Show current state
+│   ├── spec              Manage specs (new, list)
+│   ├── next              Get next instruction for agent
+│   ├── run               Autonomous execution loop (Ralph loop)
+│   └── …                 29 modules in total (`eser noskills --help`)
+├── posts                 Compose and manage social media posts across platforms
+│   ├── compose           Publish a post to a platform
+│   ├── thread            Publish a thread of posts
+│   ├── timeline          Fetch your timeline (`--unified` for all platforms)
+│   └── …                 15 modules in total (`eser posts --help`)
 ├── laroux                laroux.js framework commands
 │   ├── init              Create a new laroux.js project
 │   ├── dev               Start development server with hot reload
 │   ├── build             Build for production
 │   └── serve             Serve production build locally
+├── ajan                  Ajan native bridge commands
+│   └── version           Show ajan library version
 ├── system                Commands related with this CLI
-├── install               Install eser CLI globally
-├── update                Update eser CLI to latest version
-├── version               Show version number
-└── doctor                Run diagnostic checks
+│   ├── install           Install eser globally
+│   ├── uninstall         Uninstall eser globally
+│   ├── update            Update eser to the latest version
+│   ├── completions       Generate shell completion scripts
+│   ├── version           Show version and check for updates
+│   ├── doctor            Run diagnostic checks
+│   └── info              Show runtime and execution context diagnostics
+└── (shortcuts)           install, update, version, doctor -> "system <name>"
 ```
 
 ## 📋 Commands
@@ -369,7 +375,8 @@ eser doctor
 
 The CLI follows a hexagonal (ports & adapters) architecture where:
 
-1. **Handlers** (`@eserstack/registry/handlers/`) contain pure business logic
+1. **Handlers** (e.g. `@eserstack/kit/recipes/handlers/`) contain pure business
+   logic
 2. **Streams** (`@eserstack/streams`) provide adapter-agnostic output via Spans
 3. **CLI commands** are thin adapters that wire handlers to terminal I/O
 
@@ -400,12 +407,12 @@ The same handler can be invoked with a different renderer + sink:
 
 ### Key Packages
 
-| Package                        | Role                                               |
-| ------------------------------ | -------------------------------------------------- |
-| `@eserstack/shell/args`        | Command class (routing, lazy loading, completions) |
-| `@eserstack/functions/task`    | Task<T,E,R> for DI-aware lazy computation          |
-| `@eserstack/streams`           | Output API + Span formatting + Renderers           |
-| `@eserstack/registry/handlers` | Pure business logic handlers                       |
+| Package                           | Role                                               |
+| --------------------------------- | -------------------------------------------------- |
+| `@eserstack/shell/args`           | Command class (routing, lazy loading, completions) |
+| `@eserstack/functions/task`       | Task<T,E,R> for DI-aware lazy computation          |
+| `@eserstack/streams`              | Output API + Span formatting + Renderers           |
+| `@eserstack/kit/recipes/handlers` | Pure business logic handlers                       |
 
 ## License
 

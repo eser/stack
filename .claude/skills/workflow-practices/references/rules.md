@@ -314,7 +314,7 @@ deno task build        # Build for production
 **Backend Quality Gates:**
 
 ```bash
-# In /apps/ajan directory
+# Go module lives at the repo root
 make check            # Run static analysis tools
 make lint             # Run linting
 make fix              # Fix formatting and linting issues

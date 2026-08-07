@@ -17,9 +17,8 @@ allowBuilds:
 # minimumReleaseAgeExclude, so the gate is disabled here (0) rather than excluded.
 minimumReleaseAge: 0
 
-# This repo pulls unusually large platform binaries -- the Claude Agent SDK's
-# darwin-arm64 build is ~75 MB, @eserstack/ajan-wasm ~22 MB, sharp's libvips
-# ~8 MB. pnpm's default fetchTimeout is 60s and it does NOT resume partial
+# This repo pulls unusually large platform binaries -- @eserstack/ajan-wasm is
+# ~22 MB and sharp's libvips ~8 MB. pnpm's default fetchTimeout is 60s and it does NOT resume partial
 # downloads, so on an ordinary connection those tarballs abort mid-transfer
 # (error 23) and every retry restarts from zero -- the install never converges.
 #

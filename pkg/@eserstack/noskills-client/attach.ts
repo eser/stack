@@ -153,9 +153,10 @@ export interface AttachOptions {
   /**
    * Worker flavour to attach with — must match the session's `kind` (sent as
    * `?kind=` so the daemon spawns the right worker on first attach). Use "mux"
-   * for a terminal-multiplexer session; omit/"agent" for the Claude Agent SDK.
+   * for a terminal-multiplexer session; omit (or "agent"/"acp") for an agent
+   * session, which is served by the ACP worker.
    */
-  kind?: "agent" | "mux";
+  kind?: "agent" | "acp" | "mux";
 }
 
 /**

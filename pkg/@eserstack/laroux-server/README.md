@@ -1,4 +1,4 @@
-# @eserstack/laroux-core
+# @eserstack/laroux-server
 
 > **eserstack Product-Candidate** — SSR runtime for laroux ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
@@ -24,7 +24,7 @@ including:
 ## Installation
 
 ```bash
-pnpm add @eserstack/laroux-core
+pnpm add @eserstack/laroux-server
 ```
 
 ## Usage
@@ -34,7 +34,7 @@ This package is typically used by the `eser laroux` CLI commands (from
 implementations:
 
 ```typescript
-import { startServer } from "@eserstack/laroux-core/runtime/server";
+import { startServer } from "@eserstack/laroux-server";
 import { RuntimeBundler } from "@eserstack/laroux-bundler";
 
 const server = await startServer({
@@ -57,58 +57,11 @@ const server = await startServer({
 HTTP server with routing and static file serving.
 
 ```typescript
-import { startServer } from "@eserstack/laroux-core/runtime/server";
+import { startServer } from "@eserstack/laroux-server";
 
 const server = await startServer({
   config: AppConfig,
   bundler: RuntimeBundler,
-});
-```
-
-#### `@eserstack/laroux-react/runtime/rsc-handler`
-
-React Server Components rendering and streaming.
-
-```typescript
-import { handleRSC } from "@eserstack/laroux-react/runtime/rsc-handler";
-
-const response = await handleRSC(request, {
-  config: AppConfig,
-  bundler: RuntimeBundler,
-});
-```
-
-#### `runtime/action-handler.ts`
-
-Server Actions registry and invocation.
-
-```typescript
-import {
-  handleServerAction,
-  registerServerAction,
-} from "@eserstack/laroux-core/runtime/action-handler";
-
-// Register a server action
-registerServerAction("myAction", async (data) => {
-  // Server-side logic
-  return { success: true };
-});
-
-// Handle action request
-const response = await handleServerAction(request, config);
-```
-
-#### `runtime/html-shell.ts`
-
-HTML shell generation for initial page load.
-
-```typescript
-import { generateHtmlShell } from "@eserstack/laroux-core/runtime/html-shell";
-
-const html = generateHtmlShell({
-  config: AppConfig,
-  rscPayload: "...",
-  moduleMap: { ... },
 });
 ```
 
@@ -118,8 +71,8 @@ Type-safe configuration loading with 3-layer merging (defaults → user config �
 CLI args).
 
 ```typescript
-import { loadConfig } from "@eserstack/laroux-core/config";
-import type { UserConfig } from "@eserstack/laroux-core/config/schema";
+import { loadConfig } from "@eserstack/laroux-server/config";
+import type { AppConfig } from "@eserstack/laroux-server/config";
 
 // Load configuration
 const config = await loadConfig({
@@ -148,7 +101,7 @@ interface UserConfig {
 **Example `laroux.config.ts`:**
 
 ```typescript
-import type { UserConfig } from "@eserstack/laroux-core/config/schema";
+import type { AppConfig } from "@eserstack/laroux-server/config";
 
 export default {
   port: 3000,
@@ -159,101 +112,6 @@ export default {
   enableHMR: true,
 } satisfies UserConfig;
 ```
-
-### CLI Formatting
-
-Beautiful colored terminal output with progress indicators.
-
-```typescript
-import {
-  c,
-  printBanner,
-  printServerInfo,
-  printSuccess,
-  Spinner,
-} from "@eserstack/laroux-core/cli-formatting";
-
-// Print banner
-printBanner("3.0.0");
-
-// Colored output
-console.log(c.success("Build completed!"));
-console.log(c.error("Build failed!"));
-console.log(c.brand("laroux.js"));
-
-// Progress spinner
-const spinner = new Spinner("Building...");
-spinner.start();
-// ... do work
-spinner.succeed("Build complete!");
-
-// Utility functions
-printServerInfo(config);
-printSuccess("Server started!");
-```
-
-**Color Utilities:**
-
-```typescript
-c.brand(text); // Cyan
-c.success(text); // Green
-c.error(text); // Red
-c.warning(text); // Yellow
-c.info(text); // Blue
-c.dim(text); // Gray
-c.bold(text); // Bold
-c.code(text); // Code block
-c.path(text); // File path
-```
-
-### Error Formatting
-
-Structured error classes with helpful hints and beautiful formatting.
-
-```typescript
-import {
-  BuildError,
-  ConfigError,
-  errors,
-  formatError,
-  LarouxError,
-  RuntimeError,
-  setupErrorHandlers,
-} from "@eserstack/laroux-core/error-formatting";
-
-// Setup global error handlers (for CLI)
-setupErrorHandlers();
-
-// Use error factories
-throw errors.invalidConfig(
-  "./laroux.config.ts",
-  "Export must be a default export",
-);
-
-throw errors.portInUse(3000);
-
-throw errors.buildFailed("TypeScript compilation failed");
-
-// Custom errors
-throw new ConfigError(
-  "Invalid port number",
-  "Port must be between 1024 and 65535",
-);
-
-// Format errors for display
-const formatted = formatError(error);
-console.error(formatted);
-```
-
-**Available Error Factories:**
-
-- `errors.invalidConfig(path, reason)` - Config file issues
-- `errors.missingDirectory(dir, purpose)` - Required directory missing
-- `errors.portInUse(port)` - Port already in use
-- `errors.moduleNotFound(path)` - Module import failed
-- `errors.buildFailed(reason)` - Build process failed
-- `errors.actionFailed(actionId, reason)` - Server action error
-- `errors.componentError(name, reason)` - Component render error
 
 ## Related Packages
 
@@ -266,7 +124,7 @@ console.error(formatted);
 
 - [User Guide](https://github.com/eser/stack/blob/main/docs/user-guide.md)
 - [API Reference](https://github.com/eser/stack/blob/main/docs/api-reference.md)
-- [JSR Package](https://jsr.io/@eserstack/laroux-core)
+- [JSR Package](https://jsr.io/@eserstack/laroux-server)
 
 ## License
 

@@ -1,30 +1,18 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * noskills-server mux worker — one process per *mux* session (a remote terminal
- * multiplexer), the counterpart to {@link ./worker.ts} (the Claude Agent SDK
- * worker). The daemon spawns this when a session is created with `kind: "mux"`.
+ * The mux worker: hosts one terminal-multiplexer session for noskills-server.
  *
- * Run under **Deno** (`deno run -A mux-worker.ts <unix-socket-path>`): it imports
- * `@eserstack/mux`, whose `.ts` / workspace specifiers tsx and node cannot
- * resolve. The Unix socket uses `node:net` so the wire behaviour matches the SDK
- * worker cross-platform.
+ * The daemon spawns this over a Unix socket and speaks newline-delimited JSON to
+ * it. It is the only worker that still runs as a subprocess — agent sessions are
+ * served in-process by the Go ACP worker (see pkg/ajan/acpfx/inprocess.go), and
+ * spawn no JavaScript at all. A terminal pane's content channel is VT bytes
+ * rather than protocol messages, which is why this one stays a process.
  *
- * Wire protocol (line-delimited JSON over the Unix socket):
- *
- *   Daemon → Worker:
- *     {type:"query_start", cwd, sessionId, resume?}   // open the first tab
- *     {type:"mux", frame}                             // a mux FrontendToServer
- *     {type:"shutdown"}
- *
- *   Worker → Daemon:
- *     {type:"ready"}
- *     {type:"spawn_progress", stage:"starting"|"ready"}
- *     {type:"mux", v:1, frame}                        // a mux ServerToFrontend
- *
- * Every `{type:"mux"}` event the daemon receives is appended to its ledger with
- * a `seq` and fanned out, so replay / `?after=` / multi-client all keep working
- * unchanged — the daemon never has to understand the mux protocol itself.
+ * Runtime-agnostic: it imports node: builtins plus workspace packages by bare
+ * specifier, which Deno and Bun execute directly and Node runs with a
+ * TypeScript loader. `workerRuntime` in pkg/ajan/noskillsserverfx/worker.go
+ * picks whichever is present; NOSKILLS_WORKER_RUNTIME pins one.
  *
  * @module
  */

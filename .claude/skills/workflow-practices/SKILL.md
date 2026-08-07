@@ -10,7 +10,7 @@ description: "Task execution workflow: implementation steps, git commit policy, 
 1. Read codebase -> Create todo list -> Check plan -> Execute
 2. NEVER revert user changes or overwrite intentional code
 3. Do NOT create git commits unless explicitly requested
-4. Run `make ok` before considering work complete
+4. Run `deno task cli ok` before considering work complete (`make ok` is Go only)
 
 ## Key Principles
 
@@ -29,7 +29,7 @@ No. Never overwrite intentional user changes. Work with their code.
 No. Never create commits unless explicitly requested by the user.
 
 **"I'll skip validate, it's a small change"**
-No. Run `make ok` before considering any work complete.
+No. Run `deno task cli ok` before considering any work complete — it covers both languages. `make ok` is Go only.
 
 ## References
 

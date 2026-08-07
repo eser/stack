@@ -29,17 +29,8 @@ pnpm add @eserstack/laroux-react
 ## Usage
 
 This package is typically used internally by `@eserstack/cli` (via `eser laroux`
-commands) and `@eserstack/laroux-core`. You generally won't need to import it
+commands) and `@eserstack/laroux-server`. You generally won't need to import it
 directly unless you're building custom tooling.
-
-### Server-Side Rendering
-
-```typescript
-import { renderToReadableStream } from "@eserstack/laroux-react/server";
-
-// Render a React Server Component to a stream
-const stream = await renderToReadableStream(<App />);
-```
 
 ### Client-Side Hydration
 
@@ -90,7 +81,7 @@ fetch data for a web page:
 
 ```tsx
 import { runFunction } from "@eserstack/laroux-react/use-function";
-import { listRecipes } from "@eserstack/registry/handlers/list-recipes";
+import { listRecipes } from "@eserstack/kit/recipes/handlers/list-recipes";
 
 export default async function RecipesPage({ params }) {
   const { recipes } = await runFunction(
@@ -147,8 +138,8 @@ runtime and integrates with the eser stack handler architecture:
 
 ## Documentation
 
-- [Getting Started](https://laroux.js.org/docs/getting-started)
-- [API Reference](https://laroux.js.org/docs/api-reference)
+- [JSR Package](https://jsr.io/@eserstack/laroux-react) — symbol-level API
+  reference, generated from source
 - [React Server Components](https://react.dev/reference/rsc/server-components)
 
 ## License

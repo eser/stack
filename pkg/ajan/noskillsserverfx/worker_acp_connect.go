@@ -12,9 +12,8 @@ import (
 // connectACPAgent links the worker to an agent, in this process or another.
 //
 // The default path spawns nothing. Our shim is Go code compiled into this
-// daemon, so reaching it through a subprocess meant shipping a second binary
-// (`eser-acp`), installing it, and putting it on PATH purely so the daemon could
-// write JSON to a pipe that came straight back to its own linked code.
+// daemon, so it is reached in-process: no subprocess, and nothing that has to
+// be installed on PATH.
 //
 // An external agent is a different matter: gemini --acp and claude-agent-acp
 // really are other programs, and NOSKILLS_ACP_COMMAND is how you point at one.

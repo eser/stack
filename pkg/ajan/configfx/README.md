@@ -1,4 +1,4 @@
-# eser-go/configfx
+# ajan/configfx
 
 ## Overview
 
@@ -32,7 +32,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/eser/stack/pkg/eser-go/configfx"
+    "github.com/eser/stack/pkg/ajan/configfx"
 )
 
 // Define your configuration structure
@@ -509,9 +509,9 @@ func watchConfig(configFile string, config *Config, manager *configfx.ConfigMana
 
 configfx uses the following internal packages:
 
-- `eser-go/configfx/jsonparser`: JSON parsing functionality
-- `eser-go/configfx/envparser`: Environment file parsing
-- `eser-go/lib`: Utility functions for environment handling
+- `ajan/configfx/jsonparser`: JSON parsing functionality
+- `ajan/configfx/envparser`: Environment file parsing
+- `ajan/lib`: Utility functions for environment handling
 
 ## Thread Safety
 

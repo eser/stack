@@ -8,12 +8,9 @@
  * change to this CLI. `git lfs` works because `git-lfs` is on PATH; the same
  * holds for `docker compose` and `kubectl <plugin>`.
  *
- * It exists here because the stack ships Go binaries this TypeScript CLI cannot
- * absorb. `eser-acp` is the ACP shim: a Go program that speaks JSON-RPC on
- * stdio and is spawned by Go (`pkg/ajan/aifx`, `pkg/ajan/noskillsserverfx`) via
- * `exec.LookPath`. Reimplementing it as a TypeScript submodule would mean a Go
- * caller spawning a JS runtime that FFIs back into Go — so the binary stays a
- * binary, and this rule is what makes it reachable by the name a user expects.
+ * No binary in this repo relies on it. It stays anyway: it lets third-party and
+ * out-of-tree commands extend the CLI with no registry and no change to this
+ * package, and it costs one PATH lookup on the fallback path.
  *
  * Resolution order in the CLI's fallback is: built-in modules, then manifest
  * scripts, then this. Project-local intent wins over an installed plugin.

@@ -58,13 +58,25 @@ export type CommandResult = {
  * Error thrown when command execution fails
  */
 export class CommandError extends Error {
+  readonly command: string;
+  readonly code: number;
+  readonly stderr: string;
+
+  // Assigned explicitly rather than declared as constructor parameter
+  // properties. Node's type stripping is erase-only, and a parameter property
+  // EMITS an assignment, so `node worker.ts` fails on it with
+  // ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX. Writing the field out keeps the file
+  // runnable by Deno, Bun and Node alike.
   constructor(
     message: string,
-    public readonly command: string,
-    public readonly code: number,
-    public readonly stderr: string,
+    command: string,
+    code: number,
+    stderr: string,
   ) {
     super(message);
     this.name = "CommandError";
+    this.command = command;
+    this.code = code;
+    this.stderr = stderr;
   }
 }

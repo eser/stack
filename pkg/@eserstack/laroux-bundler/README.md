@@ -35,7 +35,7 @@ pnpm add @eserstack/laroux-bundler
 The runtime bundler provides on-demand bundling with Hot Module Replacement:
 
 ```typescript
-import { RuntimeBundler } from "@eserstack/laroux-bundler/runtime";
+import { RuntimeBundler } from "@eserstack/laroux-bundler/adapters/runtime-bundler";
 
 const bundler = new RuntimeBundler({
   srcDir: "./src",
@@ -59,7 +59,7 @@ const moduleMap = bundler.getModuleMap();
 The prebuilt bundler optimizes for production with code splitting:
 
 ```typescript
-import { PrebuiltBundler } from "@eserstack/laroux-bundler/prebuilt";
+import { PrebuiltBundler } from "@eserstack/laroux-bundler/adapters/prebuilt-bundler";
 
 const bundler = new PrebuiltBundler({
   srcDir: "./src",
@@ -73,27 +73,6 @@ await bundler.buildAll();
 // Get optimized assets
 const assets = bundler.getAssets();
 const moduleMap = bundler.getModuleMap();
-```
-
-### Deno Bundler (Low-level)
-
-Direct access to Deno's bundling capabilities:
-
-```typescript
-import { DenoBundler } from "@eserstack/laroux-bundler/deno";
-
-const bundler = new DenoBundler({
-  srcDir: "./src",
-  distDir: "./dist",
-});
-
-// Bundle a single file
-const result = await bundler.bundle("./src/app.tsx");
-
-// Bundle with dependencies
-const { code, map, dependencies } = await bundler.bundleWithDeps(
-  "./src/app.tsx",
-);
 ```
 
 ## API Reference
@@ -158,240 +137,6 @@ class PrebuiltBundler {
 - Asset optimization (CSS, images)
 - Content hashing for cache busting
 - Chunk manifest for lazy loading
-
-#### `DenoBundler`
-
-Low-level bundler using Deno's native capabilities.
-
-```typescript
-class DenoBundler {
-  constructor(config: BundlerConfig);
-
-  // Bundle a single file
-  bundle(path: string): Promise<string>;
-
-  // Bundle with dependency tracking
-  bundleWithDeps(path: string): Promise<{
-    code: string;
-    map: string;
-    dependencies: string[];
-  }>;
-}
-```
-
-### Transform Pipeline
-
-Transform TypeScript and JSX code for the browser.
-
-```typescript
-import { transform } from "@eserstack/laroux-bundler/transform";
-
-const result = await transform({
-  code: `export function Counter() { return <div>Count</div> }`,
-  filename: "counter.tsx",
-  target: "client", // or "server"
-  jsx: "react",
-});
-
-console.log(result.code); // Transformed JavaScript
-console.log(result.map); // Source map
-```
-
-**Transformation Features:**
-
-- TypeScript to JavaScript
-- JSX to React.createElement (or custom pragma)
-- Client/Server component boundary handling
-- Import path rewriting for browser compatibility
-- Source map generation
-
-### Module Analysis
-
-Analyze modules to find client components and dependencies.
-
-```typescript
-import { analyze } from "@eserstack/laroux-bundler/analyze";
-
-const info = await analyze("./src/app/counter.tsx");
-
-console.log(info.isClientComponent); // true if "use client"
-console.log(info.isServerAction); // true if "use server"
-console.log(info.imports); // All import statements
-console.log(info.exports); // All exports
-```
-
-### Chunk Manifest
-
-Manage code splitting and lazy loading.
-
-```typescript
-import { ChunkManifest } from "@eserstack/laroux-bundler/chunk-manifest";
-
-const manifest = new ChunkManifest();
-
-// Register chunks
-manifest.addChunk("counter", {
-  path: "/chunks/counter-abc123.js",
-  dependencies: ["react", "shared"],
-  size: 4096,
-});
-
-// Get chunk info
-const chunk = manifest.getChunk("counter");
-const deps = manifest.getDependencies("counter");
-
-// Serialize for client
-const json = manifest.toJSON();
-```
-
-### Module Map
-
-Map server component references to client component chunks.
-
-```typescript
-import { createModuleMap } from "@eserstack/laroux-bundler/module-map";
-
-const moduleMap = createModuleMap({
-  "file:///src/app/counter.tsx": {
-    default: {
-      id: "/chunks/counter-abc123.js",
-      chunks: ["/chunks/counter-abc123.js"],
-      name: "default",
-    },
-  },
-});
-
-// Used by RSC renderer to inject client component references
-```
-
-### Import Rewriting
-
-Rewrite import paths for browser compatibility.
-
-```typescript
-import { rewriteImports } from "@eserstack/laroux-bundler/rewrite-imports";
-
-const code = `
-  import React from "react";
-  import { Counter } from "./counter.tsx";
-`;
-
-const rewritten = rewriteImports(code, {
-  baseUrl: "/src",
-  externals: {
-    "react": "https://esm.sh/react@19.2.8",
-  },
-});
-
-// Imports now use browser-compatible paths
-```
-
-### CSS Processing
-
-Process and bundle CSS files.
-
-```typescript
-import { processCSS } from "@eserstack/laroux-bundler/css-processor";
-
-const result = await processCSS({
-  code: `
-    .button {
-      background: blue;
-      &:hover { background: darkblue; }
-    }
-  `,
-  filename: "button.css",
-  minify: true,
-});
-
-console.log(result.code); // Processed and minified CSS
-```
-
-**CSS Features:**
-
-- PostCSS processing
-- Nested selectors
-- Auto-prefixing
-- Minification
-- CSS Modules support
-
-### Client Components
-
-#### HMR Client
-
-Hot Module Replacement client for development.
-
-```typescript
-import "@eserstack/laroux-bundler/client/hmr";
-
-// Automatically connects to dev server via WebSocket
-// Handles module updates without full page reload
-// Preserves component state when possible
-```
-
-#### Error Overlay
-
-Development-mode error display.
-
-```typescript
-import { ErrorOverlay } from "@eserstack/laroux-bundler/client/error-overlay";
-
-// Add to your client entry during development
-export function ClientRoot() {
-  return (
-    <>
-      <App />
-      {import.meta.env.DEV && <ErrorOverlay />}
-    </>
-  );
-}
-```
-
-**Features:**
-
-- Full-screen error display with stack traces
-- Source-mapped error locations
-- Dismissible overlays
-- Auto-clear on fix
-
-#### Lazy Loader
-
-Lazy load components with automatic code splitting.
-
-```typescript
-import { lazy } from "@eserstack/laroux-bundler/client/lazy-loader";
-
-// Lazy load a component
-const Counter = lazy(() => import("./counter.tsx"));
-
-// Use with Suspense
-<Suspense fallback={<div>Loading...</div>}>
-  <Counter />
-</Suspense>;
-```
-
-#### Smart Refresh
-
-Intelligent component refresh during HMR.
-
-```typescript
-import { SmartRefresh } from "@eserstack/laroux-bundler/client/smart-refresh";
-
-// Wraps your app to enable smart refresh
-export function ClientRoot() {
-  return (
-    <SmartRefresh>
-      <App />
-    </SmartRefresh>
-  );
-}
-```
-
-**Features:**
-
-- Preserves component state when safe
-- Full reload when needed (context changes, etc.)
-- Error boundary integration
 
 ## Configuration
 
@@ -495,14 +240,18 @@ File changes trigger:
 
 - **[@eserstack/cli](https://jsr.io/@eserstack/cli)** - Main CLI tool
   (`eser laroux` commands)
-- **[@eserstack/laroux-core](https://jsr.io/@eserstack/laroux-core)** - Core
-  runtime and utilities
+- **[@eserstack/laroux-server](https://jsr.io/@eserstack/laroux-server)** -
+  Server runtime (SSR, routing, actions)
+- **[@eserstack/laroux](https://jsr.io/@eserstack/laroux)** - Framework-agnostic
+  core utilities
 
 ## Documentation
 
-- [User Guide](https://github.com/eser/stack/blob/main/docs/user-guide.md)
-- [API Reference](https://github.com/eser/stack/blob/main/docs/api-reference.md)
-- [JSR Package](https://jsr.io/@eserstack/laroux-bundler)
+- [JSR Package](https://jsr.io/@eserstack/laroux-bundler) — symbol-level API
+  reference, generated from source
+- [Architecture decision records](https://github.com/eser/stack/tree/main/docs/adr)
+- Generate the API reference locally with `deno task cli docs` (output lands in
+  `docs/api/`, which is not tracked)
 
 ## License
 

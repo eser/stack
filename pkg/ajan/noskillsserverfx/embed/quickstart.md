@@ -3,7 +3,13 @@
 ## Install
 
 ```bash
-brew install eserstack/tap/noskills-server
+brew install eser/tap/noskills-server
+```
+
+Or install with the one-liner:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s noskills-server
 ```
 
 Or download a binary from https://github.com/eser/stack/releases and add it to
@@ -24,8 +30,8 @@ PIN.
 noskills-server doctor
 ```
 
-Checks: port availability, Node.js version, cert validity, ledger dir
-permissions.
+Checks: port availability, agent CLI, JS runtime for mux sessions, cert
+validity, ledger dir permissions.
 
 ## Attach a project
 
@@ -34,11 +40,11 @@ noskills-server start &
 # Then open https://localhost:4433 and register a project path
 ```
 
-Or use the CLI (after `brew install eserstack/tap/noskills`):
+Or use the CLI (after `brew install eser/tap/noskills`):
 
 ```bash
-noskills add-project --path /path/to/your/project
-noskills attach my-project
+noskills session          # manage sessions for multi-instance support
+noskills manager          # multi-spec TUI with tab management
 ```
 
 ## Manage the PIN
@@ -50,8 +56,6 @@ noskills-server pin      # reset + reprint
 ## Run as a background service
 
 ```bash
-brew services start noskills-server   # macOS launchd
-# or
 noskills-server install-service       # installs launchd plist / systemd unit
 ```
 

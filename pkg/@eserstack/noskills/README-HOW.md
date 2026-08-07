@@ -785,11 +785,18 @@ Cline, Roo Code, Kilo Code).
 
 ## Agent Bridge
 
-Validation via fallback chain:
+`commands/run.ts` resolves an agent through `@eserstack/ai`:
+`adapters.factoryFor("claude-code")`, after `iteration.setDriver(root, "acp")`
+records which driver the run used.
 
-1. **@eserstack/ai** — programmatic API call (cross-model)
-2. **Claude CLI** — spawns `claude -p "..."` locally
-3. **Manual** — returns null, caller handles human review
+`factoryFor` prefers the ACP-backed Go bridge when the native library loads, and
+falls back to the TypeScript adapter otherwise. Both drive the same vendor
+binary in the same non-interactive mode, so the choice affects transport, not
+behaviour. If no agent can be resolved, validation returns null and the caller
+falls back to human review.
+
+There is no longer a `bridge/` module or a `claude -p` shell-out — that chain
+was removed when ACP replaced it.
 
 ---
 

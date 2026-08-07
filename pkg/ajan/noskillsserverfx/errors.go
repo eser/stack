@@ -25,8 +25,7 @@ var NSErrors = struct {
 	AuthLocked           *NSError
 	WorkerDied           *NSError
 	WorkerSpawnTimeout   *NSError
-	NodeMissing          *NSError
-	NodeVersionTooOld    *NSError
+	WorkerRuntimeMissing *NSError
 	LedgerWriteError     *NSError
 	DaemonAlreadyRunning *NSError
 }{
@@ -63,26 +62,21 @@ var NSErrors = struct {
 	WorkerDied: &NSError{
 		Code:    "502.NS01",
 		Message: "worker process died",
-		Cause:   "the Node.js worker for this session exited unexpectedly",
+		Cause:   "the worker process for this session exited unexpectedly",
 		Fix:     "reattach to the session — the daemon will respawn the worker",
 	},
 	WorkerSpawnTimeout: &NSError{
 		Code:    "502.NS02",
 		Message: "worker spawn timeout",
 		Cause:   "worker did not report 'ready' within 5 seconds",
-		Fix:     "check that Node >= 20 is installed: node --version",
+		Fix:     "check that a worker runtime is installed: deno --version",
 	},
-	NodeMissing: &NSError{
+	WorkerRuntimeMissing: &NSError{
 		Code:    "503.NS03",
-		Message: "Node.js not found in PATH",
-		Cause:   "noskills-server workers require Node.js >= 20",
-		Fix:     "install Node.js: https://nodejs.org  or  brew install node",
-	},
-	NodeVersionTooOld: &NSError{
-		Code:    "503.NS04",
-		Message: "Node.js version too old",
-		Cause:   "worker requires Node.js >= 20; installed version is older",
-		Fix:     "upgrade Node.js: brew upgrade node  or  nvm install 22",
+		Message: "no JavaScript runtime found in PATH",
+		Cause:   "mux sessions run their worker under deno, bun or node",
+		Fix: "install one of deno, bun or node (Node must be >= 26), " +
+			"or set NOSKILLS_WORKER_RUNTIME to choose explicitly",
 	},
 	LedgerWriteError: &NSError{
 		Code:    "500.NS01",

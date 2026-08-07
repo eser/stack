@@ -8,6 +8,23 @@ Cross-runtime standards and utilities for TypeScript applications. Provides
 common interfaces, type declarations, and utility functions for building
 portable applications.
 
+## Runtime file and process details
+
+`runtime.fs.stat()` / `lstat()` return a `FileInfo` carrying `mode` — POSIX mode
+bits, or `null` where the platform does not report them. Windows has no execute
+bit, so callers must read `null` as "cannot tell from the mode", **not** as "not
+executable".
+
+`runtime.process.isAlive(pid)` reports whether a process id is running. A pid
+owned by another user counts as alive; only a definite "no such process" is
+false. It exists because "is the process that wrote this claim still running" is
+not answerable from a pid alone, and trusting a recorded pid forever turns any
+interrupted run into permanently wrong state.
+
+Both were previously reachable only through runtime-specific globals, so callers
+either reached for `Deno.*` (breaking under Node) or could not express the check
+at all.
+
 ## 🚀 Quick Start
 
 ```typescript

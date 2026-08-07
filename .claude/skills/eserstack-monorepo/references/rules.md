@@ -138,9 +138,9 @@ Rule: Follow this exact sequence:
 4. Create `mod.test.ts` with initial tests using `@std/assert`
 5. Create `README.md` with package description, installation, usage
 6. Package is auto-included via `pkg/@eserstack/*` glob in root `package.json`
-7. Run `deno task validate` to verify
+7. Run `deno task cli ok` to verify
 
-Template available at: `etc/templates/library-pkg/`
+Template available at: `.eser/recipes/library-pkg/`
 
 ---
 
@@ -173,27 +173,27 @@ vim ./pkg/@eserstack/fp/deno.json
 |------|---------|
 | `deno.json` | Root config (lint rules, unstable features, excludes) |
 | `package.json` | npm workspace root, deno task scripts |
-| `.eser/manifest.yml` | Pre-commit hooks (20+ checks) |
+| `.eser/manifest.yml` | Pre-commit hooks (24 validators) |
 | `pkg/@eserstack/*/deno.json` | Per-package TS config |
 | `pkg/@eserstack/*/mod.ts` | TS package entry points |
-| `apps/ajan/go.mod` | Go module definition + tool directives |
-| `apps/ajan/Makefile` | Go-specific build targets |
-| `apps/ajan/.golangci.yaml` | Go linting configuration |
+| `go.mod` | Go module definition + tool directives |
+| `Makefile` | Go-specific build targets |
+| `.golangci.yaml` | Go linting configuration |
 | `pkg/@eserstack/codebase/versions.ts` | Synchronized TS version bumping |
-| `etc/templates/library-pkg/` | New TS package template |
-| `etc/templates/go-service/` | New Go service template |
+| `.eser/recipes/library-pkg/` | New TS package template |
+| `.eser/recipes/go-service/` | New Go service template |
 | `Makefile` | Unified command interface (Deno + Go) |
 
 ---
 
 ## Go Package Layout
 
-Scope: Go services under `apps/ajan/`
+Scope: Go services under `pkg/ajan/`
 
-Rule: Go services live in `apps/ajan/` with independent git-tag versioning. They do NOT participate in the unified TS version-bump script.
+Rule: Go services live in `pkg/ajan/` with independent git-tag versioning. They do NOT participate in the unified TS version-bump script.
 
 ```
-apps/ajan/
+pkg/ajan/
 ├── go.mod                          # Module definition + tool directives
 ├── go.sum
 ├── Makefile                        # Go targets: ok, check, lint, fix, test, build
@@ -209,9 +209,9 @@ apps/ajan/
         └── business/               # Pure business logic (no external deps)
 ```
 
-**Go module path:** `github.com/eser/stack/apps/ajan`
+**Go module path:** `github.com/eser/stack`
 
-**Go versioning:** Uses git tags (e.g., `apps/ajan/v0.1.0`), NOT the unified version-bump script.
+**Go versioning:** Uses git tags (e.g., `pkg/ajan/v0.1.0`), NOT the unified version-bump script.
 
 ---
 
@@ -226,7 +226,7 @@ Scope: Go development workflow
 | `make go-lint` | Run golangci-lint |
 | `make go-fmt` | Auto-fix Go formatting |
 | `make go-build` | Build Go binaries |
-| `cd apps/ajan && make ok` | Same as `make go-ok` |
+| `make ok` | Same as `make go-ok` |
 
 ---
 
@@ -236,11 +236,11 @@ Scope: Adding new business logic to Go services
 
 Rule: Follow hexagonal architecture — business logic has zero external dependencies.
 
-1. Create directory: `apps/ajan/pkg/api/business/<domain>/`
+1. Create directory: `pkg/ajan/api/business/<domain>/`
 2. Define interfaces (ports) for external interactions
 3. Implement pure business logic with no imports outside stdlib
-4. Create adapters in `apps/ajan/pkg/api/adapters/` for external implementations
-5. Wire in composition root (`apps/ajan/pkg/api/adapters/appcontext/`)
+4. Create adapters in `pkg/ajan/api/adapters/` for external implementations
+5. Wire in composition root (`pkg/ajan/api/adapters/appcontext/`)
 6. Run `make go-ok` to validate
 
 See `go-practices` skill for detailed conventions.
@@ -249,7 +249,7 @@ See `go-practices` skill for detailed conventions.
 
 ## Templates
 
-Scope: Project starter templates in `etc/templates/`
+Scope: Project starter templates in `.eser/recipes/`
 
 Rule: Templates are excluded from linting/formatting via `deno.json` excludes.
 

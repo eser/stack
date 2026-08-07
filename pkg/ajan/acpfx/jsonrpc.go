@@ -325,8 +325,7 @@ func (c *Conn) readLoop(reader io.Reader) {
 // Unlike Close, this drains in-flight handlers first. The reader ending means
 // the far end stopped *sending*; it does not mean we can no longer write. An
 // agent on stdio sees exactly this when its client closes stdin, and exiting
-// immediately would truncate the reply to whatever request was in flight --
-// which is how `eser-acp < frames.jsonl` produced no output at all.
+// immediately would truncate the reply to whatever request was in flight.
 func (c *Conn) stop(err error) {
 	c.closeOnce.Do(func() {
 		if errors.Is(err, io.EOF) {

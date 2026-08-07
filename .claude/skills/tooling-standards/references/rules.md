@@ -90,7 +90,7 @@ package to wire up the graph.
 {
   "nodeModulesDir": "manual",
   "lint": { "rules": { "tags": ["recommended"] } },
-  "exclude": [".git", "node_modules/", "etc/templates/"]
+  "exclude": [".git", "node_modules/", ".eser/recipes/"]
 }
 ```
 
@@ -263,7 +263,7 @@ Rule: Use Makefile commands for all Go operations. Don't run go commands
 directly for common tasks.
 
 ```bash
-# In /apps/ajan directory
+# Go module lives at the repo root
 make restart         # Restart services after changes
 make check           # Run static analysis tools
 make lint            # Run linting (golangci-lint)
@@ -275,15 +275,15 @@ make build           # Build binaries
 Correct:
 
 ```bash
-cd apps/ajan && make lint
-cd apps/ajan && make test
+make lint
+make test
 ```
 
 Incorrect:
 
 ```bash
-cd apps/ajan && go fmt ./...
-cd apps/ajan && go test ./...
+go fmt ./...
+go test ./...
 ```
 
 ---
@@ -298,7 +298,7 @@ Rule: Use SQLC for database query generation. SQL queries live in
 **Structure:**
 
 ```
-apps/ajan/
+pkg/ajan/
 ├── etc/data/default/
 │   ├── migrations/     # Database migrations
 │   ├── queries/        # SQL queries for SQLC
@@ -315,7 +315,7 @@ apps/ajan/
 Regenerate after SQL changes:
 
 ```bash
-cd apps/ajan && make generate
+make generate
 ```
 
 ---

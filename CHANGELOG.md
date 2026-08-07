@@ -39,12 +39,6 @@ and this project adheres to
 - **kit:** `Recipe` schema fields `name`, `description`, `language`, `scale`,
   `files` are now optional in standalone `recipe.json` (lenient clone path).
   Registry entries still require them via `isRegistryRecipe`.
-- **repo:** `install-noskills-server.{sh,ps1}` renamed from
-  `install-noskills.*`. The name had stopped matching: those scripts install the
-  daemon and nothing else now that the `noskills` CLI ships from the `eser`
-  archive path. The daemon stays a separate Go binary deliberately — 10.7 MB
-  against a Deno runtime plus the 34.7 MB shared library, and a long-running
-  server does not belong inside a JS runtime holding a C ABI open.
 - **build:** the Go shared library is built with `-ldflags=-s -w`, dropping the
   symbol table and DWARF: 40.9 MB → 34.7 MB, measured on darwin/arm64. It is
   copied into every archive that needs FFI, so the saving is paid per binary per
@@ -68,8 +62,9 @@ and this project adheres to
 
   `compile.ts` grew a `BINARIES` list and the homebrew updater a matching
   `FORMULAS` list — adding a binary is an entry in each, never an
-  implementation. GoReleaser now builds only `noskills-server`, which is a
-  genuine daemon rather than a CLI subset.
+  implementation. GoReleaser is gone entirely: `compile.ts` cross-builds
+  `noskills-server` alongside the deno-compiled binaries, so one pipeline
+  releases the whole family at one version into one `SHA256SUMS.txt`.
 - **acp:** the `eser-acp` binary is gone. `pkg/ajan/acpfx/shim` is Go code
   linked into the same binary as its callers, so reaching it through a
   subprocess meant `aifx` and `noskillsserverfx` serialising JSON down a pipe to
@@ -91,14 +86,13 @@ and this project adheres to
   passed only because the fake replaced the whole shim. `mapOpenCodeEvent`
   classifies text, done and error and has no tool-call path, so opencode cannot
   surface one. That test now runs against `claude-code`, which does.
-- **repo:** the top-level `scripts/` directory is gone; its four files moved
-  into `etc/scripts/`, which already held the repo's tooling. The two
-  `install.sh` files that resulted are named for what they install: `install.sh`
-  (the `eser` CLI) and `install-noskills-server.sh` (noskills-server, noskills,
-  eser-acp), plus `install-noskills-server.ps1` for Windows. **The public
-  install URL changed** — `main/scripts/install.sh` is now
-  `main/etc/scripts/install-noskills-server.sh`. That URL has never completed a
-  successful install (see the GoReleaser P0), so no working setup breaks.
+- **repo:** the top-level `scripts/` directory is gone; its files moved into
+  `etc/scripts/`, which already held the repo's tooling. The installers
+  collapsed into **one** `etc/scripts/install.sh` that takes the product as an
+  argument (`| sh -s noskills-server`), with `install.ps1` as its Windows
+  counterpart (`-Product`). **The public install URL changed** —
+  `main/scripts/install.sh` is now `main/etc/scripts/install.sh`. The old URL
+  never completed a successful install, so no working setup breaks.
 - **codebase:** `WalkSourceFiles` now enumerates untracked-but-not-ignored files
   via `git ls-files --others --exclude-standard`. It previously listed only
   files already in the index, so every validator built on it — runtime-API

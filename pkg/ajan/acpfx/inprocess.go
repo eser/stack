@@ -15,13 +15,13 @@ import (
 // --acp, claude-agent-acp -- Spawn is the right entry point: that agent is
 // another program, and the pipe is a real boundary.
 //
-// Our own shim is not another program. pkg/ajan/acpfx/shim implements ACP over
-// the vendor CLIs, in Go, linked into the same binary as the caller. Reaching it
-// through Spawn meant building a separate `eser-acp` executable, shipping it,
-// installing it, putting it on PATH, probing for its presence, and explaining
-// its absence in an error message -- so that Go could serialise JSON down a pipe
-// to reach a struct it already had in memory. The process boundary bought
-// nothing and cost an entire distribution problem.
+// An agent implemented in this repo is not another program.
+// pkg/ajan/acpfx/shim implements ACP over the vendor CLIs, in Go, linked into
+// the same binary as the caller. Reaching it through Spawn would mean building a
+// separate executable, shipping it, installing it, putting it on PATH, probing
+// for its presence, and explaining its absence in an error message -- so that Go
+// could serialise JSON down a pipe to reach a struct it already had in memory.
+// The process boundary buys nothing and costs an entire distribution problem.
 //
 // net.Pipe gives a synchronous, in-memory, full-duplex connection: the exact
 // semantics of the stdio pair, minus the process. The protocol, the handshake,

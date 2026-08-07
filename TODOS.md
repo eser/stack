@@ -179,105 +179,37 @@ dispatch (`modules: { x: { load: () => import(...) } }`) works under quickjs
 while `lazyCommand` does not — that difference is the most promising thread for
 whoever picks this up, and it is also the workaround.
 
-**Why P3:** we are not adopting the backend. 31 MB is small next to the 278 MB
-that removing the Claude Agent SDK took off every binary, and the failure mode
-is severe. Worth filing upstream once minimised, because "call a function that
-dynamically imports, then `.parse()` the result" is an ordinary CLI pattern and
-the backend is young.
+**Why P3:** we are not adopting the backend. 31 MB is a small win against a 268
+MB binary -- for scale, dropping one oversized dependency earlier took 278 MB
+off every binary -- and the failure mode is severe. Worth filing upstream once
+minimised, because "call a function that dynamically imports, then `.parse()`
+the result" is an ordinary CLI pattern and the backend is young.
 
 **Do not** add `--engine quickjs` without testing a lazily-dispatched command
 end to end; `--help` passing proves nothing, as it never triggers a lazy load.
 
-## P1 — Two installers, and the working one is the undocumented one
+## ~~P1~~ DONE — Two installers, and the working one was undocumented
 
-**What:** the repo ships two POSIX installers that install different things, and
-the documented one is the broken one.
+Resolved. There is one installer now: `etc/scripts/install.sh`, taking the
+product as an argument (`eser`, `noskills`, `laroux`, `noskills-server`), with
+`etc/scripts/install.ps1` as its Windows counterpart. Every product is built at
+one version by one pipeline into one `SHA256SUMS.txt`, so a single script serves
+all of them.
 
-- `etc/scripts/install.sh` downloads `eser-<tag>-<triple>.tar.gz` +
-  `SHA256SUMS.txt` — assets that **exist on every release**, produced by
-  `build.yml`'s `compile-binaries` / `upload-assets`. It works. **Nothing
-  references it** — not the README, not a workflow, not the brew formula.
-- `etc/scripts/install-noskills-server.sh` downloads
-  `noskills_<version>_<os>_<arch>`
-  - `checksums.txt` — assets that **have never existed** (see the P0 above). It
-    is the one advertised in `cmd/noskills-server/README.md` and in
-    `.goreleaser.yaml`'s brew instructions.
+## ~~P0~~ DONE — GoReleaser has never published
 
-So the install command in the docs has never worked, while the installer that
-does work is invisible.
+Resolved by removing GoReleaser rather than repairing it.
 
-**Why it matters beyond the P0:** even once goreleaser publishes, a user needs
-BOTH — `eser` is the CLI, and `eser-acp` is what its claude-code / kiro /
-opencode providers spawn. Two separate curl-pipe-sh commands to get one working
-tool is the wrong end state.
+The diagnosis stands as history: `build.yml`'s `tag-release` pushed the tag with
+the default `GITHUB_TOKEN`, and GitHub does not dispatch workflows for events
+created with that token, so `release.yml` — which triggered only on `push: tags`
+— never fired. Verified against the API for v4.1.47 → v4.1.56: not one release
+carried a `noskills_*` asset.
 
-**Fix:** after the P0 lands and `noskills_*` archives exist, merge the two into
-a single `etc/scripts/install.sh` that installs the `eser` CLI and the Go
-binaries together, and point the README and brew formula at it. Not done now
-because a merged installer would half-fail until the archives are published.
-
-**Effort:** S, blocked on the P0.
-
-## P0 — GoReleaser has never published; `install.sh` 404s on every release
-
-**What:** `.goreleaser.yaml` builds `noskills-server`, `noskills` and `eser-acp`
-and archives them as `noskills_<version>_<Os>_<Arch>.tar.gz` (`.zip` on Windows)
-plus `checksums.txt`. **None of those assets has ever existed on any release.**
-
-Verified against the GitHub API for the eight most recent tags (v4.1.47 →
-v4.1.56): every release carries either 0 assets or the same 11 `eser-v*` files
-produced by `build.yml`'s `compile-binaries` / `upload-assets` jobs, with
-`SHA256SUMS.txt`. `noskills_*`: zero. `checksums.txt`: never present.
-
-**Consequences, all currently live:**
-
-1. `etc/scripts/install-noskills-server.sh` — the install command documented in
-   `cmd/noskills-server/README.md:14` and in the goreleaser brew instructions —
-   downloads a URL that 404s. It has never worked.
-2. `eser-acp` has never shipped in any artifact, so ACP-backed providers
-   (`claude-code`, `kiro`, `opencode`) and the daemon's `kind="acp"` worker
-   cannot work from a release install. The `ShimMissingHint` error text tells
-   users to "install the eserstack release", which does not deliver the shim.
-3. The brew formula's `bin.install "eser-acp"` (`.goreleaser.yaml:175`) never
-   runs, so the tap is stale too.
-4. `etc/scripts/install-noskills-server.ps1` inherits the same 404 for the same
-   reason.
-
-**Root cause:** `build.yml`'s `tag-release` job pushes the tag with the default
-`GITHUB_TOKEN` supplied by `actions/checkout`. GitHub deliberately does **not**
-dispatch workflows for events created with `GITHUB_TOKEN` — it is the recursion
-guard. `release.yml` triggers only on `push: tags: "v*"`, so it has never fired.
-This is not a goreleaser misconfiguration; goreleaser is simply never invoked.
-
-**Fix — needs a decision, because the options differ in blast radius:**
-
-1. Push the tag with a PAT (or a GitHub App token) instead of `GITHUB_TOKEN`.
-   Smallest change and keeps the two workflows separate, but requires a repo
-   secret that only the owner can create.
-2. Add a `workflow_dispatch` trigger with a `tag` input to `release.yml`, so a
-   release can at least be run by hand. Additive and safe; matches the existing
-   precedent in `publish-ajan.yml`. Does not make it automatic.
-3. Invoke goreleaser directly from `build.yml` after `tag-release`, dropping
-   `release.yml`. Fully automatic, but restructures the release pipeline.
-
-**Option 2 is DONE** — `release.yml` now also accepts `workflow_dispatch` with a
-`tag` input, and checks out that tag so goreleaser derives the right version. A
-release can be cut by hand today. It is additive: the `on: push: tags` trigger
-is untouched, so nothing changes if the token issue is fixed separately.
-
-Still open, and still the owner's call: (1) needs a repo secret, and (3) rewires
-release infrastructure. **Recommend 1** — it is the only option that makes
-releases work unattended again.
-
-**Verify after fixing:** a release must carry
-`noskills_<version>_Darwin_arm64.tar.gz` and `checksums.txt`, and
-`curl -fsSL .../install.sh | sh` must land `eser-acp` on PATH. The
-`windows-smoke` job already covers the Windows half via `-ArchivePath`, which
-deliberately bypasses the download so it tests the installer rather than the
-release.
-
-**Effort:** S for the fix; the value is that it makes three shipped features
-reachable for the first time.
+`.goreleaser.yaml` and `.github/workflows/release.yml` are both deleted.
+`pkg/@eserstack/cli/scripts/compile.ts` now cross-builds `noskills-server`
+(CGO_ENABLED=0, `-s -w`) alongside the deno-compiled binaries, so there is no
+second workflow left to fail to trigger.
 
 ## ~~P0~~ DONE — Go runtime crash under the FFI library (surfaced 2026-08-01)
 
@@ -878,7 +810,7 @@ the payload — a guaranteed structural mismatch on every page containing a link
 (`link.tsx` is itself `"use client"`), swallowed by `onRecoverableError` at
 **debug** level under the comment "Hydration mismatches are expected for async".
 
-**Context:** `etc/adrs/0001` already named the fix ("Option 2 … single source of
+**Context:** `docs/adr/0003` already named the fix ("Option 2 … single source of
 truth for tree traversal") and its Related Files point at a package that no
 longer exists — update the ADR. Do this only after adding one fixture app; there
 is currently no consumer exercising laroux at all.

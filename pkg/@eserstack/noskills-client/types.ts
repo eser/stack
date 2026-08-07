@@ -77,16 +77,20 @@ export interface CreateSessionRequest {
   /** Resume from an existing session ID. */
   resumeFrom?: string;
   /**
-   * Worker flavour to attach with: "agent" (default, Claude Agent SDK) or "mux"
-   * (terminal multiplexer). The daemon stores no per-session state, so the same
-   * value must be passed as `?kind=` on attach.
+   * Worker flavour to attach with: "agent" (default) or "mux" (terminal
+   * multiplexer). The daemon stores no per-session state, so the same value must
+   * be passed as `?kind=` on attach.
+   *
+   * "agent" is served by the ACP worker; "acp" is an accepted synonym for it.
+   * Both spellings exist because stored sessions carry either string.
    */
-  kind?: "agent" | "mux";
+  kind?: "agent" | "acp" | "mux";
 }
 
 export interface CreateSessionResponse {
   sessionId: string;
-  kind?: "agent" | "mux";
+  /** Echoed back from the request; see {@link CreateSessionRequest.kind}. */
+  kind?: "agent" | "acp" | "mux";
 }
 
 // =============================================================================
@@ -121,9 +125,12 @@ export interface TranscriptReplayEndEvent {
  *
  * `event` is an ACP `SessionUpdate`: a schema-defined object discriminated by
  * its `sessionUpdate` field (`agent_message_chunk`, `agent_thought_chunk`,
- * `tool_call`, `tool_call_update`, `plan`, …). Sessions still backed by the
- * Claude Agent SDK worker put the SDK's own untyped message here instead, so
- * narrow on `sessionUpdate` being present before relying on the ACP shape.
+ * `tool_call`, `tool_call_update`, `plan`, …).
+ *
+ * `sessionUpdate` is optional because this event is persisted to the ledger and
+ * replayed verbatim: a session started under an older daemon can replay entries
+ * whose payload predates the ACP shape. Narrow on `sessionUpdate` being present
+ * before relying on it.
  */
 export interface SdkEvent {
   type: "sdk_event";
@@ -132,8 +139,8 @@ export interface SdkEvent {
 }
 
 /**
- * A turn finished. `stopReason` is present for ACP-backed sessions only — the
- * SDK worker had no way to report one.
+ * A turn finished. `stopReason` says why the turn ended, and is present only
+ * when the agent reported one.
  */
 export interface QueryDoneEvent {
   type: "query_done";

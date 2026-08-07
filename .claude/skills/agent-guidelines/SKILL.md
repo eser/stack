@@ -11,14 +11,14 @@ Rules for AI coding agents working on the eserstack monorepo.
 
 1. Work within **one package at a time** unless cross-package change is justified
 2. Check **Safety Rules** before any action (Never Do / Ask First / Always Do)
-3. Run `deno task validate` before considering work complete
+3. Run `deno task cli ok` before considering work complete
 4. Follow existing patterns in the target package
 
 ## Agent Roles
 
 - **Implementer:** Write code in one package, run validate, follow conventions
 - **Reviewer:** Read-only analysis, check skill adherence, verify coverage
-- **Architect:** Plan cross-package changes, create ADRs in `etc/adrs/`
+- **Architect:** Plan cross-package changes, create ADRs in `docs/adr/`
 
 ## Safety Rules
 

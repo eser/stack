@@ -11,19 +11,30 @@ laptop, phone, second terminal — and resume exactly where you left off.
 **macOS / Linux (one-liner):**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install-noskills-server.sh | sh
+curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s noskills-server
+```
+
+One installer serves the whole family; the product is the argument. `eser`,
+`noskills` and `laroux` install the same way.
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.ps1 | iex
+# or a specific product:
+#   .\install.ps1 -Product noskills-server
 ```
 
 **Homebrew:**
 
 ```sh
-brew install eserstack/tap/noskills-server
+brew install eser/tap/noskills-server
 ```
 
-**Auto-start on login (macOS):**
+**Auto-start on login:**
 
 ```sh
-brew services start noskills-server
+noskills-server install-service
 ```
 
 ## Quick start
@@ -35,11 +46,8 @@ noskills-server start
 # Verify everything is working
 noskills-server doctor
 
-# Register a project
-noskills add-project --path ~/code/myapp
-
-# Attach to a Claude session
-noskills attach myapp
+# Manage sessions (the daemon stores no per-session state of its own)
+noskills session
 
 # Reset your PIN (invalidates all tokens)
 noskills-server pin
@@ -71,12 +79,24 @@ noskills-server (Go daemon)
   ├── Multi-client fan-out broadcaster
   ├── Auth (PIN + Bearer token)
   └── Worker manager
-             │  Unix socket (JSONL)
-             ▼
-    TS worker per session
-    (@anthropic-ai/claude-agent-sdk)
-    cwd = your project root
+             │
+             ├── agent sessions: in-process ACP worker
+             │     acpfx.InProcess over net.Pipe -> acpfx/shim
+             │     -> claude --print --output-format stream-json
+             │     cwd = your project root
+             │
+             └── mux sessions: TS worker over a Unix socket (JSONL)
+                   mux-worker.ts under Deno
 ```
+
+Agent sessions carry no subprocess of their own: the ACP shim is Go code linked
+into this daemon, reached by a function call rather than a pipe. It still drives
+a vendor CLI (`claude`, `kiro` or `opencode`), which must be installed.
+`NOSKILLS_ACP_COMMAND` points at a genuinely external ACP agent instead
+(`gemini --acp`, `claude-agent-acp`).
+
+Only mux sessions still spawn a TypeScript worker, because a terminal pane's
+content channel is VT bytes rather than protocol messages.
 
 Sessions persist across daemon restarts via an append-only JSONL ledger
 (`~/.noskills/sessions/`). On reattach the client receives a full transcript
@@ -84,14 +104,14 @@ replay before entering live mode.
 
 ## Commands
 
-| Command                      | Description                                  |
-| ---------------------------- | -------------------------------------------- |
-| `noskills-server start`      | Start the daemon                             |
-| `noskills-server doctor`     | Run health checks (mkcert, port, Node, cert) |
-| `noskills-server pin`        | Reprint or reset the auth PIN                |
-| `noskills-server version`    | Print version, commit, build date, platform  |
-| `noskills-server feedback`   | Open a pre-filled GitHub issue               |
-| `noskills-server quickstart` | Print this guide offline                     |
+| Command                      | Description                                       |
+| ---------------------------- | ------------------------------------------------- |
+| `noskills-server start`      | Start the daemon                                  |
+| `noskills-server doctor`     | Run health checks (mkcert, port, agent CLI, cert) |
+| `noskills-server pin`        | Reprint or reset the auth PIN                     |
+| `noskills-server version`    | Print version, commit, build date, platform       |
+| `noskills-server feedback`   | Open a pre-filled GitHub issue                    |
+| `noskills-server quickstart` | Print this guide offline                          |
 
 ## Start flags
 

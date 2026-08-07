@@ -10,7 +10,7 @@ import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as streams from "@eserstack/streams";
 import * as logging from "@eserstack/logging";
-import * as shellExec from "@eserstack/shell/exec";
+import * as shellEnv from "@eserstack/shell/env";
 import type * as shellArgs from "@eserstack/shell/args";
 import { Registry } from "../registry.ts";
 import * as aiStreams from "../streams/mod.ts";
@@ -29,6 +29,9 @@ const PROVIDER_ALIASES: Readonly<Record<string, string>> = {
   ant: "anthropic",
   gem: "gemini",
   vtx: "vertexai",
+  // detect.ts:94 registers this alias and `ai list` prints it; without the entry
+  // here `ai ask -p kr` rejected an alias the CLI had just advertised.
+  kr: "kiro",
 };
 
 const PROVIDER_DISPLAY_NAMES: Readonly<Record<string, string>> = {
@@ -96,15 +99,15 @@ const setupLogging = async (
 const detectProvider = async (log: logging.logger.Logger): Promise<string> => {
   await log.info("Auto-detecting AI provider...");
 
-  // 1. Check for claude binary
-  try {
-    const code = await shellExec.exec`which claude`.noThrow().code();
-    if (code === 0) {
-      await log.info("Claude Code detected.");
-      return "claude-code";
-    }
-  } catch {
-    // Not found
+  // 1. Check for claude binary.
+  //
+  // hasExecutable walks PATH in-process. `which` cost a subprocess per probe,
+  // does not exist on Windows, and -- because the shared exec path goes through
+  // the Go native library, which caches the environment it loaded with -- could
+  // not see a PATH exported afterwards.
+  if (await shellEnv.hasExecutable("claude")) {
+    await log.info("Claude Code detected.");
+    return "claude-code";
   }
 
   // 2. Check for ollama at localhost
@@ -121,14 +124,9 @@ const detectProvider = async (log: logging.logger.Logger): Promise<string> => {
   }
 
   // 3. Check for opencode binary
-  try {
-    const code = await shellExec.exec`which opencode`.noThrow().code();
-    if (code === 0) {
-      await log.info("OpenCode detected.");
-      return "opencode";
-    }
-  } catch {
-    // Not found
+  if (await shellEnv.hasExecutable("opencode")) {
+    await log.info("OpenCode detected.");
+    return "opencode";
   }
 
   // 4. Check env vars for API providers

@@ -233,8 +233,7 @@ func TestNSErrors_AllFieldsPopulated(t *testing.T) {
 		NSErrors.AuthLocked,
 		NSErrors.WorkerDied,
 		NSErrors.WorkerSpawnTimeout,
-		NSErrors.NodeMissing,
-		NSErrors.NodeVersionTooOld,
+		NSErrors.WorkerRuntimeMissing,
 		NSErrors.LedgerWriteError,
 		NSErrors.DaemonAlreadyRunning,
 	}

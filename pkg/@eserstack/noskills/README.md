@@ -2,7 +2,17 @@
 
 > **eserstack Product** — AI development orchestrator ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/noskills`
+> `curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s noskills`
+
+`noskills` is a command, so install it as a binary — the line above, or
+`brew install eser/tap/noskills`, or `npm i -g @eserstack/noskills`. On Windows
+use `install.ps1 -Product noskills`.
+
+Adding this package as a dependency (`pnpm add jsr:@eserstack/noskills`) gets
+you the modules, not the command: the source package declares no `bin`, which is
+generated at publish time by `scripts/npm-build.ts`. Depend on it when embedding
+the orchestrator in your own program; install the binary when you want to run
+it.
 
 AI agents are powerful. But left alone, they take shortcuts — they skip
 requirements, rush past edge cases, declare "done" when it isn't, and forget

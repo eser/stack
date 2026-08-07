@@ -393,9 +393,10 @@ func (s *Server) handleListSessions(ctx *httpfx.Context) httpfx.Result {
 type createSessionRequest struct {
 	ResumeFrom string `json:"resumeFrom,omitempty"`
 	// Kind selects the worker flavour the client will attach with: "agent"
-	// (default, Claude Agent SDK) or "mux" (terminal multiplexer). The daemon
-	// stores no per-session state here, so the client must pass the same kind as
-	// ?kind= on /attach; it is echoed back for convenience.
+	// (default, served by the ACP worker; "acp" is an accepted synonym) or "mux"
+	// (terminal multiplexer). The daemon stores no per-session state here, so the
+	// client must pass the same kind as ?kind= on /attach; it is echoed back for
+	// convenience.
 	Kind string `json:"kind,omitempty"`
 }
 

@@ -866,14 +866,13 @@ const BRIDGE_PROVIDERS: ReadonlyArray<{
 
 /**
  * Creates AjanBridgeModelFactory instances for all supported providers.
- * Returns an empty array if the FFI library is not available.
- */
-/**
- * Bridge providers whose Go implementation drives an external ACP agent.
  *
- * pkg/ajan/aifx/adapter_acp.go drives its in-process shim for each of these, so
- * the bridge can only serve them where that binary exists. It is not part of the
- * ajan npm packages, which carry the shared library only.
+ * Every provider the bridge knows, unconditionally — there is nothing that can
+ * be independently absent, because every backend is Go code inside the very
+ * library that just loaded. The vendor CLI that claude-code, kiro and opencode
+ * each drive (claude, kiro, opencode) must still be installed, but that is a
+ * spawn-time failure with its own message, not something a PATH probe can
+ * predict.
  */
 export const createBridgeFactories = (
   lib: ffiTypes.FFILibrary,
@@ -903,11 +902,11 @@ export const tryLoadBridgeFactories = async (): Promise<
 
     lib.symbols.EserAjanInit();
 
-    // No shim probe. claude-code/opencode/kiro used to be gated on an `eser-acp`
-    // binary being on PATH; the shim is now Go code linked into the library that
-    // just loaded, so if the library is here the backends are here. The vendor
-    // CLI each one drives still has to be installed, but that is a spawn-time
-    // failure with its own message, not something a PATH lookup can predict.
+    // No availability probe. claude-code/opencode/kiro are Go code linked into
+    // the library that just loaded, so if the library is here the backends are
+    // here. The vendor CLI each one drives still has to be installed, but that
+    // is a spawn-time failure with its own message, not something a PATH lookup
+    // can predict.
     return createBridgeFactories(lib);
   } catch {
     // FFI not available — caller falls back to pure-TS factories.

@@ -473,10 +473,9 @@ Deno.test("a classified bridge error rebuilds its typed class", async () => {
 
 // ── ACP-backed providers ─────────────────────────────────────────────────────
 
-// These three used to be gated on an `eser-acp` binary being on PATH, because
-// aifx reached its own shim through a subprocess. The shim is now linked into
-// the library, so the library loading IS the availability check — there is
-// nothing left that can be absent independently.
+// These three are linked into the library rather than reached through a
+// subprocess, so the library loading IS the availability check — there is
+// nothing that can be absent independently.
 Deno.test("every bridge provider is advertised once the library loads", () => {
   const lib = { symbols: {} } as unknown as ffiTypes.FFILibrary;
 

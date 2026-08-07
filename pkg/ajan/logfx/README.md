@@ -1,4 +1,4 @@
-# eser-go/logfx
+# ajan/logfx
 
 ## Overview
 
@@ -65,7 +65,7 @@ logfx.LevelPanic // 16  ← Additional
 ### Extended Level Usage
 
 ```go
-import "github.com/eser/stack/pkg/eser-go/logfx"
+import "github.com/eser/stack/pkg/ajan/logfx"
 
 logger := logfx.NewLogger(
     logfx.WithLevel(logfx.LevelTrace), // Now supports all 7 levels
@@ -122,7 +122,7 @@ import (
     "context"
     "log/slog"
 
-    "github.com/eser/stack/pkg/eser-go/logfx"
+    "github.com/eser/stack/pkg/ajan/logfx"
 )
 
 func main() {
@@ -153,7 +153,7 @@ import (
     "log/slog"
     "os"
 
-    "github.com/eser/stack/pkg/eser-go/logfx"
+    "github.com/eser/stack/pkg/ajan/logfx"
 )
 
 func main() {
@@ -186,7 +186,7 @@ package main
 import (
     "context"
 
-    "github.com/eser/stack/pkg/eser-go/logfx"
+    "github.com/eser/stack/pkg/ajan/logfx"
 )
 
 func main() {

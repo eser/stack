@@ -242,8 +242,8 @@ func (b *safeBuffer) String() string {
 //
 // An agent on stdio hits this every time: the client closes stdin as its
 // shutdown signal, but stdout is still open and the reply to the request that
-// was in flight has to get out. Before the drain, `eser-acp < frames.jsonl`
-// exited 0 having written nothing at all.
+// was in flight has to get out. Without the drain such a run exits 0 having
+// written nothing at all, so the loss is silent.
 func TestReplyIsWrittenAfterReaderEOF(t *testing.T) {
 	t.Parallel()
 

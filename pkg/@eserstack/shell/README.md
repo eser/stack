@@ -4,8 +4,7 @@
 > **Install:** `pnpm add jsr:@eserstack/shell`
 
 `@eserstack/shell` is a comprehensive shell utilities library for building CLI
-applications. It provides four submodules for different aspects of CLI
-development:
+applications:
 
 - **`@eserstack/shell/completions`** - Shell completion script generation for
   bash, zsh, and fish
@@ -13,8 +12,35 @@ development:
   trees
 - **`@eserstack/shell/exec`** - Lightweight shell execution with
   template-literal API
-- **`@eserstack/shell/tui`** - Terminal UI: interactive prompts, spinners,
-  progress bars, and styled output (built on `@eserstack/streams/span`)
+- **`@eserstack/shell/env`** - Shell and environment detection, plus
+  `resolveExecutable` / `hasExecutable` for finding a binary on PATH
+- **`@eserstack/shell/tui`** (and `tui/types`, `tui/colors`) - Terminal UI:
+  interactive prompts, spinners, progress bars, and styled output (built on
+  `@eserstack/streams/span`)
+- **`@eserstack/shell/module`** - Module definitions for composing command trees
+- **`@eserstack/shell/vterm`** - Virtual terminal emulation
+- **`@eserstack/shell/go-exec`** - Execution through the Go native library
+
+Note the barrel (`@eserstack/shell`) re-exports completions, args, exec, tui and
+`Module` only — reach `env`, `vterm` and `go-exec` by their sub-path.
+
+## Finding an executable
+
+```typescript
+import * as shellEnv from "@eserstack/shell/env";
+
+const path = await shellEnv.resolveExecutable("claude"); // string | null
+const ok = await shellEnv.hasExecutable("claude"); // boolean
+```
+
+PATH is walked in-process rather than shelling out to `which`: that costs a
+subprocess per lookup, does not exist on Windows, and — because the shared exec
+path runs through the Go native library, which caches the environment it loaded
+with — cannot see a PATH exported afterwards. The execute bit is checked via
+`FileInfo.mode`, treating `null` (Windows, where there is no such bit) as
+"cannot tell" rather than "not executable".
+
+This is the implementation `eser`'s `eser-<name>` plugin lookup uses.
 
 ## 💫 Key features
 
@@ -152,45 +178,45 @@ await app.parse();
 A lightweight template-literal API for shell execution using template literals.
 
 ```typescript
-import { $ } from "@eserstack/shell/exec";
+import { exec } from "@eserstack/shell/exec";
 
 // Basic command execution
-const result = await $`echo hello world`.text();
+const result = await exec`echo hello world`.text();
 console.log(result); // "hello world"
 
 // Get output as lines
-const files = await $`ls -la`.lines();
+const files = await exec`ls -la`.lines();
 console.log(files);
 
 // Parse JSON output
-const data = await $`curl -s https://api.example.com/data`.json<
+const data = await exec`curl -s https://api.example.com/data`.json<
   { id: number }
 >();
 console.log(data.id);
 
 // Get exit code
-const code = await $`test -f package.json`.code();
+const code = await exec`test -f package.json`.code();
 console.log(code === 0 ? "exists" : "not found");
 
 // Variable interpolation
 const dir = "/tmp";
-const contents = await $`ls ${dir}`.lines();
+const contents = await exec`ls ${dir}`.lines();
 
 // Fluent configuration
-const output = await $`npm run build`
+const output = await exec`npm run build`
   .cwd("/path/to/project")
   .env("NODE_ENV", "production")
   .timeout(60000)
   .text();
 
 // Suppress errors
-const result2 = await $`command-that-might-fail`
+const result2 = await exec`command-that-might-fail`
   .noThrow()
   .spawn();
 console.log(result2.success ? "ok" : "failed");
 
 // Quiet mode (suppress stdout/stderr)
-await $`npm install`.quiet().spawn();
+await exec`npm install`.quiet().spawn();
 ```
 
 #### CommandBuilder Methods
@@ -368,7 +394,7 @@ if (dirty.isDirty(tracker, "sidebar")) {
 
 ```typescript
 import { Command } from "@eserstack/shell/args";
-import { $ } from "@eserstack/shell/exec";
+import { exec } from "@eserstack/shell/exec";
 
 const cli = new Command("devtool")
   .description("Development toolkit")
@@ -385,7 +411,7 @@ const testCommand = new Command("test")
   .run(async (ctx) => {
     const watch = ctx.flags["watch"] as boolean;
     const args = watch ? ["--watch"] : [];
-    await $`npm test ${args.join(" ")}`.spawn();
+    await exec`npm test ${args.join(" ")}`.spawn();
   });
 
 const lintCommand = new Command("lint")
@@ -398,7 +424,7 @@ const lintCommand = new Command("lint")
   .run(async (ctx) => {
     const fix = ctx.flags["fix"] as boolean;
     const cmd = fix ? "npm run lint:fix" : "npm run lint";
-    await $`${cmd}`.spawn();
+    await exec`${cmd}`.spawn();
   });
 
 const completionsCommand = new Command("completions")

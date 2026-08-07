@@ -4,8 +4,27 @@
 > **Install:** `pnpm add jsr:@eserstack/codebase`
 
 `@eserstack/codebase` provides validation tools and project management utilities
-for maintaining code quality. It includes 22 validation tools, git hook
+for maintaining code quality. It includes 24 validation tools, git hook
 management, release tooling, and a workflow integration layer.
+
+## The shared `system` command tree
+
+`cli-system/` owns the operational commands every shipped binary carries —
+`install`, `uninstall`, `update`, `completions`, `version`, `doctor`, `info` —
+built once and parameterised by a `CliApp` so `eser`, `noskills` and `laroux`
+each get a tree describing themselves.
+
+```typescript
+import { attachStandardCommands } from "@eserstack/codebase/cli-support";
+
+const app = attachStandardCommands(module.toCommand("noskills", version));
+```
+
+It attaches to a binary's ROOT command, never to a Module. That is deliberate:
+`eser` mounts the very same module object the standalone `noskills` binary
+re-roots, so a layer living on the module would appear in both — and
+`eser noskills version` would exist, implying a submodule has a version of its
+own.
 
 ## 🚀 Quick Start
 
@@ -39,12 +58,11 @@ npx eser codebase validate-commit-msg --message "feat(core): add feature"
 
 ### Setup
 
-| Command       | Description                                 |
-| ------------- | ------------------------------------------- |
-| `scaffolding` | Initialize project from template            |
-| `install`     | Install git hooks from `.eser/manifest.yml` |
-| `uninstall`   | Remove managed git hooks                    |
-| `status`      | Show git hook installation status           |
+| Command     | Description                                 |
+| ----------- | ------------------------------------------- |
+| `install`   | Install git hooks from `.eser/manifest.yml` |
+| `uninstall` | Remove managed git hooks                    |
+| `status`    | Show git hook installation status           |
 
 ### Release
 

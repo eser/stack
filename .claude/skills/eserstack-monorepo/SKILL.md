@@ -11,8 +11,8 @@ Multi-language monorepo: Deno/TypeScript packages (JSR/npm) + Go services.
 
 1. Each package: `pkg/@eserstack/<name>/` with `deno.json`, `mod.ts`, `mod.test.ts`
 2. Unified version — use `deno task cli codebase versions <patch|minor|major>`
-3. JSR primary (`deno publish`), npm secondary (only `@eserstack/cli`)
-4. Run `deno task validate` to check entire monorepo
+3. JSR primary (`deno publish`), npm secondary (`eser`, `noskills`, `laroux`)
+4. Run `deno task cli ok` to check entire monorepo
 
 ## Key Principles
 
@@ -26,7 +26,7 @@ Multi-language monorepo: Deno/TypeScript packages (JSR/npm) + Go services.
 
 ## Go Services
 
-Go code lives in `apps/ajan/` with independent git-tag versioning.
+Go code lives in `pkg/ajan/` with independent git-tag versioning.
 - Run `make go-ok` for Go-only validation
 - Go does NOT use the unified version-bump script
 - Follow hexagonal architecture — see `go-practices` skill

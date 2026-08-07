@@ -63,15 +63,24 @@ export class LarouxError extends Error {
   /** Additional context data */
   readonly context: Record<string, unknown>;
 
+  code: string | null;
+  hint: string | null;
+  docUrl: string | null;
+
+  // Explicit assignment, not parameter properties — Node's erase-only type
+  // stripping cannot emit the implicit assignments they imply.
   constructor(
     message: string,
-    public code: string | null = null,
-    public hint: string | null = null,
-    public docUrl: string | null = null,
+    code: string | null = null,
+    hint: string | null = null,
+    docUrl: string | null = null,
     errorContext?: ErrorContext,
   ) {
     super(message);
     this.name = "LarouxError";
+    this.code = code;
+    this.hint = hint;
+    this.docUrl = docUrl;
 
     // Set correlation ID (generate if not provided)
     this.correlationId = errorContext?.correlationId ?? crypto.randomUUID();

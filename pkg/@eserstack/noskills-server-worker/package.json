@@ -3,10 +3,9 @@
   "version": "4.1.58",
   "description": "noskills-server TS worker \u2014 hosts a mux terminal multiplexer session",
   "type": "module",
-  "main": "worker.js",
+  "main": "mux-worker.ts",
   "scripts": {
-    "build": "tsc --outDir dist",
-    "start": "node dist/worker.js"
+    "start": "deno run -A mux-worker.ts"
   },
   "dependencies": {
     "@eserstack/mux": "workspace:*",
@@ -17,6 +16,6 @@
     "@types/node": "^26.1.2"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=26.0.0"
   }
 }

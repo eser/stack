@@ -76,13 +76,11 @@ func (f *acpModelFactory) CreateModel(
 	_ context.Context,
 	config *ConfigTarget,
 ) (LanguageModel, error) { //nolint:ireturn
-	// binPath now names the VENDOR binary (claude, kiro, opencode), not a shim.
+	// binPath names the VENDOR binary (claude, kiro, opencode).
 	//
-	// It used to resolve `eser-acp` here and fail the whole CreateModel when that
-	// binary was absent. There is no shim binary any more -- it is linked in --
-	// so there is nothing to resolve, and empty means "let the backend use its
-	// own default name". A missing vendor CLI now surfaces at spawn time, from
-	// the process that actually tried to run it, which is where the useful error
+	// Nothing is resolved or probed here: empty means "let the backend use its
+	// own default name". A missing vendor CLI surfaces at spawn time, from the
+	// process that actually tried to run it, which is where the useful error
 	// text comes from anyway.
 	command, _ := config.Properties["binPath"].(string)
 
@@ -154,11 +152,8 @@ func (m *ACPModel) vendorArgs() []string {
 // response. It is our own code, so there is no separate binary to version.
 const acpShimVersion = "1"
 
-// backendImpl builds the vendor backend this model drives.
-//
-// This is what `eser-acp --backend <name> --command <path> ...` used to do by
-// parsing flags; the flags existed only to carry these three values across a
-// process boundary that no longer exists.
+// backendImpl builds the vendor backend this model drives, from the backend
+// name, the vendor command and the vendor args.
 func (m *ACPModel) backendImpl() (shim.Backend, error) { //nolint:ireturn
 	args := m.vendorArgs()
 
@@ -287,10 +282,9 @@ func (m *ACPModel) runTurn(
 	// The shim runs in this process, not as a subprocess.
 	//
 	// It is our own Go code (pkg/ajan/acpfx/shim) compiled into this binary, so
-	// spawning it meant serialising JSON down a pipe to reach a struct already
-	// in memory -- and paying for a separate `eser-acp` executable to be built,
-	// shipped, installed, put on PATH and probed for. acpfx.Spawn remains the
-	// entry point for agents that genuinely are other programs.
+	// spawning it would mean serialising JSON down a pipe to reach a struct
+	// already in memory. acpfx.Spawn remains the entry point for agents that
+	// genuinely are other programs.
 	backend, err := m.backendImpl()
 	if err != nil {
 		return "", err

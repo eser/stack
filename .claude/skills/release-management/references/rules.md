@@ -9,7 +9,7 @@ Rule: Complete all steps in order before merging to main.
 1. **Verify clean state:**
    ```bash
    git status                    # Must be clean
-   deno task validate            # Must pass
+   deno task cli ok            # Must pass
    ```
 
 2. **Bump version:**

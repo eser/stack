@@ -1,11 +1,11 @@
-# eser-go/connfx
+# ajan/connfx
 
 ## Overview
 
 **connfx** provides a unified connection management system for all external
-integrations in the eser-go framework. It features **centralized OTLP connection
-management** that enables `logfx`, `metricsfx`, and `tracesfx` to share
-connections efficiently while maintaining separation of concerns.
+integrations in the ajan framework. It features **centralized OTLP connection
+management** that lets logging, metrics and tracing share connections
+efficiently while maintaining separation of concerns.
 
 ### Key Features
 
@@ -23,6 +23,11 @@ connections efficiently while maintaining separation of concerns.
   validation
 - 🔧 **Bridge Pattern** - Avoid import cycles while enabling package integration
 
+> **Note on `metricsfx` / `tracesfx` in the examples below.** Those packages
+> were folded into `logfx` (`logfx/metrics.go`, `logfx/tracer.go`); the
+> shared-OTLP-connection idea they illustrate is unchanged, but the import paths
+> in those snippets no longer resolve.
+
 ## Quick Start
 
 ### Basic OTLP Connection Setup
@@ -34,8 +39,8 @@ import (
     "context"
     "time"
 
-    "github.com/eser/stack/pkg/eser-go/connfx"
-    "github.com/eser/stack/pkg/eser-go/logfx"
+    "github.com/eser/stack/pkg/ajan/connfx"
+    "github.com/eser/stack/pkg/ajan/logfx"
 )
 
 func main() {
@@ -80,12 +85,12 @@ import (
     "net/http"
     "time"
 
-    "github.com/eser/stack/pkg/eser-go/connfx"
-    "github.com/eser/stack/pkg/eser-go/httpfx"
-    "github.com/eser/stack/pkg/eser-go/httpfx/middlewares"
-    "github.com/eser/stack/pkg/eser-go/logfx"
-    "github.com/eser/stack/pkg/eser-go/metricsfx"
-    "github.com/eser/stack/pkg/eser-go/tracesfx"
+    "github.com/eser/stack/pkg/ajan/connfx"
+    "github.com/eser/stack/pkg/ajan/httpfx"
+    "github.com/eser/stack/pkg/ajan/httpfx/middlewares"
+    "github.com/eser/stack/pkg/ajan/logfx"
+    "github.com/eser/stack/pkg/ajan/logfx"
+
 )
 
 func main() {
@@ -178,16 +183,12 @@ connections:
 **Problem (Before):**
 
 ```go
-// Each package configured separately - duplicated configuration
-logger := logfx.NewLogger(logfx.WithOTLP("otel-collector:4318", true))
-metrics := metricsfx.NewMetricsProvider(&metricsfx.Config{
-    OTLPEndpoint: "otel-collector:4318",
-    ServiceName:  "my-service",
-})
-traces := tracesfx.NewTracesProvider(&tracesfx.Config{
-    OTLPEndpoint: "otel-collector:4318",
-    ServiceName:  "my-service",
-})
+// Historical shape: separate metricsfx / tracesfx packages, each configured on
+// its own with duplicated endpoints. Both were folded into logfx
+// (logfx/metrics.go, logfx/tracer.go); neither package exists today.
+logger  := logfx.NewLogger(logfx.WithOTLP("otel-collector:4318", true))
+metrics := logfx.NewMetricsBuilder(meterProvider, "my-service")
+// ...and a third endpoint string for traces
 ```
 
 **Solution (After):**
@@ -936,7 +937,7 @@ _, err = registry.AddConnection(ctx, "api-fault-tolerant", &connfx.ConfigTarget{
 
 ### Integration with Other Packages
 
-Use resilient HTTP connections with other eser-go packages:
+Use resilient HTTP connections with other ajan packages:
 
 ```go
 // With httpfx for web servers

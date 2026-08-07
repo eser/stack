@@ -9,8 +9,8 @@ Scope: Writing code within a single package
 Rule: Stay within one package per task. Follow package conventions from `eserstack-monorepo` skill.
 
 Responsibilities:
-- Write code within `pkg/@eserstack/<name>/` or `pkg/@cool/<name>/`
-- Run `deno task validate` after changes
+- Write code within `pkg/@eserstack/<name>/` or `pkg/@eserstack/<name>/`
+- Run `deno task cli ok` after changes
 - Follow package conventions (mod.ts entry, license headers, kebab-case)
 - Write tests for new functionality
 - Keep functions pure when possible
@@ -36,8 +36,8 @@ Rule: Plan before implementing. Document decisions.
 Responsibilities:
 - Plan cross-package changes using the cross-package protocol
 - Reference `.github/ARCHITECTURE.md` for package relationships
-- Create ADRs in `etc/adrs/` for significant architectural decisions
-- Consider impact on all 29+ packages
+- Create ADRs in `docs/adr/` for significant architectural decisions
+- Consider impact on all 42 packages
 
 ---
 
@@ -57,11 +57,18 @@ Rule: Each area has specific concerns. Respect ownership boundaries.
 | `pkg/@eserstack/config/` | Configuration management — dotenv, file loaders |
 | `pkg/@eserstack/events/` | Event system — pub/sub patterns |
 | `pkg/@eserstack/shell/` | Shell interaction — args, exec, env, completions |
-| `apps/ajan/pkg/api/business/` | Go business logic — pure domain, no external deps |
-| `apps/ajan/pkg/api/adapters/` | Go adapters — external integrations |
-| `apps/ajan/cmd/` | Go entry points — server, CLI |
-| `apps/ajan/Makefile` | Go build targets — test in branch |
-| `etc/templates/` | Project templates — validate after changes |
+| `pkg/@eserstack/ai/` | AI providers — TS adapters plus the Go bridge merge |
+| `pkg/@eserstack/codebase/` | Repo tooling and validators — **owns `cli-system/`, the `system` command tree shared by every shipped binary** |
+| `pkg/@eserstack/noskills*/` | Spec workflow, daemon client, web dashboard, mux worker |
+| `pkg/@eserstack/kit/` | Recipes and scaffolding — absorbed the former `registry` package |
+| `pkg/ajan/acpfx/` | Agent Client Protocol — client, agent, and the in-process shim |
+| `pkg/ajan/aifx/` | Go AI providers — reaches acpfx/shim in-process |
+| `pkg/ajan/noskillsserverfx/` | The daemon — sessions, ledger, workers |
+| `pkg/ajan/api/business/` | Go business logic — pure domain, no external deps |
+| `pkg/ajan/api/adapters/` | Go adapters — external integrations |
+| `cmd/` | Go entry points — `noskills-server` only; the other binaries are deno-compiled |
+| `Makefile` | Go build targets — test in branch |
+| `.eser/recipes/` | Project templates — validate after changes |
 | `.github/workflows/` | CI/CD — test in a branch before merging |
 | `.claude/skills/` | AI guidance — update when conventions change |
 
@@ -114,7 +121,8 @@ Scope: Required actions for every task
 
 Rule: These must be done before considering work complete.
 
-- Run `deno task validate` (or `make ok`) — full monorepo validation (Deno + Go)
+- Run `deno task cli ok` — full monorepo validation (Deno + Go).
+  `make ok` is Go only; it does not cover the TypeScript side.
 - Run `make go-ok` after Go changes — Go-specific validation
 - Follow existing code patterns in the target package
 - Write tests for new functionality (`*.test.ts` co-located)
@@ -146,7 +154,7 @@ Rule: Follow this 5-step protocol. Never skip steps.
    - Then Layer 3 (framework)
    - Then Layer 4 (`@eserstack/cli`) last
 
-4. **Test** — Run `deno task validate` after ALL changes (validates entire monorepo)
+4. **Test** — Run `deno task cli ok` after ALL changes (validates entire monorepo)
 
 5. **Version** — If publishing is affected, use the version-bump script
 
@@ -156,11 +164,11 @@ Rule: Follow this 5-step protocol. Never skip steps.
 
 | Component | Technology |
 |-----------|-----------|
-| Runtime | Deno 2.x (TS primary), Go 1.24+ (services), Node.js (npm publishing only) |
+| Runtime | Deno 2.x (TS primary), Go 1.26+ (services), Node.js (npm publishing only) |
 | Language | TypeScript (strict mode), Go |
 | Package Registry | JSR (primary), npm (secondary — only `@eserstack/cli`) |
 | Testing | `@std/assert`, `@std/testing` from Deno standard library |
-| Linting | Deno built-in linter with 23 custom rules |
+| Linting | Deno built-in linter with the recommended rule set |
 | Formatting | Deno built-in formatter |
 | CI/CD | GitHub Actions with Codecov coverage |
-| @eserstack/codebase | 20+ hooks including validation, kebab-case, typos, conventional commits |
+| @eserstack/codebase | 24 validators including validation, kebab-case, typos, conventional commits |

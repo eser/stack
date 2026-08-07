@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 )
 
@@ -52,13 +51,12 @@ func RunDoctor(cfg *ServerConfig) *DoctorReport {
 	report := &DoctorReport{}
 
 	checks := []func(*ServerConfig) CheckResult{
-		checkNodeInstalled,
-		checkNodeVersion,
+		checkWorkerRuntime,
 		checkPortFree(cfg),
 		checkLedgerDir(cfg),
 		checkRuntimeDirPerms(cfg),
 		checkCertValid,
-		checkACPShim,
+		checkACPAgent,
 	}
 
 	if runtime.GOOS == "darwin" {
@@ -123,80 +121,64 @@ func PrintDoctorReport(r *DoctorReport, asJSON bool) {
 // Individual checks
 // =============================================================================
 
-func checkNodeInstalled(_ *ServerConfig) CheckResult {
-	path, err := exec.LookPath("node")
-	if err != nil {
-		return CheckResult{
-			Name:    "Node.js installed",
-			Status:  CheckFail,
-			Message: "not found in PATH",
-			Fix:     NSErrors.NodeMissing.Fix,
+// checkWorkerRuntime reports whether the mux worker has a runtime to run under.
+//
+// Only mux sessions need one. Agent sessions are served in-process by the Go
+// ACP worker and spawn nothing at all.
+//
+// The search order mirrors workerRuntime in worker.go -- deno, then bun, then
+// node -- because a check that only looked for one of them would report a
+// broken daemon on a machine where mux runs fine under another.
+func checkWorkerRuntime(_ *ServerConfig) CheckResult {
+	const name = "Worker runtime (mux sessions)"
+
+	for _, runtime := range []string{"deno", "bun", "node"} {
+		if path, err := exec.LookPath(runtime); err == nil {
+			return CheckResult{
+				Name:    name,
+				Status:  CheckOK,
+				Message: path,
+			}
 		}
 	}
 
 	return CheckResult{
-		Name:    "Node.js installed",
-		Status:  CheckOK,
-		Message: path,
+		Name:    name,
+		Status:  CheckWarn,
+		Message: "no deno, bun or node in PATH (only kind=\"mux\" sessions need one)",
+		Fix:     NSErrors.WorkerRuntimeMissing.Fix,
 	}
 }
 
-// checkACPShim reports whether the ACP agent binary is reachable.
+// checkACPAgent reports whether an agent session could actually run.
 //
-// A warning rather than a failure: only sessions created with kind="acp" spawn
-// it, so a daemon serving only SDK or mux sessions runs perfectly without it.
-// But when it is missing those sessions fail at spawn time with a message about
-// a binary the user has no reason to have heard of, which is exactly the kind of
-// thing doctor exists to say up front.
-func checkACPShim(_ *ServerConfig) CheckResult {
+// pkg/ajan/acpfx/shim is linked into this daemon and reached in-process, so
+// there is no binary of our own to look for. What CAN be missing is the vendor
+// CLI the shim drives, or an external ACP agent named by NOSKILLS_ACP_COMMAND.
+func checkACPAgent(_ *ServerConfig) CheckResult {
 	command, _ := acpAgentCommand()
+
+	// Empty means the in-process shim, which drives the default vendor CLI.
+	if command == "" {
+		command = "claude"
+	}
 
 	path, err := exec.LookPath(command)
 	if err != nil {
 		return CheckResult{
-			Name:    "ACP agent available",
-			Status:  CheckWarn,
-			Message: command + " not found in PATH (only kind=\"acp\" sessions need it)",
-			Fix: "Install the eserstack release, which ships " + command +
-				", or set " + envACPCommand + " to its path.",
+			Name:   "Agent CLI available",
+			Status: CheckWarn,
+			Message: command + " not found in PATH (agent sessions drive it; " +
+				"mux sessions do not need it)",
+			Fix: "Install " + command + ", or set " + envACPCommand +
+				" to an external ACP agent.",
 		}
 	}
 
 	return CheckResult{ //nolint:exhaustruct
-		Name:    "ACP agent available",
+		Name:    "Agent CLI available",
 		Status:  CheckOK,
 		Message: path,
-	}
-}
-
-func checkNodeVersion(_ *ServerConfig) CheckResult {
-	out, err := exec.Command("node", "--version").Output() //nolint:gosec // fixed args
-	if err != nil {
-		return CheckResult{
-			Name:    "Node.js >= 20",
-			Status:  CheckWarn,
-			Message: "version check failed",
-		}
-	}
-
-	ver := strings.TrimSpace(strings.TrimPrefix(string(out), "v"))
-
-	parts := strings.SplitN(ver, ".", 2)
-	major, parseErr := strconv.Atoi(parts[0])
-
-	if parseErr != nil || major < 20 {
-		return CheckResult{
-			Name:    "Node.js >= 20",
-			Status:  CheckFail,
-			Message: "v" + ver + " (need >= 20)",
-			Fix:     NSErrors.NodeVersionTooOld.Fix,
-		}
-	}
-
-	return CheckResult{
-		Name:    "Node.js >= 20",
-		Status:  CheckOK,
-		Message: "v" + ver,
 	}
 }
 

@@ -20,7 +20,10 @@ go mod download
 deno task cli ok        # full validation (Deno + Go) — must pass before every commit
 
 # Build binaries
-go build ./cmd/noskills-server ./cmd/noskills
+go build ./cmd/noskills-server
+
+# The TypeScript binaries (eser, noskills, laroux) are deno-compiled:
+deno run --allow-all pkg/@eserstack/cli/scripts/compile.ts
 
 # Run noskills-server tests
 go test ./pkg/ajan/noskillsserverfx/... -v
@@ -28,6 +31,22 @@ go test ./pkg/ajan/noskillsserverfx/... -v
 # Run TypeScript tests (noskills-client, webtransport, noskills-server-worker)
 deno lint pkg/@eserstack/noskills-client/ pkg/@eserstack/webtransport/ pkg/@eserstack/noskills-server-worker/
 deno check pkg/@eserstack/noskills-client/mod.ts pkg/@eserstack/webtransport/mod.ts
+```
+
+## Documentation
+
+`docs/` holds two kinds of content, and the distinction matters before you edit
+anything there:
+
+- `docs/adr/` and `docs/schema/` are **hand-written and tracked**.
+- `docs/api/` is **generated and untracked**. `deno task cli docs` deletes and
+  rebuilds it from the JSDoc in `pkg/@eserstack/*/mod.ts`, so edits there are
+  lost on the next run — change the doc comment instead.
+
+Build the API reference locally with:
+
+```bash
+deno task cli docs
 ```
 
 ## Architecture decision records

@@ -78,9 +78,9 @@ workflow-facing (Tools).
 | [@eserstack/testing](pkg/@eserstack/testing/)         | fakeFs, fakeServer, tempDir                                    |
 | [@eserstack/jsx-runtime](pkg/@eserstack/jsx-runtime/) | Server-side JSX                                                |
 | [@eserstack/collector](pkg/@eserstack/collector/)     | Export manifest generation                                     |
-| [@eserstack/cs](pkg/@eserstack/cs/)                   | CS utilities (algorithms, data structures)                     |
+| [@eserstack/cs](pkg/@eserstack/cs/)                   | Kubernetes ConfigMap/Secret sync from .env files               |
 | [@eserstack/ajan](pkg/@eserstack/ajan/)               | Go/WASM FFI bridge                                             |
-| [@eserstack/registry](pkg/@eserstack/registry/)       | Recipe registry, distribution protocol, handlers               |
+| [@eserstack/kit](pkg/@eserstack/kit/)                 | Recipe registry, distribution protocol, handlers               |
 
 **Tools**
 
@@ -127,11 +127,10 @@ Growing toward — or already with — their own identity.
 > AI development orchestrator — structured discovery, human-in-the-loop, quality
 > gates. Before a single line of code, noskills asks the right questions.
 
-**Standalone install:** `pnpm add jsr:@eserstack/noskills` (or curl/npx/brew/nix
-— [see all options](https://eser.run/install)) **In Claude Code:** Add to your
-project and use via `deno task cli noskills spec new "description"`
-
-![noskills demo from Claude Code](./etc/noskills-demo.gif)
+**Standalone install:**
+`curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s noskills`
+(or brew/npm/nix — see [Install the CLI](#install-the-cli)) **In Claude Code:**
+Add to your project and use via `deno task cli noskills spec new "description"`
 
 <!-- TODO: record demo GIF showing CC agent workflow -->
 
@@ -139,18 +138,19 @@ project and use via `deno task cli noskills spec new "description"`
 
 ## 🚀 Jumpstart
 
-Ensure that [Deno](https://deno.land/) 2.4 or higher is installed on your system
-first.
+Ensure that [Deno](https://deno.land/) 2.9.5 or higher is installed on your
+system first.
 
 ### Install the CLI
 
 ```bash
 # macOS / Linux — install script
-curl -fsSL https://eser.run/install | sh
-# Downloads eser binary to ~/.local/bin. Inspect: https://eser.run/install
+curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh
+# Downloads the eser binary to ~/.local/bin. Inspect the script before running:
+# https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh
 
 # Homebrew
-brew install eser
+brew install eser/tap/eser
 
 # Nix
 nix run github:eser/stack
@@ -162,6 +162,39 @@ deno run jsr:@eserstack/cli
 npm install -g eser
 # or: npx eser <command>
 ```
+
+### The rest of the family
+
+Four binaries ship from this repo, all at one version from one pipeline:
+
+| Binary            | What it is                    | Install                           |
+| ----------------- | ----------------------------- | --------------------------------- |
+| `eser`            | the full CLI                  | `curl -fsSL .../install.sh \| sh` |
+| `noskills`        | the spec workflow, on its own | `... \| sh -s noskills`           |
+| `laroux`          | the laroux.js CLI, on its own | `... \| sh -s laroux`             |
+| `noskills-server` | the session daemon (Go)       | `... \| sh -s noskills-server`    |
+
+The installer is
+`https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh`, and
+the product is its argument. On Windows use `install.ps1` with `-Product`.
+Homebrew has a formula per binary (`brew install eser/tap/noskills`), and
+`eser`, `noskills` and `laroux` are also on npm.
+
+`noskills` and `laroux` are not separate programs — they are the same modules
+`eser` mounts, re-rooted so they can be installed alone. Every one of them
+carries the same `system` tree:
+
+```bash
+noskills system install     # also: uninstall, update, completions,
+noskills system doctor      #       version, doctor, info
+noskills version            # short aliases: install, update, version, doctor
+```
+
+Submodules deliberately do not: `eser noskills version` does not exist, because
+a submodule is not a program with a version of its own. `noskills-server` is the
+exception in the other direction — being a Go daemon, it has its own command set
+(`start`, `doctor`, `pin`, `install-service`, `quickstart`) rather than this
+one.
 
 ### Browse available recipes
 
@@ -239,7 +272,7 @@ your fork, and then submit a pull request.
 
 ### Requirements
 
-- Deno 2.4 or higher (https://deno.land/)
+- Deno 2.9.5 or higher (https://deno.land/)
 
 ### Versioning
 

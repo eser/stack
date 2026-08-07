@@ -401,7 +401,7 @@ v1.0.0-dev.1     # Test/development deployment
 
 Scope: GitHub Actions CI/CD
 
-Rule: Extract shared CI jobs into `.github/workflows/integration.yml` with
+Rule: Extract shared CI jobs into the jobs in `.github/workflows/build.yml` with
 `workflow_call` trigger. Callers use `uses:` + `secrets: inherit`.
 
 ---

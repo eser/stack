@@ -25,6 +25,10 @@ var (
 const (
 	envACPCommand = "NOSKILLS_ACP_COMMAND"
 	envACPArgs    = "NOSKILLS_ACP_ARGS"
+
+	// envWorkerRuntime pins the JS runtime the mux worker runs under, when the
+	// automatic search is not what you want.
+	envWorkerRuntime = "NOSKILLS_WORKER_RUNTIME"
 )
 
 // defaultACPBackend is the vendor the in-process shim drives when nothing
@@ -52,18 +56,21 @@ const promptQueueDepth = 64
 // acpfx derives initialize's capability set from the handler's interfaces --
 // so there is no second place to keep in sync.
 //
-// # Why it speaks the TS worker's event vocabulary
+// # Event vocabulary
 //
-// Every event this emits uses the same {"type":...} envelope the Claude Agent
-// SDK worker emits: sdk_event, permission_request, query_done, query_error,
-// spawn_progress. That is what makes this a drop-in: the ledger, the fanout
-// broadcaster, replay, forking and the WebTransport attach path all transport
-// those payloads opaquely, so none of them change and no client has to be
-// updated in lockstep.
+// Every event this emits uses a {"type":...} envelope: sdk_event,
+// permission_request, query_done, query_error, spawn_progress. The ledger, the
+// fanout broadcaster, replay, forking and the WebTransport attach path all
+// transport those payloads opaquely, so none of them has to understand what is
+// inside one.
 //
-// What changed is the *content* of sdk_event: it now carries an ACP
-// SessionUpdate, which has a published schema, rather than the SDK's untyped
-// message object.
+// sdk_event carries an ACP SessionUpdate, which has a published schema.
+//
+// The `sdk_` prefix is a frozen wire name, not a description of what produces
+// the event. Renaming it would break the client type union
+// (pkg/@eserstack/noskills-client/types.ts), the fanout ledger allowlist
+// (fanout.go), and every ledger entry already on disk, which replay reads back
+// verbatim. Leave it alone.
 type acpWorker struct {
 	*acpfx.Host
 
@@ -206,10 +213,9 @@ func (w *acpWorker) watchConnection() {
 
 // SendQueryStart opens the ACP session.
 //
-// resume is honoured through session/load when the agent advertises it. The
-// old SDK path could not use resume at all -- wt_attach passes "" and
-// continuity comes from replaying the ledger -- so an agent that supports it
-// now gets the chance to restore its own state instead.
+// resume is honoured through session/load when the agent advertises it, which
+// lets the agent restore its own state. It is often empty -- wt_attach passes
+// "", and continuity there comes from replaying the ledger instead.
 func (w *acpWorker) SendQueryStart(ctx context.Context, cwd, sessionID, resume string) error {
 	session, err := w.openSession(ctx, cwd, resume)
 	if err != nil {
@@ -314,12 +320,11 @@ func (w *acpWorker) runOneTurn(content string) {
 		return
 	}
 
-	// query_done carries the stop reason, which the SDK path had no way to
-	// report. It is additive: a consumer that only checks the type is unaffected.
+	// query_done carries the stop reason; a consumer that only checks the type is
+	// unaffected by it.
 	//
-	// Note this fires per turn, where the SDK worker fired it once when the whole
-	// query ended. Per turn is the more useful signal -- it means "the agent is
-	// idle again", which is what a UI showing a spinner actually needs.
+	// Note this fires once per turn, so it means "the agent is idle again", which
+	// is what a UI showing a spinner actually needs.
 	w.emit(map[string]any{"type": "query_done", "stopReason": string(resp.StopReason)})
 }
 
@@ -363,9 +368,7 @@ func (w *acpWorker) SendMux(_ json.RawMessage) error { return nil }
 
 // SetMode switches the ACP session's mode.
 //
-// This is what makes the client's set_permission_mode command mean something:
-// it was a declared command the daemon silently dropped, because the SDK worker
-// had nowhere to send it.
+// This is what backs the client's set_permission_mode command.
 func (w *acpWorker) SetMode(mode string) error {
 	session := w.currentSession()
 	if session == nil {

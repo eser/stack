@@ -122,14 +122,16 @@ main() {
   printf "\n"
 
   # --- Shell-aware completions hint ---
-  SHELL_NAME="$(basename "${SHELL:-/bin/sh}")"
+  # Defer to the binary itself.
+  #
+  # This used to hardcode `eser` regardless of which product was installed, and
+  # to tell users to append the completion SCRIPT into their rc file with `>>`.
+  # Both were wrong: completions are written to a file and sourced (see
+  # getCompletionSourceLine in @eserstack/shell/env), and `sh -s noskills-server`
+  # would have printed instructions for a different binary. The command below
+  # prints the correct, per-shell instructions for the product just installed.
   printf "To enable completions:\n"
-  case "${SHELL_NAME}" in
-    bash) printf "  eser system completions --shell bash >> ~/.bashrc\n" ;;
-    zsh)  printf "  eser system completions --shell zsh >> ~/.zshrc\n" ;;
-    fish) printf "  eser system completions --shell fish >> ~/.config/fish/config.fish\n" ;;
-    *)    printf "  eser system completions --shell %s\n" "${SHELL_NAME}" ;;
-  esac
+  printf "  %s system completions\n" "${BINARY}"
   printf "\n"
 }
 

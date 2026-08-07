@@ -1,4 +1,4 @@
-# eser-go/lib
+# ajan/lib
 
 ## Overview
 
@@ -35,7 +35,7 @@ func SplitHostPort(addr string) (string, string, error)
 **Usage:**
 
 ```go
-import "github.com/eser/stack/pkg/eser-go/lib"
+import "github.com/eser/stack/pkg/ajan/lib"
 
 // Split address with port
 host, port, err := lib.SplitHostPort("localhost:8080")

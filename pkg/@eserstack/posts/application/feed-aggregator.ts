@@ -28,9 +28,13 @@ export interface FeedAggregator {
 
 /** Default implementation using Promise.allSettled for fault tolerance. */
 export class DefaultFeedAggregator implements FeedAggregator {
-  constructor(
-    private readonly connections: ReadonlyArray<PlatformConnection>,
-  ) {}
+  private readonly connections: ReadonlyArray<PlatformConnection>;
+
+  // Explicit assignment, not a parameter property — Node's erase-only type
+  // stripping cannot emit one.
+  constructor(connections: ReadonlyArray<PlatformConnection>) {
+    this.connections = connections;
+  }
 
   async getUnifiedTimeline(
     params?: { maxResultsPerPlatform?: number },

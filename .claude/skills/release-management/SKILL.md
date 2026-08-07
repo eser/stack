@@ -5,11 +5,11 @@ description: Release checklist, version strategy, and publishing workflow for JS
 
 # Release Management
 
-Unified release process for 29+ synchronized packages.
+Unified release process for 42 synchronized packages.
 
 ## Quick Start
 
-1. `deno task validate` — verify clean state
+1. `deno task cli ok` — verify clean state
 2. `deno task cli codebase versions <patch|minor|major>` — bump all packages
 3. Update `CHANGELOG.md` — move Unreleased to new version section
 4. PR to main → merge triggers JSR + npm publish
@@ -20,7 +20,7 @@ Unified release process for 29+ synchronized packages.
 - JSR primary (OIDC auth), npm secondary (only `@eserstack/cli` as `eser`)
 - **patch:** bug fixes, docs, deps. **minor:** new features. **major:** breaking changes
 - Always update CHANGELOG before releasing
-- Tag format: `vx.y.z` (triggers release-notes-sync workflow)
+- Tag format: `vx.y.z` (triggers the release-notes job in build.yml)
 
 ## Anti-Patterns
 

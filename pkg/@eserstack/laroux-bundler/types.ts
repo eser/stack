@@ -83,13 +83,21 @@ export type BuildConfig = {
  * Simple error class without external dependencies
  */
 export class BuildError extends Error {
+  code: string;
+  hint?: string;
+
+  // Explicit assignment, not parameter properties — see CommandError in
+  // @eserstack/shell/exec/types.ts: Node's erase-only type stripping cannot
+  // emit the implicit assignment a parameter property implies.
   constructor(
     message: string,
-    public code: string,
-    public hint?: string,
+    code: string,
+    hint?: string,
   ) {
     super(message);
     this.name = "BuildError";
+    this.code = code;
+    this.hint = hint;
   }
 }
 

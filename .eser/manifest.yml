@@ -7,12 +7,21 @@ workflows:
     on: [precommit, prepush]
     steps:
       # Internal tools
-      - validate-eof
-      - validate-trailing-whitespace
-      - validate-bom
-      - validate-line-endings
+      # docs/api/ is `deno doc --html` output, regenerated wholesale by
+      # `deno task cli docs`. Linting it means every regeneration re-breaks the
+      # gate and has to be re-fixed by hand -- which is exactly what the
+      # previously committed, newline-fixed generated files show happened.
+      - validate-eof:
+          exclude: ["docs/api/"]
+      - validate-trailing-whitespace:
+          exclude: ["docs/api/"]
+      - validate-bom:
+          exclude: ["docs/api/"]
+      - validate-line-endings:
+          exclude: ["docs/api/"]
       - validate-large-files:
           maxKb: 1024
+          exclude: ["docs/api/"]
       - validate-case-conflict
       - validate-merge-conflict
       - validate-json:
@@ -136,7 +145,7 @@ workflows:
           fixCommand: deno lint --fix .
       - shell:
           name: deno-type-check
-          command: deno check ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts
+          command: deno check ./pkg/@eserstack/*/mod.ts
           timeout: 120
       - shell:
           name: deno-tests
@@ -229,16 +238,19 @@ scripts:
   # Code quality
   lint: deno lint .
   fmt: deno fmt
-  check: deno check ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts
+  check: deno check ./pkg/@eserstack/*/mod.ts
 
   # Build
   build: deno run --allow-all ./pkg/@eserstack/cli/scripts/npm-build.ts
   compile: deno run --allow-all ./pkg/@eserstack/cli/scripts/compile.ts
 
   # Documentation
-  docs: "rm -rf ./docs/ && deno doc --name='eserstack' --output=./docs/ --html
-    ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts"
-  docs-lint: deno doc --lint ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts
+  # Generates into docs/api/, NOT docs/. docs/ also holds hand-written content --
+  # docs/adr/ and docs/schema/ -- and the previous `rm -rf ./docs/` deleted it.
+  # pkg/@cool/ was also globbed here and does not exist.
+  docs: "rm -rf ./docs/api/ && deno doc --name='eserstack' --output=./docs/api/
+    --html ./pkg/@eserstack/*/mod.ts"
+  docs-lint: deno doc --lint ./pkg/@eserstack/*/mod.ts
 
   # Docker
   container-build: docker build -t eservm .
@@ -246,7 +258,7 @@ scripts:
 
   # Maintenance
   clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./pnpm-lock.yaml && deno
-    check ./pkg/@eserstack/*/mod.ts ./pkg/@cool/*/mod.ts"
+    check ./pkg/@eserstack/*/mod.ts"
   repl: deno repl --allow-all --unstable-bundle --eval-file=./repl-init.ts
 
   # Coverage

@@ -54,3 +54,14 @@ result-*
 # repo validators -- which now scan untracked files -- would flag it as an
 # unlicensed, non-kebab-case source file.
 .deno_compile_bundle_*.mjs
+
+# `go build ./cmd/<x>` without -o drops the binary in the repo root.
+/noskills-server
+
+# Generated API reference: `deno task cli docs` rebuilds it wholesale from the
+# JSDoc in pkg/@eserstack/*/mod.ts. Committing 3,700+ files of output meant it
+# was perpetually stale (last refreshed 2026-06-07, months behind the source it
+# documents), every regeneration produced an unreviewable diff, and the
+# formatting validators had to be hand-satisfied each time. Hand-written docs
+# under docs/adr/ and docs/schema/ stay tracked.
+docs/api/

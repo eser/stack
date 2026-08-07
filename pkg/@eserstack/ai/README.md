@@ -124,12 +124,33 @@ const counter = aiStreams.tokenCounter((usage) => {
 
 ### Local Agents
 
-| Provider    | Transport   | Interface                                  |
-| ----------- | ----------- | ------------------------------------------ |
-| Claude Code | CLI process | `claude -p "prompt"` with text/stream-json |
-| Ollama      | HTTP fetch  | `POST localhost:11434/api/chat` with JSONL |
-| OpenCode    | CLI process | `opencode -p "prompt" --output-format`     |
-| Kiro        | CLI process | `kiro --prompt "prompt" --output json`     |
+| Provider    | Transport                | Drives                                       |
+| ----------- | ------------------------ | -------------------------------------------- |
+| Claude Code | ACP, in-process (or CLI) | `claude --print --output-format stream-json` |
+| Ollama      | HTTP fetch               | `POST localhost:11434/api/chat` with JSONL   |
+| OpenCode    | ACP, in-process (or CLI) | `opencode` with its JSON output flag         |
+| Kiro        | ACP, in-process (or CLI) | `kiro` with its JSON output flag             |
+
+### Two paths, and which one you get
+
+`defaultFactories()` merges the TypeScript adapters with the Go FFI bridge **per
+provider** — the bridge wins wherever it has an entry, and the TypeScript
+adapter remains for every provider it does not. `factoryFor(provider)` does the
+same for a single provider without importing the others.
+
+For the three agent providers above, the bridge speaks the Agent Client Protocol
+to a shim that is **linked into the Go library**, not spawned: `acpfx.InProcess`
+connects them over an in-memory pipe. There is no separate binary to install or
+find on PATH. The shim still drives the vendor CLI, so `claude`, `kiro` or
+`opencode` must be installed — a spawn-time requirement, reported when it fails.
+
+When the native library cannot load, the pure-TypeScript adapters take over and
+shell out to the same vendor CLI directly. The bridge **refuses to load over
+WASM** deliberately: WASM loads and then fails every request, because Go's
+`wasip1` target has no outbound network — so a WASM-only machine falls back to
+TypeScript rather than registering a provider that is present and broken.
+
+`binPath` on one of these providers names the **vendor CLI**, not a shim.
 
 ## Content Types
 

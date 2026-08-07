@@ -14,7 +14,7 @@ a two-tier architecture: native FFI (Deno/Bun/Node) + WASM fallback
 deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts
 
 # 2. Verify the Go bridge works
-deno task cli go version
+deno task cli ajan version
 # → eser-ajan version 1.0.0
 
 # 3. (Optional) Test on other runtimes
@@ -23,7 +23,7 @@ ESER_AJAN_LIB_PATH=$(pwd)/pkg/@eserstack/ajan/dist/aarch64-darwin/libeser_ajan.d
 
 # 4. (Optional) Test WASM fallback
 deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm
-ESER_AJAN_NATIVE=disabled deno task cli go version
+ESER_AJAN_NATIVE=disabled deno task cli ajan version
 ```
 
 ## Build

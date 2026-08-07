@@ -28,8 +28,8 @@ import (
     "fmt"
     "time"
 
-    "github.com/eser/stack/pkg/eser-go/processfx"
-    "github.com/eser/stack/pkg/eser-go/logfx"
+    "github.com/eser/stack/pkg/ajan/processfx"
+    "github.com/eser/stack/pkg/ajan/logfx"
 )
 
 func main() {
@@ -661,7 +661,7 @@ func main() {
 - `sync`: Standard library for wait groups
 - `syscall`: Standard library for system calls
 - `time`: Standard library for timeouts
-- `github.com/eser/stack/pkg/eser-go/logfx`: Structured logging (optional)
+- `github.com/eser/stack/pkg/ajan/logfx`: Structured logging (optional)
 
 ## Thread Safety
 

@@ -222,8 +222,8 @@ const buildGoLibraries = async (projectRoot: string): Promise<void> => {
  * What still works under quickjs: MODULE dispatch, i.e.
  * `modules: { x: { load: () => import(...) } }`. Only lazyCommand fails. That is
  * also the workaround, if the 31 MB ever becomes worth restructuring dispatch
- * for -- it is not today, next to the 278 MB that removing the Claude Agent SDK
- * took off every binary.
+ * for -- it is not today, next to the 278 MB that dropping one oversized
+ * dependency took off every binary.
  *
  * Related upstream, same shape but not the same backend: bellard/quickjs#113
  * (import() promise callbacks never fire — QuickJS only supports synchronous

@@ -201,14 +201,24 @@ export const release = async (
   const previousVersion = (await readVersionFile()) ?? "0.0.0";
 
   // 4. Bump version (unless type is "same")
+  //
+  // Keep the version versions() computed rather than re-reading VERSION after
+  // the call. Under --dry-run nothing is written, so a re-read returns the OLD
+  // version and the preview reports "4.1.58 -> 4.1.58" -- telling the user the
+  // release is a no-op when it is not. targetVersion is computed before any
+  // write, so it is correct in both modes.
+  let bumpedVersion: string | undefined;
+
   if (type !== "same") {
     // Import versions dynamically to avoid circular deps at module scope
     const versionsModule = await import("./versions.ts");
-    await versionsModule.versions(type, { dryRun });
+    const bump = await versionsModule.versions(type, { dryRun });
+
+    bumpedVersion = bump.targetVersion;
   }
 
-  // 5. Read new version
-  const version = (await readVersionFile()) ?? previousVersion;
+  // 5. Resolve the new version
+  const version = bumpedVersion ?? (await readVersionFile()) ?? previousVersion;
 
   // 6. Generate changelog
   let changelogGenerated = false;

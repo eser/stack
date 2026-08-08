@@ -128,14 +128,29 @@ const gitUnpushedCommits = async (): Promise<string[]> => {
   return text.length > 0 ? text.split("\n") : [];
 };
 
-/** Stage specific files and create a commit. */
+/**
+ * Stage specific files and create a commit.
+ *
+ * Each pathspec is reported by name when it fails. `git add` exits 128 on a
+ * pathspec matching no tracked file, and this runs after the version bump has
+ * already been written, so the bare "exit code 128: git" it used to surface
+ * left a half-released tree with no indication of which entry was at fault.
+ */
 const gitAddAndCommit = async (
   message: string,
   files: ReadonlyArray<string>,
 ): Promise<void> => {
   for (const file of files) {
-    await shellExec.exec`git add ${file}`.spawn();
+    const result = await shellExec.exec`git add ${file}`.noThrow().spawn();
+
+    if (result.code !== 0) {
+      throw new Error(
+        `git add ${file} failed (exit ${result.code}). The pathspec matches ` +
+          `no tracked file — check whether it is gitignored or the layout moved.`,
+      );
+    }
   }
+
   await shellExec.exec`git commit -m ${message}`.spawn();
 };
 
@@ -242,10 +257,21 @@ export const release = async (
     }
 
     // Stage and commit
+    //
+    // Every pathspec here must be able to match a TRACKED file: `git add` exits
+    // 128 on one that matches nothing, and gitAddAndCommit does not tolerate
+    // that, so a dead entry aborts the release after the version bump has
+    // already been written to disk.
+    //
+    // pkg/@eserstack/*/deno.json is deliberately absent. Those are JSR
+    // manifests generated from package.json + VERSION by
+    // etc/scripts/gen-jsr-manifests.ts and gitignored (.gitignore), so a
+    // `pkg/*/deno.json` entry matched nothing and killed every release attempt.
+    // Note `*` spans `/` in a git pathspec, so `pkg/*/package.json` does reach
+    // the scoped packages.
     const filesToStage = [
       "VERSION",
       "CHANGELOG.md",
-      "pkg/*/deno.json",
       "pkg/*/package.json",
       "package.json",
     ];

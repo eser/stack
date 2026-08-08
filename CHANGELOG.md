@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v4.1.61] - 2026-08-08
+
+### Fixed
+
+- **codebase**: stage only tracked pathspecs during release (20b5c71)
+- **codebase**: report correct target version in dry-run release (77cdebf)
+
+### Changed
+
+- docs structure. (35889e5)
+- **cli**: make system handlers app-aware, share PATH lookup (168a99f)
+- **cli**: ship noskills and laroux as deno-compiled binaries (c58e6bc)
+
 ## Unreleased
 
 ### Added

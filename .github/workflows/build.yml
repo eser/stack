@@ -277,10 +277,10 @@ jobs:
         with:
           version: 10
 
-      # No `cache: "pnpm"`. This job never checks out the repo -- it
-      # installs a downloaded tarball -- and setup-node resolves the pnpm
-      # cache key from pnpm-lock.yaml in the workspace, so it hard-fails
-      # with "Dependencies lock file is not found" before any test runs.
+      # No `cache: "pnpm"`: this job never checks out the repo -- it installs a
+      # downloaded artifact -- and setup-node resolves the pnpm cache key from
+      # pnpm-lock.yaml in the workspace, so it hard-fails with "Dependencies
+      # lock file is not found" before any test runs.
       - name: Setup Node.js only
         uses: actions/setup-node@v6
         with:
@@ -300,8 +300,26 @@ jobs:
           name: npm-eser
           path: npm-eser/
 
+      # pnpm will not link a global binary unless its global bin directory is
+      # ALREADY on PATH: it aborts with "The configured global bin directory
+      # ... is not in PATH" and installs nothing. So the directory has to exist
+      # and be exported before `pnpm add -g` runs, and appended to GITHUB_PATH
+      # so the smoke tests in the following steps can find `eser`. pnpm appends
+      # `/bin` to PNPM_HOME, hence the two different paths below.
+      #
+      # Without this the job failed with "eser: command not found" (exit 127) —
+      # latent from the day it was written, because it hung off the release
+      # chain and had never once executed until the tag-driven pipeline made it
+      # a barrier in front of `publish`.
       - name: Install eser globally from artifact
-        run: pnpm add -g ./npm-eser/
+        run: |
+          set -euo pipefail
+          export PNPM_HOME="$HOME/.pnpm-global"
+          mkdir -p "$PNPM_HOME/bin"
+          export PATH="$PNPM_HOME/bin:$PATH"
+          echo "$PNPM_HOME/bin" >> "$GITHUB_PATH"
+
+          pnpm add -g ./npm-eser/
 
       - name: Smoke test — eser --help
         run: eser --help

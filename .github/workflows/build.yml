@@ -300,37 +300,44 @@ jobs:
           name: npm-eser
           path: npm-eser/
 
-      # pnpm will not link a global binary unless its global bin directory is
-      # ALREADY on PATH: it aborts with "The configured global bin directory
-      # ... is not in PATH" and installs nothing. So the directory has to exist
-      # and be exported before `pnpm add -g` runs, and appended to GITHUB_PATH
-      # so the smoke tests in the following steps can find `eser`. pnpm appends
-      # `/bin` to PNPM_HOME, hence the two different paths below.
+      # Installed as a dependency of a scratch project, not with `pnpm add -g`.
       #
-      # Without this the job failed with "eser: command not found" (exit 127) —
-      # latent from the day it was written, because it hung off the release
-      # chain and had never once executed until the tag-driven pipeline made it
-      # a barrier in front of `publish`.
-      - name: Install eser globally from artifact
+      # What this job needs to prove is that the published package resolves,
+      # declares its bin correctly, and runs under Node with no Deno present.
+      # A global install tests all of that PLUS the runner's global-bin PATH
+      # wiring, which is not ours and which broke this job twice: pnpm refuses
+      # to link a global binary when its global bin directory is not already on
+      # PATH, and `pnpm bin -g` cannot be used to discover that directory
+      # because it exits non-zero in exactly that situation.
+      #
+      # A local install has no such coupling: pnpm links the bin into
+      # node_modules/.bin, which is a fixed path we invoke directly.
+      #
+      # This job had never once executed before the tag-driven pipeline made it
+      # a barrier in front of `publish` — so every bug in it was latent.
+      - name: Install eser from artifact into a scratch consumer
         run: |
           set -euo pipefail
-          export PNPM_HOME="$HOME/.pnpm-global"
-          mkdir -p "$PNPM_HOME/bin"
-          export PATH="$PNPM_HOME/bin:$PATH"
-          echo "$PNPM_HOME/bin" >> "$GITHUB_PATH"
+          mkdir -p consumer
+          cd consumer
+          printf '{"name":"consumer","private":true,"version":"1.0.0"}\n' > package.json
+          pnpm add ../npm-eser/
 
-          pnpm add -g ./npm-eser/
+          # Fixed location, exported once for the smoke tests below.
+          echo "ESER_BIN=$PWD/node_modules/.bin/eser" >> "$GITHUB_ENV"
 
       - name: Smoke test — eser --help
-        run: eser --help
+        run: |
+          "$ESER_BIN" --help
 
       - name: Smoke test — eser version
-        run: eser version
+        run: |
+          "$ESER_BIN" version
 
       - name: Smoke test — eser ajan version (graceful failure)
         run: |
           set +e
-          OUTPUT=$(eser ajan version 2>&1)
+          OUTPUT=$("$ESER_BIN" ajan version 2>&1)
           EXIT_CODE=$?
           echo "$OUTPUT"
 

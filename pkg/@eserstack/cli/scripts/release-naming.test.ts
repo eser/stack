@@ -88,3 +88,46 @@ Deno.test("every built binary is accepted by the installer", async () => {
     "install.ps1 ValidateSet drifted",
   );
 });
+
+// The last two jobs in the release consume assets by name, hours after the
+// registries have been written. update-homebrew-formula.ts builds download URLs
+// for four specific target triples and update-nix-hashes.ts reads the same set
+// out of SHA256SUMS.txt; if compile.ts ever stops emitting one of them, both
+// jobs 404 at the very end of an otherwise-successful release, with the version
+// already public on npm and JSR and no way to unpublish it.
+Deno.test("every target homebrew and nix download is actually built", async () => {
+  const targets = await import("../../ajan/targets.ts");
+
+  const built = targets.NATIVE_TARGETS.map((t: { denoTarget: string }) =>
+    t.denoTarget
+  );
+
+  const [homebrew, nix] = await Promise.all([
+    read("etc/scripts/update-homebrew-formula.ts"),
+    read("etc/scripts/update-nix-hashes.ts"),
+  ]);
+
+  // Parsed from the URLs and filenames the scripts construct, not from a list
+  // duplicated here — a hand-copied expectation would drift the same way.
+  const referenced = new Set(
+    [
+      ...homebrew.matchAll(/(?:aarch64|x86_64)-[a-z0-9-]+(?=\.tar\.gz)/g),
+      ...nix.matchAll(/(?:aarch64|x86_64)-[a-z0-9-]+/g),
+    ]
+      .map((m) => m[0]),
+  );
+
+  assertEquals(
+    referenced.size > 0,
+    true,
+    "parsed no target triples — the scripts changed shape, fix this test",
+  );
+
+  for (const target of referenced) {
+    assertEquals(
+      built.includes(target),
+      true,
+      `${target} is downloaded by a release job but compile.ts never builds it`,
+    );
+  }
+});

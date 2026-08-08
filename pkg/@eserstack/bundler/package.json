@@ -23,7 +23,7 @@
     "@tailwindcss/node": "^4.3.3",
     "@tailwindcss/oxide": "^4.3.3",
     "lightningcss": "^1.33.0",
-    "rolldown": "^1.2.1"
+    "rolldown": "^1.2.3"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19"

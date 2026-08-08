@@ -224,11 +224,14 @@ jobs:
         with:
           version: 10
 
+      # No `cache: "pnpm"`. This job never checks out the repo -- it
+      # installs a downloaded tarball -- and setup-node resolves the pnpm
+      # cache key from pnpm-lock.yaml in the workspace, so it hard-fails
+      # with "Dependencies lock file is not found" before any test runs.
       - name: Setup Node.js only
         uses: actions/setup-node@v6
         with:
           node-version: "26"
-          cache: "pnpm"
 
       - name: Verify Deno is NOT installed
         run: |
@@ -788,12 +791,14 @@ jobs:
         with:
           version: 10
 
+      # No `cache: "pnpm"` -- same reason as npm-no-deno-test: this job
+      # publishes prebuilt directories from an artifact and never checks
+      # out the repo, so there is no lockfile for the cache to key on.
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "latest"
           registry-url: "https://registry.npmjs.org"
-          cache: "pnpm"
 
       # Auth = npm OIDC trusted publishing (id-token:write + --provenance + the
       # setup-node registry-url above), EXACTLY like the main `publish` job. Do

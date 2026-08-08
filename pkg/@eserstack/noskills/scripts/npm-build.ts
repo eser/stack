@@ -38,6 +38,27 @@ type DenoJson = {
   exports?: Record<string, string>;
 };
 
+// Packages that must not be bundled.
+//
+// Native/FFI packages are loaded at runtime via dynamic import + dlopen, so
+// esbuild must not follow them. `@eserstack/ajan` is listed explicitly because
+// the `@eserstack/ajan-*` glob only matches the hyphenated platform packages --
+// without it esbuild walks into ajan/ffi/backend-bun.ts and fails to resolve
+// `bun:ffi`, a Bun-only builtin that exists in no npm registry.
+//
+// Keep this list identical across the cli, noskills and laroux-server npm
+// builds; npm-build-externals.test.ts enforces that.
+const EXTERNAL_PACKAGES = [
+  "tailwindcss",
+  "@tailwindcss/*",
+  "lightningcss",
+  "@eserstack/ajan",
+  "@eserstack/ajan-*",
+  "@eserstack/ajan-wasm",
+  "koffi",
+  "bun:ffi",
+];
+
 /**
  * Creates an esbuild plugin that removes import.meta.main checks.
  * This prevents bundled modules from executing their CLI entry points.
@@ -168,7 +189,7 @@ const main = async (): Promise<void> => {
       platform: "node",
       target: "node18",
       minify: true,
-      external: ["npm:*"],
+      external: [...EXTERNAL_PACKAGES, "npm:*"],
       plugins: [
         createImportMetaMainPlugin(mainTsPath),
         createDenoWorkspacePlugin(projectRoot),

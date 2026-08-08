@@ -212,8 +212,8 @@ func TestGetCommitsBetween(t *testing.T) {
 func TestInsertIntoChangelog_VersionAlreadyExists(t *testing.T) {
 	t.Parallel()
 
-	existing := "# Changelog\n\n## [1.1.0] - 2025-01-01\n\n### Added\n- old\n"
-	newSection := "## [1.1.0] - 2025-06-01\n\n### Added\n- updated\n"
+	existing := "# Changelog\n\n## 1.1.0 - 2025-01-01\n\n### Added\n\n- old\n"
+	newSection := "## 1.1.0 - 2025-06-01\n\n### Added\n\n- updated\n"
 
 	result := codebasefx.InsertIntoChangelog(existing, newSection, "1.1.0")
 
@@ -226,15 +226,20 @@ func TestInsertIntoChangelog_VersionAlreadyExists(t *testing.T) {
 	if strings.Contains(result, "- old\n") {
 		t.Error("expected old section content to be replaced")
 	}
+
+	// Replacement, not insertion: the stale date must be gone too.
+	if strings.Contains(result, "2025-01-01") {
+		t.Errorf("expected the old heading to be replaced, got:\n%s", result)
+	}
 }
 
 func TestInsertIntoChangelog_EmptyExisting(t *testing.T) {
 	t.Parallel()
 
-	section := "## [1.0.0] - 2025-01-01\n\n### Added\n- first\n"
+	section := "## 1.0.0 - 2025-01-01\n\n### Added\n\n- first\n"
 	result := codebasefx.InsertIntoChangelog("", section, "1.0.0")
 
-	if !strings.Contains(result, "## [1.0.0]") {
+	if !strings.Contains(result, "## 1.0.0 - 2025-01-01") {
 		t.Error("expected section to appear in empty changelog")
 	}
 }
@@ -254,8 +259,28 @@ func TestGenerateChangelogSection_BreakingAndMultipleTypes(t *testing.T) {
 
 	section := codebasefx.GenerateChangelogSection("v2.0.0", commits)
 
-	if !strings.Contains(section, "v2.0.0") {
-		t.Error("expected version in section header")
+	if !strings.HasPrefix(section, "## 2.0.0 - ") {
+		t.Errorf("expected a bare version heading, got: %q", section)
+	}
+
+	// A breaking feat is filed under Removed, never Added.
+	if !strings.Contains(section, "\n### Removed\n\n- add login\n") {
+		t.Errorf("expected the breaking commit under Removed, got: %q", section)
+	}
+
+	if strings.Contains(section, "### Added") {
+		t.Errorf("breaking commits must not also appear under Added, got: %q", section)
+	}
+
+	// docs, refactor and chore all collapse into Changed.
+	for _, want := range []string{"- update readme\n", "- clean up\n", "- update deps\n"} {
+		if !strings.Contains(section, want) {
+			t.Errorf("missing %q in section: %q", want, section)
+		}
+	}
+
+	if !strings.Contains(section, "\n### Fixed\n\n- crash on nil\n") {
+		t.Errorf("expected the fix under Fixed, got: %q", section)
 	}
 }
 
@@ -263,8 +288,16 @@ func TestGenerateChangelogSection_EmptyCommits(t *testing.T) {
 	t.Parallel()
 
 	section := codebasefx.GenerateChangelogSection("v1.0.1", nil)
-	// Must return something even with no commits
-	_ = section
+
+	// A release with no conventional commits still needs its heading so the
+	// release-notes parser can find the version at all.
+	if !strings.HasPrefix(section, "## 1.0.1 - ") {
+		t.Errorf("expected a bare version heading, got: %q", section)
+	}
+
+	if strings.Contains(section, "###") {
+		t.Errorf("expected no subsections without commits, got: %q", section)
+	}
 }
 
 // ─── registry Description() ───────────────────────────────────────────────────

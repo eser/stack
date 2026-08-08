@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
@@ -596,12 +597,19 @@ func TestGenerateChangelogSection(t *testing.T) {
 
 	section := codebasefx.GenerateChangelogSection("v1.1.0", commits)
 
-	if section == "" {
-		t.Error("expected non-empty changelog section")
+	// The heading carries the bare version even though the input was
+	// v-prefixed, and each section is separated from its bullets by a blank
+	// line so `deno fmt` leaves the generated CHANGELOG.md alone.
+	if !strings.HasPrefix(section, "## 1.1.0 - ") {
+		t.Errorf("section must start with a bare version heading, got: %q", section)
 	}
 
-	if len(section) < 20 {
-		t.Errorf("changelog section too short: %q", section)
+	if !strings.Contains(section, "\n### Added\n\n- add login\n") {
+		t.Errorf("expected an Added section with 'add login', got: %q", section)
+	}
+
+	if !strings.Contains(section, "\n### Fixed\n\n- fix crash\n") {
+		t.Errorf("expected a Fixed section with 'fix crash', got: %q", section)
 	}
 }
 

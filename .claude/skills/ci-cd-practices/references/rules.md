@@ -406,12 +406,30 @@ Rule: Extract shared CI jobs into the jobs in `.github/workflows/build.yml` with
 
 ---
 
-## Auto-Tag Pattern
+## Tag-Driven Release
 
 Scope: Release pipeline
 
-Rule: Release commits (`chore(codebase): release v*`) are auto-tagged by the
-`tag-release` job in `build.yml` after integration passes. No manual tagging needed.
+Rule: The `v*.*.*` tag push is the release trigger, and the CLI is what pushes it.
+`eser codebase release <patch|minor|major|same>` bumps VERSION and every
+package.json, writes the CHANGELOG section, commits `chore(codebase): release v*`,
+pushes, then creates and pushes the annotated tag.
+
+CI never creates tags. A tag pushed with the workflow's own `GITHUB_TOKEN` does
+not dispatch another workflow (GitHub's recursion guard), so a tag created by
+`build.yml` would publish nothing — which is exactly why the step lives in the
+CLI, under the developer's credentials.
+
+An ordinary push runs only the Integrity Pipeline (`validate`, `cross-runtime-test`,
+`windows-smoke`). A tag run adds `release-gate`, which fails unless the tag matches
+`VERSION` and `CHANGELOG.md` carries the matching section — checked before any
+publishing job starts.
+
+**Never retag a version that already reached a registry.** JSR is immutable
+(yank only) and npm answers a republish with 403, so `eser codebase rerelease` is
+legal only while `publish` and `publish-ajan` have written nothing. Once either
+has, re-run the failed jobs for an infrastructure error, or cut a new patch
+version for a code fix.
 
 ---
 

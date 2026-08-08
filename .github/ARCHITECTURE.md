@@ -138,42 +138,68 @@ One pipeline builds and releases the whole family. GoReleaser and a separate
 releases once carried either the TypeScript artifacts or the Go ones and never
 both; both are gone.
 
+An ordinary push runs the Integrity Pipeline and stops there. A release starts
+when an annotated `v*.*.*` tag reaches origin — and the CLI pushes that tag, not
+CI. A tag pushed with a workflow's own `GITHUB_TOKEN` dispatches nothing
+(GitHub's recursion guard), so a tag created in CI would sit in the repository
+publishing nothing; pushing it under the developer's own credentials is what
+starts the release run.
+
 ```
 Developer runs:  eser codebase release patch
                  ├─ versions.ts (bump VERSION + sync packages)
                  ├─ changelog-gen.ts (auto-generate CHANGELOG)
-                 └─ git commit + git push (commit only, no tag)
-                    │
-                    ▼
-┌─ PUSH TO MAIN ─────────────────────────────────────────────┐
-│  build.yml (Integrity Pipeline)                            │
-│  ├─ validate            deno task cli ok (Deno + Go)       │
-│  ├─ windows-smoke       compiles the Windows artifacts and │
-│  │                      runs etc/scripts/install.ps1       │
-│  ├─ cross-runtime-test  deno / node / bun × linux / macos  │
-│  └─ tag-release         only on a `chore(codebase): release│
-│                         v…` commit; pushes the v*.*.* tag  │
-└────────────────────────────────────────────────────────────┘
-              │
-              ▼
-┌─ RELEASE JOBS (same workflow) ─────────────────────────────┐
-│  compile-binaries   compile.ts → eser, noskills, laroux    │
-│                     (deno compile) + noskills-server (go)  │
-│                     → <binary>-v<version>-<triple>.tar.gz  │
-│                       and SHA256SUMS.txt                   │
-│  upload-assets      signs and uploads every archive        │
-│  publish            JSR + npm (eser, noskills, laroux)     │
-│  publish-ajan       @eserstack/ajan platform packages      │
-│  update-homebrew    one formula per binary → eser/tap      │
-│  update-nix-hashes  flake.nix                              │
-│  release-notes      CHANGELOG.md → GitHub Release          │
-└────────────────────────────────────────────────────────────┘
+                 ├─ git commit "chore(codebase): release v<version>"
+                 ├─ git push                     ──▶ PUSH TO BRANCH
+                 └─ git tag -a v<version> + push ──▶ TAG PUSH v*.*.*
+
+┌─ PUSH TO BRANCH ────────────────────────────────────────────┐
+│  build.yml (Integrity Pipeline) — every ordinary push       │
+│  ├─ validate            deno task cli ok (Deno + Go)        │
+│  ├─ cross-runtime-test  deno / node / bun × linux / macos   │
+│  └─ windows-smoke       compiles the Windows artifacts and  │
+│                         runs etc/scripts/install.ps1        │
+└─────────────────────────────────────────────────────────────┘
+
+┌─ TAG PUSH v*.*.* ───────────────────────────────────────────┐
+│  build.yml (same file) — the release run                    │
+│  validate                                                   │
+│   └─ release-gate   tag == VERSION, and CHANGELOG.md has    │
+│       │              the matching section — both checked    │
+│       │              BEFORE anything is published           │
+│       ├─ smoke-test                                         │
+│       │   └─ npm-no-deno-test                               │
+│       │       └─ publish        JSR + npm                   │
+│       │           └─ release-notes  changelog section       │
+│       │                              → GitHub Release       │
+│       └─ build-ajan-darwin                                  │
+│           └─ compile-binaries  eser, noskills, laroux       │
+│               │  (deno compile) + noskills-server (go)      │
+│               │  → <binary>-v<version>-<triple>.tar.gz      │
+│               │    and SHA256SUMS.txt                       │
+│               ├─ publish-ajan  @eserstack/ajan platform     │
+│               │                packages (leaf)              │
+│               └─ upload-assets  cosign signatures +         │
+│                   │  SHA256SUMS. Also needs release-notes:  │
+│                   │  gh cannot attach assets to a Release   │
+│                   │  that does not exist yet.               │
+│                   ├─ update-homebrew   → eser/tap           │
+│                   └─ update-nix-hashes → flake.nix          │
+└─────────────────────────────────────────────────────────────┘
 
 ┌─ OTHER ────────────────────────────────┐
 │  pr-labeler.yml (PRs only)             │
 │  codeql.yml (main branch + schedule)   │
 └────────────────────────────────────────┘
 ```
+
+`eser codebase rerelease` deletes the tag and recreates it at HEAD, re-firing
+the whole run; `eser codebase unrelease` deletes the tag and the GitHub Release,
+leaving the release commit in history. Neither is safe once a registry has
+accepted the version — JSR is immutable (yank only) and npm answers a republish
+with 403 — so after `publish` or `publish-ajan` has written anything, re-run the
+failed jobs for an infrastructure error or cut a new patch version for a code
+fix.
 
 ## Design Principles
 

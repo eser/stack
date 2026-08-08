@@ -83,8 +83,9 @@ type CommitMsgResult struct {
 
 // GenerateChangelogOptions controls changelog generation.
 type GenerateChangelogOptions struct {
-	Root   string // working directory; defaults to "."
-	DryRun bool   // when true, does not write CHANGELOG.md
+	Root    string // working directory; defaults to "."
+	Version string // release version for the heading (bare or v-prefixed); "" = next patch after latest tag
+	DryRun  bool   // when true, does not write CHANGELOG.md
 }
 
 // GenerateChangelogResult is returned by GenerateChangelog.

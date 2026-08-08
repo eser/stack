@@ -54,6 +54,23 @@ npx eser codebase validate-eof --fix
 npx eser codebase validate-commit-msg --message "feat(core): add feature"
 ```
 
+### Cut a release
+
+```bash
+# Preview: prints old -> new version and whether a changelog entry is due
+npx eser codebase release patch --dry-run
+
+# Bump VERSION + every package.json, write the CHANGELOG section, commit
+# "chore(codebase): release v<version>", push, then push the v<version> tag
+npx eser codebase release patch
+```
+
+The tag push is the trigger — CI reacts to `v*.*.*`, never to the commit, and
+never creates tags itself (a tag pushed by a workflow's own `GITHUB_TOKEN`
+dispatches nothing). `rerelease` re-fires the run by recreating the tag at HEAD;
+`unrelease` removes the tag and the GitHub Release. Neither is safe once JSR or
+npm has accepted the version — cut a new patch instead.
+
 ## 🛠 Available Tools
 
 ### Setup
@@ -66,18 +83,21 @@ npx eser codebase validate-commit-msg --message "feat(core): add feature"
 
 ### Release
 
-| Command         | Description                                |
-| --------------- | ------------------------------------------ |
-| `versions`      | Bump version across all workspace packages |
-| `changelog-gen` | Generate CHANGELOG entry from commits      |
+| Command         | Description                                              |
+| --------------- | -------------------------------------------------------- |
+| `release`       | Bump, changelog, commit, push, then push the trigger tag |
+| `rerelease`     | Delete and recreate the current version tag at HEAD      |
+| `unrelease`     | Delete the current version tag and its GitHub Release    |
+| `versions`      | Bump version across all workspace packages               |
+| `changelog-gen` | Generate CHANGELOG entry from commits                    |
 
 ### GitHub
 
-| Command            | Description                          |
-| ------------------ | ------------------------------------ |
-| `gh contributors`  | Update contributor list in README.md |
-| `gh release-notes` | Sync CHANGELOG to GitHub Releases    |
-| `gh release-tag`   | Create and push release git tags     |
+| Command            | Description                                           |
+| ------------------ | ----------------------------------------------------- |
+| `gh contributors`  | Update contributor list in README.md                  |
+| `gh release-notes` | Sync CHANGELOG to GitHub Releases                     |
+| `gh release-tag`   | Create and push the release tag (the release trigger) |
 
 ### Validation
 

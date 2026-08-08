@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
@@ -268,7 +269,24 @@ func TestGenerateChangelogSection_ChoreAndPerf(t *testing.T) {
 	}
 
 	section := codebasefx.GenerateChangelogSection("v1.5.0", commits)
-	_ = section // main goal is coverage, not assertion
+
+	if !strings.HasPrefix(section, "## 1.5.0 - ") {
+		t.Errorf("expected a bare version heading, got: %q", section)
+	}
+
+	// revert lands in Fixed; perf and build both collapse into Changed, and
+	// Fixed is emitted before Changed.
+	if !strings.Contains(section, "\n### Fixed\n\n- revert bad change\n") {
+		t.Errorf("expected the revert under Fixed, got: %q", section)
+	}
+
+	if !strings.Contains(section, "\n### Changed\n\n- speed up query\n- upgrade toolchain\n") {
+		t.Errorf("expected perf and build under Changed in order, got: %q", section)
+	}
+
+	if strings.Index(section, "### Fixed") > strings.Index(section, "### Changed") {
+		t.Errorf("expected Fixed before Changed, got: %q", section)
+	}
 }
 
 // ─── GroupBySection: all section types ───────────────────────────────────────

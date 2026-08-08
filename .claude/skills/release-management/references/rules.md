@@ -4,54 +4,69 @@
 
 Scope: Every release
 
-Rule: Complete all steps in order before merging to main.
+Rule: Complete all steps in order. One command does the release; the steps around
+it exist so the tag it pushes describes a state that already passed CI.
 
 1. **Verify clean state:**
    ```bash
-   git status                    # Must be clean
+   git status                  # Must be clean, and pushed
    deno task cli ok            # Must pass
    ```
+   `release` aborts on a dirty tree, and on unpushed commits unless `--yes`.
 
-2. **Bump version:**
+2. **Preview:**
    ```bash
-   deno task cli codebase versions <patch|minor|major>
+   eser codebase release <patch|minor|major|same> --dry-run
    ```
+   Prints the old → new version and whether a changelog entry would be written.
+   Nothing is touched.
 
-3. **Update CHANGELOG.md:**
-   - Move items from `[Unreleased]` to a new version section
-   - Add the release date
-   - Format: `## [x.y.z] - YYYY-MM-DD`
-
-4. **Commit and push:**
+3. **Release:**
    ```bash
-   git add -A
-   git commit -m "chore(release): bump version to x.y.z"
-   git push origin dev
+   eser codebase release <patch|minor|major|same>
    ```
+   In one run it bumps `VERSION` and every `package.json`, generates the
+   `CHANGELOG.md` section from the commits since the last tag, commits
+   `chore(codebase): release v<version>`, pushes, then creates and pushes the
+   annotated tag `v<version>`.
 
-5. **Create PR to main:**
-   - Title: `release: vx.y.z`
-   - Ensure CI passes (integration job)
+Use `same` to re-cut a release at the current version — see Re-Release below for
+when that is still legal.
 
 ---
 
-## Release
+## Release Run
 
-Scope: After PR is approved
+Scope: What the tag push triggers
 
-6. **Merge PR to main** — triggers the delivery job:
-   - Publishes all packages to JSR via `deno publish` (OIDC auth)
-   - Builds and publishes `@eserstack/cli` to npm with provenance
+Rule: The tag push — not the commit — starts the release. `build.yml` runs on a
+`v*.*.*` tag as:
 
-7. **Tag the release:**
-   ```bash
-   git tag vx.y.z
-   git push origin vx.y.z
-   ```
+```
+validate
+ └─ release-gate           tag == VERSION, CHANGELOG.md has that section
+     ├─ smoke-test
+     │   └─ npm-no-deno-test
+     │       └─ publish            JSR + npm
+     │           └─ release-notes  changelog section → GitHub Release
+     └─ build-ajan-darwin
+         └─ compile-binaries
+             └─ publish-ajan
+                 └─ upload-assets  cosign signatures + SHA256SUMS
+                     ├─ update-homebrew
+                     └─ update-nix-hashes
+```
 
-8. **Create GitHub Release:**
-   - The `release-notes-sync` workflow syncs CHANGELOG content automatically
-   - Or manually: `gh release create vx.y.z --generate-notes`
+`release-gate` runs before anything is published, so a tag that disagrees with
+`VERSION`, or a version with no changelog section, fails the run while every
+registry is still untouched.
+
+**Why the CLI pushes the tag and CI does not:** a tag pushed with the workflow's
+`GITHUB_TOKEN` does not dispatch another workflow (GitHub's recursion guard). A
+tag created in CI would be a tag nothing reacts to.
+
+An ordinary push runs only the Integrity Pipeline — `validate`,
+`cross-runtime-test`, `windows-smoke` — and publishes nothing.
 
 ---
 
@@ -63,7 +78,8 @@ Rule: Verify all publish targets received the new version.
 
 - Check JSR: packages appear at `jsr.io/@eserstack/<name>` with correct version
 - Check npm: `npm info eser` shows new version
-- Check GitHub: release notes are correct and complete
+- Check GitHub: the `release-notes` job created the release and its body matches
+  the CHANGELOG section
 - Add `## [Unreleased]` section to CHANGELOG.md for next cycle
 
 ---
@@ -76,10 +92,10 @@ Rule: Hotfixes branch from main, not dev.
 
 1. Branch from main: `git checkout -b hotfix/<description> main`
 2. Fix the issue
-3. Bump patch version: `deno task cli codebase versions patch`
-4. Update CHANGELOG with hotfix entry
-5. PR directly to main
-6. After merge, cherry-pick or merge back to dev
+3. PR directly to main
+4. After merge, run `eser codebase release patch` on main — the tag it pushes
+   ships the hotfix
+5. Cherry-pick or merge back to dev
 
 ---
 
@@ -103,7 +119,7 @@ All 29+ packages are versioned together — there are no independent package ver
 
 ### JSR (Primary Registry)
 
-- Triggered by push to `main` branch in CI delivery job
+- Runs in the `publish` job of a `v*.*.*` tag run, after `release-gate`
 - Uses OIDC token authentication (no secrets needed)
 - All packages with `publish` config in `deno.json` are published
 - Command: `deno publish`
@@ -114,16 +130,8 @@ All 29+ packages are versioned together — there are no independent package ver
 - Built via esbuild bundling: `deno task npm-build`
 - Published with provenance: `npm publish --provenance --access public`
 - Working directory: `pkg/@eserstack/cli/dist`
-- Requires `NODE_AUTH_TOKEN` secret in CI
-
----
-
-## Release Flow
-
-Scope: Monorepo releases
-
-Rule: `eser codebase release patch` bumps version, generates CHANGELOG, commits, and pushes.
-CI auto-tags after integration passes. Deployment pipeline publishes on tag push.
+- OIDC trusted publishing — no `NODE_AUTH_TOKEN`, no npm secret in CI. Each
+  package must have a GitHub-Actions trusted publisher configured on npm
 
 ---
 
@@ -137,9 +145,24 @@ Keep-a-Changelog sections. Idempotent — replaces existing sections for the sam
 
 ---
 
-## Re-Release
+## Re-Release and Unrelease
 
 Scope: Failed release recovery
 
-Rule: `eser codebase rerelease` deletes and recreates the current version tag. `eser codebase release same`
-skips version bump for re-releasing after pipeline fixes.
+Rule: `eser codebase rerelease` deletes the current version tag and recreates it at
+HEAD, re-firing the whole release run. `eser codebase unrelease` deletes the tag and
+the GitHub Release; the release commit stays in history. `eser codebase release same`
+cuts a fresh release at the current version, without a bump.
+
+**Never retag a version that already reached a registry.** JSR is immutable — a
+published version can only be yanked, never replaced — and npm answers a republish
+with 403. A same-version rerelease is legal only while `publish` and `publish-ajan`
+have written nothing, which is the common case when the run died in `release-gate`,
+`smoke-test` or `npm-no-deno-test`.
+
+Once either publish job has written anything:
+
+| Cause | Action |
+|-------|--------|
+| Infrastructure error (runner, network, rate limit) | Re-run the failed jobs |
+| Anything needing a code or metadata change | Cut a new patch version |

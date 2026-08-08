@@ -346,7 +346,9 @@ export interface FFILibrary {
     EserAjanCodebaseValidateCommitMsg: (requestJSON: string) => string;
     /**
      * Generates a changelog section from git history (writes CHANGELOG.md unless dryRun).
-     * Accepts JSON: { dir?, dryRun? }
+     * `version` sets the heading; omit it to fall back to the next patch after
+     * the latest tag.
+     * Accepts JSON: { dir?, version?, dryRun? }
      * Returns JSON: { version, commitCount, entryCount, content, dryRun } | { error: string }
      */
     EserAjanCodebaseGenerateChangelog: (requestJSON: string) => string;

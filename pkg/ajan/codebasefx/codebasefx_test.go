@@ -300,22 +300,22 @@ func TestValidateSecrets(t *testing.T) {
 func TestInsertIntoChangelog(t *testing.T) {
 	t.Parallel()
 
-	existing := "# Changelog\n\n## [1.0.0] - 2025-01-01\n\n### Added\n- old feature\n"
-	newSection := "## [1.1.0] - 2025-06-01\n\n### Added\n- new feature\n"
+	existing := "# Changelog\n\n## 1.0.0 - 2025-01-01\n\n### Added\n\n- old feature\n"
+	newSection := "## 1.1.0 - 2025-06-01\n\n### Added\n\n- new feature\n"
 
 	result := codebasefx.InsertIntoChangelog(existing, newSection, "1.1.0")
 
-	if !strings.Contains(result, "## [1.1.0]") {
+	if !strings.Contains(result, "## 1.1.0 - 2025-06-01") {
 		t.Error("new section not found in result")
 	}
 
-	if !strings.Contains(result, "## [1.0.0]") {
+	if !strings.Contains(result, "## 1.0.0 - 2025-01-01") {
 		t.Error("old section was removed unexpectedly")
 	}
 
 	// New section should appear before old
-	newIdx := strings.Index(result, "## [1.1.0]")
-	oldIdx := strings.Index(result, "## [1.0.0]")
+	newIdx := strings.Index(result, "## 1.1.0")
+	oldIdx := strings.Index(result, "## 1.0.0")
 
 	if newIdx > oldIdx {
 		t.Error("new section should appear before old section")

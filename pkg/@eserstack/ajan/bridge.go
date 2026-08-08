@@ -3984,8 +3984,9 @@ type codebaseCommitMsgResponse struct {
 }
 
 type codebaseChangelogRequest struct {
-	Dir    string `json:"dir"`
-	DryRun bool   `json:"dryRun"`
+	Dir     string `json:"dir"`
+	Version string `json:"version,omitempty"`
+	DryRun  bool   `json:"dryRun"`
 }
 
 type codebaseChangelogResponse struct {
@@ -4159,8 +4160,9 @@ func bridgeCodebaseGenerateChangelog(requestJSON string) string {
 	}
 
 	result, err := codebasefx.GenerateChangelog(context.Background(), codebasefx.GenerateChangelogOptions{
-		Root:   req.Dir,
-		DryRun: req.DryRun,
+		Root:    req.Dir,
+		Version: req.Version,
+		DryRun:  req.DryRun,
 	})
 	if err != nil {
 		return marshalResponse(codebaseChangelogResponse{Error: err.Error()}) //nolint:exhaustruct

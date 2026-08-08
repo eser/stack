@@ -2,7 +2,7 @@
 # packages, DECOUPLED from the Integrity Pipeline's `validate` job.
 #
 # Why this exists: the main release flow gates the ajan platform publish behind
-# `validate` (publish-ajan → compile-binaries → tag-release → validate). But
+# `validate` (publish-ajan → compile-binaries → release-gate → validate). But
 # `validate` runs `pnpm install --frozen-lockfile`, which fails whenever
 # pkg/@eserstack/{ajan,cli}/package.json reference platform packages that aren't
 # on npm yet — and pnpm can't lock packages that don't exist. That is a

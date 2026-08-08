@@ -59,17 +59,24 @@ func GroupBySection(commits []ConventionalCommit) map[ChangelogSection][]Convent
 // GenerateChangelogSection renders one version block in Keep-a-Changelog markdown.
 // The format is:
 //
-//	## [version] - YYYY-MM-DD
+//	## version - YYYY-MM-DD
+//
 //	### Added
+//
 //	- message
+//
+// Callers may pass a v-prefixed version; the heading always carries the bare
+// one so the release-notes parser can match it against a `vX.Y.Z` git tag.
 func GenerateChangelogSection(version string, commits []ConventionalCommit) string {
+	version = strings.TrimPrefix(version, "v")
+
 	grouped := GroupBySection(commits)
 
 	var b strings.Builder
 
-	b.WriteString("## [")
+	b.WriteString("## ")
 	b.WriteString(version)
-	b.WriteString("] - ")
+	b.WriteString(" - ")
 	b.WriteString(time.Now().UTC().Format("2006-01-02"))
 	b.WriteString("\n")
 
@@ -79,9 +86,11 @@ func GenerateChangelogSection(version string, commits []ConventionalCommit) stri
 			continue
 		}
 
+		// The blank line after the heading matches the repo's CHANGELOG.md
+		// style; emitting it here keeps `deno fmt` a no-op on the result.
 		b.WriteString("\n### ")
 		b.WriteString(string(section))
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 
 		for _, c := range items {
 			msg := StripTakeSuffix(c.Message)
@@ -114,18 +123,32 @@ func GenerateChangelogSection(version string, commits []ConventionalCommit) stri
 	return b.String()
 }
 
+// isVersionHeading reports whether stripped is the "## " heading for bare
+// (a version with no "v" prefix). Both the current "## 1.2.3 - date" style and
+// the legacy bracketed "## [1.2.3]" / "## [v1.2.3]" styles are recognized,
+// because older sections of CHANGELOG.md still carry the bracketed form.
+// The trailing space in the second case is what keeps 4.3.0 from matching a
+// 4.3.01 heading.
+func isVersionHeading(stripped, bare string) bool {
+	return stripped == "## "+bare ||
+		strings.HasPrefix(stripped, "## "+bare+" ") ||
+		strings.HasPrefix(stripped, "## ["+bare+"]") ||
+		strings.HasPrefix(stripped, "## [v"+bare+"]")
+}
+
 // InsertIntoChangelog inserts newSection just after the first "# Changelog"
 // heading (or prepends it). version is used only for finding an existing
 // duplicate entry to replace; pass "" to always insert fresh.
 func InsertIntoChangelog(changelogContent, newSection, version string) string {
 	lines := strings.Split(changelogContent, "\n")
+	bare := strings.TrimPrefix(version, "v")
 	insertAt := -1
 
 	for i, line := range lines {
 		stripped := strings.TrimSpace(line)
 
 		// If this version already exists, replace it
-		if version != "" && strings.HasPrefix(stripped, "## ["+version+"]") {
+		if version != "" && isVersionHeading(stripped, bare) {
 			// Find the end of this section (next ## heading)
 			end := len(lines)
 			for j := i + 1; j < len(lines); j++ {
@@ -171,6 +194,10 @@ func InsertIntoChangelog(changelogContent, newSection, version string) string {
 
 // GenerateChangelog reads git history since the last tag, parses conventional
 // commits, generates a changelog section, and optionally writes CHANGELOG.md.
+// The heading version comes from opts.Version when the caller supplies one — a
+// release knows the version it is publishing, which the tag history does not.
+// The next-patch fallback only serves standalone changelog-gen runs that have
+// no release driving them.
 func GenerateChangelog(ctx context.Context, opts GenerateChangelogOptions) (GenerateChangelogResult, error) {
 	root := opts.Root
 	if root == "" {
@@ -182,15 +209,26 @@ func GenerateChangelog(ctx context.Context, opts GenerateChangelogOptions) (Gene
 		return GenerateChangelogResult{}, fmt.Errorf("GenerateChangelog: %w", err)
 	}
 
-	// Determine the new version (next patch by default).
+	// lastTag also bounds the commit range below, so it is read either way.
 	lastTag, err := GetLatestTag(ctx, root)
 	if err != nil {
 		lastTag = "v0.0.0"
 	}
 
-	nextVersion, err := BumpVersion(lastTag, VersionCommandPatch, "")
-	if err != nil {
-		nextVersion = lastTag
+	// Trim BEFORE testing for empty. A whitespace-only Version (a stray newline
+	// from a file read, say) would otherwise pass the check, trim to "" further
+	// down, and yield a "##  - <date>" heading -- which also disables dedup,
+	// since InsertIntoChangelog skips replacement when version is empty, so
+	// every re-run would append another copy.
+	nextVersion := strings.TrimPrefix(strings.TrimSpace(opts.Version), "v")
+
+	if nextVersion == "" {
+		nextVersion, err = BumpVersion(lastTag, VersionCommandPatch, "")
+		if err != nil {
+			nextVersion = lastTag
+		}
+
+		nextVersion = strings.TrimPrefix(strings.TrimSpace(nextVersion), "v")
 	}
 
 	// Fetch commits since the last tag.

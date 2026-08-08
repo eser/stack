@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - "**"
+    # Releases are driven by the tag itself, not by a commit-message string.
+    # branches and tags are OR'd, so this adds tag runs without narrowing the
+    # branch runs. The tag must be pushed with a human's credentials: GitHub
+    # deliberately does not dispatch workflows for refs pushed by a job using
+    # GITHUB_TOKEN (the recursion guard), which is exactly why CI can no longer
+    # create the tag for us.
+    tags:
+      - "v*"
 
   pull_request:
     types:
@@ -20,11 +28,20 @@ permissions:
   id-token: write
 
 concurrency:
+  # Tag runs are never cancelled. Re-pushing a tag mid-release would otherwise
+  # cancel the run somewhere between `publish` (irreversible — JSR and npm keep
+  # the version forever) and `upload-assets`, leaving a released version with no
+  # binaries attached.
   group: ${{ github.ref }}-integrity
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/heads/main' }}
 
 jobs:
   # ── Always runs ─────────────────────────────────────────────────
+  # Deliberately runs on tag pushes too. `release` pushes the commit and the tag
+  # back to back, so the branch run and the tag run start almost together and the
+  # tag run never waits on the branch one -- re-running validate here is what
+  # makes the release verified by the same run that publishes it, rather than by
+  # a separate run that may still be in flight (or already red).
   validate:
     name: Validate
     runs-on: ubicloud-standard-4-arm
@@ -90,17 +107,28 @@ jobs:
         with:
           files: ./etc/coverage.lcov
 
-  # ── Release: tag ────────────────────────────────────────────────
-  tag-release:
-    name: Tag Release
+  # ── Release: gate ───────────────────────────────────────────────
+  # Preflight for everything downstream. It creates nothing (hence contents:
+  # read) — its whole job is to fail BEFORE the irreversible steps run.
+  #
+  # No job output for the version: the `needs` context is not transitive, so
+  # only direct dependents could read it anyway, and every consumer already
+  # does VERSION=$(cat VERSION) against a checkout of the tag's tree — which
+  # this gate has just proven equals the tag.
+  release-gate:
+    name: Release Gate
     needs: validate
+    # event_name matters: workflow_dispatch lets you pick a tag from the
+    # Run-workflow dropdown, which would otherwise re-run the entire release
+    # chain against an already-published version with no tag push behind it.
     if: >-
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      startsWith(github.event.head_commit.message, 'chore(codebase): release v')
+      startsWith(github.ref, 'refs/tags/v')
     runs-on: ubicloud-standard-2-arm
+    timeout-minutes: 5
+
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -108,26 +136,51 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Create and push version tag
+      - name: Verify tag against tree
         run: |
-          VERSION=$(cat VERSION)
-          TAG="v$VERSION"
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          FILE_VERSION="$(cat VERSION)"
 
-          # Remove existing tag if present (idempotent for re-releases)
-          git tag -d "$TAG" 2>/dev/null || true
-          git push origin ":refs/tags/$TAG" 2>/dev/null || true
+          # The tag is what people install by; VERSION is what gets stamped into
+          # every published package. If they disagree the release ships packages
+          # under a version nobody can find from the tag.
+          if [ "$VERSION" != "$FILE_VERSION" ]; then
+            echo "::error::tag $TAG says $VERSION but the VERSION file says $FILE_VERSION."
+            echo "::error::Run 'deno task cli codebase release <patch|minor|major>' so tag and tree agree, then retag."
+            exit 1
+          fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "Release $TAG"
-          git push origin "$TAG"
+          # release-notes runs AFTER npm and JSR are written, so a missing
+          # CHANGELOG section used to surface only once the registries were
+          # irreversibly published — that is how the v4.3.0 release died.
+          #
+          # This pattern MIRRORS HEADING_PATTERN in
+          # pkg/@eserstack/codebase/release-notes.ts, which is the parser that
+          # actually runs later. Keep the two in step: a gate that accepts more
+          # than the parser lets a release publish and then fail on notes (the
+          # very failure this job exists to prevent), and one that accepts less
+          # blocks a release the parser would have handled. In particular it is
+          # ANCHORED AT BOTH ENDS — "## 4.3.0 - 2026-08-08 (hotfix)" is rejected
+          # by the parser, so it must be rejected here too — and it tolerates the
+          # optional "v" and brackets of the legacy headings still in the file
+          # ("## [v4.1.61] - …", which changelog.go also still accepts).
+          ESCAPED="$(printf '%s' "$VERSION" | sed 's/\./\\./g')"
+          HEADING="^##[[:space:]]+\[?v?${ESCAPED}\]?[[:space:]]*-?[[:space:]]*([0-9]{4}-[0-9]{2}-[0-9]{2})?[[:space:]]*$"
 
-          echo "### Tagged $TAG" >> $GITHUB_STEP_SUMMARY
+          if ! grep -Eq "$HEADING" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section matching '## $VERSION - <date>'."
+            echo "::error::Note the heading must end after the date — trailing text is not parsed."
+            exit 1
+          fi
+
+          echo "### Releasing $TAG" >> $GITHUB_STEP_SUMMARY
 
   # ── Release: smoke test ─────────────────────────────────────────
   smoke-test:
     name: npm Smoke Test
-    needs: tag-release
+    needs: release-gate
     runs-on: ubicloud-standard-4-arm
     timeout-minutes: 10
 
@@ -279,6 +332,11 @@ jobs:
   cross-runtime-test:
     name: Cross-Runtime Test (${{ matrix.runtime }} on ${{ matrix.os }})
     needs: validate
+    # Skipped on tags: nothing in the release chain depends on this matrix, and
+    # six more runners per tag is real cost. Note this is a cost trade, not a
+    # guarantee -- the branch run covering this commit may still be running (or
+    # failing) when the tag run publishes. `validate` is the gate that holds.
+    if: "!startsWith(github.ref, 'refs/tags/')"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     continue-on-error: ${{ matrix.runtime != 'deno' }}
@@ -393,6 +451,10 @@ jobs:
   # "on PATH" is.
   windows-smoke:
     name: Windows Smoke Test
+    # Skipped on tags for the same reason as cross-runtime-test: no release job
+    # depends on it, and it is a cost trade rather than a guarantee -- a red
+    # windows-smoke on the branch run does not block the tag run.
+    if: "!startsWith(github.ref, 'refs/tags/')"
     runs-on: windows-latest
     timeout-minutes: 20
 
@@ -486,7 +548,10 @@ jobs:
   # ── Release: publish ────────────────────────────────────────────
   publish:
     name: Publish
-    needs: [tag-release, smoke-test]
+    # npm-no-deno-test is a barrier, not just an ancestor: it used to be a leaf,
+    # so a broken no-Deno install was only ever discovered AFTER npm already had
+    # the version. Nothing reaches a registry until both smoke tests are green.
+    needs: [release-gate, smoke-test, npm-no-deno-test]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
 
@@ -627,7 +692,7 @@ jobs:
   # ── Release: build ajan native libs (macOS) ───────────────────
   build-ajan-darwin:
     name: Build ajan (darwin)
-    needs: tag-release
+    needs: release-gate
     runs-on: macos-latest
     timeout-minutes: 10
 
@@ -685,7 +750,7 @@ jobs:
   # ── Release: compile standalone binaries ──────────────────────
   compile-binaries:
     name: Compile Binaries
-    needs: [tag-release, build-ajan-darwin]
+    needs: [release-gate, build-ajan-darwin]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
 
@@ -771,7 +836,10 @@ jobs:
   # ── Release: publish ajan npm packages ─────────────────────
   publish-ajan:
     name: Publish ajan packages
-    needs: compile-binaries
+    # Same barrier as `publish`. compile-binaries alone does not depend on
+    # either smoke test, so in the failed v4.3.0 run this job was publishing to
+    # npm while smoke-test was already red.
+    needs: [compile-binaries, smoke-test, npm-no-deno-test]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
 
@@ -996,15 +1064,55 @@ jobs:
       - name: Update hashes
         run: deno run --allow-all ./etc/scripts/update-nix-hashes.ts
 
-      - name: Commit and push
+      # Two trees, because the constraints pull opposite ways: the hashes have
+      # to be computed from the TAG's tree (main's VERSION may already point
+      # past this tag, and only the tagged release's archives exist to hash),
+      # but the commit has to land on current main. A tag checkout is a detached
+      # HEAD, so the old bare `git commit && git push` here could never succeed
+      # -- and continue-on-error hid that, so nix hashes silently stopped
+      # updating.
+      #
+      # continue-on-error STAYS on this job: a distribution follower must not
+      # fail a release whose packages are already published. But it also means
+      # the new failure modes here (main dropped nix/, a rebase conflict, branch
+      # protection rejecting the push) would be just as silent, so the step
+      # below ends with an explicit ::warning:: — visible in the run summary,
+      # not just as a red square someone has to go looking for.
+      #
+      # fetch-depth 0: the rebase retry below has to replay onto whatever main
+      # has become, and a shallow clone may lack the merge base.
+      - name: Checkout main for the commit
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          path: main-tree
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Commit hashes to main
         run: |
+          set -euo pipefail
+          # continue-on-error keeps a failure here from failing the release, so
+          # announce it loudly instead of letting it pass as a green run.
+          trap 'echo "::warning::Nix hash update failed — run this job again, or update nix/hashes.json by hand."' ERR
+
+          # Read VERSION from the tag's tree before switching directories --
+          # main-tree holds a different, possibly newer, VERSION file.
           VERSION=$(cat VERSION)
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/eser/stack.git"
+
+          cp nix/hashes.json main-tree/nix/hashes.json
+          cd main-tree
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add nix/hashes.json
+          # Hashes unchanged (a re-run of the same tag) is success, not failure.
           git diff --cached --quiet && exit 0
           git commit -m "chore(nix): update binary hashes for v$VERSION"
-          git push
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+          # Explicit refspec: the checkout may leave HEAD detached. One retry
+          # covers a push that landed on main while the release was running.
+          git push origin HEAD:main || {
+            git pull --rebase origin main
+            git push origin HEAD:main
+          }

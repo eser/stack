@@ -138,13 +138,19 @@ export const parseChangelogText = (text: string): ChangelogEntry[] => {
       continue;
     }
 
+    // The file carries both heading styles: bare "## 1.2.3 - date" from the
+    // current generator and legacy "## [v1.2.3] - date" sections. Strip the
+    // `v` first, or the legacy ones fail the digit test below and vanish from
+    // the parse entirely.
+    const version = m[1]!.replace(/^v/, "");
+
     // Skip non-version headings like [Unreleased]
-    if (!/^\d/.test(m[1]!)) {
+    if (!/^\d/.test(version)) {
       continue;
     }
 
     headings.push({
-      version: m[1]!,
+      version,
       date: m[2] ?? "",
       headingLineIndex: index,
     });

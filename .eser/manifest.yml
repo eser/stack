@@ -266,7 +266,15 @@ scripts:
   coverage-gen: deno coverage ./etc/coverage --lcov --output=./etc/coverage.lcov
 
   # Release
+  # `release <patch|minor|major|same>` bumps, changelogs, commits, pushes, then
+  # pushes the v<version> tag. The TAG PUSH is what triggers build.yml's release
+  # run — CI never creates tags, because a tag pushed by its own GITHUB_TOKEN
+  # dispatches nothing.
+  release: eser codebase release
+  rerelease: eser codebase rerelease
+  unrelease: eser codebase unrelease
   version-bump: eser codebase versions
+  # Escape hatch: tag by hand when a release commit already landed without one.
   tag: eser codebase gh release-tag
   release-notes: eser codebase gh release-notes
   changelog: eser codebase changelog-gen

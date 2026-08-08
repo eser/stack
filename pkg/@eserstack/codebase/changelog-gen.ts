@@ -70,6 +70,8 @@ export type ChangelogSection =
 export type GenerateChangelogOptions = {
   /** Root directory containing VERSION and CHANGELOG.md (default: ".") */
   readonly root?: string;
+  /** Release version for the heading. Default: next patch after the latest tag. */
+  readonly version?: string;
   /** Preview without writing to CHANGELOG.md (default: false) */
   readonly dryRun?: boolean;
 };
@@ -250,15 +252,20 @@ export const generateChangelogSection = (
   version: string,
   commits: ReadonlyArray<ConventionalCommit>,
 ): string => {
+  // Match the Go generator (pkg/ajan/codebasefx/changelog.go): headings are
+  // bare. A "## v4.3.1" heading is recognised by neither the Go dedup nor the
+  // release-notes parser, so a v-prefixed caller would silently produce a
+  // duplicate section and empty release notes.
+  const bare = version.replace(/^v/, "");
   const grouped = groupBySection(commits);
 
   if (grouped.size === 0) {
     const today = new Date().toISOString().split("T")[0];
-    return `## ${version} - ${today}\n\n_Maintenance release._`;
+    return `## ${bare} - ${today}\n\n_Maintenance release._`;
   }
 
   const today = new Date().toISOString().split("T")[0];
-  const lines: string[] = [`## ${version} - ${today}`];
+  const lines: string[] = [`## ${bare} - ${today}`];
 
   // Ordered sections matching Keep a Changelog convention
   const sectionOrder: ChangelogSection[] = [
@@ -364,6 +371,8 @@ export const generateChangelog = async (
   const raw = lib.symbols.EserAjanCodebaseGenerateChangelog(
     JSON.stringify({
       dir: options.root ?? ".",
+      // Omitted when undefined, which leaves the Go-side fallback in charge.
+      version: options.version,
       dryRun: options.dryRun ?? false,
     }),
   );

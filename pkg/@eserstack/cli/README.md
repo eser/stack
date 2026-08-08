@@ -59,9 +59,9 @@ eser
 │   ├── gh                GitHub operations (contributors, releases, tags)
 │   ├── versions          Manage workspace package versions
 │   ├── changelog-gen     Generate CHANGELOG from commits
-│   ├── release           Create a release (bump, changelog, commit, push)
+│   ├── release           Create a release (bump, changelog, commit, push, tag)
 │   ├── rerelease         Delete and recreate the current version tag
-│   ├── unrelease         Delete the current version tag
+│   ├── unrelease         Delete the current version tag and GitHub Release
 │   └── validate-*        24 validators — eof, secrets, licenses, circular-deps,
 │                         mod-exports, error-coverage, … (`--help` for the list)
 ├── workflows, wf         Workflow engine — run tool pipelines
@@ -275,11 +275,22 @@ npx eser codebase validate-trailing-whitespace
 npx eser codebase validate-bom
 npx eser codebase validate-line-endings
 
-# Release management
+# Cut a release — bumps VERSION and every package.json, writes the CHANGELOG
+# section, commits, pushes, then pushes the v<version> tag. That tag push is
+# what triggers the release pipeline; CI never tags.
+npx eser codebase release patch --dry-run
+npx eser codebase release patch
+
+# Recovery: re-fire the pipeline, or remove the tag and its GitHub Release.
+# Only while nothing has been published — JSR and npm reject a re-publish.
+npx eser codebase rerelease
+npx eser codebase unrelease --yes
+
+# Individual pieces
 npx eser codebase versions
 npx eser codebase changelog-gen
-npx eser codebase release-notes
-npx eser codebase release-tag
+npx eser codebase gh release-notes
+npx eser codebase gh release-tag
 ```
 
 ### laroux

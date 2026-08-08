@@ -60,7 +60,7 @@ export const moduleDef: Module = new Module({
       load: () => import("./changelog-gen.ts"),
     },
     release: {
-      description: "Create a release (bump, changelog, commit, push)",
+      description: "Create a release (bump, changelog, commit, push, tag)",
       category: "Release",
       load: () => import("./release.ts"),
     },
@@ -73,7 +73,7 @@ export const moduleDef: Module = new Module({
       },
     },
     unrelease: {
-      description: "Delete the current version tag",
+      description: "Delete the current version tag and GitHub Release",
       category: "Release",
       load: async () => {
         const mod = await import("./release.ts");

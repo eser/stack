@@ -1,7 +1,7 @@
 {
   "name": "@eserstack/noskills-server-worker",
-  "version": "4.1.58",
-  "description": "noskills-server TS worker \u2014 hosts a mux terminal multiplexer session",
+  "version": "4.3.0",
+  "description": "noskills-server TS worker — hosts a mux terminal multiplexer session",
   "type": "module",
   "main": "mux-worker.ts",
   "scripts": {

@@ -6,10 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v4.1.61] - 2026-08-08
+## 4.3.0 - 2026-08-08
 
 ### Fixed
 
+- **build**: mark FFI packages external in all npm builds (1e3ddb3)
 - **codebase**: stage only tracked pathspecs during release (20b5c71)
 - **codebase**: report correct target version in dry-run release (77cdebf)
 

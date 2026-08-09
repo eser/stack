@@ -183,7 +183,12 @@ export const isGitReadOnly = isGitAllowed;
  */
 export const extractGitInvocations = (command: string): readonly string[] => {
   const invocations: string[] = [];
-  const phrases = command.split(/\s*(?:&&|\|\||;|\n)\s*/);
+  // Split on the bare separators and let the per-phrase trim() below absorb the
+  // surrounding whitespace. Padding the separators (/\s*(?:…|\n)\s*/) made `\s*`
+  // and the `\n` alternative overlap, so a command padded with a long whitespace
+  // run backtracked quadratically — a hostile tool argument could stall the
+  // guard, and with it the driving loop, for minutes.
+  const phrases = command.split(/&&|\|\||;|\n/);
 
   for (const phrase of phrases) {
     const trimmed = phrase.trim();
@@ -226,7 +231,10 @@ export const containsGitWriteBypass = (command: string): boolean => {
   }
 
   // Pipe chains: any segment that is a git write (path-aware via isGitAllowed).
-  const segments = command.split(/\s*\|\s*/);
+  // Plain string split, not /\s*\|\s*/: that pattern re-scanned a whitespace run
+  // from every offset before failing on the missing `|`, which is quadratic on a
+  // padded command. The trim() below yields the same segments.
+  const segments = command.split("|");
   for (const seg of segments) {
     const trimSeg = seg.trim();
     if (trimSeg.length > 0 && !isGitAllowed(trimSeg)) return true;

@@ -7,27 +7,59 @@
  */
 
 import * as dashboard from "@eserstack/noskills/dashboard";
+import { runtime } from "@eserstack/standards/cross-runtime";
 import type { MuxHost } from "../terminal/mux-host.ts";
 
-const json = (data: unknown, status = 200): Response => {
-  // For error responses, return only { ok, error } — never serialize raw data
-  // which may contain stack traces or internal details.
-  if (status >= 400 && typeof data === "object" && data !== null) {
-    const obj = data as Record<string, unknown>;
-    const safeError = obj["error"] instanceof Error
-      ? obj["error"].message
-      : typeof obj["error"] === "string"
-      ? obj["error"].split("\n")[0]!
-      : "Unknown error";
-    return new Response(
-      JSON.stringify({ ok: false, error: safeError }),
-      { status, headers: { "content-type": "application/json" } },
-    );
-  }
-  return new Response(JSON.stringify(data), {
+/**
+ * Opt-in switch that appends the underlying error text to failure responses.
+ *
+ * Off unless explicitly set, so a plain `noskills web` never ships internal
+ * detail to a caller; a developer chasing a bug has to ask for it by name.
+ */
+const debugErrorsEnabled = (): boolean => {
+  const value = runtime.env.get("NOSKILLS_WEB_DEBUG_ERRORS");
+
+  return value === "1" || value === "true";
+};
+
+const json = (data: unknown, status = 200): Response =>
+  new Response(JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json" },
   });
+
+/**
+ * Serialize a failure as `{ ok: false, error }` — the shape the dashboard
+ * client and the REST callers already read.
+ *
+ * `reason` is written here at the call site; it is never derived from a thrown
+ * error, and `cause` never reaches the wire. Everything below this layer
+ * reports faults as a bare `Error` carrying whatever the runtime threw —
+ * `NotFound: ... open '/Users/<name>/<repo>/.eser/specs/<spec>/state.json'`
+ * and friends — so forwarding its message or stack maps out the host's
+ * directory layout and our internal module structure for the caller. The token
+ * guard narrows who can ask, but it is a single per-process secret embedded in
+ * the dashboard HTML, not a reason to answer with a stack trace. The detail
+ * goes to the server log instead, where it stays just as debuggable.
+ */
+const jsonError = (
+  reason: string,
+  status: number,
+  cause?: unknown,
+): Response => {
+  if (cause !== undefined) {
+    console.error(`[noskills-web] ${reason}:`, cause);
+  }
+
+  const body: Record<string, unknown> = { ok: false, error: reason };
+
+  if (cause !== undefined && debugErrorsEnabled()) {
+    body["detail"] = cause instanceof Error
+      ? (cause.stack ?? cause.message)
+      : String(cause);
+  }
+
+  return json(body, status);
 };
 
 /** GET /api/state — Full dashboard state. */
@@ -101,19 +133,24 @@ export const handleAction = async (
       result = await dashboard.complete(root, specName, user);
       break;
     default:
-      return json({ ok: false, error: `Unknown action: ${action}` }, 400);
+      return jsonError(`Unknown action: ${action}`, 400);
+  }
+
+  if (!result.ok) {
+    // The dashboard layer collapses domain rejections ("wrong phase") and raw
+    // filesystem faults into the same untyped `Error`, so this layer cannot
+    // tell them apart and has to treat every one as internal.
+    return jsonError("Action could not be completed", 400, result.error);
   }
 
   // Notify the pane bound to this spec, without stealing focus from the user.
-  if (result.ok) {
-    const userName = user?.name ?? "someone";
-    host.notifySpec(
-      specName,
-      `\n[noskills: spec ${specName} ${action} by ${userName}]\n`,
-    );
-  }
+  const userName = user?.name ?? "someone";
+  host.notifySpec(
+    specName,
+    `\n[noskills: spec ${specName} ${action} by ${userName}]\n`,
+  );
 
-  return json(result, result.ok ? 200 : 400);
+  return json({ ok: true });
 };
 
 /** POST /api/tab — Create a new tab. */

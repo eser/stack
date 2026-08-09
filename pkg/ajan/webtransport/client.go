@@ -75,7 +75,8 @@ func (c *Client) Close() error {
 
 // buildDialerTLSConfig constructs the effective tls.Config for the Dialer.
 // When CertHashes are provided, InsecureSkipVerify + VerifyPeerCertificate
-// are injected so self-signed development certs are accepted by fingerprint.
+// are injected so a self-signed development cert is accepted when — and only
+// when — its leaf fingerprint matches a supplied hash.
 func buildDialerTLSConfig(cfg *Config) *tls.Config {
 	if len(cfg.CertHashes) == 0 {
 		base := cfg.TLSConfig
@@ -97,25 +98,42 @@ func buildDialerTLSConfig(cfg *Config) *tls.Config {
 		base.MinVersion = tls.VersionTLS13
 	}
 
-	base.InsecureSkipVerify = true //nolint:gosec
+	// Verification is replaced here, not dropped. A self-signed daemon cert has no
+	// chain to build and no CA that will vouch for it, so the built-in verifier can
+	// only ever reject it; InsecureSkipVerify is how Go lets us substitute our own
+	// check. crypto/tls still invokes VerifyPeerCertificate when this flag is set,
+	// and the callback below fails closed. Pinning the exact leaf is a tighter bind
+	// than the hostname check it displaces: it accepts one specific key, not every
+	// cert any trusted CA is willing to issue for the name.
+	base.InsecureSkipVerify = true //nolint:gosec // G402: see above — pinning substitutes for chain validation.
 
 	pinnedHashes := make([][]byte, len(cfg.CertHashes))
 	for i, h := range cfg.CertHashes {
 		pinnedHashes[i] = bytes.Clone(h)
 	}
 
-	base.VerifyPeerCertificate = func(rawCerts [][]byte, _ [][]*x509.Certificate) error { //nolint:gosec // G123: QUIC short-lived conns, self-signed cert; VerifyConnection hardening is Phase 6
-		for _, raw := range rawCerts {
-			sum := sha256.Sum256(raw)
+	base.VerifyPeerCertificate = func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+		// Hash rawCerts[0] only. It is the end-entity cert whose private key signed
+		// the handshake; every later entry is unauthenticated filler the peer chose
+		// and proves nothing. Scanning the whole chain was a full MITM: an attacker
+		// terminates the connection with its own leaf, appends the genuine daemon
+		// cert as a bogus "intermediate", and the pin matches at index 1. That cert
+		// is public — the daemon publishes its fingerprint at GET /api/cert-fingerprint
+		// and hands the DER to anyone who completes a handshake — so the forged
+		// chain costs an attacker nothing to assemble.
+		if len(rawCerts) == 0 {
+			return fmt.Errorf("webtransport: server presented no certificate") //nolint:err113
+		}
 
-			for _, pinned := range pinnedHashes {
-				if bytes.Equal(sum[:], pinned) {
-					return nil
-				}
+		sum := sha256.Sum256(rawCerts[0])
+
+		for _, pinned := range pinnedHashes {
+			if bytes.Equal(sum[:], pinned) {
+				return nil
 			}
 		}
 
-		return fmt.Errorf("webtransport: no certificate matched the pinned fingerprints") //nolint:err113
+		return fmt.Errorf("webtransport: leaf certificate matched none of the pinned fingerprints") //nolint:err113
 	}
 
 	return base

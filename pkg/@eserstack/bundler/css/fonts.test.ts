@@ -114,6 +114,50 @@ Deno.test("extractFontUrls extracts multiple URLs", () => {
   assert.assertEquals(urls.length, 2);
 });
 
+Deno.test("extractFontUrls handles quoted, unquoted and malformed values", () => {
+  const cases: readonly [css: string, urls: string[]][] = [
+    ["url(https://x/f.woff2)", ["https://x/f.woff2"]],
+    [`url("https://x/f.woff2")`, ["https://x/f.woff2"]],
+    ["url('https://x/f.woff2')", ["https://x/f.woff2"]],
+    // Mismatched quotes are not a url() value, so nothing is extracted.
+    [`url("https://x/f.woff2')`, []],
+    [`url('https://x/f.woff2")`, []],
+    ["url(https://x/f.woff2", []],
+    ["url()", []],
+    ["url(image.png)", []],
+    ["url(a.woff2)url(b.ttf)", ["a.woff2", "b.ttf"]],
+    // The value may itself contain "(" — only quotes and ")" end it.
+    ["url(url(a.woff2)", ["url(a.woff2"]],
+    // A quote ends the outer value, so the inner url() is what matches.
+    ["url(x'url(a.woff2)", ["a.woff2"]],
+    // Unquoted values keep their padding, as CSS url() tokens do not trim.
+    [
+      "src: url( https://x/f.woff2 ) format('woff2');",
+      [" https://x/f.woff2 "],
+    ],
+  ];
+
+  for (const [css, urls] of cases) {
+    assert.assertEquals(extractFontUrls(css), urls, css);
+  }
+});
+
+Deno.test("extractFontUrls stays linear on adversarial CSS (ReDoS regression)", () => {
+  // The old /url\((["']?)([^"')]+)\1\)/g re-read the value from every "url("
+  // offset before failing, so this shape cost quadratic time: 16k repeats
+  // already took ~1.5s and a fetched stylesheet is attacker-influenced input.
+  const css = "url(".repeat(20_000) + "a".repeat(20_000) + ".woff2";
+
+  const started = performance.now();
+  assert.assertEquals(extractFontUrls(css), []);
+  const elapsed = performance.now() - started;
+
+  assert.assert(
+    elapsed < 1_000,
+    `extractFontUrls took ${elapsed.toFixed(0)}ms on adversarial CSS`,
+  );
+});
+
 // ============================================================================
 // extractFontFamilies tests
 // ============================================================================

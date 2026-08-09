@@ -304,8 +304,12 @@ func ConvertSlogAttrToOtelAttr(attr slog.Attr) *attribute.KeyValue {
 }
 
 // ConvertSlogAttrsToOtelLog converts slog attributes to OpenTelemetry attributes.
-func ConvertSlogAttrsToOtelLog(attrs []any) []log.KeyValue {
-	logAttrs := make([]log.KeyValue, len(attrs))
+//
+// The attribute types come from go.opentelemetry.io/otel/attribute rather
+// than otel/log: log v0.21.0 removed its own KeyValue and constructors, and
+// Record.AddAttributes/SetBody take the attribute package's types now.
+func ConvertSlogAttrsToOtelLog(attrs []any) []attribute.KeyValue {
+	logAttrs := make([]attribute.KeyValue, len(attrs))
 
 	for i, attr := range attrs {
 		slogAttr, slogAttrOk := attr.(slog.Attr)
@@ -320,29 +324,29 @@ func ConvertSlogAttrsToOtelLog(attrs []any) []log.KeyValue {
 	return logAttrs
 }
 
-// ConvertSlogAttrToOtelLog converts a single slog.Attr to OpenTelemetry log.KeyValue.
-func ConvertSlogAttrToOtelLog(attr slog.Attr) *log.KeyValue {
+// ConvertSlogAttrToOtelLog converts a single slog.Attr to OpenTelemetry attribute.KeyValue.
+func ConvertSlogAttrToOtelLog(attr slog.Attr) *attribute.KeyValue {
 	key := attr.Key
 	value := attr.Value
 	strVal, intVal, floatVal, boolVal := slogAttrParts(value)
 
-	var keyValue log.KeyValue
+	var keyValue attribute.KeyValue
 
 	switch value.Kind() { //nolint:exhaustive
 	case slog.KindInt64:
-		keyValue = log.Int64(key, intVal)
+		keyValue = attribute.Int64(key, intVal)
 	case slog.KindFloat64:
-		keyValue = log.Float64(key, floatVal)
+		keyValue = attribute.Float64(key, floatVal)
 	case slog.KindBool:
-		keyValue = log.Bool(key, boolVal)
+		keyValue = attribute.Bool(key, boolVal)
 	case slog.KindUint64:
 		if value.Uint64() > math.MaxInt64 {
-			keyValue = log.String(key, strVal)
+			keyValue = attribute.String(key, strVal)
 		} else {
-			keyValue = log.Int64(key, intVal)
+			keyValue = attribute.Int64(key, intVal)
 		}
 	default:
-		keyValue = log.String(key, strVal)
+		keyValue = attribute.String(key, strVal)
 	}
 
 	return &keyValue
@@ -389,7 +393,7 @@ func (h *Handler) convertSlogRecordToOtelLog( //nolint:cyclop
 	slogAttrsLen := len(slogAttrs)
 
 	// Set message body with structured attributes preserved
-	logAttrs := make([]log.KeyValue, slogAttrsLen+1)
+	logAttrs := make([]attribute.KeyValue, slogAttrsLen+1)
 
 	scopeName := h.ScopeName
 
@@ -403,12 +407,12 @@ func (h *Handler) convertSlogRecordToOtelLog( //nolint:cyclop
 
 	logRecord.AddAttributes(logAttrs[:slogAttrsLen]...)
 
-	logAttrs[slogAttrsLen] = log.KeyValue{
+	logAttrs[slogAttrsLen] = attribute.KeyValue{
 		Key:   "msg",
-		Value: log.StringValue(rec.Message),
+		Value: attribute.StringValue(rec.Message),
 	}
 
-	logRecord.SetBody(log.MapValue(logAttrs...))
+	logRecord.SetBody(attribute.MapValue(logAttrs...))
 
 	return scopeName, &logRecord
 }

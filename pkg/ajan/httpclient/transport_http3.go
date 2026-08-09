@@ -20,7 +20,7 @@ type h3RoundTripperConfig struct {
 	TLSConfig *tls.Config
 
 	// CertHashes is a list of SHA-256 DER fingerprints. When non-empty, the
-	// transport pins the server certificate to these hashes instead of
+	// transport pins the server's leaf certificate to these hashes instead of
 	// performing normal CA chain validation (InsecureSkipVerify is set internally).
 	// This mirrors the browser WebTransport serverCertificateHashes API.
 	CertHashes [][]byte
@@ -42,9 +42,10 @@ func WithH3TLSClientConfig(cfg *tls.Config) H3Option {
 }
 
 // WithH3CertHashes pins the connection to the supplied list of SHA-256 DER
-// certificate fingerprints. Any server cert whose SHA-256(DER) matches one of
-// the hashes is accepted, regardless of CA chain. Use for self-signed
-// noskills-server certs in development; the daemon exposes the fingerprint at
+// certificate fingerprints. The connection is accepted only when the server's
+// leaf certificate — not any other entry in the chain it presents — hashes to
+// one of them, regardless of CA chain. Use for self-signed noskills-server
+// certs in development; the daemon exposes the fingerprint at
 // GET /api/cert-fingerprint.
 func WithH3CertHashes(hashes [][]byte) H3Option {
 	return func(c *h3RoundTripperConfig) {
@@ -95,7 +96,9 @@ func NewHTTP3RoundTripper(opts ...H3Option) http.RoundTripper {
 
 // buildH3TLSConfig builds the effective tls.Config for the transport.
 // When CertHashes are specified, it clones cfg.TLSConfig (or starts fresh)
-// and injects the hash-based VerifyPeerCertificate callback.
+// and injects the leaf-hash VerifyPeerCertificate callback. With no CertHashes
+// the caller's config is returned untouched, so the default path keeps full CA
+// chain and hostname verification.
 func buildH3TLSConfig(cfg *h3RoundTripperConfig) *tls.Config {
 	if len(cfg.CertHashes) == 0 {
 		if cfg.TLSConfig != nil {
@@ -117,8 +120,14 @@ func buildH3TLSConfig(cfg *h3RoundTripperConfig) *tls.Config {
 		base.MinVersion = tls.VersionTLS13
 	}
 
-	// Skip CA chain validation; we pin by raw cert hash instead.
-	base.InsecureSkipVerify = true //nolint:gosec
+	// Verification is replaced here, not dropped. A self-signed daemon cert has no
+	// chain to build and no CA that will vouch for it, so the built-in verifier can
+	// only ever reject it; InsecureSkipVerify is how Go lets us substitute our own
+	// check. crypto/tls still invokes VerifyPeerCertificate when this flag is set,
+	// and the callback below fails closed. Pinning the exact leaf is a tighter bind
+	// than the hostname check it displaces: it accepts one specific key, not every
+	// cert any trusted CA is willing to issue for the name.
+	base.InsecureSkipVerify = true //nolint:gosec // G402: see above — pinning substitutes for chain validation.
 
 	// Capture hashes for the closure.
 	pinnedHashes := make([][]byte, len(cfg.CertHashes))
@@ -126,18 +135,28 @@ func buildH3TLSConfig(cfg *h3RoundTripperConfig) *tls.Config {
 		pinnedHashes[i] = bytes.Clone(h)
 	}
 
-	base.VerifyPeerCertificate = func(rawCerts [][]byte, _ [][]*x509.Certificate) error { //nolint:gosec // G123: QUIC short-lived conns, self-signed cert; VerifyConnection hardening is Phase 6
-		for _, raw := range rawCerts {
-			sum := sha256.Sum256(raw)
+	base.VerifyPeerCertificate = func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+		// Hash rawCerts[0] only. It is the end-entity cert whose private key signed
+		// the handshake; every later entry is unauthenticated filler the peer chose
+		// and proves nothing. Scanning the whole chain was a full MITM: an attacker
+		// terminates the connection with its own leaf, appends the genuine daemon
+		// cert as a bogus "intermediate", and the pin matches at index 1. That cert
+		// is public — the daemon publishes its fingerprint at GET /api/cert-fingerprint
+		// and hands the DER to anyone who completes a handshake — so the forged
+		// chain costs an attacker nothing to assemble.
+		if len(rawCerts) == 0 {
+			return fmt.Errorf("httpclient H3: server presented no certificate") //nolint:err113
+		}
 
-			for _, pinned := range pinnedHashes {
-				if bytes.Equal(sum[:], pinned) {
-					return nil
-				}
+		sum := sha256.Sum256(rawCerts[0])
+
+		for _, pinned := range pinnedHashes {
+			if bytes.Equal(sum[:], pinned) {
+				return nil
 			}
 		}
 
-		return fmt.Errorf("httpclient H3: no certificate matched the pinned fingerprints") //nolint:err113
+		return fmt.Errorf("httpclient H3: leaf certificate matched none of the pinned fingerprints") //nolint:err113
 	}
 
 	return base

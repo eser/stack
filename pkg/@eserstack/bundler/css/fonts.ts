@@ -87,9 +87,15 @@ export async function downloadFonts(
 }
 
 /**
+ * Characters that end a url() value: the two quote styles and the closing paren.
+ */
+const URL_TERMINATORS: ReadonlySet<string> = new Set(['"', "'", ")"]);
+
+/**
  * Extract font URLs from Google Fonts CSS.
  *
  * Parses @font-face declarations and extracts url() references.
+ * Handles: url(https://...) and url('https://...') and url("https://...")
  *
  * @param fontCss - Google Fonts CSS content
  * @returns Array of font file URLs
@@ -97,21 +103,54 @@ export async function downloadFonts(
 export function extractFontUrls(fontCss: string): string[] {
   const urls: string[] = [];
 
-  // Match url(...) patterns in CSS
-  // Handles: url(https://...) and url('https://...') and url("https://...")
-  const urlPattern = /url\((["']?)([^"')]+)\1\)/g;
-
-  let match;
-  while ((match = urlPattern.exec(fontCss)) !== null) {
-    const url = match[2];
-
-    // Only include actual font files (.woff2, .woff, .ttf)
-    if (
-      url !== undefined &&
-      (url.includes(".woff2") || url.includes(".woff") || url.includes(".ttf"))
-    ) {
-      urls.push(url);
+  // Scanned by hand rather than with /url\((["']?)([^"')]+)\1\)/g: that pattern
+  // re-read the whole value from every "url(" offset before failing, so CSS made
+  // of repeated "url(" prefixes followed by one long unterminated value cost
+  // quadratic time — a hostile or corrupted stylesheet could stall the bundler.
+  // `terminatorFrom` walks the input once and never rewinds, keeping it linear.
+  let scanned = -1;
+  const terminatorFrom = (from: number): number => {
+    if (from > scanned) {
+      scanned = from;
+      while (
+        scanned < fontCss.length && !URL_TERMINATORS.has(fontCss[scanned]!)
+      ) {
+        scanned += 1;
+      }
     }
+
+    return scanned;
+  };
+
+  let cursor = 0;
+  while (cursor < fontCss.length) {
+    const open = fontCss.indexOf("url(", cursor);
+    if (open === -1) break;
+
+    const quote = fontCss[open + 4];
+    const quoted = quote === '"' || quote === "'";
+    const valueStart = quoted ? open + 5 : open + 4;
+    const valueEnd = terminatorFrom(valueStart);
+    // What the old backreference required: the matching quote, then `)`.
+    const closing = quoted ? `${quote})` : ")";
+
+    // A value is required to be non-empty, exactly as `[^"')]+` was.
+    if (valueEnd > valueStart && fontCss.startsWith(closing, valueEnd)) {
+      const url = fontCss.slice(valueStart, valueEnd);
+
+      // Only include actual font files (.woff2, .woff, .ttf)
+      if (
+        url.includes(".woff2") || url.includes(".woff") || url.includes(".ttf")
+      ) {
+        urls.push(url);
+      }
+
+      cursor = valueEnd + closing.length;
+      continue;
+    }
+
+    // No match here; retry from the next offset like the regex scan did.
+    cursor = open + 1;
   }
 
   return urls;

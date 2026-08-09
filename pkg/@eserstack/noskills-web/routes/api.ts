@@ -137,9 +137,15 @@ export const handleAction = async (
   }
 
   if (!result.ok) {
-    // The dashboard layer collapses domain rejections ("wrong phase") and raw
-    // filesystem faults into the same untyped `Error`, so this layer cannot
-    // tell them apart and has to treat every one as internal.
+    // A rejection the dashboard layer decided on is safe to repeat back and is
+    // the only useful thing to say — "Cannot approve in phase: SPEC_PROPOSAL"
+    // tells the user what to do, whereas the generic string leaves them
+    // guessing. Anything else is a caught fault whose message may carry host
+    // paths, so it stays generic and goes to the log instead.
+    if (result.error instanceof dashboard.ActionRejectedError) {
+      return jsonError(result.error.message, 400);
+    }
+
     return jsonError("Action could not be completed", 400, result.error);
   }
 

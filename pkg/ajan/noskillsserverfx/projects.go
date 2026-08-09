@@ -152,6 +152,32 @@ func containsPath(base, target string) (bool, error) {
 	return true, nil
 }
 
+// underDir reports whether target is dirInfo's directory itself, or lives
+// beneath it, comparing filesystem identity rather than spelling.
+//
+// containsPath is a lexical test, and lexical tests lose on a case-insensitive
+// filesystem: macOS stats "/Users/u/.NOSKILLS" successfully, EvalSymlinks keeps
+// whatever case it was handed, and filepath.Rel then reports the path as
+// somewhere else entirely. os.SameFile compares device and inode, so every
+// spelling of the same directory collapses to one answer.
+//
+// Walking up from target rather than down keeps this O(depth) and needs no
+// directory listing.
+func underDir(dirInfo os.FileInfo, target string) bool {
+	for current := filepath.Clean(target); ; {
+		if info, err := os.Stat(current); err == nil && os.SameFile(info, dirInfo) {
+			return true
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			return false
+		}
+
+		current = parent
+	}
+}
+
 // resolvedDataDir returns DataDir as a cleaned absolute path with symlinks
 // resolved, so containment checks compare real paths on machines where
 // ~/.noskills is a link to another volume.
@@ -186,10 +212,18 @@ func (s *Server) resolvedDataDir() (string, error) {
 //   - symlinks resolved: the root is stored once and reused by every later spec
 //     and session, so a link retargeted after registration would silently move
 //     the workspace out from under the daemon.
-//   - inside DataDir rejected: ~/.noskills holds auth.json (the PIN hash and
-//     live tokens) plus every session ledger. Registering it as a project would
-//     let spec scaffolding and agent tooling rewrite the daemon's own
-//     credentials.
+//   - DataDir itself, or anything under it, rejected: ~/.noskills holds
+//     auth.json (the PIN hash and live tokens) plus every session ledger, and
+//     registering it as a project would point spec scaffolding at the daemon's
+//     own credentials.
+//
+// That last check catches a misconfiguration, not an attacker, and the
+// distinction is worth stating plainly. An ANCESTOR of DataDir -- a home
+// directory, or "/" -- is still accepted, because a home directory is a
+// legitimate workspace and refusing it would break real use. Such a root
+// contains ~/.noskills anyway, so an agent running there reaches auth.json
+// regardless. Confining what a session may read is the sandbox's job; no
+// amount of path arithmetic here can substitute for it.
 func (s *Server) resolveWorkspacePath(raw string) (string, error) {
 	if !filepath.IsAbs(raw) {
 		return "", fmt.Errorf("%w: %q", errPathRelative, raw)
@@ -216,12 +250,14 @@ func (s *Server) resolveWorkspacePath(raw string) (string, error) {
 		return "", err
 	}
 
-	inside, err := containsPath(dataDir, resolved)
+	// A DataDir that does not exist yet holds nothing to protect, and Stat
+	// failing for any other reason must not silently skip the check.
+	dataDirInfo, err := os.Stat(dataDir)
 	if err != nil {
-		return "", err
-	}
-
-	if inside {
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("stat data-dir: %w", err)
+		}
+	} else if underDir(dataDirInfo, resolved) {
 		return "", fmt.Errorf("%w: %q", errPathInDataDir, raw)
 	}
 
@@ -268,10 +304,18 @@ func (s *Server) cloneDestination(slug string) (string, error) {
 	return dest, nil
 }
 
-// validateGitURL rejects git remote-helper URLs. `git clone -- 'ext::sh -c id'`
-// makes git execute the trailing command, so handing the raw `git` request
-// field to git clone turns project registration into arbitrary command
-// execution as the daemon user. Ordinary https, ssh, git and scp-style
+// validateGitURL rejects git remote-helper URLs.
+//
+// A `helper::args` URL makes git run `git-remote-<helper>` from PATH with the
+// caller's arguments. The notorious case, `ext::sh -c id`, no longer executes:
+// git has defaulted the ext transport to PROTOCOL_ALLOW_NEVER since 2.12, and
+// git 2.50.1 answers `fatal: transport 'ext' not allowed` (verified). Unknown
+// helpers, though, still default to ALLOW_USER, so `foo::bar` will exec a
+// `git-remote-foo` that happens to be installed. This stays as defence in depth
+// against that residual case, and against a future git or a distro build with
+// different protocol defaults -- not because the ext hole is still open.
+//
+// Ordinary https, ssh, git and scp-style
 // addresses are unaffected, and the existing `--` already stops a URL that
 // starts with a dash from being read as an option.
 func validateGitURL(url string) error {

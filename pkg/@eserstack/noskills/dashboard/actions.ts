@@ -21,6 +21,24 @@ export type ActionResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly error: Error };
 
+/**
+ * A rejection this module decided on, as opposed to a fault it caught.
+ *
+ * The two are indistinguishable once both are a bare `Error`, and callers that
+ * render errors to a remote client need to tell them apart: "Cannot approve in
+ * phase: SPEC_PROPOSAL" is the answer the user needs, while a caught
+ * `NotFound: open '/Users/<name>/<repo>/.eser/specs/...'` maps out the host's
+ * filesystem. Marking the deliberate ones lets the web layer forward these and
+ * genericise everything else, instead of flattening both into one useless
+ * string.
+ */
+export class ActionRejectedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ActionRejectedError";
+  }
+}
+
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -49,7 +67,9 @@ export const approve = async (
     if (state.phase !== "SPEC_PROPOSAL") {
       return {
         ok: false,
-        error: new Error(`Cannot approve in phase: ${state.phase}`),
+        error: new ActionRejectedError(
+          `Cannot approve in phase: ${state.phase}`,
+        ),
       };
     }
 
@@ -222,7 +242,9 @@ export const complete = async (
     if (state.phase !== "EXECUTING") {
       return {
         ok: false,
-        error: new Error(`Cannot complete in phase: ${state.phase}`),
+        error: new ActionRejectedError(
+          `Cannot complete in phase: ${state.phase}`,
+        ),
       };
     }
 

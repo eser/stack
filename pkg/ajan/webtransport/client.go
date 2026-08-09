@@ -136,5 +136,27 @@ func buildDialerTLSConfig(cfg *Config) *tls.Config {
 		return fmt.Errorf("webtransport: leaf certificate matched none of the pinned fingerprints") //nolint:err113
 	}
 
+	// VerifyPeerCertificate is NOT called when a session is resumed, so pinning
+	// that lives only there is bypassed by any peer that can present a valid
+	// session ticket -- gosec G123. VerifyConnection runs on both fresh and
+	// resumed handshakes, so the same leaf pin is enforced here too. Checking in
+	// both places is deliberate: VerifyPeerCertificate rejects a bad chain before
+	// the handshake completes, and this catches the resumption path.
+	base.VerifyConnection = func(cs tls.ConnectionState) error {
+		if len(cs.PeerCertificates) == 0 {
+			return fmt.Errorf("webtransport: connection presented no certificate") //nolint:err113
+		}
+
+		sum := sha256.Sum256(cs.PeerCertificates[0].Raw)
+
+		for _, pinned := range pinnedHashes {
+			if bytes.Equal(sum[:], pinned) {
+				return nil
+			}
+		}
+
+		return fmt.Errorf("webtransport: resumed session leaf matched none of the pinned fingerprints") //nolint:err113
+	}
+
 	return base
 }

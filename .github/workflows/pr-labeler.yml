@@ -18,6 +18,6 @@ jobs:
           fetch-depth: 1
 
       - name: Label PR
-        uses: actions/labeler@v6
+        uses: actions/labeler@v7
         with:
           configuration-path: .github/pr-labeler.yml

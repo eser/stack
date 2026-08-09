@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.3.1 - 2026-08-09
+
+### Fixed
+
+- **security**: pin on resumed sessions, compare DataDir by identity (c06b36c)
+- **security**: harden path, TLS pinning, and regex guards (b4ffb79)
+
+### Changed
+
+- **deps**: bump the actions group with 3 updates (#155) (d78ce57)
+- **deps**: bump the npm-deps group with 2 updates (#154) (52a8645)
+- **deps**: bump the go-deps group with 15 updates (#153) (4a03973)
+
 ## 4.3.0 - 2026-08-08
 
 ### Fixed

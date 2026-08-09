@@ -20,7 +20,7 @@
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
     "@anthropic-ai/sdk": "^0.115.0",
-    "openai": "^7.3.0",
+    "openai": "^7.4.0",
     "@google/genai": "^2.15.0"
   },
   "devDependencies": {

@@ -9,11 +9,11 @@
   },
   "dependencies": {
     "@eserstack/standards": "workspace:*",
-    "koffi": "^3.1.4"
+    "koffi": "^3.1.6"
   },
   "optionalDependencies": {
-    "@eserstack/ajan-darwin-arm64": "^4.1.0 || ^5.0.0",
-    "@eserstack/ajan-darwin-x64": "^4.1.0 || ^5.0.0",
+    "@eserstack/ajan-darwin-arm64": "^4.3.1",
+    "@eserstack/ajan-darwin-x64": "^4.3.1",
     "@eserstack/ajan-linux-arm64": "^4.1.0 || ^5.0.0",
     "@eserstack/ajan-linux-x64": "^4.1.0 || ^5.0.0",
     "@eserstack/ajan-win32-x64": "^4.1.0 || ^5.0.0",

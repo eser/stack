@@ -21,7 +21,7 @@
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

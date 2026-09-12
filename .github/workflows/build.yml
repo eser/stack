@@ -88,7 +88,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: "stable"
+          # go.mod, not "stable": a new Go minor lands on the runner before the
+          # pinned golangci-lint can parse it, and Validate then dies inside
+          # staticcheck on the standard library rather than on our code.
+          go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
 
@@ -414,7 +417,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: "stable"
+          # go.mod, not "stable": a new Go minor lands on the runner before the
+          # pinned golangci-lint can parse it, and Validate then dies inside
+          # staticcheck on the standard library rather than on our code.
+          go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
 
@@ -501,7 +507,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: "stable"
+          # go.mod, not "stable": a new Go minor lands on the runner before the
+          # pinned golangci-lint can parse it, and Validate then dies inside
+          # staticcheck on the standard library rather than on our code.
+          go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
 
@@ -754,7 +763,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: "stable"
+          # go.mod, not "stable": a new Go minor lands on the runner before the
+          # pinned golangci-lint can parse it, and Validate then dies inside
+          # staticcheck on the standard library rather than on our code.
+          go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
 
@@ -814,7 +826,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: "stable"
+          # go.mod, not "stable": a new Go minor lands on the runner before the
+          # pinned golangci-lint can parse it, and Validate then dies inside
+          # staticcheck on the standard library rather than on our code.
+          go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
 

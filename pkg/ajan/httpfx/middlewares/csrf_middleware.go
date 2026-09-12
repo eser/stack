@@ -90,7 +90,7 @@ func CsrfMiddleware(options ...CsrfOption) httpfx.Handler {
 
 		if err != nil || cookie.Value == "" {
 			token = generateCSRFToken()
-			http.SetCookie(w, &http.Cookie{
+			http.SetCookie(w, &http.Cookie{ //nolint:gosec // double-submit token: HttpOnly is off by design so the client can echo it; Secure follows cfg
 				Name:     cfg.cookieName,
 				Value:    token,
 				Path:     cfg.cookiePath,

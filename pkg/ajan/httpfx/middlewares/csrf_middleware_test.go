@@ -77,7 +77,7 @@ func TestCsrfMiddleware_PostWithoutTokenForbidden(t *testing.T) {
 
 	// POST without the header — should fail
 	postReq := httptest.NewRequest(http.MethodPost, "/", nil)
-	postReq.AddCookie(&http.Cookie{Name: "csrf_token", Value: csrfCookie})
+	postReq.AddCookie(&http.Cookie{Name: "csrf_token", Value: csrfCookie}) //nolint:gosec // request-side cookie; attributes only apply to Set-Cookie
 	// No X-CSRF-Token header
 
 	r := runCSRF(t, mw, postReq)
@@ -109,7 +109,7 @@ func TestCsrfMiddleware_PostWithValidTokenAllowed(t *testing.T) {
 
 	// POST with correct header + cookie
 	postReq := httptest.NewRequest(http.MethodPost, "/", nil)
-	postReq.AddCookie(&http.Cookie{Name: "csrf_token", Value: csrfCookie})
+	postReq.AddCookie(&http.Cookie{Name: "csrf_token", Value: csrfCookie}) //nolint:gosec // request-side cookie; attributes only apply to Set-Cookie
 	postReq.Header.Set("X-CSRF-Token", csrfCookie)
 
 	r := runCSRF(t, mw, postReq)
@@ -142,7 +142,7 @@ func TestCsrfMiddleware_CustomHeaderName(t *testing.T) {
 	}
 
 	postReq := httptest.NewRequest(http.MethodPost, "/", nil)
-	postReq.AddCookie(&http.Cookie{Name: "my_csrf", Value: csrfCookie})
+	postReq.AddCookie(&http.Cookie{Name: "my_csrf", Value: csrfCookie}) //nolint:gosec // request-side cookie; attributes only apply to Set-Cookie
 	postReq.Header.Set("X-My-CSRF", csrfCookie)
 
 	r := runCSRF(t, mw, postReq)

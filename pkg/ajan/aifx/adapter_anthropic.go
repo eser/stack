@@ -843,8 +843,8 @@ func newAnthropicBatchRequest(
 			Messages:      params.Messages,
 			Model:         params.Model,
 			System:        params.System,
-			Temperature:   params.Temperature,
-			TopP:          params.TopP,
+			Temperature:   params.Temperature, //nolint:staticcheck // mirrors MessageNewParams; still honoured for models before Opus 4.6
+			TopP:          params.TopP,        //nolint:staticcheck // mirrors MessageNewParams; still honoured for models before Opus 4.6
 			StopSequences: params.StopSequences,
 			Tools:         params.Tools,
 			ToolChoice:    params.ToolChoice,

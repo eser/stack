@@ -97,7 +97,7 @@ func reflectMeta( //nolint:cyclop,funlen
 	result := make([]ConfigItemMeta, 0)
 
 	// Ensure we are working with the struct value, handling pointers
-	if r.Kind() == reflect.Ptr {
+	if r.Kind() == reflect.Pointer {
 		r = r.Elem()
 	}
 
@@ -147,7 +147,7 @@ func reflectMeta( //nolint:cyclop,funlen
 			if err != nil {
 				return nil, err
 			}
-		case structFieldTypeKind == reflect.Ptr && structFieldType.Type.Elem().Kind() == reflect.Struct:
+		case structFieldTypeKind == reflect.Pointer && structFieldType.Type.Elem().Kind() == reflect.Struct:
 			// If it's a pointer to a struct, reflectMeta's check (Ptr -> Elem) will handle dereferencing.
 			// Create a zero value of the struct type (the element type)
 			// Because we want metadata about the TYPE, not necessarily the value (which might be nil)
@@ -589,7 +589,7 @@ func reflectSetField( //nolint:cyclop,funlen
 		return nil
 	}
 
-	if field.Kind() == reflect.Ptr {
+	if field.Kind() == reflect.Pointer {
 		// Handle pointer types by allocating a new instance
 		ptr := reflect.New(fieldType.Elem())
 		ptr.Elem().Set(finalValue)

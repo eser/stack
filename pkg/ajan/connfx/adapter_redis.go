@@ -1503,7 +1503,7 @@ func (ra *RedisAdapter) ListItems( //nolint:cyclop
 
 	// Use reflection to work with the slice
 	sliceValue := reflect.ValueOf(items)
-	if sliceValue.Kind() != reflect.Ptr || sliceValue.Elem().Kind() != reflect.Slice {
+	if sliceValue.Kind() != reflect.Pointer || sliceValue.Elem().Kind() != reflect.Slice {
 		return fmt.Errorf("%w (items=%v): %w", ErrRedisOperation, items, ErrExpectedPointerToSlice)
 	}
 

@@ -48,6 +48,46 @@ config := &httpfx.Config{
 }
 ```
 
+## Trusted proxies
+
+`X-Forwarded-For`, `X-Real-IP` and `True-Client-IP` are client-supplied, so they
+are only read when the immediate peer is listed in `TrustedProxies`. The list is
+empty by default, which makes the socket peer the only authority on the client
+address. When the peer is trusted, `X-Forwarded-For` is walked right-to-left up
+to the first hop outside the allowlist.
+
+```go
+// func NewTrustedProxies(entries []string) (*TrustedProxies, error)
+
+trustedProxies, err := httpfx.NewTrustedProxies([]string{"10.0.0.0/8", "::1/128"})
+
+clientIP := trustedProxies.ClientIP(req)     // bare IP
+clientAddr := trustedProxies.ClientAddr(req) // host:port when not forwarded
+```
+
+Middleware wiring:
+
+```go
+router.Use(middlewares.ResolveAddressMiddleware(
+	middlewares.WithTrustedProxies(trustedProxies),
+))
+```
+
+## CORS
+
+`middlewares.CorsMiddleware` allows any origin anonymously by default
+(`Access-Control-Allow-Origin: *`, no credentials). Credentialed cross-origin
+access requires an explicit origin — the wildcard suppresses
+`Access-Control-Allow-Credentials`, and the request origin is never reflected
+back on the strength of a wildcard.
+
+```go
+router.Use(middlewares.CorsMiddleware(
+	middlewares.WithAllowOrigin("https://a.example.com, https://b.example.com"),
+	middlewares.WithAllowCredentials(true),
+))
+```
+
 ## API
 
 ### NewRouter function

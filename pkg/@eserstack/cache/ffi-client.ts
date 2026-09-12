@@ -1,28 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import type * as ffiTypes from "@eserstack/ajan/ffi";
+/**
+ * This package's view of the Go bridge.
+ *
+ * The loader itself lives in `@eserstack/ajan/ffi/client` and is shared with
+ * every other package, so the whole process opens the library once. This module
+ * stays as the import path the package's own code already uses.
+ */
 
-// Lazy FFI singleton — one per isolate, reused for every cache call.
-// `deno test` gives each test file a fresh isolate, so this is NOT once per
-// process. The native image pins itself at load time so repeated dlopen/
-// dlclose cycles cannot restart the Go runtime; see
-// pkg/@eserstack/ajan/pin_image_posix.go.
-let _lib: ffiTypes.FFILibrary | null = null;
-let _libPromise: Promise<void> | null = null;
-
-export const ensureLib = (): Promise<void> => {
-  if (_libPromise === null) {
-    _libPromise = import("@eserstack/ajan/ffi")
-      .then((ffi) => ffi.loadEserAjan())
-      .then((lib) => {
-        _lib = lib;
-      })
-      .catch(() => {
-        // Native library unavailable — callers use TS fallback.
-      });
-  }
-
-  return _libPromise;
-};
-
-export const getLib = (): ffiTypes.FFILibrary | null => _lib;
+export { ensureLib, getLib, getLoadError } from "@eserstack/ajan/ffi/client";

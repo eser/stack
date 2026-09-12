@@ -75,6 +75,7 @@ func Run(ctx context.Context, command string, args []string, opts ExecOptions) (
 	}
 
 	cmd := exec.CommandContext(ctx, command, args...)
+	HardenCommand(cmd)
 
 	if opts.Cwd != "" {
 		cmd.Dir = opts.Cwd

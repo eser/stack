@@ -60,6 +60,8 @@ func NewHTTP3Service(
 	router *Router,
 	logger *logfx.Logger,
 ) *HTTP3Service {
+	applyConfigPolicies(config)
+
 	h3Server := &http3.Server{ //nolint:exhaustruct
 		Addr:    config.H3ListenAddr,
 		Handler: router.GetMux(),

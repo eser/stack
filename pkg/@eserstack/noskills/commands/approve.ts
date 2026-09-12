@@ -109,10 +109,7 @@ export const main = async (
       "SPEC_APPROVED",
       user,
     );
-    await persistence.writeState(root, newState);
-    if (newState.spec !== null) {
-      await persistence.writeSpecState(root, newState.spec, newState);
-    }
+    await persistence.writeStateAndSpec(root, newState);
 
     // Update spec.md: "draft" → "approved"
     if (newState.spec !== null) {
@@ -140,10 +137,7 @@ export const main = async (
       "SPEC_PROPOSAL",
       user,
     );
-    await persistence.writeState(root, newState);
-    if (newState.spec !== null) {
-      await persistence.writeSpecState(root, newState.spec, newState);
-    }
+    await persistence.writeStateAndSpec(root, newState);
 
     out.writeln(
       span.green("✔"),

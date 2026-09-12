@@ -36,7 +36,12 @@ workflows:
       - validate-secrets:
           allowMissingCredentials: true
           exclude:
+            # Both trees are agent skill definitions whose security rules teach by
+            # counter-example -- the "secrets" they contain are the hardcoded
+            # credentials the docs tell you never to write. .agents/ is the
+            # vendor-neutral mirror of .claude/ (see AGENTS.md).
             - ".claude/skills/"
+            - ".agents/skills/"
       - validate-filenames:
           rules:
             - directory: "cmd/"
@@ -58,7 +63,10 @@ workflows:
             - directory: "*"
               convention: "kebab-case"
               exclude:
+                # SKILL.md is a fixed filename required by the agent-skills
+                # convention, so neither tree can satisfy kebab-case.
                 - ".claude/"
+                - ".agents/"
                 - ".github/"
                 - ".git/COMMIT_EDITMSG"
                 - "AGENTS.md"

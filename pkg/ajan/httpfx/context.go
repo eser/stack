@@ -90,7 +90,19 @@ func (c *Context) ParseJSONBody(target any) error {
 
 	defer func() { _ = c.Request.Body.Close() }()
 
-	decoder := json.NewDecoder(c.Request.Body)
+	// A floor, not a policy. RequestSizeLimitMiddleware exists but is wired into
+	// no server, and MaxRequestSizeMB was declared and never read, so this
+	// decoded an unbounded body -- reachable before authentication, since
+	// /auth/login parses its request the same way. Bounding it here means the
+	// limit holds for every caller regardless of which middlewares a server
+	// happens to install.
+	body := http.MaxBytesReader(
+		c.ResponseWriter,
+		c.Request.Body,
+		maxRequestBodyBytes(),
+	)
+
+	decoder := json.NewDecoder(body)
 
 	err := decoder.Decode(target)
 	if err != nil {

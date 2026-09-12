@@ -16,9 +16,19 @@ import { ensureLib, getLib } from "./ffi-client.ts";
 export type Commit = {
   /** The commit subject (first line of commit message) */
   subject: string;
-  /** The commit body (rest of the commit message) */
+  /** The commit body (rest of the commit message), empty when there is none */
   body: string;
   /** The full commit hash (40 characters) */
+  hash: string;
+};
+
+/**
+ * Commit as it arrives over the FFI bridge. The Go side tags `Body` with
+ * `omitempty`, so a bodyless commit reaches us with the field absent.
+ */
+type WireCommit = {
+  subject: string;
+  body?: string;
   hash: string;
 };
 
@@ -56,6 +66,17 @@ const parseCommitLog = (text: string): Commit[] => {
 
   return commits;
 };
+
+/**
+ * Restores the fields the bridge omits so both the FFI and the shell fallback
+ * path yield the same commit shape.
+ */
+const normalizeWireCommits = (commits: readonly WireCommit[]): Commit[] =>
+  commits.map((commit) => ({
+    subject: commit.subject,
+    body: commit.body ?? "",
+    hash: commit.hash,
+  }));
 
 /**
  * Gets the latest tag in the current branch.
@@ -182,11 +203,11 @@ export const getCommitsBetween = async (
         JSON.stringify({ start, end }),
       );
       const parsed = JSON.parse(raw) as {
-        commits?: Commit[];
+        commits?: WireCommit[];
         error?: string;
       };
       if (!parsed.error && parsed.commits !== undefined) {
-        return parsed.commits;
+        return normalizeWireCommits(parsed.commits);
       }
     } catch { /* fall through to TS */ }
   }
@@ -223,11 +244,11 @@ export const getCommitsSinceDate = async (
         JSON.stringify({ since: date }),
       );
       const parsed = JSON.parse(raw) as {
-        commits?: Commit[];
+        commits?: WireCommit[];
         error?: string;
       };
       if (!parsed.error && parsed.commits !== undefined) {
-        return parsed.commits;
+        return normalizeWireCommits(parsed.commits);
       }
     } catch { /* fall through to TS */ }
   }

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/eser/stack/pkg/ajan/logfx"
+	"github.com/eser/stack/pkg/ajan/processfx"
 )
 
 // ── Wire types ────────────────────────────────────────────────────────────────
@@ -202,6 +203,7 @@ func SpawnWorker(
 	}
 
 	cmd := exec.CommandContext(ctx, runCmd, runArgs...) //nolint:gosec
+	processfx.HardenCommand(cmd)
 	cmd.Dir = cwd
 	cmd.Stderr = os.Stderr
 

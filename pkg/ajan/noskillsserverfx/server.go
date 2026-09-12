@@ -4,7 +4,6 @@ package noskillsserverfx
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
@@ -18,7 +17,6 @@ import (
 	"github.com/eser/stack/pkg/ajan/httpfx/middlewares"
 	"github.com/eser/stack/pkg/ajan/lib"
 	"github.com/eser/stack/pkg/ajan/logfx"
-	"github.com/oklog/ulid/v2"
 )
 
 // ServerConfig holds daemon-level configuration.
@@ -37,6 +35,12 @@ type ServerConfig struct {
 	// SelfSigned controls whether a self-signed cert is auto-generated.
 	// Used in development; Phase 5c adds mkcert support.
 	SelfSigned bool
+
+	// TrustedProxies lists CIDR blocks (or single addresses) whose forwarded
+	// headers may be believed when resolving the client IP. Empty by default:
+	// the daemon binds all interfaces, so an unlisted peer's X-Forwarded-For
+	// would otherwise let a caller mint a fresh login-lockout bucket per request.
+	TrustedProxies []string
 
 	// GracefulShutdownTimeout caps shutdown wait time.
 	GracefulShutdownTimeout time.Duration
@@ -65,14 +69,15 @@ type CertInfo struct {
 
 // Server composes the daemon's HTTP/3 service, router, and middleware chain.
 type Server struct {
-	config      *ServerConfig
-	router      *httpfx.Router
-	h3svc       *httpfx.HTTP3Service
-	logger      *logfx.Logger
-	cert        *CertInfo
-	sessions    *SessionManager
-	authManager *AuthManager
-	push        *PushDispatcher
+	config         *ServerConfig
+	router         *httpfx.Router
+	h3svc          *httpfx.HTTP3Service
+	logger         *logfx.Logger
+	cert           *CertInfo
+	sessions       *SessionManager
+	authManager    *AuthManager
+	push           *PushDispatcher
+	trustedProxies *httpfx.TrustedProxies
 }
 
 // New builds a Server ready to Start. Routes and middlewares are wired here;
@@ -105,6 +110,16 @@ func New(config *ServerConfig, logger *logfx.Logger) *Server {
 	}
 
 	router := httpfx.NewRouter("")
+
+	// A malformed allowlist must not silently widen trust, so fall back to
+	// trusting nobody.
+	trustedProxies, err := httpfx.NewTrustedProxies(config.TrustedProxies)
+	if err != nil {
+		logger.Warn("noskillsserverfx: invalid trusted proxy allowlist, ignoring forwarded headers",
+			"err", err)
+
+		trustedProxies = nil
+	}
 
 	// Load (or bootstrap) the auth state. Failure to load means auth.json is
 	// corrupt; we start fresh so the PIN can be re-configured. Tokens are lost.
@@ -140,11 +155,12 @@ func New(config *ServerConfig, logger *logfx.Logger) *Server {
 	h3svc := httpfx.NewHTTP3Service(h3Config, router, logger)
 
 	s := &Server{
-		config:      config,
-		router:      router,
-		h3svc:       h3svc,
-		logger:      logger,
-		authManager: authManager,
+		config:         config,
+		router:         router,
+		h3svc:          h3svc,
+		logger:         logger,
+		authManager:    authManager,
+		trustedProxies: trustedProxies,
 	}
 
 	s.sessions = newSessionManager(s, logger)
@@ -352,88 +368,6 @@ func (s *Server) handleCertFingerprint(ctx *httpfx.Context) httpfx.Result {
 		Fingerprint: s.cert.Fingerprint,
 		Algorithm:   "sha-256",
 	})
-}
-
-// ── Session REST handlers ─────────────────────────────────────────────────────
-
-type sessionSummary struct {
-	SID  string `json:"sid"`
-	Slug string `json:"slug"`
-	Root string `json:"root"`
-}
-
-type listSessionsResponse struct {
-	Sessions []sessionSummary `json:"sessions"`
-}
-
-func (s *Server) handleListSessions(ctx *httpfx.Context) httpfx.Result {
-	slug := ctx.Request.PathValue("slug")
-
-	if _, ok := s.projectPath(slug); !ok {
-		return ctx.Results.Error(
-			http.StatusNotFound,
-			httpfx.WithSanitizedError(fmt.Errorf("project %q not found", slug)), //nolint:err113
-		)
-	}
-
-	entries := s.sessions.ListBySlug(slug)
-	result := make([]sessionSummary, 0, len(entries))
-
-	for _, entry := range entries {
-		result = append(result, sessionSummary{
-			SID:  entry.SID,
-			Slug: entry.Slug,
-			Root: entry.Root,
-		})
-	}
-
-	return ctx.Results.JSON(&listSessionsResponse{Sessions: result})
-}
-
-type createSessionRequest struct {
-	ResumeFrom string `json:"resumeFrom,omitempty"`
-	// Kind selects the worker flavour the client will attach with: "agent"
-	// (default, served by the ACP worker; "acp" is an accepted synonym) or "mux"
-	// (terminal multiplexer). The daemon stores no per-session state here, so the
-	// client must pass the same kind as ?kind= on /attach; it is echoed back for
-	// convenience.
-	Kind string `json:"kind,omitempty"`
-}
-
-type createSessionResponse struct {
-	SessionID string `json:"sessionId"`
-	Kind      string `json:"kind,omitempty"`
-}
-
-func (s *Server) handleCreateSession(ctx *httpfx.Context) httpfx.Result {
-	slug := ctx.Request.PathValue("slug")
-
-	if _, ok := s.projectPath(slug); !ok {
-		return ctx.Results.Error(
-			http.StatusNotFound,
-			httpfx.WithSanitizedError(fmt.Errorf("project %q not found", slug)), //nolint:err113
-		)
-	}
-
-	var req createSessionRequest
-
-	_ = ctx.ParseJSONBody(&req)
-
-	sid := req.ResumeFrom
-	if sid == "" {
-		sid = newSessionID()
-	}
-
-	// Record the worker flavour now so the worker spawned on first attach matches,
-	// independent of the attach query string.
-	s.sessions.RecordKind(slug, sid, req.Kind)
-
-	return ctx.Results.JSON(&createSessionResponse{SessionID: sid, Kind: req.Kind})
-}
-
-// newSessionID generates a ULID-based session ID.
-func newSessionID() string {
-	return ulid.MustNew(ulid.Now(), rand.Reader).String()
 }
 
 // ── Cert helpers ──────────────────────────────────────────────────────────────

@@ -45,8 +45,11 @@ func TestReflectSetField_Float32_NegativeAndZero(t *testing.T) {
 	assert.InDelta(t, 0.0, cfg.F64, 0.001)
 }
 
-// TestReflectSetField_Float32_MalformedValue documents that a non-numeric string
-// silently produces a zero value (strconv.ParseFloat error is discarded).
+// TestReflectSetField_Float32_MalformedValue pins that a non-numeric value is
+// rejected. It used to be silently assigned zero: the conversion error was
+// discarded and reflectSetField had no error return to propagate it through, so
+// an unparseable override beat the declared default and landed on the zero
+// value with a nil error.
 func TestReflectSetField_Float32_MalformedValue(t *testing.T) {
 	t.Parallel()
 
@@ -60,12 +63,16 @@ func TestReflectSetField_Float32_MalformedValue(t *testing.T) {
 
 	err := cl.Load(&cfg, cl.FromJSONString(`{"f32": "abc"}`))
 
-	require.NoError(t, err)
-	assert.Equal(t, float32(0), cfg.F32, "malformed float32 should silently produce zero")
+	require.Error(t, err)
+	require.ErrorIs(t, err, configfx.ErrInvalidConfigValue)
+	// The operator has to be able to find the offending key.
+	assert.Contains(t, err.Error(), `key="f32"`)
+	assert.Contains(t, err.Error(), `value="abc"`)
 }
 
-// TestReflectSetField_Float32_Overflow documents that a value exceeding float32
-// range produces +Inf (strconv.ParseFloat returns +Inf on ErrRange; error discarded).
+// TestReflectSetField_Float32_Overflow pins that a value outside the field's
+// range is rejected rather than quietly becoming +Inf, which is what
+// strconv.ParseFloat returns alongside the ErrRange that used to be discarded.
 func TestReflectSetField_Float32_Overflow(t *testing.T) {
 	t.Parallel()
 
@@ -75,6 +82,11 @@ func TestReflectSetField_Float32_Overflow(t *testing.T) {
 	// 1e40 exceeds float32 max (~3.4e38); JSON flattener serialises it as "1e+40".
 	err := cl.Load(&cfg, cl.FromJSONString(`{"f32": 1e40}`))
 
-	require.NoError(t, err)
-	assert.True(t, math.IsInf(float64(cfg.F32), 1), "float32 overflow should produce +Inf")
+	require.Error(t, err)
+	require.ErrorIs(t, err, configfx.ErrInvalidConfigValue)
+	assert.False(
+		t,
+		math.IsInf(float64(cfg.F32), 1),
+		"a rejected value must not be assigned",
+	)
 }

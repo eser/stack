@@ -320,11 +320,38 @@ func expandVariables(v string, m *map[string]any) string { //nolint:varnamelen
 		}
 
 		if submatch[4] != "" {
-			return (*m)[submatch[4]].(string) //nolint:forcetypeassert
+			return lookupVar(m, submatch[4])
 		}
 
 		return s
 	})
+}
+
+// lookupVar resolves an expanded ${NAME}, yielding "" when it is not defined.
+//
+// This used to be a bare map index followed by a `.(string)` assertion, which
+// panicked two ways: an undefined name indexes to an untyped nil, and a name
+// defined through a case-insensitive parse is stored under a normalised key
+// that a literal-case index never finds -- so it panicked even when the
+// variable existed. A panic here is not survivable by the caller: the same code
+// runs inside the cgo bridge, where it unwinds past the FFI boundary and aborts
+// the host process.
+//
+// Undefined expands to empty, following POSIX shells and godotenv, which this
+// parser is a port of.
+func lookupVar(m *map[string]any, name string) string {
+	value, ok := lib.CaseInsensitiveGet(*m, name)
+	if !ok {
+		return ""
+	}
+
+	if text, isText := value.(string); isText {
+		return text
+	}
+
+	// A merged JSON source can put numbers and booleans in here. Rendering
+	// beats asserting: the value is going into a string either way.
+	return fmt.Sprint(value)
 }
 
 func Parse(m *map[string]any, keyCaseInsensitive bool, r io.Reader) error { //nolint:varnamelen
@@ -352,8 +379,15 @@ func tryParseFile(
 		return fmt.Errorf("%w: %w", ErrParsingError, fileErr)
 	}
 
+	// Assign only when the parse itself succeeded. This used to be a bare
+	// `err = file.Close()`, which overwrote the named return unconditionally --
+	// so Close's nil erased the parse error and a truncated or malformed file
+	// was indistinguishable from a valid one.
 	defer func() {
-		err = file.Close()
+		closeErr := file.Close()
+		if err == nil && closeErr != nil {
+			err = fmt.Errorf("%w: %w", ErrParsingError, closeErr)
+		}
 	}()
 
 	return Parse(m, keyCaseInsensitive, file)

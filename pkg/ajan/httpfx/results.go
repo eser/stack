@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/eser/stack/pkg/ajan/results"
 )
@@ -43,11 +44,17 @@ func WithErrorMessage(message string) ResultOption {
 
 // discloseErrors controls whether real error messages are sent to clients.
 // Set via SetDiscloseErrors during startup based on config.
-var discloseErrors bool //nolint:gochecknoglobals
+//
+// Atomic because it is written at service construction and read on every
+// request-handling goroutine. It was a plain bool while nothing called the
+// setter outside tests; wiring ExposeInternalErrors into the service
+// constructors made that a genuine data race, which the race detector caught
+// immediately.
+var discloseErrors atomic.Bool //nolint:gochecknoglobals
 
 // SetDiscloseErrors enables/disables real error message disclosure in HTTP responses.
 func SetDiscloseErrors(enabled bool) {
-	discloseErrors = enabled
+	discloseErrors.Store(enabled)
 }
 
 // WithSanitizedError logs the full error server-side and returns a generic
@@ -58,7 +65,7 @@ func WithSanitizedError(err error) ResultOption {
 		slog.String("scope_name", "httpfx_results"),
 		slog.Any("error", err))
 
-	if discloseErrors {
+	if discloseErrors.Load() {
 		return WithErrorMessage(err.Error())
 	}
 
@@ -195,6 +202,7 @@ func (r *Results) PlainText(body []byte) Result {
 
 		InnerStatusCode:    http.StatusOK,
 		InnerRedirectToURI: "",
+		InnerContentType:   ContentTypePlainText,
 		InnerBody:          body,
 	}
 }
@@ -221,6 +229,7 @@ func (r *Results) JSON(body any) Result {
 
 		InnerStatusCode:    http.StatusOK,
 		InnerRedirectToURI: "",
+		InnerContentType:   ContentTypeJSON,
 		InnerBody:          encoded,
 	}
 }

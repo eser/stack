@@ -43,6 +43,13 @@ func init() {
 }
 
 func SplitHostPort(addr string) (string, string, error) {
+	// A bare IP literal is a host with no port. Checking this first is what keeps
+	// an IPv6 address ("2001:db8::1") from being read as host:port on its colons,
+	// which net.SplitHostPort rejects with "too many colons".
+	if net.ParseIP(addr) != nil {
+		return addr, "", nil
+	}
+
 	if !strings.ContainsRune(addr, ':') {
 		return addr, "", nil
 	}

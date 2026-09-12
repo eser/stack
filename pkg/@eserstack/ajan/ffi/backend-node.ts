@@ -13,6 +13,7 @@
  * @module
  */
 
+import * as closeGuard from "./close-guard.ts";
 import type * as types from "./types.ts";
 
 /**
@@ -54,9 +55,13 @@ export const backend: types.FFIBackend = {
     }
 
     if (typeof koffi.load !== "function") {
+      // No version literal here on purpose: the supported range lives in this
+      // package's package.json and a copy of it here goes stale silently, which
+      // is worse than no number at all for someone debugging a mismatch.
       throw new Error(
         "koffi module loaded but koffi.load is not a function. " +
-          "Check your koffi version (requires ^2.15.0).",
+          "Check that the installed koffi satisfies the range this package " +
+          "declares for it in package.json.",
       );
     }
 
@@ -65,8 +70,9 @@ export const backend: types.FFIBackend = {
     // Every string the bridge returns was allocated by Go with C.CString, i.e.
     // malloc. Declaring the return as `char*` lets koffi copy it into a JS
     // string, but the original allocation then becomes unreachable and leaks --
-    // across 96 symbols that is every call this process ever makes. So the
-    // returns are declared as opaque `void*`, decoded explicitly, and freed.
+    // and every export except Init, Shutdown and Free returns one, so that is
+    // every call this process ever makes. So the returns are declared as opaque
+    // `void*`, decoded explicitly, and freed.
     //
     // The decode form matters: koffi.decode(ptr, "str" | "string" | "char*")
     // all treat ptr as pointing *to* a char* and dereference it, which
@@ -74,15 +80,19 @@ export const backend: types.FFIBackend = {
     // at ptr itself, which is what the bridge actually returns.
     const rawFree = lib.func("void EserAjanFree(void* ptr)");
 
+    // The free sits in a `finally` because it must run even when the decode
+    // throws: the pointer is malloc'd memory the caller owns, and an exception
+    // on the decode path would otherwise strand it.
     const takeString = (ptr: unknown): string => {
       if (ptr === null || ptr === undefined) {
         return "";
       }
 
-      const decoded = koffi.decode(ptr, "char", -1) as string | null;
-      rawFree(ptr);
-
-      return decoded ?? "";
+      try {
+        return (koffi.decode(ptr, "char", -1) as string | null) ?? "";
+      } finally {
+        rawFree(ptr);
+      }
     };
 
     const rawVersion = lib.func("void* EserAjanVersion()");
@@ -375,8 +385,9 @@ export const backend: types.FFIBackend = {
       "void* EserAjanShellPtyClose(const char* handle)",
     );
 
-    return {
-      symbols: {
+    return closeGuard.withCloseGuard(
+      "node",
+      {
         EserAjanVersion: (): string => {
           return takeString(rawVersion());
         },
@@ -400,24 +411,39 @@ export const backend: types.FFIBackend = {
         EserAjanAiCreateModel: (configJSON: string): string => {
           return takeString(rawAiCreateModel(configJSON));
         },
+        // LIMITATION: koffi has no off-thread mode in this binding, so this --
+        // like the stream and batch calls below -- is a BLOCKING FFI call. A
+        // generation runs for seconds to minutes and parks the entire event
+        // loop for its duration: timers, sockets and every other request stall,
+        // and the abort listener that would call EserAjanAiCancelRequest cannot
+        // run, so the call is uncancellable once entered even though types.ts
+        // documents it as cancellable. Only Deno (nonblocking:true) runs these
+        // off-thread. Making them genuinely asynchronous under Node is tracked
+        // separately.
         EserAjanAiGenerateText: (
           modelHandle: string,
           optionsJSON: string,
         ): string => {
           return takeString(rawAiGenerateText(modelHandle, optionsJSON));
         },
+        // LIMITATION: blocking and uncancellable mid-call, see
+        // EserAjanAiGenerateText above.
         EserAjanAiStreamText: (
           modelHandle: string,
           optionsJSON: string,
         ): string => {
           return takeString(rawAiStreamText(modelHandle, optionsJSON));
         },
+        // LIMITATION: blocking, see EserAjanAiGenerateText above -- each read
+        // parks the event loop until the provider emits the next event. The
+        // loop only gets to run between reads.
         EserAjanAiStreamRead: (streamHandle: string): string => {
           return takeString(rawAiStreamRead(streamHandle));
         },
-        // Synchronous here: koffi has no off-thread mode in this binding, so
-        // the type's Promise option is honoured by Deno alone. Cancellation
-        // still works for streams, where the loop yields between reads.
+        // Synchronous, like everything else here, but harmlessly so: it only
+        // flips a flag under a mutex. It can still cancel a stream, because the
+        // event loop gets to run between reads -- never a generation already
+        // inside the call, per the limitation above.
         EserAjanAiCancelRequest: (requestJSON: string): string => {
           return takeString(rawAiCancelRequest(requestJSON));
         },
@@ -427,6 +453,8 @@ export const backend: types.FFIBackend = {
         EserAjanAiFreeStream: (streamHandle: string): string => {
           return takeString(rawAiFreeStream(streamHandle));
         },
+        // LIMITATION: the five batch calls below are network round-trips made
+        // as blocking FFI calls, see EserAjanAiGenerateText above.
         EserAjanAiBatchCreate: (requestJSON: string): string => {
           return takeString(rawAiBatchCreate(requestJSON));
         },
@@ -702,9 +730,9 @@ export const backend: types.FFIBackend = {
           return takeString(rawShellPtyClose(handle));
         },
       },
-      close: (): void => {
+      () => {
         lib.unload();
       },
-    };
+    );
   },
 };

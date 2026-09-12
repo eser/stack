@@ -48,8 +48,15 @@ func tryParseFile(m *map[string]any, filename string) (err error) { //nolint:var
 		return fmt.Errorf("%w: %w", ErrParsingError, fileErr)
 	}
 
+	// Assign only when the parse itself succeeded. This used to be a bare
+	// `err = file.Close()`, which overwrote the named return unconditionally --
+	// so Close's nil erased the parse error and a truncated or malformed file
+	// was indistinguishable from a valid one.
 	defer func() {
-		err = file.Close()
+		closeErr := file.Close()
+		if err == nil && closeErr != nil {
+			err = fmt.Errorf("%w: %w", ErrParsingError, closeErr)
+		}
 	}()
 
 	return Parse(m, file)

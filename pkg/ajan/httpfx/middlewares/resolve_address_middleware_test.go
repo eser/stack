@@ -8,6 +8,7 @@ import (
 	"github.com/eser/stack/pkg/ajan/httpfx"
 	"github.com/eser/stack/pkg/ajan/httpfx/middlewares"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveAddressMiddleware(t *testing.T) { //nolint:funlen
@@ -16,6 +17,7 @@ func TestResolveAddressMiddleware(t *testing.T) { //nolint:funlen
 	tests := []struct {
 		name           string
 		remoteAddr     string
+		trustedProxies []string
 		headers        map[string]string
 		expectedOrigin string
 		expectedAddr   string
@@ -35,45 +37,90 @@ func TestResolveAddressMiddleware(t *testing.T) { //nolint:funlen
 			expectedAddr:   "203.0.113.1:54321",
 			expectedStatus: http.StatusNoContent,
 		},
-		{
-			name:       "request_with_x_forwarded_for",
+		{ //nolint:exhaustruct
+			name:       "untrusted_peer_ignores_x_forwarded_for",
 			remoteAddr: "10.0.0.1:54321",
 			headers: map[string]string{
 				"X-Forwarded-For": "203.0.113.1",
-			},
-			expectedOrigin: "remote",
-			expectedAddr:   "203.0.113.1",
-			expectedStatus: http.StatusNoContent,
-		},
-		{
-			name:       "request_with_x_forwarded_for_priority",
-			remoteAddr: "10.0.0.1:54321",
-			headers: map[string]string{
-				"X-Forwarded-For": "203.0.113.1",
-				"X-Real-IP":       "203.0.113.3",
-			},
-			expectedOrigin: "remote",
-			expectedAddr:   "203.0.113.1",
-			expectedStatus: http.StatusNoContent,
-		},
-		{
-			name:       "request_with_x_real_ip",
-			remoteAddr: "10.0.0.1:54321",
-			headers: map[string]string{
-				"X-Real-IP": "203.0.113.3",
 			},
 			expectedOrigin: "remote",
 			expectedAddr:   "10.0.0.1:54321",
 			expectedStatus: http.StatusNoContent,
 		},
-		{
-			name:       "request_with_multiple_proxies",
+		{ //nolint:exhaustruct
+			name:       "untrusted_peer_ignores_true_client_ip",
 			remoteAddr: "10.0.0.1:54321",
+			headers: map[string]string{
+				"True-Client-IP": "203.0.113.2",
+				"X-Real-IP":      "203.0.113.3",
+			},
+			expectedOrigin: "remote",
+			expectedAddr:   "10.0.0.1:54321",
+			expectedStatus: http.StatusNoContent,
+		},
+		{ //nolint:exhaustruct
+			name:       "untrusted_peer_cannot_forge_loopback",
+			remoteAddr: "203.0.113.1:54321",
+			headers: map[string]string{
+				"X-Forwarded-For": "127.0.0.1",
+			},
+			expectedOrigin: "remote",
+			expectedAddr:   "203.0.113.1:54321",
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:           "trusted_peer_honours_x_forwarded_for",
+			remoteAddr:     "10.0.0.1:54321",
+			trustedProxies: []string{"10.0.0.0/8"},
+			headers: map[string]string{
+				"X-Forwarded-For": "203.0.113.1",
+			},
+			expectedOrigin: "remote",
+			expectedAddr:   "203.0.113.1",
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:           "trusted_peer_walks_right_to_left",
+			remoteAddr:     "10.0.0.1:54321",
+			trustedProxies: []string{"10.0.0.0/8"},
 			headers: map[string]string{
 				"X-Forwarded-For": "203.0.113.4, 10.0.0.2",
 			},
 			expectedOrigin: "remote",
-			expectedAddr:   "203.0.113.4, 10.0.0.2",
+			expectedAddr:   "203.0.113.4",
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:           "trusted_peer_honours_ipv6_forwarded_for",
+			remoteAddr:     "10.0.0.1:54321",
+			trustedProxies: []string{"10.0.0.0/8"},
+			headers: map[string]string{
+				"X-Forwarded-For": "2001:db8::1",
+			},
+			expectedOrigin: "remote",
+			expectedAddr:   "2001:db8::1",
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:           "trusted_peer_honours_ipv6_loopback_forwarded_for",
+			remoteAddr:     "10.0.0.1:54321",
+			trustedProxies: []string{"10.0.0.0/8"},
+			headers: map[string]string{
+				"X-Forwarded-For": "::1",
+			},
+			expectedOrigin: "local",
+			expectedAddr:   "::1",
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:           "trusted_peer_falls_back_to_x_real_ip",
+			remoteAddr:     "10.0.0.1:54321",
+			trustedProxies: []string{"10.0.0.0/8"},
+			headers: map[string]string{
+				"X-Real-IP": "203.0.113.3",
+			},
+			expectedOrigin: "remote",
+			expectedAddr:   "203.0.113.3",
 			expectedStatus: http.StatusNoContent,
 		},
 	}
@@ -82,9 +129,14 @@ func TestResolveAddressMiddleware(t *testing.T) { //nolint:funlen
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
+			trustedProxies, err := httpfx.NewTrustedProxies(tt.trustedProxies)
+			require.NoError(t, err)
+
 			// Create a router with the resolve address middleware
 			router := httpfx.NewRouter("/")
-			router.Use(middlewares.ResolveAddressMiddleware())
+			router.Use(middlewares.ResolveAddressMiddleware(
+				middlewares.WithTrustedProxies(trustedProxies),
+			))
 
 			// Add a test route that returns the client address from context
 			router.Route("GET /test", func(c *httpfx.Context) httpfx.Result {
@@ -126,7 +178,7 @@ func TestResolveAddressMiddleware(t *testing.T) { //nolint:funlen
 	}
 }
 
-func TestGetClientAddrs(t *testing.T) { //nolint:funlen
+func TestGetClientAddrs(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -141,37 +193,29 @@ func TestGetClientAddrs(t *testing.T) { //nolint:funlen
 			expectedAddr: "203.0.113.1:54321",
 		},
 		{
-			name:       "with_x_forwarded_for",
+			name:       "x_forwarded_for_is_ignored",
 			remoteAddr: "10.0.0.1:54321",
 			headers: map[string]string{
 				"X-Forwarded-For": "203.0.113.1",
-			},
-			expectedAddr: "203.0.113.1",
-		},
-		{
-			name:       "with_x_forwarded_for_priority",
-			remoteAddr: "10.0.0.1:54321",
-			headers: map[string]string{
-				"X-Forwarded-For": "203.0.113.1",
-				"X-Real-IP":       "203.0.113.3",
-			},
-			expectedAddr: "203.0.113.1",
-		},
-		{
-			name:       "with_x_real_ip",
-			remoteAddr: "10.0.0.1:54321",
-			headers: map[string]string{
-				"X-Real-IP": "203.0.113.3",
 			},
 			expectedAddr: "10.0.0.1:54321",
 		},
 		{
-			name:       "with_multiple_proxies",
+			name:       "true_client_ip_is_ignored",
+			remoteAddr: "10.0.0.1:54321",
+			headers: map[string]string{
+				"True-Client-IP": "203.0.113.2",
+				"X-Real-IP":      "203.0.113.3",
+			},
+			expectedAddr: "10.0.0.1:54321",
+		},
+		{
+			name:       "proxy_chain_is_ignored",
 			remoteAddr: "10.0.0.1:54321",
 			headers: map[string]string{
 				"X-Forwarded-For": "203.0.113.4, 10.0.0.2",
 			},
-			expectedAddr: "203.0.113.4, 10.0.0.2",
+			expectedAddr: "10.0.0.1:54321",
 		},
 	}
 

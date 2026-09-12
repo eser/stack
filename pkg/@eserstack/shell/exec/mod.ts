@@ -34,11 +34,6 @@
  *   console.log("File not found");
  * }
  *
- * // Piping (basic)
- * const result = await exec`cat file.txt`
- *   .pipe(exec`grep pattern`)
- *   .text();
- *
  * // Streaming I/O with child process
  * const child = exec`deno fmt -`.child();
  * await input.pipeTo(child.stdin!);

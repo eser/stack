@@ -34,6 +34,24 @@ func main() {
 		return
 	}
 
+	dispatch(req)
+}
+
+// dispatch routes a decoded request to the matching bridge call.
+//
+// The recover here is the WASI counterpart of the per-export guards in main.go.
+// A panic escaping this function traps the whole module, which a host sees as an
+// opaque crash with no diagnostics; recovering turns it into the module's normal
+// JSON error envelope on stdout instead. Every case below computes its bridge
+// result as the argument to writeOK, so a panic always happens before anything
+// has been written -- the caller never sees two envelopes.
+func dispatch(req request) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			writeError(reportPanic(recovered))
+		}
+	}()
+
 	switch req.Fn {
 	case "version":
 		writeOK(bridgeVersion())

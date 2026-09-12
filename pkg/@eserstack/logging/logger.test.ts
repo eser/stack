@@ -3,6 +3,7 @@
 import * as assert from "@std/assert";
 import * as logging from "@eserstack/standards/logging";
 import * as log from "./mod.ts";
+import { getLib } from "./ffi-client.ts";
 
 // Destructure for convenience within tests
 const { configure, reset } = log.config;
@@ -13,6 +14,248 @@ const { getTestSink } = log.sinks;
 const beforeEach = async () => {
   await reset();
 };
+
+// The FFI singleton is shared by the whole test process; the fallback tests
+// swap individual symbols on it and restore them before yielding.
+const ffiLib = getLib();
+const withoutFfi = ffiLib === null;
+
+const stubLogSymbols = (overrides: {
+  create?: (configJSON: string) => string;
+  write?: (requestJSON: string) => string;
+}): () => void => {
+  if (ffiLib === null) {
+    return () => {};
+  }
+
+  const originalCreate = ffiLib.symbols.EserAjanLogCreate;
+  const originalWrite = ffiLib.symbols.EserAjanLogWrite;
+
+  if (overrides.create !== undefined) {
+    ffiLib.symbols.EserAjanLogCreate = overrides.create;
+  }
+
+  if (overrides.write !== undefined) {
+    ffiLib.symbols.EserAjanLogWrite = overrides.write;
+  }
+
+  return () => {
+    ffiLib.symbols.EserAjanLogCreate = originalCreate;
+    ffiLib.symbols.EserAjanLogWrite = originalWrite;
+  };
+};
+
+/** Collects what the console fallback sink writes while `run` executes. */
+const captureConsole = async (run: () => Promise<void>): Promise<string[]> => {
+  const lines: string[] = [];
+  // deno-lint-ignore no-console
+  const original = console.error;
+
+  // deno-lint-ignore no-console
+  console.error = (...args: unknown[]): void => {
+    lines.push(args.map((arg) => String(arg)).join(" "));
+  };
+
+  try {
+    await run();
+  } finally {
+    // deno-lint-ignore no-console
+    console.error = original;
+  }
+
+  return lines;
+};
+
+const WARNING_MARKER = "[eserstack/logging]";
+
+const configureFallbackTest = async (category: string): Promise<void> => {
+  const { sink } = getTestSink();
+
+  await configure({
+    sinks: { test: sink },
+    loggers: [{
+      category: [category],
+      sinks: ["test"],
+      lowestLevel: logging.Severities.Debug,
+    }],
+  });
+};
+
+Deno.test({
+  name: "Logger.log() falls back to console when LogCreate fails",
+  ignore: withoutFfi,
+  fn: async () => {
+    await beforeEach();
+    await configureFallbackTest("create-fail");
+
+    const restore = stubLogSymbols({
+      create: () => JSON.stringify({ error: "create-boom" }),
+    });
+
+    let result: string | undefined;
+    const lines = await captureConsole(async () => {
+      try {
+        result = await getLogger(["create-fail"]).info("lost message");
+      } finally {
+        restore();
+      }
+    });
+
+    // The call still returns normally: a logging outage must not crash callers.
+    assert.assertEquals(result, "lost message");
+
+    const warnings = lines.filter((line) => line.includes(WARNING_MARKER));
+    assert.assertEquals(warnings.length, 1);
+    assert.assertStringIncludes(warnings.join("\n"), "create-boom");
+
+    const records = lines.filter((line) => line.includes("lost message"));
+    assert.assertEquals(records.length, 1);
+    assert.assertStringIncludes(records.join("\n"), "INFO");
+    assert.assertStringIncludes(records.join("\n"), "create-fail");
+  },
+});
+
+Deno.test({
+  name: "Logger.log() falls back to console when the FFI call throws",
+  ignore: withoutFfi,
+  fn: async () => {
+    await beforeEach();
+    await configureFallbackTest("create-throw");
+
+    // Stands in for a machine without the native library, where requireLib()
+    // throws instead of answering with an error payload.
+    const restore = stubLogSymbols({
+      create: () => {
+        throw new Error("FFI library unavailable");
+      },
+    });
+
+    let result: string | undefined;
+    const lines = await captureConsole(async () => {
+      try {
+        result = await getLogger(["create-throw"]).warn("unthrown message");
+      } finally {
+        restore();
+      }
+    });
+
+    assert.assertEquals(result, "unthrown message");
+
+    const warnings = lines.filter((line) => line.includes(WARNING_MARKER));
+    assert.assertEquals(warnings.length, 1);
+    assert.assertStringIncludes(warnings.join("\n"), "FFI library unavailable");
+
+    const records = lines.filter((line) => line.includes("unthrown message"));
+    assert.assertEquals(records.length, 1);
+    assert.assertStringIncludes(records.join("\n"), "WARN");
+  },
+});
+
+Deno.test({
+  name: "Logger.log() falls back to console when LogWrite fails",
+  ignore: withoutFfi,
+  fn: async () => {
+    await beforeEach();
+    await configureFallbackTest("write-fail");
+
+    const restore = stubLogSymbols({
+      write: () => JSON.stringify({ error: "log handle not found: " }),
+    });
+
+    let result: string | undefined;
+    const lines = await captureConsole(async () => {
+      try {
+        result = await getLogger(["write-fail"]).error("dropped message");
+      } finally {
+        restore();
+      }
+    });
+
+    assert.assertEquals(result, "dropped message");
+
+    const warnings = lines.filter((line) => line.includes(WARNING_MARKER));
+    assert.assertEquals(warnings.length, 1);
+    assert.assertStringIncludes(warnings.join("\n"), "log handle not found");
+
+    const records = lines.filter((line) => line.includes("dropped message"));
+    assert.assertEquals(records.length, 1);
+    assert.assertStringIncludes(records.join("\n"), "ERROR");
+  },
+});
+
+Deno.test({
+  name: "Logger.log() warns once but keeps writing every degraded record",
+  ignore: withoutFfi,
+  fn: async () => {
+    await beforeEach();
+    await configureFallbackTest("warn-once");
+
+    let writeCalls = 0;
+    const restore = stubLogSymbols({
+      write: () => {
+        writeCalls += 1;
+
+        return JSON.stringify({ error: "log handle not found: " });
+      },
+    });
+
+    const lines = await captureConsole(async () => {
+      try {
+        const logger = getLogger(["warn-once"]);
+
+        for (let index = 0; index < 5; index += 1) {
+          // deno-lint-ignore no-await-in-loop
+          await logger.info(`degraded ${index}`);
+        }
+      } finally {
+        restore();
+      }
+    });
+
+    const warnings = lines.filter((line) => line.includes(WARNING_MARKER));
+    assert.assertEquals(warnings.length, 1);
+
+    const records = lines.filter((line) => line.includes("degraded "));
+    assert.assertEquals(records.length, 5);
+
+    // The logger latches after the first failure, so it stops paying for a
+    // doomed FFI round trip per record.
+    assert.assertEquals(writeCalls, 1);
+  },
+});
+
+Deno.test({
+  name: "Logger.log() takes the Go path when the write succeeds",
+  ignore: withoutFfi,
+  fn: async () => {
+    await beforeEach();
+    await configureFallbackTest("write-ok");
+
+    const seen: string[] = [];
+    const passthrough = ffiLib?.symbols.EserAjanLogWrite;
+    const restore = stubLogSymbols({
+      write: (requestJSON: string): string => {
+        seen.push(requestJSON);
+
+        return passthrough?.(requestJSON) ?? "{}";
+      },
+    });
+
+    let result: string | undefined;
+    const lines = await captureConsole(async () => {
+      try {
+        result = await getLogger(["write-ok"]).info("delivered message");
+      } finally {
+        restore();
+      }
+    });
+
+    assert.assertEquals(result, "delivered message");
+    assert.assertEquals(seen.length, 1);
+    assert.assertStringIncludes(seen.join("\n"), "delivered message");
+    assert.assertEquals(lines, []);
+  },
+});
 
 Deno.test("Logger constructor creates logger with category", async () => {
   await beforeEach();

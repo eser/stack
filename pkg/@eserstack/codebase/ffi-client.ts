@@ -1,40 +1,19 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import type * as ffiTypes from "@eserstack/ajan/ffi";
+/**
+ * This package's view of the Go bridge.
+ *
+ * The loader itself lives in `@eserstack/ajan/ffi/client` and is shared with
+ * every other package, so the whole process opens the library once. This module
+ * stays as the import path the package's own code already uses.
+ *
+ * `requireLib` is the async form here: codebase call sites are already async
+ * and want the load awaited rather than assumed.
+ */
 
-// Lazy FFI singleton — one per isolate, reused for every codebase call.
-// `deno test` gives each test file a fresh isolate, so this is NOT once per
-// process. The native image pins itself at load time so repeated dlopen/
-// dlclose cycles cannot restart the Go runtime; see
-// pkg/@eserstack/ajan/pin_image_posix.go.
-// If the native library is unavailable the promise resolves without setting _lib,
-// and callers fall back to the pure TypeScript implementation.
-let _lib: ffiTypes.FFILibrary | null = null;
-let _libPromise: Promise<void> | null = null;
-
-export const ensureLib = (): Promise<void> => {
-  if (_libPromise === null) {
-    _libPromise = import("@eserstack/ajan/ffi")
-      .then((ffi) => ffi.loadEserAjan())
-      .then((lib) => {
-        _lib = lib;
-      })
-      .catch(() => {
-        // Native library unavailable — callers use TS fallback.
-      });
-  }
-
-  return _libPromise;
-};
-
-export const getLib = (): ffiTypes.FFILibrary | null => _lib;
-
-export const requireLib = async (): Promise<ffiTypes.FFILibrary> => {
-  await ensureLib();
-  if (_lib === null) {
-    throw new Error(
-      "native FFI library unavailable; ensure @eserstack/ajan is built and accessible",
-    );
-  }
-  return _lib;
-};
+export {
+  ensureLib,
+  getLib,
+  getLoadError,
+  requireLib,
+} from "@eserstack/ajan/ffi/client";

@@ -147,7 +147,10 @@ func WriteState(root string, state StateFile) error {
 		return fmt.Errorf("writeState: marshal: %w", err)
 	}
 
-	if err := os.WriteFile(p.StateFile, data, 0o644); err != nil { //nolint:gosec
+	// The doc comment above has always said "atomically"; until now it was a
+	// plain truncate-and-rewrite, so an interrupted write left a half-written
+	// state file that reads back as a corrupt or empty project.
+	if err := writeFileAtomic(p.StateFile, data, 0o644); err != nil {
 		return fmt.Errorf("writeState: write: %w", err)
 	}
 
@@ -215,7 +218,19 @@ func ReadManifest(root string) (NosManifest, error) {
 	return manifest, nil
 }
 
-// WriteManifest serialises the manifest to YAML and writes it.
+// WriteManifest updates the noskills-owned keys of the manifest in place.
+//
+// It used to marshal NosManifest and write the result as the ENTIRE file. That
+// struct models only the noskills keys, while .eser/manifest.yml also carries
+// `stack:`, `workflows:` and `scripts:` owned by other tools -- in this repo the
+// `workflows:` block is what `deno task cli ok` runs. So an ordinary, successful
+// `concern add` deleted the project's build gate, and the FFI bridge calls this
+// too, so the Go CLI was not the only way to trigger it.
+//
+// The merge goes through yaml.Node rather than map[string]any because a map
+// round-trip drops every comment and reorders the document. The manifest is
+// hand-edited and heavily commented; rewriting it alphabetically without
+// comments would be a smaller act of destruction, not the absence of one.
 func WriteManifest(root string, manifest NosManifest) error {
 	p := NewPaths(root)
 
@@ -223,20 +238,144 @@ func WriteManifest(root string, manifest NosManifest) error {
 		return fmt.Errorf("writeManifest: mkdir: %w", err)
 	}
 
-	data, err := yaml.Marshal(manifest)
+	var managed yaml.Node
+	if err := managed.Encode(manifest); err != nil {
+		return fmt.Errorf("writeManifest: encode: %w", err)
+	}
+
+	document, err := loadManifestDocument(p.ManifestFile)
+	if err != nil {
+		return err
+	}
+
+	mapping := document.Content[0]
+	for i := 0; i+1 < len(managed.Content); i += 2 {
+		setMappingValue(mapping, managed.Content[i].Value, managed.Content[i+1])
+	}
+
+	data, err := yaml.Marshal(document)
 	if err != nil {
 		return fmt.Errorf("writeManifest: marshal: %w", err)
 	}
 
-	if err := os.WriteFile(p.ManifestFile, data, 0o644); err != nil { //nolint:gosec
+	if err := writeFileAtomic(p.ManifestFile, data, 0o644); err != nil {
 		return fmt.Errorf("writeManifest: write: %w", err)
 	}
 
 	return nil
 }
 
-// IsInitialized reports whether .eser/manifest.yml exists and has a non-nil
-// noskills section (matches isInitialized() in TS).
+// loadManifestDocument returns the existing manifest as a document node, or an
+// empty one when there is no file yet. A file that exists but cannot be parsed
+// is an error rather than something to overwrite: replacing it would discard
+// whatever the operator actually has there.
+func loadManifestDocument(path string) (*yaml.Node, error) {
+	existing, err := os.ReadFile(path) //nolint:gosec
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return emptyMappingDocument(), nil
+		}
+
+		return nil, fmt.Errorf("writeManifest: read existing: %w", err)
+	}
+
+	var document yaml.Node
+	if err := yaml.Unmarshal(existing, &document); err != nil {
+		return nil, fmt.Errorf("writeManifest: parse existing: %w", err)
+	}
+
+	if len(document.Content) == 0 || document.Content[0].Kind != yaml.MappingNode {
+		return emptyMappingDocument(), nil
+	}
+
+	return &document, nil
+}
+
+func emptyMappingDocument() *yaml.Node {
+	return &yaml.Node{ //nolint:exhaustruct
+		Kind: yaml.DocumentNode,
+		Content: []*yaml.Node{
+			{Kind: yaml.MappingNode, Tag: "!!map"}, //nolint:exhaustruct
+		},
+	}
+}
+
+// setMappingValue replaces key's value in a mapping node, appending the pair
+// when it is absent. Mapping content is a flat alternating key/value list.
+func setMappingValue(mapping *yaml.Node, key string, value *yaml.Node) {
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		if mapping.Content[i].Value == key {
+			mapping.Content[i+1] = value
+
+			return
+		}
+	}
+
+	mapping.Content = append(
+		mapping.Content,
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, //nolint:exhaustruct
+		value,
+	)
+}
+
+// writeFileAtomic writes via a temporary file in the same directory and renames
+// it over the target, so a crash or a full disk leaves the previous file intact
+// instead of a truncated one. Same-directory is required: rename is only atomic
+// within a filesystem.
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+
+	temp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create temp: %w", err)
+	}
+
+	tempName := temp.Name()
+
+	defer func() {
+		// No-op once the rename succeeded; removes the temp on every failure
+		// path so a half-written file is never left behind.
+		_ = os.Remove(tempName)
+	}()
+
+	if _, err := temp.Write(data); err != nil {
+		_ = temp.Close()
+
+		return fmt.Errorf("write temp: %w", err)
+	}
+
+	// Durability before visibility: rename can otherwise be committed while the
+	// contents are still only in the page cache.
+	if err := temp.Sync(); err != nil {
+		_ = temp.Close()
+
+		return fmt.Errorf("sync temp: %w", err)
+	}
+
+	if err := temp.Close(); err != nil {
+		return fmt.Errorf("close temp: %w", err)
+	}
+
+	if err := os.Chmod(tempName, perm); err != nil {
+		return fmt.Errorf("chmod temp: %w", err)
+	}
+
+	if err := os.Rename(tempName, path); err != nil {
+		return fmt.Errorf("rename temp: %w", err)
+	}
+
+	return nil
+}
+
+// IsInitialized reports whether .eser/manifest.yml exists.
+//
+// It does NOT inspect the contents, despite what this comment used to claim
+// ("has a non-nil noskills section, matches isInitialized() in TS"). The two
+// implementations also disagree on where the noskills keys live: the TS writer
+// nests them under a `noskills:` key, while ReadManifest/WriteManifest here read
+// and write them at the document's top level, so neither sees what the other
+// wrote. That divergence is tracked in TODOS.md under the duplicated-domain
+// entry and is not something this function can paper over.
 func IsInitialized(root string) bool {
 	p := NewPaths(root)
 	_, err := os.Stat(p.ManifestFile)
@@ -284,7 +423,7 @@ func WriteSpecState(root, specName string, state StateFile) error {
 		return fmt.Errorf("writeSpecState %s: marshal: %w", specName, err)
 	}
 
-	if err := os.WriteFile(p.SpecStateFile(specName), data, 0o644); err != nil { //nolint:gosec
+	if err := writeFileAtomic(p.SpecStateFile(specName), data, 0o644); err != nil {
 		return fmt.Errorf("writeSpecState %s: write: %w", specName, err)
 	}
 

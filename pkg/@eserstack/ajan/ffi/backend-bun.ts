@@ -9,6 +9,7 @@
  * @module
  */
 
+import * as closeGuard from "./close-guard.ts";
 import type * as types from "./types.ts";
 
 /**
@@ -28,7 +29,7 @@ export const backend: types.FFIBackend = {
 
   open: async (libraryPath: string): Promise<types.FFILibrary> => {
     const bunFFI = await import("bun:ffi");
-    const { dlopen, CString, ptr: ptrFn } = bunFFI;
+    const { dlopen, CString } = bunFFI;
 
     const lib = dlopen(libraryPath, {
       EserAjanVersion: {
@@ -436,29 +437,43 @@ export const backend: types.FFIBackend = {
     const { symbols } = lib;
 
     /**
-     * Encodes a JS string to a null-terminated Uint8Array and returns
-     * a pointer suitable for passing to FFI calls.
+     * Encodes a JS string to a null-terminated buffer for a `ptr` parameter.
+     *
+     * The buffer is handed to the call as a TypedArray rather than through
+     * `ptr()`. `ptr()` returns a bare integer address that keeps nothing alive,
+     * so on a two-argument call encoding the second buffer could trigger a GC
+     * that collects the first while Go is still about to read it. bun:ffi
+     * accepts a TypedArray for a `ptr` parameter and keeps it alive across the
+     * call, which removes the hazard instead of racing it.
      */
-    const toCString = (str: string): unknown => {
+    const toCString = (str: string): Uint8Array => {
       const encoder = new TextEncoder();
-      const encoded = encoder.encode(str + "\0");
-      return ptrFn(encoded);
+      return encoder.encode(str + "\0");
     };
 
     /**
-     * Reads a C string from a pointer and returns the JS string.
+     * Reads a C string from a pointer and releases the Go allocation behind it.
+     *
+     * The free sits in a `finally` because it must run even when `CString`
+     * throws: the pointer is malloc'd memory the caller owns, and an exception
+     * on the decode path would otherwise strand it. `CString` copies the bytes
+     * at construction, so the order of decode and free is not load-bearing.
      */
     const readAndFree = (rawPtr: unknown): string => {
       if (rawPtr === null || rawPtr === 0) {
         return "";
       }
-      const value = new CString(rawPtr);
-      symbols.EserAjanFree(rawPtr);
-      return value.toString();
+
+      try {
+        return new CString(rawPtr).toString();
+      } finally {
+        symbols.EserAjanFree(rawPtr);
+      }
     };
 
-    return {
-      symbols: {
+    return closeGuard.withCloseGuard(
+      "bun",
+      {
         EserAjanVersion: (): string => {
           return readAndFree(symbols.EserAjanVersion());
         },
@@ -482,6 +497,14 @@ export const backend: types.FFIBackend = {
             symbols.EserAjanAiCreateModel(toCString(configJSON)),
           );
         },
+        // LIMITATION: bun:ffi has no per-call async mode, so this -- like the
+        // stream and batch calls below -- is a BLOCKING FFI call. A generation
+        // runs for seconds to minutes and parks the entire event loop for its
+        // duration: timers, sockets and every other request stall, and the
+        // abort listener that would call EserAjanAiCancelRequest cannot run, so
+        // the call is uncancellable once entered even though types.ts documents
+        // it as cancellable. Only Deno (nonblocking:true) runs these off-thread.
+        // Making them genuinely asynchronous under Bun is tracked separately.
         EserAjanAiGenerateText: (
           modelHandle: string,
           optionsJSON: string,
@@ -493,6 +516,8 @@ export const backend: types.FFIBackend = {
             ),
           );
         },
+        // LIMITATION: blocking and uncancellable mid-call, see
+        // EserAjanAiGenerateText above.
         EserAjanAiStreamText: (
           modelHandle: string,
           optionsJSON: string,
@@ -504,6 +529,9 @@ export const backend: types.FFIBackend = {
             ),
           );
         },
+        // LIMITATION: blocking, see EserAjanAiGenerateText above -- each read
+        // parks the event loop until the provider emits the next event. The
+        // loop only gets to run between reads.
         EserAjanAiStreamRead: (streamHandle: string): string => {
           return readAndFree(
             symbols.EserAjanAiStreamRead(toCString(streamHandle)),
@@ -524,6 +552,8 @@ export const backend: types.FFIBackend = {
             symbols.EserAjanAiFreeStream(toCString(streamHandle)),
           );
         },
+        // LIMITATION: the five batch calls below are network round-trips made
+        // as blocking FFI calls, see EserAjanAiGenerateText above.
         EserAjanAiBatchCreate: (requestJSON: string): string => {
           return readAndFree(
             symbols.EserAjanAiBatchCreate(toCString(requestJSON)),
@@ -964,9 +994,9 @@ export const backend: types.FFIBackend = {
           );
         },
       },
-      close: (): void => {
+      () => {
         lib.close();
       },
-    };
+    );
   },
 };

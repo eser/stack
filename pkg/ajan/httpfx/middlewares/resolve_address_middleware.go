@@ -3,7 +3,6 @@ package middlewares
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
 	"github.com/eser/stack/pkg/ajan/lib"
@@ -15,9 +14,32 @@ const (
 	ClientAddrOrigin httpfx.ContextKey = "client-addr-origin"
 )
 
-func ResolveAddressMiddleware() httpfx.Handler {
+// resolveAddressConfig holds the configuration for client address resolution.
+// It is unexported as it's an internal detail of the ResolveAddressMiddleware.
+type resolveAddressConfig struct {
+	trustedProxies *httpfx.TrustedProxies
+}
+
+// ResolveAddressOption is a function type that modifies the resolveAddressConfig.
+type ResolveAddressOption func(*resolveAddressConfig)
+
+// WithTrustedProxies sets the proxy allowlist whose forwarded headers are
+// believed. Without it no proxy is trusted and the socket peer always wins.
+func WithTrustedProxies(trustedProxies *httpfx.TrustedProxies) ResolveAddressOption {
+	return func(cfg *resolveAddressConfig) {
+		cfg.trustedProxies = trustedProxies
+	}
+}
+
+func ResolveAddressMiddleware(options ...ResolveAddressOption) httpfx.Handler {
+	cfg := &resolveAddressConfig{trustedProxies: nil}
+
+	for _, option := range options {
+		option(cfg)
+	}
+
 	return func(ctx *httpfx.Context) httpfx.Result {
-		addr := GetClientAddrs(ctx.Request)
+		addr := cfg.trustedProxies.ClientAddr(ctx.Request)
 
 		newContext := context.WithValue(
 			ctx.Request.Context(),
@@ -65,31 +87,12 @@ func ResolveAddressMiddleware() httpfx.Handler {
 	}
 }
 
+// GetClientAddrs returns the client address for req while trusting no proxy:
+// forwarded headers are ignored and the socket peer decides. Deployments behind
+// a real proxy must go through ResolveAddressMiddleware with WithTrustedProxies
+// so the allowlist gates those headers.
 func GetClientAddrs(req *http.Request) string {
-	requester, hasHeader := req.Header["True-Client-IP"] //nolint:staticcheck
+	var trustedProxies *httpfx.TrustedProxies
 
-	if !hasHeader {
-		requester, hasHeader = req.Header["X-Forwarded-For"]
-	}
-
-	if !hasHeader {
-		requester, hasHeader = req.Header["X-Real-IP"] //nolint:staticcheck
-	}
-
-	// if the requester is still empty, use the hard-coded address from the socket
-	if !hasHeader {
-		requester = []string{req.RemoteAddr}
-	}
-
-	// split comma delimited list into a slice
-	// (this happens when proxied via elastic load balancer then again through nginx)
-	var addrs []string
-
-	for _, addr := range requester {
-		for entry := range strings.SplitSeq(addr, ",") {
-			addrs = append(addrs, strings.Trim(entry, " "))
-		}
-	}
-
-	return strings.Join(addrs, ", ")
+	return trustedProxies.ClientAddr(req)
 }

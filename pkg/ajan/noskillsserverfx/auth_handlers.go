@@ -1,7 +1,6 @@
 package noskillsserverfx
 
 import (
-	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -56,7 +55,7 @@ func (s *Server) handleLogin(ctx *httpfx.Context) httpfx.Result {
 		return ctx.Results.BadRequest(httpfx.WithPlainText("invalid JSON body"))
 	}
 
-	ip := resolveClientIP(ctx)
+	ip := s.resolveClientIP(ctx)
 
 	tok, err := s.authManager.Login(ip, req.PIN)
 	if err != nil {
@@ -101,25 +100,10 @@ func (s *Server) handleLogout(ctx *httpfx.Context) httpfx.Result {
 	return ctx.Results.JSON(&logoutResponse{OK: true})
 }
 
-// resolveClientIP extracts the real client IP for rate-limiting.
-// Prefers X-Forwarded-For and X-Real-IP over RemoteAddr (which may be a proxy).
-func resolveClientIP(ctx *httpfx.Context) string {
-	if xff := ctx.Request.Header.Get("X-Forwarded-For"); xff != "" {
-		if idx := strings.Index(xff, ","); idx != -1 {
-			return strings.TrimSpace(xff[:idx])
-		}
-
-		return strings.TrimSpace(xff)
-	}
-
-	if xri := ctx.Request.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
-	}
-
-	host, _, err := net.SplitHostPort(ctx.Request.RemoteAddr)
-	if err != nil {
-		return ctx.Request.RemoteAddr
-	}
-
-	return host
+// resolveClientIP extracts the client IP that keys the per-IP login lockout.
+// Forwarded headers are attacker-controlled unless the immediate peer is a
+// configured trusted proxy, so the default empty allowlist pins the key to the
+// socket peer — otherwise rotating a header would hand out fresh buckets.
+func (s *Server) resolveClientIP(ctx *httpfx.Context) string {
+	return s.trustedProxies.ClientIP(ctx.Request)
 }

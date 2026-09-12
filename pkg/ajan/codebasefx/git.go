@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/eser/stack/pkg/ajan/processfx"
 )
 
 // recordSep and unitSep are ASCII separators used to delimit git log records.
@@ -17,6 +19,7 @@ const unitSep = "\x1f"
 // runGit runs a git command in the given directory and returns stdout.
 func runGit(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...) //nolint:gosec
+	processfx.HardenCommand(cmd)
 	cmd.Dir = dir
 
 	var stdout, stderr bytes.Buffer

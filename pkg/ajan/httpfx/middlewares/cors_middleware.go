@@ -14,7 +14,12 @@ const (
 	AccessControlAllowHeadersHeader     = "Access-Control-Allow-Headers"
 	AccessControlAllowMethodsHeader     = "Access-Control-Allow-Methods"
 	AccessControlMaxAgeHeader           = "Access-Control-Max-Age"
+	VaryHeader                          = "Vary"
 )
+
+// wildcardOrigin grants any origin anonymous access. The CORS spec forbids
+// pairing it with credentials, so credentialed access needs an explicit origin.
+const wildcardOrigin = "*"
 
 // preflightMaxAge is the duration in seconds that browsers can cache preflight responses.
 const preflightMaxAge = "3600"
@@ -31,15 +36,18 @@ type corsConfig struct {
 // CorsOption is a function type that modifies the corsConfig.
 type CorsOption func(*corsConfig)
 
-// WithAllowOrigin sets the Access-Control-Allow-Origin header.
-// If not set, defaults to "*".
+// WithAllowOrigin sets the Access-Control-Allow-Origin header. It accepts a
+// single origin, "*", or a comma-separated allowlist that is matched against the
+// request Origin. If not set, defaults to "*".
 func WithAllowOrigin(origin string) CorsOption {
 	return func(cfg *corsConfig) {
 		cfg.allowOrigin = origin
 	}
 }
 
-// WithAllowCredentials sets the Access-Control-Allow-Credentials header.
+// WithAllowCredentials sets the Access-Control-Allow-Credentials header. It only
+// takes effect alongside an explicit origin; under a wildcard the header is
+// suppressed, since browsers reject that combination anyway.
 func WithAllowCredentials(allow bool) CorsOption {
 	return func(cfg *corsConfig) {
 		cfg.allowCredentials = allow
@@ -60,12 +68,48 @@ func WithAllowMethods(methods []string) CorsOption {
 	}
 }
 
+// resolveAllowedOrigin maps the configured origin (a single origin, "*", or a
+// comma-separated allowlist) onto the value for Access-Control-Allow-Origin. It
+// returns "" when the request origin is not on the allowlist; a wildcard alone
+// never justifies reflecting the caller's origin back.
+func resolveAllowedOrigin(configured, requestOrigin string) string {
+	trimmed := strings.TrimSpace(configured)
+
+	if !strings.Contains(trimmed, ",") {
+		return trimmed
+	}
+
+	hasWildcard := false
+
+	for rawEntry := range strings.SplitSeq(trimmed, ",") {
+		entry := strings.TrimSpace(rawEntry)
+
+		if entry == wildcardOrigin {
+			hasWildcard = true
+
+			continue
+		}
+
+		if entry != "" && entry == requestOrigin {
+			return requestOrigin
+		}
+	}
+
+	if hasWildcard {
+		return wildcardOrigin
+	}
+
+	return ""
+}
+
 // CorsMiddleware creates a CORS middleware using functional options.
 func CorsMiddleware(options ...CorsOption) httpfx.Handler { //nolint:cyclop,funlen
 	// Start with default configuration
 	cfg := &corsConfig{
-		allowOrigin:      "*", // Default to allow all origins
-		allowCredentials: true,
+		allowOrigin: wildcardOrigin, // Default to allow all origins
+		// Credentialed cross-origin access requires an explicit origin allowlist,
+		// so this stays off until a caller opts in via WithAllowCredentials.
+		allowCredentials: false,
 		allowHeaders: []string{
 			"Accept",
 			"Authorization",
@@ -88,34 +132,20 @@ func CorsMiddleware(options ...CorsOption) httpfx.Handler { //nolint:cyclop,funl
 
 		// Determine allowed origin based on request origin
 		requestOrigin := ctx.Request.Header.Get("Origin")
-		allowedOrigin := cfg.allowOrigin
-
-		// If multiple origins are configured (comma-separated), check if request origin is allowed
-		if strings.Contains(cfg.allowOrigin, ",") {
-			allowedOrigins := strings.Split(cfg.allowOrigin, ",")
-			for _, origin := range allowedOrigins {
-				origin = strings.TrimSpace(origin)
-				if origin == requestOrigin {
-					allowedOrigin = requestOrigin
-
-					break
-				}
-			}
-
-			// If no match found and wildcard not set, use first origin as fallback
-			if allowedOrigin != requestOrigin && !strings.Contains(cfg.allowOrigin, "*") {
-				allowedOrigin = strings.TrimSpace(allowedOrigins[0])
-			}
-		} else if cfg.allowOrigin == "*" && cfg.allowCredentials && requestOrigin != "" {
-			// When credentials are enabled with wildcard origin, we must echo back the
-			// specific request origin instead of "*" (CORS spec requirement)
-			allowedOrigin = requestOrigin
-		}
+		allowedOrigin := resolveAllowedOrigin(cfg.allowOrigin, requestOrigin)
 
 		// Set CORS headers for all requests
-		headers.Set(AccessControlAllowOriginHeader, allowedOrigin)
+		if allowedOrigin != "" {
+			headers.Set(AccessControlAllowOriginHeader, allowedOrigin)
+		}
 
-		if cfg.allowCredentials {
+		// Any answer other than the literal wildcard is derived from the request
+		// Origin, so shared caches must key on it.
+		if allowedOrigin != wildcardOrigin {
+			headers.Add(VaryHeader, "Origin")
+		}
+
+		if cfg.allowCredentials && allowedOrigin != "" && allowedOrigin != wildcardOrigin {
 			headers.Set(AccessControlAllowCredentialsHeader, "true")
 		}
 

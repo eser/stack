@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
+	"github.com/eser/stack/pkg/ajan/processfx"
 )
 
 // ── Registry ──────────────────────────────────────────────────────────────────
@@ -440,6 +441,7 @@ func (s *Server) handleAddProject(ctx *httpfx.Context) httpfx.Result {
 		}
 
 		cmd := exec.CommandContext(ctx.Request.Context(), "git", "clone", "--", req.Git, dest)
+		processfx.HardenCommand(cmd)
 		out, err := cmd.CombinedOutput()
 
 		if err != nil {

@@ -90,8 +90,27 @@ func (r *Router) GetRoutes() []*Route {
 
 // Group creates a new router with a prefixed path.
 // The new router shares no state with the parent router.
+// Group is not implemented and always panics.
+//
+// It used to return NewRouter(r.path + path), which is a fresh router with its
+// own http.ServeMux that nothing ever mounts into the parent. Every route
+// registered on the group therefore 404'd, with no error at registration time
+// to say so. Silently serving 404 for correctly-registered routes is worse than
+// refusing, and the method has no callers to preserve.
+//
+// Implementing it means more than mounting the sub-mux: Route ignores r.path
+// entirely today (see the TODO in Route), so patterns are registered verbatim
+// and a prefix would not be applied either way. Both halves have to land
+// together for grouping to mean anything.
+//
+// Panicking matches how this router already reports programmer error, as in
+// RouteRaw's frozen-router panic.
 func (r *Router) Group(path string) *Router {
-	return NewRouter(r.path + path)
+	panic(
+		"httpfx: Router.Group is not implemented (requested path=" + path +
+			"). It returned an unmounted router, so grouped routes silently " +
+			"404ed. Register routes on the parent router with their full path.",
+	)
 }
 
 // Freeze marks the router as immutable, preventing further route registration.
@@ -185,6 +204,17 @@ func (r *Router) Route(pattern string, handlers ...Handler) *Route { //nolint:fu
 				"Location",
 				result.RedirectToURI(),
 			)
+		}
+
+		// Must precede WriteHeader: headers set afterwards are silently
+		// discarded. Only set when the result knows its type, so anything that
+		// does not keeps net/http's sniffing behaviour, and never overwrite a
+		// type a middleware or raw handler already chose.
+		if contentType := result.ContentType(); contentType != "" {
+			header := responseWriter.Header()
+			if header.Get("Content-Type") == "" {
+				header.Set("Content-Type", contentType)
+			}
 		}
 
 		responseWriter.WriteHeader(result.StatusCode())

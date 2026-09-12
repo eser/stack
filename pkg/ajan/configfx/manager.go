@@ -15,6 +15,7 @@ import (
 var (
 	ErrNotStruct                  = errors.New("not a struct")
 	ErrMissingRequiredConfigValue = errors.New("missing required config value")
+	ErrInvalidConfigValue         = errors.New("invalid config value")
 )
 
 type ConfigManager struct{}
@@ -369,7 +370,13 @@ func reflectSet( //nolint:cyclop,gocognit,gocyclo,funlen,maintidx
 						valAny, valFound := lib.CaseInsensitiveGet(*target, valKey)
 						if valFound {
 							if valStr, ok := valAny.(string); ok {
-								reflectSetField(sliceElem, valueType, valStr)
+								if err := reflectSetField(
+									sliceElem,
+									valueType,
+									valStr,
+								); err != nil {
+									return fmt.Errorf("%w (key=%q)", err, valKey)
+								}
 							}
 						}
 					}
@@ -399,7 +406,21 @@ func reflectSet( //nolint:cyclop,gocognit,gocyclo,funlen,maintidx
 
 		if !valueOk {
 			if child.HasDefaultValue {
-				reflectSetField(child.Field, child.Type, child.DefaultValue)
+				// A default that cannot parse is a bug in the struct tag, not in
+				// the operator's environment, and it silently produced a zero
+				// field exactly like a bad override did.
+				if err := reflectSetField(
+					child.Field,
+					child.Type,
+					child.DefaultValue,
+				); err != nil {
+					return fmt.Errorf(
+						"%w (key=%q, child_name=%q, source=default)",
+						err,
+						key,
+						child.Name,
+					)
+				}
 
 				continue
 			}
@@ -417,83 +438,155 @@ func reflectSet( //nolint:cyclop,gocognit,gocyclo,funlen,maintidx
 			continue
 		}
 
-		reflectSetField(child.Field, child.Type, value)
+		if err := reflectSetField(child.Field, child.Type, value); err != nil {
+			return fmt.Errorf(
+				"%w (key=%q, child_name=%q)",
+				err,
+				key,
+				child.Name,
+			)
+		}
 	}
 
 	return nil
 }
 
+// reflectSetField converts value to fieldType and assigns it.
+//
+// Every conversion error is returned rather than discarded. It used to drop all
+// of them into `_` and had no error return at all, so a malformed override was
+// silently assigned the zero value AND beat the declared default: PORT=xyz
+// produced port=0 with a nil error. Zero is not an inert placeholder in this
+// codebase -- net/http reads a zero Read/WriteTimeout as "no timeout", and
+// duration fields with real defaults exist across httpfx, httpclient, connfx,
+// aifx and workerfx. A typo in a deploy environment silently removed the
+// timeouts it was supposed to configure.
 func reflectSetField( //nolint:cyclop,funlen
 	field reflect.Value,
 	fieldType reflect.Type,
 	value string,
-) {
+) error {
 	var finalValue reflect.Value
 
 	switch fieldType {
 	case reflect.TypeFor[string]():
 		finalValue = reflect.ValueOf(value)
 	case reflect.TypeFor[int]():
-		intValue, _ := strconv.Atoi(value)
+		intValue, err := strconv.Atoi(value)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
 		finalValue = reflect.ValueOf(intValue)
 	case reflect.TypeFor[int8]():
-		int64Value, _ := strconv.ParseInt(value, 10, 8)
-		int8Value := int8(int64Value)
-		finalValue = reflect.ValueOf(int8Value)
+		int64Value, err := strconv.ParseInt(value, 10, 8)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
+		finalValue = reflect.ValueOf(int8(int64Value))
 	case reflect.TypeFor[int16]():
-		int64Value, _ := strconv.ParseInt(value, 10, 16)
-		int16Value := int16(int64Value)
-		finalValue = reflect.ValueOf(int16Value)
+		int64Value, err := strconv.ParseInt(value, 10, 16)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
+		finalValue = reflect.ValueOf(int16(int64Value))
 	case reflect.TypeFor[int32]():
-		int64Value, _ := strconv.ParseInt(value, 10, 32)
-		int32Value := int32(int64Value)
-		finalValue = reflect.ValueOf(int32Value)
+		int64Value, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
+		finalValue = reflect.ValueOf(int32(int64Value))
 	case reflect.TypeFor[int64]():
-		int64Value, _ := strconv.ParseInt(value, 10, 64)
+		int64Value, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
 		finalValue = reflect.ValueOf(int64Value)
 	case reflect.TypeFor[uint]():
-		uint64Value, _ := strconv.ParseUint(value, 10, strconv.IntSize)
-		uintValue := uint(uint64Value)
-		finalValue = reflect.ValueOf(uintValue)
+		uint64Value, err := strconv.ParseUint(value, 10, strconv.IntSize)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
+		finalValue = reflect.ValueOf(uint(uint64Value))
 	case reflect.TypeFor[uint8]():
-		uint64Value, _ := strconv.ParseUint(value, 10, 8)
-		uint8Value := uint8(uint64Value)
-		finalValue = reflect.ValueOf(uint8Value)
+		uint64Value, err := strconv.ParseUint(value, 10, 8)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
+		finalValue = reflect.ValueOf(uint8(uint64Value))
 	case reflect.TypeFor[uint16]():
-		uint64Value, _ := strconv.ParseUint(value, 10, 16)
-		uint16Value := uint16(uint64Value)
-		finalValue = reflect.ValueOf(uint16Value)
+		uint64Value, err := strconv.ParseUint(value, 10, 16)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
+		finalValue = reflect.ValueOf(uint16(uint64Value))
 	case reflect.TypeFor[uint32]():
-		uint64Value, _ := strconv.ParseUint(value, 10, 32)
-		uint32Value := uint32(uint64Value)
-		finalValue = reflect.ValueOf(uint32Value)
+		uint64Value, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
+		finalValue = reflect.ValueOf(uint32(uint64Value))
 	case reflect.TypeFor[uint64]():
-		uint64Value, _ := strconv.ParseUint(value, 10, 64)
+		uint64Value, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
 		finalValue = reflect.ValueOf(uint64Value)
 	case reflect.TypeFor[float32]():
-		floatValue, _ := strconv.ParseFloat(value, 32)
+		floatValue, err := strconv.ParseFloat(value, 32)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
 		finalValue = reflect.ValueOf(float32(floatValue))
 	case reflect.TypeFor[float64]():
-		floatValue, _ := strconv.ParseFloat(value, 64)
+		floatValue, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
 		finalValue = reflect.ValueOf(floatValue)
 	case reflect.TypeFor[bool]():
-		boolValue, _ := strconv.ParseBool(value)
+		boolValue, err := strconv.ParseBool(value)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
 		finalValue = reflect.ValueOf(boolValue)
 	case reflect.TypeFor[time.Duration]():
-		durationValue, _ := time.ParseDuration(value)
+		durationValue, err := time.ParseDuration(value)
+		if err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
 		finalValue = reflect.ValueOf(durationValue)
 	case reflect.TypeFor[types.MetricInt]():
 		var metricInt types.MetricInt
 
-		_ = metricInt.UnmarshalText([]byte(value))
+		if err := metricInt.UnmarshalText([]byte(value)); err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
 		finalValue = reflect.ValueOf(metricInt)
 	case reflect.TypeFor[types.MetricFloat]():
 		var metricFloat types.MetricFloat
 
-		_ = metricFloat.UnmarshalText([]byte(value))
+		if err := metricFloat.UnmarshalText([]byte(value)); err != nil {
+			return invalidValueError(fieldType, value, err)
+		}
+
 		finalValue = reflect.ValueOf(metricFloat)
 	default:
-		return
+		return nil
 	}
 
 	if field.Kind() == reflect.Ptr {
@@ -502,10 +595,28 @@ func reflectSetField( //nolint:cyclop,funlen
 		ptr.Elem().Set(finalValue)
 		field.Set(ptr)
 
-		return
+		return nil
 	}
 
 	// FIXME(@eser) we might need to control if we can set
 	//              the field directly by `field.CanSet()`
 	field.Set(finalValue)
+
+	return nil
+}
+
+// invalidValueError names the offending value and the type it could not become.
+// The caller adds the key path, which is what an operator actually needs.
+func invalidValueError(
+	fieldType reflect.Type,
+	value string,
+	cause error,
+) error {
+	return fmt.Errorf(
+		"%w (value=%q, expected_type=%s): %w",
+		ErrInvalidConfigValue,
+		value,
+		fieldType.String(),
+		cause,
+	)
 }

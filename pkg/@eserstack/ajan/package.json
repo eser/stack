@@ -5,6 +5,7 @@
   "exports": {
     ".": "./ffi/mod.ts",
     "./ffi": "./ffi/mod.ts",
+    "./ffi/client": "./ffi/client.ts",
     "./wasm": "./wasm/mod.ts"
   },
   "dependencies": {

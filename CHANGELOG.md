@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.4.0 - 2026-09-12
+
+### Fixed
+
+- **ajan**: harden FFI bridge, config parsing and HTTP security (b2f019c)
+
+### Changed
+
+- **go**: pin CI Go to go.mod and bump golangci-lint to v2.13.2 (fd3e4d2)
+
 ## 4.3.1 - 2026-08-09
 
 ### Fixed

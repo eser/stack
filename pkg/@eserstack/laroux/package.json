@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/laroux",
-  "version": "4.3.1",
+  "version": "4.4.0",
   "description": "Framework-agnostic core utilities for laroux.js",
   "license": "Apache-2.0",
   "type": "module",

@@ -19,6 +19,7 @@ export {
   AjanBridgeModel,
   AjanBridgeModelFactory,
   createBridgeFactories,
+  getBridgeLoadError,
   tryLoadBridgeFactories,
 } from "./ajan-bridge.ts";
 

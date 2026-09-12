@@ -39,6 +39,8 @@ func NewHTTPService(
 	router *Router,
 	logger *logfx.Logger,
 ) *HTTPService {
+	applyConfigPolicies(config)
+
 	httpService := &HTTPService{
 		InnerServer:  nil, // Will be set below
 		InnerRouter:  router,

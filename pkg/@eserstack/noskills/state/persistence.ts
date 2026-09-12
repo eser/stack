@@ -15,7 +15,106 @@
 
 import * as yaml from "yaml";
 import * as schema from "./schema.ts";
-import { runtime } from "@eserstack/standards/cross-runtime";
+import { NotFoundError, runtime } from "@eserstack/standards/cross-runtime";
+
+// =============================================================================
+// Atomic writes
+// =============================================================================
+
+/**
+ * Distinguishes "there is no file" from "the file is unreadable or corrupt".
+ *
+ * The cross-runtime fs port already normalises the per-runtime variants into
+ * `NotFoundError`, so the class check is the reliable one. Deno's raw
+ * `NotFound` name and the Node `ENOENT` code are kept as a fallback for any
+ * error that reaches here without passing through the port.
+ */
+const isNotFoundError = (error: unknown): boolean => {
+  if (error instanceof NotFoundError) {
+    return true;
+  }
+
+  if (error === null || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as { name?: unknown; code?: unknown };
+
+  return candidate.name === "NotFound" || candidate.code === "ENOENT";
+};
+
+/** Corrupt-state warnings are latched per path: one per file, not per read. */
+const warnedCorruptPaths = new Set<string>();
+
+/**
+ * Reports a state file that exists but could not be parsed.
+ *
+ * Absent and corrupt were previously indistinguishable: every reader caught
+ * everything and returned `createInitialState()`, so a truncated file presented
+ * as a brand-new project and the work it held was gone without a word. The
+ * return value stays the initial state — callers depend on these reads not
+ * throwing — but the operator now learns the file is there and unreadable,
+ * which is the difference between "nothing to restore" and "restore this".
+ */
+const warnCorruptState = (filePath: string, error: unknown): void => {
+  if (warnedCorruptPaths.has(filePath)) {
+    return;
+  }
+
+  warnedCorruptPaths.add(filePath);
+
+  const reason = error instanceof Error ? error.message : String(error);
+
+  try {
+    // deno-lint-ignore no-console
+    console.error(
+      `noskills: WARNING — ${filePath} exists but could not be read (${reason}). ` +
+        "Treating it as empty; the previous contents are still on disk and " +
+        "have NOT been overwritten yet.",
+    );
+  } catch {
+    // stderr is gone; nothing further to try.
+  }
+};
+
+/**
+ * Writes `contents` to `filePath` via a temporary file in the same directory,
+ * then renames it into place.
+ *
+ * Every writer here used to be a plain `writeTextFile`, which truncates first
+ * and then writes: a crash, a full disk or a killed process between those two
+ * steps leaves a truncated file. Since every reader treats a parse failure as
+ * "no state" and returns `createInitialState()`, a torn file did not surface as
+ * corruption — it presented as a fresh project, and the work in it was gone.
+ *
+ * Rename is only atomic within a filesystem, so the temporary file must be a
+ * sibling of the target rather than in a system temp directory.
+ */
+const writeTextFileAtomic = async (
+  filePath: string,
+  contents: string,
+): Promise<void> => {
+  const separator = filePath.lastIndexOf("/");
+  const dirPath = separator === -1 ? "." : filePath.slice(0, separator);
+  const tempPath = `${dirPath}/.${
+    filePath.slice(separator + 1)
+  }.${crypto.randomUUID()}.tmp`;
+
+  try {
+    await runtime.fs.writeTextFile(tempPath, contents);
+    await runtime.fs.rename(tempPath, filePath);
+  } catch (error) {
+    // Never leave the temporary behind: these live beside real state files and
+    // a stray one would be picked up by directory listings.
+    try {
+      await runtime.fs.remove(tempPath);
+    } catch {
+      // Already gone, or never created.
+    }
+
+    throw error;
+  }
+};
 
 // =============================================================================
 // Paths
@@ -114,7 +213,14 @@ export const readState = async (root: string): Promise<schema.StateFile> => {
     const parsed = JSON.parse(content) as schema.StateFile;
 
     return normalizeStateShape(parsed);
-  } catch {
+  } catch (error) {
+    // Absent is ordinary: an uninitialised project has no state file. A file
+    // that exists and will not parse is not ordinary, and used to look
+    // identical from here.
+    if (!isNotFoundError(error)) {
+      warnCorruptState(filePath, error);
+    }
+
     return schema.createInitialState();
   }
 };
@@ -253,10 +359,7 @@ export const writeState = async (
   const filePath = `${root}/${STATE_FILE}`;
 
   await runtime.fs.mkdir(dirPath, { recursive: true });
-  await runtime.fs.writeTextFile(
-    filePath,
-    JSON.stringify(state, null, 2) + "\n",
-  );
+  await writeTextFileAtomic(filePath, JSON.stringify(state, null, 2) + "\n");
 };
 
 // =============================================================================
@@ -303,7 +406,14 @@ export const readSpecState = async (
     const parsed = JSON.parse(content) as schema.StateFile;
 
     return normalizeStateShape(parsed);
-  } catch {
+  } catch (error) {
+    // Absent is ordinary: an uninitialised project has no state file. A file
+    // that exists and will not parse is not ordinary, and used to look
+    // identical from here.
+    if (!isNotFoundError(error)) {
+      warnCorruptState(filePath, error);
+    }
+
     return schema.createInitialState();
   }
 };
@@ -326,10 +436,7 @@ export const writeSpecState = async (
   }
 
   await runtime.fs.mkdir(dirPath, { recursive: true });
-  await runtime.fs.writeTextFile(
-    filePath,
-    JSON.stringify(state, null, 2) + "\n",
-  );
+  await writeTextFileAtomic(filePath, JSON.stringify(state, null, 2) + "\n");
 
   // Additive, fault-isolated decision-ledger capture. Runs AFTER the canonical
   // write so it can never prevent or corrupt state persistence; any failure is
@@ -352,19 +459,29 @@ export const listSpecStates = async (
 
   try {
     for await (const entry of runtime.fs.readDir(dirPath)) {
-      if (entry.isFile && entry.name.endsWith(".json")) {
-        const name = entry.name.replace(/\.json$/, "");
-        const content = await runtime.fs.readTextFile(
-          `${dirPath}/${entry.name}`,
-        );
+      if (!entry.isFile || !entry.name.endsWith(".json")) {
+        continue;
+      }
+
+      const filePath = `${dirPath}/${entry.name}`;
+
+      // Per file, not per directory. The try used to wrap the whole loop, so a
+      // single unreadable spec state aborted the walk and returned the specs
+      // enumerated before it -- a silently truncated list, with the remaining
+      // specs looking as though they did not exist.
+      try {
+        const content = await runtime.fs.readTextFile(filePath);
+
         results.push({
-          name,
+          name: entry.name.replace(/\.json$/, ""),
           state: JSON.parse(content) as schema.StateFile,
         });
+      } catch (error) {
+        warnCorruptState(filePath, error);
       }
     }
   } catch {
-    // No spec states yet
+    // The directory itself is absent: no specs have been created yet.
   }
 
   return results;
@@ -413,7 +530,7 @@ export const writeManifest = async (
   node.commentBefore =
     " noskills orchestrator — inline comments in this section won't be preserved on next write";
   doc.set("noskills", node);
-  await runtime.fs.writeTextFile(filePath, doc.toString());
+  await writeTextFileAtomic(filePath, doc.toString());
 };
 
 // =============================================================================
@@ -443,10 +560,7 @@ export const writeConcern = async (
   const filePath = `${root}/${paths.concernFile(concern.id)}`;
 
   await runtime.fs.mkdir(dirPath, { recursive: true });
-  await runtime.fs.writeTextFile(
-    filePath,
-    JSON.stringify(concern, null, 2) + "\n",
-  );
+  await writeTextFileAtomic(filePath, JSON.stringify(concern, null, 2) + "\n");
 };
 
 export const listConcerns = async (
@@ -457,15 +571,24 @@ export const listConcerns = async (
 
   try {
     for await (const entry of runtime.fs.readDir(dirPath)) {
-      if (entry.isFile && entry.name.endsWith(".json")) {
-        const content = await runtime.fs.readTextFile(
-          `${dirPath}/${entry.name}`,
-        );
+      if (!entry.isFile || !entry.name.endsWith(".json")) {
+        continue;
+      }
+
+      const filePath = `${dirPath}/${entry.name}`;
+
+      // Per file, not per directory -- see listSpecStates. One malformed
+      // concern used to hide every concern after it.
+      try {
+        const content = await runtime.fs.readTextFile(filePath);
+
         concerns.push(JSON.parse(content) as schema.ConcernDefinition);
+      } catch (error) {
+        warnCorruptState(filePath, error);
       }
     }
   } catch {
-    // Directory doesn't exist yet
+    // The directory itself is absent: no concerns have been defined yet.
   }
 
   return concerns;
@@ -559,7 +682,7 @@ export const migrateLegacyLayout = async (root: string): Promise<boolean> => {
   try {
     const current = await runtime.fs.readTextFile(gitignorePath);
     if (current.includes(".sessions/") || current.includes(".events/")) {
-      await runtime.fs.writeTextFile(
+      await writeTextFileAtomic(
         gitignorePath,
         "# eser toolchain runtime state — not tracked by git\n.state/\n",
       );
@@ -628,7 +751,7 @@ export const scaffoldEserDir = async (root: string): Promise<void> => {
   try {
     await runtime.fs.stat(gitignorePath);
   } catch {
-    await runtime.fs.writeTextFile(
+    await writeTextFileAtomic(
       gitignorePath,
       "# eser toolchain runtime state — not tracked by git\n.state/\n",
     );
@@ -640,6 +763,26 @@ export const scaffoldEserDir = async (root: string): Promise<void> => {
 // =============================================================================
 
 /** Write main state AND the per-spec state file for the active spec. */
+/**
+ * Writes one state to both the global store and its per-spec file.
+ *
+ * Only for call sites that persist the SAME state to both. Several deliberately
+ * do not, and routing them through here would be a bug rather than a cleanup:
+ *
+ *   - `done`, `wontfix`, `cancel` and the dashboard's complete action keep a
+ *     terminal phase (COMPLETED / WONTFIX) in the per-spec file for history
+ *     while returning the global store to IDLE. Writing one state to both would
+ *     erase the record or leave the global store stuck in a terminal phase.
+ *   - `reset` captures the spec name BEFORE `resetToIdle` clears it. This helper
+ *     keys off `state.spec`, which is null by then, so it would silently skip
+ *     the per-spec write and leave that file stale.
+ *
+ * The two writes are sequential, not transactional: a crash between them leaves
+ * the per-spec file behind the global store. Each individual write is atomic
+ * (see writeTextFileAtomic), so neither file can be torn, but they can disagree.
+ * `resolveState` prefers the per-spec copy, which is the conservative side of
+ * that race.
+ */
 export const writeStateAndSpec = async (
   root: string,
   state: schema.StateFile,
@@ -679,7 +822,7 @@ export const createSession = async (
 ): Promise<void> => {
   const dir = `${root}/${SESSIONS_DIR}`;
   await runtime.fs.mkdir(dir, { recursive: true });
-  await runtime.fs.writeTextFile(
+  await writeTextFileAtomic(
     `${dir}/${session.id}.json`,
     JSON.stringify(session, null, 2) + "\n",
   );
@@ -750,7 +893,7 @@ export const updateSessionPhase = async (
     phase,
     lastActiveAt: new Date().toISOString(),
   };
-  await runtime.fs.writeTextFile(
+  await writeTextFileAtomic(
     `${root}/${SESSIONS_DIR}/${sessionId}.json`,
     JSON.stringify(updated, null, 2) + "\n",
   );

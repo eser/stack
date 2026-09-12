@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -70,10 +71,17 @@ var (
 	// is why every model created ever since has stayed in aiRegistry for the
 	// process lifetime, closed but still referenced.
 	modelRegistryNames = make(map[string]string)
+	// modelInFlight counts the calls currently running against each model
+	// handle, keyed by that handle.
+	//
+	// bridgeAiCloseModel removes the handle and then waits for the count to
+	// drain, so a model can never be closed out from under a generation that is
+	// already running -- the protection streamState.wg gives streams.
+	modelInFlight      = make(map[string]*sync.WaitGroup)
 	streamHandles      = make(map[string]*streamState)
 	execHandles        = make(map[string]*shellfxexec.ChildProcessHandle)
 	ptyHandles         = make(map[string]*shellfxpty.Session)
-	tokenizerHandles   = make(map[string]*parsingfx.Tokenizer)
+	tokenizerHandles   = make(map[string]*tokenizerState)
 	tuiKeypressHandles = make(map[string]*shelltui.KeypressReader)
 	handleMu           sync.RWMutex
 	handleSeq          int64
@@ -87,7 +95,48 @@ type streamState struct {
 	// long as the stream does, not as long as the call that created it.
 	requestID string
 
+	// mu serializes reads on one handle. StreamIterator is not safe for
+	// concurrent use, and Deno's nonblocking FFI symbols let two reads of the
+	// same handle land on different threads.
+	mu sync.Mutex
+
 	wg sync.WaitGroup
+}
+
+// tokenizerState wraps a streaming tokenizer with the lock that serializes
+// pushes on its handle. parsingfx.Tokenizer carries mutable scan state, so two
+// concurrent Push calls on one handle would corrupt it.
+type tokenizerState struct {
+	tok *parsingfx.Tokenizer
+	mu  sync.Mutex
+}
+
+// acquireModel resolves a model handle and registers a call as in flight
+// against it. The returned release func must run when the call finishes.
+//
+// Taking the reference and marking it in use happen under one lock, so a close
+// that removes the handle either loses the race (and waits for this call) or
+// wins it (and this call reports the handle as gone).
+func acquireModel(handle string) (aifx.LanguageModel, func(), bool) {
+	handleMu.Lock()
+	defer handleMu.Unlock()
+
+	model, ok := modelHandles[handle]
+	if !ok {
+		return nil, func() {}, false
+	}
+
+	wg, ok := modelInFlight[handle]
+	if !ok {
+		// Created on first use so handles registered directly into modelHandles
+		// (as tests do) are still covered.
+		wg = &sync.WaitGroup{}
+		modelInFlight[handle] = wg
+	}
+
+	wg.Add(1)
+
+	return model, wg.Done, true
 }
 
 // ---------------------------------------------------------------------------
@@ -457,9 +506,15 @@ func closeAllHandles() {
 		keypresses = append(keypresses, r)
 	}
 
+	modelCalls := make([]*sync.WaitGroup, 0, len(modelInFlight))
+	for _, wg := range modelInFlight {
+		modelCalls = append(modelCalls, wg)
+	}
+
 	clear(streamHandles)
 	clear(modelHandles)
 	clear(modelRegistryNames)
+	clear(modelInFlight)
 	clear(execHandles)
 	clear(ptyHandles)
 	clear(tokenizerHandles)
@@ -500,12 +555,18 @@ func closeAllHandles() {
 	clear(codebaseValidateStreamHandles)
 	codebaseValidateStreamMu.Unlock()
 
-	// These registries hold no OS resource of their own; dropping the entries
-	// is the whole release path (matching their per-handle Close functions).
 	httpMu.Lock()
+
+	httpClients := make([]*httpClientState, 0, len(httpClientHandles))
+	for _, c := range httpClientHandles {
+		httpClients = append(httpClients, c)
+	}
+
 	clear(httpClientHandles)
 	httpMu.Unlock()
 
+	// These registries hold no OS resource of their own; dropping the entries
+	// is the whole release path (matching their per-handle Close functions).
 	logMu.Lock()
 	clear(logHandles)
 	logMu.Unlock()
@@ -543,15 +604,19 @@ func closeAllHandles() {
 		s.wg.Wait()
 	}
 
+	// Not under e.mu: a read blocked on a stalled body holds that lock, and
+	// closing the body is what makes it return.
 	for _, e := range httpStreams {
-		e.mu.Lock()
+		e.closeBody()
+	}
 
-		if !e.done {
-			e.done = true
-			e.body.Close() //nolint:errcheck,gosec // best-effort teardown
-		}
+	for _, c := range httpClients {
+		closeIdleConnections(c.client)
+	}
 
-		e.mu.Unlock()
+	// Generations already in flight finish before their models are torn down.
+	for _, wg := range modelCalls {
+		wg.Wait()
 	}
 
 	// Through the registry, which owns every model this bridge created and
@@ -590,11 +655,9 @@ func bridgeAiCreateModel(configJSON string) string {
 		return errorResponse("invalid config JSON: " + err.Error())
 	}
 
-	timeout := time.Duration(req.RequestTimeoutMs) * time.Millisecond
-	if timeout == 0 {
-		const defaultTimeout = 60 * time.Second
-		timeout = defaultTimeout
-	}
+	const defaultTimeout = 60 * time.Second
+
+	timeout := durationOrDefault(req.RequestTimeoutMs, defaultTimeout)
 
 	cfg := &aifx.ConfigTarget{ //nolint:exhaustruct
 		Provider:       req.Provider,
@@ -621,6 +684,7 @@ func bridgeAiCreateModel(configJSON string) string {
 	handleMu.Lock()
 	modelHandles[handle] = model
 	modelRegistryNames[handle] = registryName
+	modelInFlight[handle] = &sync.WaitGroup{}
 	handleMu.Unlock()
 
 	return marshalResponse(aiHandleResponse{Handle: handle}) //nolint:exhaustruct
@@ -628,13 +692,11 @@ func bridgeAiCreateModel(configJSON string) string {
 
 // bridgeAiGenerateText performs a blocking text generation for the given model handle.
 func bridgeAiGenerateText(modelHandle, optionsJSON string) string {
-	handleMu.RLock()
-	model, ok := modelHandles[modelHandle]
-	handleMu.RUnlock()
-
+	model, release, ok := acquireModel(modelHandle)
 	if !ok {
 		return errorResponse("model handle not found: " + modelHandle)
 	}
+	defer release()
 
 	opts, requestID, err := parseGenerateRequestWithID(optionsJSON)
 	if err != nil {
@@ -660,13 +722,15 @@ func bridgeAiGenerateText(modelHandle, optionsJSON string) string {
 
 // bridgeAiStreamText starts a streaming text generation and returns a stream handle.
 func bridgeAiStreamText(modelHandle, optionsJSON string) string {
-	handleMu.RLock()
-	model, ok := modelHandles[modelHandle]
-	handleMu.RUnlock()
-
+	// Held for the duration of the StreamText call itself, which is where the
+	// provider connection is established. Iteration afterwards is governed by
+	// the stream handle, whose own lifetime (streamState.wg) a caller ends with
+	// bridgeAiFreeStream.
+	model, release, ok := acquireModel(modelHandle)
 	if !ok {
 		return errorResponse("model handle not found: " + modelHandle)
 	}
+	defer release()
 
 	opts, requestID, err := parseGenerateRequestWithID(optionsJSON)
 	if err != nil {
@@ -709,10 +773,18 @@ func bridgeAiStreamRead(streamHandle string) string {
 	}
 	handleMu.RUnlock()
 
+	// "null" for an unknown handle is the deliberate stream-done sentinel:
+	// draining past the end and reading after a close both look the same to the
+	// caller. Close, not this read, is the authoritative lifecycle signal.
 	if !ok {
 		return "null"
 	}
 	defer state.wg.Done()
+
+	// The iterator carries mutable position state, so reads on one handle are
+	// serialized rather than allowed to race.
+	state.mu.Lock()
+	defer state.mu.Unlock()
 
 	if !state.iter.Next() {
 		// Stream ended — clean up.
@@ -740,20 +812,31 @@ func bridgeAiStreamRead(streamHandle string) string {
 }
 
 // bridgeAiCloseModel closes and removes a model handle.
+//
+// Closing an unknown or already-closed handle succeeds: close is idempotent
+// across every handle kind in this bridge.
 func bridgeAiCloseModel(modelHandle string) string {
 	handleMu.Lock()
 	model, ok := modelHandles[modelHandle]
 	registryName := modelRegistryNames[modelHandle]
+	inFlight := modelInFlight[modelHandle]
 
 	if ok {
 		delete(modelHandles, modelHandle)
 		delete(modelRegistryNames, modelHandle)
+		delete(modelInFlight, modelHandle)
 	}
 
 	handleMu.Unlock()
 
 	if !ok {
-		return errorResponse("model handle not found: " + modelHandle)
+		return "{}"
+	}
+
+	// The handle is already unreachable, so no new call can start; wait for the
+	// ones still running rather than closing the model underneath them.
+	if inFlight != nil {
+		inFlight.Wait()
 	}
 
 	// Through the registry when we know its name: RemoveModel closes the model
@@ -776,6 +859,9 @@ func bridgeAiCloseModel(modelHandle string) string {
 }
 
 // bridgeAiFreeStream cancels and removes a stream handle.
+//
+// Freeing an unknown or already-freed handle succeeds: close is idempotent
+// across every handle kind in this bridge.
 //
 //nolint:unparam // uniform string return is part of the exported C ABI
 func bridgeAiFreeStream(streamHandle string) string {
@@ -1322,6 +1408,31 @@ type httpResponseOutput struct {
 // HTTP bridge functions
 // ---------------------------------------------------------------------------
 
+// countOrDefault converts a JSON-supplied count to uint, falling back to
+// fallback when it is absent or negative.
+//
+// The conversion matters: uint(-1) is 18446744073709551615, so a negative
+// failureThreshold or maxAttempts silently became an effectively infinite one
+// instead of being rejected.
+func countOrDefault(v int, fallback uint) uint {
+	if v <= 0 {
+		return fallback
+	}
+
+	return uint(v)
+}
+
+// durationOrDefault converts a JSON-supplied millisecond count to a Duration,
+// falling back to fallback when it is absent or negative. A negative duration
+// is never a meaningful timeout or interval.
+func durationOrDefault(ms int, fallback time.Duration) time.Duration {
+	if ms <= 0 {
+		return fallback
+	}
+
+	return time.Duration(ms) * time.Millisecond
+}
+
 // bridgeHttpCreate parses JSON config, creates an httpclient.Client, and
 // stores it under a generated handle. Returns JSON with the handle.
 func bridgeHttpCreate(configJSON string) string {
@@ -1330,33 +1441,19 @@ func bridgeHttpCreate(configJSON string) string {
 		return errorResponse("invalid config JSON: " + err.Error())
 	}
 
-	failureThreshold := uint(req.FailureThreshold)
-	if failureThreshold == 0 {
-		failureThreshold = 5
-	}
+	const (
+		defaultFailureThreshold = 5
+		defaultResetTimeout     = 10 * time.Second
+		defaultMaxAttempts      = 3
+		defaultInitialInterval  = 100 * time.Millisecond
+		defaultMaxInterval      = 10 * time.Second
+	)
 
-	resetTimeout := time.Duration(req.ResetTimeoutMs) * time.Millisecond
-	if resetTimeout == 0 {
-		const defaultResetTimeout = 10 * time.Second
-		resetTimeout = defaultResetTimeout
-	}
-
-	maxAttempts := uint(req.MaxAttempts)
-	if maxAttempts == 0 {
-		maxAttempts = 3
-	}
-
-	initialInterval := time.Duration(req.InitialIntervalMs) * time.Millisecond
-	if initialInterval == 0 {
-		const defaultInitialInterval = 100 * time.Millisecond
-		initialInterval = defaultInitialInterval
-	}
-
-	maxInterval := time.Duration(req.MaxIntervalMs) * time.Millisecond
-	if maxInterval == 0 {
-		const defaultMaxInterval = 10 * time.Second
-		maxInterval = defaultMaxInterval
-	}
+	failureThreshold := countOrDefault(req.FailureThreshold, defaultFailureThreshold)
+	resetTimeout := durationOrDefault(req.ResetTimeoutMs, defaultResetTimeout)
+	maxAttempts := countOrDefault(req.MaxAttempts, defaultMaxAttempts)
+	initialInterval := durationOrDefault(req.InitialIntervalMs, defaultInitialInterval)
+	maxInterval := durationOrDefault(req.MaxIntervalMs, defaultMaxInterval)
 
 	cfg := &httpclient.Config{ //nolint:exhaustruct
 		CircuitBreaker: httpclient.CircuitBreakerConfig{
@@ -1479,18 +1576,53 @@ func bridgeHttpRequest(requestJSON string) string {
 	return marshalResponse(out)
 }
 
-// bridgeHttpClose removes a stored http client handle.
+// closeIdleConnections releases the pooled TCP connections a client's
+// transport is holding.
+//
+// http.Client.CloseIdleConnections only forwards to a transport that
+// implements the method, and httpclient.ResilientTransport does not -- it
+// wraps the real one -- so the call has to reach through to the inner
+// transport or the pooled sockets outlive the handle.
+func closeIdleConnections(client *httpclient.Client) {
+	if client == nil {
+		return
+	}
+
+	type idleCloser interface{ CloseIdleConnections() }
+
+	if client.Transport != nil {
+		if inner, ok := client.Transport.Transport.(idleCloser); ok {
+			inner.CloseIdleConnections()
+
+			return
+		}
+	}
+
+	if client.Client != nil {
+		client.CloseIdleConnections()
+	}
+}
+
+// bridgeHttpClose removes a stored http client handle and drops its pooled
+// connections.
+//
+// Closing an unknown or already-closed handle succeeds: close is idempotent
+// across every handle kind in this bridge.
+//
+//nolint:unparam // uniform string return is part of the exported C ABI
 func bridgeHttpClose(handle string) string {
 	httpMu.Lock()
-	_, ok := httpClientHandles[handle]
+	state, ok := httpClientHandles[handle]
 	if ok {
 		delete(httpClientHandles, handle)
 	}
 	httpMu.Unlock()
 
 	if !ok {
-		return errorResponse("http client handle not found: " + handle)
+		return "{}"
 	}
+
+	closeIdleConnections(state.client)
 
 	return "{}"
 }
@@ -1506,8 +1638,27 @@ var (
 
 type httpStreamEntry struct {
 	body io.ReadCloser
-	mu   sync.Mutex
-	done bool
+
+	// mu serializes concurrent reads on one handle. Close must never take it:
+	// a read blocked on a stalled SSE or long-poll body holds it until the
+	// server sends bytes, and a Close that waited behind it would hang the
+	// calling FFI thread for exactly as long.
+	mu sync.Mutex
+
+	// closeOnce/done make body teardown safe from any thread. http.Response.Body
+	// is documented as safe to Close concurrently with a Read in flight, and
+	// doing so is what unblocks that read.
+	closeOnce sync.Once
+	done      atomic.Bool
+}
+
+// closeBody tears the response body down exactly once, from any goroutine and
+// without holding entry.mu.
+func (e *httpStreamEntry) closeBody() {
+	e.closeOnce.Do(func() {
+		e.done.Store(true)
+		e.body.Close() //nolint:errcheck,gosec // best-effort teardown
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -1639,7 +1790,7 @@ func bridgeHttpStreamRead(handle string) string {
 	entry.mu.Lock()
 	defer entry.mu.Unlock()
 
-	if entry.done {
+	if entry.done.Load() {
 		return marshalResponse(httpStreamReadOutput{Done: true}) //nolint:exhaustruct
 	}
 
@@ -1649,23 +1800,20 @@ func bridgeHttpStreamRead(handle string) string {
 	if n > 0 {
 		chunk := base64.StdEncoding.EncodeToString(buf[:n])
 		if err == io.EOF {
-			entry.done = true
-			entry.body.Close() //nolint:errcheck,gosec // best-effort teardown
+			entry.closeBody()
 		}
 
-		return marshalResponse(httpStreamReadOutput{Chunk: chunk, Done: entry.done}) //nolint:exhaustruct
+		return marshalResponse(httpStreamReadOutput{Chunk: chunk, Done: entry.done.Load()}) //nolint:exhaustruct
 	}
 
 	if err == io.EOF {
-		entry.done = true
-		entry.body.Close() //nolint:errcheck,gosec // best-effort teardown
+		entry.closeBody()
 
 		return marshalResponse(httpStreamReadOutput{Done: true}) //nolint:exhaustruct
 	}
 
 	if err != nil {
-		entry.done = true
-		entry.body.Close() //nolint:errcheck,gosec // best-effort teardown
+		entry.closeBody()
 
 		return errorResponse("stream read error: " + err.Error())
 	}
@@ -1674,6 +1822,11 @@ func bridgeHttpStreamRead(handle string) string {
 }
 
 // bridgeHttpStreamClose cancels an open stream handle and removes it.
+//
+// Closing an unknown or already-closed handle succeeds: close is idempotent
+// across every handle kind in this bridge.
+//
+//nolint:unparam // uniform string return is part of the exported C ABI
 func bridgeHttpStreamClose(handle string) string {
 	httpStreamMu.Lock()
 	entry, ok := httpStreamHandles[handle]
@@ -1685,16 +1838,12 @@ func bridgeHttpStreamClose(handle string) string {
 	httpStreamMu.Unlock()
 
 	if !ok {
-		return errorResponse("http stream handle not found: " + handle)
+		return "{}"
 	}
 
-	entry.mu.Lock()
-	defer entry.mu.Unlock()
-
-	if !entry.done {
-		entry.done = true
-		entry.body.Close() //nolint:errcheck,gosec // best-effort teardown
-	}
+	// Deliberately not under entry.mu: an in-flight read holds that lock until
+	// the server sends bytes, and closing the body is what makes it return.
+	entry.closeBody()
 
 	return "{}"
 }
@@ -1707,8 +1856,28 @@ type logEntry struct {
 	logger    *slog.Logger
 	levelVar  *slog.LevelVar
 	scopeName string
+
+	// mu guards filters and formatter.
+	//
+	// Deno declares the log FFI symbols nonblocking, so Configure and Write
+	// genuinely run on different threads: without this, Configure's writes race
+	// Write's reads. levelVar needs no guard of its own -- slog.LevelVar is
+	// already goroutine-safe -- and logger/scopeName are never reassigned after
+	// creation.
+	mu        sync.RWMutex
 	filters   logfx.FilterFunc
 	formatter logfx.FormatterFunc
+}
+
+// snapshot returns the entry's current filter chain and formatter.
+//
+// Both are read together under one lock so a write cannot observe the filters
+// from one Configure call and the formatter from another.
+func (e *logEntry) snapshot() (logfx.FilterFunc, logfx.FormatterFunc) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	return e.filters, e.formatter
 }
 
 var (
@@ -1852,6 +2021,16 @@ func bridgeLogWrite(requestJSON string) string {
 
 	level := parseLogLevel(req.Level)
 
+	// Level gate, applied before either emit path.
+	//
+	// The slog path inherits it from its handler, but the custom-formatter path
+	// writes straight to stderr and would otherwise bypass it entirely -- a
+	// DEBUG record emitted from a handle configured at ERROR, which
+	// bridgeLogShouldLog reports as disabled. Both now consult the same gate.
+	if !entry.logger.Enabled(context.Background(), level) {
+		return marshalResponse(map[string]any{"filtered": true})
+	}
+
 	// Build slog.Attrs; prepend scope so category filters can match.
 	slogAttrs := make([]slog.Attr, 0, len(req.Attrs)+1)
 	if entry.scopeName != "" {
@@ -1862,16 +2041,18 @@ func bridgeLogWrite(requestJSON string) string {
 		slogAttrs = append(slogAttrs, slog.Any(k, v))
 	}
 
+	filters, formatter := entry.snapshot()
+
 	// Apply filter chain — drop record without writing.
-	if entry.filters != nil && !entry.filters(level, req.Message, slogAttrs) {
+	if filters != nil && !filters(level, req.Message, slogAttrs) {
 		return marshalResponse(map[string]any{"filtered": true})
 	}
 
 	// Custom formatter: write formatted string directly to stderr.
-	if entry.formatter != nil {
+	if formatter != nil {
 		rec := slog.NewRecord(time.Now(), level, req.Message, 0)
 		rec.AddAttrs(slogAttrs...)
-		fmt.Fprintln(os.Stderr, entry.formatter(rec))
+		fmt.Fprintln(os.Stderr, formatter(rec))
 
 		return "{}"
 	}
@@ -1888,17 +2069,15 @@ func bridgeLogWrite(requestJSON string) string {
 }
 
 // bridgeLogClose removes a stored logger handle.
+//
+// Closing an unknown or already-closed handle succeeds: close is idempotent
+// across every handle kind in this bridge.
+//
+//nolint:unparam // uniform string return is part of the exported C ABI
 func bridgeLogClose(handle string) string {
 	logMu.Lock()
-	_, ok := logHandles[handle]
-	if ok {
-		delete(logHandles, handle)
-	}
+	delete(logHandles, handle)
 	logMu.Unlock()
-
-	if !ok {
-		return errorResponse("log handle not found: " + handle)
-	}
 
 	return "{}"
 }
@@ -1964,6 +2143,11 @@ func bridgeLogConfigure(requestJSON string) string {
 		entry.levelVar.Set(parseLogLevel(req.Level))
 	}
 
+	// Both fields are published under the entry's own lock: bridgeLogWrite reads
+	// them concurrently on another thread, and two Configure calls would
+	// otherwise race each other as well.
+	entry.mu.Lock()
+
 	if len(req.Filters) > 0 {
 		entry.filters = buildFilterChain(req.Filters)
 	}
@@ -1971,6 +2155,8 @@ func bridgeLogConfigure(requestJSON string) string {
 	if req.Formatter != "" {
 		entry.formatter = buildFormatter(req.Formatter)
 	}
+
+	entry.mu.Unlock()
 
 	return "{}"
 }
@@ -2666,22 +2852,19 @@ func noskillsBridgeApplyAnswer(
 	return state, nil
 }
 
-// noskillsBridgeDetectBranch reads .git/HEAD to detect the current branch name.
-// Falls back to "main" when detection fails.
+// noskillsBridgeDetectBranch detects the current branch name for root, falling
+// back to "main" when detection fails.
+//
+// This used to hand-parse .git/HEAD, which the shared helper already does
+// properly -- and which got worktrees and linked repos (where .git is a file,
+// not a directory) wrong.
 func noskillsBridgeDetectBranch(root string) string {
-	data, err := os.ReadFile(root + "/.git/HEAD") //nolint:gosec // path from validated root
-	if err != nil {
+	branch, err := codebasefx.GetCurrentBranch(context.Background(), root)
+	if err != nil || branch == "" {
 		return "main"
 	}
 
-	line := strings.TrimSpace(string(data))
-
-	const headPrefix = "ref: refs/heads/"
-	if strings.HasPrefix(line, headPrefix) {
-		return strings.TrimPrefix(line, headPrefix)
-	}
-
-	return "main"
+	return branch
 }
 
 // ---------------------------------------------------------------------------
@@ -2778,6 +2961,7 @@ func (t *shellWorkflowTool) Run(ctx context.Context, options map[string]any) (*w
 	}
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", command) //nolint:gosec // command from trusted caller
+	processfx.HardenCommand(cmd)
 	cmd.Dir = root
 
 	out, err := cmd.CombinedOutput()
@@ -4239,35 +4423,12 @@ func bridgeCodebaseValidateFiles(requestJSON string) string {
 	}
 
 	// Resolve requested validators (nil = all builtins).
-	validators := resolveValidators(req.Validators, req.ValidatorOptions)
-	rawResults := codebasefx.RunValidators(files, validators)
-	names := validatorNames(req.Validators)
-
-	jsonResults := make([]codebaseValidatorResultJSON, len(rawResults))
-
-	for i, r := range rawResults {
-		name := ""
-		if i < len(names) {
-			name = names[i]
-		}
-
-		issues := make([]codebaseValidatorIssueJSON, 0, len(r.Issues))
-		for _, iss := range r.Issues {
-			issues = append(issues, codebaseValidatorIssueJSON{
-				Severity: iss.Severity,
-				File:     iss.File,
-				Line:     iss.Line,
-				Message:  iss.Message,
-			})
-		}
-
-		jsonResults[i] = codebaseValidatorResultJSON{
-			Name:         name,
-			Passed:       r.Passed,
-			Issues:       issues,
-			FilesChecked: r.FilesChecked,
-		}
+	entries, err := resolveValidatorEntries(req.Validators, req.ValidatorOptions)
+	if err != nil {
+		return marshalResponse(codebaseValidateResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
+
+	jsonResults := runValidatorEntries(files, entries)
 
 	return marshalResponse(codebaseValidateResponse{Results: jsonResults}) //nolint:exhaustruct
 }
@@ -4313,9 +4474,42 @@ func resolveFilenameValidator(opts map[string]interface{}) codebasefx.ValidatorF
 	return codebasefx.ValidateFilenames(rules, excludes)
 }
 
-// resolveValidators maps names to ValidatorFuncs. Empty/nil = all builtins.
-func resolveValidators(names []string, opts map[string]interface{}) []codebasefx.ValidatorFunc {
-	all := map[string]codebasefx.ValidatorFunc{
+// ErrUnknownValidator is returned when a caller asks for a validator name the
+// bridge does not know.
+var ErrUnknownValidator = errors.New("unknown validator")
+
+// validatorEntry ties a reported name to the validator that produces the
+// result carrying it.
+//
+// The two used to be built as separate parallel lists, which drifted: the name
+// list was ordered eof, bom, trailing, line-endings, merge-conflicts, secrets
+// while codebasefx.BuiltinValidators runs eof, trailing, bom, merge-conflicts,
+// line-endings, secrets — so trailing-whitespace issues were reported as "bom"
+// and merge conflicts as "line-endings". Keeping them in one struct makes that
+// class of mismatch unrepresentable.
+type validatorEntry struct {
+	fn   codebasefx.ValidatorFunc
+	name string
+}
+
+// defaultValidatorEntries is the set used when no validators are requested.
+//
+// It mirrors codebasefx.BuiltinValidators in both membership and order; the
+// pairing is asserted against that function by test.
+func defaultValidatorEntries() []validatorEntry {
+	return []validatorEntry{
+		{name: "eof", fn: codebasefx.ValidateEOF},
+		{name: "trailing", fn: codebasefx.ValidateTrailingWhitespace},
+		{name: "bom", fn: codebasefx.ValidateBOM},
+		{name: "merge-conflicts", fn: codebasefx.ValidateMergeConflicts},
+		{name: "line-endings", fn: codebasefx.ValidateLineEndings},
+		{name: "secrets", fn: codebasefx.ValidateSecrets},
+	}
+}
+
+// validatorsByName maps every requestable short name to its validator.
+func validatorsByName(opts map[string]interface{}) map[string]codebasefx.ValidatorFunc {
+	return map[string]codebasefx.ValidatorFunc{
 		"eof":             codebasefx.ValidateEOF,
 		"bom":             codebasefx.ValidateBOM,
 		"trailing":        codebasefx.ValidateTrailingWhitespace,
@@ -4334,29 +4528,72 @@ func resolveValidators(names []string, opts map[string]interface{}) []codebasefx
 		"runtime-js-apis": codebasefx.ValidateRuntimeJSAPIs,
 		"filenames":       resolveFilenameValidator(opts),
 	}
+}
 
+// resolveValidatorEntries maps requested names to name/validator pairs, in the
+// order requested. Empty/nil = the builtin set.
+//
+// An unknown name is an error rather than a silent drop: dropping it shortened
+// the validator list while the reported names still echoed the request, so
+// every result after the dropped entry carried the wrong name.
+func resolveValidatorEntries(
+	names []string,
+	opts map[string]interface{},
+) ([]validatorEntry, error) {
 	if len(names) == 0 {
-		return codebasefx.BuiltinValidators()
+		return defaultValidatorEntries(), nil
 	}
 
-	var out []codebasefx.ValidatorFunc
+	all := validatorsByName(opts)
+	entries := make([]validatorEntry, 0, len(names))
 
 	for _, name := range names {
-		if vf, ok := all[name]; ok {
-			out = append(out, vf)
+		vf, ok := all[name]
+		if !ok {
+			return nil, fmt.Errorf("%w: %q", ErrUnknownValidator, name)
 		}
+
+		entries = append(entries, validatorEntry{name: name, fn: vf})
+	}
+
+	return entries, nil
+}
+
+// runValidatorEntries runs the paired validators over files and labels each
+// result with the name it was resolved from.
+func runValidatorEntries(
+	files []codebasefx.FileEntry,
+	entries []validatorEntry,
+) []codebaseValidatorResultJSON {
+	funcs := make([]codebasefx.ValidatorFunc, 0, len(entries))
+	for _, e := range entries {
+		funcs = append(funcs, e.fn)
+	}
+
+	rawResults := codebasefx.RunValidators(files, funcs)
+
+	out := make([]codebaseValidatorResultJSON, 0, len(rawResults))
+
+	for i, r := range rawResults {
+		issues := make([]codebaseValidatorIssueJSON, 0, len(r.Issues))
+		for _, iss := range r.Issues {
+			issues = append(issues, codebaseValidatorIssueJSON{
+				Severity: iss.Severity,
+				File:     iss.File,
+				Line:     iss.Line,
+				Message:  iss.Message,
+			})
+		}
+
+		out = append(out, codebaseValidatorResultJSON{
+			Name:         entries[i].name,
+			Passed:       r.Passed,
+			Issues:       issues,
+			FilesChecked: r.FilesChecked,
+		})
 	}
 
 	return out
-}
-
-// validatorNames returns names for the resolved set, falling back to builtin names.
-func validatorNames(requested []string) []string {
-	if len(requested) > 0 {
-		return requested
-	}
-
-	return []string{"eof", "bom", "trailing", "line-endings", "merge-conflicts", "secrets"}
 }
 
 // ---------------------------------------------------------------------------
@@ -4563,6 +4800,9 @@ func bridgeCodebaseWalkFilesStreamRead(handle string) string {
 	}
 	codebaseWalkStreamMu.RUnlock()
 
+	// "null" for an unknown handle is the deliberate stream-done sentinel:
+	// draining past the end and reading after a close both look the same to the
+	// caller. Close, not this read, is the authoritative lifecycle signal.
 	if !ok {
 		return "null"
 	}
@@ -4639,35 +4879,19 @@ func bridgeCodebaseValidateFilesStreamCreate(requestJSON string) string {
 			return
 		}
 
-		validators := resolveValidators(req.Validators, req.ValidatorOptions)
-		rawResults := codebasefx.RunValidators(files, validators)
-		names := validatorNames(req.Validators)
-
-		for i, r := range rawResults {
-			name := ""
-			if i < len(names) {
-				name = names[i]
-			}
-
-			issues := make([]codebaseValidatorIssueJSON, 0, len(r.Issues))
-			for _, iss := range r.Issues {
-				issues = append(issues, codebaseValidatorIssueJSON{
-					Severity: iss.Severity,
-					File:     iss.File,
-					Line:     iss.Line,
-					Message:  iss.Message,
-				})
-			}
-
-			item := marshalResponse(codebaseValidatorResultJSON{
-				Name:         name,
-				Passed:       r.Passed,
-				Issues:       issues,
-				FilesChecked: r.FilesChecked,
-			})
-
+		entries, err := resolveValidatorEntries(req.Validators, req.ValidatorOptions)
+		if err != nil {
 			select {
-			case state.ch <- item:
+			case state.ch <- marshalError(err.Error()):
+			case <-ctx.Done():
+			}
+
+			return
+		}
+
+		for _, result := range runValidatorEntries(files, entries) {
+			select {
+			case state.ch <- marshalResponse(result):
 			case <-ctx.Done():
 				return
 			}
@@ -4694,6 +4918,9 @@ func bridgeCodebaseValidateFilesStreamRead(handle string) string {
 	}
 	codebaseValidateStreamMu.RUnlock()
 
+	// "null" for an unknown handle is the deliberate stream-done sentinel:
+	// draining past the end and reading after a close both look the same to the
+	// caller. Close, not this read, is the authoritative lifecycle signal.
 	if !ok {
 		return "null"
 	}
@@ -4960,7 +5187,7 @@ func bridgeParsingTokenizerCreate(requestJSON string) string {
 	handle := newHandle("tokenizer")
 
 	handleMu.Lock()
-	tokenizerHandles[handle] = tok
+	tokenizerHandles[handle] = &tokenizerState{tok: tok} //nolint:exhaustruct
 	handleMu.Unlock()
 
 	return marshalResponse(parsingTokenizerHandleResponse{Handle: handle}) //nolint:exhaustruct
@@ -4975,14 +5202,19 @@ func bridgeParsingTokenizerPush(requestJSON string) string {
 	}
 
 	handleMu.RLock()
-	tok, ok := tokenizerHandles[req.Handle]
+	state, ok := tokenizerHandles[req.Handle]
 	handleMu.RUnlock()
 
 	if !ok {
 		return marshalResponse(parsingTokenizeResponse{Error: "unknown tokenizer handle: " + req.Handle}) //nolint:exhaustruct
 	}
 
-	tokens, err := tok.Push(req.Chunk)
+	// The tokenizer buffers a partial token between pushes, so pushes on one
+	// handle are serialized rather than allowed to interleave.
+	state.mu.Lock()
+	tokens, err := state.tok.Push(req.Chunk)
+	state.mu.Unlock()
+
 	if err != nil {
 		return marshalResponse(parsingTokenizeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
@@ -5006,7 +5238,7 @@ func bridgeParsingTokenizerClose(requestJSON string) string {
 	}
 
 	handleMu.Lock()
-	tok, ok := tokenizerHandles[req.Handle]
+	state, ok := tokenizerHandles[req.Handle]
 
 	if ok {
 		delete(tokenizerHandles, req.Handle)
@@ -5014,11 +5246,16 @@ func bridgeParsingTokenizerClose(requestJSON string) string {
 
 	handleMu.Unlock()
 
+	// Closing an unknown or already-closed handle succeeds, with nothing left
+	// to flush: close is idempotent across every handle kind in this bridge.
 	if !ok {
-		return marshalResponse(parsingTokenizeResponse{Error: "unknown tokenizer handle: " + req.Handle}) //nolint:exhaustruct
+		return marshalResponse(parsingTokenizeResponse{Tokens: []parsingTokenJSON{}}) //nolint:exhaustruct
 	}
 
-	tokens, err := tok.Flush()
+	state.mu.Lock()
+	tokens, err := state.tok.Flush()
+	state.mu.Unlock()
+
 	if err != nil {
 		return marshalResponse(parsingTokenizeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
@@ -5164,6 +5401,11 @@ func bridgeShellTuiKeypressRead(handle string) string {
 }
 
 // bridgeShellTuiKeypressClose cancels and removes a keypress handle.
+//
+// Closing an unknown or already-closed handle succeeds: close is idempotent
+// across every handle kind in this bridge.
+//
+//nolint:unparam // uniform string return is part of the exported C ABI
 func bridgeShellTuiKeypressClose(handle string) string {
 	handleMu.Lock()
 	reader, ok := tuiKeypressHandles[handle]
@@ -5175,7 +5417,7 @@ func bridgeShellTuiKeypressClose(handle string) string {
 	handleMu.Unlock()
 
 	if !ok {
-		return marshalError("handle not found: " + handle)
+		return "{}"
 	}
 
 	reader.Close()
@@ -5315,6 +5557,9 @@ func bridgeShellExecWrite(requestJSON string) string {
 }
 
 // bridgeShellExecClose terminates the process and removes the handle.
+//
+// Closing an unknown or already-closed handle succeeds with exit code 0: close
+// is idempotent across every handle kind in this bridge.
 func bridgeShellExecClose(handle string) string {
 	handleMu.Lock()
 	h := execHandles[handle]
@@ -5322,7 +5567,7 @@ func bridgeShellExecClose(handle string) string {
 	handleMu.Unlock()
 
 	if h == nil {
-		return marshalResponse(shellExecCloseResponse{Error: "unknown handle: " + handle}) //nolint:exhaustruct
+		return marshalResponse(shellExecCloseResponse{Code: 0}) //nolint:exhaustruct
 	}
 
 	code := h.Close()
@@ -5494,6 +5739,9 @@ func bridgeShellPtyKill(requestJSON string) string {
 }
 
 // bridgeShellPtyClose terminates the PTY and removes the handle.
+//
+// Closing an unknown or already-closed handle succeeds with exit code 0: close
+// is idempotent across every handle kind in this bridge.
 func bridgeShellPtyClose(handle string) string {
 	handleMu.Lock()
 	s := ptyHandles[handle]
@@ -5501,7 +5749,7 @@ func bridgeShellPtyClose(handle string) string {
 	handleMu.Unlock()
 
 	if s == nil {
-		return marshalResponse(shellPtyCloseResponse{Error: "unknown handle: " + handle}) //nolint:exhaustruct
+		return marshalResponse(shellPtyCloseResponse{Code: 0}) //nolint:exhaustruct
 	}
 
 	code := s.Close()

@@ -477,7 +477,44 @@ Origin allowlist + JSON content-type gate; token delivered to the browser via a
 `newTab` actions while leaving the local TUI's capability intact. 15 tests, 5 of
 them end-to-end against a live server.
 
-## P0 — Related lower-severity security hardening
+## ~~P0~~ DONE — Related lower-severity security hardening
+
+**Done (2026-08-09).** All four resolved; two were worse or wider than
+described.
+
+- **CORS — the entry understated this.** `cors_middleware.go:109-113` was not a
+  permissive default, it was _unconditional origin reflection_. Browsers reject
+  `ACAO: *` together with credentials, so the wildcard default failed CLOSED;
+  that branch converted an inert misconfiguration into a working
+  any-origin-with- credentials policy — live on the daemon, wired ahead of
+  `PinAuthMiddleware` on a router serving `/auth/login`. Combined with the XFF
+  item below, any page a victim visited could drive PIN guesses at their daemon
+  and read the token from the response. The reflect-on-wildcard branch is
+  deleted, credentials default to false, `Vary: Origin` is emitted whenever the
+  origin is request-dependent, and the comma-list bug (emitting the whole joined
+  string as one invalid `ACAO`) is fixed. The test that pinned the insecure
+  default was updated.
+- **X-Forwarded-For.** New `httpfx.TrustedProxies` primitive, allowlist empty by
+  default (trusts nobody), nil-safe so a config error degrades to `RemoteAddr`
+  only. Forwarded headers are read solely when the immediate peer is trusted,
+  and the chain is walked **right-to-left** to the first untrusted hop — the old
+  code took the left-most element, which is entirely attacker-supplied. Wired
+  through config → server → auth handler, and `resolve_address_middleware.go`,
+  which had the identical bug class, now shares the same primitive instead of
+  repeating it.
+- **QUIC cert pinning — already fixed** by c06b36ce/b4ffb796 before this pass.
+  Both sites hash `rawCerts[0]` only and additionally cover resumed handshakes
+  via `VerifyConnection`. The line numbers in the original entry were stale.
+- **`eser update` fail-open.** Both branches inverted to fail closed, and the
+  match tightened from `includes()` to an exact second-field comparison
+  mirroring `install.sh` — a substring test would accept the line for
+  `<archive>.sig` or `<archive>.sha256`. The file had also moved to
+  `codebase/cli-system/handlers/update.ts`. **The entry missed a fourth site:**
+  `etc/scripts/install.ps1` fails open too (and its `WebException` catch is
+  version-dependent, missing PowerShell 7's `HttpResponseException`); fixed in
+  the same pass.
+
+Original description follows.
 
 **What:** Four independent fixes, each small:
 
@@ -535,7 +572,68 @@ backends both do this correctly.
 `koffi.decode(ptr, "char", -1)`, then freed. Measured end-to-end against the
 real bridge: 73.7 MB -> 22 MB RSS growth over 200k calls.
 
-## P1 — One memoized FFI client, replacing 19 copies
+## ~~P1~~ DONE — One memoized FFI client, replacing 19 copies
+
+**Done (2026-08-09).** `loadEserAjan` now shares handles, and
+`@eserstack/ajan/ffi/client` is the single loader every package goes through.
+All **18** real singletons are gone — a repo-wide grep for `_libPromise` outside
+the ajan package returns nothing. The 14 `ffi-client.ts` files became ~11-line
+re-export shims rather than being deleted, because those module paths are what
+each package's own code imports; the 4 `adapters/ffi/loader.ts` copies now
+import the shared client, so crypto, formats and parsing hold one handle each
+instead of two. The 3 shell-local `requireLib` helpers were deliberately kept:
+they are not loaders, just null-checks carrying a domain-specific message
+("EserAjanShellPty* requires FFI or command-mode WASM"), and they now delegate
+through the shim.
+
+Sharing makes `close()` a cross-package action, so handles are **reference
+counted**: each caller gets a wrapper whose `close()` is idempotent for that
+caller, and the library really closes only when the last holder releases. That
+prevents one package from unmapping a library another is still calling.
+Deliberate second decision: a **failed** open is not cached, because the usual
+causes (library not built yet, permission not granted) change within a process
+lifetime and a later attempt should be allowed to succeed.
+
+`getLoadError()` is the point of the exercise — every one of the old copies
+ended in `.catch(() => {})`, discarding the checked-paths list and the
+native-vs-WASM cause that `ffi/mod.ts` had carefully built.
+
+Verified by `ffi/client_test.ts`: concurrent callers get distinct wrappers over
+one shared `symbols` object; one holder closing leaves another's handle working;
+a double-close does not decrement twice; the last close really closes and the
+guard then refuses calls; a released entry reopens on the next request.
+
+**Not done:** the `callJson` envelope helper this entry also proposed. Each
+package throws its own typed errors with its own message mapping (see
+`formats/adapters/ffi/loader.ts`), and adding a helper without migrating those
+call sites onto it would just be dead code. Filed as remaining below.
+
+### ~~Remaining from this entry~~ DONE — `callJson` envelope helper
+
+**Done (2026-08-10).** `callJson` lives in `@eserstack/ajan/ffi/client` and the
+four `adapters/ffi/loader.ts` files (formats, crypto, parsing, config) now go
+through it — 8 call sites, each losing its own copy of ensure/null-check/
+stringify/parse/error-test.
+
+The design point that made earlier attempts not fit: the error TYPES are the one
+genuinely per-package part. Each package throws its own class with its own code
+mapping (`FormatFfiError` recovering `FORMAT_NOT_FOUND` from the message,
+`CryptoError` recovering `CRYPTO_UNKNOWN_ALGORITHM`, and so on). So `callJson`
+takes `onUnavailable` and `onError` factories rather than flattening everything
+into one generic error — which is what I had previously judged would make the
+helper dead code, and was the right call until it was shaped this way.
+
+Two details worth keeping: `invoke` is awaited, so the nine symbols Deno marks
+`nonblocking` work unchanged alongside the synchronous ones; and the error field
+is only treated as a failure when it is a **non-empty string**, because the
+bridge omits it on success and some responses legitimately carry `error: null`.
+
+**Not migrated, deliberately:** the remaining call sites in `logging`, `shell`,
+`codebase` and the AI bridge do not share this envelope — they stream, poll
+handles, or shape their own responses — so routing them through `callJson` would
+mean contorting the helper rather than removing duplication.
+
+### Original entry
 
 **What:** A single `@eserstack/ajan/ffi/client` exporting `ensureLib` / `getLib`
 / `requireLib` / `getLoadError()`, deleting the 19 duplicates. Generate the
@@ -557,9 +655,57 @@ useful error string that `pkg/@eserstack/ajan/ffi/mod.ts:199-260` constructs.
 **Context:** This is the load-bearing seam joining the Go and TS halves and it
 has no owner. Highest leverage-per-hour item in the audit after `go.work`.
 
-**Effort:** M
+**Update (2026-08-09 FFI review):** the count is now **21** copies, not 19 — 14
+`ffi-client.ts` files (byte-identical modulo comments; verified by diffing
+`cache` vs `collector`), 4 `adapters/ffi/loader.ts` re-implementations (config,
+formats, crypto, parsing), and 3 shell-local `requireLib` wrappers
+(`shell/exec/child-go.ts:23-31`, `shell/exec/pty-go.ts:20-28`,
+`shell/tui/keypress-go.ts:21-28`). Worse: formats, crypto, and parsing each
+carry **two independent singletons in the same package**, both reachable from
+the package's public `mod.ts` (e.g. `formats/mod.ts:58`, `crypto/mod.ts:18`),
+with divergent error mapping for the same symbols — so one package can hold two
+dlopen handles. A process touching logging + shell + formats + codebase dlopens
+the same dylib 4+ times. The fix shape stands: memoize inside `ajan/ffi/mod.ts`
+(per-path) and ship `@eserstack/ajan/ffi/client` with
+`ensureLib`/`getLib`/`requireLib` plus a `callJson(symbol, req)` envelope helper
+(~10 lines of `stringify → call → parse → error-check` repeat at 30+ call sites,
+~300 lines total).
 
-## P1 — Make the Go-bridge-vs-TS adapter choice observable and lossless
+**Effort:** M — done, see the summary at the top of this entry.
+
+## ~~P1~~ DONE — Make the Go-bridge-vs-TS adapter choice observable and lossless
+
+**Mostly already fixed; the observability gap is now closed too (2026-08-09).**
+
+**The "lossless" half was stale.** The bridge already carries every generation
+option -- `Temperature`, `TopP`, `ThinkingBudget`, `ResponseFormat` and `Tools`
+all map through `bridge.go`, with the first three as pointers specifically so
+"unset" stays unset rather than becoming a zero the provider would honour. The
+`//nolint:exhaustruct` this entry blamed is gone from that path, and
+`bridge_ai_wire_test.go` pins the mapping.
+
+**The "silently falls back" half was stale in its stated form.** The choice is
+per-provider now, not all-or-nothing, and the TS adapters are retained
+deliberately: they are the only working path when no NATIVE binary loads, and
+the bridge refuses to load over WASM precisely so that case falls back rather
+than registering a provider that is present and broken. That reasoning is
+documented at the call site.
+
+**What was genuinely still open: the reason was discarded.**
+`tryLoadBridgeFactories` ended in a bare `catch { return [] }`, so falling back
+silently changed which implementation answers every AI call with nothing left to
+explain why -- no native binary for this platform, an ungranted FFI permission,
+a library that failed to open. It now records the cause and exposes it as
+`getBridgeLoadError()`, re-exported from `adapters/mod.ts`. The underlying
+loader's own diagnostic (checked paths, native-vs-WASM cause) survives as the
+error's `cause`, since `ffi/mod.ts` no longer discards it either.
+
+**Still open:** nothing reports which implementation actually served a given
+call. `getBridgeLoadError()` answers "why not the bridge", which is the question
+a bug report needs; a per-provider "who served this" readout would need a
+decision about where it surfaces (CLI flag, `doctor` output, structured log).
+
+### Original entry
 
 **What:** Stop silently falling back; surface which implementation ran; stop
 dropping options on the bridge path.
@@ -576,7 +722,81 @@ suppressing exactly the linter that would have caught it.
 
 **Depends on:** the memoized FFI client (shared load-error reporting)
 
-## P1 — Atomic state writes and honest read failures
+## P1 — Atomic state writes and honest read failures (Go side DONE)
+
+**The destructive half is fixed (2026-08-09); the TS side and the read-failure
+classification remain open.**
+
+`WriteManifest` no longer destroys the file. This entry's worst case was real
+and reproduced before fixing: it marshalled `NosManifest` -- which models only
+the noskills keys -- and wrote the result as the ENTIRE file, so an ordinary,
+successful mutation deleted `stack:`, `workflows:` and `scripts:`. In this repo
+that means deleting the `workflows:` block `deno task cli ok` executes. It was
+reachable from the FFI bridge as well, not just the Go CLI.
+
+It now merges the managed keys into the existing document through `yaml.Node`.
+The obvious `map[string]any` merge would have passed a "foreign keys survive"
+test while silently dropping **every comment** and reordering the document
+alphabetically -- a smaller destruction, not the absence of one -- so there is a
+second test pinning comments and document order. A manifest that exists but
+cannot be parsed is now an error rather than something to overwrite.
+
+Writes go through a new `writeFileAtomic` (temp file in the same directory,
+`Sync`, `Chmod`, `Rename`), now used by `WriteManifest`, `WriteState` and
+`WriteSpecState`. `WriteState`'s doc comment had claimed "atomically writes
+state" above a plain `os.WriteFile` since it was written.
+
+**Verified divergence found while doing this, and NOT fixed** (it belongs to the
+duplicated-domain entry, and reconciling it changes an on-disk format): the TS
+writer nests the noskills keys under a `noskills:` key (`state/persistence.ts`
+does `doc.set("noskills", node)`), while Go's `ReadManifest`/`WriteManifest`
+read and write them at the document's **top level**. Neither implementation can
+see what the other wrote. `IsInitialized` also only stats the file despite its
+comment claiming it checks the noskills section; the comment is corrected in
+place.
+
+**TS side done too (2026-08-10).** `writeTextFileAtomic` (sibling temp file,
+rename, temp removed on any failure) now backs the four state-bearing writers:
+`writeState`, `writeSpecState`, `writeConcern` and the manifest writer. A
+sibling temp is required, not incidental -- rename is only atomic within a
+filesystem, so a system temp directory would silently degrade to a copy.
+
+Absent vs corrupt is now split in `readState` and `readSpecState`. The Go
+signature (`(initial, err)`) does not translate: every TS caller depends on
+these reads not throwing, so changing that would ripple everywhere for no gain.
+Instead the return value is unchanged and a corrupt file produces a one-time
+per-path warning naming the file. That is the difference between "nothing to
+restore" and "restore this" -- previously a truncated file was indistinguishable
+from an uninitialised project.
+
+**A bug the test caught, worth recording.** The first `isNotFoundError` sniffed
+Deno's `NotFound` name and Node's `ENOENT` code. The cross-runtime fs port
+normalises both into its own `NotFoundError` class, so neither matched and every
+_missing_ file was reported as corrupt -- precisely the false alarm the warning
+exists to avoid. It now checks the class, keeping the raw forms as a fallback
+for errors that bypass the port.
+
+**Finished (2026-08-10).** Session bindings are atomic too -- they were filed
+here as low stakes, which was wrong: they carry a copy of `phase`, and the
+pre-tool-use enforcement gate reads it. The two `.gitignore` writes are the only
+remaining plain writes, and they genuinely are low stakes (regenerated content,
+no user work).
+
+The list loops are fixed. The `try` used to wrap the entire walk in
+`listSpecStates` and `listConcerns`, so one corrupt file aborted enumeration and
+returned a **silently truncated list** -- every entry after the bad one looked
+as though it did not exist, under a comment claiming the catch was only about a
+missing directory. Now per-file, with the outer catch left for the absent
+directory. The regression test names files so the broken one sorts first.
+
+Worth noting where the correct pattern came from: `listSessions`, in the SAME
+file, already had the per-file try/catch. This is the audit's recurring theme in
+miniature -- the right primitive sitting next to the call sites that bypass it.
+
+Temp files are safe against all three listings: they end in `.tmp` and every
+walker filters on `.json`.
+
+### Original entry
 
 **What:** One `writeJsonAtomic` (temp + rename) routed through all four writers
 in each language; split read failures into "absent" vs "corrupt"; make Go's
@@ -604,7 +824,66 @@ the hot paths. Go already splits absent-vs-corrupt correctly at
 
 **Effort:** M
 
-## P1 — Give workflow state a single owner and a single reader
+## P1 — Give workflow state a single owner and a single reader (READER FIXED)
+
+**The enforcement-gate half is fixed (2026-08-09); the single-writer half
+remains open.**
+
+The reader bug was real and is the part with teeth, because it silently relaxes
+enforcement. `handlePreToolUse` in `commands/invoke-hook.ts` read
+`persistence.readState(root)` directly in its no-session branch, so once a
+spec-scoped command moved a spec's phase, the gate kept consulting the global
+copy — still saying `EXECUTING` — and permitted file edits the state machine no
+longer allowed. No crash and no error; enforcement just applied a phase that was
+no longer current.
+
+That branch now resolves through the per-spec file when the global store names a
+spec, falling back to the global copy when the spec directory is gone.
+`resolveState` already implements exactly that precedence, so this routes the
+last reader through it rather than adding a second rule.
+
+**Scope note:** the entry's other two reader paths were already correct — the
+session branch uses the session phase, and the no-`NOSKILLS_SESSION` branch
+picks the _most restrictive_ phase across live sessions, which errs safe.
+
+The regression test pins the invariant the gate depends on (a fresh per-spec
+file beats a stale global one) in `state/resolve-state-precedence.test.ts`. It
+does not drive `handlePreToolUse` end to end: that function is unexported and
+reads env vars and stdin, so covering it directly needs a harness
+disproportionate to a five-line change. Worth building if this area is touched
+again.
+
+**Writer half done (2026-08-10) — and the "~39 call sites" framing was wrong in
+a way that mattered.**
+
+The real count is **9 non-test files** that write both stores, not 39 call
+sites. More importantly, only **4** of those write the SAME state to both and
+were safe to migrate: `block`, `reopen`, and `approve` (twice). Those now call
+`writeStateAndSpec`.
+
+**Routing "every call site" through the helper, as this entry advised, would
+have introduced bugs in five places:**
+
+- `done`, `wontfix`, `cancel` and the dashboard's complete action deliberately
+  write DIFFERENT states — a terminal phase (COMPLETED / WONTFIX) is kept in the
+  per-spec file for history while the global store returns to IDLE. One state to
+  both would either erase the record or strand the global store in a terminal
+  phase.
+- `reset` captures the spec name BEFORE `resetToIdle` clears it. The helper keys
+  off `state.spec`, which is null by then, so it would have silently skipped the
+  per-spec write and left that file stale — the exact class of bug the entry
+  above this one is about.
+
+All five now carry that reasoning at `writeStateAndSpec`'s definition, so the
+next reader does not "finish the job" and reintroduce it.
+
+**Still open:** the third copy of phase in `.eser/.state/sessions/*.json`. Also
+worth recording: the two writes inside `writeStateAndSpec` are sequential, not
+transactional — each file is individually atomic now, so neither can be torn,
+but a crash between them leaves them disagreeing. `resolveState` prefers the
+per-spec copy, which is the conservative side of that race.
+
+### Original entry
 
 **What:** Route all writes through `writeStateAndSpec`; make every reader use
 `resolveState`.
@@ -625,7 +904,52 @@ disallows. No crash required.
 
 **Effort:** M
 
-## P1 — Wire config to behaviour, or delete the knobs
+## P1 — Wire config to behaviour, or delete the knobs (PARTIALLY DONE)
+
+**The security-relevant half is done (2026-08-09); the inert knobs remain.**
+
+The unbounded pre-auth body is closed. `ParseJSONBody` now wraps the body in
+`http.MaxBytesReader`. Deliberately a **floor, not a policy**:
+`RequestSizeLimitMiddleware` is still wired into zero servers, so putting the
+bound in the parser is what makes it hold for every caller regardless of which
+middlewares a given server installs. This mattered because `/auth/login` parses
+its request the same way, so an unauthenticated caller could stream until the
+process ran out of memory. The limit cannot be set to "unlimited": zero or
+negative restores the documented 50 MB default, since an accidental zero should
+fail to the default rather than back to the unbounded read this exists to
+prevent.
+
+`MaxRequestSizeMB` and `ExposeInternalErrors` are now actually read, via
+`applyConfigPolicies` called from both `NewHTTPService` and `NewHTTP3Service`.
+Those two were the ones the project's own
+`.claude/skills/security-practices/references/rules.md` instructs operators to
+set, so this is what makes that guidance true rather than decorative.
+
+`ErrorHandlerMiddleware` now does something. It was
+`result := ctx.Next();
+return result` -- a pure passthrough -- while installed
+as the OUTERMOST middleware in the daemon under the claim that it wraps
+everything. It now recovers a handler panic into a sanitized 500 instead of
+letting it escape. net/http would recover it at the connection level, but by
+killing the connection: the client sees a dropped request rather than a
+response, and no Result-based shaping applies. `http.ErrAbortHandler` is
+re-panicked, per net/http's contract.
+
+**Correction to this entry:** it lists `AuthMiddleware` among the middlewares
+with "zero non-test call sites". That is wrong -- it has two. The genuinely
+unwired ones are `RequestSizeLimitMiddleware`, `RateLimitMiddleware`,
+`SecurityHeadersMiddleware`, `MetricsMiddleware` and `TracingMiddleware`.
+
+**Still open:** `APIKeys`, `SkipAuthPaths`, `InitializationTimeout`,
+`RateLimitRequests` and `AuthEnabled` are still declared and read by nothing;
+`JWTSecret` still carries a "validated at startup" comment with no startup
+validation; the five middlewares above are still wired nowhere; and the proposed
+`httpfx.DefaultMiddlewares(cfg)` helper does not exist. Each remaining knob
+needs the delete-or-implement decision this entry's title asks for -- that is a
+product call about which of them are meant to exist at all, not something to
+guess.
+
+### Original entry
 
 **What:** Add `httpfx.DefaultMiddlewares(cfg *Config) []Handler` translating
 config into wired middlewares; call
@@ -654,7 +978,40 @@ unbounded JSON body, reachable pre-auth on `/auth/login`.
 
 **Effort:** M
 
-## P1 — Route all 16 spawn sites through one `processfx.Spawn`
+## ~~P1~~ DONE — Route all 16 spawn sites through one `processfx.Spawn`
+
+**Done (2026-08-09), as `processfx.HardenCommand` rather than a `Spawn`
+wrapper.**
+
+The shape matters: a `Spawn(ctx, argv, opts)` that owns spawning would have had
+to absorb every call site's own stdio, capture and env handling. `HardenCommand`
+takes the `*exec.Cmd` the site already built and fixes only the part that was
+wrong -- process group, group-kill on cancel, `WaitDelay` -- so migrating a site
+is one line and cannot change its I/O behaviour.
+
+Applied to the cancellable sites that lacked it: `processfx.Run` (covering both
+`Exec` and `Run`), `codebasefx/git.go`, `noskillsserverfx/worker.go`,
+`noskillsserverfx/projects.go` (a `git clone`, which can hang indefinitely), and
+`pkg/@eserstack/ajan/bridge.go`'s `sh -c` -- the exact grandchild case. The two
+sites that were already correct (`shellfx/exec`, `workflowfx/tools_unix`) were
+left alone; the non-cancellable `exec.Command` sites take no context, so
+cancellation cannot orphan anything there.
+
+**A bug in the first draft, worth recording.** `HardenCommand` originally
+guarded the assignment with `if cmd.Cancel == nil`. But `exec.CommandContext`
+has _already_ installed a Cancel that kills the direct child only -- that
+default IS the defect -- so the guard made the function a silent no-op for
+exactly the commands it existed to fix. The grandchild test caught it: 10s
+timeout before, 0.01s after. `processfx.Exec` cancellation likewise went from
+5.25s (the `WaitDelay` fallback expiring) to 0.25s (a real group kill). Cancel
+is now replaced unconditionally, while `WaitDelay` remains a default a caller
+can override -- the test pins that distinction.
+
+**Windows is honest about its limits:** no process groups are set there, because
+killing a tree needs a Job Object. The direct child is still killed, which is
+what happened before; the code says so rather than implying more.
+
+### Original entry
 
 **What:** Export `processfx.Spawn(ctx, argv, opts)` implementing process-group
 kill plus `cmd.WaitDelay`, and route every `exec.Command*` site through it.
@@ -665,7 +1022,44 @@ correctly and covers 1 of 16 `exec.Command*` sites.
 
 **Effort:** M
 
-## P1 — `Router.Group()` silently 404s; `connfx` ports are unsatisfiable
+## ~~P1~~ DONE — `Router.Group()` silently 404s; `connfx` ports are unsatisfiable
+
+**Done (2026-08-09) — and the connfx half of this entry was wrong.**
+
+`Router.Group()` now panics with an explanation instead of returning an
+unmounted router whose every route 404s. It had zero non-test callers. Note it
+was broken twice over: the fresh `http.ServeMux` was never mounted into the
+parent, AND `Route` ignores `r.path` entirely (see its own TODO), so a prefix
+would not have been applied even after mounting. Both halves have to land
+together, so implementing it is not the small change this entry implied.
+Panicking matches how the file already reports programmer error (`RouteRaw`
+panics on a frozen router). Deletion should ride the 5.0.0 major.
+
+The existing `TestRouter_Group` is worth calling out: it asserted only that
+`GetPath()` concatenated the prefixes, never registering a route or issuing a
+request — so it passed for as long as the feature was completely non-functional.
+It now pins the refusal.
+
+**Do NOT delete the connfx port layer.** This entry called it "366 lines of
+Repository/Queue ports satisfiable by no adapter". That is false, and acting on
+it would have deleted working code: `RedisAdapter` implements `Repository` in
+full, pinned now by `repository_reachability_test.go`. Most of `data_ports.go`
+is also load-bearing inside the package — `Message` has 57 internal uses,
+`ConnectionCapability` 18.
+
+The real defect was **reachability, not absence**. `GetRepository` asserted
+against `conn.GetRawConnection()`, which every adapter implements by returning
+the vendor handle (`*redis.Client`), while the `Repository` methods live on the
+adapter — so it could never find them and returned `ErrInterfaceNotImplemented`
+100% of the time, exactly as the audit measured. It now checks the connection
+itself as well as the raw handle and reports what it tried.
+
+**Still open (small, no consumer):** wiring `RedisAdapter` through so
+`GetRepository` can actually return it needs an adapter accessor on the
+`Connection` port. That is a design change, and nothing calls `GetRepository`
+today, so it was not invented speculatively.
+
+### Original entry
 
 **What:** Either mount the group's mux into the parent router, or delete
 `Group()`. Delete the `connfx` Repository/Queue port layer rather than repairing
@@ -681,7 +1075,41 @@ deletion is the correct fix.
 
 **Effort:** S
 
-## P1 — Config parsing fails open on every error
+## ~~P1~~ DONE — Config parsing fails open on every error
+
+**Done (2026-08-09).** All three defects in this entry were still live and are
+fixed.
+
+`reflectSetField` now returns `error` and every one of its ~16 conversions
+propagates instead of discarding into `_`. All three call sites carry the key
+path outward, including the slice-element one this entry did not mention. This
+was the damaging one: an invalid override did not merely get ignored, it **beat
+the declared default** and assigned zero while reporting success — and zero is
+not inert, since `net/http` reads a zero Read/WriteTimeout as _no timeout_. A
+typo in a deploy environment silently removed the timeouts it was meant to set.
+Pinned by `configfx_invalid_value_test.go` across int, bool and duration.
+
+The two existing float tests that this entry predicted "will need updating" did
+exactly that — both literally _documented_ the fail-open behaviour as intended
+("malformed float32 should silently produce zero"). They now assert rejection.
+
+The `${VAR}` panic is fixed. `expandVariables` used a bare map index plus
+`.(string)`, which panicked on any undefined name, and panicked **even for
+defined names** under case-insensitive parsing, because keys are stored through
+`lib.CaseInsensitiveSet` but were read with the literal spelling. Reproduced
+before fixing, in `envparser_expand_test.go`. This one mattered beyond configfx:
+the same code runs inside the cgo bridge, where a panic unwinds past the FFI
+boundary and aborts the host process. Undefined now expands to empty, following
+POSIX and godotenv, which this parser is a port of.
+
+The named-return/defer bug is fixed in **both** parsers:
+`defer func() { err =
+file.Close() }()` overwrote the parse error
+unconditionally, so a truncated or corrupt file was indistinguishable from a
+valid one. The close error is now recorded only when the parse itself succeeded.
+Pinned by `configfx_corrupt_file_test.go`.
+
+### Original entry
 
 **What:** Make `reflectSetField` return `error` and propagate with the key path;
 fix the named-return + defer bug in both file parsers; use comma-ok plus
@@ -706,7 +1134,35 @@ the broken float behaviour and will need updating.
 
 **Effort:** M
 
-## P1 — `@eserstack/shell/exec` corrupts arguments, and it is the mandated API
+## ~~P1~~ DONE — `@eserstack/shell/exec` corrupts arguments, and it is the mandated API
+
+**Done (2026-08-09) — the argv half was already fixed; the rest is now closed.**
+
+**The argv-corruption claim is stale.** Every corruption this entry lists was
+already repaired by earlier work, and `parser.ts` carries the comments recording
+it. Verified rather than assumed: all four named cases round-trip exactly
+(`a\b`, `C:\Users\x`, `${""}` keeping its argv slot, and the `a\' --evil x`
+injection arriving as one token), and then a **200,000-case fuzz** over an
+alphabet of quotes, backslashes, `$`, backticks, pipes, semicolons, ampersands,
+tabs and newlines found **zero** violations of the real invariant: one
+interpolated value must arrive as exactly one byte-identical argv entry. That
+invariant is now a test (`command.test.ts`) so it cannot silently regress.
+
+**`pipe()` was genuinely broken and now refuses.** `PipedCommandBuilder.text()`
+ran each command in turn and overwrote its `input` variable with each one's
+stdout, never writing anything to the next child's stdin — so `a.pipe(b).text()`
+returned b's output with b reading the _inherited_ stdin. It reported success
+while answering a question nobody asked. `pipe()` now throws with a message
+pointing at `.child()`, the unreachable `PipedCommandBuilder` is deleted, and
+the `mod.ts` doc example that advertised the broken feature is gone. Deletion of
+the method should ride the 5.0.0 major.
+
+**Tests exist now.** This entry said there were none under
+`pkg/@eserstack/shell/exec/`; `parser.test.ts` had since appeared, and
+`command.test.ts` adds the round-trip invariant, the empty-interpolation slot,
+and the `pipe()` refusal.
+
+### Original entry
 
 **What:** Stop serialising to a string — push each interpolated value directly
 into the argv array. Delete `pipe()` or make it throw. Add a test file; there is
@@ -880,7 +1336,26 @@ packages. It _can_ be split across files within `package main`; the tests
 already use that convention (`bridge_http_stream_test.go`, `bridge_log_test.go`,
 `bridge_codebase_stream_test.go`).
 
-**Effort:** S
+**Update (2026-08-09 FFI review):** bridge.go is now 5,510 lines. Concrete
+duplication inventory for the split: ~10 registry quadruplets (map + RWMutex +
+create/lookup/close) that a generic `handleRegistry[T]` would collapse; 5
+near-identical stream create/read/close triplets (`codebaseWalkStreamState` and
+`codebaseValidateStreamState` at bridge.go:4476-4486 are byte-identical
+structs); `aiHandleResponse` re-declared four times (`cacheHandleResponse`,
+`postsHandleResponse`, `parsingTokenizerHandleResponse`,
+`tuiKeypressCreateResponse`); the kit `chainResult→results` loop appears 4 times
+(bridge.go:3458, 3568, 3646, 3711); URL/header assembly duplicated between
+`bridgeHttpRequest` (1417-1446) and `bridgeHttpRequestStream` (1555-1581).
+Estimated 1,500+ lines removable. Also: `noskillsBridgeDetectBranch` (2671-2685)
+hand-parses `.git/HEAD` while `codebasefx.GetCurrentBranch` is imported and used
+in the same file (4070). On the Init/Shutdown honesty question: only the AI
+adapter ever calls Init (`ai/adapters/ajan-bridge.ts:903`), nothing on the TS
+side ever calls Shutdown or `lib.close()`, and because all consumers share one
+Go image with global registries, any single consumer calling `EserAjanShutdown`
+would destroy every other package's live handles via `closeAllHandles` — the
+current safety is "nobody calls it", not isolation.
+
+**Effort:** S (split) / M (with the generic registry + stream state)
 
 ## P3 — Delete rather than repair: unconsumed and wrong-by-construction code
 
@@ -906,7 +1381,28 @@ question is whether they should exist at all.
 
 **Effort:** S each, or zero if deleted
 
-## P3 — `Results.JSON` is served as `text/plain`
+## ~~P3~~ DONE — `Results.JSON` is served as `text/plain`
+
+**Done (2026-08-10).** `Result` gained `InnerContentType` plus a `ContentType()`
+accessor; `JSON` and `PlainText` set theirs, and the router writes the header.
+Two ordering details that make or break it: the header must be set BEFORE
+`WriteHeader` or net/http discards it, and it is only set when the existing
+header is empty, so a middleware or raw handler that already chose one wins.
+
+An empty content type keeps the old sniffing behaviour, so the ~120 `Result`
+literals that do not know their type are unaffected — which is also why this did
+not need touching all 85 call sites. (`exhaustruct` is referenced by `//nolint`
+comments throughout this package but is not actually enabled in
+`.golangci.yaml`, so adding a field broke no keyed literal.)
+
+**This fix exposed a data race I had introduced earlier.** Wiring
+`ExposeInternalErrors` into the service constructors meant `SetDiscloseErrors`
+now runs at construction, while `discloseErrors` was a plain `bool` read by
+every request goroutine — a genuine race that `go test -race` caught across a
+dozen httpfx tests. It is now `atomic.Bool`, matching the treatment
+`configuredMaxRequestBodyBytes` already had. The setter had existed for a long
+time; nothing called it outside tests, so the unsafety was latent until the knob
+was actually connected.
 
 **What:** Give `Result` a header field, or special-case the content type.
 
@@ -939,3 +1435,524 @@ defect an e2e job would have caught.
 **Effort:** M
 
 **Depends on:** the `@eserstack/shell/exec` argv fix
+
+---
+
+# FFI End-to-End Review (2026-08-09)
+
+Findings from a focused review of the eser-ajan FFI seam: Go bridge
+(`pkg/@eserstack/ajan`), the three TS backends, the WASM fallback, and all
+consumer packages. Four parallel review agents (symbol parity, TS backends, Go
+bridge, consumer wiring) plus live verification; the two highest-severity Go
+findings were re-verified by hand against the source.
+
+**Verified working — baseline, not TODOs.** All 100 `//export` symbols in
+`main.go` match the built dylib (`nm` diff), `ffi/types.ts`, and all three
+backend declaration maps 1:1 (names, arity, pointer/int types). Live smoke test
+passes on Deno, Bun, and Node against the native dylib: init/version, JSON
+round-trips, handle lifecycle, and malformed JSON returns structured errors
+without crashing. `go test ./...` passes; formats/crypto/parsing/ai FFI suites
+all pass. Wiring contracts (TS request/response shapes vs Go structs) verified
+field-for-field for logging, formats, codebase, and ai. No consumer bypasses the
+unified loader. String freeing in the wrapper layer is centralized and leak-free
+on happy paths. (Local-only observation, no action:
+`dist/aarch64-darwin/libeser_ajan.dylib` was built at 4.3.0, one release behind
+`VERSION`; CI rebuilds fresh so this is a stale local artifact.)
+
+Two findings from this review were folded into existing audit entries rather
+than filed here: the consumer-loader duplication update (now 21 copies, dual
+singletons per package) lives in **P1 — One memoized FFI client**, and the
+bridge.go duplication inventory + Init/Shutdown footgun lives in **P2 — Split
+`bridge.go`**.
+
+> **Status (2026-08-09, same day):** everything filed in this section is **done
+> except two items**, both explicitly noted below: the full symbol-table
+> collapse (its highest-value half, the machine parity check, shipped) and
+> making Bun/Node AI calls genuinely async (documented instead). Also fixed in
+> the same pass, from the earlier audit: **P0 — Related lower-severity security
+> hardening**, and **P1 — One memoized FFI client** (18 duplicated loader
+> singletons collapsed onto one shared, reference-counted handle).
+>
+> `deno task cli ok` is green end to end. Independently re-verified rather than
+> taken from agent reports: `gofmt`/`vet`/`go build`/`go test -race` on both Go
+> modules; the `GOOS=wasip1` build; exactly 100 cgo exports before and after the
+> wholesale `main.go` rewrite; the native smoke test on Deno, Bun and Node; the
+> WASM fallback now raising a named, actionable error; and the full Deno suite
+> at 2248 passed / 0 failed.
+>
+> Two things the fixing pass surfaced that the review had not:
+>
+> - `CloseIdleConnections` would have been a **silent no-op** written the
+>   obvious way — `ResilientTransport` does not implement it, so the promoted
+>   `http.Client` method does nothing. It has to reach the inner transport.
+> - The `dist/wasi/` artifact simply had never been built locally, which is the
+>   whole reason the fallback resolved the published
+>   `@eserstack/ajan-wasm@4.1.57` instead. Once `scripts/build.ts` runs, the
+>   local 4.3.1 wasm wins. That sub-finding was a stale local artifact, **not**
+>   a code defect — no fix was needed or made.
+>
+> Unrelated pre-existing gate failures fixed in passing: `.agents/` (the
+> vendor-neutral mirror of `.claude/`, untracked) tripped `validate-filenames`
+> because `SKILL.md` is a fixed convention name that cannot be kebab-case, and
+> `validate-secrets` on a security doc that teaches by counter-example. Both got
+> the exemption `.claude/` already had, in `.eser/manifest.yml`.
+>
+> One structural consequence worth knowing: extending the security fix pushed
+> `pkg/ajan/noskillsserverfx/server.go` past the deliberate 500-line
+> `validate-server-loc` limit, so its session REST handlers moved to
+> `session_handlers.go`, matching the existing `auth.go`/`auth_handlers.go`
+> pairing. server.go is now 423 lines.
+
+## ~~P1~~ DONE — WASM command-mode fallback silently breaks every handle-based API
+
+**Done (2026-08-09).** Culled, not faked: handle-based symbols now raise a named
+error stating that the module is re-instantiated per call, that handles cannot
+survive, and how to fix it (install the platform package or set
+`ESER_AJAN_LIB_PATH`). Stateless symbols still work — verified live,
+`FormatList` returns data while `LogCreate` throws. `ShellPtyRead` rejects
+rather than throwing synchronously, so its `Promise<string>` contract holds.
+Reactor `""` stubs now return valid JSON, and the unusable reactor AI exports
+carry a comment explaining why the host cannot call them. The stale-4.1.57
+sub-finding needed no fix (see the status note above).
+
+**What:** Either keep one live `WebAssembly.Instance` across calls in the
+command-mode loader, or cull the command-mode symbol surface to stateless
+functions (format, crypto, config, codebase one-shots) so handle-based calls
+fail loudly instead of lying.
+
+**Why:** `wasm/loader-command.ts:41-69` instantiates a **fresh** WASI instance
+(fresh linear memory) per symbol call, and `main_wasi.go:24-35` serves exactly
+one request per `_start` — so every Go-side registry (`modelHandles`,
+`logHandles`, `httpStreamHandles`, `ptyHandles`, …) resets between calls.
+Reproduced live: `EserAjanLogCreate` returns `{"handle":"log-1"}` and
+`EserAjanLogClose` one call later returns
+`{"error":"log handle not found: log-1"}`. Yet the loader exposes all ~100
+symbols, and `loadEserAjan()` falls back to it automatically, so on any machine
+without a native library every stateful API silently misbehaves (stream reads
+return `"null"` immediately, model handles vanish, …).
+
+**Context:** Command mode is the **default** (`wasm/mod.ts:69`). Related rot in
+the same layer, fix or delete together:
+
+- The repo's own WASM fallback resolves the published
+  `@eserstack/ajan-wasm@4.1.57` from node_modules — reproduced live:
+  `ESER_AJAN_NATIVE=disabled` reports `eser-ajan version 4.1.57` against a 4.3.x
+  native bridge. Two minors of silent behavioral drift on the fallback path.
+- Reactor loader stubs return `""` (not valid JSON) from `LogClose`,
+  `AiCloseModel`, `AiFreeStream`, `HttpClose`, `HttpStreamClose`, `CacheClose`
+  (`wasm/loader-reactor.ts:134,149,150,167,173,199`) — callers that `JSON.parse`
+  get "Unexpected end of JSON input" instead of a clear error.
+- `main_wasi_reactor.go:66-98` exports 6 AI functions whose arg-passing protocol
+  is unimplementable from the host (args are read out of `resultBuf`, but no
+  export lets the host write into it; `eser_ajan_result_ptr` returns null while
+  the buffer is empty, :31-33). The TS loader correctly stubs them all — the Go
+  exports are dead weight. Treat reactor mode as experimental or remove it
+  (matches the standing note in P2 — Pick one owner).
+
+**Effort:** S (cull to stateless + fix stubs) / M (persistent instance)
+
+## ~~P1~~ DONE — No `recover()` anywhere on the cgo export surface
+
+**Done (2026-08-09).** `panic_guard.go` adds
+`guardString`/`guardInt`/`guardVoid` (stack trace to stderr, compact JSON to the
+caller). `main.go` was rewritten wholesale so all ~100 exports funnel through
+them, with `C.GoString` argument marshalling deliberately _inside_ the guarded
+closure so malformed input is covered too. The WASI dispatch is guarded in one
+place; the reactor's `resultBuf` slicing is bounds-checked. Export set verified
+byte-identical at 100 before and after. Note the limit: `recover()` cannot catch
+Go _runtime_ fatal errors (concurrent map writes, the semaphore class) — only
+panics.
+
+**What:** One shared wrapper (`defer recover()` returning
+`{"error":"panic: …"}`) that every `//export` in `main.go` routes through;
+bounds-check the WASI reactor's buffer slicing.
+
+**Why:** `grep recover()` over `pkg/@eserstack/ajan` returns zero hits
+(verified). Malformed JSON is handled at every entry point, but a panic anywhere
+in `bridge.go` or any downstream `pkg/ajan/*fx` package unwinds through cgo and
+**aborts the host Deno/Node/Bun process** — the no-panic guarantee currently
+rests on every transitive dependency instead of on the boundary. One concrete
+in-repo panic path exists today: `main_wasi_reactor.go:68-101` slices
+`resultBuf[:hostSuppliedLen]` with no bounds check, and `resultBuf` is nil
+before the first `setResult`.
+
+**Context:** The 2026-08-01 audit already documented a related class (config
+envparser panic "including inside the cgo bridge" — see P1 — Config parsing
+fails open). A boundary `recover()` converts that whole class from process-abort
+to a JSON error.
+
+**Effort:** S
+
+## ~~P1~~ DONE — Logging over FFI: data race, level-gate bypass, swallowed errors
+
+**Done (2026-08-09).** All three. The log entry gained a mutex plus a
+`snapshot()` that reads `filters` and `formatter` together under one `RLock`;
+the race test reproduces `WARNING: DATA RACE` when the locks are removed. The
+formatter path now gates on the same `Enabled` predicate `shouldLog` answers
+with. On the TS side, `logger.ts` parses both responses and degrades to a stderr
+console sink, warning once per process — logging never throws and never silently
+drops a line. Two deliberate choices: stderr not stdout (a log line on stdout
+corrupts piped output, the bug the ffi `debugLog` comment records), and a
+substring marker rather than a full `JSON.parse` on the hot path.
+
+**What:** Three defects in one pipeline; fix together and add a `-race` test.
+
+- Per-entry synchronization for log handles: `bridgeLogConfigure`
+  (`bridge.go:1955-1975`) looks the entry up under `logMu.RLock`, releases, then
+  **writes** `entry.filters` / `entry.formatter` / `entry.levelVar`, while
+  `bridgeLogWrite` (`bridge.go:1866-1877`) reads `entry.filters` /
+  `entry.formatter` with no lock. Deno's `nonblocking: true` symbols run on a
+  thread pool, so these are genuinely concurrent — a real Go data race
+  (function-value word tearing). Verified by hand. `logMu` protects only the
+  map, not the entries; entries need their own mutex or atomics.
+- Custom formatter bypasses the level gate: with `entry.formatter != nil`,
+  `bridgeLogWrite` writes to stderr unconditionally (`bridge.go:1870-1877`);
+  `levelVar` is only consulted on the slog path. After
+  `logConfigure {formatter:"text", level:"ERROR"}`, a DEBUG write still emits —
+  while `bridgeLogShouldLog` for the same handle says false.
+- The TS client swallows both failure signals: `#ensureGoHandle`
+  (`logging/logger.ts:94-108`) parses `{handle?, error?}` but ignores `error`,
+  and the `EserAjanLogWrite` return value is never parsed (`logger.ts:238-245`).
+  If create fails, `#goHandle` stays undefined, Go returns
+  `{"error":"log handle not found: "}` (`bridge.go:1847-1852`), and every
+  subsequent log line vanishes with no signal.
+
+**Context:** Root cause is architectural: `bridgeLogCreate`/`bridgeLogWrite`
+hand-assemble a slog handler and re-implement filter/format emission instead of
+`logfx` owning it — the first two bugs are direct consequences. Consider routing
+through logfx as part of the fix.
+
+**Effort:** S (locks + gate + TS error check) / M (route through logfx)
+
+## ~~P1~~ DONE — Validator results are mislabeled in `codebaseValidateFiles`
+
+**Done (2026-08-09).** Fixed at the root cause rather than by correcting the
+list: name and function now travel together as `validatorEntry` pairs, so the
+two lists cannot drift again. Unknown requested names now return
+`ErrUnknownValidator` instead of being dropped. Both call sites share the
+helper. `TestDefaultValidatorEntriesMatchBuiltins` compares function pointers
+against `codebasefx.BuiltinValidators()`, so reordering _there_ cannot silently
+reintroduce this. The consumer sweep found nothing pinning the wrong names — all
+17 `withGoValidator` call sites pass a single name and overwrite the label.
+
+**What:** Zip results with names at resolution time instead of keeping two
+parallel lists; error (or at least report) on unknown requested validator names.
+Add one assertion on result names to the non-stream test path.
+
+**Why:** Verified by hand. Default path: `resolveValidators(nil, …)` returns
+`codebasefx.BuiltinValidators()` ordered
+`[EOF, TrailingWhitespace, BOM, MergeConflicts, LineEndings, Secrets]`
+(`pkg/ajan/codebasefx/validators.go:619-628`), but `validatorNames` returns
+`["eof","bom","trailing","line-endings","merge-conflicts","secrets"]`
+(`bridge.go:4354-4360`) — indices 1-4 are mislabelled: trailing-whitespace
+issues are reported as "bom", BOM as "trailing", merge conflicts as
+"line-endings", line endings as "merge-conflicts". Requested path:
+`resolveValidators` silently drops unknown names (`bridge.go:4344-4348`) while
+`validatorNames` echoes the requested list verbatim — `["bogus","eof"]` yields
+EOF results labelled "bogus". Same defect duplicated in
+`bridgeCodebaseValidateFilesStreamCreate` (`bridge.go:4642-4648`).
+
+**Effort:** S
+
+## ~~P1~~ DONE — Bun backend: GC use-after-free hazard on input buffers
+
+**Done (2026-08-09).** Removed the hazard rather than racing it: `ptr()` is gone
+from the backend entirely and buffers are passed as TypedArrays, which bun:ffi
+keeps alive across the call. Merely holding a reference in the calling frame
+would have worked too, but leaves the trap armed for the next wrapper someone
+adds.
+
+**What:** Keep the encoded `Uint8Array`s alive across the FFI call (return the
+buffer from `toCString` and hold it in the caller's frame, or pass TypedArrays
+directly — bun:ffi accepts them for `ptr` args, which removes the hazard
+entirely).
+
+**Why:** `toCString` (`ffi/backend-bun.ts:442-446`) passes `ptr(encoded)` out
+while `encoded` becomes unreachable the moment the function returns; bun:ffi's
+`ptr()` returns a raw number and requires the TypedArray to outlive the pointer.
+Worst case is the two-argument calls (`EserAjanAiGenerateText` /
+`EserAjanAiStreamText`, backend-bun.ts:485-505): allocating the second buffer
+can trigger a GC that collects the first **before** the call executes. The Deno
+backend explicitly guards this exact hazard (`backend-deno.ts:529-531` — "both
+buffers must stay referenced… or the GC could free memory Go is reading"); the
+Bun backend does not.
+
+**Effort:** S
+
+## P1 — Collapse the three TS backends into one symbol table + adapters (PARTIALLY DONE)
+
+**Partially done (2026-08-09) — item (c), the machine parity check, has shipped;
+(a) and (b) remain open.** The drift risk this entry exists to remove is now
+guarded even though the duplication itself is not yet collapsed:
+`pkg/@eserstack/codebase/ajan-ffi-parity.test.ts` ties all six declaration sites
+together — the cgo exports in `main.go`, `ffi/types.ts`, the three native
+backends and the WASM loader — plus a runtime check that the _compiled_ library
+exposes exactly the declared symbols, plus WASI dispatch names against what the
+loader sends. Extractors are indentation-agnostic and floor-checked, so a
+silently-empty parse reports itself instead of passing vacuously. It lives
+beside `ajan-ranges.test.ts`, the existing precedent for a cross-cutting
+invariant guard. Also landed from this entry's spirit: `ffi/close-guard.ts` is
+now one shared implementation used by all three backends instead of three
+hand-rolled copies.
+
+**Still open:** the symbol table itself (a) and the mapped type over it (b).
+Note the constraint the guard now imposes — the loaders' symbol names must stay
+_literal_ object keys, or the extractor needs updating in the same commit.
+
+**What:** (a) A shared `symbols-table.ts` — `{name, arity, nonblocking}` for all
+100 symbols (~120 lines); derive Deno's dlopen map, Bun's dlopen map, koffi's
+prototype strings, and all wrapper functions from it by a loop. Each backend
+shrinks to a ~60-100-line adapter
+(`open/encodeArg/call/callAsync/decodeAndFree/close`). (b) Make `types.ts`'s
+570-line `symbols` interface a mapped type over the table. (c) A small generated
+parity check: Go `//export` list vs table keys vs the `main_wasi.go` case list.
+
+**Why:** The three backends total 3,085 lines (deno 1,403 / bun 972 / node 710)
+of which ~90% is mechanical repetition: every symbol except four specials fits
+`()→string`, `(string)→string`, or `(string,string)→string`. Today a new Go
+export requires **five** hand edits (main.go, types.ts, three backends — plus
+main_wasi.go and the WASM loaders), and nothing machine-checks the agreement:
+`createSymbolWrappers` takes `rawSymbols: any` (`backend-deno.ts:471-474`), so a
+missing declaration compiles cleanly and explodes at runtime; the Bun/Node maps
+have no compile-time tie to types.ts at all. Today's 100-way agreement is real
+but hand-kept. Not just line count: the Bun GC bug and the decode-throw leaks
+(below) exist precisely because each backend hand-rolled its own encode/free
+helpers instead of sharing one audited implementation.
+
+**Context:** Extends **P1 — One memoized FFI client** (which already names the
+manifest idea) and the "99-symbol C ABI restated by hand in 7-8 files" line in
+**P2 — Pick one owner per duplicated domain**. Do the memoized client and this
+in one motion — same seam, same owner.
+
+**Effort:** M
+
+**Depends on:** nothing; unblocks the parity check and shrinks every future
+export to a one-line table edit
+
+## ~~P2~~ DONE — `loadEserAjan` bare catch swallows all native errors
+
+**Done (2026-08-09).** The native error is captured, passed through `debugLog`,
+carried as the Error `cause`, and named in the combined failure message
+alongside the WASM cause. An explicitly-passed `libraryPath` that fails to open
+now rethrows instead of falling back. The documented-but-nonexistent `backends`
+option was implemented rather than deleted, and `selectBackend`'s doc corrected
+to match what it does.
+
+**What:** Capture the native error, `debugLog` it, include it in the combined
+failure message, and rethrow (no WASM fallback) when the caller passed an
+explicit `libraryPath`.
+
+**Why:** `ffi/mod.ts:264-273` discards: `resolveLibraryPath`'s carefully built
+checked-paths message (`resolve.ts:231-238`), Deno `--allow-ffi` permission
+errors, dlopen failures for a found-but-wrong library (arch mismatch, ABI
+drift), and `selectBackend`'s own error. A real native error silently degrades
+to WASM — which per the P1 entry above may be broken-at-runtime — and when WASM
+also fails, the thrown message claims "No native FFI backend available"
+reporting only the WASM error. Even `ESER_AJAN_DEBUG=1` cannot surface the
+native cause (the catch doesn't log). An explicit `libraryPath` failing to open
+almost certainly should not fall back at all.
+
+**Effort:** S
+
+## ~~P2~~ DONE — Library resolution misses the standard hoisted-npm layout
+
+**Done (2026-08-09).** Resolution now walks `node_modules` ancestors upward from
+the module directory, so the hoisted scope-sibling layout resolves regardless of
+cwd, with `checkedPaths` still listing every location actually probed in probe
+order. The `node:fs` top-level await is deferred into `fileExists` (memoized),
+so a runtime without `node:fs` can now reach the WASM fallback that exists for
+it instead of failing at import time — which also removes a `no-top-level-await`
+lint exception. Stale comments corrected; the JSR constraint is documented.
+
+**What:** Walk `node_modules` ancestors from `moduleDir` (or add
+`${moduleDir}/../..` as a scope-sibling root; `import.meta.resolve` /
+`require.resolve` is the robust option under Node/Bun). Defer the `node:fs`
+import into `fileExists`.
+
+**Why:** When installed from npm, this module lives at
+`<proj>/node_modules/@eserstack/ajan/ffi/` and the optional platform package is
+hoisted to the sibling `<proj>/node_modules/@eserstack/ajan-<slug>/` — which
+equals `${moduleDir}/../../ajan-<slug>/` and is **never checked**:
+`resolve.ts:208-217` tries only `moduleDir`, `pkgRoot`, and `cwd` as
+`node_modules` roots. So the standard npm layout resolves **only when the
+process cwd is the project root** — a CLI invoked from any subdirectory falls
+through to system paths, then errors (or silently drops to WASM via the bare
+catch above). pnpm's isolated layout misses all three roots too.
+
+**Context:** Also in resolve.ts: the top-level `await import("node:fs")`
+(`resolve.ts:18`) is reached via mod.ts's _static_ import, so on any runtime
+lacking `node:fs` the whole entry module fails at import time — before the WASM
+fallback (the branch meant for exactly such runtimes) can run. Comment nits:
+`resolve.ts:126` names the package `@eserstack/eser-ajan-{platform}` (code uses
+`@eserstack/ajan-{slug}`); JSR installs have no optionalDependencies and
+remote-cached modules have no `import.meta.dirname`, so JSR effectively requires
+`ESER_AJAN_LIB_PATH` — worth documenting.
+
+**Effort:** S
+
+## ~~P2~~ DONE — FFI `close()` has no closed-state guard; close during in-flight calls
+
+**Done (2026-08-09).** `ffi/close-guard.ts` — one implementation wrapping all
+three backends. `close()` is idempotent; any symbol called afterwards throws an
+Error naming it instead of segfaulting inside a library that is no longer
+mapped. Wrappers preserve arity deliberately, since arity is part of the ABI
+contract. The two things it does not enforce are documented at the top of the
+module: `close()` does not call `EserAjanShutdown`, and Deno's nonblocking
+symbols may still be on the FFI threadpool, so callers must settle promises and
+close streams first. In-flight tracking was deliberately not implemented.
+
+**What:** A `closed` flag on all three backends (throw a friendly error on
+use-after-close / double-close), plus either an in-flight counter or a
+documented "close only after all streams are closed and promises settled"
+contract.
+
+**Why:** All three backends (`backend-deno.ts:1398-1401`,
+`backend-bun.ts:967-969`, `backend-node.ts:705-707`) call the runtime's
+`close()`/`unload()` unguarded. Double-close is whatever the runtime does (Deno
+throws `BadResource`; koffi `unload` of a Go c-shared library is undefined
+behavior — a Go runtime cannot be dlclosed safely, which is exactly why
+`pin_image_posix.go` exists). Any symbol call after `close()` is a UB/segfault
+path. On Deno, `nonblocking: true` symbols may still be executing on the FFI
+threadpool when `close()` runs — a crash window. Nothing tracks outstanding
+stream/PTY/keypress handles at close time.
+
+**Context:** In practice no TS consumer ever calls `lib.close()` (see the
+Init/Shutdown note under P2 — Split `bridge.go`), so this is latent — but the
+API is public.
+
+**Effort:** S
+
+## ~~P2~~ DONE — bridge.go handle hygiene: stream-close hang, model use-after-close, inconsistent semantics
+
+**Done (2026-08-09).** Stream close now closes the body first, outside the read
+mutex (`TestHttpStreamCloseDoesNotWaitForAStalledRead` blocks for 5s against the
+old code). Models got the streams' proven acquire/release + delete-then-Wait
+shape via a by-handle `sync.WaitGroup` side map — a state struct was not
+possible because `bridge_ai_cancel_test.go` assigns models into the registry
+directly. Close is now uniformly idempotent-success, the safe direction; read
+sentinels were deliberately left alone and now carry a comment saying so.
+Per-handle mutexes added for stream reads and tokenizer push.
+`CloseIdleConnections` reaches the inner transport (see the status note — the
+obvious form is a silent no-op). Negative config clamped via
+`countOrDefault`/`durationOrDefault`. The hand-rolled `.git/HEAD` parser is gone
+in favour of `codebasefx.GetCurrentBranch`.
+
+**What:** Batch of related registry/handle fixes in `bridge.go`:
+
+- `bridgeHttpStreamClose` waits on `entry.mu` (`bridge.go:1691`) which
+  `bridgeHttpStreamRead` holds **across the blocking network read**
+  (`bridge.go:1639-1657`) — closing a stalled SSE/long-poll stream blocks the
+  FFI thread until the server sends bytes. `http.Response.Body.Close` is safe
+  concurrent with `Read` and unblocks it: close the body first, outside the read
+  mutex. Same pattern inherited by `closeAllHandles` (`bridge.go:546-555`).
+- Model use-after-close: `bridgeAiGenerateText`/`StreamText` copy the model out
+  under `RLock` (`bridge.go:631-633, 663-665`) and a concurrent
+  `bridgeAiCloseModel` (743-776) can close it mid-generation. Streams got
+  in-flight protection (`streamState.wg` — correctly ordered, keep it); models
+  got none.
+- Inconsistent unknown-handle / double-close semantics: stream reads return the
+  completion sentinel `"null"` for a _missing_ handle
+  (`bridge.go:712-714, 4566-4568, 4697-4699`) so use-after-free is
+  indistinguishable from end-of-stream, while exec/PTY reads return an error
+  JSON (5275-5277, 5412-5414); double-close errors for
+  model/http/log/pty/exec/tokenizer/keypress but is silently idempotent for
+  `aiFreeStream` (793-795), `cacheClose` (3220-3231), `postsClose` (3914-3918),
+  and the walk/validate stream closes. Pick one contract.
+- Per-handle operations without per-handle locks: concurrent
+  `bridgeAiStreamRead` on one handle calls `iter.Next()` concurrently
+  (`bridge.go:717`); concurrent `tokenizerPush` calls `tok.Push` concurrently
+  (`bridge.go:4985`). httpStream got a per-entry mutex; these did not.
+- Small ones: `bridgeHttpClose` (1483-1496) drops the client without
+  `CloseIdleConnections` (pooled TCP lingers); negative numeric config becomes
+  huge unsigned (`uint(req.FailureThreshold)` / `uint(req.MaxAttempts)`,
+  bridge.go:1333, 1344; negative `TimeoutMs` unclamped).
+
+**Effort:** S each; do alongside the P2 bridge.go split
+
+## P2 — Bun/Node AI calls block the event loop and defeat cancellation (DOCUMENTED, NOT FIXED)
+
+**Partially addressed (2026-08-09).** The LIMITATION comment that only the PTY
+wrappers carried now also sits on the generate/stream/batch wrappers in both
+backends, so the constraint is visible where it bites. **The behaviour is
+unchanged** — under Bun and Node these calls still park the event loop and
+`EserAjanAiCancelRequest` still cannot fire mid-call. Making them genuinely
+async (bun:ffi `threadsafe`, koffi async, or a worker) is the remaining work.
+
+**What:** Use Bun's `FFIFunction.threadsafe`/async support for the 9 long-
+running symbols (AI generate/stream/batch, PTY read); for koffi, either its
+async call mode or a worker. At minimum, extend the LIMITATION comment that the
+PTY wrappers already carry to the AI wrappers, and note it where
+`types.ts:41-56` promises cancellability.
+
+**Why:** Under Bun and Node all AI calls are synchronous-blocking
+(`backend-bun.ts:485-550`, `backend-node.ts:403-444`) — a minutes-long
+`generateText` parks the entire event loop, and `EserAjanAiCancelRequest` can
+never fire mid-call because the abort listener cannot run. Only Deno marks these
+`nonblocking: true` (`backend-deno.ts:51-65`). Only the PTY-read wrappers
+document the limitation (bun 935-940, node 682-688); the same caveat applies to
+generate/stream/batch.
+
+**Effort:** S (document) / M (actually async)
+
+## ~~P3~~ DONE — TS backend small fixes (leaks on decode-throw, stale messages, doc bugs)
+
+**Done (2026-08-09).** `try/finally` around the free in all three decode
+helpers. koffi version message corrected to the pinned range; the stale symbol
+count rephrased so it cannot go stale again. The `backends` option was
+implemented (see the loader entry above) rather than removed from the docs.
+`Commit.body` no longer claims to be a required `string` when Go emits it
+`omitempty`.
+
+**What:** Batch of small, independent items in `pkg/@eserstack/ajan/ffi/`:
+
+- `try/finally { free(ptr) }` in all three decode helpers — an exception during
+  decode leaks the Go allocation: Bun `readAndFree` (`backend-bun.ts:451-458`),
+  Node `takeString` (`backend-node.ts:77-86`), Deno `readCString`+`freePtr`
+  (`backend-deno.ts:457-479`). Happy paths are leak-free (audited); these are
+  exceptional-path one-offs.
+- `backend-node.ts:56-61` error message claims koffi "^2.15.0" while
+  package.json pins `^3.1.4` — misdirects anyone debugging a version mismatch.
+  Also `backend-node.ts:68` says "96 symbols"; it's 97 malloc'd returns.
+- `ffi/mod.ts:34` advertises `loadEserAjan({ backends: ["deno"] })` but
+  `LoadOptions` (mod.ts:62-67) has no `backends` field — silently ignored.
+  `selectBackend`'s doc comment (mod.ts:170-197) describes parameters and
+  flag-checking it doesn't have.
+- `codebase/git.ts:16-23` types `Commit.body` as required `string` while Go
+  emits `body,omitempty` (`bridge.go:3966-3970`) — empty-body commits yield
+  `body: undefined` behind a `string` type.
+
+**Effort:** XS each
+
+## P3 — Untested FFI surface (test-gap inventory) (PARTIALLY DONE)
+
+**Partially done (2026-08-09).** The two tests called out below as highest-value
+both exist now: `bridge_handle_safety_test.go` carries a `-race` log
+configure/write test and a validator-names assertion, each verified to fail
+against the unfixed code. Also added: `panic_guard_test.go`, idempotent-close
+and unknown-handle coverage across 10 close entry points, the stalled-read and
+in-flight-generation tests, `ffi/mod_test.ts`, `ffi/resolve.test.ts`,
+`logger.test.ts`, `update.test.ts`, `client_ip_test.go`, expanded
+`cors_middleware_test.go`, and the ABI parity guard.
+
+**Still untested:** AI batch, cache/cs/kit/posts/collector/noskills bridges,
+shell exec/pty/tui (still nothing at all), the workspace checks, and the
+`main_wasi.go` dispatch including `extractStringArg`.
+
+**What:** Add coverage for the surface the bridge tests skip entirely. Well
+covered today: AI cancel registry (incl. concurrency), AI wire mapping,
+codebase/http/parsing stream leak gates, HTTP error/retry mapping, log
+lifecycle, workflow shell steps, lifecycle smoke. **Untested:** all AI batch
+functions; format encode/decode/document (Go side — the TS `.ffi.test.ts` covers
+the TS client); cache, crypto, cs, kit, posts, collector, noskills bridges;
+shell exec/pty/tui (nothing at all); non-stream `codebaseValidateFiles` (one
+assertion on result names would have caught the P1 mislabeling); the workspace
+checks; the entire `main_wasi.go` dispatch (`extractStringArg` included); and no
+`-race` stress on any registry except the cancel table — which is exactly why
+the log-handle race survived.
+
+**Why:** The FFI seam's safety net is currently the consumer-side `.ffi.test.ts`
+suites (Deno backend only) plus CI's `ajan version` smoke on three runtimes.
+Everything else listed above ships on trust.
+
+**Effort:** S per subsystem; prioritize a `-race` log configure/write test and
+the validateFiles names assertion (both would have caught this review's P1 bugs)

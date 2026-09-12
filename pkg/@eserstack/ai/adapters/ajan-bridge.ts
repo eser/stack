@@ -886,6 +886,9 @@ export const createBridgeFactories = (
  * Attempts to load the ajan FFI library and returns bridge factories.
  * Returns an empty array on failure (FFI not available).
  */
+/** Set when the bridge declines to load; read through getBridgeLoadError. */
+let bridgeLoadError: Error | null = null;
+
 export const tryLoadBridgeFactories = async (): Promise<
   readonly model.ProviderFactory[]
 > => {
@@ -907,9 +910,27 @@ export const tryLoadBridgeFactories = async (): Promise<
     // here. The vendor CLI each one drives still has to be installed, but that
     // is a spawn-time failure with its own message, not something a PATH lookup
     // can predict.
+    bridgeLoadError = null;
+
     return createBridgeFactories(lib);
-  } catch {
-    // FFI not available — caller falls back to pure-TS factories.
+  } catch (cause: unknown) {
+    // Record rather than discard. Falling back to the pure-TS adapters is
+    // correct, but it silently changes which implementation answers every AI
+    // call, and the reason -- no native binary for this platform, an FFI
+    // permission that was not granted, a library that failed to open -- was
+    // thrown away here. `ai doctor`-style diagnostics and bug reports had
+    // nothing to go on beyond "it used the TS path".
+    bridgeLoadError = cause instanceof Error ? cause : new Error(String(cause));
+
     return [];
   }
 };
+
+/**
+ * Why the Go bridge is not in use, or `null` when it loaded or was never tried.
+ *
+ * The underlying loader's own diagnostic (the checked paths, the native-vs-WASM
+ * cause) is preserved as this error's `cause`, so a caller can report the whole
+ * chain rather than just the last frame.
+ */
+export const getBridgeLoadError = (): Error | null => bridgeLoadError;

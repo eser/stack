@@ -24,6 +24,12 @@ type Config struct {
 	RateLimitRequests int   `conf:"rate_limit_requests" default:"3600"`
 	MaxRequestSizeMB  int64 `conf:"max_request_size_mb" default:"50"`
 
+	// TrustedProxies lists CIDR blocks (or single addresses) whose
+	// X-Forwarded-For, X-Real-IP and True-Client-IP headers may be believed.
+	// Empty by default: those headers are client-supplied, so trusting them
+	// without a peer allowlist lets any caller forge its own address.
+	TrustedProxies []string `conf:"trusted_proxies"`
+
 	SelfSigned bool `conf:"self_signed" default:"false"`
 
 	HealthCheckEnabled bool `conf:"health_check" default:"true"`

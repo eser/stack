@@ -37,12 +37,13 @@ func TestCorsMiddleware(t *testing.T) { //nolint:funlen
 			"*",
 			responseRecorder.Header().Get(middlewares.AccessControlAllowOriginHeader),
 		)
-		// Default credentials is true for development convenience
-		assert.Equal(
+		// Credentials stay off by default: a wildcard can never carry them
+		assert.Empty(
 			t,
-			"true",
 			responseRecorder.Header().Get(middlewares.AccessControlAllowCredentialsHeader),
 		)
+		// A literal wildcard does not depend on the request origin
+		assert.Empty(t, responseRecorder.Header().Values(middlewares.VaryHeader))
 		// Default headers include common values
 		assert.Equal(
 			t,
@@ -78,12 +79,16 @@ func TestCorsMiddleware(t *testing.T) { //nolint:funlen
 			"https://example.com",
 			responseRecorder.Header().Get(middlewares.AccessControlAllowOriginHeader),
 		)
+		assert.Equal(t, []string{"Origin"}, responseRecorder.Header().Values(middlewares.VaryHeader))
 	})
 
 	t.Run("with_allow_credentials", func(t *testing.T) {
 		t.Parallel()
 
-		middleware := middlewares.CorsMiddleware(middlewares.WithAllowCredentials(true))
+		middleware := middlewares.CorsMiddleware(
+			middlewares.WithAllowOrigin("https://example.com"),
+			middlewares.WithAllowCredentials(true),
+		)
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		responseRecorder := httptest.NewRecorder()
@@ -101,6 +106,7 @@ func TestCorsMiddleware(t *testing.T) { //nolint:funlen
 			"true",
 			responseRecorder.Header().Get(middlewares.AccessControlAllowCredentialsHeader),
 		)
+		assert.Equal(t, []string{"Origin"}, responseRecorder.Header().Values(middlewares.VaryHeader))
 	})
 
 	t.Run("with_allow_headers", func(t *testing.T) {
@@ -247,6 +253,130 @@ func TestCorsMiddleware(t *testing.T) { //nolint:funlen
 				"*",
 				responseRecorder.Header().Get(middlewares.AccessControlAllowOriginHeader),
 			)
+		})
+	}
+}
+
+func TestCorsMiddlewareOriginPolicy(t *testing.T) { //nolint:funlen
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		configuredOrig  string
+		credentials     bool
+		requestOrigin   string
+		wantOrigin      string
+		wantCredentials string
+		wantVary        bool
+	}{
+		{
+			name:            "wildcard_never_reflects_request_origin",
+			configuredOrig:  "*",
+			credentials:     false,
+			requestOrigin:   "https://evil.example",
+			wantOrigin:      "*",
+			wantCredentials: "",
+			wantVary:        false,
+		},
+		{
+			name:            "wildcard_suppresses_credentials",
+			configuredOrig:  "*",
+			credentials:     true,
+			requestOrigin:   "https://evil.example",
+			wantOrigin:      "*",
+			wantCredentials: "",
+			wantVary:        false,
+		},
+		{
+			name:            "explicit_origin_carries_credentials",
+			configuredOrig:  "https://app.example.com",
+			credentials:     true,
+			requestOrigin:   "https://app.example.com",
+			wantOrigin:      "https://app.example.com",
+			wantCredentials: "true",
+			wantVary:        true,
+		},
+		{
+			name:            "allowlist_match_echoes_request_origin",
+			configuredOrig:  "https://a.example.com, https://b.example.com",
+			credentials:     true,
+			requestOrigin:   "https://b.example.com",
+			wantOrigin:      "https://b.example.com",
+			wantCredentials: "true",
+			wantVary:        true,
+		},
+		{
+			name:            "allowlist_miss_emits_no_origin",
+			configuredOrig:  "https://a.example.com, https://b.example.com",
+			credentials:     true,
+			requestOrigin:   "https://evil.example",
+			wantOrigin:      "",
+			wantCredentials: "",
+			wantVary:        true,
+		},
+		{
+			name:            "allowlist_with_wildcard_miss_emits_wildcard_only",
+			configuredOrig:  "https://a.example.com, *",
+			credentials:     true,
+			requestOrigin:   "https://evil.example",
+			wantOrigin:      "*",
+			wantCredentials: "",
+			wantVary:        false,
+		},
+		{
+			name:            "allowlist_without_origin_header_emits_nothing",
+			configuredOrig:  "https://a.example.com, https://b.example.com",
+			credentials:     false,
+			requestOrigin:   "",
+			wantOrigin:      "",
+			wantCredentials: "",
+			wantVary:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			middleware := middlewares.CorsMiddleware(
+				middlewares.WithAllowOrigin(tt.configuredOrig),
+				middlewares.WithAllowCredentials(tt.credentials),
+			)
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			if tt.requestOrigin != "" {
+				req.Header.Set("Origin", tt.requestOrigin)
+			}
+
+			responseRecorder := httptest.NewRecorder()
+			ctx := &httpfx.Context{
+				Request:        req,
+				ResponseWriter: responseRecorder,
+				Results:        httpfx.Results{},
+			}
+
+			result := middleware(ctx)
+			require.NotNil(t, result)
+
+			headers := responseRecorder.Header()
+
+			assert.Equal(t, tt.wantOrigin, headers.Get(middlewares.AccessControlAllowOriginHeader))
+			assert.Equal(
+				t,
+				tt.wantCredentials,
+				headers.Get(middlewares.AccessControlAllowCredentialsHeader),
+			)
+
+			if tt.wantVary {
+				assert.Equal(t, []string{"Origin"}, headers.Values(middlewares.VaryHeader))
+			} else {
+				assert.Empty(t, headers.Values(middlewares.VaryHeader))
+			}
+
+			// A wildcard and credentials must never ship together.
+			if headers.Get(middlewares.AccessControlAllowOriginHeader) == "*" {
+				assert.Empty(t, headers.Get(middlewares.AccessControlAllowCredentialsHeader))
+			}
 		})
 	}
 }

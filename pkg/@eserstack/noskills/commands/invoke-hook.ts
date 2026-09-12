@@ -255,7 +255,24 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
     } else {
       try {
         const stateFile = await persistence.readState(root);
-        state = stateFile as unknown as Record<string, unknown>;
+
+        // When the global store names a spec, the per-spec file is the
+        // authoritative copy of its phase. Spec-scoped commands write there and
+        // the global copy goes stale, so reading the global store alone could
+        // still report EXECUTING after a `spec revisit` and let this gate permit
+        // file edits the state machine no longer allows. resolveState prefers
+        // the per-spec file and falls back to the global one itself.
+        let resolved = stateFile;
+
+        if (stateFile.spec !== null && stateFile.spec !== undefined) {
+          try {
+            resolved = await persistence.resolveState(root, stateFile.spec);
+          } catch {
+            // The spec directory is gone; the global store is all there is.
+          }
+        }
+
+        state = resolved as unknown as Record<string, unknown>;
       } catch {
         // No state — noskills not initialized, allow everything
         return results.ok(undefined);

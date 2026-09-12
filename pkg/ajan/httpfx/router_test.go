@@ -49,19 +49,26 @@ func TestNewRouter(t *testing.T) {
 	}
 }
 
+// TestRouter_Group pins that grouping refuses rather than silently 404ing.
+//
+// This test used to assert only that GetPath() concatenated the prefixes, so it
+// passed for as long as the feature was entirely broken: Group returned a router
+// with its own unmounted ServeMux, and every route registered on it 404ed. The
+// assertion never registered a route or issued a request, which is exactly how a
+// non-functioning API kept the appearance of coverage.
 func TestRouter_Group(t *testing.T) {
 	t.Parallel()
 
 	router := httpfx.NewRouter("/api")
 	require.NotNil(t, router)
 
-	v1Router := router.Group("/v1")
-	require.NotNil(t, v1Router)
-	assert.Equal(t, "/api/v1", v1Router.GetPath())
-
-	usersRouter := v1Router.Group("/users")
-	require.NotNil(t, usersRouter)
-	assert.Equal(t, "/api/v1/users", usersRouter.GetPath())
+	assert.PanicsWithValue(
+		t,
+		"httpfx: Router.Group is not implemented (requested path=/v1). "+
+			"It returned an unmounted router, so grouped routes silently "+
+			"404ed. Register routes on the parent router with their full path.",
+		func() { router.Group("/v1") },
+	)
 }
 
 func TestRouter_Use(t *testing.T) {

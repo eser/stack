@@ -58,6 +58,108 @@ const updateConfigs = (app: CliApp): Record<string, UpdateConfig> => ({
   },
 });
 
+/**
+ * The checksum SHA256SUMS.txt records for `archiveName`, if any.
+ *
+ * Matches the second field exactly, the way install.sh's
+ * `awk -v want="${ARCHIVE}" '$2 == want { print $1 }'` does. A substring test
+ * would happily accept the line for a DIFFERENT artifact whose name merely
+ * contains this one -- `<archive>.sig`, `<archive>.sha256` -- and verify the
+ * download against a checksum that was never about it.
+ */
+export const findExpectedChecksum = (
+  sumsText: string,
+  archiveName: string,
+): string | undefined => {
+  for (const line of sumsText.split("\n")) {
+    const fields = line.trim().split(/\s+/);
+
+    if (fields.length >= 2 && fields[1] === archiveName) {
+      return fields[0];
+    }
+  }
+
+  return undefined;
+};
+
+const sha256Hex = async (data: Uint8Array): Promise<string> => {
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    data as unknown as BufferSource,
+  );
+
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+};
+
+/**
+ * Verifies a downloaded release archive against the release's SHA256SUMS.txt.
+ *
+ * Fails CLOSED on every path, matching install.sh: the list being unreachable
+ * and the list not naming this archive are refusals, not permission to skip
+ * verification. Anyone able to suppress or truncate SHA256SUMS.txt -- a proxy,
+ * a captive portal, a partial release upload -- would otherwise get an
+ * unverified binary written over the running one.
+ */
+export const verifyArchiveChecksum = async (
+  baseUrl: string,
+  archiveName: string,
+  archiveData: Uint8Array,
+  fetchFn?: typeof fetch,
+): Promise<results.Result<void, string>> => {
+  const doFetch = fetchFn ?? globalThis.fetch.bind(globalThis);
+  const sumsUrl = `${baseUrl}/SHA256SUMS.txt`;
+
+  let sumsResponse: Response;
+
+  try {
+    sumsResponse = await doFetch(sumsUrl);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+
+    return results.fail(
+      `Could not download ${sumsUrl}: ${reason}\n` +
+        "Refusing to install a binary that cannot be verified. Check your " +
+        "network or proxy and try again.",
+    );
+  }
+
+  if (!sumsResponse.ok) {
+    return results.fail(
+      `Could not download ${sumsUrl}: HTTP ${sumsResponse.status}\n` +
+        "Refusing to install a binary that cannot be verified. Check your " +
+        "network or proxy and try again.",
+    );
+  }
+
+  const sumsText = await sumsResponse.text();
+  const expectedHash = findExpectedChecksum(sumsText, archiveName);
+
+  if (expectedHash === undefined) {
+    return results.fail(
+      `No checksum listed for ${archiveName} in ${sumsUrl}\n` +
+        "Refusing to install a binary that cannot be verified. The release " +
+        "may be incomplete; report it at " +
+        "https://github.com/eser/stack/issues",
+    );
+  }
+
+  const actualHash = await sha256Hex(archiveData);
+
+  if (actualHash !== expectedHash) {
+    return results.fail(
+      `SHA256 checksum verification failed for ${archiveName}\n` +
+        `  expected ${expectedHash}\n` +
+        `  actual   ${actualHash}\n` +
+        "Refusing to install. Re-run the update; if it persists, report it at " +
+        "https://github.com/eser/stack/issues",
+    );
+  }
+
+  return results.ok(undefined);
+};
+
 const DENO_TARGET_MAP: Record<string, string> = {
   "linux-amd64": "x86_64-unknown-linux-gnu",
   "linux-arm64": "aarch64-unknown-linux-gnu",
@@ -151,34 +253,24 @@ const updateCompiledBinary = async (
     return results.fail({ exitCode: 1 });
   }
 
-  // Download SHA256SUMS.txt and verify
-  const sumsResponse = await fetch(`${baseUrl}/SHA256SUMS.txt`);
-  if (sumsResponse.ok) {
-    const sumsText = await sumsResponse.text();
-    const expectedLine = sumsText
-      .split("\n")
-      .find((line) => line.includes(archiveName));
-    if (expectedLine !== undefined) {
-      const expectedHash = expectedLine.split(/\s+/)[0]!;
-      const archiveData = new Uint8Array(
-        await archiveResponse.clone().arrayBuffer(),
-      );
-      const hashBuffer = await crypto.subtle.digest(
-        "SHA-256",
-        archiveData as unknown as BufferSource,
-      );
-      const actualHash = Array.from(new Uint8Array(hashBuffer))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
+  // Download SHA256SUMS.txt and verify. Verification is mandatory: see
+  // verifyArchiveChecksum for why every failure path is a refusal.
+  const archiveBytes = new Uint8Array(
+    await archiveResponse.clone().arrayBuffer(),
+  );
+  const verification = await verifyArchiveChecksum(
+    baseUrl,
+    archiveName,
+    archiveBytes,
+  );
 
-      if (actualHash !== expectedHash) {
-        out.writeln(span.red("\nSHA256 checksum verification failed."));
-        await out.close();
-        return results.fail({ exitCode: 1 });
-      }
-      out.writeln(span.dim("Checksum verified."));
-    }
+  if (results.isFail(verification)) {
+    out.writeln(span.red(`\n${verification.error}`));
+    await out.close();
+    return results.fail({ exitCode: 1 });
   }
+
+  out.writeln(span.dim("Checksum verified."));
 
   // Extract to temp directory
   const tempDir = await runtime.fs.makeTempDir({ prefix: "eser-update-" });

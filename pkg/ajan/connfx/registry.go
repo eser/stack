@@ -331,12 +331,27 @@ func (registry *Registry) GetRepository(name string) (Repository, error) { //nol
 			ErrConnectionNotSupported, name, "data repository operations")
 	}
 
-	// Try to get the repository from the raw connection
-	repo, ok := conn.GetRawConnection().(Repository)
-	if !ok {
-		return nil, fmt.Errorf("%w (name=%q, interface=%q)",
-			ErrInterfaceNotImplemented, name, "Repository")
+	// Check the connection itself before its raw handle. This only asserted
+	// against GetRawConnection(), which every adapter implements by returning
+	// the vendor object (*redis.Client, *sql.DB) -- and a vendor client cannot
+	// implement this package's own Repository interface, so the call returned
+	// ErrInterfaceNotImplemented for every connection, always.
+	//
+	// Note the port is NOT unimplemented: RedisAdapter satisfies Repository (see
+	// repository_reachability_test.go). It is unreachable, because the methods
+	// live on the adapter while the assertion is handed the vendor client.
+	// Exposing an adapter through the Connection port is a design change with no
+	// caller currently asking for it, so this checks both places it could
+	// legitimately be and reports precisely what it tried.
+	if repo, ok := conn.(Repository); ok {
+		return repo, nil
 	}
 
-	return repo, nil
+	if repo, ok := conn.GetRawConnection().(Repository); ok {
+		return repo, nil
+	}
+
+	return nil, fmt.Errorf("%w (name=%q, interface=%q, checked=%q)",
+		ErrInterfaceNotImplemented, name, "Repository",
+		"connection and raw connection")
 }

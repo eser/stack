@@ -31,6 +31,82 @@ const severityToGoLevel = (s: logging.Severity): string => {
   return "PANIC";
 };
 
+/**
+ * Substring probed on every EserAjanLogWrite response. Go answers "{}" on
+ * success and {"error":"..."} on failure, and never echoes the submitted
+ * record, so nothing a caller logs can put this marker into a response.
+ */
+const ERROR_FIELD_MARKER = '"error"';
+
+/**
+ * Stringifies without throwing. Attributes come from callers and may be cyclic
+ * or otherwise unserializable; a log call must not fail over what it was asked
+ * to log.
+ */
+const toJson = (value: unknown): string | null => {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return null;
+  }
+};
+
+const describeCause = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+/**
+ * Fallback output goes to stderr, never stdout: callers pipe stdout (see the
+ * eser-ajan/ffi debugLog note), and a log line written there corrupts it.
+ */
+const writeStderrLine = (line: string): void => {
+  try {
+    // deno-lint-ignore no-console
+    console.error(line);
+  } catch {
+    // stderr itself is gone (closed pipe) -- there is no sink left to report to.
+  }
+};
+
+/**
+ * Process-wide latch for the degradation warning. Warning per failing record
+ * would turn a backend outage into a second outage, so the operator is told
+ * once. clearLoggerCache() re-arms it, since a reconfigured process builds new
+ * handles and may recover.
+ */
+let fallbackWarned = false;
+
+const warnFallbackOnce = (cause: string): void => {
+  if (fallbackWarned) {
+    return;
+  }
+
+  fallbackWarned = true;
+
+  writeStderrLine(
+    `[eserstack/logging] Go logging backend unavailable (${cause}); ` +
+      "log records now go to a local console sink on stderr. " +
+      "Reported once per process.",
+  );
+};
+
+/** Local console sink used whenever the Go backend cannot take a record. */
+const writeFallbackRecord = (
+  category: Category,
+  severity: logging.Severity,
+  message: string,
+  attrs: Record<string, unknown>,
+): void => {
+  const suffix = Object.keys(attrs).length > 0
+    ? ` ${toJson(attrs) ?? '{"attrs":"unserializable"}'}`
+    : "";
+
+  writeStderrLine(
+    `${new Date().toISOString()} ${severityToGoLevel(severity)} ${
+      categoryToString(category)
+    }: ${message}${suffix}`,
+  );
+};
+
 /** Module-level map from category key → Go handle, shared with configure hook. */
 const goHandles = new Map<string, string>();
 
@@ -58,6 +134,14 @@ export class Logger implements logging.Logger {
   #goHandle: string | null = null;
   #goHandleInitialized = false;
 
+  /**
+   * Latched once this logger's Go backend has failed. Both known causes -- no
+   * native library, and the stateless WASM command mode where handles do not
+   * survive the call that created them -- last for the process, so retrying per
+   * record would buy a failed FFI round trip per line and nothing else.
+   */
+  #degraded = false;
+
   constructor(
     category: Category | string,
     parent: Logger | null = null,
@@ -84,27 +168,112 @@ export class Logger implements logging.Logger {
     return this.#effectiveConfig;
   }
 
-  /** Lazily creates and caches a Go FFI handle for this logger. Throws if FFI unavailable. */
-  async #ensureGoHandle(): Promise<void> {
-    if (this.#goHandleInitialized) return;
+  /** Latches the console fallback for this logger and warns the operator once. */
+  #degrade(cause: string): void {
+    this.#degraded = true;
+    warnFallbackOnce(cause);
+  }
+
+  /**
+   * Lazily creates and caches a Go FFI handle for this logger. Returns null
+   * when no handle could be created; never throws, because a logging outage
+   * must not propagate into the calling application.
+   */
+  async #ensureGoHandle(): Promise<string | null> {
+    if (this.#goHandleInitialized) return this.#goHandle;
 
     this.#goHandleInitialized = true;
-    await ensureLib();
 
-    const lib = requireLib();
-    const config = this.#getEffectiveConfig();
-    const raw = lib.symbols.EserAjanLogCreate(
-      JSON.stringify({
-        scopeName: categoryToString(this.category),
-        level: severityToGoLevel(config.lowestLevel),
-      }),
-    );
-    const result = JSON.parse(raw) as { handle?: string; error?: string };
+    try {
+      await ensureLib();
 
-    if (result.handle) {
+      const lib = requireLib();
+      const config = this.#getEffectiveConfig();
+      const raw = lib.symbols.EserAjanLogCreate(
+        JSON.stringify({
+          scopeName: categoryToString(this.category),
+          level: severityToGoLevel(config.lowestLevel),
+        }),
+      );
+      const result = JSON.parse(raw) as { handle?: string; error?: string };
+
+      if (result.handle === undefined || result.handle === "") {
+        this.#degrade(result.error ?? `EserAjanLogCreate returned ${raw}`);
+
+        return null;
+      }
+
       this.#goHandle = result.handle;
       goHandles.set(categoryKey(this.category), result.handle);
+    } catch (error) {
+      this.#degrade(describeCause(error));
+
+      return null;
     }
+
+    return this.#goHandle;
+  }
+
+  /**
+   * Hands one record to the Go backend, returning false when the record must
+   * go to the console sink instead. Never throws.
+   */
+  #writeToGo(
+    handle: string,
+    severity: logging.Severity,
+    message: string,
+    attrs: Record<string, unknown>,
+  ): boolean {
+    const request = toJson({
+      handle,
+      level: severityToGoLevel(severity),
+      message,
+      attrs,
+    });
+
+    if (request === null) {
+      // Attributes that will not serialize are a caller-side fault, not a
+      // backend outage, so this record falls back without latching the logger.
+      return false;
+    }
+
+    try {
+      const raw = requireLib().symbols.EserAjanLogWrite(request);
+
+      // Hot path trade-off: a successful write answers "{}", so the response is
+      // only parsed once it mentions an error field. Since Go never echoes the
+      // record back, no failure response can lack the marker and slip through.
+      if (!raw.includes(ERROR_FIELD_MARKER)) {
+        return true;
+      }
+
+      const result = JSON.parse(raw) as { error?: string };
+
+      if (result.error === undefined || result.error === "") {
+        return true;
+      }
+
+      this.#degrade(result.error);
+    } catch (error) {
+      this.#degrade(describeCause(error));
+    }
+
+    return false;
+  }
+
+  /** Routes one record to Go, or to the console sink once Go has failed. */
+  async #emit(
+    severity: logging.Severity,
+    message: string,
+    attrs: Record<string, unknown>,
+  ): Promise<void> {
+    const handle = this.#degraded ? null : await this.#ensureGoHandle();
+
+    if (handle !== null && this.#writeToGo(handle, severity, message, attrs)) {
+      return;
+    }
+
+    writeFallbackRecord(this.category, severity, message, attrs);
   }
 
   /**
@@ -191,8 +360,9 @@ export class Logger implements logging.Logger {
   }
 
   /**
-   * Logs a message at the given severity level. Delegates entirely to Go FFI.
-   * Throws if the native library is unavailable.
+   * Logs a message at the given severity level. Delegates to Go FFI, degrading
+   * to a local console sink when the backend is unavailable or rejects the
+   * record. Never throws: a logging fault must not crash the caller.
    */
   async log<T>(
     severity: logging.Severity,
@@ -221,8 +391,6 @@ export class Logger implements logging.Logger {
       logMessage = this.asString(message);
     }
 
-    await this.#ensureGoHandle();
-    const lib = requireLib();
     const context = getContext();
     const attrs: Record<string, unknown> = {
       ...this.#properties,
@@ -235,14 +403,7 @@ export class Logger implements logging.Logger {
       attrs["args"] = args;
     }
 
-    lib.symbols.EserAjanLogWrite(
-      JSON.stringify({
-        handle: this.#goHandle,
-        level: severityToGoLevel(severity),
-        message: logMessage,
-        attrs,
-      }),
-    );
+    await this.#emit(severity, logMessage, attrs);
 
     return message instanceof Function ? fnResult : message;
   }
@@ -495,6 +656,10 @@ export const getLogger = (category: Category | string): Logger => {
  */
 export const clearLoggerCache = (): void => {
   loggerInstances.clear();
+
+  // Cached loggers carry the latched fallback state, so dropping them re-arms
+  // the one-time warning: the replacement loggers may reach a working backend.
+  fallbackWarned = false;
 };
 
 // Register the logger cache clear callback with config.ts

@@ -208,30 +208,56 @@ try {
 
     # Checksum verification, matching install.sh. SHA256SUMS.txt is a
     # `<sha256>  <filename>` list covering every artifact in the release.
+    #
+    # Every path below is a refusal, exactly as in install.sh. An unverifiable
+    # download is not a verified one: whoever can suppress or truncate this file
+    # -- a proxy, a captive portal, a half-uploaded release -- would otherwise
+    # decide for the user that no checksum is needed.
+    $sumsFile = Join-Path $tmp 'SHA256SUMS.txt'
+
+    # The catch is deliberately UNFILTERED. Windows PowerShell 5.1 raises
+    # System.Net.WebException from Invoke-WebRequest, but PowerShell 7 raises
+    # Microsoft.PowerShell.Commands.HttpResponseException, which a
+    # [System.Net.WebException] filter does not match -- so a typed filter is
+    # silently version-dependent, and the version it misses is the current one.
     try {
-      $sumsFile = Join-Path $tmp 'SHA256SUMS.txt'
-
       Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS.txt" -OutFile $sumsFile
+    }
+    catch {
+      throw ("Could not download $base/SHA256SUMS.txt ($($_.Exception.Message)). " +
+        'Refusing to install a binary that cannot be verified.')
+    }
 
-      $line = Select-String -Path $sumsFile -SimpleMatch $archive | Select-Object -First 1
+    # Exact second-field match, mirroring install.sh's
+    # `awk -v want="${ARCHIVE}" '$2 == want { print $1 }'`.
+    #
+    # NOT Select-String -SimpleMatch, which is a substring test: it accepts the
+    # line for "$archive.sig" or "$archive.sha256" -- names that contain this
+    # one -- and would verify the download against another file's checksum.
+    $expected = $null
 
-      if ($line) {
-        $expected = ($line.Line -split '\s+')[0]
-        $actual = (Get-FileHash -Path $zip -Algorithm SHA256).Hash
+    foreach ($line in @(Get-Content -LiteralPath $sumsFile)) {
+      $fields = $line.Trim() -split '\s+'
 
-        if ($actual -ine $expected) {
-          throw "Checksum verification failed for $archive (expected $expected, got $actual)"
-        }
+      if ($fields.Count -ge 2 -and $fields[1] -ceq $archive) {
+        $expected = $fields[0]
 
-        Write-Host 'Checksum verified.'
-      }
-      else {
-        Write-Warning "SHA256SUMS.txt has no entry for $archive; skipping verification."
+        break
       }
     }
-    catch [System.Net.WebException] {
-      Write-Warning 'Could not download SHA256SUMS.txt; skipping verification.'
+
+    if (-not $expected) {
+      throw ("SHA256SUMS.txt lists no checksum for $archive. " +
+        'Refusing to install a binary that cannot be verified.')
     }
+
+    $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
+
+    if ($actual -ine $expected) {
+      throw "Checksum verification failed for $archive (expected $expected, got $actual)"
+    }
+
+    Write-Host 'Checksum verified.'
   }
 
   $extract = Join-Path $tmp 'extract'

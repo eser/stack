@@ -14,6 +14,15 @@
  *
  * Works on Node.js, Bun, Deno, and browsers via the built-in WASI shim.
  *
+ * ## Only the no-argument exports are reachable
+ *
+ * There is a return protocol but no argument protocol. Reachable today:
+ * `version`, `init`, `shutdown`, `config_load` and `di_resolve`, all of which
+ * take nothing (the last two run against an empty string on the Go side).
+ * main_wasi_reactor.go also exports six AI functions that read their arguments
+ * out of the result buffer, but a host cannot write into that buffer -- see the
+ * comment on the AI stubs below. Everything else is stubbed with error JSON.
+ *
  * @module
  */
 
@@ -131,11 +140,22 @@ export const loadReactorWasm = async (
         '{"error":"Log calls require native FFI or command-mode WASM"}',
       EserAjanLogWrite: (_requestJSON: string) =>
         '{"error":"Log calls require native FFI or command-mode WASM"}',
-      EserAjanLogClose: (_handle: string) => "",
+      EserAjanLogClose: (_handle: string) =>
+        '{"error":"Log calls require native FFI or command-mode WASM"}',
       EserAjanLogShouldLog: (_requestJSON: string) =>
         '{"error":"Log calls require native FFI or command-mode WASM"}',
       EserAjanLogConfigure: (_requestJSON: string) =>
         '{"error":"Log calls require native FFI or command-mode WASM"}',
+      // The AI stubs below stay stubs even though main_wasi_reactor.go carries
+      // //go:wasmexport entries for create_model, generate_text, stream_text,
+      // stream_read, close_model and free_stream. Those exports take their
+      // string arguments as (offset, length) windows into `resultBuf`, the same
+      // buffer results are written to, and no export lets a host write into it:
+      // eser_ajan_result_ptr returns null while the buffer is empty, which is
+      // exactly its state before the first call. So there is no way to place an
+      // argument where the Go side reads it, and argRange would reject any
+      // window the host guessed. Do not "fix" this side by calling them --
+      // the Go side needs a host-writable input buffer first.
       EserAjanAiCreateModel: (_configJSON: string) =>
         '{"error":"AI calls require native FFI or command-mode WASM"}',
       EserAjanAiGenerateText: (_modelHandle: string, _optionsJSON: string) =>
@@ -144,10 +164,15 @@ export const loadReactorWasm = async (
         '{"error":"AI calls require native FFI or command-mode WASM"}',
       EserAjanAiStreamRead: (_streamHandle: string) =>
         '{"error":"AI calls require native FFI or command-mode WASM"}',
-      // Nothing to cancel: reactor mode never starts an AI call.
-      EserAjanAiCancelRequest: (_requestJSON: string) => "{}",
-      EserAjanAiCloseModel: (_modelHandle: string) => "",
-      EserAjanAiFreeStream: (_streamHandle: string) => "",
+      // Reported as an error rather than as silent success: this symbol has no
+      // reactor export at all, so a caller aborting a request has no way to
+      // learn that nothing was cancelled if it answers "{}".
+      EserAjanAiCancelRequest: (_requestJSON: string) =>
+        '{"error":"AI calls require native FFI or command-mode WASM"}',
+      EserAjanAiCloseModel: (_modelHandle: string) =>
+        '{"error":"AI calls require native FFI or command-mode WASM"}',
+      EserAjanAiFreeStream: (_streamHandle: string) =>
+        '{"error":"AI calls require native FFI or command-mode WASM"}',
       // Batch methods require stateful server-side resources which reactor mode doesn't support.
       EserAjanAiBatchCreate: (_requestJSON: string) =>
         '{"error":"AI batch calls require native FFI or command-mode WASM"}',
@@ -164,13 +189,15 @@ export const loadReactorWasm = async (
         '{"error":"HTTP calls require native FFI or command-mode WASM"}',
       EserAjanHttpRequest: (_requestJSON: string) =>
         '{"error":"HTTP calls require native FFI or command-mode WASM"}',
-      EserAjanHttpClose: (_handle: string) => "",
+      EserAjanHttpClose: (_handle: string) =>
+        '{"error":"HTTP calls require native FFI or command-mode WASM"}',
       // HTTP streaming requires stateful handles which reactor mode doesn't support.
       EserAjanHttpRequestStream: (_requestJSON: string) =>
         '{"error":"HTTP stream calls require native FFI or command-mode WASM"}',
       EserAjanHttpStreamRead: (_handle: string) =>
         '{"error":"HTTP stream calls require native FFI or command-mode WASM"}',
-      EserAjanHttpStreamClose: (_handle: string) => "",
+      EserAjanHttpStreamClose: (_handle: string) =>
+        '{"error":"HTTP stream calls require native FFI or command-mode WASM"}',
       // Noskills methods require string args which reactor mode doesn't yet support.
       EserAjanNoskillsInit: (_requestJSON: string) =>
         '{"error":"Noskills calls require native FFI or command-mode WASM"}',
@@ -196,7 +223,8 @@ export const loadReactorWasm = async (
         '{"error":"Cache calls require native FFI or command-mode WASM"}',
       EserAjanCacheClear: (_requestJSON: string) =>
         '{"error":"Cache calls require native FFI or command-mode WASM"}',
-      EserAjanCacheClose: (_requestJSON: string) => "",
+      EserAjanCacheClose: (_requestJSON: string) =>
+        '{"error":"Cache calls require native FFI or command-mode WASM"}',
       // CS methods require string args which reactor mode doesn't yet support.
       EserAjanCsGenerate: (_requestJSON: string) =>
         '{"error":"CS calls require native FFI or command-mode WASM"}',
@@ -253,12 +281,19 @@ export const loadReactorWasm = async (
         '{"error":"Codebase calls require native FFI or command-mode WASM"}',
       EserAjanCodebaseWalkFilesStreamCreate: (_requestJSON: string) =>
         '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
-      EserAjanCodebaseWalkFilesStreamRead: (_handle: string) => "null",
-      EserAjanCodebaseWalkFilesStreamClose: (_handle: string) => "{}",
+      // "null" (end of stream) and "{}" (closed) would report success for a
+      // handle that was never created, so both answer with the same error the
+      // create call gives.
+      EserAjanCodebaseWalkFilesStreamRead: (_handle: string) =>
+        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
+      EserAjanCodebaseWalkFilesStreamClose: (_handle: string) =>
+        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
       EserAjanCodebaseValidateFilesStreamCreate: (_requestJSON: string) =>
         '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
-      EserAjanCodebaseValidateFilesStreamRead: (_handle: string) => "null",
-      EserAjanCodebaseValidateFilesStreamClose: (_handle: string) => "{}",
+      EserAjanCodebaseValidateFilesStreamRead: (_handle: string) =>
+        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
+      EserAjanCodebaseValidateFilesStreamClose: (_handle: string) =>
+        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
       // Collector methods require string args which reactor mode doesn't yet support.
       EserAjanCollectorSpecifierToIdentifier: (_requestJSON: string) =>
         '{"error":"Collector calls require native FFI or command-mode WASM"}',

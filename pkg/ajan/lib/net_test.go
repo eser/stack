@@ -83,6 +83,26 @@ func TestDetectLocalNetwork(t *testing.T) {
 			wantLocal: false,
 		},
 		{ //nolint:exhaustruct
+			name:      "loopback_ipv6",
+			addr:      "::1",
+			wantLocal: true,
+		},
+		{ //nolint:exhaustruct
+			name:      "loopback_ipv6_with_port",
+			addr:      "[::1]:8080",
+			wantLocal: true,
+		},
+		{ //nolint:exhaustruct
+			name:      "remote_ipv6",
+			addr:      "2001:db8::1",
+			wantLocal: false,
+		},
+		{ //nolint:exhaustruct
+			name:      "remote_ipv6_with_port",
+			addr:      "[2001:db8::1]:8080",
+			wantLocal: false,
+		},
+		{ //nolint:exhaustruct
 			name:    "invalid_addr",
 			addr:    "not-an-ip",
 			wantErr: true,

@@ -12,6 +12,25 @@
  *
  * Works on Node.js, Bun, Deno, and browsers via the built-in WASI shim.
  *
+ * ## Handle-based APIs cannot work in this mode
+ *
+ * `_start` runs the Go program to completion and exits, so an instance is spent
+ * after a single request and step 2 above has to build a new one every time.
+ * A new instance means new linear memory, and every Go-side handle registry
+ * lives in that memory: AI models and streams, in-flight AI request ids,
+ * loggers, HTTP clients and response streams, caches, posts services, codebase
+ * walk and validate streams, tokenizers, TUI keypress readers, spawned child
+ * processes and PTY sessions. A handle minted by one call therefore refers to
+ * nothing by the time the next call looks it up, and the Go side answers
+ * "handle not found".
+ *
+ * Making the instance persistent is not an option here -- that is what reactor
+ * mode is for. So instead of handing back handles that are already dead, every
+ * symbol that creates, consumes or releases one throws (see
+ * `HANDLE_BOUND_FUNCTIONS`). The stateless one-shot symbols -- version, config
+ * load, formats, crypto, codebase git and validation, collector, parsing,
+ * cs, kit, noskills, workflow, shell exec -- work normally.
+ *
  * @module
  */
 
@@ -36,11 +55,105 @@ interface WasiResponse {
 }
 
 /**
+ * Dispatch names whose Go implementation reads, writes or deletes an entry in a
+ * handle registry, mapped to the exported symbol the caller sees.
+ *
+ * Derived from the dispatch switch in main_wasi.go together with the registries
+ * in bridge.go (`modelHandles` / `modelRegistryNames` / `modelInFlight`,
+ * `streamHandles`, `aiCancels`, `logHandles`, `httpClientHandles`,
+ * `httpStreamHandles`, `cacheHandles`, `postsHandles`,
+ * `codebaseWalkStreamHandles`, `codebaseValidateStreamHandles`,
+ * `tokenizerHandles`, `tuiKeypressHandles`, `execHandles`, `ptyHandles`) rather
+ * than from the symbol names, which do not reliably say: `aiBatchList` takes a
+ * model handle, `cacheGetDir` takes a cache handle, and `aiCancelRequest`
+ * consumes a request id registered by an earlier generate or stream call.
+ *
+ * Adding a Go export that touches one of those registries means adding it here
+ * too; nothing else in this file distinguishes a stateful symbol from a
+ * one-shot one.
+ */
+const HANDLE_BOUND_FUNCTIONS: Record<string, string> = {
+  aiCreateModel: "EserAjanAiCreateModel",
+  aiGenerateText: "EserAjanAiGenerateText",
+  aiStreamText: "EserAjanAiStreamText",
+  aiStreamRead: "EserAjanAiStreamRead",
+  aiCancelRequest: "EserAjanAiCancelRequest",
+  aiCloseModel: "EserAjanAiCloseModel",
+  aiFreeStream: "EserAjanAiFreeStream",
+  aiBatchCreate: "EserAjanAiBatchCreate",
+  aiBatchGet: "EserAjanAiBatchGet",
+  aiBatchList: "EserAjanAiBatchList",
+  aiBatchDownload: "EserAjanAiBatchDownload",
+  aiBatchCancel: "EserAjanAiBatchCancel",
+  logCreate: "EserAjanLogCreate",
+  logWrite: "EserAjanLogWrite",
+  logClose: "EserAjanLogClose",
+  logShouldLog: "EserAjanLogShouldLog",
+  logConfigure: "EserAjanLogConfigure",
+  httpCreate: "EserAjanHttpCreate",
+  httpRequest: "EserAjanHttpRequest",
+  httpClose: "EserAjanHttpClose",
+  httpRequestStream: "EserAjanHttpRequestStream",
+  httpStreamRead: "EserAjanHttpStreamRead",
+  httpStreamClose: "EserAjanHttpStreamClose",
+  cacheCreate: "EserAjanCacheCreate",
+  cacheGetDir: "EserAjanCacheGetDir",
+  cacheGetVersionedPath: "EserAjanCacheGetVersionedPath",
+  cacheList: "EserAjanCacheList",
+  cacheRemove: "EserAjanCacheRemove",
+  cacheClear: "EserAjanCacheClear",
+  cacheClose: "EserAjanCacheClose",
+  postsCreateService: "EserAjanPostsCreateService",
+  postsCompose: "EserAjanPostsCompose",
+  postsGetTimeline: "EserAjanPostsGetTimeline",
+  postsSearch: "EserAjanPostsSearch",
+  postsClose: "EserAjanPostsClose",
+  codebaseWalkFilesStreamCreate: "EserAjanCodebaseWalkFilesStreamCreate",
+  codebaseWalkFilesStreamRead: "EserAjanCodebaseWalkFilesStreamRead",
+  codebaseWalkFilesStreamClose: "EserAjanCodebaseWalkFilesStreamClose",
+  codebaseValidateFilesStreamCreate:
+    "EserAjanCodebaseValidateFilesStreamCreate",
+  codebaseValidateFilesStreamRead: "EserAjanCodebaseValidateFilesStreamRead",
+  codebaseValidateFilesStreamClose: "EserAjanCodebaseValidateFilesStreamClose",
+  parsingTokenizeStreamCreate: "EserAjanParsingTokenizeStreamCreate",
+  parsingTokenizeStreamPush: "EserAjanParsingTokenizeStreamPush",
+  parsingTokenizeStreamClose: "EserAjanParsingTokenizeStreamClose",
+  shellTuiKeypressCreate: "EserAjanShellTuiKeypressCreate",
+  shellTuiKeypressRead: "EserAjanShellTuiKeypressRead",
+  shellTuiKeypressClose: "EserAjanShellTuiKeypressClose",
+  shellExecSpawn: "EserAjanShellExecSpawn",
+  shellExecRead: "EserAjanShellExecRead",
+  shellExecWrite: "EserAjanShellExecWrite",
+  shellExecClose: "EserAjanShellExecClose",
+  shellPtySpawn: "EserAjanShellPtySpawn",
+  shellPtyRead: "EserAjanShellPtyRead",
+  shellPtyWrite: "EserAjanShellPtyWrite",
+  shellPtyResize: "EserAjanShellPtyResize",
+  shellPtyKill: "EserAjanShellPtyKill",
+  shellPtyClose: "EserAjanShellPtyClose",
+};
+
+/**
+ * The single wording for "this symbol needs state that command mode cannot
+ * keep". Every handle-bound symbol reports the same thing, so callers can match
+ * on it and users only ever learn one remedy.
+ */
+const handleBoundError = (symbol: string): Error =>
+  new Error(
+    `${symbol} is unavailable through the eser-ajan WASM command-mode ` +
+      `fallback: the WASM module is re-instantiated for every symbol call, so ` +
+      `its handle registries start empty each time and handles cannot be ` +
+      `carried across calls. Install the native library (the @eserstack/ajan ` +
+      `platform package for this OS and architecture) or set ` +
+      `ESER_AJAN_LIB_PATH to an existing build.`,
+  );
+
+/**
  * Loads the command-mode WASM module and returns an FFILibrary-compatible handle.
  *
  * Each symbol call instantiates a fresh WASI shim with the request piped
- * through stdin, then reads the JSON response from captured stdout. This is
- * simpler but slower than the reactor-mode loader.
+ * through stdin, then reads the JSON response from captured stdout. Handle-based
+ * symbols throw instead of dispatching -- see the module doc comment.
  *
  * @param wasmPath - Absolute path to the `eser-ajan.wasm` file.
  * @returns An FFILibrary-compatible object.
@@ -86,8 +199,19 @@ export const loadCommandWasm = async (
   /**
    * Invokes a function and returns the result string.
    * Throws on error responses.
+   *
+   * Handle-bound functions are rejected here rather than at each call site so
+   * that the check cannot be reached around, and so the 100 symbol keys below
+   * stay literal for the ABI parity guard in
+   * `@eserstack/codebase/ajan-ffi-parity.test.ts`.
    */
   const call = (fn: string, args?: Record<string, string>): string => {
+    const handleBoundSymbol = HANDLE_BOUND_FUNCTIONS[fn];
+
+    if (handleBoundSymbol !== undefined) {
+      throw handleBoundError(handleBoundSymbol);
+    }
+
     const request: WasiRequest = { fn };
     if (args !== undefined) {
       request.args = args;
@@ -106,6 +230,10 @@ export const loadCommandWasm = async (
     return response.result ?? "";
   };
 
+  // Every symbol keeps its literal key and its literal dispatch name: the ABI
+  // parity guard reads both out of this source text, so a generated map or a
+  // shared stub table would empty its extraction. Entries listed in
+  // HANDLE_BOUND_FUNCTIONS throw from `call` before anything is dispatched.
   return {
     symbols: {
       EserAjanVersion: () => call("version"),
@@ -295,8 +423,11 @@ export const loadCommandWasm = async (
         call("shellExecClose", { handle }),
       EserAjanShellPtySpawn: (requestJSON: string) =>
         call("shellPtySpawn", { requestJSON }),
+      // Deferred through `then` so the handle-bound rejection surfaces on the
+      // returned promise: this symbol is declared async, and a synchronous
+      // throw would break callers that only attach a `catch`.
       EserAjanShellPtyRead: (handle: string): Promise<string> =>
-        Promise.resolve(call("shellPtyRead", { handle })),
+        Promise.resolve().then(() => call("shellPtyRead", { handle })),
       EserAjanShellPtyWrite: (requestJSON: string) =>
         call("shellPtyWrite", { requestJSON }),
       EserAjanShellPtyResize: (requestJSON: string) =>

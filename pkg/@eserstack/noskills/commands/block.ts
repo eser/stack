@@ -73,10 +73,7 @@ export const main = async (
     user,
     reason,
   );
-  await persistence.writeState(root, newState);
-  if (newState.spec !== null) {
-    await persistence.writeSpecState(root, newState.spec, newState);
-  }
+  await persistence.writeStateAndSpec(root, newState);
 
   out.writeln(span.yellow("⚠"), " Spec blocked: ", span.dim(reason));
   out.writeln(

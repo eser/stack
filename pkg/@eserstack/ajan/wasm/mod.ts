@@ -16,6 +16,15 @@
  * lib.close();
  * ```
  *
+ * Neither mode supports the handle-based APIs -- AI models and streams,
+ * loggers, HTTP clients and streams, caches, posts services, codebase and
+ * parsing streams, TUI readers, spawned processes and PTY sessions. Command
+ * mode re-instantiates the module per call and so loses every handle between
+ * calls; reactor mode has no way to pass string arguments in at all. Those
+ * symbols report the limitation rather than appearing to work: command mode
+ * throws, reactor mode returns error JSON. Anything needing them wants the
+ * native library instead.
+ *
  * @module
  */
 

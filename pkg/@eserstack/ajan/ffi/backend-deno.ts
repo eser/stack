@@ -6,6 +6,7 @@
  * @module
  */
 
+import * as closeGuard from "./close-guard.ts";
 import type * as types from "./types.ts";
 
 /**
@@ -451,20 +452,6 @@ const toCString = (str: string): Uint8Array<ArrayBuffer> => {
 };
 
 /**
- * Reads a C string from a pointer. Returns the JS string and the raw pointer
- * so the caller can free it.
- */
-const readCString = (
-  ptr: Deno.PointerValue,
-): { value: string; ptr: Deno.PointerValue } => {
-  if (ptr === null) {
-    return { value: "", ptr };
-  }
-  const value = new Deno.UnsafePointerView(ptr).getCString();
-  return { value, ptr };
-};
-
-/**
  * Creates a high-level symbol wrapper that automatically handles
  * string↔pointer conversions and frees returned C strings.
  */
@@ -472,17 +459,28 @@ const createSymbolWrappers = (
   // deno-lint-ignore no-explicit-any
   rawSymbols: any,
 ): types.FFILibrary["symbols"] => {
-  const freePtr = (ptr: Deno.PointerValue): void => {
-    if (ptr !== null) {
+  /**
+   * Reads the C string at `ptr` and releases the Go allocation behind it.
+   *
+   * The free sits in a `finally` because it must run even when decoding throws:
+   * every pointer the bridge returns is a `C.CString`, i.e. malloc'd memory the
+   * caller owns, and an exception on the decode path would otherwise strand it.
+   */
+  const readAndFree = (ptr: Deno.PointerValue): string => {
+    if (ptr === null) {
+      return "";
+    }
+
+    try {
+      return new Deno.UnsafePointerView(ptr).getCString();
+    } finally {
       rawSymbols.EserAjanFree(ptr);
     }
   };
 
   return {
     EserAjanVersion: (): string => {
-      const { value, ptr } = readCString(rawSymbols.EserAjanVersion());
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawSymbols.EserAjanVersion());
     },
     EserAjanInit: (): number => {
       return rawSymbols.EserAjanInit() as number;
@@ -498,27 +496,21 @@ const createSymbolWrappers = (
       const rawPtr = rawSymbols.EserAjanConfigLoad(
         Deno.UnsafePointer.of(cPath),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanDIResolve: (name: string): string => {
       const cName = toCString(name);
       const rawPtr = rawSymbols.EserAjanDIResolve(
         Deno.UnsafePointer.of(cName),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiCreateModel: (configJSON: string): string => {
       const cStr = toCString(configJSON);
       const rawPtr = rawSymbols.EserAjanAiCreateModel(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiGenerateText: async (
       modelHandle: string,
@@ -533,9 +525,7 @@ const createSymbolWrappers = (
         Deno.UnsafePointer.of(cHandle),
         Deno.UnsafePointer.of(cOpts),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiStreamText: async (
       modelHandle: string,
@@ -548,9 +538,7 @@ const createSymbolWrappers = (
         Deno.UnsafePointer.of(cHandle),
         Deno.UnsafePointer.of(cOpts),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiStreamRead: async (streamHandle: string): Promise<string> => {
       const cStr = toCString(streamHandle);
@@ -560,36 +548,28 @@ const createSymbolWrappers = (
       const rawPtr = await rawSymbols.EserAjanAiStreamRead(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiCancelRequest: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanAiCancelRequest(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiCloseModel: (modelHandle: string): string => {
       const cStr = toCString(modelHandle);
       const rawPtr = rawSymbols.EserAjanAiCloseModel(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiFreeStream: (streamHandle: string): string => {
       const cStr = toCString(streamHandle);
       const rawPtr = rawSymbols.EserAjanAiFreeStream(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiBatchCreate: async (requestJSON: string): Promise<string> => {
       const cStr = toCString(requestJSON);
@@ -597,9 +577,7 @@ const createSymbolWrappers = (
       const rawPtr = await rawSymbols.EserAjanAiBatchCreate(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiBatchGet: async (requestJSON: string): Promise<string> => {
       const cStr = toCString(requestJSON);
@@ -607,9 +585,7 @@ const createSymbolWrappers = (
       const rawPtr = await rawSymbols.EserAjanAiBatchGet(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiBatchList: async (requestJSON: string): Promise<string> => {
       const cStr = toCString(requestJSON);
@@ -617,9 +593,7 @@ const createSymbolWrappers = (
       const rawPtr = await rawSymbols.EserAjanAiBatchList(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiBatchDownload: async (requestJSON: string): Promise<string> => {
       const cStr = toCString(requestJSON);
@@ -627,9 +601,7 @@ const createSymbolWrappers = (
       const rawPtr = await rawSymbols.EserAjanAiBatchDownload(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanAiBatchCancel: async (requestJSON: string): Promise<string> => {
       const cStr = toCString(requestJSON);
@@ -637,501 +609,389 @@ const createSymbolWrappers = (
       const rawPtr = await rawSymbols.EserAjanAiBatchCancel(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanFormatEncode: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanFormatEncode(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanFormatDecode: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanFormatDecode(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanFormatList: (): string => {
       const rawPtr = rawSymbols.EserAjanFormatList();
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanFormatEncodeDocument: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanFormatEncodeDocument(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanLogCreate: (configJSON: string): string => {
       const cStr = toCString(configJSON);
       const rawPtr = rawSymbols.EserAjanLogCreate(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanLogWrite: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanLogWrite(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanLogClose: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanLogClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanLogShouldLog: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanLogShouldLog(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanLogConfigure: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanLogConfigure(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanHttpCreate: (configJSON: string): string => {
       const cStr = toCString(configJSON);
       const rawPtr = rawSymbols.EserAjanHttpCreate(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanHttpRequest: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanHttpRequest(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanHttpClose: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanHttpClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanHttpRequestStream: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanHttpRequestStream(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanHttpStreamRead: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanHttpStreamRead(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanHttpStreamClose: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanHttpStreamClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanNoskillsInit: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanNoskillsInit(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanNoskillsSpecNew: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanNoskillsSpecNew(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanNoskillsNext: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanNoskillsNext(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanWorkflowRun: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanWorkflowRun(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCryptoHash: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCryptoHash(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCacheCreate: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCacheCreate(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCacheGetDir: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCacheGetDir(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCacheGetVersionedPath: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCacheGetVersionedPath(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCacheList: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCacheList(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCacheRemove: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCacheRemove(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCacheClear: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCacheClear(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCacheClose: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCacheClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCsGenerate: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCsGenerate(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCsSync: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCsSync(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanKitListRecipes: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanKitListRecipes(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanKitApplyRecipe: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanKitApplyRecipe(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanKitCloneRecipe: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanKitCloneRecipe(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanKitNewProject: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanKitNewProject(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanKitUpdateRecipe: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanKitUpdateRecipe(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanPostsCreateService: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanPostsCreateService(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanPostsCompose: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanPostsCompose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanPostsGetTimeline: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanPostsGetTimeline(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanPostsSearch: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanPostsSearch(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanPostsClose: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanPostsClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseGitCurrentBranch: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseGitCurrentBranch(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseGitLatestTag: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseGitLatestTag(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseGitLog: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseGitLog(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseValidateCommitMsg: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseValidateCommitMsg(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseGenerateChangelog: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseGenerateChangelog(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseBumpVersion: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseBumpVersion(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseWalkFiles: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseWalkFiles(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseValidateFiles: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseValidateFiles(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseCheckCircularDeps: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseCheckCircularDeps(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseCheckExportNames: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseCheckExportNames(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseCheckModExports: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseCheckModExports(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseCheckPackageConfigs: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseCheckPackageConfigs(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseCheckDocs: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseCheckDocs(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseWalkFilesStreamCreate: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCodebaseWalkFilesStreamCreate(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseWalkFilesStreamRead: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanCodebaseWalkFilesStreamRead(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseWalkFilesStreamClose: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanCodebaseWalkFilesStreamClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseValidateFilesStreamCreate: (
       requestJSON: string,
@@ -1140,195 +1000,151 @@ const createSymbolWrappers = (
       const rawPtr = rawSymbols.EserAjanCodebaseValidateFilesStreamCreate(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseValidateFilesStreamRead: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanCodebaseValidateFilesStreamRead(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCodebaseValidateFilesStreamClose: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanCodebaseValidateFilesStreamClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCollectorSpecifierToIdentifier: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCollectorSpecifierToIdentifier(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCollectorWalkFiles: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCollectorWalkFiles(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanCollectorGenerateManifest: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanCollectorGenerateManifest(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanParsingTokenize: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanParsingTokenize(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanParsingSimpleTokens: (): string => {
       const rawPtr = rawSymbols.EserAjanParsingSimpleTokens();
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanParsingTokenizeStreamCreate: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanParsingTokenizeStreamCreate(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanParsingTokenizeStreamPush: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanParsingTokenizeStreamPush(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanParsingTokenizeStreamClose: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanParsingTokenizeStreamClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellExec: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanShellExec(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellTuiKeypressCreate: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanShellTuiKeypressCreate(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellTuiKeypressRead: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanShellTuiKeypressRead(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellTuiKeypressClose: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanShellTuiKeypressClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellTuiSetStdinRaw: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanShellTuiSetStdinRaw(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellTuiGetSize: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanShellTuiGetSize(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellExecSpawn: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanShellExecSpawn(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellExecRead: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanShellExecRead(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellExecWrite: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanShellExecWrite(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellExecClose: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanShellExecClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellPtySpawn: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanShellPtySpawn(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellPtyRead: async (handle: string): Promise<string> => {
       const cStr = toCString(handle);
@@ -1337,45 +1153,35 @@ const createSymbolWrappers = (
       const rawPtr = await rawSymbols.EserAjanShellPtyRead(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellPtyWrite: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanShellPtyWrite(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellPtyResize: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanShellPtyResize(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellPtyKill: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
       const rawPtr = rawSymbols.EserAjanShellPtyKill(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
     EserAjanShellPtyClose: (handle: string): string => {
       const cStr = toCString(handle);
       const rawPtr = rawSymbols.EserAjanShellPtyClose(
         Deno.UnsafePointer.of(cStr),
       );
-      const { value, ptr } = readCString(rawPtr);
-      freePtr(ptr);
-      return value;
+      return readAndFree(rawPtr);
     },
   };
 };
@@ -1393,11 +1199,14 @@ export const backend: types.FFIBackend = {
   open: (libraryPath: string): Promise<types.FFILibrary> => {
     const lib = Deno.dlopen(libraryPath, SYMBOL_DEFINITIONS);
 
-    return Promise.resolve({
-      symbols: createSymbolWrappers(lib.symbols),
-      close: (): void => {
-        lib.close();
-      },
-    });
+    return Promise.resolve(
+      closeGuard.withCloseGuard(
+        "deno",
+        createSymbolWrappers(lib.symbols),
+        () => {
+          lib.close();
+        },
+      ),
+    );
   },
 };

@@ -285,9 +285,30 @@ export class CommandBuilder {
     return result.code;
   }
 
-  /** Pipe this command's output to another command */
-  pipe(next: CommandBuilder): PipedCommandBuilder {
-    return new PipedCommandBuilder([this, next]);
+  /**
+   * Not implemented — always throws.
+   *
+   * This used to return a builder that ran each command in turn and threw every
+   * command's output away except the last: nothing was ever written to the next
+   * child's stdin, so `a.pipe(b).text()` returned b's output with b reading the
+   * inherited stdin rather than a's. It reported success while producing an
+   * answer unrelated to the pipeline that was asked for, which is worse than
+   * being absent.
+   *
+   * Compose a real pipeline with {@link CommandBuilder.child}, which exposes the
+   * child's stdin and stdout as streams.
+   *
+   * @throws {Error} Always.
+   */
+  pipe(_next: CommandBuilder): never {
+    throw new Error(
+      "exec(...).pipe() is not implemented. It previously discarded the " +
+        "upstream output instead of writing it to the next command's stdin, " +
+        "so results were silently wrong. Build the pipeline with .child() " +
+        "and pipe the streams yourself: " +
+        "const a = exec`...`.child(); const b = exec`...`.child(); " +
+        "await a.stdout.pipeTo(b.stdin);",
+    );
   }
 
   /**
@@ -319,42 +340,5 @@ export class CommandBuilder {
       cwd: this.#options.cwd,
       env,
     });
-  }
-}
-
-/**
- * Represents a pipeline of commands
- */
-class PipedCommandBuilder {
-  readonly #commands: CommandBuilder[];
-
-  constructor(commands: CommandBuilder[]) {
-    this.#commands = commands;
-  }
-
-  /** Add another command to the pipeline */
-  pipe(next: CommandBuilder): PipedCommandBuilder {
-    return new PipedCommandBuilder([...this.#commands, next]);
-  }
-
-  /** Execute the pipeline and return final stdout as text */
-  async text(): Promise<string> {
-    let input = "";
-
-    for (const cmd of this.#commands) {
-      // For now, simple implementation: run each command and pass output
-      // A more sophisticated implementation would use actual pipes
-      const result = await cmd.spawn();
-      input = decoder.decode(result.stdout);
-    }
-
-    return input.trim();
-  }
-
-  /** Execute the pipeline and return final stdout as lines */
-  async lines(): Promise<string[]> {
-    const text = await this.text();
-    if (text === "") return [];
-    return text.split("\n");
   }
 }

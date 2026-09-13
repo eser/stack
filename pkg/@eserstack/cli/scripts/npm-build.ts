@@ -47,12 +47,12 @@ const EXTERNAL_PACKAGES = [
   "lightningcss",
   // FFI / platform packages — loaded at runtime via dynamic import + dlopen.
   //
-  // `@eserstack/ajan` itself must be listed: the glob above only matches the
-  // hyphenated platform packages (ajan-darwin-arm64 etc), so without this the
-  // loader gets bundled and its `await import("@eserstack/ajan")` resolves
-  // against dist/, where nothing by that name exists -- which is what broke
-  // `eser ajan version` under node and bun.
-  "@eserstack/ajan",
+  // `@eserstack/ajan` itself is deliberately NOT here. It is published to JSR
+  // only, so an external import of it leaves the npm package uninstallable
+  // (`npm install` 404s on the dependency) and, since the FFI loader is now a
+  // static import in every ffi-client.ts, unloadable even from a link install.
+  // Bundling it keeps the package self-contained; only the platform binaries
+  // and the runtime-specific FFI builtins stay external.
   "@eserstack/ajan-*",
   "@eserstack/ajan-wasm",
   "koffi",
@@ -251,10 +251,6 @@ const main = async (): Promise<void> => {
     type: "module",
     bin: { eser: "./eser.js" },
     dependencies: {
-      // Range, not the version being released: that version is not on npm
-      // until the publish jobs run later in the same pipeline (see the 4.1.58
-      // lockfile deadlock). Matches how the platform packages are pinned.
-      "@eserstack/ajan": "^4.1.0 || ^5.0.0",
       "@tailwindcss/oxide": "^4.3.3",
       koffi: "^2.15.0",
       lightningcss: "^1.30.0",

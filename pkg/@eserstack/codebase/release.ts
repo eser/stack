@@ -47,7 +47,12 @@ import {
   readVersionFile,
   type VersionCommand,
 } from "./versions.ts";
-import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
+import {
+  commandFailureDetail,
+  createCliContext,
+  runCliMain,
+  toCliEvent,
+} from "./cli-support.ts";
 
 const { ctx, output: out } = createCliContext();
 
@@ -211,22 +216,6 @@ const deleteGitHubRelease = async (tag: string): Promise<boolean> => {
 // =============================================================================
 
 /**
- * Render why a git step failed, so the recovery advice is actionable.
- *
- * Commands run with piped stdio, so git's own diagnostic ("non-fast-forward",
- * "Permission denied") lives only on CommandError.stderr and is otherwise never
- * printed. Telling an operator to retry a push without saying why it failed
- * sends them to run the same command and watch it fail the same silent way.
- */
-const gitFailureDetail = (err: unknown): string => {
-  if (err instanceof shellExec.CommandError && err.stderr.trim().length > 0) {
-    return `\n\n${err.stderr.trim()}`;
-  }
-
-  return err instanceof Error ? `\n\n${err.message}` : "";
-};
-
-/**
  * Ask a yes/no question via the TUI confirm widget.
  * Falls back to a simple process-based prompt if TUI is unavailable.
  */
@@ -357,7 +346,7 @@ export const release = async (
       throw new Error(
         "Release commit created but push failed. Fix the push, then run: " +
           `git push origin HEAD && eser codebase gh release-tag${
-            gitFailureDetail(err)
+            commandFailureDetail(err)
           }`,
         { cause: err },
       );
@@ -375,7 +364,7 @@ export const release = async (
     } catch (err) {
       throw new Error(
         `Commit pushed but tag push failed. Run "eser codebase rerelease" to ` +
-          `create and push ${tag}.${gitFailureDetail(err)}`,
+          `create and push ${tag}.${commandFailureDetail(err)}`,
         { cause: err },
       );
     }
@@ -465,7 +454,7 @@ export const rerelease = async (
       throw new Error(
         `${tag} was deleted but could not be recreated — the version now has ` +
           `no tag. Run "eser codebase gh release-tag" to push it.${
-            gitFailureDetail(err)
+            commandFailureDetail(err)
           }`,
         { cause: err },
       );

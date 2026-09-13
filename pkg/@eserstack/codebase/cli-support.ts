@@ -13,6 +13,7 @@ import type * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eserstack/primitives/results";
 import type { CliEvent } from "@eserstack/functions/triggers";
 import * as shellArgs from "@eserstack/shell/args";
+import * as shellExec from "@eserstack/shell/exec";
 
 import { appFromName, type CliApp } from "./cli-system/app.ts";
 import * as shellEnv from "@eserstack/shell/env";
@@ -246,4 +247,22 @@ export const runStandaloneModule = async (
   // exitCli rather than a natural return: the native FFI teardown makes a
   // normal exit unsafe once the shared library has been loaded. See its docs.
   return await exitCli(await app.parse());
+};
+
+/**
+ * Render why a spawned command failed, so the error an operator sees is
+ * actionable.
+ *
+ * Commands run with piped stdio, so the tool's own diagnostic ("non-fast-forward",
+ * "HTTP 403", "release not found") lives only on `CommandError.stderr` and is
+ * otherwise never printed. "Command failed with exit code 1: gh" on its own
+ * sends the operator to rerun the same command and watch it fail the same
+ * silent way — which is exactly how the v4.5.0 release-notes step died in CI.
+ */
+export const commandFailureDetail = (err: unknown): string => {
+  if (err instanceof shellExec.CommandError && err.stderr.trim().length > 0) {
+    return `\n\n${err.stderr.trim()}`;
+  }
+
+  return err instanceof Error ? `\n\n${err.message}` : "";
 };

@@ -657,15 +657,36 @@ jobs:
           path: npm-dist/laroux/
 
       - name: Publish eser to npm
-        run: pnpm publish --provenance --access public --no-git-checks
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on npm — skipping so a later stage can be re-run"
+          else
+            pnpm publish --provenance --access public --no-git-checks
+          fi
         working-directory: npm-dist/eser
 
       - name: Publish noskills to npm
-        run: pnpm publish --provenance --access public --no-git-checks
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on npm — skipping so a later stage can be re-run"
+          else
+            pnpm publish --provenance --access public --no-git-checks
+          fi
         working-directory: npm-dist/noskills
 
       - name: Publish laroux to npm
-        run: pnpm publish --provenance --access public --no-git-checks
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on npm — skipping so a later stage can be re-run"
+          else
+            pnpm publish --provenance --access public --no-git-checks
+          fi
         working-directory: npm-dist/laroux
 
       - name: Summary
@@ -715,6 +736,15 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # A failing `gh` used to surface only as "exit code 1" from the wrapper, so
+      # print the CLI version and what the token can do BEFORE relying on it.
+      - name: Show gh version and token access
+        run: |
+          gh --version
+          gh auth status
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Sync CHANGELOG to GitHub Release
         run: |

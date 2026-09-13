@@ -48,11 +48,15 @@ const readExternals = async (relative: string): Promise<string[]> => {
   return [...body.matchAll(/"([^"]+)"/g)].map((m) => m[1]!).sort();
 };
 
-Deno.test("every npm build marks the FFI packages external", async () => {
+Deno.test("every npm build marks the FFI builtins external and bundles @eserstack/ajan", async () => {
   const lists = await Promise.all(BUILDS.map(readExternals));
 
-  // bun:ffi is the one that actually breaks the build; @eserstack/ajan is what
-  // leads esbuild to it, since the ajan-* glob does not match the bare name.
+  // bun:ffi is the one that actually breaks the build: it is a Bun-only builtin
+  // that esbuild cannot resolve. @eserstack/ajan is the opposite case -- it is
+  // published to JSR only, so leaving it external makes the npm package
+  // uninstallable (404 on the dependency) and, because every ffi-client.ts now
+  // imports the shared loader statically, unloadable even from a link install.
+  // Only the platform binaries and the FFI builtins may stay external.
   for (const [i, list] of lists.entries()) {
     assertEquals(
       list.includes("bun:ffi"),
@@ -60,9 +64,16 @@ Deno.test("every npm build marks the FFI packages external", async () => {
       `${BUILDS[i]} must mark "bun:ffi" external`,
     );
     assertEquals(
-      list.includes("@eserstack/ajan"),
+      list.includes("@eserstack/ajan-*"),
       true,
-      `${BUILDS[i]} must mark "@eserstack/ajan" external`,
+      `${
+        BUILDS[i]
+      } must mark the "@eserstack/ajan-*" platform packages external`,
+    );
+    assertEquals(
+      list.includes("@eserstack/ajan"),
+      false,
+      `${BUILDS[i]} must bundle "@eserstack/ajan" -- it is not on npm`,
     );
   }
 });

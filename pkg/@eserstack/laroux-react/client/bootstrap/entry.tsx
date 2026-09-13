@@ -194,8 +194,8 @@ import {
   hasEmbeddedPayload,
   hasStreamingOptimalRSC,
   type ModuleLoader,
-} from "@eserstack/laroux-react/client";
-import type { RSCChunk } from "@eserstack/laroux-react/protocol";
+} from "../../client.ts";
+import type { RSCChunk } from "../../protocol.ts";
 import { startTransition, Suspense, use } from "react";
 import { ErrorBoundary } from "./error-boundary.tsx";
 import { LazyChunkLoader } from "./lazy-loader.ts";

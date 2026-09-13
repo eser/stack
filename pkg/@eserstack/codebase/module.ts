@@ -203,6 +203,12 @@ export const moduleDef: Module = new Module({
       category: "Validation",
       load: () => import("./validate-error-coverage.ts"),
     },
+    "validate-self-imports": {
+      description:
+        "Detect a package importing itself by its published name (breaks JSR publish)",
+      category: "Validation",
+      load: () => import("./validate-self-imports.ts"),
+    },
   },
   aliases: {},
 });

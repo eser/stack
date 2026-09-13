@@ -8,7 +8,7 @@
 
 import * as streams from "@eserstack/streams";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import type { Audience, Interaction } from "@eserstack/shell/env";
+import type { Audience, Interaction } from "../env/mod.ts";
 
 // =============================================================================
 // Cancellation

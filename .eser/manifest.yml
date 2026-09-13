@@ -107,6 +107,11 @@ workflows:
             # Tests and benches run only under Deno — exempt from the portable-API rule.
             - "_test.ts"
             - ".test.ts"
+      - validate-self-imports:
+          exclude:
+            # Tests are not part of the published module graph.
+            - "_test.ts"
+            - ".test.ts"
       - validate-server-loc:
           directory: "pkg/ajan/noskillsserverfx"
       - validate-error-coverage:

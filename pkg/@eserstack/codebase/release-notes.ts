@@ -36,7 +36,12 @@ import * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as shell from "@eserstack/shell";
 import * as tui from "@eserstack/shell/tui";
-import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
+import {
+  commandFailureDetail,
+  createCliContext,
+  runCliMain,
+  toCliEvent,
+} from "./cli-support.ts";
 
 const { ctx, output: out } = createCliContext();
 
@@ -275,9 +280,18 @@ export const syncReleaseNotes = async (
     const exists = await hasGitHubRelease(targetTag, repo);
 
     if (exists) {
-      await shell.exec
-        .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
-        .spawn();
+      try {
+        await shell.exec
+          .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
+          .spawn();
+      } catch (editErr) {
+        throw new Error(
+          `gh release edit ${targetTag} failed.${
+            commandFailureDetail(editErr)
+          }`,
+          { cause: editErr },
+        );
+      }
       return { tag: targetTag, entry, action: "updated" };
     }
 
@@ -292,8 +306,21 @@ export const syncReleaseNotes = async (
         .exec`gh release create ${targetTag} --repo ${repo} --title ${title} --notes-file ${notesPath}`
         .spawn();
       return { tag: targetTag, entry, action: "created" };
-    } catch {
-      // Race condition: release may have been created between check and create
+    } catch (createErr) {
+      // Falling back to `edit` is only right when someone else created the
+      // release between the check and the create. For any other failure the
+      // edit fails too ("release not found"), and reporting THAT error hides
+      // the one that matters. Re-check before choosing, and carry gh's own
+      // stderr — it is the only place the real reason lives.
+      if (!(await hasGitHubRelease(targetTag, repo))) {
+        throw new Error(
+          `gh release create ${targetTag} failed.${
+            commandFailureDetail(createErr)
+          }`,
+          { cause: createErr },
+        );
+      }
+
       await shell.exec
         .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
         .spawn();

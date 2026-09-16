@@ -17,6 +17,7 @@
 
 import * as esbuild from "esbuild";
 import { runtime } from "@eserstack/standards/cross-runtime";
+import { NPM_EXTERNAL_PACKAGES } from "@eserstack/codebase/npm-externals";
 
 type PackageJson = {
   name: string;
@@ -40,24 +41,9 @@ type DenoJson = {
   exports?: Record<string, string>;
 };
 
-// Packages with native modules that must be external
-const EXTERNAL_PACKAGES = [
-  "tailwindcss",
-  "@tailwindcss/*",
-  "lightningcss",
-  // FFI / platform packages — loaded at runtime via dynamic import + dlopen.
-  //
-  // `@eserstack/ajan` itself is deliberately NOT here. It is published to JSR
-  // only, so an external import of it leaves the npm package uninstallable
-  // (`npm install` 404s on the dependency) and, since the FFI loader is now a
-  // static import in every ffi-client.ts, unloadable even from a link install.
-  // Bundling it keeps the package self-contained; only the platform binaries
-  // and the runtime-specific FFI builtins stay external.
-  "@eserstack/ajan-*",
-  "@eserstack/ajan-wasm",
-  "koffi",
-  "bun:ffi",
-];
+// The externals list is shared by every npm build; see the module for the
+// reasoning behind each entry (and why `@eserstack/ajan` is NOT in it).
+const EXTERNAL_PACKAGES: readonly string[] = NPM_EXTERNAL_PACKAGES;
 
 /**
  * Creates an esbuild plugin that removes import.meta.main checks.

@@ -67,6 +67,8 @@ workflows:
                 # convention, so neither tree can satisfy kebab-case.
                 - ".claude/"
                 - ".agents/"
+                # Backlog.md names task files "task-1 - Title.md" by design.
+                - "backlog/"
                 - ".github/"
                 - ".git/COMMIT_EDITMSG"
                 - "AGENTS.md"
@@ -104,6 +106,11 @@ workflows:
             # Bootstrap: generates the package manifests, so it runs before the
             # package graph exists and cannot import from it.
             - "etc/scripts/gen-jsr-manifests.ts"
+            # Release tooling: runs from a fresh checkout after publish and must
+            # not depend on the workspace it just released (Deno-only scripts).
+            - "etc/scripts/update-homebrew-formula.ts"
+            - "etc/scripts/update-nix-hashes.ts"
+            - "etc/scripts/preflight-npm-consumer.ts"
             # Tests and benches run only under Deno — exempt from the portable-API rule.
             - "_test.ts"
             - ".test.ts"
@@ -212,6 +219,63 @@ workflows:
             cd pkg/@eserstack/ajan && go test -race ./..."
           timeout: 420
 
+  # Release preflight: every release-only step, run on main BEFORE a tag exists.
+  #
+  # Each entry here is a step that used to run only after the tag was pushed
+  # and that failed at least one release in 2026 (wasip1 build, npm bundle
+  # externals, generated manifests, publish dry-run, release tooling). A tag
+  # is pushed onto a commit that already passed this, so the release run never
+  # learns anything new. Kept under ten minutes on CI; heavier checks belong in
+  # precommit or in the release run itself.
+  - id: preflight
+    on: [preflight]
+    steps:
+      - shell:
+          name: gen-jsr-manifests
+          command: deno run -A ./etc/scripts/gen-jsr-manifests.ts
+          timeout: 60
+      - shell:
+          name: deno-publish-check
+          command: deno publish --dry-run --allow-dirty
+          timeout: 120
+      - shell:
+          name: npm-build-cli
+          command: deno run --allow-all ./pkg/@eserstack/cli/scripts/npm-build.ts
+          timeout: 180
+      - shell:
+          name: npm-build-noskills
+          command: deno run --allow-all ./pkg/@eserstack/noskills/scripts/npm-build.ts
+          timeout: 180
+      - shell:
+          name: npm-build-laroux
+          command: deno run --allow-all ./pkg/@eserstack/laroux-server/scripts/npm-build.ts
+          timeout: 180
+      # Installs the packed CLI OUTSIDE the repo and runs the no-Deno smoke
+      # commands; inside the monorepo, Node would resolve undeclared
+      # dependencies from the workspace and hide them.
+      - shell:
+          name: npm-consumer-install
+          command: deno run --allow-all ./etc/scripts/preflight-npm-consumer.ts
+          timeout: 300
+      # Native (this platform) plus both WASM modules; the c-shared build is
+      # what compile-binaries ships, the wasip1 build is what broke v4.5.0.
+      - shell:
+          name: ajan-native-build
+          command: deno run --allow-all ./pkg/@eserstack/ajan/scripts/build.ts
+          timeout: 300
+      - shell:
+          name: ajan-wasm-build
+          command: deno run --allow-all ./pkg/@eserstack/ajan/scripts/build.ts --wasm
+          timeout: 300
+      - shell:
+          name: homebrew-dry-run
+          command: deno run --allow-all ./etc/scripts/update-homebrew-formula.ts --dry-run
+          timeout: 60
+      - shell:
+          name: nix-dry-run
+          command: deno run --allow-all ./etc/scripts/update-nix-hashes.ts --dry-run
+          timeout: 60
+
   - id: commit-validation
     on: [commitmsg]
     steps:
@@ -233,6 +297,8 @@ scripts:
   # Validation
   ok: eser workflows run -e precommit
   fix: eser workflows run -e precommit --fix
+  # Everything the release run does that precommit does not; run before tagging.
+  preflight: eser workflows run -e preflight
 
   # Setup
   init: pnpm install && eser codebase install

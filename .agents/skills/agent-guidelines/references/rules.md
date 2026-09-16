@@ -141,6 +141,22 @@ Rule: These must be done before considering work complete.
 
 ---
 
+## Language
+
+Everything that lands in the repository is written in English: source code,
+comments, documentation, commit messages, backlog items, ADRs, task plans and
+release notes. This holds regardless of the language the user is speaking in the
+conversation.
+
+The conversation language is the user's choice and is for dialogue only. A
+Turkish request produces English files; never translate a rule, a comment or a
+backlog item into the conversation language, and never leave a non-English
+fragment in a file "because the user wrote it that way".
+
+**Why:** the codebase has external readers and contributors, and tooling
+(validators, changelog generation, release notes) parses these files. One
+language keeps them readable and machine-checkable.
+
 ## Cross-Package Change Protocol
 
 Scope: Changes that span multiple `@eserstack/*` packages

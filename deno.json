@@ -41,6 +41,7 @@
   },
   "exclude": [
     ".claude/",
+    "backlog/",
     ".git",
     "apps/",
     "docs/",

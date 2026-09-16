@@ -2,6 +2,13 @@
 
 ## Pre-Release Checklist
 
+**Run `deno task cli preflight` on the commit you are about to tag.** It runs
+every release-only step precommit does not: the three npm bundles, a packed
+install of the CLI outside the repo, `deno publish --dry-run`, the native and
+wasm ajan builds, and the Homebrew and Nix scripts in dry-run mode. CI runs the
+same workflow on every push to main and the Release Gate requires it to have
+passed on the tagged tree.
+
 Scope: Every release
 
 Rule: Complete all steps in order. One command does the release; the steps
@@ -147,25 +154,43 @@ for the same version.
 
 ---
 
-## Re-Release and Unrelease
+## Re-Release, Resume and Unrelease
 
 Scope: Failed release recovery
 
-Rule: `eser codebase rerelease` deletes the current version tag and recreates it
-at HEAD, re-firing the whole release run. `eser codebase unrelease` deletes the
-tag and the GitHub Release; the release commit stays in history.
-`eser codebase release same` cuts a fresh release at the current version,
-without a bump.
+Rule: a failed release is resumed, not re-tagged. Every publish step is
+idempotent — `deno publish` skips versions already on JSR, the npm steps skip
+versions already on the registry, release notes edit an existing GitHub Release,
+asset upload clobbers — so the chain can be run again for the same tag without
+any of them doing harm.
 
-**Never retag a version that already reached a registry.** JSR is immutable — a
-published version can only be yanked, never replaced — and npm answers a
-republish with 403. A same-version rerelease is legal only while `publish` and
-`publish-ajan` have written nothing, which is the common case when the run died
-in `release-gate`, `smoke-test` or `npm-no-deno-test`.
+**Resume (preferred).** Run the Integrity Pipeline via `workflow_dispatch` with
+`tag` set to the existing tag (for example `v4.5.1`) and `stage` left at
+`post-publish`. Validate, the smoke tests and the registry publish are skipped;
+release notes, binaries, asset upload, ajan platform packages, Homebrew and Nix
+run against the tag's tree. Nothing touches git. Use `stage: full` to also
+re-run validation and the (idempotent) publish, for example after configuring an
+npm trusted publisher so the missing platform packages get published.
 
-Once either publish job has written anything:
+```bash
+gh workflow run "Integrity Pipeline" -f tag=v4.5.1 -f stage=post-publish
+```
 
-| Cause                                              | Action                  |
-| -------------------------------------------------- | ----------------------- |
-| Infrastructure error (runner, network, rate limit) | Re-run the failed jobs  |
-| Anything needing a code or metadata change         | Cut a new patch version |
+**Rerelease.** `eser codebase rerelease` deletes the current version tag and
+recreates it at HEAD, re-firing the whole run. It is only needed when the fix
+required a commit. Because JSR is immutable, any package that already published
+at this version keeps the OLD tree; rerelease at the same version is therefore
+legal only when the commit changes nothing that has already been published
+(tooling, workflow, an unpublished package). A change to a published package
+needs a new patch version.
+
+**Unrelease.** `eser codebase unrelease` deletes the tag and the GitHub Release;
+the release commit stays in history. `eser codebase release same` cuts a fresh
+release at the current version without a bump.
+
+| Situation                                                    | Action                                         |
+| ------------------------------------------------------------ | ---------------------------------------------- |
+| A stage after publish failed, no code change needed          | Resume via `workflow_dispatch`, `post-publish` |
+| Infrastructure error (runner, network, rate limit)           | Resume, or re-run the failed jobs              |
+| Fix touches only tooling, workflow or an unpublished package | Commit, then `rerelease` at the same version   |
+| Fix touches a package already on JSR or npm at this version  | Commit, then `release patch`                   |

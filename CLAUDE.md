@@ -29,6 +29,7 @@ starting any task.
 deno task cli ok       # Full validation (Deno + Go) — run before committing
 deno task cli --help   # Show all available commands
 deno task cli go-ok    # Go-only validation
+deno task cli preflight # Release-only steps (bundles, publish dry-run, wasm) — run before tagging
 ```
 
 ## Absolute Rules
@@ -42,3 +43,6 @@ deno task cli go-ok    # Go-only validation
 - `package.json` dependency syntax must be portable: use `workspace:*` for
   internal monorepo packages, plain semver (e.g. `^4.1.0`) for external — never
   use `catalog:` (pnpm-only, breaks deno/bun/npm)
+- Everything in the codebase is written in English: code, comments, docs, commit
+  messages, backlog items, ADRs. Other languages are for conversation with the
+  user only and never land in a file

@@ -2,7 +2,11 @@
 
 import * as path from "jsr:@std/path@^1.1.4";
 import * as distUtils from "./dist-utils.ts";
-import { runtime } from "@eserstack/standards/cross-runtime";
+
+// Deliberately no workspace imports: this runs from a fresh checkout in the
+// release pipeline, where bare `@eserstack/*` specifiers do not resolve (they
+// need the gitignored generated manifests). A broken workspace package must
+// not be able to block shipping the hashes for a release that already exists.
 
 const TARGETS = [
   "x86_64-unknown-linux-gnu",
@@ -13,7 +17,7 @@ const TARGETS = [
 
 const readVersion = async (repoRoot: string): Promise<string> => {
   const versionPath = path.join(repoRoot, "VERSION");
-  const raw = await runtime.fs.readTextFile(versionPath);
+  const raw = await Deno.readTextFile(versionPath);
 
   return raw.trim();
 };
@@ -63,11 +67,28 @@ const main = async (): Promise<void> => {
   // deno-lint-ignore no-console
   console.log(`Version: ${version}`);
 
+  // --dry-run: the release preflight runs this before the tag exists, so there
+  // is nothing to download yet. Exercise everything up to the network call and
+  // write nothing.
+  if (Deno.args.includes("--dry-run")) {
+    for (const target of TARGETS) {
+      // deno-lint-ignore no-console
+      console.log(
+        `[dry-run] would download https://github.com/eser/stack/releases/download/v${version}/eser-v${version}-${target}.tar.gz`,
+      );
+    }
+    // deno-lint-ignore no-console
+    console.log(
+      `[dry-run] would write ${path.join(repoRoot, "nix", "hashes.json")}`,
+    );
+    return;
+  }
+
   const hashes = await computeHashes(version);
 
   const outputPath = path.join(repoRoot, "nix", "hashes.json");
   const json = JSON.stringify(hashes, null, 2) + "\n";
-  await runtime.fs.writeTextFile(outputPath, json);
+  await Deno.writeTextFile(outputPath, json);
 
   // deno-lint-ignore no-console
   console.log(`\nWrote ${outputPath}`);

@@ -16,6 +16,7 @@
     "./validate-export-names": "./validate-export-names.ts",
     "./validate-docs": "./validate-docs.ts",
     "./validate-licenses": "./validate-licenses.ts",
+    "./npm-externals": "./npm-externals.ts",
     "./validate-package-configs": "./validate-package-configs.ts",
     "./versions": "./versions.ts",
     "./gh": "./gh.ts",

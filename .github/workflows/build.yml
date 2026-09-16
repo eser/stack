@@ -21,7 +21,25 @@ on:
     branches:
       - "**"
 
+  # Resuming a release: pick the tag and the chain runs against that tag's tree
+  # with no git involvement. `post-publish` skips validate, the smoke tests and
+  # the registry publish (all idempotent anyway) and goes straight to release
+  # notes, binaries, assets, ajan platform packages, Homebrew and Nix — the
+  # stages that used to require delete-and-repush of the tag to retry.
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to resume (e.g. v4.5.1). Empty = plain validation run of the branch."
+        required: false
+        type: string
+      stage:
+        description: "Which part of the release chain to run for the tag"
+        required: false
+        type: choice
+        default: post-publish
+        options:
+          - post-publish
+          - full
 
 permissions:
   contents: write
@@ -32,8 +50,8 @@ concurrency:
   # cancel the run somewhere between `publish` (irreversible — JSR and npm keep
   # the version forever) and `upload-assets`, leaving a released version with no
   # binaries attached.
-  group: ${{ github.ref }}-integrity
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/heads/main' }}
+  group: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}-integrity
+  cancel-in-progress: ${{ inputs.tag == '' && !startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/heads/main' }}
 
 jobs:
   # ── Always runs ─────────────────────────────────────────────────
@@ -44,6 +62,13 @@ jobs:
   # a separate run that may still be in flight (or already red).
   validate:
     name: Validate
+    # Skipped when resuming a tag's post-publish stages: that tree was already
+    # validated by the run that published it.
+    if: >-
+      !(github.event_name == 'workflow_dispatch' && inputs.tag != '' &&
+        inputs.stage == 'post-publish')
+    # ubicloud: the longest job of every run; cheaper ARM minutes, and it only
+    # needs Deno, Go and pnpm which we install ourselves.
     runs-on: ubicloud-standard-4-arm
     timeout-minutes: 20
 
@@ -55,6 +80,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 2
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -110,6 +136,74 @@ jobs:
         with:
           files: ./etc/coverage.lcov
 
+  # ── Release preflight ──────────────────────────────────────────
+  # Runs the release-only steps (npm bundles installed outside the repo,
+  # publish dry-run, wasm + native ajan builds, release tooling dry-runs) on
+  # every push to main and on every tag, so a tag never discovers something a
+  # main push could have. Not on PRs or feature branches: it costs minutes and
+  # network, and main is the branch tags are cut from.
+  preflight:
+    name: Release Preflight
+    needs: validate
+    if: >-
+      !cancelled() && needs.validate.result == 'success' &&
+      (
+        github.ref == 'refs/heads/main' ||
+        startsWith(github.ref, 'refs/tags/v') ||
+        (github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.stage == 'full')
+      )
+    # GitHub-hosted: talks to the npm registry and needs Go for the wasm builds.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.5
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+            node_modules
+          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
+          restore-keys: deno-${{ runner.arch }}-
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "latest"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Run release preflight
+        run: deno task cli preflight
+
   # ── Release: gate ───────────────────────────────────────────────
   # Preflight for everything downstream. It creates nothing (hence contents:
   # read) — its whole job is to fail BEFORE the irreversible steps run.
@@ -120,13 +214,27 @@ jobs:
   # this gate has just proven equals the tag.
   release-gate:
     name: Release Gate
-    needs: validate
-    # event_name matters: workflow_dispatch lets you pick a tag from the
-    # Run-workflow dropdown, which would otherwise re-run the entire release
-    # chain against an already-published version with no tag push behind it.
+    needs: [validate, preflight]
+    # Two ways in: a human pushed a v* tag, or a human dispatched the workflow
+    # naming an existing tag to resume. A plain dispatch with no tag never
+    # reaches the release chain. Validate AND preflight must have passed on this
+    # tree; in post-publish resume both are skipped by design, and only then is
+    # `skipped` accepted.
     if: >-
-      github.event_name == 'push' &&
-      startsWith(github.ref, 'refs/tags/v')
+      !cancelled() &&
+      (
+        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+          && needs.validate.result == 'success' && needs.preflight.result == 'success')
+        ||
+        (github.event_name == 'workflow_dispatch' && inputs.tag != '' &&
+          ((needs.validate.result == 'success' && needs.preflight.result == 'success') ||
+           (needs.validate.result == 'skipped' && needs.preflight.result == 'skipped'
+            && inputs.stage == 'post-publish')))
+      )
+    outputs:
+      tag: ${{ steps.mode.outputs.tag }}
+      resume: ${{ steps.mode.outputs.resume }}
+    # ubicloud: a few shell lines over the checkout, no toolchain needed.
     runs-on: ubicloud-standard-2-arm
     timeout-minutes: 5
 
@@ -138,11 +246,30 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Resolve release mode
+        id: mode
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_TAG}" ]; then
+            TAG="${INPUT_TAG}"
+            if [ "${INPUT_STAGE}" = "post-publish" ]; then RESUME=true; else RESUME=false; fi
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+            RESUME=false
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "resume=$RESUME" >> "$GITHUB_OUTPUT"
+          echo "Release mode: tag=$TAG resume=$RESUME"
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_STAGE: ${{ inputs.stage }}
 
       - name: Verify tag against tree
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF#refs/tags/}"
+          TAG="${{ steps.mode.outputs.tag }}"
           VERSION="${TAG#v}"
           FILE_VERSION="$(cat VERSION)"
 
@@ -184,6 +311,8 @@ jobs:
   smoke-test:
     name: npm Smoke Test
     needs: release-gate
+    if: needs.release-gate.outputs.resume != 'true'
+    # ubicloud: builds three bundles with Deno + pnpm we install ourselves.
     runs-on: ubicloud-standard-4-arm
     timeout-minutes: 10
 
@@ -195,6 +324,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -268,6 +398,7 @@ jobs:
   npm-no-deno-test:
     name: npm Install Test (no Deno)
     needs: smoke-test
+    # GitHub-hosted: the point of this job is a stock Node image with no Deno.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
 
@@ -364,7 +495,9 @@ jobs:
     # six more runners per tag is real cost. Note this is a cost trade, not a
     # guarantee -- the branch run covering this commit may still be running (or
     # failing) when the tag run publishes. `validate` is the gate that holds.
-    if: "!startsWith(github.ref, 'refs/tags/')"
+    if: "!startsWith(github.ref, 'refs/tags/') && inputs.tag == ''"
+    # One GitHub-hosted image per OS in the matrix: the job exists to prove the
+    # FFI loads on stock Node, Bun and Deno installs, not on our own setup.
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     continue-on-error: ${{ matrix.runtime != 'deno' }}
@@ -390,6 +523,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -485,7 +619,8 @@ jobs:
     # Skipped on tags for the same reason as cross-runtime-test: no release job
     # depends on it, and it is a cost trade rather than a guarantee -- a red
     # windows-smoke on the branch run does not block the tag run.
-    if: "!startsWith(github.ref, 'refs/tags/')"
+    if: "!startsWith(github.ref, 'refs/tags/') && inputs.tag == ''"
+    # Windows is the only place pin_image_windows.go and install.ps1 can run.
     runs-on: windows-latest
     timeout-minutes: 20
 
@@ -503,6 +638,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Go
         uses: actions/setup-go@v7
@@ -586,6 +722,8 @@ jobs:
     # so a broken no-Deno install was only ever discovered AFTER npm already had
     # the version. Nothing reaches a registry until both smoke tests are green.
     needs: [release-gate, smoke-test, npm-no-deno-test]
+    # GitHub-hosted: npm OIDC trusted publishing and JSR provenance are tied
+    # to GitHub-issued id-tokens from GitHub-hosted runners.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
 
@@ -598,6 +736,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -702,40 +841,60 @@ jobs:
   # ── Release: sync release notes ────────────────────────────────
   release-notes:
     name: Sync Release Notes
-    needs: publish
-    runs-on: ubicloud-standard-2-arm
+    needs: [release-gate, publish]
+    # On a post-publish resume `publish` is skipped by design; a FAILED publish
+    # still blocks, so a half-published version never gets release notes.
+    if: >-
+      !cancelled() && needs.release-gate.result == 'success' &&
+      (needs.publish.result == 'success' ||
+       (needs.publish.result == 'skipped' && needs.release-gate.outputs.resume == 'true'))
+    # GitHub-hosted: this job drives `gh` against the release, and the image
+    # guarantees the CLI version; the same class upload-assets uses.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
 
     permissions:
       contents: write
 
     steps:
+      # Only CHANGELOG.md and VERSION are read from the checkout.
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
-          deno-version: v2.9.5
+          node-version: "26"
 
-      - name: Cache Deno dependencies
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/deno
-            ~/.deno
-            node_modules
-          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
-          restore-keys: deno-${{ runner.arch }}-
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      # The CLI that runs here is the one `publish` just shipped to npm — not the
+      # workspace. Running from the workspace needs Deno, pnpm and the generated
+      # manifests, and ties creating the GitHub Release to every package in the
+      # tree resolving; the npm bundle is self-contained and was already proven
+      # by npm-no-deno-test. The registry can lag a publish by a few seconds,
+      # hence the retry.
+      - name: Install the published CLI
+        run: |
+          set -euo pipefail
+          VERSION=$(cat VERSION)
+          mkdir -p "$RUNNER_TEMP/eser-cli"
+          cd "$RUNNER_TEMP/eser-cli"
+          printf '{"name":"eser-cli-runner","private":true,"version":"1.0.0"}\n' > package.json
+          for attempt in $(seq 1 12); do
+            if npm install --no-audit --no-fund "eser@$VERSION"; then
+              break
+            fi
+            if [ "$attempt" = 12 ]; then
+              echo "::error::eser@$VERSION is not installable from npm after 12 attempts"
+              exit 1
+            fi
+            echo "eser@$VERSION not on npm yet (attempt $attempt) — waiting 20s for the registry"
+            sleep 20
+          done
+          echo "ESER_BIN=$RUNNER_TEMP/eser-cli/node_modules/.bin/eser" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/eser-cli/node_modules/.bin/eser" version
 
       # A failing `gh` used to surface only as "exit code 1" from the wrapper, so
       # print the CLI version and what the token can do BEFORE relying on it.
@@ -749,7 +908,7 @@ jobs:
       - name: Sync CHANGELOG to GitHub Release
         run: |
           VERSION=$(cat VERSION)
-          deno task cli codebase gh release-notes --tag "v$VERSION" --create-if-missing
+          "$ESER_BIN" codebase gh release-notes --tag "v$VERSION" --create-if-missing
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -757,6 +916,7 @@ jobs:
   build-ajan-darwin:
     name: Build ajan (darwin)
     needs: release-gate
+    # macOS is the only place the darwin shared libraries can be built.
     runs-on: macos-latest
     timeout-minutes: 10
 
@@ -768,6 +928,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -818,6 +979,8 @@ jobs:
   compile-binaries:
     name: Compile Binaries
     needs: [release-gate, build-ajan-darwin]
+    # GitHub-hosted: cross-compilers from apt and the Go toolchain on a known
+    # image; the artifacts it produces are what gets signed and shipped.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
 
@@ -829,6 +992,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -909,7 +1073,14 @@ jobs:
     # Same barrier as `publish`. compile-binaries alone does not depend on
     # either smoke test, so in the failed v4.3.0 run this job was publishing to
     # npm while smoke-test was already red.
-    needs: [compile-binaries, smoke-test, npm-no-deno-test]
+    needs: [release-gate, compile-binaries, smoke-test, npm-no-deno-test]
+    # On a post-publish resume the smoke tests are skipped by design; this is
+    # the job that publishes platform packages missed by an earlier run.
+    if: >-
+      !cancelled() && needs.compile-binaries.result == 'success' &&
+      ((needs.smoke-test.result == 'success' && needs.npm-no-deno-test.result == 'success')
+       || needs.release-gate.outputs.resume == 'true')
+    # GitHub-hosted: npm OIDC trusted publishing, same as `publish`.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
 
@@ -957,6 +1128,7 @@ jobs:
           set -euo pipefail
           published=0
           skipped=0
+          untrusted=""
           for dir in ajan-npm/ajan-*/; do
             [ -f "$dir/package.json" ] || continue
             name=$(node -p "require('./$dir/package.json').name")
@@ -967,10 +1139,34 @@ jobs:
               continue
             fi
             echo "→ Publishing $name@$version ..."
-            (cd "$dir" && pnpm publish --provenance --access public --no-git-checks)
-            published=$((published + 1))
+            if (cd "$dir" && pnpm publish --provenance --access public --no-git-checks 2>&1 | tee "$RUNNER_TEMP/publish.log"); then
+              published=$((published + 1))
+              continue
+            fi
+            # npm answers 404 on the PUT when the package has no trusted
+            # publisher for this repo/workflow. That is a one-time npmjs.com
+            # setting, not a build problem, so keep going and list every such
+            # package at the end instead of stopping at the first one. Any other
+            # failure is a real publish error and fails right here.
+            if grep -q "npm error 404 Not Found - PUT" "$RUNNER_TEMP/publish.log"; then
+              untrusted="$untrusted $name"
+              continue
+            fi
+            echo "::error::$name@$version failed to publish for a reason other than a missing trusted publisher — see the log above."
+            exit 1
           done
           echo "Done: $published published, $skipped already-present."
+          if [ -n "$untrusted" ]; then
+            {
+              echo "### ajan platform packages missing an npm trusted publisher"
+              echo ""
+              echo "npm returned 404 on PUT for:$untrusted"
+              echo ""
+              echo "Fix once on npmjs.com for each package: Settings → Trusted publishing → GitHub Actions, repository eser/stack, workflow build.yml. Then resume this tag with workflow_dispatch (stage: post-publish)."
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::error::No trusted publisher on npm for:$untrusted"
+            exit 1
+          fi
           # No root @eserstack/ajan meta-package — the eser CLI lists
           # @eserstack/ajan-* as optionalDependencies directly.
 
@@ -978,6 +1174,8 @@ jobs:
   upload-assets:
     name: Upload & Sign Assets
     needs: [compile-binaries, release-notes]
+    # GitHub-hosted: cosign keyless signing and `gh release upload` need the
+    # GitHub-issued id-token and a known image.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
 
@@ -990,6 +1188,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Download binary bundle
         uses: actions/download-artifact@v8
@@ -1032,6 +1231,7 @@ jobs:
   update-homebrew:
     name: Update Homebrew Tap
     needs: upload-assets
+    # ubicloud: a short Deno script pushing to the tap with an App token.
     runs-on: ubicloud-standard-2-arm
     timeout-minutes: 5
     continue-on-error: true
@@ -1044,29 +1244,15 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.9.5
 
-      - name: Cache Deno dependencies
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/deno
-            ~/.deno
-            node_modules
-          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
-          restore-keys: deno-${{ runner.arch }}-
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      # No pnpm install and no generated manifests: the script imports nothing
+      # from the workspace on purpose (see its header), so Deno alone suffices.
 
       - name: Generate GitHub App token
         id: app-token
@@ -1086,6 +1272,7 @@ jobs:
   update-nix-hashes:
     name: Update Nix Hashes
     needs: upload-assets
+    # ubicloud: a short Deno script pushing hashes with an App token.
     runs-on: ubicloud-standard-2-arm
     timeout-minutes: 5
     continue-on-error: true
@@ -1098,29 +1285,15 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.9.5
 
-      - name: Cache Deno dependencies
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/deno
-            ~/.deno
-            node_modules
-          key: deno-${{ runner.arch }}-${{ hashFiles('deno.json', '**/deno.json', '**/package.json') }}
-          restore-keys: deno-${{ runner.arch }}-
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      # No pnpm install and no generated manifests: the script imports nothing
+      # from the workspace on purpose (see its header), so Deno alone suffices.
 
       - name: Generate GitHub App token
         id: app-token

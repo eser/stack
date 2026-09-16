@@ -13,7 +13,11 @@
  */
 
 import * as distUtils from "./dist-utils.ts";
-import { runtime } from "@eserstack/standards/cross-runtime";
+
+// Deliberately no workspace imports: this runs from a fresh checkout in the
+// release pipeline, where bare `@eserstack/*` specifiers do not resolve (they
+// need the gitignored generated manifests). A broken workspace package must
+// not be able to block updating the tap for a release that already exists.
 
 // =============================================================================
 // Types
@@ -140,15 +144,12 @@ const run = async (
   cmd: string[],
   options?: { cwd?: string },
 ): Promise<string> => {
-  const result = await runtime.exec.spawn(
-    cmd[0]!,
-    cmd.slice(1),
-    {
-      cwd: options?.cwd,
-      stdout: "piped",
-      stderr: "piped",
-    },
-  );
+  const result = await new Deno.Command(cmd[0]!, {
+    args: cmd.slice(1),
+    cwd: options?.cwd,
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
 
   if (!result.success) {
     const errorText = new TextDecoder().decode(result.stderr);
@@ -184,15 +185,53 @@ const lookupHash = (
   return hash;
 };
 
+const TARGET_TRIPLES = [
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
+] as const;
+
+const downloadSha256Sums = async (url: string): Promise<string> => {
+  // deno-lint-ignore no-console
+  console.log(`Downloading ${url}...`);
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to download SHA256SUMS.txt: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  return await response.text();
+};
+
+/** A SHA256SUMS.txt with a distinct placeholder hash per archive (dry-run). */
+const placeholderSha256Sums = (version: string): string =>
+  FORMULAS.flatMap((spec, i) =>
+    TARGET_TRIPLES.map((target, j) =>
+      `${
+        (i * 10 + j).toString(16).padStart(64, "0")
+      }  ${spec.binary}-v${version}-${target}.tar.gz`
+    )
+  ).join("\n") + "\n";
+
 // =============================================================================
 // Main
 // =============================================================================
 
 const main = async (): Promise<void> => {
-  // 1. Validate environment
-  const ghToken = runtime.env.get("GH_TOKEN");
+  // --dry-run: the release preflight runs this before the release exists, so
+  // there is no SHA256SUMS.txt to download and nothing to push. Exercise the
+  // parsing and formula rendering on placeholder hashes, write the formulas to
+  // a temp dir, and stop before touching the tap.
+  const dryRun = Deno.args.includes("--dry-run");
 
-  if (ghToken === undefined || ghToken === "") {
+  // 1. Validate environment
+  const ghToken = Deno.env.get("GH_TOKEN");
+
+  if (!dryRun && (ghToken === undefined || ghToken === "")) {
     throw new Error(
       "GH_TOKEN environment variable is required for pushing to the homebrew-tap repo.",
     );
@@ -201,7 +240,7 @@ const main = async (): Promise<void> => {
   // 2. Read VERSION from repo root
   const repoRoot = new URL("../../", import.meta.url);
   const versionFilePath = new URL("VERSION", repoRoot).pathname;
-  const version = (await runtime.fs.readTextFile(versionFilePath)).trim();
+  const version = (await Deno.readTextFile(versionFilePath)).trim();
 
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
     throw new Error(`Invalid version in VERSION file: "${version}"`);
@@ -214,18 +253,9 @@ const main = async (): Promise<void> => {
   const sha256sumsUrl =
     `https://github.com/eser/stack/releases/download/v${version}/SHA256SUMS.txt`;
 
-  // deno-lint-ignore no-console
-  console.log(`Downloading ${sha256sumsUrl}...`);
-
-  const response = await fetch(sha256sumsUrl);
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to download SHA256SUMS.txt: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  const sha256sumsText = await response.text();
+  const sha256sumsText = dryRun
+    ? placeholderSha256Sums(version)
+    : await downloadSha256Sums(sha256sumsUrl);
 
   // 4. Parse hashes
   const hashes = distUtils.parseSha256Sums(sha256sumsText);
@@ -270,8 +300,21 @@ const main = async (): Promise<void> => {
   // deno-lint-ignore no-console
   console.log(`Generated ${formulas.length} Homebrew formulas.`);
 
+  if (dryRun) {
+    const previewDir = await Deno.makeTempDir({ prefix: "eser-brew-dry-run-" });
+    for (const { spec, body } of formulas) {
+      await Deno.writeTextFile(`${previewDir}/${spec.binary}.rb`, body);
+    }
+    // deno-lint-ignore no-console
+    console.log(
+      `[dry-run] rendered ${formulas.length} formulas into ${previewDir}; skipping clone and push.`,
+    );
+    await Deno.remove(previewDir, { recursive: true });
+    return;
+  }
+
   // 6. Clone homebrew-tap repo
-  const tmpDir = await runtime.fs.makeTempDir();
+  const tmpDir = await Deno.makeTempDir();
   const repoUrl =
     `https://x-access-token:${ghToken}@github.com/eser/homebrew-tap.git`;
 
@@ -297,14 +340,14 @@ const main = async (): Promise<void> => {
   const formulaDir = `${tmpDir}/Formula`;
 
   try {
-    await runtime.fs.mkdir(formulaDir, { recursive: true });
+    await Deno.mkdir(formulaDir, { recursive: true });
   } catch {
     // Directory may already exist — that's fine
   }
 
   for (const { spec, body } of formulas) {
     const formulaPath = `${formulaDir}/${spec.binary}.rb`;
-    await runtime.fs.writeTextFile(formulaPath, body);
+    await Deno.writeTextFile(formulaPath, body);
 
     // deno-lint-ignore no-console
     console.log(`Wrote formula to ${formulaPath}`);
@@ -343,7 +386,7 @@ const main = async (): Promise<void> => {
   }
 
   // 9. Cleanup
-  await runtime.fs.remove(tmpDir, { recursive: true });
+  await Deno.remove(tmpDir, { recursive: true });
 };
 
 if (import.meta.main) {

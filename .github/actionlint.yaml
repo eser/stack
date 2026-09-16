@@ -1,0 +1,6 @@
+# Runner labels that are not GitHub-hosted, so actionlint can check
+# `runs-on` values instead of flagging every ubicloud job.
+self-hosted-runner:
+  labels:
+    - ubicloud-standard-2-arm
+    - ubicloud-standard-4-arm

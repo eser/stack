@@ -12,8 +12,8 @@
     "@eserstack/noskills": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "@types/node": "^26.1.2"
+    "@types/node": "^26.6.1",
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=26.0.0"

@@ -21,8 +21,8 @@
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "esbuild": "^0.28.1",
-    "yaml": "^2.9.0"
+    "esbuild": "^0.28.2",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19",

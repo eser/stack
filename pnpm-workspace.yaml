@@ -27,3 +27,14 @@ minimumReleaseAge: 0
 fetchTimeout: 600000
 fetchRetries: 5
 networkConcurrency: 6
+
+# Vulnerability-scoped overrides (Dependabot GHSA-g6gw-c38x-mqfc, GHSA-gqvv-2mrq-wpjv,
+# GHSA-crvj-82cr-hjcx, GHSA-4mjr-xmp4-gh2g, GHSA-x5fp-wj9c-mxmx, GHSA-jqff-g426-hqxp and
+# friends). These are transitive deps (hono via @modelcontextprotocol/sdk and
+# @hono/node-server, qs via express/body-parser, fast-uri via ajv); the scoped
+# form only rewrites the vulnerable range, so once every dependent moves past
+# it the override is inert and can be dropped.
+overrides:
+  "hono@<4.13.5": "^4.13.5"
+  "qs@<6.16.0": "^6.16.0"
+  "fast-uri@<3.1.6": "^3.1.6"

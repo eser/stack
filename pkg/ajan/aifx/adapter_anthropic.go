@@ -181,7 +181,7 @@ func (m *AnthropicModel) GetBatchJob(
 	ctx context.Context,
 	jobID string,
 ) (*BatchJob, error) {
-	batch, err := m.client.Messages.Batches.Get(ctx, jobID)
+	batch, err := m.client.Messages.Batches.Get(ctx, jobID, anthropic.MessageBatchGetParams{}) //nolint:exhaustruct
 	if err != nil {
 		return nil, classifyAnthropicError(ErrAnthropicBatchFailed, err)
 	}
@@ -224,7 +224,7 @@ func (m *AnthropicModel) DownloadBatchResults(
 	ctx context.Context,
 	job *BatchJob,
 ) ([]*BatchResult, error) {
-	stream := m.client.Messages.Batches.ResultsStreaming(ctx, job.ID)
+	stream := m.client.Messages.Batches.ResultsStreaming(ctx, job.ID, anthropic.MessageBatchResultsParams{}) //nolint:exhaustruct
 
 	var results []*BatchResult
 
@@ -258,7 +258,7 @@ func (m *AnthropicModel) CancelBatchJob(
 	ctx context.Context,
 	jobID string,
 ) error {
-	_, err := m.client.Messages.Batches.Cancel(ctx, jobID)
+	_, err := m.client.Messages.Batches.Cancel(ctx, jobID, anthropic.MessageBatchCancelParams{}) //nolint:exhaustruct
 	if err != nil {
 		return classifyAnthropicError(ErrAnthropicBatchFailed, err)
 	}

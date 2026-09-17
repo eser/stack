@@ -916,6 +916,11 @@ jobs:
   build-ajan-darwin:
     name: Build ajan (darwin)
     needs: release-gate
+    # Explicit, with !cancelled(): a job without its own condition is skipped
+    # whenever ANY job upstream in the chain was skipped, and validate + preflight
+    # are skipped by design on a post-publish resume. Only the direct needs
+    # decide here.
+    if: "!cancelled() && needs.release-gate.result == 'success'"
     # macOS is the only place the darwin shared libraries can be built.
     runs-on: macos-latest
     timeout-minutes: 10
@@ -979,6 +984,13 @@ jobs:
   compile-binaries:
     name: Compile Binaries
     needs: [release-gate, build-ajan-darwin]
+    # Explicit, with !cancelled(): a job without its own condition is skipped
+    # whenever ANY job upstream in the chain was skipped, and validate + preflight
+    # are skipped by design on a post-publish resume. Only the direct needs
+    # decide here.
+    if: >-
+      !cancelled() && needs.release-gate.result == 'success' &&
+      needs.build-ajan-darwin.result == 'success'
     # GitHub-hosted: cross-compilers from apt and the Go toolchain on a known
     # image; the artifacts it produces are what gets signed and shipped.
     runs-on: ubuntu-24.04-arm
@@ -1174,6 +1186,13 @@ jobs:
   upload-assets:
     name: Upload & Sign Assets
     needs: [compile-binaries, release-notes]
+    # Explicit, with !cancelled(): a job without its own condition is skipped
+    # whenever ANY job upstream in the chain was skipped, and validate + preflight
+    # are skipped by design on a post-publish resume. Only the direct needs
+    # decide here.
+    if: >-
+      !cancelled() && needs.compile-binaries.result == 'success' &&
+      needs.release-notes.result == 'success'
     # GitHub-hosted: cosign keyless signing and `gh release upload` need the
     # GitHub-issued id-token and a known image.
     runs-on: ubuntu-24.04-arm
@@ -1231,6 +1250,11 @@ jobs:
   update-homebrew:
     name: Update Homebrew Tap
     needs: upload-assets
+    # Explicit, with !cancelled(): a job without its own condition is skipped
+    # whenever ANY job upstream in the chain was skipped, and validate + preflight
+    # are skipped by design on a post-publish resume. Only the direct needs
+    # decide here.
+    if: "!cancelled() && needs.upload-assets.result == 'success'"
     # ubicloud: a short Deno script pushing to the tap with an App token.
     runs-on: ubicloud-standard-2-arm
     timeout-minutes: 5
@@ -1272,6 +1296,11 @@ jobs:
   update-nix-hashes:
     name: Update Nix Hashes
     needs: upload-assets
+    # Explicit, with !cancelled(): a job without its own condition is skipped
+    # whenever ANY job upstream in the chain was skipped, and validate + preflight
+    # are skipped by design on a post-publish resume. Only the direct needs
+    # decide here.
+    if: "!cancelled() && needs.upload-assets.result == 'success'"
     # ubicloud: a short Deno script pushing hashes with an App token.
     runs-on: ubicloud-standard-2-arm
     timeout-minutes: 5

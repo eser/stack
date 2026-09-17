@@ -500,7 +500,6 @@ jobs:
     # FFI loads on stock Node, Bun and Deno installs, not on our own setup.
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
-    continue-on-error: ${{ matrix.runtime != 'deno' }}
 
     strategy:
       fail-fast: false
@@ -573,29 +572,25 @@ jobs:
       - name: Build Go shared library (native)
         run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts
 
-      - name: Verify FFI — eser ajan version
+      # Node and Bun get the bundle the way a user does: packed, installed with
+      # npm into a scratch project outside the repo, then run from there. In
+      # place under pkg/@eserstack/cli/dist the bundle cannot find koffi (pnpm
+      # keeps it under @eserstack/ajan), which kept the Node entries red for
+      # months behind continue-on-error. --require-native: with the library
+      # just built and named in ESER_AJAN_LIB_PATH, a graceful "no native
+      # library" is a failure here, not an acceptable outcome.
+      - name: Verify FFI and CLI — eser ajan version, version, --help
         env:
           ESER_AJAN_WASM: disabled
           ESER_AJAN_LIB_PATH: ${{ github.workspace }}/pkg/@eserstack/ajan/dist/${{ runner.arch == 'ARM64' && 'aarch64' || 'x86_64' }}-${{ runner.os == 'macOS' && 'darwin' || 'linux' }}/libeser_ajan.${{ runner.os == 'macOS' && 'dylib' || 'so' }}
         run: |
           if [ "${{ matrix.runtime }}" = "deno" ]; then
             deno task cli ajan version
-          elif [ "${{ matrix.runtime }}" = "node" ]; then
-            deno task cli build
-            node pkg/@eserstack/cli/dist/eser.js ajan version
-          elif [ "${{ matrix.runtime }}" = "bun" ]; then
-            deno task cli build
-            bun pkg/@eserstack/cli/dist/eser.js ajan version
-          fi
-
-      - name: Verify CLI — eser --help
-        run: |
-          if [ "${{ matrix.runtime }}" = "deno" ]; then
             deno task cli --help
-          elif [ "${{ matrix.runtime }}" = "node" ]; then
-            node pkg/@eserstack/cli/dist/eser.js --help
-          elif [ "${{ matrix.runtime }}" = "bun" ]; then
-            bun pkg/@eserstack/cli/dist/eser.js --help
+          else
+            deno task cli build
+            deno run --allow-all etc/scripts/preflight-npm-consumer.ts \
+              --runtime="${{ matrix.runtime }}" --require-native
           fi
 
   # ── Windows ─────────────────────────────────────────────────────

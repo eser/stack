@@ -1,9 +1,10 @@
 ---
 id: TASK-5
 title: 'Fix the Node cross-runtime job: koffi not resolvable from the in-repo bundle'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-09-16 15:02'
+updated_date: '2026-09-17 15:41'
 labels:
   - ci
 dependencies: []
@@ -23,6 +24,12 @@ Cross-Runtime Test (node on ubuntu-24.04-arm / macos-latest) has been red on eve
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Both Node entries of the cross-runtime matrix pass on main
-- [ ] #2 The job exercises the bundle the way a user gets it (packed tarball installed outside the repo, reusing preflight-npm-consumer.ts) rather than running dist/ in place inside the workspace
-- [ ] #3 continue-on-error is removed for the Node entries once they are green, so a regression is visible again
+- [x] #2 The job exercises the bundle the way a user gets it (packed tarball installed outside the repo, reusing preflight-npm-consumer.ts) rather than running dist/ in place inside the workspace
+- [x] #3 continue-on-error is removed for the Node entries once they are green, so a regression is visible again
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+preflight-npm-consumer.ts gained --runtime=node|bun (invokes the installed eser.js with that runtime explicitly) and --require-native (fails unless eser ajan version loads the library and reports the bundle version). The cross-runtime job now runs that script for Node and Bun with ESER_AJAN_LIB_PATH pointing at the freshly built library; Deno keeps running from source. continue-on-error removed for the whole matrix. Verified locally on macOS arm64 under Node 26 and Bun: both load the native library from the scratch install. AC #1 closes when the first main run shows both Node entries green.
+<!-- SECTION:NOTES:END -->

@@ -8,12 +8,25 @@
  * pipeline's no-Deno job runs. Doing it outside the repo is the whole point:
  * inside the monorepo, Node walks up to the workspace's node_modules and hides
  * every unpublished or undeclared dependency — which is how v4.5.0 shipped a
- * bundle that imported a package not on npm and only failed in CI.
+ * bundle that imported a package not on npm and only failed in CI — or fails
+ * to find one that IS declared (koffi lives under @eserstack/ajan in the pnpm
+ * tree, unreachable from cli/dist), which kept the Node cross-runtime job red.
  *
  * Deliberately no workspace imports (see gen-jsr-manifests.ts for why).
  *
  * Usage:
- *   deno run --allow-all etc/scripts/preflight-npm-consumer.ts
+ *   deno run --allow-all etc/scripts/preflight-npm-consumer.ts [options]
+ *
+ * Options:
+ *   --runtime=node|bun   Run the installed bundle with this runtime (default:
+ *                        node). Bun executes the same eser.js through its own
+ *                        FFI backend.
+ *   --require-native     Fail unless `eser ajan version` loads the native
+ *                        library and reports the bundle's version. Use with
+ *                        ESER_AJAN_LIB_PATH pointing at a freshly built
+ *                        library; without it a scratch install has no native
+ *                        library for an unreleased version and the graceful
+ *                        failure is the expected outcome.
  *
  * @module
  */
@@ -50,13 +63,34 @@ const must = (result: RunResult, what: string): void => {
   }
 };
 
+const parseOptions = (): {
+  runtime: "node" | "bun";
+  requireNative: boolean;
+} => {
+  const runtimeArg = Deno.args.find((a) => a.startsWith("--runtime="))
+    ?.slice("--runtime=".length) ?? "node";
+
+  if (runtimeArg !== "node" && runtimeArg !== "bun") {
+    throw new Error(`--runtime must be node or bun, got "${runtimeArg}"`);
+  }
+
+  return {
+    runtime: runtimeArg,
+    requireNative: Deno.args.includes("--require-native"),
+  };
+};
+
 const main = async (): Promise<void> => {
+  const { runtime, requireNative } = parseOptions();
   const scriptDir = path.dirname(path.fromFileUrl(import.meta.url));
   const repoRoot = path.resolve(scriptDir, "..", "..");
   const distDir = path.join(repoRoot, "pkg", "@eserstack", "cli", "dist");
 
+  let packed: { version: string };
   try {
-    await Deno.stat(path.join(distDir, "package.json"));
+    packed = JSON.parse(
+      await Deno.readTextFile(path.join(distDir, "package.json")),
+    ) as { version: string };
   } catch {
     throw new Error(
       `${distDir} has no package.json — run \`deno task cli build\` first.`,
@@ -101,45 +135,53 @@ const main = async (): Promise<void> => {
       "npm install of the packed CLI",
     );
 
-    const bin = path.join(consumerDir, "node_modules", ".bin", "eser");
+    // Invoke the runtime explicitly rather than through the bin shim, so the
+    // matrix's Node or Bun is the one that runs — not whatever `node` the
+    // shebang finds first.
+    const entry = path.join(consumerDir, "node_modules", "eser", "eser.js");
+    const eser = (...args: string[]) =>
+      run([runtime, entry, ...args], consumerDir);
 
-    must(await run([bin, "--help"], consumerDir), "eser --help");
+    must(await eser("--help"), `${runtime} eser --help`);
 
-    const version = await run([bin, "version"], consumerDir);
-    must(version, "eser version");
+    const version = await eser("version");
+    must(version, `${runtime} eser version`);
     // deno-lint-ignore no-console
-    console.log(`eser version → ${version.stdout.trim()}`);
+    console.log(`${runtime} eser version → ${version.stdout.trim()}`);
 
-    // Allowed to fail (no platform binary in a scratch install), but the
-    // failure must never tell an npm user to install Deno.
-    const ajan = await run([bin, "ajan", "version"], consumerDir);
+    const ajan = await eser("ajan", "version");
     const ajanOutput = `${ajan.stdout}${ajan.stderr}`;
+
+    // Whatever happens, the failure must never tell an npm user to install Deno.
     if (/deno/i.test(ajanOutput)) {
       throw new Error(
         `eser ajan version mentions Deno — the npm package must not require it:\n${ajanOutput}`,
       );
     }
+
     if (ajan.code === 0) {
-      // The platform packages are pinned to this exact version; if one loaded
-      // it must be this build, not an older library that happened to resolve.
-      const packed = JSON.parse(
-        await Deno.readTextFile(path.join(distDir, "package.json")),
-      ) as { version: string };
+      // The platform packages are pinned to this exact version; if a library
+      // loaded it must be this build, not an older one that happened to resolve.
       if (!ajan.stdout.includes(packed.version)) {
         throw new Error(
-          `eser ajan version reported "${ajan.stdout.trim()}" but the bundle is ${packed.version} — a mismatched platform library was loaded`,
+          `eser ajan version reported "${ajan.stdout.trim()}" but the bundle is ${packed.version} — a mismatched library was loaded`,
         );
       }
+      // deno-lint-ignore no-console
+      console.log(`${runtime} eser ajan version → ${ajan.stdout.trim()}`);
+    } else if (requireNative) {
+      throw new Error(
+        `--require-native: eser ajan version did not load the native library under ${runtime}:\n${ajanOutput}`,
+      );
+    } else {
+      // deno-lint-ignore no-console
+      console.log(
+        `${runtime} eser ajan version → failed gracefully without mentioning Deno (no native library for an unreleased version)`,
+      );
     }
-    // deno-lint-ignore no-console
-    console.log(
-      ajan.code === 0
-        ? `eser ajan version → ${ajan.stdout.trim()}`
-        : "eser ajan version → failed gracefully without mentioning Deno (platform package not published yet)",
-    );
 
     // deno-lint-ignore no-console
-    console.log("npm consumer preflight: OK");
+    console.log(`npm consumer preflight (${runtime}): OK`);
   } finally {
     await Deno.remove(packDir, { recursive: true });
     await Deno.remove(consumerDir, { recursive: true });

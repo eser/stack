@@ -1,0 +1,26 @@
+{
+  "name": "@eserstack/ajan-darwin-arm64",
+  "version": "4.5.1",
+  "description": "eser-ajan shared library for macOS ARM64 (Apple Silicon)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/ajan-darwin-arm64"
+  },
+  "homepage": "https://github.com/eser/stack/tree/main/pkg/@eserstack/ajan",
+  "bugs": {
+    "url": "https://github.com/eser/stack/issues"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "libeser_ajan.dylib",
+  "files": [
+    "libeser_ajan.dylib",
+    "libeser_ajan.h"
+  ]
+}

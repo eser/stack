@@ -1,0 +1,26 @@
+{
+  "name": "@eserstack/ajan-linux-x64",
+  "version": "4.5.1",
+  "description": "eser-ajan shared library for Linux x64",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/ajan-linux-x64"
+  },
+  "homepage": "https://github.com/eser/stack/tree/main/pkg/@eserstack/ajan",
+  "bugs": {
+    "url": "https://github.com/eser/stack/issues"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "libeser_ajan.so",
+  "files": [
+    "libeser_ajan.so",
+    "libeser_ajan.h"
+  ]
+}

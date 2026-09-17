@@ -1060,7 +1060,9 @@ jobs:
       - name: Build Go WASM modules
         run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm
 
-      - name: Generate npm packages for ajan
+      # Copies each built library into its workspace member
+      # (pkg/@eserstack/ajan-<platform>/); the manifests are committed.
+      - name: Stage platform libraries into their packages
         run: deno run --allow-all pkg/@eserstack/ajan/npm/generate-packages.ts
 
       - name: Compile for all platforms
@@ -1072,11 +1074,19 @@ jobs:
           name: binary-bundle
           path: etc/temp/binaries/
 
-      - name: Upload ajan npm packages
+      # The least-common-ancestor of the paths is pkg/@eserstack/, so the
+      # artifact extracts as ajan-<platform>/ directories — each a complete,
+      # publishable package (committed manifest + staged binary).
+      - name: Upload ajan platform packages
         uses: actions/upload-artifact@v7
         with:
           name: ajan-npm-packages
-          path: pkg/@eserstack/ajan/dist/npm/
+          path: |
+            pkg/@eserstack/ajan-*/package.json
+            pkg/@eserstack/ajan-*/README.md
+            pkg/@eserstack/ajan-*/libeser_ajan.*
+            pkg/@eserstack/ajan-*/*.wasm
+          if-no-files-found: error
 
   # ── Release: publish ajan npm packages ─────────────────────
   publish-ajan:

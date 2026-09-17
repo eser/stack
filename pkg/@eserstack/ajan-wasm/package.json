@@ -1,0 +1,19 @@
+{
+  "name": "@eserstack/ajan-wasm",
+  "version": "4.5.1",
+  "description": "WebAssembly fallback for eser-ajan — works on any platform",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/ajan-wasm"
+  },
+  "homepage": "https://github.com/eser/stack/tree/main/pkg/@eserstack/ajan",
+  "bugs": {
+    "url": "https://github.com/eser/stack/issues"
+  },
+  "files": [
+    "eser-ajan.wasm",
+    "eser-ajan-reactor.wasm"
+  ]
+}

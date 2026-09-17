@@ -275,6 +275,13 @@ workflows:
           name: nix-dry-run
           command: deno run --allow-all ./etc/scripts/update-nix-hashes.ts --dry-run
           timeout: 60
+      # The release run's `deno compile`, for this host only. Caught nothing
+      # before v4.5.2, where Deno's dependency-age gate refused a day-old
+      # package at compile time and the release died after publish preflight.
+      - shell:
+          name: compile-current
+          command: deno run --allow-all ./pkg/@eserstack/cli/scripts/compile.ts --current-only
+          timeout: 600
 
   - id: commit-validation
     on: [commitmsg]

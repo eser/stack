@@ -4,7 +4,7 @@ title: Add a release preflight that runs every release-only step on main
 status: Done
 assignee: []
 created_date: '2026-09-13 16:51'
-updated_date: '2026-09-16 15:02'
+updated_date: '2026-09-17 19:56'
 labels:
   - ci
   - release
@@ -30,6 +30,12 @@ All six release failures on 2026-09-13 (wasip1 build, stale ajan go.mod, externa
 - [x] #3 Preflight wall-clock time is under 10 minutes on the CI runner
 - [x] #4 The precommit workflow keeps validate-self-imports and the ajan go.mod tidy check so the cheap failures are caught before push
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+2026-09-17: preflight gained compile-current (deno compile --current-only) after the v4.5.2 tag run died in Compile Binaries on Deno's 24h minimum dependency age gate; the gate is now disabled in deno.json like pnpm's, and compile.ts's stale pkg/@eser path is fixed so the Go library is embedded again.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

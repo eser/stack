@@ -18,6 +18,7 @@
  * Usage:
  *   deno run --allow-all ./compile.ts
  *   deno run --allow-all ./compile.ts --with-go   # build Go libs first
+ *   deno run --allow-all ./compile.ts --current-only   # host platform only (preflight)
  *
  * @module
  */
@@ -176,7 +177,7 @@ const buildGoLibraries = async (projectRoot: string): Promise<void> => {
   const buildScript = runtime.path.join(
     projectRoot,
     "pkg",
-    "@eser",
+    "@eserstack",
     "ajan",
     "scripts",
     "build.ts",
@@ -305,7 +306,7 @@ const main = async (): Promise<void> => {
   const eserGoDistDir = runtime.path.join(
     projectRoot,
     "pkg",
-    "@eser",
+    "@eserstack",
     "ajan",
     "dist",
   );
@@ -314,12 +315,28 @@ const main = async (): Promise<void> => {
   const args = runtime.process.args;
   const withGo = args.includes("--with-go");
 
+  // --current-only: the release preflight compiles for the host platform
+  // alone. It is the same `deno compile` invocation the release run makes for
+  // all five targets, so it catches what only that invocation can — a
+  // dependency Deno refuses to embed, an npm package missing from DENO_DIR, a
+  // broken --include — without the five-way cost on every push to main.
+  const currentOnly = args.includes("--current-only");
+  const targets = currentOnly
+    ? TARGETS.filter((t) => t === Deno.build.target)
+    : TARGETS;
+
+  if (targets.length === 0) {
+    throw new Error(
+      `--current-only: no release target matches this host (${Deno.build.target})`,
+    );
+  }
+
   // Step 1: Read version
   const version = (await runtime.fs.readTextFile(versionPath)).trim();
   // deno-lint-ignore no-console
   console.log(
     `Compiling ${BINARIES.map((b) => b.name).join(", ")} v${version} ` +
-      `for ${TARGETS.length} platforms...\n`,
+      `for ${targets.length} platform${targets.length === 1 ? "" : "s"}...\n`,
   );
 
   // Step 2: Build Go shared libraries if requested
@@ -346,7 +363,7 @@ const main = async (): Promise<void> => {
   for (const binary of BINARIES) {
     const entryPath = runtime.path.join(projectRoot, binary.entry);
 
-    for (const target of TARGETS) {
+    for (const target of targets) {
       const isWindows = target.includes("windows");
       const binaryName = isWindows ? `${binary.name}.exe` : binary.name;
 
@@ -481,7 +498,7 @@ const main = async (): Promise<void> => {
   // Step 4b: Cross-compile the Go executables into the same output directory,
   // so they land in the same SHA256SUMS.txt and the same release.
   for (const goBinary of GO_BINARIES) {
-    for (const target of TARGETS) {
+    for (const target of targets) {
       const nativeTarget = ajanTargets.findByDenoTarget(target);
 
       if (nativeTarget === undefined) {

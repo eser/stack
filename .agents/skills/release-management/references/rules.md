@@ -5,9 +5,9 @@
 **Run `deno task cli preflight` on the commit you are about to tag.** It runs
 every release-only step precommit does not: the three npm bundles, a packed
 install of the CLI outside the repo, `deno publish --dry-run`, the native and
-wasm ajan builds, and the Homebrew and Nix scripts in dry-run mode. CI runs the
-same workflow on every push to main and the Release Gate requires it to have
-passed on the tagged tree.
+wasm ajan builds, the release `deno compile` for the host platform, and the
+Homebrew and Nix scripts in dry-run mode. CI runs the same workflow on every
+push to main and the Release Gate requires it to have passed on the tagged tree.
 
 Scope: Every release
 

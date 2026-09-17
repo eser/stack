@@ -12,6 +12,7 @@
     "./commands/list": "./commands/list.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.126.0",
     "@eserstack/ajan": "workspace:*",
     "@eserstack/httpclient": "workspace:*",
     "@eserstack/logging": "workspace:*",
@@ -19,9 +20,8 @@
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "@anthropic-ai/sdk": "^0.115.0",
-    "openai": "^7.4.0",
-    "@google/genai": "^2.15.0"
+    "@google/genai": "^2.23.0",
+    "openai": "^7.17.0"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19",

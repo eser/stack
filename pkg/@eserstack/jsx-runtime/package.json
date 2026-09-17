@@ -8,10 +8,10 @@
     "./jsx-dev-runtime": "./mod.ts"
   },
   "dependencies": {
-    "react": "^19.2.8"
+    "react": "^19.3.0"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19",
-    "@types/react": "^19.2.18"
+    "@types/react": "^19.3.0"
   }
 }

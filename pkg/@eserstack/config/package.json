@@ -17,7 +17,7 @@
     "@std/dotenv": "npm:@jsr/std__dotenv@^0.225.8",
     "@std/jsonc": "npm:@jsr/std__jsonc@^1.0.2",
     "@std/toml": "npm:@jsr/std__toml@^1.0.11",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19"

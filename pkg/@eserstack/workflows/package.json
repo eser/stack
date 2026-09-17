@@ -19,7 +19,7 @@
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
     "@std/cli": "npm:@jsr/std__cli@^1.0.32",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19"

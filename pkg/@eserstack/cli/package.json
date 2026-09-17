@@ -20,7 +20,7 @@
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
     "@eserstack/workflows": "workspace:*",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.2"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19"

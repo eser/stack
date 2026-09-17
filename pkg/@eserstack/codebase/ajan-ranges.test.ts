@@ -10,12 +10,15 @@
  * falls through to whatever is already on disk — a stale binary against a newer
  * ABI — instead of failing the install.
  *
- * The ranges therefore cannot be pinned to the version being released:
- * the platform packages publish *after* the tag, so naming that exact version
- * deadlocked the 4.1.58 pipeline (see syncAjanVersions in versions.ts, and the
- * revert in 0d5c9cbf). They carry a floor range instead. That works until a
- * MAJOR bump, at which point `^4.1.0` stops admitting the version being
- * released and the omission goes unnoticed.
+ * Two layers, two rules. The *published* CLI manifest pins the platform
+ * packages to the exact released version (npm-platform-packages.ts) and the
+ * pipeline publishes those packages before the bundle, so a released CLI can
+ * never resolve an older library. The *workspace* package.json files cannot
+ * carry that pin: pnpm has to install the tree before the version exists on
+ * npm (naming it exactly deadlocked the 4.1.58 pipeline; see syncAjanVersions
+ * in versions.ts and the revert in 0d5c9cbf), so they carry a floor range.
+ * That range works until a MAJOR bump, at which point `^4.1.0` stops
+ * admitting the version being released and the omission goes unnoticed.
  *
  * Asserting every declared range admits the root VERSION is what makes that
  * unmissable: the bump itself trips this test, before anything is published.
@@ -81,7 +84,12 @@ const collectDeclarations = async (): Promise<Declaration[]> => {
       // stamps the published CLI's dependency on @eserstack/ajan as a literal,
       // and a walk restricted to package.json files silently exempted it -- so
       // the guard claimed to cover every declared range while missing one.
-      if (entry.name.endsWith(".ts")) {
+      // Test files are skipped: their fixtures spell out ranges and exact pins
+      // on purpose (npm-platform-packages.test.ts pins a made-up version).
+      if (
+        entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts") &&
+        !entry.name.endsWith("_test.ts")
+      ) {
         const source = await Deno.readTextFile(full);
 
         for (const match of source.matchAll(GENERATED_RANGE)) {

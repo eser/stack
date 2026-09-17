@@ -119,11 +119,23 @@ const main = async (): Promise<void> => {
         `eser ajan version mentions Deno — the npm package must not require it:\n${ajanOutput}`,
       );
     }
+    if (ajan.code === 0) {
+      // The platform packages are pinned to this exact version; if one loaded
+      // it must be this build, not an older library that happened to resolve.
+      const packed = JSON.parse(
+        await Deno.readTextFile(path.join(distDir, "package.json")),
+      ) as { version: string };
+      if (!ajan.stdout.includes(packed.version)) {
+        throw new Error(
+          `eser ajan version reported "${ajan.stdout.trim()}" but the bundle is ${packed.version} — a mismatched platform library was loaded`,
+        );
+      }
+    }
     // deno-lint-ignore no-console
     console.log(
       ajan.code === 0
         ? `eser ajan version → ${ajan.stdout.trim()}`
-        : "eser ajan version → failed gracefully without mentioning Deno",
+        : "eser ajan version → failed gracefully without mentioning Deno (platform package not published yet)",
     );
 
     // deno-lint-ignore no-console

@@ -721,7 +721,11 @@ jobs:
     # npm-no-deno-test is a barrier, not just an ancestor: it used to be a leaf,
     # so a broken no-Deno install was only ever discovered AFTER npm already had
     # the version. Nothing reaches a registry until both smoke tests are green.
-    needs: [release-gate, smoke-test, npm-no-deno-test]
+    # publish-ajan comes first: the bundles pin their platform packages to the
+    # exact version, so those packages must exist on npm before eser@VERSION
+    # does. A platform publish failure therefore blocks the bundles instead of
+    # shipping a CLI whose native half is missing.
+    needs: [release-gate, smoke-test, npm-no-deno-test, publish-ajan]
     # GitHub-hosted: npm OIDC trusted publishing and JSR provenance are tied
     # to GitHub-issued id-tokens from GitHub-hosted runners.
     runs-on: ubuntu-24.04-arm

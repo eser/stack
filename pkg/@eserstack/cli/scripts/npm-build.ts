@@ -18,6 +18,7 @@
 import * as esbuild from "esbuild";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import { NPM_EXTERNAL_PACKAGES } from "@eserstack/codebase/npm-externals";
+import { pinPlatformPackages } from "@eserstack/codebase/npm-platform-packages";
 
 type PackageJson = {
   name: string;
@@ -242,7 +243,16 @@ const main = async (): Promise<void> => {
       lightningcss: "^1.30.0",
       tailwindcss: "^4.1.8",
     },
-    optionalDependencies: sourcePackageJson.optionalDependencies,
+    // Exact, not the workspace range: the bundle is compiled against the ABI
+    // of the platform library built from this very commit, and a range lets
+    // npm hand out an older library from a stale cache. The pipeline publishes
+    // the platform packages before this bundle, so the pin always resolves;
+    // and npm skips an optional dependency it cannot resolve rather than
+    // failing the install.
+    optionalDependencies: pinPlatformPackages(
+      sourcePackageJson.optionalDependencies,
+      sourcePackageJson.version,
+    ),
     repository: {
       type: "git",
       url: "https://github.com/eser/stack",

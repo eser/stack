@@ -143,6 +143,14 @@ versions.
 
 ---
 
+**Platform packages are pinned exactly and published first.** The eser bundle is
+compiled against the ABI of the `@eserstack/ajan-*` library built from the same
+commit, so its generated `dist/package.json` pins every platform package to the
+exact released version (the workspace `package.json` keeps a range so pnpm can
+install before the version exists). The pipeline publishes the platform packages
+before the bundles for the same reason. A range here let `npx eser` load ajan
+4.1.57 under eser 4.5.1 and fail on missing exports.
+
 ## Changelog Generation
 
 Scope: Release automation

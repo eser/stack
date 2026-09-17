@@ -18,7 +18,7 @@
 import * as esbuild from "esbuild";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import { NPM_EXTERNAL_PACKAGES } from "@eserstack/codebase/npm-externals";
-import { pinPlatformPackages } from "@eserstack/codebase/npm-platform-packages";
+import { resolveWorkspaceSpecifiers } from "@eserstack/codebase/npm-workspace-specifiers";
 
 type PackageJson = {
   name: string;
@@ -243,13 +243,14 @@ const main = async (): Promise<void> => {
       lightningcss: "^1.30.0",
       tailwindcss: "^4.1.8",
     },
-    // Exact, not the workspace range: the bundle is compiled against the ABI
-    // of the platform library built from this very commit, and a range lets
-    // npm hand out an older library from a stale cache. The pipeline publishes
-    // the platform packages before this bundle, so the pin always resolves;
-    // and npm skips an optional dependency it cannot resolve rather than
-    // failing the install.
-    optionalDependencies: pinPlatformPackages(
+    // The platform packages are workspace members declared with workspace:*;
+    // this manifest is published from dist/, outside the workspace, so pnpm
+    // will not rewrite the protocol for us. Resolving it here yields the exact
+    // version — the library built from this very commit — which is the only
+    // one the bundle's FFI layer can load. The pipeline publishes the platform
+    // packages before this bundle, so the pin always resolves; and npm skips an
+    // optional dependency it cannot resolve rather than failing the install.
+    optionalDependencies: resolveWorkspaceSpecifiers(
       sourcePackageJson.optionalDependencies,
       sourcePackageJson.version,
     ),

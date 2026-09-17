@@ -181,21 +181,25 @@ jobs:
       - name: Build Go WASM modules
         run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm
 
-      - name: Generate npm packages for ajan
+      - name: Stage platform libraries into their packages
         run: deno run --allow-all pkg/@eserstack/ajan/npm/generate-packages.ts
 
       # ── bootstrap mode: upload the generated tarballs so they can be published
       # manually (npm login as the eserstack org owner). Needed for the FIRST
       # publish of any package, because npm can't pre-configure a trusted
       # publisher for a not-yet-existing package, so OIDC can't create it.
-      # The artifact's least-common-ancestor is .../dist/npm/, so it extracts to
-      # `ajan-<platform>/` dirs at the top level — ready for a publish loop.
+      # The artifact's least-common-ancestor is pkg/@eserstack/, so it extracts
+      # to `ajan-<platform>/` dirs at the top level — ready for a publish loop.
       - name: Upload generated ajan platform packages (manual first publish)
         if: inputs.mode == 'bootstrap'
         uses: actions/upload-artifact@v7
         with:
           name: ajan-npm-packages
-          path: pkg/@eserstack/ajan/dist/npm/ajan-*/
+          path: |
+            pkg/@eserstack/ajan-*/package.json
+            pkg/@eserstack/ajan-*/README.md
+            pkg/@eserstack/ajan-*/libeser_ajan.*
+            pkg/@eserstack/ajan-*/*.wasm
           if-no-files-found: error
 
       # ── publish mode: publish each generated package whose exact version isn't
@@ -215,7 +219,7 @@ jobs:
           set -euo pipefail
           published=0
           skipped=0
-          for dir in pkg/@eserstack/ajan/dist/npm/ajan-*/; do
+          for dir in pkg/@eserstack/ajan-*/; do
             [ -f "$dir/package.json" ] || continue
             name=$(node -p "require('./$dir/package.json').name")
             version=$(node -p "require('./$dir/package.json').version")

@@ -1,30 +1,33 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Generates platform-specific npm package directories from build output.
+ * Stages built shared libraries into the platform workspace packages.
  *
- * For each of the 6 supported targets, this script creates a package directory
- * containing a `package.json`, the shared library, and the C header file.
+ * The six `@eserstack/ajan-*` packages are workspace members under
+ * `pkg/@eserstack/` with committed manifests; their only payload is a build
+ * output. This script copies each target's library (and the C header) from
+ * `dist/<target>/` into the matching member, which is what `pnpm install`
+ * links for the current platform and what the release pipeline publishes.
  *
- * The generated packages are intended for use as npm `optionalDependencies`
- * of the root `@eserstack/ajan` package — npm installs only the one matching
- * the current platform.
+ * Nothing here writes a package.json: the manifests are committed and their
+ * version is stamped by `eser codebase versions` like every other workspace
+ * package. Before TASK-8 this script generated throwaway packages under
+ * `dist/npm/` with a version of their own, and the dependents pinned them
+ * through a range — two mechanisms for one invariant (the library must come
+ * from the same commit as the TypeScript that loads it) that broke on
+ * 2026-09-17 when a stale registry cache served an older library.
  *
- * Prerequisites: run `scripts/build.ts` first so that `dist/` contains the
- * built shared libraries.
+ * Prerequisites: run `scripts/build.ts` first so that `dist/` holds the
+ * libraries for the targets you want staged.
  *
  * ## What is deliberately NOT here: Go executables
  *
  * These packages carry the shared LIBRARY only. The `noskills-server` and
  * `noskills` executables are distributed through GitHub releases, not npm.
  *
- * The ACP shim used to be a third executable with the same problem; it is now
- * linked into the library itself, so there is nothing left to ship separately
- * for it.
- *
  * Usage:
- *   deno run --allow-all npm/generate-packages.ts          # all available targets
- *   deno run --allow-all npm/generate-packages.ts --clean   # remove generated dirs
+ *   deno run --allow-all npm/generate-packages.ts          # stage every built target
+ *   deno run --allow-all npm/generate-packages.ts --clean   # remove staged binaries
  *
  * @module
  */
@@ -32,61 +35,8 @@
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as targets from "../targets.ts";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const HEADER_FILE = "libeser_ajan.h";
-const LICENSE = "Apache-2.0";
 
-const REPOSITORY = {
-  type: "git",
-  url: "https://github.com/eser/stack",
-  directory: "pkg/@eserstack/ajan",
-};
-
-const HOMEPAGE = "https://github.com/eser/stack/tree/main/pkg/@eserstack/ajan";
-const BUGS_URL = "https://github.com/eser/stack/issues";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Reads the package version — prefers the root VERSION file, falls back to bridge.go. */
-const readVersion = async (pkgDir: string): Promise<string> => {
-  // Try root VERSION file first (always has the real release version)
-  const projectRoot = pkgDir.replace(/\/pkg\/.*$/, "");
-  try {
-    const versionFileContent = (await runtime.fs.readTextFile(
-      `${projectRoot}/VERSION`,
-    )).trim();
-    if (versionFileContent.length > 0 && versionFileContent !== "dev") {
-      return versionFileContent;
-    }
-  } catch {
-    // VERSION file not found, fall through
-  }
-
-  // Fall back to bridge.go
-  const bridgePath = `${pkgDir}/bridge.go`;
-  const content = await runtime.fs.readTextFile(bridgePath);
-  const match = content.match(/(?:const|var)\s+Version\s*=\s*"([^"]+)"/);
-
-  if (match === null || match[1] === undefined) {
-    throw new Error(
-      `Could not determine version from VERSION file or ${bridgePath}`,
-    );
-  }
-
-  return match[1];
-};
-
-/** Copies a file, creating the destination directory if needed. */
-const copyFile = async (src: string, dst: string): Promise<void> => {
-  await runtime.fs.copyFile(src, dst);
-};
-
-/** Checks whether a file exists. */
 const fileExists = async (path: string): Promise<boolean> => {
   try {
     await runtime.fs.stat(path);
@@ -96,146 +46,97 @@ const fileExists = async (path: string): Promise<boolean> => {
   }
 };
 
-// ---------------------------------------------------------------------------
-// Generation logic
-// ---------------------------------------------------------------------------
-
-interface GenerateResult {
-  npmSuffix: string;
-  status: "ok" | "skip" | "fail";
-  reason?: string;
-}
-
-const generatePlatformPackage = async (
-  target: targets.NativeTarget,
-  _pkgDir: string,
-  distDir: string,
-  outputBaseDir: string,
-  version: string,
-): Promise<GenerateResult> => {
-  const buildDir = `${distDir}/${target.id}`;
-  const libPath = `${buildDir}/${target.libFile}`;
-  const headerPath = `${buildDir}/${HEADER_FILE}`;
-
-  // Check if build output exists for this target
-  if (!await fileExists(libPath)) {
-    return {
-      npmSuffix: target.npmSuffix,
-      status: "skip",
-      reason: `No build output: ${libPath}`,
-    };
-  }
-
-  const pkgName =
-    `${targets.NPM_SCOPE}/${targets.NPM_PKG_PREFIX}-${target.npmSuffix}`;
-  const outputDir =
-    `${outputBaseDir}/${targets.NPM_PKG_PREFIX}-${target.npmSuffix}`;
-
+const removeIfExists = async (path: string): Promise<void> => {
   try {
-    await runtime.fs.mkdir(outputDir, { recursive: true });
+    await runtime.fs.remove(path);
   } catch {
-    // already exists
+    // not there
   }
-
-  // Build the files array based on what exists
-  const filesArray = [target.libFile];
-  const hasHeader = await fileExists(headerPath);
-  if (hasHeader) {
-    filesArray.push(HEADER_FILE);
-  }
-
-  // Generate package.json
-  const packageJson = {
-    name: pkgName,
-    version,
-    description: target.description,
-    license: LICENSE,
-    repository: REPOSITORY,
-    homepage: HOMEPAGE,
-    bugs: { url: BUGS_URL },
-    os: [target.npmOs],
-    cpu: [target.npmCpu],
-    main: target.libFile,
-    files: filesArray,
-  };
-
-  await runtime.fs.writeTextFile(
-    `${outputDir}/package.json`,
-    JSON.stringify(packageJson, null, 2) + "\n",
-  );
-
-  // Copy shared library
-  await copyFile(libPath, `${outputDir}/${target.libFile}`);
-
-  // Copy header file if it exists
-  if (hasHeader) {
-    await copyFile(headerPath, `${outputDir}/${HEADER_FILE}`);
-  }
-
-  return { npmSuffix: target.npmSuffix, status: "ok" };
 };
 
-// ---------------------------------------------------------------------------
-// WASM package generation
-// ---------------------------------------------------------------------------
+type StageResult = {
+  member: string;
+  status: "ok" | "skip";
+  reason?: string;
+};
 
-const generateWasmPackage = async (
+/** Workspace directory of the platform package for a suffix. */
+const memberDir = (workspaceDir: string, suffix: string): string =>
+  `${workspaceDir}/${targets.NPM_PKG_PREFIX}-${suffix}`;
+
+const requireMember = async (dir: string): Promise<void> => {
+  if (!await fileExists(`${dir}/package.json`)) {
+    throw new Error(
+      `${dir}/package.json is missing — the platform packages are committed workspace members, not generated.`,
+    );
+  }
+};
+
+const stageNative = async (
+  target: targets.NativeTarget,
   distDir: string,
-  outputBaseDir: string,
-  version: string,
-): Promise<GenerateResult> => {
-  const pkgName =
-    `${targets.NPM_SCOPE}/${targets.NPM_PKG_PREFIX}-${targets.NPM_WASM_SUFFIX}`;
-  const outputDir =
-    `${outputBaseDir}/${targets.NPM_PKG_PREFIX}-${targets.NPM_WASM_SUFFIX}`;
+  workspaceDir: string,
+): Promise<StageResult> => {
+  const member = `${targets.NPM_PKG_PREFIX}-${target.npmSuffix}`;
+  const buildDir = `${distDir}/${target.id}`;
+  const libPath = `${buildDir}/${target.libFile}`;
 
-  try {
-    await runtime.fs.mkdir(outputDir, { recursive: true });
-  } catch {
-    // already exists
+  if (!await fileExists(libPath)) {
+    return { member, status: "skip", reason: `No build output: ${libPath}` };
   }
 
-  const copiedFiles: string[] = [];
+  const outDir = memberDir(workspaceDir, target.npmSuffix);
+  await requireMember(outDir);
+  await runtime.fs.copyFile(libPath, `${outDir}/${target.libFile}`);
 
+  const headerPath = `${buildDir}/${HEADER_FILE}`;
+  if (await fileExists(headerPath)) {
+    await runtime.fs.copyFile(headerPath, `${outDir}/${HEADER_FILE}`);
+  }
+
+  return { member, status: "ok" };
+};
+
+const stageWasm = async (
+  distDir: string,
+  workspaceDir: string,
+): Promise<StageResult> => {
+  const member = `${targets.NPM_PKG_PREFIX}-${targets.NPM_WASM_SUFFIX}`;
+  const outDir = memberDir(workspaceDir, targets.NPM_WASM_SUFFIX);
+  await requireMember(outDir);
+
+  let copied = 0;
   for (const wt of targets.WASM_TARGETS) {
     const srcPath = `${distDir}/${wt.id}/${wt.outputFile}`;
     if (await fileExists(srcPath)) {
-      await copyFile(srcPath, `${outputDir}/${wt.outputFile}`);
-      copiedFiles.push(wt.outputFile);
+      await runtime.fs.copyFile(srcPath, `${outDir}/${wt.outputFile}`);
+      copied++;
     }
   }
 
-  if (copiedFiles.length === 0) {
+  if (copied === 0) {
     return {
-      npmSuffix: targets.NPM_WASM_SUFFIX,
+      member,
       status: "skip",
       reason: "No WASM build output found in dist/wasi/ or dist/wasi-reactor/",
     };
   }
 
-  const packageJson = {
-    name: pkgName,
-    version,
-    description:
-      "WebAssembly fallback for eser-ajan \u2014 works on any platform",
-    license: LICENSE,
-    repository: REPOSITORY,
-    homepage: HOMEPAGE,
-    bugs: { url: BUGS_URL },
-    files: copiedFiles,
-  };
-
-  await runtime.fs.writeTextFile(
-    `${outputDir}/package.json`,
-    JSON.stringify(packageJson, null, 2) + "\n",
-  );
-
-  return { npmSuffix: targets.NPM_WASM_SUFFIX, status: "ok" };
+  return { member, status: "ok" };
 };
 
-// ---------------------------------------------------------------------------
-// CLI
-// ---------------------------------------------------------------------------
+const clean = async (workspaceDir: string): Promise<void> => {
+  for (const t of targets.NATIVE_TARGETS) {
+    const dir = memberDir(workspaceDir, t.npmSuffix);
+    await removeIfExists(`${dir}/${t.libFile}`);
+    await removeIfExists(`${dir}/${HEADER_FILE}`);
+  }
+
+  const wasmDir = memberDir(workspaceDir, targets.NPM_WASM_SUFFIX);
+  for (const wt of targets.WASM_TARGETS) {
+    await removeIfExists(`${wasmDir}/${wt.outputFile}`);
+  }
+};
 
 const main = async (): Promise<void> => {
   const scriptDir = import.meta.dirname;
@@ -243,104 +144,49 @@ const main = async (): Promise<void> => {
     throw new Error("Cannot determine script directory");
   }
 
-  const pkgDir = scriptDir.replace(/\/npm$/, "");
+  const pkgDir = scriptDir.replace(/[/\\]npm$/, "");
   const distDir = `${pkgDir}/dist`;
-  const outputBaseDir = `${distDir}/npm`;
+  const workspaceDir = pkgDir.replace(/[/\\]ajan$/, "");
 
   const args = runtime.process.args as string[];
 
-  // --clean
   if (args.includes("--clean")) {
     // deno-lint-ignore no-console
-    console.log("Removing generated npm package directories...");
-    try {
-      await runtime.fs.remove(outputBaseDir, { recursive: true });
-      // deno-lint-ignore no-console
-      console.log("Done.");
-    } catch {
-      // deno-lint-ignore no-console
-      console.log("Nothing to clean.");
-    }
+    console.log("Removing staged platform binaries...");
+    await clean(workspaceDir);
+    // deno-lint-ignore no-console
+    console.log("Done.");
     return;
   }
 
-  // Read version from VERSION file (or bridge.go fallback)
-  const version = await readVersion(pkgDir);
-  // deno-lint-ignore no-console
-  console.log(`Generating npm packages (version ${version})...\n`);
-
-  // Create output base directory
-  try {
-    await runtime.fs.mkdir(outputBaseDir, { recursive: true });
-  } catch {
-    // already exists
-  }
-
-  // Generate each platform package
-  const results: GenerateResult[] = [];
-
+  const results: StageResult[] = [];
   for (const target of targets.NATIVE_TARGETS) {
+    results.push(await stageNative(target, distDir, workspaceDir));
+  }
+  results.push(await stageWasm(distDir, workspaceDir));
+
+  for (const r of results) {
     // deno-lint-ignore no-console
     console.log(
-      `  ${targets.NPM_SCOPE}/${targets.NPM_PKG_PREFIX}-${target.npmSuffix} ...`,
+      r.status === "ok"
+        ? `  ✓ ${r.member}`
+        : `  - ${r.member} (skipped: ${r.reason})`,
     );
-    const result = await generatePlatformPackage(
-      target,
-      pkgDir,
-      distDir,
-      outputBaseDir,
-      version,
-    );
-    results.push(result);
-
-    if (result.status === "ok") {
-      // deno-lint-ignore no-console
-      console.log("    OK");
-    } else if (result.status === "skip") {
-      // deno-lint-ignore no-console
-      console.log(`    SKIP: ${result.reason}`);
-    } else {
-      // deno-lint-ignore no-console
-      console.error(`    FAIL: ${result.reason}`);
-    }
   }
 
-  // Generate WASM package
+  const staged = results.filter((r) => r.status === "ok").length;
   // deno-lint-ignore no-console
   console.log(
-    `\n  ${targets.NPM_SCOPE}/${targets.NPM_PKG_PREFIX}-${targets.NPM_WASM_SUFFIX} ...`,
+    `\nStaged ${staged}/${results.length} platform packages into ${workspaceDir}`,
   );
-  const wasmResult = await generateWasmPackage(distDir, outputBaseDir, version);
-  results.push(wasmResult);
 
-  if (wasmResult.status === "ok") {
-    // deno-lint-ignore no-console
-    console.log("    OK");
-  } else if (wasmResult.status === "skip") {
-    // deno-lint-ignore no-console
-    console.log(`    SKIP: ${wasmResult.reason}`);
-  } else {
-    // deno-lint-ignore no-console
-    console.error(`    FAIL: ${wasmResult.reason}`);
-  }
-
-  // Summary
-  const ok = results.filter((r) => r.status === "ok").length;
-  const skip = results.filter((r) => r.status === "skip").length;
-  const fail = results.filter((r) => r.status === "fail").length;
-
-  // deno-lint-ignore no-console
-  console.log(`\n${"─".repeat(50)}`);
-  // deno-lint-ignore no-console
-  console.log(`Generated: ${ok}  Skipped: ${skip}  Failed: ${fail}`);
-  // deno-lint-ignore no-console
-  console.log(`Output:    ${outputBaseDir}`);
-  // deno-lint-ignore no-console
-  console.log(`${"─".repeat(50)}`);
-
-  if (fail > 0) {
-    runtime.process.setExitCode(1);
+  if (staged === 0) {
+    throw new Error(
+      "No platform package was staged — run scripts/build.ts first.",
+    );
   }
 };
 
-main();
+if (import.meta.main) {
+  await main();
+}

@@ -65,3 +65,8 @@ result-*
 # formatting validators had to be hand-satisfied each time. Hand-written docs
 # under docs/adr/ and docs/schema/ stay tracked.
 docs/api/
+
+# Platform library packages are workspace members whose only payload is a build
+# output written by pkg/@eserstack/ajan/scripts/build.ts; the manifests are committed.
+/pkg/@eserstack/ajan-*/libeser_ajan.*
+/pkg/@eserstack/ajan-wasm/*.wasm

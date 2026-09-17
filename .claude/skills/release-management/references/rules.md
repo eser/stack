@@ -142,13 +142,16 @@ All 29+ packages are versioned together — there are no independent package ver
 
 ---
 
-**Platform packages are pinned exactly and published first.** The eser bundle
-is compiled against the ABI of the `@eserstack/ajan-*` library built from the
-same commit, so its generated `dist/package.json` pins every platform package to
-the exact released version (the workspace `package.json` keeps a range so pnpm
-can install before the version exists). The pipeline publishes the platform
-packages before the bundles for the same reason. A range here let `npx eser`
-load ajan 4.1.57 under eser 4.5.1 and fail on missing exports.
+**Platform packages are workspace members, published first.** The six
+`@eserstack/ajan-*` packages live under `pkg/@eserstack/` with committed
+manifests; `scripts/build.ts` plus `npm/generate-packages.ts` stage the built
+library into each one, and `cli` and `ajan` declare them with `workspace:*`.
+The eser bundle is compiled against the ABI of the library built from the same
+commit, so its generated `dist/package.json` resolves those specifiers to the
+exact released version (`npm-workspace-specifiers.ts`), and the pipeline
+publishes the platform packages before the bundles so the pin always resolves.
+A floor range here once let `npx eser` load ajan 4.1.57 under eser 4.5.1 and
+fail on missing exports.
 
 
 ## Changelog Generation

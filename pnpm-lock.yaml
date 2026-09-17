@@ -86,23 +86,35 @@ importers:
         version: 3.3.0
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-darwin-arm64
       '@eserstack/ajan-darwin-x64':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-darwin-x64
       '@eserstack/ajan-linux-arm64':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-linux-arm64
       '@eserstack/ajan-linux-x64':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-linux-x64
       '@eserstack/ajan-wasm':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-wasm
       '@eserstack/ajan-win32-x64':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-win32-x64
+
+  pkg/@eserstack/ajan-darwin-arm64: {}
+
+  pkg/@eserstack/ajan-darwin-x64: {}
+
+  pkg/@eserstack/ajan-linux-arm64: {}
+
+  pkg/@eserstack/ajan-linux-x64: {}
+
+  pkg/@eserstack/ajan-wasm: {}
+
+  pkg/@eserstack/ajan-win32-x64: {}
 
   pkg/@eserstack/app-runtime:
     dependencies:
@@ -213,23 +225,23 @@ importers:
         version: '@jsr/std__assert@1.0.19'
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-darwin-arm64
       '@eserstack/ajan-darwin-x64':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-darwin-x64
       '@eserstack/ajan-linux-arm64':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-linux-arm64
       '@eserstack/ajan-linux-x64':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-linux-x64
       '@eserstack/ajan-wasm':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-wasm
       '@eserstack/ajan-win32-x64':
-        specifier: ^4.5.1
-        version: 4.5.1
+        specifier: workspace:*
+        version: link:../ajan-win32-x64
 
   pkg/@eserstack/codebase:
     dependencies:
@@ -1176,34 +1188,6 @@ packages:
   '@esbuild/win32-x64@0.28.2':
     resolution: {integrity: sha512-5ebpxr3nWMzrL/rnUI755Jkuee0bHL/Gq0WTF9lvcpv73wAp5eu8MfBUgWK9bhWvZjj7yX8etf/8tI8Ney695g==}
     engines: {node: '>=18'}
-    cpu: [x64]
-    os: [win32]
-
-  '@eserstack/ajan-darwin-arm64@4.5.1':
-    resolution: {integrity: sha512-yS+ADTBj2fBAlTgzsOC3sHLa4MjPAM7bK5Fjx8uQD8YH5803jKdr/fyAP0Bg72H6kgT8i0k+JtLbMMt7zeqUrQ==}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@eserstack/ajan-darwin-x64@4.5.1':
-    resolution: {integrity: sha512-Ic5prXvYNUK1Nb6YKZ2BWhtmCqOvDcZwkpFHfMXJFBdDmTIhdu/CdSIecLb+rvsoBPRVDTAAfoNoAjhECqb9VA==}
-    cpu: [x64]
-    os: [darwin]
-
-  '@eserstack/ajan-linux-arm64@4.5.1':
-    resolution: {integrity: sha512-NCsAy3oAa8upqpPcH+O6jVZPuUnYfaxv57jtoyOlA+KqU1aYQfjUTauGddFIyMrO+8hI+TGxqk1BdQyj67IBTQ==}
-    cpu: [arm64]
-    os: [linux]
-
-  '@eserstack/ajan-linux-x64@4.5.1':
-    resolution: {integrity: sha512-380IQ+RXrDMyCt+e5SOQNlnnMVi9xjlf0orsaUdN4OXBa8hlKlQToSiczBXdIXUWqF9gWdv8b6ZixbGm1jSQLg==}
-    cpu: [x64]
-    os: [linux]
-
-  '@eserstack/ajan-wasm@4.5.1':
-    resolution: {integrity: sha512-e0zlPOzWrlSKZzRNOoPR7tYXRrVfUYPGOQW7ASDoLg/paRCpMb0U3uuZ8OBrJc0SXvI6Z8VeG3KuzlzbhFw4Lw==}
-
-  '@eserstack/ajan-win32-x64@4.5.1':
-    resolution: {integrity: sha512-hvceiUMJhhb+jZ6QhYDI5lgseOEm/IW+PvNr/AL7TCSnIpgl48h3RwLijVd9j+WdvtqbuR/YP500h83gDBIqlA==}
     cpu: [x64]
     os: [win32]
 
@@ -2782,24 +2766,6 @@ snapshots:
     optional: true
 
   '@esbuild/win32-x64@0.28.2':
-    optional: true
-
-  '@eserstack/ajan-darwin-arm64@4.5.1':
-    optional: true
-
-  '@eserstack/ajan-darwin-x64@4.5.1':
-    optional: true
-
-  '@eserstack/ajan-linux-arm64@4.5.1':
-    optional: true
-
-  '@eserstack/ajan-linux-x64@4.5.1':
-    optional: true
-
-  '@eserstack/ajan-wasm@4.5.1':
-    optional: true
-
-  '@eserstack/ajan-win32-x64@4.5.1':
     optional: true
 
   '@google/genai@2.23.0(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))':

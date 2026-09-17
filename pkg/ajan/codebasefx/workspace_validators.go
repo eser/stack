@@ -484,33 +484,51 @@ type jsDocEntry struct {
 }
 
 // extractJSDocEntries finds exported symbols and their preceding JSDoc in content.
+//
+// One pass over each regex. The previous version re-ran the JSDoc regex over
+// the whole prefix for EVERY export and recounted newlines from the start of
+// the file each time — quadratic in the number of exports, which is exactly
+// the shape of a public mod.ts. Both match lists are in document order, so a
+// single cursor over the JSDoc list and an incremental line count suffice.
 func extractJSDocEntries(content string) []jsDocEntry {
-	var entries []jsDocEntry
+	exports := exportRx.FindAllStringSubmatchIndex(content, -1)
+	if len(exports) == 0 {
+		return nil
+	}
 
-	for _, exportMatch := range exportRx.FindAllStringIndex(content, -1) {
-		exportStart := exportMatch[0]
-		symbolMatch := exportRx.FindStringSubmatch(content[exportStart:])
-		if symbolMatch == nil {
-			continue
+	jsdocs := jsdocRx.FindAllStringSubmatchIndex(content, -1)
+	entries := make([]jsDocEntry, 0, len(exports))
+
+	line := 1
+	scanned := 0
+	next := 0 // first JSDoc that ends after the current export
+
+	for _, m := range exports {
+		exportStart := m[0]
+		line += strings.Count(content[scanned:exportStart], "\n")
+		scanned = exportStart
+
+		for next < len(jsdocs) && jsdocs[next][1] <= exportStart {
+			next++
 		}
-		symbolName := symbolMatch[1]
-		lineNum := 1 + strings.Count(content[:exportStart], "\n")
 
-		// Look for the last JSDoc comment before this export.
+		// The last JSDoc that ends before the export counts only when nothing
+		// but whitespace separates them; an earlier one always has that later
+		// comment in between, so no other candidate needs checking.
 		var jsdoc string
-		for _, jsdocMatch := range jsdocRx.FindAllStringIndex(content[:exportStart], -1) {
-			jsdocEnd := jsdocMatch[1]
-			between := content[jsdocEnd:exportStart]
-			if strings.TrimSpace(between) == "" {
-				// Immediately precedes the export.
-				inner := jsdocRx.FindStringSubmatch(content[jsdocMatch[0]:jsdocMatch[1]])
-				if inner != nil {
-					jsdoc = inner[1]
-				}
+
+		if next > 0 {
+			last := jsdocs[next-1]
+			if strings.TrimSpace(content[last[1]:exportStart]) == "" {
+				jsdoc = content[last[2]:last[3]]
 			}
 		}
 
-		entries = append(entries, jsDocEntry{jsdoc: jsdoc, symbolName: symbolName, line: lineNum})
+		entries = append(entries, jsDocEntry{
+			jsdoc:      jsdoc,
+			symbolName: content[m[2]:m[3]],
+			line:       line,
+		})
 	}
 
 	return entries

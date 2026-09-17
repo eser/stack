@@ -377,12 +377,28 @@ export const withGoValidator = (
           `FFI library unavailable — cannot run validator "${goValidatorName}"`,
         );
       }
+      // Excludes go on the request, where the Go walk applies them, so an
+      // excluded file is never read on that side either. Regex excludes stay
+      // TypeScript-only (the TS tool applies them after the walk); Go gets the
+      // string patterns. Validator options are sent FLAT ({root, ...options}):
+      // the Go factories read `exclude`, `rules` etc. from the top level of
+      // their entry, and the nested `{root, options: {...}}` shape used before
+      // left every one of them reading defaults.
+      const configOptions = options.options ?? {};
+      const rawExclude = configOptions["exclude"];
+      const goExcludes = Array.isArray(rawExclude)
+        ? rawExclude.filter((e): e is string => typeof e === "string")
+        : [];
+
       const raw = lib.symbols.EserAjanCodebaseValidateFiles(
         JSON.stringify({
           dir: options.root,
           validators: [goValidatorName],
           extensions: goExtensions,
-          validatorOptions: { [goValidatorName]: options },
+          exclude: goExcludes,
+          validatorOptions: {
+            [goValidatorName]: { root: options.root, ...configOptions },
+          },
           gitAware: true,
         }),
       );
@@ -400,8 +416,13 @@ export const withGoValidator = (
           `Go validator "${goValidatorName}" returned no results`,
         );
       }
+      // Go marshals `issues` with omitempty, so a clean run has no field at
+      // all; every consumer maps over it.
+      const first = parsed.results[0]!;
+
       return {
-        ...parsed.results[0]!,
+        ...first,
+        issues: first.issues ?? [],
         name: tool.validator.name,
       } as ValidatorResult;
     },

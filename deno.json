@@ -1,6 +1,7 @@
 {
   "nodeModulesDir": "manual",
   "lock": false,
+  "minimumDependencyAge": 0,
   "unstable": [
     "bundle",
     "sloppy-imports",

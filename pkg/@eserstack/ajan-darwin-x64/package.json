@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/ajan-darwin-x64",
-  "version": "4.5.1",
+  "version": "4.5.2",
   "description": "eser-ajan shared library for macOS x64 (Intel)",
   "license": "Apache-2.0",
   "repository": {

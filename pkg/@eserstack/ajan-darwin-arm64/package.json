@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/ajan-darwin-arm64",
-  "version": "4.5.1",
+  "version": "4.5.2",
   "description": "eser-ajan shared library for macOS ARM64 (Apple Silicon)",
   "license": "Apache-2.0",
   "repository": {

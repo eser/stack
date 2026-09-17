@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.5.2 - 2026-09-17
+
+### Fixed
+
+- **codebase**: align Go secrets validator with TypeScript and speed it up
+  (88bd8be)
+- **ajan**: pin platform packages to the exact CLI version and publish them
+  first (01063c9)
+
+### Changed
+
+- make the platform packages workspace members linked with workspaces (0c089fb)
+- **deps**: update all npm and Go dependencies to latest (0af9b58)
+- **build**: run the Node and Bun cross-runtime checks from a packed install
+  (fa912d7)
+- **release**: let post-gate jobs run on a post-publish resume (2511184)
+- **release**: make the release chain resumable and prove it on main before
+  tagging (0810882)
+
 ## 4.5.1 - 2026-09-13
 
 ### Fixed

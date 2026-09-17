@@ -31,11 +31,74 @@ var mergeConflictMarkers = [][]byte{
 	[]byte("=======\n"),
 }
 
-// secretPatterns are compiled regexes for common credential leaks.
-var secretPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`AKIA[0-9A-Z]{16}`),                                              // AWS access key
-	regexp.MustCompile(`-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----`),          // PEM private key
-	regexp.MustCompile(`(?i)(password|secret|api_key|token)\s*[=:]\s*["']?[^\s"']{8,}`), // generic assignment
+// secretPattern is one credential shape, named the way the issue reports it.
+type secretPattern struct {
+	name string
+	rx   *regexp.Regexp
+}
+
+// secretPatterns mirror SECRET_PATTERNS in
+// pkg/@eserstack/codebase/validate-secrets.ts, shape for shape: the Go and
+// TypeScript validators must report the same findings on the same tree, or the
+// gate (`eser codebase validate`, Go) and the fixer (`--fix`, TypeScript)
+// disagree. The generic pattern requires a QUOTED value on purpose: an
+// unquoted `token: something` is prose in half the documentation in this repo.
+var secretPatterns = []secretPattern{
+	{name: "AWS Access Key ID", rx: regexp.MustCompile(`AKIA[0-9A-Z]{16}`)},
+	{
+		name: "Private Key",
+		rx:   regexp.MustCompile(`-----BEGIN\s{1,5}(RSA\s{1,5}|EC\s{1,5}|DSA\s{1,5}|OPENSSH\s{1,5})?PRIVATE KEY-----`),
+	},
+	{
+		name: "Generic secret assignment",
+		rx: regexp.MustCompile(
+			`(?i)(?:secret|password|api_key|apikey|access_token|auth_token|private_key)\s{0,5}[=:]\s{0,5}["'][^"']{8,}["']`,
+		),
+	},
+}
+
+// secretKeywords are the literal fragments every pattern above needs, in
+// lower case. A line (or a whole file) containing none of them cannot match,
+// and skipping the regexes on that evidence is what makes this validator fast:
+// Go's linear-time regexp engine pays a high constant per character for a
+// case-insensitive alternation with an unbounded tail, while a byte scan for a
+// handful of literals is nearly free.
+var secretKeywords = [][]byte{
+	[]byte("akia"), []byte("private key"), []byte("secret"), []byte("password"),
+	[]byte("api_key"), []byte("apikey"), []byte("access_token"),
+	[]byte("auth_token"), []byte("private_key"),
+}
+
+// lowerASCII returns a copy of src with ASCII letters lower-cased and every
+// other byte untouched. Unlike bytes.ToLower it never changes the length, so
+// an offset into the copy is the same offset into src — which is what lets
+// the line loop below split the lowered copy and run the regexes on the
+// original bytes at the same positions.
+func lowerASCII(src []byte) []byte {
+	dst := make([]byte, len(src))
+
+	for i, c := range src {
+		if 'A' <= c && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+
+		dst[i] = c
+	}
+
+	return dst
+}
+
+// hasSecretKeyword reports whether lower (already lower-cased) contains any
+// keyword. bytes.Contains is the assembly-backed search from the standard
+// library; nine of them over a file are far cheaper than one regexp pass.
+func hasSecretKeyword(lower []byte) bool {
+	for _, kw := range secretKeywords {
+		if bytes.Contains(lower, kw) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // ValidateEOF checks that a file ends with exactly one newline character.
@@ -167,28 +230,54 @@ func ValidateSecrets(path string, content []byte) []ValidatorIssue {
 		return nil
 	}
 
+	// Whole-file gate first: most source files mention none of the keywords
+	// and never reach the line loop. One lower-cased copy serves both the
+	// file gate and every per-line check.
+	lower := lowerASCII(content)
+	if !hasSecretKeyword(lower) {
+		return nil
+	}
+
 	var issues []ValidatorIssue
-	text := string(content)
-	lines := strings.Split(text, "\n")
 
-	for _, pat := range secretPatterns {
-		matches := pat.FindAllStringIndex(text, -1)
+	// Line by line, with the line number coming from the loop. The previous
+	// version ran every pattern over the whole file and then recomputed each
+	// match's line with strings.Count over the prefix — a rescan from the start
+	// of the file per finding.
+	lineNum := 0
 
-		for _, match := range matches {
-			// Find which line this match is on
-			lineNum := 1 + strings.Count(text[:match[0]], "\n")
-			snippet := strings.TrimSpace(lines[lineNum-1])
+	for off := 0; off < len(content); {
+		lineNum++
 
-			if len(snippet) > 60 {
-				snippet = snippet[:60] + "..."
+		end := len(content)
+		next := end
+
+		if nl := bytes.IndexByte(content[off:], '\n'); nl >= 0 {
+			end = off + nl
+			next = end + 1
+		}
+
+		line := content[off:end]
+		lowerLine := lower[off:end]
+		off = next
+
+		if !hasSecretKeyword(lowerLine) {
+			continue
+		}
+
+		for _, pat := range secretPatterns {
+			if !pat.rx.Match(line) {
+				continue
 			}
 
 			issues = append(issues, ValidatorIssue{
 				Severity: "error",
 				File:     path,
 				Line:     lineNum,
-				Message:  "possible secret detected: " + snippet,
+				Message:  "potential " + pat.name + " detected",
 			})
+
+			break // one issue per line, like the TypeScript validator
 		}
 	}
 

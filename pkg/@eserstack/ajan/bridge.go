@@ -4213,9 +4213,14 @@ type codebaseWalkResponse struct {
 }
 
 type codebaseValidateRequest struct {
-	Dir              string                 `json:"dir"`
-	Validators       []string               `json:"validators,omitempty"`
-	Extensions       []string               `json:"extensions,omitempty"`
+	Dir        string   `json:"dir"`
+	Validators []string `json:"validators,omitempty"`
+	Extensions []string `json:"extensions,omitempty"`
+	// Exclude is applied to the walk, so an excluded path is never read, never
+	// validated and never reported — the same contract as codebaseWalkRequest.
+	// Before it existed the manifest's excludes reached only the TypeScript
+	// tools, and the Go validators reported 84 "secrets" in skill docs.
+	Exclude          []string               `json:"exclude,omitempty"`
 	ValidatorOptions map[string]interface{} `json:"validatorOptions,omitempty"`
 	GitAware         bool                   `json:"gitAware"`
 }
@@ -4416,6 +4421,7 @@ func bridgeCodebaseValidateFiles(requestJSON string) string {
 	files, err := codebasefx.WalkSourceFiles(context.Background(), codebasefx.WalkOptions{
 		Root:       req.Dir,
 		Extensions: req.Extensions,
+		Exclude:    req.Exclude,
 		GitAware:   req.GitAware,
 	})
 	if err != nil {

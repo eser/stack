@@ -218,13 +218,16 @@ const getModuleDir = (hint?: string): string => {
  * Search order:
  * 1. `ESER_AJAN_LIB_PATH` environment variable (explicit override)
  * 2. Adjacent to this module (`{moduleDir}/libeser_ajan.{ext}`)
- * 3. Build output for the current target: `{moduleDir}/../dist/{target}/`,
- *    `{moduleDir}/dist/{target}/`, then `{cwd}/pkg/@eserstack/ajan/dist/{target}/`
+ * 3. Build output next to this module: `{moduleDir}/../dist/{target}/`,
+ *    `{moduleDir}/dist/{target}/`
  * 4. Platform npm package `@eserstack/ajan-{slug}`, probed first as the scope
  *    sibling of this package (`{moduleDir}/../../ajan-{slug}/`) and then under
  *    `node_modules/@eserstack/` of every ancestor directory of this module and
  *    of the current working directory
- * 5. System library paths (`/usr/local/lib/`, `/usr/lib/`)
+ * 5. Monorepo build relative to the working directory,
+ *    `{cwd}/pkg/@eserstack/ajan/dist/{target}/` — deliberately after the
+ *    installed package, so a published CLI never picks up a stale dev build
+ * 6. System library paths (`/usr/local/lib/`, `/usr/lib/`)
  *
  * @param moduleDirHint - Optional path to the directory containing this module
  *   (i.e. the `ffi/` directory). When provided, relative paths are resolved
@@ -299,20 +302,12 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
     return cwdDistPath;
   }
 
-  // Try pkg/@eserstack/ajan/dist/ from the monorepo root (cwd)
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
   const cwd =
     typeof g.process !== "undefined" && typeof g.process.cwd === "function"
       ? g.process.cwd()
       : ".";
-  if (cwd !== moduleDir) {
-    const monoDistPath =
-      `${cwd}/pkg/@eserstack/ajan/dist/${targetName}/${libName}`;
-    if (probe(monoDistPath)) {
-      return monoDistPath;
-    }
-  }
 
   // 4. Platform npm package (e.g. node_modules/@eserstack/ajan-darwin-arm64/)
   //
@@ -343,7 +338,24 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
     }
   }
 
-  // 5. System library paths (Linux / macOS)
+  // 5. Monorepo build relative to the working directory.
+  //
+  // AFTER the installed platform package on purpose. A published CLI run from
+  // inside the stack checkout used to pick up whatever dev build sat in
+  // pkg/@eserstack/ajan/dist — stale or freshly built, unrelated to the CLI's
+  // own version — while the same command from any other directory used the
+  // matching npm package. Resolution must not depend on where the process
+  // was started; this probe only serves a JSR-resolved or cached module run
+  // from the repository root, which has no node_modules copy to find.
+  if (cwd !== moduleDir) {
+    const monoDistPath =
+      `${cwd}/pkg/@eserstack/ajan/dist/${targetName}/${libName}`;
+    if (probe(monoDistPath)) {
+      return monoDistPath;
+    }
+  }
+
+  // 6. System library paths (Linux / macOS)
   const systemPaths = [
     `/usr/local/lib/${libName}`,
     `/usr/lib/${libName}`,

@@ -18,7 +18,7 @@
 
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 import type * as ffiTypes from "@eserstack/ajan/ffi";
-import { ensureLib, getLib } from "../ffi-client.ts";
+import { describeLoadFailure, ensureLib, getLib } from "../ffi-client.ts";
 
 const requireLib = async (): Promise<ffiTypes.FFILibrary> => {
   await ensureLib();
@@ -27,7 +27,8 @@ const requireLib = async (): Promise<ffiTypes.FFILibrary> => {
   if (lib === null) {
     throw new Error(
       "@eserstack/ajan native library is not available — " +
-        "EserAjanShellExec* requires FFI or command-mode WASM",
+        "EserAjanShellExec* requires FFI or command-mode WASM" +
+        describeLoadFailure(),
     );
   }
 

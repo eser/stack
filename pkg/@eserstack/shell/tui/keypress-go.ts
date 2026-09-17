@@ -11,7 +11,7 @@
  * @module
  */
 
-import { ensureLib, getLib } from "../ffi-client.ts";
+import { describeLoadFailure, ensureLib, getLib } from "../ffi-client.ts";
 import type { KeypressEvent } from "./keypress.ts";
 
 // ---------------------------------------------------------------------------
@@ -25,7 +25,8 @@ const requireLib = async () => {
   if (lib === null) {
     throw new Error(
       "@eserstack/ajan native library is not available — " +
-        "EserAjanShellTui* requires FFI or command-mode WASM",
+        "EserAjanShellTui* requires FFI or command-mode WASM" +
+        describeLoadFailure(),
     );
   }
 

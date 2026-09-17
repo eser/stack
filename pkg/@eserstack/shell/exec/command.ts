@@ -7,7 +7,7 @@
  */
 
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
-import { ensureLib, getLib } from "../ffi-client.ts";
+import { describeLoadFailure, ensureLib, getLib } from "../ffi-client.ts";
 import type { CommandOptions, CommandResult, StdioOption } from "./types.ts";
 import { CommandError } from "./types.ts";
 import * as childGo from "./child-go.ts";
@@ -328,7 +328,8 @@ export class CommandBuilder {
     if (lib === null) {
       throw new Error(
         "@eserstack/ajan native library is not available — " +
-          "exec.child() requires FFI or command-mode WASM",
+          "exec.child() requires FFI or command-mode WASM" +
+          describeLoadFailure(),
       );
     }
 

@@ -64,6 +64,22 @@ export const getLib = (): types.FFILibrary | null => library;
 export const getLoadError = (): Error | null => loadError;
 
 /**
+ * The retained load failure rendered for an error message, or "" when the
+ * library was never asked to load. FFI-only entry points append this so the
+ * operator sees WHY the library is missing ("Cannot find function
+ * 'EserAjanAiCancelRequest' in shared library" names a version mismatch;
+ * "Could not find eser-ajan shared library" names an install problem)
+ * instead of only "native library is not available".
+ */
+export const describeLoadFailure = (): string => {
+  if (loadError === null) {
+    return "";
+  }
+
+  return `\nCause: ${loadError.message}`;
+};
+
+/**
  * The loaded bridge, loading it first if needed.
  *
  * @throws {Error} When the bridge is unavailable, carrying the underlying load

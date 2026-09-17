@@ -14,7 +14,7 @@
  */
 
 import type * as ffiTypes from "@eserstack/ajan/ffi";
-import { ensureLib, getLib } from "../ffi-client.ts";
+import { describeLoadFailure, ensureLib, getLib } from "../ffi-client.ts";
 import type { PtyOptions, PtyProcess } from "./pty.ts";
 
 const requireLib = async (): Promise<ffiTypes.FFILibrary> => {
@@ -24,7 +24,8 @@ const requireLib = async (): Promise<ffiTypes.FFILibrary> => {
   if (lib === null) {
     throw new Error(
       "@eserstack/ajan native library is not available — " +
-        "EserAjanShellPty* requires FFI or command-mode WASM",
+        "EserAjanShellPty* requires FFI or command-mode WASM" +
+        describeLoadFailure(),
     );
   }
 

@@ -1,6 +1,6 @@
 ---
 name: eser-rules-manager
-description: Picks the skills a task needs and maintains the rules in .agents/skills. Use when starting any task to choose skills, when the user states a preference or a rule to remember, or when creating, changing, splitting, validating or evaluating a skill.
+description: "Picks the skills a task needs and maintains the rules in .agents/skills. Use when starting any task to choose skills, when the user states a preference or a rule to remember, or when creating, changing, splitting, validating or evaluating a skill."
 ---
 
 # Skill Discovery and Rule Management

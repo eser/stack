@@ -1,6 +1,6 @@
 ---
 name: workflow-practices
-description: How agents work in eserstack: clarifying requests, roles, approvals, forbidden git and publish actions, cross-package changes, root-cause fixes, quality gates. Use for every request to add, build, change, refactor, improve, migrate or fix something with the domain skill, above all open-ended ones (add caching, make X faster, set up auth), for reviews, and before any commit, push, tag or publish.
+description: "How agents work in eserstack: clarifying requests, roles, approvals, forbidden git and publish actions, cross-package changes, root-cause fixes, quality gates. Use for every request to add, build, change, refactor, improve, migrate or fix something with the domain skill, above all open-ended ones (add caching, make X faster, set up auth), for reviews, and before any commit, push, tag or publish."
 ---
 
 # Workflow Practices

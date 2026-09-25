@@ -1,6 +1,6 @@
 ---
 name: design-principles
-description: Function and module design for eserstack in TypeScript and Go. Covers pure functions with thin effectful wrappers, readonly data, small injected interfaces, plain data objects, one clock read, cancellation handles, collections by access pattern, and side-effect-free modules. Use when shaping signatures, modules, state or collections. Not for system layout (use architecture-guidelines).
+description: "Function and module design for eserstack in TypeScript and Go. Covers pure functions with thin effectful wrappers, readonly data, small injected interfaces, plain data objects, one clock read, cancellation handles, collections by access pattern, and side-effect-free modules. Use when shaping signatures, modules, state or collections. Not for system layout (use architecture-guidelines)."
 ---
 
 # Design Principles

@@ -1,6 +1,6 @@
 ---
 name: tooling-standards
-description: Tooling conventions for repositories on the eserstack toolchain: pnpm installs and Deno runs, package.json over generated deno.json, JSR over npm, workspace dependencies, vetting new dependencies, manifest scripts, editor settings, file naming, license headers, adding a workspace package. Use when adding a dependency, package or project command, editing package config, or naming or creating files.
+description: "Tooling conventions for repositories on the eserstack toolchain: pnpm installs and Deno runs, package.json over generated deno.json, JSR over npm, workspace dependencies, vetting new dependencies, manifest scripts, editor settings, file naming, license headers, adding a workspace package. Use when adding a dependency, package or project command, editing package config, or naming or creating files."
 ---
 
 # Tooling Standards

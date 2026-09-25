@@ -148,6 +148,22 @@ const validateSkill = (dir: string): Finding[] => {
     return findings;
   }
 
+  for (const line of text.split("\n").slice(1)) {
+    if (line === "---") break;
+    const kv = line.match(/^([A-Za-z][\w-]*):[ \t]+(.+)$/);
+    if (kv === null) continue;
+    const value = kv[2]!;
+    // An unquoted YAML scalar may not contain ": " or " #"; strict parsers
+    // (the skills CLI, the Agent Skills loader) reject the whole file.
+    if (!/^["'|>]/.test(value) && /: |:$| #/.test(value)) {
+      error(
+        `frontmatter "${
+          kv[1]
+        }" is an unquoted value containing ": " or " #", which strict YAML parsers reject; wrap it in double quotes`,
+      );
+    }
+  }
+
   for (const key of Object.keys(fm)) {
     if (!ALLOWED_KEYS.has(key)) {
       error(

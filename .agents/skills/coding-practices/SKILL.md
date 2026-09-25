@@ -1,6 +1,6 @@
 ---
 name: coding-practices
-description: Language-neutral code quality rules for eserstack, TypeScript and Go. Covers errors, logging, explicit checks, naming and comments, timeouts and resource bounds, streaming, background work, input and config sources, and performance claims. Use when writing or reviewing code, handling errors, adding logs or calling external services. Not for syntax (use javascript-practices or go-practices).
+description: "Language-neutral code quality rules for eserstack, TypeScript and Go. Covers errors, logging, explicit checks, naming and comments, timeouts and resource bounds, streaming, background work, input and config sources, and performance claims. Use when writing or reviewing code, handling errors, adding logs or calling external services. Not for syntax (use javascript-practices or go-practices)."
 ---
 
 # Coding Practices

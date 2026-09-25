@@ -1,6 +1,6 @@
 ---
 name: javascript-practices
-description: TS and JS conventions for eserstack packages: namespace imports, mod.ts entries, cross-runtime APIs, explicit checks, async, tests and laroux React components. Use when writing or reviewing .ts, .tsx or .js files, Deno.* or process.env use in libraries, imports, truthy or null checks flagged in review, tests or React UI. Not for Deno config or dependencies (use tooling-standards).
+description: "TS and JS conventions for eserstack packages: namespace imports, mod.ts entries, cross-runtime APIs, explicit checks, async, tests and laroux React components. Use when writing or reviewing .ts, .tsx or .js files, Deno.* or process.env use in libraries, imports, truthy or null checks flagged in review, tests or React UI. Not for Deno config or dependencies (use tooling-standards)."
 ---
 
 # JavaScript/TypeScript Practices

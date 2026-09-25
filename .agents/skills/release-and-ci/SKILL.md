@@ -1,6 +1,6 @@
 ---
 name: release-and-ci
-description: Releases and CI for eserstack: the shared version of all packages, the release command, the tag-driven build.yml run, JSR and npm publishing, changelog and breaking changes, release recovery, GitHub Actions workflows, and Kubernetes and ArgoCD deploys. Use when bumping a version, cutting or recovering a release, writing changelog entries, editing a workflow, debugging CI or deploying.
+description: "Releases and CI for eserstack: the shared version of all packages, the release command, the tag-driven build.yml run, JSR and npm publishing, changelog and breaking changes, release recovery, GitHub Actions workflows, and Kubernetes and ArgoCD deploys. Use when bumping a version, cutting or recovering a release, writing changelog entries, editing a workflow, debugging CI or deploying."
 ---
 
 # Releases and CI

@@ -1,0 +1,66 @@
+[
+  {
+    "query": "the webhook fetches any URL the user gives",
+    "should_trigger": true
+  },
+  {
+    "query": "store the API key for the OpenAI client",
+    "should_trigger": true
+  },
+  {
+    "query": "the error response includes the stack trace",
+    "should_trigger": true
+  },
+  {
+    "query": "user input goes into a git command here",
+    "should_trigger": true
+  },
+  {
+    "query": "generate a session token",
+    "should_trigger": true
+  },
+  {
+    "query": "we put user text straight into the LLM prompt",
+    "should_trigger": true
+  },
+  {
+    "query": "bu endpoint'te yetki kontrolü nerede yapılmalı",
+    "should_trigger": true
+  },
+  {
+    "query": "pprof endpoints are exposed in production",
+    "should_trigger": true
+  },
+  {
+    "query": "add a retry with backoff to the HTTP client",
+    "should_trigger": false
+  },
+  {
+    "query": "fix the flaky test",
+    "should_trigger": false
+  },
+  {
+    "query": "write a commit message",
+    "should_trigger": false
+  },
+  {
+    "query": "choose a data structure for the cache",
+    "should_trigger": false
+  },
+  {
+    "query": "make the README examples use namespace imports",
+    "should_trigger": false
+  },
+  {
+    "query": "bump deno to the latest version",
+    "should_trigger": false
+  },
+  {
+    "query": "the GitHub workflow needs a longer timeout",
+    "should_trigger": false
+  },
+  {
+    "query": "refactor this function into smaller pieces",
+    "should_trigger": false
+  }
+]

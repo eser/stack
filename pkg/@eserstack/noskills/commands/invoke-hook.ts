@@ -128,20 +128,71 @@ const writeAllowWithContext = async (context: string): Promise<void> => {
   });
 };
 
-/** Check git guard and return denial reason, or null if allowed. */
-const checkGitGuard = (command: string, allowGit: boolean): string | null => {
+const GIT_WRITE_DENIAL =
+  "Git write operations are not allowed. Only read commands (log, diff, status, show, blame, branch, tag) are permitted. The user controls git, the agent controls files.";
+
+// Script files larger than this are not read; the command is denied instead.
+const MAX_SCRIPT_BYTES = 256 * 1024;
+
+/**
+ * Checks shell scripts the command runs (`sh run.sh`, `source x.sh`), whose
+ * content is not in the command text. A script written by the same command
+ * cannot be read ahead of time, so it is denied; an existing script is read
+ * and scanned; a missing or unreadable one is left to the shell.
+ */
+const checkShellScripts = async (
+  command: string,
+  root: string,
+): Promise<string | null> => {
+  for (const target of hookDecisions.shellScriptTargets(command)) {
+    if (hookDecisions.writesFile(command, target)) {
+      return "Running a shell script that this same command writes is not allowed while git is read-only: its content cannot be checked for git writes.";
+    }
+
+    const path = target.startsWith("/") ? target : `${root}/${target}`;
+    let content: string;
+    try {
+      const info = await runtime.fs.stat(path);
+      if (info.size > MAX_SCRIPT_BYTES) {
+        return `Shell script ${target} is too large to check for git writes.`;
+      }
+      content = await runtime.fs.readTextFile(path);
+    } catch {
+      continue;
+    }
+
+    if (hookDecisions.hasGitWrite(content)) {
+      return `${GIT_WRITE_DENIAL} (found in ${target})`;
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Check git guard and return denial reason, or null if allowed.
+ *
+ * This classifies command text. It catches quoting, case, env-prefix,
+ * subshell, pipe and stdin-fed shell forms, and scripts it can read, but it
+ * cannot decide what an interpreter computes at run time (for example
+ * `python -c` building "git" from parts). See README "Git is read-only".
+ */
+export const checkGitGuard = async (
+  command: string,
+  allowGit: boolean,
+  root: string,
+): Promise<string | null> => {
   if (allowGit) return null;
 
   // Strip flag values so user text like "digital" or "git strategy" doesn't trigger
   const commandToScan = hookDecisions.stripFlagValues(command);
-  if (!commandToScan.includes("git")) return null;
 
   // Primary: extract every git invocation from multi-line scripts, &&/||/; chains,
   // and $() / `` subshells. Handles \n separators that the old split missed.
   const invocations = hookDecisions.extractGitInvocations(commandToScan);
   for (const inv of invocations) {
     if (!hookDecisions.isGitAllowed(inv)) {
-      return "Git write operations are not allowed. Only read commands (log, diff, status, show, blame, branch, tag) are permitted. The user controls git, the agent controls files.";
+      return GIT_WRITE_DENIAL;
     }
   }
 
@@ -151,7 +202,7 @@ const checkGitGuard = (command: string, allowGit: boolean): string | null => {
     return "Git write operations detected in subshell or pipe. Only read commands are permitted. The user controls git, the agent controls files.";
   }
 
-  return null;
+  return await checkShellScripts(commandToScan, root);
 };
 
 // =============================================================================
@@ -179,8 +230,8 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
         if (toolName === "Bash") {
           const command = ((toolInput["command"] as string) ?? "").trim();
           const allowGit = config?.allowGit ?? false;
-          if (!allowGit && command.includes("git")) {
-            const gitResult = checkGitGuard(command, allowGit);
+          if (!allowGit) {
+            const gitResult = await checkGitGuard(command, allowGit, root);
             if (gitResult !== null) {
               await writeDeny(gitResult);
               return results.ok(undefined);
@@ -285,7 +336,7 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
     const command = ((toolInput["command"] as string) ?? "").trim();
     const allowGit = config?.allowGit ?? false;
 
-    const gitDenial = checkGitGuard(command, allowGit);
+    const gitDenial = await checkGitGuard(command, allowGit, root);
     if (gitDenial !== null) {
       await writeDeny(gitDenial);
       return results.ok(undefined);

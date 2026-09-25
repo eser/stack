@@ -12,9 +12,8 @@ coordinated cleanup of concurrent operations.
 - **Timeout Control**: Configurable shutdown timeout to prevent hanging
 - **Wait Group Coordination**: Automatic synchronization of concurrent
   operations
-- **Structured Logging**: Integration with LogFX for comprehensive process
-  monitoring
-- **Signal Handling**: Robust OS signal interception and processing
+- **Structured Logging**: Integration with LogFX for process monitoring
+- **Signal Handling**: OS signal interception and processing
 
 ## Quick Start
 
@@ -468,7 +467,7 @@ process.StartGoroutine("custom-error-handling", func(ctx context.Context) error 
 
 ## Logging Integration
 
-ProcessFX integrates seamlessly with LogFX for structured logging:
+ProcessFX integrates with LogFX for structured logging:
 
 ### Automatic Logging
 

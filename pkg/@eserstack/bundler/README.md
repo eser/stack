@@ -3,8 +3,8 @@
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/bundler`
 
-A unified bundler abstraction for Deno with multiple backend support and
-comprehensive CSS processing utilities.
+A unified bundler abstraction for Deno with multiple backend support and CSS
+processing utilities.
 
 ## Features
 

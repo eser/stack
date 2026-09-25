@@ -44,7 +44,7 @@ type Session struct {
 }
 
 // Spawn starts a command attached to a new pseudo-terminal and returns a handle.
-func Spawn(opts SpawnOptions) (*Session, error) {
+func Spawn(opts SpawnOptions) (*Session, error) { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	ctx, cancel := context.WithCancel(context.Background())
 
 	plat, err := platformSpawn(ctx, opts)

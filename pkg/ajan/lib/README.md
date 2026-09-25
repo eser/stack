@@ -2,9 +2,8 @@
 
 ## Overview
 
-**lib** is a comprehensive utility library for Go applications that provides
-commonly used helper functions across various domains including networking,
-cryptography, environment handling, string manipulation, and more.
+**lib** is a utility library for Go applications with helper functions for
+networking, cryptography, environment handling, string manipulation, and more.
 
 ## Key Features
 

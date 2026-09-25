@@ -1,0 +1,66 @@
+[
+  {
+    "query": "write a README for @eserstack/cache",
+    "should_trigger": true
+  },
+  {
+    "query": "this doc sounds generated, make it plain",
+    "should_trigger": true
+  },
+  {
+    "query": "update the docs after changing the CLI flags",
+    "should_trigger": true
+  },
+  {
+    "query": "write a backlog item for the flaky test",
+    "should_trigger": true
+  },
+  {
+    "query": "the README example imports from a sub-path, fix it",
+    "should_trigger": true
+  },
+  {
+    "query": "commit mesajını daha sade yaz",
+    "should_trigger": true
+  },
+  {
+    "query": "keep the emojis but fix the README structure",
+    "should_trigger": true
+  },
+  {
+    "query": "write the JSDoc for this exported function",
+    "should_trigger": true
+  },
+  {
+    "query": "write an ADR structure",
+    "should_trigger": false
+  },
+  {
+    "query": "cut the release notes automatically",
+    "should_trigger": false
+  },
+  {
+    "query": "add a CI docs job",
+    "should_trigger": false
+  },
+  {
+    "query": "fix the Go comment lint",
+    "should_trigger": false
+  },
+  {
+    "query": "which test runner to use",
+    "should_trigger": false
+  },
+  {
+    "query": "add a new package",
+    "should_trigger": false
+  },
+  {
+    "query": "clarify what the user wants",
+    "should_trigger": false
+  },
+  {
+    "query": "security review of the README endpoint",
+    "should_trigger": false
+  }
+]

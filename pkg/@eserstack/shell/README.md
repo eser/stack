@@ -3,8 +3,7 @@
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/shell`
 
-`@eserstack/shell` is a comprehensive shell utilities library for building CLI
-applications:
+`@eserstack/shell` is a shell utilities library for building CLI applications:
 
 - **`@eserstack/shell/completions`** - Shell completion script generation for
   bash, zsh, and fish

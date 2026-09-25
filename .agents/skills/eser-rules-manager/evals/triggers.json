@@ -1,0 +1,66 @@
+[
+  {
+    "query": "remember: never use em dashes in docs",
+    "should_trigger": true
+  },
+  {
+    "query": "add a rule that Go files must not use init",
+    "should_trigger": true
+  },
+  {
+    "query": "create a skill for UI conventions",
+    "should_trigger": true
+  },
+  {
+    "query": "the go-practices skill is too long, split it",
+    "should_trigger": true
+  },
+  {
+    "query": "bundan sonra commit mesajlarında scope zorunlu olsun, kural olarak ekle",
+    "should_trigger": true
+  },
+  {
+    "query": "evaluate whether the security skill actually triggers",
+    "should_trigger": true
+  },
+  {
+    "query": "which skills should I load for this task",
+    "should_trigger": true
+  },
+  {
+    "query": "validate the skills after my edit",
+    "should_trigger": true
+  },
+  {
+    "query": "write a README",
+    "should_trigger": false
+  },
+  {
+    "query": "fix the lint error",
+    "should_trigger": false
+  },
+  {
+    "query": "cut a release",
+    "should_trigger": false
+  },
+  {
+    "query": "add a GitHub Action",
+    "should_trigger": false
+  },
+  {
+    "query": "explain the hexagonal layers",
+    "should_trigger": false
+  },
+  {
+    "query": "write a Go test",
+    "should_trigger": false
+  },
+  {
+    "query": "commit these",
+    "should_trigger": false
+  },
+  {
+    "query": "what's the SSRF rule",
+    "should_trigger": false
+  }
+]

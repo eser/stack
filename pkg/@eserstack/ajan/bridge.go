@@ -2475,7 +2475,7 @@ func bridgeFormatList() string {
 
 // ---------------------------------------------------------------------------
 
-func mapStreamEvent(event aifx.StreamEvent) aiStreamEventResponse {
+func mapStreamEvent(event aifx.StreamEvent) aiStreamEventResponse { //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
 	resp := aiStreamEventResponse{} //nolint:exhaustruct
 
 	switch event.Type {
@@ -2802,7 +2802,7 @@ func bridgeNoskillsNext(requestJSON string) string {
 
 // noskillsBridgeApplyAnswer mutates state based on the current phase and answer.
 func noskillsBridgeApplyAnswer(
-	state noskillsfx.StateFile,
+	state noskillsfx.StateFile, //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	answer string,
 	activeConcerns []noskillsfx.ConcernDefinition,
 ) (noskillsfx.StateFile, error) {

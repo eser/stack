@@ -19,7 +19,7 @@ func SerializeSlogAttrs(attrs []slog.Attr) string {
 	return b.String()
 }
 
-func GetSlogAttrs(rec slog.Record) []slog.Attr {
+func GetSlogAttrs(rec slog.Record) []slog.Attr { //nolint:gocritic // hugeParam: slog.Record is passed by value, as slog.Handler does
 	attrs := make([]slog.Attr, 0)
 
 	rec.Attrs(func(attr slog.Attr) bool {

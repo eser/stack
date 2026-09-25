@@ -1,35 +1,35 @@
 ---
 name: security-practices
-description: "Security practices: secrets in env vars, input validation, SSRF prevention, error sanitization, and production hardening. Use when handling authentication, secrets, user input, or preparing production deployments."
+description: Security rules for eserstack in TypeScript and Go: secrets, output hygiene, input validation, authorization, injection, SSRF, error sanitization, httpfx hardening, tokens, passwords, cookies, crypto, untrusted files and archives, LLM trust. Use when handling secrets, input, auth, sessions, cookies, crypto, uploads, subprocesses, outbound URLs, prompts, production config or a security review.
 ---
 
 # Security Practices
 
-## Quick Start
+Security rules that apply to every package and service in the repository.
 
-1. All secrets in environment variables (never in config files)
-2. Validate inputs at system boundaries
-3. Sanitize error responses (no stack traces in production)
-4. Use HTTPS for all external connections
+## Always
 
-## Key Principles
-
-- Environment variables for all secrets
-- SSRF prevention (block internal IP ranges)
-- Development vs Production mode separation
-- Rigorous input validation
-
-## Anti-Patterns
-
-**"I'll use --allow-all for convenience"** No. Only broad permissions in test
-files and scripts, never production.
-
-**"I'll hardcode the API key for now"** No. All secrets go in environment
-variables. No exceptions.
-
-**"I'll skip the pre-commit hook this once"** No. Never bypass hooks with
-`--no-verify`.
+- Secrets come from environment variables (`runtime.env` in TypeScript), never
+  from code or committed config
+- Secrets and personal data never reach logs, errors, responses or traces
+- Validate every input where it enters: HTTP, CLI, env, files, IPC, model output
+- Every handler checks authorization itself and denies by default
+- No command, path, SQL or HTML built from input strings; Go paths go through
+  `os.OpenRoot`
+- Requests to user-supplied URLs refuse internal addresses at dial time
+- Production errors carry a message, a code and a request id, never internals
+- Tokens and ids come from a CSPRNG, never `Math.random` or `math/rand`
+- Model output is untrusted input
+- HTTP services compose the existing `httpfx/middlewares` (rate limit, body
+  size, auth, headers, CSP, CSRF, CORS) instead of new ones
+- Tokens pin their algorithm and require expiry; passwords use Argon2id or
+  bcrypt 12+; crypto comes from the standard library or `x/crypto`
 
 ## References
 
-See [rules.md](references/rules.md) for complete conventions.
+| File                                                  | Read when                                                                           |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [security-rules.md](references/security-rules.md)     | Code that handles secrets, input, auth, subprocesses, paths, outbound URLs, prompts |
+| [http-and-auth.md](references/http-and-auth.md)       | HTTP services, middleware, tokens, passwords, cookies, redirects, debug endpoints   |
+| [crypto-and-files.md](references/crypto-and-files.md) | Encryption, hashing, TLS, uploads, archives, temp files, decoding untrusted data    |
+| [review-checklist.md](references/review-checklist.md) | Reviewing a change for security                                                     |

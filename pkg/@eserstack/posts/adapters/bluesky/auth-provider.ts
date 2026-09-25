@@ -6,7 +6,10 @@
  */
 
 import type { OAuthTokens } from "../../domain/entities/user.ts";
-import type { AuthProvider } from "../../application/auth-provider.ts";
+import type {
+  AuthorizationRequest,
+  AuthProvider,
+} from "../../application/auth-provider.ts";
 import type { BlueskySession } from "./types.ts";
 import type { BlueskyClient } from "./client.ts";
 
@@ -27,7 +30,7 @@ export class BlueskyAuthProvider implements AuthProvider {
     return this.client.isAuthenticated();
   }
 
-  getAuthorizationUrl(): Promise<{ url: string; codeVerifier: string }> {
+  getAuthorizationUrl(): Promise<AuthorizationRequest> {
     return Promise.reject(
       new Error(
         "Bluesky uses direct credential login, not browser-based OAuth.",

@@ -76,18 +76,40 @@ async function readStore(tokenPath: string): Promise<PersistedStore> {
   return JSON.parse(text) as PersistedStore;
 }
 
+const TOKEN_DIR_MODE = 0o700;
+const TOKEN_FILE_MODE = 0o600;
+
 async function writeStore(
   tokenPath: string,
   store: PersistedStore,
 ): Promise<void> {
   // Derive the parent directory in a separator-agnostic way so it works for
   // both "/"- and "\\"-delimited paths.
-  const dir = crossRuntime.runtime.path.dirname(tokenPath);
-  await crossRuntime.runtime.fs.ensureDir(dir);
-  await crossRuntime.runtime.fs.writeTextFile(
-    tokenPath,
-    JSON.stringify(store, null, 2),
-  );
+  const { fs, path } = crossRuntime.runtime;
+  const dir = path.dirname(tokenPath);
+  const posix = crossRuntime.getPlatform() !== "windows";
+
+  // The file holds long-lived access and refresh tokens, so it is owner-only
+  // regardless of umask, like the daemon's auth.json. mode applies only when a
+  // file or directory is created, so chmod also repairs stores an earlier
+  // version left at 0644/0755. Windows ignores POSIX modes; the profile ACL
+  // protects the file there.
+  await fs.mkdir(dir, { recursive: true, mode: TOKEN_DIR_MODE });
+  if (posix) await fs.chmod(dir, TOKEN_DIR_MODE);
+
+  // Write a sibling temp file and rename it over the store, so a crash never
+  // leaves a truncated store and the file is never readable before chmod.
+  const tmpPath = `${tokenPath}.${crypto.randomUUID()}.tmp`;
+  try {
+    await fs.writeTextFile(tmpPath, JSON.stringify(store, null, 2), {
+      mode: TOKEN_FILE_MODE,
+    });
+    if (posix) await fs.chmod(tmpPath, TOKEN_FILE_MODE);
+    await fs.rename(tmpPath, tokenPath);
+  } catch (error) {
+    await fs.remove(tmpPath).catch(() => {});
+    throw error;
+  }
 }
 
 /** Persists OAuth tokens per-platform to `<home>/.eser/posts/tokens.json`. */

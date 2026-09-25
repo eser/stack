@@ -13,6 +13,8 @@
  * - RSC payload is embedded in the HTML for hydration without refetch
  */
 
+import { toClientErrorValue } from "./error-chunk.ts";
+import { escapeJsonForScript } from "./script-json.ts";
 import { cloneElement, createElement, Fragment, Suspense } from "react";
 import { renderToReadableStream } from "react-dom/server";
 import {
@@ -332,10 +334,7 @@ async function preprocessTree(
         context.chunks.push({
           type: "E",
           id: errorId,
-          value: {
-            message: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-          },
+          value: toClientErrorValue(error),
         });
         return { processedElement: null, chunkId: errorId };
       }
@@ -431,10 +430,7 @@ async function preprocessTree(
         context.chunks.push({
           type: "E",
           id: errorId,
-          value: {
-            message: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-          },
+          value: toClientErrorValue(error),
         });
         return { processedElement: null, chunkId: errorId };
       }
@@ -746,7 +742,7 @@ export function serializeRSCPayload(chunks: RSCChunk[]): string {
  */
 export function generateRSCPayloadScript(chunks: RSCChunk[]): string {
   const serialized = serializeRSCPayload(chunks);
-  // Escape </script> to prevent XSS
-  const escaped = serialized.replace(/<\/script/gi, "<\\/script");
+  // Escape for script context so no value can end the element
+  const escaped = escapeJsonForScript(serialized);
   return `<script id="__RSC_PAYLOAD__" type="application/json">${escaped}</script>`;
 }

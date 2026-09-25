@@ -1,41 +1,28 @@
 ---
 name: documentation-conventions
-description: "README and documentation conventions: import patterns in examples, emoji preservation, and descriptive text rules. Use when writing or editing README files, package documentation, or code examples in docs."
+description: "Covers package READMEs, project docs and plain prose: namespace imports in examples, emoji and detail preservation, where docs live, docs that change with the code, and no empty qualifiers, unbacked claims, em dashes or generated rhythm. Use when writing or editing READMEs, docs, skill files, ADR text, backlog items, changelog entries, commit messages or code comments."
 ---
 
 # Documentation Conventions
 
-Guidelines for writing and maintaining package documentation and README files.
+Rules for what the repository's documents say and how they say it.
 
-## Quick Start
+## Always
 
-```typescript
-// ✅ README examples use namespace imports
-import * as functions from "@eserstack/functions";
-
-const result = await functions.run(async function* () {/* ... */});
-const pipeline = functions.collect<string, Error>();
-```
-
-## Key Principles
-
-- README code examples must use **namespace imports**
-  (`import * as pkg from "@eserstack/pkg"`)
-- Never show sub-path direct imports in README examples
-- Never remove existing emojis from files (titles use 🧱, ⚡; footers use 🔗)
-- Never strip descriptive details, comments, or explanatory text when rewriting
-  docs
-- Preserve all descriptive context — details like "(LIFO cleanup)" exist for a
-  reason
-
-## Anti-Patterns
-
-**"I'll simplify the import for the README"** No. Always use the namespace
-pattern. Sub-path exports are for advanced users, not docs.
-
-**"I'll shorten this description to save space"** No. Preserve descriptive
-context. If the original says "guaranteed cleanup", keep it.
+- README examples use namespace imports of the package root
+  (`import * as functions from "@eserstack/functions"`), never sub-path imports.
+- Never remove existing emojis (🧱 or ⚡ titles, 🔗 links footer) or descriptive
+  details such as "(LIFO cleanup)".
+- The documentation diff ships in the same change as the code it describes; edit
+  JSDoc, never the generated `docs/api/`.
+- No empty qualifiers (comprehensive, seamless, robust), no claim, number or
+  quote that is not in the repo, no em dashes in new or edited text.
+- Before delivering, read the text as a stranger: what looks generated, and
+  which fact has no source? Fix both.
 
 ## References
 
-See [rules.md](references/rules.md) for complete guidelines with examples.
+| File                                | Read when                                                             |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| [readmes.md](references/readmes.md) | Writing a README, adding docs, changing a documented surface          |
+| [prose.md](references/prose.md)     | Writing or reviewing any prose: docs, skills, commits, backlog, notes |

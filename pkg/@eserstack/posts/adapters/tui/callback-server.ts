@@ -21,19 +21,93 @@ const TIMEOUT_MSG =
 const SUCCESS_HTML =
   "<html><body><h2>Authorization successful!</h2><p>You may close this tab.</p></body></html>";
 
-/** Start a one-shot HTTP server that resolves when the OAuth callback arrives. */
+/**
+ * What a genuine redirect for one authorization request looks like. Derived
+ * from the configured redirect URI plus the state issued for this attempt.
+ */
+export type CallbackExpectation = {
+  /** Loopback host to bind (127.0.0.1 or ::1). */
+  readonly hostname: string;
+  readonly port: number;
+  /** Path of the redirect URI, e.g. "/callback". */
+  readonly pathname: string;
+  /** The state sent in the authorization request. */
+  readonly state: string;
+};
+
+const LOOPBACK_BIND = new Map([
+  ["localhost", "127.0.0.1"],
+  ["127.0.0.1", "127.0.0.1"],
+  ["[::1]", "::1"],
+  ["::1", "::1"],
+]);
+
+/**
+ * Builds the expectation for a redirect URI. Only loopback redirect URIs are
+ * accepted: the receiver must never listen on a network interface.
+ */
+export function expectationFor(
+  redirectUri: string,
+  state: string,
+): CallbackExpectation {
+  const url = new URL(redirectUri);
+  const hostname = LOOPBACK_BIND.get(url.hostname);
+  if (hostname === undefined) {
+    throw new Error(
+      `Redirect URI must use a loopback host (127.0.0.1, ::1 or localhost), got ${url.hostname}`,
+    );
+  }
+  const port = url.port !== "" ? parseInt(url.port, 10) : 80;
+  return { hostname, port, pathname: url.pathname, state };
+}
+
+/** Constant-time string comparison for the state value. */
+const sameState = (a: string, b: string): boolean => {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+};
+
+/**
+ * Returns the code when the request is the genuine redirect for this attempt
+ * (right path, issued state present), or null for anything else.
+ */
+export const matchCallback = (
+  url: URL,
+  expected: CallbackExpectation,
+): string | null => {
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  if (code === null || state === null) return null;
+  if (url.pathname !== expected.pathname) return null;
+  if (expected.state.length === 0 || !sameState(state, expected.state)) {
+    return null;
+  }
+  return code;
+};
+
+const UNEXPECTED_CALLBACK =
+  "Unexpected callback: it does not match the pending login.";
+
+/**
+ * Start a one-shot HTTP server on loopback that resolves when the genuine
+ * OAuth redirect arrives. Requests with a wrong path or state are answered
+ * 400 and ignored, so another local process or a web page cannot end or
+ * steer the pending login.
+ */
 export function waitForOAuthCallback(
-  port: number,
+  expected: CallbackExpectation,
   timeoutMs: number = TIMEOUT_MS_DEFAULT,
 ): Promise<{ code: string; state: string }> {
   const name = crossRuntime.runtime.name;
 
   if (name === "deno") {
-    return awaitCallbackDeno(port, timeoutMs);
+    return awaitCallbackDeno(expected, timeoutMs);
   }
 
   if (name === "node" || name === "bun") {
-    return awaitCallbackNode(port, timeoutMs);
+    return awaitCallbackNode(expected, timeoutMs);
   }
 
   throw new Error(
@@ -42,7 +116,7 @@ export function waitForOAuthCallback(
 }
 
 async function awaitCallbackDeno(
-  port: number,
+  expected: CallbackExpectation,
   timeoutMs: number,
 ): Promise<{ code: string; state: string }> {
   const ac = new AbortController();
@@ -57,39 +131,50 @@ async function awaitCallbackDeno(
     },
   );
 
+  let settled = false;
+
+  try {
+    Deno.serve(
+      {
+        hostname: expected.hostname,
+        port: expected.port,
+        signal: ac.signal,
+        onListen: () => {},
+      },
+      (req: Request): Response => {
+        const code = settled ? null : matchCallback(new URL(req.url), expected);
+        if (code === null) {
+          return new Response(UNEXPECTED_CALLBACK, { status: 400 });
+        }
+
+        settled = true;
+        resolveCallback({ code, state: expected.state });
+        return new Response(SUCCESS_HTML, {
+          status: 200,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        });
+      },
+    );
+  } catch (err) {
+    // Bind failed (port in use): fall back without leaving a timer behind.
+    ac.abort();
+    throw err;
+  }
+
   const timer = setTimeout(() => {
     rejectCallback(new Error(TIMEOUT_MSG));
   }, timeoutMs);
 
-  Deno.serve(
-    { port, signal: ac.signal, onListen: () => {} },
-    (req: Request): Response => {
-      const url = new URL(req.url);
-      const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state") ?? "";
-
-      if (code === null) {
-        return new Response("Missing authorization code", { status: 400 });
-      }
-
-      clearTimeout(timer);
-      resolveCallback({ code, state });
-      return new Response(SUCCESS_HTML, {
-        status: 200,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
-    },
-  );
-
   try {
     return await callbackResult;
   } finally {
+    clearTimeout(timer);
     ac.abort();
   }
 }
 
 async function awaitCallbackNode(
-  port: number,
+  expected: CallbackExpectation,
   timeoutMs: number,
 ): Promise<{ code: string; state: string }> {
   const http = await import("node:http");
@@ -106,23 +191,28 @@ async function awaitCallbackNode(
 
   // deno-lint-ignore prefer-const
   let timer!: ReturnType<typeof setTimeout>;
+  let settled = false;
 
   const server = http.createServer((req, res) => {
-    const url = new URL(req.url ?? "/", `http://localhost:${port}`);
-    const code = url.searchParams.get("code");
-    const state = url.searchParams.get("state") ?? "";
+    const url = new URL(
+      req.url ?? "/",
+      `http://${expected.hostname}:${expected.port}`,
+    );
+    const code = settled ? null : matchCallback(url, expected);
 
     if (code === null) {
       res.writeHead(400);
-      res.end("Missing authorization code");
+      res.end(UNEXPECTED_CALLBACK);
       return;
     }
 
+    settled = true;
     clearTimeout(timer);
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(SUCCESS_HTML);
     server.close();
-    resolveCallback({ code, state });
+    server.closeAllConnections?.();
+    resolveCallback({ code, state: expected.state });
   });
 
   timer = setTimeout(() => {
@@ -134,7 +224,7 @@ async function awaitCallbackNode(
     clearTimeout(timer);
     rejectCallback(err);
   });
-  server.listen(port);
+  server.listen(expected.port, expected.hostname);
 
   return callbackResult;
 }

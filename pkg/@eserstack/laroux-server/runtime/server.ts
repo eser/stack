@@ -4,6 +4,7 @@
  * Handles routing for HTML, RSC payloads, static assets, and Server Actions
  */
 
+import { escapeJsonForScript } from "../adapters/react/script-json.ts";
 import * as logging from "@eserstack/logging";
 import {
   generateInlineBootstrapScript,
@@ -19,6 +20,7 @@ import {
 } from "./html-shell.ts";
 import { NotFoundError, runtime } from "@eserstack/standards/cross-runtime";
 import { contentType } from "@std/media-types";
+import { resolveWithin } from "./path-containment.ts";
 import type { AppConfig } from "../config/load-config.ts";
 import type { HMRManager } from "../domain/hmr-manager.ts";
 import type { Bundler } from "@eserstack/laroux-bundler";
@@ -102,7 +104,7 @@ function createStreamingOptimalResponse(
         );
         const inlinePayload =
           `<script id="__RSC_PAYLOAD__" type="application/json">${
-            JSON.stringify(syncChunks).replace(/<\/script/gi, "<\\/script")
+            escapeJsonForScript(JSON.stringify(syncChunks))
           }</script>\n`;
         await writer.write(encoder.encode(inlinePayload));
       }
@@ -203,9 +205,9 @@ async function serveStatic(
 ): Promise<Response | null> {
   try {
     const relativePath = pathname.replace(/^\/dist\//, "");
-    const filePath = runtime.path.resolve(config.distDir, relativePath);
+    const filePath = resolveWithin(config.distDir, relativePath);
 
-    if (!filePath.startsWith(config.distDir)) {
+    if (filePath === null) {
       serverLogger.warn(`Path traversal attempt blocked: ${pathname}`);
       return new Response("Forbidden", { status: 403 });
     }
@@ -255,14 +257,10 @@ async function servePublicAsset(
 ): Promise<Response | null> {
   try {
     const relativePath = pathname.replace(/^\//, "");
-    const filePath = runtime.path.resolve(
-      config.projectRoot,
-      "public",
-      relativePath,
-    );
     const publicDir = runtime.path.resolve(config.projectRoot, "public");
+    const filePath = resolveWithin(publicDir, relativePath);
 
-    if (!filePath.startsWith(publicDir)) {
+    if (filePath === null) {
       serverLogger.warn(`Path traversal attempt blocked: ${pathname}`);
       return new Response("Forbidden", { status: 403 });
     }
@@ -300,10 +298,17 @@ async function servePublicAsset(
  */
 export function createHandler(deps: ServerDependencies) {
   const rateLimiter = deps.rateLimitConfig !== false
-    ? createRateLimiter(deps.rateLimitConfig ?? {})
+    // Key on the socket peer. Forwarded headers are believed only from a
+    // trusted proxy (loopback by default), so a direct client can neither
+    // exempt itself with a forged X-Forwarded-For nor share one bucket with
+    // every other direct client.
+    ? createRateLimiter({ trustProxy: true, ...(deps.rateLimitConfig ?? {}) })
     : null;
 
-  return async (req: Request): Promise<Response> => {
+  return async (
+    req: Request,
+    info?: Deno.ServeHandlerInfo,
+  ): Promise<Response> => {
     const url = new URL(req.url);
     let { pathname } = url;
     const {
@@ -332,7 +337,13 @@ export function createHandler(deps: ServerDependencies) {
 
       // Rate limiting check
       if (rateLimiter) {
-        const rateLimitResponse = rateLimiter.check(req, pathname);
+        const rateLimitResponse = rateLimiter.check(
+          req,
+          pathname,
+          info?.remoteAddr !== undefined && "hostname" in info.remoteAddr
+            ? info.remoteAddr
+            : null,
+        );
         if (rateLimitResponse) {
           return withSecurityHeaders(rateLimitResponse);
         }
@@ -402,12 +413,23 @@ export function createHandler(deps: ServerDependencies) {
             }
 
             // Import the action module dynamically
-            // Actions are in dist/server/<modulePath>.js
-            const actionModulePath = runtime.path.resolve(
-              config.distDir,
-              "server",
+            // Actions are in dist/server/<modulePath>.js. The id comes from a
+            // request header, so the resolved file must stay inside that
+            // directory: an id with ../ or an absolute path is rejected.
+            const actionModulePath = resolveWithin(
+              runtime.path.resolve(config.distDir, "server"),
               `${modulePath}.js`,
             );
+            if (actionModulePath === null) {
+              rscLogger.warn(`RSC action path outside server dir: ${actionId}`);
+              return new Response(
+                JSON.stringify({ error: "Invalid action ID" }),
+                {
+                  status: 400,
+                  headers: { "Content-Type": "application/json" },
+                },
+              );
+            }
 
             rscLogger.debug(`Loading action module: ${actionModulePath}`);
             // Assign to variable first to prevent JSR from rewriting the import path

@@ -922,8 +922,9 @@ prevent.
 `MaxRequestSizeMB` and `ExposeInternalErrors` are now actually read, via
 `applyConfigPolicies` called from both `NewHTTPService` and `NewHTTP3Service`.
 Those two were the ones the project's own
-`.claude/skills/security-practices/references/rules.md` instructs operators to
-set, so this is what makes that guidance true rather than decorative.
+`.agents/skills/security-practices/references/security-rules.md` (then
+`rules.md`) instructs operators to set, so this is what makes that guidance true
+rather than decorative.
 
 `ErrorHandlerMiddleware` now does something. It was
 `result := ctx.Next();
@@ -971,10 +972,11 @@ sites**. `ErrorHandlerMiddleware`
 the comment "error handler wraps everything".
 
 **Context:** The project's own
-`.claude/skills/security-practices/references/rules.md:89-105` instructs
-operators to set `RATE_LIMIT_REQUESTS`, `MAX_REQUEST_SIZE_MB` and
-`EXPOSE_INTERNAL_ERRORS` — all three inert. `httpfx/context.go:86-101` parses an
-unbounded JSON body, reachable pre-auth on `/auth/login`.
+`.agents/skills/security-practices/references/security-rules.md` (then
+`rules.md`) instructs operators to set `RATE_LIMIT_REQUESTS`,
+`MAX_REQUEST_SIZE_MB` and `EXPOSE_INTERNAL_ERRORS` — all three inert.
+`httpfx/context.go:86-101` parses an unbounded JSON body, reachable pre-auth on
+`/auth/login`.
 
 **Effort:** M
 

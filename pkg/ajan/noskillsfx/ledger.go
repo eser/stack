@@ -20,17 +20,17 @@ import (
 // (owned by decision-ledger.ts) is never duplicated here and cannot drift.
 
 // LedgerRunDir returns the per-spec decision-ledger directory.
-func (p Paths) LedgerRunDir(specName string) string {
+func (p Paths) LedgerRunDir(specName string) string { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return filepath.Join(p.ProgressesDir, "ledger", specName)
 }
 
 // LedgerFile returns the append-only decision-ledger JSONL path for a spec.
-func (p Paths) LedgerFile(specName string) string {
+func (p Paths) LedgerFile(specName string) string { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return filepath.Join(p.LedgerRunDir(specName), "ledger.jsonl")
 }
 
 // LedgerSummaryFile returns the maturity-summary JSON path for a spec.
-func (p Paths) LedgerSummaryFile(specName string) string {
+func (p Paths) LedgerSummaryFile(specName string) string { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return filepath.Join(p.LedgerRunDir(specName), "summary.json")
 }
 

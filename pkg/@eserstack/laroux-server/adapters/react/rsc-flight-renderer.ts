@@ -16,6 +16,7 @@
  * @see https://github.com/facebook/react/tree/main/packages/react-server-dom-webpack
  */
 
+import { toClientErrorValue } from "./error-chunk.ts";
 import type { ReactElement } from "react";
 import {
   type createClientReference as _createClientReference,
@@ -184,11 +185,11 @@ async function renderElement(
         return await renderElement(result, context);
       } catch (err) {
         const id = context.nextId++;
-        const error = err instanceof Error ? err : new Error(String(err));
+        flightLogger.error("Server component render failed:", err);
         addChunk(context, {
           type: "E",
           id,
-          value: { message: error.message, stack: error.stack },
+          value: toClientErrorValue(err),
         });
         return id;
       }
@@ -228,10 +229,11 @@ async function renderElement(
               context.pendingChunks.delete(id);
             })
             .catch((error) => {
+              flightLogger.error("Async server component failed:", error);
               addChunk(context, {
                 type: "E",
                 id,
-                value: { message: error.message, stack: error.stack },
+                value: toClientErrorValue(error),
               });
               // Remove from pending chunks after error
               context.pendingChunks.delete(id);
@@ -245,11 +247,11 @@ async function renderElement(
         return await renderElement(result, context);
       } catch (err) {
         const id = context.nextId++;
-        const error = err instanceof Error ? err : new Error(String(err));
+        flightLogger.error("Server component render failed:", err);
         addChunk(context, {
           type: "E",
           id,
-          value: { message: error.message, stack: error.stack },
+          value: toClientErrorValue(err),
         });
         return id;
       }

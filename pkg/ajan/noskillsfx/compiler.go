@@ -403,7 +403,7 @@ var classificationPatterns = []classificationPattern{
 
 // InferClassification infers a SpecClassification from the state using
 // keyword matching (mirrors inferClassification in compiler.ts).
-func InferClassification(state StateFile) SpecClassification {
+func InferClassification(state StateFile) SpecClassification { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	var parts []string
 
 	if state.Spec != nil {
@@ -494,7 +494,7 @@ var discoveryConduct = []string{
 // BuildBehavioral constructs the BehavioralBlock for a given phase.
 // This is a Go port of buildBehavioral() in compiler.ts.
 func BuildBehavioral(
-	state StateFile,
+	state StateFile, //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	maxIterations int,
 	allowGit bool,
 	activeConcerns []ConcernDefinition,
@@ -734,7 +734,7 @@ func BuildBehavioral(
 // getDiscoveryRefinementStage mirrors getDiscoveryRefinementStage in machine.ts.
 // Returns "stage-a" (no score), "stage-b" (has posture, no CEO review),
 // or "stage-c" (CEO review done).
-func getDiscoveryRefinementStage(state StateFile) string {
+func getDiscoveryRefinementStage(state StateFile) string { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	r := state.Discovery.Refinement
 	if r == nil {
 		return "stage-a"
@@ -752,7 +752,7 @@ func getDiscoveryRefinementStage(state StateFile) string {
 }
 
 // BuildMeta constructs the MetaBlock for a given state and concern IDs.
-func BuildMeta(state StateFile, activeConcernIDs []string, resumeHint string) MetaBlock {
+func BuildMeta(state StateFile, activeConcernIDs []string, resumeHint string) MetaBlock { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	return MetaBlock{
 		Protocol:       "noskillsfx/1.0",
 		Spec:           state.Spec,

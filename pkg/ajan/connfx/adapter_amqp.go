@@ -446,7 +446,7 @@ func (aa *AMQPAdapter) processMessages(
 }
 
 // createMessage creates a connfx.Message from an AMQP delivery.
-func (aa *AMQPAdapter) createMessage(delivery amqp.Delivery) Message {
+func (aa *AMQPAdapter) createMessage(delivery amqp.Delivery) Message { //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
 	headers := make(map[string]any)
 
 	if delivery.Headers != nil {

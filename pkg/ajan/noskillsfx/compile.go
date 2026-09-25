@@ -21,7 +21,7 @@ type CompileOptions struct {
 // it dispatches to per-phase builders and assembles the full JSON payload.
 //
 //nolint:cyclop,funlen // inherently complex phase dispatch
-func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOutput {
+func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOutput { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	hints := DefaultInteractionHints
 	if opts.Hints != nil {
 		hints = *opts.Hints
@@ -265,7 +265,7 @@ func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOut
 // Helpers
 // =============================================================================
 
-func buildResumeHint(state StateFile) string {
+func buildResumeHint(state StateFile) string { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	spec := "(none)"
 	if state.Spec != nil {
 		spec = *state.Spec

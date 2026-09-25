@@ -198,6 +198,7 @@ export function createMockAuthProvider(
         Promise.resolve({
           url: "https://auth.example.com/authorize?state=test",
           codeVerifier: "test-verifier",
+          state: "test",
         });
     },
     exchangeCode(params) {

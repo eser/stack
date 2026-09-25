@@ -58,7 +58,7 @@ func rkeyFromURI(uri string) string {
 }
 
 // flattenThread recursively collects all posts in a thread view into a flat slice.
-func flattenThread(view apiThreadView) []*postsfx.Post {
+func flattenThread(view apiThreadView) []*postsfx.Post { //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
 	var posts []*postsfx.Post //nolint:prealloc // recursive tree traversal; size unknown
 	posts = append(posts, mapPost(&view.Post))
 

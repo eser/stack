@@ -1,0 +1,62 @@
+[
+  {
+    "query": "design a new package for background jobs, where do ports and adapters go",
+    "should_trigger": true
+  },
+  {
+    "query": "should this CLI flag be public or hidden",
+    "should_trigger": true
+  },
+  {
+    "query": "write an ADR for switching the bundler",
+    "should_trigger": true
+  },
+  {
+    "query": "what should we unit test vs integration test for the http package",
+    "should_trigger": true
+  },
+  {
+    "query": "how do request ids travel between the noskills server and worker",
+    "should_trigger": true
+  },
+  {
+    "query": "yeni bir servis tasarlıyorum, katmanları nasıl ayırayım",
+    "should_trigger": true
+  },
+  {
+    "query": "we're adding an option to the public API of @eserstack/config, is that ok",
+    "should_trigger": true
+  },
+  {
+    "query": "the Go tests fail with a data race",
+    "should_trigger": false
+  },
+  {
+    "query": "use namespace import here",
+    "should_trigger": false
+  },
+  {
+    "query": "bump all packages to the next minor",
+    "should_trigger": false
+  },
+  {
+    "query": "write a README for laroux",
+    "should_trigger": false
+  },
+  {
+    "query": "set the GitHub workflow timeout",
+    "should_trigger": false
+  },
+  {
+    "query": "should this function take a pointer or a value",
+    "should_trigger": false
+  },
+  {
+    "query": "secret key is in the logs, fix it",
+    "should_trigger": false
+  },
+  {
+    "query": "commit and push",
+    "should_trigger": false
+  }
+]

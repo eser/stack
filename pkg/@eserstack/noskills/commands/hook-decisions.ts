@@ -34,8 +34,11 @@ export const isNoskillsCommand = (command: string): boolean => {
 export {
   containsGitWriteBypass,
   extractGitInvocations,
+  feedsShellFromStdin,
   hasGitWrite,
   isGitAllowed,
   isGitReadOnly,
+  shellScriptTargets,
   stripFlagValues,
+  writesFile,
 } from "@eserstack/agents/guards";

@@ -115,15 +115,17 @@ const limiter = middlewares.createRateLimiter({
   maxRequests: 100, // Max requests per window
   windowMs: 60_000, // 1 minute window
   skipPaths: ["/health", "/api/public"],
-  trustProxy: true, // Trust X-Forwarded-For header
+  trustProxy: true, // Read X-Forwarded-For, but only from trustedProxies
+  trustedProxies: ["127.0.0.1", "::1"], // Your reverse proxy's address
 });
 
-// In your request handler
-function handleRequest(request: Request) {
+// In your request handler (Deno.serve passes info as the second argument)
+function handleRequest(request: Request, info: Deno.ServeHandlerInfo) {
   const url = new URL(request.url);
+  const remote = "hostname" in info.remoteAddr ? info.remoteAddr : null;
 
-  // Check rate limit
-  const rateLimitResponse = limiter.check(request, url.pathname);
+  // Check rate limit, keyed on the connection's peer address
+  const rateLimitResponse = limiter.check(request, url.pathname, remote);
   if (rateLimitResponse) {
     return rateLimitResponse; // 429 Too Many Requests
   }
@@ -132,7 +134,7 @@ function handleRequest(request: Request) {
   const response = new Response("OK");
 
   // Add rate limit headers to response
-  const clientIp = middlewares.getClientIp(request, true);
+  const clientIp = middlewares.getClientIp(request, true, remote);
   const headers = limiter.getHeaders(clientIp, url.pathname);
   for (const [key, value] of Object.entries(headers)) {
     response.headers.set(key, value);
@@ -146,6 +148,12 @@ process.on("SIGTERM", () => {
   limiter.stop();
 });
 ```
+
+The client identity is the connection's peer address. With `trustProxy` on, a
+forwarded header is used only when the peer is one of `trustedProxies`, and the
+client is the right-most X-Forwarded-For hop that is not a trusted proxy. A
+request with no identifiable client (no `remote` and no usable header) is not
+counted, so unidentified callers never share one bucket.
 
 ### Response Headers
 
@@ -209,24 +217,25 @@ const webResponse = httpResponse.toWebResponse({
 
 ### `createRateLimiter(options?)`
 
-| Option         | Type                        | Default                  | Description                     |
-| -------------- | --------------------------- | ------------------------ | ------------------------------- |
-| `maxRequests`  | `number`                    | `100`                    | Maximum requests per window     |
-| `windowMs`     | `number`                    | `60000`                  | Time window in milliseconds     |
-| `message`      | `string`                    | `"Too many requests..."` | Rate limit error message        |
-| `skipPaths`    | `string[]`                  | `[]`                     | Paths to skip rate limiting     |
-| `skipIps`      | `string[]`                  | `["127.0.0.1", "::1"]`   | IPs to skip rate limiting       |
-| `trustProxy`   | `boolean`                   | `false`                  | Trust X-Forwarded-For header    |
-| `keyGenerator` | `(req, pathname) => string` | IP-based                 | Custom rate limit key generator |
+| Option           | Type                        | Default                  | Description                                |
+| ---------------- | --------------------------- | ------------------------ | ------------------------------------------ |
+| `maxRequests`    | `number`                    | `100`                    | Maximum requests per window                |
+| `windowMs`       | `number`                    | `60000`                  | Time window in milliseconds                |
+| `message`        | `string`                    | `"Too many requests..."` | Rate limit error message                   |
+| `skipPaths`      | `string[]`                  | `[]`                     | Paths to skip rate limiting                |
+| `skipIps`        | `string[]`                  | `["127.0.0.1", "::1"]`   | Client addresses to skip                   |
+| `trustProxy`     | `boolean`                   | `false`                  | Read X-Forwarded-For/X-Real-IP             |
+| `trustedProxies` | `string[]`                  | `["127.0.0.1", "::1"]`   | Peers whose forwarded headers are believed |
+| `keyGenerator`   | `(req, pathname) => string` | IP-based                 | Custom rate limit key generator            |
 
 #### Rate Limiter Instance Methods
 
-| Method                       | Description                             |
-| ---------------------------- | --------------------------------------- |
-| `check(request, pathname)`   | Returns 429 Response or null            |
-| `getHeaders(clientIp, path)` | Get rate limit headers for response     |
-| `stop()`                     | Stop cleanup interval                   |
-| `getStoreSize()`             | Get current store size (for monitoring) |
+| Method                              | Description                             |
+| ----------------------------------- | --------------------------------------- |
+| `check(request, pathname, remote?)` | Returns 429 Response or null            |
+| `getHeaders(clientIp, path)`        | Get rate limit headers for response     |
+| `stop()`                            | Stop cleanup interval                   |
+| `getStoreSize()`                    | Get current store size (for monitoring) |
 
 ---
 

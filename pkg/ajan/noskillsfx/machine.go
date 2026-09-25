@@ -56,7 +56,7 @@ func AssertTransition(from, to Phase) error {
 
 // Transition returns a copy of state with phase set to `to`.
 // Returns an error if the transition is not valid.
-func Transition(state StateFile, to Phase) (StateFile, error) {
+func Transition(state StateFile, to Phase) (StateFile, error) { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	if err := AssertTransition(state.Phase, to); err != nil {
 		return state, err
 	}
@@ -68,7 +68,7 @@ func Transition(state StateFile, to Phase) (StateFile, error) {
 }
 
 // StartSpec transitions IDLE → DISCOVERY and initialises the spec fields.
-func StartSpec(state StateFile, specName, branch string, description *string) (StateFile, error) {
+func StartSpec(state StateFile, specName, branch string, description *string) (StateFile, error) { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	if err := AssertTransition(state.Phase, PhaseDiscovery); err != nil {
 		return state, err
 	}
@@ -114,7 +114,7 @@ func StartSpec(state StateFile, specName, branch string, description *string) (S
 }
 
 // AddDiscoveryAnswer appends an answer to the discovery state (immutably).
-func AddDiscoveryAnswer(state StateFile, answer DiscoveryAnswer) StateFile {
+func AddDiscoveryAnswer(state StateFile, answer DiscoveryAnswer) StateFile { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	result := state
 	answers := make([]DiscoveryAnswer, len(state.Discovery.Answers)+1)
 	copy(answers, state.Discovery.Answers)
@@ -128,7 +128,7 @@ func AddDiscoveryAnswer(state StateFile, answer DiscoveryAnswer) StateFile {
 }
 
 // CompleteDiscovery marks discovery as completed.
-func CompleteDiscovery(state StateFile) (StateFile, error) {
+func CompleteDiscovery(state StateFile) (StateFile, error) { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	result := state
 	disc := state.Discovery
 	disc.Completed = true
@@ -138,7 +138,7 @@ func CompleteDiscovery(state StateFile) (StateFile, error) {
 }
 
 // ApproveDiscoveryReview transitions DISCOVERY → DISCOVERY_REFINEMENT.
-func ApproveDiscoveryReview(state StateFile) (StateFile, error) {
+func ApproveDiscoveryReview(state StateFile) (StateFile, error) { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	if err := AssertTransition(state.Phase, PhaseDiscoveryRefinement); err != nil {
 		return state, err
 	}
@@ -154,7 +154,7 @@ func ApproveDiscoveryReview(state StateFile) (StateFile, error) {
 }
 
 // ApproveSpec transitions SPEC_PROPOSAL → SPEC_APPROVED.
-func ApproveSpec(state StateFile) (StateFile, error) {
+func ApproveSpec(state StateFile) (StateFile, error) { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	if err := AssertTransition(state.Phase, PhaseSpecApproved); err != nil {
 		return state, err
 	}
@@ -170,7 +170,7 @@ func ApproveSpec(state StateFile) (StateFile, error) {
 }
 
 // StartExecution transitions SPEC_APPROVED → EXECUTING.
-func StartExecution(state StateFile) (StateFile, error) {
+func StartExecution(state StateFile) (StateFile, error) { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	if err := AssertTransition(state.Phase, PhaseExecuting); err != nil {
 		return state, err
 	}
@@ -182,7 +182,7 @@ func StartExecution(state StateFile) (StateFile, error) {
 }
 
 // AdvanceExecution increments the iteration counter and clears awaitingStatusReport.
-func AdvanceExecution(state StateFile, progress string) StateFile {
+func AdvanceExecution(state StateFile, progress string) StateFile { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	result := state
 	exec := state.Execution
 	exec.Iteration++
@@ -194,7 +194,7 @@ func AdvanceExecution(state StateFile, progress string) StateFile {
 }
 
 // BlockExecution transitions EXECUTING → BLOCKED.
-func BlockExecution(state StateFile) (StateFile, error) {
+func BlockExecution(state StateFile) (StateFile, error) { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	if err := AssertTransition(state.Phase, PhaseBlocked); err != nil {
 		return state, err
 	}
@@ -206,7 +206,7 @@ func BlockExecution(state StateFile) (StateFile, error) {
 }
 
 // CompleteSpec transitions current phase → COMPLETED.
-func CompleteSpec(state StateFile, reason CompletionReason, note *string, completedAt string) (StateFile, error) {
+func CompleteSpec(state StateFile, reason CompletionReason, note *string, completedAt string) (StateFile, error) { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	if err := AssertTransition(state.Phase, PhaseCompleted); err != nil {
 		return state, err
 	}
@@ -221,7 +221,7 @@ func CompleteSpec(state StateFile, reason CompletionReason, note *string, comple
 }
 
 // ResetToIdle transitions COMPLETED → IDLE.
-func ResetToIdle(state StateFile) (StateFile, error) {
+func ResetToIdle(state StateFile) (StateFile, error) { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	if err := AssertTransition(state.Phase, PhaseIdle); err != nil {
 		return state, err
 	}
@@ -233,7 +233,7 @@ func ResetToIdle(state StateFile) (StateFile, error) {
 }
 
 // ReopenSpec transitions COMPLETED → DISCOVERY, preserving revisit history.
-func ReopenSpec(state StateFile, reason, timestamp string) (StateFile, error) {
+func ReopenSpec(state StateFile, reason, timestamp string) (StateFile, error) { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	if err := AssertTransition(state.Phase, PhaseDiscovery); err != nil {
 		return state, err
 	}
@@ -261,7 +261,7 @@ func ReopenSpec(state StateFile, reason, timestamp string) (StateFile, error) {
 }
 
 // AddDecision appends a binding decision to the state.
-func AddDecision(state StateFile, decision Decision) StateFile {
+func AddDecision(state StateFile, decision Decision) StateFile { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	result := state
 	decisions := make([]Decision, len(state.Decisions)+1)
 	copy(decisions, state.Decisions)
@@ -272,7 +272,7 @@ func AddDecision(state StateFile, decision Decision) StateFile {
 }
 
 // SetCompletenessScore updates the refinement sub-state's completeness score.
-func SetCompletenessScore(state StateFile, score CompletenessScore, initial bool) StateFile {
+func SetCompletenessScore(state StateFile, score CompletenessScore, initial bool) StateFile { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	result := state
 	disc := state.Discovery
 
@@ -296,7 +296,7 @@ func SetCompletenessScore(state StateFile, score CompletenessScore, initial bool
 }
 
 // SetReviewPosture sets the posture for the refinement phase.
-func SetReviewPosture(state StateFile, posture ReviewPosture) StateFile {
+func SetReviewPosture(state StateFile, posture ReviewPosture) StateFile { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	result := state
 	disc := state.Discovery
 
@@ -314,7 +314,7 @@ func SetReviewPosture(state StateFile, posture ReviewPosture) StateFile {
 }
 
 // AddConfidenceFinding appends a confidence-scored finding to execution state.
-func AddConfidenceFinding(state StateFile, finding ConfidenceFinding) StateFile {
+func AddConfidenceFinding(state StateFile, finding ConfidenceFinding) StateFile { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	result := state
 	exec := state.Execution
 
@@ -328,7 +328,7 @@ func AddConfidenceFinding(state StateFile, finding ConfidenceFinding) StateFile 
 }
 
 // GetLowConfidenceFindings returns findings below the given threshold.
-func GetLowConfidenceFindings(state StateFile, threshold int) []ConfidenceFinding {
+func GetLowConfidenceFindings(state StateFile, threshold int) []ConfidenceFinding { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	var low []ConfidenceFinding
 
 	for _, f := range state.Execution.ConfidenceFindings {

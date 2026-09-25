@@ -10,6 +10,7 @@ import * as dashboard from "@eserstack/noskills/dashboard";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import { renderDashboard } from "../templates/dashboard.ts";
 import { renderSpecDetail } from "../templates/spec-detail.ts";
+import { htmlHeaders } from "../templates/layout.ts";
 import type { MuxHost } from "../terminal/mux-host.ts";
 
 /** GET / — Dashboard page. */
@@ -30,7 +31,7 @@ export const handleDashboard = async (
   const html = renderDashboard(state, tabs, activeTabId, token);
 
   return new Response(html, {
-    headers: { "content-type": "text/html; charset=utf-8" },
+    headers: htmlHeaders(),
   });
 };
 
@@ -58,7 +59,7 @@ export const handleSpecDetail = async (
 
     const html = renderSpecDetail(spec, specContent, state.currentUser);
     return new Response(html, {
-      headers: { "content-type": "text/html; charset=utf-8" },
+      headers: htmlHeaders(),
     });
   } catch {
     return new Response("Spec not found", { status: 404 });

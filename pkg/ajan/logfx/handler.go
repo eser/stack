@@ -111,7 +111,7 @@ func (h *Handler) AddAdditionalAttributes(ctx context.Context, rec *slog.Record)
 	}
 }
 
-func (h *Handler) PrettifyMessage(rec slog.Record) string {
+func (h *Handler) PrettifyMessage(rec slog.Record) string { //nolint:gocritic // hugeParam: slog.Record is passed by value, as slog.Handler does
 	out := strings.Builder{}
 
 	timeStr := rec.Time.Format("15:04:05.000")
@@ -150,7 +150,7 @@ func (h *Handler) PrettifyMessage(rec slog.Record) string {
 	return out.String()
 }
 
-func (h *Handler) Handle(ctx context.Context, rec slog.Record) error {
+func (h *Handler) Handle(ctx context.Context, rec slog.Record) error { //nolint:gocritic // hugeParam: slog.Record is passed by value, as slog.Handler does
 	h.AddAdditionalAttributes(ctx, &rec)
 
 	var err error
@@ -353,13 +353,13 @@ func ConvertSlogAttrToOtelLog(attr slog.Attr) *attribute.KeyValue {
 }
 
 // isOTLPErrorLog checks if this is an OTLP error log to prevent recursion.
-func (h *Handler) isOTLPErrorLog(rec slog.Record) bool {
+func (h *Handler) isOTLPErrorLog(rec slog.Record) bool { //nolint:gocritic // hugeParam: slog.Record is passed by value, as slog.Handler does
 	// Check if this log record is about OTLP export errors
 	return strings.Contains(rec.Message, "OTLP log export failed")
 }
 
 func (h *Handler) convertSlogRecordToOtelLog( //nolint:cyclop
-	rec slog.Record,
+	rec slog.Record, //nolint:gocritic // hugeParam: slog.Record is passed by value, as slog.Handler does
 ) (string, *log.Record) {
 	// Create OpenTelemetry log record
 	var logRecord log.Record

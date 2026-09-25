@@ -2,12 +2,11 @@
 
 ## Overview
 
-**logfx** package is a configurable logging solution that leverages the
-`log/slog` of the standard library for structured logging. It includes
-pretty-printing options and **OpenTelemetry integration** for log export to
-modern observability platforms. The package supports OpenTelemetry-compatible
-severity levels and provides extensive test coverage to ensure reliability and
-correctness.
+**logfx** package is a configurable logging package built on the standard
+library's `log/slog` for structured logging. It includes pretty-printing options
+and **OpenTelemetry integration** for log export to modern observability
+platforms. The package supports OpenTelemetry-compatible severity levels and
+provides extensive test coverage to ensure reliability and correctness.
 
 ### Key Features
 

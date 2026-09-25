@@ -59,7 +59,7 @@ type StreamHandle struct {
 // Stderr is drained continuously into a capped tail rather than exposed: an
 // unread stderr pipe fills its kernel buffer and blocks a chatty child forever,
 // and the tail is the part that explains a failed handshake.
-func SpawnStreamProcess(opts SpawnOptions) (*StreamHandle, error) {
+func SpawnStreamProcess(opts SpawnOptions) (*StreamHandle, error) { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	cmd, cancel := newCommand(opts)
 
 	stdinR, stdinW, err := os.Pipe()

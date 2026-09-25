@@ -13,7 +13,7 @@ import (
 //
 // When no env data is found the function returns a comment string rather than
 // an error, matching the TypeScript @eserstack/cs behaviour.
-func Generate(opts GenerateOptions) (string, error) {
+func Generate(opts GenerateOptions) (string, error) { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	formatfx.RegisterBuiltinFormats()
 
 	var data map[string]string

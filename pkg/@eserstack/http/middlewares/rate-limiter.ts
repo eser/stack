@@ -30,6 +30,13 @@ const DEFAULT_WINDOW_MS = 60 * MS_PER_SECOND; // 1 minute
 const DEFAULT_MAX_REQUESTS = 100;
 const DEFAULT_SKIP_PATHS = ["/health"];
 const DEFAULT_SKIP_IPS = ["127.0.0.1", "::1"];
+const DEFAULT_TRUSTED_PROXIES = ["127.0.0.1", "::1"];
+
+/**
+ * Address of the peer that opened the connection, as reported by the server
+ * (for example Deno.serve's `info.remoteAddr`). Only `hostname` is read.
+ */
+export type RemoteAddress = { readonly hostname: string } | null | undefined;
 
 /**
  * Rate limit configuration
@@ -43,17 +50,30 @@ export type RateLimitConfig = {
   message?: string;
   /** Skip rate limiting for specific paths */
   skipPaths?: string[];
-  /** Skip rate limiting for specific IPs */
+  /**
+   * Skip rate limiting for specific client addresses. Compared against the
+   * resolved client identity, which comes from the socket peer or from a
+   * forwarded header that a trusted proxy supplied, never from a header the
+   * client sent directly.
+   */
   skipIps?: string[];
   /** Custom key generator function (defaults to IP-based) */
   keyGenerator?: (req: Request) => string;
   /**
-   * Trust proxy headers (X-Forwarded-For, X-Real-IP).
-   * SECURITY WARNING: Only enable if behind a trusted proxy.
-   * Set to false to use "unknown" as client IP when no direct connection info.
-   * @default true
+   * Read the client address from X-Forwarded-For / X-Real-IP.
+   * When the caller passes the connection's remote address to `check`, the
+   * headers are honoured only if that peer is listed in `trustedProxies`.
+   * Without a remote address the headers are honoured as-is, so enable this
+   * only behind a proxy that overwrites them.
+   * @default false
    */
   trustProxy?: boolean;
+  /**
+   * Peer addresses whose forwarded headers are believed when `trustProxy` is
+   * on. The client is the right-most X-Forwarded-For hop not in this list.
+   * @default ["127.0.0.1", "::1"]
+   */
+  trustedProxies?: string[];
 };
 
 /**
@@ -68,8 +88,15 @@ type RateLimitEntry = {
  * Rate limiter instance with its own state
  */
 export type RateLimiterInstance = {
-  /** Check if request should be rate limited */
-  check: (req: Request, pathname: string) => Response | null;
+  /**
+   * Check if request should be rate limited. Pass the connection's remote
+   * address so the limiter can key on the peer instead of client headers.
+   */
+  check: (
+    req: Request,
+    pathname: string,
+    remote?: RemoteAddress,
+  ) => Response | null;
   /** Get rate limit headers for a response */
   getHeaders: (clientIp: string, pathname: string) => Record<string, string>;
   /** Stop the cleanup interval and clear the store */
@@ -89,7 +116,8 @@ const DEFAULT_OPTIONS: Required<Omit<RateLimitConfig, "keyGenerator">> & {
   message: "Too many requests, please try again later.",
   skipPaths: DEFAULT_SKIP_PATHS,
   skipIps: DEFAULT_SKIP_IPS,
-  trustProxy: true,
+  trustProxy: false,
+  trustedProxies: DEFAULT_TRUSTED_PROXIES,
 };
 
 /**
@@ -120,40 +148,64 @@ const isValidIP = (ip: string): boolean => {
   return isValidIPv4(ip) || isValidIPv6(ip);
 };
 
+/** Strips the IPv4-mapped IPv6 prefix so "::ffff:10.0.0.1" matches "10.0.0.1". */
+const normalizeIp = (ip: string): string => {
+  const trimmed = ip.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith("::ffff:") && isValidIPv4(trimmed.slice(7))) {
+    return trimmed.slice(7);
+  }
+  return trimmed;
+};
+
+/** Identity used when no client address can be established. */
+export const UNKNOWN_CLIENT = "unknown";
+
 /**
- * Get client IP from request.
- * Handles proxy headers (X-Forwarded-For, X-Real-IP) when trustProxy is enabled.
+ * Get the client address for a request.
  *
- * SECURITY NOTE: Proxy headers can be spoofed by malicious clients.
- * Only trust these headers if your server is behind a trusted reverse proxy.
+ * The socket peer (`remote`) is the authority. Forwarded headers are read only
+ * when `trustProxy` is on and, if the peer is known, the peer is one of
+ * `trustedProxies`; the client is then the right-most X-Forwarded-For hop that
+ * is not itself a trusted proxy, falling back to X-Real-IP. Returns
+ * `UNKNOWN_CLIENT` when nothing valid is available.
+ *
+ * SECURITY NOTE: without `remote`, enabling `trustProxy` believes whatever the
+ * client sent. Pass the remote address whenever the server exposes it.
  */
-export const getClientIp = (req: Request, trustProxy = true): string => {
-  if (trustProxy) {
-    // Check for proxy headers first
+export const getClientIp = (
+  req: Request,
+  trustProxy = false,
+  remote?: RemoteAddress,
+  trustedProxies: readonly string[] = DEFAULT_TRUSTED_PROXIES,
+): string => {
+  const peer = remote?.hostname !== undefined
+    ? normalizeIp(remote.hostname)
+    : undefined;
+  const peerIsValid = peer !== undefined && isValidIP(peer);
+  const trusted = trustedProxies.map(normalizeIp);
+
+  if (trustProxy && (peer === undefined || trusted.includes(peer))) {
     const forwarded = req.headers.get("x-forwarded-for");
     if (forwarded !== null) {
-      // X-Forwarded-For can contain multiple IPs, take the first one
-      const firstIp = forwarded.split(",")[0];
-      if (firstIp !== undefined) {
-        const trimmedIp = firstIp.trim();
-        // Validate IP format to prevent injection
-        if (isValidIP(trimmedIp)) {
-          return trimmedIp;
-        }
+      const hops = forwarded.split(",").map(normalizeIp);
+      for (let i = hops.length - 1; i >= 0; i--) {
+        const hop = hops[i]!;
+        if (!isValidIP(hop)) break;
+        if (!trusted.includes(hop)) return hop;
       }
     }
 
     const realIp = req.headers.get("x-real-ip");
     if (realIp !== null) {
-      const trimmedIp = realIp.trim();
-      if (isValidIP(trimmedIp)) {
-        return trimmedIp;
+      const candidate = normalizeIp(realIp);
+      if (isValidIP(candidate)) {
+        return candidate;
       }
     }
   }
 
-  // Fallback to unknown if no valid IP can be determined
-  return "unknown";
+  return peerIsValid ? peer : UNKNOWN_CLIENT;
 };
 
 /**
@@ -214,9 +266,16 @@ export const createRateLimiter = (
   // Validate configuration
   validateConfig(mergedConfig);
 
-  const { maxRequests, windowMs, message, skipPaths, skipIps, keyGenerator } =
-    mergedConfig;
-  const trustProxy = mergedConfig.trustProxy;
+  const {
+    maxRequests,
+    windowMs,
+    message,
+    skipPaths,
+    skipIps,
+    keyGenerator,
+    trustProxy,
+    trustedProxies,
+  } = mergedConfig;
 
   // Instance-specific store (not shared between instances)
   const store = new Map<string, RateLimitEntry>();
@@ -240,14 +299,26 @@ export const createRateLimiter = (
   // Start cleanup immediately
   startCleanup();
 
-  const check = (req: Request, pathname: string): Response | null => {
+  const check = (
+    req: Request,
+    pathname: string,
+    remote?: RemoteAddress,
+  ): Response | null => {
     // Skip rate limiting for specific paths
     if (skipPaths?.some((path) => pathname.startsWith(path))) {
       return null;
     }
 
     // Get client identifier
-    const clientIp = keyGenerator?.(req) ?? getClientIp(req, trustProxy);
+    const clientIp = keyGenerator?.(req) ??
+      getClientIp(req, trustProxy, remote, trustedProxies);
+
+    // No identity: counting these requests in one shared bucket would let a
+    // single client exhaust the budget of every other unidentified client, so
+    // they are not limited here. Pass `remote` (or a keyGenerator) to limit.
+    if (clientIp === UNKNOWN_CLIENT) {
+      return null;
+    }
 
     // Skip rate limiting for specific IPs
     if (skipIps?.includes(clientIp)) {

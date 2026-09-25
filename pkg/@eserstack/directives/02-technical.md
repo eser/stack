@@ -101,8 +101,8 @@ believe a common philosophy can be adopted across the ecosystem.
 ### Defensive Coding Rules
 
 - **DO** validate input data.
-  - Why: Validating input data ensures that the program is robust and resilient
-    against invalid data that could lead to bugs or security vulnerabilities.
+  - Why: Validating input data protects the program from invalid data that could
+    lead to bugs or security vulnerabilities.
 - **DO** handle all possible error cases.
   - Why: Handling all possible error cases ensures that the program can recover
     gracefully from unexpected situations and provides a better user experience.

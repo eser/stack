@@ -377,7 +377,7 @@ func readSpecState(root, specName string) (noskillsfx.StateFile, error) {
 
 // writeSpecState persists both the per-spec state and the global state.json
 // so both the per-spec and the "active" view stay consistent.
-func writeSpecState(root, specName string, state noskillsfx.StateFile) error {
+func writeSpecState(root, specName string, state noskillsfx.StateFile) error { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	if err := noskillsfx.WriteSpecState(root, specName, state); err != nil {
 		return err
 	}
@@ -394,7 +394,7 @@ func writeSpecState(root, specName string, state noskillsfx.StateFile) error {
 // applySpecAnswer applies a single answer to the state during DISCOVERY.
 // Mirrors the CLI's applyAnswer function.
 func applySpecAnswer(
-	state noskillsfx.StateFile,
+	state noskillsfx.StateFile, //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	answer string,
 	activeConcerns []noskillsfx.ConcernDefinition,
 ) (noskillsfx.StateFile, error) {

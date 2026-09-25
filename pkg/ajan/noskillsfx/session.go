@@ -59,7 +59,7 @@ func GenerateSessionID() (string, error) {
 
 // IsSessionStale reports whether more than 2 hours have passed since
 // session.LastActiveAt (mirrors isSessionStale() in persistence.ts).
-func IsSessionStale(session Session) bool {
+func IsSessionStale(session Session) bool { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	last, err := time.Parse(time.RFC3339, session.LastActiveAt)
 	if err != nil {
 		return true // unparseable timestamps are treated as stale
@@ -68,12 +68,38 @@ func IsSessionStale(session Session) bool {
 	return time.Since(last) > sessionStaleDuration
 }
 
+// ErrInvalidSessionID is returned when a session id could name a path outside
+// the sessions directory.
+var ErrInvalidSessionID = errors.New("invalid session id")
+
+// ValidSessionID reports whether id is safe to use as a session file name:
+// 1-64 characters from [A-Za-z0-9_-], so no '.', '/' or '\' can escape the
+// sessions directory. GenerateSessionID produces 8 hex characters.
+func ValidSessionID(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+
+	for _, c := range id {
+		isAlnum := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+		if !isAlnum && c != '_' && c != '-' {
+			return false
+		}
+	}
+
+	return true
+}
+
 // =============================================================================
 // Session CRUD
 // =============================================================================
 
 // CreateSession writes session to .eser/.state/sessions/<id>.json.
-func CreateSession(root string, session Session) error {
+func CreateSession(root string, session Session) error { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
+	if !ValidSessionID(session.ID) {
+		return fmt.Errorf("createSession %q: %w", session.ID, ErrInvalidSessionID)
+	}
+
 	p := NewPaths(root)
 
 	if err := os.MkdirAll(p.SessionsDir, 0o750); err != nil {
@@ -95,7 +121,13 @@ func CreateSession(root string, session Session) error {
 }
 
 // ReadSession reads a session by ID. Returns nil, nil when the file does not exist.
+// A file whose embedded id differs from its name is treated as absent, so the
+// file name stays the session's identity.
 func ReadSession(root, sessionID string) (*Session, error) {
+	if !ValidSessionID(sessionID) {
+		return nil, nil
+	}
+
 	p := NewPaths(root)
 	data, err := os.ReadFile(p.SessionFile(sessionID))
 
@@ -110,6 +142,10 @@ func ReadSession(root, sessionID string) (*Session, error) {
 	var s Session
 	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, fmt.Errorf("readSession %s: parse: %w", sessionID, err)
+	}
+
+	if s.ID != sessionID {
+		return nil, nil
 	}
 
 	return &s, nil
@@ -151,6 +187,10 @@ func ListSessions(root string) ([]Session, error) {
 
 // DeleteSession removes a session file. Returns false when the file does not exist.
 func DeleteSession(root, sessionID string) (bool, error) {
+	if !ValidSessionID(sessionID) {
+		return false, fmt.Errorf("deleteSession %q: %w", sessionID, ErrInvalidSessionID)
+	}
+
 	p := NewPaths(root)
 	err := os.Remove(p.SessionFile(sessionID))
 

@@ -1,0 +1,74 @@
+[
+  {
+    "query": "add zod as a dependency to @eserstack/config",
+    "should_trigger": true
+  },
+  {
+    "query": "where do I put a new project command like `docs-lint`",
+    "should_trigger": true
+  },
+  {
+    "query": "jsr or npm for this package",
+    "should_trigger": true
+  },
+  {
+    "query": "the per-package deno.json is out of sync with package.json",
+    "should_trigger": true
+  },
+  {
+    "query": "set up VS Code settings for the repo",
+    "should_trigger": true
+  },
+  {
+    "query": "should this script live in package.json or the manifest",
+    "should_trigger": true
+  },
+  {
+    "query": "yeni bir kütüphane eklemek istiyorum, nasıl değerlendiririz",
+    "should_trigger": true
+  },
+  {
+    "query": "which tool runs formatting, deno or prettier",
+    "should_trigger": true
+  },
+  {
+    "query": "add a new package pkg/@eserstack/queue",
+    "should_trigger": true
+  },
+  {
+    "query": "which files need the license header",
+    "should_trigger": true
+  },
+  {
+    "query": "what's the kebab-case rule for file names here",
+    "should_trigger": true
+  },
+  {
+    "query": "publish to npm",
+    "should_trigger": false
+  },
+  {
+    "query": "write Go lint rules",
+    "should_trigger": false
+  },
+  {
+    "query": "fix the CI cache",
+    "should_trigger": false
+  },
+  {
+    "query": "write a unit test",
+    "should_trigger": false
+  },
+  {
+    "query": "the import uses a named import",
+    "should_trigger": false
+  },
+  {
+    "query": "tag v4.6.0",
+    "should_trigger": false
+  },
+  {
+    "query": "make the logger structured",
+    "should_trigger": false
+  }
+]

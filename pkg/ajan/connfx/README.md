@@ -591,8 +591,7 @@ observability:
 ### Overview
 
 The HTTP adapter in `connfx` now integrates with the `httpclient` package to
-provide robust, production-ready HTTP connections with built-in resilience
-features:
+provide HTTP connections with built-in resilience features:
 
 - **Circuit Breaker** - Prevents cascading failures by opening the circuit when
   errors exceed threshold
@@ -843,7 +842,7 @@ CONN_TARGETS_API_PROPERTIES_SERVER_ERROR_THRESHOLD=500
 
 ### Error Handling
 
-The resilient HTTP client provides comprehensive error handling:
+The resilient HTTP client handles errors like this:
 
 ```go
 client := httpConn.GetClient()

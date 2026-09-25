@@ -353,8 +353,8 @@ describe("Templates", () => {
     const { renderDashboard } = await import("./templates/dashboard.ts");
 
     const html = renderDashboard(state, [], null);
-    assert(html.includes("xterm.min.js"));
-    assert(html.includes("xterm.min.css"));
+    assert(html.includes("xterm@5.3.0/lib/xterm.js"));
+    assert(html.includes("xterm@5.3.0/css/xterm.css"));
   });
 
   it("dashboard template includes spec list section", async () => {

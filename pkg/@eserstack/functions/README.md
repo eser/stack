@@ -337,8 +337,7 @@ await task.runTask(queueHandler(queueEvent), ctx);
 #### AI Tool Calls
 
 In the age of AI agents, functions aren't just triggered by HTTP or CLI —
-they're invoked by LLMs as **tool calls**. The same Handler pattern works
-seamlessly:
+they're invoked by LLMs as **tool calls**. The same Handler pattern applies:
 
 ```typescript
 const { triggers } = functions;

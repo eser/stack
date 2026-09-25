@@ -7,7 +7,10 @@
  */
 
 import type { OAuthTokens } from "../../domain/entities/user.ts";
-import type { AuthProvider } from "../../application/auth-provider.ts";
+import type {
+  AuthorizationRequest,
+  AuthProvider,
+} from "../../application/auth-provider.ts";
 import { mapToOAuthTokens } from "./mappers.ts";
 import type { TwitterApiOAuthToken } from "./types.ts";
 import type { TwitterClient } from "./client.ts";
@@ -74,7 +77,7 @@ export class TwitterAuthProvider implements AuthProvider {
     return this.client.isAuthenticated();
   }
 
-  async getAuthorizationUrl(): Promise<{ url: string; codeVerifier: string }> {
+  async getAuthorizationUrl(): Promise<AuthorizationRequest> {
     const codeVerifier = randomUrlSafe(64);
     const codeChallenge = await deriveCodeChallenge(codeVerifier);
     const state = randomUrlSafe(16);
@@ -93,6 +96,7 @@ export class TwitterAuthProvider implements AuthProvider {
     return {
       url: `${TWITTER_AUTH_BASE}?${params.toString()}`,
       codeVerifier,
+      state,
     };
   }
 

@@ -56,7 +56,7 @@ func newTurnOutcome() turnOutcome {
 }
 
 // runVendorTurn spawns the CLI, feeds it the prompt, and drains its answer.
-func runVendorTurn(ctx context.Context, inv vendorInvocation) (turnOutcome, error) {
+func runVendorTurn(ctx context.Context, inv vendorInvocation) (turnOutcome, error) { //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
 	proc, err := shellexec.SpawnStreamProcess(shellexec.SpawnOptions{ //nolint:exhaustruct
 		Command: inv.command,
 		Args:    inv.args,

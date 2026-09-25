@@ -209,6 +209,12 @@ export const moduleDef: Module = new Module({
       category: "Validation",
       load: () => import("./validate-self-imports.ts"),
     },
+    "validate-code-conventions": {
+      description:
+        "Detect non-namespace imports and `||` defaults beyond the recorded baseline",
+      category: "Validation",
+      load: () => import("./validate-code-conventions.ts"),
+    },
   },
   aliases: {},
 });

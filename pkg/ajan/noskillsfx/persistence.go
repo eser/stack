@@ -83,27 +83,27 @@ func NewPaths(root string) Paths {
 }
 
 // SpecDir returns the directory for a named spec.
-func (p Paths) SpecDir(specName string) string {
+func (p Paths) SpecDir(specName string) string { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return filepath.Join(p.SpecsDir, specName)
 }
 
 // SpecFile returns the path to spec.md for a named spec.
-func (p Paths) SpecFile(specName string) string {
+func (p Paths) SpecFile(specName string) string { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return filepath.Join(p.SpecsDir, specName, "spec.md")
 }
 
 // SpecStateFile returns the per-spec state JSON path.
-func (p Paths) SpecStateFile(specName string) string {
+func (p Paths) SpecStateFile(specName string) string { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	return filepath.Join(p.SpecStatesDir, specName+".json")
 }
 
 // ConcernFile returns the path to a concern definition.
-func (p Paths) ConcernFile(concernID string) string {
+func (p Paths) ConcernFile(concernID string) string { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return filepath.Join(p.ConcernsDir, concernID+".json")
 }
 
 // SessionFile returns the path to a session JSON file.
-func (p Paths) SessionFile(sessionID string) string {
+func (p Paths) SessionFile(sessionID string) string { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return filepath.Join(p.SessionsDir, sessionID+".json")
 }
 
@@ -135,7 +135,7 @@ func ReadState(root string) (StateFile, error) {
 
 // WriteState atomically writes state to .eser/.state/progresses/state.json,
 // creating intermediate directories as needed.
-func WriteState(root string, state StateFile) error {
+func WriteState(root string, state StateFile) error { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	p := NewPaths(root)
 
 	if err := os.MkdirAll(p.ProgressesDir, 0o750); err != nil {
@@ -159,7 +159,7 @@ func WriteState(root string, state StateFile) error {
 
 // normalizeStateShape backfills any fields that were added after a state file
 // was written (forward-compatibility). Mirrors normalizeStateShape() in TS.
-func normalizeStateShape(state StateFile) StateFile {
+func normalizeStateShape(state StateFile) StateFile { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	// Ensure slice fields are non-nil so callers can range without nil checks.
 	if state.Discovery.Answers == nil {
 		state.Discovery.Answers = []DiscoveryAnswer{}
@@ -231,7 +231,7 @@ func ReadManifest(root string) (NosManifest, error) {
 // round-trip drops every comment and reorders the document. The manifest is
 // hand-edited and heavily commented; rewriting it alphabetically without
 // comments would be a smaller act of destruction, not the absence of one.
-func WriteManifest(root string, manifest NosManifest) error {
+func WriteManifest(root string, manifest NosManifest) error { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	p := NewPaths(root)
 
 	if err := os.MkdirAll(p.EserDir, 0o750); err != nil {
@@ -411,7 +411,7 @@ func ReadSpecState(root, specName string) (*StateFile, error) {
 }
 
 // WriteSpecState writes a per-spec state file.
-func WriteSpecState(root, specName string, state StateFile) error {
+func WriteSpecState(root, specName string, state StateFile) error { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	p := NewPaths(root)
 
 	if err := os.MkdirAll(p.SpecStatesDir, 0o750); err != nil {

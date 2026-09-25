@@ -59,6 +59,9 @@ A user-invoked skill's description is not shown to the model, so it needs no
 - `name`: kebab-case, at most 64 characters, equal to the directory name, and
   without the words "anthropic" or "claude". Existing names stay as they are:
   AGENTS.md, `.agents/settings.json` and other skills refer to them.
+- Quote every value in double quotes. An unquoted value containing `:` or `#` is
+  invalid YAML, and strict loaders such as `npx skills` skip the whole skill;
+  the validator reports it.
 - `description`: third person, at most 1,024 characters, aiming for under 400.
   First what the skill covers, then `Use when ...` with concrete triggers:
   tasks, file types, commands, and phrasings that never name the topic. When a
@@ -70,7 +73,7 @@ A user-invoked skill's description is not shown to the model, so it needs no
 Correct:
 
 ```yaml
-description: Go conventions for pkg/ajan and the FFI bridge, covering errors, logfx logging, context, testing, data structures and performance. Use when writing or reviewing .go files, adding a Go business domain, or fixing golangci-lint findings. Not for Go module tags (use release-and-ci).
+description: "Go conventions for pkg/ajan and the FFI bridge, covering errors, logfx logging, context, testing, data structures and performance. Use when writing or reviewing .go files, adding a Go business domain, or fixing golangci-lint findings. Not for Go module tags (use release-and-ci)."
 ```
 
 Incorrect:

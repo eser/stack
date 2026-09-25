@@ -1,6 +1,6 @@
 ---
 name: go-practices
-description: Go conventions for eserstack's ajan framework, services and FFI bridge. Covers package layout, hexagonal wiring, errors and logfx logging, context, tests, idioms, data structures, performance and Go 1.26 stdlib use. Use when writing or reviewing .go files, pkg/ajan packages, pkg/@eserstack/ajan, Go tests, benchmarks, profiling or allocation work, or fixing golangci-lint findings.
+description: "Go conventions for eserstack's ajan framework, services and FFI bridge. Covers package layout, hexagonal wiring, errors and logfx logging, context, tests, idioms, data structures, performance and Go 1.26 stdlib use. Use when writing or reviewing .go files, pkg/ajan packages, pkg/@eserstack/ajan, Go tests, benchmarks, profiling or allocation work, or fixing golangci-lint findings."
 ---
 
 # Go Practices

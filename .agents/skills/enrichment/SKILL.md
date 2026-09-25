@@ -1,6 +1,6 @@
 ---
 name: enrichment
-description: Interviews the user about a plan, decision or idea in rounds, level by level down a decision tree, until both share one understanding; facts are researched by sub-agents, decisions stay with the user. Use when the user asks to enrich, grill or stress-test a plan, and offer it when drafting a PRD, spec, ADR or backlog item whose content has open decisions. Not for a one-off comparison.
+description: "Interviews the user about a plan, decision or idea in rounds, level by level down a decision tree, until both share one understanding; facts are researched by sub-agents, decisions stay with the user. Use when the user asks to enrich, grill or stress-test a plan, and offer it when drafting a PRD, spec, ADR or backlog item whose content has open decisions. Not for a one-off comparison."
 ---
 
 # Enrichment

@@ -1,6 +1,6 @@
 ---
 name: security-practices
-description: Security rules for eserstack in TypeScript and Go: secrets, output hygiene, input validation, authorization, injection, SSRF, error sanitization, httpfx hardening, tokens, passwords, cookies, crypto, untrusted files and archives, LLM trust. Use when handling secrets, input, auth, sessions, cookies, crypto, uploads, subprocesses, outbound URLs, prompts, production config or a security review.
+description: "Security rules for eserstack in TypeScript and Go: secrets, output hygiene, input validation, authorization, injection, SSRF, error sanitization, httpfx hardening, tokens, passwords, cookies, crypto, untrusted files and archives, LLM trust. Use when handling secrets, input, auth, sessions, cookies, crypto, uploads, subprocesses, outbound URLs, prompts, production config or a security review."
 ---
 
 # Security Practices

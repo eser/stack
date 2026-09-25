@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Writes a handoff document that lets a fresh agent session continue the current work, saved outside the repository. Takes an optional note on what the next session will focus on.
+description: "Writes a handoff document that lets a fresh agent session continue the current work, saved outside the repository. Takes an optional note on what the next session will focus on."
 argument-hint: "[what the next session will work on]"
 disable-model-invocation: true
 ---

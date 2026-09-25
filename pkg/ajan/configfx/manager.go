@@ -190,7 +190,7 @@ func reflectMeta( //nolint:cyclop,funlen
 }
 
 func reflectSet( //nolint:cyclop,gocognit,gocyclo,funlen,maintidx
-	meta ConfigItemMeta,
+	meta ConfigItemMeta, //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
 	prefix string,
 	target *map[string]any,
 ) error {

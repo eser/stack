@@ -8,6 +8,18 @@
 import type { OAuthTokens } from "../domain/entities/user.ts";
 
 /** Outbound port: authentication lifecycle for any platform. */
+
+/**
+ * A browser authorization request. `state` is the value sent to the provider;
+ * the callback must carry it back unchanged, which binds the redirect to this
+ * request.
+ */
+export type AuthorizationRequest = {
+  readonly url: string;
+  readonly codeVerifier: string;
+  readonly state: string;
+};
+
 export interface AuthProvider {
   /**
    * True if this provider requires a browser redirect (Twitter OAuth 2.0 PKCE).
@@ -22,7 +34,7 @@ export interface AuthProvider {
    * Generate an authorization URL for browser-based OAuth flows.
    * Throws if requiresBrowser is false.
    */
-  getAuthorizationUrl(): Promise<{ url: string; codeVerifier: string }>;
+  getAuthorizationUrl(): Promise<AuthorizationRequest>;
 
   /**
    * Exchange the authorization code returned by the OAuth callback.

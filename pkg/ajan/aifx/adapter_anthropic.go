@@ -321,7 +321,7 @@ func (m *AnthropicModel) runStreamReader(
 
 func (m *AnthropicModel) handleContentBlockDelta(
 	ctx context.Context,
-	variant anthropic.ContentBlockDeltaEvent,
+	variant anthropic.ContentBlockDeltaEvent, //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
 	eventCh chan<- StreamEvent,
 ) {
 	switch delta := variant.Delta.AsAny().(type) {
@@ -834,7 +834,7 @@ func newEmptyAnthropicMessage() anthropic.Message {
 // newAnthropicBatchRequest creates a new Anthropic batch request line.
 func newAnthropicBatchRequest(
 	customID string,
-	params anthropic.MessageNewParams,
+	params anthropic.MessageNewParams, //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
 ) anthropic.MessageBatchNewParamsRequest {
 	return anthropic.MessageBatchNewParamsRequest{
 		CustomID: customID,

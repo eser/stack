@@ -261,7 +261,7 @@ export class TuiMenu {
     platform: Platform,
     auth: AuthProvider,
   ): Promise<void> {
-    const { url, codeVerifier } = await auth.getAuthorizationUrl();
+    const { url, codeVerifier, state } = await auth.getAuthorizationUrl();
 
     tui.log.info(this.ctx, "Open this URL in your browser to authorize:");
     this.ctx.output.writeln(span.text(""));
@@ -270,15 +270,26 @@ export class TuiMenu {
 
     let code: string;
     try {
-      const redirectUrl = new URL(this.twitterRedirectUri);
-      const port = redirectUrl.port !== ""
-        ? parseInt(redirectUrl.port, 10)
-        : 80;
-      tui.log.info(this.ctx, `Waiting for callback on port ${port}…`);
-      const result = await callbackServer.waitForOAuthCallback(port);
+      const expected = callbackServer.expectationFor(
+        this.twitterRedirectUri,
+        state,
+      );
+      tui.log.info(
+        this.ctx,
+        `Waiting for callback on ${expected.hostname}:${expected.port}…`,
+      );
+      const result = await callbackServer.waitForOAuthCallback(expected);
       code = result.code;
     } catch {
       const result = await callbackServer.manualCodeEntry(this.ctx);
+      // The pasted URL must belong to this login attempt too.
+      if (result.state !== state) {
+        tui.log.error(
+          this.ctx,
+          "Login failed: the redirect URL does not match this login attempt.",
+        );
+        return;
+      }
       code = result.code;
     }
 
@@ -572,11 +583,11 @@ export class TuiMenu {
           this.ctx.output.writeln(
             post.platform === "twitter" ? span.cyan(badge) : span.text(badge),
             span.text(" "),
-            span.bold(`@${post.authorHandle}`),
+            span.bold(span.untrusted(`@${post.authorHandle}`)),
             span.text("  "),
             span.dim(post.createdAt.toLocaleDateString()),
           );
-          this.ctx.output.writeln(span.text(`  ${post.text}`));
+          this.ctx.output.writeln(span.untrusted(`  ${post.text}`));
           this.ctx.output.writeln(
             span.dim("  ─────────────────────────────────────"),
           );
@@ -672,11 +683,11 @@ export class TuiMenu {
     this.ctx.output.writeln(span.dim("  Replying to:"));
     this.ctx.output.writeln(
       span.dim(`  ${badge} `),
-      span.bold(`@${original.authorHandle}`),
+      span.bold(span.untrusted(`@${original.authorHandle}`)),
       span.text("  "),
       span.dim(original.createdAt.toLocaleDateString()),
     );
-    this.ctx.output.writeln(span.text(`  ${original.text}`));
+    this.ctx.output.writeln(span.untrusted(`  ${original.text}`));
     tui.gap(this.ctx);
 
     const charLimit = costs.PLATFORM_CHAR_LIMITS[platform];
@@ -1022,11 +1033,11 @@ export class TuiMenu {
           this.ctx.output.writeln(
             post.platform === "twitter" ? span.cyan(badge) : span.text(badge),
             span.text(" "),
-            span.bold(`@${post.authorHandle}`),
+            span.bold(span.untrusted(`@${post.authorHandle}`)),
             span.text("  "),
             span.dim(post.createdAt.toLocaleDateString()),
           );
-          this.ctx.output.writeln(span.text(`  ${post.text}`));
+          this.ctx.output.writeln(span.untrusted(`  ${post.text}`));
           this.ctx.output.writeln(
             span.dim("  ─────────────────────────────────────"),
           );
@@ -1062,11 +1073,11 @@ export class TuiMenu {
           this.ctx.output.writeln(
             post.platform === "twitter" ? span.cyan(badge) : span.text(badge),
             span.text(" "),
-            span.bold(`@${post.authorHandle}`),
+            span.bold(span.untrusted(`@${post.authorHandle}`)),
             span.text("  "),
             span.dim(post.createdAt.toLocaleDateString()),
           );
-          this.ctx.output.writeln(span.text(`  ${post.text}`));
+          this.ctx.output.writeln(span.untrusted(`  ${post.text}`));
           this.ctx.output.writeln(
             span.dim("  ─────────────────────────────────────"),
           );

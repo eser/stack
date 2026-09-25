@@ -21,6 +21,11 @@ linters:
     - gosec
 
   settings:
+    gocritic:
+      # Flags parameters of 80+ bytes passed by value; see go-practices:
+      # Value vs Pointer Parameters. 80 is gocritic's default threshold.
+      enabled-checks:
+        - hugeParam
     gosec:
       excludes:
         - G115

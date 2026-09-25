@@ -36,10 +36,10 @@ workflows:
       - validate-secrets:
           allowMissingCredentials: true
           exclude:
-            # Both trees are agent skill definitions whose security rules teach by
+            # Agent skill definitions whose security rules teach by
             # counter-example -- the "secrets" they contain are the hardcoded
-            # credentials the docs tell you never to write. .agents/ is the
-            # vendor-neutral mirror of .claude/ (see AGENTS.md).
+            # credentials the docs tell you never to write. .claude is a
+            # symlink to .agents (see AGENTS.md).
             - ".claude/skills/"
             - ".agents/skills/"
       - validate-filenames:
@@ -64,7 +64,8 @@ workflows:
               convention: "kebab-case"
               exclude:
                 # SKILL.md is a fixed filename required by the agent-skills
-                # convention, so neither tree can satisfy kebab-case.
+                # convention, so the tree cannot satisfy kebab-case (.claude is
+                # a symlink to .agents).
                 - ".claude/"
                 - ".agents/"
                 # Backlog.md names task files "task-1 - Title.md" by design.
@@ -73,7 +74,6 @@ workflows:
                 - ".git/COMMIT_EDITMSG"
                 - "AGENTS.md"
                 - "CHANGELOG.md"
-                - "CLAUDE.md"
                 - "CONTRIBUTING.md"
                 - "Makefile"
                 - "PHILOSOPHY.md"
@@ -119,6 +119,11 @@ workflows:
             # Tests are not part of the published module graph.
             - "_test.ts"
             - ".test.ts"
+      # Namespace imports and `??` defaults (javascript-practices). Existing
+      # violations are listed in .eser/baselines/code-conventions.json; only
+      # new ones fail. Shrink the baseline after migrating files with
+      # `deno run -A ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline`.
+      - validate-code-conventions
       - validate-server-loc:
           directory: "pkg/ajan/noskillsserverfx"
       - validate-error-coverage:

@@ -402,8 +402,18 @@ rules. These tell the agent HOW to behave, not just WHAT to do:
 
 **Git is read-only** for agents (configurable via `allowGit: true` in manifest).
 Agents may read (`git log`, `git diff`, `git status`) but never write
-(`git commit`, `git push`, `git checkout`). This is enforced at three levels:
-behavioral rules, AGENTS.md instruction, and PreToolUse hook.
+(`git commit`, `git push`, `git checkout`). Three layers apply this: behavioral
+rules, the AGENTS.md instruction, and the PreToolUse hook.
+
+The hook classifies the Bash command text. It catches git however it is quoted,
+cased or prefixed (`"git"`, `g''it`, `GIT`, `env X=1 git`), inside `sh -c`,
+`eval`, pipes and `$(…)`, in a script piped or heredoc-fed to a shell, and in a
+script file it can read before the command runs (`bash run.sh`). A script the
+same command writes and then runs is denied. What the hook cannot decide from
+text is a program an interpreter assembles at run time, such as
+`python -c "subprocess.run(['g'+'it','push'])"`. It is a guard against mistakes,
+not a sandbox. For a hard guarantee, protect branches on the remote and do not
+give agent sessions push credentials.
 
 When the agent's iteration count exceeds `maxIterationsBeforeRestart` (default
 15), an `urgency` message warns that context is degrading and recommends a fresh

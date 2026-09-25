@@ -1,44 +1,39 @@
 ---
 name: coding-practices
-description: "Code quality: error handling, validation, logging, DRY, and self-documenting code. Use when writing or reviewing code quality, handling errors, or validating inputs. Do NOT use for language-specific syntax (use javascript-practices or go-practices)."
+description: Language-neutral code quality rules for eserstack, TypeScript and Go. Covers errors, logging, explicit checks, naming and comments, timeouts and resource bounds, streaming, background work, input and config sources, and performance claims. Use when writing or reviewing code, handling errors, adding logs or calling external services. Not for syntax (use javascript-practices or go-practices).
 ---
 
 # Coding Practices
 
-Guidelines for writing maintainable, robust, and self-documenting code.
+Rules that hold in every language in this repository. Language syntax lives in
+javascript-practices and go-practices; design patterns in design-principles.
 
-## Quick Start
+## Always
 
-```typescript
-// Self-documenting with proper error handling
-function createUser(email: string, age: number): User {
-  if (!email.includes("@")) throw new Error("Invalid email");
-  if (age < 0 || age > 150) throw new Error("Invalid age");
-  return { email, age };
-}
-```
-
-## Key Principles
-
-- Compare entities by IDs, never by slugs/usernames/strings
-- Use meaningful names (self-documenting code)
-- Comments explain "why", not "what"
-- DRY: abstract when used 3+ times
-- Validate all input data
-- Handle all error cases with proper Error objects
-- Never ignore errors — handle or propagate with context
-- Use named constants instead of magic values
-- Explicit checks only — never use truthy/falsy for non-booleans
-- Early returns to reduce nesting (guard clauses first)
-
-## Anti-Patterns
-
-**"I'll add a quick `if (!value)` check"** No. Use explicit comparisons:
-`value === null`, `value === undefined`, `str === ""`.
-
-**"I'll just throw `new Error('failed')`"** No. Include context: domain-specific
-error types, `{ cause: error }`, correlation IDs.
+- Handle every failure that can happen; catch narrowly and let the rest
+  propagate. No handling for states the types rule out.
+- An error is handled or returned, never both: return with context, log once
+  where it is handled.
+- Messages name the operation, the value that failed and the fix. "failed",
+  "invalid" and "Something went wrong" are defects.
+- Log through `@eserstack/logging` or `logfx` with ids attached, never
+  `console.*` (lint: `no-console`).
+- Implicit truthy/falsy checks only on booleans; `??` for defaults, never `||`.
+- Compare entities by id, never by slug, name or email.
+- Every external call has a timeout, every pool, queue and cache a limit, and
+  every started promise or goroutine an owner.
+- Release resources in the scope that acquired them (`defer`, `finally`).
+- No absolute paths or machine-specific values; paths come from
+  `import.meta.dirname` or a caller-supplied root.
+- Configuration precedence: environment, then config file, then default.
+- Performance changes come with before and after measurements.
 
 ## References
 
-See [rules.md](references/rules.md) for complete guidelines with examples.
+| File                                                    | Read when                                                                                |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [errors.md](references/errors.md)                       | Raising, wrapping, matching or reporting errors; `Result` types                          |
+| [logging.md](references/logging.md)                     | Adding or reviewing log calls, levels and context fields                                 |
+| [readability.md](references/readability.md)             | Naming, comments, abstraction, checks, switches, early returns, line breaks              |
+| [resources-and-io.md](references/resources-and-io.md)   | Network calls, subprocesses, retries, limits, cleanup, streaming, async work, benchmarks |
+| [inputs-and-config.md](references/inputs-and-config.md) | Parsing input, resolving paths, loading configuration                                    |

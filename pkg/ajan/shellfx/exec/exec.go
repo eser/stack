@@ -57,7 +57,7 @@ type SpawnOptions struct {
 // Both spawn paths go through here so the process-group and WaitDelay
 // hardening cannot drift apart: a future change to how children are contained
 // has exactly one place to land.
-func newCommand(opts SpawnOptions) (*exec.Cmd, context.CancelFunc) {
+func newCommand(opts SpawnOptions) (*exec.Cmd, context.CancelFunc) { //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
 	// G118: cancel is handed to the caller, which owns it -- every spawn path
 	// calls it on the error return and again in Close.
 	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec
@@ -85,7 +85,7 @@ func newCommand(opts SpawnOptions) (*exec.Cmd, context.CancelFunc) {
 //
 // Output is merged into a single stream-tagged channel. See SpawnStreamProcess
 // when the caller needs stdout as an untouched byte stream instead.
-func SpawnChildProcess(opts SpawnOptions) (*ChildProcessHandle, error) {
+func SpawnChildProcess(opts SpawnOptions) (*ChildProcessHandle, error) { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	cmd, cancel := newCommand(opts)
 
 	stdin, err := cmd.StdinPipe()

@@ -15,8 +15,8 @@ ci/cd:
 claude-code:
   - changed-files:
       - any-glob-to-any-file:
-          - ".claude/**"
-          - "CLAUDE.md"
+          - ".agents/**"
+          - ".claude"
           - "AGENTS.md"
 
 templates:

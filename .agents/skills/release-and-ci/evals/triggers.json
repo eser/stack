@@ -1,0 +1,110 @@
+[
+  {
+    "query": "cut v4.6.0",
+    "should_trigger": true
+  },
+  {
+    "query": "the release run failed at publish, resume it",
+    "should_trigger": true
+  },
+  {
+    "query": "unrelease 4.5.3",
+    "should_trigger": true
+  },
+  {
+    "query": "write the changelog entry for the breaking change in config",
+    "should_trigger": true
+  },
+  {
+    "query": "yeni sürüm çıkaralım",
+    "should_trigger": true
+  },
+  {
+    "query": "bump all package versions to 4.6.0",
+    "should_trigger": true
+  },
+  {
+    "query": "the npm publish for noskills didn't happen",
+    "should_trigger": true
+  },
+  {
+    "query": "how do we handle a hotfix on 4.5.x",
+    "should_trigger": true
+  },
+  {
+    "query": "the build.yml run is stuck, find why",
+    "should_trigger": true
+  },
+  {
+    "query": "add a timeout to the Go test job",
+    "should_trigger": true
+  },
+  {
+    "query": "fork PRs fail because secrets are missing",
+    "should_trigger": true
+  },
+  {
+    "query": "pin the actions in the workflow to SHAs",
+    "should_trigger": true
+  },
+  {
+    "query": "deploy the service to Kubernetes and check the pods",
+    "should_trigger": true
+  },
+  {
+    "query": "ArgoCD didn't pick up the new image",
+    "should_trigger": true
+  },
+  {
+    "query": "CI neden kırmızı, bakar mısın",
+    "should_trigger": true
+  },
+  {
+    "query": "which permissions does the workflow need",
+    "should_trigger": true
+  },
+  {
+    "query": "update the README badge list",
+    "should_trigger": false
+  },
+  {
+    "query": "write the README",
+    "should_trigger": false
+  },
+  {
+    "query": "add a new package",
+    "should_trigger": false
+  },
+  {
+    "query": "update dependencies",
+    "should_trigger": false
+  },
+  {
+    "query": "fix a failing test",
+    "should_trigger": false
+  },
+  {
+    "query": "commit these",
+    "should_trigger": false
+  },
+  {
+    "query": "add a dependency",
+    "should_trigger": false
+  },
+  {
+    "query": "fix the flaky Deno test locally",
+    "should_trigger": false
+  },
+  {
+    "query": "design a new service",
+    "should_trigger": false
+  },
+  {
+    "query": "commit and push",
+    "should_trigger": false
+  },
+  {
+    "query": "run deno task cli ok",
+    "should_trigger": false
+  }
+]

@@ -214,7 +214,7 @@ func (c *PgxConnection) AcquireConn(ctx context.Context) (*pgxpool.Conn, error) 
 }
 
 // BeginTx starts a new transaction with custom options.
-func (c *PgxConnection) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
+func (c *PgxConnection) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) { //nolint:gocritic // hugeParam: mirrors pgx, which takes TxOptions by value
 	transaction, err := c.pool.BeginTx(ctx, txOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
@@ -226,7 +226,7 @@ func (c *PgxConnection) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (p
 // BeginTxFunc executes a function within a transaction, handling commit/rollback automatically.
 func (c *PgxConnection) BeginTxFunc(
 	ctx context.Context,
-	txOptions pgx.TxOptions,
+	txOptions pgx.TxOptions, //nolint:gocritic // hugeParam: mirrors pgx, which takes TxOptions by value
 	txFunc func(pgx.Tx) error,
 ) error {
 	transaction, err := c.pool.BeginTx(ctx, txOptions)

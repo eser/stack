@@ -344,7 +344,7 @@ func ParseFrontmatter(content string) (SpecMetadata, string, error) {
 
 // RenderFrontmatter serialises SpecMetadata as a YAML frontmatter block.
 // Does NOT include a trailing newline — callers add a separator when joining.
-func RenderFrontmatter(metadata SpecMetadata) (string, error) {
+func RenderFrontmatter(metadata SpecMetadata) (string, error) { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	data, err := yaml.Marshal(metadata)
 	if err != nil {
 		return "", fmt.Errorf("renderFrontmatter: %w", err)
@@ -405,7 +405,7 @@ func sectionVisible(condition *string, classification *SpecClassification) bool 
 
 // GenerateInitialSpec produces the initial spec.md content, placeholder state,
 // and metadata for a newly created spec. Pure — no disk I/O.
-func GenerateInitialSpec(args GenerateSpecArgs) (GenerateSpecResult, error) {
+func GenerateInitialSpec(args GenerateSpecArgs) (GenerateSpecResult, error) { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	sections := MergeSections(args.ActiveConcerns)
 
 	// Build initial placeholder state.
@@ -498,7 +498,7 @@ type CompletenessResult struct {
 // CheckSpecCompleteness reports whether the spec is ready to advance to
 // SPEC_PROPOSAL. conditional-hidden sections are not required. N/A reasons
 // shorter than 20 characters are rejected (anti-vague-N/A gate).
-func CheckSpecCompleteness(specState SpecState) CompletenessResult {
+func CheckSpecCompleteness(specState SpecState) CompletenessResult { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	var unresolved []struct {
 		SectionID    string
 		SectionTitle string

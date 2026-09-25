@@ -816,14 +816,30 @@ export type Session = {
 
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
 
+// Session ids become file names under SESSIONS_DIR. generateSessionId makes
+// 8 hex chars; the allowed set is wider only so hand-picked ids keep working,
+// and it excludes '.', '/' and '\' so no id can leave the directory.
+const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** Reports whether an id is safe to use as a session file name. */
+export const isValidSessionId = (sessionId: string): boolean =>
+  SESSION_ID_PATTERN.test(sessionId);
+
+const sessionPath = (root: string, sessionId: string): string => {
+  if (!isValidSessionId(sessionId)) {
+    throw new Error(`Invalid session id: ${JSON.stringify(sessionId)}`);
+  }
+  return `${root}/${SESSIONS_DIR}/${sessionId}.json`;
+};
+
 export const createSession = async (
   root: string,
   session: Session,
 ): Promise<void> => {
-  const dir = `${root}/${SESSIONS_DIR}`;
-  await runtime.fs.mkdir(dir, { recursive: true });
+  const path = sessionPath(root, session.id);
+  await runtime.fs.mkdir(`${root}/${SESSIONS_DIR}`, { recursive: true });
   await writeTextFileAtomic(
-    `${dir}/${session.id}.json`,
+    path,
     JSON.stringify(session, null, 2) + "\n",
   );
 };
@@ -832,11 +848,13 @@ export const readSession = async (
   root: string,
   sessionId: string,
 ): Promise<Session | null> => {
+  if (!isValidSessionId(sessionId)) return null;
   try {
     const content = await runtime.fs.readTextFile(
-      `${root}/${SESSIONS_DIR}/${sessionId}.json`,
+      sessionPath(root, sessionId),
     );
-    return JSON.parse(content) as Session;
+    const session = JSON.parse(content) as Session;
+    return session.id === sessionId ? session : null;
   } catch {
     return null;
   }
@@ -851,11 +869,17 @@ export const listSessions = async (
   try {
     for await (const entry of runtime.fs.readDir(dir)) {
       if (entry.isFile && entry.name.endsWith(".json")) {
+        // The file name is the identity; a file whose embedded id disagrees
+        // (or is not a valid id) is ignored rather than trusted.
+        const fileId = entry.name.slice(0, -".json".length);
+        if (!isValidSessionId(fileId)) continue;
         try {
           const content = await runtime.fs.readTextFile(
             `${dir}/${entry.name}`,
           );
-          sessions.push(JSON.parse(content) as Session);
+          const session = JSON.parse(content) as Session;
+          if (session.id !== fileId) continue;
+          sessions.push(session);
         } catch {
           // corrupt file, skip
         }
@@ -872,8 +896,9 @@ export const deleteSession = async (
   root: string,
   sessionId: string,
 ): Promise<boolean> => {
+  if (!isValidSessionId(sessionId)) return false;
   try {
-    await runtime.fs.remove(`${root}/${SESSIONS_DIR}/${sessionId}.json`);
+    await runtime.fs.remove(sessionPath(root, sessionId));
     return true;
   } catch {
     return false;
@@ -894,7 +919,7 @@ export const updateSessionPhase = async (
     lastActiveAt: new Date().toISOString(),
   };
   await writeTextFileAtomic(
-    `${root}/${SESSIONS_DIR}/${sessionId}.json`,
+    sessionPath(root, sessionId),
     JSON.stringify(updated, null, 2) + "\n",
   );
 };

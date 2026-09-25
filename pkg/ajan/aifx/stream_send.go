@@ -16,7 +16,7 @@ import "context"
 func sendStreamEvent(
 	ctx context.Context,
 	eventCh chan<- StreamEvent,
-	event StreamEvent,
+	event StreamEvent, //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
 ) {
 	select {
 	case eventCh <- event:

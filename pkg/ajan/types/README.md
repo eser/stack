@@ -11,8 +11,7 @@ parsing capabilities.
 
 - **Metric Types**: Integer and float types with unit suffix support (k, m, b)
 - **Text Marshaling**: Full support for encoding/decoding to/from text formats
-- **Configuration-Friendly**: Designed to work seamlessly with configuration
-  systems
+- **Configuration-Friendly**: Designed to work with configuration systems
 - **Unit Parsing**: Automatic parsing of human-readable metric values
 
 ## API Reference
@@ -137,7 +136,7 @@ type PerformanceConfig struct {
 
 ## Configuration Integration
 
-The metric types are designed to work seamlessly with configuration systems:
+The metric types are designed to work with configuration systems:
 
 ### With configfx
 

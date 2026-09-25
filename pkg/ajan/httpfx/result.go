@@ -26,20 +26,20 @@ type Result struct { //nolint:errname
 	InnerStatusCode int
 }
 
-func (r Result) StatusCode() int {
+func (r Result) StatusCode() int { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return r.InnerStatusCode
 }
 
-func (r Result) Body() []byte {
+func (r Result) Body() []byte { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return r.InnerBody
 }
 
 // ContentType returns the Content-Type to send, or "" to let net/http sniff.
-func (r Result) ContentType() string {
+func (r Result) ContentType() string { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return r.InnerContentType
 }
 
-func (r Result) RedirectToURI() string {
+func (r Result) RedirectToURI() string { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	return r.InnerRedirectToURI
 }
 

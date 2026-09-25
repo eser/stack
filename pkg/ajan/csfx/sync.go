@@ -73,7 +73,7 @@ func RunKubectl(ref ResourceReference) ([]string, error) {
 //
 // When opts.StringOnly is true, only the raw patch data string is returned
 // (no kubectl command wrapper).
-func Sync(opts SyncOptions) (string, error) {
+func Sync(opts SyncOptions) (string, error) { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	formatfx.RegisterBuiltinFormats()
 
 	if err := ValidateResourceReference(opts.Resource); err != nil {
@@ -160,7 +160,7 @@ func Sync(opts SyncOptions) (string, error) {
 // SyncApply is a convenience wrapper that validates the resource reference and
 // then returns a kubectl patch command. It is equivalent to Sync with
 // StringOnly=false.
-func SyncApply(opts SyncOptions) (string, error) {
+func SyncApply(opts SyncOptions) (string, error) { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	if err := ValidateResourceReference(opts.Resource); err != nil {
 		return "", err
 	}

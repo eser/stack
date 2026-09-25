@@ -46,7 +46,7 @@ type platform struct {
 	cmd    *exec.Cmd
 }
 
-func platformSpawn(ctx context.Context, opts SpawnOptions) (*platform, error) {
+func platformSpawn(ctx context.Context, opts SpawnOptions) (*platform, error) { //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
 	var masterFd, slaveFd C.int
 
 	if C.go_openpty(&masterFd, &slaveFd, C.int(opts.Cols), C.int(opts.Rows)) != 0 {

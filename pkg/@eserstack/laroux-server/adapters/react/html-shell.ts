@@ -4,6 +4,7 @@
  * Implements the HtmlShellBuilder port interface for React applications
  */
 
+import { escapeJsonForScript } from "./script-json.ts";
 import type {
   HtmlShellBuilder,
   HtmlShellOptions,
@@ -70,7 +71,7 @@ export function createReactHtmlShellBuilder(): HtmlShellBuilder {
       // Serialize manifest for client-side chunk loading
       const manifestScript = manifest
         ? `<script id="__CHUNK_MANIFEST__" type="application/json">${
-          JSON.stringify(manifest).replace(/<\/script/gi, "<\\/script")
+          escapeJsonForScript(JSON.stringify(manifest))
         }</script>`
         : "";
 
@@ -133,7 +134,7 @@ export function createReactHtmlShellBuilder(): HtmlShellBuilder {
       // Serialize manifest for client-side chunk loading
       const manifestScript = manifest
         ? `<script id="__CHUNK_MANIFEST__" type="application/json">${
-          JSON.stringify(manifest).replace(/<\/script/gi, "<\\/script")
+          escapeJsonForScript(JSON.stringify(manifest))
         }</script>`
         : "";
 

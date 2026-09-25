@@ -49,7 +49,7 @@ type ExecResult struct {
 // A non-zero exit code is not treated as an error — the caller can inspect
 // ExecResult.Code. An actual error (spawn failure, timeout, context cancel)
 // is returned as the second value.
-func Exec(ctx context.Context, command string, opts ExecOptions) (ExecResult, error) {
+func Exec(ctx context.Context, command string, opts ExecOptions) (ExecResult, error) { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	// Wrap the command string in `sh -c`, appending opts.Args as positional
 	// parameters, then run it directly via Run.
 	shArgs := append([]string{"-c", command}, opts.Args...) //nolint:gocritic
@@ -67,7 +67,7 @@ func Exec(ctx context.Context, command string, opts ExecOptions) (ExecResult, er
 //
 // A non-zero exit code is not treated as an error — inspect ExecResult.Code.
 // Spawn failures, timeouts, and cancellation are returned as the error.
-func Run(ctx context.Context, command string, args []string, opts ExecOptions) (ExecResult, error) {
+func Run(ctx context.Context, command string, args []string, opts ExecOptions) (ExecResult, error) { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	if opts.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)

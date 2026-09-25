@@ -115,6 +115,30 @@ const normalize = (inputs: readonly SpanInput[]): Span[] =>
 
 const text = (value: string): TextSpan => ({ kind: "text", value });
 
+// ESC-introduced sequences (CSI, OSC ending in BEL or ST, DCS/SOS/PM/APC,
+// other two-byte ESC forms), their 8-bit CSI/OSC forms, C0 controls other than
+// tab and newline, DEL, and C1 controls.
+const TERMINAL_CONTROL =
+  // deno-lint-ignore no-control-regex
+  /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b[PX^_][\s\S]*?(?:\x1b\\|$)|\x1b[\x20-\x2f]*[\x30-\x7e]?|\x9b[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\x9d[^\x07\x9c]*[\x07\x9c]?|[\x00-\x08\x0b-\x1f\x7f-\x9f]/g;
+
+/**
+ * Removes terminal control sequences and control characters, keeping tab and
+ * newline, so the string can only print visible text.
+ */
+const stripTerminalControls = (value: string): string =>
+  value.replace(TERMINAL_CONTROL, "");
+
+/**
+ * A text span for content from outside the program (remote posts, registry
+ * strings, provider errors). Text spans are passed through verbatim because
+ * the TUI itself sends cursor control that way; this constructor removes
+ * control sequences first, so the content cannot move the cursor, rewrite
+ * earlier lines, spoof links or write the clipboard.
+ */
+const untrusted = (value: string): TextSpan =>
+  text(stripTerminalControls(value));
+
 const bold = (...children: SpanInput[]): BoldSpan => ({
   kind: "bold",
   children: normalize(children),
@@ -278,9 +302,11 @@ export {
   red,
   separator,
   strikethrough,
+  stripTerminalControls,
   table,
   text,
   underline,
+  untrusted,
   white,
   yellow,
 };

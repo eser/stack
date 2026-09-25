@@ -5,8 +5,8 @@
 
 `@eserstack/cs` is a Kubernetes ConfigMap and Secret synchronization tool that
 simplifies the management of configuration data and secrets in Kubernetes
-environments. It provides seamless integration between environment files and
-Kubernetes resources with built-in CLI capabilities.
+environments. It works with both environment files and Kubernetes resources and
+includes a CLI.
 
 ## 🚀 Getting Started with Kubernetes ConfigMaps and Secrets
 
@@ -32,8 +32,7 @@ principle of storing configuration in environment variables.
 
 ## 🤔 What @eserstack/cs offers?
 
-`@eserstack/cs` provides a comprehensive solution for managing Kubernetes
-configuration resources:
+`@eserstack/cs` manages Kubernetes configuration resources:
 
 - **Environment File Integration**: Load configuration from `.env` files and
   environment variables

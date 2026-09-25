@@ -3,10 +3,10 @@
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/parsing`
 
-`@eserstack/parsing` is a comprehensive parsing library designed to analyze and
-tokenize strings. While it includes a lexer component, its capabilities extend
-beyond simple lexing, providing a flexible and efficient way to parse strings
-into meaningful tokens or an abstract syntax tree.
+`@eserstack/parsing` is a parsing library for analyzing and tokenizing strings.
+While it includes a lexer component, its capabilities extend beyond simple
+lexing, providing a flexible and efficient way to parse strings into meaningful
+tokens or an abstract syntax tree.
 
 ## 🚀 Getting Started with Parsing
 

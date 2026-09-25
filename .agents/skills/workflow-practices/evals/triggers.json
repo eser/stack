@@ -1,0 +1,150 @@
+[
+  {
+    "query": "the session list endpoint returns duplicates, find out why and fix it",
+    "should_trigger": true
+  },
+  {
+    "query": "bu değişiklikleri commit'le, mesajı sen yaz",
+    "should_trigger": true
+  },
+  {
+    "query": "implement pagination for the posts API",
+    "should_trigger": true
+  },
+  {
+    "query": "refactor the config loader so env parsing is in one place",
+    "should_trigger": true
+  },
+  {
+    "query": "is this done? can we say the migration task is complete",
+    "should_trigger": true
+  },
+  {
+    "query": "testler kırmızı ama sanırım flaky, geçip devam edelim mi",
+    "should_trigger": true
+  },
+  {
+    "query": "add a --dry-run flag to the release command and wire it up",
+    "should_trigger": true
+  },
+  {
+    "query": "I edited mux/router.ts by hand, now finish the rest of the change",
+    "should_trigger": true
+  },
+  {
+    "query": "add caching to the API",
+    "should_trigger": true
+  },
+  {
+    "query": "make the CLI faster",
+    "should_trigger": true
+  },
+  {
+    "query": "bir bildirim sistemi ekleyelim",
+    "should_trigger": true
+  },
+  {
+    "query": "support plugins in noskills",
+    "should_trigger": true
+  },
+  {
+    "query": "migrate the logging to something better",
+    "should_trigger": true
+  },
+  {
+    "query": "can you improve the error messages everywhere",
+    "should_trigger": true
+  },
+  {
+    "query": "we need auth for the web UI, set it up",
+    "should_trigger": true
+  },
+  {
+    "query": "add export to the reports, whatever format makes sense",
+    "should_trigger": true
+  },
+  {
+    "query": "this change touches both @eserstack/shell and @eserstack/cli, plan it",
+    "should_trigger": true
+  },
+  {
+    "query": "can you push this branch and tag it",
+    "should_trigger": true
+  },
+  {
+    "query": "review this PR as a reviewer agent and rank findings by severity",
+    "should_trigger": true
+  },
+  {
+    "query": "delete the old dist folders and reset the lockfile",
+    "should_trigger": true
+  },
+  {
+    "query": "force-push main to fix the history",
+    "should_trigger": true
+  },
+  {
+    "query": "hangi dosyalara dokunmaman gerekiyor bu repoda",
+    "should_trigger": true
+  },
+  {
+    "query": "update the shared types in primitives and fix every package that uses them",
+    "should_trigger": true
+  },
+  {
+    "query": "run the publish step for npm yourself",
+    "should_trigger": true
+  },
+  {
+    "query": "what's the difference between Deno.test and bdd describe",
+    "should_trigger": false
+  },
+  {
+    "query": "write a README section for the cache package",
+    "should_trigger": false
+  },
+  {
+    "query": "bump the version to 4.6.0",
+    "should_trigger": false
+  },
+  {
+    "query": "is `import { join }` allowed in our code",
+    "should_trigger": false
+  },
+  {
+    "query": "which GitHub Actions runner does build.yml use",
+    "should_trigger": false
+  },
+  {
+    "query": "explain how the hexagonal layers are organised",
+    "should_trigger": false
+  },
+  {
+    "query": "rename this Go file to snake_case",
+    "should_trigger": false
+  },
+  {
+    "query": "what does the eser-rules-manager skill do",
+    "should_trigger": false
+  },
+  {
+    "query": "how should I name a new Go file",
+    "should_trigger": false
+  },
+  {
+    "query": "which Deno lint rules are enabled",
+    "should_trigger": false
+  },
+  {
+    "query": "what's the SSRF rule for webhooks",
+    "should_trigger": false
+  },
+  {
+    "query": "show me the git log for last week",
+    "should_trigger": false
+  },
+  {
+    "query": "what does `cmp.Or` do in Go",
+    "should_trigger": false
+  }
+]

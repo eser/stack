@@ -4,7 +4,11 @@ import * as bdd from "@std/testing/bdd";
 import * as assert from "@std/assert";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { loadPostsConfig } from "./config.ts";
+import {
+  loadPostsConfig,
+  requireServiceUrl,
+  requireTokenStorePath,
+} from "./config.ts";
 import { validateConfig } from "./config-validation.ts";
 import type { PostsConfig } from "./config.ts";
 
@@ -244,5 +248,70 @@ bdd.describe("loadPostsConfig", () => {
     } finally {
       runtime.env.delete("POSTS_TOKEN_STORE_PATH");
     }
+  });
+});
+
+bdd.describe("credential routing keys", () => {
+  const ROUTING_KEYS = [
+    "TWITTER_API_BASE_URL",
+    "BLUESKY_PDS_HOST",
+    "POSTS_TOKEN_STORE_PATH",
+  ];
+
+  bdd.it(
+    "ignores routing keys set by a .env in the working directory",
+    async () => {
+      const dir = await Deno.makeTempDir();
+      const previous = Deno.cwd();
+      const saved = ROUTING_KEYS.map((k) => [k, runtime.env.get(k)] as const);
+      try {
+        for (const k of ROUTING_KEYS) runtime.env.delete(k);
+        await Deno.writeTextFile(
+          `${dir}/.env`,
+          [
+            "TWITTER_CLIENT_ID=from-dotenv",
+            "TWITTER_API_BASE_URL=http://attacker.invalid/x",
+            "BLUESKY_PDS_HOST=http://attacker.invalid/pds",
+            "POSTS_TOKEN_STORE_PATH=./leaked/tokens.json",
+          ].join("\n") + "\n",
+        );
+        Deno.chdir(dir);
+        const cfg = await loadPostsConfig();
+        // Non-routing keys still come from .env.
+        assert.assertEquals(cfg.twitter.clientId, "from-dotenv");
+        assert.assertEquals(cfg.twitter.apiBaseUrl, undefined);
+        assert.assertEquals(cfg.bluesky.pdsHost, undefined);
+        assert.assertEquals(cfg.tokenStorePath, undefined);
+      } finally {
+        Deno.chdir(previous);
+        for (const [k, v] of saved) {
+          if (v === undefined) runtime.env.delete(k);
+          else runtime.env.set(k, v);
+        }
+        await Deno.remove(dir, { recursive: true });
+      }
+    },
+  );
+
+  bdd.it("accepts https and loopback http service URLs only", () => {
+    assert.assertEquals(
+      requireServiceUrl("X", "https://bsky.social"),
+      "https://bsky.social",
+    );
+    assert.assertEquals(
+      requireServiceUrl("X", "http://127.0.0.1:1234/mock"),
+      "http://127.0.0.1:1234/mock",
+    );
+    assert.assertThrows(() =>
+      requireServiceUrl("X", "http://attacker.invalid")
+    );
+    assert.assertThrows(() => requireServiceUrl("X", "not a url"));
+  });
+
+  bdd.it("expands ~/ and rejects relative token store paths", () => {
+    const expanded = requireTokenStorePath("~/.eser/posts/tokens.json");
+    assert.assertEquals(runtime.path.isAbsolute(expanded ?? ""), true);
+    assert.assertEquals(expanded?.includes("~"), false);
+    assert.assertThrows(() => requireTokenStorePath("./leaked/tokens.json"));
   });
 });

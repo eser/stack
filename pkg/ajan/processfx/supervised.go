@@ -163,7 +163,7 @@ type WorkerStatus struct {
 }
 
 // Uptime returns how long the worker has been running.
-func (s WorkerStatus) Uptime() time.Duration {
+func (s WorkerStatus) Uptime() time.Duration { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	if s.StartedAt.IsZero() {
 		return 0
 	}
@@ -172,7 +172,7 @@ func (s WorkerStatus) Uptime() time.Duration {
 }
 
 // TimeSinceLastHeartbeat returns duration since last heartbeat.
-func (s WorkerStatus) TimeSinceLastHeartbeat() time.Duration {
+func (s WorkerStatus) TimeSinceLastHeartbeat() time.Duration { //nolint:gocritic // hugeParam: read-only value receiver; a pointer would change the method set
 	if s.LastHeartbeat.IsZero() {
 		return 0
 	}

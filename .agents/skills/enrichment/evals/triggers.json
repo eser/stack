@@ -1,0 +1,74 @@
+[
+  {
+    "query": "enrich this plan for the notification system",
+    "should_trigger": true
+  },
+  {
+    "query": "grill me on the caching design before we build anything",
+    "should_trigger": true
+  },
+  {
+    "query": "bu fikri enrich edelim",
+    "should_trigger": true
+  },
+  {
+    "query": "stress-test my migration plan to pgx",
+    "should_trigger": true
+  },
+  {
+    "query": "interrogate this idea until nothing is left open",
+    "should_trigger": true
+  },
+  {
+    "query": "I want every open decision on the plugin system surfaced before we start",
+    "should_trigger": true
+  },
+  {
+    "query": "planımı sorgula, tüm kararları tek tek çıkaralım",
+    "should_trigger": true
+  },
+  {
+    "query": "poke holes in this release strategy and ask me everything you need",
+    "should_trigger": true
+  },
+  {
+    "query": "add caching to the API",
+    "should_trigger": false
+  },
+  {
+    "query": "what does the release command do",
+    "should_trigger": false
+  },
+  {
+    "query": "fix the failing Go test",
+    "should_trigger": false
+  },
+  {
+    "query": "write a README for the cache package",
+    "should_trigger": false
+  },
+  {
+    "query": "which skills apply to this task",
+    "should_trigger": false
+  },
+  {
+    "query": "review this PR and rank the findings",
+    "should_trigger": false
+  },
+  {
+    "query": "make the CLI faster",
+    "should_trigger": false
+  },
+  {
+    "query": "summarize the security report",
+    "should_trigger": false
+  },
+  {
+    "query": "can we discuss the pros and cons of Deno vs Node here",
+    "should_trigger": false
+  },
+  {
+    "query": "plan the implementation of TASK-23",
+    "should_trigger": false
+  }
+]

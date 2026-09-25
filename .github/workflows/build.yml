@@ -287,7 +287,7 @@ jobs:
           # irreversibly published — that is how the v4.3.0 release died.
           #
           # This pattern MIRRORS HEADING_PATTERN in
-          # pkg/@eserstack/codebase/release-notes.ts, which is the parser that
+          # pkg/@eserstack/codebase/changelog-text.ts, which is the parser that
           # actually runs later. Keep the two in step: a gate that accepts more
           # than the parser lets a release publish and then fail on notes (the
           # very failure this job exists to prevent), and one that accepts less
@@ -856,11 +856,14 @@ jobs:
       contents: write
 
     steps:
-      # Only CHANGELOG.md and VERSION are read from the checkout.
+      # Only CHANGELOG.md, VERSION and the dependency-free notes extractor are
+      # read from the checkout. No token is written to .git/config: nothing in
+      # this job pushes, and gh reads GH_TOKEN from the step env instead.
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          persist-credentials: false
           ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Node.js
@@ -868,32 +871,18 @@ jobs:
         with:
           node-version: "26"
 
-      # The CLI that runs here is the one `publish` just shipped to npm — not the
-      # workspace. Running from the workspace needs Deno, pnpm and the generated
-      # manifests, and ties creating the GitHub Release to every package in the
-      # tree resolving; the npm bundle is self-contained and was already proven
-      # by npm-no-deno-test. The registry can lag a publish by a few seconds,
-      # hence the retry.
-      - name: Install the published CLI
+      # This job holds contents: write, so it runs nothing resolved from a
+      # registry at release time. It used to install eser@$VERSION from npm into a
+      # scratch dir with no lockfile and install scripts enabled, which ran the
+      # newest release of every caret-range dependency next to the write token.
+      # The notes now come from the pure CHANGELOG parser in the tag tree
+      # (codebase/changelog-text.ts, the same code `eser codebase gh
+      # release-notes` uses), run by a bare node, and gh is called directly.
+      - name: Extract release notes from CHANGELOG
         run: |
           set -euo pipefail
           VERSION=$(cat VERSION)
-          mkdir -p "$RUNNER_TEMP/eser-cli"
-          cd "$RUNNER_TEMP/eser-cli"
-          printf '{"name":"eser-cli-runner","private":true,"version":"1.0.0"}\n' > package.json
-          for attempt in $(seq 1 12); do
-            if npm install --no-audit --no-fund "eser@$VERSION"; then
-              break
-            fi
-            if [ "$attempt" = 12 ]; then
-              echo "::error::eser@$VERSION is not installable from npm after 12 attempts"
-              exit 1
-            fi
-            echo "eser@$VERSION not on npm yet (attempt $attempt) — waiting 20s for the registry"
-            sleep 20
-          done
-          echo "ESER_BIN=$RUNNER_TEMP/eser-cli/node_modules/.bin/eser" >> "$GITHUB_ENV"
-          "$RUNNER_TEMP/eser-cli/node_modules/.bin/eser" version
+          node etc/scripts/release-notes-from-changelog.ts "v$VERSION" "$RUNNER_TEMP/release-notes.md"
 
       # A failing `gh` used to surface only as "exit code 1" from the wrapper, so
       # print the CLI version and what the token can do BEFORE relying on it.
@@ -904,10 +893,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+      # Same create-or-edit semantics as syncReleaseNotes in
+      # codebase/release-notes.ts: edit an existing release, otherwise create
+      # it, and fall back to edit only when someone else created it between the
+      # check and the create.
       - name: Sync CHANGELOG to GitHub Release
         run: |
-          VERSION=$(cat VERSION)
-          "$ESER_BIN" codebase gh release-notes --tag "v$VERSION" --create-if-missing
+          set -euo pipefail
+          TAG="v$(cat VERSION)"
+          NOTES="$RUNNER_TEMP/release-notes.md"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$NOTES"
+            echo "Updated release notes for $TAG"
+          elif gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "eserstack $TAG" --notes-file "$NOTES"; then
+            echo "Created release $TAG"
+          elif gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$NOTES"
+            echo "Updated release notes for $TAG (created concurrently)"
+          else
+            echo "::error::gh release create $TAG failed"
+            exit 1
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -1205,7 +1211,9 @@ jobs:
     # GitHub-hosted: cosign keyless signing and `gh release upload` need the
     # GitHub-issued id-token and a known image.
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 10
+    # The upload step retries per file, so give the job room for a slow API
+    # instead of the 10 minutes that killed run 35273933021 mid-upload.
+    timeout-minutes: 30
 
     permissions:
       contents: write
@@ -1236,14 +1244,30 @@ jobs:
           done
 
       - name: Upload to GitHub Release
+        # One gh invocation per asset with a hard per-attempt timeout and
+        # retries: a single stalled multi-file upload hung for nine minutes
+        # with no output and took the whole job down.
         run: |
           VERSION=$(cat VERSION)
           TAG="v$VERSION"
-          gh release upload "$TAG" --clobber \
-            binaries/*.tar.gz \
-            binaries/*.zip \
-            binaries/*.bundle \
-            binaries/SHA256SUMS.txt
+          status=0
+          for asset in binaries/*.tar.gz binaries/*.zip binaries/*.bundle binaries/SHA256SUMS.txt; do
+            [ -e "$asset" ] || continue
+            ok=0
+            for attempt in 1 2 3; do
+              if timeout 180 gh release upload "$TAG" --clobber "$asset"; then
+                ok=1
+                break
+              fi
+              echo "::warning::upload of $asset failed (attempt $attempt)"
+              sleep $((attempt * 10))
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "::error::giving up on $asset"
+              status=1
+            fi
+          done
+          exit "$status"
         env:
           GH_TOKEN: ${{ github.token }}
 

@@ -9,6 +9,7 @@
  * @see https://github.com/facebook/react/tree/main/packages/react-server-dom-webpack
  */
 
+import { escapeJsonForScript } from "./script-json.ts";
 import type { ReactElement } from "react";
 import { parseChunk, type RSCChunk } from "@eserstack/laroux-react/protocol";
 import {
@@ -40,7 +41,9 @@ export function chunkToInlineScript(line: string): string {
 
   // Create the inline script that calls the global chunk handler
   // The chunk is passed as a structured object for easier client-side processing
-  const chunkJson = JSON.stringify(chunk);
+  // Chunk values carry rendered strings, so escape for script context: a
+  // value containing </script or <!-- must not end or re-parse the element.
+  const chunkJson = escapeJsonForScript(JSON.stringify(chunk));
   return `<script>self.__RSC_CHUNK__(${chunkJson})</script>\n`;
 }
 

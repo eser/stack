@@ -76,7 +76,8 @@ const writeRecipeOutput = (
 
   if (manifest.name) {
     ctx.out.writeln(
-      span.bold(`${manifest.name} — ${manifest.description}`),
+      // Registry strings are third-party content: strip terminal controls.
+      span.bold(span.untrusted(`${manifest.name} — ${manifest.description}`)),
     );
     ctx.out.writeln();
   }
@@ -88,8 +89,10 @@ const writeRecipeOutput = (
     ctx.out.writeln(span.cyan(SCALE_LABELS[scale]));
     for (const recipe of group) {
       ctx.out.writeln(
-        `  ${(recipe.name ?? "").padEnd(20)} ${recipe.description} `,
-        span.dim(`[${recipe.language}]`),
+        span.untrusted(
+          `  ${(recipe.name ?? "").padEnd(20)} ${recipe.description} `,
+        ),
+        span.dim(span.untrusted(`[${recipe.language}]`)),
       );
     }
     ctx.out.writeln();

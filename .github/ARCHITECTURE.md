@@ -30,9 +30,11 @@ stack/
 │   ├── recipes/                # Project templates (9)
 │   ├── recipes.json            # Recipe registry
 │   └── manifest.yml            # Workflows, validators, scripts
-├── .claude/
-│   ├── skills/                 # Claude Code skill definitions (15 skills)
-│   └── hooks/                  # Claude Code PostToolUse hooks
+├── .agents/
+│   ├── skills/                 # Agent skill definitions (15 skills)
+│   ├── hooks/                  # Claude Code PostToolUse hooks
+│   └── settings.json           # Claude Code project settings
+├── .claude -> .agents          # Symlink so Claude Code reads the same tree
 ├── .github/
 │   ├── workflows/              # CI/CD pipelines (6 workflows)
 │   ├── ARCHITECTURE.md         # This file
@@ -40,7 +42,7 @@ stack/
 │   └── issue-labels.yml        # Issue label definitions
 ├── deno.json                   # Root Deno config (lint, format, excludes)
 ├── package.json                # npm workspace root + deno task scripts
-├── CLAUDE.md                   # AI development guidelines
+├── AGENTS.md                   # AI development guidelines
 └── CHANGELOG.md                # Release history
 ```
 
@@ -113,8 +115,8 @@ claude --print --output-format stream-json   (or kiro / opencode)
 
 The shim is Go code compiled into the same binary as its callers, so it is
 reached in process rather than over a subprocess pipe: spawning it would mean
-shipping, installing and PATH-resolving a program in order to talk to a struct
-already in memory. `acpfx.Spawn` is for agents that genuinely are other programs
+shipping, installing and PATH-resolving a program to talk to a struct already in
+memory. `acpfx.Spawn` is for agents that genuinely are other programs
 (`gemini --acp`, `claude-agent-acp`), selected with `NOSKILLS_ACP_COMMAND`.
 
 Only mux sessions still spawn a TypeScript worker, because a terminal pane's

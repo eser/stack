@@ -1,0 +1,66 @@
+[
+  {
+    "query": "write a TypeScript helper in @eserstack/primitives that parses durations",
+    "should_trigger": true
+  },
+  {
+    "query": "convert this .tsx component to our conventions",
+    "should_trigger": true
+  },
+  {
+    "query": "why is `if (!value)` flagged in review",
+    "should_trigger": true
+  },
+  {
+    "query": "add a test for slug.ts",
+    "should_trigger": true
+  },
+  {
+    "query": "make this async function return consistently",
+    "should_trigger": true
+  },
+  {
+    "query": "fs access in this library uses Deno.readTextFile, is that ok",
+    "should_trigger": true
+  },
+  {
+    "query": "bu TS dosyasındaki import'ları düzelt",
+    "should_trigger": true
+  },
+  {
+    "query": "build a loading and error state for this React form",
+    "should_trigger": true
+  },
+  {
+    "query": "add a dependency on zod",
+    "should_trigger": false
+  },
+  {
+    "query": "the deno.json in pkg/@eserstack/cache is wrong",
+    "should_trigger": false
+  },
+  {
+    "query": "write a Go handler",
+    "should_trigger": false
+  },
+  {
+    "query": "add a CI job that runs deno test",
+    "should_trigger": false
+  },
+  {
+    "query": "document the new API in the README",
+    "should_trigger": false
+  },
+  {
+    "query": "cut a release",
+    "should_trigger": false
+  },
+  {
+    "query": "which Makefile target runs Go lint",
+    "should_trigger": false
+  },
+  {
+    "query": "should we write an ADR for this",
+    "should_trigger": false
+  }
+]

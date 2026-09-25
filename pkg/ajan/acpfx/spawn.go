@@ -54,7 +54,7 @@ type SpawnOptions struct {
 // running.
 func Spawn(
 	ctx context.Context,
-	opts SpawnOptions,
+	opts SpawnOptions, //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
 	handler ClientHandler,
 	info *Implementation,
 ) (*Client, error) {

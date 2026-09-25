@@ -270,8 +270,7 @@ type RetryStrategyConfig struct {
 
 ## Testing
 
-The package includes comprehensive tests covering all four independent operation
-modes:
+The package includes tests covering all four independent operation modes:
 
 - `TestClientCircuitBreakerOnly`: Circuit breaker enabled, retry disabled
 - `TestClientRetryOnly`: Retry enabled, circuit breaker disabled

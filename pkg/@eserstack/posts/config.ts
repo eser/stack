@@ -13,6 +13,7 @@
  */
 
 import * as dotenv from "@eserstack/config/dotenv";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 
 // ── Config type ───────────────────────────────────────────────────────────────
 
@@ -56,6 +57,72 @@ export type PostsConfig = {
 
 const DEFAULT_REDIRECT_URI = "http://127.0.0.1:8080/callback";
 
+const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "[::1]", "::1"];
+
+/**
+ * Reads a key from the process environment only, ignoring .env files.
+ *
+ * .env files are read from the working directory, so any repository the
+ * operator runs `eser posts` in can supply them. Keys that decide where
+ * credentials are sent or stored must come from the operator's own
+ * environment instead.
+ */
+const readOperatorEnv = (key: string): string | undefined => {
+  const value = crossRuntime.runtime.env.get(key);
+  return value === undefined || value === "" ? undefined : value;
+};
+
+/**
+ * Accepts an absolute https URL, or plain http only for a loopback host (local
+ * mock servers in tests). Anything else is rejected, so a credential-bearing
+ * client never talks cleartext to a remote host.
+ */
+export const requireServiceUrl = (
+  name: string,
+  value: string | undefined,
+): string | undefined => {
+  if (value === undefined) return undefined;
+
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${name} must be an absolute URL, got ${value}`);
+  }
+
+  const isLoopback = LOOPBACK_HOSTS.includes(url.hostname);
+  if (url.protocol === "https:" || (url.protocol === "http:" && isLoopback)) {
+    return value;
+  }
+
+  throw new Error(
+    `${name} must use https:// (http:// is allowed only for loopback hosts), got ${value}`,
+  );
+};
+
+/**
+ * Expands a leading "~/" and requires the token store path to be absolute, so
+ * it can never resolve against the working directory.
+ */
+export const requireTokenStorePath = (
+  value: string | undefined,
+): string | undefined => {
+  if (value === undefined) return undefined;
+
+  const { path } = crossRuntime.runtime;
+  const expanded = value === "~" || value.startsWith("~/")
+    ? path.join(crossRuntime.getHomedir(), value.slice(1))
+    : value;
+
+  if (!path.isAbsolute(expanded)) {
+    throw new Error(
+      `POSTS_TOKEN_STORE_PATH must be an absolute path (or start with ~/), got ${value}`,
+    );
+  }
+
+  return expanded;
+};
+
 /**
  * Load @eserstack/posts configuration from environment variables and .env files.
  *
@@ -63,13 +130,17 @@ const DEFAULT_REDIRECT_URI = "http://127.0.0.1:8080/callback";
  *   TWITTER_CLIENT_ID      → twitter.clientId
  *   TWITTER_CLIENT_SECRET  → twitter.clientSecret
  *   TWITTER_REDIRECT_URI   → twitter.redirectUri (default: http://127.0.0.1:8080/callback)
- *   TWITTER_API_BASE_URL   → twitter.apiBaseUrl  (testing override)
- *   BLUESKY_PDS_HOST       → bluesky.pdsHost
+ *   TWITTER_API_BASE_URL   → twitter.apiBaseUrl  (testing override, process env only)
+ *   BLUESKY_PDS_HOST       → bluesky.pdsHost     (process env only)
  *   BLUESKY_IDENTIFIER     → bluesky.identifier
  *   BLUESKY_APP_PASSWORD   → bluesky.appPassword
  *   AI_PROVIDER            → ai.provider         (default: "anthropic")
  *   ANTHROPIC_API_KEY      → ai.apiKey
- *   POSTS_TOKEN_STORE_PATH → tokenStorePath
+ *   POSTS_TOKEN_STORE_PATH → tokenStorePath      (process env only; absolute or ~/)
+ *
+ * The keys marked "process env only" decide where credentials are sent or
+ * stored. They are not read from .env files in the working directory, which a
+ * cloned repository controls.
  */
 export async function loadPostsConfig(): Promise<PostsConfig> {
   const result = await dotenv.configure<PostsConfig>(
@@ -85,10 +156,16 @@ export async function loadPostsConfig(): Promise<PostsConfig> {
             "TWITTER_REDIRECT_URI",
             DEFAULT_REDIRECT_URI,
           ),
-          apiBaseUrl: reader.readString("TWITTER_API_BASE_URL"),
+          apiBaseUrl: requireServiceUrl(
+            "TWITTER_API_BASE_URL",
+            readOperatorEnv("TWITTER_API_BASE_URL"),
+          ),
         },
         bluesky: {
-          pdsHost: reader.readString("BLUESKY_PDS_HOST"),
+          pdsHost: requireServiceUrl(
+            "BLUESKY_PDS_HOST",
+            readOperatorEnv("BLUESKY_PDS_HOST"),
+          ),
           identifier: reader.readString("BLUESKY_IDENTIFIER"),
           appPassword: reader.readString("BLUESKY_APP_PASSWORD"),
         },
@@ -96,7 +173,9 @@ export async function loadPostsConfig(): Promise<PostsConfig> {
           provider: reader.readString("AI_PROVIDER", "anthropic"),
           apiKey: reader.readString("ANTHROPIC_API_KEY"),
         },
-        tokenStorePath: reader.readString("POSTS_TOKEN_STORE_PATH"),
+        tokenStorePath: requireTokenStorePath(
+          readOperatorEnv("POSTS_TOKEN_STORE_PATH"),
+        ),
       };
       return cfg;
     },

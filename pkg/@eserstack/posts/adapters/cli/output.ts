@@ -24,9 +24,10 @@ export async function outputPost(post: Post): Promise<void> {
   out.writeln(
     span.bold(`[${post.platform}]`),
     " ",
-    span.dim(post.id),
+    span.dim(span.untrusted(post.id)),
   );
-  out.writeln(post.text);
+  // Post text and ids come from the provider: strip terminal controls.
+  out.writeln(span.untrusted(post.text));
   out.writeln(span.dim(post.createdAt.toISOString()));
   await out.close();
 }
@@ -38,9 +39,9 @@ export async function outputPosts(posts: ReadonlyArray<Post>): Promise<void> {
     out.writeln(
       span.bold(`[${post.platform}]`),
       " ",
-      span.dim(post.id),
+      span.dim(span.untrusted(post.id)),
     );
-    out.writeln(post.text);
+    out.writeln(span.untrusted(post.text));
     out.writeln(span.dim(post.createdAt.toISOString()));
     out.writeln("");
   }

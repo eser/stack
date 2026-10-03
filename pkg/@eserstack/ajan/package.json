@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@eserstack/standards": "workspace:*",
-    "koffi": "^3.3.0"
+    "koffi": "^3.3.2"
   },
   "optionalDependencies": {
     "@eserstack/ajan-darwin-arm64": "workspace:*",

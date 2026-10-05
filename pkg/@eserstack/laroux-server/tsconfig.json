@@ -1,4 +1,6 @@
 {
+  "//": "Extends the root tsconfig.json so its strict options apply here too, and overrides only the JSX settings: laroux renders with React, the rest of the repository with the precompile transform.",
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "react"

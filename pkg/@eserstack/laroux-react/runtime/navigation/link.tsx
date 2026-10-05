@@ -3,75 +3,70 @@
 
 // Client-side Link component for navigation
 
-import type React from "react";
-import type { AnchorHTMLAttributes, MouseEvent, ReactNode } from "react";
-import {
-  analyzeNavigation,
-  NAVIGATION_EVENT_NAME,
-} from "@eserstack/laroux/navigation";
+import type * as React from "react";
+import * as linkNavigation from "./link-navigation.ts";
 
+/** Props of {@link Link}: the anchor's attributes plus the navigation options. */
 export interface LinkProps
-  extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> {
+  extends Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href"> {
+  /** The URL to navigate to; relative paths navigate on the client */
   href: string;
-  children: ReactNode;
+  /** The link's content */
+  children: React.ReactNode;
+  /** Replace the current history entry instead of adding one */
   replace?: boolean;
+  /** Scroll to the top after navigating (default: true) */
   scroll?: boolean;
-  prefetch?: boolean;
 }
 
 /**
- * Client Component for client-side navigation
- * Intercepts clicks and uses History API for SPA-like navigation
+ * A link that navigates on the client for internal paths.
+ *
+ * It renders a real `<a href>`. Its click handler navigates through the History
+ * API and leaves to the browser what `shouldNavigateOnClient` in
+ * link-navigation.ts names. The anchor also carries its options in data
+ * attributes, so a `Link` that a server component renders, which reaches the
+ * browser without its click handler, navigates on the client through the
+ * listener the laroux client bootstrap installs.
  */
-export function Link({
-  href,
-  children,
-  replace = false,
-  scroll = true,
-  prefetch: _prefetch = false,
-  onClick,
-  ...props
-}: LinkProps): React.JSX.Element {
-  const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    // Use framework-agnostic navigation analysis
-    const analysis = analyzeNavigation(href, {
-      metaKey: event.metaKey,
-      ctrlKey: event.ctrlKey,
-      shiftKey: event.shiftKey,
-      altKey: event.altKey,
+export function Link(props: LinkProps): React.JSX.Element {
+  const { replace, scroll, onClick, children, ...anchorProps } = props;
+  const options: linkNavigation.LinkNavigationOptions = {
+    replace: replace === true,
+    scroll: scroll !== false,
+  };
+
+  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    onClick?.(event);
+
+    const navigate = linkNavigation.shouldNavigateOnClient({
+      href: props.href,
+      target: props.target,
+      download: props.download,
+      button: event.button,
+      defaultPrevented: event.defaultPrevented,
+      modifiers: {
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+      },
     });
 
-    // Allow default behavior for external links, special protocols, or modifier keys
-    if (!analysis.shouldHandle) {
+    if (!navigate) {
       return;
     }
 
-    // Call custom onClick if provided
-    if (onClick) {
-      onClick(event);
-    }
-
-    // Prevent default navigation
     event.preventDefault();
-
-    // Update browser history
-    if (replace) {
-      globalThis.window.history.replaceState({}, "", href);
-    } else {
-      globalThis.window.history.pushState({}, "", href);
-    }
-
-    // Scroll to top if enabled
-    if (scroll) {
-      globalThis.window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    // Trigger navigation event for RSC update
-    globalThis.window.dispatchEvent(new Event(NAVIGATION_EVENT_NAME));
+    linkNavigation.navigateOnClient(globalThis.window, props.href, options);
   };
 
   return (
-    <a href={href} onClick={handleClick} {...props}>
+    <a
+      {...anchorProps}
+      {...linkNavigation.buildLinkAttributes(options)}
+      onClick={handleClick}
+    >
       {children}
     </a>
   );

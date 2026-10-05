@@ -31,17 +31,20 @@ import * as wasiShim from "./wasi-shim.ts";
 
 /**
  * Shape of the WASM instance exports for the reactor-mode module.
+ *
+ * The snake_case keys are the export names fixed by the `//go:wasmexport`
+ * directives in main_wasi_reactor.go, so they stay quoted as they are.
  */
 interface ReactorExports {
   memory: WebAssembly.Memory;
   _start?: () => void;
   _initialize?: () => void;
-  eser_ajan_result_ptr: () => number;
-  eser_ajan_version: () => number;
-  eser_ajan_init: () => number;
-  eser_ajan_shutdown: () => void;
-  eser_ajan_config_load: () => number;
-  eser_ajan_di_resolve: () => number;
+  "eser_ajan_result_ptr": () => number;
+  "eser_ajan_version": () => number;
+  "eser_ajan_init": () => number;
+  "eser_ajan_shutdown": () => void;
+  "eser_ajan_config_load": () => number;
+  "eser_ajan_di_resolve": () => number;
 }
 
 /**

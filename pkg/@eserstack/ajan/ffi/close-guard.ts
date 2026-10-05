@@ -20,6 +20,7 @@ import type * as types from "./types.ts";
  * {@link types.FFILibrary}; this shape only exists so the table can be walked
  * generically.
  */
+// A guard wraps symbols of every signature, so the type cannot be narrower.
 // deno-lint-ignore no-explicit-any
 type RawSymbol = (...args: any[]) => any;
 

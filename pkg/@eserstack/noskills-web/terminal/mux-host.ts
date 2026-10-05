@@ -3,11 +3,11 @@
 /**
  * Mux host for the web frontend.
  *
- * Replaces the old single-PTY-per-tab `PtyManager` with a single
- * {@link mux.MuxServer} that owns every tab, pane, and PTY. The browser attaches
- * one WebSocket carrying the neutral mux protocol (scene + per-pane output in,
- * actions out) and renders the whole scene — so the web view is just another mux
- * frontend, identical in feed to the ANSI TUI.
+ * Replaces the old single-PTY-per-tab `PtyManager` with a single mux server
+ * that owns every tab, pane, and PTY. The browser attaches one WebSocket
+ * carrying the neutral mux protocol (scene + per-pane output in, actions out)
+ * and renders the whole scene, so the web view is another mux frontend with
+ * the same feed as the ANSI TUI.
  *
  * noskills-specific glue stays here: session persistence, spec↔tab binding, and
  * notifying the pane bound to a spec via the `writeToPane` action. Session
@@ -18,7 +18,7 @@
  */
 
 import * as mux from "@eserstack/mux";
-import { defaultAgentAdapter, getAgentAdapter } from "@eserstack/agents";
+import * as agents from "@eserstack/agents";
 import * as persistence from "@eserstack/noskills/persistence";
 import * as sessionBinding from "@eserstack/noskills/session";
 
@@ -37,20 +37,27 @@ export type MuxHostOptions = {
   readonly resolveCommand?: () => Promise<string>;
 };
 
+/**
+ * Owns the web multiplexer: one mux server for every tab, pane and PTY, plus
+ * the noskills session and the optional spec bound to each tab.
+ */
 export class MuxHost {
   readonly #root: string;
-  readonly server: mux.MuxServer;
-  readonly #adapter = getAgentAdapter("claude-code") ?? defaultAgentAdapter();
+  /** The mux server behind every tab; {@link attachSocket} connects to it. */
+  readonly #server: mux.MuxServer;
+  readonly #adapter = agents.getAgentAdapter("claude-code") ??
+    agents.defaultAgentAdapter();
   /** mux tab id → noskills tab metadata. */
   readonly #tabs = new Map<string, WebTab>();
   readonly #resolveCommandOverride: (() => Promise<string>) | undefined;
   #command: string | null = null;
 
+  /** Create the host for the project at `root`; no tab is open yet. */
   constructor(root: string, opts: MuxHostOptions = {}) {
     this.#root = root;
     this.#resolveCommandOverride = opts.resolveCommand;
 
-    this.server = mux.createServer({
+    this.#server = mux.createServer({
       // The browser draws its own tab bar and chrome in HTML, so the mux
       // viewport reserves nothing — panes fill the grid the browser reports.
       initialState: mux.engine.createInitialState({ cols: 120, rows: 40 }),
@@ -66,9 +73,32 @@ export class MuxHost {
     });
   }
 
+  /**
+   * Connect a browser WebSocket to the multiplexer: the server streams the
+   * scene and the pane output to it, and acts on the frames it sends.
+   *
+   * Every inbound frame passes the remote sanitizer first, so a frame cannot
+   * pick the command, arguments or working directory of a new pane. One socket
+   * is connected at a time: a newer one replaces it and closes it. A closed
+   * socket stops delivery, and the panes keep running for the next one.
+   *
+   * The caller authenticates the socket before it attaches it.
+   *
+   * @param socket - The server end of an accepted WebSocket upgrade
+   */
+  attachSocket(socket: WebSocket): void {
+    const transport = mux.engine.sanitizeRemoteTransport(
+      mux.wsTransport<mux.ServerToFrontend, mux.FrontendToServer>(socket, {
+        onClose: () => this.#server.disconnect(transport),
+      }),
+    );
+
+    this.#server.connect(transport);
+  }
+
   /** Drop bindings whose mux tab has gone away (pane exited / tab closed). */
   #reconcile(): void {
-    const live = new Set(this.server.getState().tabs.map((t) => t.id));
+    const live = new Set(this.#server.getState().tabs.map((t) => t.id));
     for (const id of [...this.#tabs.keys()]) {
       if (!live.has(id)) {
         const tab = this.#tabs.get(id)!;
@@ -95,7 +125,7 @@ export class MuxHost {
       : await sessionBinding.createFreeSession(this.#root, "web");
 
     const command = await this.#resolveCommand();
-    this.server.dispatch({
+    this.#server.dispatch({
       type: "newTab",
       command,
       cwd: this.#root,
@@ -104,7 +134,7 @@ export class MuxHost {
     });
 
     // The newest tab is now active.
-    const state = this.server.getState();
+    const state = this.#server.getState();
     const muxTab = state.tabs[state.activeTab]!;
     const tab: WebTab = {
       id: muxTab.id,
@@ -117,9 +147,9 @@ export class MuxHost {
 
   /** Close a specific tab by mux id without moving the user's active tab. */
   closeTab(tabId: string): void {
-    const idx = this.server.getState().tabs.findIndex((t) => t.id === tabId);
+    const idx = this.#server.getState().tabs.findIndex((t) => t.id === tabId);
     if (idx < 0) return;
-    this.server.dispatch({ type: "closeTab", index: idx });
+    this.#server.dispatch({ type: "closeTab", index: idx });
     this.#reconcile();
   }
 
@@ -138,9 +168,9 @@ export class MuxHost {
     if (tab === undefined) return false;
     // Resolve the live pane from the tab — the original pane may have been
     // replaced by a split/promotion, so a cached pane id could be stale.
-    const muxTab = this.server.getState().tabs.find((t) => t.id === tab.id);
+    const muxTab = this.#server.getState().tabs.find((t) => t.id === tab.id);
     if (muxTab === undefined) return false;
-    this.server.dispatch({
+    this.#server.dispatch({
       type: "writeToPane",
       pane: muxTab.focusedPane,
       data: text,
@@ -158,9 +188,11 @@ export class MuxHost {
   async killAll(): Promise<void> {
     const sessions = [...this.#tabs.values()].map((t) => t.sessionId);
     this.#tabs.clear();
-    await this.server.dispose();
-    for (const id of sessions) {
-      await persistence.deleteSession(this.#root, id).catch(() => {});
-    }
+    await this.#server.dispose();
+    // Each session is its own file, so the removals are independent and run
+    // together. deleteSession reports a failed removal as false, not a throw.
+    await Promise.all(
+      sessions.map((id) => persistence.deleteSession(this.#root, id)),
+    );
   }
 }

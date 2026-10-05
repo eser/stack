@@ -2,12 +2,12 @@
 
 import * as assert from "@std/assert";
 import * as mock from "@std/testing/mock";
-import { Registry } from "./container.ts";
+import * as container from "./container.ts";
 
 Deno.test("simple", () => {
   const spyFn = mock.spy();
 
-  const registry = new Registry();
+  const registry = new container.Registry();
   registry.add("ev", () => spyFn());
 
   const dispatcher = registry.build();
@@ -19,7 +19,7 @@ Deno.test("simple", () => {
 Deno.test("multiple", () => {
   const spyFn = mock.spy();
 
-  const registry = new Registry();
+  const registry = new container.Registry();
   registry.add("ev", () => spyFn());
 
   const dispatcher = registry.build();
@@ -32,7 +32,7 @@ Deno.test("multiple", () => {
 Deno.test("once", () => {
   const spyFn = mock.spy();
 
-  const registry = new Registry();
+  const registry = new container.Registry();
   registry.add("ev", () => spyFn(), { once: true });
 
   const dispatcher = registry.build();
@@ -45,7 +45,7 @@ Deno.test("once", () => {
 Deno.test("parameters", () => {
   const spyFn = mock.spy();
 
-  const registry = new Registry();
+  const registry = new container.Registry();
   registry.add("ev", (e) => spyFn(e));
 
   const dispatcher = registry.build();
@@ -60,7 +60,7 @@ Deno.test("parameters", () => {
 Deno.test("no parameters", () => {
   const spyFn = mock.spy();
 
-  const registry = new Registry();
+  const registry = new container.Registry();
   registry.add("ev", (e) => spyFn(e));
 
   const dispatcher = registry.build();
@@ -76,7 +76,7 @@ Deno.test("remove listener", () => {
   const spyFn = mock.spy();
   const listener = () => spyFn();
 
-  const registry = new Registry();
+  const registry = new container.Registry();
   registry.add("ev", listener);
   registry.remove("ev", listener);
 
@@ -87,7 +87,7 @@ Deno.test("remove listener", () => {
 });
 
 Deno.test("add returns this for chaining", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   const result = registry.add("ev1", () => {}).add("ev2", () => {});
 
@@ -96,7 +96,7 @@ Deno.test("add returns this for chaining", () => {
 
 Deno.test("remove returns this for chaining", () => {
   const listener = () => {};
-  const registry = new Registry();
+  const registry = new container.Registry();
   registry.add("ev", listener);
 
   const result = registry.remove("ev", listener);
@@ -105,7 +105,7 @@ Deno.test("remove returns this for chaining", () => {
 });
 
 Deno.test("dispatch returns boolean", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
   registry.add("ev", () => {});
 
   const dispatcher = registry.build();
@@ -116,7 +116,7 @@ Deno.test("dispatch returns boolean", () => {
 });
 
 Deno.test("dispatch with preventDefault returns false", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
   registry.add("ev", (e) => e.preventDefault());
 
   const dispatcher = registry.build();
@@ -129,7 +129,7 @@ Deno.test("Registry with custom EventTarget", () => {
   const spyFn = mock.spy();
   const customTarget = new EventTarget();
 
-  const registry = new Registry({ target: customTarget });
+  const registry = new container.Registry({ target: customTarget });
   registry.add("ev", () => spyFn());
 
   const dispatcher = registry.build();

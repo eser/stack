@@ -10,7 +10,8 @@ on:
 
 jobs:
   sync:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
 
     permissions:
       issues: write

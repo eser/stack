@@ -7,31 +7,39 @@
 
 import type { LinkConfig, ModifierKeys, NavigationAnalysis } from "./types.ts";
 
+// A URL scheme as the URL parser reads it (RFC 3986, section 3.1): a letter,
+// then letters, digits, "+", "-" or ".", ending in ":".
+const SCHEME_PATTERN = /^[a-z][a-z\d+.-]*:/i;
+
+// "//host/path" keeps the page's scheme and points at another host. Browsers
+// read "\" as "/" in http(s) URLs, so "\\host" and "/\host" mean the same.
+const PROTOCOL_RELATIVE_PATTERN = /^[/\\]{2}/;
+
 /**
- * Get the protocol from a URL string, returning empty string for relative URLs.
+ * Get the scheme of a URL, lowercased with its colon ("https:"), or "" for a
+ * relative URL. The scheme is read from the text, so it is found even in a URL
+ * that does not parse ("https://").
  */
 function getUrlProtocol(href: string): string {
-  // Hash-only and relative URLs don't have protocols
-  if (href.startsWith("#") || href.startsWith("/") || href.startsWith(".")) {
-    return "";
-  }
+  const match = SCHEME_PATTERN.exec(href);
+  return match === null ? "" : match[0].toLowerCase();
+}
 
-  // Use URL API to parse absolute URLs
-  if (URL.canParse(href)) {
-    return new URL(href).protocol;
-  }
-
-  // Fallback for protocol-like strings (mailto:, tel:, etc.)
-  const colonIndex = href.indexOf(":");
-  if (colonIndex > 0 && colonIndex < 10) {
-    return href.slice(0, colonIndex + 1);
-  }
-
-  return "";
+/**
+ * Check whether a URL is protocol-relative ("//cdn.example.com/app.js").
+ */
+function isProtocolRelative(href: string): boolean {
+  return PROTOCOL_RELATIVE_PATTERN.test(href);
 }
 
 /**
  * Analyze whether a navigation should be handled by the router
+ *
+ * The router handles relative URLs only. A modifier key, a hash-only link and
+ * every URL that names a scheme or another host are left to the browser:
+ * `mailto:` and `tel:` with their own reason, everything else (`http:`,
+ * `https:`, protocol-relative, `ftp:`, `javascript:`, `data:` and so on) as
+ * `"external"`, since the router cannot render a page outside the site.
  *
  * @param href - The target URL
  * @param modifiers - Modifier key state from the click event
@@ -56,22 +64,18 @@ export function analyzeNavigation(
     return { shouldHandle: false, reason: "hash" };
   }
 
-  // Check protocol for non-relative URLs
   const protocol = getUrlProtocol(href);
 
-  // External links (HTTP/HTTPS)
-  if (protocol === "http:" || protocol === "https:") {
-    return { shouldHandle: false, reason: "external" };
-  }
-
-  // mailto links
   if (protocol === "mailto:") {
     return { shouldHandle: false, reason: "mailto" };
   }
 
-  // tel links
   if (protocol === "tel:") {
     return { shouldHandle: false, reason: "tel" };
+  }
+
+  if (protocol !== "" || isProtocolRelative(href)) {
+    return { shouldHandle: false, reason: "external" };
   }
 
   return { shouldHandle: true };
@@ -90,19 +94,20 @@ export function buildLinkConfig(
     href: config.href,
     replace: config.replace ?? false,
     scroll: config.scroll ?? true,
-    prefetch: config.prefetch ?? false,
   };
 }
 
 /**
- * Check if a URL is external (absolute HTTP/HTTPS)
+ * Check if a URL is external: an absolute HTTP/HTTPS URL or a
+ * protocol-relative one ("//host/path")
  *
  * @param href - URL to check
  * @returns True if the URL is external
  */
 export function isExternalUrl(href: string): boolean {
   const protocol = getUrlProtocol(href);
-  return protocol === "http:" || protocol === "https:";
+  return protocol === "http:" || protocol === "https:" ||
+    isProtocolRelative(href);
 }
 
 /**

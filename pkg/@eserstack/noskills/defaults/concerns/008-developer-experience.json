@@ -26,26 +26,26 @@
       "id": "developer-onboarding",
       "title": "Developer Onboarding",
       "placeholder": "_Walk through the developer journey: install → first run → first success. List every step. Set a TTHW target (<5 min for simple APIs, <15 min for complex ones). Document every friction point._",
-      "condition": null,
       "position": "after:user-impact"
     },
     {
       "id": "api-ergonomics",
       "title": "API Ergonomics",
       "placeholder": "_Review every public function, method, parameter, flag, and config key. Are names self-explanatory without docs? Breaking changes have before/after migration examples?_",
-      "condition": null,
       "position": "after:user-impact"
     },
     {
       "id": "tthw-benchmark",
       "title": "TTHW Benchmark",
       "placeholder": "_Count the exact number of steps from `git clone` to first successful output. Score: 1-3 steps = excellent, 4-6 = acceptable, 7+ = problematic. List every step and flag any that require reading docs._",
-      "condition": null,
       "position": "after:user-impact"
     }
   ],
   "reminders": [
-    "DX Principle 1: Every breaking change must have a migration guide. Before/after code examples required.",
+    {
+      "text": "DX Principle 1: Every breaking change must have a migration guide. Before/after code examples required.",
+      "scope": ["migration"]
+    },
     "DX Principle 2: Simple things simple, complex things possible. Progressive disclosure — the first example should be 3 lines, not 30.",
     "DX Principle 3: Honest errors. When a developer does something wrong, the error message must tell them what to do — not what the system did internally.",
     "DX Principle 4: Golden path first. The most common use case should work with the fewest steps. Optimize for that path.",

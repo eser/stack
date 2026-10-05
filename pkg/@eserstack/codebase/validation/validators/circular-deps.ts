@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkCircularDeps } from "../../validate-circular-deps.ts";
+import * as validateCircularDeps from "../../validate-circular-deps.ts";
 import type { Validator, ValidatorResult } from "../types.ts";
 
 /**
@@ -19,8 +19,10 @@ export const circularDepsValidator: Validator = {
   description: "Detect circular package dependencies",
   requiredStacks: [], // Runs for all stacks
 
-  async validate(options): Promise<ValidatorResult> {
-    const result = await checkCircularDeps({ root: options.root });
+  validate: async (options): Promise<ValidatorResult> => {
+    const result = await validateCircularDeps.checkCircularDeps({
+      root: options.root,
+    });
 
     return {
       name: "validate-circular-deps",

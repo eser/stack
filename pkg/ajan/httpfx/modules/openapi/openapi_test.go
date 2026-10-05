@@ -4,18 +4,20 @@ package openapi_test
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
 	"github.com/eser/stack/pkg/ajan/httpfx/modules/openapi"
+	"github.com/eser/stack/pkg/ajan/logfx"
 )
 
 func TestRegisterHTTPRoutes_Disabled(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	config := &httpfx.Config{ //nolint:exhaustruct
 		OpenAPIEnabled: false,
 	}
@@ -33,7 +35,7 @@ func TestRegisterHTTPRoutes_Disabled(t *testing.T) {
 func TestRegisterHTTPRoutes_Enabled(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	config := &httpfx.Config{ //nolint:exhaustruct
 		OpenAPIEnabled: true,
 	}
@@ -61,7 +63,7 @@ func TestRegisterHTTPRoutes_Enabled(t *testing.T) {
 func TestRegisterHTTPRoutes_Enabled_WithRoutes(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	config := &httpfx.Config{ //nolint:exhaustruct
 		OpenAPIEnabled: true,
 	}
@@ -94,4 +96,9 @@ func TestRegisterHTTPRoutes_Enabled_WithRoutes(t *testing.T) {
 	if _, found := paths["/ping"]; !found {
 		t.Error("expected /ping to appear in OpenAPI paths")
 	}
+}
+
+// newTestRouter returns a router whose log of failed writes is discarded.
+func newTestRouter() *httpfx.Router {
+	return httpfx.NewRouter(logfx.NewLogger(logfx.WithWriter(io.Discard)))
 }

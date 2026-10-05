@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assert, assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
 import * as persistence from "../state/persistence.ts";
@@ -30,21 +30,21 @@ const createDiscoverySpec = (name: string): schema.StateFile => {
 // Contributors
 // =============================================================================
 
-describe("setContributors", () => {
-  it("stores contributor names in discovery state", () => {
+bdd.describe("setContributors", () => {
+  bdd.it("stores contributor names in discovery state", () => {
     let state = createDiscoverySpec("test");
     state = machine.setContributors(state, ["eser", "ahmet", "fatma"]);
 
-    assertEquals(state.discovery.contributors?.length, 3);
-    assertEquals(state.discovery.contributors?.[0], "eser");
-    assertEquals(state.discovery.contributors?.[2], "fatma");
+    assert.assertEquals(state.discovery.contributors?.length, 3);
+    assert.assertEquals(state.discovery.contributors?.[0], "eser");
+    assert.assertEquals(state.discovery.contributors?.[2], "fatma");
   });
 
-  it("single contributor", () => {
+  bdd.it("single contributor", () => {
     let state = createDiscoverySpec("test");
     state = machine.setContributors(state, ["eser"]);
 
-    assertEquals(state.discovery.contributors?.length, 1);
+    assert.assertEquals(state.discovery.contributors?.length, 1);
   });
 });
 
@@ -52,8 +52,8 @@ describe("setContributors", () => {
 // Delegation creation
 // =============================================================================
 
-describe("addDelegation", () => {
-  it("creates pending delegation", () => {
+bdd.describe("addDelegation", () => {
+  bdd.it("creates pending delegation", () => {
     let state = createDiscoverySpec("test");
     state = machine.addDelegation(
       state,
@@ -63,23 +63,23 @@ describe("addDelegation", () => {
     );
 
     const delegations = state.discovery.delegations ?? [];
-    assertEquals(delegations.length, 1);
-    assertEquals(delegations[0]!.questionId, "error_handling");
-    assertEquals(delegations[0]!.delegatedTo, "ahmet");
-    assertEquals(delegations[0]!.delegatedBy, "eser");
-    assertEquals(delegations[0]!.status, "pending");
-    assertEquals(delegations[0]!.answer, undefined);
+    assert.assertEquals(delegations.length, 1);
+    assert.assertEquals(delegations[0]!.questionId, "error_handling");
+    assert.assertEquals(delegations[0]!.delegatedTo, "ahmet");
+    assert.assertEquals(delegations[0]!.delegatedBy, "eser");
+    assert.assertEquals(delegations[0]!.status, "pending");
+    assert.assertEquals(delegations[0]!.answer, undefined);
   });
 
-  it("allows multiple delegations", () => {
+  bdd.it("allows multiple delegations", () => {
     let state = createDiscoverySpec("test");
     state = machine.addDelegation(state, "q1", "ahmet", "eser");
     state = machine.addDelegation(state, "q2", "fatma", "eser");
 
     const delegations = state.discovery.delegations ?? [];
-    assertEquals(delegations.length, 2);
-    assertEquals(delegations[0]!.delegatedTo, "ahmet");
-    assertEquals(delegations[1]!.delegatedTo, "fatma");
+    assert.assertEquals(delegations.length, 2);
+    assert.assertEquals(delegations[0]!.delegatedTo, "ahmet");
+    assert.assertEquals(delegations[1]!.delegatedTo, "fatma");
   });
 });
 
@@ -87,8 +87,8 @@ describe("addDelegation", () => {
 // Answering delegation
 // =============================================================================
 
-describe("answerDelegation", () => {
-  it("updates status to answered with answer text", () => {
+bdd.describe("answerDelegation", () => {
+  bdd.it("updates status to answered with answer text", () => {
     let state = createDiscoverySpec("test");
     state = machine.addDelegation(state, "error_handling", "ahmet", "eser");
     state = machine.answerDelegation(
@@ -99,31 +99,34 @@ describe("answerDelegation", () => {
     );
 
     const delegations = state.discovery.delegations ?? [];
-    assertEquals(delegations[0]!.status, "answered");
-    assertEquals(delegations[0]!.answer, "Use Result type, no exceptions");
-    assertEquals(delegations[0]!.answeredBy, "ahmet");
-    assert(delegations[0]!.answeredAt !== undefined);
+    assert.assertEquals(delegations[0]!.status, "answered");
+    assert.assertEquals(
+      delegations[0]!.answer,
+      "Use Result type, no exceptions",
+    );
+    assert.assertEquals(delegations[0]!.answeredBy, "ahmet");
+    assert.assert(delegations[0]!.answeredAt !== undefined);
   });
 
-  it("does not modify already-answered delegation", () => {
+  bdd.it("does not modify already-answered delegation", () => {
     let state = createDiscoverySpec("test");
     state = machine.addDelegation(state, "q1", "ahmet", "eser");
     state = machine.answerDelegation(state, "q1", "First answer", "ahmet");
     state = machine.answerDelegation(state, "q1", "Second answer", "ahmet");
 
     const delegations = state.discovery.delegations ?? [];
-    assertEquals(delegations[0]!.answer, "First answer");
+    assert.assertEquals(delegations[0]!.answer, "First answer");
   });
 
-  it("only answers the matching question", () => {
+  bdd.it("only answers the matching question", () => {
     let state = createDiscoverySpec("test");
     state = machine.addDelegation(state, "q1", "ahmet", "eser");
     state = machine.addDelegation(state, "q2", "fatma", "eser");
     state = machine.answerDelegation(state, "q1", "Answer for q1", "ahmet");
 
     const delegations = state.discovery.delegations ?? [];
-    assertEquals(delegations[0]!.status, "answered");
-    assertEquals(delegations[1]!.status, "pending");
+    assert.assertEquals(delegations[0]!.status, "answered");
+    assert.assertEquals(delegations[1]!.status, "pending");
   });
 });
 
@@ -131,31 +134,31 @@ describe("answerDelegation", () => {
 // Pending delegations gate
 // =============================================================================
 
-describe("getPendingDelegations", () => {
-  it("returns only pending delegations", () => {
+bdd.describe("getPendingDelegations", () => {
+  bdd.it("returns only pending delegations", () => {
     let state = createDiscoverySpec("test");
     state = machine.addDelegation(state, "q1", "ahmet", "eser");
     state = machine.addDelegation(state, "q2", "fatma", "eser");
     state = machine.answerDelegation(state, "q1", "Done", "ahmet");
 
     const pending = machine.getPendingDelegations(state);
-    assertEquals(pending.length, 1);
-    assertEquals(pending[0]!.questionId, "q2");
+    assert.assertEquals(pending.length, 1);
+    assert.assertEquals(pending[0]!.questionId, "q2");
   });
 
-  it("returns empty when all answered", () => {
+  bdd.it("returns empty when all answered", () => {
     let state = createDiscoverySpec("test");
     state = machine.addDelegation(state, "q1", "ahmet", "eser");
     state = machine.answerDelegation(state, "q1", "Done", "ahmet");
 
     const pending = machine.getPendingDelegations(state);
-    assertEquals(pending.length, 0);
+    assert.assertEquals(pending.length, 0);
   });
 
-  it("returns empty when no delegations", () => {
+  bdd.it("returns empty when no delegations", () => {
     const state = createDiscoverySpec("test");
     const pending = machine.getPendingDelegations(state);
-    assertEquals(pending.length, 0);
+    assert.assertEquals(pending.length, 0);
   });
 });
 
@@ -163,8 +166,8 @@ describe("getPendingDelegations", () => {
 // Dashboard state includes delegations
 // =============================================================================
 
-describe("dashboard delegation integration", () => {
-  it("getSpecSummary includes delegations", async () => {
+bdd.describe("dashboard delegation integration", () => {
+  bdd.it("getSpecSummary includes delegations", async () => {
     const root = await makeTempDir();
     let state = createDiscoverySpec("delegation-spec");
     state = machine.addDelegation(state, "q1", "ahmet", "eser");
@@ -179,9 +182,9 @@ describe("dashboard delegation integration", () => {
       root,
       "delegation-spec",
     );
-    assertEquals(summary.delegations.length, 1);
-    assertEquals(summary.delegations[0]!.questionId, "q1");
-    assertEquals(summary.delegations[0]!.status, "pending");
+    assert.assertEquals(summary.delegations.length, 1);
+    assert.assertEquals(summary.delegations[0]!.questionId, "q1");
+    assert.assertEquals(summary.delegations[0]!.status, "pending");
   });
 });
 
@@ -189,8 +192,8 @@ describe("dashboard delegation integration", () => {
 // Events
 // =============================================================================
 
-describe("delegation events", () => {
-  it("delegation-created event can be written and read", async () => {
+bdd.describe("delegation events", () => {
+  bdd.it("delegation-created event can be written and read", async () => {
     const root = await makeTempDir();
     await events.appendEvent(root, {
       ts: new Date().toISOString(),
@@ -203,11 +206,11 @@ describe("delegation events", () => {
     });
 
     const evts = await events.readEvents(root);
-    assertEquals(evts.length, 1);
-    assertEquals(evts[0]!.type, "delegation-created");
+    assert.assertEquals(evts.length, 1);
+    assert.assertEquals(evts[0]!.type, "delegation-created");
   });
 
-  it("delegation-answered event can be written and read", async () => {
+  bdd.it("delegation-answered event can be written and read", async () => {
     const root = await makeTempDir();
     await events.appendEvent(root, {
       ts: new Date().toISOString(),
@@ -218,8 +221,8 @@ describe("delegation events", () => {
     });
 
     const evts = await events.readEvents(root);
-    assertEquals(evts.length, 1);
-    assertEquals(evts[0]!.type, "delegation-answered");
+    assert.assertEquals(evts.length, 1);
+    assert.assertEquals(evts[0]!.type, "delegation-answered");
   });
 });
 
@@ -227,22 +230,22 @@ describe("delegation events", () => {
 // Approve gate
 // =============================================================================
 
-describe("approve delegation gate", () => {
-  it("approve is blocked when pending delegations exist", () => {
+bdd.describe("approve delegation gate", () => {
+  bdd.it("approve is blocked when pending delegations exist", () => {
     let state = createDiscoverySpec("test");
     state = machine.addDelegation(state, "q1", "ahmet", "eser");
 
     const pending = machine.getPendingDelegations(state);
-    assertEquals(pending.length, 1);
+    assert.assertEquals(pending.length, 1);
     // The approve command checks this and rejects — tested via command-level tests
   });
 
-  it("approve is allowed when all delegations answered", () => {
+  bdd.it("approve is allowed when all delegations answered", () => {
     let state = createDiscoverySpec("test");
     state = machine.addDelegation(state, "q1", "ahmet", "eser");
     state = machine.answerDelegation(state, "q1", "Done", "ahmet");
 
     const pending = machine.getPendingDelegations(state);
-    assertEquals(pending.length, 0);
+    assert.assertEquals(pending.length, 0);
   });
 });

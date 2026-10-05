@@ -9,7 +9,7 @@
  * @module
  */
 
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 import type { ValidatorResult } from "./validation/types.ts";
 
 // =============================================================================
@@ -37,7 +37,7 @@ export class ValidateStream
   }
 
   async *[Symbol.asyncIterator](): AsyncGenerator<ValidatorResult> {
-    const lib = getLib();
+    const lib = ffiClient.getLib();
     if (lib === null) {
       throw new Error(
         "FFI library unavailable — cannot iterate validate stream",
@@ -85,7 +85,7 @@ export class ValidateStream
   }
 
   [Symbol.asyncDispose](): Promise<void> {
-    const lib = getLib();
+    const lib = ffiClient.getLib();
     if (lib !== null) {
       lib.symbols.EserAjanCodebaseValidateFilesStreamClose(this.#handle);
     }
@@ -100,8 +100,8 @@ export class ValidateStream
 export const validateFilesStream = async (
   options: ValidateStreamOptions = {},
 ): Promise<ValidateStream> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error(

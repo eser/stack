@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import type { Category, ContextLocalStorage } from "./types.ts";
-import { extendCategory, normalizeCategory } from "./category.ts";
+import * as category from "./category.ts";
 
 /**
  * Default AsyncLocalStorage for logging context.
@@ -111,10 +111,14 @@ export const getCategoryPrefixStorage = ():
  * The context is automatically included in all log records within the callback.
  *
  * @example
- * await withContext({ requestId: "abc-123" }, async () => {
- *   const logger = getLogger(["myapp"]);
- *   await logger.info("Processing request"); // Includes requestId automatically
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * await logging.context.withContext({ requestId: "abc-123" }, async () => {
+ *   const logger = logging.logger.getLogger(["myapp"]);
+ *   await logger.info("Processing request"); // includes requestId
  * });
+ * ```
  */
 export const withContext = <T>(
   context: Record<string, unknown>,
@@ -138,8 +142,13 @@ export const withContext = <T>(
  * Returns an empty object if no context is set or AsyncLocalStorage is unavailable.
  *
  * @example
- * const ctx = getContext();
- * console.log(ctx.requestId); // "abc-123"
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.context.withContext({ requestId: "abc-123" }, () => {
+ *   const requestId = logging.context.getContext()["requestId"]; // "abc-123"
+ * });
+ * ```
  */
 export const getContext = (): Record<string, unknown> => {
   const storage = getContextStorage();
@@ -156,17 +165,22 @@ export const getContext = (): Record<string, unknown> => {
  * Useful for SDK isolation where you want all internal logs prefixed.
  *
  * @example
- * await withCategoryPrefix("my-sdk", async () => {
- *   const logger = getLogger(["internal"]); // Actually ["my-sdk", "internal"]
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * await logging.context.withCategoryPrefix("my-sdk", async () => {
+ *   // The logger's category is ["my-sdk", "internal"]
+ *   const logger = logging.logger.getLogger(["internal"]);
  *   await logger.info("SDK initialized");
  * });
+ * ```
  */
 export const withCategoryPrefix = <T>(
   prefix: string | Category,
   fn: () => T,
 ): T => {
   const storage = getCategoryPrefixStorage();
-  const normalizedPrefix = normalizeCategory(prefix);
+  const normalizedPrefix = category.normalizeCategory(prefix);
 
   if (!storage) {
     // No AsyncLocalStorage available, just run the function
@@ -174,7 +188,7 @@ export const withCategoryPrefix = <T>(
   }
 
   const currentPrefix = storage.getStore() ?? [];
-  const mergedPrefix = extendCategory(currentPrefix, normalizedPrefix);
+  const mergedPrefix = category.extendCategory(currentPrefix, normalizedPrefix);
 
   return storage.run(mergedPrefix, fn);
 };
@@ -184,7 +198,13 @@ export const withCategoryPrefix = <T>(
  * Returns an empty array if no prefix is set.
  *
  * @example
- * const prefix = getCategoryPrefix(); // ["my-sdk"]
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.context.withCategoryPrefix("my-sdk", () => {
+ *   const prefix = logging.context.getCategoryPrefix(); // ["my-sdk"]
+ * });
+ * ```
  */
 export const getCategoryPrefix = (): Category => {
   const storage = getCategoryPrefixStorage();
@@ -200,17 +220,22 @@ export const getCategoryPrefix = (): Category => {
  * Applies the current category prefix to a category.
  *
  * @example
- * // Inside withCategoryPrefix("my-sdk", ...)
- * applyPrefixToCategory(["internal"]) // ["my-sdk", "internal"]
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.context.withCategoryPrefix("my-sdk", () => {
+ *   logging.context.applyPrefixToCategory(["internal"]); // ["my-sdk", "internal"]
+ * });
+ * ```
  */
-export const applyPrefixToCategory = (category: Category): Category => {
+export const applyPrefixToCategory = (baseCategory: Category): Category => {
   const prefix = getCategoryPrefix();
 
   if (prefix.length === 0) {
-    return category;
+    return baseCategory;
   }
 
-  return extendCategory(prefix, category);
+  return category.extendCategory(prefix, baseCategory);
 };
 
 /**
@@ -218,10 +243,17 @@ export const applyPrefixToCategory = (category: Category): Category => {
  * Useful for creating request-scoped or operation-scoped contexts.
  *
  * @example
- * const requestScope = createContextScope({ requestId: req.id });
- * await requestScope(async () => {
- *   // All logs here include requestId
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * const requestScope = logging.context.createContextScope({
+ *   requestId: "your_request_id",
  * });
+ *
+ * await requestScope(async () => {
+ *   await logging.logger.getLogger(["app"]).info("Handled"); // has requestId
+ * });
+ * ```
  */
 export const createContextScope = (
   context: Record<string, unknown>,
@@ -233,10 +265,16 @@ export const createContextScope = (
  * Creates a category prefix scope.
  *
  * @example
- * const sdkScope = createCategoryPrefixScope("my-sdk");
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * const sdkScope = logging.context.createCategoryPrefixScope("my-sdk");
+ *
  * await sdkScope(async () => {
- *   // All logger categories here are prefixed with "my-sdk"
+ *   // Logs under ["my-sdk", "client"]
+ *   await logging.logger.getLogger(["client"]).info("Connected");
  * });
+ * ```
  */
 export const createCategoryPrefixScope = (
   prefix: string | Category,

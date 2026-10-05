@@ -12,7 +12,7 @@
  */
 
 import * as globPath from "@std/path/glob-to-regexp";
-import { hasExtension } from "@eserstack/standards/patterns";
+import * as patterns from "@eserstack/standards/patterns";
 
 // =============================================================================
 // Constants
@@ -71,7 +71,7 @@ const VARIABLE_DETECT_PATTERN = /\{\{\s*\.(\w+)\s*\}\}/;
  * Extension comparison uses the raw path — case-sensitive on the extension.
  */
 export const isBinaryFile = (filepath: string): boolean =>
-  hasExtension(filepath.toLowerCase(), BINARY_EXTENSIONS);
+  patterns.hasExtension(filepath.toLowerCase(), BINARY_EXTENSIONS);
 
 // =============================================================================
 // Ignore-pattern matching

@@ -1,10 +1,13 @@
 # Plain Prose
 
-Writing rules for every sentence a person reads in this repository.
+Writing rules for every sentence a person reads in this codebase. The voice,
+word and AI-tell rules include patterns adapted from
+vercel-labs/writing-guidelines (83e2316).
 
 ## Contents
 
 - Plain Prose
+- Address the Reader
 - Empty Qualifiers
 - Claims Need Evidence
 - No Em Dashes
@@ -31,6 +34,38 @@ with a different pattern.
 
 ---
 
+## Address the Reader
+
+Scope: Text written for a reader: READMEs, guides, help text, error messages
+
+Rule:
+
+- Write to the reader as "you", never "the user" or "one can". Steps are
+  imperatives: "Run `pnpm install`", not "You will need to run `pnpm install`".
+- "We" stands only for a deliberate decision of the maintainers ("we deprecated
+  the v1 API"), never for "you".
+- Present tense, unless the sentence describes future behavior.
+- Aim for sentences under 20 words. Read each one once at speaking pace; if it
+  needs a second read, name the subject, the action and the consequence, and
+  drop pronouns that reach back several sentences.
+- No rhetorical questions; state the point.
+
+Rule files and skills address an agent and keep the plain imperative.
+
+Correct:
+
+```markdown
+Run `pnpm install`, then start the server.
+```
+
+Incorrect:
+
+```markdown
+Want to get started? First, we will need to install the dependencies.
+```
+
+---
+
 ## Empty Qualifiers
 
 Rule: Cut words that sound like praise and carry no information: comprehensive,
@@ -38,6 +73,14 @@ seamless, robust, powerful, elegant, cutting-edge, next-level, world-class,
 effortless, streamline, leverage, harness (as a verb), unlock, elevate, empower,
 delve, showcase, testament, game-changer. Replace the word with what the package
 actually does, or with nothing.
+
+Two more groups go the same way:
+
+- Words that press the reader: easy, simple, simply, quick, obviously. When the
+  step turns out hard for this reader, the word blames them. Describe the step
+  instead: "one command", "the default settings", "most installs skip this".
+- Filler intensifiers: very, really, just, quite. Cut them or rewrite the
+  sentence.
 
 Correct:
 
@@ -62,17 +105,21 @@ built-in resilience features: <!-- ❌ two claims, no evidence -->
 ## Claims Need Evidence
 
 Rule: A statement about quality, scale or adoption is either backed by something
-in the repository (a benchmark with its date and command, a test, a measured
+in this codebase (a benchmark with its date and command, a test, a measured
 size) or it is not written. This covers "production-ready", "battle-tested",
 "blazing fast", "trusted by", "industry-leading", and any number, quote or name
 that did not come from a source the reader can open. When you do not know a
 fact, leave it out; never fill the gap with a plausible guess.
 
+The same applies to weasel words and vague quantifiers: significantly, many,
+often, typically, generally, near-zero, sub-second, most requests. Give the
+number and where it comes from, or name the specific case.
+
 Correct:
 
 ```markdown
-Measured on 2026-09-17 over this repository (1964 files, best of 4 warm runs):
-Go 104.5 ms, TypeScript 126.1 ms.
+Measured on 2026-09-17 over the repository (1964 files, best of 4 warm runs): Go
+104.5 ms, TypeScript 126.1 ms.
 ```
 
 Incorrect:
@@ -88,12 +135,12 @@ The Go validator is significantly faster.
 
 ## No Em Dashes
 
-Rule: New or edited prose uses no em dash (`—`), spaced or not, and no double
-hyphen standing in for one. Replace each with, in order of preference, a period,
-a comma, a colon, or parentheses; restructure when none fits. Text you did not
-touch keeps its punctuation, and so do verbatim quotes of program output, step
-names and titles. Convert the sentences you are already editing; do not reformat
-a file you were not asked to change.
+Rule: New or edited prose uses no em dash (`—`), spaced or not, and no double or
+spaced hyphen standing in for one (`--`, `-`). Replace each with, in order of
+preference, a period, a comma, a colon, or parentheses; restructure when none
+fits. Text you did not touch keeps its punctuation, and so do verbatim quotes of
+program output, step names and titles. Convert the sentences you are already
+editing; do not reformat a file you were not asked to change.
 
 Correct:
 
@@ -125,6 +172,18 @@ Rule: Avoid the sentence shapes that models reach for by default:
   we'll explore")
 - Chatbot closers ("I hope this helps", "Let me know if you have questions")
 - Upbeat send-offs ("Exciting times ahead", "The future looks bright")
+- Recap transitions that open a paragraph by summarizing the last one ("With
+  this setup complete", "Now that we've explored"); start with the next point
+- One dependent idea split into choppy sentences ("Previously this was manual.
+  Now it's automatic. This saves time."); write it as one sentence
+- Spec-sheet voice ("provides", "is configurable", "is explicitly labeled"); say
+  what the reader does or what happens
+- Cold-open paragraphs whose first sentence could stand alone as a heading;
+  carry the previous subject forward ("Because", "Once")
+- Template framing that could open any page ("The question most teams face is
+  whether"); the angle comes from this page
+- Metaphor verbs in place of the literal step ("moves through", "lands",
+  "hits"); name the step
 
 Say the thing directly, in as many items as there are.
 
@@ -169,9 +228,11 @@ struct already in memory.
 Rule: When the actor is known, the sentence names it. "The pipeline publishes
 the platform packages first", not "the platform packages are published first".
 Passive is fine when the actor is unknown, irrelevant or deliberately withheld
-("the server was restarted at 03:00"). Do not give abstractions a mind: a
-resolver probes, a validator reports, a bundle imports; none of them
-"understands", "decides" or "wants".
+("the server was restarted at 03:00"); a quick test is to append "by monkeys"
+and see whether the sentence still parses. Do not give abstractions a mind or a
+body: a resolver probes, a validator reports, a bundle imports; none of them
+"understands", "decides" or "wants", and the browser fetches a URL rather than
+being "handed" one.
 
 ---
 
@@ -191,8 +252,12 @@ Rule: Emphasis is written into the sentence, not into the markup.
   (`- **Performance:** it is
   faster`). Changelog scope labels
   (`**codebase**:`) are a commit convention and stay.
-- No bold on every key term; bold at most the one phrase the reader must not
-  miss.
+- No bold on every key term. Bold marks a UI element the reader clicks or the
+  one fact the reader must not miss; reaching for bold to add tone means the
+  sentence needs rewriting.
+- Inline code for paths, file extensions, identifiers, commands and short
+  snippets (`/api`, `.tsx`, `ctx`): anything that would look wrong outside a
+  monospace font.
 - No quotation marks as emphasis or hedging; quotes are for real quotes, titles
   and program output.
 - No all-caps clauses inside paragraphs.
@@ -205,8 +270,8 @@ Rule: Emphasis is written into the sentence, not into the markup.
 
 Rule: Before handing over any documentation, read it once as a stranger and
 answer two questions: what in this text makes it look generated, and does it
-state any fact, number, name, date or quote that is not in the source or in the
-repository. Fix both. Then search the diff for `—`; a hit means the text is not
+state any fact, number, name, date or quote that is not in the source or in this
+codebase. Fix both. Then search the diff for `—`; a hit means the text is not
 done. This is the same loop the antislop copywriting skill describes; the
-patterns above are its documentation-specific subset, adapted to this
-repository's own conventions (emoji titles and footers, changelog scope labels).
+patterns above are its documentation-specific subset, adapted to this codebase's
+own conventions (emoji titles and footers, changelog scope labels).

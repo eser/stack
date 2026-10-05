@@ -29,7 +29,7 @@ import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as ledger from "../state/decision-ledger.ts";
 import * as formatter from "../output/formatter.ts";
-import { cmdPrefix } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 
 /** Contract returned to programmatic consumers (e.g. the GUI). */
 export type LedgerOutput = {
@@ -78,7 +78,7 @@ export const main = async (
     out.writeln(span.red("Error: spec name is required."));
     out.writeln(
       span.dim(
-        `Usage: ${cmdPrefix()} spec <name> ledger   (or: ${cmdPrefix()} ledger <name>)`,
+        `Usage: ${cmd.cmdPrefix()} spec <name> ledger   (or: ${cmd.cmdPrefix()} ledger <name>)`,
       ),
     );
     await out.close();

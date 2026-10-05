@@ -16,16 +16,14 @@
  * @see https://github.com/facebook/react/tree/main/packages/react-server-dom-webpack
  */
 
-import { toClientErrorValue } from "./error-chunk.ts";
+import * as errorChunk from "./error-chunk.ts";
 import type { ReactElement } from "react";
-import {
-  type createClientReference as _createClientReference,
-  isClientReference,
-  isServerReference,
-  type ModuleReference,
-  type RSCChunk,
-  serializeChunk,
-  type ServerReference,
+import * as protocol from "@eserstack/laroux-react/protocol";
+import type {
+  createClientReference as _createClientReference,
+  ModuleReference,
+  RSCChunk,
+  ServerReference,
 } from "@eserstack/laroux-react/protocol";
 import * as logging from "@eserstack/logging";
 
@@ -35,6 +33,19 @@ const flightLogger = logging.logger.getLogger([
   "flight",
 ]);
 
+/**
+ * A node of a React tree as the renderer walks it: an element, props,
+ * children or a primitive, all produced by user components and untyped here.
+ */
+// deno-lint-ignore no-explicit-any
+type TreeNode = any;
+
+/**
+ * The module map of the client bundle: for each client component's module id,
+ * the chunks that hold it and its export name. The renderer writes these
+ * references into M chunks, so the browser loads a client component from its
+ * own chunk.
+ */
 export type BundlerConfig = {
   [moduleId: string]: ModuleReference;
 };
@@ -60,6 +71,205 @@ function addChunk(context: RenderContext, chunk: RSCChunk): void {
 }
 
 /**
+ * Encode a number for a J chunk: the values JSON turns into null or 0
+ * (NaN, the infinities and -0) get their tag.
+ */
+function encodeNumber(value: number): number | string {
+  const tags = protocol.RSC_VALUE_TAGS;
+
+  if (Number.isNaN(value)) return tags.nan;
+  if (value === Infinity) return tags.infinity;
+  if (value === -Infinity) return tags.negativeInfinity;
+  if (Object.is(value, -0)) return tags.negativeZero;
+  return value;
+}
+
+/**
+ * Encode a primitive child of a tree for a J chunk. Strings that start with
+ * "$" are escaped, and functions and symbols, which React does not render,
+ * become null.
+ */
+function encodeChildPrimitive(value: unknown): TreeNode {
+  switch (typeof value) {
+    case "string":
+      return protocol.escapeString(value);
+    case "number":
+      return encodeNumber(value);
+    case "bigint":
+      return `${protocol.RSC_VALUE_TAGS.bigint}${value}`;
+    case "function":
+    case "symbol":
+      return null;
+    default:
+      return value;
+  }
+}
+
+/**
+ * Emit the S chunk of a server action and return the reference to it.
+ */
+function encodeServerReference(
+  value: ServerReference,
+  context: RenderContext,
+): string {
+  const actionChunkId = context.nextId++;
+  addChunk(context, {
+    type: "S",
+    id: actionChunkId,
+    value: { id: value.$$id, bound: value.$$bound },
+  });
+  return `$F${actionChunkId}`;
+}
+
+/**
+ * Encode a value for a J chunk the way laroux-react's
+ * createValueFromReadableStream decodes it.
+ *
+ * JSON values arrive the same and strings that start with "$" are escaped.
+ * Dates, BigInts, undefined and non-finite numbers get a tag, and Maps and
+ * Sets a chunk of their entries (protocol.RSC_VALUE_TAGS). React elements are
+ * rendered like a page tree and server actions become references. Other
+ * objects are encoded the way JSON.stringify encodes them: through their
+ * toJSON method when they have one, else their own enumerable properties.
+ *
+ * @param path Where the value sits, for the message of an unsupported value
+ * @param ancestors The objects that contain the value, to find a cycle
+ * @throws {TypeError} For a symbol, a promise, a function that is not a
+ *   server action, or an object that contains itself, which the client cannot
+ *   receive
+ */
+async function encodeValue(
+  value: unknown,
+  context: RenderContext,
+  path: string,
+  ancestors: ReadonlySet<object>,
+): Promise<TreeNode> {
+  const tags = protocol.RSC_VALUE_TAGS;
+
+  switch (typeof value) {
+    case "undefined":
+      return tags.undefined;
+    case "boolean":
+      return value;
+    case "string":
+      return protocol.escapeString(value);
+    case "number":
+      return encodeNumber(value);
+    case "bigint":
+      return `${tags.bigint}${value}`;
+    case "symbol":
+      throw new TypeError(
+        `encode RSC value: ${path} is a symbol, which cannot be sent to the client; send a string instead`,
+      );
+    case "function":
+      if (protocol.isServerReference(value)) {
+        return encodeServerReference(value, context);
+      }
+      throw new TypeError(
+        `encode RSC value: ${path} is a function, which cannot be sent to the client; send data, or a server action from a "use server" file`,
+      );
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  // Every other type returned or threw above, so the value is an object.
+  const container = value as object;
+  if (ancestors.has(container)) {
+    throw new TypeError(
+      `encode RSC value: ${path} contains itself, which cannot be sent to the client; send a copy without the cycle`,
+    );
+  }
+  const innerAncestors = new Set(ancestors).add(container);
+
+  if (Array.isArray(value)) {
+    return await Promise.all(
+      value.map((item, index) =>
+        encodeValue(item, context, `${path}[${index}]`, innerAncestors)
+      ),
+    );
+  }
+
+  if (protocol.isReactElement(value) || protocol.isClientReference(value)) {
+    const elementId = await renderElement(value, context);
+    return `$${elementId}`;
+  }
+
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return `${tags.date}${
+      Number.isNaN(time) ? "Invalid Date" : value.toISOString()
+    }`;
+  }
+
+  if (value instanceof Map) {
+    const id = context.nextId++;
+    const entries = await Promise.all(
+      [...value].map(([key, item], index) =>
+        Promise.all([
+          encodeValue(
+            key,
+            context,
+            `${path}[map key ${index}]`,
+            innerAncestors,
+          ),
+          encodeValue(
+            item,
+            context,
+            `${path}[map value ${index}]`,
+            innerAncestors,
+          ),
+        ])
+      ),
+    );
+    addChunk(context, { type: "J", id, value: entries });
+    return `${tags.map}${id}`;
+  }
+
+  if (value instanceof Set) {
+    const id = context.nextId++;
+    const items = await Promise.all(
+      [...value].map((item, index) =>
+        encodeValue(
+          item,
+          context,
+          `${path}[set value ${index}]`,
+          innerAncestors,
+        )
+      ),
+    );
+    addChunk(context, { type: "J", id, value: items });
+    return `${tags.set}${id}`;
+  }
+
+  const object = value as {
+    readonly then?: unknown;
+    readonly toJSON?: unknown;
+  };
+
+  if (typeof object.then === "function") {
+    throw new TypeError(
+      `encode RSC value: ${path} is a promise, which cannot be sent to the client; await it before returning the value`,
+    );
+  }
+
+  if (typeof object.toJSON === "function") {
+    return await encodeValue(object.toJSON(), context, path, ancestors);
+  }
+
+  const entries = await Promise.all(
+    Object.entries(object).map(async ([key, item]) =>
+      [
+        key,
+        await encodeValue(item, context, `${path}.${key}`, innerAncestors),
+      ] as const
+    ),
+  );
+  return Object.fromEntries(entries);
+}
+
+/**
  * Render a React element tree to RSC chunks
  *
  * This is the core rendering function that recursively traverses the React tree
@@ -77,8 +287,7 @@ function addChunk(context: RenderContext, chunk: RSCChunk): void {
  * @returns Promise resolving to the chunk ID for this element
  */
 async function renderElement(
-  // deno-lint-ignore no-explicit-any
-  element: any,
+  element: TreeNode,
   context: RenderContext,
 ): Promise<number> {
   // Null/undefined → JSON chunk with null
@@ -91,21 +300,25 @@ async function renderElement(
   // Primitives → JSON chunk with value
   if (typeof element !== "object") {
     const id = context.nextId++;
-    addChunk(context, { type: "J", id, value: element });
+    addChunk(context, { type: "J", id, value: encodeChildPrimitive(element) });
     return id;
   }
 
-  // Arrays → render each item, return array of chunk IDs
+  // Arrays → render each item, return array of references to their chunks
   if (Array.isArray(element)) {
     const id = context.nextId++;
     const arrayPromises = element.map((item) => renderElement(item, context));
     const arrayIds = await Promise.all(arrayPromises);
-    addChunk(context, { type: "J", id, value: arrayIds });
+    addChunk(context, {
+      type: "J",
+      id,
+      value: arrayIds.map((itemId) => `$${itemId}`),
+    });
     return id;
   }
 
   // Client component references → module chunk
-  if (isClientReference(element)) {
+  if (protocol.isClientReference(element)) {
     const id = context.nextId++;
     const moduleId = element.$$id;
     const moduleRef = context.bundlerConfig[moduleId];
@@ -132,7 +345,10 @@ async function renderElement(
     const { type, props } = element;
 
     // Client component (type is a client reference object)
-    if (type !== null && typeof type === "object" && isClientReference(type)) {
+    if (
+      type !== null && typeof type === "object" &&
+      protocol.isClientReference(type)
+    ) {
       const moduleId = type.$$id;
       const moduleRef = context.bundlerConfig[moduleId];
 
@@ -183,13 +399,17 @@ async function renderElement(
       try {
         const result = type.render(props, null);
         return await renderElement(result, context);
-      } catch (err) {
+      } catch (error) {
+        // Handled here: logged once, and the client receives the error chunk
+        // in place of the component.
         const id = context.nextId++;
-        flightLogger.error("Server component render failed:", err);
+        flightLogger.with({ error }).error(
+          "render RSC: a forwardRef component threw; sent an error chunk in its place",
+        );
         addChunk(context, {
           type: "E",
           id,
-          value: toClientErrorValue(err),
+          value: errorChunk.toClientErrorValue(error),
         });
         return id;
       }
@@ -229,11 +449,13 @@ async function renderElement(
               context.pendingChunks.delete(id);
             })
             .catch((error) => {
-              flightLogger.error("Async server component failed:", error);
+              flightLogger.with({ error }).error(
+                "render RSC: an async server component rejected; sent an error chunk in its place",
+              );
               addChunk(context, {
                 type: "E",
                 id,
-                value: toClientErrorValue(error),
+                value: errorChunk.toClientErrorValue(error),
               });
               // Remove from pending chunks after error
               context.pendingChunks.delete(id);
@@ -245,13 +467,17 @@ async function renderElement(
 
         // Sync server component - render result directly
         return await renderElement(result, context);
-      } catch (err) {
+      } catch (error) {
+        // Handled here: logged once, and the client receives the error chunk
+        // in place of the component.
         const id = context.nextId++;
-        flightLogger.error("Server component render failed:", err);
+        flightLogger.with({ error }).error(
+          "render RSC: a server component threw; sent an error chunk in its place",
+        );
         addChunk(context, {
           type: "E",
           id,
-          value: toClientErrorValue(err),
+          value: errorChunk.toClientErrorValue(error),
         });
         return id;
       }
@@ -297,14 +523,20 @@ async function renderElement(
     }
   }
 
-  // Fallback for unhandled types - try JSON serialization
+  // Other objects keep JSON semantics, as client component props do
   const id = context.nextId++;
+  let value: TreeNode;
   try {
-    addChunk(context, { type: "J", id, value: element });
-  } catch {
-    // Can't serialize - emit null
-    addChunk(context, { type: "J", id, value: null });
+    value = protocol.encodeJsonValue(element) ?? null;
+  } catch (error) {
+    // Handled here: React cannot render the object either, so the child
+    // renders as nothing and the render goes on.
+    flightLogger.with({ error }).warn(
+      "render RSC: a child object cannot be encoded as JSON; rendering null in its place",
+    );
+    value = null;
   }
+  addChunk(context, { type: "J", id, value });
   return id;
 }
 
@@ -322,8 +554,7 @@ async function renderElement(
  * @returns Promise resolving to the chunk ID for the props
  */
 async function renderProps(
-  // deno-lint-ignore no-explicit-any
-  props: any,
+  props: TreeNode,
   context: RenderContext,
 ): Promise<number> {
   if (!props || typeof props !== "object") {
@@ -333,13 +564,16 @@ async function renderProps(
   }
 
   const id = context.nextId++;
-  // deno-lint-ignore no-explicit-any
-  const renderedProps: any = {};
+  const renderedProps: Record<string, TreeNode> = {};
 
+  // Props render one at a time: renderElement takes ids from the shared
+  // context counter, so prop order fixes the chunk ids and their emit order.
   for (const [key, value] of Object.entries(props)) {
     if (key === "children" || key === "fallback") {
       // Children and fallback are React elements - render as chunks and reference them
       if (Array.isArray(value)) {
+        // Sequential across props to keep chunk ids in prop order.
+        // deno-lint-ignore no-await-in-loop
         const childIds = await Promise.all(
           value.map((child) => renderElement(child, context)),
         );
@@ -347,34 +581,136 @@ async function renderProps(
       } else if (
         value !== null && typeof value === "object" && "$$typeof" in value
       ) {
-        // It's a React element - render it
+        // It's a React element - render it, in prop order like above
+        // deno-lint-ignore no-await-in-loop
         const childId = await renderElement(value, context);
         renderedProps[key] = `$${childId}`;
       } else {
         // Not a React element - inline it
-        renderedProps[key] = value;
+        renderedProps[key] = protocol.encodeJsonValue(value);
       }
-    } else if (isServerReference(value)) {
+    } else if (protocol.isServerReference(value)) {
       // Server action reference - emit S chunk with action ID
-      const actionChunkId = context.nextId++;
-      const serverRef = value as unknown as ServerReference;
-      addChunk(context, {
-        type: "S",
-        id: actionChunkId,
-        value: { id: serverRef.$$id, bound: serverRef.$$bound },
-      });
-      renderedProps[key] = `$F${actionChunkId}`;
+      renderedProps[key] = encodeServerReference(value, context);
     } else if (typeof value === "function") {
       // Skip regular functions - they can't be serialized
       continue;
     } else {
-      // Inline other values directly
-      renderedProps[key] = value;
+      // Inline other values with JSON semantics
+      renderedProps[key] = protocol.encodeJsonValue(value);
     }
   }
 
   addChunk(context, { type: "J", id, value: renderedProps });
   return id;
+}
+
+/**
+ * Create the RSC stream of one render: renderRoot adds chunk 0 and the chunks
+ * it references, and the stream closes once every async server component
+ * has resolved.
+ *
+ * Chunks are emitted as they're created for true streaming behavior, and
+ * rendering starts when the stream is first pulled.
+ */
+function createRenderStream(
+  bundlerConfig: BundlerConfig,
+  renderRoot: (context: RenderContext) => Promise<void>,
+): ReadableStream<Uint8Array> {
+  const context: RenderContext = {
+    bundlerConfig,
+    nextId: 0,
+    chunks: [],
+    pendingChunks: new Map(),
+  };
+
+  let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
+  let streamClosed = false;
+
+  // Setup chunk emission before rendering starts
+  context.emitChunk = (chunk: RSCChunk) => {
+    if (streamClosed || !controller) return;
+
+    const line = protocol.serializeChunk(chunk);
+
+    try {
+      const bytes = new TextEncoder().encode(line);
+      controller.enqueue(bytes);
+    } catch (error) {
+      if (!streamClosed) {
+        flightLogger.with({ error }).error(
+          `emit RSC chunk ${chunk.id}; closing the stream`,
+        );
+        streamClosed = true;
+      }
+    }
+  };
+
+  // Rendering logic - starts when stream is first pulled
+  let renderingStarted = false;
+  const startRendering = () => {
+    if (renderingStarted) return;
+    renderingStarted = true;
+
+    flightLogger.debug("Starting RSC render...");
+
+    // Every failure is handled inside, so this promise never rejects.
+    (async () => {
+      try {
+        await renderRoot(context);
+
+        flightLogger.debug(
+          `Root rendered, pending async: ${context.pendingChunks.size}`,
+        );
+
+        // Wait for all async components (Suspense boundaries)
+        // Use a loop to handle nested async components - when one resolves,
+        // it might create more pending chunks that also need to be awaited
+        while (context.pendingChunks.size > 0) {
+          flightLogger.debug(
+            `Waiting for ${context.pendingChunks.size} async component(s)...`,
+          );
+          // Each round waits for every pending chunk at once; the loop only
+          // repeats for chunks registered while the previous round resolved.
+          // deno-lint-ignore no-await-in-loop
+          await Promise.all(context.pendingChunks.values());
+        }
+        flightLogger.debug("All async components resolved");
+
+        flightLogger.debug(
+          `All done. Closing stream. Total: ${context.chunks.length} chunks`,
+        );
+
+        // Close stream when all chunks are emitted
+        if (!streamClosed && controller) {
+          streamClosed = true;
+          controller.close();
+        }
+      } catch (error) {
+        flightLogger.with({ error }).error(
+          "render RSC stream; erroring the stream",
+        );
+        if (!streamClosed && controller) {
+          streamClosed = true;
+          controller.error(error);
+        }
+      }
+    })();
+  };
+
+  // Create ReadableStream that starts rendering on first pull
+  return new ReadableStream<Uint8Array>({
+    start(ctrl) {
+      controller = ctrl;
+    },
+    pull() {
+      // Lazy rendering - starts when client begins reading
+      startRendering();
+    },
+    cancel() {
+      streamClosed = true;
+    },
+  });
 }
 
 /**
@@ -394,105 +730,58 @@ async function renderProps(
  * @returns ReadableStream of RSC wire format (newline-delimited chunks)
  */
 export function renderToReadableStream(
+  // Any value a server component tree can hold; the walk narrows it per node.
   // deno-lint-ignore no-explicit-any
   element: ReactElement | any,
   bundlerConfig: BundlerConfig,
 ): ReadableStream<Uint8Array> {
-  const context: RenderContext = {
-    bundlerConfig,
-    nextId: 0,
-    chunks: [],
-    pendingChunks: new Map(),
-  };
+  return createRenderStream(bundlerConfig, async (context) => {
+    // The root takes the first id, so it is chunk 0
+    const rootId = await renderElement(element, context);
+    flightLogger.debug(`Root chunk ID: ${rootId}`);
+  });
+}
 
-  let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
-  let streamClosed = false;
-
-  // Setup chunk emission before rendering starts
-  context.emitChunk = (chunk: RSCChunk) => {
-    if (streamClosed || !controller) return;
-
-    const line = serializeChunk(chunk);
+/**
+ * Render a value to the RSC wire format, as laroux-server sends a server
+ * action's result.
+ *
+ * Chunk 0 holds the value. Unlike client component props, which keep JSON
+ * semantics, it is encoded so that Dates, Maps, Sets, BigInts, `undefined`
+ * and non-finite numbers arrive as themselves; the React elements in it
+ * render like a page tree, and server actions arrive callable.
+ * createValueFromReadableStream in `@eserstack/laroux-react/client` decodes
+ * it.
+ *
+ * A value the client cannot receive (a symbol, a promise, a function that is
+ * not a server action, or an object that contains itself) is logged, and
+ * chunk 0 becomes an error chunk whose message names where it sits.
+ *
+ * @param value The value to send
+ * @param bundlerConfig Mapping of client component IDs to module references
+ * @returns ReadableStream of RSC wire format (newline-delimited chunks)
+ */
+export function renderValueToReadableStream(
+  value: unknown,
+  bundlerConfig: BundlerConfig,
+): ReadableStream<Uint8Array> {
+  return createRenderStream(bundlerConfig, async (context) => {
+    const rootId = context.nextId++;
 
     try {
-      const bytes = new TextEncoder().encode(line);
-      controller.enqueue(bytes);
+      const model = await encodeValue(value, context, "value", new Set());
+      addChunk(context, { type: "J", id: rootId, value: model });
     } catch (error) {
-      if (!streamClosed) {
-        flightLogger.error(`Error emitting chunk ${chunk.id}: ${error}`);
-        streamClosed = true;
-      }
+      // Handled here: logged once, and the client receives the message as
+      // the error of chunk 0.
+      await flightLogger.with({ error }).error(
+        "encode RSC value: the value cannot be sent to the client; sent an error chunk",
+      );
+      addChunk(context, {
+        type: "E",
+        id: rootId,
+        value: errorChunk.toClientErrorValue(error),
+      });
     }
-  };
-
-  // Rendering logic - starts when stream is first pulled
-  let renderingStarted = false;
-  const startRendering = () => {
-    if (renderingStarted) return;
-    renderingStarted = true;
-
-    flightLogger.debug("Starting RSC render...");
-
-    (async () => {
-      try {
-        // Start rendering the root element in the background
-        // This returns the root chunk ID but doesn't wait for async children
-        const rootIdPromise = renderElement(element, context);
-
-        flightLogger.debug(
-          "Root rendering started, emitting root chunk next...",
-        );
-
-        // Wait for root chunk ID and emit it
-        const rootId = await rootIdPromise;
-
-        flightLogger.debug(
-          `Root chunk ID: ${rootId}, pending async: ${context.pendingChunks.size}`,
-        );
-
-        // Wait for all async components (Suspense boundaries)
-        // Use a loop to handle nested async components - when one resolves,
-        // it might create more pending chunks that also need to be awaited
-        while (context.pendingChunks.size > 0) {
-          flightLogger.debug(
-            `Waiting for ${context.pendingChunks.size} async component(s)...`,
-          );
-          await Promise.all(context.pendingChunks.values());
-        }
-        flightLogger.debug("All async components resolved");
-
-        flightLogger.debug(
-          `All done. Closing stream. Total: ${context.chunks.length} chunks`,
-        );
-
-        // Close stream when all chunks are emitted
-        if (!streamClosed && controller) {
-          streamClosed = true;
-          controller.close();
-        }
-      } catch (error) {
-        flightLogger.error(`Render error: ${error}`);
-        if (!streamClosed && controller) {
-          streamClosed = true;
-          controller.error(error);
-        }
-      }
-    })();
-  };
-
-  // Create ReadableStream that starts rendering on first pull
-  const stream = new ReadableStream<Uint8Array>({
-    start(ctrl) {
-      controller = ctrl;
-    },
-    pull() {
-      // Lazy rendering - starts when client begins reading
-      startRendering();
-    },
-    cancel() {
-      streamClosed = true;
-    },
   });
-
-  return stream;
 }

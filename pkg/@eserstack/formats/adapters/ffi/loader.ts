@@ -1,19 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { callJson } from "@eserstack/ajan/ffi/client";
+import * as client from "@eserstack/ajan/ffi/client";
 import type {
   FormatEncodeDocumentOptions,
   FormatEncodeOptions,
   FormatListItem,
   Loader,
 } from "../../business/formats.ts";
-import {
-  FORMAT_DECODE_FAILED,
-  FORMAT_ENCODE_FAILED,
-  FORMAT_LIST_FAILED,
-  FORMAT_NOT_FOUND,
-  FormatFfiError,
-} from "../../business/errors.ts";
+import * as errors from "../../business/errors.ts";
 
 const isMissingFormat = (msg: string): boolean =>
   msg.includes("format not found") || msg.includes("not registered") ||
@@ -27,21 +21,21 @@ const isMissingFormat = (msg: string): boolean =>
  */
 const errorsFor = (fallbackCode: string) => ({
   onUnavailable: (): Error =>
-    new FormatFfiError("native library unavailable", fallbackCode),
+    new errors.FormatFfiError("native library unavailable", fallbackCode),
   onError: (msg: string): Error =>
-    new FormatFfiError(
+    new errors.FormatFfiError(
       msg,
-      isMissingFormat(msg) ? FORMAT_NOT_FOUND : fallbackCode,
+      isMissingFormat(msg) ? errors.FORMAT_NOT_FOUND : fallbackCode,
     ),
 });
 
 export const ffiFormats: Loader = {
-  async encode(
+  encode: async (
     format: string,
     data: unknown,
     opts?: FormatEncodeOptions,
-  ): Promise<string> {
-    const result = await callJson<{ result?: string }>(
+  ): Promise<string> => {
+    const result = await client.callJson<{ result?: string }>(
       (lib) =>
         lib.symbols.EserAjanFormatEncode(
           JSON.stringify({
@@ -50,20 +44,21 @@ export const ffiFormats: Loader = {
             pretty: opts?.pretty ?? false,
             indent: opts?.indent ?? 0,
             isFirst: opts?.isFirst ?? false,
+            document: opts?.document ?? false,
           }),
         ),
-      errorsFor(FORMAT_ENCODE_FAILED),
+      errorsFor(errors.FORMAT_ENCODE_FAILED),
     );
 
     return result.result ?? "";
   },
 
-  async encodeDocument(
+  encodeDocument: async (
     format: string,
     items: unknown[],
     opts?: FormatEncodeDocumentOptions,
-  ): Promise<string> {
-    const result = await callJson<{ result?: string }>(
+  ): Promise<string> => {
+    const result = await client.callJson<{ result?: string }>(
       (lib) =>
         lib.symbols.EserAjanFormatEncodeDocument(
           JSON.stringify({
@@ -73,26 +68,26 @@ export const ffiFormats: Loader = {
             indent: opts?.indent ?? 0,
           }),
         ),
-      errorsFor(FORMAT_ENCODE_FAILED),
+      errorsFor(errors.FORMAT_ENCODE_FAILED),
     );
 
     return result.result ?? "";
   },
 
-  async decode(format: string, text: string): Promise<unknown[]> {
-    const result = await callJson<{ items?: unknown[] }>(
+  decode: async (format: string, text: string): Promise<unknown[]> => {
+    const result = await client.callJson<{ items?: unknown[] }>(
       (lib) =>
         lib.symbols.EserAjanFormatDecode(JSON.stringify({ format, text })),
-      errorsFor(FORMAT_DECODE_FAILED),
+      errorsFor(errors.FORMAT_DECODE_FAILED),
     );
 
     return result.items ?? [];
   },
 
-  async list(): Promise<FormatListItem[]> {
-    const result = await callJson<{ formats?: FormatListItem[] }>(
+  list: async (): Promise<FormatListItem[]> => {
+    const result = await client.callJson<{ formats?: FormatListItem[] }>(
       (lib) => lib.symbols.EserAjanFormatList(),
-      errorsFor(FORMAT_LIST_FAILED),
+      errorsFor(errors.FORMAT_LIST_FAILED),
     );
 
     return result.formats ?? [];

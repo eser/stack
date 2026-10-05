@@ -245,9 +245,9 @@ func mapToolResultToGenAIPart(toolResult *ToolResult) *genai.Part {
 
 // mapToolsToGenAI converts unified tool definitions to genai Tool format.
 // Uses ParametersJsonSchema for JSON Schema parameters.
-func mapToolsToGenAI(tools []ToolDefinition) []*genai.Tool {
+func mapToolsToGenAI(tools []ToolDefinition) ([]*genai.Tool, error) {
 	if len(tools) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	declarations := make([]*genai.FunctionDeclaration, 0, len(tools))
@@ -261,13 +261,14 @@ func mapToolsToGenAI(tools []ToolDefinition) []*genai.Tool {
 
 		// Convert JSON Schema parameters to the map[string]any format
 		// expected by ParametersJsonSchema.
-		if len(tool.Parameters) > 0 {
-			var schemaMap map[string]any
+		schemaMap, err := decodeToolParameters(tool)
+		if err != nil {
+			return nil, err
+		}
 
-			err := json.Unmarshal(tool.Parameters, &schemaMap)
-			if err == nil {
-				decl.ParametersJsonSchema = schemaMap
-			}
+		// A nil map stored in the field would be sent as null.
+		if schemaMap != nil {
+			decl.ParametersJsonSchema = schemaMap
 		}
 
 		declarations = append(declarations, decl)
@@ -277,7 +278,7 @@ func mapToolsToGenAI(tools []ToolDefinition) []*genai.Tool {
 		{
 			FunctionDeclarations: declarations,
 		},
-	}
+	}, nil
 }
 
 // mapSafetySettings converts unified safety settings to genai SafetySetting format.
@@ -313,22 +314,37 @@ func buildSystemInstruction(system string) *genai.Content {
 	}
 }
 
-// buildGenerateContentConfig constructs the genai.GenerateContentConfig from unified options.
+// buildGenerateContentConfig constructs the genai.GenerateContentConfig from
+// unified options. A tool or response schema that does not decode fails here,
+// before the request is sent.
 func buildGenerateContentConfig(
 	opts *GenerateTextOptions,
-) *genai.GenerateContentConfig {
+) (*genai.GenerateContentConfig, error) {
 	config := &genai.GenerateContentConfig{} //nolint:exhaustruct
 
 	// System instruction.
 	config.SystemInstruction = buildSystemInstruction(opts.System)
 
 	applyGenAIGenerationParams(config, opts)
-	applyGenAITools(config, opts)
-	applyGenAISafetySettings(config, opts)
-	applyGenAIResponseFormat(config, opts)
-	applyGenAIThinkingConfig(config, opts)
 
-	return config
+	err := applyGenAITools(config, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	applyGenAISafetySettings(config, opts)
+
+	err = applyGenAIResponseFormat(config, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	err = applyGenAIThinkingConfig(config, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }
 
 func applyGenAIGenerationParams(
@@ -355,10 +371,15 @@ func applyGenAIGenerationParams(
 func applyGenAITools(
 	config *genai.GenerateContentConfig,
 	opts *GenerateTextOptions,
-) {
-	if len(opts.Tools) > 0 {
-		config.Tools = mapToolsToGenAI(opts.Tools)
+) error {
+	tools, err := mapToolsToGenAI(opts.Tools)
+	if err != nil {
+		return err
 	}
+
+	config.Tools = tools
+
+	return nil
 }
 
 func applyGenAISafetySettings(
@@ -370,41 +391,83 @@ func applyGenAISafetySettings(
 	}
 }
 
+// applyGenAIResponseFormat sends a json_schema format as responseJsonSchema
+// with the application/json MIME type, and json_object as the MIME type alone,
+// which asks for any JSON. responseSchema stays unset: the API takes only one
+// of the two schema fields.
 func applyGenAIResponseFormat(
 	config *genai.GenerateContentConfig,
 	opts *GenerateTextOptions,
-) {
+) error {
 	if opts.ResponseFormat == nil {
-		return
+		return nil
 	}
 
 	switch opts.ResponseFormat.Type {
-	case "json_schema", "json_object":
-		config.ResponseMIMEType = "application/json"
-
-		if len(opts.ResponseFormat.JSONSchema) > 0 {
-			var schemaMap map[string]any
-
-			err := json.Unmarshal(opts.ResponseFormat.JSONSchema, &schemaMap)
-			if err == nil {
-				config.ResponseSchema = &genai.Schema{} //nolint:exhaustruct
-				config.ResponseJsonSchema = schemaMap
-			}
+	case "json_schema":
+		schema, err := decodeResponseSchema(opts.ResponseFormat.JSONSchema)
+		if err != nil {
+			return err
 		}
+
+		config.ResponseMIMEType = "application/json"
+		config.ResponseJsonSchema = schema
+	case "json_object":
+		config.ResponseMIMEType = "application/json"
 	case "text":
 		config.ResponseMIMEType = "text/plain"
 	}
+
+	return nil
 }
 
+// applyGenAIThinkingConfig sends the effort level as thinkingLevel, or else the
+// thinking budget as thinkingBudget. The API rejects a request that sets both,
+// so an explicit Effort wins over the budget, as it does on anthropic and
+// openai. An unknown level fails here, before the request is sent.
 func applyGenAIThinkingConfig(
 	config *genai.GenerateContentConfig,
 	opts *GenerateTextOptions,
-) {
+) error {
+	err := checkEffort(opts.Effort)
+	if err != nil {
+		return err
+	}
+
+	if opts.Effort != EffortDefault {
+		config.ThinkingConfig = &genai.ThinkingConfig{ //nolint:exhaustruct
+			ThinkingLevel: mapGenAIThinkingLevel(opts.Effort),
+		}
+
+		return nil
+	}
+
 	if opts.ThinkingBudget != nil {
 		config.ThinkingConfig = &genai.ThinkingConfig{ //nolint:exhaustruct
 			ThinkingBudget: genai.Ptr(int32(*opts.ThinkingBudget)),
 		}
 	}
+
+	return nil
+}
+
+// mapGenAIThinkingLevel maps an effort level to a Gemini thinking level.
+// Gemini's levels stop at HIGH, so xhigh and max send HIGH. The levels a model
+// takes differ per model (gemini-3-pro-preview has no MEDIUM) and are not
+// checked here; the API answers for the model, as on openai.
+func mapGenAIThinkingLevel(effort Effort) genai.ThinkingLevel {
+	switch effort {
+	case EffortLow:
+		return genai.ThinkingLevelLow
+	case EffortMedium:
+		return genai.ThinkingLevelMedium
+	case EffortHigh, EffortXHigh, EffortMax:
+		return genai.ThinkingLevelHigh
+	case EffortDefault:
+		return ""
+	}
+
+	return ""
 }
 
 // mapGenAIResponse converts a genai GenerateContentResponse to the unified GenerateTextResult.
@@ -438,31 +501,76 @@ func mapGenAIResponse(
 		}
 	}
 
-	// Extract content from first candidate.
+	// Extract content from first candidate. A blocked prompt has none.
 	if len(resp.Candidates) == 0 {
+		if genAIPromptBlocked(resp) {
+			result.StopReason = StopReasonRefusal
+		}
+
 		return result, nil
 	}
 
 	candidate := resp.Candidates[0]
-
-	// Map finish reason.
-	result.StopReason = mapGenAIFinishReason(candidate.FinishReason)
 
 	// Map content parts.
 	if candidate.Content != nil {
 		result.Content = mapGenAIPartsToContentBlocks(candidate.Content.Parts)
 	}
 
+	// Map finish reason.
+	result.StopReason = mapGenAIFinishReason(candidate.FinishReason, hasToolCall(result.Content))
+
 	return result, nil
 }
 
-// mapGenAIFinishReason converts a genai FinishReason to unified StopReason.
-func mapGenAIFinishReason(reason genai.FinishReason) StopReason {
+// genAIPromptBlocked reports whether a filter blocked the prompt itself. The
+// response then has no candidates and names the filter in promptFeedback.
+func genAIPromptBlocked(resp *genai.GenerateContentResponse) bool {
+	if resp.PromptFeedback == nil {
+		return false
+	}
+
+	reason := resp.PromptFeedback.BlockReason
+
+	return reason != "" && reason != genai.BlockedReasonUnspecified
+}
+
+// hasToolCall reports whether any block is a tool call.
+func hasToolCall(blocks []ContentBlock) bool {
+	for _, block := range blocks {
+		if block.Type == ContentBlockToolCall {
+			return true
+		}
+	}
+
+	return false
+}
+
+// mapGenAIFinishReason converts a genai FinishReason to the unified StopReason.
+//
+// The content filters (safety, blocklist, prohibited content, personal data,
+// recitation and their image variants) withhold the answer, so they map to
+// refusal. Gemini ends a turn that called a tool with STOP, so calledTool turns
+// that into tool_use. Any other reason has no closer match than stop.
+func mapGenAIFinishReason(reason genai.FinishReason, calledTool bool) StopReason {
 	switch reason { //nolint:exhaustive
 	case genai.FinishReasonStop:
+		if calledTool {
+			return StopReasonToolUse
+		}
+
 		return StopReasonEndTurn
 	case genai.FinishReasonMaxTokens:
 		return StopReasonMaxTokens
+	case genai.FinishReasonSafety,
+		genai.FinishReasonBlocklist,
+		genai.FinishReasonProhibitedContent,
+		genai.FinishReasonSPII,
+		genai.FinishReasonRecitation,
+		genai.FinishReasonImageSafety,
+		genai.FinishReasonImageProhibitedContent,
+		genai.FinishReasonImageRecitation:
+		return StopReasonRefusal
 	default:
 		return StopReasonStop
 	}
@@ -486,6 +594,7 @@ func mapGenAIPartsToContentBlocks(parts []*genai.Part) []ContentBlock {
 				File:       nil,
 				ToolCall:   nil,
 				ToolResult: nil,
+				Thinking:   nil,
 			})
 		}
 
@@ -507,6 +616,7 @@ func mapGenAIPartsToContentBlocks(parts []*genai.Part) []ContentBlock {
 					Arguments: argsJSON,
 				},
 				ToolResult: nil,
+				Thinking:   nil,
 			})
 		}
 
@@ -524,6 +634,7 @@ func mapGenAIPartsToContentBlocks(parts []*genai.Part) []ContentBlock {
 				File:       nil,
 				ToolCall:   nil,
 				ToolResult: nil,
+				Thinking:   nil,
 			})
 		}
 	}
@@ -531,9 +642,17 @@ func mapGenAIPartsToContentBlocks(parts []*genai.Part) []ContentBlock {
 	return blocks
 }
 
-// emitStreamEventsFromResponse extracts stream events from a genai response chunk
-// and sends them to the event channel. Shared by Gemini and Vertex AI streaming.
-func emitStreamEventsFromResponse(
+// genAIStreamMapper turns the chunks of one genai stream into stream events.
+// Shared by Gemini and Vertex AI streaming. It remembers a tool call across
+// chunks, since the chunk that ends the turn need not be the one with the call.
+type genAIStreamMapper struct {
+	calledTool bool
+}
+
+// emit sends the events of one chunk. The chunk that ends the turn sends the
+// done event even without content: a filtered answer can arrive as a finish
+// reason with no parts, and a blocked prompt as a chunk with no candidates.
+func (s *genAIStreamMapper) emit(
 	ctx context.Context,
 	eventCh chan<- StreamEvent,
 	resp *genai.GenerateContentResponse,
@@ -543,23 +662,35 @@ func emitStreamEventsFromResponse(
 	}
 
 	if len(resp.Candidates) == 0 {
+		if genAIPromptBlocked(resp) {
+			emitGenAIDone(ctx, eventCh, resp.UsageMetadata, StopReasonRefusal)
+		}
+
 		return
 	}
 
 	candidate := resp.Candidates[0]
-	if candidate.Content == nil {
-		return
+
+	if candidate.Content != nil && emitGenAIContentParts(ctx, eventCh, candidate.Content.Parts) {
+		s.calledTool = true
 	}
 
-	emitGenAIContentParts(ctx, eventCh, candidate.Content.Parts)
-	emitGenAIUsageMetadata(ctx, eventCh, resp.UsageMetadata, candidate.FinishReason)
+	if candidate.FinishReason != "" {
+		emitGenAIDone(
+			ctx, eventCh, resp.UsageMetadata, mapGenAIFinishReason(candidate.FinishReason, s.calledTool),
+		)
+	}
 }
 
+// emitGenAIContentParts sends the text and tool calls of parts, and reports
+// whether one of them called a tool.
 func emitGenAIContentParts(
 	ctx context.Context,
 	eventCh chan<- StreamEvent,
 	parts []*genai.Part,
-) {
+) bool {
+	calledTool := false
+
 	for _, part := range parts {
 		if part == nil {
 			continue
@@ -570,6 +701,8 @@ func emitGenAIContentParts(
 		}
 
 		if part.FunctionCall != nil {
+			calledTool = true
+
 			argsJSON, err := json.Marshal(part.FunctionCall.Args)
 			if err != nil {
 				argsJSON = []byte("{}")
@@ -582,33 +715,30 @@ func emitGenAIContentParts(
 			}))
 		}
 	}
+
+	return calledTool
 }
 
-func emitGenAIUsageMetadata(
+// emitGenAIDone sends the done event with the usage, which is nil when the
+// chunk carried no usage metadata.
+func emitGenAIDone(
 	ctx context.Context,
 	eventCh chan<- StreamEvent,
 	usageMetadata *genai.GenerateContentResponseUsageMetadata,
-	finishReason genai.FinishReason,
+	stopReason StopReason,
 ) {
-	if usageMetadata == nil || finishReason == "" {
-		return
+	var usage *Usage
+
+	if usageMetadata != nil {
+		usage = &Usage{
+			InputTokens:    int(usageMetadata.PromptTokenCount),
+			OutputTokens:   int(usageMetadata.CandidatesTokenCount),
+			TotalTokens:    int(usageMetadata.TotalTokenCount),
+			ThinkingTokens: int(usageMetadata.ThoughtsTokenCount),
+		}
 	}
 
-	usage := &Usage{
-		InputTokens:    int(usageMetadata.PromptTokenCount),
-		OutputTokens:   int(usageMetadata.CandidatesTokenCount),
-		TotalTokens:    int(usageMetadata.TotalTokenCount),
-		ThinkingTokens: 0,
-	}
-
-	if usageMetadata.ThoughtsTokenCount > 0 {
-		usage.ThinkingTokens = int(usageMetadata.ThoughtsTokenCount)
-	}
-
-	sendStreamEvent(ctx, eventCh, newStreamEventDone(
-		mapGenAIFinishReason(finishReason),
-		usage,
-	))
+	sendStreamEvent(ctx, eventCh, newStreamEventDone(stopReason, usage))
 }
 
 // sendStreamEvent sends an event to the channel, respecting context cancellation.

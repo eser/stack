@@ -65,6 +65,13 @@ const renderFrame = (
   return 3;
 };
 
+/**
+ * Ask a yes or no question. Arrow keys, y and n change the answer; Enter
+ * accepts it.
+ *
+ * @returns The answer, or {@link types.CANCEL} when the user cancels; check it
+ *   with `isCancel`.
+ */
 export const confirm = async (
   ctx: types.TuiContext,
   options: types.ConfirmOptions,

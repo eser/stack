@@ -11,27 +11,24 @@
  * ┌──────────────────────────────────────────────────────────────────┐
  * │  PURE (testable without mocks):                                  │
  * │    resolvePathDirs(pathStr, platform)    → string[]              │
- * │    detectInvoker(execBasename, argv,                             │
+ * │    detectInvoker(execBasename,                                   │
+ * │                  runtimeName, argv,                              │
  * │                  envVars, mainMod?,                              │
  * │                  isDevContext?)          → { invoker, mode }     │
  * │    buildCommand(invoker, mode, opts)     → string                │
- * │                                                                  │
- * │  ASYNC (thin shell over pure functions):                         │
- * │  PURE (argv-based):                                              │
- * │    getCliPrefix(cmd, subs, args, argv) → string | undefined     │
+ * │    matchCliPrefix(subs, argv)            → string | undefined    │
  * │                                                                  │
  * │  ASYNC (thin shell over pure functions):                         │
  * │    isCommandInPath(name)                 → Promise<boolean>      │
- * │    getCliPrefix(opts, subs)             → Promise<string?>     │
+ * │    getCliPrefix(opts, subs)              → Promise<string?>      │
  * │    detectExecutionContext(opts)          → Promise<CliContext>   │
  * └──────────────────────────────────────────────────────────────────┘
  * ```
  *
- * Circular import note: Async functions import `current` from `./mod.ts`,
- * while `mod.ts` re-exports from this file. This mirrors the existing pattern
- * in `file-search.ts`. It works because ES module namespace objects (MNOs)
- * are live views — `mod.current` is only accessed inside function bodies,
- * never at module evaluation time.
+ * Circular import note: the async functions read `runtime` from `./mod.ts`,
+ * while `mod.ts` re-exports from this file. This works because ES module
+ * namespace objects are live views: `mod.runtime` is read only inside function
+ * bodies, never while the module evaluates.
  *
  * @module
  */
@@ -275,6 +272,8 @@ export const isCommandInPath = async (name: string): Promise<boolean> => {
 
   for (const dir of dirs) {
     try {
+      // PATH order decides which binary runs, and the first hit ends the scan.
+      // deno-lint-ignore no-await-in-loop
       await mod.runtime.fs.stat(mod.runtime.path.join(dir, exeName));
       return true;
     } catch {
@@ -337,7 +336,16 @@ export const matchCliPrefix = (
  *
  * @example
  * ```typescript
- * await getCliPrefix(ESER_OPTS, ["noskills", "nos"])
+ * import * as standards from "@eserstack/standards";
+ *
+ * const ESER_OPTS = {
+ *   command: "eser",
+ *   devCommand: "deno task cli",
+ *   npmPackage: "eser",
+ *   jsrPackage: "@eserstack/cli",
+ * };
+ *
+ * await standards.crossRuntime.getCliPrefix(ESER_OPTS, ["noskills", "nos"]);
  * // → "npx eser noskills"  (when invoked via npx)
  * // → "deno task cli nos"  (when invoked via deno task)
  * // → "eser noskills"      (when installed globally)
@@ -392,10 +400,11 @@ export const detectExecutionContext = async (
     ? execBasename
     : runtimeName;
 
+  // Keys are the environment variable names that Bun and npm set.
   const envVars: Record<string, string | undefined> = {
     BUN_INSTALL: mod.runtime.env.get("BUN_INSTALL"),
-    npm_execpath: mod.runtime.env.get("npm_execpath"),
-    npm_config_user_agent: mod.runtime.env.get("npm_config_user_agent"),
+    "npm_execpath": mod.runtime.env.get("npm_execpath"),
+    "npm_config_user_agent": mod.runtime.env.get("npm_config_user_agent"),
   };
 
   // Dev context: file:// URL (local on-disk module) + "cli" task/script in cwd.

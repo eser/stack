@@ -39,17 +39,17 @@ When goroutines mostly wait, the time is off-CPU and the CPU profile misses it:
 the goroutine profile, the trace and OpenTelemetry spans show which dependency
 is slow.
 
-Getting profiles in this repository:
+Getting profiles:
 
 ```bash
-go test -bench=BenchmarkRender -cpuprofile=etc/temp/cpu.out -memprofile=etc/temp/mem.out ./pkg/ajan/formatfx/
+go test -bench=BenchmarkRender -cpuprofile=etc/temp/cpu.out -memprofile=etc/temp/mem.out ./formatfx/
 go tool pprof -http=:0 etc/temp/cpu.out
 ```
 
-A running `httpfx` service exposes `/debug/pprof/` through the profiling module
-(`pkg/ajan/httpfx/modules/profiling`). The endpoints reveal memory contents and
-stacks, so they stay behind `PPROF_TOKEN` and off public listeners
-(security-practices: Secrets and Personal Data Never Reach Output).
+A running `httpfx` service exposes `/debug/pprof/` through its profiling module
+(`httpfx/modules/profiling`). The endpoints reveal memory contents and stacks,
+so they stay behind a token and off public listeners (security-practices:
+Secrets and Personal Data Never Reach Output).
 
 ---
 
@@ -65,18 +65,19 @@ Rule:
 3. Record a baseline, run the same command after one change, compare:
 
 ```bash
-go test -run='^$' -bench=BenchmarkRender -benchmem -count=10 ./pkg/ajan/formatfx/ > etc/temp/bench-1.txt
+go test -run='^$' -bench=BenchmarkRender -benchmem -count=10 ./formatfx/ > etc/temp/bench-1.txt
 # apply one change
-go test -run='^$' -bench=BenchmarkRender -benchmem -count=10 ./pkg/ajan/formatfx/ > etc/temp/bench-2.txt
+go test -run='^$' -bench=BenchmarkRender -benchmem -count=10 ./formatfx/ > etc/temp/bench-2.txt
 go tool benchstat etc/temp/bench-1.txt etc/temp/bench-2.txt
 ```
 
 `benchstat` comes from `golang.org/x/perf/cmd/benchstat`; add it as a `tool`
 directive the first time it is needed. Run benchmarks one after another on an
 otherwise quiet machine: two benchmark runs sharing CPUs distort each other,
-even when the variants were written in parallel. Keep the result files under
-`etc/temp/` (gitignored) and put the `benchstat` table in the body of the
-`perf:` commit.
+even when the variants were written in parallel. Keep the result files in a
+gitignored scratch directory (`etc/temp/` in the examples) and put the
+`benchstat` table in the task notes or the report; the `perf:` commit itself is
+one line (workflow-practices: Git Commit Policy).
 
 ```go
 func BenchmarkRender(b *testing.B) {
@@ -232,7 +233,7 @@ push a small helper over the budget. Keep side effects out of hot helpers, and
 check the decision:
 
 ```bash
-go build -gcflags=-m ./pkg/ajan/formatfx/ 2>&1 | grep -E "can inline|cannot inline"
+go build -gcflags=-m ./formatfx/ 2>&1 | grep -E "can inline|cannot inline"
 ```
 
 Receiver kind does not decide inlining: methods with pointer receivers inline as
@@ -301,10 +302,10 @@ Goroutines are preempted asynchronously since Go 1.14. Do not add
 
 The zero `http.Client` has no timeout, and `http.Transport` keeps only 2 idle
 connections per host by default, so concurrent calls to one service keep opening
-new connections. Use `pkg/ajan/httpclient`, whose transport defaults already
-raise the pool (`max_idle_conns_per_host: 100`) and whose calls take a context,
-rather than a bare `http.Client`. Servers go through `httpfx`, which sets
-`ReadHeaderTimeout`, `ReadTimeout`, `WriteTimeout` and `IdleTimeout` from
+new connections. Use the ajan `httpclient` package, whose transport defaults
+already raise the pool (`max_idle_conns_per_host: 100`) and whose calls take a
+context, rather than a bare `http.Client`. Servers go through `httpfx`, which
+sets `ReadHeaderTimeout`, `ReadTimeout`, `WriteTimeout` and `IdleTimeout` from
 config. A hand-built `http.Server` sets all four (coding-practices: External
 Calls Have Timeouts).
 
@@ -334,9 +335,9 @@ per call:
 - PostgreSQL through `connfx`: `pgx.Batch` with `SendBatch` for many statements,
   `CopyFrom` for bulk inserts. Both take `ctx` and return errors to check.
 - HTTP: use the API's batch endpoint when it has one.
-- Across the FFI bridge (`pkg/@eserstack/ajan`): each call from the host runtime
-  into Go costs far more than a Go call. Pass a whole list per call, not one
-  item.
+- Across an FFI bridge (cgo or WASI exports called from another runtime): each
+  call from the host into Go costs far more than a Go call. Pass a whole list
+  per call, not one item.
 
 A consumer that batches a stream flushes on size and on time, and stops with its
 context:

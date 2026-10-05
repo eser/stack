@@ -9,7 +9,7 @@
 import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as template from "./template.ts";
-import { parseSpecContent } from "./parser.ts";
+import * as parser from "./parser.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 // =============================================================================
@@ -44,7 +44,7 @@ export const generateSpec = async (
   await runtime.fs.writeTextFile(specFile, content);
 
   // Parse the spec we just wrote to extract tasks
-  const parsed = parseSpecContent(state.spec, content);
+  const parsed = parser.parseSpecContent(state.spec, content);
 
   // Generate initial progress.json (git-tracked, visible in PRs)
   const progressFile = `${specDir}/progress.json`;

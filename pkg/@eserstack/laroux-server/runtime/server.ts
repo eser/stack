@@ -4,23 +4,13 @@
  * Handles routing for HTML, RSC payloads, static assets, and Server Actions
  */
 
-import { escapeJsonForScript } from "../adapters/react/script-json.ts";
+import * as scriptJson from "../adapters/react/script-json.ts";
 import * as logging from "@eserstack/logging";
-import {
-  generateInlineBootstrapScript,
-  renderApp,
-  renderRSCResponse,
-  renderSSR,
-  serializeRSCPayload,
-} from "../adapters/react/mod.ts";
-import {
-  createHtmlShell,
-  createStreamingHtmlShellEnd,
-  createStreamingHtmlShellStart,
-} from "./html-shell.ts";
-import { NotFoundError, runtime } from "@eserstack/standards/cross-runtime";
-import { contentType } from "@std/media-types";
-import { resolveWithin } from "./path-containment.ts";
+import * as react from "../adapters/react/mod.ts";
+import * as htmlShell from "./html-shell.ts";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as mediaTypes from "@std/media-types";
+import * as pathContainment from "./path-containment.ts";
 import type { AppConfig } from "../config/load-config.ts";
 import type { HMRManager } from "../domain/hmr-manager.ts";
 import type { Bundler } from "@eserstack/laroux-bundler";
@@ -28,15 +18,10 @@ import type { ApiRouteHandler } from "../domain/route-dispatcher.ts";
 import type { MiddlewareDispatcher } from "../domain/middleware-dispatcher.ts";
 import type { Renderer } from "../domain/renderer.ts";
 import type { HtmlShellBuilder } from "../domain/html-shell.ts";
-import {
-  createRateLimiter,
-  type RateLimitConfig,
-} from "@eserstack/http/middlewares/rate-limiter";
-import type { AppComponents } from "../main.ts";
-import {
-  clearServerRequestContext,
-  setServerRequestContext,
-} from "../domain/request-context.ts";
+import * as http from "@eserstack/http";
+import type { RateLimitConfig } from "@eserstack/http/middlewares/rate-limiter";
+import type { AppComponents } from "../domain/server-modules.ts";
+import * as buildModule from "../domain/build-module.ts";
 
 // Loggers
 const serverLogger = logging.logger.getLogger(["laroux-server", "server"]);
@@ -47,9 +32,11 @@ const rscLogger = logging.logger.getLogger(["laroux-server", "rsc"]);
  */
 type StreamingOptimalOptions = {
   element: React.ReactElement;
+  // The module map passes through to the renderer, which owns its shape.
   // deno-lint-ignore no-explicit-any
   moduleMap: Record<string, any>;
   shellOptions: {
+    // The manifest passes through to the HTML shell, which owns its shape.
     // deno-lint-ignore no-explicit-any
     chunkManifest: any;
     entrypoint: string;
@@ -76,15 +63,15 @@ function createStreamingOptimalResponse(
 
   (async () => {
     try {
-      const shellStart = createStreamingHtmlShellStart(shellOptions);
+      const shellStart = htmlShell.createStreamingHtmlShellStart(shellOptions);
       await writer.write(encoder.encode(shellStart));
 
-      const ssrResult = await renderSSR(element, moduleMap, {
+      const ssrResult = await react.renderSSR(element, moduleMap, {
         streamMode: "streaming-classic",
       });
       await writer.write(encoder.encode(ssrResult.html));
 
-      const bootstrapScript = generateInlineBootstrapScript();
+      const bootstrapScript = react.generateInlineBootstrapScript();
       await writer.write(encoder.encode(bootstrapScript));
 
       const syncChunks = ssrResult.rscPayload.filter((chunk) => {
@@ -104,7 +91,7 @@ function createStreamingOptimalResponse(
         );
         const inlinePayload =
           `<script id="__RSC_PAYLOAD__" type="application/json">${
-            escapeJsonForScript(JSON.stringify(syncChunks))
+            scriptJson.escapeJsonForScript(JSON.stringify(syncChunks))
           }</script>\n`;
         await writer.write(encoder.encode(inlinePayload));
       }
@@ -124,12 +111,14 @@ function createStreamingOptimalResponse(
       }${cacheBuster}"></script>\n`;
       await writer.write(encoder.encode(clientScript));
 
-      const shellEnd = createStreamingHtmlShellEnd(shellOptions);
+      const shellEnd = htmlShell.createStreamingHtmlShellEnd(shellOptions);
       await writer.write(encoder.encode(shellEnd));
 
       await writer.close();
     } catch (error) {
-      serverLogger.error("Streaming optimal error:", error);
+      serverLogger.with({ error }).error(
+        "stream the page in streaming-optimal mode; aborting the response",
+      );
       try {
         await writer.abort(error);
       } catch {
@@ -190,7 +179,11 @@ export type ServerDependencies = {
   config: AppConfig;
   bundler: Bundler;
   getApp: (pathname: string) => Promise<AppComponents>;
-  buildId: string;
+  /**
+   * Id of the build being served; it changes after each dev rebuild. Server
+   * action modules are imported with it, so a rebuilt action loads fresh.
+   */
+  getBuildId: () => string;
   hmrManager?: HMRManager | null;
   apiHandler?: ApiRouteHandler;
   middlewareDispatcher?: MiddlewareDispatcher;
@@ -199,27 +192,68 @@ export type ServerDependencies = {
   rateLimitConfig?: RateLimitConfig | false;
 };
 
+/**
+ * Top-level entries of distDir that are never served: server/ holds the
+ * bundled server components, server actions and their manifests, and the
+ * others are build inputs that laroux-bundler writes (its VIRTUAL_SRC_DIR,
+ * BOOTSTRAP_COPY_DIR and transform manifest). Browser assets live in client/
+ * and at the top level, next to the copied public assets.
+ */
+const INTERNAL_DIST_ENTRIES: ReadonlySet<string> = new Set([
+  "server",
+  "_bundle_src",
+  "_laroux-react",
+  "_client-entry.tsx",
+  "transform-manifest.json",
+]);
+
+/**
+ * Whether a resolved path inside distDir points into an internal entry. The
+ * name is compared in lower case and without trailing dots and spaces,
+ * because a case-insensitive file system (macOS, Windows) finds "SERVER" as
+ * "server", and Windows drops a trailing "." or " ".
+ */
+function isInternalDistPath(distDir: string, filePath: string): boolean {
+  const relativePath = crossRuntime.runtime.path.relative(
+    crossRuntime.runtime.path.resolve(distDir),
+    filePath,
+  );
+  const topLevel = relativePath.split(/[\\/]/)[0] ?? "";
+  return INTERNAL_DIST_ENTRIES.has(
+    topLevel.toLowerCase().replace(/[. ]+$/, ""),
+  );
+}
+
 async function serveStatic(
   config: AppConfig,
   pathname: string,
 ): Promise<Response | null> {
   try {
     const relativePath = pathname.replace(/^\/dist\//, "");
-    const filePath = resolveWithin(config.distDir, relativePath);
+    const filePath = pathContainment.resolveWithin(
+      config.distDir,
+      relativePath,
+    );
 
     if (filePath === null) {
       serverLogger.warn(`Path traversal attempt blocked: ${pathname}`);
       return new Response("Forbidden", { status: 403 });
     }
 
-    const fileInfo = await runtime.fs.stat(filePath);
+    // Answered like a missing file, so the response does not confirm that
+    // server code exists at that path.
+    if (isInternalDistPath(config.distDir, filePath)) {
+      return null;
+    }
+
+    const fileInfo = await crossRuntime.runtime.fs.stat(filePath);
     const lastModified = fileInfo.mtime?.toUTCString() ??
       new Date().toUTCString();
     const etag = `"${fileInfo.size}-${fileInfo.mtime?.getTime() ?? 0}"`;
 
-    const file = await runtime.fs.readFile(filePath);
-    const ext = runtime.path.extname(filePath);
-    const mimeType = contentType(ext) ?? "application/octet-stream";
+    const file = await crossRuntime.runtime.fs.readFile(filePath);
+    const ext = crossRuntime.runtime.path.extname(filePath);
+    const mimeType = mediaTypes.contentType(ext) ?? "application/octet-stream";
 
     const headers: Record<string, string> = {
       "Content-Type": mimeType,
@@ -231,8 +265,8 @@ async function serveStatic(
     if (ext === ".js") {
       const mapFilePath = `${filePath}.map`;
       try {
-        await runtime.fs.stat(mapFilePath);
-        const mapFileName = runtime.path.basename(mapFilePath);
+        await crossRuntime.runtime.fs.stat(mapFilePath);
+        const mapFileName = crossRuntime.runtime.path.basename(mapFilePath);
         headers["SourceMap"] = mapFileName;
       } catch {
         // No source map file exists
@@ -242,7 +276,7 @@ async function serveStatic(
     return new Response(file as BodyInit, { headers });
   } catch (error) {
     if (
-      error instanceof NotFoundError ||
+      error instanceof crossRuntime.NotFoundError ||
       (error instanceof Error && error.name === "NotFoundError")
     ) {
       return null;
@@ -257,22 +291,25 @@ async function servePublicAsset(
 ): Promise<Response | null> {
   try {
     const relativePath = pathname.replace(/^\//, "");
-    const publicDir = runtime.path.resolve(config.projectRoot, "public");
-    const filePath = resolveWithin(publicDir, relativePath);
+    const publicDir = crossRuntime.runtime.path.resolve(
+      config.projectRoot,
+      "public",
+    );
+    const filePath = pathContainment.resolveWithin(publicDir, relativePath);
 
     if (filePath === null) {
       serverLogger.warn(`Path traversal attempt blocked: ${pathname}`);
       return new Response("Forbidden", { status: 403 });
     }
 
-    const fileInfo = await runtime.fs.stat(filePath);
+    const fileInfo = await crossRuntime.runtime.fs.stat(filePath);
     const lastModified = fileInfo.mtime?.toUTCString() ??
       new Date().toUTCString();
     const etag = `"${fileInfo.size}-${fileInfo.mtime?.getTime() ?? 0}"`;
 
-    const file = await runtime.fs.readFile(filePath);
-    const ext = runtime.path.extname(filePath);
-    const mimeType = contentType(ext) ?? "application/octet-stream";
+    const file = await crossRuntime.runtime.fs.readFile(filePath);
+    const ext = crossRuntime.runtime.path.extname(filePath);
+    const mimeType = mediaTypes.contentType(ext) ?? "application/octet-stream";
 
     return new Response(file as BodyInit, {
       headers: {
@@ -284,7 +321,7 @@ async function servePublicAsset(
     });
   } catch (error) {
     if (
-      error instanceof NotFoundError ||
+      error instanceof crossRuntime.NotFoundError ||
       (error instanceof Error && error.name === "NotFoundError")
     ) {
       return null;
@@ -302,7 +339,10 @@ export function createHandler(deps: ServerDependencies) {
     // trusted proxy (loopback by default), so a direct client can neither
     // exempt itself with a forged X-Forwarded-For nor share one bucket with
     // every other direct client.
-    ? createRateLimiter({ trustProxy: true, ...(deps.rateLimitConfig ?? {}) })
+    ? http.middlewares.rateLimiter.createRateLimiter({
+      trustProxy: true,
+      ...(deps.rateLimitConfig ?? {}),
+    })
     : null;
 
   return async (
@@ -315,7 +355,7 @@ export function createHandler(deps: ServerDependencies) {
       config,
       bundler,
       getApp,
-      buildId: _buildId,
+      getBuildId,
       hmrManager,
       apiHandler,
       middlewareDispatcher,
@@ -396,8 +436,23 @@ export function createHandler(deps: ServerDependencies) {
               // FormData - pass as first arg
               args = [await req.formData()];
             } else {
-              // JSON args
-              args = await req.json();
+              // JSON args: the client sends the argument list as an array. A
+              // body that is not JSON gets the same 400 as one that is not an
+              // array.
+              const body: unknown = await req.json().catch(() => null);
+              if (!Array.isArray(body)) {
+                return new Response(
+                  JSON.stringify({
+                    error:
+                      "Action arguments must be a JSON array or multipart form data",
+                  }),
+                  {
+                    status: 400,
+                    headers: { "Content-Type": "application/json" },
+                  },
+                );
+              }
+              args = body;
             }
 
             // Parse action ID: "path/to/file#exportName"
@@ -416,8 +471,8 @@ export function createHandler(deps: ServerDependencies) {
             // Actions are in dist/server/<modulePath>.js. The id comes from a
             // request header, so the resolved file must stay inside that
             // directory: an id with ../ or an absolute path is rejected.
-            const actionModulePath = resolveWithin(
-              runtime.path.resolve(config.distDir, "server"),
+            const actionModulePath = pathContainment.resolveWithin(
+              crossRuntime.runtime.path.resolve(config.distDir, "server"),
               `${modulePath}.js`,
             );
             if (actionModulePath === null) {
@@ -432,17 +487,19 @@ export function createHandler(deps: ServerDependencies) {
             }
 
             rscLogger.debug(`Loading action module: ${actionModulePath}`);
-            // Assign to variable first to prevent JSR from rewriting the import path
-            const actionImportUrl = `file://${actionModulePath}`;
-            const actionModule = await import(actionImportUrl);
+            const actionModule = await import(
+              buildModule.toBuildModuleUrl(actionModulePath, getBuildId())
+            );
 
             const actionFn = actionModule[exportName];
             if (typeof actionFn !== "function") {
-              rscLogger.error(
-                `Action not found: ${exportName} in ${modulePath}`,
+              // The id comes from a request header: it goes into a log
+              // attribute, and the response does not echo it.
+              await rscLogger.with({ actionId }).warn(
+                "run server action: the module has no exported function with this id",
               );
               return new Response(
-                JSON.stringify({ error: `Action not found: ${actionId}` }),
+                JSON.stringify({ error: "Action not found" }),
                 {
                   status: 404,
                   headers: { "Content-Type": "application/json" },
@@ -450,23 +507,25 @@ export function createHandler(deps: ServerDependencies) {
               );
             }
 
+            // The module map is loaded before the action runs, so a bundle
+            // that cannot load fails the request before any side effect.
+            const bundle = await bundler.getBundle();
+
             // Call the action
             const result = await actionFn(...args);
 
             rscLogger.debug(`Action ${actionId} completed successfully`);
 
-            // Return result as JSON (can enhance to full RSC encoding later)
-            return new Response(JSON.stringify(result), {
-              headers: {
-                "Content-Type": "application/json",
-                "Cache-Control": CACHE_CONTROL_DYNAMIC,
-              },
-            });
+            // The result is encoded as RSC, so Dates, Maps, Sets, BigInts,
+            // undefined and React elements reach the client as themselves.
+            return react.streamToResponse(
+              react.renderValueToReadableStream(result, bundle.moduleMap),
+            );
           } catch (error) {
-            rscLogger.error(
-              `RSC Server Action failed: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
+            // Handled here: logged once with the action id, and the client
+            // receives a fixed message.
+            await rscLogger.with({ actionId, error }).error(
+              "run server action: the request or the action failed; answered 500",
             );
             return new Response(
               JSON.stringify({ error: "Server action failed" }),
@@ -486,26 +545,23 @@ export function createHandler(deps: ServerDependencies) {
         const bundle = await bundler.getBundle();
         const requestPathname = url.searchParams.get("pathname") ?? "/";
         const { Layout, Page, params } = await getApp(requestPathname);
-        const localeParam = url.searchParams.get("locale");
-        const cookieHeader = req.headers.get("cookie");
-        const host = req.headers.get("host") ?? "localhost";
 
-        setServerRequestContext(cookieHeader);
-
-        try {
-          const response = await renderRSCResponse(
-            config,
-            renderApp(Layout, Page, {
-              pathname: requestPathname,
-              params,
-              requestContext: { cookieHeader, host, localeParam },
-            }),
-            bundle.moduleMap,
-          );
-          return response;
-        } finally {
-          clearServerRequestContext();
-        }
+        // Request data travels with this render only, as the request prop
+        // of the page and the layout. The client forwards the page URL's
+        // locale parameter to /rsc.
+        return await react.renderRSCResponse(
+          config,
+          react.renderApp(Layout, Page, {
+            pathname: requestPathname,
+            params,
+            requestContext: {
+              cookieHeader: req.headers.get("cookie"),
+              host: req.headers.get("host"),
+              localeParam: url.searchParams.get("locale"),
+            },
+          }),
+          bundle.moduleMap,
+        );
       }
 
       // Route: Runtime bundle endpoint
@@ -603,10 +659,8 @@ export function createHandler(deps: ServerDependencies) {
       }
       return withSecurityHeaders(response);
     } catch (error) {
-      serverLogger.error(
-        `Server error: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+      serverLogger.with({ error, method: req.method, pathname }).error(
+        "handle request; answering 500",
       );
 
       // Don't expose error details to client - only log server-side
@@ -633,11 +687,12 @@ async function handlePageRequest(
   pathname: string,
   deps: ServerDependencies,
 ): Promise<Response> {
-  const { config, bundler, getApp, buildId } = deps;
+  const { config, bundler, getApp } = deps;
   const bundle = await bundler.getBundle();
 
+  // The manifest is read from disk for each request, so its build id is the
+  // current one, also after a dev rebuild.
   const manifest = bundle.chunkManifest;
-  manifest.buildId = buildId;
   manifest.logLevel = config.logLevel;
 
   // Load optimized font data
@@ -645,20 +700,22 @@ async function handlePageRequest(
   let fontCSS: string | undefined;
 
   try {
-    const fontPreloadsPath = runtime.path.resolve(
+    const fontPreloadsPath = crossRuntime.runtime.path.resolve(
       config.distDir,
       "client",
       "font-preloads.json",
     );
-    const fontCssPath = runtime.path.resolve(
+    const fontCssPath = crossRuntime.runtime.path.resolve(
       config.distDir,
       "client",
       "fonts.css",
     );
 
-    const fontPreloadsContent = await runtime.fs.readTextFile(fontPreloadsPath);
+    const fontPreloadsContent = await crossRuntime.runtime.fs.readTextFile(
+      fontPreloadsPath,
+    );
     fontPreloads = JSON.parse(fontPreloadsContent);
-    fontCSS = await runtime.fs.readTextFile(fontCssPath);
+    fontCSS = await crossRuntime.runtime.fs.readTextFile(fontCssPath);
   } catch {
     serverLogger.debug("Font optimization data not found, using fallback");
   }
@@ -669,24 +726,28 @@ async function handlePageRequest(
   let deferredCSSPath: string | undefined;
 
   try {
-    const criticalCssPath = runtime.path.resolve(
+    const criticalCssPath = crossRuntime.runtime.path.resolve(
       config.distDir,
       "client",
       "styles.critical.css",
     );
-    criticalPageCSS = await runtime.fs.readTextFile(criticalCssPath);
+    criticalPageCSS = await crossRuntime.runtime.fs.readTextFile(
+      criticalCssPath,
+    );
     deferredCSSPath = "/styles.deferred.css";
   } catch {
     serverLogger.debug("Critical page CSS not found, using defaults");
   }
 
   try {
-    const universalCssPath = runtime.path.resolve(
+    const universalCssPath = crossRuntime.runtime.path.resolve(
       config.distDir,
       "client",
       "styles.universal.css",
     );
-    criticalUniversalCSS = await runtime.fs.readTextFile(universalCssPath);
+    criticalUniversalCSS = await crossRuntime.runtime.fs.readTextFile(
+      universalCssPath,
+    );
   } catch {
     serverLogger.debug("Critical universal CSS not found, using defaults");
   }
@@ -706,62 +767,59 @@ async function handlePageRequest(
       serverLogger.debug(`SSR rendering page: ${pathname}`);
 
       const { Layout, Page, params } = await getApp(pathname);
-      const cookieHeader = req.headers.get("cookie");
-      const host = req.headers.get("host") ?? "localhost";
 
-      setServerRequestContext(cookieHeader);
+      // Request data travels with this render only, as the request prop of
+      // the page and the layout.
+      const rscComponent = react.renderApp(Layout, Page, {
+        pathname,
+        params,
+        requestContext: {
+          cookieHeader: req.headers.get("cookie"),
+          host: req.headers.get("host"),
+          localeParam: new URL(req.url).searchParams.get("locale"),
+        },
+      });
 
-      try {
-        const rscComponent = renderApp(Layout, Page, {
-          pathname,
-          params,
-          requestContext: { cookieHeader, host },
-        });
+      const streamMode = config.ssr?.streamMode ?? "streaming-optimal";
 
-        const streamMode = config.ssr?.streamMode ?? "streaming-optimal";
-
-        if (streamMode === "streaming-optimal") {
-          serverLogger.debug(
-            `Using streaming-optimal mode for SSR: ${pathname}`,
-          );
-          return createStreamingOptimalResponse({
-            element: rscComponent,
-            moduleMap: bundle.moduleMap,
-            shellOptions: {
-              chunkManifest: manifest,
-              entrypoint: bundle.entrypoint,
-              fontPreloads,
-              fontCSS,
-              criticalPageCSS,
-              criticalUniversalCSS,
-              deferredCSSPath,
-              clientModules: [],
-            },
-          });
-        }
-
-        const ssrResult = await renderSSR(
-          rscComponent,
-          bundle.moduleMap,
-          { streamMode },
-        );
-
-        ssrContent = ssrResult.html;
-        if (streamMode === "await-all") {
-          rscPayload = serializeRSCPayload(ssrResult.rscPayload);
-        }
-        clientModules = ssrResult.clientModules;
-
+      if (streamMode === "streaming-optimal") {
         serverLogger.debug(
-          `SSR complete for ${pathname}: ${ssrContent.length} bytes HTML`,
+          `Using streaming-optimal mode for SSR: ${pathname}`,
         );
-      } finally {
-        clearServerRequestContext();
+        return createStreamingOptimalResponse({
+          element: rscComponent,
+          moduleMap: bundle.moduleMap,
+          shellOptions: {
+            chunkManifest: manifest,
+            entrypoint: bundle.entrypoint,
+            fontPreloads,
+            fontCSS,
+            criticalPageCSS,
+            criticalUniversalCSS,
+            deferredCSSPath,
+            clientModules: [],
+          },
+        });
       }
+
+      const ssrResult = await react.renderSSR(
+        rscComponent,
+        bundle.moduleMap,
+        { streamMode },
+      );
+
+      ssrContent = ssrResult.html;
+      if (streamMode === "await-all") {
+        rscPayload = react.serializeRSCPayload(ssrResult.rscPayload);
+      }
+      clientModules = ssrResult.clientModules;
+
+      serverLogger.debug(
+        `SSR complete for ${pathname}: ${ssrContent.length} bytes HTML`,
+      );
     } catch (error) {
-      serverLogger.error(
-        `SSR rendering failed for ${pathname}, falling back to CSR:`,
-        error,
+      serverLogger.with({ error }).error(
+        `render SSR for ${pathname}; falling back to CSR`,
       );
       ssrContent = undefined;
       rscPayload = undefined;
@@ -769,7 +827,7 @@ async function handlePageRequest(
     }
   }
 
-  const html = createHtmlShell({
+  const html = htmlShell.createHtmlShell({
     chunkManifest: manifest,
     entrypoint: bundle.entrypoint,
     fontPreloads,

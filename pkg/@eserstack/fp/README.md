@@ -41,60 +41,92 @@ All functions are deterministic, side-effect-free, and independently importable.
 ## Result Combinators
 
 ```typescript
-import * as results from "@eserstack/primitives/results";
+import * as primitives from "@eserstack/primitives";
+
+const data = '{"name":"eser"}';
+const url = "https://jsr.io/@eserstack/fp";
 
 // Transform values
-const doubled = results.map(results.ok(21), (x) => x * 2); // ok(42)
+const doubled = primitives.results.map(primitives.results.ok(21), (x) => x * 2); // ok(42)
 
 // Chain operations
-const chained = results.flatMap(results.ok(5), (x) => results.ok(x + 1)); // ok(6)
+const chained = primitives.results.flatMap(
+  primitives.results.ok(5),
+  (x) => primitives.results.ok(x + 1),
+); // ok(6)
 
 // Error type widening — E1 | E2 union automatically
-const widened = results.flatMapW(
-  results.ok<number, "NotFound">(5),
-  (x) => x > 0 ? results.ok(x) : results.fail("Negative" as const),
+type Lookup = primitives.results.Result<number, "NotFound">;
+const found: Lookup = primitives.results.ok(5);
+const widened = primitives.results.flatMapW(
+  found,
+  (x) =>
+    x > 0
+      ? primitives.results.ok(x)
+      : primitives.results.fail("Negative" as const),
 ); // Result<number, "NotFound" | "Negative">
 
 // Pattern matching
-const message = results.match(results.ok(42), {
+const message = primitives.results.match(primitives.results.ok(42), {
   ok: (v) => `Value: ${v}`,
   fail: (e) => `Error: ${e}`,
 });
 
 // Safe wrappers
-const parsed = results.tryCatch(() => JSON.parse(data));
-const fetched = await results.tryCatchAsync(() => fetch(url));
+const parsed = primitives.results.tryCatch(() => JSON.parse(data));
+const fetched = await primitives.results.tryCatchAsync(() => fetch(url));
 
 // Collect results
-const combined = results.all([results.ok(1), results.ok(2), results.ok(3)]); // ok([1, 2, 3])
-const first = results.any([results.fail("a"), results.ok(1)]); // ok(1)
+const combined = primitives.results.all([
+  primitives.results.ok(1),
+  primitives.results.ok(2),
+  primitives.results.ok(3),
+]); // ok([1, 2, 3])
+const first = primitives.results.any([
+  primitives.results.fail("a"),
+  primitives.results.ok(1),
+]); // ok(1)
 ```
 
 ## Option Combinators
 
 ```typescript
-import * as options from "@eserstack/primitives/options";
+import * as primitives from "@eserstack/primitives";
+
+const maybeValue: number | null = 21;
 
 // Convert nullable values
-const opt = options.fromNullable(maybeValue); // Some or None
+const opt = primitives.options.fromNullable(maybeValue); // Some or None
 
 // Transform
-const doubled = options.map(options.some(21), (x) => x * 2); // some(42)
+const doubled = primitives.options.map(
+  primitives.options.some(21),
+  (x) => x * 2,
+); // some(42)
 
 // Filter
-const positive = options.filter(options.some(5), (x) => x > 0); // some(5)
+const positive = primitives.options.filter(
+  primitives.options.some(5),
+  (x) => x > 0,
+); // some(5)
 
 // Pattern matching
-const label = options.match(options.some(42), {
+const label = primitives.options.match(primitives.options.some(42), {
   some: (v) => `Found: ${v}`,
   none: () => "Not found",
 });
 
 // Convert to Result
-const result = options.toResult(options.none, new Error("Missing"));
+const result = primitives.options.toResult(
+  primitives.options.none,
+  new Error("Missing"),
+);
 
 // Combine options
-const pair = options.zip(options.some(1), options.some("a")); // some([1, "a"])
+const pair = primitives.options.zip(
+  primitives.options.some(1),
+  primitives.options.some("a"),
+); // some([1, "a"])
 ```
 
 ## Value-Threading Pipe
@@ -102,15 +134,15 @@ const pair = options.zip(options.some(1), options.some("a")); // some([1, "a"])
 Thread a value through a sequence of transformations, left to right:
 
 ```typescript
-import { pipe } from "@eserstack/fp/pipe";
-import * as results from "@eserstack/primitives/results";
+import * as fp from "@eserstack/fp";
+import * as primitives from "@eserstack/primitives";
 
 // pipe(value, f1, f2, ...) → result
-const result = pipe(
-  results.ok(10),
-  (r) => results.map(r, (x) => x * 2),
-  (r) => results.flatMap(r, (x) => results.ok(String(x))),
-  (r) => results.getOrElse(r, "fallback"),
+const result = fp.pipe(
+  primitives.results.ok(10),
+  (r) => primitives.results.map(r, (x) => x * 2),
+  (r) => primitives.results.flatMap(r, (x) => primitives.results.ok(String(x))),
+  (r) => primitives.results.getOrElse(r, "fallback"),
 );
 // result: "20"
 ```
@@ -122,9 +154,9 @@ Full type inference with overloads for 1–9 steps.
 Compose functions left to right (previously named `pipe`):
 
 ```typescript
-import { flow } from "@eserstack/fp/flow";
+import * as fp from "@eserstack/fp";
 
-const slugify = flow(
+const slugify = fp.flow(
   (x: string) => x.toLowerCase(),
   (x: string) => x.replace(/[^\w -]+/g, ""),
   (x: string) => x.split(" "),
@@ -153,6 +185,28 @@ All immutable, all pure — arrays, objects, and more:
 | **Deep ops**     | `deepCopy`, `deepMerge`                                                                                                                                                |
 | **Results**      | `map`, `flatMap`, `flatMapW`, `mapError`, `match`, `getOrElse`, `tryCatch`, `all`, `any`, ...                                                                          |
 | **Options**      | `map`, `flatMap`, `filter`, `fromNullable`, `match`, `toResult`, `zip`, ...                                                                                            |
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- The default export of every module is removed. Use the namespace import of the
+  package root:
+
+  ```typescript
+  // Before
+  import curry from "@eserstack/fp/curry";
+  // After
+  import * as fp from "@eserstack/fp";
+
+  const greet = fp.curry(
+    (greeting: string, name: string) => `${greeting} ${name}`,
+    "Hello",
+  );
+  greet("Ada"); // "Hello Ada"
+  ```
 
 ---
 

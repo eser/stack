@@ -394,6 +394,29 @@ func TestHttpFetchTool_NotFound_FailedStep(t *testing.T) {
 	}
 }
 
+func TestHttpFetchTool_OversizedBody_FailedStep(t *testing.T) {
+	t.Parallel()
+
+	// One byte past the 10 MiB http-fetch body limit.
+	oversized := strings.Repeat("x", 10<<20+1)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(oversized))
+	}))
+	defer srv.Close()
+
+	r := workflowfx.NewDefaultRegistry()
+	result := directRun(t, r.MustGet("http-fetch"), map[string]any{"url": srv.URL})
+
+	if result.Passed {
+		t.Fatal("a body over the limit must produce Passed=false")
+	}
+
+	if len(result.Issues) != 1 || !strings.Contains(result.Issues[0].Message, "larger than 10485760 bytes") {
+		t.Fatalf("expected one issue naming the limit, got %v", result.Issues)
+	}
+}
+
 func TestHttpFetchTool_NoURL_FailedStep(t *testing.T) {
 	r := workflowfx.NewDefaultRegistry()
 	result := directRun(t, r.MustGet("http-fetch"), map[string]any{})

@@ -5,8 +5,11 @@
  * Preserves scroll position and browser state
  */
 
-/// <reference path="./globals.d.ts" />
 import * as logging from "@eserstack/logging";
+import type { LarouxGlobalThis } from "./globals.d.ts";
+
+// The page-wide state the laroux client keeps on globalThis, with its types.
+const larouxGlobals = globalThis as LarouxGlobalThis;
 
 const smartRefreshLogger = logging.logger.getLogger([
   "laroux-bundler",
@@ -19,8 +22,8 @@ const smartRefreshLogger = logging.logger.getLogger([
  * Only client components require full page reload when changed
  */
 function isClientComponent(modulePath: string): boolean {
-  const manifest = globalThis.__CHUNK_MANIFEST__;
-  if (!manifest?.chunks) return false;
+  const manifest = larouxGlobals.__CHUNK_MANIFEST__;
+  if (manifest === undefined) return false;
 
   // Normalize path for comparison (remove leading ./ and normalize separators)
   const normalized = modulePath.replace(/^\.\//, "").replace(/\\/g, "/");
@@ -63,28 +66,28 @@ export function initializeSmartRefresh(): void {
   smartRefreshLogger.debug("Runtime initialized");
 
   // Track if we're in the middle of a refresh
-  globalThis.__REFRESH_PENDING__ = false;
+  larouxGlobals.__REFRESH_PENDING__ = false;
 
   // Track last changed modules for debugging
-  globalThis.__LAST_CHANGED_MODULES__ = [];
+  larouxGlobals.__LAST_CHANGED_MODULES__ = [];
 
   // Helper to perform a smart refresh with module awareness
-  globalThis.__performSmartRefresh__ = async function (
+  larouxGlobals.__performSmartRefresh__ = async function (
     changedModules?: string[],
   ) {
-    if (globalThis.__REFRESH_PENDING__) {
+    if (larouxGlobals.__REFRESH_PENDING__ === true) {
       smartRefreshLogger.debug("Refresh already pending, skipping");
       return;
     }
 
-    globalThis.__REFRESH_PENDING__ = true;
+    larouxGlobals.__REFRESH_PENDING__ = true;
 
     try {
       // Store changed modules for debugging
-      globalThis.__LAST_CHANGED_MODULES__ = changedModules ?? [];
+      larouxGlobals.__LAST_CHANGED_MODULES__ = changedModules ?? [];
 
-      if (changedModules && changedModules.length > 0) {
-        smartRefreshLogger.debug("Modules changed:", { changedModules });
+      if (changedModules !== undefined && changedModules.length > 0) {
+        smartRefreshLogger.with({ changedModules }).debug("Modules changed");
       } else {
         smartRefreshLogger.debug("Starting refresh (no module info)");
       }
@@ -95,22 +98,20 @@ export function initializeSmartRefresh(): void {
         requiresFullReload(module)
       );
 
-      if (hasClientComponentChanges) {
+      if (hasClientComponentChanges === true) {
         const matchedModules = changedModules?.filter((module) =>
           requiresFullReload(module)
         );
-        smartRefreshLogger.debug(
+        smartRefreshLogger.with({ matchedModules }).debug(
           "Client component(s) changed, performing full page reload",
-          { matchedModules },
         );
         globalThis.location.reload();
         return;
       }
 
       // Server component or non-client file changed - do smart refresh
-      smartRefreshLogger.debug(
+      smartRefreshLogger.with({ changedModules }).debug(
         "Server component(s) changed, performing smart refresh",
-        { changedModules },
       );
 
       // Save scroll position to restore after refresh
@@ -118,14 +119,14 @@ export function initializeSmartRefresh(): void {
       const scrollY = globalThis.scrollY;
 
       // Clear the RSC promise cache so it refetches
-      if (globalThis.__clearRSCCache__) {
-        globalThis.__clearRSCCache__(changedModules);
+      if (larouxGlobals.__clearRSCCache__ !== undefined) {
+        larouxGlobals.__clearRSCCache__(changedModules);
         smartRefreshLogger.debug("RSC cache cleared");
       }
 
       // Trigger a re-render by calling the refresh function
-      if (globalThis.__refreshRSCRoot__) {
-        await globalThis.__refreshRSCRoot__(changedModules);
+      if (larouxGlobals.__refreshRSCRoot__ !== undefined) {
+        await larouxGlobals.__refreshRSCRoot__(changedModules);
         smartRefreshLogger.debug("RSC root refreshed");
 
         // Restore scroll position
@@ -140,16 +141,16 @@ export function initializeSmartRefresh(): void {
 
       smartRefreshLogger.debug("Refresh completed successfully");
     } catch (error) {
-      smartRefreshLogger.error("Refresh failed:", { error });
+      smartRefreshLogger.with({ error }).error("Refresh failed");
       smartRefreshLogger.warn("Falling back to full reload");
       globalThis.location.reload();
     } finally {
-      globalThis.__REFRESH_PENDING__ = false;
+      larouxGlobals.__REFRESH_PENDING__ = false;
     }
   };
 
   // Export flag for HMR client
-  globalThis.__SMART_REFRESH_ENABLED__ = true;
+  larouxGlobals.__SMART_REFRESH_ENABLED__ = true;
 }
 
 /**
@@ -159,8 +160,8 @@ export function initializeSmartRefresh(): void {
 export async function triggerSmartRefresh(
   changedModules?: string[],
 ): Promise<void> {
-  if (globalThis.__performSmartRefresh__) {
-    await globalThis.__performSmartRefresh__(changedModules);
+  if (larouxGlobals.__performSmartRefresh__ !== undefined) {
+    await larouxGlobals.__performSmartRefresh__(changedModules);
   } else {
     // Fallback: full reload if not initialized
     globalThis.location.reload();

@@ -8,16 +8,16 @@
  *
  * @example
  * ```typescript
- * import * as middlewares from "@eserstack/http/middlewares";
+ * import * as http from "@eserstack/http";
  *
  * // CORS - Cross-Origin Resource Sharing
- * const corsMiddleware = middlewares.cors.cors({
+ * const corsMiddleware = http.middlewares.cors.cors({
  *   origin: ["https://example.com"],
  *   credentials: true,
  * });
  *
  * // CSP - Content Security Policy
- * const cspMiddleware = middlewares.csp.csp({
+ * const cspMiddleware = http.middlewares.csp.csp({
  *   directives: {
  *     "default-src": "'self'",
  *     "script-src": ["'self'", "https://cdn.example.com"],
@@ -25,7 +25,7 @@
  * });
  *
  * // CSRF - Cross-Site Request Forgery Protection
- * const csrfMiddleware = middlewares.csrf.csrf({
+ * const csrfMiddleware = http.middlewares.csrf.csrf({
  *   excludePaths: ["/api/webhooks/*"],
  * });
  * ```

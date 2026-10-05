@@ -124,6 +124,12 @@ jobs:
       - name: Run validation
         run: deno task cli ok
 
+      # Fails on vulnerabilities the code can reach, in the standard library
+      # and dependencies of both Go modules. Not part of `deno task cli ok`
+      # because it needs the vulnerability database over the network.
+      - name: Check Go vulnerabilities
+        run: make vuln
+
       - name: Generate coverage report
         run: deno coverage ./etc/coverage --lcov --output=./etc/coverage.lcov
         continue-on-error: true

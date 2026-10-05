@@ -21,6 +21,10 @@ import type {
 /**
  * Modern browser User-Agent for fetching woff2 format.
  */
+// Build-time downloads from Google Fonts; generous, but a stalled CDN fails the
+// build instead of hanging it.
+const FONT_FETCH_TIMEOUT_MS = 30_000;
+
 const MODERN_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -35,7 +39,9 @@ export async function downloadFont(
   url: string,
   outputDir: string,
 ): Promise<FontFile> {
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(FONT_FETCH_TIMEOUT_MS),
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to download font from ${url}: ${response.status}`);
@@ -167,6 +173,7 @@ export async function fetchGoogleFontsCss(fontUrl: string): Promise<string> {
     headers: {
       "User-Agent": MODERN_USER_AGENT,
     },
+    signal: AbortSignal.timeout(FONT_FETCH_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -229,7 +236,11 @@ export function generatePreloadHints(
  *
  * @example
  * ```ts
- * extractFontFamilies("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500")
+ * import * as css from "@eserstack/bundler/css";
+ *
+ * css.extractFontFamilies(
+ *   "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500",
+ * );
  * // Returns: ["Roboto"]
  * ```
  */
@@ -259,7 +270,9 @@ export function extractFontFamilies(fontUrl: string): string[] {
  *
  * @example
  * ```ts
- * const result = await optimizeGoogleFonts(
+ * import * as css from "@eserstack/bundler/css";
+ *
+ * const result = await css.optimizeGoogleFonts(
  *   "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500",
  *   {
  *     outputDir: "dist/fonts",
@@ -295,16 +308,11 @@ export async function optimizeGoogleFonts(
   // Step 3: Download all font files
   const fontFiles = await downloadFonts(fontUrls, outputDir);
 
-  // Calculate total size
-  let totalSize = 0;
-  for (const file of fontFiles) {
-    try {
-      const stat = await runtime.fs.stat(file.localPath);
-      totalSize += stat.size;
-    } catch {
-      // Ignore stat errors
-    }
-  }
+  // Calculate total size of the files downloadFonts just wrote
+  const fileSizes = await Promise.all(
+    fontFiles.map(async (file) => (await runtime.fs.stat(file.localPath)).size),
+  );
+  const totalSize = fileSizes.reduce((sum, size) => sum + size, 0);
 
   // Step 4: Rewrite @font-face declarations with local paths
   const fontFaceCSS = rewriteFontFaceCss(originalCss, fontFiles, publicPath);

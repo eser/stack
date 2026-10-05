@@ -1,6 +1,7 @@
 package noskillsserverfx
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 
@@ -88,14 +89,15 @@ func (f *FanoutBroadcaster) ClientCount() int {
 
 // translateWorkerEvent maps a WorkerEvent from the internal IPC wire to the
 // public client wire protocol. Returns nil for events that should be dropped.
-func translateWorkerEvent(evt WorkerEvent, logger *logfx.Logger) any {
+// ctx only carries the ids a log entry about a malformed payload needs.
+func translateWorkerEvent(ctx context.Context, evt WorkerEvent, logger *logfx.Logger) any {
 	switch evt.Type {
 	case "query_error":
 		var qe struct {
 			Error string `json:"error"`
 		}
 		if err := json.Unmarshal(evt.Payload, &qe); err != nil {
-			logger.Warn("fanout: malformed query_error payload", "err", err)
+			logger.WarnContext(ctx, "fanout: malformed query_error payload", "err", err)
 
 			return map[string]any{"type": "error", "code": "query_error", "message": string(evt.Payload)}
 		}
@@ -106,7 +108,7 @@ func translateWorkerEvent(evt WorkerEvent, logger *logfx.Logger) any {
 		"mux", "permission_response_rejected":
 		var raw map[string]any
 		if err := json.Unmarshal(evt.Payload, &raw); err != nil {
-			logger.Warn("fanout: malformed event payload", "type", evt.Type, "err", err)
+			logger.WarnContext(ctx, "fanout: malformed event payload", "type", evt.Type, "err", err)
 
 			return nil
 		}
@@ -120,7 +122,7 @@ func translateWorkerEvent(evt WorkerEvent, logger *logfx.Logger) any {
 
 // marshalEventForLedger translates evt to client-wire JSON for persistent storage.
 // Returns nil for events that should not be persisted (unknown types, marshal errors).
-func marshalEventForLedger(evt WorkerEvent, logger *logfx.Logger) []byte {
+func marshalEventForLedger(ctx context.Context, evt WorkerEvent, logger *logfx.Logger) []byte {
 	// Mux frames are a live terminal stream, not durable transcript: per-pane
 	// output would grow the ledger without bound and scene frames are deltas that
 	// only reconstruct from a fresh full scene. A reattaching mux client sends
@@ -130,14 +132,14 @@ func marshalEventForLedger(evt WorkerEvent, logger *logfx.Logger) []byte {
 		return nil
 	}
 
-	msg := translateWorkerEvent(evt, logger)
+	msg := translateWorkerEvent(ctx, evt, logger)
 	if msg == nil {
 		return nil
 	}
 
 	data, err := json.Marshal(msg)
 	if err != nil {
-		logger.Warn("fanout: marshal for ledger failed", "err", err)
+		logger.WarnContext(ctx, "fanout: marshal for ledger failed", "err", err)
 
 		return nil
 	}

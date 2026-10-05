@@ -1,34 +1,26 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
+import * as bdd from "@std/testing/bdd";
 import * as assert from "@std/assert";
-import { serialize } from "./serializer.ts";
-import { deserialize } from "./deserializer.ts";
-import {
-  createRegistry,
-  hasFormat,
-  listFormats,
-  registerFormat,
-} from "./format-registry.ts";
-import {
-  DeserializationError,
-  FormatError,
-  FormatNotFoundError,
-  SerializationError,
-} from "./types.ts";
+import * as serializer from "./serializer.ts";
+import * as deserializer from "./deserializer.ts";
+import * as formatRegistry from "./format-registry.ts";
+import * as types from "./types.ts";
+import * as streamLayers from "./stream-layers.ts";
+import * as streams from "@eserstack/streams";
 
-import { jsonFormat } from "./formats/json.ts";
-import { jsonlFormat } from "./formats/jsonl.ts";
-import { yamlFormat } from "./formats/yaml.ts";
-import { csvFormat } from "./formats/csv.ts";
-import { tomlFormat } from "./formats/toml.ts";
+import * as json from "./formats/json.ts";
+import * as jsonl from "./formats/jsonl.ts";
+import * as yaml from "./formats/yaml.ts";
+import * as csv from "./formats/csv.ts";
+import * as toml from "./formats/toml.ts";
 
 // Register all built-in formats for testing
-registerFormat(jsonFormat);
-registerFormat(jsonlFormat);
-registerFormat(yamlFormat);
-registerFormat(csvFormat);
-registerFormat(tomlFormat);
+formatRegistry.registerFormat(json.jsonFormat);
+formatRegistry.registerFormat(jsonl.jsonlFormat);
+formatRegistry.registerFormat(yaml.yamlFormat);
+formatRegistry.registerFormat(csv.csvFormat);
+formatRegistry.registerFormat(toml.tomlFormat);
 
 // =============================================================================
 // Test Data
@@ -52,88 +44,253 @@ const testArray = [
 // Serializer Tests
 // =============================================================================
 
-describe({ name: "serialize()", sanitizeResources: false }, () => {
-  it("should serialize JSON format", async () => {
-    const result = await serialize(testData, "json");
+bdd.describe({ name: "serialize()", sanitizeResources: false }, () => {
+  bdd.it("should serialize JSON format", async () => {
+    const result = await serializer.serialize(testData, "json");
     const parsed = JSON.parse(result);
-    assert.assertEquals(parsed[0].name, "test-app");
-    assert.assertEquals(parsed[0].config.replicas, 3);
+    assert.assertEquals(parsed.name, "test-app");
+    assert.assertEquals(parsed.config.replicas, 3);
   });
 
-  it("should serialize JSON with pretty formatting", async () => {
-    const result = await serialize(testData, "json", { pretty: true });
+  bdd.it("writes a single object as one JSON document", async () => {
+    const result = await serializer.serialize(
+      { name: "app", replicas: 3 },
+      "json",
+    );
+
+    assert.assertEquals(result, '{"name":"app","replicas":3}\n');
+  });
+
+  bdd.it("writes a single object as one TOML table", async () => {
+    const result = await serializer.serialize(
+      { name: "app", replicas: 3 },
+      "toml",
+    );
+
+    assert.assertEquals(result.includes("+++"), false);
+    assert.assertEquals(await deserializer.deserialize(result, "toml"), [
+      { name: "app", replicas: 3 },
+    ]);
+  });
+
+  bdd.it("should serialize JSON with pretty formatting", async () => {
+    const result = await serializer.serialize(testData, "json", {
+      pretty: true,
+    });
     assert.assertStringIncludes(result, "\n");
     assert.assertStringIncludes(result, "  ");
   });
 
-  it("should serialize YAML format", async () => {
-    const result = await serialize(testData, "yaml");
+  bdd.it("should serialize YAML format", async () => {
+    const result = await serializer.serialize(testData, "yaml");
     assert.assertStringIncludes(result, "name: test-app");
     assert.assertStringIncludes(result, "version: 1.0.0");
     assert.assertStringIncludes(result, "replicas: 3");
   });
 
-  it("should serialize YAML array with separator", async () => {
+  bdd.it("should serialize YAML array with separator", async () => {
     // Go formatfx uses single-document sequence notation (- item) for arrays
     // instead of multi-document --- separators. Both are valid YAML.
-    const result = await serialize(testArray, "yaml", { separator: "---" });
+    const result = await serializer.serialize(testArray, "yaml", {
+      separator: "---",
+    });
     assert.assertStringIncludes(result, "name: app1");
     assert.assertStringIncludes(result, "- ");
     assert.assertStringIncludes(result, "name: app2");
   });
 
-  it("should serialize CSV format", async () => {
+  bdd.it("should serialize CSV format", async () => {
     const csvData = [
       { name: "app1", version: "1.0.0", replicas: 3 },
       { name: "app2", version: "2.0.0", replicas: 2 },
     ];
-    const result = await serialize(csvData, "csv");
+    const result = await serializer.serialize(csvData, "csv");
     assert.assertStringIncludes(result, "name");
     assert.assertStringIncludes(result, "app1");
     assert.assertStringIncludes(result, "app2");
   });
 
-  it("should serialize TOML format", async () => {
-    const result = await serialize(testData, "toml");
+  bdd.it("should serialize TOML format", async () => {
+    const result = await serializer.serialize(testData, "toml");
     assert.assertStringIncludes(result, "test-app");
     assert.assertStringIncludes(result, "1.0.0");
     assert.assertStringIncludes(result, "replicas");
   });
 
-  it("should serialize JSONL format", async () => {
-    const result = await serialize(testArray, "jsonl");
+  bdd.it("should serialize JSONL format", async () => {
+    const result = await serializer.serialize(testArray, "jsonl");
     const lines = result.trim().split("\n");
     assert.assertEquals(lines.length, 2);
     assert.assertEquals(JSON.parse(lines[0]!)["name"], "app1");
     assert.assertEquals(JSON.parse(lines[1]!)["name"], "app2");
   });
 
-  it("should throw FormatNotFoundError for unknown format", async () => {
+  bdd.it("should throw FormatNotFoundError for unknown format", async () => {
     await assert.assertRejects(
-      () => serialize(testData, "unknown-format"),
-      FormatNotFoundError,
+      () => serializer.serialize(testData, "unknown-format"),
+      types.FormatNotFoundError,
     );
   });
 
-  it("should throw SerializationError for circular references in JSON", async () => {
-    const circular: Record<string, unknown> = { name: "test" };
-    circular["self"] = circular;
-    await assert.assertRejects(
-      () => serialize(circular, "json"),
-      SerializationError,
-    );
-  });
+  bdd.it(
+    "should throw SerializationError for circular references in JSON",
+    async () => {
+      const circular: Record<string, unknown> = { name: "test" };
+      circular["self"] = circular;
+      await assert.assertRejects(
+        () => serializer.serialize(circular, "json"),
+        types.SerializationError,
+      );
+    },
+  );
 
-  it("should handle single non-array item", async () => {
-    const result = await serialize({ key: "value" }, "jsonl");
+  bdd.it("should handle single non-array item", async () => {
+    const result = await serializer.serialize({ key: "value" }, "jsonl");
     assert.assertStringIncludes(result, '"key"');
   });
 
-  it("should reject non-object data for TOML", async () => {
+  bdd.it("should reject non-object data for TOML", async () => {
     await assert.assertRejects(
-      () => serialize("plain string", "toml"),
-      SerializationError,
+      () => serializer.serialize("plain string", "toml"),
+      types.SerializationError,
     );
+  });
+});
+
+// =============================================================================
+// Document Layout Tests (TypeScript formats, without the native library)
+// =============================================================================
+
+bdd.describe("serializeWith() without the native library", () => {
+  const app = { name: "app", replicas: 3 };
+  const apps = [{ name: "app1", replicas: 1 }, { name: "app2", replicas: 2 }];
+
+  const documentCases = [
+    {
+      name: "writes a single value as one JSON document",
+      data: app,
+      format: "json",
+      options: {},
+      expected: '{"name":"app","replicas":3}\n',
+    },
+    {
+      name: "writes a single value as one pretty JSON document",
+      data: app,
+      format: "json",
+      options: { pretty: true },
+      expected: `${JSON.stringify(app, null, 2)}\n`,
+    },
+    {
+      name: "writes a JSON array on one line",
+      data: apps,
+      format: "json",
+      options: {},
+      expected: `${JSON.stringify(apps)}\n`,
+    },
+    {
+      name: "lays out a pretty JSON array as JSON.stringify does",
+      data: apps,
+      format: "json",
+      options: { pretty: true },
+      expected: `${JSON.stringify(apps, null, 2)}\n`,
+    },
+    {
+      name: "applies the indent option to a pretty JSON array",
+      data: apps,
+      format: "json",
+      options: { pretty: true, indent: 4 },
+      expected: `${JSON.stringify(apps, null, 4)}\n`,
+    },
+    {
+      name: "writes an empty JSON array",
+      data: [],
+      format: "json",
+      options: {},
+      expected: "[]\n",
+    },
+    {
+      name: "writes a single value as one YAML mapping",
+      data: app,
+      format: "yaml",
+      options: {},
+      expected: "name: app\nreplicas: 3\n",
+    },
+    {
+      name: "writes a single value as one TOML table with integers",
+      data: app,
+      format: "toml",
+      options: { pretty: false },
+      expected: 'name = "app"\nreplicas = 3\n',
+    },
+    {
+      name: "writes a single value as one JSONL line",
+      data: app,
+      format: "jsonl",
+      options: {},
+      expected: '{"name":"app","replicas":3}\n',
+    },
+    {
+      name: "writes a single value as a CSV header and one row",
+      data: app,
+      format: "csv",
+      options: {},
+      // @std/csv ends rows with CRLF, as RFC 4180 does.
+      expected: "name,replicas\r\napp,3\r\n",
+    },
+  ];
+
+  for (const { name, data, format, options, expected } of documentCases) {
+    bdd.it(name, () => {
+      assert.assertEquals(
+        serializer.serializeWith(null, data, format, options),
+        expected,
+      );
+    });
+  }
+
+  bdd.it("writes null for an undefined JSON array element", () => {
+    assert.assertEquals(
+      serializer.serializeWith(null, [1, undefined], "json"),
+      "[1,null]\n",
+    );
+  });
+
+  bdd.it("rejects an undefined JSON document", () => {
+    assert.assertThrows(
+      () => serializer.serializeWith(null, undefined, "json"),
+      types.SerializationError,
+      "no JSON form",
+    );
+  });
+
+  bdd.it("reads a single JSON document back as one item", () => {
+    const encoded = serializer.serializeWith(null, app, "json");
+
+    assert.assertEquals(JSON.parse(encoded), app);
+  });
+});
+
+// =============================================================================
+// Stream Layer Tests
+// =============================================================================
+
+bdd.describe("streamLayers.writerLayer()", () => {
+  bdd.it("writes the chunks as one JSON array", async () => {
+    const chunks = await streams.pipeline()
+      .from(streams.sources.values({ id: 1 }, { id: 2 }))
+      .through(streamLayers.writerLayer("json"))
+      .collect<string>();
+
+    assert.assertEquals(JSON.parse(chunks.join("")), [{ id: 1 }, { id: 2 }]);
+  });
+
+  bdd.it("writes the CSV header before the first chunk only", async () => {
+    const chunks = await streams.pipeline()
+      .from(streams.sources.values({ id: 1 }, { id: 2 }))
+      .through(streamLayers.writerLayer("csv"))
+      .collect<string>();
+
+    assert.assertEquals(chunks.join("").split("\r\n"), ["id", "1", "2", ""]);
   });
 });
 
@@ -141,82 +298,82 @@ describe({ name: "serialize()", sanitizeResources: false }, () => {
 // Deserializer Tests
 // =============================================================================
 
-describe("deserialize()", () => {
-  it("should deserialize JSON array", async () => {
+bdd.describe("deserialize()", () => {
+  bdd.it("should deserialize JSON array", async () => {
     const input = '[{"name":"app1"},{"name":"app2"}]';
-    const result = await deserialize(input, "json");
+    const result = await deserializer.deserialize(input, "json");
     assert.assertEquals(result.length, 2);
     assert.assertEquals((result[0] as Record<string, unknown>)["name"], "app1");
     assert.assertEquals((result[1] as Record<string, unknown>)["name"], "app2");
   });
 
-  it("should deserialize single JSON object", async () => {
+  bdd.it("should deserialize single JSON object", async () => {
     const input = '{"name":"app1"}';
-    const result = await deserialize(input, "json");
+    const result = await deserializer.deserialize(input, "json");
     assert.assertEquals(result.length, 1);
     assert.assertEquals((result[0] as Record<string, unknown>)["name"], "app1");
   });
 
-  it("should return empty array for empty JSON input", async () => {
-    const result = await deserialize("", "json");
+  bdd.it("should return empty array for empty JSON input", async () => {
+    const result = await deserializer.deserialize("", "json");
     assert.assertEquals(result.length, 0);
   });
 
-  it("should deserialize JSONL", async () => {
+  bdd.it("should deserialize JSONL", async () => {
     const input = '{"name":"app1"}\n{"name":"app2"}\n';
-    const result = await deserialize(input, "jsonl");
+    const result = await deserializer.deserialize(input, "jsonl");
     assert.assertEquals(result.length, 2);
     assert.assertEquals((result[0] as Record<string, unknown>)["name"], "app1");
     assert.assertEquals((result[1] as Record<string, unknown>)["name"], "app2");
   });
 
-  it("should handle JSONL with empty lines", async () => {
+  bdd.it("should handle JSONL with empty lines", async () => {
     const input = '{"name":"app1"}\n\n{"name":"app2"}\n';
-    const result = await deserialize(input, "jsonl");
+    const result = await deserializer.deserialize(input, "jsonl");
     assert.assertEquals(result.length, 2);
   });
 
-  it("should return empty array for empty JSONL input", async () => {
-    const result = await deserialize("", "jsonl");
+  bdd.it("should return empty array for empty JSONL input", async () => {
+    const result = await deserializer.deserialize("", "jsonl");
     assert.assertEquals(result.length, 0);
   });
 
-  it("should deserialize YAML multi-document", async () => {
+  bdd.it("should deserialize YAML multi-document", async () => {
     const input =
       "name: app1\nversion: 1.0.0\n---\nname: app2\nversion: 2.0.0\n";
-    const result = await deserialize(input, "yaml");
+    const result = await deserializer.deserialize(input, "yaml");
     assert.assertEquals(result.length, 2);
     assert.assertEquals((result[0] as Record<string, unknown>)["name"], "app1");
     assert.assertEquals((result[1] as Record<string, unknown>)["name"], "app2");
   });
 
-  it("should deserialize single YAML document", async () => {
+  bdd.it("should deserialize single YAML document", async () => {
     const input = "name: app1\nversion: 1.0.0\n";
-    const result = await deserialize(input, "yaml");
+    const result = await deserializer.deserialize(input, "yaml");
     assert.assertEquals(result.length, 1);
     assert.assertEquals((result[0] as Record<string, unknown>)["name"], "app1");
   });
 
-  it("should return empty array for empty YAML input", async () => {
-    const result = await deserialize("", "yaml");
+  bdd.it("should return empty array for empty YAML input", async () => {
+    const result = await deserializer.deserialize("", "yaml");
     assert.assertEquals(result.length, 0);
   });
 
-  it("should deserialize TOML", async () => {
+  bdd.it("should deserialize TOML", async () => {
     const input = 'name = "app1"\nversion = "1.0.0"\n';
-    const result = await deserialize(input, "toml");
+    const result = await deserializer.deserialize(input, "toml");
     assert.assertEquals(result.length, 1);
     assert.assertEquals((result[0] as Record<string, unknown>)["name"], "app1");
   });
 
-  it("should return empty array for empty TOML input", async () => {
-    const result = await deserialize("", "toml");
+  bdd.it("should return empty array for empty TOML input", async () => {
+    const result = await deserializer.deserialize("", "toml");
     assert.assertEquals(result.length, 0);
   });
 
-  it("should deserialize CSV with auto-detected headers", async () => {
+  bdd.it("should deserialize CSV with auto-detected headers", async () => {
     const input = "name,version\napp1,1.0.0\napp2,2.0.0\n";
-    const result = await deserialize(input, "csv");
+    const result = await deserializer.deserialize(input, "csv");
     assert.assertEquals(result.length, 2);
     assert.assertEquals((result[0] as Record<string, unknown>)["name"], "app1");
     assert.assertEquals(
@@ -225,51 +382,51 @@ describe("deserialize()", () => {
     );
   });
 
-  it("should deserialize CSV with provided headers", async () => {
+  bdd.it("should deserialize CSV with provided headers", async () => {
     const input = "app1,1.0.0\napp2,2.0.0\n";
-    const result = await deserialize(input, "csv", {
+    const result = await deserializer.deserialize(input, "csv", {
       headers: ["name", "version"],
     });
     assert.assertEquals(result.length, 2);
     assert.assertEquals((result[0] as Record<string, unknown>)["name"], "app1");
   });
 
-  it("should return empty array for empty CSV input", async () => {
-    const result = await deserialize("", "csv");
+  bdd.it("should return empty array for empty CSV input", async () => {
+    const result = await deserializer.deserialize("", "csv");
     assert.assertEquals(result.length, 0);
   });
 
-  it("should throw FormatNotFoundError for unknown format", async () => {
+  bdd.it("should throw FormatNotFoundError for unknown format", async () => {
     await assert.assertRejects(
-      () => deserialize("data", "unknown-format"),
-      FormatNotFoundError,
+      () => deserializer.deserialize("data", "unknown-format"),
+      types.FormatNotFoundError,
     );
   });
 
-  it("should throw DeserializationError for malformed JSON", async () => {
+  bdd.it("should throw DeserializationError for malformed JSON", async () => {
     await assert.assertRejects(
-      () => deserialize("{invalid json}", "json"),
-      DeserializationError,
+      () => deserializer.deserialize("{invalid json}", "json"),
+      types.DeserializationError,
     );
   });
 
-  it("should throw DeserializationError for malformed JSONL", async () => {
+  bdd.it("should throw DeserializationError for malformed JSONL", async () => {
     await assert.assertRejects(
-      () => deserialize("{invalid}\n", "jsonl"),
-      DeserializationError,
+      () => deserializer.deserialize("{invalid}\n", "jsonl"),
+      types.DeserializationError,
     );
   });
 
-  it("should throw error for malformed YAML", async () => {
+  bdd.it("should throw error for malformed YAML", async () => {
     await assert.assertRejects(
-      () => deserialize("{\ninvalid: yaml: [broken", "yaml"),
+      () => deserializer.deserialize("{\ninvalid: yaml: [broken", "yaml"),
       Error,
     );
   });
 
-  it("should throw error for malformed TOML", async () => {
+  bdd.it("should throw error for malformed TOML", async () => {
     await assert.assertRejects(
-      () => deserialize("[invalid\ntoml = ", "toml"),
+      () => deserializer.deserialize("[invalid\ntoml = ", "toml"),
       Error,
     );
   });
@@ -279,32 +436,32 @@ describe("deserialize()", () => {
 // Roundtrip Tests
 // =============================================================================
 
-describe("roundtrip", () => {
-  it("JSON serialize/deserialize", async () => {
+bdd.describe("roundtrip", () => {
+  bdd.it("JSON serialize/deserialize", async () => {
     const data = [{ name: "app1", count: 42 }, { name: "app2", count: 7 }];
-    const serialized = await serialize(data, "json");
-    const deserialized = await deserialize(serialized, "json");
+    const serialized = await serializer.serialize(data, "json");
+    const deserialized = await deserializer.deserialize(serialized, "json");
     assert.assertEquals(deserialized, data);
   });
 
-  it("JSONL serialize/deserialize", async () => {
+  bdd.it("JSONL serialize/deserialize", async () => {
     const data = [{ name: "app1", count: 42 }, { name: "app2", count: 7 }];
-    const serialized = await serialize(data, "jsonl");
-    const deserialized = await deserialize(serialized, "jsonl");
+    const serialized = await serializer.serialize(data, "jsonl");
+    const deserialized = await deserializer.deserialize(serialized, "jsonl");
     assert.assertEquals(deserialized, data);
   });
 
-  it("YAML serialize/deserialize", async () => {
+  bdd.it("YAML serialize/deserialize", async () => {
     const data = [{ name: "app1", count: 42 }, { name: "app2", count: 7 }];
-    const serialized = await serialize(data, "yaml");
-    const deserialized = await deserialize(serialized, "yaml");
+    const serialized = await serializer.serialize(data, "yaml");
+    const deserialized = await deserializer.deserialize(serialized, "yaml");
     assert.assertEquals(deserialized, data);
   });
 
-  it("TOML serialize/deserialize", async () => {
+  bdd.it("TOML serialize/deserialize", async () => {
     const data = [{ name: "app1", count: 42 }, { name: "app2", count: 7 }];
-    const serialized = await serialize(data, "toml");
-    const deserialized = await deserialize(serialized, "toml");
+    const serialized = await serializer.serialize(data, "toml");
+    const deserialized = await deserializer.deserialize(serialized, "toml");
     assert.assertEquals(deserialized, data);
   });
 });
@@ -313,9 +470,9 @@ describe("roundtrip", () => {
 // FormatReader Streaming Tests
 // =============================================================================
 
-describe("FormatReader streaming", () => {
-  it("JSONL should handle partial lines across chunks", () => {
-    const reader = jsonlFormat.createReader();
+bdd.describe("FormatReader streaming", () => {
+  bdd.it("JSONL should handle partial lines across chunks", () => {
+    const reader = jsonl.jsonlFormat.createReader();
     const items1 = reader.push('{"name":"ap');
     assert.assertEquals(items1.length, 0); // incomplete line
 
@@ -331,8 +488,8 @@ describe("FormatReader streaming", () => {
     );
   });
 
-  it("JSONL should flush remaining buffer", () => {
-    const reader = jsonlFormat.createReader();
+  bdd.it("JSONL should flush remaining buffer", () => {
+    const reader = jsonl.jsonlFormat.createReader();
     reader.push('{"name":"app1"}\n{"name":"app2"}');
     const flushed = reader.flush();
     assert.assertEquals(flushed.length, 1);
@@ -342,16 +499,16 @@ describe("FormatReader streaming", () => {
     );
   });
 
-  it("YAML should split on --- separator", () => {
-    const reader = yamlFormat.createReader();
+  bdd.it("YAML should split on --- separator", () => {
+    const reader = yaml.yamlFormat.createReader();
     const items = reader.push("name: app1\n---\nname: app2\n---\n");
     assert.assertEquals(items.length, 2);
     assert.assertEquals((items[0] as Record<string, unknown>)["name"], "app1");
     assert.assertEquals((items[1] as Record<string, unknown>)["name"], "app2");
   });
 
-  it("YAML flush should handle remaining document", () => {
-    const reader = yamlFormat.createReader();
+  bdd.it("YAML flush should handle remaining document", () => {
+    const reader = yaml.yamlFormat.createReader();
     const items = reader.push("name: app1\n---\nname: app2");
     assert.assertEquals(items.length, 1);
     const flushed = reader.flush();
@@ -362,16 +519,16 @@ describe("FormatReader streaming", () => {
     );
   });
 
-  it("TOML should split on +++ separator", () => {
-    const reader = tomlFormat.createReader();
+  bdd.it("TOML should split on +++ separator", () => {
+    const reader = toml.tomlFormat.createReader();
     const items = reader.push('name = "app1"\n+++\nname = "app2"\n+++\n');
     assert.assertEquals(items.length, 2);
     assert.assertEquals((items[0] as Record<string, unknown>)["name"], "app1");
     assert.assertEquals((items[1] as Record<string, unknown>)["name"], "app2");
   });
 
-  it("TOML flush should handle remaining document", () => {
-    const reader = tomlFormat.createReader();
+  bdd.it("TOML flush should handle remaining document", () => {
+    const reader = toml.tomlFormat.createReader();
     reader.push('name = "app1"\n+++\nname = "app2"');
     const flushed = reader.flush();
     assert.assertEquals(flushed.length, 1);
@@ -381,22 +538,22 @@ describe("FormatReader streaming", () => {
     );
   });
 
-  it("CSV should parse rows after header", () => {
-    const reader = csvFormat.createReader();
+  bdd.it("CSV should parse rows after header", () => {
+    const reader = csv.csvFormat.createReader();
     const items = reader.push("name,version\napp1,1.0.0\napp2,2.0.0\n");
     assert.assertEquals(items.length, 2);
     assert.assertEquals((items[0] as Record<string, unknown>)["name"], "app1");
   });
 
-  it("CSV should use provided headers", () => {
-    const reader = csvFormat.createReader({ headers: ["name", "version"] });
+  bdd.it("CSV should use provided headers", () => {
+    const reader = csv.csvFormat.createReader({ headers: ["name", "version"] });
     const items = reader.push("app1,1.0.0\napp2,2.0.0\n");
     assert.assertEquals(items.length, 2);
     assert.assertEquals((items[0] as Record<string, unknown>)["name"], "app1");
   });
 
-  it("JSON buffers everything until flush", () => {
-    const reader = jsonFormat.createReader();
+  bdd.it("JSON buffers everything until flush", () => {
+    const reader = json.jsonFormat.createReader();
     const items1 = reader.push('[{"name":"app1"}');
     assert.assertEquals(items1.length, 0);
 
@@ -411,33 +568,33 @@ describe("FormatReader streaming", () => {
     );
   });
 
-  it("JSONL flush on empty buffer should return empty", () => {
-    const reader = jsonlFormat.createReader();
+  bdd.it("JSONL flush on empty buffer should return empty", () => {
+    const reader = jsonl.jsonlFormat.createReader();
     assert.assertEquals(reader.flush(), []);
   });
 
-  it("JSON flush on empty buffer should return empty", () => {
-    const reader = jsonFormat.createReader();
+  bdd.it("JSON flush on empty buffer should return empty", () => {
+    const reader = json.jsonFormat.createReader();
     assert.assertEquals(reader.flush(), []);
   });
 
-  it("YAML flush on empty buffer should return empty", () => {
-    const reader = yamlFormat.createReader();
+  bdd.it("YAML flush on empty buffer should return empty", () => {
+    const reader = yaml.yamlFormat.createReader();
     assert.assertEquals(reader.flush(), []);
   });
 
-  it("TOML flush on empty buffer should return empty", () => {
-    const reader = tomlFormat.createReader();
+  bdd.it("TOML flush on empty buffer should return empty", () => {
+    const reader = toml.tomlFormat.createReader();
     assert.assertEquals(reader.flush(), []);
   });
 
-  it("CSV flush on empty buffer should return empty", () => {
-    const reader = csvFormat.createReader();
+  bdd.it("CSV flush on empty buffer should return empty", () => {
+    const reader = csv.csvFormat.createReader();
     assert.assertEquals(reader.flush(), []);
   });
 
-  it("CSV with only header line should return empty on flush", () => {
-    const reader = csvFormat.createReader();
+  bdd.it("CSV with only header line should return empty on flush", () => {
+    const reader = csv.csvFormat.createReader();
     reader.push("name,version\n");
     assert.assertEquals(reader.flush(), []);
   });
@@ -447,48 +604,48 @@ describe("FormatReader streaming", () => {
 // Format Registry Tests
 // =============================================================================
 
-describe("format registry", () => {
-  it("should look up by name", () => {
-    assert.assertEquals(hasFormat("json"), true);
-    assert.assertEquals(hasFormat("yaml"), true);
-    assert.assertEquals(hasFormat("csv"), true);
-    assert.assertEquals(hasFormat("toml"), true);
-    assert.assertEquals(hasFormat("jsonl"), true);
+bdd.describe("format registry", () => {
+  bdd.it("should look up by name", () => {
+    assert.assertEquals(formatRegistry.hasFormat("json"), true);
+    assert.assertEquals(formatRegistry.hasFormat("yaml"), true);
+    assert.assertEquals(formatRegistry.hasFormat("csv"), true);
+    assert.assertEquals(formatRegistry.hasFormat("toml"), true);
+    assert.assertEquals(formatRegistry.hasFormat("jsonl"), true);
   });
 
-  it("should look up by extension", () => {
-    assert.assertEquals(hasFormat("json"), true);
-    assert.assertEquals(hasFormat("yaml"), true);
-    assert.assertEquals(hasFormat("yml"), true);
-    assert.assertEquals(hasFormat("csv"), true);
-    assert.assertEquals(hasFormat("toml"), true);
-    assert.assertEquals(hasFormat("jsonl"), true);
-    assert.assertEquals(hasFormat("ndjson"), true);
+  bdd.it("should look up by extension", () => {
+    assert.assertEquals(formatRegistry.hasFormat("json"), true);
+    assert.assertEquals(formatRegistry.hasFormat("yaml"), true);
+    assert.assertEquals(formatRegistry.hasFormat("yml"), true);
+    assert.assertEquals(formatRegistry.hasFormat("csv"), true);
+    assert.assertEquals(formatRegistry.hasFormat("toml"), true);
+    assert.assertEquals(formatRegistry.hasFormat("jsonl"), true);
+    assert.assertEquals(formatRegistry.hasFormat("ndjson"), true);
   });
 
-  it("should list unique formats", () => {
-    const formats = listFormats();
+  bdd.it("should list unique formats", () => {
+    const formats = formatRegistry.listFormats();
     assert.assertEquals(formats.length >= 5, true);
   });
 
-  it("createRegistry should create isolated registry", () => {
-    const registry = createRegistry();
+  bdd.it("createRegistry should create isolated registry", () => {
+    const registry = formatRegistry.createRegistry();
     assert.assertEquals(registry.has("json"), false);
-    registry.register(jsonFormat);
+    registry.register(json.jsonFormat);
     assert.assertEquals(registry.has("json"), true);
-    assert.assertEquals(hasFormat("yaml"), true);
+    assert.assertEquals(formatRegistry.hasFormat("yaml"), true);
   });
 
-  it("unregisterFormat should remove format", () => {
-    const registry = createRegistry();
-    registry.register(jsonFormat);
+  bdd.it("unregisterFormat should remove format", () => {
+    const registry = formatRegistry.createRegistry();
+    registry.register(json.jsonFormat);
     assert.assertEquals(registry.has("json"), true);
     registry.unregister("json");
     assert.assertEquals(registry.has("json"), false);
   });
 
-  it("register() should reject format with no name", () => {
-    const registry = createRegistry();
+  bdd.it("register() should reject format with no name", () => {
+    const registry = formatRegistry.createRegistry();
     assert.assertThrows(
       () =>
         registry.register({
@@ -503,8 +660,8 @@ describe("format registry", () => {
     );
   });
 
-  it("register() should reject format with no extensions", () => {
-    const registry = createRegistry();
+  bdd.it("register() should reject format with no extensions", () => {
+    const registry = formatRegistry.createRegistry();
     assert.assertThrows(
       () =>
         registry.register({
@@ -519,8 +676,8 @@ describe("format registry", () => {
     );
   });
 
-  it("unregister() should be no-op for unknown format", () => {
-    const registry = createRegistry();
+  bdd.it("unregister() should be no-op for unknown format", () => {
+    const registry = formatRegistry.createRegistry();
     registry.unregister("nonexistent");
   });
 });
@@ -529,26 +686,26 @@ describe("format registry", () => {
 // Format Adapter Edge Cases
 // =============================================================================
 
-describe("format adapters", () => {
-  it("JSON writeStart/writeEnd without pretty", () => {
-    const start = jsonFormat.writeStart!();
-    const end = jsonFormat.writeEnd!();
+bdd.describe("format adapters", () => {
+  bdd.it("JSON writeStart/writeEnd without pretty", () => {
+    const start = json.jsonFormat.writeStart!();
+    const end = json.jsonFormat.writeEnd!();
     assert.assertEquals(start, "[");
     assert.assertEquals(end, "]\n");
   });
 
-  it("JSON writeItem not in array mode", () => {
-    const result = jsonFormat.writeItem({ a: 1 }, { _inArray: false });
+  bdd.it("JSON writeItem not in array mode", () => {
+    const result = json.jsonFormat.writeItem({ a: 1 }, { _inArray: false });
     assert.assertStringIncludes(result, '"a"');
   });
 
-  it("CSV writeItem should handle empty array input", () => {
-    const result = csvFormat.writeItem([]);
+  bdd.it("CSV writeItem should handle empty array input", () => {
+    const result = csv.csvFormat.writeItem([]);
     assert.assertEquals(result, "");
   });
 
-  it("CSV writeItem should normalize primitives to {value: x}", () => {
-    const result = csvFormat.writeItem("hello", {
+  bdd.it("CSV writeItem should normalize primitives to {value: x}", () => {
+    const result = csv.csvFormat.writeItem("hello", {
       _isFirst: true,
       _inArray: true,
     });
@@ -560,29 +717,29 @@ describe("format adapters", () => {
 // Error Class Tests
 // =============================================================================
 
-describe("error classes", () => {
-  it("FormatError should include format name", () => {
-    const err = new FormatError("test error", "json");
+bdd.describe("error classes", () => {
+  bdd.it("FormatError should include format name", () => {
+    const err = new types.FormatError("test error", "json");
     assert.assertEquals(err.format, "json");
     assert.assertEquals(err.name, "FormatError");
   });
 
-  it("FormatNotFoundError should include format name in message", () => {
-    const err = new FormatNotFoundError("xml");
+  bdd.it("FormatNotFoundError should include format name in message", () => {
+    const err = new types.FormatNotFoundError("xml");
     assert.assertStringIncludes(err.message, "xml");
     assert.assertEquals(err.name, "FormatNotFoundError");
   });
 
-  it("SerializationError should chain cause", () => {
+  bdd.it("SerializationError should chain cause", () => {
     const cause = new Error("root cause");
-    const err = new SerializationError("failed", "json", cause);
+    const err = new types.SerializationError("failed", "json", cause);
     assert.assertEquals(err.cause, cause);
     assert.assertEquals(err.format, "json");
   });
 
-  it("DeserializationError should chain cause", () => {
+  bdd.it("DeserializationError should chain cause", () => {
     const cause = new Error("parse failed");
-    const err = new DeserializationError("failed", "json", cause);
+    const err = new types.DeserializationError("failed", "json", cause);
     assert.assertEquals(err.cause, cause);
     assert.assertEquals(err.format, "json");
   });

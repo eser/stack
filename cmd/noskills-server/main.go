@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"github.com/eser/stack/pkg/ajan/logfx"
@@ -82,6 +83,8 @@ func runStart(args []string) int {
 	keyFile := fs.String("key", "", "PEM key file (overrides --self-signed)")
 	logLevel := fs.String("log-level", "INFO", "log level: DEBUG, INFO, WARN, ERROR")
 	logFormat := fs.String("log-format", "text", "log format: text or json")
+	allowedOrigins := fs.String("allowed-origins", "",
+		"comma-separated browser origins, besides the daemon's own, that may open WebTransport sessions")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -97,11 +100,12 @@ func runStart(args []string) int {
 	}
 
 	config := &noskillsserverfx.ServerConfig{
-		H3Addr:     *listen,
-		DataDir:    *dataDir,
-		SelfSigned: certPEM == "" && *selfSigned,
-		CertString: certPEM,
-		KeyString:  keyPEM,
+		H3Addr:         *listen,
+		DataDir:        *dataDir,
+		SelfSigned:     certPEM == "" && *selfSigned,
+		CertString:     certPEM,
+		KeyString:      keyPEM,
+		AllowedOrigins: splitList(*allowedOrigins),
 	}
 
 	logCfg := &logfx.Config{
@@ -122,9 +126,6 @@ func runStart(args []string) int {
 	// Auto-generate PIN on first run so the banner can display it.
 	var firstRunPIN string
 	if !srv.AuthManager().IsPINSetup() {
-		// One-time telemetry consent prompt before the daemon occupies the terminal.
-		promptTelemetry(*dataDir)
-
 		pin, pinErr := srv.AuthManager().GenerateAndSetPIN()
 		if pinErr != nil {
 			logger.Error("auto-generate PIN failed", "err", pinErr)
@@ -133,22 +134,43 @@ func runStart(args []string) int {
 		}
 	}
 
+	// Start opens the UDP socket before it returns, so an address in use
+	// ends the command with an error here instead of being logged by a
+	// goroutine while the daemon waits for a signal with nothing to serve.
+	cleanup, err := srv.Start(process.Ctx)
+	if err != nil {
+		logger.ErrorContext(ctx, "noskills-server could not start", "addr", *listen, "err", err)
+
+		// Ends the signal watcher processfx.New started and waits for it.
+		process.Cancel()
+		process.Wait()
+
+		return 1
+	}
+
+	// The goroutine owns the running server: it stops the server when the
+	// process context ends, and Shutdown below waits for it.
 	process.StartGoroutine("http3-server", func(goroutineCtx context.Context) error {
-		cleanup, startErr := srv.Start(goroutineCtx)
-		if startErr != nil {
-			return fmt.Errorf("starting noskills-server: %w", startErr)
-		}
-
-		fingerprint := ""
-		if cert := srv.Cert(); cert != nil {
-			fingerprint = cert.Fingerprint
-		}
-
-		printStartupBanner(*listen, firstRunPIN, fingerprint)
-		noskillsserverfx.CheckForUpdateAsync()
-
 		<-goroutineCtx.Done()
 		cleanup()
+
+		return nil
+	})
+
+	fingerprint := ""
+	if cert := srv.Cert(); cert != nil {
+		fingerprint = cert.Fingerprint
+	}
+
+	printStartupBanner(*listen, firstRunPIN, fingerprint)
+
+	// The process owns the check and waits for it on shutdown. A failed
+	// check changes nothing else, so it is a warning, and one cut short by
+	// shutdown is not worth reporting at all.
+	process.StartGoroutine("update-check", func(checkCtx context.Context) error {
+		if err := noskillsserverfx.CheckForUpdate(checkCtx, os.Stdout); err != nil && checkCtx.Err() == nil {
+			logger.WarnContext(checkCtx, "noskills-server update check failed", "err", err)
+		}
 
 		return nil
 	})
@@ -173,6 +195,20 @@ func defaultDataDir() string {
 	}
 
 	return filepath.Join(home, ".noskills")
+}
+
+// splitList splits a comma-separated flag value, dropping the spaces around
+// each item and the empty items.
+func splitList(value string) []string {
+	var items []string
+
+	for item := range strings.SplitSeq(value, ",") {
+		if trimmed := strings.TrimSpace(item); trimmed != "" {
+			items = append(items, trimmed)
+		}
+	}
+
+	return items
 }
 
 func loadCertFiles(certFile, keyFile string) (string, string, error) {
@@ -219,6 +255,9 @@ Start flags:
   --key string         PEM key file path (overrides --self-signed)
   --log-level string   Log level: DEBUG, INFO, WARN, ERROR (default "INFO")
   --log-format string  Log format: text or json (default "text")
+  --allowed-origins string
+                       Comma-separated browser origins, besides the daemon's
+                       own, that may open WebTransport sessions (default none)
 `)
 }
 

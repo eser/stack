@@ -1,7 +1,7 @@
 # Release Process
 
-Cutting, verifying, recovering and describing releases of the synchronized
-eserstack packages.
+Cutting, verifying, recovering and describing releases of a package family that
+shares one version, with the `eser codebase` release commands.
 
 ## Contents
 
@@ -21,15 +21,16 @@ eserstack packages.
 
 Scope: All package versions
 
-Rule: The 48 packages under `pkg/@eserstack/` (42 libraries and tools plus the
-six `ajan-*` platform packages) share the version in `VERSION`. There are no
-per-package releases. Never edit a `version` field by hand: the release command
-bumps `VERSION` and every `package.json` together, and the per-package
-`deno.json` files are generated from them.
+Rule: Every package of the family shares the version in the root `VERSION` file.
+There are no per-package releases. Never edit a `version` field by hand: the
+release command bumps `VERSION` and every `package.json` together, and generated
+manifests (such as per-package `deno.json`) follow from them.
 
-`deno task cli codebase versions <patch|minor|major>` bumps without releasing;
-the release command already includes the bump, so it is rarely needed on its
-own.
+A Go module in the same repository that nothing outside it imports builds from
+the same release tag and gets no tags of its own.
+
+`eser codebase versions <patch|minor|major>` bumps without releasing; the
+release command already includes the bump, so it is rarely needed on its own.
 
 | Bump      | When                                                      |
 | --------- | --------------------------------------------------------- |
@@ -41,31 +42,30 @@ own.
 
 ## Cutting a Release
 
-Scope: Every release. An agent runs these commands only when the user asks for a
-release.
+Scope: Every release. Only the user starts one: an agent runs these commands
+when the user asks for a release, and never suggests or offers one.
 
 Rule: One command does the release; the steps around it make sure the tag it
 pushes describes a tree that already passed CI.
 
-1. **Clean state:** `git status` is clean and pushed, and `deno task cli ok`
-   passes. The release command aborts on a dirty tree, and on unpushed commits
-   unless `--yes`.
-2. **Preflight:** `deno task cli preflight` on the commit to tag. It runs the
-   release-only steps precommit skips: the three npm bundles, a packed install
-   of the CLI outside the repo, `deno publish --dry-run`, the native and wasm
-   ajan builds, the release `deno compile` for the host, and the Homebrew and
-   Nix scripts in dry-run mode. CI runs the same workflow on every push to
-   `main`, and `release-gate` requires it to have passed on the tagged tree.
-3. **Preview:**
-   `deno task cli codebase release <patch|minor|major|same> --dry-run` prints
-   the old and new version and whether a changelog section would be written.
-   Nothing changes.
-4. **Release:** `deno task cli codebase release <patch|minor|major|same>`. In
-   one run it bumps `VERSION` and every `package.json`, writes the
-   `CHANGELOG.md` section from the commits since the last tag, commits
+1. **Clean state:** `git status` is clean and pushed, and the full gate named in
+   this codebase's AGENTS.md passes. The release command aborts on a dirty tree,
+   and on unpushed commits unless `--yes`.
+2. **Preflight:** run this codebase's release preflight on the commit to tag. It
+   runs the release-only steps the precommit gate skips: building the npm
+   bundles and installing them outside the repo, `deno publish --dry-run`,
+   native builds, and dry runs of the release tooling. CI runs the same
+   preflight on every push to `main`, and a release gate requires it to have
+   passed on the tagged tree.
+3. **Preview:** `eser codebase release <patch|minor|major|same> --dry-run`
+   prints the old and new version and whether a changelog section would be
+   written. Nothing changes.
+4. **Release:** `eser codebase release <patch|minor|major|same>`. In one run it
+   bumps `VERSION` and every `package.json`, writes the `CHANGELOG.md` section
+   from the commits since the last tag, commits
    `chore(codebase): release v<version>`, pushes to `main`, then creates and
    pushes the annotated tag `v<version>`.
-5. **Watch** the tag run at https://github.com/eser/stack/actions.
+5. **Watch** the tag run in the repository's Actions tab.
 
 `same` re-cuts a release at the current version; see Re-Release, Resume and
 Unrelease for when that is still legal.
@@ -76,28 +76,21 @@ Unrelease for when that is still legal.
 
 Scope: What the tag push triggers
 
-Rule: The `v*.*.*` tag push, not the release commit, starts the release.
-`build.yml` then runs:
+Rule: The `v*.*.*` tag push, not the release commit, starts the release. The
+release workflow orders its jobs so that nothing is published before a gate
+passes:
 
-```
-validate
- └─ release-gate           tag == VERSION, CHANGELOG.md has that section
-     ├─ smoke-test
-     │   └─ npm-no-deno-test
-     │       └─ publish            JSR + npm bundles
-     │           └─ release-notes  changelog section → GitHub Release
-     └─ build-ajan-darwin
-         └─ compile-binaries
-             └─ publish-ajan       ajan-* platform packages on npm
-                 └─ upload-assets  cosign signatures + SHA256SUMS
-                     ├─ update-homebrew
-                     └─ update-nix-hashes
-```
+1. Validation, then a **release gate** that checks the tag equals `VERSION` and
+   that `CHANGELOG.md` has a section for it. A mismatch fails while every
+   registry is still untouched.
+2. Smoke tests of the built artifacts.
+3. Publishing to the registries.
+4. Post-publish stages: GitHub release notes from the changelog section,
+   binaries, signatures and checksums, package manager formulas.
 
-`release-gate` runs before anything is published, so a tag that disagrees with
-`VERSION`, or a version without a changelog section, fails while every registry
-is untouched. An ordinary push runs `validate`, `cross-runtime-test` and
-`windows-smoke` (and `preflight` on `main`), and publishes nothing.
+An ordinary push runs validation (and the preflight on `main`) and publishes
+nothing. The concrete job graph is in the docs linked from this codebase's
+AGENTS.md.
 
 **Why the CLI pushes the tag and CI does not:** a tag pushed with the workflow's
 `GITHUB_TOKEN` does not dispatch another workflow (GitHub's recursion guard). A
@@ -112,34 +105,26 @@ Scope: Where a release goes
 
 Rule:
 
-- **JSR:** the `publish` job runs `etc/scripts/gen-jsr-manifests.ts` and then
-  `deno publish`, which publishes every package whose generated `deno.json` has
-  a publish config. Authentication is OIDC; there is no JSR secret.
-- **npm bundles:** three packages, `eser` (built by `deno task cli build` from
-  `pkg/@eserstack/cli`), `noskills`
-  (`pkg/@eserstack/noskills/scripts/npm-build.ts`) and `laroux`
-  (`pkg/@eserstack/laroux-server/scripts/npm-build.ts`). The `smoke-test` job
-  builds them; `publish` runs `pnpm publish --provenance --access public` for
-  each.
-- **npm platform packages:** the six `@eserstack/ajan-*` packages carry the
-  prebuilt Go library. `pkg/@eserstack/ajan/scripts/build.ts` builds it and
-  `pkg/@eserstack/ajan/npm/generate-packages.ts` stages it into each package;
-  `publish-ajan` publishes them before the bundles need them.
+- **JSR:** generate the publish manifests, then `deno publish`, which publishes
+  every package with a publish config. Authentication is OIDC; there is no JSR
+  secret.
+- **npm:** each npm package is built in CI and published with
+  `pnpm publish --provenance --access public`.
 - **npm authentication:** OIDC trusted publishing (`id-token: write`,
   `--provenance`). There is no `NPM_TOKEN` or `NODE_AUTH_TOKEN`, and every npm
   package needs a GitHub Actions trusted publisher configured on npm. npm cannot
   attach one to a package that does not exist yet, so a brand-new package is
-  published once by hand from the artifacts of `publish-ajan.yml` in bootstrap
-  mode, then gets its trusted publisher.
+  published once by hand, then gets its trusted publisher.
 - **Every publish step skips versions already on the registry**, so a stage can
   be re-run safely.
+- **Packages built from the same commit are pinned exactly.** When a bundle is
+  compiled against the ABI of a native or platform package from the same commit,
+  its published manifest depends on that exact version, not a range. A floor
+  range lets an older native library load under a newer bundle and fail on
+  missing exports.
 
-**Platform packages are pinned exactly.** `cli` and `ajan` declare the platform
-packages with `workspace:*`. The eser bundle is compiled against the ABI of the
-library built from the same commit, so its generated `dist/package.json`
-resolves those specifiers to the exact released version
-(`pkg/@eserstack/codebase/npm-workspace-specifiers.ts`). A floor range once let
-`npx eser` load ajan 4.1.57 under eser 4.5.1 and fail on missing exports.
+Which packages go to npm and how each is built differs between codebases; the
+docs linked from this codebase's AGENTS.md list them.
 
 ---
 
@@ -149,12 +134,12 @@ Scope: After every release
 
 Rule: Check that every target received the new version:
 
-- JSR: `jsr.io/@eserstack/<name>` shows it.
-- npm: `npm view eser version`, `npm view noskills version`,
-  `npm view laroux version` and one `@eserstack/ajan-*` package.
-- GitHub: the `release-notes` job created the release and its body matches the
-  CHANGELOG section; the binaries, signatures and `SHA256SUMS` are attached.
-- Homebrew and Nix: the update jobs succeeded.
+- JSR: the package pages show it.
+- npm: `npm view <package> version` for each npm package, including one platform
+  package if there are any.
+- GitHub: the release exists, its body matches the CHANGELOG section, and the
+  binaries, signatures and checksums are attached.
+- Package manager formulas (Homebrew, Nix): their update jobs succeeded.
 
 ---
 
@@ -172,7 +157,7 @@ merge back into.
 
 Scope: Any change to a public interface: package exports and their types, CLI
 commands and flags, config keys, environment variables, persisted file formats,
-the noskills client and daemon wire protocol, and the eser and ajan library ABI
+client and server wire protocols, and native library ABIs
 
 Rule: A change that makes an existing consumer change code, flags or files to
 upgrade is breaking. For each one:
@@ -180,14 +165,15 @@ upgrade is breaking. For each one:
 1. Prefer deprecation first: keep the old name or flag working, mark it with
    `@deprecated` in JSDoc (or a warning on the CLI) naming the replacement, and
    remove it in a later release.
-2. Mark the commit breaking (`feat(pkg)!:` or a `BREAKING CHANGE:` footer) so
-   the release is a major bump.
+2. Mark the commit breaking with `!` after the type and scope (`feat(pkg)!:`) so
+   the release is a major bump. Commit messages have no body, so there is no
+   `BREAKING CHANGE:` footer.
 3. Add a before/after example under `### Migration` in the `Unreleased` section
    of CHANGELOG.md, and the same example in the affected package README. "See
    CHANGELOG" is not a migration guide.
-4. State what happens when the two sides run different versions (an older daemon
-   with a newer client, an older ajan library under a newer eser), and make the
-   newer side either work or fail with an error that names the version to
+4. State what happens when the two sides run different versions (an older server
+   with a newer client, an older native library under a newer bundle), and make
+   the newer side either work or fail with an error that names the version to
    install.
 
 Correct:
@@ -208,8 +194,8 @@ Incorrect:
 - scaffolding moved to kit
 ```
 
-`changelog-gen.ts` does not parse `!` or `BREAKING CHANGE` yet, so the
-`### Migration` entry is written by hand.
+The changelog generator accepts `!` but does not turn it into a migration note,
+so the `### Migration` entry is written by hand.
 
 ---
 
@@ -217,17 +203,19 @@ Incorrect:
 
 Scope: Commit subjects and CHANGELOG.md
 
-Rule: `changelog-gen.ts` builds each release section from the conventional
-commits since the last tag. It collapses "take" series ("feat: x (take II)" with
-"feat: x"), groups entries by Keep a Changelog section, and replaces an existing
-section for the same version, so re-running it is safe.
+Rule: `eser codebase changelog-gen` builds each release section from the
+conventional commits since the last tag. It collapses "take" series ("feat: x
+(take II)" with "feat: x"), groups entries by Keep a Changelog section, and
+replaces an existing section for the same version, so re-running it is safe.
 
-The commit subject is therefore the changelog entry. Write it from the user's
-side: what changed for someone using the package, CLI or daemon, not which file
-moved. Use the type that matches the effect (`feat`, `fix`, `perf`, `revert`)
-and a scope naming the package. Anything a subject line cannot carry (removals,
-migration steps, behavior notes) goes by hand into the `Unreleased` section of
-CHANGELOG.md under `### Removed` or `### Migration`, in the same change.
+The commit subject is therefore the changelog entry, and the message is that
+line alone, two lines at most, with no body (workflow-practices: Git Commit
+Policy). Write it from the user's side: what changed for someone using the
+package, CLI or service, not which file moved. Use the type that matches the
+effect (`feat`, `fix`, `perf`, `revert`) and a scope naming the package.
+Anything a subject line cannot carry (removals, migration steps, behavior notes)
+goes by hand into the `Unreleased` section of CHANGELOG.md under `### Removed`
+or `### Migration`, in the same change.
 
 Correct:
 
@@ -256,29 +244,24 @@ chain can run again for the same tag without harm.
 and npm answers a republish with 403. Any package that already published at a
 version keeps that tree forever.
 
-- **Resume (preferred):** run the Integrity Pipeline by `workflow_dispatch` with
-  `tag` set to the existing tag and `stage` left at `post-publish`. Validation,
-  smoke tests and the registry publish are skipped; release notes, binaries,
-  assets, ajan platform packages, Homebrew and Nix run against the tag's tree.
-  Nothing touches git. `stage: full` also re-runs validation and the idempotent
-  publish, for example after configuring a missing npm trusted publisher.
+- **Resume (preferred):** run the release workflow by `workflow_dispatch` with
+  the existing tag and a stage input that skips what already succeeded
+  (validation, smoke tests and the registry publish), so only the post-publish
+  stages run against the tag's tree. Nothing touches git. A full-stage resume
+  also re-runs validation and the idempotent publish, for example after
+  configuring a missing npm trusted publisher. The workflow name and inputs are
+  in the docs linked from this codebase's AGENTS.md.
+- **Rerelease:** `eser codebase rerelease` deletes the version tag and recreates
+  it at HEAD, re-firing the whole run. Use it only when the fix needed a commit
+  that changes nothing already published (tooling, workflows, an unpublished
+  package).
+- **Unrelease:** `eser codebase unrelease` deletes the tag and the GitHub
+  Release; the release commit stays in history. `eser codebase release same`
+  then cuts a fresh release at the current version.
 
-  ```bash
-  gh workflow run "Integrity Pipeline" --ref main -f tag=v4.5.1 -f stage=post-publish
-  ```
-
-- **Rerelease:** `deno task cli codebase rerelease` deletes the version tag and
-  recreates it at HEAD, re-firing the whole run. Use it only when the fix needed
-  a commit that changes nothing already published (tooling, workflows, an
-  unpublished package).
-- **Unrelease:** `deno task cli codebase unrelease` deletes the tag and the
-  GitHub Release; the release commit stays in history.
-  `deno task cli codebase release same` then cuts a fresh release at the current
-  version.
-
-| Situation                                                    | Action                                         |
-| ------------------------------------------------------------ | ---------------------------------------------- |
-| A stage after publish failed, no code change needed          | Resume via `workflow_dispatch`, `post-publish` |
-| Infrastructure error (runner, network, rate limit)           | Resume, or re-run the failed jobs              |
-| Fix touches only tooling, workflow or an unpublished package | Commit, then `rerelease` at the same version   |
-| Fix touches a package already on JSR or npm at this version  | Commit, then `release patch`                   |
+| Situation                                                    | Action                                       |
+| ------------------------------------------------------------ | -------------------------------------------- |
+| A stage after publish failed, no code change needed          | Resume via `workflow_dispatch`, post-publish |
+| Infrastructure error (runner, network, rate limit)           | Resume, or re-run the failed jobs            |
+| Fix touches only tooling, workflow or an unpublished package | Commit, then `rerelease` at the same version |
+| Fix touches a package already on JSR or npm at this version  | Commit, then `release patch`                 |

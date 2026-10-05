@@ -2,9 +2,9 @@
 
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
-import { NotFoundError, runtime } from "@eserstack/standards/cross-runtime";
-import { type BuildSnapshot, type BuildSnapshotSerialized } from "./mod.ts";
-import { setBuildId } from "./build-id.ts";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import type { BuildSnapshot, BuildSnapshotSerialized } from "./mod.ts";
+import * as buildId from "./build-id.ts";
 
 export type AotSnapshotState = {
   files: Map<string, string>;
@@ -37,7 +37,7 @@ export class AotSnapshot implements BuildSnapshot {
 
     if (filePath !== undefined) {
       try {
-        const data = await runtime.fs.readFile(filePath);
+        const data = await crossRuntime.runtime.fs.readFile(filePath);
 
         return new ReadableStream({
           start(controller) {
@@ -65,7 +65,7 @@ export const loadAotSnapshot = async (
   snapshotDirPath: string,
 ): Promise<BuildSnapshot | null> => {
   try {
-    if (!(await runtime.fs.stat(snapshotDirPath)).isDirectory) {
+    if (!(await crossRuntime.runtime.fs.stat(snapshotDirPath)).isDirectory) {
       return null;
     }
 
@@ -80,11 +80,14 @@ export const loadAotSnapshot = async (
     );
     await out.close();
 
-    const snapshotPath = runtime.path.join(snapshotDirPath, "snapshot.json");
+    const snapshotPath = crossRuntime.runtime.path.join(
+      snapshotDirPath,
+      "snapshot.json",
+    );
     const json = JSON.parse(
-      await runtime.fs.readTextFile(snapshotPath),
+      await crossRuntime.runtime.fs.readTextFile(snapshotPath),
     ) as BuildSnapshotSerialized;
-    setBuildId(json.build_id);
+    buildId.setBuildId(json.build_id);
 
     const dependencies = new Map<string, Array<string>>(
       Object.entries(json.files),
@@ -92,13 +95,13 @@ export const loadAotSnapshot = async (
 
     const files = new Map<string, string>();
     Object.keys(json.files).forEach((name) => {
-      const filePath = runtime.path.join(snapshotDirPath, name);
+      const filePath = crossRuntime.runtime.path.join(snapshotDirPath, name);
       files.set(name, filePath);
     });
 
     return new AotSnapshot(createAotSnapshotState(files, dependencies));
   } catch (err) {
-    if (!(err instanceof NotFoundError)) {
+    if (!(err instanceof crossRuntime.NotFoundError)) {
       throw err;
     }
 

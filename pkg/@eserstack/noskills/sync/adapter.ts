@@ -24,6 +24,17 @@ export type InteractionHints = {
   readonly hasSubAgentDelegation: boolean;
   /** Mechanism for spawning sub-agents. */
   readonly subAgentMethod: "task" | "delegation" | "spawn" | "fleet" | "none";
+  /**
+   * Whether a person answers the agent while it works. False for the headless
+   * `noskills run` loop, where nobody can answer a question; absent means true.
+   */
+  readonly interactive?: boolean;
+  /**
+   * The key that switches the tool into plan mode ("Shift+Tab" in Claude
+   * Code). Absent when noskills knows of none, so the output names no key the
+   * tool lacks.
+   */
+  readonly planModeShortcut?: string;
 };
 
 /** Boolean flags describing what a tool adapter can generate. */

@@ -1,6 +1,7 @@
 package httpfx
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/eser/stack/pkg/ajan/httpfx/uris"
 	"github.com/eser/stack/pkg/ajan/lib"
+	"github.com/eser/stack/pkg/ajan/logfx"
 )
 
 // routeTable holds an immutable snapshot of routes for lock-free reads.
@@ -20,8 +22,8 @@ type routeTable struct {
 // Router provides HTTP routing with immutable route tables for safe concurrent access.
 // Routes are registered during initialization and frozen when the server starts.
 type Router struct {
-	mux  *http.ServeMux
-	path string
+	mux    *http.ServeMux
+	logger *logfx.Logger
 
 	// Atomic pointer to immutable route table for lock-free reads
 	table atomic.Pointer[routeTable]
@@ -33,12 +35,24 @@ type Router struct {
 	frozen atomic.Bool
 }
 
-func NewRouter(path string) *Router {
+// NewRouter creates a router that logs, through logger, the error a result
+// carries and the responses it fails to write. Route and RouteRaw register
+// each pattern exactly as given, so every pattern carries its full path
+// ("GET /api/users").
+//
+// Panics if logger is nil: the router uses it only when a result carries an
+// error or a write fails, so a nil logger would otherwise crash on one of
+// those rarer paths instead of here.
+func NewRouter(logger *logfx.Logger) *Router {
+	if logger == nil {
+		panic("httpfx: NewRouter needs a logger; pass the service's *logfx.Logger")
+	}
+
 	mux := http.NewServeMux()
 
 	router := &Router{ //nolint:exhaustruct
-		mux:  mux,
-		path: path,
+		mux:    mux,
+		logger: logger,
 	}
 
 	// Initialize with empty route table
@@ -52,10 +66,6 @@ func NewRouter(path string) *Router {
 
 func (r *Router) GetMux() *http.ServeMux {
 	return r.mux
-}
-
-func (r *Router) GetPath() string {
-	return r.path
 }
 
 // GetHandlers returns a defensive copy of the registered middleware handlers.
@@ -86,31 +96,6 @@ func (r *Router) GetRoutes() []*Route {
 	copy(result, table.routes)
 
 	return result
-}
-
-// Group creates a new router with a prefixed path.
-// The new router shares no state with the parent router.
-// Group is not implemented and always panics.
-//
-// It used to return NewRouter(r.path + path), which is a fresh router with its
-// own http.ServeMux that nothing ever mounts into the parent. Every route
-// registered on the group therefore 404'd, with no error at registration time
-// to say so. Silently serving 404 for correctly-registered routes is worse than
-// refusing, and the method has no callers to preserve.
-//
-// Implementing it means more than mounting the sub-mux: Route ignores r.path
-// entirely today (see the TODO in Route), so patterns are registered verbatim
-// and a prefix would not be applied either way. Both halves have to land
-// together for grouping to mean anything.
-//
-// Panicking matches how this router already reports programmer error, as in
-// RouteRaw's frozen-router panic.
-func (r *Router) Group(path string) *Router {
-	panic(
-		"httpfx: Router.Group is not implemented (requested path=" + path +
-			"). It returned an unmounted router, so grouped routes silently " +
-			"404ed. Register routes on the parent router with their full path.",
-	)
 }
 
 // Freeze marks the router as immutable, preventing further route registration.
@@ -198,38 +183,13 @@ func (r *Router) Route(pattern string, handlers ...Handler) *Route { //nolint:fu
 
 		result := allHandlers[0](ctx)
 
-		// Handle redirect responses
-		if result.RedirectToURI() != "" {
-			responseWriter.Header().Set(
-				"Location",
-				result.RedirectToURI(),
-			)
-		}
+		r.logResultError(ctx.Request, route.Pattern.Str, &result)
 
-		// Must precede WriteHeader: headers set afterwards are silently
-		// discarded. Only set when the result knows its type, so anything that
-		// does not keeps net/http's sniffing behaviour, and never overwrite a
-		// type a middleware or raw handler already chose.
-		if contentType := result.ContentType(); contentType != "" {
-			header := responseWriter.Header()
-			if header.Get("Content-Type") == "" {
-				header.Set("Content-Type", contentType)
-			}
-		}
-
-		responseWriter.WriteHeader(result.StatusCode())
-
-		_, err := responseWriter.Write(result.Body())
-		if err != nil {
-			slog.Error("Failed to write HTTP response body",
-				slog.String("scope_name", "httpfx_router"),
-				slog.Any("error", err))
+		if err := writeResult(responseWriter, &result); err != nil {
+			r.logWriteError(req, ctx.Request, route.Pattern.Str, result.StatusCode(), err)
 		}
 	}
 
-	// TODO(@eser) Implement proper path combination for nested routers
-	// Note: HTTP patterns like "GET /path" already include method and path
-	// For nested routers, we need to modify the path part of the pattern
 	r.mux.HandleFunc(route.Pattern.Str, route.MuxHandlerFunc)
 
 	// Create new immutable table with added route
@@ -246,14 +206,28 @@ func (r *Router) Route(pattern string, handlers ...Handler) *Route { //nolint:fu
 	return route
 }
 
-// RouteRaw registers a pattern directly on the underlying mux without the
-// Result-wrapping closure. Use this ONLY for hijacking endpoints such as
-// WebTransport upgrades or raw streaming responses.
+// RouteRaw registers a pattern whose handler writes the response itself
+// instead of returning a Result. Use it only for endpoints that take over the
+// connection, such as WebTransport upgrades or raw streaming responses.
 //
-// The full middleware chain still executes; each middleware receives a Context
-// with IsRaw=true so it can skip post-response work (e.g. timing log body-size
-// measurements). If a middleware calls WriteEarly, the raw handler receives a
-// Context with EarlyWritten=true and MUST return without writing further.
+// The raw handler is the last step of the middleware chain, as a Route's
+// handler is, so it receives the request with every context value the
+// middlewares added (auth claims, client address, trace span). Each
+// middleware receives a Context with IsRaw=true. On a raw route the Result a
+// middleware gets back from Next is a placeholder 204, because the raw handler
+// has written its own response, and code after Next runs once the raw handler
+// returns, which for WebTransport is when the session ends.
+//
+// A middleware rejects the request by returning a Result without calling Next
+// (AuthMiddleware's 401, RateLimitMiddleware's 429, CorsMiddleware's preflight
+// 204). The raw handler then does not run, and the Result is written the way
+// Route writes it. A middleware that wrote the response itself with WriteEarly
+// gets nothing written on top of it.
+//
+// When the raw handler panics and a middleware such as ErrorHandlerMiddleware
+// recovers the panic, the router cannot tell how much of a response the
+// handler wrote, so it aborts the response with http.ErrAbortHandler instead
+// of writing the middleware's 500. It still logs the error that 500 carries.
 //
 // Panics if the router has been frozen.
 func (r *Router) RouteRaw(pattern string, handler http.HandlerFunc) {
@@ -266,8 +240,11 @@ func (r *Router) RouteRaw(pattern string, handler http.HandlerFunc) {
 
 	current := r.table.Load()
 
-	middlewareSnapshot := make([]Handler, len(current.handlers))
-	copy(middlewareSnapshot, current.handlers)
+	// The middleware snapshot plus the raw handler as the final step. The
+	// slice is never written after this, so every request can share it.
+	chain := make([]Handler, len(current.handlers), len(current.handlers)+1)
+	copy(chain, current.handlers)
+	chain = append(chain, rawHandlerStep(handler))
 
 	r.mux.HandleFunc(pattern, func(responseWriter http.ResponseWriter, req *http.Request) {
 		ctx := &Context{
@@ -275,26 +252,148 @@ func (r *Router) RouteRaw(pattern string, handler http.HandlerFunc) {
 			ResponseWriter: responseWriter,
 			Results:        Results{},
 			routeDef:       nil,
-			handlers:       middlewareSnapshot,
+			handlers:       chain,
 			index:          0,
 			IsRaw:          true,
 			EarlyWritten:   false,
+			rawStarted:     false,
+			rawReturned:    false,
 		}
 
-		if len(middlewareSnapshot) > 0 {
-			result := middlewareSnapshot[0](ctx)
+		result := chain[0](ctx)
 
-			// If a middleware called WriteEarly (e.g. auth rejection), the
-			// response is already sent — honour the redirect header if set.
-			if ctx.EarlyWritten {
-				if result.RedirectToURI() != "" {
-					responseWriter.Header().Set("Location", result.RedirectToURI())
-				}
+		// Logged on every path, including those that write nothing: on the
+		// abort path the result carries the panic a middleware recovered.
+		r.logResultError(ctx.Request, pattern, &result)
 
-				return
-			}
+		switch {
+		case ctx.rawStarted && !ctx.rawReturned:
+			// A middleware recovered a panic of the raw handler, which may have
+			// written part of a response or taken over the connection already.
+			panic(http.ErrAbortHandler)
+		case ctx.rawStarted, ctx.EarlyWritten:
+			return
 		}
 
-		handler(responseWriter, req)
+		if err := writeResult(responseWriter, &result); err != nil {
+			r.logWriteError(req, ctx.Request, pattern, result.StatusCode(), err)
+		}
 	})
+}
+
+// rawHandlerStep turns a raw handler into the final step of a RouteRaw chain.
+// It records on ctx whether the handler started and returned, which is how
+// RouteRaw tells a rejection from a request the raw handler answered.
+func rawHandlerStep(handler http.HandlerFunc) Handler {
+	return func(ctx *Context) Result {
+		// A middleware that answered with WriteEarly and still called Next must
+		// not get a second response on top of its own.
+		if ctx.EarlyWritten {
+			return ctx.Results.Ok()
+		}
+
+		ctx.rawStarted = true
+
+		handler(ctx.ResponseWriter, ctx.Request)
+
+		ctx.rawReturned = true
+
+		return ctx.Results.Ok()
+	}
+}
+
+// writeResult writes result as the response: the redirect location, the
+// content type when the result knows it, the status and the body. It returns
+// the error of the body write.
+func writeResult(responseWriter http.ResponseWriter, result *Result) error {
+	if result.RedirectToURI() != "" {
+		responseWriter.Header().Set(
+			"Location",
+			result.RedirectToURI(),
+		)
+	}
+
+	// Must precede WriteHeader: headers set afterwards are silently
+	// discarded. Only set when the result knows its type, so anything that
+	// does not keeps net/http's sniffing behaviour, and never overwrite a
+	// type a middleware or raw handler already chose.
+	if contentType := result.ContentType(); contentType != "" {
+		header := responseWriter.Header()
+		if header.Get("Content-Type") == "" {
+			header.Set("Content-Type", contentType)
+		}
+	}
+
+	responseWriter.WriteHeader(result.StatusCode())
+
+	// An empty body is not written at all. A zero-byte Write is not a no-op
+	// everywhere: for a status that allows no body (204, 304), quic-go's
+	// HTTP/3 writer returns http.ErrBodyNotAllowed even for zero bytes.
+	body := result.Body()
+	if len(body) == 0 {
+		return nil
+	}
+
+	_, err := responseWriter.Write(body)
+	if err != nil {
+		return fmt.Errorf("write response body: %w", err)
+	}
+
+	return nil
+}
+
+// logResultError logs the error a result carries (see WithSanitizedError),
+// once, with the trace and request ids from the context the middlewares built.
+// A 5xx result is a server failure and is logged as an error. Any other status
+// means the request was refused, such as a 404 for a missing project, and is
+// logged as a warning.
+func (r *Router) logResultError(handled *http.Request, pattern string, result *Result) {
+	if result.InnerError == nil {
+		return
+	}
+
+	attrs := []any{
+		slog.String("scope_name", "httpfx_router"),
+		slog.String("pattern", pattern),
+		slog.Int("status", result.StatusCode()),
+		slog.Any("error", result.InnerError),
+	}
+
+	if result.StatusCode() >= http.StatusInternalServerError {
+		r.logger.ErrorContext(handled.Context(), "httpfx router: request error", attrs...)
+
+		return
+	}
+
+	r.logger.WarnContext(handled.Context(), "httpfx router: request error", attrs...)
+}
+
+// logWriteError logs a failed body write once, with the trace and request
+// ids from the context the middlewares built. served is the request the
+// server passed in: its context ends when the client goes away, while a
+// middleware may have cancelled the one it derived.
+func (r *Router) logWriteError(
+	served *http.Request,
+	handled *http.Request,
+	pattern string,
+	status int,
+	err error,
+) {
+	logCtx := handled.Context()
+	attrs := []any{
+		slog.String("scope_name", "httpfx_router"),
+		slog.String("pattern", pattern),
+		slog.Int("status", status),
+		slog.Any("error", err),
+	}
+
+	// A client that has left cannot read the body, so its failed write is not
+	// a server error.
+	if served.Context().Err() != nil {
+		r.logger.DebugContext(logCtx, "httpfx router: response body not delivered, the client left", attrs...)
+
+		return
+	}
+
+	r.logger.ErrorContext(logCtx, "httpfx router: response body not delivered", attrs...)
 }

@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkServerLoc } from "../../validate-server-loc.ts";
+import * as validateServerLoc from "../../validate-server-loc.ts";
 import type { Validator, ValidatorResult } from "../types.ts";
 
 export const serverLocValidator: Validator = {
@@ -15,7 +15,7 @@ export const serverLocValidator: Validator = {
     "Fail if any non-test file in a directory exceeds the line ceiling",
   requiredStacks: ["golang"],
 
-  async validate(options): Promise<ValidatorResult> {
+  validate: async (options): Promise<ValidatorResult> => {
     const directory = options.options?.["directory"] as string | undefined;
 
     if (directory === undefined || directory === "") {
@@ -36,7 +36,7 @@ export const serverLocValidator: Validator = {
       | undefined;
     const extension = options.options?.["extension"] as string | undefined;
 
-    const result = await checkServerLoc({
+    const result = await validateServerLoc.checkServerLoc({
       root: options.root,
       directory,
       maxLines,

@@ -13,15 +13,11 @@
  *
  * @example
  * ```ts
- * import {
- *   createTailwindRoot,
- *   processCssModule,
- *   optimizeGoogleFonts,
- * } from "@eserstack/bundler/css";
+ * import * as css from "@eserstack/bundler/css";
  *
  * // Process CSS Module with Tailwind @apply support
- * const tailwind = createTailwindRoot({ base: "." });
- * const result = await processCssModule("src/Button.module.css", {
+ * const tailwind = css.createTailwindRoot({ base: "." });
+ * const result = await css.processCssModule("src/Button.module.css", {
  *   tailwind,
  *   generateDts: true,
  * });
@@ -29,12 +25,12 @@
  * tailwind.dispose();
  *
  * // Process CSS Module without Tailwind (pure Lightning CSS)
- * const plainResult = await processCssModule("src/Card.module.css", {
+ * const plainResult = await css.processCssModule("src/Card.module.css", {
  *   generateDts: true,
  * });
  *
  * // Optimize Google Fonts
- * const fonts = await optimizeGoogleFonts(
+ * const fonts = await css.optimizeGoogleFonts(
  *   "https://fonts.googleapis.com/css2?family=Roboto",
  *   { outputDir: "dist/fonts" },
  * );

@@ -5,8 +5,8 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { JS_FILE_EXTENSIONS } from "@eserstack/standards/patterns";
-import { walkFiles } from "@eserstack/collector";
+import * as patterns from "@eserstack/standards/patterns";
+import * as collector from "@eserstack/collector";
 import type { TransformResult } from "./rsc-transform.ts";
 import * as logging from "@eserstack/logging";
 
@@ -143,7 +143,7 @@ function findClientComponentMatch(
   }
 
   // Try with JS/TS extensions
-  const extensions = JS_FILE_EXTENSIONS.map((ext) => `.${ext}`);
+  const extensions = patterns.JS_FILE_EXTENSIONS.map((ext) => `.${ext}`);
   for (const ext of extensions) {
     const withExt = resolvedPath.endsWith(ext)
       ? resolvedPath
@@ -428,6 +428,9 @@ export async function rewriteAllServerComponents(
   const results: ImportRewriteResult[] = [];
 
   for (const componentPath of serverComponentPaths) {
+    // One file at a time keeps open file handles bounded; a project can have
+    // more server components than the open-file limit.
+    // deno-lint-ignore no-await-in-loop
     const result = await rewriteServerComponentImports(
       componentPath,
       clientComponentMap,
@@ -558,6 +561,9 @@ export async function rewriteAllClientComponentCSSImports(
   let totalRewritten = 0;
 
   for (const component of clientComponents) {
+    // One file at a time keeps open file handles bounded; a project can have
+    // more client components than the open-file limit.
+    // deno-lint-ignore no-await-in-loop
     const result = await rewriteClientComponentCSSImports(
       component.filePath,
       cssModuleMap,
@@ -583,6 +589,9 @@ export async function rewriteAllClientComponentCSSImports(
   }
 }
 
+/** Extensions of the source files whose CSS module imports are rewritten. */
+const CSS_IMPORTER_EXTENSIONS: readonly string[] = ["tsx", "ts"];
+
 /**
  * Rewrite CSS module imports in ALL source files that might be bundled
  * This is necessary because client components may import server components
@@ -599,12 +608,16 @@ export async function rewriteAllSrcCSSModuleImports(
 
   const cssModuleMap = createCSSModuleMap(cssModulePaths);
 
-  // Find all .tsx and .ts files in src directory
+  // Find all .tsx and .ts files in src directory. The extension check is done
+  // here: the glob filter of walkFiles supports only * and **, so a
+  // "*.{tsx,ts}" list would match no file.
   const srcFiles: string[] = [];
   for await (
-    const relPath of walkFiles(srcDir, "**/*.{tsx,ts}", /node_modules/)
+    const relPath of collector.walkFiles(srcDir, undefined, /node_modules/)
   ) {
-    srcFiles.push(runtime.path.join(srcDir, relPath));
+    if (patterns.hasExtension(relPath, CSS_IMPORTER_EXTENSIONS)) {
+      srcFiles.push(runtime.path.join(srcDir, relPath));
+    }
   }
 
   rewriteLogger.debug(
@@ -614,6 +627,9 @@ export async function rewriteAllSrcCSSModuleImports(
   let totalRewritten = 0;
 
   for (const filePath of srcFiles) {
+    // One file at a time keeps open file handles bounded; a project can have
+    // more source files than the open-file limit.
+    // deno-lint-ignore no-await-in-loop
     const result = await rewriteClientComponentCSSImports(
       filePath,
       cssModuleMap,

@@ -2,15 +2,15 @@
 
 import * as assert from "@std/assert";
 import * as mock from "@std/testing/mock";
-import { Registry } from "./container.ts";
-import { factory } from "./fluent-api-factory.ts";
+import * as container from "./container.ts";
+import * as fluentApiFactory from "./fluent-api-factory.ts";
 
 const create = () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   const services = registry.build();
 
-  const di = factory(services);
+  const di = fluentApiFactory.factory(services);
 
   return { di, registry, services };
 };

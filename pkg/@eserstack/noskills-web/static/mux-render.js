@@ -11,6 +11,16 @@
 (() => {
   "use strict";
 
+  // Browser globals come from globalThis: deno lint checks this file against
+  // Deno's globals, which have no DOM. xterm's Terminal and WebLinksAddon are
+  // read when a pane is created, since a page without a terminal has neither.
+  const { document } = globalThis;
+
+  // The terminal font. Callers measure the cell with the same values, so the
+  // grid they report matches what xterm draws.
+  const FONT_FAMILY = "'SF Mono', 'Cascadia Code', 'Fira Code', monospace";
+  const FONT_SIZE_PX = 13;
+
   function measureCell(fontFamily, fontSize) {
     const span = document.createElement("span");
     span.style.cssText =
@@ -28,17 +38,16 @@
 
   /**
    * @param {object} opts
-   *   root      — container element panes are positioned within (position:relative)
-   *   cell      — { w, h } pixel size of one character cell
-   *   send      — (frame) => void; sends a FrontendToServer frame ({t:"action"|...})
-   *   tabBar    — optional element to render the tab list into
-   *   fontFamily, fontSize — xterm font
+   *   root: container element panes are positioned within (position:relative)
+   *   cell: { w, h } pixel size of one character cell
+   *   send: (frame) => void; sends a FrontendToServer frame ({t:"action"|...})
+   *   tabBar: optional element to render the tab list into
+   *   fontFamily, fontSize: xterm font (default FONT_FAMILY, FONT_SIZE_PX)
    */
   function createRenderer(opts) {
     const { root, cell, send } = opts;
-    const fontFamily = opts.fontFamily ||
-      "'SF Mono', 'Cascadia Code', 'Fira Code', monospace";
-    const fontSize = opts.fontSize || 13;
+    const fontFamily = opts.fontFamily ?? FONT_FAMILY;
+    const fontSize = opts.fontSize ?? FONT_SIZE_PX;
 
     let scene = null;
     const panes = new Map(); // paneId → { term, el }
@@ -62,12 +71,12 @@
       el.style.position = "absolute";
       el.dataset.pane = id;
       el.addEventListener("mousedown", () => {
-        if (scene && scene.focusedPane !== id) {
+        if (scene !== null && scene.focusedPane !== id) {
           sendAction({ type: "focusPane", pane: id });
         }
       });
 
-      const term = new Terminal({
+      const term = new globalThis.Terminal({
         fontFamily,
         fontSize,
         theme: {
@@ -79,12 +88,13 @@
         allowProposedApi: true,
         scrollback: 5000,
       });
-      if (typeof WebLinksAddon !== "undefined") {
+      const { WebLinksAddon } = globalThis;
+      if (WebLinksAddon !== undefined) {
         term.loadAddon(new WebLinksAddon.WebLinksAddon());
       }
       term.open(el);
       term.onData((data) => {
-        if (scene && scene.focusedPane !== id) {
+        if (scene !== null && scene.focusedPane !== id) {
           sendAction({ type: "focusPane", pane: id });
         }
         sendAction({ type: "writeInput", data });
@@ -104,7 +114,12 @@
 
     function renderTabBar() {
       const bar = opts.tabBar;
-      if (!bar || scene === null || !Array.isArray(scene.tabs)) return;
+      if (
+        bar === undefined || bar === null || scene === null ||
+        !Array.isArray(scene.tabs)
+      ) {
+        return;
+      }
 
       const items = scene.tabs.map((t, i) => {
         const active = i === scene.activeTab ? " active" : "";
@@ -192,5 +207,10 @@
     };
   }
 
-  globalThis.MuxRender = { measureCell, createRenderer };
+  globalThis.MuxRender = {
+    FONT_FAMILY,
+    FONT_SIZE_PX,
+    measureCell,
+    createRenderer,
+  };
 })();

@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/types"
@@ -396,6 +397,16 @@ func TestMetricInt_Rounding(t *testing.T) {
 			input:    "3.4M",
 			expected: 3_400_000,
 		},
+		{
+			name:     "rounds float error below 8.11K up",
+			input:    "8.11K",
+			expected: 8110,
+		},
+		{
+			name:     "rounds float error above 8.13K down",
+			input:    "8.13K",
+			expected: 8130,
+		},
 	}
 
 	for _, testCase := range tests {
@@ -407,6 +418,63 @@ func TestMetricInt_Rounding(t *testing.T) {
 			err := metric.UnmarshalText([]byte(testCase.input))
 			require.NoError(t, err)
 			assert.Equal(t, testCase.expected, int64(metric))
+		})
+	}
+}
+
+func TestMetricInt_UnmarshalTextRange(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{name: "largest int64 parses exactly", input: "9223372036854775807", expected: math.MaxInt64},
+		{name: "smallest int64 parses exactly", input: "-9223372036854775808", expected: math.MinInt64},
+		{name: "integer above 2^53 keeps every digit", input: "9007199254740993", expected: 9_007_199_254_740_993},
+		{name: "scaled value just inside the range", input: "9.2B", expected: 9_200_000_000},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var metric types.MetricInt
+
+			err := metric.UnmarshalText([]byte(testCase.input))
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expected, int64(metric))
+		})
+	}
+}
+
+func TestMetricInt_UnmarshalTextOutOfRange(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "one above the largest int64", input: "9223372036854775808"},
+		{name: "one below the smallest int64", input: "-9223372036854775809"},
+		{name: "scaled past the largest int64", input: "10000000000B"},
+		{name: "scaled past the smallest int64", input: "-10000000000B"},
+		{name: "exponent past the range", input: "1e19"},
+		{name: "infinity", input: "Inf"},
+		{name: "not a number", input: "NaN"},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			metric := types.MetricInt(7)
+
+			err := metric.UnmarshalText([]byte(testCase.input))
+			require.ErrorIs(t, err, types.ErrMetricIntOutOfRange)
+			assert.Contains(t, err.Error(), testCase.input)
+			assert.Equal(t, types.MetricInt(7), metric, "a rejected value must not overwrite the target")
 		})
 	}
 }

@@ -1,9 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import {
-  createExtensionIndex,
-  createIndexedRegistryBuilder,
-} from "./indexed.ts";
+import * as indexed from "./indexed.ts";
 
 // =============================================================================
 // Test Data
@@ -73,24 +70,24 @@ function createManualIndexedMap<V extends { extensions: readonly string[] }>(
 // =============================================================================
 
 const indexedRegistrySmall = (() => {
-  const builder = createIndexedRegistryBuilder<string, Format>([
-    createExtensionIndex("byExtension", (f) => f.extensions),
+  const builder = indexed.createIndexedRegistryBuilder<string, Format>([
+    indexed.createExtensionIndex("byExtension", (f) => f.extensions),
   ]);
   for (const f of smallFormats) builder.set(f.name, f);
   return builder.build();
 })();
 
 const indexedRegistryMedium = (() => {
-  const builder = createIndexedRegistryBuilder<string, Format>([
-    createExtensionIndex("byExtension", (f) => f.extensions),
+  const builder = indexed.createIndexedRegistryBuilder<string, Format>([
+    indexed.createExtensionIndex("byExtension", (f) => f.extensions),
   ]);
   for (const f of mediumFormats) builder.set(f.name, f);
   return builder.build();
 })();
 
 const indexedRegistryLarge = (() => {
-  const builder = createIndexedRegistryBuilder<string, Format>([
-    createExtensionIndex("byExtension", (f) => f.extensions),
+  const builder = indexed.createIndexedRegistryBuilder<string, Format>([
+    indexed.createExtensionIndex("byExtension", (f) => f.extensions),
   ]);
   for (const f of largeFormats) builder.set(f.name, f);
   return builder.build();
@@ -116,8 +113,8 @@ Deno.bench(
   "IndexedRegistry.create (10 entries)",
   { group: "create-small", baseline: true },
   () => {
-    const builder = createIndexedRegistryBuilder<string, Format>([
-      createExtensionIndex("byExtension", (f) => f.extensions),
+    const builder = indexed.createIndexedRegistryBuilder<string, Format>([
+      indexed.createExtensionIndex("byExtension", (f) => f.extensions),
     ]);
     for (const f of smallFormats) builder.set(f.name, f);
     builder.build();
@@ -138,8 +135,8 @@ Deno.bench(
   "IndexedRegistry.create (50 entries)",
   { group: "create-medium", baseline: true },
   () => {
-    const builder = createIndexedRegistryBuilder<string, Format>([
-      createExtensionIndex("byExtension", (f) => f.extensions),
+    const builder = indexed.createIndexedRegistryBuilder<string, Format>([
+      indexed.createExtensionIndex("byExtension", (f) => f.extensions),
     ]);
     for (const f of mediumFormats) builder.set(f.name, f);
     builder.build();
@@ -160,8 +157,8 @@ Deno.bench(
   "IndexedRegistry.create (200 entries)",
   { group: "create-large", baseline: true },
   () => {
-    const builder = createIndexedRegistryBuilder<string, Format>([
-      createExtensionIndex("byExtension", (f) => f.extensions),
+    const builder = indexed.createIndexedRegistryBuilder<string, Format>([
+      indexed.createExtensionIndex("byExtension", (f) => f.extensions),
     ]);
     for (const f of largeFormats) builder.set(f.name, f);
     builder.build();

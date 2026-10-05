@@ -69,4 +69,4 @@ noskills-server feedback   # opens a pre-filled GitHub issue URL
 
 - Source: https://github.com/eser/stack
 - ADRs: https://github.com/eser/stack/tree/main/docs/adr
-- Contributing: https://github.com/eser/stack/blob/main/CONTRIBUTING.md
+- Contributing: https://github.com/eser/stack/blob/main/.github/CONTRIBUTING.md

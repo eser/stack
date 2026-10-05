@@ -79,12 +79,37 @@ export type WorkflowFileMutation = {
   readonly newContent: string;
 };
 
+/**
+ * What the engine passes to a tool, next to its options, for one step.
+ */
+export type WorkflowToolContext = {
+  /**
+   * How long the step may run, in milliseconds: the step's `timeout`, or
+   * `RunOptions.defaultTimeout`. A tool that starts a subprocess or a request
+   * gives it this limit, so the work stops when the step times out.
+   */
+  readonly timeoutMs: number;
+  /**
+   * Aborted when the step ends: when it runs past `timeoutMs`, or when the
+   * tool has returned. Work the tool started and still runs should stop then.
+   */
+  readonly signal: AbortSignal;
+};
+
 /** A tool that can be registered and run within a workflow. */
 export type WorkflowTool = {
   readonly name: string;
   readonly description: string;
+  /**
+   * Run the tool for one step.
+   *
+   * @param options - The step's options, plus `root`, `fix`, `dryRun`, `_args`
+   *   and, in incremental mode, `_changedFiles` from the run
+   * @param context - The step's time limit and the signal that ends it
+   */
   readonly run: (
     options: Record<string, unknown>,
+    context: WorkflowToolContext,
   ) => Promise<WorkflowToolResult>;
 };
 
@@ -124,9 +149,16 @@ export type WorkflowError = {
 export type RunOptions = {
   readonly root?: string;
   readonly fix?: boolean;
+  /**
+   * Preview fixes without writing files. Tools receive it as the `dryRun`
+   * option; the shell tool runs `command` instead of `fixCommand`.
+   */
   readonly dryRun?: boolean;
   readonly only?: string;
-  /** Default timeout for all steps in milliseconds. Default: 60000 (60s). */
+  /**
+   * Timeout for steps that set none, in milliseconds: above 0 and at most
+   * 2147483647. Default: 60000 (60s).
+   */
   readonly defaultTimeout?: number;
   /** Positional args passed through to tools (e.g., commit message file path). */
   readonly args?: readonly string[];

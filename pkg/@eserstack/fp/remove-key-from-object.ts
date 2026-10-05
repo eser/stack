@@ -1,5 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+/**
+ * Returns an object without the properties with the given keys.
+ *
+ * @param instance - The source object
+ * @param keys - The keys to remove
+ * @returns A new object
+ */
 export const removeKeyFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   ...keys: ReadonlyArray<string | number | symbol>
@@ -17,5 +24,3 @@ export const removeKeyFromObject = <T>(
 
   return result;
 };
-
-export { removeKeyFromObject as default };

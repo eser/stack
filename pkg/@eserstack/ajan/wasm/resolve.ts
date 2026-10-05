@@ -4,29 +4,14 @@
  * WASM file resolution for the eser-ajan WASM modules.
  *
  * Searches multiple well-known locations for the WASM file and returns the
- * first path that exists. Mirrors the resolution strategy in `ffi/resolve.ts`.
+ * first path that exists. Mirrors the resolution strategy in `ffi/resolve.ts`
+ * and probes files through its `fileExists`, which acquires a synchronous
+ * `stat` on first use. Importing this module performs no I/O.
  *
  * @module
  */
 
-/**
- * `node:fs` module resolved once via top-level await.
- * Works identically on Node 25+, Bun 1.3+, and Deno 2.7+.
- */
-const nodeFs = await import("node:fs");
-
-/**
- * Checks whether a file exists at the given path.
- * Uses `node:fs` resolved via top-level await — works on all runtimes.
- */
-const fileExists = (path: string): boolean => {
-  try {
-    nodeFs.statSync(path);
-    return true;
-  } catch {
-    return false;
-  }
-};
+import * as ffiResolve from "../ffi/resolve.ts";
 
 /**
  * Reads an environment variable across runtimes.
@@ -34,6 +19,7 @@ const fileExists = (path: string): boolean => {
  * Uses `process.env` which works on Deno 2.7+, Node.js, and Bun.
  */
 const getEnvVar = (name: string): string | undefined => {
+  // globalThis does not declare Deno, Bun or process on every runtime.
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
 
@@ -43,30 +29,6 @@ const getEnvVar = (name: string): string | undefined => {
   }
 
   return undefined;
-};
-
-/**
- * Returns the directory containing this module file.
- * Falls back to the current working directory if detection fails.
- */
-const getModuleDir = (hint?: string): string => {
-  if (hint !== undefined) {
-    return hint;
-  }
-
-  // deno-lint-ignore no-explicit-any
-  const g = globalThis as any;
-
-  // Node / Bun: __dirname is available in CommonJS; for ESM, fallback to cwd
-  if (typeof g.__dirname === "string") {
-    return g.__dirname;
-  }
-
-  if (typeof g.process !== "undefined" && typeof g.process.cwd === "function") {
-    return g.process.cwd();
-  }
-
-  return ".";
 };
 
 /** WASM file names for each mode. */
@@ -91,7 +53,7 @@ const WASM_FILENAMES: Record<string, string> = {
  * @throws {Error} If no WASM file is found at any location.
  */
 export const resolveWasmPath = (
-  mode: "command" | "reactor" = "command",
+  mode: "command" | "reactor",
   moduleDirHint?: string,
 ): string => {
   const wasmFile = WASM_FILENAMES[mode] ?? WASM_FILENAMES["command"]!;
@@ -104,19 +66,19 @@ export const resolveWasmPath = (
   // 1. Environment variable override
   const envPath = getEnvVar("ESER_AJAN_WASM_PATH");
   if (envPath !== undefined) {
-    if (fileExists(envPath)) {
+    if (ffiResolve.fileExists(envPath)) {
       return envPath;
     }
     checkedPaths.push(`$ESER_AJAN_WASM_PATH = ${envPath}`);
   }
 
-  const moduleDir = getModuleDir(moduleDirHint);
+  const moduleDir = ffiResolve.getModuleDir(moduleDirHint);
 
   // 2. Adjacent to this module (wasm/ directory)
   for (const variant of wasmVariants) {
     const adjacentPath = `${moduleDir}/${variant}`;
     checkedPaths.push(adjacentPath);
-    if (fileExists(adjacentPath)) {
+    if (ffiResolve.fileExists(adjacentPath)) {
       return adjacentPath;
     }
   }
@@ -127,7 +89,7 @@ export const resolveWasmPath = (
   for (const variant of wasmVariants) {
     const distPath = `${pkgRoot}/dist/${distSubdir}/${variant}`;
     checkedPaths.push(distPath);
-    if (fileExists(distPath)) {
+    if (ffiResolve.fileExists(distPath)) {
       return distPath;
     }
   }
@@ -136,12 +98,13 @@ export const resolveWasmPath = (
   for (const variant of wasmVariants) {
     const cwdDistPath = `${moduleDir}/dist/${distSubdir}/${variant}`;
     checkedPaths.push(cwdDistPath);
-    if (fileExists(cwdDistPath)) {
+    if (ffiResolve.fileExists(cwdDistPath)) {
       return cwdDistPath;
     }
   }
 
   // Try pkg/@eserstack/ajan/dist/ from the monorepo root (cwd)
+  // globalThis does not declare Deno, Bun or process on every runtime.
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
   const cwd =
@@ -153,7 +116,7 @@ export const resolveWasmPath = (
       const monoDistPath =
         `${cwd}/pkg/@eserstack/ajan/dist/${distSubdir}/${variant}`;
       checkedPaths.push(monoDistPath);
-      if (fileExists(monoDistPath)) {
+      if (ffiResolve.fileExists(monoDistPath)) {
         return monoDistPath;
       }
     }
@@ -165,7 +128,7 @@ export const resolveWasmPath = (
     for (const variant of wasmVariants) {
       const npmPath = `${root}/node_modules/@eserstack/ajan-wasm/${variant}`;
       checkedPaths.push(npmPath);
-      if (fileExists(npmPath)) {
+      if (ffiResolve.fileExists(npmPath)) {
         return npmPath;
       }
     }
@@ -179,7 +142,7 @@ export const resolveWasmPath = (
     ];
     for (const sysPath of systemPaths) {
       checkedPaths.push(sysPath);
-      if (fileExists(sysPath)) {
+      if (ffiResolve.fileExists(sysPath)) {
         return sysPath;
       }
     }

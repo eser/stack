@@ -9,15 +9,18 @@
  * @module
  */
 
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 
+/** The access tokens the Go service posts and reads with, per platform. */
 export type GoPostCredentials = {
   readonly twitter?: { readonly accessToken: string };
   readonly bluesky?: { readonly accessJwt: string; readonly did: string };
 };
 
+/** A platform the Go service supports. */
 export type GoPlatform = "twitter" | "bluesky";
 
+/** A post as the Go service returns it. */
 export type GoPost = {
   readonly id: string;
   readonly text: string;
@@ -25,6 +28,7 @@ export type GoPost = {
   readonly authorHandle?: string;
 };
 
+/** A Go-backed service handle; call `close` to release it. */
 export type GoPostService = {
   /** Post text to one or all configured platforms. */
   compose(text: string, platform?: GoPlatform): Promise<GoPost>;
@@ -49,10 +53,10 @@ export type GoPostService = {
  *
  * @example
  * ```typescript
- * import { createGoPostService } from "@eserstack/posts/go-posts";
+ * import * as goPosts from "@eserstack/posts/go-posts";
  * import { runtime } from "@eserstack/standards/cross-runtime";
  *
- * const svc = await createGoPostService({
+ * const svc = await goPosts.createGoPostService({
  *   twitter: { accessToken: runtime.env.get("TWITTER_TOKEN")! },
  * });
  * await svc.compose("Hello from Go!");
@@ -62,8 +66,8 @@ export type GoPostService = {
 export const createGoPostService = async (
   credentials: GoPostCredentials,
 ): Promise<GoPostService> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error("native library not available for createGoPostService");
@@ -82,7 +86,7 @@ export const createGoPostService = async (
 
   return {
     compose(text: string, platform?: GoPlatform): Promise<GoPost> {
-      const lib2 = getLib();
+      const lib2 = ffiClient.getLib();
       if (lib2 === null) {
         return Promise.reject(new Error("native library unavailable"));
       }
@@ -98,7 +102,7 @@ export const createGoPostService = async (
     getTimeline(
       options: { platform?: GoPlatform; maxResults?: number } = {},
     ): Promise<GoPost[]> {
-      const lib2 = getLib();
+      const lib2 = ffiClient.getLib();
       if (lib2 === null) {
         return Promise.reject(new Error("native library unavailable"));
       }
@@ -115,7 +119,7 @@ export const createGoPostService = async (
       query: string,
       options: { platform?: GoPlatform; maxResults?: number } = {},
     ): Promise<GoPost[]> {
-      const lib2 = getLib();
+      const lib2 = ffiClient.getLib();
       if (lib2 === null) {
         return Promise.reject(new Error("native library unavailable"));
       }
@@ -129,7 +133,7 @@ export const createGoPostService = async (
     },
 
     close(): void {
-      const lib2 = getLib();
+      const lib2 = ffiClient.getLib();
       if (lib2 === null) return;
       lib2.symbols.EserAjanPostsClose(JSON.stringify({ handle }));
     },

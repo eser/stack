@@ -1,19 +1,21 @@
 # Scripts and Editor Settings
 
-Where project commands are defined and which editor settings are shared.
+Where this codebase's commands are defined and which editor settings are shared.
 
 ---
 
 ## Scripts Location
 
-Scope: Project commands
+Scope: Commands of this codebase
 
-Rule: Project commands are `scripts` in `.eser/manifest.yml` and run through the
-`eser` CLI (`deno task cli <name>` in a repository that runs it from source;
-`deno task cli --help` lists them). The root `package.json` holds only the CLI
-entry points. Add a new command to the manifest, not to `package.json` or a
-`deno.json` `tasks` block; package-specific tasks that JSR needs go in
-`deno.extra.json`.
+Rule: Commands are `scripts` in `.eser/manifest.yml` and run through the `eser`
+CLI as `eser <name>`; `eser --help` lists them. When this codebase runs the CLI
+from source, its AGENTS.md names the task that starts it. The root
+`package.json` holds only the CLI entry points. Add a new command to the
+manifest, not to `package.json` or a `deno.json` `tasks` block; package-specific
+tasks that JSR needs go in `deno.extra.json`, and a Node-only package keeps its
+own build and test scripts in its `package.json` (deno-and-packages.md: Tooling
+Preference).
 
 Correct:
 

@@ -37,14 +37,10 @@ export {
 } from "./rolldown.ts";
 
 import type { Bundler, BundlerBackend } from "../types.ts";
-import {
-  createDenoBundlerBackend,
-  type DenoBundlerBackendOptions,
-} from "./deno-bundler.ts";
-import {
-  createRolldownBackend,
-  type RolldownBackendOptions,
-} from "./rolldown.ts";
+import * as denoBundler from "./deno-bundler.ts";
+import type { DenoBundlerBackendOptions } from "./deno-bundler.ts";
+import * as rolldown from "./rolldown.ts";
+import type { RolldownBackendOptions } from "./rolldown.ts";
 
 /**
  * Options for creating a bundler backend.
@@ -62,18 +58,20 @@ export type CreateBundlerOptions =
  *
  * @example
  * ```ts
- * // Use Rolldown (default, faster)
- * const bundler = createBundler("rolldown");
+ * import * as bundler from "@eserstack/bundler";
+ *
+ * // Use Rolldown (default)
+ * const rolldownBackend = bundler.createBundler("rolldown");
  *
  * // Use Deno Bundler (stable fallback)
- * const bundler = createBundler("deno-bundler");
+ * const denoBackend = bundler.createBundler("deno-bundler");
  *
  * // With options
- * const bundler = createBundler("rolldown", {
+ * const chunkedBackend = bundler.createBundler("rolldown", {
  *   advancedChunks: {
  *     minSize: 20000,
- *     groups: [{ name: "vendor", test: /node_modules/, priority: 10 }]
- *   }
+ *     groups: [{ name: "vendor", test: /node_modules/, priority: 10 }],
+ *   },
  * });
  * ```
  */
@@ -100,11 +98,13 @@ export function createBundler(
 
   switch (backend) {
     case "rolldown":
-      return createRolldownBackend(
+      return rolldown.createRolldownBackend(
         options as RolldownBackendOptions,
       );
     case "deno-bundler":
-      return createDenoBundlerBackend(options as DenoBundlerBackendOptions);
+      return denoBundler.createDenoBundlerBackend(
+        options as DenoBundlerBackendOptions,
+      );
     default:
       throw new Error(`Unknown bundler backend: ${backend}`);
   }

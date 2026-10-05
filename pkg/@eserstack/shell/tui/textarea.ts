@@ -11,7 +11,7 @@
  */
 
 import * as ansi from "./ansi.ts";
-import * as layoutTypes from "./layout-types.ts";
+import type * as layoutTypes from "./layout-types.ts";
 
 // ---------------------------------------------------------------------------
 // Clamp helper

@@ -7,6 +7,7 @@
  */
 
 import type * as schema from "../state/schema.ts";
+import * as concernScope from "../state/concern-scope.ts";
 
 // =============================================================================
 // Helpers
@@ -150,6 +151,7 @@ type NormalizedSection = {
   readonly id: string;
   readonly title: string;
   readonly placeholder: string;
+  readonly scope: readonly schema.ConcernScope[];
   readonly condition: string | null;
 };
 
@@ -168,37 +170,33 @@ const normalizeSpecSection = (
       }`,
       title: raw,
       placeholder: "_To be addressed during execution._",
+      scope: [],
       condition: null,
     };
   }
-  return raw;
+  return {
+    id: raw.id,
+    title: raw.title,
+    placeholder: raw.placeholder,
+    scope: raw.scope ?? [],
+    condition: raw.condition ?? null,
+  };
 };
 
 /**
- * Check whether a normalized section is relevant given the current classification.
- * Uses the `condition` field when available. Falls back to always-relevant for
- * sections without a condition (null = always show).
+ * Check whether a normalized section is relevant given the current
+ * classification. A section with no scope and no condition always is; a
+ * conditional one is hidden until the spec is classified and then needs its
+ * scope (and legacy condition) to match.
  */
 const isSectionRelevant = (
   section: NormalizedSection,
   classification: schema.SpecClassification | null,
 ): boolean => {
-  if (section.condition === null) return true;
+  if (!concernScope.isConditionalSection(section)) return true;
   if (classification === null) return false;
 
-  const conditionMap: Record<
-    string,
-    (c: schema.SpecClassification) => boolean
-  > = {
-    involvesWebUI: (c) => c.involvesWebUI,
-    involvesCLI: (c) => c.involvesCLI,
-    involvesPublicAPI: (c) => c.involvesPublicAPI,
-    involvesMigration: (c) => c.involvesMigration,
-    involvesDataHandling: (c) => c.involvesDataHandling,
-  };
-
-  const condFn = conditionMap[section.condition];
-  return condFn !== undefined ? condFn(classification) : true;
+  return concernScope.sectionMatchesClassification(section, classification);
 };
 
 // =============================================================================

@@ -6,11 +6,61 @@
  * REST calls:        createNoskillsClient()
  * WebTransport:      attachSession()
  * Cert fingerprint:  fetchAndPinCertFingerprint() / getCertFingerprint()
+ * Errors:            NoskillsTimeoutError, NoskillsResponseError,
+ *                    CertFingerprintError
  *
  * @module
  */
 
-export * from "./types.ts";
-export * from "./cert.ts";
-export * from "./client.ts";
-export * from "./attach.ts";
+export type {
+  AbortCommand,
+  AttachSession,
+  CallOptions,
+  CertRotatingEvent,
+  ClientCommand,
+  ClientCountEvent,
+  CreateSessionRequest,
+  CreateSessionResponse,
+  DaemonEvent,
+  ErrorEvent,
+  FanoutEvent,
+  ForkCreatedEvent,
+  LoginRequest,
+  LoginResponse,
+  MuxCommand,
+  MuxFrameEvent,
+  NoskillsClientConfig,
+  PermissionDecision,
+  PermissionDecisionEvent,
+  PermissionRequestEvent,
+  PermissionResponseCommand,
+  PermissionResponseRejectedEvent,
+  Project,
+  QueryDoneEvent,
+  RegisterProjectRequest,
+  SdkEvent,
+  Session,
+  SessionMetaEvent,
+  SetModelCommand,
+  SetPermissionModeCommand,
+  SpawnProgressEvent,
+  StopCommand,
+  TranscriptReplayEndEvent,
+  TranscriptReplayStartEvent,
+  UserMessageCommand,
+  WorkerDiedEvent,
+  WorkerReadyEvent,
+} from "./types.ts";
+export {
+  fetchAndPinCertFingerprint,
+  getCertFingerprint,
+  loadCertFingerprint,
+  storeCertFingerprint,
+} from "./cert.ts";
+export { createNoskillsClient, NoskillsClient } from "./client.ts";
+export {
+  CertFingerprintError,
+  NoskillsResponseError,
+  NoskillsTimeoutError,
+} from "./errors.ts";
+export { type AttachOptions, attachSession } from "./attach.ts";

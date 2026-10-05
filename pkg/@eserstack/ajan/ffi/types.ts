@@ -14,6 +14,7 @@
  * Symbol methods mirror the C ABI exports from eser-ajan's main.go.
  */
 export interface FFILibrary {
+  /** The bridge functions, one per C ABI export. */
   symbols: {
     /** Returns the eser-ajan version string. Caller must free the result. */
     EserAjanVersion: () => string;
@@ -111,13 +112,15 @@ export interface FFILibrary {
     EserAjanAiBatchCancel: (requestJSON: string) => string | Promise<string>;
     /**
      * Serializes a JSON value to the named format (json, yaml, toml, csv, jsonl).
-     * Accepts JSON: { format: string, data: unknown, pretty?: bool, indent?: int, isFirst?: bool }
+     * Accepts JSON: { format: string, data: unknown, pretty?: bool, indent?: int, isFirst?: bool, document?: bool }
+     * With `document: true` the value is a whole document rather than one list
+     * entry: one YAML mapping, one TOML table without a `+++` line, one JSON value.
      * Returns JSON: { result: string } | { error: string }
      */
     EserAjanFormatEncode: (requestJSON: string) => string;
     /**
      * Parses text in the named format and returns all decoded items.
-     * Accepts JSON: { format: string, text: string }
+     * Accepts JSON: { format: string, text: string, headers?: string[] }
      * Returns JSON: { items: unknown[] } | { error: string }
      */
     EserAjanFormatDecode: (requestJSON: string) => string;
@@ -158,6 +161,10 @@ export interface FFILibrary {
     EserAjanHttpCreate: (configJSON: string) => string;
     /**
      * Performs an HTTP request via a client handle.
+     * Accepts JSON: { handle, method?, url, headers?, body?, maxResponseBytes? }
+     * The body is read up to maxResponseBytes (32 MiB when unset); a larger
+     * body returns the status and headers with an error and no body. Use
+     * EserAjanHttpRequestStream for larger downloads.
      * Returns JSON: { status, statusText, headers, body, retries } | { error: string }
      */
     EserAjanHttpRequest: (requestJSON: string) => string;
@@ -165,6 +172,8 @@ export interface FFILibrary {
     EserAjanHttpClose: (handle: string) => string;
     /**
      * Starts a streaming HTTP request via a client handle.
+     * Accepts the same JSON as EserAjanHttpRequest. For an error status the
+     * body is read up to maxResponseBytes (32 MiB when unset).
      * Returns JSON: { handle: string, status: number, statusText: string, headers: Record<string,string> } | { error: string }
      */
     EserAjanHttpRequestStream: (requestJSON: string) => string;
@@ -486,6 +495,11 @@ export interface FFILibrary {
     /**
      * Executes a shell command and returns stdout, stderr, and exit code.
      * Accepts JSON: { command, args?, cwd?, env?, stdin?, timeout? }
+     * `env` is a list of "KEY=VALUE" strings. `timeout` is a Go duration
+     * string such as "30s" or "1500ms"; when it is omitted the command stops
+     * after 10 minutes. A zero or negative timeout is rejected. A command
+     * that runs past its timeout is killed and returns an error naming the
+     * timeout.
      * Returns JSON: { stdout, stderr, code } | { error: string }
      */
     EserAjanShellExec: (requestJSON: string) => string;

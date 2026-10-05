@@ -23,15 +23,16 @@ stack/
 │   ├── temp/                   # Build output (gitignored)
 │   └── coverage/               # Test coverage output (gitignored)
 ├── docs/
-│   ├── api/                    # Generated HTML reference (deno task docs)
+│   ├── api/                    # Generated HTML reference (deno task cli docs)
 │   ├── adr/                    # Architecture decision records (hand-written)
+│   ├── agents/                 # Repository notes for agents, linked from AGENTS.md
 │   └── schema/                 # JSON schemas (hand-written)
 ├── .eser/
 │   ├── recipes/                # Project templates (9)
 │   ├── recipes.json            # Recipe registry
 │   └── manifest.yml            # Workflows, validators, scripts
 ├── .agents/
-│   ├── skills/                 # Agent skill definitions (15 skills)
+│   ├── skills/                 # Agent skill definitions (14 skills)
 │   ├── hooks/                  # Claude Code PostToolUse hooks
 │   └── settings.json           # Claude Code project settings
 ├── .claude -> .agents          # Symlink so Claude Code reads the same tree
@@ -48,55 +49,79 @@ stack/
 
 ## Package Dependency Graph
 
-```
-Layer 0 — Foundation (no internal deps)
-├── @eserstack/standards             # Cross-platform abstractions (Runtime interface)
-├── @eserstack/primitives            # Primitive data structures
-└── @eserstack/directives            # Ground rules/directives
+The `dependencies` in each package's `package.json` place it in a layer. A
+package depends only on packages in lower layers, or on packages listed above it
+in its own layer.
 
-Layer 1 — Core Utilities (depend on Layer 0)
-├── @eserstack/fp                    # Functional programming (116+ modules)
+```
+Layer 0: Foundation
+├── @eserstack/primitives            # Primitive types and building blocks
+├── @eserstack/standards             # Cross-platform abstractions (Runtime interface)
+├── @eserstack/directives            # Ground rules/directives (documents only, no package.json)
+├── @eserstack/ajan-<platform>       # Prebuilt Go library, one package per platform (six)
+└── @eserstack/ajan                  # Go runtime bridge: native FFI with a WASM fallback
+
+Layer 1: Core Utilities
+├── @eserstack/fp                    # Pure functional combinators
+├── @eserstack/functions             # Workflow compositions (run, middleware, lazy)
+├── @eserstack/di                    # Dependency injection container
+├── @eserstack/events                # Event system
+├── @eserstack/streams               # Universal I/O streaming with composable middleware
+├── @eserstack/testing               # Testing utilities
 ├── @eserstack/crypto                # Cryptographic utilities
 └── @eserstack/parsing               # String/stream parsing
 
-Layer 2 — Infrastructure (depend on Layers 0-1)
-├── @eserstack/di                    # Dependency injection container
-├── @eserstack/events                # Event system
+Layer 2: Infrastructure
 ├── @eserstack/config                # Configuration management
 ├── @eserstack/cache                 # Caching utilities
 ├── @eserstack/logging               # Logging system
 ├── @eserstack/http                  # HTTP utilities
-├── @eserstack/functions             # Function utilities
-├── @eserstack/testing               # Testing utilities
+├── @eserstack/httpclient            # HTTP client with timeouts, retries and backoff
+├── @eserstack/webtransport          # WebTransport client with certificate pinning
 ├── @eserstack/formats               # Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL)
-├── @eserstack/streams               # Universal I/O streaming with composable middleware
 ├── @eserstack/shell                 # Shell interaction
-├── @eserstack/collector             # Data collection
+├── @eserstack/collector             # Module export collector and manifest generator
 ├── @eserstack/cs                    # Config storage (Kubernetes ConfigMap/Secret sync)
-└── @eserstack/codebase              # Codebase analysis/validation
+└── @eserstack/mux                   # Terminal multiplexer core: tabs, panes, pseudo-terminals
 
-Layer 3 — Framework (depend on Layers 0-2)
+Layer 3: Services and Tooling
+├── @eserstack/agents                # Coding agent discovery and the read-only git guard
+├── @eserstack/ai                    # AI provider interface (cloud APIs and local agents)
+├── @eserstack/workflows             # Event-driven workflow engine for tool pipelines
+├── @eserstack/kit                   # Recipe-based project scaffolding
+├── @eserstack/codebase              # Codebase analysis/validation
+└── @eserstack/posts                 # Posts on Twitter/X and Bluesky
+
+Layer 4: Framework
 ├── @eserstack/jsx-runtime           # Custom JSX runtime
+├── @eserstack/app-runtime           # Runtime abstraction
+├── @eserstack/bundler               # Bundling system (Rolldown and Deno.bundle backends)
 ├── @eserstack/laroux                # Framework core
-├── @eserstack/laroux-server         # Server-side runtime
-├── @eserstack/laroux-bundler        # Bundler adapters
-├── @eserstack/laroux-react          # React integration
 ├── @eserstack/laroux-runtime        # Application runtime (manifest loading, dev mode)
-├── @eserstack/bundler               # Bundling system (esbuild WASM)
-└── @eserstack/app-runtime           # Runtime abstraction
+├── @eserstack/laroux-react          # React integration: Link, Image, RSC protocol and client
+├── @eserstack/laroux-bundler        # Build pipeline and bundler adapters
+└── @eserstack/laroux-server         # Server-side runtime; the `laroux` binary
 
-Layer 4 — Shipped binaries (depend on all layers)
-├── @eserstack/cli               # `eser` — the full CLI
-├── @eserstack/noskills          # `noskills` — the same module `eser` mounts, re-rooted
-└── @eserstack/laroux-server     # `laroux` — likewise
-
-All three are `deno compile` entry points over the SAME module objects; see
-BINARIES in pkg/@eserstack/cli/scripts/compile.ts. They are not forks.
+Layer 5: Applications
+├── @eserstack/noskills              # `noskills`: the same module `eser` mounts, re-rooted
+├── @eserstack/noskills-client       # Client for a running noskills-server daemon
+├── @eserstack/noskills-server-worker  # mux session worker that noskills-server starts (not published)
+├── @eserstack/noskills-web          # Browser dashboard that `noskills web` starts
+└── @eserstack/cli                   # `eser`: the full CLI
 
 Go (module github.com/eser/stack, root go.mod)
-├── cmd/noskills-server         # `noskills-server` — the daemon, the only Go executable
-└── pkg/ajan                    # Go library (acpfx, aifx, httpclient, logfx, configfx...)
+├── cmd/noskills-server              # `noskills-server`: the daemon, the only Go executable
+└── pkg/ajan                         # Go library (acpfx, aifx, httpclient, logfx, configfx...)
+
+Go (module github.com/eser/ajan, pkg/@eserstack/ajan/go.mod)
+└── pkg/@eserstack/ajan              # cgo and WASI FFI bridge that @eserstack/ajan loads
 ```
+
+`@eserstack/ajan` and `@eserstack/cli` list the six platform packages as
+optional dependencies. Three packages ship as binaries: `cli` (`eser`),
+`noskills` and `laroux-server` (`laroux`). All three are `deno compile` entry
+points over the same module objects (`BINARIES` in
+`pkg/@eserstack/cli/scripts/compile.ts`), not forks.
 
 ## Agent execution (ACP)
 

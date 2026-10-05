@@ -33,8 +33,11 @@ const normalizeSlashes = (path: string): string => {
  *
  * @example
  * ```typescript
- * toPosix("src\\components\\Button.tsx") // "src/components/Button.tsx"
- * toPosix("./src//utils/") // "./src/utils/"
+ * import * as standards from "@eserstack/standards";
+ *
+ * standards.crossRuntime.toPosix("src\\components\\Button.tsx");
+ * // "src/components/Button.tsx"
+ * standards.crossRuntime.toPosix("./src//utils/"); // "./src/utils/"
  * ```
  */
 export const toPosix = (path: string): string => normalizeSlashes(path);

@@ -8,18 +8,36 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 var ErrParsingError = errors.New("parsing error")
 
 const Separator = "__"
 
+// ParseBytes flattens the JSON object in data into out, joining nested keys
+// with Separator. Numbers keep the text they were written with, so 1048576
+// stays "1048576" instead of becoming "1.048576e+06".
 func ParseBytes(data []byte, out *map[string]any) error {
 	var raw map[string]any
 
-	err := json.Unmarshal(data, &raw)
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+
+	err := decoder.Decode(&raw)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrParsingError, err)
+	}
+
+	// Decode stops after the first value; json.Unmarshal, used before,
+	// rejected anything after it, and so does this check.
+	_, err = decoder.Token()
+	if !errors.Is(err, io.EOF) {
+		return fmt.Errorf(
+			"%w: unexpected data after the top-level JSON object, keep one object per file",
+			ErrParsingError,
+		)
 	}
 
 	flattenJSON(raw, "", out)
@@ -73,6 +91,12 @@ func TryParseFiles(m *map[string]any, filenames ...string) error {
 	return nil
 }
 
+// flattenJSON writes input into out with nested keys joined by Separator.
+// Later calls override earlier ones key by key, and array items merge by
+// index. An array also removes a value an earlier call set at its own key,
+// and an empty array sets that key to an empty value, which configfx loads as
+// an empty slice. null removes the key and every key under it, so the field
+// falls back to its default.
 func flattenJSON(input map[string]any, currentNode string, out *map[string]any) {
 	prefix := currentNode
 	if len(prefix) > 0 {
@@ -80,37 +104,63 @@ func flattenJSON(input map[string]any, currentNode string, out *map[string]any) 
 	}
 
 	for key, value := range input {
-		mapValue, isMap := value.(map[string]any)
+		fullKey := prefix + key
 
-		if isMap {
-			if len(mapValue) > 0 {
-				flattenJSON(mapValue, prefix+key, out)
+		switch typed := value.(type) {
+		case nil:
+			removeKeyAndChildren(out, fullKey)
+		case map[string]any:
+			if len(typed) > 0 {
+				flattenJSON(typed, fullKey, out)
 			} else {
-				(*out)[prefix+key] = ""
+				(*out)[fullKey] = ""
+			}
+		case []any:
+			removeKey(out, fullKey)
+
+			if len(typed) == 0 {
+				(*out)[fullKey] = ""
+
+				continue
 			}
 
-			continue
-		}
+			for i, item := range typed {
+				itemKey := fullKey + Separator + strconv.Itoa(i)
 
-		// if false {
-		arrValue, isArray := value.([]any)
-		if isArray {
-			for i, item := range arrValue {
-				// Handle array items recursively if they are maps
-				if itemMap, ok := item.(map[string]any); ok {
-					flattenJSON(itemMap, fmt.Sprintf("%s%s%s%d", prefix, key, Separator, i), out)
-				} else {
-					// Otherwise just store the value
-					(*out)[fmt.Sprintf("%s%s%s%d", prefix, key, Separator, i)] = fmt.Sprintf("%v", item)
+				switch typedItem := item.(type) {
+				case nil:
+					// A null item leaves a gap, which loads as the zero value.
+				case map[string]any:
+					flattenJSON(typedItem, itemKey, out)
+				default:
+					(*out)[itemKey] = fmt.Sprintf("%v", item)
 				}
 			}
-
-			continue
+		default:
+			(*out)[fullKey] = fmt.Sprintf("%v", value)
 		}
+	}
+}
 
-		(*out)[prefix+key] = fmt.Sprintf("%v", value)
-		// } else {
-		// 	(*out)[prefix+key] = value
-		// }
+// removeKey deletes key from out, matching case-insensitively as configfx
+// reads keys.
+func removeKey(out *map[string]any, key string) {
+	for existingKey := range *out {
+		if strings.EqualFold(existingKey, key) {
+			delete(*out, existingKey)
+		}
+	}
+}
+
+// removeKeyAndChildren deletes key and every key nested under it from out,
+// matching case-insensitively as configfx reads keys.
+func removeKeyAndChildren(out *map[string]any, key string) {
+	childPrefix := strings.ToLower(key + Separator)
+
+	for existingKey := range *out {
+		if strings.EqualFold(existingKey, key) ||
+			strings.HasPrefix(strings.ToLower(existingKey), childPrefix) {
+			delete(*out, existingKey)
+		}
 	}
 }

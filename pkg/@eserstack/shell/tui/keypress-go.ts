@@ -11,7 +11,7 @@
  * @module
  */
 
-import { describeLoadFailure, ensureLib, getLib } from "../ffi-client.ts";
+import * as ffiClient from "../ffi-client.ts";
 import type { KeypressEvent } from "./keypress.ts";
 
 // ---------------------------------------------------------------------------
@@ -19,14 +19,14 @@ import type { KeypressEvent } from "./keypress.ts";
 // ---------------------------------------------------------------------------
 
 const requireLib = async () => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error(
       "@eserstack/ajan native library is not available — " +
         "EserAjanShellTui* requires FFI or command-mode WASM" +
-        describeLoadFailure(),
+        ffiClient.describeLoadFailure(),
     );
   }
 
@@ -37,9 +37,11 @@ const requireLib = async () => {
 // readKeypressFFI
 // ---------------------------------------------------------------------------
 
+/** A keypress read through the Go bridge, which also reports resizes. */
 export type KeypressFFIEvent = KeypressEvent & {
-  /** Present on "resize" events only. */
+  /** The new width in columns, on "resize" events only. */
   readonly cols?: number;
+  /** The new height in rows, on "resize" events only. */
   readonly rows?: number;
 };
 
@@ -127,8 +129,11 @@ export const setStdinRawFFI = async (enable: boolean): Promise<void> => {
 // getTerminalSize
 // ---------------------------------------------------------------------------
 
+/** Terminal dimensions. */
 export type TerminalSize = {
+  /** Width in columns. */
   readonly cols: number;
+  /** Height in rows. */
   readonly rows: number;
 };
 

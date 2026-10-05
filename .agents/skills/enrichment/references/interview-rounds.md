@@ -49,7 +49,7 @@ Rule: Before the first round, sketch the decisions the topic contains and how
 they depend on each other: a storage decision depends on the data model, a
 migration plan on the storage decision. Keep the tree in your working notes, not
 in the reply; the user sees it only as rounds and, at the end, as the summary.
-Leave out what the repository, the skills or the linters already decide; those
+Leave out what this codebase, its skills or its linters already decide; those
 are facts, not decisions.
 
 **Why:** asking in dependency order is what keeps a round answerable without
@@ -109,13 +109,13 @@ than a question tool, which limits how many questions and how much context fit.
 ```
 ❓ **Q1** - **Storage for session history**: Sessions are currently kept in
 memory and lost on restart. Options:
-A. SQLite file next to the daemon state
-B. PostgreSQL through connfx's pgx adapter
+A. SQLite file next to the service's state
+B. PostgreSQL, like the other services
 C. Keep in memory, add an export command
 
-➡️ A: the daemon runs on developer machines where PostgreSQL is not a given,
-and a pure-Go SQLite driver (`modernc.org/sqlite`) is already in `go.mod`
-(used by connfx tests), so no cgo or new dependency is needed.
+➡️ A: the service runs on developer machines where PostgreSQL is not a given,
+and a pure-Go SQLite driver is already a dependency (`go.mod`), so nothing new
+is added.
 
 ---
 
@@ -124,8 +124,8 @@ and a pure-Go SQLite driver (`modernc.org/sqlite`) is already in `go.mod`
 ➡️ ...
 ```
 
-Write questions in the conversation's language. Anything written into the
-repository afterwards is English (workflow-practices: Language).
+Write questions in the conversation's language. Anything written into this
+codebase afterwards is English (workflow-practices: Language).
 
 ---
 

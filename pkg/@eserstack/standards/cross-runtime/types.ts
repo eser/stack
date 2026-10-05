@@ -2,7 +2,8 @@
 
 /**
  * Cross-runtime abstraction types for @eserstack/standards/cross-runtime.
- * Provides runtime-agnostic interfaces for filesystem, path, exec, and environment.
+ * Provides runtime-agnostic interfaces for filesystem, path, exec, environment,
+ * process control and the HTTP server.
  *
  * @module
  */
@@ -63,6 +64,8 @@ export interface PlatformInfo {
  *
  * @example
  * ```typescript
+ * import { runtime } from "@eserstack/standards/cross-runtime";
+ *
  * if (runtime.capabilities.fs) {
  *   await runtime.fs.readTextFile("config.json");
  * }
@@ -83,6 +86,8 @@ export interface RuntimeCapabilities {
   readonly stdin: boolean;
   /** Standard output stream */
   readonly stdout: boolean;
+  /** HTTP server with WebSocket upgrade (`runtime.http`) */
+  readonly http: boolean;
   /** Key-value storage (Deno KV, Cloudflare KV) */
   readonly kv: boolean;
 }
@@ -319,6 +324,8 @@ export interface RuntimeFs {
    *
    * @example
    * ```typescript
+   * import { runtime } from "@eserstack/standards/cross-runtime";
+   *
    * const watcher = runtime.fs.watch(["src"], { recursive: true });
    * for await (const event of watcher) {
    *   console.log(event.kind, event.paths);
@@ -336,6 +343,8 @@ export interface RuntimeFs {
    *
    * @example
    * ```typescript
+   * import { runtime } from "@eserstack/standards/cross-runtime";
+   *
    * for await (const entry of runtime.fs.walk("src", { exts: ["ts"] })) {
    *   console.log(entry.path);
    * }
@@ -545,7 +554,8 @@ export interface ChildProcess {
 
   /**
    * Wait for process and get buffered output.
-   * Closes stdin if still open.
+   * Does not close a piped stdin. When the child reads its input to the end,
+   * close the stdin writer before calling this, or the call never returns.
    */
   output(): Promise<ProcessOutput>;
 
@@ -571,6 +581,8 @@ export interface RuntimeExec {
    *
    * @example
    * ```typescript
+   * import { runtime } from "@eserstack/standards/cross-runtime";
+   *
    * const result = await runtime.exec.spawn("git", ["status"]);
    * if (result.success) {
    *   console.log(new TextDecoder().decode(result.stdout));
@@ -593,6 +605,8 @@ export interface RuntimeExec {
    *
    * @example
    * ```typescript
+   * import { runtime } from "@eserstack/standards/cross-runtime";
+   *
    * const branch = await runtime.exec.exec("git", ["branch", "--show-current"]);
    * ```
    */
@@ -608,6 +622,10 @@ export interface RuntimeExec {
    *
    * @example
    * ```typescript
+   * import { runtime } from "@eserstack/standards/cross-runtime";
+   *
+   * type PackageJson = { readonly name: string; readonly version: string };
+   *
    * const pkg = await runtime.exec.execJson<PackageJson>("cat", ["package.json"]);
    * ```
    */
@@ -628,6 +646,10 @@ export interface RuntimeExec {
    *
    * @example Piped I/O (streaming pattern)
    * ```typescript
+   * import { runtime } from "@eserstack/standards/cross-runtime";
+   *
+   * const input = "const answer   =   42;\n";
+   *
    * const child = runtime.exec.spawnChild("deno", ["fmt", "-"], {
    *   stdin: "piped",
    *   stdout: "piped",
@@ -645,6 +667,8 @@ export interface RuntimeExec {
    *
    * @example Interactive (REPL pattern)
    * ```typescript
+   * import { runtime } from "@eserstack/standards/cross-runtime";
+   *
    * const child = runtime.exec.spawnChild("deno", ["repl"], {
    *   stdin: "inherit",
    *   stdout: "inherit",
@@ -699,6 +723,25 @@ export interface RuntimeEnv {
 // =============================================================================
 // Process Types
 // =============================================================================
+
+/**
+ * Operating system signals a process can listen for with
+ * `runtime.process.addSignalListener`.
+ *
+ * Not every platform has every signal. Deno throws a TypeError for one it
+ * cannot listen for there: SIGBREAK outside Windows, and anything but SIGINT
+ * and SIGBREAK on Windows. Node and Bun accept every name; a listener for a
+ * signal the platform never sends never runs.
+ */
+export type SignalName =
+  | "SIGBREAK"
+  | "SIGHUP"
+  | "SIGINT"
+  | "SIGQUIT"
+  | "SIGTERM"
+  | "SIGUSR1"
+  | "SIGUSR2"
+  | "SIGWINCH";
 
 /**
  * Process control interface.
@@ -771,7 +814,43 @@ export interface RuntimeProcess {
   isAlive(pid: number): boolean;
 
   /**
+   * Calls `listener` each time the process receives `signal`.
+   *
+   * While a signal has a listener, it no longer stops the process: a SIGINT
+   * listener decides itself when to exit. Removing the last listener gives the
+   * signal its default behavior back.
+   *
+   * @param signal - The signal to listen for
+   * @param listener - Called once per delivery of the signal
+   * @throws {TypeError} On Deno, if it cannot listen for `signal` on this
+   * platform (see {@link SignalName})
+   *
+   * @example
+   * ```typescript
+   * import { runtime } from "@eserstack/standards/cross-runtime";
+   *
+   * const onInterrupt = (): void => {
+   *   runtime.process.removeSignalListener("SIGINT", onInterrupt);
+   *   runtime.process.exit(130);
+   * };
+   *
+   * runtime.process.addSignalListener("SIGINT", onInterrupt);
+   * ```
+   */
+  addSignalListener(signal: SignalName, listener: () => void): void;
+
+  /**
+   * Removes a listener that addSignalListener registered for `signal`.
+   *
+   * @param signal - The signal the listener was registered for
+   * @param listener - The same function that was passed to addSignalListener
+   */
+  removeSignalListener(signal: SignalName, listener: () => void): void;
+
+  /**
    * Standard input as a readable stream.
+   * On Node and Bun it attaches to the process's stdin on the first read, so a
+   * program that never reads stdin can exit while an open pipe feeds it.
    */
   readonly stdin: ReadableStream<Uint8Array>;
 
@@ -812,6 +891,124 @@ export interface RuntimeProcess {
    * Returns a sensible fallback (80x24) if the size cannot be determined.
    */
   consoleSize(): { columns: number; rows: number };
+}
+
+// =============================================================================
+// HTTP Server Types
+// =============================================================================
+
+/**
+ * Answers one HTTP request for `runtime.http.serve`.
+ */
+export type HttpHandler = (request: Request) => Response | Promise<Response>;
+
+/**
+ * Options for `runtime.http.serve`.
+ */
+export interface ServeOptions {
+  /** Port to listen on; 0 lets the system pick a free one. */
+  readonly port: number;
+  /**
+   * Address to listen on (default: "127.0.0.1", so only this machine can
+   * connect). Pass "0.0.0.0" to accept connections from other machines.
+   */
+  readonly hostname?: string;
+  /**
+   * Stops the server when aborted. The server stops listening and closes its
+   * open connections, WebSockets included.
+   */
+  readonly signal?: AbortSignal;
+}
+
+/**
+ * A server that `runtime.http.serve` started.
+ */
+export interface HttpServer {
+  /** The address the server listens on. */
+  readonly hostname: string;
+  /** The port the server listens on; the chosen one when the option was 0. */
+  readonly port: number;
+  /** Resolves once the server has stopped. */
+  readonly finished: Promise<void>;
+}
+
+/**
+ * A WebSocket handshake that `runtime.http.upgradeWebSocket` accepted.
+ */
+export interface WebSocketUpgrade {
+  /**
+   * The server end of the connection. It opens once the handler has returned
+   * `response`; add its listeners before that.
+   */
+  readonly socket: WebSocket;
+  /** The response the handler returns, unchanged, to complete the handshake. */
+  readonly response: Response;
+}
+
+/**
+ * HTTP server interface.
+ * Check `runtime.capabilities.http` before using.
+ */
+export interface RuntimeHttp {
+  /**
+   * Listens for HTTP requests and answers each one with `handler`.
+   *
+   * Resolves once the server listens, and rejects when it cannot bind the
+   * address (for example when the port is in use). When the handler throws,
+   * the client gets a 500 response and the error is printed to stderr.
+   *
+   * @param options - Port, address and the signal that stops the server
+   * @param handler - Answers each request
+   * @returns The running server
+   *
+   * @example
+   * ```typescript
+   * import { runtime } from "@eserstack/standards/cross-runtime";
+   *
+   * const controller = new AbortController();
+   * const server = await runtime.http.serve(
+   *   { port: 0, signal: controller.signal },
+   *   (request) => new Response(`You asked for ${new URL(request.url).pathname}`),
+   * );
+   *
+   * const response = await fetch(`http://127.0.0.1:${server.port}/hello`);
+   * const text = await response.text(); // "You asked for /hello"
+   *
+   * controller.abort();
+   * await server.finished;
+   * ```
+   */
+  serve(options: ServeOptions, handler: HttpHandler): Promise<HttpServer>;
+
+  /**
+   * Accepts the WebSocket handshake in `request`.
+   *
+   * Call it from a `runtime.http.serve` handler with the request the handler
+   * received, add the socket's listeners, and return `response` from the
+   * handler. The server sends no subprotocol and no extension.
+   *
+   * @param request - A request with an `Upgrade: websocket` header
+   * @returns The socket and the response that completes the handshake
+   * @throws {TypeError} If the request is not a WebSocket handshake, or did not
+   * come from `runtime.http.serve`
+   *
+   * @example
+   * ```typescript
+   * import { runtime } from "@eserstack/standards/cross-runtime";
+   *
+   * await runtime.http.serve({ port: 8080 }, (request) => {
+   *   if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+   *     return new Response("WebSocket upgrade required", { status: 426 });
+   *   }
+   *
+   *   const { socket, response } = runtime.http.upgradeWebSocket(request);
+   *   socket.addEventListener("message", (event) => socket.send(event.data));
+   *
+   *   return response;
+   * });
+   * ```
+   */
+  upgradeWebSocket(request: Request): WebSocketUpgrade;
 }
 
 // =============================================================================
@@ -876,6 +1073,13 @@ export interface Runtime {
    * @throws {RuntimeCapabilityError} If process is not available
    */
   readonly process: RuntimeProcess;
+
+  /**
+   * HTTP server with WebSocket upgrade.
+   * Check `capabilities.http` before using.
+   * @throws {RuntimeCapabilityError} If http is not available
+   */
+  readonly http: RuntimeHttp;
 }
 
 // =============================================================================
@@ -897,6 +1101,8 @@ export interface CreateRuntimeOptions {
   path?: RuntimePath;
   /** Override process implementation */
   process?: RuntimeProcess;
+  /** Override http implementation */
+  http?: RuntimeHttp;
   /** Override capabilities */
   capabilities?: Partial<RuntimeCapabilities>;
 }
@@ -909,9 +1115,17 @@ export interface CreateRuntimeOptions {
  * Error thrown when a capability is not available on the current runtime.
  */
 export class RuntimeCapabilityError extends Error {
+  /** The capability that was requested. */
   public readonly capability: keyof RuntimeCapabilities;
+  /** The runtime that lacks the capability. */
   public readonly runtimeName: RuntimeName;
 
+  /**
+   * Creates the error for a capability the runtime does not provide.
+   *
+   * @param capability - The capability that was requested
+   * @param runtimeName - The runtime that lacks it
+   */
   constructor(
     capability: keyof RuntimeCapabilities,
     runtimeName: RuntimeName,
@@ -929,8 +1143,14 @@ export class RuntimeCapabilityError extends Error {
  * Error thrown when a file or directory is not found.
  */
 export class NotFoundError extends Error {
+  /** The path that does not exist. */
   public readonly path: string;
 
+  /**
+   * Creates the error for a path that does not exist.
+   *
+   * @param path - The path that does not exist
+   */
   constructor(path: string) {
     super(`No such file or directory: ${path}`);
     this.name = "NotFoundError";
@@ -942,8 +1162,14 @@ export class NotFoundError extends Error {
  * Error thrown when a file or directory already exists.
  */
 export class AlreadyExistsError extends Error {
+  /** The path that already exists. */
   public readonly path: string;
 
+  /**
+   * Creates the error for a path that already exists.
+   *
+   * @param path - The path that already exists
+   */
   constructor(path: string) {
     super(`File or directory already exists: ${path}`);
     this.name = "AlreadyExistsError";
@@ -955,10 +1181,20 @@ export class AlreadyExistsError extends Error {
  * Error thrown when a process execution fails.
  */
 export class ProcessError extends Error {
+  /** The command that failed. */
   public readonly cmd: string;
+  /** The exit code of the command. */
   public readonly code: number;
+  /** What the command wrote to stderr, decoded as UTF-8. */
   public readonly stderr: string;
 
+  /**
+   * Creates the error for a command that exited with a non-zero code.
+   *
+   * @param cmd - The command that failed
+   * @param code - Its exit code
+   * @param stderr - What it wrote to stderr
+   */
   constructor(
     cmd: string,
     code: number,

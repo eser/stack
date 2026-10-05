@@ -38,9 +38,9 @@ const (
 // StopReason explains why a prompt turn ended.
 type StopReason string
 
-// The five v1 stop reasons. Note that refusal and max_turn_requests have no
-// analogue in aifx.StopReason -- mapping must handle them explicitly rather
-// than falling through to "stop".
+// The five v1 stop reasons. max_turn_requests and cancelled have no analogue
+// in aifx.StopReason, so mapping must handle them explicitly rather than
+// falling through to "stop"; refusal maps to aifx.StopReasonRefusal.
 const (
 	StopReasonEndTurn         StopReason = "end_turn"
 	StopReasonMaxTokens       StopReason = "max_tokens"

@@ -23,13 +23,13 @@
  * ```
  *
  * ```tsx
- * // component.tsx
+ * // comments.tsx
  * "use client";
- * import { useActionState } from "react";
- * import { addComment } from "./actions";
+ * import * as React from "react";
+ * import * as actions from "./actions.ts";
  *
- * function Comments() {
- *   const [state, formAction] = useActionState(addComment, null);
+ * export function Comments() {
+ *   const [state, formAction] = React.useActionState(actions.addComment, null);
  *   return <form action={formAction}>...</form>;
  * }
  * ```
@@ -47,6 +47,30 @@ const actionLogger = logging.logger.getLogger([
  * Takes form data or arguments and returns a result
  */
 export type ServerAction = (...args: unknown[]) => Promise<unknown>;
+
+/**
+ * Error thrown by {@link invokeAction}. `actionId` names the action; when the
+ * action itself threw, `cause` holds that original error.
+ */
+export class ServerActionError extends Error {
+  /** Id of the action that was invoked */
+  readonly actionId: string;
+
+  /**
+   * Create the error for one action.
+   *
+   * @param actionId - Id of the action that was invoked
+   * @param message - What failed, naming the action
+   * @param options - `cause` carries the action's own error
+   */
+  constructor(actionId: string, message: string, options?: ErrorOptions) {
+    // Explicit assignment, not parameter properties: Node's erase-only type
+    // stripping cannot emit the assignments they imply.
+    super(message, options);
+    this.name = "ServerActionError";
+    this.actionId = actionId;
+  }
+}
 
 /**
  * Registry of server actions mapped by their unique IDs
@@ -68,9 +92,15 @@ export function registerAction(id: string, fn: ServerAction): void {
 
 /**
  * Invoke a server action by its ID
+ *
+ * Errors are returned to the caller, not logged here: the caller that handles
+ * the failure logs it once.
+ *
  * @param id - The action ID to invoke
  * @param args - Arguments to pass to the action
  * @returns The result of the action execution
+ * @throws {ServerActionError} When no action is registered under `id`, or when
+ *   the action throws; the action's own error is the `cause`
  */
 export async function invokeAction(
   id: string,
@@ -78,20 +108,26 @@ export async function invokeAction(
 ): Promise<unknown> {
   const action = actionRegistry.get(id);
 
-  if (!action) {
-    actionLogger.error(`Action not found: ${id}`);
-    throw new Error(`Server action "${id}" not found`);
+  if (action === undefined) {
+    throw new ServerActionError(
+      id,
+      `invoke server action "${id}": no action is registered under this id; register it with registerAction() first`,
+    );
   }
 
-  actionLogger.debug(`Invoking action: ${id}`, { args });
+  // Arguments are user input and may hold personal data, so only their count
+  // is logged.
+  const log = actionLogger.with({ actionId: id, argCount: args.length });
+  log.debug("invoking action");
 
   try {
     const result = await action(...args);
-    actionLogger.debug(`Action completed: ${id}`);
+    log.debug("action completed");
     return result;
   } catch (error) {
-    actionLogger.error(`Action failed: ${id}`, { error });
-    throw error;
+    throw new ServerActionError(id, `invoke server action "${id}"`, {
+      cause: error,
+    });
   }
 }
 

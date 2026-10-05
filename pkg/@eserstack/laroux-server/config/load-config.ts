@@ -9,13 +9,38 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import { deepMerge } from "@eserstack/fp/deep-merge";
-import { toFileUrl } from "@std/path/to-file-url";
+import * as deepMerge from "@eserstack/fp/deep-merge";
+import * as toFileUrl from "@std/path/to-file-url";
 import type { AppConfig, LogLevel, UserConfig } from "@eserstack/laroux/config";
-import { DEFAULT_CONFIG } from "@eserstack/laroux/config";
+import * as config from "@eserstack/laroux/config";
 
 // Re-export types for convenience
 export type { AppConfig, LogLevel };
+
+// The types AppConfig is made of, so the config this module returns is
+// documented in full
+export type {
+  FontDefinition,
+  FontDisplay,
+  FontProvider,
+  FontStyle,
+  FontWeight,
+  ImageFormat,
+  ImageOutputFormat,
+  ImagePlaceholder,
+  ResolvedBrowserShimsConfig,
+  ResolvedBuildConfig,
+  ResolvedCriticalCssConfig,
+  ResolvedCriticalCssViewport,
+  ResolvedImageConfig,
+  ResolvedImageQuality,
+  ResolvedInternalConfig,
+  ResolvedModeConfig,
+  ResolvedServerConfig,
+  ResolvedSSRConfig,
+  SSRMode,
+  SSRStreamMode,
+} from "@eserstack/laroux/config";
 
 const configLogger = logging.logger.getLogger(["laroux-server", "config"]);
 
@@ -30,7 +55,7 @@ function pathToFileUrl(filePath: string): string {
     : runtime.path.resolve(filePath);
 
   // Use @std/path's toFileUrl for cross-platform file:// URL generation
-  return toFileUrl(absolutePath).href;
+  return toFileUrl.toFileUrl(absolutePath).href;
 }
 
 /**
@@ -47,9 +72,10 @@ async function loadUserConfig(
       const fileUrl = pathToFileUrl(configPath);
       const mod = await import(fileUrl);
       return mod.default ?? {};
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      configLogger.warn(`Failed to load laroux.config.ts: ${message}`);
+    } catch (error) {
+      configLogger.with({ error }).warn(
+        `load ${configPath}; using the default configuration`,
+      );
       return null;
     }
   }
@@ -68,7 +94,7 @@ export async function loadConfig(projectRoot?: string): Promise<AppConfig> {
 
   // Return with project root
   return {
-    ...deepMerge(DEFAULT_CONFIG, userConfig),
+    ...deepMerge.deepMerge(config.DEFAULT_CONFIG, userConfig),
     projectRoot: root,
   };
 }

@@ -1,14 +1,24 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+/**
+ * Resource management utilities for safe acquire-use-release patterns.
+ *
+ * @module
+ */
+
 import * as results from "@eserstack/primitives/results";
 
 /**
- * Resource management utilities for safe acquire-use-release patterns.
+ * Releases one resource. A scope runs its finalizers in reverse order (LIFO
+ * cleanup) when it closes.
  */
-
-// Types
 export type Finalizer = () => Promise<void> | void;
 
+/**
+ * A group of resources released together. `addFinalizer` registers a
+ * release, `close` runs every finalizer in reverse order once, and `use` runs a
+ * function and closes the scope when it settles.
+ */
 export type Scope = {
   readonly addFinalizer: (finalizer: Finalizer) => void;
   readonly close: () => Promise<void>;
@@ -90,6 +100,9 @@ export const createScope = (): Scope => {
     const errors: unknown[] = [];
     for (const finalizer of finalizers.reverse()) {
       try {
+        // Finalizers run one at a time in reverse order (LIFO), so a resource
+        // is released before the resources acquired ahead of it.
+        // deno-lint-ignore no-await-in-loop
         await finalizer();
       } catch (error) {
         errors.push(error);
@@ -179,10 +192,14 @@ export const retry = async <T, E>(
   );
 
   for (let attempt = 0; attempt < attempts; attempt++) {
+    // An attempt starts only after the previous one failed and the delay
+    // passed; running them together would defeat the retry.
+    // deno-lint-ignore no-await-in-loop
     lastResult = await fn();
     if (results.isOk(lastResult)) return lastResult;
 
     if (attempt < attempts - 1 && delay > 0) {
+      // deno-lint-ignore no-await-in-loop
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
@@ -210,10 +227,14 @@ export const retryWithBackoff = async <T, E>(
   let currentDelay = initialDelay;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // An attempt starts only after the previous one failed and the backoff
+    // delay passed; running them together would defeat the backoff.
+    // deno-lint-ignore no-await-in-loop
     lastResult = await fn();
     if (results.isOk(lastResult)) return lastResult;
 
     if (attempt < maxAttempts - 1) {
+      // deno-lint-ignore no-await-in-loop
       await new Promise((resolve) => setTimeout(resolve, currentDelay));
       currentDelay = Math.min(currentDelay * factor, maxDelay);
     }

@@ -5,8 +5,8 @@
  * generating AGENTS.md, copilot-instructions.md, hooks, agent profiles,
  * and MCP configuration.
  *
- * Copilot hooks use `{"version": 1, "hooks": {...}}` format in
- * `.github/hooks/noskills.json`. Agents are `.agent.md` files with YAML
+ * Copilot hooks use the `{"version": 1, "hooks": {"<event>": [...]}}` format
+ * in `.github/hooks/noskills.json`. Agents are `.agent.md` files with YAML
  * frontmatter in `.github/agents/`. MCP servers are configured under
  * `mcpServers` in `.copilot/mcp.json`.
  *
@@ -17,6 +17,8 @@ import type * as adapter from "../adapter.ts";
 import * as agentsMd from "./shared/agents-md.ts";
 import * as copilot from "../copilot.ts";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as agentPrompts from "./shared/agent-prompts.ts";
+import * as hookCommands from "../hook-commands.ts";
 
 // =============================================================================
 // File Paths
@@ -29,55 +31,89 @@ const MCP_DIR = ".copilot";
 const MCP_FILE = "mcp.json";
 
 // =============================================================================
-// Hook Config Types
+// Hook Config
 // =============================================================================
+//
+// `.github/hooks/noskills.json` follows Copilot CLI's hook file format: version
+// 1 and, per camelCase event, a list of command hooks; `matcher` is a regular
+// expression the whole tool name must match, and `timeoutSec` is in seconds
+// (docs.github.com/en/copilot/reference/hooks-configuration). camelCase events
+// send `toolName` and `toolArgs`, which `invoke-hook` reads.
 
 type CopilotCliHookEntry = {
-  readonly _noskills?: boolean;
-  readonly command: readonly string[];
+  readonly type: "command";
+  readonly matcher?: string;
+  readonly command: string;
   readonly timeoutSec: number;
 };
 
-type CopilotCliHooksConfig = {
-  readonly version: 1;
-  hooks: Record<string, CopilotCliHookEntry>;
-};
+// Copilot CLI's shell tools and the tools that write files.
+const SHELL_TOOLS = "bash|powershell";
+const FILE_TOOLS = "create|edit|str_replace_editor|apply_patch";
 
-// =============================================================================
-// Hooks Content Generator
-// =============================================================================
-
-const buildHooksConfig = (
+const entry = (
   commandPrefix: string,
-): CopilotCliHooksConfig => ({
-  version: 1,
-  hooks: {
-    "noskills:sessionStart": {
-      _noskills: true,
-      command: ["bash", "-c", `${commandPrefix} invoke-hook session-start`],
-      timeoutSec: 5,
-    },
-    "noskills:preToolUse": {
-      _noskills: true,
-      command: ["bash", "-c", `${commandPrefix} invoke-hook pre-tool-use`],
-      timeoutSec: 5,
-    },
-    "noskills:postToolUse": {
-      _noskills: true,
-      command: [
-        "bash",
-        "-c",
-        `${commandPrefix} invoke-hook post-file-write`,
-      ],
-      timeoutSec: 3,
-    },
-    "noskills:agentStop": {
-      _noskills: true,
-      command: ["bash", "-c", `${commandPrefix} invoke-hook stop`],
-      timeoutSec: 10,
-    },
-  },
+  event: hookCommands.HookEvent,
+  matcher?: string,
+  args: readonly string[] = [],
+): CopilotCliHookEntry => ({
+  type: "command",
+  ...(matcher === undefined ? {} : { matcher }),
+  command: hookCommands.hookCommand(commandPrefix, event, args),
+  timeoutSec: hookCommands.HOOK_TIMEOUT_SECONDS[event],
 });
+
+const buildHooks = (
+  commandPrefix: string,
+): Readonly<Record<string, readonly CopilotCliHookEntry[]>> => ({
+  sessionStart: [
+    entry(commandPrefix, "session-start", undefined, ["--tool=copilot-cli"]),
+  ],
+  preToolUse: [
+    entry(commandPrefix, "pre-tool-use", `${SHELL_TOOLS}|${FILE_TOOLS}`),
+  ],
+  postToolUse: [
+    entry(commandPrefix, "post-file-write", FILE_TOOLS),
+    entry(commandPrefix, "post-bash", SHELL_TOOLS),
+  ],
+  agentStop: [entry(commandPrefix, "stop")],
+});
+
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  value instanceof Object && !Array.isArray(value);
+
+/**
+ * The hook file after a sync. The user's entries in each event list stay,
+ * without noskills' own. Keys whose value is not a list are dropped: earlier
+ * noskills versions wrote their hooks there as named objects, which made
+ * Copilot CLI reject the whole file.
+ */
+const mergeHooksFile = (
+  existing: unknown,
+  commandPrefix: string,
+): Record<string, unknown> => {
+  const file = isRecord(existing) ? existing : {};
+  const existingHooks = isRecord(file["hooks"]) ? file["hooks"] : {};
+  const userHooks: Record<string, unknown[]> = {};
+
+  for (const [event, entries] of Object.entries(existingHooks)) {
+    if (!Array.isArray(entries)) continue;
+
+    const userEntries = entries.filter((e: unknown) =>
+      !(isRecord(e) &&
+        ["command", "bash", "powershell"].some((key) =>
+          hookCommands.isNoskillsHookCommand(e[key])
+        ))
+    );
+    if (userEntries.length > 0) userHooks[event] = userEntries;
+  }
+
+  return {
+    ...file,
+    version: 1,
+    hooks: hookCommands.mergeHookGroups(userHooks, buildHooks(commandPrefix)),
+  };
+};
 
 // =============================================================================
 // Agent Content Generators (.agent.md with YAML frontmatter)
@@ -104,9 +140,7 @@ const buildExecutorAgentMd = (commandPrefix: string): string => {
     "",
     "## Self-Verification",
     "After completing the task, you MUST verify your own work before reporting:",
-    "1. Run type check: `deno check` on all modified files",
-    "2. Run test suite: `deno test` on the relevant test files",
-    "3. If type check or tests fail, fix the issues before reporting",
+    ...agentPrompts.EXECUTOR_SELF_CHECK,
     "",
     "## Reporting",
     "When finished, provide a structured JSON summary:",
@@ -145,10 +179,7 @@ const buildVerifierAgentMd = (): string => {
     "You CANNOT edit files. Read-only access only.",
     "",
     "## Verification Steps",
-    "1. Read each modified file and verify the changes are correct",
-    "2. Run type check: `deno check` on modified files",
-    "3. Run tests: `deno test` on relevant test files",
-    "4. Check each acceptance criterion against actual file contents",
+    ...agentPrompts.VERIFIER_STEPS,
     "",
     "## Report Format",
     "When finished, provide a structured JSON summary:",
@@ -233,10 +264,10 @@ export const copilotCliAdapter: adapter.ToolAdapter = {
     },
   },
 
-  async syncRules(
+  syncRules: async (
     ctx: adapter.SyncContext,
     options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     // 1. Generate AGENTS.md via shared helper
     await agentsMd.syncAgentsMd(ctx, options);
 
@@ -244,55 +275,35 @@ export const copilotCliAdapter: adapter.ToolAdapter = {
     await copilot.sync(ctx.root, ctx.rules, ctx.commandPrefix);
   },
 
-  async syncHooks(
+  syncHooks: async (
     ctx: adapter.SyncContext,
     _options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     const hooksDir = `${ctx.root}/${HOOKS_DIR}`;
     const hooksPath = `${hooksDir}/${HOOKS_FILE}`;
 
     await crossRuntime.runtime.fs.mkdir(hooksDir, { recursive: true });
 
-    // Read existing hooks config (preserve non-noskills hooks)
-    let existingHooks: Record<string, CopilotCliHookEntry> = {};
+    let existing: unknown = {};
     try {
-      const content = await crossRuntime.runtime.fs.readTextFile(hooksPath);
-      const parsed = JSON.parse(content) as CopilotCliHooksConfig;
-      if (parsed.hooks !== undefined && parsed.hooks !== null) {
-        existingHooks = parsed.hooks;
-      }
+      existing = JSON.parse(
+        await crossRuntime.runtime.fs.readTextFile(hooksPath),
+      );
     } catch {
-      // File doesn't exist yet
+      // No file yet, or one that is not JSON: start from an empty one.
     }
-
-    // Filter out previous noskills-managed hooks, keep user hooks
-    const userHooks: Record<string, CopilotCliHookEntry> = {};
-    for (const [key, hook] of Object.entries(existingHooks)) {
-      if (!(hook as { _noskills?: boolean })._noskills) {
-        userHooks[key] = hook;
-      }
-    }
-
-    // Build fresh noskills hooks and merge
-    const noskillsConfig = buildHooksConfig(ctx.commandPrefix);
-    const merged: CopilotCliHooksConfig = {
-      version: 1,
-      hooks: {
-        ...userHooks,
-        ...noskillsConfig.hooks,
-      },
-    };
 
     await crossRuntime.runtime.fs.writeTextFile(
       hooksPath,
-      JSON.stringify(merged, null, 2) + "\n",
+      JSON.stringify(mergeHooksFile(existing, ctx.commandPrefix), null, 2) +
+        "\n",
     );
   },
 
-  async syncAgents(
+  syncAgents: async (
     ctx: adapter.SyncContext,
     _options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     const agentsDir = `${ctx.root}/${AGENTS_DIR}`;
     await crossRuntime.runtime.fs.mkdir(agentsDir, { recursive: true });
 
@@ -309,9 +320,9 @@ export const copilotCliAdapter: adapter.ToolAdapter = {
     );
   },
 
-  async syncMcp(
+  syncMcp: async (
     ctx: adapter.SyncContext,
-  ): Promise<void> {
+  ): Promise<void> => {
     const mcpDir = `${ctx.root}/${MCP_DIR}`;
     const mcpPath = `${mcpDir}/${MCP_FILE}`;
 

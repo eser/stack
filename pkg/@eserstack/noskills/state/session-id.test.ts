@@ -1,6 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals, assertRejects } from "@std/assert";
+import * as assert from "@std/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
 import * as persistence from "./persistence.ts";
 
 const staleSession = (id: string): persistence.Session => ({
@@ -15,49 +16,52 @@ const staleSession = (id: string): persistence.Session => ({
 });
 
 Deno.test("isValidSessionId accepts generated and simple ids only", () => {
-  assertEquals(
+  assert.assertEquals(
     persistence.isValidSessionId(persistence.generateSessionId()),
     true,
   );
-  assertEquals(persistence.isValidSessionId("session-a"), true);
+  assert.assertEquals(persistence.isValidSessionId("session-a"), true);
   for (
     const id of ["", "../victim", "a/b", "a\\b", "a.b", "..", "x".repeat(65)]
   ) {
-    assertEquals(persistence.isValidSessionId(id), false, id);
+    assert.assertEquals(persistence.isValidSessionId(id), false, id);
   }
 });
 
 Deno.test("gc never deletes a path named inside a committed session file", async () => {
-  const root = await Deno.makeTempDir();
+  const root = await runtime.fs.makeTempDir();
   try {
     const sessionsDir = `${root}/.eser/.state/sessions`;
-    await Deno.mkdir(sessionsDir, { recursive: true });
+    await runtime.fs.mkdir(sessionsDir, { recursive: true });
     const victim = `${root}/victim.json`;
-    await Deno.writeTextFile(victim, "{}");
+    await runtime.fs.writeTextFile(victim, "{}");
 
     // The repository-controlled file names a path outside the directory.
-    await Deno.writeTextFile(
+    await runtime.fs.writeTextFile(
       `${sessionsDir}/planted.json`,
       JSON.stringify(staleSession("../../../victim")),
     );
 
     await persistence.gcStaleSessions(root);
-    assertEquals((await Deno.stat(victim)).isFile, true);
+    assert.assertEquals((await runtime.fs.stat(victim)).isFile, true);
 
-    assertEquals(
+    assert.assertEquals(
       await persistence.deleteSession(root, "../../../victim"),
       false,
     );
-    assertEquals((await Deno.stat(victim)).isFile, true);
-    assertEquals(await persistence.readSession(root, "../../../victim"), null);
-    await assertRejects(() =>
+    assert.assertEquals((await runtime.fs.stat(victim)).isFile, true);
+    assert.assertEquals(
+      await persistence.readSession(root, "../../../victim"),
+      null,
+    );
+    await assert.assertRejects(() =>
       persistence.createSession(root, staleSession("../escape"))
     );
 
     // A normal stale session is still collected.
     await persistence.createSession(root, staleSession("abcd1234"));
-    assertEquals(await persistence.gcStaleSessions(root), ["abcd1234"]);
+    assert.assertEquals(await persistence.gcStaleSessions(root), ["abcd1234"]);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await runtime.fs.remove(root, { recursive: true });
   }
 });

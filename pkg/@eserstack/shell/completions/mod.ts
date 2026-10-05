@@ -7,9 +7,9 @@
  *
  * @example
  * ```ts
- * import { generate, type CompletionNode } from "@eserstack/shell/completions";
+ * import * as shell from "@eserstack/shell";
  *
- * const tree: CompletionNode = {
+ * const tree: shell.completions.CompletionNode = {
  *   name: "myapp",
  *   children: [
  *     { name: "init", description: "Initialize project" },
@@ -20,13 +20,18 @@
  *   ],
  * };
  *
- * const bashScript = generate("bash", "myapp", tree);
- * const zshScript = generate("zsh", "myapp", tree);
- * const fishScript = generate("fish", "myapp", tree);
+ * const bashScript = shell.completions.generate("bash", "myapp", tree);
+ * const zshScript = shell.completions.generate("zsh", "myapp", tree);
+ * const fishScript = shell.completions.generate("fish", "myapp", tree);
  * ```
  *
  * @module
  */
+
+import type { CompletionNode, Shell } from "./types.ts";
+import * as bash from "./generators/bash.ts";
+import * as zsh from "./generators/zsh.ts";
+import * as fish from "./generators/fish.ts";
 
 export {
   type CompletionFlag,
@@ -35,11 +40,6 @@ export {
   type Shell,
 } from "./types.ts";
 export * as generators from "./generators/mod.ts";
-
-import type { CompletionNode, Shell } from "./types.ts";
-import { generate as generateBash } from "./generators/bash.ts";
-import { generate as generateZsh } from "./generators/zsh.ts";
-import { generate as generateFish } from "./generators/fish.ts";
 
 /**
  * Generate a shell completion script for the given command tree
@@ -56,10 +56,10 @@ export const generate = (
 ): string => {
   switch (shell) {
     case "bash":
-      return generateBash(appName, tree);
+      return bash.generate(appName, tree);
     case "zsh":
-      return generateZsh(appName, tree);
+      return zsh.generate(appName, tree);
     case "fish":
-      return generateFish(appName, tree);
+      return fish.generate(appName, tree);
   }
 };

@@ -7,12 +7,17 @@
  * every other package, so the whole process opens the library once. This module
  * stays as the import path the package's own code already uses.
  *
- * Logging is the one caller that needs the SYNCHRONOUS accessor: `Logger.log`
+ * Importing this module opens nothing. The library loads on the first
+ * `ensureLib()` call, which `Logger` makes before its first record goes to the
+ * bridge.
+ *
+ * Logging is the one caller that needs the synchronous accessor: `Logger.log`
  * reaches the bridge on a hot path that cannot await a load. It is exported
- * under the name `requireLib` that this package's call sites already use.
+ * under the name `requireLib` that this package's call sites already use, and
+ * those call sites only reach it after `ensureLib()` has settled.
+ *
+ * @module
  */
-
-import { ensureLib } from "@eserstack/ajan/ffi/client";
 
 export {
   ensureLib,
@@ -20,8 +25,3 @@ export {
   getLoadError,
   requireLibSync as requireLib,
 } from "@eserstack/ajan/ffi/client";
-
-// Loaded at module init, not on first log call, so Deno's per-test resource
-// sanitizer does not attribute the dlopen to whichever test happens to log
-// first.
-await ensureLib();

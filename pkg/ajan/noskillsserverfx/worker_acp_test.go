@@ -110,6 +110,20 @@ func connectACPWorker(
 ) *acpWorker {
 	t.Helper()
 
+	return connectACPWorkerHandler(t, agent, agent, dataDir)
+}
+
+// connectACPWorkerHandler is connectACPWorker for a handler that wraps agent
+// to serve more of the protocol, such as session/set_mode. agent holds the
+// state the helpers read; handler is what the connection serves.
+func connectACPWorkerHandler(
+	t *testing.T,
+	agent *scriptedAgent,
+	handler acpfx.AgentHandler,
+	dataDir string,
+) *acpWorker {
+	t.Helper()
+
 	if agent.turn == nil {
 		agent.turn = func(
 			_ context.Context, _ *acpfx.PromptRequest, _ acpfx.UpdateFunc,
@@ -123,10 +137,10 @@ func connectACPWorker(
 	clientReader, agentWriter := io.Pipe()
 	agentReader, clientWriter := io.Pipe()
 
-	agent.conn = acpfx.NewAgent(agentReader, agentWriter, nil, agent)
+	agent.conn = acpfx.NewAgent(agentReader, agentWriter, nil, handler)
 	agent.stdout = agentWriter
 
-	worker := newACPWorker("sess-test", t.TempDir(), dataDir, logfx.NewLogger())
+	worker := newACPWorker(t.Context(), "sess-test", t.TempDir(), dataDir, logfx.NewLogger())
 
 	client, err := acpfx.NewClient(
 		t.Context(), clientReader, clientWriter, nil, worker,
@@ -247,7 +261,7 @@ func TestACPWorkerStreamsATurnAsSdkEvents(t *testing.T) {
 		t.Fatalf("SendQueryStart: %v", err)
 	}
 
-	if err := worker.PushMessage("hi"); err != nil {
+	if err := worker.PushMessage(t.Context(), "hi"); err != nil {
 		t.Fatalf("PushMessage: %v", err)
 	}
 
@@ -320,7 +334,7 @@ func TestACPWorkerRoutesPermissionThroughTheDaemonProtocol(t *testing.T) {
 		t.Fatalf("SendQueryStart: %v", err)
 	}
 
-	if err := worker.PushMessage("write a file"); err != nil {
+	if err := worker.PushMessage(t.Context(), "write a file"); err != nil {
 		t.Fatalf("PushMessage: %v", err)
 	}
 
@@ -340,7 +354,7 @@ func TestACPWorkerRoutesPermissionThroughTheDaemonProtocol(t *testing.T) {
 		t.Fatalf("permission_request carries no requestId: %v", request)
 	}
 
-	if err := worker.PermissionResponse(requestID, "allow", ""); err != nil {
+	if err := worker.PermissionResponse(t.Context(), requestID, "allow", ""); err != nil {
 		t.Fatalf("PermissionResponse: %v", err)
 	}
 
@@ -523,13 +537,13 @@ func TestPushMessageDoesNotBlockOnARunningTurn(t *testing.T) {
 		t.Fatalf("SendQueryStart: %v", err)
 	}
 
-	if err := worker.PushMessage("first"); err != nil {
+	if err := worker.PushMessage(t.Context(), "first"); err != nil {
 		t.Fatalf("PushMessage: %v", err)
 	}
 
 	returned := make(chan error, 1)
 
-	go func() { returned <- worker.PushMessage("second") }()
+	go func() { returned <- worker.PushMessage(t.Context(), "second") }()
 
 	select {
 	case err := <-returned:
@@ -549,7 +563,7 @@ func TestPushMessageDoesNotBlockOnARunningTurn(t *testing.T) {
 //
 //	select {
 //	case w.events <- event:
-//	case <-w.done:
+//	case <-w.ctx.Done():
 //	}
 //
 // does not work: a send on a closed channel panics rather than blocking, which
@@ -557,7 +571,7 @@ func TestPushMessageDoesNotBlockOnARunningTurn(t *testing.T) {
 // window is exactly "an agent died while a turn was still streaming", which is
 // what a crashing agent looks like.
 func TestEmitDuringShutdownDoesNotPanic(t *testing.T) {
-	worker := newACPWorker("sess-race", t.TempDir(), "", logfx.NewLogger())
+	worker := newACPWorker(t.Context(), "sess-race", t.TempDir(), "", logfx.NewLogger())
 
 	// Drain, so the queue does not simply fill up and turn every send into the
 	// harmless full-queue branch -- that would make this test pass against the

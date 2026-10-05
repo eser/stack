@@ -8,21 +8,31 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import * as registrySchema from "./registry-schema.ts";
+import type * as registrySchema from "./registry-schema.ts";
 
 // =============================================================================
 // Types
 // =============================================================================
 
-type ProjectType = "go" | "deno" | "node" | "unknown";
+/** The kind of project, from the config file found in its directory. */
+export type ProjectType = "go" | "deno" | "node" | "unknown";
 
-interface ProjectDetection {
+/** The result of {@link detectProjectType}. */
+export interface ProjectDetection {
+  /** The project kind; `"unknown"` when no known config file was found. */
   readonly type: ProjectType;
+  /** The config file that decided the kind, such as `go.mod`, or undefined. */
   readonly configFile: string | undefined;
 }
 
-interface DependencyInstructions {
+/** The result of {@link getDependencyInstructions}. */
+export interface DependencyInstructions {
+  /**
+   * Install commands such as `deno add jsr:@eserstack/fp@^4.1.0`: the Go
+   * modules first, then JSR, then npm.
+   */
   readonly instructions: readonly string[];
+  /** Notes for the person running kit, such as a language mismatch. */
   readonly warnings: readonly string[];
 }
 
@@ -30,7 +40,11 @@ interface DependencyInstructions {
 // Project detection
 // =============================================================================
 
-const PROJECT_FILES: ReadonlyArray<readonly [string, ProjectType]> = [
+/**
+ * Config file names and the project kind each one marks, in the order
+ * {@link detectProjectType} checks them; the first file found wins.
+ */
+export const PROJECT_FILES: ReadonlyArray<readonly [string, ProjectType]> = [
   ["go.mod", "go"],
   ["deno.json", "deno"],
   ["deno.jsonc", "deno"],
@@ -40,11 +54,14 @@ const PROJECT_FILES: ReadonlyArray<readonly [string, ProjectType]> = [
 /**
  * Detect the project type by looking for config files in the given directory.
  */
-const detectProjectType = async (
+export const detectProjectType = async (
   cwd: string,
 ): Promise<ProjectDetection> => {
   for (const [filename, type] of PROJECT_FILES) {
     try {
+      // PROJECT_FILES is in priority order and the first match wins, so the
+      // checks run one at a time and stop at the first file that exists.
+      // deno-lint-ignore no-await-in-loop
       await runtime.fs.stat(`${cwd}/${filename}`);
       return { type, configFile: filename };
     } catch {
@@ -63,7 +80,7 @@ const detectProjectType = async (
  * Generate human-readable dependency installation instructions for a recipe.
  * Returns instructions to print and any warnings about language mismatch.
  */
-const getDependencyInstructions = (
+export const getDependencyInstructions = (
   recipe: registrySchema.Recipe,
   project: ProjectDetection,
 ): DependencyInstructions => {
@@ -121,9 +138,13 @@ const getDependencyInstructions = (
 // Dependency installation
 // =============================================================================
 
-interface InstallResult {
+/** The outcome of one command run by {@link installDependencies}. */
+export interface InstallResult {
+  /** The command line as it was given. */
   readonly command: string;
+  /** Whether the command exited with code 0 (always true in a dry run). */
   readonly success: boolean;
+  /** Why it failed: the exit code, or the error that kept it from starting. */
   readonly error?: string;
 }
 
@@ -132,7 +153,7 @@ interface InstallResult {
  * Runs each command sequentially, stops on first failure.
  * In dry-run mode, returns the commands without executing.
  */
-const installDependencies = async (
+export const installDependencies = async (
   instructions: readonly string[],
   cwd: string,
   options?: { dryRun?: boolean; verbose?: boolean },
@@ -146,6 +167,7 @@ const installDependencies = async (
     }
 
     if (options?.verbose === true) {
+      // Verbose install lines are kit's CLI output for the person running it.
       // deno-lint-ignore no-console
       console.log(`  [install] ${instruction}`);
     }
@@ -155,6 +177,9 @@ const installDependencies = async (
     const args = parts.slice(1);
 
     try {
+      // Installers run one at a time: they write the same lockfile and
+      // manifest, and the loop stops at the first failure.
+      // deno-lint-ignore no-await-in-loop
       const output = await runtime.exec.spawn(cmd, args, {
         cwd,
         stdout: "inherit",
@@ -179,18 +204,4 @@ const installDependencies = async (
   }
 
   return results;
-};
-
-export {
-  detectProjectType,
-  getDependencyInstructions,
-  installDependencies,
-  PROJECT_FILES,
-};
-
-export type {
-  DependencyInstructions,
-  InstallResult,
-  ProjectDetection,
-  ProjectType,
 };

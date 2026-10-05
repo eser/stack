@@ -1,4 +1,4 @@
-# @eserstack/ajan
+# 🌉 [@eserstack/ajan](./)
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/ajan`
@@ -15,7 +15,7 @@ deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts
 
 # 2. Verify the Go bridge works
 deno task cli ajan version
-# → eser-ajan version 1.0.0
+# prints "eser-ajan version" followed by the repository's VERSION
 
 # 3. (Optional) Test on other runtimes
 ESER_AJAN_LIB_PATH=$(pwd)/pkg/@eserstack/ajan/dist/aarch64-darwin/libeser_ajan.dylib \
@@ -25,6 +25,23 @@ ESER_AJAN_LIB_PATH=$(pwd)/pkg/@eserstack/ajan/dist/aarch64-darwin/libeser_ajan.d
 deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm
 ESER_AJAN_NATIVE=disabled deno task cli ajan version
 ```
+
+### Load from TypeScript
+
+`loadEserAjan()` opens the native library through the current runtime's FFI
+(Deno, Bun or Node) and falls back to WASM when the native library cannot be
+loaded:
+
+```typescript
+import * as ajan from "@eserstack/ajan";
+
+const lib = await ajan.loadEserAjan();
+console.log(lib.symbols.EserAjanVersion());
+lib.close();
+```
+
+Most symbols take and return JSON strings. The request and response shape of
+each one is documented on `FFILibrary` in `ffi/types.ts`.
 
 ## Build
 
@@ -60,21 +77,20 @@ deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --clean
 
 ### Available targets
 
-| Target            | GOOS/GOARCH   | Output file              |
-| ----------------- | ------------- | ------------------------ |
-| `x86_64-linux`    | linux/amd64   | `libeser_ajan.so`        |
-| `aarch64-linux`   | linux/arm64   | `libeser_ajan.so`        |
-| `x86_64-darwin`   | darwin/amd64  | `libeser_ajan.dylib`     |
-| `aarch64-darwin`  | darwin/arm64  | `libeser_ajan.dylib`     |
-| `x86_64-windows`  | windows/amd64 | `libeser_ajan.dll`       |
-| `aarch64-windows` | windows/arm64 | `libeser_ajan.dll`       |
-| `wasi`            | wasip1/wasm   | `eser-ajan.wasm`         |
-| `wasi-reactor`    | wasip1/wasm   | `eser-ajan-reactor.wasm` |
+| Target           | GOOS/GOARCH   | Output file              |
+| ---------------- | ------------- | ------------------------ |
+| `x86_64-linux`   | linux/amd64   | `libeser_ajan.so`        |
+| `aarch64-linux`  | linux/arm64   | `libeser_ajan.so`        |
+| `x86_64-darwin`  | darwin/amd64  | `libeser_ajan.dylib`     |
+| `aarch64-darwin` | darwin/arm64  | `libeser_ajan.dylib`     |
+| `x86_64-windows` | windows/amd64 | `libeser_ajan.dll`       |
+| `wasi`           | wasip1/wasm   | `eser-ajan.wasm`         |
+| `wasi-reactor`   | wasip1/wasm   | `eser-ajan-reactor.wasm` |
 
 Cross-compilation for native targets requires the appropriate C cross-compilers
 (e.g., `x86_64-linux-gnu-gcc`, `aarch64-linux-gnu-gcc`,
-`x86_64-w64-mingw32-gcc`, `aarch64-w64-mingw32-gcc`). WASM targets need no C
-compiler (`CGO_ENABLED=0`).
+`x86_64-w64-mingw32-gcc`, and `clang -arch x86_64` for Intel macOS). The list
+lives in `targets.ts`. WASM targets need no C compiler (`CGO_ENABLED=0`).
 
 ## Distribution
 
@@ -88,8 +104,9 @@ eser-ajan-{version}-{target}.tar.gz (or .zip for Windows)
   README.md                        # FFI usage examples
 ```
 
-Archives are published for all six targets listed above, alongside a
-`SHA256SUMS.txt` file for integrity verification.
+`scripts/package.ts` (see Packaging) writes one archive for each native target
+built into `dist/`, alongside a `SHA256SUMS.txt` file for integrity
+verification.
 
 ## FFI Usage
 
@@ -176,15 +193,20 @@ for CLI tooling and scripting.
 ```bash
 # With wasmtime
 echo '{"fn":"version"}' | wasmtime eser-ajan.wasm
-# → {"ok":true,"result":"eser-ajan version 1.0.0"}
+# prints {"ok":true,"result":"eser-ajan version ..."} with the repository's VERSION
 
 echo '{"fn":"init"}' | wasmtime eser-ajan.wasm
-echo '{"fn":"configLoad","args":{"path":"/app/config.yml"}}' | wasmtime eser-ajan.wasm
+echo '{"fn":"configLoad","args":{"optionsJSON":"{\"sources\":[\"json_file:config.json\"]}"}}' | wasmtime eser-ajan.wasm
 echo '{"fn":"diResolve","args":{"name":"logger"}}' | wasmtime eser-ajan.wasm
 echo '{"fn":"shutdown"}' | wasmtime eser-ajan.wasm
 ```
 
-Supported functions: `version`, `init`, `shutdown`, `configLoad`, `diResolve`.
+Every function of the native library except `EserAjanFree` has a command-mode
+name: the symbol name in camelCase without the `EserAjan` prefix
+(`EserAjanFormatEncode` is `formatEncode`). Functions that work on a handle (AI
+models, loggers, HTTP clients, caches, streams, spawned processes) fail in this
+mode, because each call starts a new instance and the handle is gone by the next
+one.
 
 ### Reactor mode (`eser-ajan-reactor.wasm`)
 
@@ -194,7 +216,9 @@ the export returns the byte length, and the host reads from the pointer returned
 by `eser_ajan_result_ptr()`.
 
 Exported symbols: `eser_ajan_version`, `eser_ajan_init`, `eser_ajan_shutdown`,
-`eser_ajan_config_load`, `eser_ajan_di_resolve`, `eser_ajan_result_ptr`.
+`eser_ajan_config_load`, `eser_ajan_di_resolve`, `eser_ajan_result_ptr`. The
+module also exports six AI functions, but a host has no way to pass them
+arguments yet, so the TypeScript loader reports them as unsupported.
 
 ### Manual WASM build
 
@@ -215,14 +239,15 @@ After building, create distributable archives:
 deno run --allow-all pkg/@eserstack/ajan/scripts/package.ts
 ```
 
-Override version:
+It stamps the archives with the repository's `VERSION`. Override it:
 
 ```bash
 deno run --allow-all pkg/@eserstack/ajan/scripts/package.ts --version=1.2.3
 ```
 
-This produces `dist/eser-ajan-{version}-{target}.tar.gz` (or `.zip`) plus
-`dist/SHA256SUMS.txt`.
+This produces `dist/eser-ajan-{version}-{target}.tar.gz` (or `.zip`) for each
+native target in `dist/` plus `dist/SHA256SUMS.txt`. WASM builds are skipped;
+they ship in `@eserstack/ajan-wasm`.
 
 ## Feature Flags
 
@@ -253,28 +278,86 @@ ESER_AJAN_WASM=disabled deno task cli ajan version
 
 `loadEserAjan()` also accepts a `LoadOptions` object:
 
-```ts
-import * as ffi from "./ffi/mod.ts";
+```typescript
+import * as ajan from "@eserstack/ajan";
 
 // Skip native, use WASM only
-const lib = await ffi.loadEserAjan({ native: false });
+const wasmOnly = await ajan.loadEserAjan({ native: false });
+wasmOnly.close();
 
 // Native only, no WASM fallback
-const lib = await ffi.loadEserAjan({ wasm: false });
+const nativeOnly = await ajan.loadEserAjan({ wasm: false });
+nativeOnly.close();
 
 // Explicit path
-const lib = await ffi.loadEserAjan("/path/to/libeser_ajan.dylib");
+const explicit = await ajan.loadEserAjan("path/to/libeser_ajan.dylib");
+explicit.close();
 ```
 
 Environment variables always take precedence over programmatic options. If
 `ESER_AJAN_NATIVE=disabled` is set, `{ native: true }` will NOT re-enable native
 backends.
 
-Skipped backends are logged via `console.debug` so you can diagnose why a
-particular backend was not used.
+Set `ESER_AJAN_DEBUG` to any value to print, on stderr, why a backend was
+skipped or failed. Nothing is printed while it is unset.
+
+### Library and module paths
+
+| Variable              | Default                           | Purpose                                                            |
+| --------------------- | --------------------------------- | ------------------------------------------------------------------ |
+| `ESER_AJAN_LIB_PATH`  | unset: search the locations below | Full path of the native library, e.g. `/opt/eser/libeser_ajan.so`  |
+| `ESER_AJAN_WASM_PATH` | unset: search the locations below | Full path of the WASM module, e.g. `/opt/eser/eser-ajan.wasm`      |
+| `ESER_AJAN_DEBUG`     | unset: no diagnostics             | Any value prints backend selection diagnostics on stderr, e.g. `1` |
+
+None is required. Without an override, the native library is looked up next to
+the module, in `dist/`, in the `@eserstack/ajan-{platform}` package and in
+`/usr/local/lib` and `/usr/lib`; the WASM module next to the module, in `dist/`,
+in `@eserstack/ajan-wasm` and in the same system directories.
 
 ## Test
 
 ```bash
-go test ./...
+# Go bridge
+cd pkg/@eserstack/ajan && go test -race ./...
+
+# TypeScript loaders
+deno test --allow-all pkg/@eserstack/ajan/
 ```
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- `@eserstack/ajan/wasm` probes files with `Deno.statSync` or
+  `process.getBuiltinModule("node:fs")`, as `ffi/resolve.ts` does. On a runtime
+  with neither (Node before 22.3, Bun before 1.1, browsers),
+  `loadEserAjanWasm()` without `wasmPath` throws "Could not find eser-ajan WASM
+  module". Pass `wasmPath`, or use a supported runtime.
+- `EserAjanShellExec` (and command-mode WASM `shellExec`) stops a command after
+  10 minutes when the request has no `timeout`, and rejects a zero or negative
+  `timeout` before the command starts. Before: `{"timeout": "0s"}` meant no
+  limit. After: omit `timeout` for the default, or send a positive Go duration
+  such as `"30m"`.
+- `EserAjanHttpRequest` returns the status and headers with an error and no body
+  for a response over 32 MiB, and `EserAjanHttpRequestStream` reads error-status
+  bodies under the same limit. Send `maxResponseBytes` in the request JSON, or
+  use the stream variant.
+- `EserAjanCodebaseValidateFiles` and its stream variant fail the request for
+  malformed `validatorOptions` of `filenames` or `large-file`, and `large-file`
+  applies `maxKb`; it was always 1024 KB.
+- `EserAjanNoskillsInit` writes `command: npx eser@latest noskills`
+  (`noskillsfx.DefaultCommandPrefix`) into a new manifest instead of `noskills`.
+  Edit the manifest's `command` to keep a bare `noskills`.
+
+## 🔗 Links
+
+- [JSR package](https://jsr.io/@eserstack/ajan): the API reference generated
+  from source
+- [`examples/`](./examples/): C, Python, Rust and browser programs that call the
+  library
+- [@eserstack/ajan-wasm](../ajan-wasm/README.md) and the platform packages such
+  as [@eserstack/ajan-linux-x64](../ajan-linux-x64/README.md): the prebuilt
+  binaries
+- [eser/stack on GitHub](https://github.com/eser/stack)

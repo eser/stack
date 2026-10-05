@@ -93,8 +93,9 @@ export class BuildError extends Error {
     message: string,
     code: string,
     hint?: string,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = "BuildError";
     this.code = code;
     this.hint = hint;
@@ -105,12 +106,13 @@ export class BuildError extends Error {
  * Error factories for common build errors
  */
 export const buildErrors = {
-  /** CSS processing error */
-  cssError: (reason: string): BuildError =>
+  /** CSS processing error; pass the underlying error as `options.cause` */
+  cssError: (reason: string, options?: ErrorOptions): BuildError =>
     new BuildError(
       `CSS processing failed: ${reason}`,
       "BUILD104",
       "Check your CSS files and configuration.",
+      options,
     ),
 
   /** Module not found */

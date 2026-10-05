@@ -14,15 +14,16 @@
 import * as results from "@eserstack/primitives/results";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
+import * as streams from "@eserstack/streams";
 import * as mux from "@eserstack/mux";
-import { defaultAgentAdapter, getAgentAdapter } from "@eserstack/agents";
+import * as agents from "@eserstack/agents";
 import * as persistence from "../state/persistence.ts";
 import * as dashboard from "../dashboard/mod.ts";
 import * as specList from "../manager/spec-list.ts";
 import * as monitor from "../manager/monitor.ts";
 import * as sessionBinding from "../manager/session-binding.ts";
 import type * as managerTypes from "../manager/types.ts";
-import { cmdPrefix } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 
 const SIDEBAR_COLS = 30;
 const MONITOR_ROWS = 8;
@@ -34,11 +35,14 @@ export const main = async (
   const { root } = await persistence.resolveProjectRoot();
 
   if (!(await persistence.isInitialized(root))) {
-    console.error("noskills is not initialized. Run:", cmdPrefix(), "init");
-    return results.fail({ exitCode: 1 });
+    return results.fail({
+      exitCode: 1,
+      message: `noskills is not initialized. Run: ${cmd.cmd("init")}`,
+    });
   }
 
-  const adapter = getAgentAdapter("claude-code") ?? defaultAgentAdapter();
+  const adapter = agents.getAgentAdapter("claude-code") ??
+    agents.defaultAgentAdapter();
 
   // ── noskills-owned UI state ──
   let specs: specList.SpecInfo[] = (await dashboard.getState(root)).specs.map(
@@ -50,7 +54,14 @@ export const main = async (
   const tabInfo = new Map<string, managerTypes.ManagerTab>();
 
   if (isDryRun) {
-    console.log(`noskills manager | ${specs.length} spec(s) | ${cmdPrefix()}`);
+    const out = streams.output({
+      renderer: streams.renderers.ansi(),
+      sink: streams.sinks.stdout(),
+    });
+    out.writeln(
+      `noskills manager | ${specs.length} spec(s) | ${cmd.cmdPrefix()}`,
+    );
+    await out.close();
     return results.ok(undefined);
   }
 
@@ -293,9 +304,11 @@ export const main = async (
     frontend.stop();
     // decorate() only deletes sessions for tabs that leave the scene; on quit
     // the still-open tabs are torn down without that, so sweep them here.
-    for (const info of tabInfo.values()) {
-      await persistence.deleteSession(root, info.sessionId).catch(() => {});
-    }
+    await Promise.all(
+      [...tabInfo.values()].map((info) =>
+        persistence.deleteSession(root, info.sessionId).catch(() => {})
+      ),
+    );
     await server.dispose();
     await persistence.gcStaleSessions(root);
   }

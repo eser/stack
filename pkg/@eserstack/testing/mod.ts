@@ -9,19 +9,19 @@
  * @example
  * ```typescript
  * import * as testing from "@eserstack/testing";
+ * import { runtime } from "@eserstack/standards/cross-runtime";
  *
  * // Mock HTTP server for testing handlers
  * const server = new testing.fakeServer.FakeServer((req) => new Response("OK"));
  * const response = await server.get("/api/test");
  *
  * // Mock filesystem for testing file operations
- * const fs = testing.fakeServer.createFakeFs({
+ * const fs = testing.fakeFs.createFakeFs({
  *   "/app/config.json": '{"port": 3000}',
  * });
  * const config = await fs.readTextFile("/app/config.json");
  *
  * // Temporary directory with auto-cleanup
- * import { runtime } from "@eserstack/standards/cross-runtime";
  * await using temp = await testing.tempDir.withTmpDir();
  * await runtime.fs.writeTextFile(`${temp.dir}/test.txt`, "hello");
  * ```

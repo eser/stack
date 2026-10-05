@@ -5,7 +5,7 @@
  * Platform-agnostic: both TwitterSocialApi and BlueSkySocialApi implement this.
  */
 
-import * as results from "@eserstack/primitives/results";
+import type * as results from "@eserstack/primitives/results";
 import type { Post } from "../domain/entities/post.ts";
 import type { UsageData } from "../domain/entities/usage.ts";
 import type { User } from "../domain/entities/user.ts";

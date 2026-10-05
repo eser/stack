@@ -13,12 +13,13 @@ import type { OAuthTokens } from "../../domain/entities/user.ts";
 import type { Platform } from "../../domain/values/platform.ts";
 import type { AuthProvider } from "../../application/auth-provider.ts";
 import type { TokenStore } from "../../application/token-store.ts";
+import * as restoreTokens from "../../application/restore-saved-tokens.ts";
 import * as appErrors from "../../application/thread-post-error.ts";
 import * as fanOutErrors from "../../application/fan-out-partial-error.ts";
 import type { TuiTriggers } from "./triggers.ts";
 import * as tui from "@eserstack/shell/tui";
 import * as span from "@eserstack/streams/span";
-import * as callbackServer from "./callback-server.ts";
+import * as browserLogin from "./browser-login.ts";
 import * as costs from "./costs.ts";
 
 type MenuAction =
@@ -76,98 +77,9 @@ export class TuiMenu {
 
     let running = true;
     while (running) {
-      const anyLoggedIn = this.tokens.size > 0;
-
-      const action = await tui.select<MenuAction>(this.ctx, {
-        message: "What would you like to do?",
-        options: [
-          {
-            value: "login",
-            label: anyLoggedIn ? "Login / Re-authenticate" : "Login",
-          },
-          ...(anyLoggedIn
-            ? [{ value: "logout" as const, label: "Logout" }]
-            : []),
-          { value: "account", label: "Account status" },
-          { value: "compose", label: "Post" },
-          { value: "reply", label: "Reply to a post" },
-          { value: "thread", label: "Post a thread" },
-          { value: "repost", label: "Repost" },
-          { value: "quote", label: "Quote post" },
-          { value: "undo_repost", label: "Undo repost" },
-          { value: "search", label: "Search posts" },
-          { value: "view_bookmarks", label: "View bookmarks" },
-          { value: "bookmark", label: "Bookmark a post" },
-          { value: "remove_bookmark", label: "Remove bookmark" },
-          { value: "timeline", label: "View unified timeline" },
-          { value: "translate_post", label: "Translate & post" },
-          { value: "usage", label: "Usage & costs" },
-          { value: "schedule", label: "Schedule a post" },
-          { value: "exit", label: "Exit" },
-        ],
-      });
-
-      if (tui.isCancel(action)) {
-        running = false;
-        break;
-      }
-
-      switch (action) {
-        case "login":
-          await this.loginFlow();
-          break;
-        case "logout":
-          await this.logoutFlow();
-          break;
-        case "account":
-          this.accountFlow();
-          break;
-        case "compose":
-          await this.composeFlow();
-          break;
-        case "reply":
-          await this.replyFlow();
-          break;
-        case "thread":
-          await this.threadFlow();
-          break;
-        case "repost":
-          await this.repostFlow();
-          break;
-        case "quote":
-          await this.quoteFlow();
-          break;
-        case "undo_repost":
-          await this.undoRepostFlow();
-          break;
-        case "search":
-          await this.searchFlow();
-          break;
-        case "view_bookmarks":
-          await this.viewBookmarksFlow();
-          break;
-        case "bookmark":
-          await this.bookmarkFlow();
-          break;
-        case "remove_bookmark":
-          await this.removeBookmarkFlow();
-          break;
-        case "timeline":
-          await this.timelineFlow();
-          break;
-        case "translate_post":
-          await this.translateFlow();
-          break;
-        case "usage":
-          await this.usageFlow();
-          break;
-        case "schedule":
-          this.scheduleFlow();
-          break;
-        case "exit":
-          running = false;
-          break;
-      }
+      // The menu is interactive: each prompt waits for the previous action.
+      // deno-lint-ignore no-await-in-loop
+      running = await this.step();
     }
 
     tui.outro(this.ctx, "Goodbye!");
@@ -175,33 +87,126 @@ export class TuiMenu {
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
-  private async restoreSavedTokens(): Promise<void> {
-    if (this.tokenStore === undefined) return;
-    const restored: Platform[] = [];
-    for (const [platform, auth] of this.auths) {
-      try {
-        const saved = await this.tokenStore.load(platform);
-        if (saved !== null) {
-          auth.setTokens(saved);
-          if (auth.isAuthenticated()) {
-            this.tokens.set(platform, saved);
-            restored.push(platform);
-          }
-        }
-      } catch (err) {
-        tui.log.warn(
-          this.ctx,
-          `Could not load saved ${costs.PLATFORM_LABELS[platform]} tokens: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
+  /** Show the menu once and run the chosen action. Returns false to exit. */
+  private async step(): Promise<boolean> {
+    const anyLoggedIn = this.tokens.size > 0;
+
+    const action = await tui.select<MenuAction>(this.ctx, {
+      message: "What would you like to do?",
+      options: [
+        {
+          value: "login",
+          label: anyLoggedIn ? "Login / Re-authenticate" : "Login",
+        },
+        ...(anyLoggedIn ? [{ value: "logout" as const, label: "Logout" }] : []),
+        { value: "account", label: "Account status" },
+        { value: "compose", label: "Post" },
+        { value: "reply", label: "Reply to a post" },
+        { value: "thread", label: "Post a thread" },
+        { value: "repost", label: "Repost" },
+        { value: "quote", label: "Quote post" },
+        { value: "undo_repost", label: "Undo repost" },
+        { value: "search", label: "Search posts" },
+        { value: "view_bookmarks", label: "View bookmarks" },
+        { value: "bookmark", label: "Bookmark a post" },
+        { value: "remove_bookmark", label: "Remove bookmark" },
+        { value: "timeline", label: "View unified timeline" },
+        { value: "translate_post", label: "Translate & post" },
+        { value: "usage", label: "Usage & costs" },
+        { value: "schedule", label: "Schedule a post" },
+        { value: "exit", label: "Exit" },
+      ],
+    });
+
+    if (tui.isCancel(action)) return false;
+
+    switch (action) {
+      case "login":
+        await this.loginFlow();
+        return true;
+      case "logout":
+        await this.logoutFlow();
+        return true;
+      case "account":
+        this.accountFlow();
+        return true;
+      case "compose":
+        await this.composeFlow();
+        return true;
+      case "reply":
+        await this.replyFlow();
+        return true;
+      case "thread":
+        await this.threadFlow();
+        return true;
+      case "repost":
+        await this.repostFlow();
+        return true;
+      case "quote":
+        await this.quoteFlow();
+        return true;
+      case "undo_repost":
+        await this.undoRepostFlow();
+        return true;
+      case "search":
+        await this.searchFlow();
+        return true;
+      case "view_bookmarks":
+        await this.viewBookmarksFlow();
+        return true;
+      case "bookmark":
+        await this.bookmarkFlow();
+        return true;
+      case "remove_bookmark":
+        await this.removeBookmarkFlow();
+        return true;
+      case "timeline":
+        await this.timelineFlow();
+        return true;
+      case "translate_post":
+        await this.translateFlow();
+        return true;
+      case "usage":
+        await this.usageFlow();
+        return true;
+      case "schedule":
+        this.scheduleFlow();
+        return true;
+      case "exit":
+        return false;
+      default: {
+        const unreachable: never = action;
+        throw new Error(`unhandled menu action ${String(unreachable)}`);
       }
     }
-    if (restored.length > 0) {
+  }
+
+  private async restoreSavedTokens(): Promise<void> {
+    if (this.tokenStore === undefined) return;
+
+    const { restored, failures } = await restoreTokens.restoreSavedTokens(
+      this.tokenStore,
+      this.auths,
+    );
+
+    for (const { platform, error } of failures) {
+      tui.log.warn(
+        this.ctx,
+        `Could not load saved ${
+          costs.PLATFORM_LABELS[platform]
+        } tokens: ${error.message}`,
+      );
+    }
+    for (const [platform, tokens] of restored) {
+      this.tokens.set(platform, tokens);
+    }
+    if (restored.size > 0) {
       tui.log.info(
         this.ctx,
         `Session restored for: ${
-          restored.map((p) => costs.PLATFORM_LABELS[p]).join(", ")
+          Array.from(restored.keys(), (p) => costs.PLATFORM_LABELS[p]).join(
+            ", ",
+          )
         }`,
       );
     }
@@ -261,52 +266,22 @@ export class TuiMenu {
     platform: Platform,
     auth: AuthProvider,
   ): Promise<void> {
-    const { url, codeVerifier, state } = await auth.getAuthorizationUrl();
-
-    tui.log.info(this.ctx, "Open this URL in your browser to authorize:");
-    this.ctx.output.writeln(span.text(""));
-    this.ctx.output.writeln(span.cyan(`  ${url}`));
-    this.ctx.output.writeln(span.text(""));
-
-    let code: string;
-    try {
-      const expected = callbackServer.expectationFor(
-        this.twitterRedirectUri,
-        state,
-      );
-      tui.log.info(
-        this.ctx,
-        `Waiting for callback on ${expected.hostname}:${expected.port}…`,
-      );
-      const result = await callbackServer.waitForOAuthCallback(expected);
-      code = result.code;
-    } catch {
-      const result = await callbackServer.manualCodeEntry(this.ctx);
-      // The pasted URL must belong to this login attempt too.
-      if (result.state !== state) {
-        tui.log.error(
-          this.ctx,
-          "Login failed: the redirect URL does not match this login attempt.",
-        );
-        return;
-      }
-      code = result.code;
+    const result = await browserLogin.runBrowserLogin(
+      costs.PLATFORM_LABELS[platform],
+      auth,
+      { ctx: this.ctx, redirectUri: this.twitterRedirectUri },
+    );
+    if (primitiveResults.isFail(result)) {
+      tui.log.error(this.ctx, `Login failed: ${result.error.message}`);
+      return;
     }
 
-    try {
-      const newTokens = await auth.exchangeCode({ code, codeVerifier });
-      this.tokens.set(platform, newTokens);
-      tui.log.success(
-        this.ctx,
-        `Logged in to ${costs.PLATFORM_LABELS[platform]} successfully!`,
-      );
-      await this.saveTokens(platform, newTokens);
-    } catch (err) {
-      tui.log.error(
-        this.ctx,
-        `Login failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
+    this.tokens.set(platform, result.value);
+    tui.log.success(
+      this.ctx,
+      `Logged in to ${costs.PLATFORM_LABELS[platform]} successfully!`,
+    );
+    await this.saveTokens(platform, result.value);
   }
 
   private async credentialLoginFlow(
@@ -745,6 +720,9 @@ export class TuiMenu {
 
     while (true) {
       const n = posts.length + 1;
+      // The user writes the thread one post at a time, so each prompt waits
+      // for the answer to the previous one.
+      // deno-lint-ignore no-await-in-loop
       const content = await tui.text(this.ctx, {
         message: `Post ${n}`,
         placeholder: n === 1 ? "Start your thread…" : "Continue the thread…",
@@ -771,6 +749,8 @@ export class TuiMenu {
       posts.push(content);
 
       if (posts.length >= 2) {
+        // The answer decides whether the loop prompts for another post.
+        // deno-lint-ignore no-await-in-loop
         const more = await tui.confirm(this.ctx, {
           message: "Add another post?",
           initialValue: true,
@@ -819,14 +799,9 @@ export class TuiMenu {
       },
       fail: (error) => {
         if (error instanceof appErrors.ThreadPartialError) {
-          tui.log.error(
-            this.ctx,
-            `Thread partially posted: ${error.postedTweets.length}/${error.totalCount} posts succeeded.`,
-          );
-          tui.log.error(
-            this.ctx,
-            `Failed at post ${error.failedIndex + 1}: ${error.message}`,
-          );
+          // The message says where the thread stopped, why, and how many
+          // posts went out, as the CLI and the agent tools report it.
+          tui.log.error(this.ctx, error.message);
           if (error.postedTweets.length > 0) {
             tui.log.info(this.ctx, "Successfully posted:");
             for (const [i, post] of error.postedTweets.entries()) {

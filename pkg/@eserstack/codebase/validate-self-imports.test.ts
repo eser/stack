@@ -12,7 +12,7 @@
 import * as assert from "@std/assert";
 import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { tool } from "./validate-self-imports.ts";
+import * as validateSelfImports from "./validate-self-imports.ts";
 
 const HEADER =
   "// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.\n";
@@ -44,7 +44,7 @@ Deno.test({
   name: "validate-self-imports: flags a package importing itself by name",
   sanitizeResources: false,
   sanitizeOps: false,
-  async fn() {
+  fn: async () => {
     const root = await makeWorkspace();
     try {
       await writeShellFile(
@@ -62,7 +62,7 @@ Deno.test({
         ].join("\n"),
       );
 
-      const result = await tool.run({ root });
+      const result = await validateSelfImports.tool.run({ root });
 
       assert.assertEquals(result.issues.length, 3);
       assert.assertEquals(
@@ -84,7 +84,7 @@ Deno.test({
     "validate-self-imports: relative, sibling-package and documented imports pass",
   sanitizeResources: false,
   sanitizeOps: false,
-  async fn() {
+  fn: async () => {
     const root = await makeWorkspace();
     try {
       await writeShellFile(
@@ -106,7 +106,7 @@ Deno.test({
         ].join("\n"),
       );
 
-      const result = await tool.run({ root });
+      const result = await validateSelfImports.tool.run({ root });
 
       assert.assertEquals(result.issues, []);
     } finally {
@@ -119,7 +119,7 @@ Deno.test({
   name: "validate-self-imports: files outside pkg/@eserstack are ignored",
   sanitizeResources: false,
   sanitizeOps: false,
-  async fn() {
+  fn: async () => {
     const root = await runtime.fs.makeTempDir({
       prefix: "validate-self-imports-test-",
     });
@@ -133,7 +133,7 @@ Deno.test({
           'import * as env from "@eserstack/shell/env";\nexport { env };\n',
       );
 
-      const result = await tool.run({ root });
+      const result = await validateSelfImports.tool.run({ root });
 
       assert.assertEquals(result.issues, []);
     } finally {

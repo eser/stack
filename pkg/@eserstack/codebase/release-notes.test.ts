@@ -14,33 +14,33 @@
  * @module
  */
 
-import { assertEquals } from "@std/assert";
-import { normalizeTag, parseChangelogText } from "./release-notes.ts";
+import * as assert from "@std/assert";
+import * as releaseNotes from "./release-notes.ts";
 
 // =============================================================================
 // parseChangelogText — heading styles
 // =============================================================================
 
 Deno.test("parseChangelogText reads a bare '## <version> - <date>' heading", () => {
-  const entries = parseChangelogText(
+  const entries = releaseNotes.parseChangelogText(
     ["## 4.3.0 - 2026-08-08", "", "- feat(cli): add a thing", ""].join("\n"),
   );
 
-  assertEquals(entries.length, 1);
-  assertEquals(entries[0]!.version, "4.3.0");
-  assertEquals(entries[0]!.tag, "v4.3.0");
-  assertEquals(entries[0]!.date, "2026-08-08");
+  assert.assertEquals(entries.length, 1);
+  assert.assertEquals(entries[0]!.version, "4.3.0");
+  assert.assertEquals(entries[0]!.tag, "v4.3.0");
+  assert.assertEquals(entries[0]!.date, "2026-08-08");
 });
 
 Deno.test("parseChangelogText reads a bracketed '## [<version>] - <date>' heading", () => {
-  const entries = parseChangelogText(
+  const entries = releaseNotes.parseChangelogText(
     ["## [4.1.0] - 2025-01-01", "", "- fix: an older thing", ""].join("\n"),
   );
 
-  assertEquals(entries.length, 1);
-  assertEquals(entries[0]!.version, "4.1.0");
-  assertEquals(entries[0]!.tag, "v4.1.0");
-  assertEquals(entries[0]!.date, "2025-01-01");
+  assert.assertEquals(entries.length, 1);
+  assert.assertEquals(entries[0]!.version, "4.1.0");
+  assert.assertEquals(entries[0]!.tag, "v4.1.0");
+  assert.assertEquals(entries[0]!.date, "2025-01-01");
 });
 
 // The regression that emptied the v4.3.0 release notes: the `v` inside the
@@ -48,19 +48,19 @@ Deno.test("parseChangelogText reads a bracketed '## [<version>] - <date>' headin
 // then read it as a non-version heading like [Unreleased], and the section
 // vanished from the parse entirely.
 Deno.test("parseChangelogText reads a v-prefixed '## [v<version>]' heading", () => {
-  const entries = parseChangelogText(
+  const entries = releaseNotes.parseChangelogText(
     ["## [v4.1.61] - 2025-01-01", "", "- fix: a legacy-style section", ""]
       .join("\n"),
   );
 
-  assertEquals(entries.length, 1);
-  assertEquals(entries[0]!.version, "4.1.61");
-  assertEquals(entries[0]!.tag, "v4.1.61");
-  assertEquals(entries[0]!.date, "2025-01-01");
+  assert.assertEquals(entries.length, 1);
+  assert.assertEquals(entries[0]!.version, "4.1.61");
+  assert.assertEquals(entries[0]!.tag, "v4.1.61");
+  assert.assertEquals(entries[0]!.date, "2025-01-01");
 });
 
 Deno.test("parseChangelogText keeps all three heading styles in file order", () => {
-  const entries = parseChangelogText(
+  const entries = releaseNotes.parseChangelogText(
     [
       "# Changelog",
       "",
@@ -79,7 +79,7 @@ Deno.test("parseChangelogText keeps all three heading styles in file order", () 
     ].join("\n"),
   );
 
-  assertEquals(entries.map((entry) => entry.tag), [
+  assert.assertEquals(entries.map((entry) => entry.tag), [
     "v4.3.0",
     "v4.2.0",
     "v4.1.61",
@@ -91,7 +91,7 @@ Deno.test("parseChangelogText keeps all three heading styles in file order", () 
 // =============================================================================
 
 Deno.test("parseChangelogText skips Unreleased in both heading styles", () => {
-  const entries = parseChangelogText(
+  const entries = releaseNotes.parseChangelogText(
     [
       "# Changelog",
       "",
@@ -110,7 +110,7 @@ Deno.test("parseChangelogText skips Unreleased in both heading styles", () => {
     ].join("\n"),
   );
 
-  assertEquals(entries.map((entry) => entry.version), ["4.3.0"]);
+  assert.assertEquals(entries.map((entry) => entry.version), ["4.3.0"]);
 });
 
 // =============================================================================
@@ -118,7 +118,7 @@ Deno.test("parseChangelogText skips Unreleased in both heading styles", () => {
 // =============================================================================
 
 Deno.test("parseChangelogText captures the body between two headings", () => {
-  const entries = parseChangelogText(
+  const entries = releaseNotes.parseChangelogText(
     [
       "# Changelog",
       "",
@@ -135,12 +135,12 @@ Deno.test("parseChangelogText captures the body between two headings", () => {
     ].join("\n"),
   );
 
-  assertEquals(entries.length, 2);
-  assertEquals(
+  assert.assertEquals(entries.length, 2);
+  assert.assertEquals(
     entries[0]!.notes,
     "## 4.3.0 - 2026-08-08\n\n### Features\n\n- add a thing\n",
   );
-  assertEquals(
+  assert.assertEquals(
     entries[1]!.notes,
     "## 4.2.0 - 2026-07-01\n\n- an older thing\n",
   );
@@ -149,21 +149,23 @@ Deno.test("parseChangelogText captures the body between two headings", () => {
 // The rendered heading drops the legacy `v`, so notes read the same regardless
 // of which generator wrote the section.
 Deno.test("parseChangelogText renders a v-prefixed section under its bare version", () => {
-  const entries = parseChangelogText(
+  const entries = releaseNotes.parseChangelogText(
     ["## [v4.1.61] - 2025-01-01", "", "- a legacy-style section", ""].join(
       "\n",
     ),
   );
 
-  assertEquals(
+  assert.assertEquals(
     entries[0]!.notes,
     "## 4.1.61 - 2025-01-01\n\n- a legacy-style section\n",
   );
 });
 
 Deno.test("parseChangelogText returns no entries when nothing is a version", () => {
-  assertEquals(
-    parseChangelogText("# Changelog\n\n## [Unreleased]\n\n- soon\n"),
+  assert.assertEquals(
+    releaseNotes.parseChangelogText(
+      "# Changelog\n\n## [Unreleased]\n\n- soon\n",
+    ),
     [],
   );
 });
@@ -175,8 +177,8 @@ Deno.test("parseChangelogText returns no entries when nothing is a version", () 
 Deno.test("normalizeTag adds the v prefix, keeps it, and strips refs/tags/", () => {
   // The three shapes a tag arrives in: a VERSION file read, a hand-typed
   // --tag, and GITHUB_REF from a tag-triggered workflow.
-  assertEquals(normalizeTag("4.3.0"), "v4.3.0");
-  assertEquals(normalizeTag("v4.3.0"), "v4.3.0");
-  assertEquals(normalizeTag("refs/tags/v4.3.0"), "v4.3.0");
-  assertEquals(normalizeTag("  v4.3.0  "), "v4.3.0");
+  assert.assertEquals(releaseNotes.normalizeTag("4.3.0"), "v4.3.0");
+  assert.assertEquals(releaseNotes.normalizeTag("v4.3.0"), "v4.3.0");
+  assert.assertEquals(releaseNotes.normalizeTag("refs/tags/v4.3.0"), "v4.3.0");
+  assert.assertEquals(releaseNotes.normalizeTag("  v4.3.0  "), "v4.3.0");
 });

@@ -32,6 +32,8 @@ export type BitmapMatcher<K extends string> = {
  *
  * @example
  * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
  * // Consumer defines their own domain-specific mapping
  * const StackBits = {
  *   javascript: 1 << 0,
@@ -39,7 +41,7 @@ export type BitmapMatcher<K extends string> = {
  *   golang: 1 << 2,
  * } as const;
  *
- * const matcher = createBitmapMatcher(StackBits);
+ * const matcher = standards.collections.createBitmapMatcher(StackBits);
  * const bitmap = matcher.toBitmap(["javascript", "typescript"]);
  * // bitmap = 0b11 (bits 0 and 1 set)
  *
@@ -95,6 +97,8 @@ export const createBitmapMatcher = <K extends string>(
  * Cache for parsed function parameters.
  * Uses WeakMap to avoid memory leaks when functions are garbage collected.
  */
+// Function accepts any callable whatever its signature; only its source text
+// is read.
 // deno-lint-ignore ban-types
 const parameterCache = new WeakMap<Function, readonly string[]>();
 
@@ -119,11 +123,17 @@ const extractParamString = (fnString: string): string | null => {
  *
  * @example
  * ```typescript
- * const fn = (logger, database, config) => { ... };
- * getFunctionParameters(fn); // ["logger", "database", "config"]
- * getFunctionParameters(fn); // Returns cached result
+ * import * as standards from "@eserstack/standards";
+ *
+ * const fn = (logger: string, database: string, config: string) =>
+ *   [logger, database, config].join(" ");
+ * const params = standards.collections.getFunctionParameters(fn);
+ * // params = ["logger", "database", "config"]
+ * standards.collections.getFunctionParameters(fn); // Returns cached result
  * ```
  */
+// Function accepts any callable whatever its signature; only its source text
+// is read.
 // deno-lint-ignore ban-types
 export const getFunctionParameters = (fn: Function): readonly string[] => {
   const cached = parameterCache.get(fn);
@@ -176,6 +186,7 @@ export const getFunctionParameters = (fn: Function): readonly string[] => {
  * Clear the parameter cache for a specific function.
  * Useful for testing or when function behavior changes.
  */
+// Function accepts any callable whatever its signature, as the cache does.
 // deno-lint-ignore ban-types
 export const clearParameterCache = (fn: Function): void => {
   parameterCache.delete(fn);
@@ -190,9 +201,16 @@ export const clearParameterCache = (fn: Function): void => {
  *
  * @example
  * ```typescript
- * const validators = await parallelImport([
- *   ["./validators/circular-deps.ts", "circularDepsValidator"],
- *   ["./validators/mod-exports.ts", "modExportsValidator"],
+ * import * as standards from "@eserstack/standards";
+ *
+ * // import() runs inside @eserstack/standards, so pass absolute URLs: a
+ * // relative path would resolve against that package, not your module.
+ * const circularDeps = import.meta.resolve("./validators/circular-deps.ts");
+ * const modExports = import.meta.resolve("./validators/mod-exports.ts");
+ *
+ * const validators = await standards.collections.parallelImport([
+ *   [circularDeps, "circularDepsValidator"],
+ *   [modExports, "modExportsValidator"],
  * ]);
  * // validators = [circularDepsValidator, modExportsValidator]
  * ```
@@ -220,10 +238,13 @@ export const parallelImport = async <T>(
  *
  * @example
  * ```typescript
- * const [mod1, mod2, mod3] = await parallelImportModules([
- *   "./validators/circular-deps.ts",
- *   "./validators/mod-exports.ts",
- *   "./validators/docs.ts",
+ * import * as standards from "@eserstack/standards";
+ *
+ * // Absolute URLs, for the same reason as in parallelImport
+ * const [mod1, mod2, mod3] = await standards.collections.parallelImportModules([
+ *   import.meta.resolve("./validators/circular-deps.ts"),
+ *   import.meta.resolve("./validators/mod-exports.ts"),
+ *   import.meta.resolve("./validators/docs.ts"),
  * ]);
  * ```
  */
@@ -286,7 +307,12 @@ export const memoizeArray = <T, A extends unknown[]>(
  *
  * @example
  * ```typescript
- * const expensiveValue = lazy(() => computeExpensiveValue());
+ * import * as standards from "@eserstack/standards";
+ *
+ * const computeExpensiveValue = (): number[] =>
+ *   Array.from({ length: 1_000 }, (_, i) => i * i);
+ *
+ * const expensiveValue = standards.collections.lazy(computeExpensiveValue);
  * // Later...
  * const value = expensiveValue(); // Computed on first call
  * const same = expensiveValue();  // Returns cached value

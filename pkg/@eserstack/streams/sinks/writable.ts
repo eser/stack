@@ -2,6 +2,14 @@
 
 import type { Chunk, Sink } from "../types.ts";
 
+/**
+ * Wraps a `WritableStream` of chunks as a sink, for destinations this package
+ * has no sink for, such as a file or a socket.
+ *
+ * @param stream - The stream that receives each chunk
+ * @param name - The sink name; defaults to `writable`
+ * @returns The sink
+ */
 export const writable = <T = unknown>(
   stream: WritableStream<Chunk<T>>,
   name?: string,

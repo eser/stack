@@ -77,77 +77,115 @@ export const isDriverAuthoritative = (
   return runtime.process.isAlive(owner);
 };
 
+/** The file a files-changed.jsonl line names, or null for any other line. */
+const trackedFileOf = (line: string): string | null => {
+  let entry: unknown;
+  try {
+    entry = JSON.parse(line);
+  } catch {
+    return null;
+  }
+
+  return entry instanceof Object && "file" in entry &&
+      typeof entry.file === "string" && entry.file !== ""
+    ? entry.file
+    : null;
+};
+
 /**
- * Reads the files the PostToolUse hook logged for this iteration.
+ * Reads the files the PostToolUse hook logged for this iteration, each once,
+ * in the order they were first logged. Lines that do not name a file are
+ * skipped, and a missing log reads as no files.
  *
  * This is the agent's own account of what it touched, which catches edits that
  * `git diff` cannot see -- a file written and then reverted, or one inside a
  * path git ignores.
  */
-const readTrackedFiles = async (root: string): Promise<string[]> => {
+export const readTrackedFiles = async (
+  root: string,
+): Promise<readonly string[]> => {
   const path = `${root}/${persistence.paths.progressesDir}/files-changed.jsonl`;
 
+  let content: string;
   try {
-    const content = await runtime.fs.readTextFile(path);
-
-    const files = content.trim().split("\n").filter(Boolean).map((entry) => {
-      try {
-        return (JSON.parse(entry) as { file: string }).file;
-      } catch {
-        return null;
-      }
-    }).filter((file): file is string => file !== null);
-
-    return [...new Set(files)];
+    content = await runtime.fs.readTextFile(path);
   } catch {
     return [];
   }
+
+  const files = content.split("\n")
+    .map(trackedFileOf)
+    .filter((file): file is string => file !== null);
+
+  return [...new Set(files)];
 };
 
+const GIT_TIMEOUT_MS = 5000;
+
 /**
- * Reads what git thinks changed.
- *
- * execSync rather than @eserstack/shell/exec deliberately: this runs inside the
- * Stop hook, a short-lived process spawned by the agent, and the extraction that
- * created this module was meant to remove a duplicate implementation, not to
- * also change how it shells out. Revisit as its own change.
+ * Runs one read-only git command in `root` and returns its stdout, or null
+ * when git exits non-zero (no work tree, for example) or does not answer
+ * within GIT_TIMEOUT_MS. Throws when git cannot be started at all.
  */
+const readGit = async (
+  root: string,
+  args: string[],
+): Promise<string | null> => {
+  const timeout = new AbortController();
+  const timer = setTimeout(() => timeout.abort(), GIT_TIMEOUT_MS);
+
+  try {
+    const result = await runtime.exec.spawn("git", args, {
+      cwd: root,
+      stdin: "null",
+      stdout: "piped",
+      stderr: "null",
+      signal: timeout.signal,
+    });
+
+    return result.success && !timeout.signal.aborted
+      ? new TextDecoder().decode(result.stdout)
+      : null;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+/** Reads what git thinks changed. */
 const readGitChanges = async (
   root: string,
 ): Promise<{ files: string[]; stat: string }> => {
+  // Empty, NOT a human-readable "no changes", when git cannot be consulted.
+  //
+  // The caller keeps the previous progress note only when the stat is empty,
+  // so any non-empty string here overwrites the note describing the last
+  // productive turn. Reporting "no changes" when git merely could not be RUN
+  // therefore destroyed real progress history on every machine without git, or
+  // outside a work tree -- stating something the code had not observed. Empty
+  // means "nothing to report", which is true of both a clean tree and an
+  // unavailable git, and preserves the note in both.
+  const nothing = { files: [], stat: "" };
+
+  let diff: string | null;
+  let stat: string | null;
   try {
-    const { execSync } = await import("node:child_process");
-
-    const diff = execSync("git diff --name-only", {
-      cwd: root,
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-
-    const stat = execSync("git diff --stat", {
-      cwd: root,
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-
-    const lines = stat.trim().split("\n");
-
-    return {
-      files: diff.trim().split("\n").filter(Boolean),
-      stat: lines[lines.length - 1] ?? "",
-    };
+    [diff, stat] = await Promise.all([
+      readGit(root, ["diff", "--name-only"]),
+      readGit(root, ["diff", "--stat"]),
+    ]);
   } catch {
-    // Empty, NOT a human-readable "no changes".
-    //
-    // The caller writes `gitStat || previousProgress`, so any non-empty string
-    // here overwrites the note describing the last productive turn. Reporting
-    // "no changes" when git merely could not be RUN therefore destroyed real
-    // progress history on every machine without git, or outside a work tree --
-    // stating something the code had not observed. Empty means "nothing to
-    // report", which is true of both a clean tree and an unavailable git, and
-    // preserves the note in both.
-    return { files: [], stat: "" };
+    // git is not installed or could not be started.
+    return nothing;
   }
+
+  if (diff === null || stat === null) return nothing;
+
+  const lines = stat.trim().split("\n");
+
+  return {
+    files: diff.trim().split("\n").filter((file) => file !== ""),
+    stat: lines[lines.length - 1] ?? "",
+  };
 };
 
 /**
@@ -207,6 +245,12 @@ export const recordIteration = async (
     // best effort
   }
 
+  const storedProgress = execution["lastProgress"];
+  const previousProgress =
+    typeof storedProgress === "string" && storedProgress !== ""
+      ? storedProgress
+      : null;
+
   state["execution"] = {
     ...execution,
     iteration,
@@ -214,8 +258,7 @@ export const recordIteration = async (
     // An empty stat means the turn changed nothing; keep the previous progress
     // note rather than overwriting it with emptiness, so the next prompt still
     // carries the last thing that actually happened.
-    lastProgress: gitStat || (execution["lastProgress"] as string | null) ||
-      null,
+    lastProgress: gitStat !== "" ? gitStat : previousProgress,
   };
   state["lastCalledAt"] = new Date().toISOString();
 

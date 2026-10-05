@@ -56,12 +56,12 @@ const app = new appRuntime.AppRuntime();
 
 #### Methods
 
-| Method           | Description                                     |
-| ---------------- | ----------------------------------------------- |
-| `addModule(mod)` | Register a module with the runtime              |
-| `addChannel(ch)` | Register a communication channel                |
-| `setAsDefault()` | Set this instance as the global default runtime |
-| `awaitAll()`     | Await all pending async operations              |
+| Method           | Description                                                                                                                               |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `addModule(mod)` | Register a module with the runtime                                                                                                        |
+| `addChannel(ch)` | Register a communication channel                                                                                                          |
+| `setAsDefault()` | Set this instance as the global default runtime                                                                                           |
+| `awaitAll()`     | Await all pending async operations and empty the queue; rejects with the first failure, and work queued meanwhile waits for the next call |
 
 #### State Properties
 
@@ -92,6 +92,8 @@ The module interface for registering components with the runtime.
 ```typescript
 import * as appRuntime from "@eserstack/app-runtime";
 
+class MyService {}
+
 const myModule: appRuntime.Module = {
   name: "my-module",
   manifest: { version: "1.0.0" },
@@ -110,6 +112,16 @@ const myModule: appRuntime.Module = {
 | `uses`       | `ReadonlyArray<string>?` | Dependencies this module requires    |
 | `provides`   | `ReadonlyArray<unknown>` | Services this module provides        |
 | `entrypoint` | `() => void`             | Module initialization function       |
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- `AppRuntime.awaitAll()` empties the queue before it waits: a rejected
+  operation is reported once instead of on every later call, and work queued
+  during the wait is kept for the next call. Handle the first rejection.
 
 ---
 

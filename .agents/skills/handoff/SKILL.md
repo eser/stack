@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: "Writes a handoff document that lets a fresh agent session continue the current work, saved outside the repository. Takes an optional note on what the next session will focus on."
+description: "Writes a handoff document that lets a fresh agent session continue the current work in this codebase, saved outside it. Takes an optional note on what the next session will focus on."
 argument-hint: "[what the next session will work on]"
 disable-model-invocation: true
 ---
@@ -14,7 +14,7 @@ the next session: $ARGUMENTS
 ## Always
 
 - Write the document to the OS temporary directory (`$TMPDIR`, else `/tmp`) as
-  `handoff-<repo>-<YYYYMMDD-HHMM>.md`, never into the repository, and give the
+  `handoff-<repo>-<YYYYMMDD-HHMM>.md`, never into this codebase, and give the
   user its full path
 - Follow the section template in handoff-template.md; English, whatever the
   conversation language

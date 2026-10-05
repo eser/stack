@@ -5,10 +5,15 @@ package formatfx
 import (
 	"bytes"
 	"errors"
+	"math"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 )
+
+// maxExactFloatInt is 2^53: every whole number up to this magnitude has an
+// exact float64 form. JavaScript's Number.MAX_SAFE_INTEGER is 2^53 - 1.
+const maxExactFloatInt = 1 << 53
 
 // ErrTOMLRootNotObject is returned when a non-map value is passed as the TOML root.
 // TOML documents must have a table (map or struct) as their root.
@@ -25,22 +30,63 @@ func (f *tomlFmt) Streamable() bool     { return false }
 
 func (f *tomlFmt) WriteStart(_ *FormatOptions) (string, error) { return "", nil }
 
-func (f *tomlFmt) WriteItem(data any, _ *FormatOptions) (string, error) {
+// WriteItem writes data as one TOML table. Whole-number float64 values within
+// +-2^53 are written as integers, because data decoded from JSON holds every
+// number as a float64. A list entry ends with a "+++" line so the reader can
+// split the tables again; a whole document (opts.Document) does not.
+func (f *tomlFmt) WriteItem(data any, opts *FormatOptions) (string, error) {
 	// TOML root must be a table. Reject primitives and slices up front.
-	if _, ok := data.(map[string]any); !ok {
+	table, ok := data.(map[string]any)
+	if !ok {
 		return "", newSerializationError("toml", ErrTOMLRootNotObject.Error(), ErrTOMLRootNotObject)
 	}
 
 	var buf bytes.Buffer
 	enc := toml.NewEncoder(&buf)
+	// Keys of a nested table start at column 0, as the TypeScript format
+	// writes them.
+	enc.Indent = ""
 
-	if err := enc.Encode(data); err != nil {
+	if err := enc.Encode(wholeFloatsToInts(table)); err != nil {
 		return "", newSerializationError("toml", "failed to serialize TOML: "+err.Error(), err)
 	}
 
-	// Append +++ separator so multiple WriteItem calls produce splits the reader
-	// can reassemble. The bridge trims the final +++ before decode.
+	if opts != nil && opts.Document {
+		return buf.String(), nil
+	}
+
+	// The bridge and the TypeScript serializer trim the final +++.
 	return buf.String() + "+++\n", nil
+}
+
+// wholeFloatsToInts returns a copy of value in which every float64 that is a
+// whole number within +-2^53 is an int64, inside maps and slices at any depth.
+// Other values are returned as they are; value itself is not changed.
+func wholeFloatsToInts(value any) any {
+	switch v := value.(type) {
+	case float64:
+		if v == math.Trunc(v) && math.Abs(v) <= maxExactFloatInt {
+			return int64(v)
+		}
+
+		return v
+	case map[string]any:
+		converted := make(map[string]any, len(v))
+		for key, item := range v {
+			converted[key] = wholeFloatsToInts(item)
+		}
+
+		return converted
+	case []any:
+		converted := make([]any, len(v))
+		for i, item := range v {
+			converted[i] = wholeFloatsToInts(item)
+		}
+
+		return converted
+	default:
+		return value
+	}
 }
 
 func (f *tomlFmt) WriteEnd(_ *FormatOptions) (string, error) { return "", nil }

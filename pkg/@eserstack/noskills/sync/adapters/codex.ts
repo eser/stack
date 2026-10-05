@@ -4,7 +4,7 @@
  * Codex CLI adapter — implements ToolAdapter for OpenAI Codex CLI,
  * generating AGENTS.md, hooks, agent profiles, and MCP configuration.
  *
- * Codex hooks use PascalCase event names and a JSON array format in
+ * Codex hooks use PascalCase event names and matcher groups in
  * `.codex/hooks.json`. Agents are TOML files in `.codex/agents/`.
  * MCP servers are registered under `[mcp_servers.<name>]` in
  * `.codex/config.toml`.
@@ -15,6 +15,8 @@
 import type * as adapter from "../adapter.ts";
 import * as agentsMd from "./shared/agents-md.ts";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as agentPrompts from "./shared/agent-prompts.ts";
+import * as hookCommands from "../hook-commands.ts";
 
 // =============================================================================
 // File Paths
@@ -26,58 +28,99 @@ const AGENTS_DIR = ".codex/agents";
 const CONFIG_FILE = ".codex/config.toml";
 
 // =============================================================================
-// Hook Config Types
+// Hook Config
 // =============================================================================
+//
+// `.codex/hooks.json` maps each event to matcher groups, and each group holds
+// the command handlers that run when its matcher matches the tool name
+// (developers.openai.com/codex/hooks, "Config shape"). Codex reports shell
+// commands and exec_command as Bash and file edits as apply_patch, with the
+// command or the patch text in `tool_input.command` ("PreToolUse"). Timeouts
+// are in seconds.
 
-type CodexHook = {
-  readonly _noskills?: boolean;
-  readonly event: string;
+type CodexHookHandler = {
+  readonly type: "command";
   readonly command: string;
   readonly timeout: number;
 };
 
-type CodexHooksConfig = {
-  hooks: CodexHook[];
+type CodexMatcherGroup = {
+  readonly matcher?: string;
+  readonly hooks: readonly CodexHookHandler[];
 };
 
-// =============================================================================
-// Hooks Content Generator
-// =============================================================================
-
-const buildHooksConfig = (commandPrefix: string): CodexHooksConfig => ({
-  hooks: [
-    {
-      _noskills: true,
-      event: "SessionStart",
-      command: `${commandPrefix} invoke-hook session-start`,
-      timeout: 5000,
-    },
-    {
-      _noskills: true,
-      event: "PreToolUse",
-      command: `${commandPrefix} invoke-hook pre-tool-use`,
-      timeout: 5000,
-    },
-    {
-      _noskills: true,
-      event: "PostToolUse",
-      command: `${commandPrefix} invoke-hook post-file-write`,
-      timeout: 3000,
-    },
-    {
-      _noskills: true,
-      event: "PostToolUse",
-      command: `${commandPrefix} invoke-hook post-ask-user-question`,
-      timeout: 3000,
-    },
-    {
-      _noskills: true,
-      event: "Stop",
-      command: `${commandPrefix} invoke-hook stop`,
-      timeout: 10000,
-    },
-  ],
+const handler = (
+  commandPrefix: string,
+  event: hookCommands.HookEvent,
+): CodexHookHandler => ({
+  type: "command",
+  command: hookCommands.hookCommand(commandPrefix, event),
+  timeout: hookCommands.HOOK_TIMEOUT_SECONDS[event],
 });
+
+const buildHooks = (
+  commandPrefix: string,
+): Readonly<Record<string, readonly CodexMatcherGroup[]>> => ({
+  SessionStart: [{ hooks: [handler(commandPrefix, "session-start")] }],
+  PreToolUse: [{
+    matcher: "^(Bash|apply_patch)$",
+    hooks: [handler(commandPrefix, "pre-tool-use")],
+  }],
+  PostToolUse: [
+    {
+      matcher: "^apply_patch$",
+      hooks: [handler(commandPrefix, "post-file-write")],
+    },
+    { matcher: "^Bash$", hooks: [handler(commandPrefix, "post-bash")] },
+  ],
+  Stop: [{ hooks: [handler(commandPrefix, "stop")] }],
+});
+
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  value instanceof Object && !Array.isArray(value);
+
+/**
+ * The hooks of an existing `.codex/hooks.json` that are not noskills', by
+ * event (`hookCommands.userHookGroups`). Earlier noskills versions wrote a
+ * list of `{event, command}` entries there, which Codex does not read; the
+ * user's entries in such a list become matcher groups.
+ */
+const userHooksOf = (hooks: unknown): Record<string, unknown[]> => {
+  if (!Array.isArray(hooks)) return hookCommands.userHookGroups(hooks);
+
+  const kept: Record<string, unknown[]> = {};
+  for (const entry of hooks) {
+    if (!isRecord(entry) || entry["_noskills"] === true) continue;
+
+    const event = entry["event"];
+    const command = entry["command"];
+    if (typeof event === "string" && typeof command === "string") {
+      (kept[event] ??= []).push({ hooks: [{ type: "command", command }] });
+    }
+  }
+
+  return kept;
+};
+
+/**
+ * The hooks file after a sync: the user's hooks and the file's other
+ * top-level keys as they were, and noskills' hooks after the user's in each
+ * event.
+ */
+const mergeHooksFile = (
+  existing: unknown,
+  commandPrefix: string,
+): Record<string, unknown> => {
+  const file = isRecord(existing) ? existing : {};
+
+  return {
+    ...file,
+    hooks: hookCommands.mergeHookGroups(
+      userHooksOf(file["hooks"]),
+      buildHooks(commandPrefix),
+    ),
+  };
+};
 
 // =============================================================================
 // Agent Content Generators (TOML format)
@@ -93,9 +136,7 @@ const buildExecutorAgentToml = (commandPrefix: string): string => {
     "",
     "## Self-Verification",
     "After completing the task, you MUST verify your own work before reporting:",
-    "1. Run type check: `deno check` on all modified files",
-    "2. Run test suite: `deno test` on the relevant test files",
-    "3. If type check or tests fail, fix the issues before reporting",
+    ...agentPrompts.EXECUTOR_SELF_CHECK,
     "",
     "## Reporting",
     "When finished, provide a structured JSON summary:",
@@ -132,10 +173,7 @@ const buildVerifierAgentToml = (): string => {
     "You CANNOT edit files. Read-only access only.",
     "",
     "## Verification Steps",
-    "1. Read each modified file and verify the changes are correct",
-    "2. Run type check: `deno check` on modified files",
-    "3. Run tests: `deno test` on relevant test files",
-    "4. Check each acceptance criterion against actual file contents",
+    ...agentPrompts.VERIFIER_STEPS,
     "",
     "## Report Format",
     "When finished, provide a structured JSON summary:",
@@ -169,6 +207,33 @@ const buildMcpToml = (commandPrefix: string): string => {
   );
 
   return `[mcp_servers.noskills]\ncommand = "${command}"\nargs = [${args}]\n`;
+};
+
+// A TOML table header line: `[name]` or `[[name]]` with a bare or dotted key,
+// and an optional comment. Array values that start a line, such as `[1, 2]`,
+// hold commas or quotes the key pattern refuses.
+const TOML_HEADER = /^\s*\[\[?\s*([A-Za-z0-9_.-]+)\s*\]\]?\s*(?:#.*)?$/;
+const NOSKILLS_MCP_TABLE = "mcp_servers.noskills";
+
+/**
+ * `toml` without the `[mcp_servers.noskills]` table and its sub-tables: the
+ * lines from that header up to the next table header. Every other line stays
+ * as it was.
+ */
+export const withoutNoskillsMcpTable = (toml: string): string => {
+  let inNoskills = false;
+
+  return toml.split("\n").filter((line) => {
+    const header = TOML_HEADER.exec(line);
+
+    if (header !== null) {
+      const name = header[1] ?? "";
+      inNoskills = name === NOSKILLS_MCP_TABLE ||
+        name.startsWith(`${NOSKILLS_MCP_TABLE}.`);
+    }
+
+    return !inNoskills;
+  }).join("\n");
 };
 
 // =============================================================================
@@ -205,55 +270,42 @@ export const codexAdapter: adapter.ToolAdapter = {
     },
   },
 
-  async syncRules(
+  syncRules: async (
     ctx: adapter.SyncContext,
     options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     await agentsMd.syncAgentsMd(ctx, options);
   },
 
-  async syncHooks(
+  syncHooks: async (
     ctx: adapter.SyncContext,
     _options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     const hooksDir = `${ctx.root}/${HOOKS_DIR}`;
     const hooksPath = `${hooksDir}/${HOOKS_FILE}`;
 
     await crossRuntime.runtime.fs.mkdir(hooksDir, { recursive: true });
 
-    // Read existing hooks config (preserve non-noskills hooks)
-    let existingHooks: CodexHook[] = [];
+    let existing: unknown = {};
     try {
-      const content = await crossRuntime.runtime.fs.readTextFile(hooksPath);
-      const parsed = JSON.parse(content) as CodexHooksConfig;
-      if (Array.isArray(parsed.hooks)) {
-        existingHooks = parsed.hooks;
-      }
+      existing = JSON.parse(
+        await crossRuntime.runtime.fs.readTextFile(hooksPath),
+      );
     } catch {
-      // File doesn't exist yet
+      // No file yet, or one that is not JSON: start from an empty one.
     }
-
-    // Filter out previous noskills-managed hooks, keep user hooks
-    const userHooks = existingHooks.filter(
-      (h) => !(h as { _noskills?: boolean })._noskills,
-    );
-
-    // Build fresh noskills hooks and merge
-    const noskillsConfig = buildHooksConfig(ctx.commandPrefix);
-    const merged: CodexHooksConfig = {
-      hooks: [...userHooks, ...noskillsConfig.hooks],
-    };
 
     await crossRuntime.runtime.fs.writeTextFile(
       hooksPath,
-      JSON.stringify(merged, null, 2) + "\n",
+      JSON.stringify(mergeHooksFile(existing, ctx.commandPrefix), null, 2) +
+        "\n",
     );
   },
 
-  async syncAgents(
+  syncAgents: async (
     ctx: adapter.SyncContext,
     _options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     const agentsDir = `${ctx.root}/${AGENTS_DIR}`;
     await crossRuntime.runtime.fs.mkdir(agentsDir, { recursive: true });
 
@@ -270,9 +322,9 @@ export const codexAdapter: adapter.ToolAdapter = {
     );
   },
 
-  async syncMcp(
+  syncMcp: async (
     ctx: adapter.SyncContext,
-  ): Promise<void> {
+  ): Promise<void> => {
     const configPath = `${ctx.root}/${CONFIG_FILE}`;
     await crossRuntime.runtime.fs.mkdir(`${ctx.root}/.codex`, {
       recursive: true,
@@ -287,11 +339,8 @@ export const codexAdapter: adapter.ToolAdapter = {
       }
     }
 
-    // Remove existing [mcp_servers.noskills] section if present, then append
-    const cleaned = existing.replace(
-      /\[mcp_servers\.noskills\][\s\S]*?(?=\[|$)/,
-      "",
-    ).trimEnd();
+    // Replace the [mcp_servers.noskills] table if present, then append it.
+    const cleaned = withoutNoskillsMcpTable(existing).trimEnd();
     const mcpSection = buildMcpToml(ctx.commandPrefix);
     const merged = cleaned + (cleaned.length > 0 ? "\n\n" : "") + mcpSection;
 

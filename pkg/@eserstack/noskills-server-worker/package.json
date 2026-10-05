@@ -4,14 +4,13 @@
   "description": "noskills-server TS worker — hosts a mux terminal multiplexer session",
   "type": "module",
   "main": "mux-worker.ts",
-  "scripts": {
-    "start": "deno run -A mux-worker.ts"
-  },
   "dependencies": {
     "@eserstack/mux": "workspace:*",
     "@eserstack/noskills": "workspace:*"
   },
   "devDependencies": {
+    "@eserstack/standards": "workspace:*",
+    "@std/assert": "npm:@jsr/std__assert@^1.0.19",
     "@types/node": "^26.6.1",
     "typescript": "^7.0.2"
   },

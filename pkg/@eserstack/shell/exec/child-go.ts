@@ -16,29 +16,34 @@
  * @module
  */
 
-import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
+import type * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 import type * as ffiTypes from "@eserstack/ajan/ffi";
-import { describeLoadFailure, ensureLib, getLib } from "../ffi-client.ts";
+import * as ffiClient from "../ffi-client.ts";
 
 const requireLib = async (): Promise<ffiTypes.FFILibrary> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error(
       "@eserstack/ajan native library is not available — " +
         "EserAjanShellExec* requires FFI or command-mode WASM" +
-        describeLoadFailure(),
+        ffiClient.describeLoadFailure(),
     );
   }
 
   return lib;
 };
 
+/** What {@link spawnChildGo} and {@link spawnChildGoSync} start. */
 export interface SpawnGoOptions {
+  /** The program to run. */
   readonly command: string;
+  /** Its arguments, passed as argv without a shell. */
   readonly args?: readonly string[];
+  /** Working directory; the current one when unset. */
   readonly cwd?: string;
+  /** Variables added to the inherited environment, as `KEY=VALUE` strings. */
   readonly env?: readonly string[];
 }
 
@@ -59,6 +64,8 @@ const readAll = async (
   const reader = stream.getReader();
   try {
     while (true) {
+      // A stream reader hands out chunks one at a time, in order.
+      // deno-lint-ignore no-await-in-loop
       const { done, value } = await reader.read();
       if (done) break;
       if (value) chunks.push(value);

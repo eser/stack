@@ -1,11 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { NotFoundError } from "@eserstack/standards/cross-runtime";
-import { createFakeFs } from "./fake-fs.ts";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as fakeFs from "./fake-fs.ts";
 
 Deno.test("createFakeFs should read text files", async () => {
-  const fs = createFakeFs({
+  const fs = fakeFs.createFakeFs({
     "/app/config.json": '{"port": 3000}',
     "/app/readme.txt": "Hello World",
   });
@@ -18,18 +18,18 @@ Deno.test("createFakeFs should read text files", async () => {
 });
 
 Deno.test("createFakeFs should throw NotFoundError for missing files", async () => {
-  const fs = createFakeFs({
+  const fs = fakeFs.createFakeFs({
     "/app/config.json": '{"port": 3000}',
   });
 
   await assert.assertRejects(
     () => fs.readTextFile("/app/missing.json"),
-    NotFoundError,
+    crossRuntime.NotFoundError,
   );
 });
 
 Deno.test("createFakeFs should read files as bytes", async () => {
-  const fs = createFakeFs({
+  const fs = fakeFs.createFakeFs({
     "/app/data.txt": "test data",
   });
 
@@ -40,7 +40,7 @@ Deno.test("createFakeFs should read files as bytes", async () => {
 });
 
 Deno.test("createFakeFs should walk directory", async () => {
-  const fs = createFakeFs({
+  const fs = fakeFs.createFakeFs({
     "/app/src/main.ts": "console.log('main')",
     "/app/src/utils.ts": "export const add = (a, b) => a + b",
     "/app/tests/main.test.ts": "test code",
@@ -60,7 +60,7 @@ Deno.test("createFakeFs should walk directory", async () => {
 });
 
 Deno.test("createFakeFs should identify directories", () => {
-  const fs = createFakeFs({
+  const fs = fakeFs.createFakeFs({
     "/app/src/main.ts": "code",
     "/app/src/component/component.ts": "component",
   });
@@ -73,7 +73,7 @@ Deno.test("createFakeFs should identify directories", () => {
 });
 
 Deno.test("createFakeFs should check path existence", () => {
-  const fs = createFakeFs({
+  const fs = fakeFs.createFakeFs({
     "/app/config.json": '{"port": 3000}',
     "/app/src/main.ts": "code",
   });
@@ -86,7 +86,7 @@ Deno.test("createFakeFs should check path existence", () => {
 });
 
 Deno.test("createFakeFs walk should return proper entry properties", async () => {
-  const fs = createFakeFs({
+  const fs = fakeFs.createFakeFs({
     "/app/index.ts": "code",
   });
 
@@ -99,7 +99,7 @@ Deno.test("createFakeFs walk should return proper entry properties", async () =>
 });
 
 Deno.test("createFakeFs should handle trailing slashes in directories", () => {
-  const fs = createFakeFs({
+  const fs = fakeFs.createFakeFs({
     "/app/src/main.ts": "code",
   });
 
@@ -109,7 +109,7 @@ Deno.test("createFakeFs should handle trailing slashes in directories", () => {
 });
 
 Deno.test("createFakeFs should handle empty files", async () => {
-  const fs = createFakeFs({
+  const fs = fakeFs.createFakeFs({
     "/app/.gitkeep": "",
     "/app/empty.txt": "",
   });

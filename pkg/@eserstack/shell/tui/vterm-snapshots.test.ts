@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
+import * as bdd from "@std/testing/bdd";
 import * as assert from "@std/assert";
 import * as terminal from "../vterm/terminal.ts";
 import * as ansi from "./ansi.ts";
@@ -27,8 +27,9 @@ const renderToGrid = async (
     const line = buf.getLine(r);
     let rowText = "";
     for (let c = 0; c < width; c++) {
-      const cell = line?.getCell(c);
-      rowText += cell?.getChars() || " ";
+      // An empty cell has no characters; read it as a space.
+      const chars = line?.getCell(c)?.getChars() ?? "";
+      rowText += chars === "" ? " " : chars;
     }
     rows.push(rowText);
   }
@@ -53,8 +54,8 @@ const charAt = (grid: string[], row: number, col: number): string =>
 // TabBar snapshot tests
 // ---------------------------------------------------------------------------
 
-describe("VTerm snapshot: TabBar", () => {
-  it("should render tab labels", async () => {
+bdd.describe("VTerm snapshot: TabBar", () => {
+  bdd.it("should render tab labels", async () => {
     const tabs = [
       { id: "1", label: "Alpha" },
       { id: "2", label: "Beta" },
@@ -72,7 +73,7 @@ describe("VTerm snapshot: TabBar", () => {
     assert.assertEquals(gridContains(grid, "Beta"), true);
   });
 
-  it("should show active tab differently from inactive", async () => {
+  bdd.it("should show active tab differently from inactive", async () => {
     const tabs = [
       { id: "1", label: "Alpha" },
       { id: "2", label: "Beta" },
@@ -92,7 +93,7 @@ describe("VTerm snapshot: TabBar", () => {
     assert.assertEquals(ansi.visibleLength(output), 40);
   });
 
-  it("should render tab indices", async () => {
+  bdd.it("should render tab indices", async () => {
     const tabs = [
       { id: "1", label: "Alpha" },
       { id: "2", label: "Beta" },
@@ -115,8 +116,8 @@ describe("VTerm snapshot: TabBar", () => {
 // Box snapshot tests
 // ---------------------------------------------------------------------------
 
-describe("VTerm snapshot: Box", () => {
-  it("should render box borders with rounded style", async () => {
+bdd.describe("VTerm snapshot: Box", () => {
+  bdd.it("should render box borders with rounded style", async () => {
     const output = box.drawBox({
       x: 1,
       y: 1,
@@ -133,7 +134,7 @@ describe("VTerm snapshot: Box", () => {
     assert.assertEquals(charAt(grid, 4, 19), "\u256F"); // "╯"
   });
 
-  it("should render box with title", async () => {
+  bdd.it("should render box with title", async () => {
     const output = box.drawBox({
       x: 1,
       y: 1,
@@ -146,7 +147,7 @@ describe("VTerm snapshot: Box", () => {
     assert.assertEquals(grid[0]!.includes("Test"), true);
   });
 
-  it("should render single border style", async () => {
+  bdd.it("should render single border style", async () => {
     const output = box.drawBox({
       x: 1,
       y: 1,
@@ -163,7 +164,7 @@ describe("VTerm snapshot: Box", () => {
     assert.assertEquals(charAt(grid, 2, 9), "\u2518"); // "┘"
   });
 
-  it("should render vertical borders on middle rows", async () => {
+  bdd.it("should render vertical borders on middle rows", async () => {
     const output = box.drawBox({
       x: 1,
       y: 1,
@@ -185,8 +186,8 @@ describe("VTerm snapshot: Box", () => {
 // Flex Layout + Box snapshot tests
 // ---------------------------------------------------------------------------
 
-describe("VTerm snapshot: Flex Layout + Box", () => {
-  it("should render side-by-side panels", async () => {
+bdd.describe("VTerm snapshot: Flex Layout + Box", () => {
+  bdd.it("should render side-by-side panels", async () => {
     const root = flexLayout.createFlexNode({
       direction: "row",
       children: [
@@ -227,7 +228,7 @@ describe("VTerm snapshot: Flex Layout + Box", () => {
     assert.assertEquals(charAt(grid, 0, 20), "\u250C"); // "┌" of right box
   });
 
-  it("should respect fixed-size children", async () => {
+  bdd.it("should respect fixed-size children", async () => {
     const root = flexLayout.createFlexNode({
       direction: "row",
       children: [
@@ -276,8 +277,8 @@ describe("VTerm snapshot: Flex Layout + Box", () => {
 // Scrollbar snapshot tests
 // ---------------------------------------------------------------------------
 
-describe("VTerm snapshot: ScrollBar", () => {
-  it("should render scrollbar in rightmost column", async () => {
+bdd.describe("VTerm snapshot: ScrollBar", () => {
+  bdd.it("should render scrollbar in rightmost column", async () => {
     const scrollState = scrollContainer.createScrollState(100, 10);
     const panel = { id: "test", x: 0, y: 0, width: 20, height: 10 };
     const output = scrollContainer.renderScrollbar(panel, scrollState);
@@ -295,14 +296,14 @@ describe("VTerm snapshot: ScrollBar", () => {
     assert.assertEquals(hasThumb || hasTrack, true);
   });
 
-  it("should not render scrollbar when content fits in viewport", () => {
+  bdd.it("should not render scrollbar when content fits in viewport", () => {
     const scrollState = scrollContainer.createScrollState(5, 10);
     const panel = { id: "test", x: 0, y: 0, width: 20, height: 10 };
     const output = scrollContainer.renderScrollbar(panel, scrollState);
     assert.assertEquals(output, "");
   });
 
-  it("should render thumb at top when offset is 0", async () => {
+  bdd.it("should render thumb at top when offset is 0", async () => {
     const scrollState = scrollContainer.createScrollState(100, 10);
     const panel = { id: "test", x: 0, y: 0, width: 20, height: 10 };
     const output = scrollContainer.renderScrollbar(panel, scrollState, "block");
@@ -312,7 +313,7 @@ describe("VTerm snapshot: ScrollBar", () => {
     assert.assertEquals(firstScrollChar, "\u2588");
   });
 
-  it("should render thumb at bottom when scrolled to end", async () => {
+  bdd.it("should render thumb at bottom when scrolled to end", async () => {
     const scrollState = {
       offset: 90,
       contentHeight: 100,

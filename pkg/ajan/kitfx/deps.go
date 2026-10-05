@@ -3,11 +3,15 @@
 package kitfx
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/eser/stack/pkg/ajan/processfx"
 )
 
 // projectFiles maps sentinel filenames to their ProjectType.
@@ -94,7 +98,9 @@ func GetDependencyInstructions(recipe *Recipe, detection ProjectDetection) Depen
 
 // InstallDependencies executes each instruction in cwd and records results.
 // Execution continues even after failures so callers receive a full result set.
-func InstallDependencies(instructions []string, cwd string) []InstallResult {
+// Each instruction is bounded by DefaultCommandTimeout and by ctx: once ctx
+// ends, the remaining instructions fail without starting.
+func InstallDependencies(ctx context.Context, instructions []string, cwd string) []InstallResult {
 	results := make([]InstallResult, 0, len(instructions))
 
 	for _, instruction := range instructions {
@@ -103,18 +109,32 @@ func InstallDependencies(instructions []string, cwd string) []InstallResult {
 			continue
 		}
 
-		cmd := exec.Command(parts[0], parts[1:]...) //nolint:gosec // instruction comes from registry manifest
-		cmd.Dir = cwd
-
-		output, err := cmd.CombinedOutput()
-
-		result := InstallResult{Command: instruction, Success: err == nil}
-		if err != nil {
-			result.Error = strings.TrimSpace(string(output)) + ": " + err.Error()
-		}
-
-		results = append(results, result)
+		results = append(results, runInstallInstruction(ctx, instruction, parts, cwd))
 	}
 
 	return results
+}
+
+func runInstallInstruction(ctx context.Context, instruction string, parts []string, cwd string) InstallResult {
+	cmdCtx, cancel := context.WithTimeout(ctx, DefaultCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(cmdCtx, parts[0], parts[1:]...) //nolint:gosec // instruction comes from registry manifest
+	cmd.Dir = cwd
+	// On timeout, kill the whole process group, so a package manager's own
+	// children do not outlive the bound.
+	processfx.HardenCommand(cmd)
+
+	output, err := cmd.CombinedOutput()
+
+	result := InstallResult{Command: instruction, Success: err == nil}
+	if err != nil {
+		if ctx.Err() == nil && errors.Is(cmdCtx.Err(), context.DeadlineExceeded) {
+			err = fmt.Errorf("no exit within %v: %w", DefaultCommandTimeout, context.DeadlineExceeded)
+		}
+
+		result.Error = strings.TrimSpace(string(output)) + ": " + err.Error()
+	}
+
+	return result
 }

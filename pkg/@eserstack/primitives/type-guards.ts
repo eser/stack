@@ -6,13 +6,16 @@
  *
  * @example
  * ```typescript
- * import { isString, isPlainObject, isDefined } from "@eserstack/primitives/type-guards";
+ * import * as primitives from "@eserstack/primitives";
  *
- * if (isString(value)) {
+ * const value: unknown = JSON.parse('"hello"');
+ * const data: unknown = JSON.parse('{"name":"app"}');
+ *
+ * if (primitives.typeGuards.isString(value)) {
  *   console.log(value.toUpperCase());
  * }
  *
- * if (isPlainObject(data)) {
+ * if (primitives.typeGuards.isPlainObject(data)) {
  *   console.log(Object.keys(data));
  * }
  * ```

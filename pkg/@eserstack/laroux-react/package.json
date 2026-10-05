@@ -15,7 +15,6 @@
   "dependencies": {
     "@eserstack/functions": "workspace:*",
     "@eserstack/laroux": "workspace:*",
-    "@eserstack/laroux-bundler": "workspace:*",
     "@eserstack/logging": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/streams": "workspace:*",

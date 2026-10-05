@@ -11,15 +11,14 @@
     "./list": "./list.ts"
   },
   "dependencies": {
-    "@eserstack/ajan": "workspace:*",
+    "@eemeli/yaml": "npm:@jsr/eemeli__yaml@^2.9.1",
     "@eserstack/config": "workspace:*",
     "@eserstack/functions": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "@std/cli": "npm:@jsr/std__cli@^1.0.32",
-    "yaml": "^2.9.1"
+    "@std/cli": "npm:@jsr/std__cli@^1.0.32"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19"

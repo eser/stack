@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals } from "@std/assert";
+import * as assert from "@std/assert";
 import * as streams from "./mod.ts";
 import * as span from "./span.ts";
 
@@ -23,14 +23,14 @@ const render = async (...spans: span.SpanInput[]): Promise<string> => {
 
 Deno.test("stripTerminalControls keeps only visible text, tab and newline", () => {
   const cleaned = span.stripTerminalControls(HOSTILE);
-  assertEquals(CONTROL.test(cleaned), false);
-  assertEquals(cleaned, "hello FAKEdocsX\tok\n");
+  assert.assertEquals(CONTROL.test(cleaned), false);
+  assert.assertEquals(cleaned, "hello FAKEdocsX\tok\n");
 });
 
 Deno.test("untrusted spans reach the sink without control bytes", async () => {
   const printed = await render(span.untrusted(HOSTILE));
-  assertEquals(CONTROL.test(printed.replace(/\n$/, "")), false);
-  assertEquals(printed.includes("evil.example"), false);
+  assert.assertEquals(CONTROL.test(printed.replace(/\n$/, "")), false);
+  assert.assertEquals(printed.includes("evil.example"), false);
 });
 
 Deno.test("untrusted text nested in a style span is still stripped", async () => {
@@ -42,9 +42,9 @@ Deno.test("untrusted text nested in a style span is still stripped", async () =>
   // Only the renderer's own SGR codes remain.
   // deno-lint-ignore no-control-regex
   const withoutSgr = printed.replace(/\x1b\[[0-9;]*m/g, "");
-  assertEquals(CONTROL.test(withoutSgr.replace(/[\t\n]/g, "")), false);
+  assert.assertEquals(CONTROL.test(withoutSgr.replace(/[\t\n]/g, "")), false);
 });
 
 Deno.test("plain text spans stay verbatim for the TUI's own cursor control", () => {
-  assertEquals(span.text("\x1b[?25l").value, "\x1b[?25l");
+  assert.assertEquals(span.text("\x1b[?25l").value, "\x1b[?25l");
 });

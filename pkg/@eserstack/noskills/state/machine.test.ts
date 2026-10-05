@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals, assertThrows } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as machine from "./machine.ts";
 import * as schema from "./schema.ts";
+import * as questions from "../context/questions.ts";
 
 // =============================================================================
 // Helpers
@@ -48,33 +49,45 @@ const inBlocked = (): schema.StateFile =>
 // canTransition
 // =============================================================================
 
-describe("canTransition", () => {
-  it("allows valid transitions", () => {
-    assertEquals(machine.canTransition("UNINITIALIZED", "IDLE"), true);
-    assertEquals(machine.canTransition("IDLE", "DISCOVERY"), true);
-    assertEquals(
+bdd.describe("canTransition", () => {
+  bdd.it("allows valid transitions", () => {
+    assert.assertEquals(machine.canTransition("UNINITIALIZED", "IDLE"), true);
+    assert.assertEquals(machine.canTransition("IDLE", "DISCOVERY"), true);
+    assert.assertEquals(
       machine.canTransition("DISCOVERY", "DISCOVERY_REFINEMENT"),
       true,
     );
-    assertEquals(
+    assert.assertEquals(
       machine.canTransition("DISCOVERY_REFINEMENT", "SPEC_PROPOSAL"),
       true,
     );
-    assertEquals(machine.canTransition("SPEC_PROPOSAL", "SPEC_APPROVED"), true);
-    assertEquals(machine.canTransition("SPEC_APPROVED", "EXECUTING"), true);
-    assertEquals(machine.canTransition("EXECUTING", "COMPLETED"), true);
-    assertEquals(machine.canTransition("EXECUTING", "BLOCKED"), true);
-    assertEquals(machine.canTransition("BLOCKED", "EXECUTING"), true);
-    assertEquals(machine.canTransition("COMPLETED", "IDLE"), true);
-    assertEquals(machine.canTransition("COMPLETED", "DISCOVERY"), true);
+    assert.assertEquals(
+      machine.canTransition("SPEC_PROPOSAL", "SPEC_APPROVED"),
+      true,
+    );
+    assert.assertEquals(
+      machine.canTransition("SPEC_APPROVED", "EXECUTING"),
+      true,
+    );
+    assert.assertEquals(machine.canTransition("EXECUTING", "COMPLETED"), true);
+    assert.assertEquals(machine.canTransition("EXECUTING", "BLOCKED"), true);
+    assert.assertEquals(machine.canTransition("BLOCKED", "EXECUTING"), true);
+    assert.assertEquals(machine.canTransition("COMPLETED", "IDLE"), true);
+    assert.assertEquals(machine.canTransition("COMPLETED", "DISCOVERY"), true);
   });
 
-  it("rejects invalid transitions", () => {
-    assertEquals(machine.canTransition("DISCOVERY", "EXECUTING"), false);
-    assertEquals(machine.canTransition("DISCOVERY", "SPEC_PROPOSAL"), false);
-    assertEquals(machine.canTransition("EXECUTING", "IDLE"), false);
-    assertEquals(machine.canTransition("SPEC_PROPOSAL", "EXECUTING"), false);
-    assertEquals(machine.canTransition("SPEC_APPROVED", "IDLE"), false);
+  bdd.it("rejects invalid transitions", () => {
+    assert.assertEquals(machine.canTransition("DISCOVERY", "EXECUTING"), false);
+    assert.assertEquals(
+      machine.canTransition("DISCOVERY", "SPEC_PROPOSAL"),
+      false,
+    );
+    assert.assertEquals(machine.canTransition("EXECUTING", "IDLE"), false);
+    assert.assertEquals(
+      machine.canTransition("SPEC_PROPOSAL", "EXECUTING"),
+      false,
+    );
+    assert.assertEquals(machine.canTransition("SPEC_APPROVED", "IDLE"), false);
   });
 });
 
@@ -82,16 +95,16 @@ describe("canTransition", () => {
 // assertTransition
 // =============================================================================
 
-describe("assertTransition", () => {
-  it("throws on invalid transition with descriptive message", () => {
-    assertThrows(
+bdd.describe("assertTransition", () => {
+  bdd.it("throws on invalid transition with descriptive message", () => {
+    assert.assertThrows(
       () => machine.assertTransition("IDLE", "EXECUTING"),
       Error,
       "Invalid phase transition: IDLE → EXECUTING",
     );
   });
 
-  it("does not throw on valid transition", () => {
+  bdd.it("does not throw on valid transition", () => {
     machine.assertTransition("IDLE", "DISCOVERY");
   });
 });
@@ -100,31 +113,31 @@ describe("assertTransition", () => {
 // startSpec
 // =============================================================================
 
-describe("startSpec", () => {
-  it("transitions IDLE → DISCOVERY with spec name and branch", () => {
+bdd.describe("startSpec", () => {
+  bdd.it("transitions IDLE → DISCOVERY with spec name and branch", () => {
     const state = machine.startSpec(idle(), "my-feature", "spec/my-feature");
 
-    assertEquals(state.phase, "DISCOVERY");
-    assertEquals(state.spec, "my-feature");
-    assertEquals(state.branch, "spec/my-feature");
+    assert.assertEquals(state.phase, "DISCOVERY");
+    assert.assertEquals(state.spec, "my-feature");
+    assert.assertEquals(state.branch, "spec/my-feature");
   });
 
-  it("resets discovery, execution, and decisions", () => {
+  bdd.it("resets discovery, execution, and decisions", () => {
     const state = machine.startSpec(idle(), "fresh", "spec/fresh");
 
-    assertEquals(state.discovery.answers.length, 0);
-    assertEquals(state.discovery.completed, false);
-    assertEquals(state.execution.iteration, 0);
-    assertEquals(state.execution.lastProgress, null);
-    assertEquals(state.decisions.length, 0);
+    assert.assertEquals(state.discovery.answers.length, 0);
+    assert.assertEquals(state.discovery.completed, false);
+    assert.assertEquals(state.execution.iteration, 0);
+    assert.assertEquals(state.execution.lastProgress, null);
+    assert.assertEquals(state.decisions.length, 0);
   });
 
-  it("throws from non-IDLE phases", () => {
-    assertThrows(
+  bdd.it("throws from non-IDLE phases", () => {
+    assert.assertThrows(
       () => machine.startSpec(inDiscovery(), "x", "spec/x"),
       Error,
     );
-    assertThrows(
+    assert.assertThrows(
       () => machine.startSpec(inExecuting(), "x", "spec/x"),
       Error,
     );
@@ -135,23 +148,23 @@ describe("startSpec", () => {
 // addDiscoveryAnswer
 // =============================================================================
 
-describe("addDiscoveryAnswer", () => {
-  it("appends answer to discovery answers", () => {
+bdd.describe("addDiscoveryAnswer", () => {
+  bdd.it("appends answer to discovery answers", () => {
     const state = machine.addDiscoveryAnswer(
       inDiscovery(),
       "status_quo",
       "users currently do X and need better tooling",
     );
 
-    assertEquals(state.discovery.answers.length, 1);
-    assertEquals(state.discovery.answers[0]?.questionId, "status_quo");
-    assertEquals(
+    assert.assertEquals(state.discovery.answers.length, 1);
+    assert.assertEquals(state.discovery.answers[0]?.questionId, "status_quo");
+    assert.assertEquals(
       state.discovery.answers[0]?.answer,
       "users currently do X and need better tooling",
     );
   });
 
-  it("dedupes by questionId on re-answer", () => {
+  bdd.it("dedupes by questionId on re-answer", () => {
     let state = machine.addDiscoveryAnswer(
       inDiscovery(),
       "status_quo",
@@ -163,15 +176,15 @@ describe("addDiscoveryAnswer", () => {
       "updated answer with more detail",
     );
 
-    assertEquals(state.discovery.answers.length, 1);
-    assertEquals(
+    assert.assertEquals(state.discovery.answers.length, 1);
+    assert.assertEquals(
       state.discovery.answers[0]?.answer,
       "updated answer with more detail",
     );
   });
 
-  it("throws if not in DISCOVERY phase", () => {
-    assertThrows(
+  bdd.it("throws if not in DISCOVERY phase", () => {
+    assert.assertThrows(
       () =>
         machine.addDiscoveryAnswer(
           idle(),
@@ -183,13 +196,13 @@ describe("addDiscoveryAnswer", () => {
     );
   });
 
-  it("rejects short answers (Jidoka: I1)", () => {
-    assertThrows(
+  bdd.it("rejects short answers (Jidoka: I1)", () => {
+    assert.assertThrows(
       () => machine.addDiscoveryAnswer(inDiscovery(), "q1", "yes"),
       Error,
       "Answer too short",
     );
-    assertThrows(
+    assert.assertThrows(
       () => machine.addDiscoveryAnswer(inDiscovery(), "q1", "   short   "),
       Error,
       "Answer too short",
@@ -201,23 +214,23 @@ describe("addDiscoveryAnswer", () => {
 // completeDiscovery
 // =============================================================================
 
-describe("completeDiscovery", () => {
-  it("transitions to DISCOVERY_REFINEMENT and sets completed", () => {
+bdd.describe("completeDiscovery", () => {
+  bdd.it("transitions to DISCOVERY_REFINEMENT and sets completed", () => {
     const state = machine.completeDiscovery(inDiscovery());
 
-    assertEquals(state.phase, "DISCOVERY_REFINEMENT");
-    assertEquals(state.discovery.completed, true);
+    assert.assertEquals(state.phase, "DISCOVERY_REFINEMENT");
+    assert.assertEquals(state.discovery.completed, true);
   });
 
-  it("sets specState to draft with path", () => {
+  bdd.it("sets specState to draft with path", () => {
     const state = machine.completeDiscovery(inDiscovery());
 
-    assertEquals(state.specState.status, "draft");
-    assertEquals(state.specState.path, ".eser/specs/test-spec/spec.md");
+    assert.assertEquals(state.specState.status, "draft");
+    assert.assertEquals(state.specState.path, ".eser/specs/test-spec/spec.md");
   });
 
-  it("throws if not in DISCOVERY", () => {
-    assertThrows(
+  bdd.it("throws if not in DISCOVERY", () => {
+    assert.assertThrows(
       () => machine.completeDiscovery(idle()),
       Error,
       "Cannot complete discovery in phase: IDLE",
@@ -229,15 +242,15 @@ describe("completeDiscovery", () => {
 // approveDiscoveryReview
 // =============================================================================
 
-describe("approveDiscoveryReview", () => {
-  it("transitions DISCOVERY_REFINEMENT to SPEC_PROPOSAL", () => {
+bdd.describe("approveDiscoveryReview", () => {
+  bdd.it("transitions DISCOVERY_REFINEMENT to SPEC_PROPOSAL", () => {
     const state = machine.approveDiscoveryReview(inDiscoveryReview());
 
-    assertEquals(state.phase, "SPEC_PROPOSAL");
+    assert.assertEquals(state.phase, "SPEC_PROPOSAL");
   });
 
-  it("throws if not in DISCOVERY_REFINEMENT", () => {
-    assertThrows(
+  bdd.it("throws if not in DISCOVERY_REFINEMENT", () => {
+    assert.assertThrows(
       () => machine.approveDiscoveryReview(idle()),
       Error,
     );
@@ -248,15 +261,15 @@ describe("approveDiscoveryReview", () => {
 // advanceDiscoveryQuestion
 // =============================================================================
 
-describe("advanceDiscoveryQuestion", () => {
-  it("increments currentQuestion", () => {
+bdd.describe("advanceDiscoveryQuestion", () => {
+  bdd.it("increments currentQuestion", () => {
     const state = machine.advanceDiscoveryQuestion(inDiscovery());
 
-    assertEquals(state.discovery.currentQuestion, 1);
+    assert.assertEquals(state.discovery.currentQuestion, 1);
   });
 
-  it("throws if not in DISCOVERY", () => {
-    assertThrows(
+  bdd.it("throws if not in DISCOVERY", () => {
+    assert.assertThrows(
       () => machine.advanceDiscoveryQuestion(idle()),
       Error,
       "Cannot advance discovery question in phase: IDLE",
@@ -268,22 +281,22 @@ describe("advanceDiscoveryQuestion", () => {
 // approveSpec
 // =============================================================================
 
-describe("approveSpec", () => {
-  it("transitions SPEC_PROPOSAL → SPEC_APPROVED", () => {
+bdd.describe("approveSpec", () => {
+  bdd.it("transitions SPEC_PROPOSAL → SPEC_APPROVED", () => {
     const state = machine.approveSpec(inSpecDraft());
 
-    assertEquals(state.phase, "SPEC_APPROVED");
+    assert.assertEquals(state.phase, "SPEC_APPROVED");
   });
 
-  it("sets specState status to approved", () => {
+  bdd.it("sets specState status to approved", () => {
     const state = machine.approveSpec(inSpecDraft());
 
-    assertEquals(state.specState.status, "approved");
+    assert.assertEquals(state.specState.status, "approved");
   });
 
-  it("throws from wrong phase", () => {
-    assertThrows(() => machine.approveSpec(idle()), Error);
-    assertThrows(() => machine.approveSpec(inDiscovery()), Error);
+  bdd.it("throws from wrong phase", () => {
+    assert.assertThrows(() => machine.approveSpec(idle()), Error);
+    assert.assertThrows(() => machine.approveSpec(inDiscovery()), Error);
   });
 });
 
@@ -291,23 +304,23 @@ describe("approveSpec", () => {
 // startExecution
 // =============================================================================
 
-describe("startExecution", () => {
-  it("transitions SPEC_APPROVED → EXECUTING", () => {
+bdd.describe("startExecution", () => {
+  bdd.it("transitions SPEC_APPROVED → EXECUTING", () => {
     const state = machine.startExecution(inSpecApproved());
 
-    assertEquals(state.phase, "EXECUTING");
+    assert.assertEquals(state.phase, "EXECUTING");
   });
 
-  it("resets execution state", () => {
+  bdd.it("resets execution state", () => {
     const state = machine.startExecution(inSpecApproved());
 
-    assertEquals(state.execution.iteration, 0);
-    assertEquals(state.execution.lastProgress, null);
+    assert.assertEquals(state.execution.iteration, 0);
+    assert.assertEquals(state.execution.lastProgress, null);
   });
 
-  it("throws from wrong phase", () => {
-    assertThrows(() => machine.startExecution(idle()), Error);
-    assertThrows(() => machine.startExecution(inSpecDraft()), Error);
+  bdd.it("throws from wrong phase", () => {
+    assert.assertThrows(() => machine.startExecution(idle()), Error);
+    assert.assertThrows(() => machine.startExecution(inSpecDraft()), Error);
   });
 });
 
@@ -315,29 +328,29 @@ describe("startExecution", () => {
 // advanceExecution
 // =============================================================================
 
-describe("advanceExecution", () => {
-  it("increments iteration counter", () => {
+bdd.describe("advanceExecution", () => {
+  bdd.it("increments iteration counter", () => {
     const state = machine.advanceExecution(inExecuting(), "step 1 done");
 
-    assertEquals(state.execution.iteration, 1);
+    assert.assertEquals(state.execution.iteration, 1);
   });
 
-  it("stores lastProgress message", () => {
+  bdd.it("stores lastProgress message", () => {
     const state = machine.advanceExecution(inExecuting(), "implemented auth");
 
-    assertEquals(state.execution.lastProgress, "implemented auth");
+    assert.assertEquals(state.execution.lastProgress, "implemented auth");
   });
 
-  it("increments cumulatively", () => {
+  bdd.it("increments cumulatively", () => {
     let state = machine.advanceExecution(inExecuting(), "step 1");
     state = machine.advanceExecution(state, "step 2");
 
-    assertEquals(state.execution.iteration, 2);
-    assertEquals(state.execution.lastProgress, "step 2");
+    assert.assertEquals(state.execution.iteration, 2);
+    assert.assertEquals(state.execution.lastProgress, "step 2");
   });
 
-  it("throws if not in EXECUTING", () => {
-    assertThrows(
+  bdd.it("throws if not in EXECUTING", () => {
+    assert.assertThrows(
       () => machine.advanceExecution(idle(), "x"),
       Error,
       "Cannot advance execution in phase: IDLE",
@@ -349,21 +362,21 @@ describe("advanceExecution", () => {
 // blockExecution
 // =============================================================================
 
-describe("blockExecution", () => {
-  it("transitions EXECUTING → BLOCKED", () => {
+bdd.describe("blockExecution", () => {
+  bdd.it("transitions EXECUTING → BLOCKED", () => {
     const state = machine.blockExecution(inExecuting(), "need API key");
 
-    assertEquals(state.phase, "BLOCKED");
+    assert.assertEquals(state.phase, "BLOCKED");
   });
 
-  it("stores reason in lastProgress with BLOCKED prefix", () => {
+  bdd.it("stores reason in lastProgress with BLOCKED prefix", () => {
     const state = machine.blockExecution(inExecuting(), "need API key");
 
-    assertEquals(state.execution.lastProgress, "BLOCKED: need API key");
+    assert.assertEquals(state.execution.lastProgress, "BLOCKED: need API key");
   });
 
-  it("throws from non-EXECUTING phase", () => {
-    assertThrows(() => machine.blockExecution(idle(), "x"), Error);
+  bdd.it("throws from non-EXECUTING phase", () => {
+    assert.assertThrows(() => machine.blockExecution(idle(), "x"), Error);
   });
 });
 
@@ -371,8 +384,8 @@ describe("blockExecution", () => {
 // addDecision
 // =============================================================================
 
-describe("addDecision", () => {
-  it("appends decision to decisions array", () => {
+bdd.describe("addDecision", () => {
+  bdd.it("appends decision to decisions array", () => {
     const decision: schema.Decision = {
       id: "d1",
       question: "Which DB?",
@@ -382,11 +395,11 @@ describe("addDecision", () => {
     };
     const state = machine.addDecision(idle(), decision);
 
-    assertEquals(state.decisions.length, 1);
-    assertEquals(state.decisions[0]?.choice, "PostgreSQL");
+    assert.assertEquals(state.decisions.length, 1);
+    assert.assertEquals(state.decisions[0]?.choice, "PostgreSQL");
   });
 
-  it("works in any phase (decisions are cross-cutting)", () => {
+  bdd.it("works in any phase (decisions are cross-cutting)", () => {
     const decision: schema.Decision = {
       id: "d1",
       question: "q",
@@ -395,12 +408,15 @@ describe("addDecision", () => {
       timestamp: "2026-03-27T10:00:00Z",
     };
 
-    assertEquals(machine.addDecision(idle(), decision).decisions.length, 1);
-    assertEquals(
+    assert.assertEquals(
+      machine.addDecision(idle(), decision).decisions.length,
+      1,
+    );
+    assert.assertEquals(
       machine.addDecision(inDiscovery(), decision).decisions.length,
       1,
     );
-    assertEquals(
+    assert.assertEquals(
       machine.addDecision(inExecuting(), decision).decisions.length,
       1,
     );
@@ -411,73 +427,79 @@ describe("addDecision", () => {
 // resetToIdle
 // =============================================================================
 
-describe("resetToIdle", () => {
-  it("clears all fields and sets phase to IDLE", () => {
+bdd.describe("resetToIdle", () => {
+  bdd.it("clears all fields and sets phase to IDLE", () => {
     const state = machine.resetToIdle(inExecuting());
 
-    assertEquals(state.phase, "IDLE");
-    assertEquals(state.spec, null);
-    assertEquals(state.branch, null);
-    assertEquals(state.discovery.answers.length, 0);
-    assertEquals(state.discovery.completed, false);
-    assertEquals(state.execution.iteration, 0);
-    assertEquals(state.decisions.length, 0);
+    assert.assertEquals(state.phase, "IDLE");
+    assert.assertEquals(state.spec, null);
+    assert.assertEquals(state.branch, null);
+    assert.assertEquals(state.discovery.answers.length, 0);
+    assert.assertEquals(state.discovery.completed, false);
+    assert.assertEquals(state.execution.iteration, 0);
+    assert.assertEquals(state.decisions.length, 0);
   });
 
-  it("preserves version field", () => {
+  bdd.it("preserves version field", () => {
     const original = inExecuting();
     const state = machine.resetToIdle(original);
 
-    assertEquals(state.version, original.version);
+    assert.assertEquals(state.version, original.version);
   });
 
-  it("allows reset from IDLE, EXECUTING, BLOCKED, COMPLETED (Jidoka I7)", () => {
-    // IDLE → IDLE (noop but allowed)
-    assertEquals(machine.resetToIdle(idle()).phase, "IDLE");
-    // EXECUTING → IDLE
-    assertEquals(machine.resetToIdle(inExecuting()).phase, "IDLE");
-    // BLOCKED → IDLE
-    assertEquals(machine.resetToIdle(inBlocked()).phase, "IDLE");
-    // COMPLETED → IDLE
-    const completed = machine.completeSpec(inExecuting(), "done");
-    assertEquals(machine.resetToIdle(completed).phase, "IDLE");
-  });
+  bdd.it(
+    "allows reset from IDLE, EXECUTING, BLOCKED, COMPLETED (Jidoka I7)",
+    () => {
+      // IDLE → IDLE (noop but allowed)
+      assert.assertEquals(machine.resetToIdle(idle()).phase, "IDLE");
+      // EXECUTING → IDLE
+      assert.assertEquals(machine.resetToIdle(inExecuting()).phase, "IDLE");
+      // BLOCKED → IDLE
+      assert.assertEquals(machine.resetToIdle(inBlocked()).phase, "IDLE");
+      // COMPLETED → IDLE
+      const completed = machine.completeSpec(inExecuting(), "done");
+      assert.assertEquals(machine.resetToIdle(completed).phase, "IDLE");
+    },
+  );
 
-  it("rejects reset from DISCOVERY, DISCOVERY_REFINEMENT, SPEC_PROPOSAL, SPEC_APPROVED (Jidoka I7)", () => {
-    assertThrows(
-      () => machine.resetToIdle(inDiscovery()),
-      Error,
-      "Cannot reset from DISCOVERY",
-    );
-    assertThrows(
-      () => machine.resetToIdle(inDiscoveryReview()),
-      Error,
-      "Cannot reset from DISCOVERY_REFINEMENT",
-    );
-    assertThrows(
-      () => machine.resetToIdle(inSpecDraft()),
-      Error,
-      "Cannot reset from SPEC_PROPOSAL",
-    );
-    assertThrows(
-      () => machine.resetToIdle(inSpecApproved()),
-      Error,
-      "Cannot reset from SPEC_APPROVED",
-    );
-  });
+  bdd.it(
+    "rejects reset from DISCOVERY, DISCOVERY_REFINEMENT, SPEC_PROPOSAL, SPEC_APPROVED (Jidoka I7)",
+    () => {
+      assert.assertThrows(
+        () => machine.resetToIdle(inDiscovery()),
+        Error,
+        "Cannot reset from DISCOVERY",
+      );
+      assert.assertThrows(
+        () => machine.resetToIdle(inDiscoveryReview()),
+        Error,
+        "Cannot reset from DISCOVERY_REFINEMENT",
+      );
+      assert.assertThrows(
+        () => machine.resetToIdle(inSpecDraft()),
+        Error,
+        "Cannot reset from SPEC_PROPOSAL",
+      );
+      assert.assertThrows(
+        () => machine.resetToIdle(inSpecApproved()),
+        Error,
+        "Cannot reset from SPEC_APPROVED",
+      );
+    },
+  );
 });
 
 // =============================================================================
 // withAnswers helper
 // =============================================================================
 
-describe("withAnswers helper", () => {
-  it("adds N answers to discovery state", () => {
+bdd.describe("withAnswers helper", () => {
+  bdd.it("adds N answers to discovery state", () => {
     const state = withAnswers(inDiscovery(), 3);
 
-    assertEquals(state.discovery.answers.length, 3);
-    assertEquals(state.discovery.answers[0]?.questionId, "q0");
-    assertEquals(
+    assert.assertEquals(state.discovery.answers.length, 3);
+    assert.assertEquals(state.discovery.answers[0]?.questionId, "q0");
+    assert.assertEquals(
       state.discovery.answers[2]?.answer,
       "answer-2 with enough detail to pass validation",
     );
@@ -488,17 +510,17 @@ describe("withAnswers helper", () => {
 // BLOCKED round-trip
 // =============================================================================
 
-describe("BLOCKED round-trip", () => {
-  it("block preserves iteration and resolving continues", () => {
+bdd.describe("BLOCKED round-trip", () => {
+  bdd.it("block preserves iteration and resolving continues", () => {
     let state = inExecuting();
     state = machine.advanceExecution(state, "step 1");
     state = machine.advanceExecution(state, "step 2");
 
     const blocked = inBlocked();
-    assertEquals(blocked.phase, "BLOCKED");
+    assert.assertEquals(blocked.phase, "BLOCKED");
 
     const unblocked = machine.transition(blocked, "EXECUTING");
-    assertEquals(unblocked.phase, "EXECUTING");
+    assert.assertEquals(unblocked.phase, "EXECUTING");
   });
 });
 
@@ -506,36 +528,36 @@ describe("BLOCKED round-trip", () => {
 // IDLE — default permissive state
 // =============================================================================
 
-describe("IDLE state", () => {
-  it("createInitialState returns IDLE", () => {
+bdd.describe("IDLE state", () => {
+  bdd.it("createInitialState returns IDLE", () => {
     const state = schema.createInitialState();
-    assertEquals(state.phase, "IDLE");
+    assert.assertEquals(state.phase, "IDLE");
   });
 
-  it("IDLE → DISCOVERY via startSpec", () => {
+  bdd.it("IDLE → DISCOVERY via startSpec", () => {
     const state = machine.startSpec(idle(), "test", "spec/test");
-    assertEquals(state.phase, "DISCOVERY");
+    assert.assertEquals(state.phase, "DISCOVERY");
   });
 
-  it("IDLE → COMPLETED via completeSpec", () => {
+  bdd.it("IDLE → COMPLETED via completeSpec", () => {
     const state = machine.completeSpec(idle(), "cancelled");
-    assertEquals(state.phase, "COMPLETED");
+    assert.assertEquals(state.phase, "COMPLETED");
   });
 
-  it("canTransition IDLE → DISCOVERY", () => {
-    assertEquals(machine.canTransition("IDLE", "DISCOVERY"), true);
+  bdd.it("canTransition IDLE → DISCOVERY", () => {
+    assert.assertEquals(machine.canTransition("IDLE", "DISCOVERY"), true);
   });
 
-  it("canTransition IDLE → COMPLETED", () => {
-    assertEquals(machine.canTransition("IDLE", "COMPLETED"), true);
+  bdd.it("canTransition IDLE → COMPLETED", () => {
+    assert.assertEquals(machine.canTransition("IDLE", "COMPLETED"), true);
   });
 
-  it("rejects IDLE → EXECUTING (must go through spec lifecycle)", () => {
-    assertEquals(machine.canTransition("IDLE", "EXECUTING"), false);
+  bdd.it("rejects IDLE → EXECUTING (must go through spec lifecycle)", () => {
+    assert.assertEquals(machine.canTransition("IDLE", "EXECUTING"), false);
   });
 
-  it("COMPLETED → IDLE (return to default after spec done)", () => {
-    assertEquals(machine.canTransition("COMPLETED", "IDLE"), true);
+  bdd.it("COMPLETED → IDLE (return to default after spec done)", () => {
+    assert.assertEquals(machine.canTransition("COMPLETED", "IDLE"), true);
   });
 });
 
@@ -543,81 +565,81 @@ describe("IDLE state", () => {
 // completeSpec (cancel/wontfix from every phase)
 // =============================================================================
 
-describe("completeSpec: cancel from every spec phase", () => {
-  it("cancel from DISCOVERY → COMPLETED(cancelled)", () => {
+bdd.describe("completeSpec: cancel from every spec phase", () => {
+  bdd.it("cancel from DISCOVERY → COMPLETED(cancelled)", () => {
     const state = machine.completeSpec(inDiscovery(), "cancelled");
-    assertEquals(state.phase, "COMPLETED");
-    assertEquals(state.completionReason, "cancelled");
+    assert.assertEquals(state.phase, "COMPLETED");
+    assert.assertEquals(state.completionReason, "cancelled");
   });
 
-  it("cancel from DISCOVERY_REFINEMENT → COMPLETED(cancelled)", () => {
+  bdd.it("cancel from DISCOVERY_REFINEMENT → COMPLETED(cancelled)", () => {
     const state = machine.completeSpec(inDiscoveryReview(), "cancelled");
-    assertEquals(state.phase, "COMPLETED");
-    assertEquals(state.completionReason, "cancelled");
+    assert.assertEquals(state.phase, "COMPLETED");
+    assert.assertEquals(state.completionReason, "cancelled");
   });
 
-  it("cancel from SPEC_PROPOSAL → COMPLETED(cancelled)", () => {
+  bdd.it("cancel from SPEC_PROPOSAL → COMPLETED(cancelled)", () => {
     const state = machine.completeSpec(inSpecDraft(), "cancelled");
-    assertEquals(state.phase, "COMPLETED");
-    assertEquals(state.completionReason, "cancelled");
+    assert.assertEquals(state.phase, "COMPLETED");
+    assert.assertEquals(state.completionReason, "cancelled");
   });
 
-  it("cancel from SPEC_APPROVED → COMPLETED(cancelled)", () => {
+  bdd.it("cancel from SPEC_APPROVED → COMPLETED(cancelled)", () => {
     const state = machine.completeSpec(inSpecApproved(), "cancelled");
-    assertEquals(state.phase, "COMPLETED");
-    assertEquals(state.completionReason, "cancelled");
+    assert.assertEquals(state.phase, "COMPLETED");
+    assert.assertEquals(state.completionReason, "cancelled");
   });
 
-  it("cancel from EXECUTING → COMPLETED(cancelled)", () => {
+  bdd.it("cancel from EXECUTING → COMPLETED(cancelled)", () => {
     const state = machine.completeSpec(inExecuting(), "cancelled");
-    assertEquals(state.phase, "COMPLETED");
-    assertEquals(state.completionReason, "cancelled");
+    assert.assertEquals(state.phase, "COMPLETED");
+    assert.assertEquals(state.completionReason, "cancelled");
   });
 
-  it("cancel from BLOCKED → COMPLETED(cancelled)", () => {
+  bdd.it("cancel from BLOCKED → COMPLETED(cancelled)", () => {
     const state = machine.completeSpec(inBlocked(), "cancelled");
-    assertEquals(state.phase, "COMPLETED");
-    assertEquals(state.completionReason, "cancelled");
+    assert.assertEquals(state.phase, "COMPLETED");
+    assert.assertEquals(state.completionReason, "cancelled");
   });
 });
 
-describe("completeSpec: wontfix from spec phases", () => {
-  it("wontfix from DISCOVERY → COMPLETED(wontfix) with note", () => {
+bdd.describe("completeSpec: wontfix from spec phases", () => {
+  bdd.it("wontfix from DISCOVERY → COMPLETED(wontfix) with note", () => {
     const state = machine.completeSpec(
       inDiscovery(),
       "wontfix",
       "resolved itself",
     );
-    assertEquals(state.phase, "COMPLETED");
-    assertEquals(state.completionReason, "wontfix");
-    assertEquals(state.completionNote, "resolved itself");
+    assert.assertEquals(state.phase, "COMPLETED");
+    assert.assertEquals(state.completionReason, "wontfix");
+    assert.assertEquals(state.completionNote, "resolved itself");
   });
 
-  it("wontfix from EXECUTING → COMPLETED(wontfix) with note", () => {
+  bdd.it("wontfix from EXECUTING → COMPLETED(wontfix) with note", () => {
     const state = machine.completeSpec(
       inExecuting(),
       "wontfix",
       "no longer relevant",
     );
-    assertEquals(state.phase, "COMPLETED");
-    assertEquals(state.completionReason, "wontfix");
-    assertEquals(state.completionNote, "no longer relevant");
+    assert.assertEquals(state.phase, "COMPLETED");
+    assert.assertEquals(state.completionReason, "wontfix");
+    assert.assertEquals(state.completionNote, "no longer relevant");
   });
 });
 
-describe("completeSpec: COMPLETED rejects re-completion", () => {
-  it("cancel from COMPLETED → throws (no self-transition)", () => {
+bdd.describe("completeSpec: COMPLETED rejects re-completion", () => {
+  bdd.it("cancel from COMPLETED → throws (no self-transition)", () => {
     const completed = machine.completeSpec(inExecuting(), "done");
-    assertThrows(
+    assert.assertThrows(
       () => machine.completeSpec(completed, "cancelled"),
       Error,
       "Invalid phase transition: COMPLETED → COMPLETED",
     );
   });
 
-  it("wontfix from COMPLETED → throws (no self-transition)", () => {
+  bdd.it("wontfix from COMPLETED → throws (no self-transition)", () => {
     const completed = machine.completeSpec(inExecuting(), "done");
-    assertThrows(
+    assert.assertThrows(
       () => machine.completeSpec(completed, "wontfix", "reason"),
       Error,
       "Invalid phase transition: COMPLETED → COMPLETED",
@@ -625,11 +647,73 @@ describe("completeSpec: COMPLETED rejects re-completion", () => {
   });
 });
 
-describe("completeSpec: command-level guards (IDLE)", () => {
+bdd.describe("completeSpec: command-level guards (IDLE)", () => {
   // IDLE → COMPLETED is a valid machine transition
-  it("machine allows IDLE → COMPLETED", () => {
+  bdd.it("machine allows IDLE → COMPLETED", () => {
     const state = machine.completeSpec(idle(), "cancelled");
-    assertEquals(state.phase, "COMPLETED");
+    assert.assertEquals(state.phase, "COMPLETED");
+  });
+});
+
+// =============================================================================
+// completeDiscoveryWhenReady
+// =============================================================================
+
+bdd.describe("completeDiscoveryWhenReady", () => {
+  const withBaseAnswers = (): schema.StateFile => {
+    let state = inDiscovery();
+    for (const q of questions.QUESTIONS) {
+      state = machine.addDiscoveryAnswer(
+        state,
+        q.id,
+        `Answer for ${q.id} with enough detail`,
+      );
+    }
+    return state;
+  };
+
+  bdd.it("waits while a base question is open", () => {
+    const state = withAnswers(inDiscovery(), 3);
+
+    assert.assertEquals(machine.completeDiscoveryWhenReady(state), state);
+  });
+
+  bdd.it("waits while a follow-up is pending", () => {
+    const state = machine.addFollowUp(
+      withBaseAnswers(),
+      "ambition",
+      "What does the 5-star version drop?",
+      "agent",
+    );
+
+    assert.assertEquals(machine.completeDiscoveryWhenReady(state), state);
+  });
+
+  bdd.it("completes once the last follow-up is settled", () => {
+    let state = machine.addFollowUp(
+      withBaseAnswers(),
+      "ambition",
+      "What does the 5-star version drop?",
+      "agent",
+    );
+    state = machine.skipFollowUp(state, "ambitiona");
+
+    const completed = machine.completeDiscoveryWhenReady(state);
+    assert.assertEquals(completed.phase, "DISCOVERY_REFINEMENT");
+    assert.assertEquals(completed.discovery.completed, true);
+  });
+
+  bdd.it("completes the base answers with no follow-up", () => {
+    assert.assertEquals(
+      machine.completeDiscoveryWhenReady(withBaseAnswers()).phase,
+      "DISCOVERY_REFINEMENT",
+    );
+  });
+
+  bdd.it("leaves a state outside DISCOVERY alone", () => {
+    const state = inExecuting();
+
+    assert.assertEquals(machine.completeDiscoveryWhenReady(state), state);
   });
 });
 
@@ -637,19 +721,19 @@ describe("completeSpec: command-level guards (IDLE)", () => {
 // Jidoka I2: follow-up blocking
 // =============================================================================
 
-describe("completeDiscovery follow-up blocking (Jidoka I2)", () => {
-  it("blocks completion when pending follow-ups exist", () => {
+bdd.describe("completeDiscovery follow-up blocking (Jidoka I2)", () => {
+  bdd.it("blocks completion when pending follow-ups exist", () => {
     let state = inDiscovery();
     state = machine.addFollowUp(state, "q1", "What about edge cases?", "agent");
 
-    assertThrows(
+    assert.assertThrows(
       () => machine.completeDiscovery(state),
       Error,
       "pending follow-up",
     );
   });
 
-  it("allows completion when follow-ups are answered", () => {
+  bdd.it("allows completion when follow-ups are answered", () => {
     let state = inDiscovery();
     state = machine.addFollowUp(state, "q1", "What about edge cases?", "agent");
     state = machine.answerFollowUp(
@@ -659,22 +743,22 @@ describe("completeDiscovery follow-up blocking (Jidoka I2)", () => {
     );
 
     const completed = machine.completeDiscovery(state);
-    assertEquals(completed.phase, "DISCOVERY_REFINEMENT");
+    assert.assertEquals(completed.phase, "DISCOVERY_REFINEMENT");
   });
 
-  it("allows completion when follow-ups are skipped", () => {
+  bdd.it("allows completion when follow-ups are skipped", () => {
     let state = inDiscovery();
     state = machine.addFollowUp(state, "q1", "What about edge cases?", "agent");
     state = machine.skipFollowUp(state, "q1a");
 
     const completed = machine.completeDiscovery(state);
-    assertEquals(completed.phase, "DISCOVERY_REFINEMENT");
+    assert.assertEquals(completed.phase, "DISCOVERY_REFINEMENT");
   });
 
-  it("allows completion with no follow-ups", () => {
+  bdd.it("allows completion with no follow-ups", () => {
     const state = inDiscovery();
     const completed = machine.completeDiscovery(state);
-    assertEquals(completed.phase, "DISCOVERY_REFINEMENT");
+    assert.assertEquals(completed.phase, "DISCOVERY_REFINEMENT");
   });
 });
 
@@ -682,38 +766,38 @@ describe("completeDiscovery follow-up blocking (Jidoka I2)", () => {
 // Jidoka M2: confidence basis validation
 // =============================================================================
 
-describe("addConfidenceFinding basis validation (Jidoka M2)", () => {
-  it("rejects high confidence without basis", () => {
-    assertThrows(
+bdd.describe("addConfidenceFinding basis validation (Jidoka M2)", () => {
+  bdd.it("rejects high confidence without basis", () => {
+    assert.assertThrows(
       () => machine.addConfidenceFinding(inExecuting(), "claim", 8, ""),
       Error,
       "High confidence",
     );
-    assertThrows(
+    assert.assertThrows(
       () => machine.addConfidenceFinding(inExecuting(), "claim", 9, "short"),
       Error,
       "High confidence",
     );
   });
 
-  it("accepts high confidence with proper basis", () => {
+  bdd.it("accepts high confidence with proper basis", () => {
     const state = machine.addConfidenceFinding(
       inExecuting(),
       "Upload handler lacks validation",
       9,
       "Read upload.ts:45 — no size check present",
     );
-    assertEquals((state.execution.confidenceFindings ?? []).length, 1);
+    assert.assertEquals((state.execution.confidenceFindings ?? []).length, 1);
   });
 
-  it("accepts low confidence without basis", () => {
+  bdd.it("accepts low confidence without basis", () => {
     const state = machine.addConfidenceFinding(
       inExecuting(),
       "Might be slow",
       3,
       "",
     );
-    assertEquals((state.execution.confidenceFindings ?? []).length, 1);
+    assert.assertEquals((state.execution.confidenceFindings ?? []).length, 1);
   });
 });
 
@@ -721,7 +805,7 @@ describe("addConfidenceFinding basis validation (Jidoka M2)", () => {
 // Jidoka Completeness Gate (approveDiscoveryReview)
 // =============================================================================
 
-describe("Jidoka Completeness Gate: approveDiscoveryReview", () => {
+bdd.describe("Jidoka Completeness Gate: approveDiscoveryReview", () => {
   const makeRefinementState = (
     placeholders: readonly schema.PlaceholderStatus[],
     pendingDecisions: readonly schema.PendingDecision[] = [],
@@ -741,7 +825,7 @@ describe("Jidoka Completeness Gate: approveDiscoveryReview", () => {
     };
   };
 
-  it("succeeds when all placeholders are filled", () => {
+  bdd.it("succeeds when all placeholders are filled", () => {
     const state = makeRefinementState([
       { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
       {
@@ -751,10 +835,10 @@ describe("Jidoka Completeness Gate: approveDiscoveryReview", () => {
       },
     ]);
     const advanced = machine.approveDiscoveryReview(state);
-    assertEquals(advanced.phase, "SPEC_PROPOSAL");
+    assert.assertEquals(advanced.phase, "SPEC_PROPOSAL");
   });
 
-  it("succeeds when all visible sections are N/A with reasons", () => {
+  bdd.it("succeeds when all visible sections are N/A with reasons", () => {
     const state = makeRefinementState([
       {
         sectionId: "summary",
@@ -764,44 +848,47 @@ describe("Jidoka Completeness Gate: approveDiscoveryReview", () => {
       },
     ]);
     const advanced = machine.approveDiscoveryReview(state);
-    assertEquals(advanced.phase, "SPEC_PROPOSAL");
+    assert.assertEquals(advanced.phase, "SPEC_PROPOSAL");
   });
 
-  it("succeeds when placeholders are conditional-hidden (not required)", () => {
-    const state = makeRefinementState([
-      {
-        sectionId: "design-states",
-        sectionTitle: "Design States",
-        status: "conditional-hidden",
-      },
-    ]);
-    const advanced = machine.approveDiscoveryReview(state);
-    assertEquals(advanced.phase, "SPEC_PROPOSAL");
-  });
+  bdd.it(
+    "succeeds when placeholders are conditional-hidden (not required)",
+    () => {
+      const state = makeRefinementState([
+        {
+          sectionId: "design-states",
+          sectionTitle: "Design States",
+          status: "conditional-hidden",
+        },
+      ]);
+      const advanced = machine.approveDiscoveryReview(state);
+      assert.assertEquals(advanced.phase, "SPEC_PROPOSAL");
+    },
+  );
 
-  it("throws when a placeholder remains unresolved", () => {
+  bdd.it("throws when a placeholder remains unresolved", () => {
     const state = makeRefinementState([
       { sectionId: "summary", sectionTitle: "Summary", status: "placeholder" },
     ]);
-    assertThrows(
+    assert.assertThrows(
       () => machine.approveDiscoveryReview(state),
       Error,
       "Spec incomplete",
     );
   });
 
-  it("throws when N/A has no reason", () => {
+  bdd.it("throws when N/A has no reason", () => {
     const state = makeRefinementState([
       { sectionId: "summary", sectionTitle: "Summary", status: "na" },
     ]);
-    assertThrows(
+    assert.assertThrows(
       () => machine.approveDiscoveryReview(state),
       Error,
       "Spec incomplete",
     );
   });
 
-  it("throws when a pending decision exists", () => {
+  bdd.it("throws when a pending decision exists", () => {
     const state = makeRefinementState(
       [{ sectionId: "summary", sectionTitle: "Summary", status: "filled" }],
       [{
@@ -810,14 +897,14 @@ describe("Jidoka Completeness Gate: approveDiscoveryReview", () => {
         waitingFor: ["@alice"],
       }],
     );
-    assertThrows(
+    assert.assertThrows(
       () => machine.approveDiscoveryReview(state),
       Error,
       "Spec incomplete",
     );
   });
 
-  it("error message lists every unresolved section title", () => {
+  bdd.it("error message lists every unresolved section title", () => {
     const state = makeRefinementState([
       {
         sectionId: "s1",
@@ -832,10 +919,10 @@ describe("Jidoka Completeness Gate: approveDiscoveryReview", () => {
     } catch (e) {
       thrown = true;
       const msg = (e as Error).message;
-      assertEquals(msg.includes("Problem Statement"), true);
-      assertEquals(msg.includes("Ambition"), true);
+      assert.assertEquals(msg.includes("Problem Statement"), true);
+      assert.assertEquals(msg.includes("Ambition"), true);
     }
-    assertEquals(thrown, true);
+    assert.assertEquals(thrown, true);
   });
 });
 
@@ -856,34 +943,34 @@ const sampleReadiness: schema.CeoReviewReadiness = {
   verdict: "approved",
 };
 
-describe("getDiscoveryRefinementStage", () => {
-  it("returns 'stage-a' when no refinement sub-state", () => {
-    assertEquals(
+bdd.describe("getDiscoveryRefinementStage", () => {
+  bdd.it("returns 'stage-a' when no refinement sub-state", () => {
+    assert.assertEquals(
       machine.getDiscoveryRefinementStage(inDiscoveryReview()),
       "stage-a",
     );
   });
 
-  it("returns 'stage-a' when refinement present but no posture", () => {
+  bdd.it("returns 'stage-a' when refinement present but no posture", () => {
     const state = machine.setCompletenessScore(
       inDiscoveryReview(),
       sampleScore,
     );
-    assertEquals(machine.getDiscoveryRefinementStage(state), "stage-a");
+    assert.assertEquals(machine.getDiscoveryRefinementStage(state), "stage-a");
   });
 
-  it("returns 'stage-b' when posture is set but no ceoReview", () => {
+  bdd.it("returns 'stage-b' when posture is set but no ceoReview", () => {
     const state = machine.setReviewPosture(inDiscoveryReview(), "hold-scope");
-    assertEquals(machine.getDiscoveryRefinementStage(state), "stage-b");
+    assert.assertEquals(machine.getDiscoveryRefinementStage(state), "stage-b");
   });
 
-  it("returns 'stage-c' when ceoReview is present", () => {
+  bdd.it("returns 'stage-c' when ceoReview is present", () => {
     const base = machine.setReviewPosture(
       inDiscoveryReview(),
       "selective-expansion",
     );
     const state = machine.setCeoReviewReadiness(base, sampleReadiness);
-    assertEquals(machine.getDiscoveryRefinementStage(state), "stage-c");
+    assert.assertEquals(machine.getDiscoveryRefinementStage(state), "stage-c");
   });
 });
 
@@ -891,48 +978,66 @@ describe("getDiscoveryRefinementStage", () => {
 // RefinementSubState: setCompletenessScore
 // =============================================================================
 
-describe("setCompletenessScore", () => {
-  it("first call sets both initialCompletenessScore and completenessScore", () => {
-    const state = machine.setCompletenessScore(
-      inDiscoveryReview(),
-      sampleScore,
-    );
-    assertEquals(
-      state.discovery.refinement?.initialCompletenessScore,
-      sampleScore,
-    );
-    assertEquals(state.discovery.refinement?.completenessScore, sampleScore);
-  });
+bdd.describe("setCompletenessScore", () => {
+  bdd.it(
+    "first call sets both initialCompletenessScore and completenessScore",
+    () => {
+      const state = machine.setCompletenessScore(
+        inDiscoveryReview(),
+        sampleScore,
+      );
+      assert.assertEquals(
+        state.discovery.refinement?.initialCompletenessScore,
+        sampleScore,
+      );
+      assert.assertEquals(
+        state.discovery.refinement?.completenessScore,
+        sampleScore,
+      );
+    },
+  );
 
-  it("second call updates completenessScore but preserves initialCompletenessScore", () => {
-    const updated: schema.CompletenessScore = { ...sampleScore, overall: 9 };
-    const first = machine.setCompletenessScore(
-      inDiscoveryReview(),
-      sampleScore,
-    );
-    const second = machine.setCompletenessScore(first, updated);
-    assertEquals(
-      second.discovery.refinement?.initialCompletenessScore,
-      sampleScore,
-    );
-    assertEquals(second.discovery.refinement?.completenessScore, updated);
-  });
+  bdd.it(
+    "second call updates completenessScore but preserves initialCompletenessScore",
+    () => {
+      const updated: schema.CompletenessScore = { ...sampleScore, overall: 9 };
+      const first = machine.setCompletenessScore(
+        inDiscoveryReview(),
+        sampleScore,
+      );
+      const second = machine.setCompletenessScore(first, updated);
+      assert.assertEquals(
+        second.discovery.refinement?.initialCompletenessScore,
+        sampleScore,
+      );
+      assert.assertEquals(
+        second.discovery.refinement?.completenessScore,
+        updated,
+      );
+    },
+  );
 
-  it("merges with existing refinement sub-state (preserves reviewPosture)", () => {
-    const withPosture = machine.setReviewPosture(
-      inDiscoveryReview(),
-      "hold-scope",
-    );
-    const withScore = machine.setCompletenessScore(withPosture, sampleScore);
-    assertEquals(withScore.discovery.refinement?.reviewPosture, "hold-scope");
-    assertEquals(
-      withScore.discovery.refinement?.completenessScore,
-      sampleScore,
-    );
-  });
+  bdd.it(
+    "merges with existing refinement sub-state (preserves reviewPosture)",
+    () => {
+      const withPosture = machine.setReviewPosture(
+        inDiscoveryReview(),
+        "hold-scope",
+      );
+      const withScore = machine.setCompletenessScore(withPosture, sampleScore);
+      assert.assertEquals(
+        withScore.discovery.refinement?.reviewPosture,
+        "hold-scope",
+      );
+      assert.assertEquals(
+        withScore.discovery.refinement?.completenessScore,
+        sampleScore,
+      );
+    },
+  );
 
-  it("throws when called outside DISCOVERY_REFINEMENT", () => {
-    assertThrows(
+  bdd.it("throws when called outside DISCOVERY_REFINEMENT", () => {
+    assert.assertThrows(
       () => machine.setCompletenessScore(inDiscovery(), sampleScore),
       Error,
       "invalid phase",
@@ -944,36 +1049,36 @@ describe("setCompletenessScore", () => {
 // RefinementSubState: setReviewPosture
 // =============================================================================
 
-describe("setReviewPosture", () => {
-  it("stores posture in refinement sub-state", () => {
+bdd.describe("setReviewPosture", () => {
+  bdd.it("stores posture in refinement sub-state", () => {
     const state = machine.setReviewPosture(
       inDiscoveryReview(),
       "selective-expansion",
     );
-    assertEquals(
+    assert.assertEquals(
       state.discovery.refinement?.reviewPosture,
       "selective-expansion",
     );
   });
 
-  it("merges with existing completenessScore", () => {
+  bdd.it("merges with existing completenessScore", () => {
     const withScore = machine.setCompletenessScore(
       inDiscoveryReview(),
       sampleScore,
     );
     const withPosture = machine.setReviewPosture(withScore, "scope-reduction");
-    assertEquals(
+    assert.assertEquals(
       withPosture.discovery.refinement?.completenessScore,
       sampleScore,
     );
-    assertEquals(
+    assert.assertEquals(
       withPosture.discovery.refinement?.reviewPosture,
       "scope-reduction",
     );
   });
 
-  it("throws when called outside DISCOVERY_REFINEMENT", () => {
-    assertThrows(
+  bdd.it("throws when called outside DISCOVERY_REFINEMENT", () => {
+    assert.assertThrows(
       () => machine.setReviewPosture(inDiscovery(), "hold-scope"),
       Error,
       "invalid phase",
@@ -985,8 +1090,8 @@ describe("setReviewPosture", () => {
 // RefinementSubState: setCeoReviewReadiness
 // =============================================================================
 
-describe("setCeoReviewReadiness", () => {
-  it("stores readiness and optional reflection", () => {
+bdd.describe("setCeoReviewReadiness", () => {
+  bdd.it("stores readiness and optional reflection", () => {
     const base = machine.setReviewPosture(
       inDiscoveryReview(),
       "selective-expansion",
@@ -996,18 +1101,18 @@ describe("setCeoReviewReadiness", () => {
       sampleReadiness,
       "solid choices throughout",
     );
-    assertEquals(
+    assert.assertEquals(
       state.discovery.refinement?.ceoReview?.readinessScore,
       sampleReadiness,
     );
-    assertEquals(
+    assert.assertEquals(
       state.discovery.refinement?.ceoReview?.reflection,
       "solid choices throughout",
     );
   });
 
-  it("throws when called outside DISCOVERY_REFINEMENT", () => {
-    assertThrows(
+  bdd.it("throws when called outside DISCOVERY_REFINEMENT", () => {
+    assert.assertThrows(
       () => machine.setCeoReviewReadiness(inDiscovery(), sampleReadiness),
       Error,
       "invalid phase",
@@ -1019,19 +1124,19 @@ describe("setCeoReviewReadiness", () => {
 // RefinementSubState: clearRefinement
 // =============================================================================
 
-describe("clearRefinement", () => {
-  it("resets refinement to undefined in DISCOVERY_REFINEMENT", () => {
+bdd.describe("clearRefinement", () => {
+  bdd.it("resets refinement to undefined in DISCOVERY_REFINEMENT", () => {
     const withPosture = machine.setReviewPosture(
       inDiscoveryReview(),
       "hold-scope",
     );
     const cleared = machine.clearRefinement(withPosture);
-    assertEquals(cleared.discovery.refinement, undefined);
-    assertEquals(cleared.phase, "DISCOVERY_REFINEMENT");
+    assert.assertEquals(cleared.discovery.refinement, undefined);
+    assert.assertEquals(cleared.phase, "DISCOVERY_REFINEMENT");
   });
 
-  it("throws when called outside DISCOVERY_REFINEMENT", () => {
-    assertThrows(
+  bdd.it("throws when called outside DISCOVERY_REFINEMENT", () => {
+    assert.assertThrows(
       () => machine.clearRefinement(inDiscovery()),
       Error,
       "invalid phase",
@@ -1043,33 +1148,39 @@ describe("clearRefinement", () => {
 // revisitSpec / reopenSpec: clears refinement sub-state
 // =============================================================================
 
-describe("revisitSpec clears refinement", () => {
-  it("discovery.refinement is undefined after revisit from EXECUTING", () => {
-    const withPosture = machine.setReviewPosture(
-      inDiscoveryReview(),
-      "selective-expansion",
-    );
-    const specDraft = machine.approveDiscoveryReview(withPosture);
-    const specApproved = machine.approveSpec(specDraft);
-    const executing = machine.startExecution(specApproved);
-    const revisited = machine.revisitSpec(executing, "need clarification");
-    assertEquals(revisited.discovery.refinement, undefined);
-    assertEquals(revisited.phase, "DISCOVERY");
-  });
+bdd.describe("revisitSpec clears refinement", () => {
+  bdd.it(
+    "discovery.refinement is undefined after revisit from EXECUTING",
+    () => {
+      const withPosture = machine.setReviewPosture(
+        inDiscoveryReview(),
+        "selective-expansion",
+      );
+      const specDraft = machine.approveDiscoveryReview(withPosture);
+      const specApproved = machine.approveSpec(specDraft);
+      const executing = machine.startExecution(specApproved);
+      const revisited = machine.revisitSpec(executing, "need clarification");
+      assert.assertEquals(revisited.discovery.refinement, undefined);
+      assert.assertEquals(revisited.phase, "DISCOVERY");
+    },
+  );
 });
 
-describe("reopenSpec clears refinement", () => {
-  it("discovery.refinement is undefined after reopening from COMPLETED", () => {
-    const withPosture = machine.setReviewPosture(
-      inDiscoveryReview(),
-      "selective-expansion",
-    );
-    const specDraft = machine.approveDiscoveryReview(withPosture);
-    const specApproved = machine.approveSpec(specDraft);
-    const executing = machine.startExecution(specApproved);
-    const completed = machine.completeSpec(executing, "done");
-    const reopened = machine.reopenSpec(completed);
-    assertEquals(reopened.discovery.refinement, undefined);
-    assertEquals(reopened.phase, "DISCOVERY");
-  });
+bdd.describe("reopenSpec clears refinement", () => {
+  bdd.it(
+    "discovery.refinement is undefined after reopening from COMPLETED",
+    () => {
+      const withPosture = machine.setReviewPosture(
+        inDiscoveryReview(),
+        "selective-expansion",
+      );
+      const specDraft = machine.approveDiscoveryReview(withPosture);
+      const specApproved = machine.approveSpec(specDraft);
+      const executing = machine.startExecution(specApproved);
+      const completed = machine.completeSpec(executing, "done");
+      const reopened = machine.reopenSpec(completed);
+      assert.assertEquals(reopened.discovery.refinement, undefined);
+      assert.assertEquals(reopened.phase, "DISCOVERY");
+    },
+  );
 });

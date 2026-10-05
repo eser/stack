@@ -8,17 +8,18 @@
  * functions without filesystem access (pure function tests).
  */
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as schema from "../state/schema.ts";
-import { loadDefaultConcerns } from "../context/concerns.ts";
+import * as concerns from "../context/concerns.ts";
+import * as init from "../commands/init.ts";
 
 // =============================================================================
 // Project detection (logic verification)
 // =============================================================================
 
-describe("Project detection coverage", () => {
-  it("detectProject returns correct ProjectTraits shape", () => {
+bdd.describe("Project detection coverage", () => {
+  bdd.it("detectProject returns correct ProjectTraits shape", () => {
     // Verify the type is correct by constructing a valid result
     const traits: schema.ProjectTraits = {
       languages: ["typescript", "go"],
@@ -27,10 +28,10 @@ describe("Project detection coverage", () => {
       testRunner: "deno",
     };
 
-    assertEquals(traits.languages.length, 2);
-    assertEquals(traits.frameworks[0], "react");
-    assertEquals(traits.ci[0], "github-actions");
-    assertEquals(traits.testRunner, "deno");
+    assert.assertEquals(traits.languages.length, 2);
+    assert.assertEquals(traits.frameworks[0], "react");
+    assert.assertEquals(traits.ci[0], "github-actions");
+    assert.assertEquals(traits.testRunner, "deno");
   });
 });
 
@@ -38,8 +39,8 @@ describe("Project detection coverage", () => {
 // Coding tool detection signals
 // =============================================================================
 
-describe("Coding tool detection signals", () => {
-  it("claude-code detected from CLAUDE.md or .claude/", () => {
+bdd.describe("Coding tool detection signals", () => {
+  bdd.it("claude-code detected from CLAUDE.md or .claude/", () => {
     // This tests the signal definition, not filesystem access
     const signals = [
       { id: "claude-code", paths: ["CLAUDE.md", ".claude"] },
@@ -49,11 +50,11 @@ describe("Coding tool detection signals", () => {
       { id: "windsurf", paths: [".windsurfrules"] },
     ];
 
-    assertEquals(signals.length, 5);
-    assertEquals(signals[0]?.id, "claude-code");
-    assertEquals(signals[0]?.paths.includes("CLAUDE.md"), true);
-    assertEquals(signals[1]?.id, "cursor");
-    assertEquals(signals[1]?.paths.includes(".cursorrules"), true);
+    assert.assertEquals(signals.length, 5);
+    assert.assertEquals(signals[0]?.id, "claude-code");
+    assert.assertEquals(signals[0]?.paths.includes("CLAUDE.md"), true);
+    assert.assertEquals(signals[1]?.id, "cursor");
+    assert.assertEquals(signals[1]?.paths.includes(".cursorrules"), true);
   });
 });
 
@@ -61,7 +62,7 @@ describe("Coding tool detection signals", () => {
 // Concern picker parsing
 // =============================================================================
 
-describe("Concern picker input parsing", () => {
+bdd.describe("Concern picker input parsing", () => {
   const allConcerns = [
     { id: "open-source", name: "Open Source" },
     { id: "beautiful-product", name: "Beautiful Product" },
@@ -90,35 +91,35 @@ describe("Concern picker input parsing", () => {
     return [...new Set(ids)];
   };
 
-  it("parses numeric input '1,3,5' to concern IDs", () => {
+  bdd.it("parses numeric input '1,3,5' to concern IDs", () => {
     const result = parseConcernInput("1,3,5");
-    assertEquals(result, ["open-source", "long-lived", "compliance"]);
+    assert.assertEquals(result, ["open-source", "long-lived", "compliance"]);
   });
 
-  it("parses concern IDs directly", () => {
+  bdd.it("parses concern IDs directly", () => {
     const result = parseConcernInput("move-fast,compliance");
-    assertEquals(result, ["move-fast", "compliance"]);
+    assert.assertEquals(result, ["move-fast", "compliance"]);
   });
 
-  it("handles mixed numeric and ID input", () => {
+  bdd.it("handles mixed numeric and ID input", () => {
     const result = parseConcernInput("1,move-fast");
-    assertEquals(result, ["open-source", "move-fast"]);
+    assert.assertEquals(result, ["open-source", "move-fast"]);
   });
 
-  it("returns empty for null/empty input", () => {
-    assertEquals(parseConcernInput(null), []);
-    assertEquals(parseConcernInput(""), []);
-    assertEquals(parseConcernInput("  "), []);
+  bdd.it("returns empty for null/empty input", () => {
+    assert.assertEquals(parseConcernInput(null), []);
+    assert.assertEquals(parseConcernInput(""), []);
+    assert.assertEquals(parseConcernInput("  "), []);
   });
 
-  it("deduplicates selections", () => {
+  bdd.it("deduplicates selections", () => {
     const result = parseConcernInput("1,1,open-source");
-    assertEquals(result, ["open-source"]);
+    assert.assertEquals(result, ["open-source"]);
   });
 
-  it("ignores invalid input", () => {
+  bdd.it("ignores invalid input", () => {
     const result = parseConcernInput("99,invalid,1");
-    assertEquals(result, ["open-source"]);
+    assert.assertEquals(result, ["open-source"]);
   });
 });
 
@@ -126,8 +127,8 @@ describe("Concern picker input parsing", () => {
 // Manifest structure
 // =============================================================================
 
-describe("Manifest structure after init", () => {
-  it("createInitialManifest has correct defaults", () => {
+bdd.describe("Manifest structure after init", () => {
+  bdd.it("createInitialManifest has correct defaults", () => {
     const config = schema.createInitialManifest(
       ["open-source", "beautiful-product"],
       ["claude-code"],
@@ -140,14 +141,14 @@ describe("Manifest structure after init", () => {
       },
     );
 
-    assertEquals(config.concerns, ["open-source", "beautiful-product"]);
-    assertEquals(config.tools, ["claude-code"]);
-    assertEquals(config.providers, ["anthropic"]);
-    assertEquals(config.project.languages, ["typescript"]);
-    assertEquals(config.maxIterationsBeforeRestart, 15);
-    assertEquals(config.verifyCommand, null);
-    assertEquals(config.allowGit, false);
-    assertEquals(config.command, "npx eser@latest noskills");
+    assert.assertEquals(config.concerns, ["open-source", "beautiful-product"]);
+    assert.assertEquals(config.tools, ["claude-code"]);
+    assert.assertEquals(config.providers, ["anthropic"]);
+    assert.assertEquals(config.project.languages, ["typescript"]);
+    assert.assertEquals(config.maxIterationsBeforeRestart, 15);
+    assert.assertEquals(config.verifyCommand, null);
+    assert.assertEquals(config.allowGit, false);
+    assert.assertEquals(config.command, "npx eser@latest noskills");
   });
 });
 
@@ -155,34 +156,26 @@ describe("Manifest structure after init", () => {
 // --concerns flag parsing
 // =============================================================================
 
-describe("--concerns flag parsing", () => {
-  const parseListFlag = (
-    args: readonly string[] | undefined,
-    flag: string,
-  ): string[] | null => {
-    if (args === undefined) return null;
-    for (const arg of args) {
-      if (arg.startsWith(`${flag}=`)) {
-        return arg.slice(flag.length + 1).split(",").map((s) => s.trim())
-          .filter(
-            Boolean,
-          );
-      }
-    }
-    return null;
-  };
-
-  it("parses --concerns=open-source,move-fast", () => {
-    const result = parseListFlag(
+bdd.describe("--concerns flag parsing", () => {
+  bdd.it("parses --concerns=open-source,move-fast", () => {
+    const result = init.parseListFlag(
       ["--concerns=open-source,move-fast"],
       "--concerns",
     );
-    assertEquals(result, ["open-source", "move-fast"]);
+    assert.assertEquals(result, ["open-source", "move-fast"]);
   });
 
-  it("returns null when flag not present", () => {
-    const result = parseListFlag(["--other=value"], "--concerns");
-    assertEquals(result, null);
+  bdd.it("trims the values and drops empty ones", () => {
+    const result = init.parseListFlag(
+      ["--concerns= open-source,, move-fast ,"],
+      "--concerns",
+    );
+    assert.assertEquals(result, ["open-source", "move-fast"]);
+  });
+
+  bdd.it("returns null when flag not present", () => {
+    const result = init.parseListFlag(["--other=value"], "--concerns");
+    assert.assertEquals(result, null);
   });
 });
 
@@ -190,28 +183,28 @@ describe("--concerns flag parsing", () => {
 // Built-in concerns completeness
 // =============================================================================
 
-describe("Built-in concerns", () => {
-  it("all 17 built-in concerns have required fields", async () => {
-    const concerns = await loadDefaultConcerns();
-    assertEquals(concerns.length, 17);
+bdd.describe("Built-in concerns", () => {
+  bdd.it("all 17 built-in concerns have required fields", async () => {
+    const builtinConcerns = await concerns.loadDefaultConcerns();
+    assert.assertEquals(builtinConcerns.length, 17);
 
-    for (const c of concerns) {
-      assertEquals(typeof c.id, "string");
-      assertEquals(typeof c.name, "string");
-      assertEquals(typeof c.description, "string");
-      assertEquals(Array.isArray(c.extras), true);
-      assertEquals(Array.isArray(c.specSections), true);
-      assertEquals(Array.isArray(c.reminders), true);
-      assertEquals(Array.isArray(c.acceptanceCriteria), true);
-      assertEquals(c.acceptanceCriteria.length > 0, true);
+    for (const c of builtinConcerns) {
+      assert.assertEquals(typeof c.id, "string");
+      assert.assertEquals(typeof c.name, "string");
+      assert.assertEquals(typeof c.description, "string");
+      assert.assertEquals(Array.isArray(c.extras), true);
+      assert.assertEquals(Array.isArray(c.specSections), true);
+      assert.assertEquals(Array.isArray(c.reminders), true);
+      assert.assertEquals(Array.isArray(c.acceptanceCriteria), true);
+      assert.assertEquals(c.acceptanceCriteria.length > 0, true);
     }
   });
 
-  it("concern IDs match expected set", async () => {
-    const concerns = await loadDefaultConcerns();
-    const ids = concerns.map((c) => c.id).sort();
+  bdd.it("concern IDs match expected set", async () => {
+    const builtinConcerns = await concerns.loadDefaultConcerns();
+    const ids = builtinConcerns.map((c) => c.id).sort();
 
-    assertEquals(ids, [
+    assert.assertEquals(ids, [
       "beautiful-product",
       "compliance",
       "deploy-ready",

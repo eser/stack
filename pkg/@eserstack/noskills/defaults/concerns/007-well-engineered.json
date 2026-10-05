@@ -30,42 +30,36 @@
       "id": "test-strategy",
       "title": "Test Strategy",
       "placeholder": "_Map every new behavior to a test layer: Unit (pure logic), Integration (boundaries, real deps), E2E (critical user flows). Name the specific test files. List explicitly what is NOT worth testing._",
-      "condition": null,
       "position": "after:verification-strategy"
     },
     {
       "id": "performance-considerations",
       "title": "Performance Considerations",
       "placeholder": "_For every new codepath: time complexity, any N+1 queries, missing indexes, unbounded memory growth. Measure, do not guess. Include benchmark numbers where applicable._",
-      "condition": null,
       "position": "after:verification-strategy"
     },
     {
       "id": "observability-plan",
       "title": "Observability Plan",
       "placeholder": "_For every new codepath: structured logging at entry/exit, latency metrics, trace ID propagation, alert tiers. If a page is not in a dashboard, it does not exist in production._",
-      "condition": null,
       "position": "after:verification-strategy"
     },
     {
       "id": "error-handling",
       "title": "Error Handling",
       "placeholder": "_For every error path: what does the error message contain (problem, cause, remediation)? Is it logged with enough context to debug at 3am without reading source code?_",
-      "condition": null,
       "position": "after:verification-strategy"
     },
     {
       "id": "security-threat-model",
       "title": "Security & Threat Model",
       "placeholder": "_What are the trust boundaries? Where does untrusted input enter? What could an attacker do — injection, privilege escalation, data exfiltration, DoS? For every new endpoint: who can access it?_",
-      "condition": null,
       "position": "after:verification-strategy"
     },
     {
       "id": "developer-ergonomics",
       "title": "Developer Ergonomics",
       "placeholder": "_After this change: does `git clone && install && run` still work without manual steps? Any new env vars or services? What is the Time-To-Hello-World for a new developer?_",
-      "condition": null,
       "position": "after:verification-strategy"
     }
   ],
@@ -85,7 +79,7 @@
     "Never log secrets, tokens, passwords, or PII. Check log output for accidental exposure.",
     "New endpoints need auth/authz. Default to deny.",
     "Progressive disclosure: simple things simple, complex things possible. Don't front-load complexity.",
-    "REGRESSION IRON LAW: NEVER fix a bug without first writing a failing test that reproduces it. Red → Green → Refactor. No exceptions. A fix without a reproduction test will recur.",
+    "Regression test first: before you fix a bug, write a test that reproduces it and watch it fail. Then fix it: red, green, refactor. A fix without a reproduction test lets the bug come back unnoticed.",
     "Make the change easy, then make the easy change (Beck). Separate refactoring PRs from feature PRs. Never refactor and feature in the same commit.",
     "Confidence calibration: when making a claim ('this is secure', 'this is fast', 'this handles edge cases'), provide a 1-10 confidence score with explicit basis: '7/10 because X is tested but Y is not verified under load'. Overconfidence is a bug.",
     "TEST FRAMEWORK DETECTION: before writing tests, check what framework is already in use (Deno/Jest/pytest/Go test/etc.). Don't introduce a second test runner. Match the existing style (describe/it vs. Test/t.Run vs. def test_).",
@@ -100,7 +94,7 @@
     "No hardcoded secrets or credentials in code",
     "New endpoints have explicit auth/authz",
     "Getting started path works end-to-end without undocumented steps",
-    "Every bug fix includes a regression test that was failing before the fix and passing after (Regression Iron Law)"
+    "Every bug fix includes a regression test that was failing before the fix and passing after"
   ],
   "reviewDimensions": [
     {

@@ -146,7 +146,11 @@ export type DiscoveryState = {
   readonly userContext?: readonly string[];
   readonly userContextProcessed?: boolean;
   readonly entryComplete?: boolean;
-  /** Jidoka C1: answers were batch-submitted by agent and need user confirmation. */
+  /**
+   * Jidoka C1: answers arrived together in one JSON object, and at least one
+   * has no record that the user was asked it, so refinement asks the user to
+   * confirm each answer.
+   */
   readonly batchSubmitted?: boolean;
   readonly refinement?: RefinementSubState;
 };
@@ -201,8 +205,17 @@ export type SpecSectionDefinition = {
   readonly id: string;
   readonly title: string;
   readonly placeholder: string;
-  /** Classification flag that must be true for this section to appear; null = always visible. */
-  readonly condition: string | null;
+  /**
+   * Where the section applies: it appears once the spec's classification has
+   * the flag of one of these values. Missing or empty means every spec.
+   */
+  readonly scope?: readonly ConcernScope[];
+  /**
+   * The older form of `scope`: one classification flag name (for example
+   * "involvesCLI") that must be true for the section to appear, or null.
+   * Still honored; when both are set, both must hold.
+   */
+  readonly condition?: string | null;
   /** Ordering anchor: "base:N" for base sections, "after:section-id" for concern sections. */
   readonly position: string;
 };
@@ -478,7 +491,35 @@ export type NosManifest = {
   readonly command: string;
   readonly user?: NoskillsUserConfig;
   readonly defaultReviewPosture?: ReviewPosture;
+  /**
+   * Turns on cross-model validation of the end of discovery and the spec
+   * proposal, and names the agent that runs it. Hand-edited YAML:
+   * `transitionValidation.validatorSettingsOf` checks it before use.
+   */
+  readonly validate?: ValidatorConfig;
 };
+
+/** The `validate` entry of the manifest's noskills section. */
+export type ValidatorConfig = {
+  /** An `@eserstack/ai` provider name, such as claude-code or anthropic. */
+  readonly agent: string;
+  /** The model id that provider runs. */
+  readonly model: string;
+};
+
+/**
+ * The command a new manifest records, and the prefix noskills uses until it
+ * has read the project's manifest. It runs without a local install.
+ */
+export const DEFAULT_COMMAND_PREFIX = "npx eser@latest noskills";
+
+/**
+ * The `@eserstack/ai` provider and model `noskills run` drives, which the
+ * transition validator also uses when the manifest names no other. The model
+ * matches the `ai ask` default for claude-code.
+ */
+export const DEFAULT_AGENT_PROVIDER: CodingToolId = "claude-code";
+export const DEFAULT_AGENT_MODEL = "claude-sonnet-5";
 
 export const createInitialManifest = (
   concerns: readonly string[],
@@ -493,7 +534,7 @@ export const createInitialManifest = (
   maxIterationsBeforeRestart: 15,
   verifyCommand: null,
   allowGit: false,
-  command: "npx eser@latest noskills",
+  command: DEFAULT_COMMAND_PREFIX,
 });
 
 // =============================================================================
@@ -550,7 +591,27 @@ export type ConcernExtra = {
   readonly text: string;
 };
 
-export type ReviewDimensionScope = "all" | "ui" | "api" | "data";
+/**
+ * Where a piece of concern content applies. Each value names a flag of
+ * {@link SpecClassification}: "ui" is involvesWebUI, "api" is
+ * involvesPublicAPI, "data" is involvesDataHandling and "migration" is
+ * involvesMigration. A reminder with a scope is file-specific: the PreToolUse
+ * hook adds it when the agent edits a matching file (see
+ * `concerns.getTier2RemindersForFile`).
+ */
+export type ConcernScope = "ui" | "api" | "data" | "migration";
+
+/** A reminder that applies only where its scope says. */
+export type ScopedReminder = {
+  readonly text: string;
+  /** Missing or empty means every spec and every file. */
+  readonly scope?: readonly ConcernScope[];
+};
+
+/** One entry of `ConcernDefinition.reminders`: plain text applies everywhere. */
+export type ConcernReminder = string | ScopedReminder;
+
+export type ReviewDimensionScope = "all" | ConcernScope;
 
 export type ReviewDimension = {
   readonly id: string;
@@ -594,7 +655,8 @@ export type ConcernDefinition = {
    * and the new SpecSectionDefinition[] format with full placeholder/position support.
    */
   readonly specSections: readonly (SpecSectionDefinition | string)[];
-  readonly reminders: readonly string[];
+  /** Plain strings apply everywhere; `{ text, scope }` entries only where their scope says. */
+  readonly reminders: readonly ConcernReminder[];
   readonly acceptanceCriteria: readonly string[];
   readonly reviewDimensions?: readonly ReviewDimension[];
   readonly registries?: readonly string[];

@@ -64,9 +64,8 @@ const renderSpan = (span: spanTypes.Span): string => {
   }
 };
 
-const markdown = (): Renderer => ({
+/** Creates a renderer that writes spans as Markdown. */
+export const markdown = (): Renderer => ({
   name: "markdown",
   render: (spans) => spans.map(renderSpan).join(""),
 });
-
-export { markdown };

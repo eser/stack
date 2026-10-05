@@ -30,14 +30,12 @@
       "id": "v1-vs-v2-scope",
       "title": "v1 vs v2 Scope",
       "placeholder": "_Explicitly separate what ships in v1 from what is deferred to v2. For every task, answer: does the first user need this on day 1? If no, it is v2._",
-      "condition": null,
       "position": "after:scope-boundary"
     },
     {
       "id": "deferred-items",
       "title": "Deferred Items",
       "placeholder": "_List every item cut from v1. For each: what it is, why it was deferred, and what user need it would address in a future iteration._",
-      "condition": null,
       "position": "after:scope-boundary"
     }
   ],

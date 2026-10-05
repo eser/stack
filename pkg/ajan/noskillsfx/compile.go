@@ -20,12 +20,20 @@ type CompileOptions struct {
 // This is the Go equivalent of the `noskills next` command's core logic —
 // it dispatches to per-phase builders and assembles the full JSON payload.
 //
+// Every command in the output starts with manifest.Command, the prefix the
+// user runs noskills with, or DefaultCommandPrefix when it is empty. A bare
+// `noskills` fails wherever the CLI is not on PATH.
+//
 //nolint:cyclop,funlen // inherently complex phase dispatch
 func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOutput { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	hints := DefaultInteractionHints
 	if opts.Hints != nil {
 		hints = *opts.Hints
 	}
+
+	prefix := commandPrefixOrDefault(manifest.Command)
+
+	specName := specNameOrPlaceholder(state)
 
 	activeConcerns := FilterActiveConcerns(opts.AllConcerns, manifest.Concerns)
 	activeConcernIDs := make([]string, len(activeConcerns))
@@ -39,7 +47,13 @@ func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOut
 		maxIter = 15
 	}
 
-	behavioral := BuildBehavioral(state, maxIter, manifest.AllowGit, activeConcerns, hints)
+	behavioral := BuildBehavioral(
+		state,
+		manifest.AllowGit,
+		activeConcerns,
+		hints,
+		prefix,
+	)
 	meta := BuildMeta(state, activeConcernIDs, buildResumeHint(state))
 	roadmap := BuildRoadmap(state.Phase)
 	modeDirective := buildModeDirective(state.Phase)
@@ -76,60 +90,19 @@ func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOut
 		out.ActiveRulesCount = &count
 
 	case PhaseDiscovery:
-		questions := GetQuestionsWithExtras(activeConcerns)
-		next := GetNextUnanswered(questions, state.Discovery.Answers)
-
-		answeredCount := len(state.Discovery.Answers)
-		out.AnsweredCount = &answeredCount
-
-		discQuestions := make([]DiscoveryQuestion, len(questions))
-		for i, q := range questions {
-			extras := make([]string, len(q.Extras))
-			for j, e := range q.Extras {
-				extras[j] = e.Text
-			}
-
-			discQuestions[i] = DiscoveryQuestion{
-				ID:       q.ID,
-				Text:     q.Text,
-				Concerns: q.Concerns,
-				Extras:   extras,
-			}
-		}
-
-		out.Questions = discQuestions
-
-		if next != nil {
-			cur := state.Discovery.CurrentQuestion
-			total := len(questions)
-			out.CurrentQuestion = &cur
-			out.TotalQuestions = &total
-
-			out.Instruction = fmt.Sprintf(
-				"[%d/%d] %s",
-				answeredCount+1, total, next.Text,
-			)
-		} else {
-			out.Instruction = "All discovery questions answered. Run `noskills spec <name> next --answer='{...}'` to complete discovery."
-		}
-
-		specName := ""
-		if state.Spec != nil {
-			specName = *state.Spec
-		}
+		compileDiscoveryQuestions(
+			&out,
+			state,
+			GetQuestionsWithExtras(activeConcerns),
+			hints,
+			prefix,
+			specName,
+		)
 
 		out.Context = &ContextBlock{
 			Rules:            []string{},
 			ConcernReminders: GetReminders(activeConcerns, state.Classification),
 		}
-
-		onComplete := fmt.Sprintf("noskills spec %s next --answer='{\"completed\": true}'", specName)
-
-		type discoveryTransition struct {
-			OnComplete string `json:"onComplete"`
-		}
-
-		_ = discoveryTransition{OnComplete: onComplete} // captured in Instruction already
 
 		if len(state.RevisitHistory) > 0 {
 			revisited := true
@@ -169,11 +142,6 @@ func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOut
 		}
 
 	case PhaseSpecProposal:
-		specName := ""
-		if state.Spec != nil {
-			specName = *state.Spec
-		}
-
 		specPath := fmt.Sprintf(".eser/specs/%s/spec.md", specName)
 		out.SpecPath = &specPath
 		out.Instruction = fmt.Sprintf("Review and approve the spec at %s.", specPath)
@@ -184,11 +152,6 @@ func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOut
 		}
 
 	case PhaseSpecApproved:
-		specName := ""
-		if state.Spec != nil {
-			specName = *state.Spec
-		}
-
 		specPath := fmt.Sprintf(".eser/specs/%s/spec.md", specName)
 		out.SpecPath = &specPath
 		out.Instruction = "Spec is approved. Trigger execution when ready."
@@ -197,16 +160,19 @@ func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOut
 		iter := state.Execution.Iteration
 		out.Iteration = &iter
 
-		specName := ""
-		if state.Spec != nil {
-			specName = *state.Spec
-		}
-
-		onComplete := fmt.Sprintf(
-			"noskills spec %s next --answer='{\"completed\":[...],\"remaining\":[...],\"blocked\":[]}'",
+		onComplete := specCommand(
+			prefix,
 			specName,
+			"next --answer='{\"completed\":[...],\"remaining\":[...],\"blocked\":[]}'",
 		)
 		out.OnComplete = &onComplete
+
+		// A flag for formatters and dashboards only; the agent's rules carry
+		// no iteration countdown (mirrors compileExecution in compiler.ts).
+		if iter >= maxIter {
+			restart := true
+			out.RestartRecommended = &restart
+		}
 
 		if state.Execution.LastVerification != nil && !state.Execution.LastVerification.Passed {
 			failed := true
@@ -218,9 +184,22 @@ func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOut
 			"Execute iteration %d. Complete tasks, then report progress.",
 			iter+1,
 		)
+		// Scoped reminders are file-specific: the PreToolUse hook adds them
+		// when the agent edits a matching file, so the instruction carries
+		// only the unscoped ones and counts the rest (mirrors compile in
+		// compiler.ts).
+		tier1, tier2 := SplitRemindersByTier(activeConcerns, state.Classification)
 		out.Context = &ContextBlock{
 			Rules:            []string{},
-			ConcernReminders: GetReminders(activeConcerns, state.Classification),
+			ConcernReminders: tier1,
+		}
+
+		if len(tier2) > 0 {
+			summary := fmt.Sprintf(
+				"%d file-specific rules delivered via PreToolUse hook when editing matching files.",
+				len(tier2),
+			)
+			out.Behavioral.Tier2Summary = &summary
 		}
 
 		tensionCount := len(DetectTensions(activeConcerns))
@@ -236,12 +215,7 @@ func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOut
 
 		out.Reason = &reason
 
-		specName := ""
-		if state.Spec != nil {
-			specName = *state.Spec
-		}
-
-		onResolved := fmt.Sprintf("noskills spec %s next --answer='{\"unblocked\": true}'", specName)
+		onResolved := specCommand(prefix, specName, "next --answer='{\"unblocked\": true}'")
 		out.OnResolved = &onResolved
 
 	case PhaseCompleted:
@@ -264,6 +238,32 @@ func Compile(state StateFile, manifest NosManifest, opts CompileOptions) NextOut
 // =============================================================================
 // Helpers
 // =============================================================================
+
+// specNameOrPlaceholder returns the active spec's name, or "<name>" for a
+// command that needs one while no spec is active.
+func specNameOrPlaceholder(state StateFile) string { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
+	if state.Spec == nil {
+		return "<name>"
+	}
+
+	return *state.Spec
+}
+
+// commandPrefixOrDefault returns prefix, or DefaultCommandPrefix when it is
+// empty, so no command string starts with a space.
+func commandPrefixOrDefault(prefix string) string {
+	if prefix == "" {
+		return DefaultCommandPrefix
+	}
+
+	return prefix
+}
+
+// specCommand builds a spec-scoped command such as
+// `npx eser@latest noskills spec my-spec next` (mirrors cs() in compiler.ts).
+func specCommand(prefix string, specName string, subcommand string) string {
+	return prefix + " spec " + specName + " " + subcommand
+}
 
 func buildResumeHint(state StateFile) string { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
 	spec := "(none)"

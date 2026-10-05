@@ -14,6 +14,8 @@ export interface TwitterClientConfig {
   baseUrl?: string;
   /** OAuth 2.0 bearer token — injected after the auth flow completes. */
   accessToken?: string;
+  /** Replaces the global fetch, for tests against a stub. */
+  fetchFn?: typeof fetch;
 }
 
 const DEFAULT_BASE_URL = "https://api.twitter.com/2";
@@ -27,6 +29,7 @@ export class TwitterClient {
     this._client = httpclient.createHttpClient({
       baseUrl: config.baseUrl ?? DEFAULT_BASE_URL,
       retry: { maxAttempts: 3, respectRetryAfter: true },
+      ...(config.fetchFn !== undefined && { fetchFn: config.fetchFn }),
     });
     this._accessToken = config.accessToken;
   }
@@ -78,14 +81,18 @@ export class TwitterClient {
 
   /**
    * POST `baseUrl + endpoint` with an application/x-www-form-urlencoded body.
-   * Used exclusively for OAuth token endpoints — no Authorization header sent.
+   * Used only for the OAuth token endpoint: it never sends the bearer token,
+   * only the headers passed here (client authentication for a confidential
+   * client).
    */
   async postForm<T>(
     endpoint: string,
     params: Record<string, string>,
+    headers?: Readonly<Record<string, string>>,
   ): Promise<T> {
     const resp = await this._client.post<T>(endpoint, {
       body: new URLSearchParams(params),
+      ...(headers !== undefined && { headers: { ...headers } }),
     });
     return resp.data;
   }

@@ -15,9 +15,7 @@ import type { Span } from "../span.ts";
  *
  * @template T - Output type (default: string)
  */
-type Renderer<T = string> = {
+export type Renderer<T = string> = {
   readonly name: string;
   readonly render: (spans: readonly Span[]) => T;
 };
-
-export type { Renderer };

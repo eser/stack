@@ -11,29 +11,28 @@
     "rules": {
       "tags": [
         "recommended"
+      ],
+      "include": [
+        "ban-untagged-todo",
+        "camelcase",
+        "default-param-last",
+        "eqeqeq",
+        "no-await-in-loop",
+        "no-console",
+        "no-const-assign",
+        "no-eval",
+        "no-external-import",
+        "no-non-null-asserted-optional-chain",
+        "no-self-compare",
+        "no-sparse-arrays",
+        "no-sync-fn-in-async-fn",
+        "no-throw-literal",
+        "no-top-level-await",
+        "no-undef",
+        "single-var-declarator",
+        "verbatim-module-syntax"
       ]
-    },
-    "include": [
-      "ban-untagged-todo",
-      "camelcase",
-      "default-param-last",
-      "eqeqeq",
-      "no-await-in-loop",
-      "no-console",
-      "no-const-assign",
-      "no-eval",
-      "no-external-import",
-      "no-non-null-asserted-optional-chain",
-      "no-self-compare",
-      "no-sparse-arrays",
-      "no-sync-fn-in-async-fn",
-      "no-throw-literal",
-      "no-top-level-await",
-      "no-undef",
-      "prefer-ascii",
-      "single-var-declarator",
-      "verbatim-module-syntax"
-    ]
+    }
   },
   "fmt": {
     "exclude": [

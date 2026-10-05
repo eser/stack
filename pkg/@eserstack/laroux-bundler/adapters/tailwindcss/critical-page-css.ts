@@ -11,7 +11,7 @@
  */
 
 import * as logging from "@eserstack/logging";
-import { ABOVE_FOLD_PATTERNS, CRITICAL_LAYERS } from "./critical-css-config.ts";
+import * as criticalCssConfig from "./critical-css-config.ts";
 
 const criticalPageCssLogger = logging.logger.getLogger([
   "laroux-bundler",
@@ -341,7 +341,9 @@ function matchesForcePatterns(
  * Check if a utility selector is likely above-the-fold
  */
 function isLikelyAboveFold(selector: string): boolean {
-  return ABOVE_FOLD_PATTERNS.some((pattern) => pattern.test(selector));
+  return criticalCssConfig.ABOVE_FOLD_PATTERNS.some((pattern) =>
+    pattern.test(selector)
+  );
 }
 
 /**
@@ -405,7 +407,7 @@ export function extractCriticalPageCss(
 
   // Process each layer
   for (const [layerName, layerData] of layers) {
-    if (CRITICAL_LAYERS.includes(layerName)) {
+    if (criticalCssConfig.CRITICAL_LAYERS.includes(layerName)) {
       // Theme, base, properties - ALWAYS critical
       criticalParts.push(layerData.block);
       criticalRuleCount++;

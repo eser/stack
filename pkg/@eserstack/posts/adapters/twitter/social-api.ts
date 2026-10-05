@@ -9,17 +9,13 @@
 import type { Post } from "../../domain/entities/post.ts";
 import type { UsageData } from "../../domain/entities/usage.ts";
 import type { User } from "../../domain/entities/user.ts";
-import { toHandle } from "../../domain/values/handle.ts";
-import { toPostId } from "../../domain/values/post-id.ts";
+import * as handle from "../../domain/values/handle.ts";
+import * as postId from "../../domain/values/post-id.ts";
 import type { PostId } from "../../domain/values/post-id.ts";
 import * as results from "@eserstack/primitives/results";
 import type { SocialApi } from "../../application/social-api.ts";
-import { ThreadPartialError } from "../../application/thread-post-error.ts";
-import {
-  mapToDomainPost,
-  mapToDomainUsage,
-  mapToDomainUser,
-} from "./mappers.ts";
+import * as threadPostError from "../../application/thread-post-error.ts";
+import * as mappers from "./mappers.ts";
 import type {
   TwitterApiBookmarkRequest,
   TwitterApiBookmarksResponse,
@@ -34,6 +30,25 @@ import type {
 import type { TwitterClient } from "./client.ts";
 
 const POST_FIELDS = "author_id,created_at,conversation_id,referenced_tweets";
+
+/**
+ * An X post ID is a decimal snowflake of at most 19 digits. Checking it keeps
+ * any other string, such as "../../tweets/123" from a model or a mistyped
+ * argument, out of the request URLs, where dot segments would resolve to a
+ * different endpoint.
+ */
+const TWEET_ID_PATTERN = /^[0-9]{1,19}$/;
+
+const requireTweetId = (id: PostId): string => {
+  if (!TWEET_ID_PATTERN.test(id)) {
+    throw new Error(
+      `Twitter/X post ID ${
+        JSON.stringify(id)
+      } is not numeric; use the digits at the end of the post URL, such as 1460323737035677698`,
+    );
+  }
+  return id;
+};
 const USER_FIELDS = "id,name,username,subscription_type";
 const EXPANSIONS = "author_id";
 
@@ -55,11 +70,11 @@ export class TwitterSocialApi implements SocialApi {
       "/tweets",
       { text: params.text },
     );
-    return { id: toPostId(response.data.id) };
+    return { id: postId.toPostId(response.data.id) };
   }
 
   async deletePost(id: PostId): Promise<void> {
-    await this.client.delete(`/tweets/${id}`);
+    await this.client.delete(`/tweets/${requireTweetId(id)}`);
   }
 
   async getMe(): Promise<User> {
@@ -70,7 +85,7 @@ export class TwitterSocialApi implements SocialApi {
       "/users/me",
       { "user.fields": USER_FIELDS },
     );
-    this.cachedMe = mapToDomainUser(response.data);
+    this.cachedMe = mappers.mapToDomainUser(response.data);
     return this.cachedMe;
   }
 
@@ -96,18 +111,16 @@ export class TwitterSocialApi implements SocialApi {
     const users = response.includes?.users ?? [];
 
     // Build a lookup map: author_id → Handle, to avoid per-post awaits
-    const handleById = new Map<string, ReturnType<typeof toHandle>>();
+    const handleById = new Map<string, ReturnType<typeof handle.toHandle>>();
     for (const user of users) {
-      handleById.set(user.id, toHandle(user.username));
+      handleById.set(user.id, handle.toHandle(user.username));
     }
 
     return tweets.map((tweet) => {
-      // deno-lint-ignore camelcase
       const authorHandle = tweet.author_id !== undefined
-        // deno-lint-ignore camelcase
-        ? (handleById.get(tweet.author_id) ?? toHandle("unknown"))
-        : toHandle("unknown");
-      return mapToDomainPost(tweet, authorHandle);
+        ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
+        : handle.toHandle("unknown");
+      return mappers.mapToDomainPost(tweet, authorHandle);
     });
   }
 
@@ -115,7 +128,7 @@ export class TwitterSocialApi implements SocialApi {
     const response = await this.client.get<
       TwitterApiSingleResponse<TwitterApiTweet>
     >(
-      `/tweets/${id}`,
+      `/tweets/${requireTweetId(id)}`,
       {
         "tweet.fields": POST_FIELDS,
         expansions: EXPANSIONS,
@@ -123,12 +136,11 @@ export class TwitterSocialApi implements SocialApi {
       },
     );
     const users = response.includes?.users ?? [];
-    // deno-lint-ignore camelcase
     const authorUser = users.find((u) => u.id === response.data.author_id);
     const authorHandle = authorUser !== undefined
-      ? toHandle(authorUser.username)
-      : toHandle("unknown");
-    return mapToDomainPost(response.data, authorHandle);
+      ? handle.toHandle(authorUser.username)
+      : handle.toHandle("unknown");
+    return mappers.mapToDomainPost(response.data, authorHandle);
   }
 
   async replyToPost(
@@ -138,13 +150,12 @@ export class TwitterSocialApi implements SocialApi {
       TwitterApiSingleResponse<TwitterApiTweet>
     >(
       "/tweets",
-      // deno-lint-ignore camelcase
       {
         text: params.text,
         reply: { in_reply_to_tweet_id: params.inReplyToPost.id },
       },
     );
-    return { id: toPostId(response.data.id) };
+    return { id: postId.toPostId(response.data.id) };
   }
 
   async postThread(
@@ -163,12 +174,12 @@ export class TwitterSocialApi implements SocialApi {
 
     for (const text of params.texts) {
       const body = previousId !== undefined
-        // deno-lint-ignore camelcase
         ? { text, reply: { in_reply_to_tweet_id: previousId } }
         : { text };
 
       let response: TwitterApiSingleResponse<TwitterApiTweet>;
       try {
+        // Each post replies to the one before it, so the thread posts in order.
         // deno-lint-ignore no-await-in-loop
         response = await this.client.post<
           TwitterApiSingleResponse<TwitterApiTweet>
@@ -178,7 +189,7 @@ export class TwitterSocialApi implements SocialApi {
         );
       } catch (err) {
         return results.fail(
-          new ThreadPartialError(
+          new threadPostError.ThreadPartialError(
             postedPosts,
             postedPosts.length,
             params.texts.length,
@@ -187,7 +198,7 @@ export class TwitterSocialApi implements SocialApi {
         );
       }
 
-      const id = toPostId(response.data.id);
+      const id = postId.toPostId(response.data.id);
       if (conversationId === undefined) conversationId = id;
       const post: Post = {
         id,
@@ -213,7 +224,7 @@ export class TwitterSocialApi implements SocialApi {
     params: { postId: PostId; maxResults?: number },
   ): Promise<Post[]> {
     const queryParams: Record<string, string> = {
-      query: `conversation_id:${params.postId}`,
+      query: `conversation_id:${requireTweetId(params.postId)}`,
       "tweet.fields": POST_FIELDS,
       expansions: EXPANSIONS,
       "user.fields": USER_FIELDS,
@@ -232,18 +243,16 @@ export class TwitterSocialApi implements SocialApi {
     const tweets = response.data ?? [];
     const users = response.includes?.users ?? [];
 
-    const handleById = new Map<string, ReturnType<typeof toHandle>>();
+    const handleById = new Map<string, ReturnType<typeof handle.toHandle>>();
     for (const user of users) {
-      handleById.set(user.id, toHandle(user.username));
+      handleById.set(user.id, handle.toHandle(user.username));
     }
 
     return tweets.map((tweet) => {
-      // deno-lint-ignore camelcase
       const authorHandle = tweet.author_id !== undefined
-        // deno-lint-ignore camelcase
-        ? (handleById.get(tweet.author_id) ?? toHandle("unknown"))
-        : toHandle("unknown");
-      return mapToDomainPost(tweet, authorHandle);
+        ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
+        : handle.toHandle("unknown");
+      return mappers.mapToDomainPost(tweet, authorHandle);
     });
   }
 
@@ -256,21 +265,22 @@ export class TwitterSocialApi implements SocialApi {
       "/usage/tweets",
       {},
     );
-    return mapToDomainUsage(response);
+    return mappers.mapToDomainUsage(response);
   }
 
   async repost(id: PostId): Promise<void> {
+    const tweetId = requireTweetId(id);
     const me = await this.getMe();
     await this.client.post<TwitterApiRetweetResponse>(
       `/users/${me.id}/retweets`,
-      // deno-lint-ignore camelcase
-      { tweet_id: String(id) },
+      { tweet_id: tweetId },
     );
   }
 
   async undoRepost(id: PostId): Promise<void> {
+    const tweetId = requireTweetId(id);
     const me = await this.getMe();
-    await this.client.delete(`/users/${me.id}/retweets/${String(id)}`);
+    await this.client.delete(`/users/${me.id}/retweets/${tweetId}`);
   }
 
   async quotePost(
@@ -280,10 +290,12 @@ export class TwitterSocialApi implements SocialApi {
       TwitterApiSingleResponse<TwitterApiTweet>
     >(
       "/tweets",
-      // deno-lint-ignore camelcase
-      { text: params.text, quote_tweet_id: String(params.quotedPostId) },
+      {
+        text: params.text,
+        quote_tweet_id: requireTweetId(params.quotedPostId),
+      },
     );
-    return { id: toPostId(response.data.id) };
+    return { id: postId.toPostId(response.data.id) };
   }
 
   async searchPosts(
@@ -306,33 +318,32 @@ export class TwitterSocialApi implements SocialApi {
 
     const tweets = response.data ?? [];
     const users = response.includes?.users ?? [];
-    const handleById = new Map<string, ReturnType<typeof toHandle>>();
+    const handleById = new Map<string, ReturnType<typeof handle.toHandle>>();
     for (const user of users) {
-      handleById.set(user.id, toHandle(user.username));
+      handleById.set(user.id, handle.toHandle(user.username));
     }
 
     return tweets.map((tweet) => {
-      // deno-lint-ignore camelcase
       const authorHandle = tweet.author_id !== undefined
-        // deno-lint-ignore camelcase
-        ? (handleById.get(tweet.author_id) ?? toHandle("unknown"))
-        : toHandle("unknown");
-      return mapToDomainPost(tweet, authorHandle);
+        ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
+        : handle.toHandle("unknown");
+      return mappers.mapToDomainPost(tweet, authorHandle);
     });
   }
 
   async bookmarkPost(id: PostId): Promise<void> {
+    const tweetId = requireTweetId(id);
     const me = await this.getMe();
     await this.client.post<{ data: { bookmarked: boolean } }>(
       `/users/${me.id}/bookmarks`,
-      // deno-lint-ignore camelcase
-      { tweet_id: String(id) } satisfies TwitterApiBookmarkRequest,
+      { tweet_id: tweetId } satisfies TwitterApiBookmarkRequest,
     );
   }
 
   async removeBookmark(id: PostId): Promise<void> {
+    const tweetId = requireTweetId(id);
     const me = await this.getMe();
-    await this.client.delete(`/users/${me.id}/bookmarks/${String(id)}`);
+    await this.client.delete(`/users/${me.id}/bookmarks/${tweetId}`);
   }
 
   async getBookmarks(params?: { maxResults?: number }): Promise<Post[]> {
@@ -353,18 +364,16 @@ export class TwitterSocialApi implements SocialApi {
 
     const tweets = response.data ?? [];
     const users = response.includes?.users ?? [];
-    const handleById = new Map<string, ReturnType<typeof toHandle>>();
+    const handleById = new Map<string, ReturnType<typeof handle.toHandle>>();
     for (const user of users) {
-      handleById.set(user.id, toHandle(user.username));
+      handleById.set(user.id, handle.toHandle(user.username));
     }
 
     return tweets.map((tweet) => {
-      // deno-lint-ignore camelcase
       const authorHandle = tweet.author_id !== undefined
-        // deno-lint-ignore camelcase
-        ? (handleById.get(tweet.author_id) ?? toHandle("unknown"))
-        : toHandle("unknown");
-      return mapToDomainPost(tweet, authorHandle);
+        ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
+        : handle.toHandle("unknown");
+      return mappers.mapToDomainPost(tweet, authorHandle);
     });
   }
 }

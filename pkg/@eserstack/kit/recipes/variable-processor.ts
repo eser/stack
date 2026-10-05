@@ -15,7 +15,16 @@ import type { TemplateVariable } from "./registry-schema.ts";
 // Errors
 // =============================================================================
 
-class MissingVariableError extends Error {
+/**
+ * Thrown when a variable has no value from the caller and no default, and
+ * interactive prompting is off.
+ */
+export class MissingVariableError extends Error {
+  /**
+   * Creates the error for a variable that has no value.
+   *
+   * @param variableName - The variable that has no value
+   */
   constructor(variableName: string) {
     super(
       `Required variable '${variableName}' has no value and no default`,
@@ -31,7 +40,7 @@ class MissingVariableError extends Error {
 /**
  * Validate a variable value against its optional regex pattern.
  */
-const validateVariable = (
+export const validateVariable = (
   variable: TemplateVariable,
   value: string,
 ): { ok: true } | { ok: false; reason: string } => {
@@ -56,9 +65,13 @@ const validateVariable = (
 
 /**
  * Interactively prompt for a single variable value.
- * Loops until the entered value passes regex validation (if any).
+ * Loops until the entered value passes regex validation (if any). An empty
+ * answer takes the default; without a default it asks again.
+ *
+ * @throws {MissingVariableError} When the prompt gets no answer (stdin is not
+ *   a terminal, or the input was cancelled) and the variable has no default.
  */
-const promptVariable = (variable: TemplateVariable): string => {
+export const promptVariable = (variable: TemplateVariable): string => {
   const description = variable.description ?? variable.name;
   const defaultHint = variable.default !== undefined
     ? ` [${variable.default}]`
@@ -67,6 +80,12 @@ const promptVariable = (variable: TemplateVariable): string => {
   while (true) {
     const promptText = `${description}${defaultHint}: `;
     const raw = globalThis.prompt(promptText);
+
+    if (raw === null && variable.default === undefined) {
+      // prompt() answers null when stdin is not a terminal or the input was
+      // cancelled, so asking again would loop forever.
+      throw new MissingVariableError(variable.name);
+    }
 
     if (raw === null || raw === "") {
       if (variable.default !== undefined) {
@@ -78,6 +97,7 @@ const promptVariable = (variable: TemplateVariable): string => {
 
     const validation = validateVariable(variable, raw);
     if (validation.ok === false) {
+      // The prompt loop talks to the person at the terminal on stderr.
       // deno-lint-ignore no-console
       console.error(`  Error: ${validation.reason}. Try again.`);
       continue;
@@ -91,22 +111,17 @@ const promptVariable = (variable: TemplateVariable): string => {
 // Variable Resolution
 // =============================================================================
 
-type ResolveVariablesOptions = {
+/** Options for {@link resolveVariables}. */
+export type ResolveVariablesOptions = {
   /** Prompt for missing variables (only effective when stdin is a TTY). */
   readonly interactive?: boolean;
 };
 
-/**
- * Resolve variable values from provided overrides and definitions.
- * Priority: overrides (CLI flags) → defaults → (if interactive) prompt → throw.
- *
- * Accepts `undefined` for `definitions` (when recipe has no variables section).
- */
-const resolveVariables = async (
+const collectVariables = (
   definitions: readonly TemplateVariable[] | undefined,
   overrides: Readonly<Record<string, string>>,
-  options: ResolveVariablesOptions = {},
-): Promise<Record<string, string>> => {
+  options: ResolveVariablesOptions,
+): Record<string, string> => {
   if (definitions === undefined || definitions.length === 0) {
     // No declared variables → nothing to resolve. Overrides that don't map to a
     // declared variable are ignored (consistent with the loop below, which only
@@ -138,7 +153,7 @@ const resolveVariables = async (
     }
 
     if (interactive) {
-      resolved[def.name] = await promptVariable(def);
+      resolved[def.name] = promptVariable(def);
       continue;
     }
 
@@ -146,6 +161,25 @@ const resolveVariables = async (
   }
 
   return resolved;
+};
+
+/**
+ * Resolve variable values from provided overrides and definitions.
+ * Priority: overrides (CLI flags) → defaults → (if interactive) prompt → throw.
+ *
+ * Accepts `undefined` for `definitions` (when recipe has no variables section).
+ */
+export const resolveVariables = (
+  definitions: readonly TemplateVariable[] | undefined,
+  overrides: Readonly<Record<string, string>>,
+  options: ResolveVariablesOptions = {},
+): Promise<Record<string, string>> => {
+  // Resolution itself is synchronous, since promptVariable blocks on
+  // globalThis.prompt. The executor turns a thrown error into a rejection, so
+  // callers keep the promise-based contract.
+  return new Promise((resolve) => {
+    resolve(collectVariables(definitions, overrides, options));
+  });
 };
 
 // =============================================================================
@@ -157,7 +191,7 @@ const resolveVariables = async (
  * Replaces `{{.variable_name}}` with the resolved value.
  * Whitespace-tolerant: `{{ .variable_name }}` also works.
  */
-const substituteVariables = (
+export const substituteVariables = (
   content: string,
   variables: Readonly<Record<string, string>>,
 ): string => {
@@ -176,17 +210,6 @@ const substituteVariables = (
 /**
  * Check if content contains any Go template variables.
  */
-const hasVariables = (content: string): boolean => {
+export const hasVariables = (content: string): boolean => {
   return /\{\{\s*\.\w+\s*\}\}/.test(content);
 };
-
-export {
-  hasVariables,
-  MissingVariableError,
-  promptVariable,
-  resolveVariables,
-  substituteVariables,
-  validateVariable,
-};
-
-export type { ResolveVariablesOptions };

@@ -15,42 +15,64 @@ JSX runtime with React compatibility and precompiled template support.
 
 ### Standard JSX Usage
 
-```tsx
-import { Fragment, jsx } from "@eserstack/jsx-runtime";
+Point the compiler at this runtime in `deno.json` (or `tsconfig.json`):
 
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "@eserstack/jsx-runtime"
+  }
+}
+```
+
+```tsx
 // JSX is automatically transformed by the compiler
 const element = (
-  <Fragment>
+  <>
     <h1>Hello, World!</h1>
     <p>Welcome to the app.</p>
-  </Fragment>
+  </>
 );
+```
+
+The same calls are available without JSX:
+
+```typescript
+import * as jsxRuntime from "@eserstack/jsx-runtime";
+
+const element = jsxRuntime.jsxs(jsxRuntime.Fragment, {
+  children: [
+    jsxRuntime.jsx("h1", { children: "Hello, World!" }),
+    jsxRuntime.jsx("p", { children: "Welcome to the app." }),
+  ],
+});
 ```
 
 ### Safe Content Escaping
 
 ```typescript
-import { jsxEscape } from "@eserstack/jsx-runtime";
+import * as jsxRuntime from "@eserstack/jsx-runtime";
 
 // Escape user input to prevent XSS
 const userInput = '<script>alert("xss")</script>';
-const safe = jsxEscape(userInput);
+const safe = jsxRuntime.jsxEscape(userInput);
 // "&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;"
 
 // Handles various types safely
-jsxEscape(null); // null (filtered out)
-jsxEscape(true); // null (filtered out)
-jsxEscape(42); // "42"
-jsxEscape(["a", "b"]); // ["a", "b"] (recursively escaped)
+jsxRuntime.jsxEscape(null); // null (filtered out)
+jsxRuntime.jsxEscape(true); // null (filtered out)
+jsxRuntime.jsxEscape(42); // "42"
+jsxRuntime.jsxEscape(["a", "b"]); // ["a", "b"] (recursively escaped)
 ```
 
 ### Precompiled Templates
 
 ```typescript
-import { jsxTemplate } from "@eserstack/jsx-runtime";
+import * as jsxRuntime from "@eserstack/jsx-runtime";
 
 // Used by precompile JSX transforms for optimized rendering
-const vnode = jsxTemplate(
+const vnode = jsxRuntime.jsxTemplate(
   ["<div>", " - ", "</div>"],
   "Hello",
   "World",
@@ -74,11 +96,10 @@ const vnode = jsxTemplate(
 | `jsxEscape(value)`                 | Escape dynamic content for safe HTML rendering |
 | `jsxTemplate(templates, ...exprs)` | Create template VNode for precompiled JSX      |
 
-### Encoder
+### Encoding
 
-| Function              | Description                               |
-| --------------------- | ----------------------------------------- |
-| `encodeEntities(str)` | Encode HTML entities (`"`, `&`, `<`, `>`) |
+`jsxEscape` encodes the HTML entities `"`, `&`, `<` and `>` in string content.
+The encoder itself is internal and not exported.
 
 ---
 

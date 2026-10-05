@@ -10,14 +10,21 @@
  * @module
  */
 
+/** A named rectangle of the terminal that one widget draws into. */
 export type Panel = {
+  /** The panel's name, such as "left" or "statusBar". */
   readonly id: string;
+  /** Left column, 1-based. */
   readonly x: number;
+  /** Top row, 1-based. */
   readonly y: number;
+  /** Width in columns. */
   readonly width: number;
+  /** Height in rows. */
   readonly height: number;
 };
 
+/** How {@link calculateLayout} divides the terminal. */
 export type LayoutConfig = {
   /** Left panel width: 0-1 as a fraction of total columns, or >1 as absolute columns. */
   readonly leftWidth: number;
@@ -25,10 +32,15 @@ export type LayoutConfig = {
   readonly rightTopHeight: number;
 };
 
+/** The four panels {@link calculateLayout} returns. */
 export type LayoutResult = {
+  /** The full-height panel on the left. */
   readonly left: Panel;
+  /** The upper panel on the right. */
   readonly rightTop: Panel;
+  /** The lower panel on the right. */
   readonly rightBottom: Panel;
+  /** The one-row bar along the bottom. */
   readonly statusBar: Panel;
 };
 

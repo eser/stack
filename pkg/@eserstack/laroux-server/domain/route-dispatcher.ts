@@ -9,6 +9,8 @@ import type {
   HttpMethod,
   RouteParams,
 } from "@eserstack/laroux/router";
+import * as router from "@eserstack/laroux/router";
+import * as buildModule from "./build-module.ts";
 
 const apiLogger = logging.logger.getLogger(["laroux-server", "api-handler"]);
 
@@ -20,91 +22,73 @@ export type ApiRouteEntry = {
   modulePath: string;
 };
 
-/**
- * Convert Next.js style route pattern to URLPattern syntax.
- * - [param] -> :param (dynamic segment)
- * - [...param] -> :param* (catch-all segment, matches zero or more)
- *
- * Also tracks parameter names and whether they're catch-all for post-processing.
- */
-function convertToUrlPattern(
-  routePath: string,
-): { pattern: string; catchAllParams: Set<string> } {
-  const catchAllParams = new Set<string>();
-
-  const pattern = routePath
-    // First convert catch-all segments [...param] to :param*
-    .replace(/\[\.\.\.(\w+)\]/g, (_match, paramName) => {
-      catchAllParams.add(paramName);
-      return `:${paramName}*`;
-    })
-    // Then convert dynamic segments [param] to :param
-    .replace(/\[(\w+)\]/g, (_match, paramName) => {
-      return `:${paramName}`;
-    });
-
-  return { pattern, catchAllParams };
-}
-
-/**
- * Matches a pathname against a route pattern using URLPattern API.
- * Returns extracted route parameters or null if no match.
- */
-function matchRoutePath(
-  pathname: string,
-  routePath: string,
-): RouteParams | null {
-  const { pattern, catchAllParams } = convertToUrlPattern(routePath);
-
-  // URLPattern for pathname matching only
-  const urlPattern = new URLPattern({ pathname: pattern });
-  const match = urlPattern.exec({ pathname });
-
-  if (!match) {
-    return null;
-  }
-
-  const params: RouteParams = {};
-  const groups = match.pathname.groups;
-
-  for (const [name, value] of Object.entries(groups)) {
-    if (catchAllParams.has(name)) {
-      // Catch-all params: split by "/" and filter empty segments
-      params[name] = value ? value.split("/").filter(Boolean) : [];
-    } else {
-      // Regular params: use value directly (already decoded by URLPattern)
-      params[name] = value ?? "";
-    }
-  }
-
-  return params;
-}
+/** The API routes of one build and the route modules loaded from it. */
+type LoadedApiRoutes = {
+  readonly routes: readonly ApiRouteEntry[];
+  /** Directory the registry's module paths are relative to */
+  readonly registryDir: string;
+  readonly buildId: string;
+  /** Route modules of this build, by resolved path */
+  readonly moduleCache: Map<string, ApiRouteModule>;
+};
 
 /**
  * API Route Handler
  * Manages loading and executing API routes
  */
 export class ApiRouteHandler {
-  private routes: ApiRouteEntry[] = [];
-  private moduleCache = new Map<string, ApiRouteModule>();
-  private registryDir: string = "";
+  private loaded: LoadedApiRoutes = {
+    routes: [],
+    registryDir: "",
+    buildId: "",
+    moduleCache: new Map(),
+  };
 
   /**
-   * Load API routes from the generated registry
+   * Load the API routes of a build from its generated registry,
+   * <distDir>/server/api-routes.ts. A build without route.ts files writes no
+   * registry, so it has no API routes. Route modules load on their first
+   * request, by URLs that carry the build id: after a rebuild, loading the
+   * new build makes requests import the rebuilt route modules.
+   *
+   * @param distDir - Build output directory
+   * @param buildId - Id of the build to load
    */
-  async loadRoutes(distDir: string): Promise<void> {
-    try {
-      // NOTE: Must use variable + file:// - deno publish rewrites analyzable dynamic imports
-      const registryPath = `file://${distDir}/server/api-routes.ts`;
-      this.registryDir = runtime.path.resolve(distDir, "server");
-      const registry = await import(registryPath);
-      this.routes = registry.apiRoutes || [];
-      apiLogger.debug(`Loaded ${this.routes.length} API route(s)`);
-    } catch {
-      // No API routes generated - this is fine
-      this.routes = [];
-      apiLogger.debug("No API routes registry found");
+  async loadRoutes(distDir: string, buildId: string): Promise<void> {
+    const registryDir = runtime.path.resolve(distDir, "server");
+    const registry = await buildModule.importOptionalBuildModule(
+      runtime.path.join(registryDir, "api-routes.ts"),
+      buildId,
+    );
+    const entries = registry?.["apiRoutes"];
+    const routes: readonly ApiRouteEntry[] = Array.isArray(entries)
+      ? entries
+      : [];
+
+    // Replaced in one step: a request that started before keeps the build
+    // it started with, so it never mixes the modules of two builds.
+    this.loaded = { routes, registryDir, buildId, moduleCache: new Map() };
+
+    apiLogger.debug(`Loaded ${routes.length} API route(s)`);
+  }
+
+  /**
+   * Find the first route whose path matches the pathname. API routes use the
+   * page router's matcher, so their params are percent-decoded and a
+   * catch-all matches its bare prefix the same way.
+   */
+  private findRoute(
+    routes: readonly ApiRouteEntry[],
+    pathname: string,
+  ): { route: ApiRouteEntry; params: RouteParams } | null {
+    for (const route of routes) {
+      const params = router.matchRoute(pathname, route);
+      if (params !== null) {
+        return { route, params };
+      }
     }
+
+    return null;
   }
 
   /**
@@ -115,91 +99,85 @@ export class ApiRouteHandler {
     req: Request,
     pathname: string,
   ): Promise<Response | null> {
+    const loaded = this.loaded;
+    const match = this.findRoute(loaded.routes, pathname);
+    if (match === null) {
+      return null;
+    }
+
+    const { route, params } = match;
     const url = new URL(req.url);
     const method = req.method as HttpMethod;
 
-    for (const route of this.routes) {
-      const params = matchRoutePath(pathname, route.path);
+    apiLogger.debug(
+      `API route matched: ${method} ${pathname} -> ${route.path}`,
+    );
 
-      if (params !== null) {
-        apiLogger.debug(
-          `API route matched: ${method} ${pathname} -> ${route.path}`,
-        );
+    try {
+      // Resolve module path relative to the registry directory
+      const resolvedPath = runtime.path.resolve(
+        loaded.registryDir,
+        route.modulePath,
+      );
 
-        try {
-          // Resolve module path relative to the registry directory
-          const resolvedPath = runtime.path.resolve(
-            this.registryDir,
-            route.modulePath,
-          );
-
-          // Load module (with caching)
-          let module = this.moduleCache.get(resolvedPath);
-          if (!module) {
-            // NOTE: Must use variable + file:// - deno publish rewrites analyzable dynamic imports
-            const moduleImportPath = `file://${resolvedPath}`;
-            module = await import(moduleImportPath) as ApiRouteModule;
-            this.moduleCache.set(resolvedPath, module);
-          }
-
-          // Get handler for this method
-          const handler = module[method];
-          if (!handler) {
-            apiLogger.debug(`Method ${method} not allowed for ${route.path}`);
-            return new Response("Method Not Allowed", {
-              status: 405,
-              headers: {
-                "Allow": this.getAllowedMethods(module).join(", "),
-              },
-            });
-          }
-
-          // Execute handler
-          const response = await handler({
-            request: req,
-            params,
-            searchParams: url.searchParams,
-          });
-
-          return response;
-        } catch (error) {
-          apiLogger.error(`API route error: ${route.path}`, { error });
-          // Don't expose error details to client - only log server-side
-          return new Response(
-            JSON.stringify({
-              error: "Internal Server Error",
-            }),
-            {
-              status: 500,
-              headers: { "Content-Type": "application/json" },
-            },
-          );
-        }
+      // Load module (with caching)
+      let module = loaded.moduleCache.get(resolvedPath);
+      if (module === undefined) {
+        module = await import(
+          buildModule.toBuildModuleUrl(resolvedPath, loaded.buildId)
+        ) as ApiRouteModule;
+        loaded.moduleCache.set(resolvedPath, module);
       }
-    }
 
-    return null;
+      // Get handler for this method
+      const handler = module[method];
+      if (handler === undefined) {
+        apiLogger.debug(`Method ${method} not allowed for ${route.path}`);
+        return new Response("Method Not Allowed", {
+          status: 405,
+          headers: {
+            "Allow": this.getAllowedMethods(module).join(", "),
+          },
+        });
+      }
+
+      // Execute handler
+      return await handler({
+        request: req,
+        params,
+        searchParams: url.searchParams,
+      });
+    } catch (error) {
+      // Handled here: logged once with the route, and the client gets a
+      // fixed message without the error's details.
+      await apiLogger.with({ route: route.path, method, error }).error(
+        "API route handler failed to load or threw; answered 500",
+      );
+      return new Response(
+        JSON.stringify({
+          error: "Internal Server Error",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
   }
 
   /**
    * Get allowed methods for a module
    */
   private getAllowedMethods(module: ApiRouteModule): HttpMethod[] {
-    const methods: HttpMethod[] = [];
-    if (module.GET) methods.push("GET");
-    if (module.POST) methods.push("POST");
-    if (module.PUT) methods.push("PUT");
-    if (module.DELETE) methods.push("DELETE");
-    if (module.PATCH) methods.push("PATCH");
-    if (module.HEAD) methods.push("HEAD");
-    if (module.OPTIONS) methods.push("OPTIONS");
-    return methods;
-  }
-
-  /**
-   * Clear module cache (for HMR)
-   */
-  clearCache(): void {
-    this.moduleCache.clear();
+    const methods: HttpMethod[] = [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "HEAD",
+      "OPTIONS",
+    ];
+    return methods.filter((method) => module[method] !== undefined);
   }
 }

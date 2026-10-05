@@ -9,18 +9,12 @@ import type {
   Renderer,
   RenderResult,
 } from "../../domain/renderer.ts";
-import { generateRSCPayloadScript, renderSSR } from "./ssr-renderer.ts";
-import {
-  type BundlerConfig,
-  loadModuleMap,
-  renderRSCResponse,
-} from "./rsc-handler.ts";
-import { renderApp } from "./render-app.tsx";
-import { generateInlineBootstrapScript } from "./inline-rsc-emitter.ts";
-import {
-  clearServerRequestContext,
-  setServerRequestContext,
-} from "../../domain/request-context.ts";
+import * as ssrRenderer from "./ssr-renderer.ts";
+import * as rscHandler from "./rsc-handler.ts";
+import type { BundlerConfig } from "./rsc-handler.ts";
+import * as renderApp from "./render-app.tsx";
+import * as inlineRscEmitter from "./inline-rsc-emitter.ts";
+import type { LayoutProps, PageProps } from "@eserstack/laroux/router";
 import * as logging from "@eserstack/logging";
 
 const rendererLogger = logging.logger.getLogger([
@@ -28,6 +22,19 @@ const rendererLogger = logging.logger.getLogger([
   "react",
   "renderer",
 ]);
+
+/**
+ * Read the data pages receive as their `request` prop from the request.
+ */
+function readRequestContext(
+  request: Request,
+): renderApp.RenderAppRequestContext {
+  return {
+    cookieHeader: request.headers.get("cookie"),
+    host: request.headers.get("host"),
+    localeParam: new URL(request.url).searchParams.get("locale"),
+  };
+}
 
 /**
  * Create a React renderer adapter
@@ -48,50 +55,41 @@ export function createReactRenderer(): Renderer {
     ): Promise<RenderResult> {
       rendererLogger.debug(`Rendering page: ${context.pathname}`);
 
-      try {
-        // Set request context for SSR (cookies, headers)
-        const cookieHeader = context.request.headers.get("cookie");
-        setServerRequestContext(cookieHeader);
-
-        // Load or use cached module map
-        if (!moduleMapCache) {
-          moduleMapCache = await loadModuleMap(context.config);
-        }
-
-        // Create the React element tree
-        const element = renderApp(
-          Layout as React.ComponentType<{ children: React.ReactNode }>,
-          Page as React.ComponentType<Record<string, unknown>>,
-          {
-            pathname: context.pathname,
-            params: context.params,
-            requestContext: {
-              cookieHeader,
-              host: context.request.headers.get("host") ?? undefined,
-            },
-          },
-        );
-
-        // Render to HTML with RSC payload
-        const result = await renderSSR(element, moduleMapCache, {
-          streamMode: "await-all",
-        });
-
-        // Generate RSC payload script
-        const rscPayloadScript = generateRSCPayloadScript(result.rscPayload);
-
-        rendererLogger.debug(
-          `Page rendered, HTML length: ${result.html.length}`,
-        );
-
-        return {
-          html: result.html,
-          rscPayload: rscPayloadScript,
-        };
-      } finally {
-        // Always clear request context
-        clearServerRequestContext();
+      // Load or use cached module map
+      if (moduleMapCache === null) {
+        moduleMapCache = await rscHandler.loadModuleMap(context.config);
       }
+
+      // Create the React element tree. Request data travels with this
+      // render only, as the request prop of the page and the layout.
+      const element = renderApp.renderApp(
+        Layout as React.ComponentType<LayoutProps<React.ReactNode>>,
+        Page as React.ComponentType<PageProps>,
+        {
+          pathname: context.pathname,
+          params: context.params,
+          requestContext: readRequestContext(context.request),
+        },
+      );
+
+      // Render to HTML with RSC payload
+      const result = await ssrRenderer.renderSSR(element, moduleMapCache, {
+        streamMode: "await-all",
+      });
+
+      // Generate RSC payload script
+      const rscPayloadScript = ssrRenderer.generateRSCPayloadScript(
+        result.rscPayload,
+      );
+
+      rendererLogger.debug(
+        `Page rendered, HTML length: ${result.html.length}`,
+      );
+
+      return {
+        html: result.html,
+        rscPayload: rscPayloadScript,
+      };
     },
 
     async renderRSC(
@@ -101,47 +99,34 @@ export function createReactRenderer(): Renderer {
     ): Promise<Response> {
       rendererLogger.debug(`Rendering RSC: ${context.pathname}`);
 
-      try {
-        // Set request context for RSC
-        const cookieHeader = context.request.headers.get("cookie");
-        setServerRequestContext(cookieHeader);
-
-        // Load or use cached module map
-        if (!moduleMapCache) {
-          moduleMapCache = await loadModuleMap(context.config);
-        }
-
-        // Create the React element tree
-        const element = renderApp(
-          Layout as React.ComponentType<{ children: React.ReactNode }>,
-          Page as React.ComponentType<Record<string, unknown>>,
-          {
-            pathname: context.pathname,
-            params: context.params,
-            requestContext: {
-              cookieHeader,
-              host: context.request.headers.get("host") ?? undefined,
-            },
-          },
-        );
-
-        // Render to RSC streaming response
-        const response = await renderRSCResponse(
-          context.config,
-          element,
-          moduleMapCache,
-        );
-
-        return response;
-      } finally {
-        // Always clear request context
-        clearServerRequestContext();
+      // Load or use cached module map
+      if (moduleMapCache === null) {
+        moduleMapCache = await rscHandler.loadModuleMap(context.config);
       }
+
+      // Create the React element tree. Request data travels with this
+      // render only, as the request prop of the page and the layout.
+      const element = renderApp.renderApp(
+        Layout as React.ComponentType<LayoutProps<React.ReactNode>>,
+        Page as React.ComponentType<PageProps>,
+        {
+          pathname: context.pathname,
+          params: context.params,
+          requestContext: readRequestContext(context.request),
+        },
+      );
+
+      // Render to RSC streaming response
+      return await rscHandler.renderRSCResponse(
+        context.config,
+        element,
+        moduleMapCache,
+      );
     },
 
     generateBootstrapScript(_context: RenderContext): string {
       // Generate the inline RSC bootstrap script
-      return generateInlineBootstrapScript();
+      return inlineRscEmitter.generateInlineBootstrapScript();
     },
   };
 }

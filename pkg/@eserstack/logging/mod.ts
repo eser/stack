@@ -78,11 +78,14 @@ export * as tracer from "./tracer.ts";
 export type {
   Category,
   ConfigureOptions,
+  ContextLocalStorage,
   Filter,
+  FilterConfig,
   FormatterFn,
   LoggerConfig,
   LogRecord,
   Sink,
+  SinkConfig,
 } from "./types.ts";
 
 // Flat re-exports so callers can use `logging.Severities.Debug` and `logging.Severity`

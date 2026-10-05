@@ -5,7 +5,8 @@
  */
 
 import * as logging from "@eserstack/logging";
-import { invalidateRouteCache } from "./route-scanner.ts";
+import * as buildValidator from "./build-validator.ts";
+import type { RouteScanCache, ScanResult } from "./route-scanner.ts";
 
 const cacheLogger = logging.logger.getLogger(["laroux-bundler", "build-cache"]);
 
@@ -28,24 +29,47 @@ export type CSSModuleCacheEntry = {
 };
 
 /**
- * Cached route scan result
+ * Cached route scan result of one routes directory
  */
 export type RouteCacheEntry = {
-  routes: unknown[];
-  apiRoutes: unknown[];
-  proxies: unknown[];
-  mtime: number;
+  /** The scan result */
+  readonly scan: ScanResult;
+  /** Modification time of the routes directory when it was scanned */
+  readonly mtime: number;
+};
+
+/**
+ * Keeps the "use client" analysis of source files between builds. BuildCache
+ * implements it; framework plugins receive it in analyzeClientComponents.
+ */
+export type ClientComponentCache = {
+  /**
+   * The cached analysis of filePath, or null when there is none or the file
+   * changed after it (currentMtime is newer than the entry's).
+   */
+  getClientComponent(
+    filePath: string,
+    currentMtime: number,
+  ): ClientComponentCacheEntry | null;
+  /** Store the analysis of filePath, made when the file had this mtime. */
+  setClientComponent(
+    filePath: string,
+    isClient: boolean,
+    exportNames: string[],
+    mtime: number,
+  ): void;
 };
 
 /**
  * Build Cache Manager
- * Maintains caches across incremental builds in watch mode
+ * Maintains caches across incremental builds in watch mode. Every entry is
+ * keyed by an absolute path, so one cache can serve several projects.
  */
-export class BuildCache {
+export class BuildCache implements ClientComponentCache, RouteScanCache {
   private clientComponentCache: Map<string, ClientComponentCacheEntry> =
     new Map();
   private cssModuleCache: Map<string, CSSModuleCacheEntry> = new Map();
-  private routeCache: RouteCacheEntry | null = null;
+  private routeScans: Map<string, RouteCacheEntry> = new Map();
 
   /**
    * Get cached client component analysis result
@@ -108,28 +132,29 @@ export class BuildCache {
   }
 
   /**
-   * Get cached route scan result
-   * @param currentMtime - Current routes directory modification time
-   * @returns Cached entry if valid, null if cache miss or stale
+   * Get the cached route scan of a routes directory
+   * @param routesDir - Absolute path of the routes directory
+   * @param routesDirMtime - Current modification time of the directory
+   * @returns The scan if valid, null if cache miss or stale
    */
-  getRouteCache(currentMtime: number): RouteCacheEntry | null {
-    if (this.routeCache && this.routeCache.mtime >= currentMtime) {
-      cacheLogger.debug("Cache hit: route scan");
-      return this.routeCache;
+  getRouteScan(routesDir: string, routesDirMtime: number): ScanResult | null {
+    const cached = this.routeScans.get(routesDir);
+    if (cached !== undefined && cached.mtime >= routesDirMtime) {
+      cacheLogger.debug(`Cache hit: route scan of ${routesDir}`);
+      return cached.scan;
     }
     return null;
   }
 
   /**
-   * Set route scan result in cache
+   * Set the route scan of a routes directory in the cache
    */
-  setRouteCache(
-    routes: unknown[],
-    apiRoutes: unknown[],
-    proxies: unknown[],
-    mtime: number,
+  setRouteScan(
+    routesDir: string,
+    result: ScanResult,
+    routesDirMtime: number,
   ): void {
-    this.routeCache = { routes, apiRoutes, proxies, mtime };
+    this.routeScans.set(routesDir, { scan: result, mtime: routesDirMtime });
   }
 
   /**
@@ -149,11 +174,12 @@ export class BuildCache {
       cacheLogger.debug(`Invalidated: CSS module ${filePath}`);
     }
 
-    // Invalidate route cache if file is in routes directory
-    if (filePath.includes("/routes/") || filePath.includes("\\routes\\")) {
-      this.routeCache = null;
-      invalidateRouteCache(); // Also invalidate the module-level route scanner cache
-      cacheLogger.debug("Invalidated: route cache");
+    // Invalidate the scan of every routes directory that holds the file
+    for (const routesDir of this.routeScans.keys()) {
+      if (buildValidator.isWithinOutputDir(filePath, routesDir)) {
+        this.routeScans.delete(routesDir);
+        cacheLogger.debug(`Invalidated: route scan of ${routesDir}`);
+      }
     }
   }
 
@@ -172,7 +198,7 @@ export class BuildCache {
   clear(): void {
     this.clientComponentCache.clear();
     this.cssModuleCache.clear();
-    this.routeCache = null;
+    this.routeScans.clear();
     cacheLogger.debug("All caches cleared");
   }
 
@@ -187,36 +213,7 @@ export class BuildCache {
     return {
       clientComponents: this.clientComponentCache.size,
       cssModules: this.cssModuleCache.size,
-      hasRoutes: this.routeCache !== null,
+      hasRoutes: this.routeScans.size > 0,
     };
   }
-}
-
-/**
- * Global build cache instance for watch mode
- * Created once and reused across incremental builds
- */
-let globalCache: BuildCache | null = null;
-
-/**
- * Get or create the global build cache
- */
-export function getGlobalBuildCache(): BuildCache {
-  if (!globalCache) {
-    globalCache = new BuildCache();
-    cacheLogger.debug("Created global build cache");
-  }
-  return globalCache;
-}
-
-/**
- * Reset the global build cache
- * Call this when starting a fresh build session
- */
-export function resetGlobalBuildCache(): void {
-  if (globalCache) {
-    globalCache.clear();
-  }
-  globalCache = null;
-  cacheLogger.debug("Reset global build cache");
 }

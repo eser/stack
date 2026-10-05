@@ -13,19 +13,23 @@
  * - RSC payload is embedded in the HTML for hydration without refetch
  */
 
-import { toClientErrorValue } from "./error-chunk.ts";
-import { escapeJsonForScript } from "./script-json.ts";
-import { cloneElement, createElement, Fragment, Suspense } from "react";
-import { renderToReadableStream } from "react-dom/server";
-import {
-  isClientReference,
-  isReactElement,
-  type RSCChunk,
-} from "@eserstack/laroux-react/protocol";
+import * as errorChunk from "./error-chunk.ts";
+import * as scriptJson from "./script-json.ts";
+import * as React from "react";
+import * as ReactDOMServer from "react-dom/server";
+import * as protocol from "@eserstack/laroux-react/protocol";
+import type { RSCChunk } from "@eserstack/laroux-react/protocol";
 import type { BundlerConfig } from "./rsc-flight-renderer.ts";
 import * as logging from "@eserstack/logging";
 
 const ssrLogger = logging.logger.getLogger(["laroux-server", "react", "ssr"]);
+
+/**
+ * A node of a React tree as the preprocessor walks it: an element, props,
+ * children or a primitive, all produced by user components and untyped here.
+ */
+// deno-lint-ignore no-explicit-any
+type TreeNode = any;
 
 /**
  * Ensure all elements in an array have keys.
@@ -42,14 +46,13 @@ const ssrLogger = logging.logger.getLogger(["laroux-server", "react", "ssr"]);
  * elements with proper keys on the client, we need actual React elements for
  * renderToReadableStream - hence we must ensure keys exist before rendering.
  */
-// deno-lint-ignore no-explicit-any
-function ensureArrayKeys(arr: any[]): any[] {
+function ensureArrayKeys(arr: TreeNode[]): TreeNode[] {
   // Fast-path: check if any valid React element lacks a key
   let needsProcessing = false;
   for (let i = 0; i < arr.length; i++) {
     const item = arr[i];
     // Use isReactElement from protocol.ts for element type check
-    if (isReactElement(item)) {
+    if (protocol.isReactElement(item)) {
       // Check if key is missing
       if (item.key === null || item.key === undefined || item.key === "") {
         needsProcessing = true;
@@ -68,16 +71,38 @@ function ensureArrayKeys(arr: any[]): any[] {
   for (let i = 0; i < arr.length; i++) {
     const item = arr[i];
     // Use isReactElement from protocol.ts for element type check
-    if (isReactElement(item)) {
+    if (protocol.isReactElement(item)) {
       // Only clone if key is missing
       if (item.key === null || item.key === undefined || item.key === "") {
-        result[i] = cloneElement(item, { key: `.${i}` });
+        result[i] = React.cloneElement(item, { key: `.${i}` });
         continue;
       }
     }
     result[i] = item;
   }
   return result;
+}
+
+/**
+ * Name of a function component for logs and data attributes; anonymous
+ * functions have an empty name, so they get the fallback.
+ */
+function componentName(
+  type: { readonly name?: string },
+  fallback: string,
+): string {
+  const name = type.name;
+  return name !== undefined && name !== "" ? name : fallback;
+}
+
+/**
+ * Describe an element type for debug logs
+ */
+function describeType(type: unknown): string {
+  if (typeof type === "function") return componentName(type, "anonymous");
+  if (typeof type === "string") return type;
+  if (typeof type === "symbol") return type.toString();
+  return "unknown";
 }
 
 /**
@@ -114,11 +139,12 @@ interface SSRContext {
   /** Stream mode - if "streaming-classic", don't await async components */
   streamMode: "streaming-classic" | "await-all";
   /** Track async components for deferred resolution */
-  // deno-lint-ignore no-explicit-any
-  asyncComponents: Map<number, { promise: Promise<any>; fallback: any }>;
+  asyncComponents: Map<
+    number,
+    { promise: Promise<TreeNode>; fallback: TreeNode }
+  >;
   /** Current Suspense fallback for async component placeholders */
-  // deno-lint-ignore no-explicit-any
-  suspenseFallback: any;
+  suspenseFallback: TreeNode;
 }
 
 /**
@@ -135,11 +161,9 @@ function createClientPlaceholder(
   moduleId: string,
   exportName: string,
   props: Record<string, unknown>,
-  // deno-lint-ignore no-explicit-any
-  children: any,
+  children: TreeNode,
   elementChunkId: number,
-  // deno-lint-ignore no-explicit-any
-): any {
+): TreeNode {
   // Serialize props (excluding children and functions)
   const serializableProps: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(props)) {
@@ -154,7 +178,7 @@ function createClientPlaceholder(
 
   // Create a div placeholder with data attributes
   // data-chunk-id links to RSC payload for proper prop/children resolution
-  return createElement(
+  return React.createElement(
     "div",
     {
       "data-client-component": moduleId,
@@ -173,11 +197,9 @@ function createClientPlaceholder(
  * and collects RSC chunks for the payload
  */
 async function preprocessTree(
-  // deno-lint-ignore no-explicit-any
-  element: any,
+  element: TreeNode,
   context: SSRContext,
-  // deno-lint-ignore no-explicit-any
-): Promise<{ processedElement: any; chunkId: number }> {
+): Promise<{ processedElement: TreeNode; chunkId: number }> {
   // Null/undefined
   if (element === null || element === undefined) {
     const id = context.nextId++;
@@ -185,10 +207,15 @@ async function preprocessTree(
     return { processedElement: null, chunkId: id };
   }
 
-  // Primitives (string, number, boolean)
+  // Primitives (string, number, boolean). The chunk escapes strings that
+  // start with "$", which the client would otherwise read as references.
   if (typeof element !== "object") {
     const id = context.nextId++;
-    context.chunks.push({ type: "J", id, value: element });
+    context.chunks.push({
+      type: "J",
+      id,
+      value: protocol.encodeJsonValue(element) ?? null,
+    });
     return { processedElement: element, chunkId: id };
   }
 
@@ -210,7 +237,7 @@ async function preprocessTree(
   }
 
   // Client component reference (the type itself is a reference)
-  if (isClientReference(element)) {
+  if (protocol.isClientReference(element)) {
     const id = context.nextId++;
     const moduleId = element.$$id;
     const exportName = element.name ?? "default";
@@ -230,19 +257,19 @@ async function preprocessTree(
   }
 
   // React element (handle both standard and transitional symbols for React 19 RSC)
-  if (isReactElement(element)) {
+  if (protocol.isReactElement(element)) {
     // Extract key from element - React stores it on the element object, not in props
     const { type, props, key: originalKey } = element;
 
     // Debug: log what type we're processing
     ssrLogger.debug(
       `Processing React element with type: ${typeof type}, name: ${
-        type?.name || type?.toString?.() || "unknown"
+        describeType(type)
       }`,
     );
 
     // Client component element (type is a client reference)
-    if (isClientReference(type)) {
+    if (protocol.isClientReference(type)) {
       // Pre-allocate IDs so we can pass elementId to placeholder
       const moduleChunkId = context.nextId++;
       const propsChunkId = context.nextId++;
@@ -281,8 +308,7 @@ async function preprocessTree(
       );
 
       // Create RSC props chunk for hydration
-      // deno-lint-ignore no-explicit-any
-      const serializedProps: Record<string, any> = {};
+      const serializedProps: Record<string, TreeNode> = {};
       if (props !== undefined) {
         for (const [key, value] of Object.entries(props)) {
           if (typeof value === "function") continue;
@@ -290,10 +316,13 @@ async function preprocessTree(
             // Reference the processed children chunk
             serializedProps[key] = `$${childrenChunkId}`;
           } else if (typeof value === "object" && value !== null) {
+            // Props are processed in order: preprocessTree takes chunk ids from
+            // the shared context counter, so the order fixes the ids.
+            // deno-lint-ignore no-await-in-loop
             const valueResult = await preprocessTree(value, context);
             serializedProps[key] = `$${valueResult.chunkId}`;
           } else {
-            serializedProps[key] = value;
+            serializedProps[key] = protocol.encodeJsonValue(value);
           }
         }
       }
@@ -329,12 +358,14 @@ async function preprocessTree(
         const result = type.render(props, null);
         return await preprocessTree(result, context);
       } catch (error) {
-        ssrLogger.error("Error rendering ForwardRef component:", error);
+        ssrLogger.with({ error }).error(
+          "render SSR: a forwardRef component threw; sent an error chunk in its place",
+        );
         const errorId = context.nextId++;
         context.chunks.push({
           type: "E",
           id: errorId,
-          value: toClientErrorValue(error),
+          value: errorChunk.toClientErrorValue(error),
         });
         return { processedElement: null, chunkId: errorId };
       }
@@ -356,7 +387,7 @@ async function preprocessTree(
     if (typeof type === "function") {
       try {
         ssrLogger.debug(
-          `Executing server component: ${type.name || "anonymous"}`,
+          `Executing server component: ${componentName(type, "anonymous")}`,
         );
         // Execute the server component
         const result = type(props);
@@ -368,7 +399,7 @@ async function preprocessTree(
           if (context.streamMode === "streaming-classic") {
             ssrLogger.debug(
               `Async server component ${
-                type.name || "anonymous"
+                componentName(type, "anonymous")
               } skipped in SSR (streaming-classic mode) - client will fetch via /rsc`,
             );
             const id = context.nextId++;
@@ -380,9 +411,9 @@ async function preprocessTree(
             const safeFallback = Array.isArray(fallbackContent)
               ? ensureArrayKeys(fallbackContent)
               : fallbackContent;
-            const placeholder = createElement("div", {
+            const placeholder = React.createElement("div", {
               "data-async-boundary": id,
-              "data-component": type.name || "async",
+              "data-component": componentName(type, "async"),
               children: safeFallback,
             });
 
@@ -408,7 +439,7 @@ async function preprocessTree(
           if (resolved === undefined) {
             ssrLogger.warn(
               `Async server component ${
-                type.name || "anonymous"
+                componentName(type, "anonymous")
               } returned undefined`,
             );
           }
@@ -418,19 +449,25 @@ async function preprocessTree(
         // Validate sync result
         if (result === undefined) {
           ssrLogger.warn(
-            `Server component ${type.name || "anonymous"} returned undefined`,
+            `Server component ${
+              componentName(type, "anonymous")
+            } returned undefined`,
           );
         }
 
         // Recursively process the result
         return await preprocessTree(result, context);
       } catch (error) {
-        ssrLogger.error("Error rendering server component:", error);
+        ssrLogger.with({ error }).error(
+          `render SSR: server component ${
+            componentName(type, "anonymous")
+          } threw; sent an error chunk in its place`,
+        );
         const errorId = context.nextId++;
         context.chunks.push({
           type: "E",
           id: errorId,
-          value: toClientErrorValue(error),
+          value: errorChunk.toClientErrorValue(error),
         });
         return { processedElement: null, chunkId: errorId };
       }
@@ -457,19 +494,18 @@ async function preprocessTree(
       const processedProps = originalKey !== null && originalKey !== undefined
         ? { ...props, key: originalKey, children: safeChildren }
         : { ...props, children: safeChildren };
-      const processedElement = createElement(type, processedProps);
+      const processedElement = React.createElement(type, processedProps);
 
       // Create RSC chunk for this element
       const id = context.nextId++;
-      // deno-lint-ignore no-explicit-any
-      const chunkProps: Record<string, any> = {};
+      const chunkProps: Record<string, TreeNode> = {};
       if (props !== undefined) {
         for (const [key, value] of Object.entries(props)) {
           if (typeof value === "function") continue;
           if (key === "children" && childrenChunkId !== undefined) {
             chunkProps[key] = `$${childrenChunkId}`;
           } else {
-            chunkProps[key] = value;
+            chunkProps[key] = protocol.encodeJsonValue(value);
           }
         }
       }
@@ -488,7 +524,7 @@ async function preprocessTree(
     }
 
     // Suspense boundary - render children for SSR HTML and RSC payload
-    if (type === Suspense) {
+    if (type === React.Suspense) {
       ssrLogger.debug("Processing Suspense boundary");
 
       // Save previous fallback for nested Suspense support
@@ -526,8 +562,8 @@ async function preprocessTree(
       const safeContent = Array.isArray(content)
         ? ensureArrayKeys(content)
         : content;
-      const processedElement = createElement(
-        Fragment,
+      const processedElement = React.createElement(
+        React.Fragment,
         null,
         safeContent,
       );
@@ -544,7 +580,7 @@ async function preprocessTree(
     }
 
     // React built-in types (Fragment, etc.)
-    if (typeof type === "symbol" || type === Fragment) {
+    if (typeof type === "symbol" || type === React.Fragment) {
       // Process children
       let processedChildren = props?.children;
       let childrenChunkId: number | undefined;
@@ -563,7 +599,7 @@ async function preprocessTree(
       const fragmentProps = originalKey !== null && originalKey !== undefined
         ? { ...props, key: originalKey, children: safeChildren }
         : { ...props, children: safeChildren };
-      const processedElement = createElement(type, fragmentProps);
+      const processedElement = React.createElement(type, fragmentProps);
 
       const id = context.nextId++;
       // Store reference to children chunk, not the actual elements
@@ -591,12 +627,14 @@ async function preprocessTree(
   // Plain objects (props, etc.)
   if (typeof element === "object" && element !== null) {
     const id = context.nextId++;
-    // deno-lint-ignore no-explicit-any
-    const processedObj: Record<string, any> = {};
+    const processedObj: Record<string, TreeNode> = {};
 
     for (const [key, value] of Object.entries(element)) {
       if (typeof value === "function") continue;
       if (typeof value === "object" && value !== null) {
+        // Entries are processed in order: preprocessTree takes chunk ids from
+        // the shared context counter, so the order fixes the ids.
+        // deno-lint-ignore no-await-in-loop
         const valueResult = await preprocessTree(value, context);
         processedObj[key] = valueResult.processedElement;
       } else {
@@ -604,7 +642,12 @@ async function preprocessTree(
       }
     }
 
-    context.chunks.push({ type: "J", id, value: processedObj });
+    // The chunk gets an escaped copy; the HTML render keeps the values.
+    context.chunks.push({
+      type: "J",
+      id,
+      value: protocol.encodeJsonValue(processedObj),
+    });
     return { processedElement: processedObj, chunkId: id };
   }
 
@@ -623,6 +666,7 @@ async function preprocessTree(
  * @returns SSR result with HTML, RSC payload, and client modules
  */
 export async function renderSSR(
+  // Any value a server component tree can hold; the walk narrows it per node.
   // deno-lint-ignore no-explicit-any
   element: any,
   bundlerConfig: BundlerConfig,
@@ -632,11 +676,9 @@ export async function renderSSR(
 
   // Debug: inspect incoming element
   ssrLogger.debug(`Input element type: ${typeof element}`);
-  if (element && typeof element === "object") {
+  if (element !== null && typeof element === "object") {
     ssrLogger.debug(`Element $$typeof: ${element.$$typeof?.toString?.()}`);
-    ssrLogger.debug(
-      `Element type: ${element.type?.name || element.type || "unknown"}`,
-    );
+    ssrLogger.debug(`Element type: ${describeType(element.type)}`);
   }
 
   // Create SSR context
@@ -671,29 +713,38 @@ export async function renderSSR(
       `Pre-processed tree, collected ${context.chunks.length} RSC chunks`,
     );
 
+    // React reports every render error through onError: an error in the
+    // shell, which also rejects renderToReadableStream and is handled in the
+    // catch below, and errors inside Suspense boundaries, which React leaves
+    // for the client to render again. The latter are logged once the HTML is
+    // read, so each error is logged once.
+    const boundaryErrors: unknown[] = [];
+
     // Render to HTML using React's renderToReadableStream
-    const stream = await renderToReadableStream(processedElement, {
-      onError: (error: unknown) => {
-        ssrLogger.error("SSR render error:", error);
+    const stream = await ReactDOMServer.renderToReadableStream(
+      processedElement,
+      {
+        onError: (error: unknown) => {
+          boundaryErrors.push(error);
+        },
       },
-    });
+    );
 
     // Wait for all content if in await-all mode
     if (options.streamMode === "await-all") {
       await stream.allReady;
     }
 
-    // Read the stream to get HTML string
-    const reader = stream.getReader();
-    const decoder = new TextDecoder();
-    let html = "";
+    // Read the whole stream as UTF-8 text
+    const html = await new Response(stream).text();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      html += decoder.decode(value, { stream: true });
-    }
-    html += decoder.decode(); // Flush remaining
+    await Promise.all(
+      boundaryErrors.map((error) =>
+        ssrLogger.with({ error }).error(
+          "render page to HTML: a Suspense boundary failed; the client renders it again",
+        )
+      ),
+    );
 
     ssrLogger.debug(`SSR complete, HTML length: ${html.length}`);
 
@@ -703,25 +754,42 @@ export async function renderSSR(
       clientModules: Array.from(context.clientModules),
     };
   } catch (error) {
-    ssrLogger.error("SSR rendering failed:", error);
+    // Handled here: the error is logged once, under the id the visitor sees,
+    // and the response carries only that id and a fixed message.
+    const correlationId = crypto.randomUUID();
+    await ssrLogger.with({ correlationId, error }).error(
+      "render page to HTML: rendering failed; sent the error fallback with this correlationId",
+    );
 
-    // Return error fallback
-    return {
-      html: `<div data-ssr-error="true">SSR Error: ${
-        error instanceof Error ? error.message : String(error)
-      }</div>`,
-      rscPayload: [
-        {
-          type: "E",
-          id: 0,
-          value: {
-            message: error instanceof Error ? error.message : String(error),
-          },
-        },
-      ],
-      clientModules: [],
-    };
+    return createSSRErrorFallback(correlationId);
   }
+}
+
+/**
+ * What a visitor sees when the page cannot be rendered at all. The error
+ * stays in the server log, under the correlation id shown next to this text.
+ */
+export const SSR_ERROR_MESSAGE =
+  "This page could not be rendered. Reload it, or report this error id:";
+
+/**
+ * Build the result renderSSR returns when rendering fails as a whole. It
+ * carries a fixed message and the correlation id, never the error's own
+ * message: that text can hold request data and internal detail, and
+ * runtime/server.ts writes this HTML into the page as it is.
+ *
+ * @param correlationId - Id of the server log entry that holds the error; a
+ *   crypto.randomUUID() value, so it needs no HTML escaping
+ */
+function createSSRErrorFallback(correlationId: string): SSRResult {
+  const message = `${SSR_ERROR_MESSAGE} ${correlationId}`;
+
+  return {
+    html:
+      `<div data-ssr-error="true" data-error-id="${correlationId}" role="alert">${message}</div>`,
+    rscPayload: [{ type: "E", id: 0, value: { message } }],
+    clientModules: [],
+  };
 }
 
 /**
@@ -743,6 +811,6 @@ export function serializeRSCPayload(chunks: RSCChunk[]): string {
 export function generateRSCPayloadScript(chunks: RSCChunk[]): string {
   const serialized = serializeRSCPayload(chunks);
   // Escape for script context so no value can end the element
-  const escaped = escapeJsonForScript(serialized);
+  const escaped = scriptJson.escapeJsonForScript(serialized);
   return `<script id="__RSC_PAYLOAD__" type="application/json">${escaped}</script>`;
 }

@@ -13,14 +13,17 @@
  * @module
  */
 
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import * as assert from "@std/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
 
-// Resolved from this file's own URL rather than via @std/path, which the cli
-// package does not depend on.
-const repoRoot = new URL("../../../../", import.meta.url);
+// This file sits in pkg/@eserstack/cli/scripts, four levels below the root.
+const repoRoot = runtime.path.resolve(
+  import.meta.dirname ?? ".",
+  "../../../..",
+);
 
 const read = (relative: string): Promise<string> =>
-  Deno.readTextFile(new URL(relative, repoRoot));
+  runtime.fs.readTextFile(runtime.path.join(repoRoot, relative));
 
 Deno.test("compile.ts and both installers agree on the asset name", async () => {
   const [compile, sh, ps1] = await Promise.all([
@@ -31,22 +34,31 @@ Deno.test("compile.ts and both installers agree on the asset name", async () => 
 
   // <binary>-v<version>-<triple>. Asserted on the template rather than a built
   // artifact so this runs without a release.
-  assertStringIncludes(compile, "`${binary.name}-v${version}-${target}`");
-  assertStringIncludes(compile, "`${goBinary.name}-v${version}-${target}`");
+  assert.assertStringIncludes(
+    compile,
+    "`${binary.name}-v${version}-${target}`",
+  );
+  assert.assertStringIncludes(
+    compile,
+    "`${goBinary.name}-v${version}-${target}`",
+  );
 
   // TAG carries its own leading "v" (it comes straight from the release tag),
   // so the shell form has no literal "v" of its own.
-  assertStringIncludes(sh, 'ARCHIVE="${BINARY}-${TAG}-${TARGET}.tar.gz"');
+  assert.assertStringIncludes(
+    sh,
+    'ARCHIVE="${BINARY}-${TAG}-${TARGET}.tar.gz"',
+  );
 
   // Version is stripped of the "v" when parsed, so PowerShell re-adds it.
-  assertStringIncludes(ps1, '"$Product-v$Version-');
+  assert.assertStringIncludes(ps1, '"$Product-v$Version-');
 
   // Checksums live in one file for the whole family; `checksums.txt` was the
   // GoReleaser name and no longer exists.
-  assertStringIncludes(sh, "SHA256SUMS.txt");
-  assertStringIncludes(ps1, "SHA256SUMS.txt");
-  assertEquals(sh.includes("checksums.txt"), false);
-  assertEquals(ps1.includes("checksums.txt"), false);
+  assert.assertStringIncludes(sh, "SHA256SUMS.txt");
+  assert.assertStringIncludes(ps1, "SHA256SUMS.txt");
+  assert.assertEquals(sh.includes("checksums.txt"), false);
+  assert.assertEquals(ps1.includes("checksums.txt"), false);
 });
 
 // Every product the build emits must be installable, and vice versa. A binary
@@ -65,7 +77,7 @@ Deno.test("every built binary is accepted by the installer", async () => {
     .map((m) => m[1]!)
     .sort();
 
-  assertEquals(
+  assert.assertEquals(
     built,
     ["eser", "laroux", "noskills", "noskills-server"],
     "BINARIES/GO_BINARIES changed; update the installers to match",
@@ -81,8 +93,12 @@ Deno.test("every built binary is accepted by the installer", async () => {
       q.replaceAll("'", "")
     ) ?? [];
 
-  assertEquals([...shAccepts].sort(), built, "install.sh accept-list drifted");
-  assertEquals(
+  assert.assertEquals(
+    [...shAccepts].sort(),
+    built,
+    "install.sh accept-list drifted",
+  );
+  assert.assertEquals(
     [...ps1Accepts].sort(),
     built,
     "install.ps1 ValidateSet drifted",
@@ -117,14 +133,14 @@ Deno.test("every target homebrew and nix download is actually built", async () =
       .map((m) => m[0]),
   );
 
-  assertEquals(
+  assert.assertEquals(
     referenced.size > 0,
     true,
     "parsed no target triples — the scripts changed shape, fix this test",
   );
 
   for (const target of referenced) {
-    assertEquals(
+    assert.assertEquals(
       built.includes(target),
       true,
       `${target} is downloaded by a release job but compile.ts never builds it`,

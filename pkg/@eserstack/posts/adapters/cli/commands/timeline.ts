@@ -27,7 +27,9 @@ export const main = async (
       platform = arg.slice("--platform=".length) as Platform;
     } else if (arg.startsWith("--max=")) {
       const parsed = parseInt(arg.slice("--max=".length), 10);
-      if (!isNaN(parsed)) maxResults = parsed;
+      // Only a positive count is a limit, as in `eser posts search`; zero or
+      // a negative number would make the platform API reject the request.
+      if (!isNaN(parsed) && parsed > 0) maxResults = parsed;
     } else if (arg === "--unified") {
       unified = true;
     }

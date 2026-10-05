@@ -8,23 +8,33 @@
 
 import type { FlagDef } from "./types.ts";
 
-/**
- * Internal command metadata for help generation
- */
+/** A top-level shortcut listed in help: a name that runs a nested command. */
 export type HelpShortcutMeta = {
+  /** The shortcut as typed. */
   readonly name: string;
+  /** The command path it runs, such as `["system", "install"]`. */
   readonly target: readonly string[];
+  /** One line shown next to the shortcut. */
   readonly description: string;
 };
 
+/** What {@link generateHelp} needs to know about a command. */
 export type HelpCommandMeta = {
+  /** The command's name. */
   readonly name: string;
+  /** Other names that run the same command. */
   readonly aliases?: readonly string[];
+  /** One line describing the command. */
   readonly description?: string;
+  /** A usage line that replaces the generated one. */
   readonly usage?: string;
+  /** Example invocations, one per line. */
   readonly examples?: readonly string[];
+  /** The flags the command accepts, persistent ones included. */
   readonly flags: readonly FlagDef[];
+  /** Its subcommands. */
   readonly children: readonly HelpCommandMeta[];
+  /** Shortcuts listed under the command. */
   readonly shortcuts?: readonly HelpShortcutMeta[];
 };
 

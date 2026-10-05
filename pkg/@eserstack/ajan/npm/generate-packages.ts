@@ -1,5 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+// The staging report is this script's terminal output.
+// deno-lint-ignore-file no-console
+
 /**
  * Stages built shared libraries into the platform workspace packages.
  *
@@ -37,20 +40,9 @@ import * as targets from "../targets.ts";
 
 const HEADER_FILE = "libeser_ajan.h";
 
-const fileExists = async (path: string): Promise<boolean> => {
-  try {
-    await runtime.fs.stat(path);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 const removeIfExists = async (path: string): Promise<void> => {
-  try {
+  if (await runtime.fs.exists(path)) {
     await runtime.fs.remove(path);
-  } catch {
-    // not there
   }
 };
 
@@ -65,7 +57,7 @@ const memberDir = (workspaceDir: string, suffix: string): string =>
   `${workspaceDir}/${targets.NPM_PKG_PREFIX}-${suffix}`;
 
 const requireMember = async (dir: string): Promise<void> => {
-  if (!await fileExists(`${dir}/package.json`)) {
+  if (!await runtime.fs.exists(`${dir}/package.json`)) {
     throw new Error(
       `${dir}/package.json is missing — the platform packages are committed workspace members, not generated.`,
     );
@@ -81,7 +73,7 @@ const stageNative = async (
   const buildDir = `${distDir}/${target.id}`;
   const libPath = `${buildDir}/${target.libFile}`;
 
-  if (!await fileExists(libPath)) {
+  if (!await runtime.fs.exists(libPath)) {
     return { member, status: "skip", reason: `No build output: ${libPath}` };
   }
 
@@ -90,7 +82,7 @@ const stageNative = async (
   await runtime.fs.copyFile(libPath, `${outDir}/${target.libFile}`);
 
   const headerPath = `${buildDir}/${HEADER_FILE}`;
-  if (await fileExists(headerPath)) {
+  if (await runtime.fs.exists(headerPath)) {
     await runtime.fs.copyFile(headerPath, `${outDir}/${HEADER_FILE}`);
   }
 
@@ -105,16 +97,21 @@ const stageWasm = async (
   const outDir = memberDir(workspaceDir, targets.NPM_WASM_SUFFIX);
   await requireMember(outDir);
 
-  let copied = 0;
-  for (const wt of targets.WASM_TARGETS) {
-    const srcPath = `${distDir}/${wt.id}/${wt.outputFile}`;
-    if (await fileExists(srcPath)) {
-      await runtime.fs.copyFile(srcPath, `${outDir}/${wt.outputFile}`);
-      copied++;
-    }
-  }
+  // Each module is a separate file with its own destination, so the copies
+  // run concurrently.
+  const copied = await Promise.all(
+    targets.WASM_TARGETS.map(async (wt) => {
+      const srcPath = `${distDir}/${wt.id}/${wt.outputFile}`;
+      if (!await runtime.fs.exists(srcPath)) {
+        return false;
+      }
 
-  if (copied === 0) {
+      await runtime.fs.copyFile(srcPath, `${outDir}/${wt.outputFile}`);
+      return true;
+    }),
+  );
+
+  if (!copied.includes(true)) {
     return {
       member,
       status: "skip",
@@ -126,16 +123,17 @@ const stageWasm = async (
 };
 
 const clean = async (workspaceDir: string): Promise<void> => {
-  for (const t of targets.NATIVE_TARGETS) {
-    const dir = memberDir(workspaceDir, t.npmSuffix);
-    await removeIfExists(`${dir}/${t.libFile}`);
-    await removeIfExists(`${dir}/${HEADER_FILE}`);
-  }
-
   const wasmDir = memberDir(workspaceDir, targets.NPM_WASM_SUFFIX);
-  for (const wt of targets.WASM_TARGETS) {
-    await removeIfExists(`${wasmDir}/${wt.outputFile}`);
-  }
+  const stagedFiles = [
+    ...targets.NATIVE_TARGETS.flatMap((t) => {
+      const dir = memberDir(workspaceDir, t.npmSuffix);
+      return [`${dir}/${t.libFile}`, `${dir}/${HEADER_FILE}`];
+    }),
+    ...targets.WASM_TARGETS.map((wt) => `${wasmDir}/${wt.outputFile}`),
+  ];
+
+  // Every path is a different file, so the removals run concurrently.
+  await Promise.all(stagedFiles.map(removeIfExists));
 };
 
 const main = async (): Promise<void> => {
@@ -151,22 +149,22 @@ const main = async (): Promise<void> => {
   const args = runtime.process.args as string[];
 
   if (args.includes("--clean")) {
-    // deno-lint-ignore no-console
     console.log("Removing staged platform binaries...");
     await clean(workspaceDir);
-    // deno-lint-ignore no-console
     console.log("Done.");
     return;
   }
 
-  const results: StageResult[] = [];
-  for (const target of targets.NATIVE_TARGETS) {
-    results.push(await stageNative(target, distDir, workspaceDir));
-  }
-  results.push(await stageWasm(distDir, workspaceDir));
+  // Each target copies into its own member directory, so the targets stage
+  // concurrently; Promise.all keeps the results in target order for the report.
+  const results: StageResult[] = await Promise.all([
+    ...targets.NATIVE_TARGETS.map((target) =>
+      stageNative(target, distDir, workspaceDir)
+    ),
+    stageWasm(distDir, workspaceDir),
+  ]);
 
   for (const r of results) {
-    // deno-lint-ignore no-console
     console.log(
       r.status === "ok"
         ? `  ✓ ${r.member}`
@@ -175,7 +173,6 @@ const main = async (): Promise<void> => {
   }
 
   const staged = results.filter((r) => r.status === "ok").length;
-  // deno-lint-ignore no-console
   console.log(
     `\nStaged ${staged}/${results.length} platform packages into ${workspaceDir}`,
   );
@@ -188,5 +185,7 @@ const main = async (): Promise<void> => {
 };
 
 if (import.meta.main) {
+  // A script entry point: the process has nothing else to do until main ends.
+  // deno-lint-ignore no-top-level-await
   await main();
 }

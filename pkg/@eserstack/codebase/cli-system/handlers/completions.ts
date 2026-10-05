@@ -10,7 +10,7 @@ import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
-import * as shellArgs from "@eserstack/shell/args";
+import type * as shellArgs from "@eserstack/shell/args";
 import * as shellEnv from "@eserstack/shell/env";
 
 const getInstallInstructions = (
@@ -91,11 +91,15 @@ export const completionsHandler = (
       span.cyan(shell),
       span.text(" completions..."),
     );
+    // Plain text written synchronously, like the script below: this handler
+    // is synchronous and never flushes the ANSI output above.
     // deno-lint-ignore no-console
     console.log(getInstallInstructions(shell, app.command));
     out.writeln(span.dim("--- Completion script ---\n"));
   }
 
+  // The script must reach stdout unrendered and before the handler returns,
+  // so `eval "$(... completions)"` and redirects to a file get it intact.
   // deno-lint-ignore no-console
   console.log(script);
 

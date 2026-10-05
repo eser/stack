@@ -18,49 +18,93 @@ import * as recipeApplier from "../recipe-applier.ts";
 import * as dependencyResolver from "../dependency-resolver.ts";
 import type * as registrySchema from "../registry-schema.ts";
 import type { HandlerContext } from "../handler-context.ts";
-import { ensureLib, getLib } from "../../ffi-client.ts";
+import * as errorChain from "../error-chain.ts";
+import * as ffiClient from "../../ffi-client.ts";
 
 // =============================================================================
 // Types
 // =============================================================================
 
-type AddRecipeInput = {
+/** Which recipe to add, where, and how. */
+export type AddRecipeInput = {
+  /** The name of the recipe in the registry. */
   readonly recipeName: string;
+  /** The project directory to write into. */
   readonly cwd: string;
+  /** Path or URL of the registry manifest; the default registry when absent. */
   readonly registrySource?: string;
+  /** Without a source, look for a `.eser/recipes.json` in the working directory or a parent first. */
   readonly local?: boolean;
+  /** Print what would be written, and write and install nothing. */
   readonly dryRun?: boolean;
+  /** Overwrite files that already exist. */
   readonly force?: boolean;
+  /** Leave files that already exist as they are, without a warning. */
   readonly skipExisting?: boolean;
+  /** Print a line for each file. */
   readonly verbose?: boolean;
+  /** Print the dependency install commands instead of running them. */
   readonly noInstall?: boolean;
+  /** Values for the recipe's variables by name; they win over the defaults. */
   readonly variables?: Readonly<Record<string, string>>;
 };
 
-type AddRecipeOutput = {
+/**
+ * What the add did. When the native ajan library applied the recipe,
+ * `recipe` carries only its name and `depInfo` is empty.
+ */
+export type AddRecipeOutput = {
+  /** The recipe from the registry. */
   readonly recipe: registrySchema.Recipe;
+  /** What each applied recipe wrote, the required recipes first. */
   readonly chainResult: recipeApplier.ApplyChainResult;
+  /** The install commands for the recipe's dependencies, and any warnings. */
   readonly depInfo: dependencyResolver.DependencyInstructions;
+  /** The outcome of each install command that ran; absent when none ran. */
   readonly installResults?: readonly dependencyResolver.InstallResult[];
 };
 
-type AddRecipeError =
-  | { readonly _tag: "RegistryError"; readonly message: string }
+/**
+ * Why the command stopped. `message` renders the whole cause chain for the
+ * person running the command; `cause` is the original error, for matching
+ * on its type (a RegistryLoadError for RegistryError, a RecipeApplyError
+ * or PostInstallError for ApplyError).
+ */
+export type AddRecipeError =
+  | {
+    readonly _tag: "RegistryError";
+    readonly message: string;
+    readonly cause: unknown;
+  }
   | { readonly _tag: "RecipeNotFound"; readonly message: string }
-  | { readonly _tag: "ApplyError"; readonly message: string };
+  | {
+    readonly _tag: "ApplyError";
+    readonly message: string;
+    readonly cause: unknown;
+  };
 
 // =============================================================================
 // Handler
 // =============================================================================
 
-const addRecipe = (
+/**
+ * Applies a registry recipe, after the recipes it requires, to the project in
+ * `input.cwd`, and writes the progress to `ctx.out`. Uses the native ajan
+ * library when it loads. Otherwise the TypeScript applier runs and then
+ * installs the recipe's dependencies, unless `noInstall` or `dryRun` is set.
+ *
+ * @param input - The recipe, the project directory and the options
+ * @returns A task that resolves to what was applied, or fails with a
+ *   RegistryError, RecipeNotFound or ApplyError
+ */
+export const addRecipe = (
   input: AddRecipeInput,
 ): task.Task<AddRecipeOutput, AddRecipeError, HandlerContext> =>
   task.task<AddRecipeOutput, AddRecipeError, HandlerContext>(
     async (ctx: HandlerContext) => {
       try {
-        await ensureLib();
-        const lib = getLib();
+        await ffiClient.ensureLib();
+        const lib = ffiClient.getLib();
 
         if (lib !== null) {
           const raw = lib.symbols.EserAjanKitApplyRecipe(
@@ -83,7 +127,7 @@ const addRecipe = (
             error?: string;
           };
 
-          if (!goResult.error && goResult.recipes !== undefined) {
+          if (goResult.error === undefined && goResult.recipes !== undefined) {
             let totalWritten = 0;
             let totalSkipped = 0;
             for (const entry of goResult.recipes) {
@@ -135,7 +179,14 @@ const addRecipe = (
             });
           }
 
-          if (goResult.error?.includes("not found")) {
+          // Only the bridge's error for this recipe means it is absent. Any
+          // other error, such as a registry that cannot be read, falls
+          // through to the TypeScript path, which reports it with its cause.
+          if (
+            goResult.error?.includes(
+              `recipe "${input.recipeName}" not found`,
+            ) === true
+          ) {
             return results.fail({
               _tag: "RecipeNotFound" as const,
               message:
@@ -248,12 +299,20 @@ const addRecipe = (
 
         return results.ok({ recipe, chainResult, depInfo, installResults });
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return results.fail({ _tag: "ApplyError" as const, message: msg });
+        const message = errorChain.formatErrorChain(error);
+        if (error instanceof registryFetcher.RegistryLoadError) {
+          return results.fail({
+            _tag: "RegistryError" as const,
+            message,
+            cause: error,
+          });
+        }
+
+        return results.fail({
+          _tag: "ApplyError" as const,
+          message,
+          cause: error,
+        });
       }
     },
   );
-
-export { addRecipe };
-
-export type { AddRecipeError, AddRecipeInput, AddRecipeOutput };

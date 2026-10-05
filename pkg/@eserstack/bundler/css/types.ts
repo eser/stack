@@ -122,10 +122,12 @@ export interface CssModuleOptions {
    *
    * @example
    * ```ts
-   * import { createTailwindRoot } from "@eserstack/bundler/css/tailwind-plugin";
+   * import * as css from "@eserstack/bundler/css";
    *
-   * const tailwind = createTailwindRoot({ base: "." });
-   * const result = await processCssModule("button.module.css", { tailwind });
+   * const tailwind = css.createTailwindRoot({ base: "." });
+   * const result = await css.processCssModule("button.module.css", {
+   *   tailwind,
+   * });
    * tailwind.dispose();
    * ```
    */

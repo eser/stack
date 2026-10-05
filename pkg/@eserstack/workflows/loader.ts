@@ -15,13 +15,15 @@
  * const config = await workflowLoader.loadFromFile(".");
  *
  * // Parse YAML directly
- * const config2 = workflowLoader.parseConfig(yamlString);
+ * const config2 = workflowLoader.parseConfig(
+ *   "workflows:\n  - id: ci\n    on: [precommit]\n    steps: [fix-eof]\n",
+ * );
  * ```
  *
  * @module
  */
 
-import * as yaml from "yaml";
+import * as yaml from "@eemeli/yaml";
 import * as configManifest from "@eserstack/config/manifest";
 import type { WorkflowsConfig } from "./types.ts";
 

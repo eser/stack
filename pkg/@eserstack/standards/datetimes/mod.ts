@@ -7,20 +7,17 @@
  *
  * @example
  * ```typescript
- * import {
- *   toISODate,
- *   getRelativeTime,
- *   isToday,
- * } from "@eserstack/standards/datetimes";
+ * import * as standards from "@eserstack/standards";
  *
  * // Format to ISO date
- * toISODate(new Date()); // "2024-03-15"
+ * standards.datetimes.toISODate(new Date()); // "2024-03-15"
  *
  * // Get relative time
- * getRelativeTime(new Date(Date.now() - 3600000)); // "1 hour ago"
+ * standards.datetimes.getRelativeTime(new Date(Date.now() - 3600000));
+ * // "1 hour ago"
  *
  * // Check if today
- * isToday(new Date()); // true
+ * standards.datetimes.isToday(new Date()); // true
  * ```
  *
  * @module

@@ -7,10 +7,12 @@
  */
 
 import * as persistence from "../state/persistence.ts";
+import * as cmd from "../output/cmd.ts";
 import * as machine from "../state/machine.ts";
 import * as identity from "../state/identity.ts";
 import * as specUpdater from "../spec/updater.ts";
 import * as events from "./events.ts";
+import type * as schema from "../state/schema.ts";
 import type { User } from "./state.ts";
 
 // =============================================================================
@@ -43,6 +45,17 @@ export class ActionRejectedError extends Error {
 // Helpers
 // =============================================================================
 
+/** Loads the spec's state; a missing spec's error names the configured command. */
+const resolveSpecState = async (
+  root: string,
+  specName: string,
+): Promise<schema.StateFile> =>
+  await persistence.resolveState(
+    root,
+    specName,
+    await cmd.loadCommandPrefix(root),
+  );
+
 const resolveUser = async (
   root: string,
   user?: User,
@@ -62,7 +75,7 @@ export const approve = async (
   user?: User,
 ): Promise<ActionResult> => {
   try {
-    let state = await persistence.resolveState(root, specName);
+    let state = await resolveSpecState(root, specName);
 
     if (state.phase !== "SPEC_PROPOSAL") {
       return {
@@ -109,7 +122,7 @@ export const addNote = async (
   user?: User,
 ): Promise<ActionResult> => {
   try {
-    let state = await persistence.resolveState(root, specName);
+    let state = await resolveSpecState(root, specName);
     const resolved = await resolveUser(root, user);
 
     state = machine.addSpecNote(state, text, resolved);
@@ -140,7 +153,7 @@ export const addQuestion = async (
   user?: User,
 ): Promise<ActionResult> => {
   try {
-    let state = await persistence.resolveState(root, specName);
+    let state = await resolveSpecState(root, specName);
     const resolved = await resolveUser(root, user);
 
     state = machine.addSpecNote(state, `[QUESTION] ${text}`, resolved);
@@ -202,7 +215,7 @@ export const replyMention = async (
   user?: User,
 ): Promise<ActionResult> => {
   try {
-    let state = await persistence.resolveState(root, specName);
+    let state = await resolveSpecState(root, specName);
     const resolved = await resolveUser(root, user);
 
     state = machine.addSpecNote(
@@ -237,7 +250,7 @@ export const complete = async (
   user?: User,
 ): Promise<ActionResult> => {
   try {
-    const state = await persistence.resolveState(root, specName);
+    const state = await resolveSpecState(root, specName);
 
     if (state.phase !== "EXECUTING") {
       return {

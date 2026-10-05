@@ -14,6 +14,8 @@ Deno.test("validate-code-conventions: accepts namespace, runtime and type import
     'import { runtime } from "@eserstack/standards/cross-runtime";',
     'import type { Options } from "./options.ts";',
     'import { type A, type B } from "./types.ts";',
+    'import styles from "./card.module.css";',
+    'import pkg from "./package.json" with { type: "json" };',
     'import "./side-effect.ts";',
     'export { helper } from "./helper.ts";',
     'const lazy = () => import("./lazy.ts");',
@@ -26,6 +28,7 @@ Deno.test("validate-code-conventions: flags named, default and multi-line import
   const source = [
     'import { join } from "@std/path";',
     'import React from "react";',
+    'import { card } from "./card.module.css";',
     "import {",
     "  describe,",
     "  it,",
@@ -38,8 +41,9 @@ Deno.test("validate-code-conventions: flags named, default and multi-line import
     "1:namespace-import",
     "2:namespace-import",
     "3:namespace-import",
-    "7:namespace-import",
+    "4:namespace-import",
     "8:namespace-import",
+    "9:namespace-import",
   ]);
 });
 
@@ -57,6 +61,36 @@ Deno.test("validate-code-conventions: flags literal defaults after ||", () => {
     "1:or-default",
     "2:or-default",
     "3:or-default",
+  ]);
+});
+
+Deno.test("validate-code-conventions: reads template interpolations as code", () => {
+  const source = [
+    'const label = `${name || "anonymous"}`;',
+    "const text = `a || []`;",
+  ].join("\n");
+
+  assert.assertEquals(rules(source), ["1:or-default"]);
+});
+
+Deno.test("validate-code-conventions: flags wildcard re-exports but not namespace re-exports", () => {
+  const source = [
+    'export * from "./a.ts";',
+    'export type * from "./types.ts";',
+    "export *",
+    '  from "./multi-line.ts";',
+    'export * as b from "./b.ts";',
+    'export type * as t from "./t.ts";',
+    'export { c } from "./c.ts";',
+    'export type { D } from "./d.ts";',
+    '// export * from "./e.ts";',
+    'const doc = `export * from "./f.ts"`;',
+  ].join("\n");
+
+  assert.assertEquals(rules(source), [
+    "1:export-star",
+    "2:export-star",
+    "3:export-star",
   ]);
 });
 
@@ -81,7 +115,7 @@ Deno.test({
   name: "validate-code-conventions: fails only above the baseline",
   sanitizeResources: false,
   sanitizeOps: false,
-  async fn() {
+  fn: async () => {
     const root = await runtime.fs.makeTempDir({
       prefix: "validate-code-conventions-test-",
     });
@@ -103,12 +137,21 @@ Deno.test({
         path.join(root, "new.ts"),
         "const items = list || [];\n",
       );
+      await runtime.fs.writeTextFile(
+        path.join(root, "mod.ts"),
+        'export * from "./old.ts";\n',
+      );
 
       const result = await conventions.run({ root });
       const found = result.issues
         .map((i) => `${path.basename(i.path)}:${i.line}`)
         .sort();
-      assert.assertEquals(found, ["new.ts:1", "old.ts:1", "old.ts:2"]);
+      assert.assertEquals(found, [
+        "mod.ts:1",
+        "new.ts:1",
+        "old.ts:1",
+        "old.ts:2",
+      ]);
     } finally {
       await runtime.fs.remove(root, { recursive: true });
     }

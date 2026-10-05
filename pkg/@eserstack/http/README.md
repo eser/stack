@@ -13,52 +13,81 @@ limiting.
 - **CSP Middleware**: Content Security Policy with nonce support
 - **CSRF Middleware**: Double-submit cookie pattern for CSRF protection
 - **Rate Limiter**: Instance-based rate limiting with automatic cleanup
+- **Handler Adapter**: Web `Request` to `HttpEvent` with a bounded request body
+  (413 over the limit)
 
 ## Quick Start
 
-```typescript
-import { middlewares } from "@eserstack/http";
+Each middleware is a `MiddlewareFn`: it takes the request and a `next` function
+that produces the response.
 
-// Create your middleware stack
-const corsMiddleware = middlewares.cors({
+```typescript
+import * as http from "@eserstack/http";
+
+const cors = http.middlewares.cors.cors({
   origin: ["https://example.com"],
   credentials: true,
 });
 
-const cspMiddleware = middlewares.csp({
+Deno.serve((req) => cors(req, () => new Response("OK")));
+```
+
+## Middleware Stack
+
+```typescript
+import * as http from "@eserstack/http";
+
+// Create your middleware stack
+const corsMiddleware = http.middlewares.cors.cors({
+  origin: ["https://example.com"],
+  credentials: true,
+});
+
+const cspMiddleware = http.middlewares.csp.csp({
   directives: {
     "default-src": "'self'",
     "script-src": ["'self'", "https://cdn.example.com"],
   },
 });
 
-const csrfMiddleware = middlewares.csrf({
+const csrfMiddleware = http.middlewares.csrf.csrf({
   excludePaths: ["/api/webhooks/*"],
 });
 
-const rateLimiter = middlewares.createRateLimiter({
+const rateLimiter = http.middlewares.rateLimiter.createRateLimiter({
   maxRequests: 100,
   windowMs: 60_000, // 1 minute
 });
+
+// Run them outermost first; each one calls the next. The rate limiter is not a
+// MiddlewareFn: call rateLimiter.check() in the handler (see Rate Limiter).
+const app = (req: Request) =>
+  corsMiddleware(
+    req,
+    () =>
+      cspMiddleware(req, () => csrfMiddleware(req, () => new Response("OK"))),
+  );
+
+Deno.serve(app);
 ```
 
 ## CORS Middleware
 
 ```typescript
-import { middlewares } from "@eserstack/http";
+import * as http from "@eserstack/http";
 
 // Allow all origins
-const cors = middlewares.cors();
+const allowAll = http.middlewares.cors.cors();
 
 // Allow specific origins
-const cors = middlewares.cors({
+const allowList = http.middlewares.cors.cors({
   origin: ["https://example.com", "https://app.example.com"],
   credentials: true,
   maxAge: 86400,
 });
 
 // Dynamic origin check
-const cors = middlewares.cors({
+const allowSubdomains = http.middlewares.cors.cors({
   origin: (origin) => origin.endsWith(".example.com"),
 });
 ```
@@ -66,13 +95,13 @@ const cors = middlewares.cors({
 ## CSP Middleware
 
 ```typescript
-import { middlewares } from "@eserstack/http";
+import * as http from "@eserstack/http";
 
 // Use default secure policy
-const csp = middlewares.csp();
+const defaultPolicy = http.middlewares.csp.csp();
 
 // Custom policy with nonce for inline scripts
-const csp = middlewares.csp({
+const noncePolicy = http.middlewares.csp.csp({
   useNonce: true,
   directives: {
     "default-src": "'self'",
@@ -81,19 +110,19 @@ const csp = middlewares.csp({
 });
 
 // Report-only mode for testing
-const csp = middlewares.csp({ reportOnly: true });
+const reportOnly = http.middlewares.csp.csp({ reportOnly: true });
 ```
 
 ## CSRF Middleware
 
 ```typescript
-import { middlewares } from "@eserstack/http";
+import * as http from "@eserstack/http";
 
 // Basic usage
-const csrf = middlewares.csrf();
+const csrf = http.middlewares.csrf.csrf();
 
 // Custom configuration
-const csrf = middlewares.csrf({
+const customCsrf = http.middlewares.csrf.csrf({
   cookie: "my_csrf_token",
   header: "X-My-CSRF-Token",
   excludePaths: ["/api/webhooks/*", "/health"],
@@ -105,13 +134,14 @@ const csrf = middlewares.csrf({
 
 ## Rate Limiter
 
-Instance-based rate limiting with automatic cleanup and SSRF protection.
+Instance-based rate limiting with automatic cleanup, keyed on the connection's
+peer address.
 
 ```typescript
-import { middlewares } from "@eserstack/http";
+import * as http from "@eserstack/http";
 
 // Create a rate limiter instance
-const limiter = middlewares.createRateLimiter({
+const limiter = http.middlewares.rateLimiter.createRateLimiter({
   maxRequests: 100, // Max requests per window
   windowMs: 60_000, // 1 minute window
   skipPaths: ["/health", "/api/public"],
@@ -126,7 +156,7 @@ function handleRequest(request: Request, info: Deno.ServeHandlerInfo) {
 
   // Check rate limit, keyed on the connection's peer address
   const rateLimitResponse = limiter.check(request, url.pathname, remote);
-  if (rateLimitResponse) {
+  if (rateLimitResponse !== null) {
     return rateLimitResponse; // 429 Too Many Requests
   }
 
@@ -134,7 +164,11 @@ function handleRequest(request: Request, info: Deno.ServeHandlerInfo) {
   const response = new Response("OK");
 
   // Add rate limit headers to response
-  const clientIp = middlewares.getClientIp(request, true, remote);
+  const clientIp = http.middlewares.rateLimiter.getClientIp(
+    request,
+    true,
+    remote,
+  );
   const headers = limiter.getHeaders(clientIp, url.pathname);
   for (const [key, value] of Object.entries(headers)) {
     response.headers.set(key, value);
@@ -143,8 +177,10 @@ function handleRequest(request: Request, info: Deno.ServeHandlerInfo) {
   return response;
 }
 
+Deno.serve(handleRequest);
+
 // Cleanup on server shutdown
-process.on("SIGTERM", () => {
+Deno.addSignalListener("SIGTERM", () => {
   limiter.stop();
 });
 ```
@@ -172,61 +208,99 @@ Bridge between Web `Request`/`Response` and `@eserstack/functions` handler
 pattern (`HttpEvent`/`HttpResponse`):
 
 ```typescript
-import * as httpAdapter from "@eserstack/http/adapter";
-import * as httpResponse from "@eserstack/http/response";
-import * as handler from "@eserstack/functions/handler";
-import * as task from "@eserstack/functions/task";
+import * as http from "@eserstack/http";
 
-// Convert a Web Request to an HttpEvent
-const eventResult = await httpAdapter.fromRequest(request);
+const request = new Request("https://example.com/api/items?page=2");
+
+// Convert a Web Request to an HttpEvent (a Result: ok or fail)
+const eventResult = await http.adapter.fromRequest(request);
 
 // Convert an HttpResponse back to a Web Response
-const webResponse = httpResponse.toWebResponse({
+const webResponse = http.response.toWebResponse({
   status: 200,
   headers: { "content-type": "application/json" },
   body: { ok: true },
 });
 ```
 
+### Request Body Limit
+
+`fromRequest` reads the body into memory to parse it, so it stops at
+`maxBodyBytes` (default `DEFAULT_MAX_BODY_BYTES`, 1 MiB). A `Content-Length`
+over the limit fails before any byte is read; a body without one (chunked) fails
+as soon as the bytes read pass the limit, and the rest is not read. Both fail
+with `RequestBodyTooLargeError`, whose `status` is 413:
+
+```typescript
+import * as http from "@eserstack/http";
+import * as primitives from "@eserstack/primitives";
+
+Deno.serve(async (req) => {
+  const event = await http.adapter.fromRequest(req, { maxBodyBytes: 65_536 });
+
+  if (primitives.results.isFail(event)) {
+    const status = event.error instanceof http.adapter.RequestBodyTooLargeError
+      ? event.error.status // 413 Content Too Large
+      : 400;
+    return new Response(event.error.message, { status });
+  }
+
+  return new Response(`received ${event.value.method} ${event.value.path}`);
+});
+```
+
+A `maxBodyBytes` that is not a non-negative integer throws a `RangeError`.
+
 ## API Reference
 
 ### `cors(options?)`
 
-| Option        | Type                             | Default                                             | Description                        |
-| ------------- | -------------------------------- | --------------------------------------------------- | ---------------------------------- |
-| `origin`      | `string \| string[] \| function` | `"*"`                                               | Allowed origins                    |
-| `methods`     | `string[]`                       | `["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"]` | Allowed methods                    |
-| `credentials` | `boolean`                        | `false`                                             | Allow credentials                  |
-| `maxAge`      | `number`                         | -                                                   | Preflight cache duration (seconds) |
+| Option           | Type                             | Default                                             | Description                        |
+| ---------------- | -------------------------------- | --------------------------------------------------- | ---------------------------------- |
+| `origin`         | `string \| string[] \| function` | `"*"`                                               | Allowed origins                    |
+| `methods`        | `string[]`                       | `["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"]` | Allowed methods                    |
+| `credentials`    | `boolean`                        | `false`                                             | Allow credentials                  |
+| `maxAge`         | `number`                         | -                                                   | Preflight cache duration (seconds) |
+| `allowedHeaders` | `string[]`                       | `[]`                                                | Headers the request may use        |
+| `exposedHeaders` | `string[]`                       | -                                                   | Headers the browser may read       |
 
 ### `csp(options?)`
 
-| Option       | Type                                 | Default         | Description                 |
-| ------------ | ------------------------------------ | --------------- | --------------------------- |
-| `directives` | `Record<string, string \| string[]>` | Secure defaults | CSP directives              |
-| `reportOnly` | `boolean`                            | `false`         | Use report-only mode        |
-| `useNonce`   | `boolean`                            | `false`         | Generate nonces for scripts |
+| Option       | Type                                                | Default         | Description                 |
+| ------------ | --------------------------------------------------- | --------------- | --------------------------- |
+| `directives` | `Partial<Record<CspDirective, string \| string[]>>` | Secure defaults | CSP directives              |
+| `reportOnly` | `boolean`                                           | `false`         | Use report-only mode        |
+| `useNonce`   | `boolean`                                           | `false`         | Generate nonces for scripts |
 
 ### `csrf(options?)`
 
-| Option         | Type       | Default          | Description              |
-| -------------- | ---------- | ---------------- | ------------------------ |
-| `cookie`       | `string`   | `"csrf_token"`   | Cookie name              |
-| `header`       | `string`   | `"X-CSRF-Token"` | Header name              |
-| `excludePaths` | `string[]` | -                | Paths to skip validation |
+| Option          | Type       | Default                                                    | Description               |
+| --------------- | ---------- | ---------------------------------------------------------- | ------------------------- |
+| `cookie`        | `string`   | `"csrf_token"`                                             | Cookie name               |
+| `header`        | `string`   | `"X-CSRF-Token"`                                           | Header name               |
+| `formField`     | `string`   | `"_csrf"`                                                  | Form field name           |
+| `methods`       | `string[]` | `["POST", "PUT", "PATCH", "DELETE"]`                       | Methods that need a token |
+| `excludePaths`  | `string[]` | -                                                          | Paths to skip validation  |
+| `cookieOptions` | `object`   | `httpOnly`, `secure`, `SameSite=Strict`, `path: "/"`, 24 h | Token cookie attributes   |
+
+### `adapter.fromRequest(request, options?)`
+
+| Option         | Type     | Default           | Description                 |
+| -------------- | -------- | ----------------- | --------------------------- |
+| `maxBodyBytes` | `number` | `1048576` (1 MiB) | Largest body read, in bytes |
 
 ### `createRateLimiter(options?)`
 
-| Option           | Type                        | Default                  | Description                                |
-| ---------------- | --------------------------- | ------------------------ | ------------------------------------------ |
-| `maxRequests`    | `number`                    | `100`                    | Maximum requests per window                |
-| `windowMs`       | `number`                    | `60000`                  | Time window in milliseconds                |
-| `message`        | `string`                    | `"Too many requests..."` | Rate limit error message                   |
-| `skipPaths`      | `string[]`                  | `[]`                     | Paths to skip rate limiting                |
-| `skipIps`        | `string[]`                  | `["127.0.0.1", "::1"]`   | Client addresses to skip                   |
-| `trustProxy`     | `boolean`                   | `false`                  | Read X-Forwarded-For/X-Real-IP             |
-| `trustedProxies` | `string[]`                  | `["127.0.0.1", "::1"]`   | Peers whose forwarded headers are believed |
-| `keyGenerator`   | `(req, pathname) => string` | IP-based                 | Custom rate limit key generator            |
+| Option           | Type              | Default                  | Description                                |
+| ---------------- | ----------------- | ------------------------ | ------------------------------------------ |
+| `maxRequests`    | `number`          | `100`                    | Maximum requests per window                |
+| `windowMs`       | `number`          | `60000`                  | Time window in milliseconds                |
+| `message`        | `string`          | `"Too many requests..."` | Rate limit error message                   |
+| `skipPaths`      | `string[]`        | `["/health"]`            | Paths to skip rate limiting                |
+| `skipIps`        | `string[]`        | `["127.0.0.1", "::1"]`   | Client addresses to skip                   |
+| `trustProxy`     | `boolean`         | `false`                  | Read X-Forwarded-For/X-Real-IP             |
+| `trustedProxies` | `string[]`        | `["127.0.0.1", "::1"]`   | Peers whose forwarded headers are believed |
+| `keyGenerator`   | `(req) => string` | IP-based                 | Custom rate limit key generator            |
 
 #### Rate Limiter Instance Methods
 
@@ -236,6 +310,28 @@ const webResponse = httpResponse.toWebResponse({
 | `getHeaders(clientIp, path)`        | Get rate limit headers for response     |
 | `stop()`                            | Stop cleanup interval                   |
 | `getStoreSize()`                    | Get current store size (for monitoring) |
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- `adapter.fromRequest` limits bodies to 1 MiB by default. A larger body returns
+  `results.fail(RequestBodyTooLargeError)` with status 413, and an invalid
+  `maxBodyBytes` throws `RangeError`. Raise the limit, or stream `req.body`
+  yourself for uploads:
+
+  ```typescript
+  import * as http from "@eserstack/http";
+
+  // Before
+  const request = await http.adapter.fromRequest(req);
+  // After: allow 10 MiB
+  const request = await http.adapter.fromRequest(req, {
+    maxBodyBytes: 10 * 1024 * 1024,
+  });
+  ```
 
 ---
 

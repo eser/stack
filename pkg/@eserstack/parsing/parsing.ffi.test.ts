@@ -1,8 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { ffiLoader } from "./adapters/ffi/mod.ts";
-import { PARSING_INVALID_PATTERN, ParsingError } from "./business/errors.ts";
+import * as ffi from "./adapters/ffi/mod.ts";
+import * as errors from "./business/errors.ts";
 
 Deno.test(
   {
@@ -10,7 +10,7 @@ Deno.test(
     sanitizeResources: false,
   },
   async () => {
-    const tokens = await ffiLoader.tokenize({ input: "hello world" });
+    const tokens = await ffi.ffiLoader.tokenize({ input: "hello world" });
     assert.assert(tokens.length > 0);
     const kinds = tokens.map((t) => t.kind);
     assert.assert(
@@ -29,7 +29,7 @@ Deno.test(
     sanitizeResources: false,
   },
   async () => {
-    const result = await ffiLoader.simpleTokens();
+    const result = await ffi.ffiLoader.simpleTokens();
     assert.assert(result.definitions.length > 0);
     assert.assertEquals(typeof result.definitions[0]!.name, "string");
     assert.assertEquals(typeof result.definitions[0]!.pattern, "string");
@@ -42,7 +42,7 @@ Deno.test(
     sanitizeResources: false,
   },
   async () => {
-    const tokens = await ffiLoader.tokenize({
+    const tokens = await ffi.ffiLoader.tokenize({
       input: "abc 123",
       definitions: [
         { name: "alpha", pattern: "[a-z]+" },
@@ -65,21 +65,21 @@ Deno.test(
   async () => {
     await assert.assertRejects(
       () =>
-        ffiLoader.tokenize({
+        ffi.ffiLoader.tokenize({
           input: "abc",
           definitions: [{ name: "bad", pattern: "[invalid(regexp" }],
         }),
-      ParsingError,
+      errors.ParsingError,
     );
     // confirm the error code
-    await ffiLoader
+    await ffi.ffiLoader
       .tokenize({
         input: "abc",
         definitions: [{ name: "bad", pattern: "[invalid(regexp" }],
       })
       .catch((e: unknown) => {
-        if (e instanceof ParsingError) {
-          assert.assertEquals(e.code, PARSING_INVALID_PATTERN);
+        if (e instanceof errors.ParsingError) {
+          assert.assertEquals(e.code, errors.PARSING_INVALID_PATTERN);
         }
       });
   },

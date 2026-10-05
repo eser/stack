@@ -60,7 +60,7 @@ func TestNewHTTPService(t *testing.T) { //nolint:funlen
 			t.Parallel()
 
 			logger := logfx.NewLogger()
-			router := httpfx.NewRouter("/")
+			router := httpfx.NewRouter(logger)
 
 			service := httpfx.NewHTTPService(tt.config, router, logger)
 			require.NotNil(t, service)
@@ -93,7 +93,7 @@ func TestHTTPService_Start(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	logger := logfx.NewLogger()
-	router := httpfx.NewRouter("/")
+	router := httpfx.NewRouter(logger)
 
 	// Create a listener first to get a random available port
 	listener, err := net.Listen("tcp", ":0") //nolint:gosec

@@ -27,9 +27,8 @@ code, committed config files or fixtures. A missing required secret stops
 start-up with an error that names the variable. TypeScript reads the environment
 through `runtime.env` from `@eserstack/standards/cross-runtime`, not
 `process.env` or `Deno.env`, so the code runs on every supported runtime.
-Provider keys in this repository follow the provider's own names
-(`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`), as `pkg/ajan/aifx/config.go` reads
-them.
+Provider keys use the provider's own names (`OPENAI_API_KEY`,
+`ANTHROPIC_API_KEY`), as the ajan `aifx` package reads them.
 
 ```typescript
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -305,7 +304,7 @@ name alone is relaxed in any deployment that forgot to set it.
 ## LLM Trust Boundary
 
 Scope: Code that builds prompts or consumes model output (`@eserstack/ai`,
-`aifx`, noskills agents)
+`aifx`, coding agents and their tools)
 
 Rule: User or external content in a prompt goes in a clearly delimited data
 section, never in the instruction text. Model output is untrusted input:

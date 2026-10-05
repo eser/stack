@@ -1,5 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+// Help, version and usage errors are the CLI's own terminal output.
+// deno-lint-ignore-file no-console
+
 /**
  * Command class - CLI framework
  *
@@ -9,29 +12,22 @@
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import {
-  type ArgsConfig,
-  type ArgsValidation,
-  type CliResult,
-  type CommandContext,
-  type CommandHandler,
-  type CommandLike,
-  type FallbackHandler,
-  type FlagDef,
-  type GroupOptions,
-  type LazyCommandOptions,
+import type {
+  ArgsConfig,
+  ArgsValidation,
+  CliResult,
+  CommandContext,
+  CommandHandler,
+  CommandLike,
+  FallbackHandler,
+  FlagDef,
+  GroupOptions,
+  LazyCommandOptions,
 } from "./types.ts";
-import {
-  buildParseOptions,
-  extractFlags,
-  validateRequiredFlags,
-} from "./flags.ts";
-import {
-  generateHelp,
-  type HelpCommandMeta,
-  type HelpShortcutMeta,
-} from "./help.ts";
-import { generate as generateCompletions } from "../completions/mod.ts";
+import * as flags from "./flags.ts";
+import * as help from "./help.ts";
+import type { HelpCommandMeta, HelpShortcutMeta } from "./help.ts";
+import * as completions from "../completions/mod.ts";
 import type {
   CompletionFlag,
   CompletionNode,
@@ -65,11 +61,15 @@ export class Command implements CommandLike {
   #version?: string;
   #parent?: Command;
 
+  /**
+   * Create a command with no flags, subcommands or handler yet.
+   *
+   * @param name - The command's name, as typed on the command line.
+   */
   constructor(name: string) {
     this.#name = name;
   }
 
-  /** Get the command name */
   /**
    * The configured version string, if any.
    *
@@ -80,6 +80,7 @@ export class Command implements CommandLike {
     return this.#version;
   }
 
+  /** The command's name, as typed on the command line. */
   get name(): string {
     return this.#name;
   }
@@ -327,7 +328,7 @@ export class Command implements CommandLike {
     parentPath: string[],
   ): Promise<CliResult<void>> {
     const allFlags = this.#getAllFlags();
-    const parseOptions = buildParseOptions(allFlags);
+    const parseOptions = flags.buildParseOptions(allFlags);
 
     const hasSubcommands = this.#children.length > 0 ||
       this.#lazyChildren.size > 0 ||
@@ -340,19 +341,17 @@ export class Command implements CommandLike {
       stopEarly: hasSubcommands,
     });
 
-    const flags = extractFlags(parsed, allFlags);
+    const parsedFlags = flags.extractFlags(parsed, allFlags);
     const positional = parsed._ as string[];
 
     // Handle --version at root
-    if (this.#version !== undefined && flags["version"] === true) {
-      // deno-lint-ignore no-console
+    if (this.#version !== undefined && parsedFlags["version"] === true) {
       console.log(`${this.#name} ${this.#version}`);
       return results.ok(undefined);
     }
 
     // Handle --help
-    if (flags["help"] === true) {
-      // deno-lint-ignore no-console
+    if (parsedFlags["help"] === true) {
       console.log(this.help());
       return results.ok(undefined);
     }
@@ -396,7 +395,6 @@ export class Command implements CommandLike {
           return await (loaded as Command).parse(positional.slice(1));
         }
         // Fallback: call help
-        // deno-lint-ignore no-console
         console.log(loaded.help());
         return results.ok(undefined);
       }
@@ -414,32 +412,30 @@ export class Command implements CommandLike {
       }
 
       // 4. Check groups
-      for (const [groupName, group] of this.#groups) {
-        if (firstArg === groupName) {
-          const moduleName = positional[1];
+      const group = this.#groups.get(firstArg);
+      if (group !== undefined) {
+        const moduleName = positional[1];
 
-          if (
-            moduleName === undefined || moduleName === "--help" ||
-            moduleName === "-h"
-          ) {
-            this.#showModuleGroupHelp(groupName, group);
-            return results.ok(undefined);
-          }
-
-          // Resolve aliases
-          const resolvedName = group.aliases?.[moduleName] ?? moduleName;
-          const entry = group.modules[resolvedName];
-
-          if (entry === undefined) {
-            // deno-lint-ignore no-console
-            console.error(`Unknown module: ${groupName} ${moduleName}\n`);
-            this.#showModuleGroupHelp(groupName, group);
-            return results.fail({ exitCode: 1 });
-          }
-
-          const mod = await entry.load();
-          return await mod.main(positional.slice(2));
+        if (
+          moduleName === undefined || moduleName === "--help" ||
+          moduleName === "-h"
+        ) {
+          this.#showModuleGroupHelp(firstArg, group);
+          return results.ok(undefined);
         }
+
+        // Resolve aliases
+        const resolvedName = group.aliases?.[moduleName] ?? moduleName;
+        const entry = group.modules[resolvedName];
+
+        if (entry === undefined) {
+          console.error(`Unknown module: ${firstArg} ${moduleName}\n`);
+          this.#showModuleGroupHelp(firstArg, group);
+          return results.fail({ exitCode: 1 });
+        }
+
+        const mod = await entry.load();
+        return await mod.main(positional.slice(2));
       }
 
       // 5. Fallback handler
@@ -450,13 +446,12 @@ export class Command implements CommandLike {
 
     // No handler means show help
     if (this.#handler === undefined) {
-      // deno-lint-ignore no-console
       console.log(this.help());
       return results.ok(undefined);
     }
 
     // Validate required flags
-    const flagErrors = validateRequiredFlags(flags, allFlags);
+    const flagErrors = flags.validateRequiredFlags(parsedFlags, allFlags);
     if (flagErrors.length > 0) {
       return results.fail({ message: flagErrors.join("\n"), exitCode: 1 });
     }
@@ -471,7 +466,7 @@ export class Command implements CommandLike {
     const commandPath = [...parentPath, this.#name];
     const ctx: CommandContext = {
       args: positional,
-      flags,
+      flags: parsedFlags,
       root: this.#getRoot(),
       commandPath,
     };
@@ -484,9 +479,7 @@ export class Command implements CommandLike {
     name: string,
     group: GroupOptions,
   ): void {
-    // deno-lint-ignore no-console
     console.log(`${this.#name} ${name} - ${group.description}\n`);
-    // deno-lint-ignore no-console
     console.log(`Usage: ${this.#name} ${name} <module> [options]\n`);
 
     // Group modules by category
@@ -499,23 +492,18 @@ export class Command implements CommandLike {
     }
 
     for (const [category, modules] of grouped) {
-      // deno-lint-ignore no-console
       console.log(`${category}:`);
       for (const [modName, entry] of modules) {
-        // deno-lint-ignore no-console
         console.log(`  ${modName.padEnd(24)} ${entry.description}`);
       }
-      // deno-lint-ignore no-console
       console.log();
     }
 
     if (
       group.aliases !== undefined && Object.keys(group.aliases).length > 0
     ) {
-      // deno-lint-ignore no-console
       console.log("Aliases:");
       for (const [alias, target] of Object.entries(group.aliases)) {
-        // deno-lint-ignore no-console
         console.log(`  ${alias.padEnd(24)} → ${target}`);
       }
     }
@@ -590,15 +578,15 @@ export class Command implements CommandLike {
       children: allChildren,
       shortcuts: shortcuts.length > 0 ? shortcuts : undefined,
     };
-    return generateHelp(meta, this.#getPath());
+    return help.generateHelp(meta, this.#getPath());
   }
 
   /** Build completion tree from command structure */
   #buildCompletionTree(): CompletionNode {
     const flagsToCompletionFlags = (
-      flags: readonly FlagDef[],
+      defs: readonly FlagDef[],
     ): CompletionFlag[] => {
-      return flags.map((f) => ({
+      return defs.map((f) => ({
         name: f.name,
         short: f.short,
         description: f.description,
@@ -671,6 +659,6 @@ export class Command implements CommandLike {
   /** Generate shell completion script */
   completions(shell: Shell): string {
     const tree = this.#buildCompletionTree();
-    return generateCompletions(shell, this.#name, tree);
+    return completions.generate(shell, this.#name, tree);
   }
 }

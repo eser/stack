@@ -21,7 +21,7 @@
  */
 
 import type * as types from "./types.ts";
-import { loadEserAjan } from "./mod.ts";
+import * as ffi from "./mod.ts";
 
 let library: types.FFILibrary | null = null;
 let loadPromise: Promise<void> | null = null;
@@ -39,7 +39,7 @@ const asError = (cause: unknown): Error =>
  */
 export const ensureLib = (): Promise<void> => {
   if (loadPromise === null) {
-    loadPromise = loadEserAjan()
+    loadPromise = ffi.loadEserAjan()
       .then((loaded) => {
         library = loaded;
         loadError = null;
@@ -91,16 +91,6 @@ export const requireLib = async (): Promise<types.FFILibrary> => {
   return requireLibSync();
 };
 
-/**
- * The loaded bridge, without awaiting.
- *
- * For call sites that cannot be async -- the logging hot path is the standing
- * example. `ensureLib()` must already have settled; this never triggers a load,
- * because doing so silently would hand back a `null` that looks like "no native
- * library" when it only means "not finished loading".
- *
- * @throws {Error} When the bridge is unavailable or loading has not completed.
- */
 /** How a {@link callJson} caller turns the two failure modes into its own errors. */
 export interface CallJsonOptions {
   /** Built when the bridge could not be loaded at all. */
@@ -147,6 +137,16 @@ export const callJson = async <TResponse>(
   return parsed;
 };
 
+/**
+ * The loaded bridge, without awaiting.
+ *
+ * For call sites that cannot be async -- the logging hot path is the standing
+ * example. `ensureLib()` must already have settled; this never triggers a load,
+ * because doing so silently would hand back a `null` that looks like "no native
+ * library" when it only means "not finished loading".
+ *
+ * @throws {Error} When the bridge is unavailable or loading has not completed.
+ */
 export const requireLibSync = (): types.FFILibrary => {
   if (library !== null) {
     return library;

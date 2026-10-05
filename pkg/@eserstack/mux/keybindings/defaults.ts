@@ -13,7 +13,8 @@
  */
 
 import type { Action } from "../engine/types.ts";
-import { buildKeymap, type Keymap, type KeymapTable } from "./registry.ts";
+import * as registry from "./registry.ts";
+import type { Keymap, KeymapTable } from "./registry.ts";
 
 const toNormal: Action = { type: "switchMode", mode: "normal" };
 
@@ -99,4 +100,4 @@ const DEFAULT_TABLE: KeymapTable = {
 };
 
 /** The compiled default keymap. */
-export const defaultKeymap: Keymap = buildKeymap(DEFAULT_TABLE);
+export const defaultKeymap: Keymap = registry.buildKeymap(DEFAULT_TABLE);

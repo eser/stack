@@ -10,8 +10,8 @@
  * @module
  */
 
-import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as kiroAdapterMod from "./kiro.ts";
 
@@ -29,18 +29,36 @@ const makeCtx = (root: string, rules: string[] = []) => ({
 
 let tempDir: string;
 
+type KiroHooksFile = {
+  readonly version: string;
+  readonly hooks: readonly {
+    readonly name: string;
+    readonly trigger: string;
+    readonly matcher?: string;
+    readonly action: { readonly type: string; readonly command: string };
+    readonly timeout: number;
+  }[];
+};
+
+const readHooks = async (root: string): Promise<KiroHooksFile> =>
+  JSON.parse(
+    await crossRuntime.runtime.fs.readTextFile(
+      `${root}/.kiro/hooks/noskills.json`,
+    ),
+  ) as KiroHooksFile;
+
 // =============================================================================
 // Task 9: Snapshot tests — generated file content
 // =============================================================================
 
-describe("Kiro adapter: snapshot tests", () => {
-  beforeEach(async () => {
+bdd.describe("Kiro adapter: snapshot tests", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "kiro_snap_",
     });
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
@@ -48,8 +66,8 @@ describe("Kiro adapter: snapshot tests", () => {
   // syncRules — protocol file
   // ---------------------------------------------------------------------------
 
-  describe("syncRules: noskills-protocol.md", () => {
-    it("contains YAML frontmatter with inclusion: always", async () => {
+  bdd.describe("syncRules: noskills-protocol.md", () => {
+    bdd.it("contains YAML frontmatter with inclusion: always", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncRules(ctx);
 
@@ -57,35 +75,41 @@ describe("Kiro adapter: snapshot tests", () => {
         `${tempDir}/.kiro/steering/noskills-protocol.md`,
       );
 
-      assert(content.startsWith("---\n"));
-      assertStringIncludes(content, "inclusion: always");
+      assert.assert(content.startsWith("---\n"));
+      assert.assertStringIncludes(content, "inclusion: always");
     });
 
-    it("contains 'noskills Protocol' heading and protocol commands", async () => {
-      const ctx = makeCtx(tempDir);
-      await kiroAdapterMod.kiroAdapter.syncRules(ctx);
+    bdd.it(
+      "contains 'noskills Protocol' heading and protocol commands",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await kiroAdapterMod.kiroAdapter.syncRules(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/steering/noskills-protocol.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.kiro/steering/noskills-protocol.md`,
+        );
 
-      assertStringIncludes(content, "# noskills Protocol");
-      assertStringIncludes(content, `${CMD_PREFIX} spec`);
-      assertStringIncludes(content, `--answer=`);
-    });
+        assert.assertStringIncludes(content, "# noskills Protocol");
+        assert.assertStringIncludes(content, `${CMD_PREFIX} spec`);
+        assert.assertStringIncludes(content, `--answer=`);
+      },
+    );
 
-    it("includes git-read-only section when allowGit is not set", async () => {
-      const ctx = makeCtx(tempDir);
-      await kiroAdapterMod.kiroAdapter.syncRules(ctx);
+    bdd.it(
+      "includes git-read-only section when allowGit is not set",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await kiroAdapterMod.kiroAdapter.syncRules(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/steering/noskills-protocol.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.kiro/steering/noskills-protocol.md`,
+        );
 
-      assertStringIncludes(content, "Git is read-only");
-    });
+        assert.assertStringIncludes(content, "Git is read-only");
+      },
+    );
 
-    it("omits git-read-only section when allowGit is true", async () => {
+    bdd.it("omits git-read-only section when allowGit is true", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncRules(ctx, { allowGit: true });
 
@@ -93,7 +117,7 @@ describe("Kiro adapter: snapshot tests", () => {
         `${tempDir}/.kiro/steering/noskills-protocol.md`,
       );
 
-      assertEquals(content.includes("Git is read-only"), false);
+      assert.assertEquals(content.includes("Git is read-only"), false);
     });
   });
 
@@ -101,8 +125,24 @@ describe("Kiro adapter: snapshot tests", () => {
   // syncRules — coaching file
   // ---------------------------------------------------------------------------
 
-  describe("syncRules: noskills-coaching.md", () => {
-    it("contains YAML frontmatter with inclusion: auto and name: noskills-coaching", async () => {
+  bdd.describe("syncRules: noskills-coaching.md", () => {
+    bdd.it(
+      "contains YAML frontmatter with inclusion: auto and name: noskills-coaching",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await kiroAdapterMod.kiroAdapter.syncRules(ctx);
+
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.kiro/steering/noskills-coaching.md`,
+        );
+
+        assert.assert(content.startsWith("---\n"));
+        assert.assertStringIncludes(content, "inclusion: auto");
+        assert.assertStringIncludes(content, "name: noskills-coaching");
+      },
+    );
+
+    bdd.it("contains coaching content about convention discovery", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncRules(ctx);
 
@@ -110,21 +150,8 @@ describe("Kiro adapter: snapshot tests", () => {
         `${tempDir}/.kiro/steering/noskills-coaching.md`,
       );
 
-      assert(content.startsWith("---\n"));
-      assertStringIncludes(content, "inclusion: auto");
-      assertStringIncludes(content, "name: noskills-coaching");
-    });
-
-    it("contains coaching content about convention discovery", async () => {
-      const ctx = makeCtx(tempDir);
-      await kiroAdapterMod.kiroAdapter.syncRules(ctx);
-
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/steering/noskills-coaching.md`,
-      );
-
-      assertStringIncludes(content, "Convention discovery");
-      assertStringIncludes(content, `${CMD_PREFIX} rule add`);
+      assert.assertStringIncludes(content, "Convention discovery");
+      assert.assertStringIncludes(content, `${CMD_PREFIX} rule add`);
     });
   });
 
@@ -132,8 +159,8 @@ describe("Kiro adapter: snapshot tests", () => {
   // syncRules — rules file conditional generation
   // ---------------------------------------------------------------------------
 
-  describe("syncRules: noskills-rules.md", () => {
-    it("is NOT created when rules are empty", async () => {
+  bdd.describe("syncRules: noskills-rules.md", () => {
+    bdd.it("is NOT created when rules are empty", async () => {
       const ctx = makeCtx(tempDir, []);
       await kiroAdapterMod.kiroAdapter.syncRules(ctx);
 
@@ -145,10 +172,10 @@ describe("Kiro adapter: snapshot tests", () => {
       } catch {
         exists = false;
       }
-      assertEquals(exists, false);
+      assert.assertEquals(exists, false);
     });
 
-    it("IS created when rules are provided", async () => {
+    bdd.it("IS created when rules are provided", async () => {
       const ctx = makeCtx(tempDir, ["Test rule 1", "Test rule 2"]);
       await kiroAdapterMod.kiroAdapter.syncRules(ctx);
 
@@ -156,12 +183,12 @@ describe("Kiro adapter: snapshot tests", () => {
         `${tempDir}/.kiro/steering/noskills-rules.md`,
       );
 
-      assertStringIncludes(content, "inclusion: always");
-      assertStringIncludes(content, "- Test rule 1");
-      assertStringIncludes(content, "- Test rule 2");
+      assert.assertStringIncludes(content, "inclusion: always");
+      assert.assertStringIncludes(content, "- Test rule 1");
+      assert.assertStringIncludes(content, "- Test rule 2");
     });
 
-    it("removes stale rules file when rules become empty", async () => {
+    bdd.it("removes stale rules file when rules become empty", async () => {
       // First write with rules
       const ctxWithRules = makeCtx(tempDir, ["Existing rule"]);
       await kiroAdapterMod.kiroAdapter.syncRules(ctxWithRules);
@@ -170,7 +197,7 @@ describe("Kiro adapter: snapshot tests", () => {
       const content = await crossRuntime.runtime.fs.readTextFile(
         `${tempDir}/.kiro/steering/noskills-rules.md`,
       );
-      assertStringIncludes(content, "Existing rule");
+      assert.assertStringIncludes(content, "Existing rule");
 
       // Now sync with empty rules
       const ctxNoRules = makeCtx(tempDir, []);
@@ -184,110 +211,132 @@ describe("Kiro adapter: snapshot tests", () => {
       } catch {
         exists = false;
       }
-      assertEquals(exists, false);
+      assert.assertEquals(exists, false);
     });
   });
 
   // ---------------------------------------------------------------------------
-  // syncHooks — hooks.json
+  // syncHooks: .kiro/hooks/noskills.json
   // ---------------------------------------------------------------------------
 
-  describe("syncHooks: hooks.json", () => {
-    it("contains hooks array with _noskills: true markers", async () => {
-      const ctx = makeCtx(tempDir);
-      await kiroAdapterMod.kiroAdapter.syncHooks!(ctx);
+  bdd.describe("syncHooks: .kiro/hooks/noskills.json", () => {
+    bdd.it("writes the v1 hook file with PascalCase triggers", async () => {
+      await kiroAdapterMod.kiroAdapter.syncHooks!(makeCtx(tempDir));
+      const parsed = await readHooks(tempDir);
 
-      const raw = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/settings/hooks.json`,
+      assert.assertEquals(parsed.version, "v1");
+      assert.assertEquals(
+        parsed.hooks.map((h) => h.trigger),
+        ["SessionStart", "PreToolUse", "PostToolUse", "PostToolUse", "Stop"],
       );
-      const parsed = JSON.parse(raw);
-
-      assert(Array.isArray(parsed.hooks));
-      assert(parsed.hooks.length > 0);
-
       for (const hook of parsed.hooks) {
-        assertEquals(hook._noskills, true);
+        assert.assert(hook.name.startsWith("noskills-"));
+        assert.assertEquals(hook.action.type, "command");
+        assert.assertStringIncludes(
+          hook.action.command,
+          `${CMD_PREFIX} invoke-hook `,
+        );
       }
     });
 
-    it("contains 'Pre Tool Use' and 'Agent Stop' triggers", async () => {
-      const ctx = makeCtx(tempDir);
-      await kiroAdapterMod.kiroAdapter.syncHooks!(ctx);
+    bdd.it(
+      "guards the write and shell tools, with 30 seconds for the hook",
+      async () => {
+        await kiroAdapterMod.kiroAdapter.syncHooks!(makeCtx(tempDir));
+        const parsed = await readHooks(tempDir);
+        const pre = parsed.hooks.find((h) => h.trigger === "PreToolUse");
 
-      const raw = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/settings/hooks.json`,
-      );
-      const parsed = JSON.parse(raw);
+        assert.assertEquals(pre?.timeout, 30);
+        const matcher = new RegExp(pre?.matcher ?? "^$");
+        for (
+          const tool of [
+            "write",
+            "fs_write",
+            "fsWrite",
+            "fs_append",
+            "str_replace",
+            "delete_file",
+            "shell",
+            "execute_bash",
+            "execute_cmd",
+          ]
+        ) {
+          assert.assert(matcher.test(tool), tool);
+        }
+        assert.assertEquals(matcher.test("read"), false);
+      },
+    );
 
-      const triggers = parsed.hooks.map(
-        (h: { trigger: string }) => h.trigger,
-      );
-      assert(triggers.includes("Pre Tool Use"));
-      assert(triggers.includes("Agent Stop"));
-    });
+    bdd.it(
+      "removes its entries from the old .kiro/settings/hooks.json",
+      async () => {
+        const settingsDir = `${tempDir}/.kiro/settings`;
+        await crossRuntime.runtime.fs.mkdir(settingsDir, { recursive: true });
+        await crossRuntime.runtime.fs.writeTextFile(
+          `${settingsDir}/hooks.json`,
+          JSON.stringify({
+            hooks: [
+              {
+                trigger: "Custom User Hook",
+                action: { type: "Run Command", command: "echo hello" },
+              },
+              {
+                _noskills: true,
+                trigger: "Pre Tool Use",
+                action: {
+                  type: "Run Command",
+                  command: `${CMD_PREFIX} invoke-hook pre-tool-use`,
+                },
+              },
+            ],
+          }),
+        );
 
-    it("contains 'Prompt Submit' and 'Post Tool Use' triggers", async () => {
-      const ctx = makeCtx(tempDir);
-      await kiroAdapterMod.kiroAdapter.syncHooks!(ctx);
+        await kiroAdapterMod.kiroAdapter.syncHooks!(makeCtx(tempDir));
 
-      const raw = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/settings/hooks.json`,
-      );
-      const parsed = JSON.parse(raw);
+        const legacy = JSON.parse(
+          await crossRuntime.runtime.fs.readTextFile(
+            `${settingsDir}/hooks.json`,
+          ),
+        ) as { hooks: { trigger: string }[] };
+        assert.assertEquals(
+          legacy.hooks.map((h) => h.trigger),
+          ["Custom User Hook"],
+        );
+      },
+    );
 
-      const triggers = parsed.hooks.map(
-        (h: { trigger: string }) => h.trigger,
-      );
-      assert(triggers.includes("Prompt Submit"));
-      assert(triggers.includes("Post Tool Use"));
-    });
+    bdd.it(
+      "deletes the old file when only its own entries were in it",
+      async () => {
+        const settingsDir = `${tempDir}/.kiro/settings`;
+        await crossRuntime.runtime.fs.mkdir(settingsDir, { recursive: true });
+        await crossRuntime.runtime.fs.writeTextFile(
+          `${settingsDir}/hooks.json`,
+          JSON.stringify({
+            hooks: [{ _noskills: true, trigger: "Agent Stop" }],
+          }),
+        );
 
-    it("preserves non-noskills hooks during merge", async () => {
-      const ctx = makeCtx(tempDir);
+        await kiroAdapterMod.kiroAdapter.syncHooks!(makeCtx(tempDir));
 
-      // Pre-create a hooks.json with a user hook
-      const settingsDir = `${tempDir}/.kiro/settings`;
-      await crossRuntime.runtime.fs.mkdir(settingsDir, { recursive: true });
-      await crossRuntime.runtime.fs.writeTextFile(
-        `${settingsDir}/hooks.json`,
-        JSON.stringify({
-          hooks: [
-            {
-              trigger: "Custom User Hook",
-              action: { type: "Run Command", command: "echo hello" },
-              timeout: 1000,
-            },
-          ],
-        }),
-      );
-
-      await kiroAdapterMod.kiroAdapter.syncHooks!(ctx);
-
-      const raw = await crossRuntime.runtime.fs.readTextFile(
-        `${settingsDir}/hooks.json`,
-      );
-      const parsed = JSON.parse(raw);
-
-      // User hook should still be there
-      const userHook = parsed.hooks.find(
-        (h: { trigger: string }) => h.trigger === "Custom User Hook",
-      );
-      assert(userHook !== undefined);
-
-      // noskills hooks should also be present
-      const noskillsHooks = parsed.hooks.filter(
-        (h: { _noskills?: boolean }) => h._noskills === true,
-      );
-      assert(noskillsHooks.length > 0);
-    });
+        let exists = true;
+        try {
+          await crossRuntime.runtime.fs.stat(`${settingsDir}/hooks.json`);
+        } catch {
+          exists = false;
+        }
+        assert.assertEquals(exists, false);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
   // syncAgents — agent JSON files
   // ---------------------------------------------------------------------------
 
-  describe("syncAgents: noskills-executor.json", () => {
-    it("has correct tools list including 'delegate'", async () => {
+  bdd.describe("syncAgents: noskills-executor.json", () => {
+    bdd.it("has correct tools list including 'delegate'", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncAgents!(ctx);
 
@@ -296,13 +345,15 @@ describe("Kiro adapter: snapshot tests", () => {
       );
       const parsed = JSON.parse(raw);
 
-      assert(parsed.tools.includes("delegate"));
-      assert(parsed.tools.includes("read"));
-      assert(parsed.tools.includes("write"));
-      assert(parsed.tools.includes("shell"));
+      assert.assertArrayIncludes(parsed.tools, [
+        "delegate",
+        "read",
+        "write",
+        "shell",
+      ]);
     });
 
-    it("has name 'noskills-executor'", async () => {
+    bdd.it("has name 'noskills-executor'", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncAgents!(ctx);
 
@@ -311,12 +362,12 @@ describe("Kiro adapter: snapshot tests", () => {
       );
       const parsed = JSON.parse(raw);
 
-      assertEquals(parsed.name, "noskills-executor");
+      assert.assertEquals(parsed.name, "noskills-executor");
     });
   });
 
-  describe("syncAgents: noskills-verifier.json", () => {
-    it("has 'use_subagent' in tools", async () => {
+  bdd.describe("syncAgents: noskills-verifier.json", () => {
+    bdd.it("has 'use_subagent' in tools", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncAgents!(ctx);
 
@@ -325,10 +376,10 @@ describe("Kiro adapter: snapshot tests", () => {
       );
       const parsed = JSON.parse(raw);
 
-      assert(parsed.tools.includes("use_subagent"));
+      assert.assertArrayIncludes(parsed.tools, ["use_subagent"]);
     });
 
-    it("has name 'noskills-verifier'", async () => {
+    bdd.it("has name 'noskills-verifier'", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncAgents!(ctx);
 
@@ -337,7 +388,7 @@ describe("Kiro adapter: snapshot tests", () => {
       );
       const parsed = JSON.parse(raw);
 
-      assertEquals(parsed.name, "noskills-verifier");
+      assert.assertEquals(parsed.name, "noskills-verifier");
     });
   });
 
@@ -345,8 +396,8 @@ describe("Kiro adapter: snapshot tests", () => {
   // syncMcp — mcp.json
   // ---------------------------------------------------------------------------
 
-  describe("syncMcp: mcp.json", () => {
-    it("has 'noskills' server entry with 'command' field", async () => {
+  bdd.describe("syncMcp: mcp.json", () => {
+    bdd.it("has 'noskills' server entry with 'command' field", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncMcp!(ctx);
 
@@ -355,13 +406,13 @@ describe("Kiro adapter: snapshot tests", () => {
       );
       const parsed = JSON.parse(raw);
 
-      assert(parsed.mcpServers !== undefined);
-      assert(parsed.mcpServers.noskills !== undefined);
-      assertEquals(typeof parsed.mcpServers.noskills.command, "string");
-      assert(parsed.mcpServers.noskills.command.length > 0);
+      assert.assert(parsed.mcpServers !== undefined);
+      assert.assert(parsed.mcpServers.noskills !== undefined);
+      assert.assertEquals(typeof parsed.mcpServers.noskills.command, "string");
+      assert.assert(parsed.mcpServers.noskills.command.length > 0);
     });
 
-    it("has args array ending with 'mcp-serve'", async () => {
+    bdd.it("has args array ending with 'mcp-serve'", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncMcp!(ctx);
 
@@ -371,11 +422,11 @@ describe("Kiro adapter: snapshot tests", () => {
       const parsed = JSON.parse(raw);
 
       const args = parsed.mcpServers.noskills.args;
-      assert(Array.isArray(args));
-      assertEquals(args[args.length - 1], "mcp-serve");
+      assert.assert(Array.isArray(args));
+      assert.assertEquals(args[args.length - 1], "mcp-serve");
     });
 
-    it("preserves existing non-noskills MCP servers", async () => {
+    bdd.it("preserves existing non-noskills MCP servers", async () => {
       const ctx = makeCtx(tempDir);
 
       // Pre-create mcp.json with a user server
@@ -404,9 +455,9 @@ describe("Kiro adapter: snapshot tests", () => {
       const parsed = JSON.parse(raw);
 
       // User server preserved
-      assert(parsed.mcpServers["my-custom-server"] !== undefined);
+      assert.assert(parsed.mcpServers["my-custom-server"] !== undefined);
       // noskills server added
-      assert(parsed.mcpServers.noskills !== undefined);
+      assert.assert(parsed.mcpServers.noskills !== undefined);
     });
   });
 });
@@ -415,14 +466,14 @@ describe("Kiro adapter: snapshot tests", () => {
 // Task 10: Structure validation tests
 // =============================================================================
 
-describe("Kiro adapter: structure validation", () => {
-  beforeEach(async () => {
+bdd.describe("Kiro adapter: structure validation", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "kiro_struct_",
     });
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
@@ -430,19 +481,16 @@ describe("Kiro adapter: structure validation", () => {
   // JSON files parse without error
   // ---------------------------------------------------------------------------
 
-  describe("all JSON files parse without error", () => {
-    it("hooks.json is valid JSON", async () => {
+  bdd.describe("all JSON files parse without error", () => {
+    bdd.it("hooks/noskills.json is valid JSON", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncHooks!(ctx);
 
-      const raw = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/settings/hooks.json`,
-      );
-      const parsed = JSON.parse(raw);
-      assertEquals(typeof parsed, "object");
+      const parsed = await readHooks(tempDir);
+      assert.assertEquals(typeof parsed, "object");
     });
 
-    it("noskills-executor.json is valid JSON", async () => {
+    bdd.it("noskills-executor.json is valid JSON", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncAgents!(ctx);
 
@@ -450,10 +498,10 @@ describe("Kiro adapter: structure validation", () => {
         `${tempDir}/.kiro/agents/noskills-executor.json`,
       );
       const parsed = JSON.parse(raw);
-      assertEquals(typeof parsed, "object");
+      assert.assertEquals(typeof parsed, "object");
     });
 
-    it("noskills-verifier.json is valid JSON", async () => {
+    bdd.it("noskills-verifier.json is valid JSON", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncAgents!(ctx);
 
@@ -461,10 +509,10 @@ describe("Kiro adapter: structure validation", () => {
         `${tempDir}/.kiro/agents/noskills-verifier.json`,
       );
       const parsed = JSON.parse(raw);
-      assertEquals(typeof parsed, "object");
+      assert.assertEquals(typeof parsed, "object");
     });
 
-    it("mcp.json is valid JSON", async () => {
+    bdd.it("mcp.json is valid JSON", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncMcp!(ctx);
 
@@ -472,7 +520,7 @@ describe("Kiro adapter: structure validation", () => {
         `${tempDir}/.kiro/settings/mcp.json`,
       );
       const parsed = JSON.parse(raw);
-      assertEquals(typeof parsed, "object");
+      assert.assertEquals(typeof parsed, "object");
     });
   });
 
@@ -480,59 +528,68 @@ describe("Kiro adapter: structure validation", () => {
   // YAML frontmatter validation
   // ---------------------------------------------------------------------------
 
-  describe("YAML frontmatter in steering files", () => {
-    it("protocol file starts with --- and has inclusion: field", async () => {
-      const ctx = makeCtx(tempDir);
-      await kiroAdapterMod.kiroAdapter.syncRules(ctx);
+  bdd.describe("YAML frontmatter in steering files", () => {
+    bdd.it(
+      "protocol file starts with --- and has inclusion: field",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await kiroAdapterMod.kiroAdapter.syncRules(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/steering/noskills-protocol.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.kiro/steering/noskills-protocol.md`,
+        );
 
-      assert(content.startsWith("---\n"));
-      const frontmatterEnd = content.indexOf("\n---\n", 4);
-      assert(frontmatterEnd > 0);
-      const frontmatter = content.slice(4, frontmatterEnd);
-      assertStringIncludes(frontmatter, "inclusion:");
-    });
+        assert.assert(content.startsWith("---\n"));
+        const frontmatterEnd = content.indexOf("\n---\n", 4);
+        assert.assert(frontmatterEnd > 0);
+        const frontmatter = content.slice(4, frontmatterEnd);
+        assert.assertStringIncludes(frontmatter, "inclusion:");
+      },
+    );
 
-    it("coaching file starts with --- and has inclusion: field", async () => {
-      const ctx = makeCtx(tempDir);
-      await kiroAdapterMod.kiroAdapter.syncRules(ctx);
+    bdd.it(
+      "coaching file starts with --- and has inclusion: field",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await kiroAdapterMod.kiroAdapter.syncRules(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/steering/noskills-coaching.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.kiro/steering/noskills-coaching.md`,
+        );
 
-      assert(content.startsWith("---\n"));
-      const frontmatterEnd = content.indexOf("\n---\n", 4);
-      assert(frontmatterEnd > 0);
-      const frontmatter = content.slice(4, frontmatterEnd);
-      assertStringIncludes(frontmatter, "inclusion:");
-    });
+        assert.assert(content.startsWith("---\n"));
+        const frontmatterEnd = content.indexOf("\n---\n", 4);
+        assert.assert(frontmatterEnd > 0);
+        const frontmatter = content.slice(4, frontmatterEnd);
+        assert.assertStringIncludes(frontmatter, "inclusion:");
+      },
+    );
 
-    it("rules file starts with --- and has inclusion: field when rules exist", async () => {
-      const ctx = makeCtx(tempDir, ["A rule"]);
-      await kiroAdapterMod.kiroAdapter.syncRules(ctx);
+    bdd.it(
+      "rules file starts with --- and has inclusion: field when rules exist",
+      async () => {
+        const ctx = makeCtx(tempDir, ["A rule"]);
+        await kiroAdapterMod.kiroAdapter.syncRules(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/steering/noskills-rules.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.kiro/steering/noskills-rules.md`,
+        );
 
-      assert(content.startsWith("---\n"));
-      const frontmatterEnd = content.indexOf("\n---\n", 4);
-      assert(frontmatterEnd > 0);
-      const frontmatter = content.slice(4, frontmatterEnd);
-      assertStringIncludes(frontmatter, "inclusion:");
-    });
+        assert.assert(content.startsWith("---\n"));
+        const frontmatterEnd = content.indexOf("\n---\n", 4);
+        assert.assert(frontmatterEnd > 0);
+        const frontmatter = content.slice(4, frontmatterEnd);
+        assert.assertStringIncludes(frontmatter, "inclusion:");
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
   // Agent JSON required fields
   // ---------------------------------------------------------------------------
 
-  describe("agent JSON has required fields", () => {
-    it("executor agent has name, description, tools, prompt", async () => {
+  bdd.describe("agent JSON has required fields", () => {
+    bdd.it("executor agent has name, description, tools, prompt", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncAgents!(ctx);
 
@@ -541,17 +598,17 @@ describe("Kiro adapter: structure validation", () => {
       );
       const parsed = JSON.parse(raw);
 
-      assertEquals(typeof parsed.name, "string");
-      assertEquals(typeof parsed.description, "string");
-      assert(Array.isArray(parsed.tools));
-      assertEquals(typeof parsed.prompt, "string");
-      assert(parsed.name.length > 0);
-      assert(parsed.description.length > 0);
-      assert(parsed.tools.length > 0);
-      assert(parsed.prompt.length > 0);
+      assert.assertEquals(typeof parsed.name, "string");
+      assert.assertEquals(typeof parsed.description, "string");
+      assert.assert(Array.isArray(parsed.tools));
+      assert.assertEquals(typeof parsed.prompt, "string");
+      assert.assert(parsed.name.length > 0);
+      assert.assert(parsed.description.length > 0);
+      assert.assert(parsed.tools.length > 0);
+      assert.assert(parsed.prompt.length > 0);
     });
 
-    it("verifier agent has name, description, tools, prompt", async () => {
+    bdd.it("verifier agent has name, description, tools, prompt", async () => {
       const ctx = makeCtx(tempDir);
       await kiroAdapterMod.kiroAdapter.syncAgents!(ctx);
 
@@ -560,14 +617,14 @@ describe("Kiro adapter: structure validation", () => {
       );
       const parsed = JSON.parse(raw);
 
-      assertEquals(typeof parsed.name, "string");
-      assertEquals(typeof parsed.description, "string");
-      assert(Array.isArray(parsed.tools));
-      assertEquals(typeof parsed.prompt, "string");
-      assert(parsed.name.length > 0);
-      assert(parsed.description.length > 0);
-      assert(parsed.tools.length > 0);
-      assert(parsed.prompt.length > 0);
+      assert.assertEquals(typeof parsed.name, "string");
+      assert.assertEquals(typeof parsed.description, "string");
+      assert.assert(Array.isArray(parsed.tools));
+      assert.assertEquals(typeof parsed.prompt, "string");
+      assert.assert(parsed.name.length > 0);
+      assert.assert(parsed.description.length > 0);
+      assert.assert(parsed.tools.length > 0);
+      assert.assert(parsed.prompt.length > 0);
     });
   });
 
@@ -575,51 +632,54 @@ describe("Kiro adapter: structure validation", () => {
   // MCP JSON structure
   // ---------------------------------------------------------------------------
 
-  describe("MCP JSON structure", () => {
-    it("has mcpServers object with server entries having command + args", async () => {
-      const ctx = makeCtx(tempDir);
-      await kiroAdapterMod.kiroAdapter.syncMcp!(ctx);
+  bdd.describe("MCP JSON structure", () => {
+    bdd.it(
+      "has mcpServers object with server entries having command + args",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await kiroAdapterMod.kiroAdapter.syncMcp!(ctx);
 
-      const raw = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/settings/mcp.json`,
-      );
-      const parsed = JSON.parse(raw);
+        const raw = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.kiro/settings/mcp.json`,
+        );
+        const parsed = JSON.parse(raw);
 
-      assertEquals(typeof parsed.mcpServers, "object");
-      assert(parsed.mcpServers !== null);
+        assert.assertEquals(typeof parsed.mcpServers, "object");
+        assert.assert(parsed.mcpServers !== null);
 
-      for (const [_key, server] of Object.entries(parsed.mcpServers)) {
-        const srv = server as { command: string; args: string[] };
-        assertEquals(typeof srv.command, "string");
-        assert(Array.isArray(srv.args));
-      }
-    });
+        for (const [_key, server] of Object.entries(parsed.mcpServers)) {
+          const srv = server as { command: string; args: string[] };
+          assert.assertEquals(typeof srv.command, "string");
+          assert.assert(Array.isArray(srv.args));
+        }
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
   // Hooks JSON structure
   // ---------------------------------------------------------------------------
 
-  describe("Hooks JSON structure", () => {
-    it("has hooks array where each entry has trigger + action fields", async () => {
-      const ctx = makeCtx(tempDir);
-      await kiroAdapterMod.kiroAdapter.syncHooks!(ctx);
+  bdd.describe("Hooks JSON structure", () => {
+    bdd.it(
+      "has hooks array where each entry has trigger + action fields",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await kiroAdapterMod.kiroAdapter.syncHooks!(ctx);
 
-      const raw = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.kiro/settings/hooks.json`,
-      );
-      const parsed = JSON.parse(raw);
+        const parsed = await readHooks(tempDir);
 
-      assert(Array.isArray(parsed.hooks));
+        assert.assert(Array.isArray(parsed.hooks));
 
-      for (const hook of parsed.hooks) {
-        assertEquals(typeof hook.trigger, "string");
-        assert(hook.trigger.length > 0);
-        assertEquals(typeof hook.action, "object");
-        assert(hook.action !== null);
-        assertEquals(typeof hook.action.type, "string");
-        assertEquals(typeof hook.action.command, "string");
-      }
-    });
+        for (const hook of parsed.hooks) {
+          assert.assertEquals(typeof hook.trigger, "string");
+          assert.assert(hook.trigger.length > 0);
+          assert.assertEquals(typeof hook.action, "object");
+          assert.assert(hook.action !== null);
+          assert.assertEquals(typeof hook.action.type, "string");
+          assert.assertEquals(typeof hook.action.command, "string");
+        }
+      },
+    );
   });
 });

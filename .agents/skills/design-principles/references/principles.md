@@ -1,7 +1,7 @@
 # Design Principles
 
-How functions, modules, data and state are shaped in eserstack, in TypeScript
-and Go. Architecture-level structure (ports, adapters, composition roots) is in
+How functions, modules, data and state are shaped, in TypeScript and Go.
+Architecture-level structure (ports, adapters, composition roots) is in
 architecture-guidelines: Hexagonal Architecture (Double-Layered).
 
 ## Contents
@@ -98,12 +98,12 @@ types turn that expectation into a compile error.
 
 Scope: Interfaces and the functions that accept them, in TypeScript and Go
 
-Rule: Define small, purpose-specific interfaces, ideally in the package that
-uses them. Public functions accept an interface, not a concrete type, so callers
-can pass any implementation and tests can pass a fake. Pass dependencies in
-(parameters, a deps object, a constructor) instead of inheriting behavior from a
-base class. Do not add a wrapper that only forwards to another method; call the
-method directly.
+Rule: Define small, purpose-specific interfaces in the package that uses them
+(in a hexagonal package, the `domain/` that declares the port). Public functions
+accept an interface, not a concrete type, so callers can pass any implementation
+and tests can pass a fake. Pass dependencies in (parameters, a deps object, a
+constructor) instead of inheriting behavior from a base class. Do not add a
+wrapper that only forwards to another method; call the method directly.
 
 Correct:
 

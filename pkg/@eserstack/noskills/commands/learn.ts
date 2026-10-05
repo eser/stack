@@ -14,6 +14,7 @@ import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as learnings from "../dashboard/learnings.ts";
 import * as syncEngine from "../sync/engine.ts";
+import * as cmd from "../output/cmd.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 /** Create a rule file from text. Returns the file path. */
@@ -60,6 +61,7 @@ export const main = async (
   });
 
   const { root } = await persistence.resolveProjectRoot();
+  await cmd.loadCommandPrefix(root);
   const sub = args?.[0];
 
   // noskills learn list
@@ -101,7 +103,7 @@ export const main = async (
   if (sub === "remove") {
     const idx = parseInt(args?.[1] ?? "", 10) - 1;
     if (isNaN(idx) || idx < 0) {
-      out.writeln(span.red("Usage: noskills learn remove <number>"));
+      out.writeln(span.red(`Usage: ${cmd.cmd("learn remove <number>")}`));
       await out.close();
       return results.fail({ exitCode: 1 });
     }
@@ -120,7 +122,7 @@ export const main = async (
   if (sub === "promote") {
     const idx = parseInt(args?.[1] ?? "", 10) - 1;
     if (isNaN(idx) || idx < 0) {
-      out.writeln(span.red("Usage: noskills learn promote <number>"));
+      out.writeln(span.red(`Usage: ${cmd.cmd("learn promote <number>")}`));
       await out.close();
       return results.fail({ exitCode: 1 });
     }
@@ -156,7 +158,7 @@ export const main = async (
 
   if (text.length === 0) {
     out.writeln(
-      span.red('Usage: noskills spec <name> learn "learning text"'),
+      span.red(`Usage: ${cmd.cmd('spec <name> learn "learning text"')}`),
     );
     out.writeln(
       span.dim("  Add --rule to create a permanent project rule instead."),
@@ -222,20 +224,20 @@ export const main = async (
     severity,
   });
 
-  // Suggest promotion if it looks like a rule
-  const suggestion = looksLikeRule(text)
-    ? span.dim(
-      "\n  Tip: This sounds like a permanent rule. Add --rule to enforce it in every spec.",
-    )
-    : "";
-
   out.writeln(
     span.green("\u2714"),
     ` Learning recorded: [${type}] ${text.slice(0, 60)}${
       text.length > 60 ? "..." : ""
     }`,
   );
-  if (suggestion) out.writeln(suggestion);
+  // Suggest promotion if it looks like a rule
+  if (looksLikeRule(text)) {
+    out.writeln(
+      span.dim(
+        "\n  Tip: This sounds like a permanent rule. Add --rule to enforce it in every spec.",
+      ),
+    );
+  }
   await out.close();
   return results.ok(undefined);
 };

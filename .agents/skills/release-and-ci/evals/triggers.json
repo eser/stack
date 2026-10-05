@@ -64,6 +64,18 @@
     "should_trigger": true
   },
   {
+    "query": "write a Dockerfile for the API service",
+    "should_trigger": true
+  },
+  {
+    "query": "the worker image is built FROM node:24-alpine, review it",
+    "should_trigger": true
+  },
+  {
+    "query": "our Docker image ships the whole Go toolchain, slim it down",
+    "should_trigger": true
+  },
+  {
     "query": "update the README badge list",
     "should_trigger": false
   },

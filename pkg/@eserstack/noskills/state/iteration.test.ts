@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals, assertFalse } from "@std/assert";
+import * as assert from "@std/assert";
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 
@@ -11,10 +11,10 @@ const PROGRESSES = ".eser/.state/progresses";
 const makeProject = async (
   execution: Record<string, unknown>,
 ): Promise<string> => {
-  const root = await Deno.makeTempDir({ prefix: "noskills-iteration-" });
+  const root = await runtime.fs.makeTempDir({ prefix: "noskills-iteration-" });
 
-  await Deno.mkdir(`${root}/${PROGRESSES}`, { recursive: true });
-  await Deno.writeTextFile(
+  await runtime.fs.mkdir(`${root}/${PROGRESSES}`, { recursive: true });
+  await runtime.fs.writeTextFile(
     `${root}/${PROGRESSES}/state.json`,
     JSON.stringify({ phase: "EXECUTING", execution }, null, 2),
   );
@@ -23,7 +23,7 @@ const makeProject = async (
 };
 
 const readState = async (root: string): Promise<Record<string, unknown>> =>
-  JSON.parse(await Deno.readTextFile(`${root}/${PROGRESSES}/state.json`));
+  JSON.parse(await runtime.fs.readTextFile(`${root}/${PROGRESSES}/state.json`));
 
 // The whole point of the driver flag: exactly one writer per turn. If this
 // returns false while `noskills run` is driving, the in-agent Stop hook records
@@ -31,16 +31,16 @@ const readState = async (root: string): Promise<Record<string, unknown>> =>
 // state.json lose one of the updates.
 Deno.test("driver flag decides which writer owns the turn", () => {
   // A claim from THIS process: its pid is alive by construction.
-  assert(
+  assert.assert(
     iteration.isDriverAuthoritative({
       driver: "acp",
       driverPid: runtime.process.pid,
     }),
   );
 
-  assertFalse(iteration.isDriverAuthoritative({}));
-  assertFalse(iteration.isDriverAuthoritative(undefined));
-  assertFalse(iteration.isDriverAuthoritative({ driver: "hook" }));
+  assert.assertFalse(iteration.isDriverAuthoritative({}));
+  assert.assertFalse(iteration.isDriverAuthoritative(undefined));
+  assert.assertFalse(iteration.isDriverAuthoritative({ driver: "hook" }));
 });
 
 // A claim is released in a `finally`, which does not run when the loop is
@@ -49,21 +49,21 @@ Deno.test("driver flag decides which writer owns the turn", () => {
 // one interrupted run into permanent breakage.
 Deno.test("a claim whose owner died is not honoured", async () => {
   // A real pid that is guaranteed dead: spawn something trivial and wait for it.
-  const dead = new Deno.Command("true", {
+  const dead = runtime.exec.spawnChild("true", [], {
     stdout: "null",
     stderr: "null",
-  }).spawn();
+  });
   const pid = dead.pid;
 
   await dead.status;
 
-  assertFalse(
+  assert.assertFalse(
     iteration.isDriverAuthoritative({ driver: "acp", driverPid: pid }),
     "a claim from an exited process must not bind",
   );
 
   // A claim with no pid at all cannot be verified, so it must not bind either.
-  assertFalse(iteration.isDriverAuthoritative({ driver: "acp" }));
+  assert.assertFalse(iteration.isDriverAuthoritative({ driver: "acp" }));
 });
 
 Deno.test("setDriver claims and releases without disturbing the rest of state", async () => {
@@ -80,11 +80,11 @@ Deno.test("setDriver claims and releases without disturbing the rest of state", 
       unknown
     >;
 
-    assertEquals(execution["driver"], "acp");
-    assertEquals(execution["driverPid"], runtime.process.pid);
+    assert.assertEquals(execution["driver"], "acp");
+    assert.assertEquals(execution["driverPid"], runtime.process.pid);
     // Claiming must not clobber the fields the loop reads back next iteration.
-    assertEquals(execution["iteration"], 4);
-    assertEquals(execution["lastProgress"], "earlier work");
+    assert.assertEquals(execution["iteration"], 4);
+    assert.assertEquals(execution["lastProgress"], "earlier work");
 
     await iteration.setDriver(root, null);
 
@@ -93,18 +93,18 @@ Deno.test("setDriver claims and releases without disturbing the rest of state", 
     // Released, not merely set to a falsy value: isDriverAuthoritative checks
     // for the literal "acp", but leaving a key behind would still show up in
     // state.json and read as though a loop were running.
-    assertFalse("driver" in execution);
-    assertFalse("driverPid" in execution);
-    assertEquals(execution["iteration"], 4);
+    assert.assertFalse("driver" in execution);
+    assert.assertFalse("driverPid" in execution);
+    assert.assertEquals(execution["iteration"], 4);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await runtime.fs.remove(root, { recursive: true });
   }
 });
 
 Deno.test("recordIteration bumps the counter and captures tracked files", async () => {
   const root = await makeProject({ iteration: 2, lastProgress: "old" });
 
-  await Deno.writeTextFile(
+  await runtime.fs.writeTextFile(
     `${root}/${PROGRESSES}/files-changed.jsonl`,
     ['{"file":"a.ts"}', '{"file":"b.ts"}', '{"file":"a.ts"}', "not json"].join(
       "\n",
@@ -114,29 +114,29 @@ Deno.test("recordIteration bumps the counter and captures tracked files", async 
   try {
     const record = await iteration.recordIteration(root);
 
-    assert(record !== null);
-    assertEquals(record.iteration, 3);
+    assert.assert(record !== null);
+    assert.assertEquals(record.iteration, 3);
 
     // Deduplicated, and the unparseable line is skipped rather than throwing —
     // a corrupt log line must not take down the turn that just succeeded.
-    assertEquals([...record.modifiedFiles].sort(), ["a.ts", "b.ts"]);
+    assert.assertEquals([...record.modifiedFiles].sort(), ["a.ts", "b.ts"]);
 
     const execution = (await readState(root))["execution"] as Record<
       string,
       unknown
     >;
 
-    assertEquals(execution["iteration"], 3);
+    assert.assertEquals(execution["iteration"], 3);
 
     // The tracking log resets so the next iteration starts from empty; without
     // this every later iteration reports a growing union of all earlier files.
-    const log = await Deno.readTextFile(
+    const log = await runtime.fs.readTextFile(
       `${root}/${PROGRESSES}/files-changed.jsonl`,
     );
 
-    assertEquals(log, "");
+    assert.assertEquals(log, "");
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await runtime.fs.remove(root, { recursive: true });
   }
 });
 
@@ -153,21 +153,21 @@ Deno.test("a no-op turn keeps the previous progress note", async () => {
   // stat falls back to the literal "no changes", and because that is a truthy
   // string it overwrites lastProgress -- so the no-op path would never be
   // exercised and this test would pass against a broken implementation.
-  await new Deno.Command("git", { args: ["init", "-q"], cwd: root }).output();
+  await runtime.exec.spawn("git", ["init", "-q"], { cwd: root });
 
   try {
     const record = await iteration.recordIteration(root);
 
-    assert(record !== null);
+    assert.assert(record !== null);
 
     const execution = (await readState(root))["execution"] as Record<
       string,
       unknown
     >;
 
-    assertEquals(execution["lastProgress"], "added parser");
+    assert.assertEquals(execution["lastProgress"], "added parser");
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await runtime.fs.remove(root, { recursive: true });
   }
 });
 
@@ -186,26 +186,26 @@ Deno.test("progress survives when git cannot be consulted", async () => {
   try {
     const record = await iteration.recordIteration(root);
 
-    assert(record !== null);
-    assertEquals(record.gitStat, "");
+    assert.assert(record !== null);
+    assert.assertEquals(record.gitStat, "");
 
     const execution = (await readState(root))["execution"] as Record<
       string,
       unknown
     >;
 
-    assertEquals(execution["lastProgress"], "added parser");
+    assert.assertEquals(execution["lastProgress"], "added parser");
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await runtime.fs.remove(root, { recursive: true });
   }
 });
 
 Deno.test("recordIteration reports failure rather than throwing when state is absent", async () => {
-  const root = await Deno.makeTempDir({ prefix: "noskills-iteration-" });
+  const root = await runtime.fs.makeTempDir({ prefix: "noskills-iteration-" });
 
   try {
-    assertEquals(await iteration.recordIteration(root), null);
+    assert.assertEquals(await iteration.recordIteration(root), null);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await runtime.fs.remove(root, { recursive: true });
   }
 });

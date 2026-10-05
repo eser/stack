@@ -2,12 +2,19 @@ package httpfx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 )
+
+// errSocketOptions marks a listener that could not set its socket options.
+// It is the one NewHighPerfListener failure a plain listener can avoid; an
+// address in use or an invalid address fails both the same way.
+var errSocketOptions = errors.New("set listener socket options")
 
 // ListenerConfig holds configuration for the high-performance TCP listener.
 type ListenerConfig struct {
@@ -31,6 +38,12 @@ type HighPerfListener struct {
 	config      *ListenerConfig
 	connSem     chan struct{} // Semaphore for connection limiting
 	activeConns int64         // Atomic counter for active connections
+
+	// closed is closed by Close. An Accept waiting for a free connection
+	// slot is not waiting on the inner listener, so closing that one alone
+	// would leave it blocked until a connection ends.
+	closed    chan struct{}
+	closeOnce sync.Once
 }
 
 // NewHighPerfListener creates a high-performance TCP listener with optimized socket options.
@@ -47,7 +60,12 @@ func NewHighPerfListener(
 	// Create listener config with socket options
 	listenCfg := &net.ListenConfig{ //nolint:exhaustruct
 		Control: func(_, _ string, c syscall.RawConn) error {
-			return applySocketOptions(c, config)
+			err := applySocketOptions(c, config)
+			if err != nil {
+				return fmt.Errorf("%w: %w", errSocketOptions, err)
+			}
+
+			return nil
 		},
 		KeepAlive: config.KeepAlivePeriod,
 	}
@@ -58,11 +76,12 @@ func NewHighPerfListener(
 		return nil, fmt.Errorf("high-perf listener creation: %w", err)
 	}
 
-	hpl := &HighPerfListener{
+	hpl := &HighPerfListener{ //nolint:exhaustruct // closeOnce is ready as its zero value
 		Listener:    listener,
 		config:      config,
 		connSem:     nil,
 		activeConns: 0,
+		closed:      make(chan struct{}),
 	}
 
 	// Initialize connection semaphore if limiting is enabled
@@ -74,11 +93,16 @@ func NewHighPerfListener(
 }
 
 // Accept waits for and returns the next connection with optimized settings.
-// If MaxConnections is set, it blocks when the limit is reached.
+// If MaxConnections is set, it blocks when the limit is reached, until a
+// connection closes or the listener does.
 func (l *HighPerfListener) Accept() (net.Conn, error) {
 	// Acquire semaphore slot if connection limiting is enabled
 	if l.connSem != nil {
-		l.connSem <- struct{}{}
+		select {
+		case l.connSem <- struct{}{}:
+		case <-l.closed:
+			return nil, fmt.Errorf("listener accept: %w", net.ErrClosed)
+		}
 	}
 
 	conn, err := l.Listener.Accept()
@@ -116,6 +140,21 @@ func (l *HighPerfListener) Accept() (net.Conn, error) {
 		listener: l,
 		closed:   0,
 	}, nil
+}
+
+// Close closes the listener and ends an Accept that is waiting for a free
+// connection slot. Connections already accepted stay open.
+func (l *HighPerfListener) Close() error {
+	l.closeOnce.Do(func() {
+		close(l.closed)
+	})
+
+	err := l.Listener.Close()
+	if err != nil {
+		return fmt.Errorf("listener close: %w", err)
+	}
+
+	return nil
 }
 
 // ActiveConnections returns the current number of active connections.

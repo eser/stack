@@ -114,7 +114,7 @@ func executeTestRequest(t *testing.T, incomingTraceparent string) (string, strin
 	logger.InnerTracerProvider = otel.GetTracerProvider()
 
 	// Create router with middleware chain
-	router := httpfx.NewRouter("/")
+	router := httpfx.NewRouter(logger)
 
 	// Add trace ID middleware first
 	router.Use(middlewares.TracingMiddleware(logger, ""))

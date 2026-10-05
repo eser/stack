@@ -5,11 +5,16 @@
  */
 
 // RSC Chunk Types
-export const RSC_CHUNK_MODULE = "M"; // Module reference
-export const RSC_CHUNK_JSON = "J"; // JSON data
-export const RSC_CHUNK_ERROR = "E"; // Error
-export const RSC_CHUNK_SUSPENSE = "P"; // Promise/Suspense boundary
-export const RSC_CHUNK_SYMBOL = "S"; // Symbol reference
+/** Chunk type of a module reference (a client component). */
+export const RSC_CHUNK_MODULE = "M";
+/** Chunk type of JSON data. */
+export const RSC_CHUNK_JSON = "J";
+/** Chunk type of an error. */
+export const RSC_CHUNK_ERROR = "E";
+/** Chunk type of a promise or Suspense boundary. */
+export const RSC_CHUNK_SUSPENSE = "P";
+/** Chunk type of a symbol or server action reference. */
+export const RSC_CHUNK_SYMBOL = "S";
 
 /**
  * Module reference format
@@ -59,6 +64,70 @@ export type RSCChunk =
   | { type: "E"; id: number; value: { message: string; stack?: string } }
   | { type: "P"; id: number; value: number } // Promise ID
   | { type: "S"; id: number; value: string | ServerActionReference }; // Symbol or Server Action
+
+/**
+ * Tags of the values a J chunk carries as strings.
+ *
+ * A string in a J chunk that starts with "$" is a reference (`$12`, `$M3`,
+ * `$F4`) or one of these tags, so encoders send every other string that
+ * starts with "$" with a second "$" in front (`escaped`). Values JSON cannot
+ * hold get a tag: a Date is `$D` and its ISO string, a BigInt `$n` and its
+ * digits, and a Map or a Set `$Q` or `$W` and the id of a J chunk that holds
+ * its entries or values. The names follow React Flight's encoding.
+ */
+export const RSC_VALUE_TAGS = {
+  escaped: "$$",
+  date: "$D",
+  bigint: "$n",
+  map: "$Q",
+  set: "$W",
+  undefined: "$undefined",
+  nan: "$NaN",
+  infinity: "$Infinity",
+  negativeInfinity: "$-Infinity",
+  negativeZero: "$-0",
+} as const;
+
+/**
+ * Escape a string for a J chunk: one that starts with "$" gets a second "$"
+ * in front, so the client does not read it as a reference or a tag.
+ */
+export function escapeString(value: string): string {
+  return value.startsWith("$") ? `$${value}` : value;
+}
+
+/**
+ * Encode a value for a J chunk with JSON semantics: what `JSON.stringify`
+ * keeps arrives the same, and strings that start with "$" are escaped. Returns
+ * `undefined` where `JSON.stringify` drops the value (`undefined`, functions,
+ * symbols). Server components pass client component props through this, so
+ * they keep the plain-JSON behavior that laroux documents for them.
+ */
+export function encodeJsonValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return escapeString(value);
+  }
+
+  if (
+    value === null || typeof value === "number" || typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (
+    value === undefined || typeof value === "function" ||
+    typeof value === "symbol"
+  ) {
+    return undefined;
+  }
+
+  const json = JSON.stringify(
+    value,
+    (_key, item) => typeof item === "string" ? escapeString(item) : item,
+  );
+
+  return json === undefined ? undefined : JSON.parse(json);
+}
 
 /**
  * Serialize an RSC chunk to wire format

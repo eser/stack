@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { appendToObject } from "./append-to-object.ts";
+import * as appendToObject from "./append-to-object.ts";
 
 const group = "append-to-object";
 
@@ -10,7 +10,7 @@ Deno.bench(
   () => {
     const obj1 = { a: 1, b: 2 };
 
-    appendToObject(obj1, { c: 3 });
+    appendToObject.appendToObject(obj1, { c: 3 });
   },
 );
 

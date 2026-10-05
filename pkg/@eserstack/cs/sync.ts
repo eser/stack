@@ -3,7 +3,6 @@
 import * as formats from "@eserstack/formats";
 import * as dotenv from "@eserstack/config/dotenv";
 import * as shellExec from "@eserstack/shell/exec";
-import { ensureLib, getLib } from "./ffi-client.ts";
 import type {
   ConfigMap,
   KubectlResourceReference,
@@ -16,9 +15,11 @@ const K8S_MAX_NAME_LENGTH = 253; // RFC 1123 DNS subdomain max length
 const ERROR_PREVIEW_LENGTH = 100; // Characters to show in error previews
 
 /**
- * Kubernetes resource name validation error
+ * Thrown when a Kubernetes resource name or namespace breaks the RFC 1123 DNS
+ * subdomain rules, before any command runs.
  */
 export class KubernetesResourceNameError extends Error {
+  /** Creates the error with a message that names the field and the value. */
   constructor(message: string) {
     super(message);
     this.name = "KubernetesResourceNameError";
@@ -114,7 +115,7 @@ export const executeKubectl = async (
     `${resourceType}/${resource.name}`,
   ];
 
-  if (resource.namespace) {
+  if (resource.namespace !== undefined) {
     args.push("-n", resource.namespace);
   }
 
@@ -142,17 +143,23 @@ export const executeKubectl = async (
   } catch (_parseError) {
     throw new Error(
       `Failed to parse kubectl output as JSON: ${
-        output.substring(0, ERROR_PREVIEW_LENGTH)
+        output.slice(0, ERROR_PREVIEW_LENGTH)
       }...`,
     );
   }
 };
 
+// A manifest leaves out an empty or "default" namespace, as the Go builder
+// does, so kubectl uses the namespace of its current context.
+const isNamedNamespace = (namespace: string | undefined): boolean =>
+  namespace !== undefined && namespace !== "" && namespace !== "default";
+
 /**
  * Builds a Kubernetes Secret resource from the given context.
  *
  * @param name - The Secret name
- * @param namespace - The namespace (optional)
+ * @param namespace - The namespace; left out of the metadata when it is
+ *   absent, empty or `"default"`
  * @param data - Map of key-value pairs to include in the Secret
  * @returns A Kubernetes Secret resource object
  *
@@ -182,15 +189,22 @@ export const buildSecretFromContext = (
     kind: "Secret",
     metadata: {
       name,
-      ...(namespace !== undefined && namespace !== "default"
-        ? { namespace }
-        : {}),
+      ...(isNamedNamespace(namespace) ? { namespace } : {}),
     },
     data: encodedData,
     type: "Opaque",
   };
 };
 
+/**
+ * Builds a Kubernetes ConfigMap resource from the given context.
+ *
+ * @param name - The ConfigMap name
+ * @param namespace - The namespace; left out of the metadata when it is
+ *   absent, empty or `"default"`
+ * @param data - Map of key-value pairs to include in the ConfigMap
+ * @returns A Kubernetes ConfigMap resource object
+ */
 export const buildConfigMapFromContext = (
   name: string,
   namespace: string | undefined,
@@ -201,7 +215,7 @@ export const buildConfigMapFromContext = (
     kind: "ConfigMap",
     metadata: {
       name,
-      ...(namespace && namespace !== "default" ? { namespace } : {}),
+      ...(isNamedNamespace(namespace) ? { namespace } : {}),
     },
     data: Object.fromEntries(data.entries()),
   };
@@ -211,6 +225,9 @@ export const buildConfigMapFromContext = (
  * Synchronizes environment variables with a Kubernetes ConfigMap or Secret.
  * Generates a kubectl patch command that can be executed to update the resource.
  *
+ * The patch holds only the keys the resource already has. A key with no value
+ * in the environment is left out and reported through `onMissingKey`.
+ *
  * @param options - Sync configuration options
  * @returns A kubectl patch command string or the patch data (if stringOnly is true)
  * @throws {KubernetesResourceNameError} If resource name/namespace is invalid
@@ -218,55 +235,39 @@ export const buildConfigMapFromContext = (
  *
  * @example
  * ```typescript
- * const command = await sync({
- *   resource: { type: "configmap", name: "my-config", namespace: "default" },
- *   format: "json"
+ * import * as cs from "@eserstack/cs";
+ *
+ * const command = await cs.sync({
+ *   resource: { type: "configmap", name: "my-config", namespace: "staging" },
+ *   env: "staging",
+ *   format: "json",
  * });
- * // Returns: kubectl patch cm my-config -n default --type=merge -p '{"data":{...}}'
+ * // kubectl patch cm my-config -n staging --type=merge -p '{"data":{...}}'
  * ```
  */
 export const sync = async (options: SyncOptions): Promise<string> => {
-  // FFI path: delegate to Go csfx.Sync when an explicit env file path is given.
-  // When options.env is undefined, TS loads process.env — no Go equivalent.
-  await ensureLib();
-  const lib = getLib();
-  if (lib !== null && typeof options.env === "string") {
-    try {
-      const requestJSON = JSON.stringify({
-        resource: options.resource,
-        envFile: options.env,
-        format: options.format ?? "json",
-        stringOnly: options.stringOnly ?? false,
-      });
-      const raw = lib.symbols.EserAjanCsSync(requestJSON);
-      const parsed = JSON.parse(raw) as { result?: string; error?: string };
-      if (!parsed.error) {
-        return parsed.result ?? "";
-      }
-      // Non-fatal: fall through to TS fallback
-    } catch {
-      // Fall through to TS fallback
-    }
-  }
-
-  // TS fallback: pure TypeScript implementation.
-  // Register formats lazily when needed
-  formats.registerBuiltinFormats();
-
+  // This stays in TypeScript when the Go library is loaded. The Go csfx.Sync
+  // reads one env file by path and no process environment, while `env` here is
+  // an environment name that selects layered .env files, and Go can neither
+  // report missing keys nor use getResourceKeys.
   try {
     // Validate resource reference early (defense in depth)
     // executeKubectl also validates, but we validate here for early failure
     validateResourceReference(options.resource);
 
     // Get keys from Kubernetes resource
-    const keys = await executeKubectl(options.resource);
+    const getResourceKeys = options.getResourceKeys ?? executeKubectl;
+    const keys = await getResourceKeys(options.resource);
 
     if (keys.length === 0) {
       return `# No data found in ${options.resource.type}/${options.resource.name}`;
     }
 
     // Load environment data using @eserstack/config
-    const envMap = await dotenv.load({ env: options.env });
+    const envMap = await dotenv.load({
+      baseDir: options.cwd ?? ".",
+      env: options.env,
+    });
 
     // Convert Map to Record and filter for the keys we need
     const envData: Record<string, string> = {};
@@ -275,9 +276,7 @@ export const sync = async (options: SyncOptions): Promise<string> => {
       if (value !== undefined) {
         envData[key] = value;
       } else {
-        console.warn(
-          `Warning: Environment variable ${key} not found in environment`,
-        );
+        options.onMissingKey?.(key);
       }
     }
 
@@ -305,9 +304,12 @@ export const sync = async (options: SyncOptions): Promise<string> => {
 
     let patchString: string;
     if (format === "yaml") {
-      patchString =
-        (await formats.serialize([patchObject], "yaml", { pretty: true }))
-          .trim();
+      // A merge patch must be a mapping. serialize() writes its items as a
+      // YAML sequence, so the patch goes through the YAML format's writeItem,
+      // which writes one document followed by a "---" separator.
+      patchString = formats.yamlFormat.writeItem(patchObject)
+        .replace(/\n---\n$/, "")
+        .trim();
     } else {
       patchString = JSON.stringify(patchObject);
     }
@@ -323,7 +325,7 @@ export const sync = async (options: SyncOptions): Promise<string> => {
     const resourceType = options.resource.type === "configmap"
       ? "cm"
       : "secret";
-    const namespaceFlag = options.resource.namespace
+    const namespaceFlag = options.resource.namespace !== undefined
       ? ` -n ${options.resource.namespace}`
       : "";
 
@@ -339,12 +341,13 @@ export const sync = async (options: SyncOptions): Promise<string> => {
       `Failed to sync with kubectl: ${
         error instanceof Error ? error.message : String(error)
       }`,
+      { cause: error },
     );
   }
 };
 
 /**
- * Generates a command to apply the sync patch using kubectl apply.
+ * Generates the `kubectl patch` command that applies the sync patch.
  *
  * @param options - Sync configuration options
  * @returns A shell command string that applies the patch
@@ -366,14 +369,13 @@ export const syncApply = async (options: SyncOptions): Promise<string> => {
     return manifest;
   }
 
-  // Generate a heredoc-style command which is safer than echo with escaping
-  // Resource name/namespace are already validated by sync()
+  // Quote the patch for a POSIX shell. Resource name and namespace are already
+  // validated by sync()
   const resourceType = options.resource.type === "configmap" ? "cm" : "secret";
-  const namespaceFlag = options.resource.namespace
+  const namespaceFlag = options.resource.namespace !== undefined
     ? ` -n ${options.resource.namespace}`
     : "";
 
-  // Use heredoc for safer shell command generation
   return `kubectl patch ${resourceType} ${options.resource.name}${namespaceFlag} --type=merge -p '${
     manifest.replace(/'/g, "'\"'\"'")
   }'`;

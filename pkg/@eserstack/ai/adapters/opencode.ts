@@ -44,19 +44,27 @@ export class OpenCodeModel implements model.LanguageModel {
     });
     const stderrPromise = cliShared.captureStderr(process.stderr);
 
-    const result = await cliShared.parseTextOutput(
-      process.stdout,
-      this.modelId,
-    );
-    const exit = await process.waitForExit();
-    const stderr = await stderrPromise;
-    const exitError = cliShared.classifyExitCode("opencode", exit.code, stderr);
+    try {
+      const result = await cliShared.parseTextOutput(
+        process.stdout,
+        this.modelId,
+      );
+      const exit = await process.waitForExit();
+      const stderr = await stderrPromise;
+      const exitError = cliShared.classifyExitCode(
+        "opencode",
+        exit.code,
+        stderr,
+      );
 
-    if (exitError !== null) {
-      return results.fail(exitError);
+      if (exitError !== null) {
+        return results.fail(exitError);
+      }
+
+      return results.ok(result);
+    } finally {
+      await cliShared.stopCliProcess(process, stderrPromise);
     }
-
-    return results.ok(result);
   }
 
   async *streamText(
@@ -109,6 +117,9 @@ export class OpenCodeModel implements model.LanguageModel {
           ),
         };
       }
+    } finally {
+      // Also reached when the consumer stops reading early.
+      await cliShared.stopCliProcess(process, stderrPromise);
     }
   }
 
@@ -127,9 +138,9 @@ export class OpenCodeModel implements model.LanguageModel {
 
 export const openCodeFactory: model.ProviderFactory = {
   provider: "opencode",
-  async createModel(
+  createModel: async (
     cfg: config.ResolvedConfigTarget,
-  ): Promise<model.LanguageModel> {
+  ): Promise<model.LanguageModel> => {
     const binary = await cliShared.resolveBinary("opencode", cfg);
 
     return new OpenCodeModel(binary, cfg);
@@ -140,6 +151,7 @@ export const openCodeFactory: model.ProviderFactory = {
 // Internal Helpers
 // =============================================================================
 
+/** Builds the CLI arguments. options.effort is ignored: no effort flag is sent. */
 const buildArgs = (
   cfg: config.ResolvedConfigTarget,
   options: generation.GenerateTextOptions,
@@ -173,6 +185,7 @@ const mapStreamEvent = (
     return null;
   }
 
+  // Stream events are untyped JSON; each field is checked before use.
   // deno-lint-ignore no-explicit-any
   const obj = event as any;
 

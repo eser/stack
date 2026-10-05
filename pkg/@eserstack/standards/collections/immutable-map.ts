@@ -31,8 +31,10 @@ export type ImmutableMapBuilder<K extends string = string, V = unknown> = {
  *
  * @example
  * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
  * // Build phase
- * const map = createMapBuilder<string, number>()
+ * const map = standards.collections.createMapBuilder<string, number>()
  *   .set("a", 1)
  *   .set("b", 2)
  *   .build();
@@ -95,7 +97,9 @@ export type ImmutableMap<K extends string = string, V = unknown> = {
  *
  * @example
  * ```typescript
- * const map = createMapBuilder<string, number>()
+ * import * as standards from "@eserstack/standards";
+ *
+ * const map = standards.collections.createMapBuilder<string, number>()
  *   .set("x", 1)
  *   .set("y", 2)
  *   .delete("x")
@@ -151,8 +155,10 @@ export const createMapBuilder = <
  *
  * @example
  * ```typescript
- * const map = createMap([["a", 1], ["b", 2]]);
- * const empty = createMap<string, number>();
+ * import * as standards from "@eserstack/standards";
+ *
+ * const map = standards.collections.createMap([["a", 1], ["b", 2]]);
+ * const empty = standards.collections.createMap<string, number>();
  * ```
  */
 export const createMap = <K extends string = string, V = unknown>(

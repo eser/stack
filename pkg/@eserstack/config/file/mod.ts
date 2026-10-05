@@ -9,4 +9,9 @@ export {
   parse,
   type ParseResult,
 } from "./loader.ts";
+export {
+  type FileFormat,
+  type FileFormatKey,
+  FileFormats,
+} from "./primitives.ts";
 export { resolvePath } from "./resolver.ts";

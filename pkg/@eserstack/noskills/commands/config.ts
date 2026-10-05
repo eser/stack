@@ -14,7 +14,7 @@ import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as identity from "../state/identity.ts";
-import { cmdPrefix } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 
 export const main = async (
   args?: readonly string[],
@@ -25,7 +25,7 @@ export const main = async (
   if (subcommand === "get-user") return await getUser();
   if (subcommand === "clear-user") return await clearUser();
 
-  const prefix = cmdPrefix();
+  const prefix = cmd.cmdPrefix();
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -68,7 +68,7 @@ const setUser = async (
     out.writeln(
       span.red("Please provide a name: "),
       span.bold(
-        `${cmdPrefix()} config set-user --name="Your Name" --email="you@example.com"`,
+        `${cmd.cmdPrefix()} config set-user --name="Your Name" --email="you@example.com"`,
       ),
     );
     await out.close();
@@ -100,7 +100,7 @@ const getUser = async (): Promise<shellArgs.CliResult<void>> => {
     out.writeln(span.dim("No user configured."));
     out.writeln(
       span.dim(
-        `Set one with: ${cmdPrefix()} config set-user --name="Your Name"`,
+        `Set one with: ${cmd.cmdPrefix()} config set-user --name="Your Name"`,
       ),
     );
   } else {

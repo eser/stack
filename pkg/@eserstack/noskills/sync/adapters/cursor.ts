@@ -25,7 +25,7 @@ export const cursorAdapter: adapter.ToolAdapter = {
       subAgentMethod: "none",
     },
   },
-  async syncRules(ctx: adapter.SyncContext): Promise<void> {
+  syncRules: async (ctx: adapter.SyncContext): Promise<void> => {
     await cursor.sync(ctx.root, ctx.rules, ctx.commandPrefix);
   },
 };

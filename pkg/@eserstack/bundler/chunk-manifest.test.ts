@@ -1,32 +1,22 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import {
-  addChunk,
-  type ChunkInfo,
-  type ChunkManifest,
-  createChunkManifest,
-  getAllPaths,
-  getChunk,
-  getTotalSize,
-  hasChunk,
-  parseManifest,
-  serializeManifest,
-} from "./chunk-manifest.ts";
+import * as chunkManifest from "./chunk-manifest.ts";
+import type { ChunkInfo, ChunkManifest } from "./chunk-manifest.ts";
 
 // ============================================================================
 // createChunkManifest tests
 // ============================================================================
 
 Deno.test("createChunkManifest creates manifest with entrypoint and buildId", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
 
   assert.assertEquals(manifest.entrypoint, "main.js");
   assert.assertEquals(manifest.buildId, "build-123");
 });
 
 Deno.test("createChunkManifest creates manifest with empty chunks", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
 
   assert.assertEquals(manifest.chunks, {});
   assert.assertEquals(Object.keys(manifest.chunks).length, 0);
@@ -34,7 +24,7 @@ Deno.test("createChunkManifest creates manifest with empty chunks", () => {
 
 Deno.test("createChunkManifest creates manifest with timestamp", () => {
   const before = Date.now();
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
   const after = Date.now();
 
   assert.assertExists(manifest.timestamp);
@@ -47,22 +37,22 @@ Deno.test("createChunkManifest creates manifest with timestamp", () => {
 // ============================================================================
 
 Deno.test("addChunk adds chunk to manifest", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
   const chunk: ChunkInfo = { path: "chunk-abc.js", size: 1024, hash: "abc123" };
 
-  const updated = addChunk(manifest, "vendor", chunk);
+  const updated = chunkManifest.addChunk(manifest, "vendor", chunk);
 
   assert.assertExists(updated.chunks["vendor"]);
   assert.assertEquals(updated.chunks["vendor"], chunk);
 });
 
 Deno.test("addChunk preserves existing chunks", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
   const chunk1: ChunkInfo = { path: "chunk-1.js", size: 100, hash: "hash1" };
   const chunk2: ChunkInfo = { path: "chunk-2.js", size: 200, hash: "hash2" };
 
-  const withChunk1 = addChunk(manifest, "chunk1", chunk1);
-  const withBoth = addChunk(withChunk1, "chunk2", chunk2);
+  const withChunk1 = chunkManifest.addChunk(manifest, "chunk1", chunk1);
+  const withBoth = chunkManifest.addChunk(withChunk1, "chunk2", chunk2);
 
   assert.assertExists(withBoth.chunks["chunk1"]);
   assert.assertExists(withBoth.chunks["chunk2"]);
@@ -70,22 +60,22 @@ Deno.test("addChunk preserves existing chunks", () => {
 });
 
 Deno.test("addChunk is immutable - does not modify original", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
   const chunk: ChunkInfo = { path: "chunk.js", size: 100, hash: "hash" };
 
-  const updated = addChunk(manifest, "new-chunk", chunk);
+  const updated = chunkManifest.addChunk(manifest, "new-chunk", chunk);
 
   assert.assertEquals(Object.keys(manifest.chunks).length, 0);
   assert.assertEquals(Object.keys(updated.chunks).length, 1);
 });
 
 Deno.test("addChunk overrides chunk with same name", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
   const chunk1: ChunkInfo = { path: "old.js", size: 100, hash: "old" };
   const chunk2: ChunkInfo = { path: "new.js", size: 200, hash: "new" };
 
-  const withChunk1 = addChunk(manifest, "same-name", chunk1);
-  const withChunk2 = addChunk(withChunk1, "same-name", chunk2);
+  const withChunk1 = chunkManifest.addChunk(manifest, "same-name", chunk1);
+  const withChunk2 = chunkManifest.addChunk(withChunk1, "same-name", chunk2);
 
   assert.assertEquals(withChunk2.chunks["same-name"], chunk2);
   assert.assertEquals(Object.keys(withChunk2.chunks).length, 1);
@@ -96,19 +86,19 @@ Deno.test("addChunk overrides chunk with same name", () => {
 // ============================================================================
 
 Deno.test("getChunk returns chunk by name", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
   const chunk: ChunkInfo = { path: "vendor.js", size: 500, hash: "vendor" };
-  const updated = addChunk(manifest, "vendor", chunk);
+  const updated = chunkManifest.addChunk(manifest, "vendor", chunk);
 
-  const result = getChunk(updated, "vendor");
+  const result = chunkManifest.getChunk(updated, "vendor");
 
   assert.assertEquals(result, chunk);
 });
 
 Deno.test("getChunk returns undefined for non-existent chunk", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
 
-  const result = getChunk(manifest, "non-existent");
+  const result = chunkManifest.getChunk(manifest, "non-existent");
 
   assert.assertEquals(result, undefined);
 });
@@ -118,17 +108,17 @@ Deno.test("getChunk returns undefined for non-existent chunk", () => {
 // ============================================================================
 
 Deno.test("hasChunk returns true for existing chunk", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
   const chunk: ChunkInfo = { path: "chunk.js", size: 100, hash: "hash" };
-  const updated = addChunk(manifest, "existing", chunk);
+  const updated = chunkManifest.addChunk(manifest, "existing", chunk);
 
-  assert.assertEquals(hasChunk(updated, "existing"), true);
+  assert.assertEquals(chunkManifest.hasChunk(updated, "existing"), true);
 });
 
 Deno.test("hasChunk returns false for non-existent chunk", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
 
-  assert.assertEquals(hasChunk(manifest, "non-existent"), false);
+  assert.assertEquals(chunkManifest.hasChunk(manifest, "non-existent"), false);
 });
 
 // ============================================================================
@@ -136,41 +126,41 @@ Deno.test("hasChunk returns false for non-existent chunk", () => {
 // ============================================================================
 
 Deno.test("getTotalSize returns 0 for empty manifest", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
 
-  assert.assertEquals(getTotalSize(manifest), 0);
+  assert.assertEquals(chunkManifest.getTotalSize(manifest), 0);
 });
 
 Deno.test("getTotalSize sums all chunk sizes", () => {
-  let manifest = createChunkManifest("main.js", "build-123");
-  manifest = addChunk(manifest, "chunk1", {
+  let manifest = chunkManifest.createChunkManifest("main.js", "build-123");
+  manifest = chunkManifest.addChunk(manifest, "chunk1", {
     path: "c1.js",
     size: 100,
     hash: "h1",
   });
-  manifest = addChunk(manifest, "chunk2", {
+  manifest = chunkManifest.addChunk(manifest, "chunk2", {
     path: "c2.js",
     size: 250,
     hash: "h2",
   });
-  manifest = addChunk(manifest, "chunk3", {
+  manifest = chunkManifest.addChunk(manifest, "chunk3", {
     path: "c3.js",
     size: 150,
     hash: "h3",
   });
 
-  assert.assertEquals(getTotalSize(manifest), 500);
+  assert.assertEquals(chunkManifest.getTotalSize(manifest), 500);
 });
 
 Deno.test("getTotalSize handles single chunk", () => {
-  let manifest = createChunkManifest("main.js", "build-123");
-  manifest = addChunk(manifest, "only", {
+  let manifest = chunkManifest.createChunkManifest("main.js", "build-123");
+  manifest = chunkManifest.addChunk(manifest, "only", {
     path: "only.js",
     size: 777,
     hash: "h",
   });
 
-  assert.assertEquals(getTotalSize(manifest), 777);
+  assert.assertEquals(chunkManifest.getTotalSize(manifest), 777);
 });
 
 // ============================================================================
@@ -178,20 +168,32 @@ Deno.test("getTotalSize handles single chunk", () => {
 // ============================================================================
 
 Deno.test("getAllPaths returns empty array for empty manifest", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
 
-  const paths = getAllPaths(manifest);
+  const paths = chunkManifest.getAllPaths(manifest);
 
   assert.assertEquals(paths, []);
 });
 
 Deno.test("getAllPaths returns all chunk paths", () => {
-  let manifest = createChunkManifest("main.js", "build-123");
-  manifest = addChunk(manifest, "a", { path: "a.js", size: 1, hash: "ha" });
-  manifest = addChunk(manifest, "b", { path: "b.js", size: 1, hash: "hb" });
-  manifest = addChunk(manifest, "c", { path: "c.js", size: 1, hash: "hc" });
+  let manifest = chunkManifest.createChunkManifest("main.js", "build-123");
+  manifest = chunkManifest.addChunk(manifest, "a", {
+    path: "a.js",
+    size: 1,
+    hash: "ha",
+  });
+  manifest = chunkManifest.addChunk(manifest, "b", {
+    path: "b.js",
+    size: 1,
+    hash: "hb",
+  });
+  manifest = chunkManifest.addChunk(manifest, "c", {
+    path: "c.js",
+    size: 1,
+    hash: "hc",
+  });
 
-  const paths = getAllPaths(manifest);
+  const paths = chunkManifest.getAllPaths(manifest);
 
   assert.assertEquals(paths.length, 3);
   assert.assert(paths.includes("a.js"));
@@ -204,9 +206,9 @@ Deno.test("getAllPaths returns all chunk paths", () => {
 // ============================================================================
 
 Deno.test("serializeManifest produces valid JSON string", () => {
-  const manifest = createChunkManifest("main.js", "build-123");
+  const manifest = chunkManifest.createChunkManifest("main.js", "build-123");
 
-  const json = serializeManifest(manifest);
+  const json = chunkManifest.serializeManifest(manifest);
 
   assert.assertExists(json);
   assert.assert(json.length > 0);
@@ -215,10 +217,10 @@ Deno.test("serializeManifest produces valid JSON string", () => {
 });
 
 Deno.test("parseManifest parses JSON to manifest", () => {
-  const original = createChunkManifest("main.js", "build-123");
-  const json = serializeManifest(original);
+  const original = chunkManifest.createChunkManifest("main.js", "build-123");
+  const json = chunkManifest.serializeManifest(original);
 
-  const parsed = parseManifest(json);
+  const parsed = chunkManifest.parseManifest(json);
 
   assert.assertEquals(parsed.entrypoint, original.entrypoint);
   assert.assertEquals(parsed.buildId, original.buildId);
@@ -226,20 +228,20 @@ Deno.test("parseManifest parses JSON to manifest", () => {
 });
 
 Deno.test("serializeManifest and parseManifest round-trip preserves data", () => {
-  let manifest = createChunkManifest("main.js", "build-abc");
-  manifest = addChunk(manifest, "vendor", {
+  let manifest = chunkManifest.createChunkManifest("main.js", "build-abc");
+  manifest = chunkManifest.addChunk(manifest, "vendor", {
     path: "vendor-xyz.js",
     size: 12345,
     hash: "xyz123",
   });
-  manifest = addChunk(manifest, "main", {
+  manifest = chunkManifest.addChunk(manifest, "main", {
     path: "main-abc.js",
     size: 6789,
     hash: "abc456",
   });
 
-  const json = serializeManifest(manifest);
-  const parsed = parseManifest(json);
+  const json = chunkManifest.serializeManifest(manifest);
+  const parsed = chunkManifest.parseManifest(json);
 
   assert.assertEquals(parsed.entrypoint, manifest.entrypoint);
   assert.assertEquals(parsed.buildId, manifest.buildId);
@@ -251,10 +253,14 @@ Deno.test("serializeManifest and parseManifest round-trip preserves data", () =>
 });
 
 Deno.test("serializeManifest includes all manifest properties", () => {
-  let manifest = createChunkManifest("entry.js", "id-999");
-  manifest = addChunk(manifest, "test", { path: "t.js", size: 50, hash: "th" });
+  let manifest = chunkManifest.createChunkManifest("entry.js", "id-999");
+  manifest = chunkManifest.addChunk(manifest, "test", {
+    path: "t.js",
+    size: 50,
+    hash: "th",
+  });
 
-  const json = serializeManifest(manifest);
+  const json = chunkManifest.serializeManifest(manifest);
   const obj = JSON.parse(json) as ChunkManifest;
 
   assert.assertEquals(obj.entrypoint, "entry.js");

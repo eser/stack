@@ -7,8 +7,9 @@
  */
 
 import * as schema from "./schema.ts";
-import { paths } from "./persistence.ts";
+import * as persistence from "./persistence.ts";
 import * as compiler from "../context/compiler.ts";
+import * as questions from "../context/questions.ts";
 import * as livingSpec from "../spec/living.ts";
 
 // =============================================================================
@@ -279,10 +280,28 @@ export const completeDiscovery = (
     discovery: { ...state.discovery, completed: true },
     specState: {
       ...state.specState,
-      path: paths.specFile(state.spec!),
+      path: persistence.paths.specFile(state.spec!),
       status: "draft",
     },
   };
+};
+
+/**
+ * Completes discovery once every base question has an answer and no
+ * follow-up is pending; returns the state unchanged before that. The base
+ * answers arrive together and the follow-ups they raise come after them, one
+ * at a time, so the answer that settles the last open item, whether a base
+ * answer or a follow-up, is the one that moves the spec to
+ * DISCOVERY_REFINEMENT.
+ */
+export const completeDiscoveryWhenReady = (
+  state: schema.StateFile,
+): schema.StateFile => {
+  if (state.phase !== "DISCOVERY") return state;
+  if (!questions.isDiscoveryComplete(state.discovery.answers)) return state;
+  if (getPendingFollowUps(state).length > 0) return state;
+
+  return completeDiscovery(state);
 };
 
 /**
@@ -326,7 +345,9 @@ export const approveDiscoveryReview = (
         (report.pendingDecisions.length > 0
           ? `\nPending decisions:\n${decisions}`
           : "") +
-        "\n\nUse AskUserQuestion to resolve every item. Do not guess, infer, or fill in yourself.",
+        // The machine does not know which tool runs the agent, so this names
+        // no tool-specific way of asking.
+        "\n\nAsk the user to resolve every item. Do not guess, infer, or fill in yourself.",
     );
   }
 
@@ -570,8 +591,8 @@ export const getDiscoveryRefinementStage = (
   state: schema.StateFile,
 ): "stage-a" | "stage-b" | "stage-c" => {
   const ref = state.discovery.refinement;
-  if (!ref?.reviewPosture) return "stage-a";
-  if (!ref.ceoReview) return "stage-b";
+  if (ref?.reviewPosture === undefined) return "stage-a";
+  if (ref.ceoReview === undefined) return "stage-b";
   return "stage-c";
 };
 

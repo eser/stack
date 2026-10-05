@@ -17,17 +17,11 @@
  */
 
 import type { BundlerPlugin } from "@eserstack/bundler/backends";
-import { tryLoad as tryLoadPackage } from "@eserstack/codebase/package";
+import * as pkg from "@eserstack/codebase/package";
 import * as logging from "@eserstack/logging";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import {
-  type ImportMap,
-  isBareSpecifier,
-  isExternal,
-  isPathSpecifier,
-  loadImportMap,
-  resolveSpecifier,
-} from "./domain/import-map.ts";
+import * as importMap from "./domain/import-map.ts";
+import type { ImportMap } from "./domain/import-map.ts";
 import type { ResolvedBrowserShimsConfig } from "./types.ts";
 
 /**
@@ -92,7 +86,7 @@ async function resolveFromDenoModules(
         }
 
         // Load package config using @eserstack/codebase (handles deno.json, jsr.json, package.json)
-        const pkgConfig = await tryLoadPackage({ baseDir: pkgDir });
+        const pkgConfig = await pkg.tryLoad({ baseDir: pkgDir });
 
         if (pkgConfig !== undefined) {
           let mainEntry: string | undefined;
@@ -191,14 +185,14 @@ export function createImportMapResolverPlugin(
   options: ImportMapResolverOptions,
 ): BundlerPlugin {
   const cache = options.cache ?? new Map<string, string>();
-  let importMap: ImportMap | null = options.importMap ?? null;
+  let loadedImportMap: ImportMap | null = options.importMap ?? null;
   const autoMarkExternal = options.autoMarkExternal ?? true;
   const externals = options.externals ?? [];
 
   // Check if specifier matches any explicit external (supports prefix matching)
   const isExplicitExternal = (specifier: string): boolean => {
-    for (const pkg of externals) {
-      if (specifier === pkg || specifier.startsWith(`${pkg}/`)) {
+    for (const external of externals) {
+      if (specifier === external || specifier.startsWith(`${external}/`)) {
         return true;
       }
     }
@@ -215,10 +209,10 @@ export function createImportMapResolverPlugin(
     name: "import-map-resolver",
     async setup(build) {
       // Load import map if not provided
-      if (importMap === null) {
-        importMap = await loadImportMap(options.projectRoot);
+      if (loadedImportMap === null) {
+        loadedImportMap = await importMap.loadImportMap(options.projectRoot);
         resolverLogger.debug(
-          `Loaded import map: ${importMap.entries.size} entries, ${importMap.externals.length} externals`,
+          `Loaded import map: ${loadedImportMap.entries.size} entries, ${loadedImportMap.externals.length} externals`,
         );
       }
 
@@ -227,7 +221,7 @@ export function createImportMapResolverPlugin(
         const specifier = args.path;
 
         // Skip if not a bare specifier
-        if (!isBareSpecifier(specifier)) {
+        if (!importMap.isBareSpecifier(specifier)) {
           return {};
         }
 
@@ -255,13 +249,19 @@ export function createImportMapResolverPlugin(
         }
 
         // Try to resolve using import map
-        const resolved = resolveSpecifier(specifier, importMap!);
+        const resolved = importMap.resolveSpecifier(
+          specifier,
+          loadedImportMap!,
+        );
 
         if (resolved !== null) {
           // Check if it's an external package (only if autoMarkExternal is enabled)
           // For server bundling, autoMarkExternal=false and externals are specified explicitly
           // See ADR: 0002-bundler-external-import-specifiers.md
-          if (autoMarkExternal && isExternal(specifier, importMap!)) {
+          if (
+            autoMarkExternal &&
+            importMap.isExternal(specifier, loadedImportMap!)
+          ) {
             cache.set(specifier, "external");
             resolverLogger.debug(`Marking ${specifier} as external`);
             // Keep bare specifier - do NOT rewrite to jsr:/npm: as those break Node.js/Bun
@@ -271,9 +271,9 @@ export function createImportMapResolverPlugin(
           // Try to resolve to a local file
           try {
             // Handle relative paths - resolve from project root, not from plugin file
-            if (isPathSpecifier(resolved)) {
+            if (importMap.isPathSpecifier(resolved)) {
               const filePath = runtime.path.resolve(
-                importMap!.projectRoot,
+                loadedImportMap!.projectRoot,
                 resolved,
               );
               cache.set(specifier, filePath);
@@ -308,10 +308,8 @@ export function createImportMapResolverPlugin(
             );
             return {};
           } catch (error) {
-            resolverLogger.debug(
-              `Failed to resolve ${resolved}: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
+            resolverLogger.with({ error }).debug(
+              `resolve ${resolved}; leaving it to the next resolver`,
             );
             // Fall through to let other resolvers handle it
           }
@@ -319,7 +317,7 @@ export function createImportMapResolverPlugin(
 
         // Not in import map - check if it looks like an npm package
         // and should be marked as external (only if autoMarkExternal is enabled)
-        if (autoMarkExternal && isBareSpecifier(specifier)) {
+        if (autoMarkExternal && importMap.isBareSpecifier(specifier)) {
           cache.set(specifier, "external");
           resolverLogger.debug(
             `Marking ${specifier} as external (bare import not in import map)`,
@@ -329,7 +327,7 @@ export function createImportMapResolverPlugin(
 
         // For browser bundles, try to resolve from Deno's .deno directory as fallback
         // This handles transitive npm dependencies that aren't symlinked to top-level
-        if (!autoMarkExternal && isBareSpecifier(specifier)) {
+        if (!autoMarkExternal && importMap.isBareSpecifier(specifier)) {
           const resolved = await resolveFromDenoModules(
             specifier,
             options.projectRoot,
@@ -374,10 +372,8 @@ export function createImportMapResolverPlugin(
           resolverLogger.debug(`Marking ${specifier} as external (remote JSR)`);
           return { external: true };
         } catch (error) {
-          resolverLogger.debug(
-            `Failed to resolve ${specifier}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+          resolverLogger.with({ error }).debug(
+            `resolve ${specifier}; leaving it to the next resolver`,
           );
           return {};
         }
@@ -419,12 +415,12 @@ export function createImportMapResolverPlugin(
 export async function createImportMapResolverPluginAsync(
   options: Omit<ImportMapResolverOptions, "importMap">,
 ): Promise<{ plugin: BundlerPlugin; importMap: ImportMap }> {
-  const importMap = await loadImportMap(options.projectRoot);
+  const loadedImportMap = await importMap.loadImportMap(options.projectRoot);
 
   const plugin = createImportMapResolverPlugin({
     ...options,
-    importMap,
+    importMap: loadedImportMap,
   });
 
-  return { plugin, importMap };
+  return { plugin, importMap: loadedImportMap };
 }

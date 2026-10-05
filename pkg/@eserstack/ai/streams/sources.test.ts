@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as primitiveResults from "@eserstack/primitives/results";
 import type * as generation from "../generation.ts";
 import type * as errors from "../errors.ts";
@@ -45,8 +45,8 @@ const createMockStreamingModel = (
 // Tests
 // =============================================================================
 
-describe("aiSource", () => {
-  it("should create a Source<StreamEvent> from a model", async () => {
+bdd.describe("aiSource", () => {
+  bdd.it("should create a Source<StreamEvent> from a model", async () => {
     const events: generation.StreamEvent[] = [
       { kind: "content_delta", textDelta: "Hello" },
       {
@@ -59,25 +59,21 @@ describe("aiSource", () => {
     const mockModel = createMockStreamingModel(events);
     const source = sourcesModule.aiSource(mockModel, { messages: [] });
 
-    assertEquals(source.name, "ai/mock/mock-v1");
+    assert.assertEquals(source.name, "ai/mock/mock-v1");
 
     const chunks: generation.StreamEvent[] = [];
-    const reader = source.readable.getReader();
-
-    let readResult = await reader.read();
-    while (readResult.done !== true) {
-      chunks.push(readResult.value.data);
-      readResult = await reader.read();
+    for await (const chunk of source.readable) {
+      chunks.push(chunk.data);
     }
 
-    assertEquals(chunks.length, 2);
-    assertEquals(chunks[0]?.kind, "content_delta");
-    assertEquals(chunks[1]?.kind, "message_done");
+    assert.assertEquals(chunks.length, 2);
+    assert.assertEquals(chunks[0]?.kind, "content_delta");
+    assert.assertEquals(chunks[1]?.kind, "message_done");
   });
 });
 
-describe("aiTextSource", () => {
-  it("should emit only text deltas", async () => {
+bdd.describe("aiTextSource", () => {
+  bdd.it("should emit only text deltas", async () => {
     const events: generation.StreamEvent[] = [
       { kind: "content_delta", textDelta: "Hello " },
       { kind: "content_delta", textDelta: "world!" },
@@ -92,31 +88,49 @@ describe("aiTextSource", () => {
     const source = sourcesModule.aiTextSource(mockModel, { messages: [] });
 
     const texts: string[] = [];
-    const reader = source.readable.getReader();
-
-    let readResult = await reader.read();
-    while (readResult.done !== true) {
-      texts.push(readResult.value.data);
-      readResult = await reader.read();
+    for await (const chunk of source.readable) {
+      texts.push(chunk.data);
     }
 
-    assertEquals(texts.length, 2);
-    assertEquals(texts[0], "Hello ");
-    assertEquals(texts[1], "world!");
+    assert.assertEquals(texts.length, 2);
+    assert.assertEquals(texts[0], "Hello ");
+    assert.assertEquals(texts[1], "world!");
+  });
+
+  bdd.it("fails the stream with the error of an error event", async () => {
+    const failure = new Error("rate limited");
+    const events: generation.StreamEvent[] = [
+      { kind: "content_delta", textDelta: "Hel" },
+      { kind: "error", error: failure },
+      { kind: "content_delta", textDelta: "lo" },
+    ];
+
+    const mockModel = createMockStreamingModel(events);
+    const source = sourcesModule.aiTextSource(mockModel, { messages: [] });
+
+    const texts: string[] = [];
+    const error = await assert.assertRejects(async () => {
+      for await (const chunk of source.readable) {
+        texts.push(chunk.data);
+      }
+    });
+
+    assert.assertStrictEquals(error, failure);
+    assert.assertEquals(texts, ["Hel"]);
   });
 });
 
-describe("streamEventSource", () => {
-  it("should wrap an AsyncIterable as a Source", async () => {
+bdd.describe("streamEventSource", () => {
+  bdd.it("should wrap an AsyncIterable as a Source", async () => {
     async function* events(): AsyncIterable<generation.StreamEvent> {
       yield { kind: "content_delta", textDelta: "test" };
     }
 
     const source = sourcesModule.streamEventSource(events(), "custom-name");
-    assertEquals(source.name, "custom-name");
+    assert.assertEquals(source.name, "custom-name");
 
     const reader = source.readable.getReader();
     const result = await reader.read();
-    assertEquals(result.value?.data.kind, "content_delta");
+    assert.assertEquals(result.value?.data.kind, "content_delta");
   });
 });

@@ -24,11 +24,27 @@ export interface NoskillsClientConfig {
   /** Bearer token returned by POST /auth/login. */
   token?: string;
   /**
-   * SHA-256 DER fingerprint(s) for self-signed cert pinning.
-   * Passed as serverCertificateHashes to the WebTransport API.
-   * Not needed when the daemon uses mkcert (OS CA trust).
+   * SHA-256 fingerprints (32 bytes each) of the daemon's certificate. Every
+   * entry goes to the WebTransport API as `serverCertificateHashes`, so a
+   * daemon that is rotating its certificate can match either one. Not needed
+   * when the operating system trusts the certificate (for example, mkcert).
    */
   certHashes?: ArrayBuffer[];
+  /**
+   * Milliseconds a REST call waits for the daemon before it throws a
+   * `NoskillsTimeoutError`. Defaults to 10 000. `registerProject` with a git
+   * URL waits 300 000 by default instead, since the daemon clones the
+   * repository before it answers.
+   */
+  timeoutMs?: number;
+}
+
+/** Options for one REST call or one certificate fingerprint fetch. */
+export interface CallOptions {
+  /** Cancels the call; it then rejects with the signal's reason. */
+  signal?: AbortSignal;
+  /** Milliseconds to wait for this call, in place of the default. */
+  timeoutMs?: number;
 }
 
 // =============================================================================
@@ -312,11 +328,34 @@ export interface UserMessageCommand {
   content: string;
 }
 
+/**
+ * The answer to a `permission_request`, sent with the request's `requestId` as
+ * `id`.
+ *
+ * The daemon accepts exactly these four decisions and answers anything else
+ * with `permission_response_rejected`. For an ACP agent it picks the matching
+ * option the agent offered: `allow` takes `allow_once`, `allow_always` takes
+ * `allow_always`, `deny` takes `reject_once` and `deny_remember` takes
+ * `reject_always`. When that kind is missing it takes the other option of the
+ * same direction, and with neither it cancels the request.
+ */
 export interface PermissionResponseCommand {
   type: "permission_response";
   id: string;
-  decision: "allow" | "deny" | "deny_remember";
+  decision: PermissionDecision;
+  /**
+   * Text the daemon forwards to a socket worker with the decision. ACP agents
+   * have no field for it and do not receive it.
+   */
+  message?: string;
 }
+
+/** A decision the daemon accepts in a `permission_response`. */
+export type PermissionDecision =
+  | "allow"
+  | "allow_always"
+  | "deny"
+  | "deny_remember";
 
 export interface StopCommand {
   type: "stop";
@@ -326,6 +365,14 @@ export interface AbortCommand {
   type: "abort";
 }
 
+/**
+ * Asks for a different model for the session.
+ *
+ * The daemon does not act on it: ACP v1 has no request for changing the
+ * model, so the daemon logs `set_model is not supported by the agent protocol`
+ * and leaves the session as it was. The type stays so that existing callers
+ * keep compiling; nothing confirms or rejects the command on the stream.
+ */
 export interface SetModelCommand {
   type: "set_model";
   model: string;

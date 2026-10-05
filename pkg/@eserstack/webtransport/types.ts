@@ -17,7 +17,7 @@
  *                         Passed as serverCertificateHashes to the browser WebTransport API.
  *                         Use for self-signed development certs when mkcert is unavailable.
  * @property dialTimeout - Abort connection attempt after this many milliseconds. 0 = no cap.
- * @property _dialFn     - Escape hatch for testing: inject a custom WebTransport constructor.
+ * @property _newTransport - Escape hatch for testing: inject a custom WebTransport factory.
  */
 export interface WebTransportConfig {
   baseUrl?: string;

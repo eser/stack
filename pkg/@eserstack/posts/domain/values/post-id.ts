@@ -4,12 +4,17 @@
  * Branded PostId value object.
  * Prevents accidental substitution of plain strings for post identifiers.
  * Works across platforms: Twitter numeric IDs, Bluesky AT-URIs, etc.
+ *
+ * @module
  */
 
-declare const postIdBrand: unique symbol;
-
-/** Opaque string type representing a social post identifier. */
-export type PostId = string & { readonly [postIdBrand]: typeof postIdBrand };
+/**
+ * Opaque string type representing a social post identifier. The `__brand`
+ * property exists only in the type system: it keeps a plain string or a
+ * Handle from passing as a PostId, and no value carries it at runtime. Build
+ * one with `toPostId`.
+ */
+export type PostId = string & { readonly __brand: "PostId" };
 
 /**
  * Constructs a PostId from a raw string.

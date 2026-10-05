@@ -1,5 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as registry from "./format-registry.ts";
+import * as json from "./formats/json.ts";
+import * as jsonl from "./formats/jsonl.ts";
+import * as yaml from "./formats/yaml.ts";
+import * as csv from "./formats/csv.ts";
+import * as toml from "./formats/toml.ts";
+
 export {
   DeserializationError,
   type Format,
@@ -37,22 +44,34 @@ export { tomlFormat } from "./formats/toml.ts";
 // Stream layer adapters for @eserstack/streams pipeline integration
 export * as streamLayers from "./stream-layers.ts";
 
-// Helper to register all built-in formats at once (opt-in)
-import { registerFormat } from "./format-registry.ts";
-import { jsonFormat as _jsonFormat } from "./formats/json.ts";
-import { jsonlFormat as _jsonlFormat } from "./formats/jsonl.ts";
-import { yamlFormat as _yamlFormat } from "./formats/yaml.ts";
-import { csvFormat as _csvFormat } from "./formats/csv.ts";
-import { tomlFormat as _tomlFormat } from "./formats/toml.ts";
-
-export function registerBuiltinFormats(): void {
-  registerFormat(_jsonFormat);
-  registerFormat(_jsonlFormat);
-  registerFormat(_yamlFormat);
-  registerFormat(_csvFormat);
-  registerFormat(_tomlFormat);
-}
-
 // FFI layer
-export * from "./business/mod.ts";
-export * from "./adapters/ffi/mod.ts";
+export {
+  decodeWith,
+  encodeDocumentWith,
+  encodeWith,
+  type FormatEncodeDocumentOptions,
+  type FormatEncodeOptions,
+  type FormatListItem,
+  listFormatsWith,
+  type Loader,
+} from "./business/formats.ts";
+export {
+  FORMAT_DECODE_FAILED,
+  FORMAT_ENCODE_FAILED,
+  FORMAT_LIST_FAILED,
+  FORMAT_NOT_FOUND,
+  FormatFfiError,
+} from "./business/errors.ts";
+export { ffiFormats } from "./adapters/ffi/loader.ts";
+
+/**
+ * Registers every built-in format (JSON, JSONL, YAML, CSV, TOML) in the global
+ * registry at once. Opt-in: importing the package registers nothing.
+ */
+export function registerBuiltinFormats(): void {
+  registry.registerFormat(json.jsonFormat);
+  registry.registerFormat(jsonl.jsonlFormat);
+  registry.registerFormat(yaml.yamlFormat);
+  registry.registerFormat(csv.csvFormat);
+  registry.registerFormat(toml.tomlFormat);
+}

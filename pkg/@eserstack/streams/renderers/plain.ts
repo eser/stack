@@ -7,14 +7,13 @@
  * @module
  */
 
-import type * as spanTypes from "../span.ts";
-import { plainLength } from "../span.ts";
+import * as span from "../span.ts";
 import type { Renderer } from "./types.ts";
 
-const renderSpan = (span: spanTypes.Span): string => {
-  switch (span.kind) {
+const renderSpan = (node: span.Span): string => {
+  switch (node.kind) {
     case "text":
-      return span.value;
+      return node.value;
     case "newline":
       return "\n";
     case "bold":
@@ -24,35 +23,38 @@ const renderSpan = (span: spanTypes.Span): string => {
     case "strikethrough":
     case "color":
     case "group":
-      return span.children.map(renderSpan).join("");
+      return node.children.map(renderSpan).join("");
     case "code-block":
-      return span.value
+      return node.value
         .split("\n")
         .map((line) => `  ${line}`)
         .join("\n") + "\n";
     case "table": {
-      const widths = span.headers.map((h, i) => {
-        const maxRow = span.rows.reduce(
+      const widths = node.headers.map((h, i) => {
+        const maxRow = node.rows.reduce(
           (max, row) => {
             const cell = row[i];
-            return Math.max(max, cell !== undefined ? plainLength(cell) : 0);
+            return Math.max(
+              max,
+              cell !== undefined ? span.plainLength(cell) : 0,
+            );
           },
           0,
         );
-        return Math.max(plainLength(h), maxRow);
+        return Math.max(span.plainLength(h), maxRow);
       });
 
-      const padCell = (cell: spanTypes.Span, width: number): string => {
+      const padCell = (cell: span.Span, width: number): string => {
         const rendered = renderSpan(cell);
-        const textLen = plainLength(cell);
+        const textLen = span.plainLength(cell);
         return rendered + " ".repeat(Math.max(0, width - textLen));
       };
 
-      const header = span.headers
+      const header = node.headers
         .map((h, i) => padCell(h, widths[i]!))
         .join("  ");
       const sep = widths.map((w) => "-".repeat(w)).join("  ");
-      const rows = span.rows
+      const rows = node.rows
         .map((row) =>
           row.map((cell, i) => padCell(cell, widths[i]!)).join("  ")
         )
@@ -61,19 +63,19 @@ const renderSpan = (span: spanTypes.Span): string => {
       return `${header}\n${sep}\n${rows}\n`;
     }
     case "list":
-      return span.items
+      return node.items
         .map((item) => `  - ${item.map(renderSpan).join("")}`)
         .join("\n") + "\n";
     case "gauge": {
-      const w = span.width ?? 20;
-      const filled = Math.round(w * span.percent / 100);
+      const w = node.width ?? 20;
+      const filled = Math.round(w * node.percent / 100);
       const empty = w - filled;
       const bar = `[${"=".repeat(filled)}${" ".repeat(empty)}]`;
-      const label = span.label ? ` ${span.label}` : "";
-      return `${bar} ${span.percent}%${label}`;
+      const label = node.label ? ` ${node.label}` : "";
+      return `${bar} ${node.percent}%${label}`;
     }
     case "separator":
-      return span.label ? `--- ${span.label} ---\n` : `${"─".repeat(40)}\n`;
+      return node.label ? `--- ${node.label} ---\n` : `${"─".repeat(40)}\n`;
     case "alert": {
       const tags = {
         info: "INFO",
@@ -81,14 +83,13 @@ const renderSpan = (span: spanTypes.Span): string => {
         warning: "WARN",
         error: "ERROR",
       } as const;
-      return `[${tags[span.level]}] ${span.children.map(renderSpan).join("")}`;
+      return `[${tags[node.level]}] ${node.children.map(renderSpan).join("")}`;
     }
   }
 };
 
-const plain = (): Renderer => ({
+/** Creates a renderer that writes spans as text without formatting. */
+export const plain = (): Renderer => ({
   name: "plain",
   render: (spans) => spans.map(renderSpan).join(""),
 });
-
-export { plain };

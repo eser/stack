@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
+import * as bdd from "@std/testing/bdd";
 import * as assert from "@std/assert";
 import * as schema from "./schema.ts";
 import * as machine from "./machine.ts";
@@ -18,14 +18,14 @@ const inDiscovery = (): schema.StateFile =>
 // Discovery Modes
 // =============================================================================
 
-describe("Discovery modes", () => {
-  it("setDiscoveryMode stores mode in state", () => {
+bdd.describe("Discovery modes", () => {
+  bdd.it("setDiscoveryMode stores mode in state", () => {
     let state = inDiscovery();
     state = machine.setDiscoveryMode(state, "validate");
     assert.assertEquals(state.discovery.mode, "validate");
   });
 
-  it("setDiscoveryMode rejects non-DISCOVERY phase", () => {
+  bdd.it("setDiscoveryMode rejects non-DISCOVERY phase", () => {
     const state = idle();
     let threw = false;
     try {
@@ -36,12 +36,12 @@ describe("Discovery modes", () => {
     assert.assertEquals(threw, true);
   });
 
-  it("default state has no mode (undefined)", () => {
+  bdd.it("default state has no mode (undefined)", () => {
     const state = idle();
     assert.assertEquals(state.discovery.mode, undefined);
   });
 
-  it("all 5 modes are valid DiscoveryMode values", () => {
+  bdd.it("all 5 modes are valid DiscoveryMode values", () => {
     const state = inDiscovery();
     for (
       const mode of [
@@ -62,8 +62,8 @@ describe("Discovery modes", () => {
 // Premise Challenge
 // =============================================================================
 
-describe("Premise challenge", () => {
-  it("completePremises stores premises and sets flag", () => {
+bdd.describe("Premise challenge", () => {
+  bdd.it("completePremises stores premises and sets flag", () => {
     let state = inDiscovery();
     state = machine.setDiscoveryMode(state, "full");
 
@@ -94,7 +94,7 @@ describe("Premise challenge", () => {
     );
   });
 
-  it("empty premises array skips premise step", () => {
+  bdd.it("empty premises array skips premise step", () => {
     let state = inDiscovery();
     state = machine.setDiscoveryMode(state, "full");
     state = machine.completePremises(state, []);
@@ -102,7 +102,7 @@ describe("Premise challenge", () => {
     assert.assertEquals(state.discovery.premises?.length, 0);
   });
 
-  it("completePremises rejects non-DISCOVERY phase", () => {
+  bdd.it("completePremises rejects non-DISCOVERY phase", () => {
     const state = idle();
     let threw = false;
     try {
@@ -118,8 +118,8 @@ describe("Premise challenge", () => {
 // Alternatives
 // =============================================================================
 
-describe("Alternatives", () => {
-  it("selectApproach stores approach and sets flag", () => {
+bdd.describe("Alternatives", () => {
+  bdd.it("selectApproach stores approach and sets flag", () => {
     let state = inDiscovery();
     state = machine.setDiscoveryMode(state, "full");
     state = machine.completePremises(state, []);
@@ -145,7 +145,7 @@ describe("Alternatives", () => {
     assert.assertEquals(state.discovery.alternativesPresented, true);
   });
 
-  it("skipAlternatives sets flag without approach", () => {
+  bdd.it("skipAlternatives sets flag without approach", () => {
     let state = inDiscovery();
     state = {
       ...state,
@@ -158,7 +158,7 @@ describe("Alternatives", () => {
     assert.assertEquals(state.discovery.selectedApproach, undefined);
   });
 
-  it("selectApproach rejects non-DISCOVERY_REFINEMENT phase", () => {
+  bdd.it("selectApproach rejects non-DISCOVERY_REFINEMENT phase", () => {
     const state = inDiscovery();
     let threw = false;
     try {
@@ -177,7 +177,7 @@ describe("Alternatives", () => {
     assert.assertEquals(threw, true);
   });
 
-  it("skipAlternatives rejects non-DISCOVERY_REFINEMENT phase", () => {
+  bdd.it("skipAlternatives rejects non-DISCOVERY_REFINEMENT phase", () => {
     const state = inDiscovery();
     let threw = false;
     try {
@@ -193,8 +193,8 @@ describe("Alternatives", () => {
 // Backward Compatibility
 // =============================================================================
 
-describe("Backward compatibility", () => {
-  it("old state without mode/premises fields works", () => {
+bdd.describe("Backward compatibility", () => {
+  bdd.it("old state without mode/premises fields works", () => {
     const oldState: schema.StateFile = {
       ...schema.createInitialState(),
       phase: "DISCOVERY",
@@ -208,7 +208,7 @@ describe("Backward compatibility", () => {
     assert.assertEquals(oldState.discovery.selectedApproach, undefined);
   });
 
-  it("setDiscoveryMode works on state without mode", () => {
+  bdd.it("setDiscoveryMode works on state without mode", () => {
     const state: schema.StateFile = {
       ...schema.createInitialState(),
       phase: "DISCOVERY",
@@ -223,13 +223,13 @@ describe("Backward compatibility", () => {
 // Rich Description Detection
 // =============================================================================
 
-describe("Rich description detection", () => {
-  it("description >500 chars is rich", () => {
+bdd.describe("Rich description detection", () => {
+  bdd.it("description >500 chars is rich", () => {
     const desc = "x ".repeat(300);
     assert.assert(desc.length > 500);
   });
 
-  it("description <500 chars is not rich", () => {
+  bdd.it("description <500 chars is not rich", () => {
     const desc = "short description";
     assert.assert(desc.length < 500);
   });
@@ -239,68 +239,80 @@ describe("Rich description detection", () => {
 // Merged entry subPhase (task-9)
 // =============================================================================
 
-describe("merged entry subPhase", () => {
-  it("setUserContext appends to array (empty start)", () => {
+bdd.describe("merged entry subPhase", () => {
+  bdd.it("setUserContext appends to array (empty start)", () => {
     const state = inDiscovery();
     assert.assertEquals(state.discovery.userContext, undefined);
     const updated = machine.setUserContext(state, "first");
     assert.assertEquals(updated.discovery.userContext, ["first"]);
   });
 
-  it("setUserContext appends multiple times", () => {
+  bdd.it("setUserContext appends multiple times", () => {
     let state = inDiscovery();
     state = machine.setUserContext(state, "first");
     state = machine.setUserContext(state, "second");
     assert.assertEquals(state.discovery.userContext, ["first", "second"]);
   });
 
-  it("entryComplete starts undefined on a fresh discovery state", () => {
+  bdd.it("entryComplete starts undefined on a fresh discovery state", () => {
     const state = inDiscovery();
     assert.assertEquals(state.discovery.entryComplete, undefined);
   });
 
-  it("markEntryComplete sets entryComplete flag to true", () => {
+  bdd.it("markEntryComplete sets entryComplete flag to true", () => {
     const state = inDiscovery();
     const updated = machine.markEntryComplete(state);
     assert.assertEquals(updated.discovery.entryComplete, true);
   });
 
-  it("setDiscoveryMode also sets entryComplete to true", () => {
+  bdd.it("setDiscoveryMode also sets entryComplete to true", () => {
     const state = inDiscovery();
     const updated = machine.setDiscoveryMode(state, "full");
     assert.assertEquals(updated.discovery.mode, "full");
     assert.assertEquals(updated.discovery.entryComplete, true);
   });
 
-  it("recommendedEntryOption returns 'a' for short description", () => {
+  bdd.it("recommendedEntryOption returns 'a' for short description", () => {
     let state = inDiscovery();
     state = { ...state, specDescription: "hi" };
     assert.assertEquals(machine.recommendedEntryOption(state), "a");
   });
 
-  it("recommendedEntryOption returns 'mode' for rich description (>500)", () => {
-    let state = inDiscovery();
-    const rich = "x".repeat(501);
-    state = { ...state, specDescription: rich };
-    assert.assertEquals(machine.recommendedEntryOption(state), "mode");
-  });
+  bdd.it(
+    "recommendedEntryOption returns 'mode' for rich description (>500)",
+    () => {
+      let state = inDiscovery();
+      const rich = "x".repeat(501);
+      state = { ...state, specDescription: rich };
+      assert.assertEquals(machine.recommendedEntryOption(state), "mode");
+    },
+  );
 
-  it("recommendedEntryOption returns 'a' for exactly 500 chars (boundary)", () => {
-    let state = inDiscovery();
-    const desc = "x".repeat(500);
-    state = { ...state, specDescription: desc };
-    assert.assertEquals(machine.recommendedEntryOption(state), "a");
-  });
+  bdd.it(
+    "recommendedEntryOption returns 'a' for exactly 500 chars (boundary)",
+    () => {
+      let state = inDiscovery();
+      const desc = "x".repeat(500);
+      state = { ...state, specDescription: desc };
+      assert.assertEquals(machine.recommendedEntryOption(state), "a");
+    },
+  );
 
-  it("recommendedEntryOption returns 'mode' for 501 chars (boundary)", () => {
-    let state = inDiscovery();
-    const desc = "x".repeat(501);
-    state = { ...state, specDescription: desc };
-    assert.assertEquals(machine.recommendedEntryOption(state), "mode");
-  });
+  bdd.it(
+    "recommendedEntryOption returns 'mode' for 501 chars (boundary)",
+    () => {
+      let state = inDiscovery();
+      const desc = "x".repeat(501);
+      state = { ...state, specDescription: desc };
+      assert.assertEquals(machine.recommendedEntryOption(state), "mode");
+    },
+  );
 
-  it("recommendedEntryOption returns 'a' when specDescription is null", () => {
-    const state = { ...inDiscovery(), specDescription: null };
-    assert.assertEquals(machine.recommendedEntryOption(state), "a");
-  });
+  bdd.it(
+    "recommendedEntryOption returns 'a' when specDescription is null",
+    () => {
+      const state = { ...inDiscovery(), specDescription: null };
+      assert.assertEquals(machine.recommendedEntryOption(state), "a");
+    },
+  );
 });

@@ -10,8 +10,8 @@
  * This guarantees that a freshly-refreshed access token is never lost due to
  * an API error that occurs after the refresh succeeds.
  *
- * If ctx.tokenStore or ctx.auths[platform] are absent (e.g., a CLI invocation
- * without full auth wiring), the operation runs directly without bracket.
+ * If ctx.tokenStore or ctx.auths[platform] are absent (a context that manages
+ * tokens itself), the operation runs directly without the bracket.
  *
  * @module
  */
@@ -20,9 +20,9 @@ import * as resources from "@eserstack/functions/resources";
 import * as results from "@eserstack/primitives/results";
 import type { OAuthTokens } from "../domain/entities/user.ts";
 import type { Platform } from "../domain/values/platform.ts";
-import { AuthRequiredError } from "./auth-required-error.ts";
+import * as authRequiredError from "./auth-required-error.ts";
 import type { PostsCtx } from "./context.ts";
-import { isTokenExpired } from "./token-utils.ts";
+import * as tokenUtils from "./token-utils.ts";
 
 /**
  * Wrap an API operation with proactive token refresh and guaranteed persistence.
@@ -39,24 +39,39 @@ export function withFreshTokens<T>(
   const auth = ctx.auths?.get(platform);
 
   if (tokenStore === undefined || auth === undefined) {
-    // No token lifecycle management configured for this context.
-    // Tokens were already installed at startup (restoreSavedTokens / loginFlow).
+    // No token lifecycle management configured for this context: whatever
+    // tokens the caller installed in the auth provider are used as they are.
     return operation();
   }
 
   return resources.bracket(
     // acquire: load tokens; refresh if expired
     async (): Promise<results.Result<OAuthTokens, Error>> => {
-      const tokens = await tokenStore.load(platform);
-      if (tokens === null) {
+      let tokens: OAuthTokens | null;
+      try {
+        tokens = await tokenStore.load(platform);
+      } catch (err) {
+        // An unreadable token store is this call's failure, not a crash.
         return results.fail(
-          new AuthRequiredError(`Not authenticated on ${platform}`),
+          new Error(
+            `load saved ${platform} tokens: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+            { cause: err },
+          ),
         );
       }
-      if (isTokenExpired(tokens)) {
+      if (tokens === null) {
+        return results.fail(
+          new authRequiredError.AuthRequiredError(
+            `Not authenticated on ${platform}`,
+          ),
+        );
+      }
+      if (tokenUtils.isTokenExpired(tokens)) {
         if (tokens.refreshToken === undefined) {
           return results.fail(
-            new AuthRequiredError(
+            new authRequiredError.AuthRequiredError(
               `No refresh token available for ${platform}`,
             ),
           );

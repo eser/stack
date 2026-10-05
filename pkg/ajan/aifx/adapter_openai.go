@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
+	"github.com/eser/stack/pkg/ajan/lib"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/openai/openai-go/packages/ssestream"
@@ -23,7 +23,14 @@ var (
 	ErrOpenAIBatchFailed      = errors.New("openai batch failed")
 )
 
-const openaiProviderName = "openai"
+const (
+	openaiProviderName = "openai"
+
+	// openAIMaxBatchOutputBytes caps the batch output file read into memory.
+	// OpenAI limits a batch input file to 200 MB, and the output holds one
+	// completion per input line, so 512 MiB leaves room for long answers.
+	openAIMaxBatchOutputBytes = 512 << 20
+)
 
 // classifyOpenAIError wraps err with the provider sentinel and, when the underlying
 // error is an OpenAI API error, inserts a provider-agnostic classification sentinel
@@ -34,8 +41,7 @@ func classifyOpenAIError(providerSentinel error, err error) error {
 		return ctxErr
 	}
 
-	var apiErr *openai.Error
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*openai.Error](err); ok {
 		return classifyAndWrap(providerSentinel, apiErr.StatusCode, err)
 	}
 
@@ -259,9 +265,13 @@ func (m *OpenAIModel) DownloadBatchResults(
 
 	defer func() { _ = content.Body.Close() }()
 
-	body, err := io.ReadAll(content.Body)
+	body, err := lib.ReadAllLimited(content.Body, openAIMaxBatchOutputBytes)
 	if err != nil {
-		return nil, fmt.Errorf("read output: %w", classifyOpenAIError(ErrOpenAIBatchFailed, err))
+		return nil, fmt.Errorf(
+			"read output file %q of batch %q (limit %d bytes; split the batch into smaller jobs if it is larger): %w",
+			job.Storage.OutputRef, job.ID, openAIMaxBatchOutputBytes,
+			classifyOpenAIError(ErrOpenAIBatchFailed, err),
+		)
 	}
 
 	return m.parseBatchResults(body)
@@ -297,9 +307,17 @@ func (m *OpenAIModel) processStream(
 		chunk := stream.Current()
 		acc.AddChunk(chunk)
 
-		// Emit text content deltas.
-		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-			sendStreamEvent(ctx, eventCh, newStreamEventContentDelta(chunk.Choices[0].Delta.Content))
+		// Emit text content deltas. A refusal arrives in its own field and
+		// explains why there is no answer, so it streams as text too.
+		if len(chunk.Choices) > 0 {
+			delta := chunk.Choices[0].Delta
+			if delta.Content != "" {
+				sendStreamEvent(ctx, eventCh, newStreamEventContentDelta(delta.Content))
+			}
+
+			if delta.Refusal != "" {
+				sendStreamEvent(ctx, eventCh, newStreamEventContentDelta(delta.Refusal))
+			}
 		}
 
 		// Detect finished tool calls via the accumulator.
@@ -332,7 +350,7 @@ func (m *OpenAIModel) processStream(
 
 	var stopReason StopReason
 	if len(acc.Choices) > 0 {
-		stopReason = mapOpenAIFinishReason(acc.Choices[0].FinishReason)
+		stopReason = mapOpenAIChoiceStopReason(acc.Choices[0].FinishReason, acc.Choices[0].Message.Refusal)
 	}
 
 	sendStreamEvent(ctx, eventCh, newStreamEventDone(stopReason, usage))
@@ -358,7 +376,10 @@ func (m *OpenAIModel) buildParams(
 		return params, err
 	}
 
-	m.applyOpenAIOptions(&params, opts)
+	err = m.applyOpenAIOptions(&params, opts)
+	if err != nil {
+		return params, err
+	}
 
 	return params, nil
 }
@@ -391,17 +412,12 @@ func (m *OpenAIModel) applyOpenAITools(
 	if len(opts.Tools) > 0 {
 		tools := make([]openai.ChatCompletionToolParam, 0, len(opts.Tools))
 
-		for _, tool := range opts.Tools {
-			var schemaMap map[string]any
-			if len(tool.Parameters) > 0 {
-				err := json.Unmarshal(tool.Parameters, &schemaMap)
-				if err != nil {
-					return fmt.Errorf(
-						"failed to unmarshal tool parameters for %q: %w",
-						tool.Name,
-						err,
-					)
-				}
+		for idx := range opts.Tools {
+			tool := &opts.Tools[idx]
+
+			schemaMap, err := decodeToolParameters(tool)
+			if err != nil {
+				return err
 			}
 
 			tools = append(tools, openai.ChatCompletionToolParam{ //nolint:exhaustruct
@@ -426,12 +442,28 @@ func (m *OpenAIModel) applyOpenAITools(
 func (m *OpenAIModel) applyOpenAIOptions(
 	params *openai.ChatCompletionNewParams,
 	opts *GenerateTextOptions,
-) {
+) error {
 	if opts.ResponseFormat != nil {
-		params.ResponseFormat = mapOpenAIResponseFormat(opts.ResponseFormat)
+		responseFormat, err := mapOpenAIResponseFormat(opts.ResponseFormat)
+		if err != nil {
+			return err
+		}
+
+		params.ResponseFormat = responseFormat
 	}
 
-	if opts.ThinkingBudget != nil {
+	err := checkEffort(opts.Effort)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case opts.Effort != EffortDefault:
+		// The Effort constants are the API's own reasoning_effort values. This
+		// SDK version lists only low, medium and high, but the field is a string
+		// and the API also takes xhigh and max on the models that support them.
+		params.ReasoningEffort = shared.ReasoningEffort(opts.Effort)
+	case opts.ThinkingBudget != nil:
 		params.ReasoningEffort = mapOpenAIReasoningEffort(*opts.ThinkingBudget)
 	}
 
@@ -452,6 +484,8 @@ func (m *OpenAIModel) applyOpenAIOptions(
 			OfStringArray: opts.StopWords,
 		}
 	}
+
+	return nil
 }
 
 // mapMessage converts a unified Message to one or more OpenAI message params.
@@ -649,20 +683,26 @@ func (m *OpenAIModel) mapCompletionToResult(completion *openai.ChatCompletion) *
 	}
 
 	choice := completion.Choices[0]
-	result.StopReason = mapOpenAIFinishReason(choice.FinishReason)
+	result.StopReason = mapOpenAIChoiceStopReason(choice.FinishReason, choice.Message.Refusal)
 
-	content := make([]ContentBlock, 0, len(choice.Message.ToolCalls)+1)
+	content := make([]ContentBlock, 0, len(choice.Message.ToolCalls)+2)
 
-	// Add text content.
-	if choice.Message.Content != "" {
+	// Add text content. A refusal comes in its own field instead of the
+	// content; it is kept as text, since it explains why there is no answer.
+	for _, text := range []string{choice.Message.Content, choice.Message.Refusal} {
+		if text == "" {
+			continue
+		}
+
 		content = append(content, ContentBlock{
 			Type:       ContentBlockText,
-			Text:       choice.Message.Content,
+			Text:       text,
 			Image:      nil,
 			Audio:      nil,
 			File:       nil,
 			ToolCall:   nil,
 			ToolResult: nil,
+			Thinking:   nil,
 		})
 	}
 
@@ -680,6 +720,7 @@ func (m *OpenAIModel) mapCompletionToResult(completion *openai.ChatCompletion) *
 				Arguments: json.RawMessage(toolCall.Function.Arguments),
 			},
 			ToolResult: nil,
+			Thinking:   nil,
 		})
 	}
 
@@ -830,19 +871,34 @@ func mapOpenAIBatchToJob(batch *openai.Batch) *BatchJob {
 }
 
 // mapOpenAIFinishReason converts OpenAI finish_reason to our unified StopReason.
+// content_filter means a filter withheld the answer, so it is a refusal;
+// function_call is the deprecated name of tool_calls. A missing reason, which
+// some OpenAI-compatible servers send, is taken as a finished answer; any other
+// reason has no closer match than stop.
 func mapOpenAIFinishReason(reason string) StopReason {
 	switch reason {
-	case "stop":
+	case "stop", "":
 		return StopReasonEndTurn
 	case "length":
 		return StopReasonMaxTokens
-	case "tool_calls":
+	case "tool_calls", "function_call":
 		return StopReasonToolUse
 	case "content_filter":
-		return StopReasonStop
+		return StopReasonRefusal
 	default:
 		return StopReasonStop
 	}
+}
+
+// mapOpenAIChoiceStopReason is the stop reason of a choice. A model that
+// declines a structured-output request sets message.refusal and still finishes
+// with "stop", so a refusal text decides it.
+func mapOpenAIChoiceStopReason(finishReason, refusal string) StopReason {
+	if refusal != "" {
+		return StopReasonRefusal
+	}
+
+	return mapOpenAIFinishReason(finishReason)
 }
 
 // mapOpenAIBatchStatus converts OpenAI batch status to our unified BatchStatus.
@@ -885,15 +941,17 @@ func mapOpenAIToolChoice(
 	}
 }
 
-// mapOpenAIResponseFormat converts our ResponseFormat to OpenAI's response_format parameter.
+// mapOpenAIResponseFormat converts our ResponseFormat to OpenAI's
+// response_format parameter. A json_schema format whose schema is missing or
+// not an object fails here, before the request is sent.
 func mapOpenAIResponseFormat(
 	responseFormat *ResponseFormat,
-) openai.ChatCompletionNewParamsResponseFormatUnion {
+) (openai.ChatCompletionNewParamsResponseFormatUnion, error) {
 	switch responseFormat.Type {
 	case "json_schema":
-		var schema map[string]any
-		if len(responseFormat.JSONSchema) > 0 {
-			_ = json.Unmarshal(responseFormat.JSONSchema, &schema)
+		schema, err := decodeResponseSchema(responseFormat.JSONSchema)
+		if err != nil {
+			return openai.ChatCompletionNewParamsResponseFormatUnion{}, err //nolint:exhaustruct
 		}
 
 		return openai.ChatCompletionNewParamsResponseFormatUnion{ //nolint:exhaustruct
@@ -904,17 +962,17 @@ func mapOpenAIResponseFormat(
 					Strict: openai.Bool(true),
 				},
 			},
-		}
+		}, nil
 
 	case "json_object":
 		return openai.ChatCompletionNewParamsResponseFormatUnion{ //nolint:exhaustruct
 			OfJSONObject: &shared.ResponseFormatJSONObjectParam{}, //nolint:exhaustruct
-		}
+		}, nil
 
 	default:
 		return openai.ChatCompletionNewParamsResponseFormatUnion{ //nolint:exhaustruct
 			OfText: &shared.ResponseFormatTextParam{}, //nolint:exhaustruct
-		}
+		}, nil
 	}
 }
 

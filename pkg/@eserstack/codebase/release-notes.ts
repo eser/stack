@@ -36,21 +36,15 @@ import * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as shell from "@eserstack/shell";
 import * as tui from "@eserstack/shell/tui";
-import {
-  commandFailureDetail,
-  createCliContext,
-  runCliMain,
-  toCliEvent,
-} from "./cli-support.ts";
-import {
+import * as cliSupport from "./cli-support.ts";
+import * as changelogText from "./changelog-text.ts";
+import type { ChangelogEntry } from "./changelog-text.ts";
+
+export {
   type ChangelogEntry,
   normalizeTag,
   parseChangelogText,
 } from "./changelog-text.ts";
-
-export { type ChangelogEntry, normalizeTag, parseChangelogText };
-
-const { ctx, output: out } = createCliContext();
 
 /**
  * Options for parsing a changelog file.
@@ -112,7 +106,7 @@ export const parseChangelog = async (
   const { changelogPath = "CHANGELOG.md", root = "." } = options;
   const fullPath = stdPath.resolve(root, changelogPath);
   const text = await standards.crossRuntime.runtime.fs.readTextFile(fullPath);
-  const entries = parseChangelogText(text);
+  const entries = changelogText.parseChangelogText(text);
 
   return { entries };
 };
@@ -163,7 +157,7 @@ export const syncReleaseNotes = async (
   }
 
   const targetTag = options.tag !== undefined
-    ? normalizeTag(options.tag)
+    ? changelogText.normalizeTag(options.tag)
     : entries[0]!.tag;
 
   const entry = entries.find((e) => e.tag === targetTag);
@@ -189,7 +183,7 @@ export const syncReleaseNotes = async (
       } catch (editErr) {
         throw new Error(
           `gh release edit ${targetTag} failed.${
-            commandFailureDetail(editErr)
+            cliSupport.commandFailureDetail(editErr)
           }`,
           { cause: editErr },
         );
@@ -217,7 +211,7 @@ export const syncReleaseNotes = async (
       if (!(await hasGitHubRelease(targetTag, repo))) {
         throw new Error(
           `gh release create ${targetTag} failed.${
-            commandFailureDetail(createErr)
+            cliSupport.commandFailureDetail(createErr)
           }`,
           { cause: createErr },
         );
@@ -279,6 +273,8 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   Error | functions.handler.AdaptError,
   shellArgs.CliResult<void>
 > = (result) => {
+  const { ctx } = cliSupport.getCliContext();
+
   if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
@@ -334,13 +330,15 @@ export const main = async (
       alias: { h: "help" },
     },
   );
-  const event = toCliEvent("release-notes", parsed);
+  const event = cliSupport.toCliEvent("release-notes", parsed);
   return await handleCli(event);
 };
 
 if (import.meta.main) {
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
-    out,
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

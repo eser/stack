@@ -6,7 +6,7 @@
  * @module
  */
 
-import { getPlatform, runtime } from "@eserstack/standards/cross-runtime";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 
 /**
  * Reports whether path is a file this process could execute.
@@ -20,14 +20,14 @@ const isExecutableFile = async (path: string): Promise<boolean> => {
     // runtime.fs.stat rather than a Deno global: this ships inside the npm CLI
     // too, where `Deno` is undefined and the ReferenceError would be swallowed
     // by this very catch, making every lookup silently return false.
-    const info = await runtime.fs.stat(path);
+    const info = await crossRuntime.runtime.fs.stat(path);
 
     if (!info.isFile) {
       return false;
     }
 
     // Windows has no execute bit; existence plus a PATHEXT match is the test.
-    if (getPlatform() === "windows") {
+    if (crossRuntime.getPlatform() === "windows") {
       return true;
     }
 
@@ -63,8 +63,9 @@ export const resolveExecutable = async (
     return null;
   }
 
-  const isWindows = getPlatform() === "windows";
-  const pathValue = runtime.env.get("PATH") ?? runtime.env.get("Path") ?? "";
+  const isWindows = crossRuntime.getPlatform() === "windows";
+  const pathValue = crossRuntime.runtime.env.get("PATH") ??
+    crossRuntime.runtime.env.get("Path") ?? "";
 
   if (pathValue === "") {
     return null;
@@ -74,7 +75,11 @@ export const resolveExecutable = async (
   // empty suffix covers every POSIX case and a Windows binary named without
   // one.
   const extensions = isWindows
-    ? ["", ...(runtime.env.get("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD").split(";")]
+    ? [
+      "",
+      ...(crossRuntime.runtime.env.get("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD")
+        .split(";"),
+    ]
     : [""];
 
   const separator = isWindows ? "\\" : "/";
@@ -89,6 +94,8 @@ export const resolveExecutable = async (
         isWindows ? extension : extension.toLowerCase()
       }`;
 
+      // PATH order decides which binary wins, so stop at the first match.
+      // deno-lint-ignore no-await-in-loop
       if (await isExecutableFile(candidate)) {
         return candidate;
       }

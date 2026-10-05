@@ -1,96 +1,101 @@
-# ajan/configfx
+# ⚙️ [ajan/configfx](./)
 
-## Overview
+> **eserstack Go library** in the root module `github.com/eser/stack`. Import
+> `github.com/eser/stack/pkg/ajan/configfx`. The module is not published for
+> `go get`: build inside this repository, or require `github.com/eser/stack`
+> with a `replace` directive that points at a checkout.
 
-**configfx** is a powerful and flexible configuration management framework for
-Go applications that supports multiple configuration sources, type-safe loading,
-and environment-aware configuration handling.
+`configfx` loads configuration into Go structs for services built on ajan. You
+describe the configuration with struct tags (key, default, required), and
+`configfx` fills the struct from JSON files, `.env` files and system environment
+variables, in the order you list them, so a later source overrides an earlier
+one. Environment-aware loading picks up files such as `config.production.json`
+for the current environment, and every value is converted to its field's type
+with an error that names the key when it does not fit.
 
 ## Key Features
 
 - **Multiple Configuration Sources**: JSON files, environment files (.env),
-  system environment variables
+  system environment variables, and sources you write yourself
 - **Type-Safe Configuration**: Struct-based configuration with compile-time type
   safety
 - **Environment-Aware**: Automatic environment-specific configuration file
   loading
-- **Nested Configuration**: Support for complex nested structures and maps
+- **Nested Configuration**: Support for nested structures, maps, slices and
+  pointers
 - **Tag-Based Mapping**: Use struct tags to define configuration keys, defaults,
   and requirements
-- **Hierarchical Loading**: Configuration values can be overridden by priority
-  (files → env files → system env)
-- **Validation**: Built-in validation for required fields and type checking
+- **Hierarchical Loading**: Configuration values are overridden in the order of
+  the sources (for example files, then env files, then system env)
+- **Validation**: Required fields and type checking, with errors that name the
+  key
 
 ## Quick Start
 
-### Basic Usage
+Describe the configuration as a struct and load it from three sources:
 
 ```go
 package main
 
 import (
-    "fmt"
-    "log"
+	"fmt"
+	"os"
 
-    "github.com/eser/stack/pkg/ajan/configfx"
+	"github.com/eser/stack/pkg/ajan/configfx"
 )
 
-// Define your configuration structure
 type Config struct {
-    Server ServerConfig `conf:"server"`
-    Database DatabaseConfig `conf:"database"`
-    Debug bool `conf:"debug" default:"false"`
+	Server ServerConfig `conf:"server"`
+	Debug  bool         `conf:"debug" default:"false"`
 }
 
 type ServerConfig struct {
-    Host string `conf:"host" default:"localhost"`
-    Port int    `conf:"port" default:"8080" required:""`
-}
-
-type DatabaseConfig struct {
-    URL      string `conf:"url" required:""`
-    MaxConns int    `conf:"max_conns" default:"10"`
+	Host string `conf:"host" default:"localhost"`
+	Port int    `conf:"port" default:"8080"`
 }
 
 func main() {
-    config := &Config{}
+	config := &Config{}
+	manager := configfx.NewConfigManager()
 
-    // Create config manager
-    manager := configfx.NewConfigManager()
+	err := manager.Load(config,
+		manager.FromJSONFile("config.json"),
+		manager.FromEnvFile(".env", true),
+		manager.FromSystemEnv(true),
+	)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
-    // Load configuration from multiple sources
-    err := manager.Load(config,
-        manager.FromJSONFile("config.json"),
-        manager.FromEnvFile(".env", true),
-        manager.FromSystemEnv(true),
-    )
-    if err != nil {
-        log.Fatal("Failed to load configuration:", err)
-    }
-
-    fmt.Printf("Server will run on %s:%d\n", config.Server.Host, config.Server.Port)
+	fmt.Printf("%s:%d debug=%t\n", config.Server.Host, config.Server.Port, config.Debug)
 }
 ```
 
+A missing file is skipped, so with no `config.json` and no `.env` the defaults
+apply and it prints `localhost:8080 debug=false`. Run it as
+`server__port=9090 go run .` and it prints `localhost:9090 debug=false`.
+
 ### Using Default Loading
 
-For common scenarios, use the simplified default loading:
+`LoadDefaults` loads the same three sources: `config.json`, `.env` (keys matched
+in any case) and the system environment (keys matched in any case):
 
 ```go
 config := &Config{}
 manager := configfx.NewConfigManager()
 
-// Loads config.json, .env files, and system environment variables
 err := manager.LoadDefaults(config)
 if err != nil {
-    log.Fatal("Failed to load configuration:", err)
+	return fmt.Errorf("load config: %w", err)
 }
 ```
 
 ## Configuration Sources
 
-configfx supports multiple configuration sources that are loaded in hierarchical
-order (later sources override earlier ones):
+Each source adds its keys to one map, in the order you pass the sources to
+`Load`, so a later source overrides an earlier one. `configfx` then fills the
+struct from that map.
 
 ### 1. JSON Files
 
@@ -113,15 +118,22 @@ order (later sources override earlier ones):
 **Loading JSON:**
 
 ```go
-manager.FromJSONFile("config.json")           // Environment-aware
-manager.FromJSONFileDirect("config.json")     // Direct file only
+manager.FromJSONFile("config.json")       // Environment-aware
+manager.FromJSONFileDirect("config.json") // Direct file only
+manager.FromJSONString(`{"debug": true}`) // A JSON document in a string
 ```
+
+Nested objects become keys joined with `__` (`server__port`). Numbers keep the
+digits they were written with, so `1048576` loads into an `int` field. A `null`
+value removes the key and every key under it, so the field falls back to its
+`default` tag. When several files set the same array, their items merge by
+index. A file must hold one JSON object; anything after it is an error.
 
 ### 2. Environment Files (.env)
 
 **.env:**
 
-```env
+```bash
 server__host=localhost
 server__port=8080
 database__url=postgres://localhost/myapp_dev
@@ -132,9 +144,14 @@ debug=true
 **Loading Environment Files:**
 
 ```go
-manager.FromEnvFile(".env", true)           // Environment-aware, case insensitive
-manager.FromEnvFileDirect(".env", false)    // Direct file, case sensitive
+manager.FromEnvFile(".env", true)        // Environment-aware, case insensitive
+manager.FromEnvFileDirect(".env", false) // Direct file, case sensitive
 ```
+
+The parser is a port of [godotenv](https://github.com/joho/godotenv): it skips
+`#` comments, accepts an `export` prefix and single or double quotes, and
+expands `${NAME}` from the keys loaded so far. An undefined name expands to an
+empty string.
 
 ### 3. System Environment Variables
 
@@ -147,21 +164,27 @@ export database__url=postgres://prod-db/myapp
 **Loading System Environment:**
 
 ```go
-manager.FromSystemEnv(true)  // Case insensitive key matching
+manager.FromSystemEnv(true) // Case insensitive key matching
 ```
+
+`FromSystemEnv` reads every variable in the process environment. A variable
+whose name matches a key in any case sets that field, so a `DEBUG` variable left
+in your shell sets the `debug` field above.
 
 ## Environment-Aware Configuration
 
-configfx automatically handles environment-specific configuration files:
+`FromJSONFile` and `FromEnvFile` read the file you name and the files for the
+current environment next to it:
 
-```
-config.json              # Base configuration
-config.development.json  # Development overrides
-config.production.json   # Production overrides
-config.local.json        # Local developer overrides
+```text
+config.json                    # Base configuration
+config.production.json         # Overrides for the environment
+config.local.json              # Local developer overrides
+config.production.local.json   # Local overrides for the environment
 ```
 
-Set the environment using:
+Set the environment with the `env` variable; it is lowercased, and an unset or
+empty value means `development`:
 
 ```bash
 export env=production
@@ -171,7 +194,11 @@ The loading order will be:
 
 1. `config.json` (base)
 2. `config.{environment}.json` (environment-specific)
-3. `config.local.json` (local overrides)
+3. `config.local.json` (local overrides), skipped when the environment is
+   `test`, so local overrides never change test runs
+4. `config.{environment}.local.json` (local overrides for the environment)
+
+Each file is optional. The `Direct` variants read only the file you name.
 
 ## Struct Tags
 
@@ -179,28 +206,34 @@ configfx uses struct tags to define configuration mapping:
 
 ```go
 type Config struct {
-    // Basic mapping
-    Port int `conf:"port"`
+	// Basic mapping
+	Port int `conf:"port"`
 
-    // With default value
-    Host string `conf:"host" default:"localhost"`
+	// With default value
+	Host string `conf:"host" default:"localhost"`
 
-    // Required field
-    APIKey string `conf:"api_key" required:""`
+	// Required field
+	APIKey string `conf:"api_key" required:""`
 
-    // Required with default (default only used if not required)
-    Timeout time.Duration `conf:"timeout" default:"30s" required:""`
+	// Required with a default: a missing value takes the default instead of
+	// failing
+	Timeout time.Duration `conf:"timeout" default:"30s" required:""`
 
-    // Nested structure
-    Database DatabaseConfig `conf:"database"`
+	// Nested structure
+	Database DatabaseConfig `conf:"database"`
 
-    // Anonymous embedding (fields are flattened)
-    LogConfig
+	// Anonymous embedding (fields are flattened)
+	LogConfig
+}
+
+type DatabaseConfig struct {
+	URL      string `conf:"url"       required:""`
+	MaxConns int    `conf:"max_conns" default:"10"`
 }
 
 type LogConfig struct {
-    Level string `conf:"log_level" default:"info"`
-    File  string `conf:"log_file"`
+	Level string `conf:"log_level" default:"info"`
+	File  string `conf:"log_file"`
 }
 ```
 
@@ -210,17 +243,25 @@ type LogConfig struct {
 - `default:"value"`: Sets default value if not provided
 - `required:""`: Marks field as required (empty value for presence)
 
+A field without a `conf` tag is not loaded. A field with a `conf` tag must be
+exported, and an embedded struct pointer must be allocated before `Load`.
+Otherwise `Load` returns `ErrUnsettableConfigField` naming the key, whether or
+not a value is present.
+
 ### Key Naming Convention
 
 Configuration keys use double underscore (`__`) as separator for nested
 structures:
 
-```
+```bash
 server__host=localhost
 server__port=8080
 database__url=postgres://localhost/db
 database__max_conns=10
 ```
+
+Keys are matched in any case, so `SERVER__PORT` sets the same field as
+`server__port`.
 
 ## Advanced Features
 
@@ -230,8 +271,8 @@ configfx supports map fields for dynamic configuration:
 
 ```go
 type Config struct {
-    Features map[string]string `conf:"features"`
-    Limits   map[string]int    `conf:"limits"`
+	Features map[string]string `conf:"features"`
+	Limits   map[string]int    `conf:"limits"`
 }
 ```
 
@@ -252,12 +293,18 @@ type Config struct {
 
 **Environment variables:**
 
-```env
+```bash
 features__auth=enabled
 features__cache=redis
 limits__max_users=1000
 limits__rate_limit=100
 ```
+
+Map keys must be strings, or `Load` returns `ErrUnsupportedConfigType` even when
+no value is set. Keys are lowercased (`features__AUTH` becomes
+`features["auth"]`). A map value takes any type from Type Support below and
+loads from its entry's key; a struct value loads from the keys under its entry
+(`targets__openai__model`).
 
 ### Anonymous Struct Embedding
 
@@ -265,31 +312,99 @@ Use anonymous structs for composition:
 
 ```go
 type BaseConfig struct {
-    Version string `conf:"version" default:"1.0"`
-    Debug   bool   `conf:"debug" default:"false"`
+	Version string `conf:"version" default:"1.0"`
+	Debug   bool   `conf:"debug"   default:"false"`
 }
 
 type AppConfig struct {
-    BaseConfig  // Fields are flattened to root level
+	BaseConfig // Fields are flattened to root level
 
-    Server ServerConfig `conf:"server"`
+	Server ServerConfig `conf:"server"`
 }
 ```
 
 ### Type Support
 
-configfx supports automatic type conversion for:
+configfx converts each value to the type of its field:
 
-- Basic types: `string`, `int`, `int64`, `float64`, `bool`
-- Time durations: `time.Duration` (e.g., "30s", "5m", "1h")
-- Slices and arrays: Comma-separated values
-- Custom types implementing `encoding.TextUnmarshaler`
+- `string`, `bool` (`strconv.ParseBool`), signed and unsigned integers of every
+  size, `float32` and `float64`. A named type such as `type Mode string` loads
+  like its underlying type.
+- `time.Duration` in Go duration syntax (`30s`, `5m`, `1h`).
+- Any type that implements `encoding.TextUnmarshaler`, such as `time.Time` (RFC
+  3339), `slog.Level`, `netip.Addr`, `netip.Prefix` and `types.MetricInt`
+  (`100K`).
+- `any`, which receives the string unchanged.
+- A pointer to one of these, and slices and maps of them (see Slices, Pointer
+  Fields and Map Support).
+
+A value for any other type, such as `complex128` or `[][]int`, makes `Load`
+return `ErrUnsupportedConfigType` naming the key. A field of such a type with no
+value and no default is left as it is.
+
+### Slices
+
+A slice field loads from the first of these sources that is set:
+
+1. A comma-separated value at the field's key. Items are trimmed and empty items
+   are dropped, so an empty value gives an empty slice and clears the default.
+2. Indexed keys such as `paths__0` and `paths__1`, which is how JSON arrays
+   arrive, or `items__0__name` for a slice of structs. The highest index sets
+   the length and a missing index leaves a zero item. An index of
+   `configfx.MaxIndexedSliceLength` (10000) or more makes `Load` return
+   `ErrInvalidConfigValue`.
+3. The `default` tag, also comma-separated.
+
+```go
+type Config struct {
+	Paths []string `conf:"paths" default:"/health,/metrics"`
+	Ports []int    `conf:"ports"`
+}
+```
+
+Each of these sets the same values:
+
+```bash
+export paths=/health,/ready
+export ports=8080,8443
+```
+
+```json
+{
+  "paths": ["/health", "/ready"],
+  "ports": [8080, 8443]
+}
+```
+
+The value at the key wins over indexed keys, so an environment variable such as
+`paths=/ready` overrides a JSON array. An item that contains a comma needs
+indexed keys (`paths__0`), and a slice of structs takes indexed keys only. An
+empty JSON array (`[]`) clears the default like an empty value. With
+`required:""`, a slice that none of the sources set makes `Load` return
+`ErrMissingRequiredConfigValue`.
+
+### Pointer Fields
+
+```go
+type Config struct {
+	Port     *int            `conf:"port"`
+	Database *DatabaseConfig `conf:"database"`
+}
+```
+
+`Port` stays nil unless a source or a `default` tag sets it, so you can tell an
+unset value from a zero. A pointer to a struct stays nil until a source sets its
+key or a key under it (`database__url`); configfx then allocates the struct and
+loads it like a nested struct, defaults included. A pointer you allocate before
+`Load` is loaded in place. With `required:""`, an absent struct section makes
+`Load` return `ErrMissingRequiredConfigValue`.
 
 ## API Reference
 
 ### ConfigManager
 
-The main configuration manager that handles loading and parsing.
+The main configuration manager that handles loading and parsing. It holds no
+state; `NewConfigManager` returns one you can reuse for every load.
 
 #### Creating a Manager
 
@@ -300,7 +415,7 @@ func NewConfigManager() *ConfigManager
 #### Loading Configuration
 
 ```go
-// Load from multiple sources
+// Load from multiple sources; i is a non-nil pointer to a struct
 func (cl *ConfigManager) Load(i any, resources ...ConfigResource) error
 
 // Load with default sources (config.json, .env, system env)
@@ -316,9 +431,10 @@ func (cl *ConfigManager) LoadMeta(i any) (ConfigItemMeta, error)
 #### Configuration Sources
 
 ```go
-// JSON file sources
+// JSON sources
 func (cl *ConfigManager) FromJSONFile(filename string) ConfigResource
 func (cl *ConfigManager) FromJSONFileDirect(filename string) ConfigResource
+func (cl *ConfigManager) FromJSONString(jsonStr string) ConfigResource
 
 // Environment file sources
 func (cl *ConfigManager) FromEnvFile(filename string, keyCaseInsensitive bool) ConfigResource
@@ -328,6 +444,9 @@ func (cl *ConfigManager) FromEnvFileDirect(filename string, keyCaseInsensitive b
 func (cl *ConfigManager) FromSystemEnv(keyCaseInsensitive bool) ConfigResource
 ```
 
+`ConfigManager` implements the `ConfigLoader` interface, which lists these
+methods except `FromJSONString`, for code that takes a loader as a dependency.
+
 ### ConfigResource
 
 A function type that loads configuration data:
@@ -336,172 +455,92 @@ A function type that loads configuration data:
 type ConfigResource func(target *map[string]any) error
 ```
 
-### Error Handling
-
-configfx provides sentinel errors for different failure scenarios:
+Write your own to add a source. It sets flattened keys (`server__port`) to
+string values:
 
 ```go
-import "errors"
+func fromFlags(port string) configfx.ConfigResource {
+	return func(target *map[string]any) error {
+		if port != "" {
+			(*target)["server__port"] = port
+		}
 
+		return nil
+	}
+}
+```
+
+### Error Handling
+
+configfx provides sentinel errors for different failure scenarios. Each error
+names the key or file it is about:
+
+```go
 if errors.Is(err, configfx.ErrNotStruct) {
-    // Target is not a struct pointer
+	// Target is not a non-nil pointer to a struct
 }
 
 if errors.Is(err, configfx.ErrMissingRequiredConfigValue) {
-    // Required field is missing
+	// Required field is missing
+}
+
+if errors.Is(err, configfx.ErrInvalidConfigValue) {
+	// A value or a default tag does not parse as the field's type
+}
+
+if errors.Is(err, configfx.ErrUnsettableConfigField) {
+	// A conf-tagged field is unexported or sits behind a nil embedded pointer
+}
+
+if errors.Is(err, configfx.ErrUnsupportedConfigType) {
+	// A value is set for a field type configfx cannot parse
 }
 
 if errors.Is(err, configfx.ErrFailedToParseJSONFile) {
-    // JSON file parsing failed
+	// JSON file parsing failed
+}
+
+if errors.Is(err, configfx.ErrFailedToParseJSONString) {
+	// The string passed to FromJSONString is not one JSON object
 }
 
 if errors.Is(err, configfx.ErrFailedToParseEnvFile) {
-    // Environment file parsing failed
+	// Environment file parsing failed
 }
 ```
 
-## Best Practices
+## Validating Loaded Values
 
-### 1. Configuration Structure Organization
-
-```go
-// Group related configuration
-type Config struct {
-    App      AppConfig      `conf:"app"`
-    Server   ServerConfig   `conf:"server"`
-    Database DatabaseConfig `conf:"database"`
-    Cache    CacheConfig    `conf:"cache"`
-    External ExternalConfig `conf:"external"`
-}
-
-// Use descriptive names and sensible defaults
-type ServerConfig struct {
-    Host         string        `conf:"host" default:"::"`
-    Port         int           `conf:"port" default:"8080"`
-    ReadTimeout  time.Duration `conf:"read_timeout" default:"30s"`
-    WriteTimeout time.Duration `conf:"write_timeout" default:"30s"`
-    TLS          TLSConfig     `conf:"tls"`
-}
-```
-
-### 2. Environment-Specific Configuration
-
-```go
-// Use environment-aware loading for different deployments
-err := manager.Load(config,
-    manager.FromJSONFile("config.json"),        // Base config
-    manager.FromEnvFile(".env", true),          // Environment overrides
-    manager.FromSystemEnv(true),                // Runtime overrides
-)
-```
-
-### 3. Validation and Required Fields
-
-```go
-type DatabaseConfig struct {
-    // Always require critical configuration
-    URL      string `conf:"url" required:""`
-    Username string `conf:"username" required:""`
-    Password string `conf:"password" required:""`
-
-    // Provide sensible defaults for optional settings
-    MaxConns    int           `conf:"max_conns" default:"10"`
-    Timeout     time.Duration `conf:"timeout" default:"30s"`
-    SSLMode     string        `conf:"ssl_mode" default:"prefer"`
-}
-```
-
-### 4. Configuration Validation
+Tags check presence and type; check ranges and relations between fields in a
+method you call after loading:
 
 ```go
 type Config struct {
-    Port int `conf:"port" default:"8080"`
+	Port int `conf:"port" default:"8080"`
 }
 
 func (c *Config) Validate() error {
-    if c.Port < 1 || c.Port > 65535 {
-        return fmt.Errorf("invalid port: %d", c.Port)
-    }
-    return nil
+	if c.Port < 1 || c.Port > 65535 {
+		return fmt.Errorf("invalid port: %d", c.Port)
+	}
+
+	return nil
 }
 
-// After loading
-config := &Config{}
-err := manager.LoadDefaults(config)
-if err != nil {
-    return err
-}
+func loadConfig() (*Config, error) {
+	config := &Config{}
 
-if err := config.Validate(); err != nil {
-    return fmt.Errorf("configuration validation failed: %w", err)
-}
-```
+	err := configfx.NewConfigManager().LoadDefaults(config)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
 
-## Integration Examples
+	err = config.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("validate config: %w", err)
+	}
 
-### With HTTP Server
-
-```go
-type ServerConfig struct {
-    Host string `conf:"host" default:"localhost"`
-    Port int    `conf:"port" default:"8080"`
-    TLS  bool   `conf:"tls" default:"false"`
-}
-
-func (c *ServerConfig) Address() string {
-    return fmt.Sprintf("%s:%d", c.Host, c.Port)
-}
-
-// Usage
-config := &Config{}
-manager.LoadDefaults(config)
-server := http.Server{Addr: config.Server.Address()}
-```
-
-### With Database
-
-```go
-type DatabaseConfig struct {
-    Driver   string `conf:"driver" default:"postgres"`
-    Host     string `conf:"host" default:"localhost"`
-    Port     int    `conf:"port" default:"5432"`
-    Database string `conf:"database" required:""`
-    Username string `conf:"username" required:""`
-    Password string `conf:"password" required:""`
-}
-
-func (c *DatabaseConfig) DSN() string {
-    return fmt.Sprintf("%s://%s:%s@%s:%d/%s",
-        c.Driver, c.Username, c.Password, c.Host, c.Port, c.Database)
-}
-```
-
-### Configuration Hot Reloading
-
-```go
-import "github.com/fsnotify/fsnotify"
-
-func watchConfig(configFile string, config *Config, manager *configfx.ConfigManager) {
-    watcher, err := fsnotify.NewWatcher()
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer watcher.Close()
-
-    watcher.Add(configFile)
-
-    for {
-        select {
-        case event := <-watcher.Events:
-            if event.Op&fsnotify.Write == fsnotify.Write {
-                log.Println("Config file changed, reloading...")
-                err := manager.LoadDefaults(config)
-                if err != nil {
-                    log.Printf("Failed to reload config: %v", err)
-                }
-            }
-        }
-    }
+	return config, nil
 }
 ```
 
@@ -513,8 +552,48 @@ configfx uses the following internal packages:
 - `ajan/configfx/envparser`: Environment file parsing
 - `ajan/lib`: Utility functions for environment handling
 
-## Thread Safety
+## Concurrency
 
-The ConfigManager is safe for concurrent use during the loading phase, but the
-loaded configuration structs should be treated as immutable after loading to
-ensure thread safety.
+`ConfigManager` holds no state, so goroutines can load different structs at the
+same time. `Load` writes into the struct you pass, so finish loading before
+other goroutines read it, and treat the loaded struct as read-only afterwards.
+To reload, load into a new struct and swap it in.
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- `Load` returns errors instead of panicking or skipping: a conf-tagged field it
+  cannot set (unexported, or behind a nil embedded struct pointer) wraps
+  `ErrUnsettableConfigField`; a target that is not a non-nil pointer, or a map
+  whose struct value embeds a non-struct type, returns `ErrNotStruct`; a field
+  type it cannot parse (`complex128`, `[][]int`, interfaces with methods), or a
+  map with non-string keys, returns `ErrUnsupportedConfigType`. Export the field
+  or remove its `conf` tag, allocate embedded struct pointers before `Load`, and
+  change unsupported field types.
+- Slice fields load their `default` tag and a comma-separated value at their
+  key, and the value at the key wins over indexed keys (`PATHS__0`). An index at
+  or above `MaxIndexedSliceLength` (10000) returns `ErrInvalidConfigValue`. Use
+  indices 0 to 9999.
+- Map values of every supported type are parsed (`map[string]any` gets the
+  string, where it got nil, and `map[string]int` its numbers), and structs that
+  implement `encoding.TextUnmarshaler`, such as `time.Time`, load from one
+  value. Pointer fields such as `Port *int` are set from a source or a default,
+  and a pointer to a struct section is allocated when a key under it is set.
+  Code that relied on them staying nil checks the loaded value.
+- jsonparser keeps the written text of JSON numbers, so `1e3` or `10.0` no
+  longer loads into an int field; write integers without a fraction or exponent.
+  `null` removes the key and its children so the default applies (it used to set
+  the string `<nil>`), and an empty array clears a slice default.
+
+## 🔗 Links
+
+- `go doc github.com/eser/stack/pkg/ajan/configfx`: the API reference generated
+  from source
+- [ajan/types](../types/README.md): `MetricInt` and `MetricFloat`, which load
+  values such as `100K`
+- [ajan/lib](../lib/README.md): the environment-aware file names behind
+  `FromJSONFile` and `FromEnvFile`
+- [eser/stack on GitHub](https://github.com/eser/stack)

@@ -4,12 +4,8 @@ import * as bdd from "@std/testing/bdd";
 import * as assert from "@std/assert";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import {
-  loadPostsConfig,
-  requireServiceUrl,
-  requireTokenStorePath,
-} from "./config.ts";
-import { validateConfig } from "./config-validation.ts";
+import * as config from "./config.ts";
+import * as configValidation from "./config-validation.ts";
 import type { PostsConfig } from "./config.ts";
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
@@ -29,7 +25,6 @@ function makeConfig(overrides?: Partial<PostsConfig>): PostsConfig {
       appPassword: undefined,
     },
     ai: {
-      provider: "anthropic",
       apiKey: undefined,
     },
     tokenStorePath: undefined,
@@ -49,7 +44,7 @@ bdd.describe("validateConfig", () => {
         apiBaseUrl: undefined,
       },
     });
-    const result = validateConfig(cfg);
+    const result = configValidation.validateConfig(cfg);
     assert.assertEquals(results.isOk(result), true);
     if (results.isOk(result)) {
       assert.assertEquals(result.value, cfg);
@@ -72,7 +67,7 @@ bdd.describe("validateConfig", () => {
           appPassword: "abcd-efgh-ijkl-mnop",
         },
       });
-      const result = validateConfig(cfg);
+      const result = configValidation.validateConfig(cfg);
       assert.assertEquals(results.isOk(result), true);
     },
   );
@@ -91,7 +86,7 @@ bdd.describe("validateConfig", () => {
         appPassword: undefined,
       },
     });
-    const result = validateConfig(cfg);
+    const result = configValidation.validateConfig(cfg);
     assert.assertEquals(results.isFail(result), true);
     if (results.isFail(result)) {
       assert.assertEquals(result.error.code, "CONFIG_INVALID");
@@ -115,7 +110,7 @@ bdd.describe("validateConfig", () => {
           appPassword: undefined,
         },
       });
-      const result = validateConfig(cfg);
+      const result = configValidation.validateConfig(cfg);
       assert.assertEquals(results.isFail(result), true);
       if (results.isFail(result)) {
         assert.assertArrayIncludes(result.error.missing, [
@@ -141,7 +136,7 @@ bdd.describe("validateConfig", () => {
           appPassword: "abcd-efgh-ijkl-mnop",
         },
       });
-      const result = validateConfig(cfg);
+      const result = configValidation.validateConfig(cfg);
       assert.assertEquals(results.isFail(result), true);
       if (results.isFail(result)) {
         assert.assertArrayIncludes(result.error.missing, [
@@ -165,7 +160,7 @@ bdd.describe("validateConfig", () => {
         appPassword: undefined,
       },
     });
-    const result = validateConfig(cfg);
+    const result = configValidation.validateConfig(cfg);
     assert.assertEquals(results.isFail(result), true);
     if (results.isFail(result)) {
       assert.assertStringIncludes(result.error.message, "TWITTER_CLIENT_ID");
@@ -180,7 +175,7 @@ bdd.describe("loadPostsConfig", () => {
     // Set a unique sentinel value unlikely to collide with real env
     runtime.env.set("TWITTER_CLIENT_ID", "__test_client_id__");
     try {
-      const cfg = await loadPostsConfig();
+      const cfg = await config.loadPostsConfig();
       assert.assertEquals(cfg.twitter.clientId, "__test_client_id__");
     } finally {
       runtime.env.delete("TWITTER_CLIENT_ID");
@@ -190,12 +185,24 @@ bdd.describe("loadPostsConfig", () => {
   bdd.it(
     "applies default redirect URI when TWITTER_REDIRECT_URI is not set",
     async () => {
-      runtime.env.delete("TWITTER_REDIRECT_URI");
-      const cfg = await loadPostsConfig();
-      assert.assertEquals(
-        cfg.twitter.redirectUri,
-        "http://127.0.0.1:8080/callback",
-      );
+      // An empty working directory, so no .env file sets the key either; the
+      // package's .env template sets its own redirect URI.
+      const dir = await Deno.makeTempDir();
+      const previous = Deno.cwd();
+      const saved = runtime.env.get("TWITTER_REDIRECT_URI");
+      try {
+        runtime.env.delete("TWITTER_REDIRECT_URI");
+        Deno.chdir(dir);
+        const cfg = await config.loadPostsConfig();
+        assert.assertEquals(
+          cfg.twitter.redirectUri,
+          "http://127.0.0.1:8080/callback",
+        );
+      } finally {
+        Deno.chdir(previous);
+        if (saved !== undefined) runtime.env.set("TWITTER_REDIRECT_URI", saved);
+        await Deno.remove(dir, { recursive: true });
+      }
     },
   );
 
@@ -205,7 +212,7 @@ bdd.describe("loadPostsConfig", () => {
       "https://myapp.example.com/callback",
     );
     try {
-      const cfg = await loadPostsConfig();
+      const cfg = await config.loadPostsConfig();
       assert.assertEquals(
         cfg.twitter.redirectUri,
         "https://myapp.example.com/callback",
@@ -215,16 +222,30 @@ bdd.describe("loadPostsConfig", () => {
     }
   });
 
-  bdd.it("defaults ai.provider to anthropic", async () => {
-    runtime.env.delete("AI_PROVIDER");
-    const cfg = await loadPostsConfig();
-    assert.assertEquals(cfg.ai.provider, "anthropic");
+  bdd.it("reads TWITTER_CLIENT_SECRET from environment", async () => {
+    runtime.env.set("TWITTER_CLIENT_SECRET", "__test_client_secret__");
+    try {
+      const cfg = await config.loadPostsConfig();
+      assert.assertEquals(cfg.twitter.clientSecret, "__test_client_secret__");
+    } finally {
+      runtime.env.delete("TWITTER_CLIENT_SECRET");
+    }
+  });
+
+  bdd.it("treats an empty credential value as unset", async () => {
+    runtime.env.set("BLUESKY_APP_PASSWORD", "");
+    try {
+      const cfg = await config.loadPostsConfig();
+      assert.assertEquals(cfg.bluesky.appPassword, undefined);
+    } finally {
+      runtime.env.delete("BLUESKY_APP_PASSWORD");
+    }
   });
 
   bdd.it("reads ANTHROPIC_API_KEY from environment", async () => {
     runtime.env.set("ANTHROPIC_API_KEY", "sk-ant-test");
     try {
-      const cfg = await loadPostsConfig();
+      const cfg = await config.loadPostsConfig();
       assert.assertEquals(cfg.ai.apiKey, "sk-ant-test");
     } finally {
       runtime.env.delete("ANTHROPIC_API_KEY");
@@ -235,7 +256,7 @@ bdd.describe("loadPostsConfig", () => {
     "returns undefined tokenStorePath when POSTS_TOKEN_STORE_PATH is not set",
     async () => {
       runtime.env.delete("POSTS_TOKEN_STORE_PATH");
-      const cfg = await loadPostsConfig();
+      const cfg = await config.loadPostsConfig();
       assert.assertEquals(cfg.tokenStorePath, undefined);
     },
   );
@@ -243,7 +264,7 @@ bdd.describe("loadPostsConfig", () => {
   bdd.it("reads POSTS_TOKEN_STORE_PATH from environment", async () => {
     runtime.env.set("POSTS_TOKEN_STORE_PATH", "/tmp/test-tokens.json");
     try {
-      const cfg = await loadPostsConfig();
+      const cfg = await config.loadPostsConfig();
       assert.assertEquals(cfg.tokenStorePath, "/tmp/test-tokens.json");
     } finally {
       runtime.env.delete("POSTS_TOKEN_STORE_PATH");
@@ -276,7 +297,7 @@ bdd.describe("credential routing keys", () => {
           ].join("\n") + "\n",
         );
         Deno.chdir(dir);
-        const cfg = await loadPostsConfig();
+        const cfg = await config.loadPostsConfig();
         // Non-routing keys still come from .env.
         assert.assertEquals(cfg.twitter.clientId, "from-dotenv");
         assert.assertEquals(cfg.twitter.apiBaseUrl, undefined);
@@ -295,23 +316,25 @@ bdd.describe("credential routing keys", () => {
 
   bdd.it("accepts https and loopback http service URLs only", () => {
     assert.assertEquals(
-      requireServiceUrl("X", "https://bsky.social"),
+      config.requireServiceUrl("X", "https://bsky.social"),
       "https://bsky.social",
     );
     assert.assertEquals(
-      requireServiceUrl("X", "http://127.0.0.1:1234/mock"),
+      config.requireServiceUrl("X", "http://127.0.0.1:1234/mock"),
       "http://127.0.0.1:1234/mock",
     );
     assert.assertThrows(() =>
-      requireServiceUrl("X", "http://attacker.invalid")
+      config.requireServiceUrl("X", "http://attacker.invalid")
     );
-    assert.assertThrows(() => requireServiceUrl("X", "not a url"));
+    assert.assertThrows(() => config.requireServiceUrl("X", "not a url"));
   });
 
   bdd.it("expands ~/ and rejects relative token store paths", () => {
-    const expanded = requireTokenStorePath("~/.eser/posts/tokens.json");
+    const expanded = config.requireTokenStorePath("~/.eser/posts/tokens.json");
     assert.assertEquals(runtime.path.isAbsolute(expanded ?? ""), true);
     assert.assertEquals(expanded?.includes("~"), false);
-    assert.assertThrows(() => requireTokenStorePath("./leaked/tokens.json"));
+    assert.assertThrows(() =>
+      config.requireTokenStorePath("./leaked/tokens.json")
+    );
   });
 });

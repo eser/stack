@@ -1,44 +1,86 @@
-# ajan/logfx
+# 📝 [ajan/logfx](./)
 
-## Overview
+> **eserstack Go library** in the root module `github.com/eser/stack`. Import
+> `github.com/eser/stack/pkg/ajan/logfx`. The module is not published for
+> `go get`: build inside this repository, or require `github.com/eser/stack`
+> with a `replace` directive that points at a checkout.
 
 **logfx** package is a configurable logging package built on the standard
-library's `log/slog` for structured logging. It includes pretty-printing options
-and **OpenTelemetry integration** for log export to modern observability
-platforms. The package supports OpenTelemetry-compatible severity levels and
-provides extensive test coverage to ensure reliability and correctness.
+library's `log/slog` for structured logging in ajan services. It includes
+pretty-printing options for development, JSON output for production,
+OpenTelemetry-compatible severity levels, and **OpenTelemetry integration** that
+exports logs, metrics and traces over OTLP. A `*logfx.Logger` embeds
+`*slog.Logger`, so code that takes a `*slog.Logger` takes it too.
 
-### Key Features
+## Key Features
 
-- 🎯 **Extended Log Levels** - OpenTelemetry-compatible levels while using
-  standard `log/slog` under the hood
-- 🔄 **Built-in Context Support** - Context-aware logging with automatic trace
-  correlation
-- 🌐 **OpenTelemetry Integration** - Direct OTLP export through `EnableOTLP()`
-  method
-- 📊 **Structured Logging** - JSON output for production, pretty printing for
+- 🎯 Extended log levels: OpenTelemetry-compatible Trace, Fatal and Panic levels
+  while using standard `log/slog` under the hood
+- 🔄 Built-in context support: the `*Context` methods add the `trace_id` and
+  `span_id` of the active span to the record
+- 🌐 OpenTelemetry integration: OTLP export of logs, metrics and traces through
+  the `EnableOTLP()` method
+- 📊 Structured logging: JSON output for production, pretty printing for
   development
-- 🎨 **Pretty Printing** - Colored output for development
-- ⚡ **Performance Optimized** - Built on standard library foundations
-- 🎛️ **Flexible Configuration** - Multiple configuration options and runtime
-  settings
+- 🎨 Pretty printing: colored output for development
+- ⚡ Standard library base: `Logger` embeds `*slog.Logger`, so code that takes a
+  `*slog.Logger` accepts `logger.Logger`
+- 🎛️ Configuration: a `Config` struct that configfx loads, and functional
+  options
 
-## 🚀 **Extended Log Levels**
+## Quick Start
 
-**The Problem**: Go's standard `log/slog` package provides only 4 log levels
-(Debug, Info, Warn, Error), which is insufficient for modern observability and
-OpenTelemetry compatibility.
-
-**The Solution**: logfx extends the standard library to provide **7
-OpenTelemetry-compatible log levels** while maintaining full compatibility with
-`log/slog`:
+Create a logger and log with the `*Context` methods:
 
 ```go
-// Standard Go slog levels (limited)
-slog.LevelDebug  // -4
-slog.LevelInfo   //  0
-slog.LevelWarn   //  4
-slog.LevelError  //  8
+package main
+
+import (
+	"context"
+	"log/slog"
+
+	"github.com/eser/stack/pkg/ajan/logfx"
+)
+
+func main() {
+	ctx := context.Background()
+
+	logger := logfx.NewLogger(logfx.WithPrettyMode(true))
+
+	logger.InfoContext(ctx, "application started",
+		slog.String("service", "my-service"),
+		slog.String("version", "1.0.0"),
+	)
+	logger.WarnContext(ctx, "high memory usage detected", slog.Int("percent", 91))
+}
+```
+
+It prints colored lines to standard output (colors not shown):
+
+```text
+03:34:47.625 INFO    application started
+	service                  = my-service
+	version                  = 1.0.0
+
+03:34:47.625 WARN    high memory usage detected
+	percent                  = 91
+```
+
+Without `WithPrettyMode(true)`, `NewLogger` writes one JSON object per record,
+at level `INFO` and above, to standard output.
+
+## 🚀 Extended Log Levels
+
+Go's standard `log/slog` package names four levels (Debug, Info, Warn, Error).
+OpenTelemetry log severities also have Trace and Fatal, so logfx adds three
+levels as plain `slog.Level` values:
+
+```go
+// Standard Go slog levels
+slog.LevelDebug // -4
+slog.LevelInfo  //  0
+slog.LevelWarn  //  4
+slog.LevelError //  8
 
 // logfx extended levels (OpenTelemetry compatible)
 logfx.LevelTrace // -8  ← Additional
@@ -50,159 +92,42 @@ logfx.LevelFatal // 12  ← Additional
 logfx.LevelPanic // 16  ← Additional
 ```
 
-### Why This Matters
+### How the Levels Map
 
-1. **OpenTelemetry Compatibility** - Maps perfectly to OpenTelemetry log
-   severity levels
-2. **Better Observability** - More granular log levels for better debugging and
-   monitoring
-3. **Standard Library Foundation** - Built on `log/slog`, not a replacement
-4. **Zero Breaking Changes** - Existing slog code works unchanged
-5. **Proper Severity Mapping** - Correct OTLP export with appropriate severity
-   levels
+- The output prints the level names `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`,
+  `FATAL` and `PANIC`. A level between two names prints with an offset, such as
+  `INFO+2`.
+- The OTLP export maps them to the OpenTelemetry severities Trace, Debug, Info,
+  Warn, Error and Fatal; Panic is exported as Fatal.
+- Because they are `slog.Level` values, existing slog code works unchanged and
+  `logger.Log(ctx, logfx.LevelTrace, ...)` works on any `slog.Logger`.
 
 ### Extended Level Usage
 
 ```go
-import "github.com/eser/stack/pkg/ajan/logfx"
-
 logger := logfx.NewLogger(
-    logfx.WithLevel(logfx.LevelTrace), // Now supports all 7 levels
+	logfx.WithLevel(logfx.LevelTrace), // Enables all 7 levels
 )
 
-// Use all OpenTelemetry-compatible levels
-logger.Trace("Detailed debugging info")           // Most verbose
-logger.Debug("Debug information")                 // Development debugging
-logger.Info("General information")                // Standard info
-logger.Warn("Warning message")                    // Potential issues
-logger.Error("Error occurred")                    // Errors that don't stop execution
-logger.Fatal("Fatal error")                       // Critical errors
-logger.Panic("Panic condition")                   // Most severe
-
-// Context-aware logging
-ctx := context.Background()
-logger.TraceContext(ctx, "Context-aware trace message")
-logger.FatalContext(ctx, "Context-aware fatal message")
-logger.PanicContext(ctx, "Context-aware panic message")
+logger.TraceContext(ctx, "detailed debugging info") // Most verbose
+logger.DebugContext(ctx, "debug information")
+logger.InfoContext(ctx, "general information")
+logger.WarnContext(ctx, "warning message")
+logger.ErrorContext(ctx, "error occurred")
+logger.FatalContext(ctx, "fatal error")
+logger.PanicContext(ctx, "panic condition") // Most severe
 ```
 
-**Colored Output** (development mode):
+`Trace`, `Fatal` and `Panic` also have forms without a context. The `Fatal*` and
+`Panic*` methods only write the record at their level: they do not exit the
+process or panic. Return the error and exit from `main` when the program has to
+stop.
 
-```bash
-23:45:12.123 TRACE Detailed debugging info
-23:45:12.124 DEBUG Debug information
-23:45:12.125 INFO General information
-23:45:12.126 WARN Warning message
-23:45:12.127 ERROR Error occurred
-23:45:12.128 FATAL Fatal error
-23:45:12.129 PANIC Panic condition
-```
-
-**Structured Output** (production mode):
+**Structured Output** (JSON mode):
 
 ```json
-{"time":"2024-01-15T23:45:12.123Z","level":"TRACE","msg":"Detailed debugging info"}
-{"time":"2024-01-15T23:45:12.124Z","level":"DEBUG","msg":"Debug information"}
-{"time":"2024-01-15T23:45:12.125Z","level":"INFO","msg":"General information"}
-{"time":"2024-01-15T23:45:12.126Z","level":"WARN","msg":"Warning message"}
-{"time":"2024-01-15T23:45:12.127Z","level":"ERROR","msg":"Error occurred"}
-{"time":"2024-01-15T23:45:12.128Z","level":"FATAL","msg":"Fatal error"}
-{"time":"2024-01-15T23:45:12.129Z","level":"PANIC","msg":"Panic condition"}
-```
-
-## Quick Start
-
-### Basic Usage
-
-```go
-package main
-
-import (
-    "context"
-    "log/slog"
-
-    "github.com/eser/stack/pkg/ajan/logfx"
-)
-
-func main() {
-    // Create basic logger with defaults
-    logger := logfx.NewLogger()
-
-    // Use structured logging with extended levels
-    logger.Info("Application started",
-        slog.String("service", "my-service"),
-        slog.String("version", "1.0.0"),
-    )
-
-    // Extended levels for better observability
-    logger.Trace("Connection pool initialized")     // Very detailed
-    logger.Debug("Processing user request")         // Debug info
-    logger.Warn("High memory usage detected")       // Warnings
-    logger.Fatal("Database connection failed")      // Critical errors
-}
-```
-
-### Advanced Configuration
-
-```go
-package main
-
-import (
-    "context"
-    "log/slog"
-    "os"
-
-    "github.com/eser/stack/pkg/ajan/logfx"
-)
-
-func main() {
-    // Create logger with custom configuration
-    logger := logfx.NewLogger(
-        logfx.WithScopeName("my-service"),
-        logfx.WithConfig(&logfx.Config{
-            Level:      "TRACE",
-            PrettyMode: true,
-            AddSource:  true,
-        }),
-        logfx.WithWriter(os.Stdout),
-        logfx.WithDefaultLogger(), // Set as default slog logger
-    )
-
-    // Context-aware logging
-    ctx := context.Background()
-    logger.InfoContext(ctx, "Processing request",
-        slog.String("user_id", "123"),
-        slog.String("action", "login"),
-    )
-}
-```
-
-### OpenTelemetry Integration
-
-```go
-package main
-
-import (
-    "context"
-
-    "github.com/eser/stack/pkg/ajan/logfx"
-)
-
-func main() {
-    // Create logger
-    logger := logfx.NewLogger(
-        logfx.WithScopeName("my-service"),
-    )
-
-    // Enable OpenTelemetry export with connection resource
-    // Note: You need to implement OTLPConnectionResource interface
-    // or use a connection provider from your application
-    var otlpConn logfx.OTLPConnectionResource
-    logger.EnableOTLP(otlpConn)
-
-    // Now all logs are exported to OpenTelemetry
-    logger.Info("Application started with OTLP export enabled")
-}
+{"time":"2026-10-05T03:34:47.625966+03:00","level":"TRACE","msg":"detailed debugging info"}
+{"time":"2026-10-05T03:34:47.62597+03:00","level":"FATAL","msg":"fatal error"}
 ```
 
 ## Configuration
@@ -211,36 +136,53 @@ func main() {
 
 ```go
 type Config struct {
-    Level                         string `conf:"level" default:"INFO"`
-    DefaultLogger                 bool   `conf:"default"    default:"false"`
-    PrettyMode                   bool   `conf:"pretty"     default:"true"`
-    AddSource                    bool   `conf:"add_source" default:"false"`
-    NoNativeCollectorRegistration bool   `conf:"no_native_collector_registration" default:"false"`
+	Level string `conf:"level" default:"INFO"`
+
+	DefaultLogger bool `conf:"default"    default:"false"`
+	PrettyMode    bool `conf:"pretty"     default:"true"`
+	AddSource     bool `conf:"add_source" default:"false"`
+
+	NoNativeCollectorRegistration bool `conf:"no_native_collector_registration" default:"false"`
 }
 ```
 
 ### Configuration Options
 
-- **Level**: Log level - supports `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`,
-  `FATAL`, `PANIC`
-- **DefaultLogger**: Set this logger as the default `slog` logger
-- **PrettyMode**: Enable colored, human-readable output (vs JSON)
-- **AddSource**: Include source code location in log entries
-- **NoNativeCollectorRegistration**: Disable native OpenTelemetry collector
-  registration
+- `Level`: the minimum level, one of `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`,
+  `FATAL` and `PANIC` in any case, with an optional offset such as `DEBUG+1`. A
+  name that does not parse falls back to `INFO`, and the logger writes a `WARN`
+  record that names the bad value.
+- `DefaultLogger`: set this logger as the default `slog` logger
+  (`slog.SetDefault`), so `slog.Info` and the `log` package write through it.
+- `PrettyMode`: colored, human-readable output instead of JSON.
+- `AddSource`: include the source file and line in JSON records.
+- `NoNativeCollectorRegistration`: part of the struct, but no code reads it.
 
-### Environment-Based Configuration
+The `default` tags apply when configfx loads the struct, so a loaded config is
+pretty by default. `NewLogger` without `WithConfig` starts from `Level: "INFO"`
+and every other field false, which means JSON output.
+
+### Loading the Configuration
+
+Embed `Config` in your config struct and pass the loaded value to `WithConfig`.
+Under a `conf:"log"` field, `log__level=DEBUG` and `log__pretty=false` set it
+from the environment:
 
 ```go
-// Configure via struct
-config := &logfx.Config{
-    Level:         "DEBUG",
-    PrettyMode:    false,
-    AddSource:     true,
-    DefaultLogger: true,
+type AppConfig struct {
+	Log logfx.Config `conf:"log"`
 }
 
-logger := logfx.NewLogger(logfx.WithConfig(config))
+func newLogger() (*logfx.Logger, error) {
+	config := &AppConfig{}
+
+	err := configfx.NewConfigManager().LoadDefaults(config)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	return logfx.NewLogger(logfx.WithConfig(&config.Log)), nil
+}
 ```
 
 ## API Reference
@@ -253,49 +195,53 @@ logger := logfx.NewLogger(logfx.WithConfig(config))
 func NewLogger(options ...NewLoggerOption) *Logger
 ```
 
-Create a logger using the flexible options pattern:
+Options apply in order. `WithConfig` replaces the whole configuration, so pass
+it before the options that change one field:
 
 ```go
-// Basic logger with default configuration
+// Basic logger: JSON, INFO and above, standard output
 logger := logfx.NewLogger()
 
 // Logger with custom scope name
-logger := logfx.NewLogger(
-    logfx.WithScopeName("my-service"),
+logger = logfx.NewLogger(
+	logfx.WithScopeName("my-service"),
 )
 
 // Logger with full configuration
-logger := logfx.NewLogger(
-    logfx.WithConfig(&logfx.Config{
-        Level:      "DEBUG",
-        PrettyMode: true,
-        AddSource:  true,
-    }),
-    logfx.WithWriter(os.Stderr),
-    logfx.WithDefaultLogger(),
+logger = logfx.NewLogger(
+	logfx.WithConfig(&logfx.Config{
+		Level:      "DEBUG",
+		PrettyMode: true,
+		AddSource:  true,
+	}),
+	logfx.WithWriter(os.Stderr),
+	logfx.WithDefaultLogger(),
 )
 
 // Logger from existing slog.Logger
 existingSlog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-logger := logfx.NewLogger(
-    logfx.WithFromSlog(existingSlog),
+logger = logfx.NewLogger(
+	logfx.WithFromSlog(existingSlog),
 )
 ```
+
+A logger built with `WithFromSlog` writes through the handler you gave it, so
+the logfx output modes and `EnableOTLP` do not apply to it.
 
 ### Available Options
 
 ```go
 // Core configuration
-WithScopeName(scopeName string)              // Set OpenTelemetry scope name
-WithConfig(config *Config)                   // Full configuration
-WithLevel(level slog.Level)                  // Set log level
-WithDefaultLogger()                          // Set as default slog logger
+WithScopeName(scopeName string) // OpenTelemetry scope name (default "default")
+WithConfig(config *Config)      // Full configuration
+WithLevel(level slog.Level)     // Set log level
+WithDefaultLogger()             // Set as default slog logger
 
 // Output configuration
-WithWriter(writer io.Writer)                 // Set output writer
-WithFromSlog(slog *slog.Logger)             // Wrap existing slog.Logger
-WithPrettyMode(pretty bool)                  // Enable/disable pretty printing
-WithAddSource(addSource bool)                // Include source code location
+WithWriter(writer io.Writer)     // Set output writer (default os.Stdout)
+WithFromSlog(slog *slog.Logger)  // Wrap existing slog.Logger
+WithPrettyMode(pretty bool)      // Enable/disable pretty printing
+WithAddSource(addSource bool)    // Include source code location
 ```
 
 ### Extended Logging Methods
@@ -304,10 +250,10 @@ All standard `slog` methods are available, plus extended methods:
 
 ```go
 // Standard slog methods (inherited)
-logger.Debug("message", slog.String("key", "value"))
-logger.Info("message", slog.String("key", "value"))
-logger.Warn("message", slog.String("key", "value"))
-logger.Error("message", slog.String("key", "value"))
+logger.DebugContext(ctx, "message", slog.String("key", "value"))
+logger.InfoContext(ctx, "message", slog.String("key", "value"))
+logger.WarnContext(ctx, "message", slog.String("key", "value"))
+logger.ErrorContext(ctx, "message", slog.String("key", "value"))
 
 // Extended methods with context support
 logger.Trace("trace message")
@@ -318,116 +264,222 @@ logger.FatalContext(ctx, "fatal with context")
 
 logger.Panic("panic message")
 logger.PanicContext(ctx, "panic with context")
+
+// Printf-style, for code that expects a Printf logger
+logger.Printf("processed %d items", 42) // INFO
 ```
+
+### Attributes and Groups
+
+Attach request or entity ids once with `With`, and nest related fields with
+`WithGroup`. Both output modes keep them:
+
+```go
+requestLogger := logger.With("request_id", "r-1").WithGroup("http")
+requestLogger.InfoContext(ctx, "request handled", "status", 200)
+```
+
+Pretty mode prints the attributes added with `With` first, then the record's
+own, one per line, with group names joined by dots:
+
+```text
+01:05:23.308 INFO    request handled
+	request_id               = r-1
+	http.status              = 200
+```
+
+JSON mode nests each group as an object (formatted here; the output is one line
+per record):
+
+```json
+{
+  "time": "2026-10-05T01:05:23.309+03:00",
+  "level": "INFO",
+  "msg": "request handled",
+  "request_id": "r-1",
+  "http": { "status": 200 }
+}
+```
+
+Subscribers added with `Handler.AddSubscriber`, the OTLP export among them,
+receive the same attributes with the dotted keys that pretty mode prints.
+
+In JSON mode, an attribute whose value is an `error` is written as an object
+with a `msg` key, plus a `trace` key when the error carries a stack trace
+(`StackTrace() logfx.StackTrace`).
 
 ### OpenTelemetry Features
 
 #### OTLP Integration
 
+`EnableOTLP` takes a resource that holds the OpenTelemetry logger, meter and
+tracer providers. [connfx](../connfx/README.md) builds one from an `otlp`
+connection:
+
 ```go
-// Enable OpenTelemetry export
-logger.EnableOTLP(otlpConnectionResource)
+func enableOTLP(
+	ctx context.Context,
+	logger *logfx.Logger,
+	registry *connfx.Registry,
+) (*connfx.OTLPConnectionResource, error) {
+	conn, err := registry.AddConnection(ctx, "otel", &connfx.ConfigTarget{
+		Protocol: "otlp",
+		DSN:      "localhost:4318",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("add OTLP connection: %w", err)
+	}
+
+	otlpConn, ok := conn.(*connfx.OTLPConnection)
+	if !ok {
+		return nil, fmt.Errorf("connection %q is not OTLP", "otel")
+	}
+
+	resource, err := otlpConn.CreateResource("my-service", "1.0.0", "production")
+	if err != nil {
+		return nil, fmt.Errorf("create OTLP resource: %w", err)
+	}
+
+	logger.EnableOTLP(resource)
+
+	return resource, nil
+}
 ```
+
+Every record after `EnableOTLP` is also exported, and `StartSpan` and
+`NewMetricsBuilder` use the OTLP providers. Call `resource.Close(ctx)` at
+shutdown to flush what is still buffered. `EnableOTLP` panics when the resource
+is nil or the logger was built with `WithFromSlog`.
 
 #### Tracing Integration
 
 ```go
-// Start a span with automatic trace correlation
+// Start a span; pass attributes as slog.Attr values
 ctx, span := logger.StartSpan(ctx, "operation-name",
-    slog.String("user_id", "123"),
+	slog.String("user_id", "123"),
 )
 defer span.End()
 
-// Logs within this span will automatically include trace information
-logger.InfoContext(ctx, "Processing within span")
+// Records logged with this ctx carry trace_id and span_id
+logger.InfoContext(ctx, "processing within span")
+
+span.RecordError(err) // records the error and sets the span status to Error
 ```
+
+`Span` also has `GetTraceID`, `GetSpanID`, `SetAttributes` and `AddEvent`.
+Before `EnableOTLP`, `StartSpan` uses a no-op provider, whose spans have no
+trace ids of their own.
 
 #### Metrics Integration
 
 ```go
 // Create metrics builder for this logger's scope
 metricsBuilder := logger.NewMetricsBuilder("my-metrics")
-// Use metricsBuilder to create custom metrics
+
+requests, err := metricsBuilder.Counter(
+	"http_client_requests_total", "Total HTTP client requests",
+).Build()
+if err != nil {
+	return fmt.Errorf("build counter: %w", err)
+}
+
+latency, err := metricsBuilder.Histogram(
+	"http_client_duration_seconds", "HTTP client request duration",
+).WithDurationBuckets().Build()
+if err != nil {
+	return fmt.Errorf("build histogram: %w", err)
+}
+
+requests.Inc(ctx, slog.String("method", "GET"))
+latency.RecordDuration(ctx, 120*time.Millisecond)
 ```
+
+`Gauge` builds a gauge with `Set` and `SetBool`. Create builders after
+`EnableOTLP`; a builder made before it keeps the no-op provider until you call
+its `Bind` method with the new meter provider.
 
 #### Propagation Support
 
-```go
-import "net/http"
+The propagator reads and writes W3C Trace Context and Baggage headers:
 
-// Extract propagation context from HTTP headers
+```go
+// Extract propagation context from incoming HTTP headers
 ctx = logger.PropagatorExtract(ctx, request.Header)
 
-// Inject propagation context into HTTP headers
-logger.PropagatorInject(ctx, response.Header)
+// Inject propagation context into outgoing HTTP headers
+logger.PropagatorInject(ctx, outgoing.Header)
 ```
 
 ### OTLPConnectionResource Interface
 
-To enable OpenTelemetry export, implement this interface:
+`EnableOTLP` accepts any value with these methods;
+`*connfx.OTLPConnectionResource` is the one this codebase provides:
 
 ```go
 type OTLPConnectionResource interface {
-    GetLoggerProvider() *sdklog.LoggerProvider
-    GetMeterProvider() *sdkmetric.MeterProvider
-    GetTracerProvider() *sdktrace.TracerProvider
+	GetLoggerProvider() *sdklog.LoggerProvider
+	GetMeterProvider() *sdkmetric.MeterProvider
+	GetTracerProvider() *sdktrace.TracerProvider
 }
 ```
+
+### Filters, Formatters and Category Levels
+
+The package also holds building blocks that the `@eserstack/ajan` bridge uses
+for the loggers it exposes to TypeScript; `NewLogger` does not apply them:
+
+- Filters (`FilterFunc`): `LevelFilter`, `CategoryPrefixFilter`,
+  `RateLimitFilter`, `SamplingFilter`, combined with `ChainFilters`.
+- Formatters (`FormatterFunc`): `JSONFormatter`, `TextFormatter`, and
+  `SpanFormatter`, which appends `trace_id` and `span_id`.
+- Category levels: `Configure` stores dot-separated category routes, and
+  `EffectiveLevel` returns the level of the longest matching prefix
+  (`myapp.http` matches `myapp.http.server` but not `myapp.httpx`).
 
 ## Level Configuration Examples
 
 ```go
-// Development - verbose logging with all levels
+// Development: verbose logging with all levels
 devLogger := logfx.NewLogger(
-    logfx.WithLevel(logfx.LevelTrace),    // Most verbose - see everything
-    logfx.WithPrettyMode(true),
-    logfx.WithAddSource(true),
+	logfx.WithLevel(logfx.LevelTrace),
+	logfx.WithPrettyMode(true),
+	logfx.WithAddSource(true),
 )
 
-// Production - structured output with appropriate level
+// Production: structured output at INFO and above
 prodLogger := logfx.NewLogger(
-    logfx.WithLevel(logfx.LevelInfo),     // Production appropriate
-    logfx.WithPrettyMode(false),
-    logfx.WithAddSource(false),
+	logfx.WithLevel(logfx.LevelInfo),
+	logfx.WithPrettyMode(false),
 )
 
-// Debug production issues - temporary verbose logging
+// Debugging production issues: temporary verbose logging
 debugLogger := logfx.NewLogger(
-    logfx.WithLevel(logfx.LevelDebug),    // More detail for troubleshooting
-    logfx.WithPrettyMode(false),
+	logfx.WithLevel(logfx.LevelDebug),
+	logfx.WithPrettyMode(false),
 )
 ```
 
 ### Standard Library Compatibility
 
 ```go
-// logfx extends slog.Level, so standard slog works unchanged
-import "log/slog"
+logger := logfx.NewLogger(logfx.WithDefaultLogger())
 
-// This works exactly as before
-slog.Info("Standard slog message")
-slog.Debug("Debug with standard slog")
+// The standard slog functions now write through logfx
+slog.InfoContext(ctx, "standard slog message")
 
-// But you can also use extended levels through logfx
-logger.Trace("Extended trace level")    // Not available in standard slog
-logger.Fatal("Extended fatal level")    // Not available in standard slog
-logger.Panic("Extended panic level")    // Not available in standard slog
+// The extended levels are plain slog.Level values
+slog.Log(ctx, logfx.LevelTrace, "trace through the standard logger")
+logger.TraceContext(ctx, "extended trace level")
 ```
 
 ## Error Handling
 
-The logger handles errors gracefully:
-
-```go
-// Logger continues working even if OpenTelemetry fails
-logger := logfx.NewLogger(
-    logfx.WithWriter(os.Stdout),
-)
-
-// If OTLP connection fails, logger falls back to local output only
-// Connection failures are handled gracefully without affecting your app
-logger.Info("This will always work, with or without OTLP")
-```
+A record that fails to write returns an error wrapping
+`logfx.ErrFailedToWriteLog` from the handler, and a subscriber error wraps
+`logfx.ErrFailedToHandleLog`; `slog` drops both, as it does for every handler.
+The OTLP export runs as a subscriber that hands each record to the logger
+provider, whose batch processor sends it in the background, so a collector that
+is down does not block or fail the local output.
 
 ## Best Practices
 
@@ -437,20 +489,38 @@ logger.Info("This will always work, with or without OTLP")
 3. **Structured Logging**: Use `slog.String()`, `slog.Int()` etc. for structured
    attributes
 4. **Appropriate Levels**: Use the right level for the right situation
-5. **Source Information**: Enable `AddSource` only in development (performance
-   impact)
-6. **OTLP Integration**: Implement proper connection lifecycle management
+5. **Source Information**: Enable `AddSource` only in development, since it
+   looks up the caller for every record
+6. **OTLP Integration**: Close the OTLP resource at shutdown so buffered records
+   are sent
 7. **Default Logger**: Use `WithDefaultLogger()` to integrate with existing
    `slog` code
 
-## Architecture Benefits
+## Concurrency
 
-- **Standard Library Foundation** - Built on `log/slog` for compatibility and
-  performance
-- **Extended Observability** - 7 OpenTelemetry-compatible log levels
-- **Context Integration** - Native support for Go contexts and trace correlation
-- **Flexible Configuration** - Multiple ways to configure behavior
-- **OpenTelemetry Ready** - Direct integration with OpenTelemetry ecosystem
-- **Zero Dependencies** - Only depends on standard library and OpenTelemetry
-- **Thread Safety** - All operations are thread-safe
-- **Performance Optimized** - Minimal overhead over standard `slog`
+Logging methods can be called from any number of goroutines, as with any
+`slog.Logger`. Set up the logger, including `EnableOTLP` and
+`Handler.AddSubscriber`, before other goroutines log through it: those calls
+change the handler without locking.
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- Subscribers registered with `Handler.AddSubscriber`, including the OTLP
+  export, get the attributes of `WithAttrs` and `WithGroup` flattened to dotted
+  keys, and pretty and subscriber records under an open group carry `trace_id`
+  and `span_id` under the group prefix. Before: `trace_id`. After:
+  `http.trace_id` on a logger grouped as `http`.
+
+## 🔗 Links
+
+- `go doc github.com/eser/stack/pkg/ajan/logfx`: the API reference generated
+  from source
+- [ajan/connfx](../connfx/README.md): the OTLP connection that `EnableOTLP`
+  exports through
+- [ajan/configfx](../configfx/README.md): loads `Config` from files and the
+  environment
+- [eser/stack on GitHub](https://github.com/eser/stack)

@@ -176,14 +176,8 @@ func (registry *Registry) AddConnection( //nolint:ireturn
 	// Create the connection
 	conn, err := factory.CreateConnection(ctx, config)
 	if err != nil {
-		registry.logger.ErrorContext(
-			ctx,
-			"failed to create connection",
-			slog.String("error", err.Error()),
-			slog.String("name", name),
-			slog.String("protocol", config.Protocol),
-		)
-
+		// Returned, not logged: the caller decides whether to log it
+		// (coding-practices: Handle Each Error Once).
 		return nil, fmt.Errorf("%w (name=%q): %w", ErrFailedToCreateConnection, name, err)
 	}
 

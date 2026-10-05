@@ -20,12 +20,12 @@ func (f *jsonlFmt) Streamable() bool     { return true }
 func (f *jsonlFmt) WriteStart(_ *FormatOptions) (string, error) { return "", nil }
 
 func (f *jsonlFmt) WriteItem(data any, _ *FormatOptions) (string, error) {
-	raw, err := json.Marshal(data)
+	raw, err := encodeJSON(data, "", "")
 	if err != nil {
 		return "", newSerializationError("jsonl", "failed to serialize JSONL item: "+err.Error(), err)
 	}
 
-	return string(raw) + "\n", nil
+	return raw + "\n", nil
 }
 
 func (f *jsonlFmt) WriteEnd(_ *FormatOptions) (string, error) { return "", nil }

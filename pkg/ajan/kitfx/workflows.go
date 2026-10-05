@@ -73,14 +73,16 @@ func runKitWorkflow(ctx context.Context, recipeName, cwd string, opts ApplyOptio
 			skipped, _ := result.Stats["skipped"].([]string)
 			total, _ := result.Stats["total"].(int)
 			ran, _ := result.Stats["postInstallRan"].([]string)
+			failed, _ := result.Stats["postInstallFailed"].([]string)
 
 			chainResult.Recipes = append(chainResult.Recipes, NamedApplyResult{
 				Name: recipeName,
 				Result: ApplyResult{
-					Written:        written,
-					Skipped:        skipped,
-					Total:          total,
-					PostInstallRan: ran,
+					Written:           written,
+					Skipped:           skipped,
+					Total:             total,
+					PostInstallRan:    ran,
+					PostInstallFailed: failed,
 				},
 			})
 		},
@@ -100,7 +102,7 @@ type kitFetchRegistryTool struct{}
 func (t *kitFetchRegistryTool) Name() string        { return "kit-fetch-registry" }
 func (t *kitFetchRegistryTool) Description() string { return "fetch kit registry manifest" }
 
-func (t *kitFetchRegistryTool) Run(_ context.Context, opts map[string]any) (*workflowfx.WorkflowToolResult, error) {
+func (t *kitFetchRegistryTool) Run(ctx context.Context, opts map[string]any) (*workflowfx.WorkflowToolResult, error) {
 	recipeName, _ := opts["recipeName"].(string)
 	applyOpts, _ := opts["applyOpts"].(ApplyOptions)
 	root, _ := opts["root"].(string)
@@ -113,7 +115,7 @@ func (t *kitFetchRegistryTool) Run(_ context.Context, opts map[string]any) (*wor
 		applyOpts.CWD = root
 	}
 
-	manifest, err := FetchRegistry(root, applyOpts.RegistryURL)
+	manifest, err := FetchRegistry(ctx, root, applyOpts.RegistryURL)
 	if err != nil {
 		return nil, fmt.Errorf("kit-fetch-registry: %w", err)
 	}
@@ -185,11 +187,11 @@ type kitApplyRecipeTool struct{}
 func (t *kitApplyRecipeTool) Name() string        { return "kit-apply-recipe" }
 func (t *kitApplyRecipeTool) Description() string { return "apply a single recipe to the project" }
 
-func (t *kitApplyRecipeTool) Run(_ context.Context, opts map[string]any) (*workflowfx.WorkflowToolResult, error) {
+func (t *kitApplyRecipeTool) Run(ctx context.Context, opts map[string]any) (*workflowfx.WorkflowToolResult, error) {
 	recipe, _ := opts["recipe"].(Recipe)
 	applyOpts, _ := opts["applyOpts"].(ApplyOptions)
 
-	result, err := ApplyRecipe(&recipe, applyOpts)
+	result, err := ApplyRecipe(ctx, &recipe, applyOpts)
 	if err != nil {
 		return nil, fmt.Errorf("kit-apply-recipe: %w", err)
 	}
@@ -198,11 +200,12 @@ func (t *kitApplyRecipeTool) Run(_ context.Context, opts map[string]any) (*workf
 		Name:   t.Name(),
 		Passed: true,
 		Stats: map[string]any{
-			"recipeName":     recipe.Name,
-			"written":        result.Written,
-			"skipped":        result.Skipped,
-			"total":          result.Total,
-			"postInstallRan": result.PostInstallRan,
+			"recipeName":        recipe.Name,
+			"written":           result.Written,
+			"skipped":           result.Skipped,
+			"total":             result.Total,
+			"postInstallRan":    result.PostInstallRan,
+			"postInstallFailed": result.PostInstallFailed,
 		},
 	}, nil
 }

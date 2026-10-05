@@ -34,12 +34,20 @@ type BridgeHandleResp = BridgeErrorFields & {
   readonly handle?: string;
 };
 
+/** Mirrors bridge.go aiThinkingPart; every field crosses unchanged. */
+type BridgeThinkingPart = {
+  readonly text?: string;
+  readonly signature?: string;
+  readonly redactedData?: string;
+};
+
 type BridgeContentBlock = {
-  readonly type: "text" | "tool_call" | "tool_result";
+  readonly type: "text" | "tool_call" | "tool_result" | "thinking";
   readonly text?: string;
   readonly id?: string;
   readonly name?: string;
   readonly arguments?: Record<string, unknown>;
+  readonly thinking?: BridgeThinkingPart;
 };
 
 type BridgeUsage = {
@@ -57,8 +65,14 @@ type BridgeGenerateResp = BridgeErrorFields & {
 };
 
 type BridgeStreamEvent = {
-  readonly type: "content_delta" | "tool_call_delta" | "message_done" | "error";
+  readonly type:
+    | "content_delta"
+    | "tool_call_delta"
+    | "thinking"
+    | "message_done"
+    | "error";
   readonly textDelta?: string;
+  readonly thinking?: BridgeThinkingPart;
   readonly toolCallId?: string;
   readonly toolCallName?: string;
   readonly argumentsDelta?: Record<string, unknown>;
@@ -140,9 +154,22 @@ const mapStopReason = (raw: string | undefined): generation.StopReason => {
       return "max_tokens";
     case "tool_use":
       return "tool_use";
+    case "refusal":
+      return "refusal";
     default:
       return "stop";
   }
+};
+
+/** Rebuilds a thinking part, keeping only the fields Go sent. */
+const mapThinking = (part: BridgeThinkingPart): types.ThinkingPart => {
+  return {
+    text: part.text ?? "",
+    ...(part.signature === undefined ? {} : { signature: part.signature }),
+    ...(part.redactedData === undefined
+      ? {}
+      : { redactedData: part.redactedData }),
+  };
 };
 
 const mapUsage = (u: BridgeUsage | undefined): generation.Usage => {
@@ -185,6 +212,12 @@ const mapContent = (
           arguments: block.arguments ?? {},
         },
       });
+
+      continue;
+    }
+
+    if (block.type === "thinking" && block.thinking !== undefined) {
+      result.push({ kind: "thinking", thinking: mapThinking(block.thinking) });
 
       continue;
     }
@@ -286,6 +319,17 @@ const buildContentBlock = (block: types.ContentBlock): unknown => {
         },
       };
 
+    case "thinking":
+      // Sent back unchanged: the provider checks the signature.
+      return {
+        type: "thinking",
+        thinking: {
+          text: block.thinking.text,
+          signature: block.thinking.signature,
+          redactedData: block.thinking.redactedData,
+        },
+      };
+
     default:
       return { type: (block as { kind: string }).kind };
   }
@@ -381,6 +425,7 @@ const buildOptionsJSON = (
     stopWords: options.stopWords,
     responseFormat: options.responseFormat,
     thinkingBudget: options.thinkingBudget,
+    effort: options.effort,
     safetySettings: options.safetySettings,
     extensions: options.extensions,
   });
@@ -493,6 +538,9 @@ export class AjanBridgeModel implements model.BatchCapableModel {
           return;
         }
 
+        // The bridge hands out one stream event per read, in order, and the
+        // abort check above must run before each read.
+        // deno-lint-ignore no-await-in-loop
         const eventRaw = await this.#lib.symbols.EserAjanAiStreamRead(
           streamHandle,
         );
@@ -521,6 +569,12 @@ export class AjanBridgeModel implements model.BatchCapableModel {
                 arguments: event.argumentsDelta ?? {},
               },
             };
+            break;
+
+          case "thinking":
+            if (event.thinking !== undefined) {
+              yield { kind: "thinking", thinking: mapThinking(event.thinking) };
+            }
             break;
 
           case "message_done":
@@ -799,6 +853,11 @@ export class AjanBridgeModelFactory implements model.ProviderFactory {
 // one, so a caller who attached an image got a confident answer about nothing
 // while the capability said that should work. The declaration follows the
 // transport, in both directions.
+//
+// A bridge model is the Go model behind it, so each list matches what that
+// model's GetCapabilities in pkg/ajan/aifx declares, and the TypeScript
+// adapter of the same provider declares the same list. capabilities.test.ts
+// checks all three.
 const BRIDGE_PROVIDERS: ReadonlyArray<{
   readonly provider: string;
   readonly capabilities: readonly types.ProviderCapability[];
@@ -822,6 +881,7 @@ const BRIDGE_PROVIDERS: ReadonlyArray<{
       "streaming",
       "tool_calling",
       "vision",
+      "audio",
       "batch_processing",
       "structured_output",
       "reasoning",
@@ -834,16 +894,22 @@ const BRIDGE_PROVIDERS: ReadonlyArray<{
       "streaming",
       "tool_calling",
       "vision",
+      "audio",
+      "structured_output",
+      "reasoning",
     ],
   },
   {
+    // No batch_processing: the Go Vertex AI model has no batch methods.
     provider: "vertexai",
     capabilities: [
       "text_generation",
       "streaming",
       "tool_calling",
       "vision",
-      "batch_processing",
+      "audio",
+      "structured_output",
+      "reasoning",
     ],
   },
   {
@@ -852,7 +918,12 @@ const BRIDGE_PROVIDERS: ReadonlyArray<{
   },
   {
     provider: "claude-code",
-    capabilities: ["text_generation", "streaming", "tool_calling"],
+    capabilities: [
+      "text_generation",
+      "streaming",
+      "tool_calling",
+      "structured_output",
+    ],
   },
   {
     provider: "opencode",

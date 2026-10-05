@@ -28,6 +28,7 @@ export {
   type TextOptions,
   type TuiContext,
   type TuiContextOptions,
+  type TuiOutput,
   type TuiTarget,
 } from "./types.ts";
 
@@ -84,10 +85,14 @@ export * as terminal from "./terminal.ts";
 export * as ansi from "./ansi.ts";
 export * as box from "./box.ts";
 export * as layout from "./layout.ts";
+// Named as well as namespaced: VTermWidget.render and list.renderList take it.
+export type { Panel } from "./layout.ts";
 export * as list from "./list.ts";
 
 // Mouse support
 export * as mouse from "./mouse.ts";
+// Named as well as namespaced: InputEvent refers to it.
+export type { MouseEvent } from "./mouse.ts";
 
 // Virtual terminal widget
 export { VTermWidget } from "./vterm-widget.ts";

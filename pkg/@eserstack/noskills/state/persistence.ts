@@ -1,5 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+// Corrupt-state and migration notices go to the operator on stderr, so the
+// JSON that commands print on stdout stays parseable.
+// deno-lint-ignore-file no-console
+
 /**
  * State persistence — read/write runtime state under `.eser/.state/` and
  * noskills config inside `.eser/manifest.yml` (comment-preserving YAML).
@@ -13,9 +17,10 @@
  * @module
  */
 
-import * as yaml from "yaml";
+import * as yaml from "@eemeli/yaml";
 import * as schema from "./schema.ts";
-import { NotFoundError, runtime } from "@eserstack/standards/cross-runtime";
+import * as concernScope from "./concern-scope.ts";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 
 // =============================================================================
 // Atomic writes
@@ -30,7 +35,7 @@ import { NotFoundError, runtime } from "@eserstack/standards/cross-runtime";
  * error that reaches here without passing through the port.
  */
 const isNotFoundError = (error: unknown): boolean => {
-  if (error instanceof NotFoundError) {
+  if (error instanceof crossRuntime.NotFoundError) {
     return true;
   }
 
@@ -66,7 +71,6 @@ const warnCorruptState = (filePath: string, error: unknown): void => {
   const reason = error instanceof Error ? error.message : String(error);
 
   try {
-    // deno-lint-ignore no-console
     console.error(
       `noskills: WARNING — ${filePath} exists but could not be read (${reason}). ` +
         "Treating it as empty; the previous contents are still on disk and " +
@@ -101,13 +105,13 @@ const writeTextFileAtomic = async (
   }.${crypto.randomUUID()}.tmp`;
 
   try {
-    await runtime.fs.writeTextFile(tempPath, contents);
-    await runtime.fs.rename(tempPath, filePath);
+    await crossRuntime.runtime.fs.writeTextFile(tempPath, contents);
+    await crossRuntime.runtime.fs.rename(tempPath, filePath);
   } catch (error) {
     // Never leave the temporary behind: these live beside real state files and
     // a stray one would be picked up by directory listings.
     try {
-      await runtime.fs.remove(tempPath);
+      await crossRuntime.runtime.fs.remove(tempPath);
     } catch {
       // Already gone, or never created.
     }
@@ -137,6 +141,9 @@ const SESSIONS_DIR: string = `${STATE_DIR}/sessions`;
 const EVENTS_DIR: string = `${STATE_DIR}/events`;
 const EVENTS_FILE: string = `${EVENTS_DIR}/events.jsonl`;
 const LEDGER_DIR: string = `${PROGRESSES_DIR}/ledger`;
+const VALIDATIONS_DIR: string = `${PROGRESSES_DIR}/validations`;
+// A sibling of progresses/, which purge takes with the specs.
+const PURGE_HISTORY_DIR: string = `${STATE_DIR}/purge-history`;
 
 export const paths: {
   readonly eserDir: string;
@@ -163,6 +170,9 @@ export const paths: {
   readonly ledgerRunDir: (spec: string) => string;
   readonly ledgerFile: (spec: string) => string;
   readonly ledgerSummaryFile: (spec: string) => string;
+  readonly validationsDir: string;
+  readonly validationFile: (spec: string) => string;
+  readonly purgeHistoryDir: string;
   readonly eserGitignore: string;
 } = {
   eserDir: ESER_DIR,
@@ -194,6 +204,9 @@ export const paths: {
   ledgerFile: (spec: string): string => `${LEDGER_DIR}/${spec}/ledger.jsonl`,
   ledgerSummaryFile: (spec: string): string =>
     `${LEDGER_DIR}/${spec}/summary.json`,
+  validationsDir: VALIDATIONS_DIR,
+  validationFile: (spec: string): string => `${VALIDATIONS_DIR}/${spec}.json`,
+  purgeHistoryDir: PURGE_HISTORY_DIR,
   eserGitignore: `${ESER_DIR}/.gitignore`,
 };
 
@@ -209,7 +222,7 @@ export const readState = async (root: string): Promise<schema.StateFile> => {
   const filePath = `${root}/${STATE_FILE}`;
 
   try {
-    const content = await runtime.fs.readTextFile(filePath);
+    const content = await crossRuntime.runtime.fs.readTextFile(filePath);
     const parsed = JSON.parse(content) as schema.StateFile;
 
     return normalizeStateShape(parsed);
@@ -268,25 +281,51 @@ const normalizeStateShape = (state: schema.StateFile): schema.StateFile => {
 };
 
 /**
+ * The named spec has no directory under `.eser/specs/`. The message names the
+ * command that lists the specs, built from the caller's command prefix.
+ */
+export class SpecNotFoundError extends Error {
+  constructor(
+    readonly specName: string,
+    commandPrefix: string,
+    options?: ErrorOptions,
+  ) {
+    super(
+      `Spec '${specName}' not found. Run \`${commandPrefix} spec list\` to see available specs.`,
+      options,
+    );
+    this.name = "SpecNotFoundError";
+  }
+}
+
+/**
  * Resolve state for a specific spec, or the active state if no spec given.
  * Used by commands that support --spec flag.
+ *
+ * `commandPrefix` is how the user runs noskills (the manifest's `command`,
+ * for example `npx eser@latest noskills`). The error for a missing spec names
+ * a command the agent can run, so this module does not guess the prefix.
+ *
+ * @throws {SpecNotFoundError} when `specName` has no spec directory.
  */
 export const resolveState = async (
   root: string,
-  specName?: string | null,
+  specName: string | null | undefined,
+  commandPrefix: string,
 ): Promise<schema.StateFile> => {
   if (specName === null || specName === undefined) {
-    return readState(root);
+    return await readState(root);
   }
 
-  // Check if spec exists
   const specDir = `${root}/${paths.specDir(specName)}`;
   try {
-    await runtime.fs.stat(specDir);
-  } catch {
-    throw new Error(
-      `Spec '${specName}' not found. Run \`noskills spec list\` to see available specs.`,
-    );
+    await crossRuntime.runtime.fs.stat(specDir);
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      throw new SpecNotFoundError(specName, commandPrefix, { cause: error });
+    }
+
+    throw new Error(`read spec directory ${specDir}`, { cause: error });
   }
 
   // Try per-spec state first, fall back to active state if matching
@@ -336,16 +375,19 @@ export const parseSpecFlag = (
 /**
  * Require spec name on spec-specific commands.
  * Returns the spec name if present, or an error message string if missing.
+ * The message shows the spec-scoped form with `commandPrefix`, the way the
+ * user runs noskills (see resolveState).
  */
 export const requireSpecFlag = (
-  args?: readonly string[],
+  args: readonly string[] | undefined,
+  commandPrefix: string,
 ): { ok: true; spec: string } | { ok: false; error: string } => {
   const spec = parseSpecFlag(args);
   if (spec === null || spec.length === 0) {
     return {
       ok: false,
       error:
-        "Error: spec name is required. Use `noskills spec <name> <command>` format.",
+        `Error: spec name is required. Use \`${commandPrefix} spec <name> <command>\` format.`,
     };
   }
   return { ok: true, spec };
@@ -358,7 +400,7 @@ export const writeState = async (
   const dirPath = `${root}/${PROGRESSES_DIR}`;
   const filePath = `${root}/${STATE_FILE}`;
 
-  await runtime.fs.mkdir(dirPath, { recursive: true });
+  await crossRuntime.runtime.fs.mkdir(dirPath, { recursive: true });
   await writeTextFileAtomic(filePath, JSON.stringify(state, null, 2) + "\n");
 };
 
@@ -402,7 +444,7 @@ export const readSpecState = async (
   const filePath = `${root}/${paths.specStateFile(specName)}`;
 
   try {
-    const content = await runtime.fs.readTextFile(filePath);
+    const content = await crossRuntime.runtime.fs.readTextFile(filePath);
     const parsed = JSON.parse(content) as schema.StateFile;
 
     return normalizeStateShape(parsed);
@@ -435,7 +477,7 @@ export const writeSpecState = async (
     prev = schema.createInitialState();
   }
 
-  await runtime.fs.mkdir(dirPath, { recursive: true });
+  await crossRuntime.runtime.fs.mkdir(dirPath, { recursive: true });
   await writeTextFileAtomic(filePath, JSON.stringify(state, null, 2) + "\n");
 
   // Additive, fault-isolated decision-ledger capture. Runs AFTER the canonical
@@ -458,7 +500,7 @@ export const listSpecStates = async (
   const results: { name: string; state: schema.StateFile }[] = [];
 
   try {
-    for await (const entry of runtime.fs.readDir(dirPath)) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(dirPath)) {
       if (!entry.isFile || !entry.name.endsWith(".json")) {
         continue;
       }
@@ -470,7 +512,7 @@ export const listSpecStates = async (
       // enumerated before it -- a silently truncated list, with the remaining
       // specs looking as though they did not exist.
       try {
-        const content = await runtime.fs.readTextFile(filePath);
+        const content = await crossRuntime.runtime.fs.readTextFile(filePath);
 
         results.push({
           name: entry.name.replace(/\.json$/, ""),
@@ -497,7 +539,7 @@ export const readManifest = async (
   const filePath = `${root}/${MANIFEST_FILE}`;
 
   try {
-    const content = await runtime.fs.readTextFile(filePath);
+    const content = await crossRuntime.runtime.fs.readTextFile(filePath);
     const parsed = yaml.parse(content) as Record<string, unknown>;
 
     if (parsed?.["noskills"] === undefined) {
@@ -520,7 +562,7 @@ export const writeManifest = async (
   let doc: yaml.Document;
 
   try {
-    const content = await runtime.fs.readTextFile(filePath);
+    const content = await crossRuntime.runtime.fs.readTextFile(filePath);
     doc = yaml.parseDocument(content);
   } catch {
     doc = new yaml.Document({});
@@ -544,7 +586,7 @@ export const readConcern = async (
   const filePath = `${root}/${paths.concernFile(concernId)}`;
 
   try {
-    const content = await runtime.fs.readTextFile(filePath);
+    const content = await crossRuntime.runtime.fs.readTextFile(filePath);
 
     return JSON.parse(content) as schema.ConcernDefinition;
   } catch {
@@ -559,7 +601,7 @@ export const writeConcern = async (
   const dirPath = `${root}/${CONCERNS_DIR}`;
   const filePath = `${root}/${paths.concernFile(concern.id)}`;
 
-  await runtime.fs.mkdir(dirPath, { recursive: true });
+  await crossRuntime.runtime.fs.mkdir(dirPath, { recursive: true });
   await writeTextFileAtomic(filePath, JSON.stringify(concern, null, 2) + "\n");
 };
 
@@ -570,7 +612,7 @@ export const listConcerns = async (
   const concerns: schema.ConcernDefinition[] = [];
 
   try {
-    for await (const entry of runtime.fs.readDir(dirPath)) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(dirPath)) {
       if (!entry.isFile || !entry.name.endsWith(".json")) {
         continue;
       }
@@ -580,9 +622,24 @@ export const listConcerns = async (
       // Per file, not per directory -- see listSpecStates. One malformed
       // concern used to hide every concern after it.
       try {
-        const content = await runtime.fs.readTextFile(filePath);
+        const content = await crossRuntime.runtime.fs.readTextFile(filePath);
+        const parsed: unknown = JSON.parse(content);
 
-        concerns.push(JSON.parse(content) as schema.ConcernDefinition);
+        // An unknown scope value matches no spec and would hide its content
+        // without a word, so the concern is skipped with a warning, like one
+        // that does not parse.
+        const scopeProblem = concernScope.concernScopeProblem(parsed);
+        if (scopeProblem !== null) {
+          warnCorruptState(
+            filePath,
+            new Error(
+              `${scopeProblem}; see README-HOW.md#where-content-applies-scope`,
+            ),
+          );
+          continue;
+        }
+
+        concerns.push(parsed as schema.ConcernDefinition);
       } catch (error) {
         warnCorruptState(filePath, error);
       }
@@ -645,42 +702,54 @@ export const migrateLegacyLayout = async (root: string): Promise<boolean> => {
 
   // Move legacy state sub-entries into progresses via two-phase rename.
   if (hasLegacyState) {
-    await runtime.fs.mkdir(tempProgressesPath, { recursive: true });
+    await crossRuntime.runtime.fs.mkdir(tempProgressesPath, {
+      recursive: true,
+    });
 
-    for await (const entry of runtime.fs.readDir(stateDirPath)) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(stateDirPath)) {
       // Skip the temp dir itself and any new-layout siblings that may already
       // exist (they are created separately below or by scaffoldEserDir).
       if (
         entry.name === ".progresses-tmp" ||
         entry.name === "progresses" ||
         entry.name === "sessions" ||
-        entry.name === "events"
+        entry.name === "events" ||
+        entry.name === "purge-history"
       ) {
         continue;
       }
-      await runtime.fs.rename(
+      await crossRuntime.runtime.fs.rename(
         `${stateDirPath}/${entry.name}`,
         `${tempProgressesPath}/${entry.name}`,
       );
     }
 
-    await runtime.fs.rename(tempProgressesPath, finalProgressesPath);
+    await crossRuntime.runtime.fs.rename(
+      tempProgressesPath,
+      finalProgressesPath,
+    );
   }
 
   // Move flat-layout siblings into the umbrella.
   if (hasLegacySessions) {
-    await runtime.fs.mkdir(stateDirPath, { recursive: true });
-    await runtime.fs.rename(legacySessionsDir, `${root}/${SESSIONS_DIR}`);
+    await crossRuntime.runtime.fs.mkdir(stateDirPath, { recursive: true });
+    await crossRuntime.runtime.fs.rename(
+      legacySessionsDir,
+      `${root}/${SESSIONS_DIR}`,
+    );
   }
   if (hasLegacyEvents) {
-    await runtime.fs.mkdir(stateDirPath, { recursive: true });
-    await runtime.fs.rename(legacyEventsDir, `${root}/${EVENTS_DIR}`);
+    await crossRuntime.runtime.fs.mkdir(stateDirPath, { recursive: true });
+    await crossRuntime.runtime.fs.rename(
+      legacyEventsDir,
+      `${root}/${EVENTS_DIR}`,
+    );
   }
 
   // Rewrite .gitignore if it still carries the legacy three-entry form.
   const gitignorePath = `${root}/${paths.eserGitignore}`;
   try {
-    const current = await runtime.fs.readTextFile(gitignorePath);
+    const current = await crossRuntime.runtime.fs.readTextFile(gitignorePath);
     if (current.includes(".sessions/") || current.includes(".events/")) {
       await writeTextFileAtomic(
         gitignorePath,
@@ -701,7 +770,7 @@ export const migrateLegacyLayout = async (root: string): Promise<boolean> => {
 
 const isFile = async (path: string): Promise<boolean> => {
   try {
-    const info = await runtime.fs.stat(path);
+    const info = await crossRuntime.runtime.fs.stat(path);
     return info.isFile === true;
   } catch {
     return false;
@@ -710,7 +779,7 @@ const isFile = async (path: string): Promise<boolean> => {
 
 const isDir = async (path: string): Promise<boolean> => {
   try {
-    const info = await runtime.fs.stat(path);
+    const info = await crossRuntime.runtime.fs.stat(path);
     return info.isDirectory === true;
   } catch {
     return false;
@@ -739,17 +808,19 @@ export const scaffoldEserDir = async (root: string): Promise<void> => {
     WORKFLOWS_DIR,
   ];
 
-  for (const dir of dirs) {
-    await runtime.fs.mkdir(`${root}/${dir}`, {
-      recursive: true,
-    });
-  }
+  // Recursive mkdir tolerates a parent created by a sibling call, so the
+  // directories are created concurrently.
+  await Promise.all(
+    dirs.map((dir) =>
+      crossRuntime.runtime.fs.mkdir(`${root}/${dir}`, { recursive: true })
+    ),
+  );
 
   // .gitignore at .eser/ level — only create if missing
   const gitignorePath = `${root}/${paths.eserGitignore}`;
 
   try {
-    await runtime.fs.stat(gitignorePath);
+    await crossRuntime.runtime.fs.stat(gitignorePath);
   } catch {
     await writeTextFileAtomic(
       gitignorePath,
@@ -795,6 +866,45 @@ export const writeStateAndSpec = async (
 };
 
 // =============================================================================
+// Transition Validations
+// =============================================================================
+
+/**
+ * Reads the stored validator result for a spec as parsed JSON, for the caller
+ * to check. Null when there is none or it cannot be read: a missing or broken
+ * record only means the validator runs again.
+ */
+export const readValidationRecord = async (
+  root: string,
+  specName: string,
+): Promise<unknown> => {
+  try {
+    const content = await crossRuntime.runtime.fs.readTextFile(
+      `${root}/${paths.validationFile(specName)}`,
+    );
+
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+};
+
+/** Stores the latest validator result for a spec, replacing the previous one. */
+export const writeValidationRecord = async (
+  root: string,
+  specName: string,
+  record: unknown,
+): Promise<void> => {
+  await crossRuntime.runtime.fs.mkdir(`${root}/${VALIDATIONS_DIR}`, {
+    recursive: true,
+  });
+  await writeTextFileAtomic(
+    `${root}/${paths.validationFile(specName)}`,
+    JSON.stringify(record, null, 2) + "\n",
+  );
+};
+
+// =============================================================================
 // Existence Checks
 // =============================================================================
 
@@ -837,7 +947,9 @@ export const createSession = async (
   session: Session,
 ): Promise<void> => {
   const path = sessionPath(root, session.id);
-  await runtime.fs.mkdir(`${root}/${SESSIONS_DIR}`, { recursive: true });
+  await crossRuntime.runtime.fs.mkdir(`${root}/${SESSIONS_DIR}`, {
+    recursive: true,
+  });
   await writeTextFileAtomic(
     path,
     JSON.stringify(session, null, 2) + "\n",
@@ -850,7 +962,7 @@ export const readSession = async (
 ): Promise<Session | null> => {
   if (!isValidSessionId(sessionId)) return null;
   try {
-    const content = await runtime.fs.readTextFile(
+    const content = await crossRuntime.runtime.fs.readTextFile(
       sessionPath(root, sessionId),
     );
     const session = JSON.parse(content) as Session;
@@ -867,14 +979,14 @@ export const listSessions = async (
   const sessions: Session[] = [];
 
   try {
-    for await (const entry of runtime.fs.readDir(dir)) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(dir)) {
       if (entry.isFile && entry.name.endsWith(".json")) {
         // The file name is the identity; a file whose embedded id disagrees
         // (or is not a valid id) is ignored rather than trusted.
         const fileId = entry.name.slice(0, -".json".length);
         if (!isValidSessionId(fileId)) continue;
         try {
-          const content = await runtime.fs.readTextFile(
+          const content = await crossRuntime.runtime.fs.readTextFile(
             `${dir}/${entry.name}`,
           );
           const session = JSON.parse(content) as Session;
@@ -898,7 +1010,7 @@ export const deleteSession = async (
 ): Promise<boolean> => {
   if (!isValidSessionId(sessionId)) return false;
   try {
-    await runtime.fs.remove(sessionPath(root, sessionId));
+    await crossRuntime.runtime.fs.remove(sessionPath(root, sessionId));
     return true;
   } catch {
     return false;
@@ -929,17 +1041,14 @@ export const gcStaleSessions = async (
 ): Promise<readonly string[]> => {
   const sessions = await listSessions(root);
   const now = Date.now();
-  const removed: string[] = [];
+  const stale = sessions.filter((s) =>
+    now - new Date(s.lastActiveAt).getTime() > STALE_THRESHOLD_MS
+  );
 
-  for (const s of sessions) {
-    const elapsed = now - new Date(s.lastActiveAt).getTime();
-    if (elapsed > STALE_THRESHOLD_MS) {
-      await deleteSession(root, s.id);
-      removed.push(s.id);
-    }
-  }
+  // Each session is its own file, so the stale ones are deleted concurrently.
+  await Promise.all(stale.map((s) => deleteSession(root, s.id)));
 
-  return removed;
+  return stale.map((s) => s.id);
 };
 
 export const isSessionStale = (session: Session): boolean => {
@@ -956,7 +1065,7 @@ export const generateSessionId = (): string => {
 
 export const isInitialized = async (root: string): Promise<boolean> => {
   try {
-    const content = await runtime.fs.readTextFile(
+    const content = await crossRuntime.runtime.fs.readTextFile(
       `${root}/${MANIFEST_FILE}`,
     );
     const parsed = yaml.parse(content) as Record<string, unknown>;
@@ -975,7 +1084,7 @@ export const isInitialized = async (root: string): Promise<boolean> => {
 const parentDir = (dir: string): string => {
   // Handle both / and \ separators
   const sep = dir.includes("\\") ? "\\" : "/";
-  const parts = dir.split(sep).filter(Boolean);
+  const parts = dir.split(sep).filter((part) => part !== "");
   if (parts.length <= 1) return dir.startsWith("/") ? "/" : dir;
   parts.pop();
   return (dir.startsWith("/") ? "/" : "") + parts.join(sep);
@@ -989,9 +1098,12 @@ export const findProjectRoot = async (
   startDir: string,
 ): Promise<string | null> => {
   let dir = startDir;
+  // Each step checks the parent of the last one and the nearest match wins, so
+  // the walk is sequential.
   for (let depth = 0; depth < 100; depth++) {
     try {
-      await runtime.fs.stat(`${dir}/${ESER_DIR}`);
+      // deno-lint-ignore no-await-in-loop
+      await crossRuntime.runtime.fs.stat(`${dir}/${ESER_DIR}`);
       return dir;
     } catch {
       // not found here, try parent
@@ -1014,13 +1126,13 @@ export const findProjectRoot = async (
 export const resolveProjectRoot = async (): Promise<
   { root: string; found: boolean }
 > => {
-  const cwd = runtime.process.cwd();
+  const cwd = crossRuntime.runtime.process.cwd();
 
   // 1. Explicit env var (set by session or manager)
-  const envRoot = runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? null;
+  const envRoot = crossRuntime.runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? null;
   if (envRoot !== null) {
     try {
-      await runtime.fs.stat(`${envRoot}/${ESER_DIR}`);
+      await crossRuntime.runtime.fs.stat(`${envRoot}/${ESER_DIR}`);
       return { root: envRoot, found: true };
     } catch {
       // env var set but .eser/ not there — fall through to walk-up

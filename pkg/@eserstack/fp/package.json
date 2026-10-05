@@ -64,7 +64,6 @@
     "lodash.get": "^4.4.2",
     "lodash.groupby": "^4.6.0",
     "lodash.keyby": "^4.6.0",
-    "lodash.memoize": "^4.1.2",
-    "lodash.reject": "^4.6.0"
+    "lodash.memoize": "^4.1.2"
   }
 }

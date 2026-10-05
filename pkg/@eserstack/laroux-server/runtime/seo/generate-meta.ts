@@ -52,7 +52,7 @@ export function generateMetaTags(
   }
 
   // Open Graph tags
-  tags.push(`<meta property="og:type" content="${meta.ogType || "website"}">`);
+  tags.push(`<meta property="og:type" content="${meta.ogType ?? "website"}">`);
   tags.push(`<meta property="og:title" content="${escapeHtml(meta.title)}">`);
 
   if (meta.description) {
@@ -162,7 +162,11 @@ export function generateJsonLd(
 
   return schemas
     .map((schema) =>
-      `<script type="application/ld+json">${JSON.stringify(schema)}</script>`
+      // "<" is escaped so a "</script>" inside any string value cannot close
+      // the tag.
+      `<script type="application/ld+json">${
+        JSON.stringify(schema).replace(/</g, "\\u003c")
+      }</script>`
     )
     .join("\n  ");
 }
@@ -170,7 +174,7 @@ export function generateJsonLd(
 /**
  * Escape HTML special characters
  */
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

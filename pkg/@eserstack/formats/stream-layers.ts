@@ -20,7 +20,10 @@ const resolveFormat = (
 
 /**
  * Creates a stream Layer that serializes each chunk using the specified format.
- * Each input chunk is passed through writeItem(), producing string output chunks.
+ * The chunks are the items of one list: the layer writes the format's opening
+ * (`[` for JSON), passes each chunk through writeItem(), and writes the closing
+ * when the stream ends. The first chunk is marked first, so JSON leaves out the
+ * comma before it and CSV writes its header row.
  */
 export const writerLayer = (
   formatName: string,
@@ -31,11 +34,13 @@ export const writerLayer = (
     name: `formats/writer(${formatName})`,
     create: () => {
       const format = resolveFormat(formatName, registry);
+      const listOptions: types.FormatOptions = { ...options, _inArray: true };
+      let itemCount = 0;
 
       return {
         start: (controller) => {
           if (format.writeStart !== undefined) {
-            const header = format.writeStart(options);
+            const header = format.writeStart(listOptions);
 
             if (header.length > 0) {
               controller.enqueue(streams.createChunk(header));
@@ -43,12 +48,16 @@ export const writerLayer = (
           }
         },
         transform: (chunk, controller) => {
-          const serialized = format.writeItem(chunk.data, options);
+          const serialized = format.writeItem(chunk.data, {
+            ...listOptions,
+            _isFirst: itemCount === 0,
+          });
+          itemCount += 1;
           controller.enqueue(streams.createChunk(serialized));
         },
         flush: (controller) => {
           if (format.writeEnd !== undefined) {
-            const footer = format.writeEnd(options);
+            const footer = format.writeEnd(listOptions);
 
             if (footer.length > 0) {
               controller.enqueue(streams.createChunk(footer));

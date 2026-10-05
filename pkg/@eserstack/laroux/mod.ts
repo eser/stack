@@ -28,13 +28,13 @@ export type {
   ObjectFitValue,
   ParsedImageSrc,
   PictureSource,
+  PictureSourcesOptions,
   PlaceholderStyles,
   PlaceholderType,
   ResponsiveImageProps,
 } from "./image/mod.ts";
 export {
   ASPECT_RATIO_CLASSES,
-  buildFallbackHandler,
   buildFormatSrcSet,
   buildImageAttributes,
   buildPictureSources,
@@ -59,17 +59,23 @@ export type {
   ApiRouteModule,
   ComponentType,
   HttpMethod,
+  LayoutProps,
+  PageProps,
+  PageRequest,
+  PageRequestInput,
   RouteDefinition,
   RouteMatch,
   RouteParams,
 } from "./router/mod.ts";
 export {
+  createPageRequest,
   errorResponse,
   findMatchingRoute,
   HttpError,
   jsonResponse,
   matchRoute,
   normalizePath,
+  parseCookieHeader,
 } from "./router/mod.ts";
 
 export type {
@@ -115,3 +121,9 @@ export {
   DEFAULT_SSR,
   type DefaultConfigShape,
 } from "./config/mod.ts";
+
+export type {
+  ChunkManifest,
+  ComponentChunkInfo,
+  FileInfo,
+} from "./chunk-manifest/mod.ts";

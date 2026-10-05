@@ -9,6 +9,7 @@
  * @module
  */
 
+// A CommonJS bundle with no detectable named exports: Terminal is on default.
 import xtermHeadless from "@xterm/headless";
 
 // xterm color mode constants (from IBufferCell.getFgColorMode / getBgColorMode)
@@ -23,6 +24,10 @@ export type XTermBuffer = ReturnType<
   >
 >;
 
+/**
+ * A headless terminal emulator: write raw PTY output to it and read back the
+ * screen, the cursor and the lines that changed since the last render.
+ */
 export class VTerminal {
   readonly #term: InstanceType<typeof xtermHeadless.Terminal>;
   #rows: number;
@@ -31,6 +36,12 @@ export class VTerminal {
   #prevSnapshot: string[] = [];
   #allDirty = true;
 
+  /**
+   * Create a blank terminal of the given size, with no scrollback.
+   *
+   * @param rows - Height in rows.
+   * @param cols - Width in columns.
+   */
   constructor(rows: number, cols: number) {
     this.#rows = rows;
     this.#cols = cols;
@@ -66,10 +77,12 @@ export class VTerminal {
     this.#allDirty = true;
   }
 
+  /** Height in rows. */
   get rows(): number {
     return this.#rows;
   }
 
+  /** Width in columns. */
   get cols(): number {
     return this.#cols;
   }
@@ -143,11 +156,12 @@ export class VTerminal {
     this.#dirty.add(row);
   }
 
-  // Legacy compatibility for vterm-widget.ts
+  /** This terminal; kept for callers written against the earlier screen API. */
   getScreen(): VTerminal {
     return this;
   }
 
+  /** The cursor position, 0-based, and whether it is visible. */
   getCursor(): { row: number; col: number; visible: boolean } {
     return {
       row: this.cursorRow,

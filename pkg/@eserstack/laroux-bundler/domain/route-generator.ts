@@ -1,10 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 // Route generator for file-based routing
-// Generates _generated.ts with scanned route definitions
+// Generates _generated-routes.ts, api-routes.ts and proxy-registry.ts from
+// the scanned route files
 
-import { runtime, toPosix } from "@eserstack/standards/cross-runtime";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import { replaceJsExtension } from "@eserstack/standards/patterns";
+import * as patterns from "@eserstack/standards/patterns";
 import type { ScannedRoute, ScanResult } from "./route-scanner.ts";
 
 const generatorLogger = logging.logger.getLogger([
@@ -24,15 +25,26 @@ export type GenerateRouteOptions = {
   projectRoot: string;
   /** Source directory name relative to project root (e.g., "src") */
   srcDirName: string;
+  /**
+   * Added to each page and layout import as `?v=<moduleVersion>`, such as
+   * the build id. Deno keeps an imported module under its URL until the
+   * process exits, so without a new query a dev server that imports the
+   * rebuilt routes file again still gets the pages of the first build.
+   * Default: imports carry no query.
+   */
+  moduleVersion?: string;
 };
 
 /**
- * Generates the _generated.ts file with route definitions
+ * Generates the _generated-routes.ts file with route definitions
  */
 export async function generateRouteFile(
   options: GenerateRouteOptions,
 ): Promise<void> {
-  const { scanResult, outputPath, projectRoot } = options;
+  const { scanResult, outputPath, projectRoot, moduleVersion } = options;
+  const importQuery = moduleVersion === undefined
+    ? ""
+    : `?v=${encodeURIComponent(moduleVersion)}`;
   const { routes } = scanResult;
 
   generatorLogger.debug(`Generating routes file: ${outputPath}`);
@@ -49,32 +61,16 @@ export async function generateRouteFile(
     // Both bundlers output to dist/server/src/app/* (preserves src/ structure)
     // Strip source extension before adding .js
     const componentImportPath = `./${
-      replaceJsExtension(route.componentPath, "")
-    }.js`;
+      patterns.replaceJsExtension(route.componentPath, "")
+    }.js${importQuery}`;
 
-    // Full path to original source file (for reading export names)
-    const componentFullPath = runtime.path.join(
+    // One route's sources at a time keeps open file handles bounded; a
+    // project can have more routes than the open-file limit.
+    // deno-lint-ignore no-await-in-loop
+    const { componentName, layoutName } = await resolveRouteExportNames(
+      route,
       projectRoot,
-      route.componentPath,
     );
-
-    // Get actual export name from source file
-    const fallbackComponentName = generateComponentName(route.componentPath);
-    const componentName = await getPageExportName(
-      componentFullPath,
-      fallbackComponentName,
-    );
-
-    // Get layout name if exists
-    let layoutName: string | undefined;
-    if (route.layoutPath) {
-      const layoutFullPath = runtime.path.join(projectRoot, route.layoutPath);
-      const fallbackLayoutName = generateLayoutName(route.layoutPath);
-      layoutName = await getLayoutExportName(
-        layoutFullPath,
-        fallbackLayoutName,
-      );
-    }
 
     // Add component import if not already imported
     if (!importedComponents.has(route.componentPath)) {
@@ -89,8 +85,8 @@ export async function generateRouteFile(
       // Import from bundled files in dist/server/src/app/ (both bundlers preserve src/ structure)
       // Strip source extension before adding .js
       const layoutImportPath = `./${
-        replaceJsExtension(route.layoutPath, "")
-      }.js`;
+        patterns.replaceJsExtension(route.layoutPath, "")
+      }.js${importQuery}`;
 
       if (!importedComponents.has(route.layoutPath)) {
         imports.push(
@@ -122,8 +118,44 @@ ${routeDefinitions.map((r) => `  ${r}`).join(",\n")},
 ];
 `;
 
-  await runtime.fs.writeTextFile(outputPath, content);
+  await crossRuntime.runtime.fs.writeTextFile(outputPath, content);
   generatorLogger.debug(`Generated ${routes.length} route(s)`);
+}
+
+/**
+ * Reads the export names of a route's page and layout from their source files
+ */
+async function resolveRouteExportNames(
+  route: ScannedRoute,
+  projectRoot: string,
+): Promise<{ componentName: string; layoutName: string | undefined }> {
+  // Full path to original source file (for reading export names)
+  const componentFullPath = crossRuntime.runtime.path.join(
+    projectRoot,
+    route.componentPath,
+  );
+
+  // Get actual export name from source file
+  const componentName = await getPageExportName(
+    componentFullPath,
+    generateComponentName(route.componentPath),
+  );
+
+  // Get layout name if exists
+  if (route.layoutPath === undefined) {
+    return { componentName, layoutName: undefined };
+  }
+
+  const layoutFullPath = crossRuntime.runtime.path.join(
+    projectRoot,
+    route.layoutPath,
+  );
+  const layoutName = await getLayoutExportName(
+    layoutFullPath,
+    generateLayoutName(route.layoutPath),
+  );
+
+  return { componentName, layoutName };
 }
 
 /**
@@ -147,10 +179,10 @@ export async function generateApiRouteFile(
 
   for (const route of apiRoutes) {
     // Calculate import path relative to output directory
-    const outputDir = runtime.path.dirname(outputPath);
+    const outputDir = crossRuntime.runtime.path.dirname(outputPath);
     const modulePath = getRelativeImportPath(
       outputDir,
-      runtime.path.join(projectRoot, route.componentPath),
+      crossRuntime.runtime.path.join(projectRoot, route.componentPath),
     );
 
     routeEntries.push(
@@ -174,7 +206,7 @@ ${routeEntries.join(",\n")},
 ];
 `;
 
-  await runtime.fs.writeTextFile(outputPath, content);
+  await crossRuntime.runtime.fs.writeTextFile(outputPath, content);
   generatorLogger.debug(`Generated ${apiRoutes.length} API route(s)`);
 }
 
@@ -199,10 +231,10 @@ export async function generateProxyFile(
 
   for (const proxy of proxies) {
     // Calculate import path relative to output directory
-    const outputDir = runtime.path.dirname(outputPath);
+    const outputDir = crossRuntime.runtime.path.dirname(outputPath);
     const modulePath = getRelativeImportPath(
       outputDir,
-      runtime.path.join(projectRoot, proxy.modulePath),
+      crossRuntime.runtime.path.join(projectRoot, proxy.modulePath),
     );
 
     proxyEntries.push(
@@ -227,7 +259,7 @@ ${proxyEntries.join(",\n")},
 ];
 `;
 
-  await runtime.fs.writeTextFile(outputPath, content);
+  await crossRuntime.runtime.fs.writeTextFile(outputPath, content);
   generatorLogger.debug(`Generated ${proxies.length} proxy definition(s)`);
 }
 
@@ -237,7 +269,7 @@ ${proxyEntries.join(",\n")},
  */
 async function extractExportNames(filePath: string): Promise<string[]> {
   try {
-    const content = await runtime.fs.readTextFile(filePath);
+    const content = await crossRuntime.runtime.fs.readTextFile(filePath);
     const exportNames: string[] = [];
 
     // Match all: export function ComponentName() or export async function ComponentName()
@@ -337,7 +369,9 @@ async function getLayoutExportName(
  */
 function generateComponentName(componentPath: string): string {
   // Get directory name (e.g., "stories", "[slug]", "home")
-  const dirName = runtime.path.basename(runtime.path.dirname(componentPath));
+  const dirName = crossRuntime.runtime.path.basename(
+    crossRuntime.runtime.path.dirname(componentPath),
+  );
 
   // Convert to PascalCase
   const baseName = toPascalCase(cleanDynamicSegment(dirName));
@@ -349,7 +383,9 @@ function generateComponentName(componentPath: string): string {
  * Generates a PascalCase layout name from file path (fallback)
  */
 function generateLayoutName(layoutPath: string): string {
-  const dirName = runtime.path.basename(runtime.path.dirname(layoutPath));
+  const dirName = crossRuntime.runtime.path.basename(
+    crossRuntime.runtime.path.dirname(layoutPath),
+  );
   const baseName = toPascalCase(cleanDynamicSegment(dirName));
   return `${baseName}Layout`;
 }
@@ -386,7 +422,9 @@ function toPascalCase(str: string): string {
  */
 function getRelativeImportPath(fromDir: string, toFile: string): string {
   // Get relative path and convert to POSIX format for import specifiers
-  const relativePath = toPosix(runtime.path.relative(fromDir, toFile));
+  const relativePath = crossRuntime.toPosix(
+    crossRuntime.runtime.path.relative(fromDir, toFile),
+  );
 
   // Add ./ prefix if needed for relative imports
   if (!relativePath.startsWith(".")) {

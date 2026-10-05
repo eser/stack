@@ -100,6 +100,13 @@ const findNext = <T>(
   return current; // all disabled, stay put
 };
 
+/**
+ * Ask the user to pick one option with the arrow keys; disabled options are
+ * skipped.
+ *
+ * @returns The chosen option's value, or {@link types.CANCEL} when the user
+ *   cancels; check it with `isCancel`.
+ */
 export const select = async <T>(
   ctx: types.TuiContext,
   options: types.SelectOptions<T>,

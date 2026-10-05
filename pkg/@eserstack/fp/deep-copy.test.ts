@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { deepCopy, deepCopy2, DeepCopyError } from "./deep-copy.ts";
+import * as deepCopy from "./deep-copy.ts";
 
 class Dummy {
   prop: unknown;
@@ -14,7 +14,7 @@ class Dummy {
 Deno.test("basic", () => {
   const obj1 = { value: 5 };
 
-  const result = deepCopy(obj1);
+  const result = deepCopy.deepCopy(obj1);
 
   assert.assertNotStrictEquals(result, obj1);
   assert.assertStrictEquals(result.constructor, Object);
@@ -25,7 +25,7 @@ Deno.test("basic", () => {
 Deno.test("classes", () => {
   const obj1 = new Dummy({ value: 5 });
 
-  const result = deepCopy(obj1);
+  const result = deepCopy.deepCopy(obj1);
 
   assert.assertNotStrictEquals(result, obj1);
   assert.assertStrictEquals(result.constructor, Dummy);
@@ -43,8 +43,8 @@ Deno.test("deepCopy() should detect self-referencing circular objects", () => {
   obj.self = obj;
 
   assert.assertThrows(
-    () => deepCopy(obj),
-    DeepCopyError,
+    () => deepCopy.deepCopy(obj),
+    deepCopy.DeepCopyError,
     "Circular reference detected",
   );
 });
@@ -58,8 +58,8 @@ Deno.test("deepCopy() should detect mutually circular references", () => {
   objB.ref = objA;
 
   assert.assertThrows(
-    () => deepCopy(objA),
-    DeepCopyError,
+    () => deepCopy.deepCopy(objA),
+    deepCopy.DeepCopyError,
     "Circular reference detected",
   );
 });
@@ -76,8 +76,8 @@ Deno.test("deepCopy() should detect deep circular references", () => {
   obj.level1.level2.level3.backRef = obj;
 
   assert.assertThrows(
-    () => deepCopy(obj),
-    DeepCopyError,
+    () => deepCopy.deepCopy(obj),
+    deepCopy.DeepCopyError,
     "Circular reference detected",
   );
 });
@@ -89,7 +89,7 @@ Deno.test("deepCopy() should detect deep circular references", () => {
 Deno.test("deepCopy() should copy objects within max depth", () => {
   const nested = { a: { b: { c: { d: { e: 5 } } } } };
 
-  const result = deepCopy(nested, { maxDepth: 10 });
+  const result = deepCopy.deepCopy(nested, { maxDepth: 10 });
 
   assert.assertEquals(result, nested);
   assert.assertNotStrictEquals(result, nested);
@@ -100,8 +100,8 @@ Deno.test("deepCopy() should throw when exceeding max depth", () => {
   const nested = { a: { b: { c: { d: { e: 5 } } } } };
 
   assert.assertThrows(
-    () => deepCopy(nested, { maxDepth: 3 }),
-    DeepCopyError,
+    () => deepCopy.deepCopy(nested, { maxDepth: 3 }),
+    deepCopy.DeepCopyError,
     "Maximum recursion depth exceeded",
   );
 });
@@ -113,13 +113,13 @@ Deno.test("deepCopy() should allow custom max depth", () => {
   const nested = { a: { b: { c: { d: { e: 5 } } } } };
 
   // Should succeed with maxDepth of 4 (we need to reach depth 4 to process 'd')
-  const result = deepCopy(nested, { maxDepth: 4 });
+  const result = deepCopy.deepCopy(nested, { maxDepth: 4 });
   assert.assertEquals(result.a.b.c.d.e, 5);
 
   // Should fail with maxDepth of 3 (can't reach 'd' at depth 4)
   assert.assertThrows(
-    () => deepCopy(nested, { maxDepth: 3 }),
-    DeepCopyError,
+    () => deepCopy.deepCopy(nested, { maxDepth: 3 }),
+    deepCopy.DeepCopyError,
     "Maximum recursion depth exceeded",
   );
 });
@@ -131,7 +131,7 @@ Deno.test("deepCopy() should allow custom max depth", () => {
 Deno.test("deepCopy() should handle arrays", () => {
   const obj = { arr: [1, 2, { nested: 3 }] };
 
-  const result = deepCopy(obj);
+  const result = deepCopy.deepCopy(obj);
 
   assert.assertEquals(result, obj);
   assert.assertNotStrictEquals(result.arr, obj.arr);
@@ -141,7 +141,7 @@ Deno.test("deepCopy() should handle arrays", () => {
 Deno.test("deepCopy() should handle nested arrays", () => {
   const obj = { matrix: [[1, 2], [3, 4]] };
 
-  const result = deepCopy(obj);
+  const result = deepCopy.deepCopy(obj);
 
   assert.assertEquals(result, obj);
   assert.assertNotStrictEquals(result.matrix, obj.matrix);
@@ -154,8 +154,8 @@ Deno.test("deepCopy() should detect circular references in arrays", () => {
   arr.push(arr);
 
   assert.assertThrows(
-    () => deepCopy({ items: arr }),
-    DeepCopyError,
+    () => deepCopy.deepCopy({ items: arr }),
+    deepCopy.DeepCopyError,
     "Circular reference detected",
   );
 });
@@ -170,8 +170,8 @@ Deno.test("deepCopy2() should detect circular references", () => {
   obj.self = obj;
 
   assert.assertThrows(
-    () => deepCopy2(obj),
-    DeepCopyError,
+    () => deepCopy.deepCopy2(obj),
+    deepCopy.DeepCopyError,
     "Circular reference detected",
   );
 });
@@ -180,8 +180,8 @@ Deno.test("deepCopy2() should respect max depth", () => {
   const nested = { a: { b: { c: { d: { e: 5 } } } } };
 
   assert.assertThrows(
-    () => deepCopy2(nested, { maxDepth: 3 }),
-    DeepCopyError,
+    () => deepCopy.deepCopy2(nested, { maxDepth: 3 }),
+    deepCopy.DeepCopyError,
     "Maximum recursion depth exceeded",
   );
 });
@@ -193,7 +193,7 @@ Deno.test("deepCopy2() should respect max depth", () => {
 Deno.test("deepCopy() should handle null values", () => {
   const obj = { a: null, b: { c: null } };
 
-  const result = deepCopy(obj);
+  const result = deepCopy.deepCopy(obj);
 
   assert.assertEquals(result, obj);
 });
@@ -201,7 +201,7 @@ Deno.test("deepCopy() should handle null values", () => {
 Deno.test("deepCopy() should handle undefined values", () => {
   const obj = { a: undefined, b: { c: undefined } };
 
-  const result = deepCopy(obj);
+  const result = deepCopy.deepCopy(obj);
 
   assert.assertEquals(result.a, undefined);
   assert.assertEquals(result.b.c, undefined);
@@ -219,7 +219,7 @@ Deno.test("deepCopy() should handle primitive values in nested objects", () => {
     },
   };
 
-  const result = deepCopy(obj);
+  const result = deepCopy.deepCopy(obj);
 
   assert.assertEquals(result, obj);
   assert.assertNotStrictEquals(result.nested, obj.nested);
@@ -231,7 +231,7 @@ Deno.test("deepCopy() should allow same object in different branches (non-circul
 
   // This should NOT throw - the same object appearing in different branches
   // is not a circular reference, just shared references
-  const result = deepCopy(obj);
+  const result = deepCopy.deepCopy(obj);
 
   assert.assertEquals(result.a.value, 5);
   assert.assertEquals(result.b.value, 5);

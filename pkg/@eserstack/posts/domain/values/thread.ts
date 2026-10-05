@@ -8,6 +8,7 @@
 
 /** An ordered sequence of post texts forming a thread. */
 export interface Thread {
+  /** The post texts in thread order: at least two, none empty. */
   readonly posts: ReadonlyArray<string>;
 }
 

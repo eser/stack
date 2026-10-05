@@ -251,7 +251,7 @@ func (c *Client) NewSession(ctx context.Context, req *NewSessionRequest) (*Sessi
 		return nil, fmt.Errorf("session/new: %w", err)
 	}
 
-	return c.registerSession(resp.SessionID, resp.Modes, SessionRoots{
+	return c.registerSession(ctx, resp.SessionID, resp.Modes, SessionRoots{
 		Cwd:                   req.Cwd,
 		AdditionalDirectories: req.AdditionalDirectories,
 	}), nil
@@ -276,18 +276,19 @@ func (c *Client) LoadSession(ctx context.Context, req *LoadSessionRequest) (*Ses
 
 	// The agent replays history as session/update notifications after load;
 	// they arrive through the normal handler path.
-	return c.registerSession(req.SessionID, resp.Modes, SessionRoots{
+	return c.registerSession(ctx, req.SessionID, resp.Modes, SessionRoots{
 		Cwd:                   req.Cwd,
 		AdditionalDirectories: req.AdditionalDirectories,
 	}), nil
 }
 
 func (c *Client) registerSession(
+	ctx context.Context,
 	id string,
 	modes *SessionModeState,
 	roots SessionRoots,
 ) *Session {
-	session := newSession(c, id, modes)
+	session := newSession(ctx, c, id, modes)
 
 	c.sessionsMu.Lock()
 	c.sessions[id] = session
@@ -310,7 +311,8 @@ func (c *Client) lookupSession(id string) *Session {
 	return c.sessions[id]
 }
 
-// Close tears the connection down and unblocks every in-flight call.
+// Close tears the connection down, unblocks every in-flight call and closes
+// every session it opened, which cancels their contexts.
 //
 // For a spawned agent this is graceful first: stdin EOF is ACP's shutdown
 // signal, so the agent gets shutdownGrace to flush and exit on its own before
@@ -318,6 +320,8 @@ func (c *Client) lookupSession(id string) *Session {
 // half-written frame and a truncated transcript, which is why the courtesy is
 // worth the wait.
 func (c *Client) Close() error {
+	defer c.closeSessions()
+
 	if c.proc != nil {
 		_ = c.proc.CloseStdin()
 
@@ -331,6 +335,17 @@ func (c *Client) Close() error {
 	}
 
 	return c.conn.Close()
+}
+
+// closeSessions closes every registered session. Session.Close only cancels a
+// context, so holding the read lock across the calls is safe.
+func (c *Client) closeSessions() {
+	c.sessionsMu.RLock()
+	defer c.sessionsMu.RUnlock()
+
+	for _, session := range c.sessions {
+		session.Close()
+	}
 }
 
 // Done is closed when the underlying connection stops.

@@ -14,6 +14,7 @@ export {
   createLarouxRuntimeState,
   type LarouxExportedSymbol,
   type LarouxManifest,
+  LarouxManifestLoadError,
   LarouxRuntime,
   type LarouxRuntimeOptions,
   type LarouxRuntimeState,

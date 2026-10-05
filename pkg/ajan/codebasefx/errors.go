@@ -14,4 +14,8 @@ var (
 	ErrInvalidCommitMsg  = errors.New("commit message does not follow conventional commit format")
 	ErrChangelogNotFound = errors.New("CHANGELOG.md not found")
 	ErrNoCommits         = errors.New("no commits found in range")
+
+	// ErrNoWorkspaceMembers means the root package.json `workspaces` and
+	// deno.json `workspace` fields matched no directory with a named package.
+	ErrNoWorkspaceMembers = errors.New("no workspace members found")
 )

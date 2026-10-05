@@ -14,15 +14,7 @@
 import * as shellArgs from "@eserstack/shell/args";
 
 import type { CliApp } from "./app.ts";
-import {
-  completionsHandler,
-  doctorHandler,
-  infoHandler,
-  installHandler,
-  uninstallHandler,
-  updateHandler,
-  versionHandler,
-} from "./handlers/mod.ts";
+import * as handlers from "./handlers/mod.ts";
 
 /**
  * Builds the `system` tree for one binary.
@@ -36,17 +28,17 @@ export const createSystemCommand = (app: CliApp): shellArgs.Command =>
     .command(
       new shellArgs.Command("install")
         .description(`Install ${app.command} globally`)
-        .run((ctx) => installHandler(ctx, app)),
+        .run((ctx) => handlers.installHandler(ctx, app)),
     )
     .command(
       new shellArgs.Command("uninstall")
         .description(`Uninstall ${app.command} globally`)
-        .run((ctx) => uninstallHandler(ctx, app)),
+        .run((ctx) => handlers.uninstallHandler(ctx, app)),
     )
     .command(
       new shellArgs.Command("update")
         .description(`Update ${app.command} to the latest version`)
-        .run((ctx) => updateHandler(ctx, app)),
+        .run((ctx) => handlers.updateHandler(ctx, app)),
     )
     .command(
       new shellArgs.Command("completions")
@@ -56,7 +48,7 @@ export const createSystemCommand = (app: CliApp): shellArgs.Command =>
           type: "string",
           description: "Shell type: bash, zsh, or fish",
         })
-        .run((ctx) => completionsHandler(ctx, app)),
+        .run((ctx) => handlers.completionsHandler(ctx, app)),
     )
     .command(
       new shellArgs.Command("version")
@@ -66,15 +58,15 @@ export const createSystemCommand = (app: CliApp): shellArgs.Command =>
           type: "boolean",
           description: "Print version number only",
         })
-        .run((ctx) => versionHandler(ctx, app)),
+        .run((ctx) => handlers.versionHandler(ctx, app)),
     )
     .command(
       new shellArgs.Command("doctor")
         .description("Run diagnostic checks")
-        .run((ctx) => doctorHandler(ctx, app)),
+        .run((ctx) => handlers.doctorHandler(ctx, app)),
     )
     .command(
       new shellArgs.Command("info")
         .description("Show runtime and execution context diagnostics")
-        .run((ctx) => infoHandler(ctx, app)),
+        .run((ctx) => handlers.infoHandler(ctx, app)),
     );

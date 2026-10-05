@@ -1,21 +1,19 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as fileLoader from "@eserstack/config/file";
-import { get } from "@eserstack/fp/get";
-import { deepMerge } from "@eserstack/fp/deep-merge";
+import * as get from "@eserstack/fp/get";
+import * as deepMerge from "@eserstack/fp/deep-merge";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import {
-  baseDirProp,
-  CONFIG_FILE_PRIORITY,
-  type ConfigFileType,
-  DEFAULT_FIELD_MAPPINGS,
-  type FieldMapping,
-  type FieldOrigin,
-  type LoadOptions,
-  type PackageConfig,
-  type PackageFieldName,
-  type RawConfigFile,
-  type TrackedField,
+import * as types from "./types.ts";
+import type {
+  ConfigFileType,
+  FieldMapping,
+  FieldOrigin,
+  LoadOptions,
+  PackageConfig,
+  PackageFieldName,
+  RawConfigFile,
+  TrackedField,
 } from "./types.ts";
 
 /**
@@ -77,17 +75,15 @@ const findConfigFiles = async (
   baseDir: string,
   includeFiles: ReadonlyArray<ConfigFileType>,
 ): Promise<RawConfigFile[]> => {
-  const results: RawConfigFile[] = [];
+  // The candidate files are independent, so they load concurrently; the
+  // result keeps the priority order of includeFiles.
+  const loaded = await Promise.all(
+    includeFiles.map((fileType) =>
+      tryLoadConfigFile(runtime.path.join(baseDir, fileType), fileType)
+    ),
+  );
 
-  for (const fileType of includeFiles) {
-    const filepath = runtime.path.join(baseDir, fileType);
-    const loaded = await tryLoadConfigFile(filepath, fileType);
-    if (loaded) {
-      results.push(loaded);
-    }
-  }
-
-  return results;
+  return loaded.filter((file): file is RawConfigFile => file !== undefined);
 };
 
 /**
@@ -98,7 +94,7 @@ const getPropertyByPath = (
   obj: Record<string, unknown>,
   path: string,
 ): unknown => {
-  return get(obj, path.split("."));
+  return get.get(obj, path.split("."));
 };
 
 /**
@@ -157,10 +153,13 @@ const mergeFieldMappings = (
   customMappings?: Partial<FieldMapping>,
 ): FieldMapping => {
   if (customMappings === undefined) {
-    return DEFAULT_FIELD_MAPPINGS;
+    return types.DEFAULT_FIELD_MAPPINGS;
   }
 
-  return deepMerge(DEFAULT_FIELD_MAPPINGS, customMappings) as FieldMapping;
+  return deepMerge.deepMerge(
+    types.DEFAULT_FIELD_MAPPINGS,
+    customMappings,
+  ) as FieldMapping;
 };
 
 /**
@@ -170,7 +169,9 @@ const sortByPriority = (
   files: ReadonlyArray<ConfigFileType>,
 ): ConfigFileType[] => {
   return [...files].sort(
-    (a, b) => CONFIG_FILE_PRIORITY.indexOf(a) - CONFIG_FILE_PRIORITY.indexOf(b),
+    (a, b) =>
+      types.CONFIG_FILE_PRIORITY.indexOf(a) -
+      types.CONFIG_FILE_PRIORITY.indexOf(b),
   );
 };
 
@@ -192,7 +193,7 @@ export const load = async (
 ): Promise<PackageConfig> => {
   const {
     baseDir = ".",
-    includeFiles = CONFIG_FILE_PRIORITY,
+    includeFiles = types.CONFIG_FILE_PRIORITY,
     fieldMappings,
     searchParents = false,
   } = options;
@@ -205,6 +206,9 @@ export const load = async (
   let loadedFiles: RawConfigFile[] = [];
 
   while (true) {
+    // A parent directory is searched only when the one below it had no
+    // config, so the lookups are sequential.
+    // deno-lint-ignore no-await-in-loop
     loadedFiles = await findConfigFiles(searchDir, sortedFiles);
 
     if (loadedFiles.length > 0 || !searchParents) {
@@ -242,7 +246,7 @@ export const load = async (
       loadedFiles,
       mergedMappings,
     ),
-    [baseDirProp]: searchDir,
+    [types.baseDirProp]: searchDir,
     _loadedFiles: loadedFiles,
   };
 
@@ -289,5 +293,5 @@ export const getFilesWithField = (
  * Gets the base directory where config was loaded from.
  */
 export const getBaseDir = (config: PackageConfig): string => {
-  return config[baseDirProp];
+  return config[types.baseDirProp];
 };

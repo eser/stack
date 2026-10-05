@@ -20,6 +20,9 @@
 //                             not used to route between FFI and TS
 //   NO_FFI                  — file imports ffi-client but makes no actual EserAjan* calls
 
+// The classification tables it prints are the script's output.
+// deno-lint-ignore-file no-console
+
 const ESER_AJAN_CALL_RE = /EserAjan[A-Za-z]+/g;
 const FORMAT_ROUTING_RE =
   /if\s*\([^)]*(?:format|type|kind|mode)\s*===?\s*["'][^"']+["'][^)]*\)\s*\{[^}]*(?:EserAjan|getLib|lib\.symbols)/;
@@ -251,29 +254,44 @@ function renderTable(reports: FileReport[]): void {
 
 // ─── main ────────────────────────────────────────────────────────────────────
 
-const args = Deno.args;
-if (args.length === 0) {
-  console.error(
-    "Usage: deno run --allow-read etc/scripts/hybrid-sniffer.ts <pkg-path> [...]",
-  );
-  Deno.exit(1);
-}
-
-let anyHybrid = false;
-
-for (const pkgPath of args) {
-  console.log(`\n## ${pkgPath}\n`);
-  const reports = await analyzePackage(pkgPath);
-  renderTable(reports);
-
-  if (reports.some((r) => r.classification === "HYBRID_ROUTING")) {
-    anyHybrid = true;
+const main = async (args: readonly string[]): Promise<number> => {
+  if (args.length === 0) {
+    console.error(
+      "Usage: deno run --allow-read etc/scripts/hybrid-sniffer.ts <pkg-path> [...]",
+    );
+    return 1;
   }
-}
 
-if (anyHybrid) {
-  console.log("\n⚠  HYBRID_ROUTING detected — review before proceeding.");
-  Deno.exit(2);
-} else {
+  // Packages are read independently; the tables still print in argument order.
+  const results = await Promise.all(
+    args.map(async (pkgPath) => ({
+      pkgPath,
+      reports: await analyzePackage(pkgPath),
+    })),
+  );
+
+  let anyHybrid = false;
+
+  for (const { pkgPath, reports } of results) {
+    console.log(`\n## ${pkgPath}\n`);
+    renderTable(reports);
+
+    if (reports.some((r) => r.classification === "HYBRID_ROUTING")) {
+      anyHybrid = true;
+    }
+  }
+
+  if (anyHybrid) {
+    console.log("\n⚠  HYBRID_ROUTING detected; review before proceeding.");
+    return 2;
+  }
+
   console.log("\n✓  No hybrid routing detected.");
+  return 0;
+};
+
+if (import.meta.main) {
+  // Script entry point: run directly from the command line.
+  // deno-lint-ignore no-top-level-await
+  Deno.exitCode = await main(Deno.args);
 }

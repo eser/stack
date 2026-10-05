@@ -2,11 +2,16 @@ package noskillsserverfx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/eser/stack/pkg/ajan/logfx"
 )
+
+// errSessionsNotRunning is returned by GetOrCreate before Server.Start and
+// once shutdown has begun.
+var errSessionsNotRunning = errors.New("noskills sessions are not running (the server is not started or is shutting down)")
 
 // ── Session entry ─────────────────────────────────────────────────────────────
 
@@ -37,6 +42,18 @@ type SessionManager struct {
 	pending  map[string]chan struct{} // key: "<slug>/<sid>" → in-flight creation
 	server   *Server
 	logger   *logfx.Logger
+
+	// lifetime is the server's lifetime context, set by start. Every pump runs
+	// under it: its end closes the session's worker, and the push
+	// notifications the pump triggers carry it. It is stored, against the
+	// usual rule, because sessions are created by attach requests, whose
+	// contexts end long before the sessions do.
+	lifetime context.Context //nolint:containedctx // server lifetime, see the comment above
+	// stopped is set by stop. GetOrCreate then refuses, so no pump starts
+	// after stop has begun waiting for the running ones.
+	stopped bool
+	// pumps tracks the pump goroutines; stop waits for them.
+	pumps sync.WaitGroup
 }
 
 func newSessionManager(server *Server, logger *logfx.Logger) *SessionManager {
@@ -50,6 +67,33 @@ func newSessionManager(server *Server, logger *logfx.Logger) *SessionManager {
 }
 
 func sessionKey(slug, sid string) string { return slug + "/" + sid }
+
+// start lets GetOrCreate create sessions whose pumps run under lifetime.
+func (sm *SessionManager) start(lifetime context.Context) {
+	sm.mu.Lock()
+	sm.lifetime = lifetime
+	sm.mu.Unlock()
+}
+
+// stop refuses new sessions and waits for every pump to return. A pump returns
+// once its worker has closed, which the end of the lifetime context given to
+// start brings about, so the caller ends that context first.
+func (sm *SessionManager) stop() {
+	sm.mu.Lock()
+	sm.stopped = true
+	sm.mu.Unlock()
+
+	sm.pumps.Wait()
+}
+
+// addLocked registers entry under key and starts its pump. The caller holds
+// sm.mu and has checked that the manager is running.
+func (sm *SessionManager) addLocked(key string, entry *SessionEntry) {
+	sm.sessions[key] = entry
+
+	lifetime := sm.lifetime
+	sm.pumps.Go(func() { sm.runPump(lifetime, entry) })
+}
 
 // RecordKind remembers the worker flavour chosen at session-create time so the
 // worker spawned on first attach matches, regardless of which client attaches or
@@ -82,6 +126,12 @@ func (sm *SessionManager) GetOrCreate(
 
 	for {
 		sm.mu.Lock()
+
+		if sm.lifetime == nil || sm.stopped {
+			sm.mu.Unlock()
+
+			return nil, false, errSessionsNotRunning
+		}
 
 		if e, ok := sm.sessions[key]; ok {
 			sm.mu.Unlock()
@@ -128,8 +178,9 @@ func (sm *SessionManager) GetOrCreate(
 		sm.mu.Lock()
 		delete(sm.pending, key)
 
-		if err == nil {
-			sm.sessions[key] = entry
+		stopped := sm.stopped
+		if err == nil && !stopped {
+			sm.addLocked(key, entry)
 		}
 
 		sm.mu.Unlock()
@@ -139,9 +190,26 @@ func (sm *SessionManager) GetOrCreate(
 			return nil, false, err
 		}
 
-		go sm.runPump(entry)
+		if stopped {
+			// Shutdown began while the worker was spawning, and nothing would
+			// close it now.
+			sm.discard(ctx, entry)
+
+			return nil, false, errSessionsNotRunning
+		}
 
 		return entry, true, nil
+	}
+}
+
+// discard tears down a session that was never registered.
+func (sm *SessionManager) discard(ctx context.Context, entry *SessionEntry) {
+	if err := entry.Worker.Close(); err != nil {
+		sm.logger.WarnContext(ctx, "noskills session: close unregistered worker", "sid", entry.SID, "err", err)
+	}
+
+	if err := entry.Ledger.Close(); err != nil {
+		sm.logger.WarnContext(ctx, "noskills session: close unregistered ledger", "sid", entry.SID, "err", err)
 	}
 }
 
@@ -184,13 +252,29 @@ func (sm *SessionManager) spawnSession(
 	}, nil
 }
 
-// Remove cleans up a session entry. Called by the pump goroutine when the
-// worker process exits; also safe to call from error paths in handleAttach.
+// Remove drops whichever session is registered under slug and sid. Safe to
+// call from error paths in handleAttach.
 func (sm *SessionManager) Remove(slug, sid string) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
 	key := sessionKey(slug, sid)
+	delete(sm.sessions, key)
+	delete(sm.kinds, key)
+}
+
+// removeEntry drops entry if it is still the session registered under its
+// key. The pump calls it when its worker exits: by then the entry may have
+// been dropped and the session created again, and the new entry must stay.
+func (sm *SessionManager) removeEntry(entry *SessionEntry) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	key := sessionKey(entry.Slug, entry.SID)
+	if sm.sessions[key] != entry {
+		return
+	}
+
 	delete(sm.sessions, key)
 	delete(sm.kinds, key)
 }
@@ -215,11 +299,38 @@ func (sm *SessionManager) ListBySlug(slug string) []*SessionEntry {
 // runPump is the single consumer of entry.Worker.Events(). For each event it:
 //  1. Writes the translated client JSON to the JSONL ledger (persistent)
 //  2. Broadcasts the raw WorkerEvent to all registered WT clients
+//  3. Lets the push dispatcher decide whether to notify, under ctx
 //
-// When the worker process exits (Events channel closes), runPump closes the
-// ledger, signals all attached clients via broadcaster.Close(), then removes
-// the session from the map.
-func (sm *SessionManager) runPump(entry *SessionEntry) {
+// ctx is the server's lifetime context. When it ends, runPump closes the
+// worker. When the worker exits, for that reason or its own (Events channel
+// closes), runPump closes the ledger, signals all attached clients via
+// broadcaster.Close(), then removes the session from the map. A worker that
+// ended on its own is closed on the way out too, which releases its socket
+// and ends a process that is still running after its reader failed.
+func (sm *SessionManager) runPump(ctx context.Context, entry *SessionEntry) {
+	closed := make(chan struct{})
+	stopClosing := context.AfterFunc(ctx, func() {
+		defer close(closed)
+
+		if err := entry.Worker.Close(); err != nil {
+			sm.logger.WarnContext(ctx, "noskills session: close worker at shutdown", "sid", entry.SID, "err", err)
+		}
+	})
+
+	defer func() {
+		// The pump owns that close: when it has started, wait for it.
+		if !stopClosing() {
+			<-closed
+
+			return
+		}
+
+		// The lifetime is still running, so the worker ended on its own.
+		if err := entry.Worker.Close(); err != nil {
+			sm.logger.WarnContext(ctx, "noskills session: close ended worker", "sid", entry.SID, "err", err)
+		}
+	}()
+
 	for evt := range entry.Worker.Events() {
 		// Remember what each permission request is about. The decision comes back
 		// on a different path carrying only the request id, so this is the only
@@ -230,21 +341,26 @@ func (sm *SessionManager) runPump(entry *SessionEntry) {
 			}
 		}
 
-		if data := marshalEventForLedger(evt, sm.logger); data != nil {
-			_ = entry.Ledger.Append(data)
+		if data := marshalEventForLedger(ctx, evt, sm.logger); data != nil {
+			if err := entry.Ledger.Append(data); err != nil {
+				sm.logger.WarnContext(ctx, "runPump: ledger append failed", "sid", entry.SID, "err", err)
+			}
 		}
 
 		entry.Broadcaster.Broadcast(evt)
 
 		if sm.server.push != nil {
-			sm.server.push.MaybeTrigger(entry, evt)
+			sm.server.push.MaybeTrigger(ctx, entry, evt)
 		}
 	}
 
 	// Worker exited — clean up in order: ledger → broadcaster → sessions map.
-	_ = entry.Ledger.Close()
-	entry.Broadcaster.Close() // unblocks all attach-handler goroutines
-	sm.Remove(entry.Slug, entry.SID)
+	if err := entry.Ledger.Close(); err != nil {
+		sm.logger.WarnContext(ctx, "runPump: ledger close failed", "sid", entry.SID, "err", err)
+	}
 
-	sm.logger.Info("noskills session ended", "slug", entry.Slug, "sid", entry.SID)
+	entry.Broadcaster.Close() // unblocks all attach-handler goroutines
+	sm.removeEntry(entry)
+
+	sm.logger.InfoContext(ctx, "noskills session ended", "slug", entry.Slug, "sid", entry.SID)
 }

@@ -13,6 +13,7 @@ export const DEEP_MERGE_DEFAULT_MAX_DEPTH = 100;
  * Error thrown when deep merge encounters a circular reference or exceeds max depth.
  */
 export class DeepMergeError extends Error {
+  /** Creates the error with a message that says what failed. */
   constructor(message: string) {
     super(message);
     this.name = "DeepMergeError";
@@ -58,26 +59,32 @@ export type DeepMergeOptions = {
  *
  * @example
  * ```typescript
+ * import * as fp from "@eserstack/fp";
+ *
  * const base = { a: { b: 1, c: 2 } };
  * const override = { a: { b: 10 } };
- * const result = deepMerge(base, override);
+ * const result = fp.deepMerge(base, override);
  * // result = { a: { b: 10, c: 2 } }
  * ```
  *
  * @example
  * ```typescript
- * // Config merging - undefined values are skipped by default
+ * import * as fp from "@eserstack/fp";
+ *
+ * // Config merging: undefined values are skipped by default
  * const defaults = { port: 8000, host: "localhost" };
  * const userConfig = { port: undefined, host: "0.0.0.0" };
- * const result = deepMerge(defaults, userConfig);
+ * const result = fp.deepMerge(defaults, userConfig);
  * // result = { port: 8000, host: "0.0.0.0" }
  * ```
  *
  * @example
  * ```typescript
- * // Undefined source returns instance unchanged
+ * import * as fp from "@eserstack/fp";
+ *
+ * // An undefined source returns a copy of the instance
  * const defaults = { port: 8000 };
- * const result = deepMerge(defaults, undefined);
+ * const result = fp.deepMerge(defaults, undefined);
  * // result = { port: 8000 }
  * ```
  */
@@ -258,5 +265,3 @@ export const deepMerge = <
 
   return mergeRecursive(instance, other, 0);
 };
-
-export { deepMerge as default };

@@ -12,13 +12,17 @@ export { moduleDef } from "./module.ts";
 export type {
   CodingToolId,
   ConcernDefinition,
+  ConcernReminder,
+  ConcernScope,
   DebtState,
   Decision,
   ExecutionState,
   NosManifest,
   Phase,
+  ScopedReminder,
   StateFile,
   StatusReport,
+  ValidatorConfig,
   VerificationResult,
 } from "./state/schema.ts";
 export { createInitialManifest, createInitialState } from "./state/schema.ts";

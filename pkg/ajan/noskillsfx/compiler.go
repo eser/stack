@@ -62,7 +62,6 @@ type BehavioralBlock struct {
 	ModeOverride *string  `json:"modeOverride,omitempty"`
 	Rules        []string `json:"rules"`
 	Tone         string   `json:"tone"`
-	Urgency      *string  `json:"urgency,omitempty"`
 	OutOfScope   []string `json:"outOfScope,omitempty"`
 	Tier2Summary *string  `json:"tier2Summary,omitempty"`
 }
@@ -94,19 +93,19 @@ type ModeSelectionOutput struct {
 
 // DiscoveryOutput is the compiled output for the DISCOVERY phase.
 type DiscoveryOutput struct {
-	Phase           string              `json:"phase"` // "DISCOVERY"
-	Instruction     string              `json:"instruction"`
-	Questions       []DiscoveryQuestion `json:"questions"`
-	AnsweredCount   int                 `json:"answeredCount"`
-	CurrentQuestion *int                `json:"currentQuestion,omitempty"`
-	TotalQuestions  *int                `json:"totalQuestions,omitempty"`
-	Context         ContextBlock        `json:"context"`
-	Transition      struct {
+	Phase          string              `json:"phase"` // "DISCOVERY"
+	Instruction    string              `json:"instruction"`
+	Questions      []DiscoveryQuestion `json:"questions"`
+	AnsweredCount  int                 `json:"answeredCount"`
+	TotalQuestions *int                `json:"totalQuestions,omitempty"`
+	Context        ContextBlock        `json:"context"`
+	Transition     struct {
 		OnComplete string `json:"onComplete"`
 	} `json:"transition"`
-	Revisited     *bool                `json:"revisited,omitempty"`
-	RevisitReason *string              `json:"revisitReason,omitempty"`
-	ModeSelection *ModeSelectionOutput `json:"modeSelection,omitempty"`
+	Revisited        *bool                `json:"revisited,omitempty"`
+	RevisitReason    *string              `json:"revisitReason,omitempty"`
+	ModeSelection    *ModeSelectionOutput `json:"modeSelection,omitempty"`
+	PendingFollowUps []FollowUp           `json:"pendingFollowUps,omitempty"`
 }
 
 // DiscoveryReviewAnswer is one answered question shown during refinement.
@@ -232,6 +231,9 @@ type ExecutionOutput struct {
 		OnBlocked  *string `json:"onBlocked,omitempty"`
 		Iteration  int     `json:"iteration"`
 	} `json:"transition"`
+	// RestartRecommended is set once the spec reaches MaxIterationsBeforeRestart
+	// iterations. It is a flag for formatters and dashboards; the agent gets no
+	// restart prose.
 	RestartRecommended   *bool                `json:"restartRecommended,omitempty"`
 	VerificationFailed   *bool                `json:"verificationFailed,omitempty"`
 	VerificationOutput   *string              `json:"verificationOutput,omitempty"`
@@ -314,6 +316,10 @@ type NextOutput struct {
 	ClearContext       *ClearContextAction `json:"clearContext,omitempty"`
 	ModeDirective      *string             `json:"modeDirective,omitempty"`
 	ProtocolGuide      *ProtocolGuide      `json:"protocolGuide,omitempty"`
+	// Validation holds the second agent's findings on the transition waiting
+	// for approval, or why it was skipped. Compile leaves it nil; the caller
+	// that runs ValidateTransition sets it (mirrors NextOutput.validation).
+	Validation *TransitionValidation `json:"validation,omitempty"`
 
 	// --- IDLE ---
 	Welcome           *string       `json:"welcome,omitempty"`
@@ -323,14 +329,14 @@ type NextOutput struct {
 	ActiveRulesCount  *int          `json:"activeRulesCount,omitempty"`
 
 	// --- DISCOVERY ---
-	Questions       []DiscoveryQuestion  `json:"questions,omitempty"`
-	AnsweredCount   *int                 `json:"answeredCount,omitempty"`
-	CurrentQuestion *int                 `json:"currentQuestion,omitempty"`
-	TotalQuestions  *int                 `json:"totalQuestions,omitempty"`
-	Context         *ContextBlock        `json:"context,omitempty"`
-	Revisited       *bool                `json:"revisited,omitempty"`
-	RevisitReason   *string              `json:"revisitReason,omitempty"`
-	ModeSelection   *ModeSelectionOutput `json:"modeSelection,omitempty"`
+	Questions        []DiscoveryQuestion  `json:"questions,omitempty"`
+	AnsweredCount    *int                 `json:"answeredCount,omitempty"`
+	TotalQuestions   *int                 `json:"totalQuestions,omitempty"`
+	Context          *ContextBlock        `json:"context,omitempty"`
+	Revisited        *bool                `json:"revisited,omitempty"`
+	RevisitReason    *string              `json:"revisitReason,omitempty"`
+	ModeSelection    *ModeSelectionOutput `json:"modeSelection,omitempty"`
+	PendingFollowUps []FollowUp           `json:"pendingFollowUps,omitempty"`
 
 	// --- DISCOVERY_REFINEMENT ---
 	Answers               []DiscoveryReviewAnswer `json:"answers,omitempty"`
@@ -462,6 +468,9 @@ type InteractionHints struct {
 	OptionPresentation    string // "tool" | "list"
 	HasSubAgentDelegation bool
 	SubAgentMethod        string // "task" | "spawn" | "fleet" | "delegation" | "none"
+	// PlanModeShortcut is the key that switches the tool into plan mode
+	// ("Shift+Tab" in Claude Code), or "" when noskills knows none.
+	PlanModeShortcut string
 }
 
 // DefaultInteractionHints are Claude Code defaults.
@@ -472,35 +481,87 @@ var DefaultInteractionHints = InteractionHints{
 	OptionPresentation:    "tool",
 	HasSubAgentDelegation: true,
 	SubAgentMethod:        "task",
+	PlanModeShortcut:      "Shift+Tab",
 }
 
 const gitReadonlyRule = "NEVER run git write commands (commit, add, push, checkout, stash, reset, merge, rebase, cherry-pick). Git is read-only for agents. The user controls git. You may read: git log, git diff, git status, git show, git blame."
 
+// readOnlyBase is the one statement that DISCOVERY, DISCOVERY_REFINEMENT and
+// SPEC_PROPOSAL are read-only (mirrors READ_ONLY_RULE in compiler.ts). Their
+// ModeOverride only names the mode, so the ban is not repeated.
+const readOnlyBase = "This phase is read-only: read files and run read-only commands (cat, ls, grep, git log, git diff); create or edit nothing and run nothing that changes state, apart from the noskills commands this output gives you."
+
+// readOnlyRule adds the plan-mode key only for a tool that has one (mirrors
+// readOnlyRule in compiler.ts).
+func readOnlyRule(hints InteractionHints) string {
+	if hints.PlanModeShortcut == "" {
+		return readOnlyBase
+	}
+
+	return readOnlyBase + " If the session is not in plan mode, ask the user to switch (" + hints.PlanModeShortcut + ")."
+}
+
+// planModeOverride is the ModeOverride of the read-only phases.
+const planModeOverride = "plan mode"
+
+// discoveryQuestionRule mirrors discoveryQuestionRule in
+// context/discovery-answers.ts: the one rule for asking discovery questions,
+// the unanswered base questions together and follow-ups one at a time.
+func discoveryQuestionRule() string {
+	return "Ask the user the unanswered base discovery questions together, in one " +
+		"exchange, and submit the confirmed answers as one JSON object keyed by " +
+		"question id. Ask each follow-up question on its own and wait for its " +
+		"answer before you ask the next."
+}
+
+// discoveryAskMethod mirrors discoveryAskMethod in compiler.ts: how the agent
+// puts discovery questions to the user. AskUserQuestion takes up to 4
+// questions per call, so the six base questions take two calls.
+func discoveryAskMethod(hints InteractionHints) string {
+	if hints.HasAskUserTool {
+		return "Ask the base questions through AskUserQuestion, as many as fit in each call (it takes up to 4), and each follow-up in a call of its own."
+	}
+
+	return "Ask the base questions in one message, as a numbered list, and each follow-up in a message of its own."
+}
+
+// discoveryAnswerRule mirrors discoveryAnswerRule in context/discovery-answers.ts:
+// the one rule for pre-filling and submitting discovery answers.
+func discoveryAnswerRule(nextCommand string) string {
+	return "Discovery answers come from the user. You may pre-fill a suggested answer " +
+		"from what the user already wrote (the spec description, a plan, earlier " +
+		"messages): mark it [STATED] when the user said it or [INFERRED] when it " +
+		"is your reading, and have the user confirm or correct it. Submit only " +
+		"confirmed answers, in the one call `transition.onComplete` shows " +
+		"(`" + nextCommand + "`). Never submit an answer the user has not confirmed."
+}
+
 //nolint:gochecknoglobals
 var discoveryConduct = []string{
-	"Interview the user relentlessly about every aspect of this plan until you reach a shared understanding.",
+	"Interview the user about each part of this plan until you both share one understanding.",
 	"Walk down each branch of the design tree, resolving dependencies between decisions one-by-one.",
 	"For each question, provide your recommended answer — don't just ask, offer your informed opinion.",
-	"Ask questions ONE AT A TIME. Do not batch questions. Each question deserves its own focused exchange.",
+	discoveryQuestionRule(),
 	"If a question can be answered by exploring the codebase, explore the codebase INSTEAD of asking. Only ask the user what the codebase cannot tell you.",
-	"You are an honest engineer. Do NOT fill placeholders with assumptions.",
-	"You are investing in this spec like a CEO invests in a product — get the details right.",
-	"You are doing academic-level due diligence — no hand-waving, no 'we'll figure it out later.'",
+	"Do NOT fill placeholders with assumptions; ask the user instead.",
 	"If a section is not applicable, ask the user to confirm it's N/A with a specific reason — don't decide yourself.",
 	"If two answers conflict, surface the conflict to the user — don't resolve it yourself.",
 	"If an answer is vague, push back and ask for specifics — don't accept vague.",
 }
 
 // BuildBehavioral constructs the BehavioralBlock for a given phase.
-// This is a Go port of buildBehavioral() in compiler.ts.
+// This is a Go port of buildBehavioral() in compiler.ts. commandPrefix is how
+// the user runs noskills (NosManifest.Command); every command in the rules
+// starts with it, or with DefaultCommandPrefix when it is empty.
 func BuildBehavioral(
 	state StateFile, //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
-	maxIterations int,
 	allowGit bool,
 	activeConcerns []ConcernDefinition,
 	hints InteractionHints,
+	commandPrefix string,
 ) BehavioralBlock {
-	stale := state.Execution.Iteration >= maxIterations
+	specName := specNameOrPlaceholder(state)
+	commandPrefix = commandPrefixOrDefault(commandPrefix)
 
 	askMethod := "Use AskUserQuestion for all decision points."
 	if !hints.HasAskUserTool {
@@ -514,10 +575,10 @@ func BuildBehavioral(
 
 	mandatoryRules = append(mandatoryRules,
 		"Report progress honestly. Not done = 'not done'. Partial = 'partial: [works]/[doesn't]'. Untested = 'untested'. 4 of 6 = '4 of 6 done, 2 remaining'.",
-		fmt.Sprintf("Never skip steps or infer decisions. %s Recommend first, then ask. One noskills call per interaction — never batch-submit or backfill.", askMethod),
+		fmt.Sprintf("Never skip steps or infer decisions. %s Recommend first, then ask.", askMethod),
 		"Display `roadmap` before other content. Display `gate` prominently.",
 		"NEVER suggest bypassing, skipping, or 'breaking out of' noskills. Discovery helps the user — it is not an obstacle. If scope changes: revise spec, reset and create new, or split.",
-		"NEVER ask permission to run the next noskills command. After spec new → run next immediately. After answering questions → run next. After approve → run next. After task completion → run next. The workflow is sequential — each step has one next step. Just run it.",
+		"Run the next noskills command as soon as the current step is done; each step has exactly one next step, so there is nothing to ask permission for.",
 	)
 
 	switch state.Phase {
@@ -529,18 +590,16 @@ func BuildBehavioral(
 
 		return BehavioralBlock{
 			Rules: append([]string{
-				"If the user described a feature/bug/task, create a spec immediately: `noskills spec new \"description\"` — name is auto-generated. Do NOT present menus or ask 'What would you like to do?' unless the conversation has no prior context.",
+				"If the user described a feature/bug/task, create a spec immediately: `" + commandPrefix +
+					" spec new \"description\"`; the name is auto-generated. Do NOT present menus or ask 'What would you like to do?' unless the conversation has no prior context.",
 			}, append(mandatoryRules, optionRule)...),
 			Tone: "Welcoming. Present choices, then wait.",
 		}
 
 	case PhaseDiscovery:
-		questionMethod := "Ask each question via AskUserQuestion. One question per call."
-		if !hints.HasAskUserTool {
-			questionMethod = "Ask one question at a time as text."
-		}
+		questionMethod := discoveryAskMethod(hints)
 
-		modeOverride := "plan mode. DO NOT create, edit, or write any files. DO NOT run state-modifying commands. MAY read files and run read-only commands (cat, ls, grep, git log, git diff)."
+		modeOverride := planModeOverride
 
 		concernConductRules := []string{}
 		for _, c := range activeConcerns {
@@ -548,11 +607,9 @@ func BuildBehavioral(
 		}
 
 		extra := []string{
-			"MODE: You MUST be in plan mode during discovery. Do not exit plan mode.",
-			fmt.Sprintf("%s Never answer questions yourself. Never submit answers without user confirmation.", questionMethod),
-			"DO NOT create, edit, or write any files.",
-			"DO NOT run shell commands that modify state.",
-			"You MAY read files and run read-only commands (cat, ls, grep, git log, git diff).",
+			readOnlyRule(hints),
+			questionMethod + " Never answer questions yourself.",
+			discoveryAnswerRule(specCommand(commandPrefix, specName, "next --answer")),
 			"Pre-discovery: read README, CLAUDE.md, design docs, last 20 commits, TODOs, existing specs, directory structure. Present a brief audit summary.",
 			"Before starting discovery questions, challenge the user's initial spec description against codebase findings.",
 		}
@@ -569,7 +626,7 @@ func BuildBehavioral(
 		}
 
 	case PhaseDiscoveryRefinement:
-		modeOverride := "You are in plan mode. Do not create, edit, or write any files."
+		modeOverride := planModeOverride
 
 		concernConductRules := []string{}
 		for _, c := range activeConcerns {
@@ -617,7 +674,7 @@ func BuildBehavioral(
 
 		rules := make([]string, 0, len(mandatoryRules)+1+len(stageRules)+len(discoveryConduct)+len(concernConductRules))
 		rules = append(rules, mandatoryRules...)
-		rules = append(rules, "DO NOT create, edit, or write any files.")
+		rules = append(rules, readOnlyRule(hints))
 		rules = append(rules, stageRules...)
 		rules = append(rules, discoveryConduct...)
 		rules = append(rules, concernConductRules...)
@@ -629,12 +686,12 @@ func BuildBehavioral(
 		}
 
 	case PhaseSpecProposal:
-		modeOverride := "plan mode. DO NOT create, edit, or write any files. DO NOT run state-modifying commands. MAY read files and run read-only commands."
+		modeOverride := planModeOverride
 
 		return BehavioralBlock{
 			ModeOverride: &modeOverride,
 			Rules: append(mandatoryRules,
-				"DO NOT create, edit, or write any files.",
+				readOnlyRule(hints),
 				"Read the spec and present a summary to the user.",
 				"Flag any tasks that are too vague to execute.",
 				"Flag any missing acceptance criteria.",
@@ -678,10 +735,10 @@ func BuildBehavioral(
 			"MODE: You MUST NOT be in plan mode during execution. If you are in plan mode, exit it now.",
 			orchestratorRule,
 			"Do not explore beyond current task. Do not refactor outside scope. Do not add features, tests, or docs not in the spec.",
-			"Edit discipline: (1) Re-read file before editing. (2) Re-read after to confirm. (3) Files >500 LOC: read in chunks. (4) Run type-check + lint after edits.",
-			"RATIONALIZATION ALERT: Never use 'should work now', 'looks correct', 'I'm confident'. Run the command, read the output, report what happened.",
+			"Run type-check and lint after edits; never mark an AC passed while type-check fails.",
+			"Base every status claim on evidence: run the command, read the output, report what it showed.",
 			"TDD: (1) Write test. (2) Run it — MUST fail. (3) Implement. (4) Run test — must pass.",
-			"VERIFICATION REQUIRED: After EVERY task completion, you MUST spawn noskills-verifier before reporting done.",
+			"After each task, spawn noskills-verifier and include its PASS/FAIL results in the status report before reporting the task done.",
 		}
 		base := make([]string, 0, len(mandatoryRules)+len(execRules)+1)
 		base = append(base, mandatoryRules...)
@@ -691,17 +748,13 @@ func BuildBehavioral(
 			base = append(base, "Tests are failing. Fix ONLY the failing tests. Do not refactor passing code.")
 		}
 
-		behavioral := BehavioralBlock{
+		// No iteration countdown here: Execution.Iteration counts over the
+		// spec's whole life, so "context degrading" was often false and pushed
+		// the agent to wrap up early. Compile sets RestartRecommended instead.
+		return BehavioralBlock{
 			Rules: base,
 			Tone:  "Direct. Orchestrate immediately — spawn sub-agents.",
 		}
-
-		if stale {
-			urgency := fmt.Sprintf("%d+ iterations — context degrading. Finish current task, recommend fresh session.", state.Execution.Iteration)
-			behavioral.Urgency = &urgency
-		}
-
-		return behavioral
 
 	case PhaseBlocked:
 		return BehavioralBlock{
@@ -709,7 +762,8 @@ func BuildBehavioral(
 				"MODE: Enter plan mode. Analyze the blocker. Present options to the user. Do not edit files.",
 				"Present the decision to the user exactly as described.",
 				"Do not suggest a preferred option unless the user asks for your opinion.",
-				"After the user decides, relay the answer immediately. Do not elaborate.",
+				"After the user decides, submit the decision right away with `"+
+					specCommand(commandPrefix, specName, "next --answer=\"<decision>\"")+"`.",
 			),
 			Tone: "Brief. The user is making a decision, not having a discussion.",
 		}

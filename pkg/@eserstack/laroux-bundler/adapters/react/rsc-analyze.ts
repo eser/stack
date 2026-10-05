@@ -7,15 +7,16 @@
  * adding caching support for incremental builds.
  */
 
-import {
-  analyzeClientComponents as analyzeClientComponentsBase,
-  type DirectiveAnalysisOptions,
-  type DirectiveMatch,
+import * as directiveAnalysis from "@eserstack/codebase/directive-analysis";
+import type {
+  DirectiveAnalysisOptions,
+  DirectiveMatch,
 } from "@eserstack/codebase/directive-analysis";
 import { runtime } from "@eserstack/standards/cross-runtime";
+import * as patterns from "@eserstack/standards/patterns";
 import * as logging from "@eserstack/logging";
-import { walkFiles } from "@eserstack/collector";
-import type { BuildCache } from "../../domain/build-cache.ts";
+import * as collector from "@eserstack/collector";
+import type { ClientComponentCache } from "../../domain/build-cache.ts";
 
 const analyzeLogger = logging.logger.getLogger([
   "laroux-bundler",
@@ -54,13 +55,13 @@ function toClientComponent(match: DirectiveMatch): ClientComponent {
 export async function analyzeClientComponents(
   srcDir: string,
   projectRoot: string,
-  cache?: BuildCache,
+  cache?: ClientComponentCache,
 ): Promise<ClientComponent[]> {
   analyzeLogger.debug(`🔍 Analyzing client components in: ${srcDir}`);
 
   // If no cache, use the base implementation directly
-  if (!cache) {
-    const matches = await analyzeClientComponentsBase(srcDir, {
+  if (cache === undefined) {
+    const matches = await directiveAnalysis.analyzeClientComponents(srcDir, {
       projectRoot,
     });
 
@@ -80,24 +81,32 @@ export async function analyzeClientComponents(
   let cacheMisses = 0;
 
   // Get all matches from base implementation (it walks files internally)
-  const matches = await analyzeClientComponentsBase(srcDir, {
+  const matches = await directiveAnalysis.analyzeClientComponents(srcDir, {
     projectRoot,
   });
 
-  for (const match of matches) {
-    // Get file modification time for cache check
-    let fileMtime = 0;
-    try {
-      const fileStat = await runtime.fs.stat(match.filePath);
-      fileMtime = fileStat.mtime?.getTime() ?? 0;
-    } catch {
-      // File might have been deleted, skip
+  // Modification times for the cache check; null marks a file that was
+  // deleted after the scan
+  const modifiedTimes = await Promise.all(
+    matches.map(async (match) => {
+      try {
+        const fileStat = await runtime.fs.stat(match.filePath);
+        return fileStat.mtime?.getTime() ?? 0;
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  for (const [index, match] of matches.entries()) {
+    const fileMtime = modifiedTimes[index] ?? null;
+    if (fileMtime === null) {
       continue;
     }
 
     // Check cache
     const cached = cache.getClientComponent(match.filePath, fileMtime);
-    if (cached) {
+    if (cached !== null) {
       cacheHits++;
       if (cached.isClient) {
         clientComponents.push({
@@ -140,6 +149,9 @@ export async function analyzeClientComponents(
   return clientComponents;
 }
 
+/** Extensions of the files {@link getAllComponents} returns. */
+const COMPONENT_EXTENSIONS: readonly string[] = ["tsx", "ts", "jsx", "js"];
+
 /**
  * Get all component files (both server and client)
  */
@@ -147,20 +159,15 @@ export async function getAllComponents(srcDir: string): Promise<string[]> {
   const components: string[] = [];
   const IGNORE_PATTERN = /(?:node_modules|\.test\.|\.spec\.)/;
 
+  // The extension check is done here: the glob filter of walkFiles supports
+  // only * and **, so a "*.{tsx,ts}" list would match no file.
   for await (
-    const relPath of walkFiles(srcDir, "**/*.{tsx,ts,jsx,js}", IGNORE_PATTERN)
+    const relPath of collector.walkFiles(srcDir, undefined, IGNORE_PATTERN)
   ) {
-    components.push(runtime.path.join(srcDir, relPath));
+    if (patterns.hasExtension(relPath, COMPONENT_EXTENSIONS)) {
+      components.push(runtime.path.join(srcDir, relPath));
+    }
   }
 
   return components;
-}
-
-// CLI usage
-if (import.meta.main) {
-  const projectRoot = runtime.process.cwd();
-  const srcDir = runtime.path.resolve(projectRoot, "src");
-  const clientComponents = await analyzeClientComponents(srcDir, projectRoot);
-
-  analyzeLogger.info("Client Components:", { clientComponents });
 }

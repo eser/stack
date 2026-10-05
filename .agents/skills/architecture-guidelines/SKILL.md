@@ -1,12 +1,12 @@
 ---
 name: architecture-guidelines
-description: "System design in eserstack: double-layered hexagonal architecture, explicit adapter composition, public API and CLI surface, request metadata, testing strategy, ADRs. Use when designing a package or service, adding options or flags, planning tests or writing an ADR. Not for file naming (use tooling-standards)."
+description: "Design conventions of this codebase for TypeScript and Go packages and services: double-layered hexagonal architecture, explicit adapter composition, runtime access as an adapter, public API and CLI surface, request metadata, testing strategy, ADRs. Use when designing a package or service, adding options or flags, planning tests or writing an ADR. Not for file naming (use tooling-standards)."
 ---
 
 # Architecture Guidelines
 
-How packages and services are structured, composed, tested and documented as
-decisions.
+How packages and services in this codebase are structured, composed, tested and
+documented as decisions.
 
 ## Always
 
@@ -14,17 +14,15 @@ decisions.
   `adapters/`. No `ports/` directory.
 - Callers import adapters explicitly and pass them in. No string-selected
   adapters, no convenience factories, no dynamic imports inside a package.
-- Library code reaches the runtime through `@eserstack/standards/cross-runtime`,
-  never `Deno.*`.
+- Library code reaches the runtime through an adapter
+  (`@eserstack/standards/cross-runtime`), never `Deno.*` directly.
 - Every option has a safe default; add an option only for a named case; no
   positional booleans.
 - Request ids and trace state travel in the request context, never as extra
   parameters.
 - Unit tests with fakes for logic, integration tests for adapters; failure paths
   tested; coverage never drops.
-- Validator and codebase-tool design lives in
-  `pkg/@eserstack/codebase/AGENTS.md`
-- A lasting architectural decision gets an ADR in `docs/adr/`.
+- A lasting architectural decision gets an ADR, written with the change.
 
 ## References
 

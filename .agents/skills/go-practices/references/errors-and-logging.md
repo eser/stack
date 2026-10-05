@@ -1,8 +1,8 @@
 # Go Errors, Logging and Tracing
 
-How Go code in this repository returns errors, logs through `logfx`, and records
-spans. The general rules are in coding-practices (Error Wrapping, Handle Each
-Error Once, Structured Logging); this file is their Go form.
+How Go code returns errors, logs through `logfx`, and records spans. The general
+rules are in coding-practices (Error Wrapping, Handle Each Error Once,
+Structured Logging); this file is their Go form.
 
 ## Contents
 
@@ -85,7 +85,7 @@ if verr, ok := err.(*ValidationError); ok {} // misses a wrapped type
 
 Scope: All logging statements
 
-Rule: Log through `logfx` (`pkg/ajan/logfx`), which wraps `log/slog`, with
+Rule: Log through the ajan `logfx` package, which wraps `log/slog`, with
 key-value pairs or typed `slog` attributes. Never use `fmt.Println`,
 `log.Printf` or a third-party logger. Use the `*Context` methods (`InfoContext`,
 `WarnContext`, `TraceContext`) so trace and request ids travel with the entry.
@@ -139,7 +139,7 @@ providers, not through the global `otel` package:
 Correct:
 
 ```go
-// pkg/ajan/api/adapters/postgres/session_store.go
+// adapters/postgres/session_store.go
 func (s *SessionStore) Get(ctx context.Context, id string) (*sessions.Session, error) {
     ctx, span := s.logger.StartSpan(ctx, "SessionStore.Get", slog.String("session_id", id))
     defer span.End()

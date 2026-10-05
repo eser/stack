@@ -6,7 +6,7 @@
  * @module
  */
 
-import { escHtml } from "./escape.ts";
+import * as escape from "./escape.ts";
 
 // The dashboard page carries the mux token, which can spawn PTYs, so every
 // third-party file it loads is pinned by content. The digests are SHA-384 of
@@ -67,9 +67,11 @@ export const layout = (
   // from here for the /mux upgrade and for every mutating fetch.
   const tokenMeta = opts?.token === undefined
     ? ""
-    : `\n  <meta name="noskills-token" content="${escHtml(opts.token)}" />`;
+    : `\n  <meta name="noskills-token" content="${
+      escape.escHtml(opts.token)
+    }" />`;
 
-  const terminalScripts = opts?.includeTerminal
+  const terminalScripts = opts?.includeTerminal === true
     ? `
     <link rel="stylesheet" href="${XTERM_CSS.href}" integrity="${XTERM_CSS.integrity}" crossorigin="anonymous" />${
       XTERM_SCRIPTS.map((s) =>
@@ -84,7 +86,7 @@ export const layout = (
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#7c3aed" />${tokenMeta}
-  <title>${escHtml(title)}</title>
+  <title>${escape.escHtml(title)}</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/static/style.css" />
   ${terminalScripts}

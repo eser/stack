@@ -44,19 +44,23 @@ export class KiroModel implements model.LanguageModel {
     });
     const stderrPromise = cliShared.captureStderr(process.stderr);
 
-    const result = await cliShared.parseTextOutput(
-      process.stdout,
-      this.modelId,
-    );
-    const exit = await process.waitForExit();
-    const stderr = await stderrPromise;
-    const exitError = cliShared.classifyExitCode("kiro", exit.code, stderr);
+    try {
+      const result = await cliShared.parseTextOutput(
+        process.stdout,
+        this.modelId,
+      );
+      const exit = await process.waitForExit();
+      const stderr = await stderrPromise;
+      const exitError = cliShared.classifyExitCode("kiro", exit.code, stderr);
 
-    if (exitError !== null) {
-      return results.fail(exitError);
+      if (exitError !== null) {
+        return results.fail(exitError);
+      }
+
+      return results.ok(result);
+    } finally {
+      await cliShared.stopCliProcess(process, stderrPromise);
     }
-
-    return results.ok(result);
   }
 
   async *streamText(
@@ -80,41 +84,46 @@ export class KiroModel implements model.LanguageModel {
       const reader = process.stdout.getReader();
       let buffer = "";
 
-      let readResult = await reader.read();
+      try {
+        let readResult = await reader.read();
 
-      while (readResult.done !== true) {
-        buffer += decoder.decode(readResult.value, { stream: true });
+        while (readResult.done !== true) {
+          buffer += decoder.decode(readResult.value, { stream: true });
 
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
 
-        for (const line of lines) {
-          const trimmed = line.trim();
+          for (const line of lines) {
+            const trimmed = line.trim();
 
-          if (trimmed.length === 0) {
-            continue;
-          }
-
-          // Try JSON parse for structured output
-          try {
-            const parsed = JSON.parse(trimmed);
-            const streamEvent = mapStreamEvent(parsed);
-
-            if (streamEvent !== null) {
-              yield streamEvent;
+            if (trimmed.length === 0) {
               continue;
             }
-          } catch {
-            // Not JSON — emit as text delta
+
+            // Try JSON parse for structured output
+            try {
+              const parsed = JSON.parse(trimmed);
+              const streamEvent = mapStreamEvent(parsed);
+
+              if (streamEvent !== null) {
+                yield streamEvent;
+                continue;
+              }
+            } catch {
+              // Not JSON — emit as text delta
+            }
+
+            yield { kind: "content_delta", textDelta: trimmed + "\n" };
           }
 
-          yield { kind: "content_delta", textDelta: trimmed + "\n" };
+          // Reads stay sequential: each chunk extends the line buffer, and the
+          // consumer pulls events one at a time.
+          // deno-lint-ignore no-await-in-loop
+          readResult = await reader.read();
         }
-
-        readResult = await reader.read();
+      } finally {
+        reader.releaseLock();
       }
-
-      reader.releaseLock();
 
       // Flush remaining buffer
       if (buffer.trim().length > 0) {
@@ -146,6 +155,9 @@ export class KiroModel implements model.LanguageModel {
           ),
         };
       }
+    } finally {
+      // Also reached when the consumer stops reading early.
+      await cliShared.stopCliProcess(process, stderrPromise);
     }
   }
 
@@ -164,9 +176,9 @@ export class KiroModel implements model.LanguageModel {
 
 export const kiroFactory: model.ProviderFactory = {
   provider: "kiro",
-  async createModel(
+  createModel: async (
     cfg: config.ResolvedConfigTarget,
-  ): Promise<model.LanguageModel> {
+  ): Promise<model.LanguageModel> => {
     const binary = await cliShared.resolveBinary("kiro", cfg);
 
     return new KiroModel(binary, cfg);
@@ -177,6 +189,7 @@ export const kiroFactory: model.ProviderFactory = {
 // Internal Helpers
 // =============================================================================
 
+/** Builds the CLI arguments. options.effort is ignored: no effort flag is sent. */
 const buildArgs = (
   cfg: config.ResolvedConfigTarget,
   options: generation.GenerateTextOptions,
@@ -207,6 +220,7 @@ const mapStreamEvent = (
     return null;
   }
 
+  // Stream events are untyped JSON; each field is checked before use.
   // deno-lint-ignore no-explicit-any
   const obj = event as any;
 

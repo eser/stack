@@ -25,7 +25,8 @@ export type Config = {
 // Defaults
 // =============================================================================
 
-const DEFAULT_MAX_TOKENS = 1024;
+// A ceiling, not a target: thinking counts toward it on current Claude models.
+const DEFAULT_MAX_TOKENS = 16_000;
 const DEFAULT_TEMPERATURE = 0.7;
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 

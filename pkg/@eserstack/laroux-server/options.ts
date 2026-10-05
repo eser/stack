@@ -1,13 +1,19 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 /**
- * Server and Build Options
- * Types for programmatic API - used by CLI handlers
+ * Server Options
+ * Types for the programmatic API, used by the CLI commands
  */
 
 import type { LogLevel } from "./config/load-config.ts";
 import type { Renderer } from "./domain/renderer.ts";
 import type { HtmlShellBuilder } from "./domain/html-shell.ts";
-import type { CssPlugin, FrameworkPlugin } from "@eserstack/laroux-bundler";
+import type {
+  CssPlugin,
+  CssProcessor,
+  FontOptimizer,
+  FrameworkPlugin,
+  ImageOptimizer,
+} from "@eserstack/laroux-bundler";
 
 /**
  * Options for starting the development or production server
@@ -39,42 +45,32 @@ export type ServerOptions = {
   /** HTML shell builder adapter (e.g., reactHtmlShellBuilder) */
   htmlShell?: HtmlShellBuilder;
 
-  /** Bundler framework plugin (e.g., reactPlugin) */
+  /**
+   * Bundler framework plugin (e.g., reactPlugin). Without one, the server
+   * builds nothing and serves the dist/ it finds.
+   */
   frameworkPlugin?: FrameworkPlugin;
 
   /** Bundler CSS plugin (e.g., createTailwindPlugin(...)) */
   cssPlugin?: CssPlugin;
-};
 
-/**
- * Options for building the application
- */
-export type BuildOptions = {
-  /** Project root directory (defaults to cwd) */
-  projectRoot?: string;
+  /**
+   * Transforms the global stylesheet when the CSS plugin does not compile it
+   * (e.g., lightningCssProcessor). Without one, it is written unchanged.
+   */
+  cssProcessor?: CssProcessor;
 
-  /** Output directory (relative to projectRoot) */
-  outDir?: string;
+  /**
+   * Self-hosts the configured fonts (e.g., googleFontOptimizer). Without one,
+   * no font files are downloaded.
+   */
+  fontOptimizer?: FontOptimizer;
 
-  /** Enable minification */
-  minify?: boolean;
-
-  /** Clean output directory before build */
-  clean?: boolean;
-
-  /** Enable watch mode */
-  watch?: boolean;
-
-  /** Log level */
-  logLevel?: LogLevel;
-
-  // Explicit plugin injection (hexagonal architecture)
-
-  /** Bundler framework plugin (e.g., reactPlugin) */
-  frameworkPlugin?: FrameworkPlugin;
-
-  /** Bundler CSS plugin (e.g., createTailwindPlugin(...)) */
-  cssPlugin?: CssPlugin;
+  /**
+   * Optimizes the images under public/images (e.g., sharpImageOptimizer).
+   * Without one, images are served as they are.
+   */
+  imageOptimizer?: ImageOptimizer;
 };
 
 /** Valid log levels for validation */

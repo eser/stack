@@ -10,8 +10,8 @@
  * @module
  */
 
-import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as opencodeAdapterMod from "./opencode.ts";
 
@@ -29,18 +29,38 @@ const makeCtx = (root: string, rules: string[] = []) => ({
 
 let tempDir: string;
 
+type PluginHooks = {
+  readonly event: (input: { event: { type: string } }) => Promise<void>;
+  readonly "tool.execute.before": (
+    input: { tool: string; sessionID: string; callID: string },
+    output: { args: unknown },
+  ) => Promise<void>;
+  readonly "tool.execute.after": (
+    input: { tool: string; sessionID: string; callID: string; args: unknown },
+  ) => Promise<void>;
+};
+
+type PluginModule = {
+  readonly NoskillsPlugin: (
+    input: { directory: string },
+  ) => Promise<PluginHooks>;
+};
+
+const importPlugin = async (root: string): Promise<PluginModule> =>
+  await import(`file://${root}/.opencode/plugins/noskills.ts`) as PluginModule;
+
 // =============================================================================
 // Snapshot tests — generated file content
 // =============================================================================
 
-describe("OpenCode adapter: snapshot tests", () => {
-  beforeEach(async () => {
+bdd.describe("OpenCode adapter: snapshot tests", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "opencode_snap_",
     });
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
@@ -48,8 +68,8 @@ describe("OpenCode adapter: snapshot tests", () => {
   // syncRules — AGENTS.md
   // ---------------------------------------------------------------------------
 
-  describe("syncRules: AGENTS.md", () => {
-    it("contains noskills:start and noskills:end markers", async () => {
+  bdd.describe("syncRules: AGENTS.md", () => {
+    bdd.it("contains noskills:start and noskills:end markers", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
 
@@ -57,35 +77,41 @@ describe("OpenCode adapter: snapshot tests", () => {
         `${tempDir}/AGENTS.md`,
       );
 
-      assertStringIncludes(content, "<!-- noskills:start -->");
-      assertStringIncludes(content, "<!-- noskills:end -->");
+      assert.assertStringIncludes(content, "<!-- noskills:start -->");
+      assert.assertStringIncludes(content, "<!-- noskills:end -->");
     });
 
-    it("contains 'noskills Protocol' heading and protocol commands with CMD_PREFIX", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
+    bdd.it(
+      "contains 'noskills Protocol' heading and protocol commands with CMD_PREFIX",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/AGENTS.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/AGENTS.md`,
+        );
 
-      assertStringIncludes(content, "## noskills Protocol");
-      assertStringIncludes(content, `${CMD_PREFIX} spec`);
-      assertStringIncludes(content, `--answer=`);
-    });
+        assert.assertStringIncludes(content, "## noskills Protocol");
+        assert.assertStringIncludes(content, `${CMD_PREFIX} spec`);
+        assert.assertStringIncludes(content, `--answer=`);
+      },
+    );
 
-    it("includes git-read-only section when allowGit is not set", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
+    bdd.it(
+      "includes git-read-only section when allowGit is not set",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/AGENTS.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/AGENTS.md`,
+        );
 
-      assertStringIncludes(content, "Git is read-only");
-    });
+        assert.assertStringIncludes(content, "Git is read-only");
+      },
+    );
 
-    it("omits git-read-only section when allowGit is true", async () => {
+    bdd.it("omits git-read-only section when allowGit is true", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncRules(ctx, {
         allowGit: true,
@@ -95,29 +121,52 @@ describe("OpenCode adapter: snapshot tests", () => {
         `${tempDir}/AGENTS.md`,
       );
 
-      assertEquals(content.includes("Git is read-only"), false);
+      assert.assertEquals(content.includes("Git is read-only"), false);
     });
 
-    it("preserves existing content outside noskills markers when AGENTS.md already exists", async () => {
-      // Pre-create AGENTS.md with user content and markers
-      const existingContent = [
-        "# My Project Agents",
-        "",
-        "Some custom instructions here.",
-        "",
-        "<!-- noskills:start -->",
-        "old noskills content",
-        "<!-- noskills:end -->",
-        "",
-        "More user content below.",
-        "",
-      ].join("\n");
+    bdd.it(
+      "preserves existing content outside noskills markers when AGENTS.md already exists",
+      async () => {
+        // Pre-create AGENTS.md with user content and markers
+        const existingContent = [
+          "# My Project Agents",
+          "",
+          "Some custom instructions here.",
+          "",
+          "<!-- noskills:start -->",
+          "old noskills content",
+          "<!-- noskills:end -->",
+          "",
+          "More user content below.",
+          "",
+        ].join("\n");
 
-      await crossRuntime.runtime.fs.writeTextFile(
-        `${tempDir}/AGENTS.md`,
-        existingContent,
-      );
+        await crossRuntime.runtime.fs.writeTextFile(
+          `${tempDir}/AGENTS.md`,
+          existingContent,
+        );
 
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
+
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/AGENTS.md`,
+        );
+
+        // User content before and after markers should be preserved
+        assert.assertStringIncludes(content, "# My Project Agents");
+        assert.assertStringIncludes(content, "Some custom instructions here.");
+        assert.assertStringIncludes(content, "More user content below.");
+
+        // Old noskills content should be replaced
+        assert.assertEquals(content.includes("old noskills content"), false);
+
+        // New noskills content should be present
+        assert.assertStringIncludes(content, "## noskills Protocol");
+      },
+    );
+
+    bdd.it("contains convention discovery coaching content", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
 
@@ -125,31 +174,11 @@ describe("OpenCode adapter: snapshot tests", () => {
         `${tempDir}/AGENTS.md`,
       );
 
-      // User content before and after markers should be preserved
-      assertStringIncludes(content, "# My Project Agents");
-      assertStringIncludes(content, "Some custom instructions here.");
-      assertStringIncludes(content, "More user content below.");
-
-      // Old noskills content should be replaced
-      assertEquals(content.includes("old noskills content"), false);
-
-      // New noskills content should be present
-      assertStringIncludes(content, "## noskills Protocol");
+      assert.assertStringIncludes(content, "Convention discovery");
+      assert.assertStringIncludes(content, `${CMD_PREFIX} rule add`);
     });
 
-    it("contains convention discovery coaching content", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
-
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/AGENTS.md`,
-      );
-
-      assertStringIncludes(content, "Convention discovery");
-      assertStringIncludes(content, `${CMD_PREFIX} rule add`);
-    });
-
-    it("contains rules when rules are provided", async () => {
+    bdd.it("contains rules when rules are provided", async () => {
       const ctx = makeCtx(tempDir, ["Test rule 1", "Test rule 2"]);
       await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
 
@@ -157,9 +186,9 @@ describe("OpenCode adapter: snapshot tests", () => {
         `${tempDir}/AGENTS.md`,
       );
 
-      assertStringIncludes(content, "### Active Rules");
-      assertStringIncludes(content, "- Test rule 1");
-      assertStringIncludes(content, "- Test rule 2");
+      assert.assertStringIncludes(content, "### Active Rules");
+      assert.assertStringIncludes(content, "- Test rule 1");
+      assert.assertStringIncludes(content, "- Test rule 2");
     });
   });
 
@@ -167,52 +196,35 @@ describe("OpenCode adapter: snapshot tests", () => {
   // syncHooks — .opencode/plugins/noskills.ts
   // ---------------------------------------------------------------------------
 
-  describe("syncHooks: .opencode/plugins/noskills.ts", () => {
-    it("creates file in correct path", async () => {
+  bdd.describe("syncHooks: .opencode/plugins/noskills.ts", () => {
+    bdd.it("creates file in correct path", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncHooks!(ctx);
 
       const stat = await crossRuntime.runtime.fs.stat(
         `${tempDir}/.opencode/plugins/noskills.ts`,
       );
-      assert(stat.isFile);
+      assert.assert(stat.isFile);
     });
 
-    it("contains session.created hook", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncHooks!(ctx);
+    bdd.it(
+      "subscribes to session events and the tool hooks OpenCode calls",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncHooks!(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.opencode/plugins/noskills.ts`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.opencode/plugins/noskills.ts`,
+        );
 
-      assertStringIncludes(content, '"session.created"');
-    });
+        assert.assertStringIncludes(content, '"session.created"');
+        assert.assertStringIncludes(content, '"session.idle"');
+        assert.assertStringIncludes(content, '"tool.execute.before"');
+        assert.assertStringIncludes(content, '"tool.execute.after"');
+      },
+    );
 
-    it("contains tool.execute.before and tool.execute.after hooks", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncHooks!(ctx);
-
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.opencode/plugins/noskills.ts`,
-      );
-
-      assertStringIncludes(content, '"tool.execute.before"');
-      assertStringIncludes(content, '"tool.execute.after"');
-    });
-
-    it("contains session.deleted hook", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncHooks!(ctx);
-
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.opencode/plugins/noskills.ts`,
-      );
-
-      assertStringIncludes(content, '"session.deleted"');
-    });
-
-    it("uses commandPrefix in hook commands (not hardcoded)", async () => {
+    bdd.it("uses commandPrefix in hook commands (not hardcoded)", async () => {
       const ctx = {
         root: tempDir,
         rules: [],
@@ -224,8 +236,11 @@ describe("OpenCode adapter: snapshot tests", () => {
         `${tempDir}/.opencode/plugins/noskills.ts`,
       );
 
-      assertStringIncludes(content, "custom-cli noskills invoke-hook");
-      assertEquals(content.includes(CMD_PREFIX), false);
+      assert.assertStringIncludes(
+        content,
+        'const COMMAND = "custom-cli noskills";',
+      );
+      assert.assertEquals(content.includes(CMD_PREFIX), false);
     });
   });
 
@@ -233,89 +248,105 @@ describe("OpenCode adapter: snapshot tests", () => {
   // syncAgents — .opencode/agents/
   // ---------------------------------------------------------------------------
 
-  describe("syncAgents: .opencode/agents/", () => {
-    it("noskills-executor.md has YAML frontmatter with name: noskills-executor", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
+  bdd.describe("syncAgents: .opencode/agents/", () => {
+    bdd.it(
+      "noskills-executor.md has YAML frontmatter with name: noskills-executor",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.opencode/agents/noskills-executor.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.opencode/agents/noskills-executor.md`,
+        );
 
-      assert(content.startsWith("---\n"));
-      assertStringIncludes(content, "name: noskills-executor");
-    });
+        assert.assert(content.startsWith("---\n"));
+        assert.assertStringIncludes(content, "name: noskills-executor");
+      },
+    );
 
-    it("noskills-executor.md has tools object with all required keys", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
+    bdd.it(
+      "noskills-executor.md has tools object with all required keys",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.opencode/agents/noskills-executor.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.opencode/agents/noskills-executor.md`,
+        );
 
-      const toolsMatch = content.match(/\ntools:\n((?:[ ]{2}\w+: [^\n]+\n)+)/);
-      assert(
-        toolsMatch !== null,
-        "tools section not found in YAML frontmatter",
-      );
+        const toolsMatch = content.match(
+          /\ntools:\n((?:[ ]{2}\w+: [^\n]+\n)+)/,
+        );
+        assert.assert(
+          toolsMatch !== null,
+          "tools section not found in YAML frontmatter",
+        );
 
-      const toolsBlock = toolsMatch![1]!;
-      assertStringIncludes(toolsBlock, "read: true");
-      assertStringIncludes(toolsBlock, "write: true");
-      assertStringIncludes(toolsBlock, "glob: true");
-      assertStringIncludes(toolsBlock, "grep: true");
-      assertStringIncludes(toolsBlock, "shell: true");
-      assertStringIncludes(toolsBlock, "delegate: true");
-      assertEquals(
-        toolsBlock.includes(","),
-        false,
-        "tools should not use comma-separated format",
-      );
-    });
+        const toolsBlock = toolsMatch![1]!;
+        assert.assertStringIncludes(toolsBlock, "read: true");
+        assert.assertStringIncludes(toolsBlock, "write: true");
+        assert.assertStringIncludes(toolsBlock, "glob: true");
+        assert.assertStringIncludes(toolsBlock, "grep: true");
+        assert.assertStringIncludes(toolsBlock, "shell: true");
+        assert.assertStringIncludes(toolsBlock, "delegate: true");
+        assert.assertEquals(
+          toolsBlock.includes(","),
+          false,
+          "tools should not use comma-separated format",
+        );
+      },
+    );
 
-    it("noskills-verifier.md has YAML frontmatter with name: noskills-verifier", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
+    bdd.it(
+      "noskills-verifier.md has YAML frontmatter with name: noskills-verifier",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.opencode/agents/noskills-verifier.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.opencode/agents/noskills-verifier.md`,
+        );
 
-      assert(content.startsWith("---\n"));
-      assertStringIncludes(content, "name: noskills-verifier");
-    });
+        assert.assert(content.startsWith("---\n"));
+        assert.assertStringIncludes(content, "name: noskills-verifier");
+      },
+    );
 
-    it("noskills-verifier.md has read-only tools object (no write, no delegate)", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
+    bdd.it(
+      "noskills-verifier.md has read-only tools object (no write, no delegate)",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.opencode/agents/noskills-verifier.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.opencode/agents/noskills-verifier.md`,
+        );
 
-      const toolsMatch = content.match(/\ntools:\n((?:[ ]{2}\w+: [^\n]+\n)+)/);
-      assert(
-        toolsMatch !== null,
-        "tools section not found in YAML frontmatter",
-      );
+        const toolsMatch = content.match(
+          /\ntools:\n((?:[ ]{2}\w+: [^\n]+\n)+)/,
+        );
+        assert.assert(
+          toolsMatch !== null,
+          "tools section not found in YAML frontmatter",
+        );
 
-      const toolsBlock = toolsMatch![1]!;
-      assertStringIncludes(toolsBlock, "read: true");
-      assertStringIncludes(toolsBlock, "glob: true");
-      assertStringIncludes(toolsBlock, "grep: true");
-      assertStringIncludes(toolsBlock, "shell: true");
-      assertEquals(toolsBlock.includes("write"), false);
-      assertEquals(toolsBlock.includes("delegate"), false);
-    });
+        const toolsBlock = toolsMatch![1]!;
+        assert.assertStringIncludes(toolsBlock, "read: true");
+        assert.assertStringIncludes(toolsBlock, "glob: true");
+        assert.assertStringIncludes(toolsBlock, "grep: true");
+        assert.assertStringIncludes(toolsBlock, "shell: true");
+        assert.assertEquals(toolsBlock.includes("write"), false);
+        assert.assertEquals(toolsBlock.includes("delegate"), false);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
   // syncSpecs — .opencode/skills/
   // ---------------------------------------------------------------------------
 
-  describe("syncSpecs: .opencode/skills/", () => {
-    it("generates skill file from spec content", async () => {
+  bdd.describe("syncSpecs: .opencode/skills/", () => {
+    bdd.it("generates skill file from spec content", async () => {
       const ctx = makeCtx(tempDir);
 
       // Create a spec file
@@ -354,46 +385,52 @@ describe("OpenCode adapter: snapshot tests", () => {
         `${tempDir}/.opencode/skills/my-feature.md`,
       );
 
-      assertStringIncludes(skillContent, "# My Feature");
-      assertStringIncludes(skillContent, "Performance and reliability.");
-      assertStringIncludes(skillContent, "The feature does X and Y.");
+      assert.assertStringIncludes(skillContent, "# My Feature");
+      assert.assertStringIncludes(skillContent, "Performance and reliability.");
+      assert.assertStringIncludes(skillContent, "The feature does X and Y.");
     });
 
-    it("skill file has YAML frontmatter with name and description", async () => {
-      const ctx = makeCtx(tempDir);
+    bdd.it(
+      "skill file has YAML frontmatter with name and description",
+      async () => {
+        const ctx = makeCtx(tempDir);
 
-      const specDir = `${tempDir}/.eser/specs/test-spec`;
-      await crossRuntime.runtime.fs.mkdir(specDir, { recursive: true });
+        const specDir = `${tempDir}/.eser/specs/test-spec`;
+        await crossRuntime.runtime.fs.mkdir(specDir, { recursive: true });
 
-      const specContent = [
-        "# Spec: Test Spec Title",
-        "",
-        "## Tasks",
-        "",
-        "- [ ] Do something",
-        "",
-      ].join("\n");
+        const specContent = [
+          "# Spec: Test Spec Title",
+          "",
+          "## Tasks",
+          "",
+          "- [ ] Do something",
+          "",
+        ].join("\n");
 
-      await crossRuntime.runtime.fs.writeTextFile(
-        `${specDir}/spec.md`,
-        specContent,
-      );
+        await crossRuntime.runtime.fs.writeTextFile(
+          `${specDir}/spec.md`,
+          specContent,
+        );
 
-      await opencodeAdapterMod.opencodeAdapter.syncSpecs!(
-        ctx,
-        `${specDir}/spec.md`,
-      );
+        await opencodeAdapterMod.opencodeAdapter.syncSpecs!(
+          ctx,
+          `${specDir}/spec.md`,
+        );
 
-      const skillContent = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.opencode/skills/test-spec.md`,
-      );
+        const skillContent = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/.opencode/skills/test-spec.md`,
+        );
 
-      assert(skillContent.startsWith("---\n"));
-      assertStringIncludes(skillContent, "name: Test Spec Title");
-      assertStringIncludes(skillContent, 'description: "noskills spec:');
-    });
+        assert.assert(skillContent.startsWith("---\n"));
+        assert.assertStringIncludes(skillContent, "name: Test Spec Title");
+        assert.assertStringIncludes(
+          skillContent,
+          'description: "noskills spec:',
+        );
+      },
+    );
 
-    it("skips gracefully when spec file doesn't exist", async () => {
+    bdd.it("skips gracefully when spec file doesn't exist", async () => {
       const ctx = makeCtx(tempDir);
 
       // Call with a non-existent spec path — should not throw
@@ -411,10 +448,10 @@ describe("OpenCode adapter: snapshot tests", () => {
       } catch {
         exists = false;
       }
-      assertEquals(exists, false);
+      assert.assertEquals(exists, false);
     });
 
-    it("skips gracefully when spec file is empty", async () => {
+    bdd.it("skips gracefully when spec file is empty", async () => {
       const ctx = makeCtx(tempDir);
 
       const specDir = `${tempDir}/.eser/specs/empty-spec`;
@@ -439,7 +476,7 @@ describe("OpenCode adapter: snapshot tests", () => {
       } catch {
         exists = false;
       }
-      assertEquals(exists, false);
+      assert.assertEquals(exists, false);
     });
   });
 
@@ -447,23 +484,26 @@ describe("OpenCode adapter: snapshot tests", () => {
   // syncMcp — opencode.json
   // ---------------------------------------------------------------------------
 
-  describe("syncMcp: opencode.json", () => {
-    it("has mcp.noskills entry with type: local and enabled: true", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
+  bdd.describe("syncMcp: opencode.json", () => {
+    bdd.it(
+      "has mcp.noskills entry with type: local and enabled: true",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
 
-      const raw = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/opencode.json`,
-      );
-      const parsed = JSON.parse(raw);
+        const raw = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/opencode.json`,
+        );
+        const parsed = JSON.parse(raw);
 
-      assert(parsed.mcp !== undefined);
-      assert(parsed.mcp.noskills !== undefined);
-      assertEquals(parsed.mcp.noskills.type, "local");
-      assertEquals(parsed.mcp.noskills.enabled, true);
-    });
+        assert.assert(parsed.mcp !== undefined);
+        assert.assert(parsed.mcp.noskills !== undefined);
+        assert.assertEquals(parsed.mcp.noskills.type, "local");
+        assert.assertEquals(parsed.mcp.noskills.enabled, true);
+      },
+    );
 
-    it("has command array ending with mcp-serve", async () => {
+    bdd.it("has command array ending with mcp-serve", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
 
@@ -473,43 +513,46 @@ describe("OpenCode adapter: snapshot tests", () => {
       const parsed = JSON.parse(raw);
 
       const cmd = parsed.mcp.noskills.command;
-      assert(Array.isArray(cmd));
-      assert(cmd.length > 0);
-      assertEquals(cmd[cmd.length - 1], "mcp-serve");
+      assert.assert(Array.isArray(cmd));
+      assert.assert(cmd.length > 0);
+      assert.assertEquals(cmd[cmd.length - 1], "mcp-serve");
     });
 
-    it("preserves existing non-noskills config in opencode.json", async () => {
-      const ctx = makeCtx(tempDir);
+    bdd.it(
+      "preserves existing non-noskills config in opencode.json",
+      async () => {
+        const ctx = makeCtx(tempDir);
 
-      // Pre-create opencode.json with user config
-      await crossRuntime.runtime.fs.writeTextFile(
-        `${tempDir}/opencode.json`,
-        JSON.stringify({
-          theme: "dark",
-          mcp: {
-            "my-server": {
-              type: "local",
-              command: "node",
-              args: ["server.js"],
+        // Pre-create opencode.json with user config
+        await crossRuntime.runtime.fs.writeTextFile(
+          `${tempDir}/opencode.json`,
+          JSON.stringify({
+            theme: "dark",
+            mcp: {
+              "my-server": {
+                type: "local",
+                command: "node",
+                args: ["server.js"],
+              },
             },
-          },
-        }),
-      );
+          }),
+        );
 
-      await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
+        await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
 
-      const raw = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/opencode.json`,
-      );
-      const parsed = JSON.parse(raw);
+        const raw = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/opencode.json`,
+        );
+        const parsed = JSON.parse(raw);
 
-      // User config preserved
-      assertEquals(parsed.theme, "dark");
-      assert(parsed.mcp["my-server"] !== undefined);
+        // User config preserved
+        assert.assertEquals(parsed.theme, "dark");
+        assert.assert(parsed.mcp["my-server"] !== undefined);
 
-      // noskills server added
-      assert(parsed.mcp.noskills !== undefined);
-    });
+        // noskills server added
+        assert.assert(parsed.mcp.noskills !== undefined);
+      },
+    );
   });
 });
 
@@ -517,14 +560,14 @@ describe("OpenCode adapter: snapshot tests", () => {
 // Structure validation tests
 // =============================================================================
 
-describe("OpenCode adapter: structure validation", () => {
-  beforeEach(async () => {
+bdd.describe("OpenCode adapter: structure validation", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "opencode_struct_",
     });
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
@@ -532,8 +575,8 @@ describe("OpenCode adapter: structure validation", () => {
   // JSON files parse without error
   // ---------------------------------------------------------------------------
 
-  describe("all JSON files parse without error", () => {
-    it("opencode.json is valid JSON", async () => {
+  bdd.describe("all JSON files parse without error", () => {
+    bdd.it("opencode.json is valid JSON", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
 
@@ -541,7 +584,7 @@ describe("OpenCode adapter: structure validation", () => {
         `${tempDir}/opencode.json`,
       );
       const parsed = JSON.parse(raw);
-      assertEquals(typeof parsed, "object");
+      assert.assertEquals(typeof parsed, "object");
     });
   });
 
@@ -549,22 +592,25 @@ describe("OpenCode adapter: structure validation", () => {
   // AGENTS.md contains valid markdown
   // ---------------------------------------------------------------------------
 
-  describe("AGENTS.md contains valid markdown", () => {
-    it("has properly nested headings (## and ### inside markers)", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
+  bdd.describe("AGENTS.md contains valid markdown", () => {
+    bdd.it(
+      "has properly nested headings (## and ### inside markers)",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/AGENTS.md`,
-      );
+        const content = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/AGENTS.md`,
+        );
 
-      // Should contain ## and ### headings
-      assert(content.includes("## noskills Protocol"));
-      assert(content.includes("### Protocol"));
-      assert(content.includes("### Convention discovery"));
-    });
+        // Should contain ## and ### headings
+        assert.assert(content.includes("## noskills Protocol"));
+        assert.assert(content.includes("### Protocol"));
+        assert.assert(content.includes("### Convention discovery"));
+      },
+    );
 
-    it("markers are properly paired", async () => {
+    bdd.it("markers are properly paired", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncRules(ctx);
 
@@ -575,9 +621,9 @@ describe("OpenCode adapter: structure validation", () => {
       const startIdx = content.indexOf("<!-- noskills:start -->");
       const endIdx = content.indexOf("<!-- noskills:end -->");
 
-      assert(startIdx !== -1);
-      assert(endIdx !== -1);
-      assert(startIdx < endIdx);
+      assert.assert(startIdx !== -1);
+      assert.assert(endIdx !== -1);
+      assert.assert(startIdx < endIdx);
     });
   });
 
@@ -585,8 +631,8 @@ describe("OpenCode adapter: structure validation", () => {
   // Agent markdown files have valid YAML frontmatter
   // ---------------------------------------------------------------------------
 
-  describe("agent markdown files have valid YAML frontmatter", () => {
-    it("executor agent starts with --- and has closing ---", async () => {
+  bdd.describe("agent markdown files have valid YAML frontmatter", () => {
+    bdd.it("executor agent starts with --- and has closing ---", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
 
@@ -594,17 +640,17 @@ describe("OpenCode adapter: structure validation", () => {
         `${tempDir}/.opencode/agents/noskills-executor.md`,
       );
 
-      assert(content.startsWith("---\n"));
+      assert.assert(content.startsWith("---\n"));
       const frontmatterEnd = content.indexOf("\n---\n", 4);
-      assert(frontmatterEnd > 0);
+      assert.assert(frontmatterEnd > 0);
 
       const frontmatter = content.slice(4, frontmatterEnd);
-      assertStringIncludes(frontmatter, "name:");
-      assertStringIncludes(frontmatter, "description:");
-      assertStringIncludes(frontmatter, "tools:");
+      assert.assertStringIncludes(frontmatter, "name:");
+      assert.assertStringIncludes(frontmatter, "description:");
+      assert.assertStringIncludes(frontmatter, "tools:");
     });
 
-    it("verifier agent starts with --- and has closing ---", async () => {
+    bdd.it("verifier agent starts with --- and has closing ---", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncAgents!(ctx);
 
@@ -612,14 +658,14 @@ describe("OpenCode adapter: structure validation", () => {
         `${tempDir}/.opencode/agents/noskills-verifier.md`,
       );
 
-      assert(content.startsWith("---\n"));
+      assert.assert(content.startsWith("---\n"));
       const frontmatterEnd = content.indexOf("\n---\n", 4);
-      assert(frontmatterEnd > 0);
+      assert.assert(frontmatterEnd > 0);
 
       const frontmatter = content.slice(4, frontmatterEnd);
-      assertStringIncludes(frontmatter, "name:");
-      assertStringIncludes(frontmatter, "description:");
-      assertStringIncludes(frontmatter, "tools:");
+      assert.assertStringIncludes(frontmatter, "name:");
+      assert.assertStringIncludes(frontmatter, "description:");
+      assert.assertStringIncludes(frontmatter, "tools:");
     });
   });
 
@@ -627,42 +673,268 @@ describe("OpenCode adapter: structure validation", () => {
   // MCP JSON structure
   // ---------------------------------------------------------------------------
 
-  describe("MCP JSON structure", () => {
-    it("has mcp object with server entries having command array + enabled", async () => {
-      const ctx = makeCtx(tempDir);
-      await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
+  bdd.describe("MCP JSON structure", () => {
+    bdd.it(
+      "has mcp object with server entries having command array + enabled",
+      async () => {
+        const ctx = makeCtx(tempDir);
+        await opencodeAdapterMod.opencodeAdapter.syncMcp!(ctx);
 
-      const raw = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/opencode.json`,
-      );
-      const parsed = JSON.parse(raw);
+        const raw = await crossRuntime.runtime.fs.readTextFile(
+          `${tempDir}/opencode.json`,
+        );
+        const parsed = JSON.parse(raw);
 
-      assertEquals(typeof parsed.mcp, "object");
-      assert(parsed.mcp !== null);
+        assert.assertEquals(typeof parsed.mcp, "object");
+        assert.assert(parsed.mcp !== null);
 
-      for (const [_key, server] of Object.entries(parsed.mcp)) {
-        const srv = server as { command: string[]; enabled: boolean };
-        assert(Array.isArray(srv.command));
-        assertEquals(srv.enabled, true);
-      }
-    });
+        for (const [_key, server] of Object.entries(parsed.mcp)) {
+          const srv = server as { command: string[]; enabled: boolean };
+          assert.assert(Array.isArray(srv.command));
+          assert.assertEquals(srv.enabled, true);
+        }
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
   // Plugin file structure
   // ---------------------------------------------------------------------------
 
-  describe("plugin file structure", () => {
-    it("is a valid TypeScript module with default export", async () => {
+  bdd.describe("plugin file structure", () => {
+    bdd.it("exports one plugin function, as OpenCode loads them", async () => {
       const ctx = makeCtx(tempDir);
       await opencodeAdapterMod.opencodeAdapter.syncHooks!(ctx);
 
-      const content = await crossRuntime.runtime.fs.readTextFile(
-        `${tempDir}/.opencode/plugins/noskills.ts`,
+      const plugin = await importPlugin(tempDir);
+
+      assert.assertEquals(Object.keys(plugin), ["NoskillsPlugin"]);
+      assert.assertEquals(typeof plugin.NoskillsPlugin, "function");
+    });
+  });
+});
+
+// =============================================================================
+// The generated plugin, run as OpenCode runs it
+// =============================================================================
+
+// A stand-in for the noskills command: it keeps each hook's stdin next to
+// itself and answers as the `mode` file says.
+const FAKE_NOSKILLS = `#!/bin/sh
+dir=$(dirname "$0")
+cat > "$dir/stdin-$2.json"
+case "$(cat "$dir/mode")" in
+  deny) echo "noskills: refused for the test" >&2; exit 2 ;;
+  fail) echo "boom" >&2; exit 1 ;;
+  *) exit 0 ;;
+esac
+`;
+
+bdd.describe("OpenCode plugin: the hooks it runs", () => {
+  let root: string;
+  let hooks: PluginHooks;
+
+  const setMode = (mode: "allow" | "deny" | "fail"): Promise<void> =>
+    crossRuntime.runtime.fs.writeTextFile(`${root}/mode`, mode);
+
+  const stdinOf = async (event: string): Promise<unknown> =>
+    JSON.parse(
+      await crossRuntime.runtime.fs.readTextFile(`${root}/stdin-${event}.json`),
+    );
+
+  const exists = async (path: string): Promise<boolean> => {
+    try {
+      await crossRuntime.runtime.fs.stat(path);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  bdd.beforeEach(async () => {
+    root = await crossRuntime.runtime.fs.realPath(
+      await crossRuntime.runtime.fs.makeTempDir({ prefix: "opencode_plugin_" }),
+    );
+    await crossRuntime.runtime.fs.writeTextFile(
+      `${root}/fake-noskills.sh`,
+      FAKE_NOSKILLS,
+    );
+    await setMode("allow");
+    await opencodeAdapterMod.opencodeAdapter.syncHooks!({
+      root,
+      rules: [],
+      commandPrefix: `sh ${root}/fake-noskills.sh`,
+    });
+    hooks = await (await importPlugin(root)).NoskillsPlugin({
+      directory: root,
+    });
+  });
+
+  bdd.afterEach(async () => {
+    await crossRuntime.runtime.fs.remove(root, { recursive: true });
+  });
+
+  bdd.it(
+    "passes the tool name and input to pre-tool-use on stdin",
+    async () => {
+      await hooks["tool.execute.before"](
+        { tool: "bash", sessionID: "ses_1", callID: "call_1" },
+        { args: { command: "git status" } },
       );
 
-      assertStringIncludes(content, "export default");
-      assertStringIncludes(content, "import");
+      assert.assertEquals(await stdinOf("pre-tool-use"), {
+        "hook_event_name": "PreToolUse",
+        "session_id": "ses_1",
+        cwd: root,
+        "tool_name": "bash",
+        "tool_input": { command: "git status" },
+      });
+    },
+  );
+
+  bdd.it("refuses the call with noskills' reason on exit code 2", async () => {
+    await setMode("deny");
+
+    await assert.assertRejects(
+      () =>
+        hooks["tool.execute.before"](
+          { tool: "edit", sessionID: "ses_1", callID: "call_1" },
+          { args: { filePath: "a.ts", oldString: "a", newString: "b" } },
+        ),
+      Error,
+      "noskills: refused for the test",
+    );
+  });
+
+  bdd.it("refuses the call when the check fails to answer", async () => {
+    await setMode("fail");
+
+    await assert.assertRejects(
+      () =>
+        hooks["tool.execute.before"](
+          { tool: "write", sessionID: "ses_1", callID: "call_1" },
+          { args: { filePath: "a.ts", content: "x" } },
+        ),
+      Error,
+      "the PreToolUse check exited with code 1",
+    );
+  });
+
+  bdd.it("leaves tools it does not guard alone", async () => {
+    await setMode("deny");
+
+    await hooks["tool.execute.before"](
+      { tool: "read", sessionID: "ses_1", callID: "call_1" },
+      { args: { filePath: "a.ts" } },
+    );
+
+    assert.assertEquals(await exists(`${root}/stdin-pre-tool-use.json`), false);
+  });
+
+  bdd.it("logs file and shell calls after they run", async () => {
+    await hooks["tool.execute.after"]({
+      tool: "apply_patch",
+      sessionID: "ses_1",
+      callID: "call_1",
+      args: { patchText: "*** Update File: a.ts" },
     });
+    await hooks["tool.execute.after"]({
+      tool: "bash",
+      sessionID: "ses_1",
+      callID: "call_2",
+      args: { command: "ls" },
+    });
+
+    assert.assertEquals(
+      (await stdinOf("post-file-write") as { "tool_name": string }).tool_name,
+      "apply_patch",
+    );
+    assert.assertEquals(
+      (await stdinOf("post-bash") as { "tool_input": unknown }).tool_input,
+      { command: "ls" },
+    );
+  });
+
+  bdd.it("runs session-start and stop on session events", async () => {
+    await hooks.event({ event: { type: "session.created" } });
+    await hooks.event({ event: { type: "session.idle" } });
+
+    assert.assertEquals(await stdinOf("session-start"), {});
+    assert.assertEquals(
+      (await stdinOf("stop") as { "hook_event_name": string }).hook_event_name,
+      "Stop",
+    );
+  });
+});
+
+const REPO_ROOT = crossRuntime.runtime.path.resolve(
+  import.meta.dirname ?? ".",
+  "../../../../..",
+);
+
+bdd.describe("OpenCode plugin: with the real noskills command", () => {
+  let root: string;
+
+  bdd.beforeEach(async () => {
+    root = await crossRuntime.runtime.fs.realPath(
+      await crossRuntime.runtime.fs.makeTempDir({ prefix: "opencode_e2e_" }),
+    );
+    await crossRuntime.runtime.fs.mkdir(`${root}/.eser`, { recursive: true });
+    await crossRuntime.runtime.fs.writeTextFile(
+      `${root}/.eser/manifest.yml`,
+      "noskills:\n  allowGit: false\n",
+    );
+    await opencodeAdapterMod.opencodeAdapter.syncHooks!({
+      root,
+      rules: [],
+      commandPrefix: [
+        crossRuntime.runtime.process.execPath(),
+        "run",
+        "-A",
+        "--config",
+        `${REPO_ROOT}/deno.json`,
+        `${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`,
+      ].join(" "),
+    });
+  });
+
+  bdd.afterEach(async () => {
+    await crossRuntime.runtime.fs.remove(root, { recursive: true });
+  });
+
+  bdd.it("refuses a git write and an allowGit edit", async () => {
+    const hooks = await (await importPlugin(root)).NoskillsPlugin({
+      directory: root,
+    });
+    const before = hooks["tool.execute.before"];
+
+    await assert.assertRejects(
+      () =>
+        before(
+          { tool: "bash", sessionID: "ses_1", callID: "call_1" },
+          { args: { command: "git push origin main" } },
+        ),
+      Error,
+      "Git write operations are not allowed",
+    );
+    await assert.assertRejects(
+      () =>
+        before(
+          { tool: "edit", sessionID: "ses_1", callID: "call_2" },
+          {
+            args: {
+              filePath: `${root}/.eser/manifest.yml`,
+              oldString: "allowGit: false",
+              newString: "allowGit: true",
+            },
+          },
+        ),
+      Error,
+      "allowGit",
+    );
+    await before(
+      { tool: "bash", sessionID: "ses_1", callID: "call_3" },
+      { args: { command: "git status" } },
+    );
   });
 });

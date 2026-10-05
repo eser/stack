@@ -1,8 +1,8 @@
 # Go Architecture and Package Structure
 
-Where Go code lives in this repository, how it is wired, and how packages are
-constructed. The principle is architecture-guidelines: Hexagonal Architecture
-(Double-Layered); this file is its Go form.
+Where Go code lives, how it is wired, and how packages are constructed. The
+principle is architecture-guidelines: Hexagonal Architecture (Double-Layered);
+this file is its Go form.
 
 ## Contents
 
@@ -22,29 +22,27 @@ constructed. The principle is architecture-guidelines: Hexagonal Architecture
 
 Scope: All Go code
 
-Rule: The repository is one Go module, `github.com/eser/stack`, with `go.mod`,
-`Makefile` and `.golangci.yaml` at the root. The cgo and WASI FFI bridge in
-`pkg/@eserstack/ajan/` is a second module, `github.com/eser/ajan`, with its own
-`go.mod`. There is deliberately no `go.work`; `deno task cli ok` checks each
-module in its own directory.
+Rule: A service keeps `go.mod`, `Makefile` and `.golangci.yaml` at its module
+root and uses this layout:
 
-| Path                                | Holds                                               |
-| ----------------------------------- | --------------------------------------------------- |
-| `pkg/ajan/<name>fx/`                | Framework packages (`logfx`, `httpfx`, `connfx`)    |
-| `pkg/ajan/api/business/<domain>/`   | Business logic and its ports                        |
-| `pkg/ajan/api/adapters/`            | Adapters that implement the ports                   |
-| `pkg/ajan/api/adapters/appcontext/` | The composition root (`appcontext.go`)              |
-| `cmd/noskills-server/`              | The server binary's entry point                     |
-| `pkg/@eserstack/ajan/`              | The FFI and WASM bridge consumed by the TS packages |
+| Path                   | Holds                                         |
+| ---------------------- | --------------------------------------------- |
+| `business/<domain>/`   | Business logic and its ports                  |
+| `adapters/<adapter>/`  | Adapters that implement the ports             |
+| `adapters/appcontext/` | The composition root (`appcontext.go`)        |
+| `cmd/<binary>/`        | Each binary's entry point, nothing but wiring |
 
-Do not create `internal/`, `configs/` or `test/` trees. Framework packages are
-imported from `pkg/ajan/`, never copied into a service.
+Framework concerns (logging, HTTP serving, connections, config, processes) come
+from the ajan `fx` packages (`logfx`, `httpfx`, `connfx`, `configfx`,
+`processfx`), imported, never copied into a service. Do not create `internal/`,
+`configs/` or `test/` trees. A second Go module in this codebase (an FFI bridge,
+a tool) has its own `go.mod`; do not add a `go.work` to paper over the boundary.
 
 ---
 
 ## Hexagonal Layers in Go
 
-Scope: Business logic and adapters under `pkg/ajan/api/`
+Scope: Business logic and adapters
 
 Rule:
 
@@ -52,14 +50,14 @@ Rule:
   packages. It defines its ports as interfaces next to the code that uses them.
 - Adapters implement those ports with concrete dependencies (pgx, HTTP, Redis,
   LLM providers).
-- All wiring happens in the composition root,
-  `pkg/ajan/api/adapters/appcontext/appcontext.go`: it loads config, builds the
-  logger, creates adapters and hands them to business services.
+- All wiring happens in the composition root, `adapters/appcontext/`: it loads
+  config through `configfx`, builds the `logfx` logger, creates adapters and
+  hands them to business services.
 
 Correct:
 
 ```go
-// pkg/ajan/api/business/sessions/service.go
+// business/sessions/service.go
 package sessions
 
 type Store interface { // port, owned by the business package
@@ -121,13 +119,13 @@ not an interface); the parameters are the consumer's own port interfaces
 Correct:
 
 ```go
-// pkg/ajan/api/business/sessions/service.go
+// business/sessions/service.go
 // Business code stays on the standard library: *slog.Logger, not *logfx.Logger.
 func NewService(store Store, clock func() time.Time, logger *slog.Logger) *Service {
     return &Service{store: store, clock: clock, logger: logger}
 }
 
-// pkg/ajan/api/adapters/appcontext/appcontext.go
+// adapters/appcontext/appcontext.go
 // Connections come from the connfx registry, loaded from cfg.Conn.
 conn, ok := connRegistry.GetNamed("sessions").(*connfx.PgxConnection)
 if !ok {
@@ -159,16 +157,16 @@ what a service touches without reading its body.
 
 ## Adding a Business Domain
 
-Scope: New business logic in the Go services
+Scope: New business logic in a Go service
 
 Rule:
 
-1. Create `pkg/ajan/api/business/<domain>/`.
+1. Create `business/<domain>/`.
 2. Define ports (interfaces) for everything the domain needs from outside.
 3. Write the logic against those ports, importing only the standard library.
-4. Implement the ports in `pkg/ajan/api/adapters/<adapter>/`.
-5. Wire them in `pkg/ajan/api/adapters/appcontext/appcontext.go`.
-6. Validate with `deno task cli go-ok` (runs `make ok` on the root module).
+4. Implement the ports in `adapters/<adapter>/`.
+5. Wire them in `adapters/appcontext/appcontext.go`.
+6. Run this codebase's Go gate (the command its `AGENTS.md` names).
 
 ---
 
@@ -177,8 +175,9 @@ Rule:
 Scope: Go files
 
 Rule: Go files are snake_case (`session_store.go`, `http_service.go`,
-`logfx_coverage_test.go`). The repository validator enforces kebab-case
-elsewhere and snake_case under `cmd/`, `pkg/ajan/` and `pkg/@eserstack/ajan/`.
+`logfx_coverage_test.go`); the rest of this codebase stays kebab-case
+(tooling-standards: File Naming). The `validate-filenames` config lists the Go
+directories.
 
 ---
 
@@ -257,6 +256,6 @@ fails the build in the implementing package instead of at a distant call site:
 
 Scope: Templates, schemas, default configs and other files a binary ships with
 
-Rule: Embed static files with `//go:embed` (as `noskillsserverfx/docs_embed.go`
-does) instead of reading them from disk at runtime. The path then cannot be
-wrong on another machine, and a missing file is a build error.
+Rule: Embed static files with `//go:embed` instead of reading them from disk at
+runtime. The path then cannot be wrong on another machine, and a missing file is
+a build error.

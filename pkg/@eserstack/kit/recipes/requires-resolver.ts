@@ -21,7 +21,16 @@ import type { Recipe } from "./registry-schema.ts";
 // Errors
 // =============================================================================
 
-class CyclicDependencyError extends Error {
+/**
+ * Thrown by {@link resolveRequires} when recipes require each other in a
+ * loop. The message lists the chain that closes it, such as `a → b → a`.
+ */
+export class CyclicDependencyError extends Error {
+  /**
+   * Creates the error for a loop in the requires graph.
+   *
+   * @param cycle - The recipe names from the start recipe to the one that repeats
+   */
   constructor(cycle: readonly string[]) {
     super(
       `Circular dependency detected: ${cycle.join(" → ")}`,
@@ -30,7 +39,17 @@ class CyclicDependencyError extends Error {
   }
 }
 
-class MissingDependencyError extends Error {
+/**
+ * Thrown by {@link resolveRequires} when the recipe to apply, or one that a
+ * `requires` list names, is not in the registry.
+ */
+export class MissingDependencyError extends Error {
+  /**
+   * Creates the error for a recipe name that the registry does not have.
+   *
+   * @param recipeName - The recipe whose `requires` names the missing one, or `<root>` for the recipe to apply
+   * @param missingDep - The name that is not in the registry
+   */
   constructor(recipeName: string, missingDep: string) {
     super(
       `Recipe '${recipeName}' requires '${missingDep}', which is not in the registry`,
@@ -49,7 +68,7 @@ class MissingDependencyError extends Error {
  *
  * Uses depth-first traversal with cycle detection and deduplication.
  */
-const resolveRequires = (
+export const resolveRequires = (
   recipeName: string,
   recipes: readonly Recipe[],
 ): readonly Recipe[] => {
@@ -101,5 +120,3 @@ const resolveRequires = (
 
   return resolved;
 };
-
-export { CyclicDependencyError, MissingDependencyError, resolveRequires };

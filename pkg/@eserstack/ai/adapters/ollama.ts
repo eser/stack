@@ -4,7 +4,7 @@ import * as results from "@eserstack/primitives/results";
 import * as httpclient from "@eserstack/httpclient";
 import type * as types from "../types.ts";
 import type * as config from "../config.ts";
-import type * as generation from "../generation.ts";
+import * as generation from "../generation.ts";
 import type * as model from "../model.ts";
 import * as errors from "../errors.ts";
 import * as cliShared from "./cli-shared.ts";
@@ -43,9 +43,8 @@ export class OllamaModel implements model.LanguageModel {
     options: generation.GenerateTextOptions,
     signal?: AbortSignal,
   ): Promise<results.Result<generation.GenerateTextResult, errors.AiError>> {
-    const body = buildChatBody(this.config, options, false);
-
     try {
+      const body = buildChatBody(this.config, options, false);
       const resp = await this._client.post<OllamaChatResponse>("/api/chat", {
         body,
         signal,
@@ -73,9 +72,8 @@ export class OllamaModel implements model.LanguageModel {
     options: generation.GenerateTextOptions,
     signal?: AbortSignal,
   ): AsyncIterable<generation.StreamEvent> {
-    const body = buildChatBody(this.config, options, true);
-
     try {
+      const body = buildChatBody(this.config, options, true);
       const streamResp = await this._client.postStream("/api/chat", {
         body,
         signal,
@@ -138,18 +136,24 @@ export const ollamaFactory: model.ProviderFactory = {
 // Internal Types
 // =============================================================================
 
+// Field names follow the Ollama /api/chat response.
 type OllamaChatResponse = {
+  // The mappers below read the message field by field.
   // deno-lint-ignore no-explicit-any
   message?: any;
-  done_reason?: string;
-  prompt_eval_count?: number;
-  eval_count?: number;
+  "done_reason"?: string;
+  "prompt_eval_count"?: number;
+  "eval_count"?: number;
 };
 
 // =============================================================================
 // Internal Helpers
 // =============================================================================
 
+/**
+ * Builds the /api/chat request body. options.effort is ignored: Ollama has no
+ * effort setting that every model accepts.
+ */
 const buildChatBody = (
   cfg: config.ResolvedConfigTarget,
   options: generation.GenerateTextOptions,
@@ -187,7 +191,10 @@ const buildChatBody = (
 
   if (options.responseFormat !== undefined) {
     if (options.responseFormat.type === "json_schema") {
-      body["format"] = options.responseFormat.jsonSchema;
+      body["format"] = generation.requireJsonSchema(
+        options.responseFormat,
+        "ollama",
+      );
     } else if (options.responseFormat.type === "json_object") {
       body["format"] = "json";
     }
@@ -278,6 +285,7 @@ const mapStreamEvent = (
     return null;
   }
 
+  // Stream events are untyped JSON; each field is checked before use.
   // deno-lint-ignore no-explicit-any
   const obj = event as any;
 

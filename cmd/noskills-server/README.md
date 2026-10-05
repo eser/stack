@@ -3,9 +3,6 @@
 Persistent Claude Code sessions that survive reboots. Attach from any device —
 laptop, phone, second terminal — and resume exactly where you left off.
 
-<!-- asciinema recording: run `agg assets/asciinema/quickstart.cast assets/asciinema/quickstart.gif` to regenerate -->
-<!-- TODO: record and embed 60-second quickstart.cast once v1 ships -->
-
 ## Install
 
 **macOS / Linux (one-liner):**
@@ -115,15 +112,51 @@ replay before entering live mode.
 
 ## Start flags
 
-| Flag            | Default       | Description                               |
-| --------------- | ------------- | ----------------------------------------- |
-| `--listen`      | `:4433`       | UDP address to listen on                  |
-| `--data-dir`    | `~/.noskills` | Daemon state directory                    |
-| `--self-signed` | `true`        | Generate a self-signed TLS cert           |
-| `--cert`        | —             | PEM cert file (overrides `--self-signed`) |
-| `--key`         | —             | PEM key file                              |
-| `--log-level`   | `INFO`        | `DEBUG`, `INFO`, `WARN`, `ERROR`          |
-| `--log-format`  | `text`        | `text` or `json`                          |
+| Flag                | Default       | Description                                                           |
+| ------------------- | ------------- | --------------------------------------------------------------------- |
+| `--listen`          | `:4433`       | UDP address to listen on                                              |
+| `--data-dir`        | `~/.noskills` | Daemon state directory                                                |
+| `--self-signed`     | `true`        | Generate a self-signed TLS cert                                       |
+| `--cert`            | —             | PEM cert file (overrides `--self-signed`)                             |
+| `--key`             | —             | PEM key file                                                          |
+| `--log-level`       | `INFO`        | `DEBUG`, `INFO`, `WARN`, `ERROR`                                      |
+| `--log-format`      | `text`        | `text` or `json`                                                      |
+| `--allowed-origins` | none          | Comma-separated browser origins that may attach (see Browser origins) |
+
+When the daemon cannot start, for example because another process holds the
+`--listen` port or an `--allowed-origins` entry is not an origin, `start` logs
+the cause and exits with status 1.
+
+### Browser origins
+
+A browser page opens a WebTransport session with the `Origin` of the page it was
+served from. By default the daemon upgrades only a page whose origin has the
+daemon's own host and port, and clients that send no `Origin`, such as the
+`noskills` CLI. A web UI served from another origin is refused with 403. List
+each such origin exactly, as the browser sends it (scheme, host and a port other
+than the scheme's default, no path); there are no wildcards:
+
+```sh
+noskills-server start --allowed-origins "https://app.example.com,http://localhost:3000"
+```
+
+A page from a listed origin can reach the daemon through its visitors' browsers,
+including a daemon on `localhost` or a private network, so list only origins you
+control.
+
+## Update check
+
+Once it is running, the daemon asks the GitHub releases API
+(`https://api.github.com/repos/eser/stack/releases/latest`) for the latest
+release and prints an upgrade notice when it is newer than the running version.
+The request has a 5 second timeout, and the only thing it says about your
+installation is the running version, in its `User-Agent` header. When the check
+fails, for example offline, the daemon logs a warning and keeps serving.
+
+noskills-server sends no telemetry. Earlier versions asked on first start
+whether to send anonymous timing and saved the answer in `telemetry.json` in the
+data directory, but no version sent any timing, whatever the answer. You can
+delete the file.
 
 ## Storage layout
 
@@ -134,8 +167,7 @@ replay before entering live mode.
 ├── tls/                 # TLS cert + fingerprint
 ├── sessions/            # append-only JSONL ledgers
 ├── push/                # Web Push subscriptions + VAPID keypair
-├── runtime/             # ephemeral Unix sockets (0700)
-└── telemetry.json       # anonymous telemetry consent (opt-in)
+└── runtime/             # ephemeral Unix sockets (0700)
 ```
 
 ## Certificate trust
@@ -174,7 +206,7 @@ By default, `noskills-server` generates a self-signed ECDSA-P256 cert valid for
 
 ## Contributing
 
-See [CONTRIBUTING.md](../../CONTRIBUTING.md).
+See [CONTRIBUTING.md](../../.github/CONTRIBUTING.md).
 
 ## License
 

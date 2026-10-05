@@ -20,7 +20,7 @@ func TestToolSchemaIsNotNestedInsideItself(t *testing.T) {
 
 	model := &AnthropicModel{} //nolint:exhaustruct
 
-	tools := model.mapToolDefinitions([]ToolDefinition{{
+	tools := mustMapToolDefinitions(t, model, []ToolDefinition{{
 		Name:        "get_weather",
 		Description: "current weather",
 		Parameters: json.RawMessage(`{
@@ -69,7 +69,7 @@ func TestToolSchemaWithoutRequiredIsAccepted(t *testing.T) {
 
 	model := &AnthropicModel{} //nolint:exhaustruct
 
-	tools := model.mapToolDefinitions([]ToolDefinition{{
+	tools := mustMapToolDefinitions(t, model, []ToolDefinition{{
 		Name:        "ping",
 		Description: "no arguments",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{}}`),
@@ -199,7 +199,7 @@ func TestToolSchemaCarriesTheRestOfTheDocument(t *testing.T) {
 
 	model := &AnthropicModel{} //nolint:exhaustruct
 
-	tools := model.mapToolDefinitions([]ToolDefinition{{
+	tools := mustMapToolDefinitions(t, model, []ToolDefinition{{
 		Name:        "get_weather",
 		Description: "current weather",
 		Parameters: json.RawMessage(`{
@@ -258,7 +258,7 @@ func TestToolSchemaTypeIsNotOverridable(t *testing.T) {
 
 	model := &AnthropicModel{} //nolint:exhaustruct
 
-	tools := model.mapToolDefinitions([]ToolDefinition{{
+	tools := mustMapToolDefinitions(t, model, []ToolDefinition{{
 		Name:        "odd",
 		Description: "a schema that lies about its type",
 		Parameters:  json.RawMessage(`{"type":"array","properties":{}}`),
@@ -278,4 +278,16 @@ func TestToolSchemaTypeIsNotOverridable(t *testing.T) {
 		t.Fatalf("type = %v; the document overrode the SDK constant: %s",
 			wire["type"], encoded)
 	}
+}
+
+// mustMapToolDefinitions maps tools and fails the test on an error.
+func mustMapToolDefinitions(t *testing.T, model *AnthropicModel, tools []ToolDefinition) []anthropic.ToolUnionParam {
+	t.Helper()
+
+	mapped, err := model.mapToolDefinitions(tools)
+	if err != nil {
+		t.Fatalf("mapToolDefinitions: %v", err)
+	}
+
+	return mapped
 }

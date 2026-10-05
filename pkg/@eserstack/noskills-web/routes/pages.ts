@@ -8,9 +8,9 @@
 
 import * as dashboard from "@eserstack/noskills/dashboard";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { renderDashboard } from "../templates/dashboard.ts";
-import { renderSpecDetail } from "../templates/spec-detail.ts";
-import { htmlHeaders } from "../templates/layout.ts";
+import * as dashboardTemplate from "../templates/dashboard.ts";
+import * as specDetail from "../templates/spec-detail.ts";
+import * as layout from "../templates/layout.ts";
 import type { MuxHost } from "../terminal/mux-host.ts";
 
 /** GET / — Dashboard page. */
@@ -28,10 +28,15 @@ export const handleDashboard = async (
   }));
 
   const activeTabId = tabs.length > 0 ? tabs[0]!.id : null;
-  const html = renderDashboard(state, tabs, activeTabId, token);
+  const html = dashboardTemplate.renderDashboard(
+    state,
+    tabs,
+    activeTabId,
+    token,
+  );
 
   return new Response(html, {
-    headers: htmlHeaders(),
+    headers: layout.htmlHeaders(),
   });
 };
 
@@ -57,9 +62,13 @@ export const handleSpecDetail = async (
       // No spec.md yet
     }
 
-    const html = renderSpecDetail(spec, specContent, state.currentUser);
+    const html = specDetail.renderSpecDetail(
+      spec,
+      specContent,
+      state.currentUser,
+    );
     return new Response(html, {
-      headers: htmlHeaders(),
+      headers: layout.htmlHeaders(),
     });
   } catch {
     return new Response("Spec not found", { status: 404 });

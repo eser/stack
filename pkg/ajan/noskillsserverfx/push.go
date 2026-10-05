@@ -3,7 +3,10 @@ package noskillsserverfx
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,7 +14,6 @@ import (
 	"time"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
-	"github.com/eser/stack/pkg/ajan/httpfx"
 	"github.com/eser/stack/pkg/ajan/logfx"
 )
 
@@ -20,10 +22,13 @@ const (
 	pushWorkerCount    = 4
 	pushCoalescePeriod = time.Minute
 	pushTTLSeconds     = 30
+	pushSendTimeout    = 15 * time.Second
 	pushSubscriber     = "mailto:noskills@local"
 )
 
 // ── VAPID key management ──────────────────────────────────────────────────────
+
+var errVAPIDKeysIncomplete = errors.New("incomplete VAPID keys")
 
 type vapidKeyPair struct {
 	PublicKey  string `json:"publicKey"`
@@ -31,7 +36,12 @@ type vapidKeyPair struct {
 }
 
 // loadOrGenerateVAPIDKeys loads an existing keypair from dataDir/push/vapid.json
-// or generates a new one. The file is written with 0600 perms.
+// or, when there is no file yet, generates one. The file is written with 0600
+// perms.
+//
+// A file that exists but cannot be read or parsed is an error, not a reason to
+// generate: every stored subscription is bound to the keypair, so replacing it
+// would silently stop every push.
 func loadOrGenerateVAPIDKeys(dataDir string) (*vapidKeyPair, error) {
 	path := filepath.Join(dataDir, "push", "vapid.json")
 
@@ -39,11 +49,28 @@ func loadOrGenerateVAPIDKeys(dataDir string) (*vapidKeyPair, error) {
 		return nil, fmt.Errorf("push dir: %w", err)
 	}
 
-	if data, err := os.ReadFile(path); err == nil { //nolint:gosec // path from pushDir helper, not user-supplied
+	data, err := os.ReadFile(path) //nolint:gosec // path from pushDir helper, not user-supplied
+	if err == nil {
 		var kp vapidKeyPair
-		if json.Unmarshal(data, &kp) == nil && kp.PublicKey != "" {
-			return &kp, nil
+		if err := json.Unmarshal(data, &kp); err != nil {
+			return nil, fmt.Errorf(
+				"parse VAPID keys %s: %w (fix the JSON, or remove the file and re-subscribe every browser)",
+				path, err,
+			)
 		}
+
+		if kp.PublicKey == "" || kp.PrivateKey == "" {
+			return nil, fmt.Errorf(
+				"%w: VAPID keys %s lack publicKey or privateKey (remove the file and re-subscribe every browser)",
+				errVAPIDKeysIncomplete, path,
+			)
+		}
+
+		return &kp, nil
+	}
+
+	if !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("read VAPID keys %s: %w", path, err)
 	}
 
 	// GenerateVAPIDKeys returns (privateKey, publicKey, err).
@@ -54,7 +81,11 @@ func loadOrGenerateVAPIDKeys(dataDir string) (*vapidKeyPair, error) {
 
 	kp := &vapidKeyPair{PublicKey: pub, PrivateKey: priv}
 
-	encoded, _ := json.MarshalIndent(kp, "", "  ") //nolint:gosec // VAPID private key must be persisted to disk
+	encoded, err := json.MarshalIndent(kp, "", "  ") //nolint:gosec // VAPID private key must be persisted to disk
+	if err != nil {
+		return nil, fmt.Errorf("encode VAPID keys: %w", err)
+	}
+
 	if err := os.WriteFile(path, encoded, 0o600); err != nil {
 		return nil, fmt.Errorf("save VAPID keys: %w", err)
 	}
@@ -94,8 +125,22 @@ func openSubscriptionStore(dataDir string) (*subscriptionStore, error) {
 
 	st := &subscriptionStore{path: path, subs: make([]*pushSubscription, 0)}
 
-	if data, err := os.ReadFile(path); err == nil { //nolint:gosec // path from pushDir helper, not user-supplied
-		_ = json.Unmarshal(data, &st.subs)
+	data, err := os.ReadFile(path) //nolint:gosec // path from pushDir helper, not user-supplied
+	if errors.Is(err, fs.ErrNotExist) {
+		return st, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("read push subscriptions %s: %w", path, err)
+	}
+
+	// A file that does not parse is an error rather than an empty store: the
+	// next save would otherwise overwrite every subscription in it.
+	if err := json.Unmarshal(data, &st.subs); err != nil {
+		return nil, fmt.Errorf(
+			"parse push subscriptions %s: %w (fix the JSON or remove the file to start empty)",
+			path, err,
+		)
 	}
 
 	return st, nil
@@ -174,20 +219,60 @@ type pushJob struct {
 	msg []byte
 }
 
+// pushCoalescer allows one push per key per period.
+//
+// A key whose period has passed means the same as a key never seen, so allow
+// removes those entries as it goes. The map then holds only the keys that
+// pushed within the last period, instead of every (session, kind) pair the
+// daemon has seen since it started.
+type pushCoalescer struct {
+	mu     sync.Mutex
+	period time.Duration
+	last   map[string]time.Time
+}
+
+// newPushCoalescer returns a coalescer that allows one push per key per
+// pushCoalescePeriod.
+func newPushCoalescer() *pushCoalescer {
+	return &pushCoalescer{period: pushCoalescePeriod, last: make(map[string]time.Time)}
+}
+
+// allow reports whether key may push at now, and if so records now as its
+// last push. now comes from the caller, so one operation reads the clock once.
+func (c *pushCoalescer) allow(key string, now time.Time) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	maps.DeleteFunc(c.last, func(_ string, last time.Time) bool {
+		return now.Sub(last) >= c.period
+	})
+
+	if _, ok := c.last[key]; ok {
+		return false
+	}
+
+	c.last[key] = now
+
+	return true
+}
+
 // PushDispatcher sends Web Push notifications triggered by session events.
 // A bounded pool of pushWorkerCount goroutines drains the queue so slow push
 // endpoints never block the daemon's event pump.
 type PushDispatcher struct {
-	mu       sync.Mutex
 	vapid    *vapidKeyPair
 	store    *subscriptionStore
 	queue    chan pushJob
-	coalesce map[string]time.Time // key: "sid:kind"
+	coalesce *pushCoalescer // key: "sid:kind"
 	logger   *logfx.Logger
+
+	// workers tracks the sender goroutines; wait blocks on it.
+	workers sync.WaitGroup
 }
 
 // newPushDispatcher loads/generates VAPID keys, opens the subscription store,
-// and starts background worker goroutines. Goroutines run until ctx is done.
+// and starts background worker goroutines. Goroutines run until ctx is done;
+// wait returns once they have.
 func newPushDispatcher(ctx context.Context, dataDir string, logger *logfx.Logger) (*PushDispatcher, error) {
 	vapid, err := loadOrGenerateVAPIDKeys(dataDir)
 	if err != nil {
@@ -199,19 +284,25 @@ func newPushDispatcher(ctx context.Context, dataDir string, logger *logfx.Logger
 		return nil, fmt.Errorf("subscription store: %w", err)
 	}
 
-	pd := &PushDispatcher{
+	pd := &PushDispatcher{ //nolint:exhaustruct
 		vapid:    vapid,
 		store:    store,
 		queue:    make(chan pushJob, pushQueueCap),
-		coalesce: make(map[string]time.Time),
+		coalesce: newPushCoalescer(),
 		logger:   logger,
 	}
 
 	for range pushWorkerCount {
-		go pd.worker(ctx)
+		pd.workers.Go(func() { pd.worker(ctx) })
 	}
 
 	return pd, nil
+}
+
+// wait blocks until every sender goroutine has returned. They return once the
+// context given to newPushDispatcher has ended and any send in flight is done.
+func (pd *PushDispatcher) wait() {
+	pd.workers.Wait()
 }
 
 func (pd *PushDispatcher) worker(ctx context.Context) {
@@ -230,7 +321,12 @@ func (pd *PushDispatcher) worker(ctx context.Context) {
 }
 
 func (pd *PushDispatcher) sendOne(job pushJob) {
-	resp, err := webpush.SendNotificationWithContext(job.ctx, job.msg, &webpush.Subscription{
+	// Jobs are queued, so the originating request may be gone by now: keep its
+	// values but not its cancellation, and bound the send on its own.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(job.ctx), pushSendTimeout)
+	defer cancel()
+
+	resp, err := webpush.SendNotificationWithContext(ctx, job.msg, &webpush.Subscription{
 		Endpoint: job.sub.Endpoint,
 		Keys: webpush.Keys{
 			Auth:   job.sub.Keys.Auth,
@@ -243,7 +339,7 @@ func (pd *PushDispatcher) sendOne(job pushJob) {
 		TTL:             pushTTLSeconds,
 	})
 	if err != nil {
-		pd.logger.Warn("push: send failed",
+		pd.logger.WarnContext(ctx, "push: send failed",
 			"sub_id", job.sub.ID,
 			"err", err,
 		)
@@ -254,18 +350,26 @@ func (pd *PushDispatcher) sendOne(job pushJob) {
 
 	// 410 Gone or 404 → subscription expired; prune lazily.
 	if resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound {
-		_ = pd.store.remove(job.sub.ID)
-		pd.logger.Info("push: removed stale subscription", "id", job.sub.ID, "status", resp.StatusCode)
+		if err := pd.store.remove(job.sub.ID); err != nil {
+			pd.logger.WarnContext(ctx, "push: remove stale subscription", "id", job.sub.ID, "err", err)
+
+			return
+		}
+
+		pd.logger.InfoContext(ctx, "push: removed stale subscription", "id", job.sub.ID, "status", resp.StatusCode)
 	}
 }
 
 // MaybeTrigger inspects a worker event and fires push notifications when the
-// event qualifies and the coalesce window allows it.
+// event qualifies and the coalesce window allows it. ctx is the caller's
+// context, which the session pump gives as the server's lifetime context; the
+// queued notification carries its values (trace ids) but not its
+// cancellation, and each send has its own timeout.
 //
 // Triggers:
 //   - permission_request: push only when no WT client is currently attached.
 //   - query_error: always push.
-func (pd *PushDispatcher) MaybeTrigger(entry *SessionEntry, evt WorkerEvent) {
+func (pd *PushDispatcher) MaybeTrigger(ctx context.Context, entry *SessionEntry, evt WorkerEvent) {
 	var kind, summary string
 
 	switch evt.Type {
@@ -283,42 +387,39 @@ func (pd *PushDispatcher) MaybeTrigger(entry *SessionEntry, evt WorkerEvent) {
 		return
 	}
 
-	pd.Dispatch(context.Background(), entry.SID, entry.Slug, kind, summary)
+	pd.Dispatch(ctx, entry.SID, entry.Slug, kind, summary)
 }
 
 // Dispatch sends a push to all subscriptions matching sid, subject to coalescing
 // (max 1 push per (sid, kind) per minute).
 // Payload contains only non-sensitive metadata — no transcript content.
 func (pd *PushDispatcher) Dispatch(ctx context.Context, sid, slug, kind, summary string) {
-	coalKey := sid + ":" + kind
-
-	pd.mu.Lock()
-	if last, ok := pd.coalesce[coalKey]; ok && time.Since(last) < pushCoalescePeriod {
-		pd.mu.Unlock()
-
+	if !pd.coalesce.allow(sid+":"+kind, time.Now()) {
 		return
 	}
-
-	pd.coalesce[coalKey] = time.Now()
-	pd.mu.Unlock()
 
 	subs := pd.store.forSession(sid)
 	if len(subs) == 0 {
 		return
 	}
 
-	msg, _ := json.Marshal(map[string]string{
+	msg, err := json.Marshal(map[string]string{
 		"kind":        kind,
 		"sessionId":   sid,
 		"projectSlug": slug,
 		"summary":     summary,
 	})
+	if err != nil {
+		pd.logger.WarnContext(ctx, "push: encode notification", "sid", sid, "kind", kind, "err", err)
+
+		return
+	}
 
 	for _, sub := range subs {
 		select {
 		case pd.queue <- pushJob{ctx: ctx, sub: sub, msg: msg}:
 		default:
-			pd.logger.Warn("push: queue full, dropping notification", "sid", sid, "kind", kind)
+			pd.logger.WarnContext(ctx, "push: queue full, dropping notification", "sid", sid, "kind", kind)
 		}
 	}
 }
@@ -326,122 +427,4 @@ func (pd *PushDispatcher) Dispatch(ctx context.Context, sid, slug, kind, summary
 // VAPIDPublicKey returns the base64url-encoded public key for browser clients.
 func (pd *PushDispatcher) VAPIDPublicKey() string {
 	return pd.vapid.PublicKey
-}
-
-// ── Push REST handlers ────────────────────────────────────────────────────────
-
-type vapidKeyResponse struct {
-	PublicKey string `json:"publicKey"`
-}
-
-func (s *Server) handleVAPIDPublicKey(ctx *httpfx.Context) httpfx.Result {
-	if s.push == nil {
-		return ctx.Results.Error(http.StatusServiceUnavailable, httpfx.WithPlainText("push not configured"))
-	}
-
-	return ctx.Results.JSON(&vapidKeyResponse{PublicKey: s.push.VAPIDPublicKey()})
-}
-
-type subscribeRequest struct {
-	Endpoint       string   `json:"endpoint"`
-	Keys           pushKeys `json:"keys"`
-	SessionFilters []string `json:"sessionFilters,omitempty"`
-	AlertOnErrors  bool     `json:"alertOnErrors,omitempty"`
-}
-
-type subscribeResponse struct {
-	SubscriptionID string `json:"subscriptionId"`
-}
-
-func (s *Server) handleSubscribe(ctx *httpfx.Context) httpfx.Result {
-	if s.push == nil {
-		return ctx.Results.Error(http.StatusServiceUnavailable, httpfx.WithPlainText("push not configured"))
-	}
-
-	var req subscribeRequest
-	if err := ctx.ParseJSONBody(&req); err != nil {
-		return ctx.Results.BadRequest(httpfx.WithPlainText("invalid JSON body"))
-	}
-
-	if req.Endpoint == "" || req.Keys.Auth == "" || req.Keys.P256dh == "" {
-		return ctx.Results.BadRequest(httpfx.WithPlainText("endpoint, keys.auth, and keys.p256dh are required"))
-	}
-
-	sub := &pushSubscription{
-		ID:             newSessionID(),
-		Endpoint:       req.Endpoint,
-		Keys:           req.Keys,
-		SessionFilters: req.SessionFilters,
-		AlertOnErrors:  req.AlertOnErrors,
-		CreatedAt:      time.Now(),
-	}
-
-	if err := s.push.store.add(sub); err != nil {
-		return ctx.Results.Error(http.StatusInternalServerError, httpfx.WithSanitizedError(err))
-	}
-
-	return ctx.Results.JSON(&subscribeResponse{SubscriptionID: sub.ID})
-}
-
-func (s *Server) handleUnsubscribe(ctx *httpfx.Context) httpfx.Result {
-	if s.push == nil {
-		return ctx.Results.Error(http.StatusServiceUnavailable, httpfx.WithPlainText("push not configured"))
-	}
-
-	id := ctx.Request.PathValue("id")
-	if id == "" {
-		return ctx.Results.BadRequest(httpfx.WithPlainText("subscription id required"))
-	}
-
-	if err := s.push.store.remove(id); err != nil {
-		return ctx.Results.Error(http.StatusInternalServerError, httpfx.WithSanitizedError(err))
-	}
-
-	return ctx.Results.JSON(map[string]bool{"ok": true})
-}
-
-type testPushRequest struct {
-	SubscriptionID string `json:"subscriptionId"`
-}
-
-func (s *Server) handleTestPush(ctx *httpfx.Context) httpfx.Result {
-	if s.push == nil {
-		return ctx.Results.Error(http.StatusServiceUnavailable, httpfx.WithPlainText("push not configured"))
-	}
-
-	var req testPushRequest
-	if err := ctx.ParseJSONBody(&req); err != nil {
-		return ctx.Results.BadRequest(httpfx.WithPlainText("invalid JSON body"))
-	}
-
-	s.push.store.mu.Lock()
-
-	var target *pushSubscription
-
-	for _, sub := range s.push.store.subs {
-		if sub.ID == req.SubscriptionID {
-			target = sub
-
-			break
-		}
-	}
-
-	s.push.store.mu.Unlock()
-
-	if target == nil {
-		return ctx.Results.Error(http.StatusNotFound, httpfx.WithPlainText("subscription not found"))
-	}
-
-	msg, _ := json.Marshal(map[string]string{
-		"kind":    "test",
-		"summary": "Push notifications are working!",
-	})
-
-	select {
-	case s.push.queue <- pushJob{ctx: ctx.Request.Context(), sub: target, msg: msg}:
-	default:
-		return ctx.Results.Error(http.StatusServiceUnavailable, httpfx.WithPlainText("push queue full"))
-	}
-
-	return ctx.Results.JSON(map[string]bool{"ok": true})
 }

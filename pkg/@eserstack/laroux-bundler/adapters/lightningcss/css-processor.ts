@@ -6,9 +6,14 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import { buildErrors } from "../../types.ts";
-import { transform } from "lightningcss";
+import * as types from "../../types.ts";
+import * as lightningcss from "lightningcss";
 import type { CssPlugin } from "../../domain/css-plugin.ts";
+import * as cssProcessor from "../../domain/css-processor.ts";
+import type {
+  CssProcessor,
+  CssProcessorOptions,
+} from "../../domain/css-processor.ts";
 
 const cssLogger = logging.logger.getLogger(["laroux-bundler", "css"]);
 
@@ -56,26 +61,23 @@ export async function processCss(options: CssProcessOptions): Promise<void> {
   };
 
   try {
-    // Check if plugin should process this file
-    const shouldUsePlugin = plugin?.shouldProcess?.(cssContent, context) ??
-      !!plugin;
-
-    if (shouldUsePlugin && plugin?.compile) {
-      // Plugin handles compilation (e.g., Tailwind CLI does scanning + compilation + minification)
-      cssContent = await plugin.compile(cssContent, context);
-    } else {
-      // Fallback: Lightning CSS only (no framework-specific processing)
-      cssContent = await postProcessWithLightningCSS(cssContent, minify);
-    }
+    // The plugin compiles the file when it claims it (Tailwind does scanning,
+    // compilation and minification); otherwise Lightning CSS transforms it.
+    cssContent = await cssProcessor.compileStylesheet(cssContent, {
+      plugin: plugin ?? null,
+      processor: lightningCssProcessor,
+      context,
+      minify,
+    });
 
     // Write output
     await runtime.fs.writeTextFile(output, cssContent);
 
     cssLogger.debug(`✓ CSS processed successfully: ${output}`);
   } catch (error) {
+    // Not logged here: the caller that handles the error logs it once.
     const message = error instanceof Error ? error.message : String(error);
-    cssLogger.error(`CSS processing failed: ${message}`);
-    throw buildErrors.cssError(message);
+    throw types.buildErrors.cssError(`${input}: ${message}`, { cause: error });
   }
 }
 
@@ -90,12 +92,26 @@ export function postProcessWithLightningCSS(
   cssContent: string,
   minify: boolean,
 ): string {
+  return transformWithLightningCss(cssContent, {
+    filename: "styles.css",
+    minify,
+  });
+}
+
+/**
+ * Transform one stylesheet with Lightning CSS for Chrome 90, Firefox 88 and
+ * Safari 14. When Lightning CSS cannot parse it, the warning names the file
+ * and the stylesheet is returned unchanged.
+ */
+function transformWithLightningCss(
+  cssContent: string,
+  options: CssProcessorOptions,
+): string {
   try {
-    // Process with Lightning CSS
-    const result = transform({
-      filename: "styles.css",
+    const result = lightningcss.transform({
+      filename: options.filename,
       code: new TextEncoder().encode(cssContent),
-      minify,
+      minify: options.minify,
       targets: {
         chrome: 90 << 16, // Chrome 90+
         firefox: 88 << 16, // Firefox 88+
@@ -106,12 +122,20 @@ export function postProcessWithLightningCSS(
 
     return new TextDecoder().decode(result.code);
   } catch (error) {
-    cssLogger.warn(
-      `Lightning CSS post-processing failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+    cssLogger.with({ error }).warn(
+      `Lightning CSS could not transform ${options.filename}, keeping it unchanged`,
     );
-    // Return original on error
     return cssContent;
   }
 }
+
+/**
+ * CSS processor that transforms stylesheets with Lightning CSS: nesting and
+ * other modern syntax lowered for Chrome 90, Firefox 88 and Safari 14, and
+ * minification when asked. Pass it to the build as `cssProcessor`.
+ */
+export const lightningCssProcessor: CssProcessor = {
+  name: "lightningcss",
+  process: (css: string, options: CssProcessorOptions): string =>
+    transformWithLightningCss(css, options),
+};

@@ -192,6 +192,24 @@ Initiates a new scope. Each new scope inherits all services from the root scope
 per scope. When a scope is closed (or disposed), all its scoped services lose
 their references as if they were never instantiated.
 
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- The `default` export (the global `di` factory) is removed from the package
+  root and from `@eserstack/di/services`. Use the namespace import:
+
+  ```typescript
+  // Before
+  import di from "@eserstack/di";
+  // After
+  import * as di from "@eserstack/di";
+
+  const db = di.di`dbConnection`;
+  ```
+
 ---
 
 🔗 For further details, visit the

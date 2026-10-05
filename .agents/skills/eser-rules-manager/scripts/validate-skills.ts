@@ -17,15 +17,13 @@
  * @module
  */
 
-import {
-  existsSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import process from "node:process";
+// The script runs on a bare `node` with built-ins only, so it imports `node:`
+// modules and prints its report straight to the terminal.
+// deno-lint-ignore-file no-external-import no-console
+
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as process from "node:process";
 
 const MAX_SKILL_LINES = 80;
 const MAX_DESCRIPTION = 1024;
@@ -51,7 +49,7 @@ const ALLOWED_KEYS = new Set([
 
 type Finding = { skill: string; level: "error" | "warning"; message: string };
 
-const skillsRoot = resolve(import.meta.dirname ?? ".", "../..");
+const skillsRoot = path.resolve(import.meta.dirname ?? ".", "../..");
 
 /** Headings of the given levels outside fenced code blocks, in order. */
 const headingsAt = (text: string, prefix: RegExp): string[] => {
@@ -108,9 +106,9 @@ const contentsMatches = (text: string): boolean => {
 };
 
 const referenceFiles = (dir: string): string[] => {
-  const refs = join(dir, "references");
-  if (!existsSync(refs)) return [];
-  return readdirSync(refs).filter((f) => f.endsWith(".md")).sort();
+  const refs = path.join(dir, "references");
+  if (!fs.existsSync(refs)) return [];
+  return fs.readdirSync(refs).filter((f) => f.endsWith(".md")).sort();
 };
 
 const parseFrontmatter = (
@@ -128,19 +126,19 @@ const parseFrontmatter = (
 };
 
 const validateSkill = (dir: string): Finding[] => {
-  const skill = basename(dir);
+  const skill = path.basename(dir);
   const findings: Finding[] = [];
   const error = (message: string) =>
     findings.push({ skill, level: "error", message });
   const warn = (message: string) =>
     findings.push({ skill, level: "warning", message });
 
-  const skillFile = join(dir, "SKILL.md");
-  if (!existsSync(skillFile)) {
+  const skillFile = path.join(dir, "SKILL.md");
+  if (!fs.existsSync(skillFile)) {
     error("SKILL.md not found");
     return findings;
   }
-  const text = readFileSync(skillFile, "utf8");
+  const text = fs.readFileSync(skillFile, "utf8");
 
   const fm = parseFrontmatter(text);
   if (fm === null) {
@@ -218,9 +216,34 @@ const validateSkill = (dir: string): Finding[] => {
 
   for (const [, target] of text.matchAll(/\]\(([^)#\s]+)\)/g)) {
     if (/^[a-z]+:/.test(target!)) continue;
-    if (!existsSync(join(dir, target!))) {
+    if (!fs.existsSync(path.join(dir, target!))) {
       error(`SKILL.md links to ${target}, which does not exist`);
     }
+  }
+
+  // Skills are installed into many codebases and read as the conventions of
+  // whichever one they are in, so "this codebase" is the intended voice. What
+  // must not appear is framing the skill as one specific repository's rules
+  // (skill-format.md: Reference Files).
+  const projectBound =
+    /\b(for eserstack|in eserstack|eserstack's|eserstack (repository|repo|monorepo))\b/i;
+  for (
+    const file of [
+      "SKILL.md",
+      ...referenceFiles(dir).map((f) => `references/${f}`),
+    ]
+  ) {
+    const body = fs.readFileSync(path.join(dir, file), "utf8");
+    body.split("\n").forEach((line, index) => {
+      // Quoted text names the phrase rather than using it.
+      if (projectBound.test(line.replace(/"[^"]*"/g, ""))) {
+        warn(
+          `${file}:${index + 1} frames the skill as eserstack's own rules ("${
+            line.trim().slice(0, 60)
+          }"); state the convention for this codebase and point to AGENTS.md for facts`,
+        );
+      }
+    });
   }
 
   for (const file of referenceFiles(dir)) {
@@ -230,7 +253,7 @@ const validateSkill = (dir: string): Finding[] => {
         `${ref} is not linked from SKILL.md; link every reference file directly`,
       );
     }
-    const body = readFileSync(join(dir, ref), "utf8");
+    const body = fs.readFileSync(path.join(dir, ref), "utf8");
     const refLines = lineCount(body);
     if (refLines > TOC_THRESHOLD && !contentsMatches(body)) {
       error(
@@ -260,22 +283,22 @@ const validateCrossReferences = (dirs: readonly string[]): Finding[] => {
       ...referenceFiles(dir).map((f) => `references/${f}`),
     ];
     headingsBySkill.set(
-      basename(dir),
+      path.basename(dir),
       files.flatMap((f) =>
-        headingsAt(readFileSync(join(dir, f), "utf8"), /^#{2,4} /)
+        headingsAt(fs.readFileSync(path.join(dir, f), "utf8"), /^#{2,4} /)
       ),
     );
   }
   const names = [...headingsBySkill.keys()].join("|");
   const pointer = new RegExp(`\\b(${names}): ([A-Za-z\`][^\\n]*)`, "g");
   for (const dir of dirs) {
-    const skill = basename(dir);
+    const skill = path.basename(dir);
     const files = [
       "SKILL.md",
       ...referenceFiles(dir).map((f) => `references/${f}`),
     ];
     for (const file of files) {
-      const text = readFileSync(join(dir, file), "utf8").replace(
+      const text = fs.readFileSync(path.join(dir, file), "utf8").replace(
         /[ \t]*\n(?!\n)[ \t]*/g,
         " ",
       );
@@ -299,11 +322,11 @@ const validateCrossReferences = (dirs: readonly string[]): Finding[] => {
 const fixContents = (dirs: readonly string[]): void => {
   for (const dir of dirs) {
     for (const file of referenceFiles(dir)) {
-      const path = join(dir, "references", file);
-      const text = readFileSync(path, "utf8");
+      const filePath = path.join(dir, "references", file);
+      const text = fs.readFileSync(filePath, "utf8");
       if (lineCount(text) <= TOC_THRESHOLD || contentsMatches(text)) continue;
-      writeFileSync(path, withContents(text));
-      console.log(`updated contents: ${basename(dir)}/references/${file}`);
+      fs.writeFileSync(filePath, withContents(text));
+      console.log(`updated contents: ${path.basename(dir)}/references/${file}`);
     }
   }
 };
@@ -311,15 +334,15 @@ const fixContents = (dirs: readonly string[]): void => {
 /** Every skill must appear in both eser-rules-manager tables. */
 const validateInventory = (skills: readonly string[]): Finding[] => {
   const findings: Finding[] = [];
-  const manager = join(skillsRoot, "eser-rules-manager");
+  const manager = path.join(skillsRoot, "eser-rules-manager");
   const tables: Array<[string, string]> = [
     ["SKILL.md", "Available Skills table"],
     ["references/skill-discovery.md", "Skill Trigger Keywords table"],
   ];
   for (const [file, label] of tables) {
-    const path = join(manager, file);
-    if (!existsSync(path)) continue;
-    const text = readFileSync(path, "utf8");
+    const tablePath = path.join(manager, file);
+    if (!fs.existsSync(tablePath)) continue;
+    const text = fs.readFileSync(tablePath, "utf8");
     for (const skill of skills) {
       if (skill === "eser-rules-manager") continue;
       if (!text.includes(`| \`${skill}\``)) {
@@ -338,16 +361,16 @@ const main = (): number => {
   const fix = process.argv.includes("--fix");
   const args = process.argv.slice(2).filter((a) => a !== "--fix");
   const dirs = args.length > 0
-    ? args.map((a) => resolve(a))
-    : readdirSync(skillsRoot)
-      .map((d) => join(skillsRoot, d))
-      .filter((d) => statSync(d).isDirectory());
+    ? args.map((a) => path.resolve(a))
+    : fs.readdirSync(skillsRoot)
+      .map((d) => path.join(skillsRoot, d))
+      .filter((d) => fs.statSync(d).isDirectory());
 
   if (fix) fixContents(dirs);
 
   const findings = dirs.flatMap(validateSkill);
   if (args.length === 0) {
-    findings.push(...validateInventory(dirs.map((d) => basename(d))));
+    findings.push(...validateInventory(dirs.map((d) => path.basename(d))));
     findings.push(...validateCrossReferences(dirs));
   }
 
@@ -358,7 +381,7 @@ const main = (): number => {
   const warnings = findings.length - errors;
   console.log(
     `${dirs.length} skill(s) checked in ${
-      args.length > 0 ? dirname(dirs[0]!) : skillsRoot
+      args.length > 0 ? path.dirname(dirs[0]!) : skillsRoot
     }: ${errors} error(s), ${warnings} warning(s)`,
   );
   return errors > 0 ? 1 : 0;

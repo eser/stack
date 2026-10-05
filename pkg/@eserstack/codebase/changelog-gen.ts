@@ -32,10 +32,8 @@ import * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
 import type * as git from "./git.ts";
-import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
-import { requireLib } from "./ffi-client.ts";
-
-const { ctx, output: out } = createCliContext();
+import * as cliSupport from "./cli-support.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 // =============================================================================
 // Types
@@ -367,7 +365,7 @@ export const insertIntoChangelog = (
 export const generateChangelog = async (
   options: GenerateChangelogOptions = {},
 ): Promise<GenerateChangelogResult> => {
-  const lib = await requireLib();
+  const lib = await ffiClient.requireLib();
   const raw = lib.symbols.EserAjanCodebaseGenerateChangelog(
     JSON.stringify({
       dir: options.root ?? ".",
@@ -407,6 +405,8 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   Error | functions.handler.AdaptError,
   shellArgs.CliResult<void>
 > = (result) => {
+  const { ctx } = cliSupport.getCliContext();
+
   if (primitives.results.isFail(result)) {
     const message = result.error instanceof Error
       ? result.error.message
@@ -447,13 +447,15 @@ export const main = async (
     (cliArgs ?? []) as string[],
     { boolean: ["dry-run"], alias: { n: "dry-run" } },
   );
-  const event = toCliEvent("changelog-gen", parsed);
+  const event = cliSupport.toCliEvent("changelog-gen", parsed);
   return await handleCli(event);
 };
 
 if (import.meta.main) {
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
-    out,
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

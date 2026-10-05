@@ -146,7 +146,7 @@ func (c *ClaudeCode) drain(
 		}
 
 		if event.Type == claudeEventResult {
-			outcome.reason = mapResultSubtype(event.Subtype)
+			outcome.reason = mapResult(&event)
 			outcome.sawResult = true
 		}
 
@@ -179,6 +179,10 @@ type claudeEvent struct {
 
 	// Result is the final answer on a result event.
 	Result string `json:"result"`
+
+	// StopReason is the model's stop reason for the last message, on a result
+	// event. It is empty when the CLI does not report one.
+	StopReason string `json:"stop_reason"`
 }
 
 type claudeContent struct {
@@ -189,12 +193,21 @@ type claudeContent struct {
 	Input json.RawMessage `json:"input"`
 }
 
-// mapResultSubtype translates the CLI's result subtype to an ACP stop reason.
+// claudeStopReasonRefusal is the stop reason the model reports when it
+// declines a request.
+const claudeStopReasonRefusal = "refusal"
+
+// mapResult translates the CLI's result event to an ACP stop reason.
 //
-// The vendor has no analogue for refusal or max_turn_requests, so anything
-// unrecognised maps to end_turn rather than being invented.
-func mapResultSubtype(subtype string) acpfx.StopReason {
-	switch subtype {
+// A refusal is read from stop_reason, because the CLI reports a declined
+// request as a successful turn. Everything else comes from the subtype, and
+// anything unrecognised maps to end_turn rather than being invented.
+func mapResult(event *claudeEvent) acpfx.StopReason {
+	if event.StopReason == claudeStopReasonRefusal {
+		return acpfx.StopReasonRefusal
+	}
+
+	switch event.Subtype {
 	case "success":
 		return acpfx.StopReasonEndTurn
 	case "error_max_turns":

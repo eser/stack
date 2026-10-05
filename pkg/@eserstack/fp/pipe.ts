@@ -6,9 +6,9 @@
  *
  * @example
  * ```ts
- * import { pipe } from "@eserstack/fp/pipe";
+ * import * as fp from "@eserstack/fp";
  *
- * const result = pipe(
+ * const result = fp.pipe(
  *   "Hello World",
  *   (s) => s.toLowerCase(),
  *   (s) => s.split(" "),
@@ -18,14 +18,18 @@
  * ```
  */
 export function pipe<A>(value: A): A;
+/** Pipes `value` through 1 function, left to right. */
 export function pipe<A, B>(value: A, fn1: (a: A) => B): B;
+/** Pipes `value` through 2 functions, left to right. */
 export function pipe<A, B, C>(value: A, fn1: (a: A) => B, fn2: (b: B) => C): C;
+/** Pipes `value` through 3 functions, left to right. */
 export function pipe<A, B, C, D>(
   value: A,
   fn1: (a: A) => B,
   fn2: (b: B) => C,
   fn3: (c: C) => D,
 ): D;
+/** Pipes `value` through 4 functions, left to right. */
 export function pipe<A, B, C, D, E>(
   value: A,
   fn1: (a: A) => B,
@@ -33,6 +37,7 @@ export function pipe<A, B, C, D, E>(
   fn3: (c: C) => D,
   fn4: (d: D) => E,
 ): E;
+/** Pipes `value` through 5 functions, left to right. */
 export function pipe<A, B, C, D, E, F>(
   value: A,
   fn1: (a: A) => B,
@@ -41,6 +46,7 @@ export function pipe<A, B, C, D, E, F>(
   fn4: (d: D) => E,
   fn5: (e: E) => F,
 ): F;
+/** Pipes `value` through 6 functions, left to right. */
 export function pipe<A, B, C, D, E, F, G>(
   value: A,
   fn1: (a: A) => B,
@@ -50,6 +56,7 @@ export function pipe<A, B, C, D, E, F, G>(
   fn5: (e: E) => F,
   fn6: (f: F) => G,
 ): G;
+/** Pipes `value` through 7 functions, left to right. */
 export function pipe<A, B, C, D, E, F, G, H>(
   value: A,
   fn1: (a: A) => B,
@@ -60,6 +67,7 @@ export function pipe<A, B, C, D, E, F, G, H>(
   fn6: (f: F) => G,
   fn7: (g: G) => H,
 ): H;
+/** Pipes `value` through 8 functions, left to right. */
 export function pipe<A, B, C, D, E, F, G, H, I>(
   value: A,
   fn1: (a: A) => B,
@@ -71,6 +79,7 @@ export function pipe<A, B, C, D, E, F, G, H, I>(
   fn7: (g: G) => H,
   fn8: (h: H) => I,
 ): I;
+/** Pipes `value` through 9 functions, left to right. */
 export function pipe<A, B, C, D, E, F, G, H, I, J>(
   value: A,
   fn1: (a: A) => B,
@@ -89,5 +98,3 @@ export function pipe(
 ): unknown {
   return fns.reduce((acc, fn) => fn(acc), value);
 }
-
-export { pipe as default };

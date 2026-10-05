@@ -1,5 +1,25 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+/**
+ * Functions for transforming arrays and objects and for composing functions.
+ * The array and object functions return new values and leave their inputs
+ * unchanged.
+ *
+ * @example
+ * ```typescript
+ * import * as fp from "@eserstack/fp";
+ *
+ * const pages = fp.chunk([1, 2, 3, 4, 5], 2); // [[1, 2], [3, 4], [5]]
+ * const slug = fp.pipe(
+ *   "Hello World",
+ *   (s) => s.toLowerCase(),
+ *   (s) => s.split(" ").join("-"),
+ * ); // "hello-world"
+ * ```
+ *
+ * @module
+ */
+
 export { appendToArray } from "./append-to-array.ts";
 export { appendToObject } from "./append-to-object.ts";
 export { associateArray } from "./associate-array.ts";

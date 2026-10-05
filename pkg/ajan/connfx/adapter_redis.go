@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -1295,9 +1296,9 @@ func (f *RedisConnectionFactory) configureAddress(redisConfig *RedisConfig, conf
 		}
 	} else {
 		// Build address from host and port
-		redisConfig.Address = fmt.Sprintf("%s:%d",
+		redisConfig.Address = net.JoinHostPort(
 			getOrDefault(config.Host, "localhost"),
-			getOrDefault(config.Port, defaultRedisPort))
+			strconv.Itoa(getOrDefault(config.Port, defaultRedisPort)))
 	}
 }
 
@@ -1333,7 +1334,7 @@ func (f *RedisConnectionFactory) parseRedisURL(redisConfig *RedisConfig, parsedU
 		port = strconv.Itoa(defaultRedisPort)
 	}
 
-	redisConfig.Address = fmt.Sprintf("%s:%s", host, port)
+	redisConfig.Address = net.JoinHostPort(host, port)
 
 	// Configure TLS based on scheme
 	if parsedURL.Scheme == "rediss" {

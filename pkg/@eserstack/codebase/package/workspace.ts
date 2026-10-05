@@ -2,7 +2,7 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type { PackageConfig, WorkspaceModule } from "./types.ts";
-import { getBaseDir, load, PackageLoadError, tryLoad } from "./loader.ts";
+import * as loader from "./loader.ts";
 
 /**
  * Error thrown when workspace configuration is invalid.
@@ -26,9 +26,9 @@ export const loadPackageConfig = async (
   path: string,
 ): Promise<PackageConfig> => {
   try {
-    return await load({ baseDir: path });
+    return await loader.load({ baseDir: path });
   } catch (e) {
-    if (e instanceof PackageLoadError) {
+    if (e instanceof loader.PackageLoadError) {
       throw new WorkspaceError(
         `No package config file found in ${runtime.path.resolve(path)}`,
       );
@@ -143,7 +143,10 @@ export const getWorkspaceModules = async (
 
   const result: WorkspaceModule[] = [];
   for (const workspacePath of workspacePaths) {
-    const workspaceConfig = await tryLoad({ baseDir: workspacePath });
+    // Packages load one at a time to bound open file handles in a large
+    // workspace.
+    // deno-lint-ignore no-await-in-loop
+    const workspaceConfig = await loader.tryLoad({ baseDir: workspacePath });
 
     if (workspaceConfig === undefined) {
       continue;
@@ -190,4 +193,4 @@ export const getModule = (
 };
 
 // Re-export getBaseDir for convenience
-export { getBaseDir };
+export { getBaseDir } from "./loader.ts";

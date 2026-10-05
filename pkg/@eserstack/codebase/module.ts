@@ -6,9 +6,13 @@
  * @module
  */
 
-import { Module } from "@eserstack/shell/module";
+import * as module from "@eserstack/shell/module";
 
-export const moduleDef: Module = new Module({
+/** The command module type, `Module` from `@eserstack/shell/module`. */
+export type Module = module.Module;
+
+/** The `codebase` command group: git hooks, GitHub, release, validators. */
+export const moduleDef: Module = new module.Module({
   description: "Codebase management tools",
   modules: {
     // Setup
@@ -183,7 +187,7 @@ export const moduleDef: Module = new Module({
       load: () => import("./validate-licenses.ts"),
     },
     "validate-mod-exports": {
-      description: "Validate mod.ts export coverage",
+      description: "Detect modules no package entry point reaches",
       category: "Validation",
       load: () => import("./validate-mod-exports.ts"),
     },
@@ -209,9 +213,15 @@ export const moduleDef: Module = new Module({
       category: "Validation",
       load: () => import("./validate-self-imports.ts"),
     },
+    "validate-runtime-js-apis": {
+      description:
+        "Detect direct Deno, Node.js process and Bun API usage beyond the recorded baseline",
+      category: "Validation",
+      load: () => import("./validate-runtime-js-apis.ts"),
+    },
     "validate-code-conventions": {
       description:
-        "Detect non-namespace imports and `||` defaults beyond the recorded baseline",
+        "Detect non-namespace imports, `||` defaults and `export *` beyond the recorded baseline",
       category: "Validation",
       load: () => import("./validate-code-conventions.ts"),
     },

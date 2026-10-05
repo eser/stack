@@ -196,8 +196,27 @@ func normalizeStateShape(state StateFile) StateFile { //nolint:gocritic // hugeP
 // Manifest I/O (.eser/manifest.yml)
 // =============================================================================
 
-// ReadManifest reads and parses the YAML manifest. Returns ErrManifestNotFound
-// when the file does not exist (caller should call ScaffoldEserDir first).
+// manifestSectionKey is the top-level key of .eser/manifest.yml that holds the
+// noskills config, as readManifest and writeManifest in persistence.ts use it.
+// The rest of the file belongs to other tools (`stack:`, `workflows:`,
+// `scripts:`).
+const manifestSectionKey = "noskills"
+
+// manifestDocument is the part of .eser/manifest.yml that ReadManifest reads.
+// The yaml tag repeats manifestSectionKey because a tag cannot name a constant.
+type manifestDocument struct {
+	Noskills *NosManifest `yaml:"noskills"`
+}
+
+// ReadManifest reads the noskills section of the YAML manifest. Returns
+// ErrManifestNotFound when the file does not exist (caller should call
+// ScaffoldEserDir first).
+//
+// Earlier versions of this package wrote the noskills keys at the top level of
+// the file, where the TypeScript CLI never looked. A manifest without a
+// `noskills:` section is therefore read the old way, so those projects keep
+// their config; the next WriteManifest copies it into the section, which wins
+// from then on.
 func ReadManifest(root string) (NosManifest, error) {
 	p := NewPaths(root)
 	data, err := os.ReadFile(p.ManifestFile)
@@ -210,15 +229,29 @@ func ReadManifest(root string) (NosManifest, error) {
 		return NosManifest{}, fmt.Errorf("readManifest: %w", err)
 	}
 
-	var manifest NosManifest
-	if err := yaml.Unmarshal(data, &manifest); err != nil {
+	var document manifestDocument
+	if err := yaml.Unmarshal(data, &document); err != nil {
 		return NosManifest{}, fmt.Errorf("readManifest: parse: %w", err)
 	}
 
-	return manifest, nil
+	if document.Noskills != nil {
+		return *document.Noskills, nil
+	}
+
+	var legacy NosManifest
+	if err := yaml.Unmarshal(data, &legacy); err != nil {
+		return NosManifest{}, fmt.Errorf("readManifest: parse top-level keys: %w", err)
+	}
+
+	return legacy, nil
 }
 
-// WriteManifest updates the noskills-owned keys of the manifest in place.
+// WriteManifest updates the keys of the manifest's `noskills:` section in
+// place, creating the section when it is missing. Keys of the section that
+// NosManifest does not model are kept, and so is everything outside it.
+// Top-level keys an earlier version of this package wrote are left alone:
+// ReadManifest prefers the section, and deleting top-level keys could remove
+// another tool's.
 //
 // It used to marshal NosManifest and write the result as the ENTIRE file. That
 // struct models only the noskills keys, while .eser/manifest.yml also carries
@@ -248,9 +281,14 @@ func WriteManifest(root string, manifest NosManifest) error { //nolint:gocritic 
 		return err
 	}
 
-	mapping := document.Content[0]
+	section := mappingValue(document.Content[0], manifestSectionKey)
+	if section == nil || section.Kind != yaml.MappingNode {
+		section = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"} //nolint:exhaustruct // an empty mapping node needs only kind and tag
+		setMappingValue(document.Content[0], manifestSectionKey, section)
+	}
+
 	for i := 0; i+1 < len(managed.Content); i += 2 {
-		setMappingValue(mapping, managed.Content[i].Value, managed.Content[i+1])
+		setMappingValue(section, managed.Content[i].Value, managed.Content[i+1])
 	}
 
 	data, err := yaml.Marshal(document)
@@ -298,6 +336,18 @@ func emptyMappingDocument() *yaml.Node {
 			{Kind: yaml.MappingNode, Tag: "!!map"}, //nolint:exhaustruct
 		},
 	}
+}
+
+// mappingValue returns key's value in a mapping node, or nil when the key is
+// absent. Mapping content is a flat alternating key/value list.
+func mappingValue(mapping *yaml.Node, key string) *yaml.Node {
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		if mapping.Content[i].Value == key {
+			return mapping.Content[i+1]
+		}
+	}
+
+	return nil
 }
 
 // setMappingValue replaces key's value in a mapping node, appending the pair
@@ -369,13 +419,11 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 
 // IsInitialized reports whether .eser/manifest.yml exists.
 //
-// It does NOT inspect the contents, despite what this comment used to claim
-// ("has a non-nil noskills section, matches isInitialized() in TS"). The two
-// implementations also disagree on where the noskills keys live: the TS writer
-// nests them under a `noskills:` key, while ReadManifest/WriteManifest here read
-// and write them at the document's top level, so neither sees what the other
-// wrote. That divergence is tracked in TODOS.md under the duplicated-domain
-// entry and is not something this function can paper over.
+// It does not inspect the contents, unlike isInitialized() in TS, which also
+// requires a `noskills:` section. A manifest an earlier version of this package
+// wrote keeps its keys at the top level (see ReadManifest); requiring the
+// section would make callers that initialize on a false result overwrite that
+// config with defaults.
 func IsInitialized(root string) bool {
 	p := NewPaths(root)
 	_, err := os.Stat(p.ManifestFile)

@@ -82,40 +82,62 @@ class WebTransportClientImpl implements IWebTransportClient {
   ): Promise<IWebTransportSession> {
     const url = this.#resolveUrl(urlOrPath);
     const options = this.#buildOptions();
+    const newTransport = this.#config._newTransport;
 
-    const wt = this.#config._newTransport
-      ? this.#config._newTransport(url, options)
-      : new WebTransport(url, options);
+    const wt = newTransport !== undefined
+      ? newTransport(url, options)
+      : new globalThis.WebTransport(url, options);
 
-    if (this.#config.dialTimeout && this.#config.dialTimeout > 0) {
-      const timeout = this.#config.dialTimeout;
-
-      await Promise.race([
-        wt.ready,
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () =>
-              reject(new Error(`WebTransport dial timeout after ${timeout}ms`)),
-            timeout,
-          )
-        ),
-      ]);
-    } else {
-      await wt.ready;
-    }
+    await this.#waitUntilReady(wt);
 
     return new WebTransportSessionImpl(wt);
   }
 
+  async #waitUntilReady(wt: WebTransport): Promise<void> {
+    const timeout = this.#config.dialTimeout ?? 0;
+
+    if (timeout <= 0) {
+      await wt.ready;
+      return;
+    }
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<"timeout">((resolve) => {
+      timer = setTimeout(() => resolve("timeout"), timeout);
+    });
+
+    try {
+      const outcome = await Promise.race([
+        wt.ready.then(() => "ready" as const),
+        timedOut,
+      ]);
+
+      if (outcome === "timeout") {
+        // Abandon the attempt so a late handshake does not leave an open
+        // session nobody holds.
+        wt.close();
+        // The URL is left out: it can carry the session token as a query
+        // parameter.
+        throw new Error(
+          `WebTransport dial timed out after ${timeout} ms; check that the server is reachable, or raise dialTimeout`,
+        );
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   #resolveUrl(urlOrPath: string): string {
+    const baseUrl = this.#config.baseUrl;
+
     if (
-      !this.#config.baseUrl || urlOrPath.startsWith("https://") ||
-      urlOrPath.startsWith("http://")
+      baseUrl === undefined || baseUrl === "" ||
+      urlOrPath.startsWith("https://") || urlOrPath.startsWith("http://")
     ) {
       return urlOrPath;
     }
 
-    const base = this.#config.baseUrl.replace(/\/$/, "");
+    const base = baseUrl.replace(/\/$/, "");
     const path = urlOrPath.startsWith("/") ? urlOrPath : `/${urlOrPath}`;
 
     return `${base}${path}`;
@@ -123,9 +145,10 @@ class WebTransportClientImpl implements IWebTransportClient {
 
   #buildOptions(): WebTransportOptions {
     const opts: WebTransportOptions = {};
+    const certHashes = this.#config.certHashes;
 
-    if (this.#config.certHashes && this.#config.certHashes.length > 0) {
-      opts.serverCertificateHashes = this.#config.certHashes.map((hash) => ({
+    if (certHashes !== undefined && certHashes.length > 0) {
+      opts.serverCertificateHashes = certHashes.map((hash) => ({
         algorithm: "sha-256",
         value: hash,
       }));

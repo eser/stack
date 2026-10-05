@@ -1,15 +1,15 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals, assertExists } from "@std/assert";
+import * as assert from "@std/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { createImportMapResolverPlugin } from "./import-map-resolver-plugin.ts";
+import * as importMapResolverPlugin from "./import-map-resolver-plugin.ts";
 import type { ImportMap } from "./domain/import-map.ts";
 
 Deno.test("import-map-resolver-plugin", async (t) => {
   await t.step(
     "createImportMapResolverPlugin - creates plugin with name",
     () => {
-      const plugin = createImportMapResolverPlugin({
+      const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
         projectRoot: "/tmp",
         browserShims: {
           jsr: {},
@@ -17,9 +17,9 @@ Deno.test("import-map-resolver-plugin", async (t) => {
         },
       });
 
-      assertExists(plugin);
-      assertEquals(plugin.name, "import-map-resolver");
-      assertEquals(typeof plugin.setup, "function");
+      assert.assertExists(plugin);
+      assert.assertEquals(plugin.name, "import-map-resolver");
+      assert.assertEquals(typeof plugin.setup, "function");
     },
   );
 
@@ -43,19 +43,19 @@ Deno.test("import-map-resolver-plugin", async (t) => {
         hasPackageJson: false,
       };
 
-      const plugin = createImportMapResolverPlugin({
+      const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
         projectRoot: "/tmp",
         browserShims: { jsr: {}, nodeBuiltins: {} },
         importMap,
       });
 
-      assertExists(plugin);
-      assertEquals(plugin.name, "import-map-resolver");
+      assert.assertExists(plugin);
+      assert.assertEquals(plugin.name, "import-map-resolver");
     },
   );
 
   await t.step("createImportMapResolverPlugin - accepts browser shims", () => {
-    const plugin = createImportMapResolverPlugin({
+    const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
       projectRoot: "/tmp",
       browserShims: {
         jsr: {
@@ -69,22 +69,22 @@ Deno.test("import-map-resolver-plugin", async (t) => {
       },
     });
 
-    assertExists(plugin);
-    assertEquals(plugin.name, "import-map-resolver");
+    assert.assertExists(plugin);
+    assert.assertEquals(plugin.name, "import-map-resolver");
   });
 
   await t.step("createImportMapResolverPlugin - accepts custom cache", () => {
     const cache = new Map<string, string>();
     cache.set("react", "external");
 
-    const plugin = createImportMapResolverPlugin({
+    const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
       projectRoot: "/tmp",
       browserShims: { jsr: {}, nodeBuiltins: {} },
       cache,
     });
 
-    assertExists(plugin);
-    assertEquals(plugin.name, "import-map-resolver");
+    assert.assertExists(plugin);
+    assert.assertEquals(plugin.name, "import-map-resolver");
   });
 
   await t.step(
@@ -106,12 +106,12 @@ Deno.test("import-map-resolver-plugin", async (t) => {
         JSON.stringify(denoJson, null, 2),
       );
 
-      const plugin = createImportMapResolverPlugin({
+      const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
         projectRoot: tempDir,
         browserShims: { jsr: {}, nodeBuiltins: {} },
       });
 
-      assertExists(plugin);
+      assert.assertExists(plugin);
 
       // Cleanup
       await runtime.fs.remove(tempDir, { recursive: true });
@@ -148,7 +148,7 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
   });
 
   await t.step("plugin setup loads import map automatically", () => {
-    const plugin = createImportMapResolverPlugin({
+    const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
       projectRoot: tempDir,
       browserShims: { jsr: {}, nodeBuiltins: {} },
     });
@@ -156,12 +156,12 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
     // The plugin's setup function would load the import map
     // We can't easily test the full resolution flow without a mock build context,
     // but we can verify the plugin is created correctly
-    assertExists(plugin.setup);
-    assertEquals(typeof plugin.setup, "function");
+    assert.assertExists(plugin.setup);
+    assert.assertEquals(typeof plugin.setup, "function");
   });
 
   await t.step("plugin with browser shims for JSR packages", () => {
-    const plugin = createImportMapResolverPlugin({
+    const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
       projectRoot: tempDir,
       browserShims: {
         jsr: {
@@ -172,13 +172,13 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
       },
     });
 
-    assertExists(plugin);
+    assert.assertExists(plugin);
     // The plugin should use the browser shim when resolving @eserstack/logging
     // Actual resolution testing would require mocking the build context
   });
 
   await t.step("plugin with node builtin shims", () => {
-    const plugin = createImportMapResolverPlugin({
+    const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
       projectRoot: tempDir,
       browserShims: {
         jsr: {},
@@ -189,7 +189,7 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
       },
     });
 
-    assertExists(plugin);
+    assert.assertExists(plugin);
   });
 
   // Cleanup

@@ -7,10 +7,12 @@
  * @module
  */
 
-// FIXME(@eser) since we don't have process.argv0 and process.argv equivalents in Deno,
-//              we're going to use them from nodecompat.
-import nodeProcess from "node:process";
-
+// node:process (for argv and argv0) is imported here rather than through
+// deps.ts: the other built-ins there make every Deno program that imports
+// cross-runtime start about 6 ms slower (49 ms against 43 ms for deno run of
+// such a script, mean of 80 runs each).
+// deno-lint-ignore no-external-import
+import * as nodeProcess from "node:process";
 import * as denoPath from "@std/path";
 import type {
   ChildProcess,
@@ -19,6 +21,8 @@ import type {
   FileOptions,
   FsEvent,
   FsWatcher,
+  HttpHandler,
+  HttpServer,
   MakeTempOptions,
   MkdirOptions,
   ParsedPath,
@@ -30,16 +34,20 @@ import type {
   RuntimeEnv,
   RuntimeExec,
   RuntimeFs,
+  RuntimeHttp,
   RuntimePath,
   RuntimeProcess,
+  ServeOptions,
+  SignalName,
   SpawnOptions,
   WalkEntry,
   WalkOptions,
   WatchOptions,
+  WebSocketUpgrade,
   WriteFileOptions,
 } from "../types.ts";
-import { NotFoundError, ProcessError } from "../types.ts";
-import { getStdioModes } from "./shared.ts";
+import * as types from "../types.ts";
+import * as shared from "./shared.ts";
 
 /**
  * Deno capabilities - full capabilities plus KV.
@@ -52,6 +60,7 @@ export const DENO_CAPABILITIES: RuntimeCapabilities = {
   env: true,
   stdin: true,
   stdout: true,
+  http: true,
   kv: true,
 } as const;
 
@@ -80,7 +89,7 @@ const createDenoFs = (): RuntimeFs => {
         return await Deno.readFile(path, { signal: options?.signal });
       } catch (error) {
         if (error instanceof Deno.errors.NotFound) {
-          throw new NotFoundError(path);
+          throw new types.NotFoundError(path);
         }
         throw error;
       }
@@ -91,7 +100,7 @@ const createDenoFs = (): RuntimeFs => {
         return await Deno.readTextFile(path, { signal: options?.signal });
       } catch (error) {
         if (error instanceof Deno.errors.NotFound) {
-          throw new NotFoundError(path);
+          throw new types.NotFoundError(path);
         }
         throw error;
       }
@@ -141,7 +150,7 @@ const createDenoFs = (): RuntimeFs => {
         return mapFileInfo(info);
       } catch (error) {
         if (error instanceof Deno.errors.NotFound) {
-          throw new NotFoundError(path);
+          throw new types.NotFoundError(path);
         }
         throw error;
       }
@@ -153,7 +162,7 @@ const createDenoFs = (): RuntimeFs => {
         return mapFileInfo(info);
       } catch (error) {
         if (error instanceof Deno.errors.NotFound) {
-          throw new NotFoundError(path);
+          throw new types.NotFoundError(path);
         }
         throw error;
       }
@@ -184,7 +193,7 @@ const createDenoFs = (): RuntimeFs => {
         });
       } catch (error) {
         if (error instanceof Deno.errors.NotFound) {
-          throw new NotFoundError(path);
+          throw new types.NotFoundError(path);
         }
         throw error;
       }
@@ -202,7 +211,7 @@ const createDenoFs = (): RuntimeFs => {
         }
       } catch (error) {
         if (error instanceof Deno.errors.NotFound) {
-          throw new NotFoundError(path);
+          throw new types.NotFoundError(path);
         }
         throw error;
       }
@@ -229,7 +238,7 @@ const createDenoFs = (): RuntimeFs => {
         return await Deno.realPath(path);
       } catch (error) {
         if (error instanceof Deno.errors.NotFound) {
-          throw new NotFoundError(path);
+          throw new types.NotFoundError(path);
         }
         throw error;
       }
@@ -292,7 +301,7 @@ const createDenoFs = (): RuntimeFs => {
               continue;
             }
             if (
-              exts &&
+              exts !== undefined &&
               !exts.some((ext) =>
                 entry.name.endsWith(ext.startsWith(".") ? ext : `.${ext}`)
               )
@@ -349,10 +358,10 @@ const createDenoExec = (): RuntimeExec => {
   return {
     async spawn(
       cmd: string,
-      args: string[] = [],
+      args?: string[],
       options?: SpawnOptions,
     ): Promise<ProcessOutput> {
-      const modes = getStdioModes(options);
+      const modes = shared.getStdioModes(options);
 
       const command = new Deno.Command(cmd, {
         args,
@@ -396,14 +405,14 @@ const createDenoExec = (): RuntimeExec => {
 
     async exec(
       cmd: string,
-      args: string[] = [],
+      args?: string[],
       options?: SpawnOptions,
     ): Promise<string> {
       const result = await this.spawn(cmd, args, options);
 
       if (!result.success) {
         const stderr = new TextDecoder().decode(result.stderr);
-        throw new ProcessError(cmd, result.code, stderr);
+        throw new types.ProcessError(cmd, result.code, stderr);
       }
 
       return new TextDecoder().decode(result.stdout).trim();
@@ -411,7 +420,7 @@ const createDenoExec = (): RuntimeExec => {
 
     async execJson<T = unknown>(
       cmd: string,
-      args: string[] = [],
+      args?: string[],
       options?: SpawnOptions,
     ): Promise<T> {
       const output = await this.exec(cmd, args, options);
@@ -420,10 +429,10 @@ const createDenoExec = (): RuntimeExec => {
 
     spawnChild(
       cmd: string,
-      args: string[] = [],
+      args?: string[],
       options?: SpawnOptions,
     ): ChildProcess {
-      const modes = getStdioModes(options);
+      const modes = shared.getStdioModes(options);
 
       const command = new Deno.Command(cmd, {
         args,
@@ -441,7 +450,7 @@ const createDenoExec = (): RuntimeExec => {
         stream: ReadableStream<Uint8Array> | null,
         mode: string,
       ): Promise<Uint8Array> => {
-        if (mode !== "piped" || !stream) {
+        if (mode !== "piped" || stream === null) {
           return Promise.resolve(new Uint8Array());
         }
         return new Response(stream).arrayBuffer().then((b) =>
@@ -542,6 +551,8 @@ const createDenoProcess = (): RuntimeProcess => {
       return Deno.execPath();
     },
 
+    // Deno exposes only Deno.args. Its Node compatibility layer fills argv and
+    // argv0 the way Node does, including the argv[0] the shell passed in.
     argv: nodeProcess.argv,
 
     argv0: nodeProcess.argv0,
@@ -549,6 +560,15 @@ const createDenoProcess = (): RuntimeProcess => {
     args: Deno.args,
 
     pid: Deno.pid,
+
+    addSignalListener(signal: SignalName, listener: () => void): void {
+      Deno.addSignalListener(signal, listener);
+    },
+
+    removeSignalListener(signal: SignalName, listener: () => void): void {
+      Deno.removeSignalListener(signal, listener);
+    },
+
     isAlive(pid: number): boolean {
       try {
         // SIGCONT on a running process is a no-op; what matters is that the
@@ -603,6 +623,49 @@ const createDenoProcess = (): RuntimeProcess => {
 };
 
 // =============================================================================
+// HTTP Adapter
+// =============================================================================
+
+const createDenoHttp = (): RuntimeHttp => ({
+  serve(options: ServeOptions, handler: HttpHandler): Promise<HttpServer> {
+    // Deno.serve binds before it returns and throws when it cannot; inside the
+    // executor that throw rejects the promise. An empty onListen keeps Deno
+    // from printing its "Listening on" line.
+    return new Promise((resolve) => {
+      const server = Deno.serve(
+        {
+          port: options.port,
+          hostname: options.hostname ?? shared.DEFAULT_SERVE_HOSTNAME,
+          signal: options.signal,
+          onListen: () => {},
+        },
+        shared.createSafeHandler(handler),
+      );
+
+      // Deno.serve stops on an abort, but not on a signal that was already
+      // aborted when it started.
+      if (options.signal?.aborted === true) {
+        server.shutdown().catch((error: unknown) => {
+          shared.reportServeError("stopping the server failed.", error);
+        });
+      }
+
+      resolve({
+        hostname: server.addr.hostname,
+        port: server.addr.port,
+        finished: server.finished,
+      });
+    });
+  },
+
+  upgradeWebSocket(request: Request): WebSocketUpgrade {
+    const { socket, response } = Deno.upgradeWebSocket(request);
+
+    return { socket, response };
+  },
+});
+
+// =============================================================================
 // Runtime Factory
 // =============================================================================
 
@@ -615,6 +678,7 @@ export const createDenoRuntime = (): Runtime => {
   const exec = createDenoExec();
   const env = createDenoEnv();
   const process = createDenoProcess();
+  const http = createDenoHttp();
 
   return {
     name: "deno",
@@ -625,5 +689,6 @@ export const createDenoRuntime = (): Runtime => {
     exec,
     env,
     process,
+    http,
   };
 };

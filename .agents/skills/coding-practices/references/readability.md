@@ -10,7 +10,7 @@ repeated here.
 - Comments
 - Don't Repeat Yourself
 - Magic Values
-- Explicit Checks (CRITICAL)
+- Explicit Checks
 - Exhaustive Branching
 - Identity Comparison
 - Early Returns
@@ -42,8 +42,9 @@ Scope: All languages
 Rule: Comments explain why: a trade-off, a constraint, a non-obvious algorithm.
 Every deliberate shortcut or exception (a lint ignore, a validator exclude, a
 hardcoded limit, a skipped case) carries a comment giving the reason and what
-would remove it. Do not commit commented-out code; git history keeps it. TODOs
-follow deno lint `ban-untagged-todo` (`TODO(owner): ...`).
+would remove it. Do not commit commented-out code; git history keeps it. A TODO
+names its backlog task, `TODO(TASK-12): ...` (workflow-practices: Complete,
+Honest Work); deno lint `ban-untagged-todo` rejects one without a tag.
 
 Correct:
 
@@ -93,7 +94,7 @@ status name, a path segment) is a named constant, and its unit is in the name
 
 ---
 
-## Explicit Checks (CRITICAL)
+## Explicit Checks
 
 Scope: TypeScript and JavaScript
 
@@ -370,10 +371,10 @@ code.
 
 Scope: Imports between TypeScript modules and packages
 
-Rule: Module imports form a graph without cycles. The `validate-circular-deps`
-validator in `@eserstack/codebase` detects them; it is not part of the precommit
-workflow, so run it after moving code between modules. Break a cycle by moving
-the shared part into a module both sides import.
+Rule: Module imports form a graph without cycles. Check for cycles with a tool
+(`eser codebase validate-circular-deps` from `@eserstack/codebase`) after moving
+code between modules, whether or not the precommit gate runs it. Break a cycle
+by moving the shared part into a module both sides import.
 
 **Why:** a cycle makes evaluation order decide which side sees `undefined`
 exports, and the failure depends on which module is imported first.

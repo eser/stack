@@ -8,12 +8,7 @@
  * @module
  */
 
-import * as nodeFsPromises from "node:fs/promises";
-import * as nodeFs from "node:fs";
-import * as nodePath from "node:path";
-import * as nodeOs from "node:os";
-import nodeProcess from "node:process";
-import { Readable, Writable } from "node:stream";
+import * as deps from "./deps.ts";
 import type {
   DirEntry,
   FileInfo,
@@ -28,18 +23,20 @@ import type {
   RuntimeFs,
   RuntimePath,
   RuntimeProcess,
+  SignalName,
   WalkEntry,
   WalkOptions,
   WatchOptions,
   WriteFileOptions,
 } from "../types.ts";
-import { NotFoundError } from "../types.ts";
+import * as types from "../types.ts";
+import * as webStreams from "./web-streams.ts";
 
 // =============================================================================
 // Filesystem Adapter
 // =============================================================================
 
-const mapStats = (stats: nodeFs.Stats): FileInfo => ({
+const mapStats = (stats: deps.fs.Stats): FileInfo => ({
   isFile: stats.isFile(),
   isDirectory: stats.isDirectory(),
   isSymlink: stats.isSymbolicLink(),
@@ -56,7 +53,7 @@ const handleFsError = (error: unknown, path: string): never => {
     "code" in error &&
     error.code === "ENOENT"
   ) {
-    throw new NotFoundError(path);
+    throw new types.NotFoundError(path);
   }
   throw error;
 };
@@ -68,7 +65,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
       options?: FileOptions,
     ): Promise<Uint8Array> {
       try {
-        const buffer = await nodeFsPromises.readFile(path, {
+        const buffer = await deps.fsPromises.readFile(path, {
           signal: options?.signal,
         });
         return new Uint8Array(buffer);
@@ -79,7 +76,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
 
     async readTextFile(path: string, options?: FileOptions): Promise<string> {
       try {
-        return await nodeFsPromises.readFile(path, {
+        return await deps.fsPromises.readFile(path, {
           encoding: "utf-8",
           signal: options?.signal,
         });
@@ -94,7 +91,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
       options?: WriteFileOptions,
     ): Promise<void> {
       const flag = options?.append ? "a" : "w";
-      await nodeFsPromises.writeFile(path, data, {
+      await deps.fsPromises.writeFile(path, data, {
         signal: options?.signal,
         mode: options?.mode,
         flag,
@@ -107,7 +104,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
       options?: WriteFileOptions,
     ): Promise<void> {
       const flag = options?.append ? "a" : "w";
-      await nodeFsPromises.writeFile(path, data, {
+      await deps.fsPromises.writeFile(path, data, {
         encoding: "utf-8",
         signal: options?.signal,
         mode: options?.mode,
@@ -117,7 +114,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
 
     async exists(path: string): Promise<boolean> {
       try {
-        await nodeFsPromises.access(path);
+        await deps.fsPromises.access(path);
         return true;
       } catch {
         return false;
@@ -126,7 +123,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
 
     async stat(path: string): Promise<FileInfo> {
       try {
-        const stats = await nodeFsPromises.stat(path);
+        const stats = await deps.fsPromises.stat(path);
         return mapStats(stats);
       } catch (error) {
         return handleFsError(error, path);
@@ -135,7 +132,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
 
     async lstat(path: string): Promise<FileInfo> {
       try {
-        const stats = await nodeFsPromises.lstat(path);
+        const stats = await deps.fsPromises.lstat(path);
         return mapStats(stats);
       } catch (error) {
         return handleFsError(error, path);
@@ -143,19 +140,19 @@ export const createNodeCompatFs = (): RuntimeFs => {
     },
 
     async mkdir(path: string, options?: MkdirOptions): Promise<void> {
-      await nodeFsPromises.mkdir(path, {
+      await deps.fsPromises.mkdir(path, {
         recursive: options?.recursive ?? false,
         mode: options?.mode,
       });
     },
 
     async ensureDir(path: string): Promise<void> {
-      await nodeFsPromises.mkdir(path, { recursive: true });
+      await deps.fsPromises.mkdir(path, { recursive: true });
     },
 
     async remove(path: string, options?: RemoveOptions): Promise<void> {
       try {
-        await nodeFsPromises.rm(path, {
+        await deps.fsPromises.rm(path, {
           recursive: options?.recursive ?? false,
           force: false,
         });
@@ -166,7 +163,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
 
     async *readDir(path: string): AsyncIterable<DirEntry> {
       try {
-        const entries = await nodeFsPromises.readdir(path, {
+        const entries = await deps.fsPromises.readdir(path, {
           withFileTypes: true,
         });
         for (const entry of entries) {
@@ -183,23 +180,23 @@ export const createNodeCompatFs = (): RuntimeFs => {
     },
 
     async copyFile(from: string, to: string): Promise<void> {
-      await nodeFsPromises.copyFile(from, to);
+      await deps.fsPromises.copyFile(from, to);
     },
 
     async rename(from: string, to: string): Promise<void> {
-      await nodeFsPromises.rename(from, to);
+      await deps.fsPromises.rename(from, to);
     },
 
     async makeTempDir(options?: MakeTempOptions): Promise<string> {
-      const dir = options?.dir ?? nodeOs.tmpdir();
+      const dir = options?.dir ?? deps.os.tmpdir();
       const prefix = options?.prefix ?? "";
       const suffix = options?.suffix ?? "";
-      const tempPath = await nodeFsPromises.mkdtemp(
-        nodePath.join(dir, prefix),
+      const tempPath = await deps.fsPromises.mkdtemp(
+        deps.path.join(dir, prefix),
       );
-      if (suffix) {
+      if (suffix !== "") {
         const newPath = tempPath + suffix;
-        await nodeFsPromises.rename(tempPath, newPath);
+        await deps.fsPromises.rename(tempPath, newPath);
         return newPath;
       }
       return tempPath;
@@ -207,7 +204,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
 
     async realPath(path: string): Promise<string> {
       try {
-        return await nodeFsPromises.realpath(path);
+        return await deps.fsPromises.realpath(path);
       } catch (error) {
         return handleFsError(error, path);
       }
@@ -215,7 +212,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
 
     watch(paths: string[], options?: WatchOptions): FsWatcher {
       const recursive = options?.recursive ?? true;
-      const watchers: ReturnType<typeof nodeFs.watch>[] = [];
+      const watchers: ReturnType<typeof deps.fs.watch>[] = [];
 
       const events: FsEvent[] = [];
       let resolvers: ((value: IteratorResult<FsEvent>) => void)[] = [];
@@ -235,7 +232,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
 
       for (const watchPath of paths) {
         try {
-          const watcher = nodeFs.watch(
+          const watcher = deps.fs.watch(
             watchPath,
             { recursive },
             (eventType, filename) => {
@@ -244,7 +241,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
               }
               pushEvent({
                 kind: eventType === "rename" ? "create" : "modify",
-                paths: [nodePath.join(watchPath, filename)],
+                paths: [deps.path.join(watchPath, filename)],
               });
             },
           );
@@ -285,7 +282,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
     },
 
     async chmod(path: string, mode: number): Promise<void> {
-      await nodeFsPromises.chmod(path, mode);
+      await deps.fsPromises.chmod(path, mode);
     },
 
     async *walk(
@@ -300,12 +297,12 @@ export const createNodeCompatFs = (): RuntimeFs => {
       const walkDir = async function* (
         dir: string,
       ): AsyncIterable<WalkEntry> {
-        const entries = await nodeFsPromises.readdir(dir, {
+        const entries = await deps.fsPromises.readdir(dir, {
           withFileTypes: true,
         });
 
         for (const entry of entries) {
-          const entryPath = nodePath.join(dir, entry.name);
+          const entryPath = deps.path.join(dir, entry.name);
 
           if (skip?.some((pattern) => pattern.test(entryPath))) {
             continue;
@@ -329,7 +326,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
               continue;
             }
             if (
-              exts &&
+              exts !== undefined &&
               !exts.some((ext) =>
                 entry.name.endsWith(ext.startsWith(".") ? ext : `.${ext}`)
               )
@@ -357,18 +354,18 @@ export const createNodeCompatFs = (): RuntimeFs => {
 // =============================================================================
 
 export const createNodeCompatPath = (): RuntimePath => ({
-  join: nodePath.join,
-  resolve: nodePath.resolve,
-  dirname: nodePath.dirname,
-  basename: nodePath.basename,
-  extname: nodePath.extname,
-  normalize: nodePath.normalize,
-  isAbsolute: nodePath.isAbsolute,
-  relative: nodePath.relative,
-  parse: nodePath.parse as (path: string) => ParsedPath,
-  format: nodePath.format as (pathObject: Partial<ParsedPath>) => string,
-  sep: nodePath.sep,
-  delimiter: nodePath.delimiter,
+  join: deps.path.join,
+  resolve: deps.path.resolve,
+  dirname: deps.path.dirname,
+  basename: deps.path.basename,
+  extname: deps.path.extname,
+  normalize: deps.path.normalize,
+  isAbsolute: deps.path.isAbsolute,
+  relative: deps.path.relative,
+  parse: deps.path.parse as (path: string) => ParsedPath,
+  format: deps.path.format as (pathObject: Partial<ParsedPath>) => string,
+  sep: deps.path.sep,
+  delimiter: deps.path.delimiter,
 });
 
 // =============================================================================
@@ -377,24 +374,24 @@ export const createNodeCompatPath = (): RuntimePath => ({
 
 export const createNodeCompatEnv = (): RuntimeEnv => ({
   get(key: string): string | undefined {
-    return nodeProcess.env[key];
+    return deps.process.env[key];
   },
 
   set(key: string, value: string): void {
-    nodeProcess.env[key] = value;
+    deps.process.env[key] = value;
   },
 
   delete(key: string): void {
-    delete nodeProcess.env[key];
+    delete deps.process.env[key];
   },
 
   has(key: string): boolean {
-    return key in nodeProcess.env;
+    return key in deps.process.env;
   },
 
   toObject(): Record<string, string> {
     const result: Record<string, string> = {};
-    for (const [key, value] of Object.entries(nodeProcess.env)) {
+    for (const [key, value] of Object.entries(deps.process.env)) {
       if (value !== undefined) {
         result[key] = value;
       }
@@ -409,40 +406,49 @@ export const createNodeCompatEnv = (): RuntimeEnv => ({
 
 export const createNodeCompatProcess = (): RuntimeProcess => ({
   exit(code?: number): never {
-    nodeProcess.exit(code);
+    deps.process.exit(code);
   },
 
   setExitCode(code: number): void {
-    nodeProcess.exitCode = code;
+    deps.process.exitCode = code;
   },
 
   cwd(): string {
-    return nodeProcess.cwd();
+    return deps.process.cwd();
   },
 
   chdir(path: string): void {
-    nodeProcess.chdir(path);
+    deps.process.chdir(path);
   },
 
   hostname(): string {
-    return nodeOs.hostname();
+    return deps.os.hostname();
   },
 
   execPath(): string {
-    return nodeProcess.execPath;
+    return deps.process.execPath;
   },
 
-  argv: nodeProcess.argv,
+  argv: deps.process.argv,
 
-  argv0: nodeProcess.argv0,
+  argv0: deps.process.argv0,
 
-  args: nodeProcess.argv.slice(2),
+  args: deps.process.argv.slice(2),
 
-  pid: nodeProcess.pid,
+  pid: deps.process.pid,
+
+  addSignalListener(signal: SignalName, listener: () => void): void {
+    deps.process.on(signal, listener);
+  },
+
+  removeSignalListener(signal: SignalName, listener: () => void): void {
+    deps.process.off(signal, listener);
+  },
+
   isAlive(pid: number): boolean {
     try {
       // Signal 0 checks existence and permission without delivering anything.
-      nodeProcess.kill(pid, 0);
+      deps.process.kill(pid, 0);
 
       return true;
     } catch (error) {
@@ -451,35 +457,50 @@ export const createNodeCompatProcess = (): RuntimeProcess => ({
     }
   },
 
-  stdin: Readable.toWeb(nodeProcess.stdin) as ReadableStream<Uint8Array>,
+  // The runtime is created when cross-runtime is imported, so the web streams
+  // bind to the process streams on first use instead. A stdin converted here
+  // would flow at once and keep the process alive while its pipe stays open.
+  stdin: webStreams.createLazyReadable(() =>
+    deps.stream.Readable.toWeb(deps.process.stdin) as ReadableStream<
+      Uint8Array
+    >
+  ),
 
-  stdout: Writable.toWeb(nodeProcess.stdout) as WritableStream<Uint8Array>,
+  stdout: webStreams.createLazyWritable(() =>
+    deps.stream.Writable.toWeb(deps.process.stdout) as WritableStream<
+      Uint8Array
+    >
+  ),
 
-  stderr: Writable.toWeb(nodeProcess.stderr) as WritableStream<Uint8Array>,
+  stderr: webStreams.createLazyWritable(() =>
+    deps.stream.Writable.toWeb(deps.process.stderr) as WritableStream<
+      Uint8Array
+    >
+  ),
 
   isTerminal(stream: "stdin" | "stdout" | "stderr"): boolean {
     switch (stream) {
       case "stdin":
-        return nodeProcess.stdin.isTTY === true;
+        return deps.process.stdin.isTTY === true;
       case "stdout":
-        return nodeProcess.stdout.isTTY === true;
+        return deps.process.stdout.isTTY === true;
       case "stderr":
-        return nodeProcess.stderr.isTTY === true;
+        return deps.process.stderr.isTTY === true;
     }
   },
 
   setStdinRaw(raw: boolean): void {
-    nodeProcess.stdin.setRawMode(raw);
+    deps.process.stdin.setRawMode(raw);
   },
 
   writeToStdout(data: Uint8Array): void {
-    nodeProcess.stdout.write(data);
+    deps.process.stdout.write(data);
   },
 
   consoleSize(): { columns: number; rows: number } {
     return {
-      columns: nodeProcess.stdout.columns ?? 80,
-      rows: nodeProcess.stdout.rows ?? 24,
+      columns: deps.process.stdout.columns ?? 80,
+      rows: deps.process.stdout.rows ?? 24,
     };
   },
 });

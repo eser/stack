@@ -11,10 +11,8 @@
 import * as primitives from "@eserstack/primitives";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
-import { createCliOutput, runCliMain } from "./cli-support.ts";
-import { ensureLib, getLib } from "./ffi-client.ts";
-
-const out = createCliOutput();
+import * as cliSupport from "./cli-support.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 export type CheckExportNamesOptions = {
   readonly root?: string;
@@ -38,8 +36,8 @@ export const checkExportNames = async (
 ): Promise<CheckExportNamesResult> => {
   const { root = ".", ignoreWords = [] } = options;
 
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error("native library not available for checkExportNames");
@@ -60,6 +58,8 @@ export const checkExportNames = async (
 export const main = async (
   _cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  const { output: out } = cliSupport.getCliContext();
+
   try {
     const value = await checkExportNames({ root: "." });
 
@@ -101,5 +101,8 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  runCliMain(await main(), out);
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main();
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

@@ -100,10 +100,12 @@ export const main = async (
   );
 
   if (results.isFail(handlerResult)) {
+    // cloneRecipe's message names the failed step and its whole cause chain,
+    // so it is printed without a prefix.
     const msg = handlerResult.error.message;
     await out.close();
     return results.fail({
-      message: renderer.render([span.red(`\nFailed: ${msg}`)]),
+      message: renderer.render([span.red(`\n${msg}`)]),
       exitCode: 1,
     });
   }

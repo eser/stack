@@ -34,7 +34,12 @@ export type CommandOptions = {
   stdout?: StdioOption;
   /** Stderr handling */
   stderr?: StdioOption;
-  /** Timeout in milliseconds */
+  /**
+   * Milliseconds the command may run before it is stopped, above 0 and at most
+   * 2147483647. Unset means 10 minutes for a command whose output is captured
+   * and no limit for one with any "inherit" stdio. See
+   * `CommandBuilder.timeout()`.
+   */
   timeout?: number;
   /** Whether to throw on non-zero exit code */
   throwOnError?: boolean;
@@ -55,11 +60,15 @@ export type CommandResult = {
 };
 
 /**
- * Error thrown when command execution fails
+ * Error thrown when a command ran and exited with a non-zero code, unless the
+ * builder was told `noThrow()`.
  */
 export class CommandError extends Error {
+  /** The program that was run, without its arguments. */
   readonly command: string;
+  /** The exit code the command returned. */
   readonly code: number;
+  /** What the command wrote to stderr, or "" when stderr was not captured. */
   readonly stderr: string;
 
   // Assigned explicitly rather than declared as constructor parameter
@@ -67,6 +76,14 @@ export class CommandError extends Error {
   // EMITS an assignment, so `node worker.ts` fails on it with
   // ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX. Writing the field out keeps the file
   // runnable by Deno, Bun and Node alike.
+  /**
+   * Create the error for a command that exited non-zero.
+   *
+   * @param message - What failed, naming the command and its exit code.
+   * @param command - The program that was run.
+   * @param code - Its exit code.
+   * @param stderr - Its captured stderr.
+   */
   constructor(
     message: string,
     command: string,
@@ -78,5 +95,30 @@ export class CommandError extends Error {
     this.command = command;
     this.code = code;
     this.stderr = stderr;
+  }
+}
+
+/**
+ * Error thrown when a command did not run to an exit code: it could not start
+ * (the program or the working directory does not exist), or it ran past its
+ * timeout and was stopped. `noThrow()` does not suppress it, since there is no
+ * exit code to return. A command that ran and exited non-zero throws
+ * {@link CommandError} instead.
+ */
+export class CommandRunError extends Error {
+  /** The program that was run, without its arguments. */
+  readonly command: string;
+
+  /**
+   * Create the error for a command that did not run to an exit code.
+   *
+   * @param message - What failed and what to change.
+   * @param command - The program that was run.
+   * @param options - The underlying error as `cause`, when there is one.
+   */
+  constructor(message: string, command: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "CommandRunError";
+    this.command = command;
   }
 }

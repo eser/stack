@@ -158,14 +158,8 @@ func (registry *Registry) AddModel( //nolint:ireturn
 	// Create the model
 	model, err := factory.CreateModel(ctx, config)
 	if err != nil {
-		registry.logger.ErrorContext(
-			ctx,
-			"failed to create AI model",
-			slog.String("error", err.Error()),
-			slog.String("name", name),
-			slog.String("provider", config.Provider),
-		)
-
+		// Returned, not logged: the caller decides whether to log it
+		// (coding-practices: Handle Each Error Once).
 		return nil, fmt.Errorf("%w (name=%q): %w", ErrFailedToCreateModel, name, err)
 	}
 

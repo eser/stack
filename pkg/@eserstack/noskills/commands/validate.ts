@@ -16,17 +16,23 @@ import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as livingSpec from "../spec/living.ts";
-import { cmdPrefix } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 
+/**
+ * Runs `validate <spec-name>`. `projectRoot` is the project to check; the CLI
+ * leaves it out and resolves the project from the environment and the working
+ * directory.
+ */
 export const main = async (
   args?: readonly string[],
+  projectRoot?: string,
 ): Promise<shellArgs.CliResult<void>> => {
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
 
-  const { root } = await persistence.resolveProjectRoot();
+  const root = projectRoot ?? (await persistence.resolveProjectRoot()).root;
 
   // Resolve spec name from args
   const rawArgs = args ?? [];
@@ -36,7 +42,7 @@ export const main = async (
       span.red("Error: spec name is required."),
     );
     out.writeln(
-      span.dim(`Usage: ${cmdPrefix()} validate <spec-name>`),
+      span.dim(`Usage: ${cmd.cmdPrefix()} validate <spec-name>`),
     );
     await out.close();
     return results.fail({ exitCode: 1 });
@@ -52,7 +58,7 @@ export const main = async (
     );
     out.writeln(
       span.dim(
-        `Run \`${cmdPrefix()} spec list\` to see available specs.`,
+        `Run \`${cmd.cmdPrefix()} spec list\` to see available specs.`,
       ),
     );
     await out.close();
@@ -111,7 +117,7 @@ export const main = async (
   out.writeln("");
   out.writeln(
     span.dim(
-      `Run \`${cmdPrefix()} spec ${specName} next\` to fill remaining sections.`,
+      `Run \`${cmd.cmdPrefix()} spec ${specName} next\` to fill remaining sections.`,
     ),
   );
 

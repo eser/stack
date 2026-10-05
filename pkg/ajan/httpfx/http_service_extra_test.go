@@ -20,8 +20,8 @@ func TestHTTPService_Router(t *testing.T) {
 		WriteTimeout:      5 * time.Second,
 		IdleTimeout:       30 * time.Second,
 	}
-	router := httpfx.NewRouter("/")
 	logger := logfx.NewLogger()
+	router := httpfx.NewRouter(logger)
 	service := httpfx.NewHTTPService(config, router, logger)
 
 	got := service.Router()

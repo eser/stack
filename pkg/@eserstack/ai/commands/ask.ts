@@ -12,7 +12,8 @@ import * as streams from "@eserstack/streams";
 import * as logging from "@eserstack/logging";
 import * as shellEnv from "@eserstack/shell/env";
 import type * as shellArgs from "@eserstack/shell/args";
-import { Registry } from "../registry.ts";
+import type * as aiModel from "../model.ts";
+import * as registry from "../registry.ts";
 import * as aiStreams from "../streams/mod.ts";
 import * as content from "../content.ts";
 import * as generationHelpers from "../generation.ts";
@@ -21,32 +22,34 @@ import * as generationHelpers from "../generation.ts";
 // Provider Aliases
 // =============================================================================
 
-const PROVIDER_ALIASES: Readonly<Record<string, string>> = {
-  cc: "claude-code",
-  ol: "ollama",
-  oc: "opencode",
-  oai: "openai",
-  ant: "anthropic",
-  gem: "gemini",
-  vtx: "vertexai",
+// Maps, so a name from the command line such as "constructor" finds no entry
+// instead of an Object.prototype member.
+const PROVIDER_ALIASES: ReadonlyMap<string, string> = new Map([
+  ["cc", "claude-code"],
+  ["ol", "ollama"],
+  ["oc", "opencode"],
+  ["oai", "openai"],
+  ["ant", "anthropic"],
+  ["gem", "gemini"],
+  ["vtx", "vertexai"],
   // detect.ts:94 registers this alias and `ai list` prints it; without the entry
   // here `ai ask -p kr` rejected an alias the CLI had just advertised.
-  kr: "kiro",
-};
+  ["kr", "kiro"],
+]);
 
-const PROVIDER_DISPLAY_NAMES: Readonly<Record<string, string>> = {
-  "claude-code": "Claude Code",
-  ollama: "Ollama",
-  opencode: "OpenCode",
-  kiro: "Kiro",
-  anthropic: "Anthropic API",
-  openai: "OpenAI API",
-  gemini: "Gemini API",
-  vertexai: "Vertex AI",
-};
+const PROVIDER_DISPLAY_NAMES: ReadonlyMap<string, string> = new Map([
+  ["claude-code", "Claude Code"],
+  ["ollama", "Ollama"],
+  ["opencode", "OpenCode"],
+  ["kiro", "Kiro"],
+  ["anthropic", "Anthropic API"],
+  ["openai", "OpenAI API"],
+  ["gemini", "Gemini API"],
+  ["vertexai", "Vertex AI"],
+]);
 
 const resolveAlias = (name: string): string => {
-  return PROVIDER_ALIASES[name] ?? name;
+  return PROVIDER_ALIASES.get(name) ?? name;
 };
 
 // =============================================================================
@@ -160,10 +163,10 @@ const detectProvider = async (log: logging.logger.Logger): Promise<string> => {
 // defaultFactories while still importing only the one adapter it needs.
 const loadFactory = async (
   providerName: string,
-): Promise<import("../model.ts").ProviderFactory> => {
-  const { factoryFor } = await import("../adapters/mod.ts");
+): Promise<aiModel.ProviderFactory> => {
+  const adapters = await import("../adapters/mod.ts");
 
-  const factory = await factoryFor(providerName);
+  const factory = await adapters.factoryFor(providerName);
 
   if (factory === undefined) {
     throw new Error(`Unknown provider: ${providerName}`);
@@ -173,46 +176,111 @@ const loadFactory = async (
 };
 
 // =============================================================================
-// Main
+// Arguments
 // =============================================================================
 
-export const main = async (
-  args?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  const parsedArgs = args ?? [];
+const USAGE =
+  'Usage: ai ask "your prompt" [-p provider] [-m model] [--max-tokens n] [--effort level] [--json] [--verbose]';
 
-  // Parse flags
-  let providerFlag: string | null = null;
-  let modelFlag: string | null = null;
-  let maxTokensFlag: number | null = null;
-  let jsonMode = false;
+/** The levels `--effort` accepts, the same as `GenerateTextOptions.effort`. */
+const EFFORT_LEVELS: ReadonlySet<string> = new Set<generationHelpers.Effort>([
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
+
+const isEffort = (value: string): value is generationHelpers.Effort =>
+  EFFORT_LEVELS.has(value);
+
+/** The flags that take the next argument as their value. */
+const VALUE_FLAGS: ReadonlySet<string> = new Set([
+  "-p",
+  "--provider",
+  "-m",
+  "--model",
+  "--max-tokens",
+  "--effort",
+]);
+
+// AskArgs names the effort type, so this entry point exports it too.
+export type { Effort } from "../generation.ts";
+
+/** The flags and prompt of one `ai ask` call. */
+export type AskArgs = {
+  readonly provider: string | null;
+  readonly model: string | null;
+  readonly maxTokens: number | null;
+  readonly effort: generationHelpers.Effort | null;
+  readonly json: boolean;
+  readonly verbose: boolean;
+  readonly prompt: string;
+};
+
+/**
+ * Parses the arguments of `ai ask`. The failure is the message to print: a
+ * flag without its value, an invalid value, or no prompt.
+ */
+export const parseAskArgs = (
+  args: readonly string[],
+): results.Result<AskArgs, string> => {
+  let provider: string | null = null;
+  let modelId: string | null = null;
+  let maxTokens: number | null = null;
+  let effort: generationHelpers.Effort | null = null;
+  let json = false;
   let verbose = false;
   const promptParts: string[] = [];
 
   let i = 0;
-  while (i < parsedArgs.length) {
-    const arg = parsedArgs[i]!;
+  while (i < args.length) {
+    const arg = args[i]!;
 
-    if (arg === "-p" || arg === "--provider") {
-      providerFlag = parsedArgs[i + 1] ?? null;
-      i += 2;
-      continue;
-    }
-    if (arg === "-m" || arg === "--model") {
-      modelFlag = parsedArgs[i + 1] ?? null;
-      i += 2;
-      continue;
-    }
-    if (arg === "--max-tokens") {
-      const val = parsedArgs[i + 1];
-      if (val !== undefined) {
-        maxTokensFlag = Number(val);
+    if (VALUE_FLAGS.has(arg)) {
+      const value = args[i + 1];
+      if (value === undefined) {
+        return results.fail(`${arg} needs a value. ${USAGE}`);
       }
+
+      switch (arg) {
+        case "-p":
+        case "--provider":
+          provider = value;
+          break;
+        case "-m":
+        case "--model":
+          modelId = value;
+          break;
+        case "--max-tokens": {
+          const limit = Number(value);
+          if (!Number.isSafeInteger(limit) || limit <= 0) {
+            return results.fail(
+              `--max-tokens ${
+                JSON.stringify(value)
+              } is not a positive whole number; pass the output token limit, such as --max-tokens 1024`,
+            );
+          }
+          maxTokens = limit;
+          break;
+        }
+        case "--effort":
+          if (!isEffort(value)) {
+            return results.fail(
+              `--effort ${
+                JSON.stringify(value)
+              } is not an effort level; use low, medium, high, xhigh or max`,
+            );
+          }
+          effort = value;
+          break;
+      }
+
       i += 2;
       continue;
     }
     if (arg === "--json") {
-      jsonMode = true;
+      json = true;
       i += 1;
       continue;
     }
@@ -227,15 +295,50 @@ export const main = async (
     i += 1;
   }
 
-  const promptText = promptParts.join(" ");
+  const prompt = promptParts.join(" ");
 
-  if (promptText.length === 0) {
-    return results.fail({
-      message:
-        'Usage: ai ask "your prompt" [-p provider] [-m model] [--verbose]',
-      exitCode: 1,
-    });
+  if (prompt.length === 0) {
+    return results.fail(USAGE);
   }
+
+  return results.ok({
+    provider,
+    model: modelId,
+    maxTokens,
+    effort,
+    json,
+    verbose,
+    prompt,
+  });
+};
+
+// =============================================================================
+// Main
+// =============================================================================
+
+/**
+ * Runs `ai ask`: parses the arguments, picks the provider (from `-p` or by
+ * detection), sends the prompt and writes the reply to stdout. Invalid
+ * arguments fail before a provider is chosen.
+ */
+export const main = async (
+  args?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const parsed = parseAskArgs(args ?? []);
+
+  if (results.isFail(parsed)) {
+    return results.fail({ message: parsed.error, exitCode: 1 });
+  }
+
+  const {
+    provider: providerFlag,
+    model: modelFlag,
+    maxTokens,
+    effort,
+    json: jsonMode,
+    verbose,
+    prompt: promptText,
+  } = parsed.value;
 
   const log = await setupLogging(verbose);
 
@@ -245,77 +348,39 @@ export const main = async (
       ? resolveAlias(providerFlag)
       : await detectProvider(log);
 
-    const displayName = PROVIDER_DISPLAY_NAMES[providerName] ?? providerName;
+    const displayName = PROVIDER_DISPLAY_NAMES.get(providerName) ??
+      providerName;
     const modelId = modelFlag ?? getDefaultModel(providerName);
 
     await log.info(`Using ${displayName} (${modelId})`);
 
     // Load factory and create model
     const factory = await loadFactory(providerName);
-    const registry = new Registry({ factories: [factory] });
+    const modelRegistry = new registry.Registry({ factories: [factory] });
 
-    await registry.addModel("default", {
-      provider: providerName,
-      model: modelId,
-    });
-
-    const model = registry.getDefault();
-
-    if (model === null) {
-      return results.fail({
-        message: "Failed to initialize model",
-        exitCode: 1,
-      });
-    }
-
-    const messages = [content.textMessage("user", promptText)];
-    await log.info(`Sending prompt (${promptText.length} chars)...`);
-
-    if (jsonMode) {
-      // Non-streaming: get full result as JSON
-      const generateResult = await model.generateText({
-        messages,
-        maxTokens: maxTokensFlag ?? undefined,
+    // The registry owns the model, so it is closed on every path, a failed
+    // request included.
+    try {
+      const model = await modelRegistry.addModel("default", {
+        provider: providerName,
+        model: modelId,
       });
 
-      if (results.isFail(generateResult)) {
-        await log.error(generateResult.error.message);
-        return results.fail({
-          message: generateResult.error.message,
-          exitCode: 1,
-        });
-      }
+      await log.info(`Sending prompt (${promptText.length} chars)...`);
 
-      const result = generateResult.value;
-
-      await log.info(
-        `Response received (${generationHelpers.text(result).length} chars)`,
+      return await sendPrompt(
+        model,
+        {
+          messages: [content.textMessage("user", promptText)],
+          maxTokens: maxTokens ?? undefined,
+          effort: effort ?? undefined,
+        },
+        jsonMode,
+        log,
       );
-
-      const stdOut = streams.output({ sink: streams.sinks.stdout() });
-      stdOut.writeln(JSON.stringify(result, null, 2));
-      await stdOut.close();
-    } else {
-      // Streaming: pipe text deltas through typewriter sink
-      const source = aiStreams.aiTextSource(model, {
-        messages,
-        maxTokens: maxTokensFlag ?? undefined,
-      });
-
-      await streams.pipeline()
-        .from(source)
-        .to(typewriterSink())
-        .run();
-
-      // Newline after stream
-      const writer = runtime.process.stdout.getWriter();
-      await writer.write(new TextEncoder().encode("\n"));
-      writer.releaseLock();
+    } finally {
+      await modelRegistry.close();
     }
-
-    await registry.close();
-
-    return results.ok(undefined);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await log.error(message);
@@ -326,6 +391,54 @@ export const main = async (
 
     return results.fail({ message, exitCode: 1 });
   }
+};
+
+/**
+ * Sends the prompt and writes the reply to stdout: the whole result as JSON in
+ * JSON mode, or else the text as it streams in.
+ */
+const sendPrompt = async (
+  model: aiModel.LanguageModel,
+  options: generationHelpers.GenerateTextOptions,
+  jsonMode: boolean,
+  log: logging.logger.Logger,
+): Promise<shellArgs.CliResult<void>> => {
+  if (jsonMode) {
+    const generateResult = await model.generateText(options);
+
+    if (results.isFail(generateResult)) {
+      await log.error(generateResult.error.message);
+      return results.fail({
+        message: generateResult.error.message,
+        exitCode: 1,
+      });
+    }
+
+    const result = generateResult.value;
+
+    await log.info(
+      `Response received (${generationHelpers.text(result).length} chars)`,
+    );
+
+    const stdOut = streams.output({ sink: streams.sinks.stdout() });
+    stdOut.writeln(JSON.stringify(result, null, 2));
+    await stdOut.close();
+
+    return results.ok(undefined);
+  }
+
+  // Streaming: pipe text deltas through typewriter sink
+  await streams.pipeline()
+    .from(aiStreams.aiTextSource(model, options))
+    .to(typewriterSink())
+    .run();
+
+  // Newline after stream
+  const writer = runtime.process.stdout.getWriter();
+  await writer.write(new TextEncoder().encode("\n"));
+  writer.releaseLock();
+
+  return results.ok(undefined);
 };
 
 // =============================================================================
@@ -349,12 +462,18 @@ const typewriterSink = (
         const text = String(chunk.data);
         const writer = runtime.process.stdout.getWriter();
 
-        for (const char of text) {
-          await writer.write(encoder.encode(char));
-          await sleep(delayMs);
+        try {
+          for (const char of text) {
+            // The typewriter prints one character, then pauses, in order.
+            // deno-lint-ignore no-await-in-loop
+            await writer.write(encoder.encode(char));
+            // The pause between characters is the effect itself.
+            // deno-lint-ignore no-await-in-loop
+            await sleep(delayMs);
+          }
+        } finally {
+          writer.releaseLock();
         }
-
-        writer.releaseLock();
       },
     }),
   };

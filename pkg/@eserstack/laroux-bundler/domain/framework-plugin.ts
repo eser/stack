@@ -9,8 +9,7 @@
  * knowing which framework is being used.
  */
 
-import type { BuildCache } from "./build-cache.ts";
-import type { BundlerPlugin } from "@eserstack/bundler/backends";
+import type { ClientComponentCache } from "./build-cache.ts";
 
 /**
  * Client component metadata
@@ -66,11 +65,12 @@ export type FrameworkPlugin = {
   /**
    * Analyze source directory and find client components
    * For React: finds "use client" directives
+   * The cache, present in watch mode, keeps the analysis of unchanged files.
    */
   analyzeClientComponents?: (
     srcDir: string,
     projectRoot: string,
-    cache?: BuildCache,
+    cache?: ClientComponentCache,
   ) => Promise<ClientComponent[]>;
 
   /**
@@ -148,16 +148,6 @@ export type FrameworkPlugin = {
     projectRoot: string,
     distDir: string,
   ) => Promise<string>;
-
-  /**
-   * Get additional bundler plugins for the client build
-   */
-  getClientBundlerPlugins?: (projectRoot: string) => BundlerPlugin[];
-
-  /**
-   * Get additional bundler plugins for the server build
-   */
-  getServerBundlerPlugins?: (projectRoot: string) => BundlerPlugin[];
 };
 
 /**

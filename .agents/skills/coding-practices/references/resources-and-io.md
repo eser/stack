@@ -40,7 +40,7 @@ await shellExec.exec`git fetch origin`.timeout(60_000).text();
 ```
 
 ```go
-client := httpclient.NewClient(httpclient.WithConfig(cfg)) // pkg/ajan/httpclient: timeouts and retries from config
+client := httpclient.NewClient(httpclient.WithConfig(cfg)) // ajan httpclient: timeouts and retries from config
 ```
 
 Incorrect:
@@ -135,8 +135,7 @@ const response = await fetch(logUrl, { signal });
 if (response.body === null) {
   throw new Error(`fetch ${logUrl}: response has no body`);
 }
-// readLines: an async generator over a byte stream, as in
-// pkg/@eserstack/noskills-client/attach.ts
+// readLines: an async generator over a byte stream
 for await (const line of readLines(response.body)) {
   handle(line);
 }

@@ -55,7 +55,7 @@ func (w *acpWorker) RequestPermission(
 	case <-ctx.Done():
 		return acpfx.CancelPermission(), nil
 
-	case <-w.done:
+	case <-w.ctx.Done():
 		return acpfx.CancelPermission(), nil
 	}
 }

@@ -6,7 +6,7 @@
  * @module
  */
 
-import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
+import type * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 
 import type { CliApp } from "./app.ts";
 

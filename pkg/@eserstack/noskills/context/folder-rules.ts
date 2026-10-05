@@ -44,8 +44,6 @@ const collectRulesForFile = async (
   root: string,
   filePath: string,
 ): Promise<readonly FolderRule[]> => {
-  const rules: FolderRule[] = [];
-
   // Normalize: remove root prefix to get relative path
   const relative = filePath.startsWith(root)
     ? filePath.slice(root.length + 1)
@@ -55,24 +53,32 @@ const collectRulesForFile = async (
   const parts = relative.split("/");
   parts.pop(); // remove filename
 
-  for (let i = parts.length; i >= 0; i--) {
+  // Depths from the file's own directory up to the root, deepest first. The
+  // directories are read concurrently and the result keeps that order.
+  const depths = Array.from(
+    { length: parts.length + 1 },
+    (_, k) => parts.length - k,
+  );
+
+  const rulesPerDir = await Promise.all(depths.map(async (i) => {
     const dir = i === 0 ? root : `${root}/${parts.slice(0, i).join("/")}`;
     const rulesFile = `${dir}/.folder-rules.md`;
     const folderLabel = i === 0 ? "." : parts.slice(0, i).join("/");
 
     try {
       const content = await runtime.fs.readTextFile(rulesFile);
-      const parsed = parseRulesFile(content);
 
-      for (const rule of parsed) {
-        rules.push({ folder: folderLabel, rule });
-      }
+      return parseRulesFile(content).map((rule) => ({
+        folder: folderLabel,
+        rule,
+      }));
     } catch {
       // No .folder-rules.md in this directory
+      return [];
     }
-  }
+  }));
 
-  return rules;
+  return rulesPerDir.flat();
 };
 
 /**
@@ -86,7 +92,10 @@ export const collectFolderRules = async (
   const seen = new Set<string>();
   const allRules: FolderRule[] = [];
 
+  // Files are walked one at a time: a turn can touch many files, and this
+  // bounds the reads in flight to one directory chain.
   for (const file of touchedFiles) {
+    // deno-lint-ignore no-await-in-loop
     const fileRules = await collectRulesForFile(root, file);
 
     for (const fr of fileRules) {

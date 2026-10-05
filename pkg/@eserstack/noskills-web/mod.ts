@@ -10,6 +10,7 @@
  */
 
 export { startServer } from "./server.ts";
-export type { ServerOptions } from "./server.ts";
+export type { ListenAddress, ServerOptions } from "./server.ts";
+export type { RequestLogger } from "./request-context.ts";
 export { MuxHost } from "./terminal/mux-host.ts";
 export type { WebTab } from "./terminal/mux-host.ts";

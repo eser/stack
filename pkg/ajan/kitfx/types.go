@@ -7,6 +7,12 @@
 // variable substitution and post-install command execution.
 package kitfx
 
+import (
+	"time"
+
+	"github.com/eser/stack/pkg/ajan/logfx"
+)
+
 // RecipeScale classifies a recipe by its scope.
 type RecipeScale string
 
@@ -115,16 +121,35 @@ type ApplyOptions struct {
 	Force        bool
 	SkipExisting bool
 	DryRun       bool
-	Verbose      bool
-	Variables    map[string]string
+	// Verbose logs post-install failures to standard error when Logger is nil.
+	Verbose   bool
+	Variables map[string]string
+
+	// Logger receives one warning for each post-install command that fails.
+	// When it is nil, failures go to standard error if Verbose is set, and
+	// are otherwise only listed in ApplyResult.PostInstallFailed.
+	Logger *logfx.Logger
+
+	// PostInstallTimeout bounds each post-install command. Zero selects
+	// DefaultCommandTimeout; a negative value makes ApplyRecipe return an
+	// error before it writes anything.
+	PostInstallTimeout time.Duration
 }
 
 // ApplyResult records what was written, skipped, and run during recipe application.
 type ApplyResult struct {
-	Written        []string
-	Skipped        []string
-	Total          int
+	Written []string
+	Skipped []string
+	Total   int
+
+	// PostInstallRan lists every post-install command that was attempted,
+	// including the ones in PostInstallFailed.
 	PostInstallRan []string
+
+	// PostInstallFailed lists the post-install commands that could not start,
+	// exited with a non-zero status or ran past ApplyOptions.PostInstallTimeout.
+	// The cause of each is logged once (see ApplyOptions.Logger).
+	PostInstallFailed []string
 }
 
 // ApplyChainResult holds per-recipe results when a full dependency chain is applied.

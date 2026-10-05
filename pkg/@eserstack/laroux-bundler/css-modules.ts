@@ -2,18 +2,15 @@
 /**
  * CSS Modules Handler
  * Re-exports @eserstack/bundler/css CSS modules utilities with laroux-specific caching.
- * Uses adapters/tailwindcss for @reference injection and @apply expansion.
+ * The caller's CSS plugin preprocesses each module; the Tailwind plugin
+ * injects @reference and expands @apply.
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import {
-  type CssModuleResult as EserCssModuleResult,
-  generateTypeScriptDefinition,
-  processCssModule as eserProcessCssModule,
-} from "@eserstack/bundler/css";
-import { createTailwindPlugin } from "./adapters/tailwindcss/mod.ts";
-import type { CssPlugin } from "./domain/css-plugin.ts";
+import * as css from "@eserstack/bundler/css";
+import type { CssModuleResult as EserCssModuleResult } from "@eserstack/bundler/css";
+import type { CssPlugin, CssPluginContext } from "./domain/css-plugin.ts";
 import type { BuildCache } from "./domain/build-cache.ts";
 
 const cssModulesLogger = logging.logger.getLogger([
@@ -31,10 +28,16 @@ export type ProcessCSSModuleOptions = {
   projectRoot?: string;
   /** Whether to minify */
   minify?: boolean;
-  /** CSS plugin for preprocessing (optional, will create default if not provided) */
+  /**
+   * CSS plugin that preprocesses each module, such as the Tailwind plugin
+   * expanding @apply. Without one, modules are compiled as written.
+   */
   plugin?: CssPlugin;
-  /** Path to global CSS file relative to project root */
-  globalCssPath?: string;
+  /**
+   * Let the plugin add an @reference to the global stylesheet to a module
+   * that has none (default: true)
+   */
+  injectReference?: boolean;
 };
 
 /**
@@ -50,7 +53,7 @@ export async function processCSSModule(
     projectRoot,
     minify = true,
     plugin,
-    globalCssPath = "src/app/styles/global.css",
+    injectReference = true,
   } = options;
 
   cssModulesLogger.debug(`Processing CSS module: ${cssPath}`);
@@ -59,19 +62,20 @@ export async function processCSSModule(
   const cssContent = await runtime.fs.readTextFile(cssPath);
 
   // Create context for plugin
-  const context = {
+  const context: CssPluginContext = {
     projectRoot: projectRoot ?? runtime.process.cwd(),
     cssPath,
     isModule: true,
+    injectReference,
   };
 
-  // Use provided plugin or create default tailwind plugin
-  const cssPlugin = plugin ?? createTailwindPlugin({ globalCssPath });
-
-  // Preprocess with plugin if it should handle this file
+  // Preprocess with the plugin if there is one and it claims this file
   let processedContent = cssContent;
-  if (cssPlugin.shouldProcess?.(cssContent, context) ?? true) {
-    const preprocessed = cssPlugin.preprocess?.(cssContent, context);
+  if (
+    plugin !== undefined &&
+    (plugin.shouldProcess?.(cssContent, context) ?? true)
+  ) {
+    const preprocessed = plugin.preprocess?.(cssContent, context);
     if (preprocessed !== undefined) {
       processedContent = await Promise.resolve(preprocessed);
     }
@@ -83,7 +87,7 @@ export async function processCSSModule(
 
   try {
     // Use @eserstack/bundler's processCssModule (no Tailwind root needed - plugin handled @apply)
-    const result = await eserProcessCssModule(tempPath, {
+    const result = await css.processCssModule(tempPath, {
       generateDts: generateDTS,
       minify,
       // No tailwind option - plugin's preprocess already expanded @apply
@@ -109,8 +113,7 @@ export type ProcessCSSModulesOptions = ProcessCSSModuleOptions & {
 };
 
 /**
- * Process multiple CSS modules in parallel
- * Creates a shared plugin for better performance
+ * Process multiple CSS modules in parallel with one shared CSS plugin
  */
 export async function processCSSModules(
   cssPaths: string[],
@@ -120,80 +123,70 @@ export async function processCSSModules(
     cache,
     projectRoot,
     minify = true,
-    globalCssPath = "src/app/styles/global.css",
     ...moduleOptions
   } = options;
 
   cssModulesLogger.debug(`Processing ${cssPaths.length} CSS module(s)`);
 
-  // Create a shared plugin for all modules
-  const plugin = createTailwindPlugin({ globalCssPath });
-
   let cacheHits = 0;
   let cacheMisses = 0;
 
-  try {
-    const results = await Promise.all(
-      cssPaths.map(async (cssPath) => {
-        // Check cache first if available
-        if (cache !== undefined) {
-          try {
-            const fileStat = await runtime.fs.stat(cssPath);
-            const fileMtime = fileStat.mtime?.getTime() ?? 0;
-            const cached = cache.getCssModuleResult(cssPath, fileMtime);
+  const results = await Promise.all(
+    cssPaths.map(async (cssPath) => {
+      // Check cache first if available
+      if (cache !== undefined) {
+        try {
+          const fileStat = await runtime.fs.stat(cssPath);
+          const fileMtime = fileStat.mtime?.getTime() ?? 0;
+          const cached = cache.getCssModuleResult(cssPath, fileMtime);
 
-            if (cached !== undefined && cached !== null) {
-              cacheHits++;
-              return [cssPath, {
-                code: cached.code,
-                exports: cached.exports,
-              }] as [string, CSSModuleResult];
-            }
-          } catch {
-            // File might have been deleted, continue with processing
+          if (cached !== undefined && cached !== null) {
+            cacheHits++;
+            return [cssPath, {
+              code: cached.code,
+              exports: cached.exports,
+            }] as [string, CSSModuleResult];
           }
+        } catch {
+          // File might have been deleted, continue with processing
         }
+      }
 
-        // Cache miss - process the CSS module
-        cacheMisses++;
-        const result = await processCSSModule(cssPath, {
-          ...moduleOptions,
-          projectRoot,
-          minify,
-          plugin,
-          globalCssPath,
-        });
+      // Cache miss - process the CSS module
+      cacheMisses++;
+      const result = await processCSSModule(cssPath, {
+        ...moduleOptions,
+        projectRoot,
+        minify,
+      });
 
-        // Cache the result
-        if (cache !== undefined) {
-          try {
-            const fileStat = await runtime.fs.stat(cssPath);
-            const fileMtime = fileStat.mtime?.getTime() ?? 0;
-            cache.setCssModuleResult(
-              cssPath,
-              result.code,
-              result.exports,
-              fileMtime,
-            );
-          } catch {
-            // Ignore caching errors
-          }
+      // Cache the result
+      if (cache !== undefined) {
+        try {
+          const fileStat = await runtime.fs.stat(cssPath);
+          const fileMtime = fileStat.mtime?.getTime() ?? 0;
+          cache.setCssModuleResult(
+            cssPath,
+            result.code,
+            result.exports,
+            fileMtime,
+          );
+        } catch {
+          // Ignore caching errors
         }
+      }
 
-        return [cssPath, result] as [string, CSSModuleResult];
-      }),
+      return [cssPath, result] as [string, CSSModuleResult];
+    }),
+  );
+
+  if (cache !== undefined && (cacheHits > 0 || cacheMisses > 0)) {
+    cssModulesLogger.debug(
+      `CSS modules: ${cacheHits} cache hits, ${cacheMisses} processed`,
     );
-
-    if (cache !== undefined && (cacheHits > 0 || cacheMisses > 0)) {
-      cssModulesLogger.debug(
-        `CSS modules: ${cacheHits} cache hits, ${cacheMisses} processed`,
-      );
-    }
-
-    return new Map(results);
-  } finally {
-    // No disposal needed for plugin
   }
+
+  return new Map(results);
 }
 
 /**
@@ -253,4 +246,4 @@ export async function saveCSSModuleOutputs(
 }
 
 // Re-export utility for external use
-export { generateTypeScriptDefinition };
+export { generateTypeScriptDefinition } from "@eserstack/bundler/css";

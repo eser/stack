@@ -13,7 +13,7 @@ import * as cliParseArgs from "@std/cli/parse-args";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { createCliContext, runCliMain } from "./cli-support.ts";
+import * as cliSupport from "./cli-support.ts";
 
 export type CheckErrorCoverageOptions = {
   readonly root?: string;
@@ -82,7 +82,7 @@ export const checkErrorCoverage = async (
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const { output: out } = createCliContext();
+  const { output: out } = cliSupport.getCliContext();
 
   const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
     string: ["file", "error-objects", "required-fields"],
@@ -150,6 +150,8 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  const { output: out } = createCliContext();
-  runCliMain(await main(runtime.process.args as string[]), out);
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(runtime.process.args as string[]);
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

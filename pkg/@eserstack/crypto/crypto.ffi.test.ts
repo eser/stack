@@ -1,8 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { ffiLoader } from "./adapters/ffi/mod.ts";
-import { CRYPTO_UNKNOWN_ALGORITHM, CryptoError } from "./business/errors.ts";
+import * as ffi from "./adapters/ffi/mod.ts";
+import * as errors from "./business/errors.ts";
 import type { HashOptions } from "./business/crypto.ts";
 
 Deno.test(
@@ -11,7 +11,7 @@ Deno.test(
     sanitizeResources: false,
   },
   async () => {
-    const result = await ffiLoader.hash({ text: "hello" }, {
+    const result = await ffi.ffiLoader.hash({ text: "hello" }, {
       algorithm: "SHA-256",
       length: 64,
     });
@@ -29,7 +29,7 @@ Deno.test(
     sanitizeResources: false,
   },
   async () => {
-    const result = await ffiLoader.hash(
+    const result = await ffi.ffiLoader.hash(
       { data: new Uint8Array([1, 2, 3]) },
       { algorithm: "SHA-256", length: 16 },
     );
@@ -46,13 +46,13 @@ Deno.test(
   async () => {
     const badOpts = { algorithm: "MD5" } as unknown as HashOptions;
     await assert.assertRejects(
-      () => ffiLoader.hash({ text: "x" }, badOpts),
-      CryptoError,
+      () => ffi.ffiLoader.hash({ text: "x" }, badOpts),
+      errors.CryptoError,
     );
     // confirm the error code is CRYPTO_UNKNOWN_ALGORITHM
-    await ffiLoader.hash({ text: "x" }, badOpts).catch((e: unknown) => {
-      if (e instanceof CryptoError) {
-        assert.assertEquals(e.code, CRYPTO_UNKNOWN_ALGORITHM);
+    await ffi.ffiLoader.hash({ text: "x" }, badOpts).catch((e: unknown) => {
+      if (e instanceof errors.CryptoError) {
+        assert.assertEquals(e.code, errors.CRYPTO_UNKNOWN_ALGORITHM);
       }
     });
   },

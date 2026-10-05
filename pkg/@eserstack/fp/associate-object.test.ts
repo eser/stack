@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { associateObject } from "./associate-object.ts";
+import * as associateObject from "./associate-object.ts";
 
 Deno.test("basic", () => {
   const obj1 = {
@@ -11,7 +11,7 @@ Deno.test("basic", () => {
   };
   const func1 = (value: { id: number; name: string }) => value.id;
 
-  const result = associateObject(obj1, func1);
+  const result = associateObject.associateObject(obj1, func1);
 
   assert.assertNotStrictEquals(result, obj1);
   assert.assertEquals(Object.keys(result).length, 3);
@@ -31,7 +31,7 @@ Deno.test("with-value-skipping", () => {
   const func1 = (value: { id: number; name: string; skip: boolean }) =>
     value.skip ? undefined : value.id;
 
-  const result = associateObject(obj1, func1);
+  const result = associateObject.associateObject(obj1, func1);
 
   assert.assertNotStrictEquals(result, obj1);
   assert.assertEquals(Object.keys(result).length, 2);

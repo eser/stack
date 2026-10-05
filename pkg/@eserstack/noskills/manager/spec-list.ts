@@ -140,7 +140,7 @@ export const render = (
     }
     const isSelectable = item.selectable !== false;
     const selected = idx === selectedIndex && isSelectable;
-    const bullet = item.active
+    const bullet = item.active === true
       ? tui.ansi.green("\u25CF")
       : selected
       ? "\u25B8"
@@ -148,7 +148,7 @@ export const render = (
     const badge = item.badge !== undefined
       ? " " + colorize(`[${item.badge}]`, item.badgeColor ?? "dim")
       : "";
-    const label = item.dimmed ? tui.ansi.dim(item.label) : item.label;
+    const label = item.dimmed === true ? tui.ansi.dim(item.label) : item.label;
     const line = ` ${bullet} ${label}${badge}`;
     const truncated = tui.ansi.truncate(line, innerWidth);
     const pad = Math.max(0, innerWidth - tui.ansi.visibleLength(truncated));

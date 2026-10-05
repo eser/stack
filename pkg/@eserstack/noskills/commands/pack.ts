@@ -13,10 +13,12 @@ import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
+import * as concernScope from "../state/concern-scope.ts";
 import * as packSchema from "../pack/schema.ts";
+import * as packRegistry from "../pack/registry.ts";
 import * as syncEngine from "../sync/engine.ts";
-import { BUILTIN_PACKS } from "../defaults/packs/mod.ts";
-import { cmdPrefix } from "../output/cmd.ts";
+import * as defaultPacks from "../defaults/packs/mod.ts";
+import * as cmd from "../output/cmd.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 // =============================================================================
@@ -55,7 +57,7 @@ export const main = async (
     return await packSearch(args?.slice(1));
   }
 
-  const prefix = cmdPrefix();
+  const prefix = cmd.cmdPrefix();
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -106,7 +108,7 @@ export const writePacksFile = async (
 const resolveBuiltinPack = (
   name: string,
 ): packSchema.BuiltinPack | undefined => {
-  return BUILTIN_PACKS.get(name);
+  return defaultPacks.BUILTIN_PACKS.get(name);
 };
 
 // =============================================================================
@@ -241,54 +243,55 @@ export const installBuiltinPack = async (
   name: string,
   builtin: packSchema.BuiltinPack,
 ): Promise<packSchema.InstalledPack> => {
-  const installedRules: string[] = [];
-  const installedConcerns: string[] = [];
-  const installedFolderRules: string[] = [];
+  // Every rule, concern and folder rule goes to its own file, so each group is
+  // written concurrently; map keeps the listed order of the installed names.
 
   // 1. Copy rules to .eser/rules/ with pack-{name}- prefix
   const rulesDir = `${root}/${persistence.paths.rulesDir}`;
   await runtime.fs.mkdir(rulesDir, { recursive: true });
 
-  for (const [ruleName, ruleContent] of Object.entries(builtin.ruleContents)) {
-    const fileName = `pack-${name}-${ruleName}.md`;
-    await runtime.fs.writeTextFile(
-      `${rulesDir}/${fileName}`,
-      ruleContent + "\n",
-    );
-    installedRules.push(fileName);
-  }
+  const installedRules = await Promise.all(
+    Object.entries(builtin.ruleContents).map(async ([ruleName, content]) => {
+      const fileName = `pack-${name}-${ruleName}.md`;
+      await runtime.fs.writeTextFile(`${rulesDir}/${fileName}`, content + "\n");
+      return fileName;
+    }),
+  );
 
   // 2. Copy concerns to .eser/concerns/ with numeric prefix
+  let installedConcerns: string[] = [];
   if (builtin.concernContents.length > 0) {
     const concernsDir = `${root}/${persistence.paths.concernsDir}`;
     await runtime.fs.mkdir(concernsDir, { recursive: true });
 
-    let prefix = await nextConcernPrefix(root);
+    const firstPrefix = await nextConcernPrefix(root);
 
-    for (const concern of builtin.concernContents) {
-      const paddedPrefix = String(prefix).padStart(3, "0");
-      const fileName = `${paddedPrefix}-${concern.id}.json`;
-      await runtime.fs.writeTextFile(
-        `${concernsDir}/${fileName}`,
-        JSON.stringify(concern, null, 2) + "\n",
-      );
-      installedConcerns.push(fileName);
-      prefix++;
-    }
+    installedConcerns = await Promise.all(
+      builtin.concernContents.map(async (concern, index) => {
+        const paddedPrefix = String(firstPrefix + index).padStart(3, "0");
+        const fileName = `${paddedPrefix}-${concern.id}.json`;
+        await runtime.fs.writeTextFile(
+          `${concernsDir}/${fileName}`,
+          JSON.stringify(concern, null, 2) + "\n",
+        );
+        return fileName;
+      }),
+    );
   }
 
   // 3. Copy folder-rules to target directories
+  let installedFolderRules: string[] = [];
   if (builtin.folderRuleContents !== undefined) {
-    for (
-      const [targetDir, ruleContent] of Object.entries(
-        builtin.folderRuleContents,
-      )
-    ) {
-      const targetPath = `${root}/${targetDir}/.folder-rules.md`;
-      await runtime.fs.mkdir(`${root}/${targetDir}`, { recursive: true });
-      await runtime.fs.writeTextFile(targetPath, ruleContent + "\n");
-      installedFolderRules.push(`${targetDir}/.folder-rules.md`);
-    }
+    installedFolderRules = await Promise.all(
+      Object.entries(builtin.folderRuleContents).map(
+        async ([targetDir, ruleContent]) => {
+          const targetPath = `${root}/${targetDir}/.folder-rules.md`;
+          await runtime.fs.mkdir(`${root}/${targetDir}`, { recursive: true });
+          await runtime.fs.writeTextFile(targetPath, ruleContent + "\n");
+          return `${targetDir}/.folder-rules.md`;
+        },
+      ),
+    );
   }
 
   const installed: packSchema.InstalledPack = {
@@ -314,17 +317,22 @@ export const installRemotePack = async (
   const installedConcerns: string[] = [];
   const installedFolderRules: string[] = [];
 
+  // Remote files are fetched one at a time: a pack lists any number of files,
+  // and sequential requests keep the load on the pack host to one connection.
+
   // 1. Fetch and install rules
   const rulesDir = `${root}/${persistence.paths.rulesDir}`;
   await runtime.fs.mkdir(rulesDir, { recursive: true });
 
   if (manifest.rules !== undefined) {
     for (const rulePath of manifest.rules) {
+      // deno-lint-ignore no-await-in-loop
       const content = await fetchRemoteFile(specifier, rulePath);
       const ruleName = rulePath
         .replace(/^rules\//, "")
         .replace(/\.md$/, "");
       const fileName = `pack-${name}-${ruleName}.md`;
+      // deno-lint-ignore no-await-in-loop
       await runtime.fs.writeTextFile(`${rulesDir}/${fileName}`, content);
       installedRules.push(fileName);
     }
@@ -338,10 +346,21 @@ export const installRemotePack = async (
     let prefix = await nextConcernPrefix(root);
 
     for (const concernPath of manifest.concerns) {
+      // deno-lint-ignore no-await-in-loop
       const content = await fetchRemoteFile(specifier, concernPath);
       const concern = JSON.parse(content) as { id: string };
+
+      // A concern with an unknown scope value would be skipped at every load,
+      // so the install stops here and names the entry instead.
+      const scopeProblem = concernScope.concernScopeProblem(concern);
+      if (scopeProblem !== null) {
+        throw new Error(
+          `${concernPath} in ${specifier} is not a valid concern: ${scopeProblem}`,
+        );
+      }
       const paddedPrefix = String(prefix).padStart(3, "0");
       const fileName = `${paddedPrefix}-${concern.id}.json`;
+      // deno-lint-ignore no-await-in-loop
       await runtime.fs.writeTextFile(
         `${concernsDir}/${fileName}`,
         content,
@@ -356,9 +375,12 @@ export const installRemotePack = async (
     for (
       const [targetDir, sourcePath] of Object.entries(manifest.folderRules)
     ) {
+      // deno-lint-ignore no-await-in-loop
       const content = await fetchRemoteFile(specifier, sourcePath);
       const targetPath = `${root}/${targetDir}/.folder-rules.md`;
+      // deno-lint-ignore no-await-in-loop
       await runtime.fs.mkdir(`${root}/${targetDir}`, { recursive: true });
+      // deno-lint-ignore no-await-in-loop
       await runtime.fs.writeTextFile(targetPath, content);
       installedFolderRules.push(`${targetDir}/.folder-rules.md`);
     }
@@ -394,7 +416,7 @@ const packList = async (): Promise<shellArgs.CliResult<void>> => {
   // Built-in packs
   out.writeln(span.bold("Built-in packs:"));
 
-  for (const [name, builtin] of BUILTIN_PACKS) {
+  for (const [name, builtin] of defaultPacks.BUILTIN_PACKS) {
     const ruleCount = Object.keys(builtin.ruleContents).length;
     const concernCount = builtin.concernContents.length;
     const parts = [];
@@ -440,6 +462,42 @@ const packList = async (): Promise<shellArgs.CliResult<void>> => {
 // pack install
 // =============================================================================
 
+/**
+ * Installs the built-in packs a pack requires and records each one in
+ * packs.json as it lands. Returns the packs it installed.
+ */
+const installRequiredPacks = async (
+  root: string,
+  requires: readonly string[],
+  alreadyInstalled: readonly packSchema.InstalledPack[],
+  out: streams.Output,
+): Promise<readonly packSchema.InstalledPack[]> => {
+  const installedDeps: packSchema.InstalledPack[] = [];
+
+  // Dependencies install one at a time: each takes the next free concern
+  // prefix, which the next install reads back from disk, and packs.json is
+  // rewritten after each one.
+  for (const dep of requires) {
+    const isInstalled = [...alreadyInstalled, ...installedDeps].some((p) =>
+      p.name === dep
+    );
+    const depBuiltin = resolveBuiltinPack(dep);
+    if (isInstalled || depBuiltin === undefined) {
+      continue;
+    }
+
+    out.writeln(span.dim(`  Installing dependency: ${dep}`));
+    // deno-lint-ignore no-await-in-loop
+    installedDeps.push(await installBuiltinPack(root, dep, depBuiltin));
+    // deno-lint-ignore no-await-in-loop
+    await writePacksFile(root, {
+      installed: [...alreadyInstalled, ...installedDeps],
+    });
+  }
+
+  return installedDeps;
+};
+
 const packInstall = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
@@ -452,7 +510,7 @@ const packInstall = async (
   const nameOrSpecifier = args?.[0];
 
   if (nameOrSpecifier === undefined || nameOrSpecifier.length === 0) {
-    const prefix = cmdPrefix();
+    const prefix = cmd.cmdPrefix();
     out.writeln(
       span.red("Please provide a pack name: "),
       span.bold(`${prefix} pack install typescript`),
@@ -485,6 +543,7 @@ const packInstall = async (
   }
 
   let installed: packSchema.InstalledPack;
+  let installedDeps: readonly packSchema.InstalledPack[] = [];
 
   if (isRemote) {
     // Remote install
@@ -495,24 +554,12 @@ const packInstall = async (
 
       // Install requires first
       if (manifest.requires !== undefined) {
-        for (const dep of manifest.requires) {
-          if (!packsFile.installed.some((p) => p.name === dep)) {
-            out.writeln(
-              span.dim(`  Installing dependency: ${dep}`),
-            );
-            const depBuiltin = resolveBuiltinPack(dep);
-            if (depBuiltin !== undefined) {
-              const depInstalled = await installBuiltinPack(
-                root,
-                dep,
-                depBuiltin,
-              );
-              (packsFile.installed as packSchema.InstalledPack[]).push(
-                depInstalled,
-              );
-            }
-          }
-        }
+        installedDeps = await installRequiredPacks(
+          root,
+          manifest.requires,
+          packsFile.installed,
+          out,
+        );
       }
 
       installed = await installRemotePack(root, nameOrSpecifier, manifest);
@@ -538,7 +585,9 @@ const packInstall = async (
       );
       out.writeln(
         span.dim(
-          `  Available built-in packs: ${[...BUILTIN_PACKS.keys()].join(", ")}`,
+          `  Available built-in packs: ${
+            [...defaultPacks.BUILTIN_PACKS.keys()].join(", ")
+          }`,
         ),
       );
       await out.close();
@@ -548,24 +597,12 @@ const packInstall = async (
 
     // Install requires first
     if (builtin.manifest.requires !== undefined) {
-      for (const dep of builtin.manifest.requires) {
-        if (!packsFile.installed.some((p) => p.name === dep)) {
-          out.writeln(span.dim(`  Installing dependency: ${dep}`));
-          const depBuiltin = resolveBuiltinPack(dep);
-          if (depBuiltin !== undefined) {
-            const depInstalled = await installBuiltinPack(
-              root,
-              dep,
-              depBuiltin,
-            );
-            const mutableInstalled = [
-              ...packsFile.installed,
-              depInstalled,
-            ];
-            await writePacksFile(root, { installed: mutableInstalled });
-          }
-        }
-      }
+      installedDeps = await installRequiredPacks(
+        root,
+        builtin.manifest.requires,
+        packsFile.installed,
+        out,
+      );
     }
 
     installed = await installBuiltinPack(root, nameOrSpecifier, builtin);
@@ -573,7 +610,7 @@ const packInstall = async (
 
   // Update packs.json
   const newPacksFile: packSchema.InstalledPacksFile = {
-    installed: [...packsFile.installed, installed],
+    installed: [...packsFile.installed, ...installedDeps, installed],
   };
   await writePacksFile(root, newPacksFile);
 
@@ -621,7 +658,7 @@ const packUninstall = async (
   const packName = args?.[0];
 
   if (packName === undefined || packName.length === 0) {
-    const prefix = cmdPrefix();
+    const prefix = cmd.cmdPrefix();
     out.writeln(
       span.red("Please provide a pack name: "),
       span.bold(`${prefix} pack uninstall typescript`),
@@ -662,34 +699,20 @@ const packUninstall = async (
     );
   }
 
-  // Remove rule files
+  // Remove the pack's rule, concern and folder-rule files. Each is a separate
+  // file, so they are removed concurrently; one that is already gone is fine.
   const rulesDir = `${root}/${persistence.paths.rulesDir}`;
-  for (const ruleFile of installed.rules) {
-    try {
-      await runtime.fs.remove(`${rulesDir}/${ruleFile}`);
-    } catch {
-      // File may already be gone
-    }
-  }
-
-  // Remove concern files
   const concernsDir = `${root}/${persistence.paths.concernsDir}`;
-  for (const concernFile of installed.concerns) {
-    try {
-      await runtime.fs.remove(`${concernsDir}/${concernFile}`);
-    } catch {
-      // File may already be gone
-    }
-  }
-
-  // Remove folder-rule files
-  for (const folderRulePath of installed.folderRules) {
-    try {
-      await runtime.fs.remove(`${root}/${folderRulePath}`);
-    } catch {
-      // File may already be gone
-    }
-  }
+  const packFiles = [
+    ...installed.rules.map((ruleFile) => `${rulesDir}/${ruleFile}`),
+    ...installed.concerns.map((concernFile) => `${concernsDir}/${concernFile}`),
+    ...installed.folderRules.map((folderRulePath) =>
+      `${root}/${folderRulePath}`
+    ),
+  ];
+  await Promise.all(
+    packFiles.map((filePath) => runtime.fs.remove(filePath).catch(() => {})),
+  );
 
   // Update packs.json
   const newPacksFile: packSchema.InstalledPacksFile = {
@@ -729,7 +752,7 @@ const packInspect = async (
   const nameOrSpecifier = args?.[0];
 
   if (nameOrSpecifier === undefined || nameOrSpecifier.length === 0) {
-    const prefix = cmdPrefix();
+    const prefix = cmd.cmdPrefix();
     out.writeln(
       span.red("Please provide a pack name: "),
       span.bold(`${prefix} pack inspect typescript`),
@@ -871,7 +894,7 @@ const packSearch = async (
   const query = args?.[0]?.toLowerCase();
 
   if (query === undefined || query.length === 0) {
-    const prefix = cmdPrefix();
+    const prefix = cmd.cmdPrefix();
     out.writeln(
       span.red("Please provide a search query: "),
       span.bold(`${prefix} pack search typescript`),
@@ -885,7 +908,7 @@ const packSearch = async (
   out.writeln(span.bold("Matching packs:"));
   let found = false;
 
-  for (const [name, builtin] of BUILTIN_PACKS) {
+  for (const [name, builtin] of defaultPacks.BUILTIN_PACKS) {
     const tags = builtin.manifest.tags ?? [];
     const matchesName = name.includes(query);
     const matchesTag = tags.some((t) => t.includes(query));
@@ -904,44 +927,39 @@ const packSearch = async (
     }
   }
 
-  // Try remote registry
+  // Try the remote registry. Its URL comes from the repository's manifest, so
+  // it is checked before any request (pack/registry.ts says what is refused).
   const { root } = await persistence.resolveProjectRoot();
   const config = await persistence.readManifest(root);
-  const registryUrl = (config as Record<string, unknown> | null)
-    ?.["packRegistry"] as
-      | string
-      | undefined;
+  const registrySetting = (config as Record<string, unknown> | null)
+    ?.["packRegistry"];
 
-  if (registryUrl !== undefined) {
-    try {
-      const response = await globalThis.fetch(registryUrl, {
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      });
+  if (registrySetting !== undefined) {
+    const registry = await searchableRegistry(registrySetting);
 
-      if (response.ok) {
-        const registry = JSON.parse(
-          await response.text(),
-        ) as packSchema.PackRegistry;
+    if (results.isFail(registry)) {
+      out.writeln(
+        span.yellow(
+          `  Remote registry not searched: ${registry.error.message}`,
+        ),
+      );
+    } else {
+      for (const entry of registry.value.packs) {
+        const tags = entry.tags ?? [];
+        const matchesName = entry.name.includes(query);
+        const matchesTag = tags.some((t) => t.includes(query));
+        const matchesDesc = entry.description.toLowerCase().includes(query);
 
-        for (const entry of registry.packs) {
-          const tags = entry.tags ?? [];
-          const matchesName = entry.name.includes(query);
-          const matchesTag = tags.some((t) => t.includes(query));
-          const matchesDesc = entry.description.toLowerCase().includes(query);
-
-          if (matchesName || matchesTag || matchesDesc) {
-            out.writeln(
-              "  ",
-              span.bold(entry.name.padEnd(16)),
-              span.dim(entry.description),
-              span.dim(`  [${entry.source}]`),
-            );
-            found = true;
-          }
+        if (matchesName || matchesTag || matchesDesc) {
+          out.writeln(
+            "  ",
+            span.bold(entry.name.padEnd(16)),
+            span.dim(entry.description),
+            span.dim(`  [${entry.source}]`),
+          );
+          found = true;
         }
       }
-    } catch {
-      // Registry unavailable, silently skip
     }
   }
 
@@ -952,4 +970,16 @@ const packSearch = async (
   await out.close();
 
   return results.ok(undefined);
+};
+
+/** Checks the manifest's packRegistry value, then fetches the registry. */
+const searchableRegistry = async (
+  setting: unknown,
+): Promise<
+  results.Result<packSchema.PackRegistry, packRegistry.PackRegistryError>
+> => {
+  const url = packRegistry.parseRegistryUrl(setting);
+  if (results.isFail(url)) return url;
+
+  return await packRegistry.fetchRegistry(url.value);
 };

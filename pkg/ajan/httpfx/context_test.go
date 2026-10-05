@@ -14,7 +14,7 @@ import (
 func TestContext_HandlerChain(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	require.NotNil(t, router)
 
 	// Track handler execution order
@@ -58,7 +58,7 @@ func TestContext_HandlerChain(t *testing.T) {
 func TestContext_UpdateContext(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	require.NotNil(t, router)
 
 	// Create a context key and value
@@ -137,7 +137,7 @@ func TestContext_Results(t *testing.T) {
 			t.Parallel()
 
 			// Create a new router for each test case
-			router := httpfx.NewRouter("/")
+			router := newTestRouter()
 			require.NotNil(t, router)
 
 			// Add route

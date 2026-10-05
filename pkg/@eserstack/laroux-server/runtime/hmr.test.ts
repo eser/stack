@@ -4,8 +4,8 @@
  * Tests for Hot Module Replacement WebSocket management
  */
 
-import { assertEquals } from "@std/assert";
-import { HMRManager } from "../domain/hmr-manager.ts";
+import * as assert from "@std/assert";
+import * as hmrManager from "../domain/hmr-manager.ts";
 
 /**
  * Create a mock WebSocket for testing
@@ -41,32 +41,39 @@ function createMockSocket(): {
   return { socket, messages, closeHandlers, errorHandlers };
 }
 
+/** The one message a socket received, parsed; fails unless there is one. */
+function onlyMessage(messages: readonly string[]): hmrManager.HMRMessage {
+  const [message, ...rest] = messages;
+  assert.assertExists(message, "the socket received no message");
+  assert.assertEquals(rest, [], "the socket received more than one message");
+
+  return JSON.parse(message);
+}
+
 Deno.test("HMRManager - initial client count is zero", () => {
-  const manager = new HMRManager();
-  assertEquals(manager.getClientCount(), 0);
+  const manager = new hmrManager.HMRManager();
+  assert.assertEquals(manager.getClientCount(), 0);
 });
 
 Deno.test("HMRManager - handleConnection increases client count", () => {
-  const manager = new HMRManager();
+  const manager = new hmrManager.HMRManager();
   const { socket } = createMockSocket();
 
   manager.handleConnection(socket);
-  assertEquals(manager.getClientCount(), 1);
+  assert.assertEquals(manager.getClientCount(), 1);
 });
 
 Deno.test("HMRManager - sends connected message on connection", () => {
-  const manager = new HMRManager();
+  const manager = new hmrManager.HMRManager();
   const { socket, messages } = createMockSocket();
 
   manager.handleConnection(socket);
 
-  assertEquals(messages.length, 1);
-  const msg = JSON.parse(messages[0]);
-  assertEquals(msg.type, "connected");
+  assert.assertEquals(onlyMessage(messages), { type: "connected" });
 });
 
 Deno.test("HMRManager - notifyUpdate broadcasts to all clients", () => {
-  const manager = new HMRManager();
+  const manager = new hmrManager.HMRManager();
   const mock1 = createMockSocket();
   const mock2 = createMockSocket();
 
@@ -82,21 +89,17 @@ Deno.test("HMRManager - notifyUpdate broadcasts to all clients", () => {
   manager.notifyUpdate(timestamp, changedModules);
 
   // Both clients should receive the update
-  assertEquals(mock1.messages.length, 1);
-  assertEquals(mock2.messages.length, 1);
-
-  const msg1 = JSON.parse(mock1.messages[0]);
-  assertEquals(msg1.type, "update");
-  assertEquals(msg1.timestamp, timestamp);
-  assertEquals(msg1.changedModules, changedModules);
-
-  const msg2 = JSON.parse(mock2.messages[0]);
-  assertEquals(msg2.type, "update");
-  assertEquals(msg2.changedModules, changedModules);
+  const expected: hmrManager.HMRMessage = {
+    type: "update",
+    timestamp,
+    changedModules,
+  };
+  assert.assertEquals(onlyMessage(mock1.messages), expected);
+  assert.assertEquals(onlyMessage(mock2.messages), expected);
 });
 
 Deno.test("HMRManager - notifyError broadcasts error to all clients", () => {
-  const manager = new HMRManager();
+  const manager = new hmrManager.HMRManager();
   const { socket, messages } = createMockSocket();
 
   manager.handleConnection(socket);
@@ -105,51 +108,51 @@ Deno.test("HMRManager - notifyError broadcasts error to all clients", () => {
   const errorMessage = "Build failed: syntax error";
   manager.notifyError(errorMessage);
 
-  assertEquals(messages.length, 1);
-  const msg = JSON.parse(messages[0]);
-  assertEquals(msg.type, "error");
-  assertEquals(msg.message, errorMessage);
+  assert.assertEquals(onlyMessage(messages), {
+    type: "error",
+    message: errorMessage,
+  });
 });
 
 Deno.test("HMRManager - removes client on disconnect", () => {
-  const manager = new HMRManager();
+  const manager = new hmrManager.HMRManager();
   const { socket, closeHandlers } = createMockSocket();
 
   manager.handleConnection(socket);
-  assertEquals(manager.getClientCount(), 1);
+  assert.assertEquals(manager.getClientCount(), 1);
 
   // Simulate disconnect
   closeHandlers.forEach((h) => h());
-  assertEquals(manager.getClientCount(), 0);
+  assert.assertEquals(manager.getClientCount(), 0);
 });
 
 Deno.test("HMRManager - removes client on error", () => {
-  const manager = new HMRManager();
+  const manager = new hmrManager.HMRManager();
   const { socket, errorHandlers } = createMockSocket();
 
   manager.handleConnection(socket);
-  assertEquals(manager.getClientCount(), 1);
+  assert.assertEquals(manager.getClientCount(), 1);
 
   // Simulate error
   errorHandlers.forEach((h) => h(new Event("error")));
-  assertEquals(manager.getClientCount(), 0);
+  assert.assertEquals(manager.getClientCount(), 0);
 });
 
 Deno.test("HMRManager - close disconnects all clients", () => {
-  const manager = new HMRManager();
+  const manager = new hmrManager.HMRManager();
   const mock1 = createMockSocket();
   const mock2 = createMockSocket();
 
   manager.handleConnection(mock1.socket);
   manager.handleConnection(mock2.socket);
-  assertEquals(manager.getClientCount(), 2);
+  assert.assertEquals(manager.getClientCount(), 2);
 
   manager.close();
-  assertEquals(manager.getClientCount(), 0);
+  assert.assertEquals(manager.getClientCount(), 0);
 });
 
 Deno.test("HMRManager - skips closed sockets when sending", () => {
-  const manager = new HMRManager();
+  const manager = new hmrManager.HMRManager();
   const messages: string[] = [];
 
   // Create a socket that is already closed
@@ -165,21 +168,21 @@ Deno.test("HMRManager - skips closed sockets when sending", () => {
 
   // Should not have sent the update (only connected message attempt)
   // The closed socket should be skipped
-  assertEquals(messages.length, 0);
+  assert.assertEquals(messages.length, 0);
 });
 
 Deno.test("HMRManager - handles multiple simultaneous connections", () => {
-  const manager = new HMRManager();
+  const manager = new hmrManager.HMRManager();
   const sockets = Array.from({ length: 10 }, () => createMockSocket());
 
   sockets.forEach(({ socket }) => manager.handleConnection(socket));
-  assertEquals(manager.getClientCount(), 10);
+  assert.assertEquals(manager.getClientCount(), 10);
 
   // Send update
   manager.notifyUpdate(Date.now(), ["test.tsx"]);
 
   // All should receive (connected + update = 2 messages each)
   sockets.forEach(({ messages }) => {
-    assertEquals(messages.length, 2);
+    assert.assertEquals(messages.length, 2);
   });
 });

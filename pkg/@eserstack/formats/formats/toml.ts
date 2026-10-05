@@ -2,7 +2,7 @@
 
 import * as toml from "@std/toml";
 import type { Format, FormatOptions, FormatReader } from "../types.ts";
-import { DeserializationError, SerializationError } from "../types.ts";
+import * as types from "../types.ts";
 
 export const writeStart = (_options?: FormatOptions): string => {
   return "";
@@ -29,7 +29,7 @@ export const writeItem = (
       toml.stringify(data as Record<string, unknown>, tomlOptions).trim()
     }\n${separator}\n`;
   } catch (error) {
-    throw new SerializationError(
+    throw new types.SerializationError(
       `Failed to serialize TOML: ${
         error instanceof Error ? error.message : String(error)
       }`,
@@ -53,7 +53,7 @@ export const createReader = (_options?: FormatOptions): FormatReader => {
     try {
       return [toml.parse(trimmed)];
     } catch (error) {
-      throw new DeserializationError(
+      throw new types.DeserializationError(
         `Failed to deserialize TOML: ${
           error instanceof Error ? error.message : String(error)
         }`,

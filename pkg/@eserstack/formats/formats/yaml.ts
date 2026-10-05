@@ -1,8 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as yaml from "yaml";
+import * as yaml from "@eemeli/yaml";
 import type { Format, FormatOptions, FormatReader } from "../types.ts";
-import { DeserializationError, SerializationError } from "../types.ts";
+import * as types from "../types.ts";
 
 export const writeStart = (_options?: FormatOptions): string => {
   return "";
@@ -23,7 +23,7 @@ export const writeItem = (
       "---");
     return `${yaml.stringify(data, yamlOptions).trim()}\n${separator}\n`;
   } catch (error) {
-    throw new SerializationError(
+    throw new types.SerializationError(
       `Failed to serialize YAML: ${
         error instanceof Error ? error.message : String(error)
       }`,
@@ -47,7 +47,7 @@ export const createReader = (_options?: FormatOptions): FormatReader => {
     try {
       return [yaml.parse(trimmed)];
     } catch (error) {
-      throw new DeserializationError(
+      throw new types.DeserializationError(
         `Failed to deserialize YAML: ${
           error instanceof Error ? error.message : String(error)
         }`,

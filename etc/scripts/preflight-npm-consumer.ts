@@ -12,7 +12,8 @@
  * to find one that IS declared (koffi lives under @eserstack/ajan in the pnpm
  * tree, unreachable from cli/dist), which kept the Node cross-runtime job red.
  *
- * Deliberately no workspace imports (see gen-jsr-manifests.ts for why).
+ * Deliberately no workspace or registry imports (see gen-jsr-manifests.ts for
+ * why).
  *
  * Usage:
  *   deno run --allow-all etc/scripts/preflight-npm-consumer.ts [options]
@@ -31,22 +32,55 @@
  * @module
  */
 
-import * as path from "jsr:@std/path@^1.1.4";
+// The progress and result lines it prints are the preflight's log.
+// deno-lint-ignore-file no-console
+
+import * as distUtils from "./dist-utils.ts";
 
 const decoder = new TextDecoder();
 
+// Each bound fails one stalled step with a message that names it, inside the
+// preflight step's five-minute limit, which stays the backstop.
+
+/** npm pack of the local dist directory into one tarball. */
+const NPM_PACK_TIMEOUT_MS = 60_000;
+
+/** npm install of the tarball, which fetches its dependencies from npm. */
+const NPM_INSTALL_TIMEOUT_MS = 180_000;
+
+/** One eser command (--help, version, ajan version) under Node or Bun. */
+const ESER_COMMAND_TIMEOUT_MS = 30_000;
+
 type RunResult = { code: number; stdout: string; stderr: string };
 
+/**
+ * Runs `cmd` in `cwd` and returns its exit code and output for the caller to
+ * judge. A run that `timeoutMs` stops throws instead: its exit code would only
+ * say that it was killed, and `eser ajan version` would read that as the
+ * expected graceful failure.
+ */
 const run = async (
-  cmd: string[],
+  cmd: readonly string[],
   cwd: string,
+  timeoutMs: number,
 ): Promise<RunResult> => {
+  const signal = AbortSignal.timeout(timeoutMs);
   const output = await new Deno.Command(cmd[0]!, {
     args: cmd.slice(1),
     cwd,
     stdout: "piped",
     stderr: "piped",
+    signal,
   }).output();
+
+  // A failed run with an aborted signal is one the timeout stopped.
+  if (!output.success && signal.aborted) {
+    const commandLine = cmd.join(" ");
+
+    throw new Error(
+      `${commandLine} (in ${cwd}): did not finish within ${timeoutMs} ms and was stopped; rerun the preflight, and if it stops again, run the command by hand in that directory to see where it hangs (for npm, check that the registry is reachable)`,
+    );
+  }
 
   return {
     code: output.code,
@@ -82,20 +116,22 @@ const parseOptions = (): {
 
 const main = async (): Promise<void> => {
   const { runtime, requireNative } = parseOptions();
-  const scriptDir = path.dirname(path.fromFileUrl(import.meta.url));
-  const repoRoot = path.resolve(scriptDir, "..", "..");
-  const distDir = path.join(repoRoot, "pkg", "@eserstack", "cli", "dist");
+  const repoRoot = distUtils.repoRootFrom(import.meta.dirname);
+  const distDir = `${repoRoot}/pkg/@eserstack/cli/dist`;
 
-  let packed: { version: string };
+  let packedText: string;
   try {
-    packed = JSON.parse(
-      await Deno.readTextFile(path.join(distDir, "package.json")),
-    ) as { version: string };
-  } catch {
-    throw new Error(
-      `${distDir} has no package.json — run \`deno task cli build\` first.`,
-    );
+    packedText = await Deno.readTextFile(`${distDir}/package.json`);
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      throw new Error(
+        `${distDir} has no package.json; run \`deno task cli build\` first.`,
+        { cause: error },
+      );
+    }
+    throw error;
   }
+  const packed = JSON.parse(packedText) as { version: string };
 
   // Both directories live under the OS temp dir, never under the repo.
   const packDir = await Deno.makeTempDir({ prefix: "eser-preflight-pack-" });
@@ -104,10 +140,13 @@ const main = async (): Promise<void> => {
   });
 
   try {
-    // deno-lint-ignore no-console
     console.log(`Packing ${distDir} ...`);
     must(
-      await run(["npm", "pack", "--pack-destination", packDir], distDir),
+      await run(
+        ["npm", "pack", "--pack-destination", packDir],
+        distDir,
+        NPM_PACK_TIMEOUT_MS,
+      ),
       "npm pack",
     );
 
@@ -118,19 +157,19 @@ const main = async (): Promise<void> => {
     if (tarballs.length !== 1) {
       throw new Error(`expected one tarball in ${packDir}, found ${tarballs}`);
     }
-    const tarball = path.join(packDir, tarballs[0]!);
+    const tarball = `${packDir}/${tarballs[0]!}`;
 
     await Deno.writeTextFile(
-      path.join(consumerDir, "package.json"),
+      `${consumerDir}/package.json`,
       '{"name":"eser-preflight-consumer","private":true,"version":"1.0.0"}\n',
     );
 
-    // deno-lint-ignore no-console
     console.log(`Installing ${tarballs[0]} into ${consumerDir} ...`);
     must(
       await run(
         ["npm", "install", "--no-audit", "--no-fund", tarball],
         consumerDir,
+        NPM_INSTALL_TIMEOUT_MS,
       ),
       "npm install of the packed CLI",
     );
@@ -138,15 +177,14 @@ const main = async (): Promise<void> => {
     // Invoke the runtime explicitly rather than through the bin shim, so the
     // matrix's Node or Bun is the one that runs — not whatever `node` the
     // shebang finds first.
-    const entry = path.join(consumerDir, "node_modules", "eser", "eser.js");
+    const entry = `${consumerDir}/node_modules/eser/eser.js`;
     const eser = (...args: string[]) =>
-      run([runtime, entry, ...args], consumerDir);
+      run([runtime, entry, ...args], consumerDir, ESER_COMMAND_TIMEOUT_MS);
 
     must(await eser("--help"), `${runtime} eser --help`);
 
     const version = await eser("version");
     must(version, `${runtime} eser version`);
-    // deno-lint-ignore no-console
     console.log(`${runtime} eser version → ${version.stdout.trim()}`);
 
     const ajan = await eser("ajan", "version");
@@ -167,20 +205,17 @@ const main = async (): Promise<void> => {
           `eser ajan version reported "${ajan.stdout.trim()}" but the bundle is ${packed.version} — a mismatched library was loaded`,
         );
       }
-      // deno-lint-ignore no-console
       console.log(`${runtime} eser ajan version → ${ajan.stdout.trim()}`);
     } else if (requireNative) {
       throw new Error(
         `--require-native: eser ajan version did not load the native library under ${runtime}:\n${ajanOutput}`,
       );
     } else {
-      // deno-lint-ignore no-console
       console.log(
         `${runtime} eser ajan version → failed gracefully without mentioning Deno (no native library for an unreleased version)`,
       );
     }
 
-    // deno-lint-ignore no-console
     console.log(`npm consumer preflight (${runtime}): OK`);
   } finally {
     await Deno.remove(packDir, { recursive: true });
@@ -189,5 +224,7 @@ const main = async (): Promise<void> => {
 };
 
 if (import.meta.main) {
+  // Script entry point: the preflight and CI run the file directly.
+  // deno-lint-ignore no-top-level-await
   await main();
 }

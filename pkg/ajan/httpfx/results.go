@@ -2,7 +2,8 @@ package httpfx
 
 import (
 	"encoding/json"
-	"log/slog"
+	"errors"
+	"fmt"
 	"net/http"
 	"sync/atomic"
 
@@ -57,27 +58,36 @@ func SetDiscloseErrors(enabled bool) {
 	discloseErrors.Store(enabled)
 }
 
-// WithSanitizedError logs the full error server-side and returns a generic
-// error message to the client, preventing internal details from leaking.
-// When discloseErrors is enabled, the real error message is returned instead.
+// WithSanitizedError puts err on the result and sends the client a generic
+// error message instead of it, so internal details do not leak. The router
+// logs err once, through its logger and with the request context, when it
+// writes the result. When discloseErrors is enabled, the client gets err's
+// message instead of the generic one.
 func WithSanitizedError(err error) ResultOption {
-	slog.Error("request error",
-		slog.String("scope_name", "httpfx_results"),
-		slog.Any("error", err))
-
+	message := "an error occurred"
 	if discloseErrors.Load() {
-		return WithErrorMessage(err.Error())
+		message = err.Error()
 	}
 
-	return WithErrorMessage("an error occurred")
+	writeMessage := WithErrorMessage(message)
+
+	return func(result *Result) {
+		result.InnerError = err
+
+		writeMessage(result)
+	}
 }
 
+// WithJSON encodes body as the result's body. A body that cannot be encoded
+// turns the result into a 500 and adds the encoding error to the result, for
+// the router to log.
 func WithJSON(body any) ResultOption {
 	return func(result *Result) {
 		encoded, err := json.Marshal(body)
 		if err != nil {
 			result.InnerBody = []byte("Failed to encode JSON")
 			result.InnerStatusCode = http.StatusInternalServerError
+			result.InnerError = errors.Join(result.InnerError, encodeJSONError(body, err))
 
 			return
 		}
@@ -207,16 +217,13 @@ func (r *Results) PlainText(body []byte) Result {
 	}
 }
 
+// JSON answers 200 with body encoded as JSON. A body that cannot be encoded
+// gets a 500 that carries the encoding error, for the router to log.
 func (r *Results) JSON(body any) Result {
 	encoded, err := json.Marshal(body)
 	if err != nil {
-		slog.Error("Failed to encode JSON response",
-			slog.String("scope_name", "httpfx_results"),
-			slog.Any("error", err),
-			slog.Any("body_type", body))
-
 		return Result{
-			Result: errResult.New(),
+			Result: errResult.Wrap(encodeJSONError(body, err)),
 
 			InnerStatusCode:    http.StatusInternalServerError,
 			InnerRedirectToURI: "",
@@ -244,10 +251,9 @@ func (r *Results) Redirect(uri string) Result {
 	}
 }
 
+// Abort answers 501 Not Implemented. It carries no error, so the router logs
+// nothing for it; TracingMiddleware's request log records the status.
 func (r *Results) Abort() Result {
-	slog.Debug("Request aborted by handler",
-		slog.String("scope_name", "httpfx_results"))
-
 	return Result{
 		Result: errResult.New(),
 
@@ -255,4 +261,10 @@ func (r *Results) Abort() Result {
 		InnerRedirectToURI: "",
 		InnerBody:          []byte("Not Implemented"),
 	}
+}
+
+// encodeJSONError names the type that failed to encode. It names only the
+// type: the value may hold personal data, which must not reach the log.
+func encodeJSONError(body any, err error) error {
+	return fmt.Errorf("encode %T response as JSON: %w", body, err)
 }

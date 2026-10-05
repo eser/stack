@@ -5,13 +5,15 @@
  */
 
 import * as logging from "@eserstack/logging";
-import {
-  extractFontFamilies,
-  type FontFile,
-  type FontOptimizationResult,
-  optimizeGoogleFonts as eserOptimizeGoogleFonts,
-  optimizeMultipleGoogleFonts as eserOptimizeMultipleGoogleFonts,
-} from "@eserstack/bundler/css";
+import * as css from "@eserstack/bundler/css";
+import type { FontFile, FontOptimizationResult } from "@eserstack/bundler/css";
+import type {
+  FontOptimizationOptions,
+  FontOptimizer,
+  OptimizedFonts,
+} from "../../domain/font-optimizer.ts";
+import type { FontDefinition } from "../../types.ts";
+import * as fontUrls from "./index.ts";
 
 const fontLogger = logging.logger.getLogger([
   "laroux-bundler",
@@ -34,15 +36,14 @@ export async function optimizeGoogleFonts(
   outputDir: string,
   publicPath = "/fonts",
 ): Promise<FontOptimizationResult> {
-  const families = extractFontFamilies(fontUrl);
-  fontLogger.info(
-    `🔤 Optimizing Google Fonts: ${families.join(", ") || "unknown"}`,
-  );
+  const families = css.extractFontFamilies(fontUrl);
+  const familyList = families.length > 0 ? families.join(", ") : "unknown";
+  fontLogger.info(`🔤 Optimizing Google Fonts: ${familyList}`);
   fontLogger.debug(`   URL: ${fontUrl}`);
   fontLogger.debug(`   Output: ${outputDir}`);
   fontLogger.debug(`   Public path: ${publicPath}`);
 
-  const result = await eserOptimizeGoogleFonts(fontUrl, {
+  const result = await css.optimizeGoogleFonts(fontUrl, {
     outputDir,
     publicPath,
     maxPreloadFonts: 2,
@@ -68,7 +69,7 @@ export async function optimizeMultipleGoogleFonts(
 ): Promise<FontOptimizationResult> {
   fontLogger.info(`🔤 Optimizing ${fontUrls.length} Google Fonts URL(s)`);
 
-  const result = await eserOptimizeMultipleGoogleFonts(fontUrls, {
+  const result = await css.optimizeMultipleGoogleFonts(fontUrls, {
     outputDir,
     publicPath,
     maxPreloadFonts: 2,
@@ -83,3 +84,35 @@ export async function optimizeMultipleGoogleFonts(
 
   return result;
 }
+
+/**
+ * Font optimizer that self-hosts Google Fonts: it downloads every font whose
+ * provider is "google" into the output directory and returns the @font-face
+ * rules and preload hints for them. Fonts with another provider are left to
+ * the app. Pass it to the build as `fontOptimizer`.
+ */
+export const googleFontOptimizer: FontOptimizer = {
+  name: "google-fonts",
+  optimize: async (
+    fonts: readonly FontDefinition[],
+    options: FontOptimizationOptions,
+  ): Promise<OptimizedFonts | null> => {
+    const [fontUrl] = fontUrls.getFontUrls(fonts);
+    if (fontUrl === undefined) {
+      return null;
+    }
+
+    const result = await optimizeGoogleFonts(
+      fontUrl,
+      options.outputDir,
+      options.publicPath,
+    );
+
+    return {
+      fontFaceCss: result.fontFaceCSS,
+      preloadHints: result.preloadHints,
+      fileCount: result.files.length,
+      totalSize: result.totalSize,
+    };
+  },
+};

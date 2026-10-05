@@ -13,20 +13,22 @@ import type * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
 import type { InteractionHints } from "../sync/adapter.ts";
 import * as livingSpec from "../spec/living.ts";
-import { DEFAULT_CONCERNS } from "../defaults/concerns/mod.ts";
+import * as defaultConcerns from "../defaults/concerns/mod.ts";
 import * as questions from "./questions.ts";
 import * as concerns from "./concerns.ts";
 import * as learningsModule from "../dashboard/learnings.ts";
 import * as splitDetector from "./split-detector.ts";
+import * as discoveryAnswers from "./discovery-answers.ts";
+import type * as transitionValidation from "./transition-validation.ts";
 import type { ParsedSpec } from "../spec/parser.ts";
 import type { FolderRule } from "./folder-rules.ts";
-import { cmd as _cmd } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 export type { InteractionHints } from "../sync/adapter.ts";
 
 /** Shorthand: build a command string using the runtime-detected prefix. */
-const c = (sub: string): string => _cmd(sub);
+const c = (sub: string): string => cmd.cmd(sub);
 
 /**
  * Build a spec-scoped command string using positional format:
@@ -36,6 +38,10 @@ const cs = (sub: string, specName: string | null): string => {
   if (specName === null) return c(sub);
   return c(`spec ${specName} ${sub}`);
 };
+
+/** Joins items with commas, or returns "none" for an empty list. */
+const listOrNone = (items: readonly string[]): string =>
+  items.length === 0 ? "none" : items.join(", ");
 
 // =============================================================================
 // Output Types (JSON contract for `noskills next`)
@@ -78,6 +84,12 @@ export type NextOutput = PhaseOutput & {
    * Always present when phase !== "UNINITIALIZED". Agents MUST follow this.
    */
   readonly modeDirective?: string;
+  /**
+   * The second agent's findings on the transition waiting for approval, or why
+   * it was skipped. `noskills next` adds it at the end of discovery and at the
+   * spec proposal when `--validate` or the manifest's `validate` entry asks.
+   */
+  readonly validation?: transitionValidation.TransitionValidation;
 };
 
 export type DiscoveryQuestion = {
@@ -145,7 +157,6 @@ export type DiscoveryOutput = {
   readonly instruction: string;
   readonly questions: readonly DiscoveryQuestion[];
   readonly answeredCount: number;
-  readonly currentQuestion?: number;
   readonly totalQuestions?: number;
   readonly context: ContextBlock;
   readonly transition: {
@@ -319,8 +330,11 @@ export type ExecutionOutput = {
     readonly iteration: number;
   };
   readonly concernTensions?: readonly concerns.ConcernTension[];
+  /**
+   * Set once the spec's iteration count reaches `maxIterationsBeforeRestart`.
+   * A flag for the formatter and dashboards; the agent gets no restart prose.
+   */
   readonly restartRecommended?: boolean;
-  readonly restartInstruction?: string;
   readonly verificationFailed?: boolean;
   readonly verificationOutput?: string;
   readonly statusReportRequired?: boolean;
@@ -442,7 +456,6 @@ export type BehavioralBlock = {
   readonly modeOverride?: string;
   readonly rules: readonly string[];
   readonly tone: string;
-  readonly urgency?: string;
   readonly outOfScope?: readonly string[];
   readonly tier2Summary?: string;
 };
@@ -497,7 +510,9 @@ export const inferClassification = (
   state: schema.StateFile,
 ): schema.SpecClassification => {
   const parts: string[] = [];
-  if (state.specDescription) parts.push(state.specDescription);
+  if (state.specDescription !== null && state.specDescription !== "") {
+    parts.push(state.specDescription);
+  }
   const userContext = state.discovery?.userContext;
   if (Array.isArray(userContext)) parts.push(...userContext);
   for (const a of state.discovery?.answers ?? []) {
@@ -595,28 +610,49 @@ export const formatClassificationPreview = (
 const GIT_READONLY_RULE =
   "NEVER run git write commands (commit, add, push, checkout, stash, reset, merge, rebase, cherry-pick). Git is read-only for agents. The user controls git. You may read: git log, git diff, git status, git show, git blame.";
 
+// DISCOVERY, DISCOVERY_REFINEMENT and SPEC_PROPOSAL are read-only. This is the
+// one place that says so: their modeOverride only names the mode, so the ban
+// is not repeated in three wordings.
+const READ_ONLY_RULE =
+  "This phase is read-only: read files and run read-only commands (cat, ls, grep, git log, git diff); create or edit nothing and run nothing that changes state, apart from the noskills commands this output gives you.";
+
+/** READ_ONLY_RULE, plus the key that turns on plan mode when the tool has one. */
+const readOnlyRule = (hints: InteractionHints): string =>
+  hints.planModeShortcut === undefined
+    ? READ_ONLY_RULE
+    : `${READ_ONLY_RULE} If the session is not in plan mode, ask the user to switch (${hints.planModeShortcut}).`;
+
 /**
  * Discovery Conduct Rules — injected into DISCOVERY and DISCOVERY_REFINEMENT phases.
  * These convert the discovery interview from advisory guidance into a structured
  * Socratic policy. Not written to adapter rule files (static boot context) —
- * these go through the runtime `next` JSON channel only.
+ * these go through the runtime `next` JSON channel only. The exception is the
+ * question rule from discovery-answers.ts, which every rule file states too.
  *
  * Global rules fire for every spec. Concern-contributed rules (from
  * ConcernDefinition.conductRules) are appended after these per active concern.
  */
 const DISCOVERY_CONDUCT_RULES: readonly string[] = [
-  "Interview the user relentlessly about every aspect of this plan until you reach a shared understanding.",
+  "Interview the user about each part of this plan until you both share one understanding.",
   "Walk down each branch of the design tree, resolving dependencies between decisions one-by-one.",
   "For each question, provide your recommended answer — don't just ask, offer your informed opinion.",
-  "Ask questions ONE AT A TIME. Do not batch questions. Each question deserves its own focused exchange.",
+  discoveryAnswers.discoveryQuestionRule(),
   "If a question can be answered by exploring the codebase, explore the codebase INSTEAD of asking. Only ask the user what the codebase cannot tell you.",
-  "You are an honest engineer. Do NOT fill placeholders with assumptions.",
-  "You are investing in this spec like a CEO invests in a product — get the details right.",
-  "You are doing academic-level due diligence — no hand-waving, no 'we'll figure it out later.'",
+  "Do NOT fill placeholders with assumptions; ask the user instead.",
   "If a section is not applicable, ask the user to confirm it's N/A with a specific reason — don't decide yourself.",
   "If two answers conflict, surface the conflict to the user — don't resolve it yourself.",
   "If an answer is vague, push back and ask for specifics — don't accept vague.",
 ];
+
+/**
+ * How the agent puts discovery questions to the user: the base questions
+ * together, each follow-up on its own. AskUserQuestion takes up to 4
+ * questions per call, so the six base questions take two calls.
+ */
+const discoveryAskMethod = (hints: InteractionHints): string =>
+  hints.hasAskUserTool
+    ? "Ask the base questions through AskUserQuestion, as many as fit in each call (it takes up to 4), and each follow-up in a call of its own."
+    : "Ask the base questions in one message, as a numbered list, and each follow-up in a message of its own.";
 
 /** Default interaction hints — Claude Code behavior. */
 const DEFAULT_HINTS: InteractionHints = {
@@ -624,6 +660,7 @@ const DEFAULT_HINTS: InteractionHints = {
   optionPresentation: "tool",
   hasSubAgentDelegation: true,
   subAgentMethod: "task",
+  planModeShortcut: "Shift+Tab",
 };
 
 // =============================================================================
@@ -644,7 +681,7 @@ const CEO_REVIEW_RULES = (posture: schema.ReviewPosture): string[] => {
   const full = [
     ...base,
     "CEO REVIEW — REUSE SCORE: Table of existing modules/functions reused vs new code. Calculate approximate reuse percentage. Flag if <40%.",
-    "CEO REVIEW — DREAM STATE DELTA: Current state (2-3 sentences), 12-month ideal (2-3 sentences), what this spec delivers (%), remaining gap.",
+    "CEO REVIEW — DREAM STATE DELTA: Current state, 12-month ideal, the share of that gap this spec delivers (%), and the remaining gap.",
     "CEO REVIEW — FAILURE MODE REGISTRY: Table with #, Failure, Trigger, Mitigation. Every failure mode must have concrete mitigation. Include at minimum: data corruption, race conditions, backward compat, user confusion, performance.",
     "CEO REVIEW — NOT IN SCOPE: Explicit list of what this spec does NOT touch, with reasons. This is a contract.",
     "CEO REVIEW — UNRESOLVED DECISIONS: Table with #, Decision, Default, Notes. Every unresolved decision must have a safe default. Present to user.",
@@ -681,14 +718,18 @@ const concernPostureSuggestion = (
 
 const buildBehavioral = (
   state: schema.StateFile,
-  maxIterationsBeforeRestart: number,
   allowGit: boolean,
   activeConcerns: readonly schema.ConcernDefinition[],
-  parsedSpec?: ParsedSpec | null,
-  hints: InteractionHints = DEFAULT_HINTS,
-  manifest?: schema.NosManifest | null,
+  parsedSpec: ParsedSpec | null | undefined,
+  hints: InteractionHints,
+  manifest: schema.NosManifest | null | undefined,
 ): BehavioralBlock => {
-  const stale = state.execution.iteration >= maxIterationsBeforeRestart;
+  const specName = state.spec;
+  // Commands that only work on a spec keep a placeholder when none is active.
+  const specScoped = specName ?? "<name>";
+  // `noskills run` drives the agent headless, so rules that wait for a person
+  // to answer are left out and decisions go through `block` instead.
+  const interactive = hints.interactive !== false;
 
   const askMethod = hints.hasAskUserTool
     ? "Use AskUserQuestion for all decision points."
@@ -698,17 +739,33 @@ const buildBehavioral = (
   if (!allowGit) mandatoryRules.push(GIT_READONLY_RULE);
   mandatoryRules.push(
     "Report progress honestly. Not done = 'not done'. Partial = 'partial: [works]/[doesn't]'. Untested = 'untested'. 4 of 6 = '4 of 6 done, 2 remaining'.",
-    `Never skip steps or infer decisions. ${askMethod} Recommend first, then ask. One noskills call per interaction — never batch-submit or backfill.`,
-    "Display `roadmap` before other content. Display `gate` prominently.",
+    interactive
+      ? `Never skip steps or infer decisions. ${askMethod} Recommend first, then ask.`
+      : `Never skip steps or infer decisions. Nobody answers questions during this run: when a decision needs the user, run \`${
+        cs('block "reason"', specScoped)
+      }\` and stop.`,
+  );
+  if (interactive) {
+    mandatoryRules.push(
+      "Display `roadmap` before other content. Display `gate` prominently.",
+    );
+  }
+  mandatoryRules.push(
     "NEVER suggest bypassing, skipping, or 'breaking out of' noskills. Discovery helps the user — it is not an obstacle. If scope changes: revise spec, reset and create new, or split.",
-    "NEVER ask permission to run the next noskills command. After spec new → run next immediately. After answering questions → run next. After approve → run next. After task completion → run next. The workflow is sequential — each step has one next step. Just run it.",
-    "Listen first: after spec creation, ask 'Tell me about this — share as much context as you have.' Wait for their response before mode selection. Rich context (>200 chars) → pre-fill discovery answers as STATED/INFERRED. Brief response → proceed normally.",
-    'Discovery questions are adaptive. After each answer, generate 1-3 follow-up questions if the answer reveals ambiguity, risk, dependencies, or missing detail. Submit follow-ups via `noskills spec <name> followup <questionId> "question"`. Max 3 per question. Do NOT rush through discovery.',
+    "Run the next noskills command as soon as the current step is done; each step has exactly one next step, so there is nothing to ask permission for.",
+  );
+  if (interactive) {
+    mandatoryRules.push(
+      "Listen first: after spec creation, ask 'Tell me about this. Share as much context as you have.' Wait for their response before mode selection. Rich context (>200 chars) → suggest pre-filled discovery answers from it, marked STATED or INFERRED for the user to confirm. Brief response → proceed normally.",
+      `Discovery questions are adaptive. Once the user has answered the base questions, write 1-3 follow-up questions for each answer that reveals ambiguity, risk, dependencies, or missing detail, and register them with \`${
+        cs('followup <questionId> "question"', specScoped)
+      }\` before you submit the answers (max 3 per question). noskills then gives you the follow-ups one at a time.`,
+    );
+  }
+  mandatoryRules.push(
     "Confidence scoring: every technical finding needs a confidence score (1-10). 9-10: verified (read code, ran test). 7-8: strong evidence. 5-6: reasonable inference. 3-4: guess. 1-2: speculation. State basis ('read X', 'inferred from Y'). If confidence < 5, prefix with '\u26A0 Unverified:'.",
   );
   const scopeItems = parsedSpec?.outOfScope ?? [];
-
-  const specName = state.spec;
 
   switch (state.phase) {
     case "IDLE": {
@@ -718,23 +775,39 @@ const buildBehavioral = (
 
       return {
         rules: [
-          "If the user described a feature/bug/task, create a spec immediately: `noskills spec new \"description\"` — name is auto-generated. Do NOT present menus or ask 'What would you like to do?' unless the conversation has no prior context.",
+          `If the user described a feature/bug/task, create a spec immediately: \`${
+            c('spec new "description"')
+          }\`; the name is auto-generated. Do NOT present menus or ask 'What would you like to do?' unless the conversation has no prior context.`,
           ...mandatoryRules,
           optionRule,
-          "Encourage full context: 'Tell me what you want to build — one-liner, detailed requirements, meeting notes, anything.' Slug is auto-generated. Pass full text to `noskills spec new \"...\"`.",
-          "After spec new, ask: full discovery, quick discovery, or skip to spec draft. Never skip without asking.",
+          `Encourage full context: 'Tell me what you want to build: a one-liner, detailed requirements, meeting notes, anything.' Slug is auto-generated. Pass full text to \`${
+            c('spec new "..."')
+          }\`.`,
+          "After spec new, run next and present the discovery mode options it returns; never skip discovery without asking.",
           "Every task gets a spec. No exceptions. A one-liner fix, a config change, a 'simple' refactor — all get specs. The spec can be short but it must exist. 'Too simple for a spec' is the anti-pattern.",
-          "SPEC CREATION: When user says 'create a new spec', 'new spec', or similar — do NOT run `noskills spec new` without a description. Ask the user 'What do you want to build?' via AskUserQuestion first. Wait for their response. Then run: `noskills spec new \"their full response\"`. This takes < 5 seconds. Do not overthink it.",
-          "CONCERN MANAGEMENT: When the user wants to add or view concerns, run `noskills concern list` immediately. Do NOT analyze or recommend concerns. Present the list via AskUserQuestion (multiSelect:true, max 4 per question). Use a SINGLE `noskills concern add id1 id2 id3` command for all selections.",
+          `SPEC CREATION: When the user says 'create a new spec', 'new spec', or similar, do NOT run \`${
+            c("spec new")
+          }\` without a description. Ask the user 'What do you want to build?'${
+            hints.hasAskUserTool ? " via AskUserQuestion" : ""
+          } first. Wait for their response. Then run: \`${
+            c('spec new "their full response"')
+          }\`.`,
+          `CONCERN MANAGEMENT: When the user wants to add or view concerns, run \`${
+            c("concern list")
+          }\` immediately. Do NOT analyze or recommend concerns. ${
+            hints.optionPresentation === "tool"
+              ? "Present the list via AskUserQuestion (multiSelect:true, max 4 per question)."
+              : "Present the list as a numbered list; the user may pick several numbers."
+          } Use a SINGLE \`${
+            c("concern add id1 id2 id3")
+          }\` command for all selections.`,
         ],
         tone: "Welcoming. Present choices, then wait.",
       };
     }
 
     case "DISCOVERY": {
-      const questionMethod = hints.hasAskUserTool
-        ? "Ask each question via AskUserQuestion. One question per call."
-        : "Ask one question at a time as text.";
+      const questionMethod = discoveryAskMethod(hints);
 
       // Concern-contributed conduct rules for this phase (Expansion E)
       const concernConductRules = activeConcerns.flatMap(
@@ -742,15 +815,12 @@ const buildBehavioral = (
       );
 
       return {
-        modeOverride:
-          "plan mode. DO NOT create, edit, or write any files. DO NOT run state-modifying commands. MAY read files and run read-only commands (cat, ls, grep, git log, git diff).",
+        modeOverride: "plan mode",
         rules: [
           ...mandatoryRules,
-          "MODE: You MUST be in plan mode during discovery. Do not exit plan mode. If you are not in plan mode, enter it now (Shift+Tab or /plan).",
-          `${questionMethod} Never answer questions yourself. Never submit answers without user confirmation. Pre-fill suggested answers from detailed descriptions — user must confirm each. With a fully formed plan, skip questions but MUST run premise challenge and alternatives.`,
-          "DO NOT create, edit, or write any files.",
-          "DO NOT run shell commands that modify state.",
-          "You MAY read files and run read-only commands (cat, ls, grep, git log, git diff).",
+          readOnlyRule(hints),
+          `${questionMethod} Never answer questions yourself. With a fully formed plan, skip questions but MUST run premise challenge and alternatives.`,
+          discoveryAnswers.discoveryAnswerRule(cs("next --answer", specScoped)),
 
           // Pre-scan + research + mode selection
           "Pre-discovery: (1) pre-discovery codebase scan — read README, CLAUDE.md, design docs, last 20 commits, TODOs, existing specs, directory structure. Present a brief audit summary. (2) If `preDiscoveryResearch.required`, web-search every `extractedTerms` entry — report versions, API changes, deprecations. (3) Ask discovery mode: A) Explore scope B) Technical depth C) Validate my plan D) Ship fast. Adapt emphasis accordingly.",
@@ -771,7 +841,7 @@ const buildBehavioral = (
           })(),
 
           // Synthesis + submit
-          "Present DISCOVERY SUMMARY for confirmation: intent, scope, dream state, expansions, architectural decisions, error map. Ask for confirmation before generating spec. Submit all answers together in one `noskills next --answer` JSON call.",
+          "Present DISCOVERY SUMMARY for confirmation: intent, scope, dream state, expansions, architectural decisions, error map. Ask for confirmation before generating spec.",
 
           // Discovery conduct rules (global + concern-contributed)
           ...DISCOVERY_CONDUCT_RULES,
@@ -827,7 +897,7 @@ const buildBehavioral = (
 
         stageRules = [postureRule];
 
-        if (state.discovery.refinement?.completenessScore) {
+        if (state.discovery.refinement?.completenessScore !== undefined) {
           stageRules.push(
             "RE-ASSESSMENT: After posture-guided review is complete, re-score the 6 completeness dimensions. Show delta: what was addressed (✓), what remains (△). Submit updated score as JSON {completeness: {...}} before CEO review.",
           );
@@ -848,11 +918,10 @@ const buildBehavioral = (
       }
 
       return {
-        modeOverride:
-          "You are in plan mode. Do not create, edit, or write any files.",
+        modeOverride: "plan mode",
         rules: [
           ...mandatoryRules,
-          "DO NOT create, edit, or write any files.",
+          readOnlyRule(hints),
           ...stageRules,
           // Discovery conduct rules (global + concern-contributed)
           ...DISCOVERY_CONDUCT_RULES,
@@ -888,12 +957,11 @@ const buildBehavioral = (
       }
 
       return {
-        modeOverride:
-          "plan mode. DO NOT create, edit, or write any files. DO NOT run state-modifying commands. MAY read files and run read-only commands.",
+        modeOverride: "plan mode",
         rules: [
           ...mandatoryRules,
           ...delegationRules,
-          "DO NOT create, edit, or write any files.",
+          readOnlyRule(hints),
           "Read the spec and present a summary to the user.",
           "Flag any tasks that are too vague to execute.",
           "Flag any missing acceptance criteria.",
@@ -975,9 +1043,9 @@ const buildBehavioral = (
         ...mandatoryRules,
         "MODE: You MUST NOT be in plan mode during execution. If you are in plan mode, exit it now. Sub-agents need full write access.",
         orchestratorRule,
-        ...(verifyInstruction ? [verifyInstruction] : []),
+        ...(verifyInstruction !== "" ? [verifyInstruction] : []),
         // Scope discipline
-        "Do not explore beyond current task. Do not refactor outside scope. Do not add features, tests, or docs not in the spec. timebox context reads — the deliverable is working code.",
+        "Do not explore beyond current task. Do not refactor outside scope. Do not add features, tests, or docs not in the spec.",
         // Sub-agent splitting (only for tools with sub-agents)
         ...(hasSubAgents
           ? [
@@ -985,15 +1053,19 @@ const buildBehavioral = (
           ]
           : []),
         // Edit discipline (merged from 5 rules)
-        "Edit discipline: (1) Re-read file before editing. (2) Re-read after to confirm. (3) Files >500 LOC: read in chunks. (4) Run type-check + lint after edits — never mark AC passed if type-check fails. (5) If search returns few results, re-run narrower — assume truncation.",
-        // Convention discovery
-        `On recurring patterns or corrections, ask: 'Permanent rule or just this task?' If permanent: \`${
-          c('rule add "<description>"')
-        }\`. Never write to \`.eser/rules/\` directly.`,
+        "Run type-check and lint after edits; never mark an AC passed while type-check fails.",
+        // Convention discovery asks the user, so a headless run leaves it out
+        ...(interactive
+          ? [
+            `On recurring patterns or corrections, ask: 'Permanent rule or just this task?' If permanent: \`${
+              c('rule add "<description>"')
+            }\`. Never write to \`.eser/rules/\` directly.`,
+          ]
+          : []),
         // Dead code + commitment
-        "Before structural refactors on files >300 LOC, remove dead code first. Do NOT suggest pausing or stopping mid-spec — execute to completion. The user decides when to stop.",
+        "Work through the spec's tasks to the end; the user decides when to stop.",
         // Rationalization prevention
-        "RATIONALIZATION ALERT: Never use 'should work now', 'looks correct', 'I'm confident', 'seems right', 'probably passes'. Run the command, read the output, report what happened. Evidence, not belief.",
+        "Base every status claim on evidence: run the command, read the output, report what it showed.",
         // TDD red-green cycle
         "TDD: (1) Write test. (2) Run it — MUST fail. If it passes before implementation, the test is wrong. (3) Implement. (4) Run test — must pass. Skipping step 2 means the test is unverified.",
         // Parallel vs serial
@@ -1001,7 +1073,7 @@ const buildBehavioral = (
         // Jidoka I3: verifier enforcement
         ...(hasSubAgents
           ? [
-            "VERIFICATION REQUIRED: After EVERY task completion, you MUST spawn noskills-verifier before reporting done. If you skip verification and self-report, the status report will flag it. No exceptions — 'it looks correct' is not verification.",
+            "After each task, spawn noskills-verifier and include its PASS/FAIL results in the status report before reporting the task done.",
           ]
           : [
             "VERIFICATION REQUIRED: After EVERY task completion, run type-check + tests before reporting done. Evidence of passing tests must be included in the status report.",
@@ -1014,21 +1086,15 @@ const buildBehavioral = (
         );
       }
 
-      const behavioral: BehavioralBlock = {
+      // No iteration countdown here: execution.iteration counts over the
+      // spec's whole life, so "context degrading" was often false and pushed
+      // the agent to wrap up early. compileExecution sets restartRecommended
+      // for the formatter and dashboards instead.
+      return {
         rules: base,
         tone: "Direct. Orchestrate immediately — spawn sub-agents.",
         outOfScope: scopeItems.length > 0 ? scopeItems : undefined,
       };
-
-      if (stale) {
-        return {
-          ...behavioral,
-          urgency:
-            `${state.execution.iteration}+ iterations — context degrading. Finish current task, recommend fresh session.`,
-        };
-      }
-
-      return behavioral;
     }
 
     case "BLOCKED":
@@ -1038,7 +1104,9 @@ const buildBehavioral = (
           "MODE: Enter plan mode. Analyze the blocker. Present options to the user. Do not edit files.",
           "Present the decision to the user exactly as described.",
           "Do not suggest a preferred option unless the user asks for your opinion.",
-          "After the user decides, relay the answer immediately. Do not elaborate.",
+          `After the user decides, submit the decision right away with \`${
+            cs('next --answer="<decision>"', specScoped)
+          }\`.`,
         ],
         tone: "Brief. The user is making a decision, not having a discussion.",
       };
@@ -1253,11 +1321,10 @@ const buildGate = (
           action:
             "Resolve every placeholder + pending decision before approving. Do NOT advance until 100%. " +
             `Unresolved: ${
-              report.unresolvedSections.map((s) => s.sectionTitle).join(", ") ||
-              "none"
+              listOrNone(report.unresolvedSections.map((s) => s.sectionTitle))
             }. ` +
             `Pending: ${
-              report.pendingDecisions.map((d) => d.section).join(", ") || "none"
+              listOrNone(report.pendingDecisions.map((d) => d.section))
             }.`,
           phase: "DISCOVERY_REFINEMENT",
         };
@@ -1306,7 +1373,6 @@ export const compile = async (
   const allowGit = config?.allowGit ?? false;
   let behavioral = buildBehavioral(
     state,
-    maxIter,
     allowGit,
     activeConcerns,
     parsedSpec,
@@ -1317,8 +1383,9 @@ export const compile = async (
   // Inject tier2 summary for EXECUTING phase
   if (state.phase === "EXECUTING") {
     const ruleT2 = tier2Count ?? 0;
-    const reminderT2 = concerns.splitRemindersByTier(activeConcerns).tier2
-      .length;
+    const reminderT2 =
+      concerns.splitRemindersByTier(activeConcerns, state.classification).tier2
+        .length;
     const totalT2 = ruleT2 + reminderT2;
     if (totalT2 > 0) {
       behavioral = {
@@ -1337,7 +1404,7 @@ export const compile = async (
     case "IDLE":
       phaseOutput = compileIdle(
         activeConcerns,
-        DEFAULT_CONCERNS,
+        defaultConcerns.DEFAULT_CONCERNS,
         rules.length,
         idleContext,
       );
@@ -1347,12 +1414,13 @@ export const compile = async (
         state,
         activeConcerns,
         rules,
+        hints,
         currentUser,
         projectRoot,
       );
       break;
     case "DISCOVERY_REFINEMENT":
-      phaseOutput = compileDiscoveryReview(state, activeConcerns);
+      phaseOutput = compileDiscoveryReview(state, activeConcerns, hints);
       break;
     case "SPEC_PROPOSAL":
       phaseOutput = compileSpecDraft(state);
@@ -1366,6 +1434,7 @@ export const compile = async (
         activeConcerns,
         rules,
         maxIter,
+        hints,
         parsedSpec,
         folderRuleCriteria,
       );
@@ -1379,7 +1448,7 @@ export const compile = async (
     default:
       phaseOutput = compileIdle(
         activeConcerns,
-        DEFAULT_CONCERNS,
+        defaultConcerns.DEFAULT_CONCERNS,
         rules.length,
         idleContext,
       );
@@ -1433,7 +1502,7 @@ export const compile = async (
       ? "AskUserQuestion"
       : "prose-numbered-list";
     const toolHintInstruction = hints.optionPresentation === "tool"
-      ? "Use AskUserQuestion tool to present these options. Do NOT use prose."
+      ? "Present these options with AskUserQuestion so the user's pick maps to `commandMap`."
       : "Present options as a numbered list. Ask user to pick a number.";
 
     result = {
@@ -1501,7 +1570,7 @@ const buildInteractiveOptions = (
       opts.push({
         label: "Start a new spec",
         description:
-          "Tell me what you want to build — a one-liner, detailed requirements, meeting notes, anything",
+          "Tell me what you want to build: a one-liner, detailed requirements, meeting notes, anything",
         command: c('spec new "description"'),
       });
 
@@ -1656,8 +1725,12 @@ const compileIdle = (
 ): IdleOutput => ({
   phase: "IDLE",
   instruction: (idleContext?.existingSpecs ?? []).length === 0
-    ? 'No specs yet. Ask the user: "What do you want to build?" — accept any input, then run `noskills spec new "their answer"` immediately. Do NOT list options or ask clarifying questions first.'
-    : 'No active spec. If the user described what they want, run `noskills spec new "description"` immediately — name is auto-generated. Present ALL available concerns (split across multiple calls if needed).',
+    ? `No specs yet. Ask the user "What do you want to build?" and accept any input, then run \`${
+      c('spec new "their answer"')
+    }\` immediately. Do NOT list options or ask clarifying questions first.`
+    : `No active spec. If the user described what they want, run \`${
+      c('spec new "description"')
+    }\` immediately; the name is auto-generated. Present ALL available concerns (split across multiple calls if needed).`,
   welcome: WELCOME,
   existingSpecs: idleContext?.existingSpecs ?? [],
   availableConcerns: allConcernDefs.map((c) => ({
@@ -1728,7 +1801,7 @@ const buildPlanContext = async (
       provided: true,
       content,
       instruction:
-        "A plan document was provided. Read it carefully, extract relevant information for each discovery question, and present pre-filled answers for user review. Do NOT skip any question — present your extraction and let the user confirm, correct, or expand. IMPORTANT: When extracting answers from the plan, mark each extraction as [STATED] (directly written in the plan) or [INFERRED] (your interpretation). Present extractions individually for confirmation.",
+        "A plan document was provided. Read it carefully, extract relevant information for each discovery question, and present pre-filled answers for user review. Do NOT skip any question — present your extraction and let the user confirm, correct, or expand. When extracting answers from the plan, mark each extraction as [STATED] (directly written in the plan) or [INFERRED] (your interpretation). Present extractions individually for confirmation.",
     };
   } catch {
     return undefined;
@@ -1774,10 +1847,12 @@ export type DetectedPlan = {
 /**
  * Scans project root for a recent plan file (plan.md / PLAN.md / .claude/plan.md).
  * Returns null if none found, file is older than 24h, or file is >50 KB.
- * First match wins (candidates checked in order).
+ * First match wins (candidates checked in order). `now` (epoch milliseconds,
+ * the current time unless given) is the time a file's age is measured from.
  */
 export const detectActivePlan = async (
   projectRoot: string,
+  now: number = Date.now(),
 ): Promise<DetectedPlan | null> => {
   const candidates = [
     `${projectRoot}/plan.md`,
@@ -1785,15 +1860,19 @@ export const detectActivePlan = async (
     `${projectRoot}/.claude/plan.md`,
   ];
 
+  // Candidates are checked in order and the first match returns, so later
+  // candidates are not read once one qualifies.
   for (const p of candidates) {
     try {
       // FileInfo from @eserstack/standards has mtime/birthtime directly — no cast needed
+      // deno-lint-ignore no-await-in-loop
       const stat = await runtime.fs.stat(p);
       const modified = stat.mtime ?? stat.birthtime;
       // Files where both are null cannot satisfy the 24h gate reliably — skip
-      if (!modified) continue;
-      const age = Date.now() - new Date(modified).getTime();
+      if (modified === null) continue;
+      const age = now - modified.getTime();
       if (age > 24 * 60 * 60 * 1000) continue; // 24h gate
+      // deno-lint-ignore no-await-in-loop
       const content = await runtime.fs.readTextFile(p);
       if (content.length > MAX_PLAN_SIZE) continue; // reuse module constant
       // Strip YAML frontmatter
@@ -1909,7 +1988,7 @@ const getModeRules = (mode: schema.DiscoveryMode): readonly string[] => {
         "For each question, identify assumptions and ask: 'What would prove this wrong?'",
         "If the description already answers a question, present your understanding and ask to confirm.",
         "When pre-filling answers from a rich description, plan, or prior discussion, DISTINGUISH between what the user EXPLICITLY STATED and what you INFERRED. Format each pre-filled item as: '[STATED] GPU skinning in all 3 renderers — you said this during technical discussion' or '[INFERRED] tangent space is 10-star scope — I assumed this based on complexity'. The user confirms stated items and corrects inferred items.",
-        "Present pre-filled answers ONE ITEM AT A TIME for confirmation, not as a completed block. The user's job is to correct your inferences, not rubber-stamp your summary. If you pre-fill 5 items and 2 are wrong, the user must be able to catch them individually.",
+        "Present each pre-filled answer as an item of its own that the user confirms or corrects, not as one completed block. The user's job is to correct your inferences, not rubber-stamp your summary. If you pre-fill 5 items and 2 are wrong, the user must be able to catch them individually.",
       ];
     case "technical-depth":
       return [
@@ -1951,10 +2030,94 @@ const computeContributors = (
   }));
 };
 
+/** The JSON answer template for `questionList`: each id with "..." as value. */
+const answerTemplate = (questionList: readonly DiscoveryQuestion[]): string =>
+  JSON.stringify(Object.fromEntries(questionList.map((q) => [q.id, "..."])));
+
+/**
+ * The agent-mode instruction for the unanswered base questions: ask them
+ * together, register follow-ups for unclear answers, submit one JSON answer.
+ */
+const baseQuestionsInstruction = (
+  count: number,
+  hints: InteractionHints,
+  followUpCommand: string,
+  submitCommand: string,
+): string => {
+  let ask: string;
+  if (count === 1) {
+    ask = hints.hasAskUserTool
+      ? "Ask the user this discovery question through AskUserQuestion and wait for the answer."
+      : "Ask the user this discovery question and wait for the answer.";
+  } else if (!hints.hasAskUserTool) {
+    ask =
+      `Ask the user these ${count} discovery questions together in one message, as a numbered list, and wait for the answers.`;
+  } else if (count > 4) {
+    ask =
+      `Ask the user these ${count} discovery questions together through AskUserQuestion, up to 4 questions per call, and wait for the answers.`;
+  } else {
+    ask =
+      `Ask the user these ${count} discovery questions together in one AskUserQuestion call and wait for the answers.`;
+  }
+
+  return `${ask} For an answer that needs a follow-up, register it with \`${followUpCommand}\` first. Then submit the confirmed answers as one JSON object: \`${submitCommand}\`. noskills then gives you each follow-up on its own.`;
+};
+
+/**
+ * The DISCOVERY output for the first of the pending follow-ups: one question,
+ * asked on its own and answered or skipped through `followup`. Discovery
+ * completes once the last pending follow-up is settled.
+ */
+const compileFollowUpStep = (
+  state: schema.StateFile,
+  pending: readonly schema.FollowUp[],
+  allQuestions: readonly questions.QuestionWithExtras[],
+  hints: InteractionHints,
+  context: ContextBlock,
+): DiscoveryOutput => {
+  const followUp = pending[0]!;
+  const parent = allQuestions.find((q) => q.id === followUp.parentQuestionId);
+  const answerCommand = cs(
+    `followup ${followUp.id} --answer="<answer>"`,
+    state.spec,
+  );
+  const skipCommand = cs(`followup ${followUp.id} --skip`, state.spec);
+
+  const ask = hints.hasAskUserTool
+    ? "Ask the user this follow-up on its own, as the only question of an AskUserQuestion call, and wait for the answer."
+    : "Ask the user this follow-up on its own and wait for the answer.";
+  const parentNote = parent !== undefined
+    ? ` It follows up the answer to "${parent.text}".`
+    : "";
+  const remaining = pending.length - 1;
+  const after = remaining === 0
+    ? "Discovery moves on to the review once this one is answered or skipped."
+    : `${remaining} more follow-up${
+      remaining === 1 ? " comes" : "s come"
+    } after this one, each on its own.`;
+
+  return {
+    phase: "DISCOVERY",
+    instruction:
+      `${ask}${parentNote} Submit the answer with \`${answerCommand}\`, or run \`${skipCommand}\` if the user declines it. ${after}`,
+    questions: [{
+      id: followUp.id,
+      text: followUp.question,
+      concerns: [...(parent?.concerns ?? [])],
+      extras: [],
+    }],
+    answeredCount: state.discovery.answers.length,
+    context,
+    transition: { onComplete: answerCommand },
+    pendingFollowUps: pending,
+  };
+};
+
 const compileDiscovery = async (
   state: schema.StateFile,
   activeConcerns: readonly schema.ConcernDefinition[],
   rules: readonly string[],
+  hints: InteractionHints,
   currentUser?: { name: string; email: string },
   projectRoot?: string,
 ): Promise<DiscoveryOutput> => {
@@ -1983,21 +2146,15 @@ const compileDiscovery = async (
     ...(specNotes.length > 0 ? { notes: specNotes } : {}),
   };
 
+  const stage = questions.discoveryStageOf(state);
+  const hasPlan = state.discovery.planPath !== null;
+  const mode = state.discovery.mode;
+
   // ── Listen first step (before mode selection) ──
   // When spec is brand new, ask the user to share context before jumping into
   // discovery mode selection. Skip if user already provided context or if
   // there's a plan document.
-  const hasUserContext = state.discovery.userContext !== undefined &&
-    state.discovery.userContext.length > 0;
-  const hasDescription = state.specDescription !== null &&
-    state.specDescription.length > 0;
-  const hasPlan = state.discovery.planPath !== null;
-  const mode = state.discovery.mode;
-
-  if (
-    mode === undefined && !hasUserContext && answeredCount === 0 && !hasPlan &&
-    hasDescription
-  ) {
+  if (stage === "listen") {
     // Auto-detect a recent plan file in the project root
     let detectedPlan: DetectedPlan | null = null;
     if (projectRoot !== undefined) {
@@ -2014,13 +2171,16 @@ const compileDiscovery = async (
     const listenOutput: DiscoveryOutput = {
       phase: "DISCOVERY",
       instruction:
-        "The user just created this spec. Before starting discovery, ask them to share whatever context they have — requirements, notes, tasks, or just a brief description. Say: 'Tell me about this — share as much context as you have.' Listen first, then proceed." +
+        "The user just created this spec. Before starting discovery, ask them to share whatever context they have (requirements, notes, tasks, or just a brief description). Say: 'Tell me about this. Share as much context as you have.' Listen first, then proceed." +
         planNotice,
       questions: [],
       answeredCount: 0,
       context: {
         rules,
-        concernReminders: concerns.getReminders(activeConcerns) as string[],
+        concernReminders: concerns.getReminders(
+          activeConcerns,
+          state.classification,
+        ) as string[],
       },
       transition: {
         onComplete: cs(
@@ -2051,7 +2211,7 @@ const compileDiscovery = async (
   const planImportedField = hasPlan ? { planImported: true as const } : {};
 
   // ── Mode selection step (after user context is received) ──
-  if (mode === undefined && hasDescription && answeredCount === 0 && !hasPlan) {
+  if (stage === "mode") {
     const modeOutput: DiscoveryOutput = {
       phase: "DISCOVERY",
       instruction:
@@ -2060,7 +2220,10 @@ const compileDiscovery = async (
       answeredCount: 0,
       context: {
         rules,
-        concernReminders: concerns.getReminders(activeConcerns) as string[],
+        concernReminders: concerns.getReminders(
+          activeConcerns,
+          state.classification,
+        ) as string[],
       },
       transition: { onComplete: cs('next --answer="<mode>"', specName) },
       modeSelection: {
@@ -2128,8 +2291,7 @@ const compileDiscovery = async (
 
   // ── Premise challenge step (after mode, before Q1) ──
   // Skip for states without mode set (backward compat)
-  const premisesCompleted = state.discovery.premisesCompleted === true;
-  if (mode !== undefined && !premisesCompleted && !allAnswered) {
+  if (stage === "premises") {
     // Mode-aware forcing questions — YC office-hours style for full/validate,
     // narrowest-wedge only for ship-fast, brainstorm framing for explore.
     const forcingPrompts: readonly string[] = mode === "ship-fast"
@@ -2163,7 +2325,10 @@ const compileDiscovery = async (
       answeredCount: 0,
       context: {
         rules,
-        concernReminders: concerns.getReminders(activeConcerns) as string[],
+        concernReminders: concerns.getReminders(
+          activeConcerns,
+          state.classification,
+        ) as string[],
       },
       transition: {
         onComplete: cs("next --answer='{\"premises\":[...]}'", specName),
@@ -2201,6 +2366,22 @@ const compileDiscovery = async (
       revision: p.revision!,
     }));
 
+  // ── Follow-ups: one at a time, once every base question has an answer ──
+  const pendingFollowUps = machine.getPendingFollowUps(state);
+  if (allAnswered && pendingFollowUps.length > 0) {
+    return {
+      ...compileFollowUpStep(state, pendingFollowUps, allQuestions, hints, {
+        rules: rulesWithMode,
+        concernReminders: concerns.getReminders(
+          activeConcerns,
+          state.classification,
+        ) as string[],
+      }),
+      ...multiUserFields,
+      ...planImportedField,
+    };
+  }
+
   if (allAnswered) {
     const history = state.revisitHistory ?? [];
     const lastRevisit = history.length > 0 ? history[history.length - 1] : null;
@@ -2235,117 +2416,6 @@ const compileDiscovery = async (
     return base;
   }
 
-  // ── Agent mode: return only the current question ──
-  if (isAgent) {
-    const currentIdx = state.discovery.currentQuestion;
-    const currentQ = allQuestions[currentIdx];
-
-    if (currentQ === undefined) {
-      return {
-        phase: "DISCOVERY",
-        instruction: `All discovery questions answered. Run: \`${
-          cs("approve", specName)
-        }\``,
-        questions: [],
-        answeredCount,
-        context: { rules, concernReminders: [] },
-        transition: { onComplete: cs("approve", specName) },
-        ...multiUserFields,
-      };
-    }
-
-    const question: DiscoveryQuestion = {
-      id: currentQ.id,
-      text: currentQ.text,
-      concerns: [...currentQ.concerns],
-      extras: currentQ.extras.map((e) => e.text),
-    };
-
-    const agentOutput: DiscoveryOutput = {
-      phase: "DISCOVERY",
-      instruction:
-        `Ask this question to the user using AskUserQuestion. Submit the answer with: \`${
-          cs('next --agent --answer="<answer>"', specName)
-        }\``,
-      questions: [question],
-      answeredCount,
-      currentQuestion: currentIdx,
-      totalQuestions: allQuestions.length,
-      context: {
-        rules: rulesWithMode,
-        concernReminders: concerns.getReminders(activeConcerns) as string[],
-      },
-      transition: {
-        onComplete: `${cs('next --agent --answer="<answer>"', specName)}`,
-      },
-      ...multiUserFields,
-      ...planImportedField,
-    };
-
-    // Enrich with premise context if available
-    let enrichedAgent: DiscoveryOutput = agentOutput;
-    if (agreedPremises.length > 0 || revisedPremises.length > 0) {
-      enrichedAgent = {
-        ...enrichedAgent,
-        ...(agreedPremises.length > 0 ? { agreedPremises } : {}),
-        ...(revisedPremises.length > 0 ? { revisedPremises } : {}),
-      };
-    }
-
-    // Only inject preDiscoveryResearch, planContext, and richDescription on Q1
-    if (currentIdx === 0) {
-      const research = buildPreDiscoveryResearch(
-        state.specDescription ?? null,
-      );
-      if (research !== undefined) {
-        enrichedAgent = { ...enrichedAgent, preDiscoveryResearch: research };
-      }
-
-      const planCtx = await buildPlanContext(state.discovery.planPath ?? null);
-      if (planCtx !== undefined) {
-        enrichedAgent = { ...enrichedAgent, planContext: planCtx };
-      }
-
-      // Rich description detection (Q1 only, when no plan context)
-      if (isRichDescription && planCtx === undefined) {
-        enrichedAgent = {
-          ...enrichedAgent,
-          richDescription: {
-            provided: true,
-            length: specDescription.length,
-            content: specDescription,
-            instruction:
-              "The user provided a detailed description. For each question, extract relevant info and present as a pre-filled suggestion. IMPORTANT: When extracting answers from the description, mark each extraction as [STATED] (directly written by the user) or [INFERRED] (your interpretation). Present extractions individually for confirmation.",
-          },
-        };
-      }
-    }
-
-    // Enrich with follow-up hints and pending follow-ups
-    const pendingFU = (state.discovery.followUps ?? []).filter(
-      (f) => f.status === "pending",
-    );
-    if (pendingFU.length > 0) {
-      enrichedAgent = { ...enrichedAgent, pendingFollowUps: pendingFU };
-    }
-
-    // Generate follow-up hints based on the last answered question
-    const lastAnswer = state.discovery.answers.length > 0
-      ? state.discovery.answers[state.discovery.answers.length - 1]!
-      : undefined;
-    if (lastAnswer !== undefined) {
-      const hints = generateFollowUpHints(lastAnswer.answer);
-      if (hints.length > 0) {
-        enrichedAgent = { ...enrichedAgent, followUpHints: hints };
-      }
-    }
-
-    if (enrichedAgent !== agentOutput) return enrichedAgent;
-
-    return agentOutput;
-  }
-
-  // ── Human mode: return ALL unanswered questions in one batch ──
   const answeredIds = new Set(state.discovery.answers.map((a) => a.questionId));
   const unanswered: DiscoveryQuestion[] = allQuestions
     .filter((q) => !answeredIds.has(q.id))
@@ -2356,13 +2426,89 @@ const compileDiscovery = async (
       extras: q.extras.map((e) => e.text),
     }));
 
+  // ── Agent mode: every unanswered base question at once ──
+  if (isAgent) {
+    const submitCommand = cs(
+      `next --agent --answer='${answerTemplate(unanswered)}'`,
+      specName,
+    );
+    let agentOutput: DiscoveryOutput = {
+      phase: "DISCOVERY",
+      instruction: baseQuestionsInstruction(
+        unanswered.length,
+        hints,
+        cs('followup <questionId> "question"', specName),
+        submitCommand,
+      ),
+      questions: unanswered,
+      answeredCount,
+      totalQuestions: allQuestions.length,
+      context: {
+        rules: rulesWithMode,
+        concernReminders: concerns.getReminders(
+          activeConcerns,
+          state.classification,
+        ) as string[],
+      },
+      transition: { onComplete: submitCommand },
+      ...multiUserFields,
+      ...planImportedField,
+      ...(agreedPremises.length > 0 ? { agreedPremises } : {}),
+      ...(revisedPremises.length > 0 ? { revisedPremises } : {}),
+      ...(pendingFollowUps.length > 0 ? { pendingFollowUps } : {}),
+    };
+
+    // Answers already in (an earlier, partial submission) may call for
+    // follow-ups; each hint names the question it came from.
+    const followUpHints = state.discovery.answers.flatMap((a) =>
+      generateFollowUpHints(a.answer).map((hint) => `${a.questionId}: ${hint}`)
+    );
+    if (followUpHints.length > 0) {
+      agentOutput = { ...agentOutput, followUpHints };
+    }
+
+    // Research, plan context and the rich description come with the first
+    // set of questions only.
+    if (answeredCount === 0) {
+      const research = buildPreDiscoveryResearch(
+        state.specDescription ?? null,
+      );
+      if (research !== undefined) {
+        agentOutput = { ...agentOutput, preDiscoveryResearch: research };
+      }
+
+      const planCtx = await buildPlanContext(state.discovery.planPath ?? null);
+      if (planCtx !== undefined) {
+        agentOutput = { ...agentOutput, planContext: planCtx };
+      }
+
+      if (isRichDescription && planCtx === undefined) {
+        agentOutput = {
+          ...agentOutput,
+          richDescription: {
+            provided: true,
+            length: specDescription.length,
+            content: specDescription,
+            instruction:
+              "The user provided a detailed description. For each question, extract relevant info and present as a pre-filled suggestion. When extracting answers from the description, mark each extraction as [STATED] (directly written by the user) or [INFERRED] (your interpretation). Present extractions individually for confirmation.",
+          },
+        };
+      }
+    }
+
+    return agentOutput;
+  }
+
+  // ── Human mode: every unanswered question at once ──
   // Check for revisit context
   const history = state.revisitHistory ?? [];
   const lastRevisit = history.length > 0 ? history[history.length - 1] : null;
   const isRevisited = lastRevisit !== null;
   const revisitInstruction = isRevisited
     ? "This spec was revisited from EXECUTING. Previous discovery answers are preserved — review and revise as needed, or approve to regenerate tasks."
-    : "Conduct a thorough discovery conversation. FIRST: perform a pre-discovery codebase scan (README, CLAUDE.md, recent git log, TODOs, directory structure) and present a brief audit summary. THEN: challenge the user's spec description against your findings. THEN: ask the discovery questions one at a time, offering concrete options based on codebase knowledge. AFTER questions: present a dream state table (current → this spec → future), scored expansion proposals, architectural decisions, and an error/rescue map. FINALLY: present a complete discovery synthesis for user confirmation before submitting answers as a JSON object.";
+    : `Conduct a thorough discovery conversation. FIRST: perform a pre-discovery codebase scan (README, CLAUDE.md, recent git log, TODOs, directory structure) and present a brief audit summary. THEN: challenge the user's spec description against your findings. THEN: ask the unanswered discovery questions together, offering concrete options based on codebase knowledge, and register a follow-up for each unclear answer with \`${
+      cs('followup <questionId> "question"', specName)
+    }\` before you submit; noskills then gives you each follow-up on its own. AFTER questions: present a dream state table (current → this spec → future), scored expansion proposals, architectural decisions, and an error/rescue map. FINALLY: present a complete discovery synthesis for user confirmation before submitting answers as a JSON object.`;
 
   const output: DiscoveryOutput = {
     phase: "DISCOVERY",
@@ -2371,15 +2517,13 @@ const compileDiscovery = async (
     answeredCount,
     context: {
       rules: rulesWithMode,
-      concernReminders: concerns.getReminders(activeConcerns) as string[],
+      concernReminders: concerns.getReminders(
+        activeConcerns,
+        state.classification,
+      ) as string[],
     },
     transition: {
-      onComplete: `${
-        cs(
-          'next --answer=\'{"status_quo":"...","ambition":"...",...}\'',
-          specName,
-        )
-      }`,
+      onComplete: cs(`next --answer='${answerTemplate(unanswered)}'`, specName),
     },
     ...multiUserFields,
     ...planImportedField,
@@ -2436,6 +2580,7 @@ const compileDiscovery = async (
 const compileDiscoveryReview = (
   state: schema.StateFile,
   activeConcerns: readonly schema.ConcernDefinition[],
+  hints: InteractionHints,
 ): DiscoveryReviewOutput => {
   const specName = state.spec;
   const allQuestions = questions.getQuestionsWithExtras(activeConcerns);
@@ -2495,8 +2640,9 @@ const compileDiscoveryReview = (
       },
       alternatives: {
         required: true,
-        instruction:
-          "Generate 2-3 approaches from discovery answers and codebase. Present via AskUserQuestion.",
+        instruction: hints.optionPresentation === "tool"
+          ? "Generate 2-3 approaches from discovery answers and codebase. Present via AskUserQuestion."
+          : "Generate 2-3 approaches from discovery answers and codebase. Present them as a numbered list and ask the user to pick one.",
         format: {
           fields: ["id", "name", "summary", "effort", "risk", "pros", "cons"],
         },
@@ -2506,7 +2652,7 @@ const compileDiscoveryReview = (
 
   // Jidoka C1: batch-submitted answers get stronger confirmation language
   const batchWarning = state.discovery.batchSubmitted === true
-    ? " IMPORTANT: These answers were BATCH-SUBMITTED (not confirmed one-by-one). You MUST present EVERY answer individually and get explicit user confirmation for each. Do NOT auto-approve."
+    ? " These answers arrived in one batch, so noskills cannot tell whether the user confirmed each one. Present each answer on its own and get the user's confirmation for each before approving."
     : "";
 
   // Build review checklist from concern review dimensions
@@ -2530,7 +2676,9 @@ const compileDiscoveryReview = (
     reviewChecklist = {
       dimensions: checklistDimensions,
       instruction:
-        "Before approving, review the plan against each dimension below. For dimensions marked evidenceRequired, cite specific files or code. Present findings to the user for each dimension via AskUserQuestion — one dimension at a time.",
+        `Before approving, review the plan against each dimension below. For dimensions marked evidenceRequired, cite specific files or code. Present findings to the user for each dimension${
+          hints.hasAskUserTool ? " via AskUserQuestion" : ""
+        }, one dimension at a time, and wait for the reply before the next.`,
       ...(hasRegistries
         ? {
           registryInstruction:
@@ -2552,7 +2700,11 @@ const compileDiscoveryReview = (
     phase: "DISCOVERY_REFINEMENT",
     instruction: splitProposal.detected
       ? `Present ALL discovery answers to the user for review. ALSO present the split proposal — noskills detected multiple independent areas.${batchWarning}`
-      : `Present ALL discovery answers to the user for review. The user must confirm or correct each answer before the spec can be generated. Use AskUserQuestion to ask for confirmation.${batchWarning}`,
+      : `Present ALL discovery answers to the user for review. The user must confirm or correct each answer before the spec can be generated.${
+        hints.hasAskUserTool
+          ? " Use AskUserQuestion to ask for confirmation."
+          : ""
+      }${batchWarning}`,
     answers: reviewAnswers,
     transition: {
       onApprove: cs('next --answer="approve"', specName),
@@ -2836,6 +2988,7 @@ const compileExecution = (
   activeConcerns: readonly schema.ConcernDefinition[],
   rules: readonly string[],
   maxIterationsBeforeRestart: number,
+  hints: InteractionHints,
   parsedSpec?: ParsedSpec | null,
   folderRuleCriteria?: readonly FolderRule[],
 ): ExecutionOutput => {
@@ -2895,7 +3048,12 @@ const compileExecution = (
         }/${total}): Evaluate the ${currentConcern.name} concern dimensions against the actual implementation. ` +
           `Point to specific files, line numbers, and test names. ` +
           `File edits are BLOCKED — this is a review-only pass. ` +
-          `Submit: noskills next --answer='{"completed":[...],"remaining":[...]}'`
+          `Submit: ${
+            cs(
+              'next --answer=\'{"completed":[...],"remaining":[...]}\'',
+              specName,
+            )
+          }`
         : "Review gate complete — submit to advance.";
     } else {
       // ── Normal task instruction ──
@@ -3054,7 +3212,7 @@ const compileExecution = (
   if (state.execution.debt !== null && state.execution.debt.items.length > 0) {
     const unaddressed = state.execution.debt.unaddressedIterations ?? 0;
     const debtNote = unaddressed >= 3
-      ? `URGENT: These items have been unaddressed for ${unaddressed} iterations. Address them IMMEDIATELY before any new work.`
+      ? `These items have been open for ${unaddressed} iterations. Address them before any new work.`
       : "These were not completed in a previous iteration. Address them BEFORE starting new work.";
 
     output = {
@@ -3081,23 +3239,26 @@ const compileExecution = (
     const tensionList = tensions.map((t) =>
       `${t.between.join(" vs ")}: ${t.issue}`
     ).join("; ");
+    const resolution = hints.interactive === false
+      ? `The user must choose which side to prioritize, and nobody answers during this run: run \`${
+        cs('block "concern tension: <which concerns>"', specName)
+      }\` and stop.`
+      : hints.hasAskUserTool
+      ? "You MUST present these to the user and get explicit resolution for each before proceeding. Use AskUserQuestion to ask which side to prioritize."
+      : "You MUST present these to the user and get explicit resolution for each before proceeding. Ask which side to prioritize as a numbered list.";
     output = {
       ...output,
       concernTensions: tensions,
       instruction:
-        `TENSION GATE: ${tensions.length} concern tension(s) detected: ${tensionList}. You MUST present these to the user and get explicit resolution for each before proceeding. Use AskUserQuestion to ask which side to prioritize.`,
+        `TENSION GATE: ${tensions.length} concern tension(s) detected: ${tensionList}. ${resolution}`,
     };
   }
 
+  // A flag only. The agent gets no restart prose: the iteration count spans
+  // the spec's whole life rather than this session, and a countdown made the
+  // agent wrap up early. The Stop hook tells the user on stderr instead.
   if (shouldRestart) {
-    output = {
-      ...output,
-      restartRecommended: true,
-      restartInstruction:
-        `Context may be getting large after ${state.execution.iteration} iterations. Consider starting a new conversation and running \`${
-          cs("next", specName)
-        }\` to resume - your progress is saved.`,
-    };
+    output = { ...output, restartRecommended: true };
   }
 
   // Show promote prompt for the most recent unpromoted decision
@@ -3107,7 +3268,7 @@ const compileExecution = (
 
   if (
     lastUnpromoted !== undefined &&
-    state.execution.lastProgress?.startsWith("Resolved:")
+    (state.execution.lastProgress ?? "").startsWith("Resolved:")
   ) {
     output = {
       ...output,
@@ -3203,17 +3364,13 @@ const compileCompleted = async (
     },
     learningPrompt: {
       instruction:
-        `LEARNING PENDING — Record learnings before moving on. For each insight, decide: one-time learning or permanent rule? One-time ("assumed X, was Y") → \`learn "text"\`. Permanent ("always/never do X") → \`learn "text" --rule\`. Run: \`noskills spec ${
-          state.spec ?? "<name>"
-        } learn "text"\` or \`learn "text" --rule\`.`,
+        `LEARNING PENDING: record learnings before moving on. For each insight, decide: one-time learning or permanent rule? One-time ("assumed X, was Y") → \`learn "text"\`. Permanent ("always/never do X") → \`learn "text" --rule\`. Run: \`${
+          cs('learn "text"', state.spec ?? "<name>")
+        }\` or \`learn "text" --rule\`.`,
       examples: [
-        `noskills spec ${
-          state.spec ?? "upload"
-        } learn "Assumed S3 SDK v2, was v3"`,
-        `noskills spec ${
-          state.spec ?? "upload"
-        } learn "Always use Result types" --rule`,
-        `noskills learn promote 1`,
+        cs('learn "Assumed S3 SDK v2, was v3"', state.spec ?? "upload"),
+        cs('learn "Always use Result types" --rule', state.spec ?? "upload"),
+        c("learn promote 1"),
       ],
     },
     learningsPending,

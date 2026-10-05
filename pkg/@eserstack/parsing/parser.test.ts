@@ -1,16 +1,18 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { simpleTokens } from "./lexer/tokens/simple.ts";
-import { createTokenizerState, Tokenizer } from "./lexer/lexer.ts";
-import { sequence, token } from "./parser.ts";
+import * as simple from "./lexer/tokens/simple.ts";
+import * as lexer from "./lexer/lexer.ts";
+import * as parser from "./parser.ts";
 
 Deno.test("tokens", () => {
-  const parser = token("T_NUMERIC");
+  const parse = parser.token("T_NUMERIC");
 
-  const tokenizer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
   const tokenGenerator = tokenizer.tokenizeFromString("5");
-  const result = parser(tokenGenerator);
+  const result = parse(tokenGenerator);
 
   assert.assertEquals(
     result,
@@ -21,17 +23,19 @@ Deno.test("tokens", () => {
 });
 
 Deno.test("sequence", () => {
-  const parser = sequence(
-    token("T_NUMERIC"),
-    token("T_WHITESPACE"),
-    token("T_PLUS"),
-    token("T_WHITESPACE"),
-    token("T_NUMERIC"),
+  const parse = parser.sequence(
+    parser.token("T_NUMERIC"),
+    parser.token("T_WHITESPACE"),
+    parser.token("T_PLUS"),
+    parser.token("T_WHITESPACE"),
+    parser.token("T_NUMERIC"),
   );
 
-  const tokenizer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
   const tokenGenerator = tokenizer.tokenizeFromString("1 + 2 * 3");
-  const result = parser(tokenGenerator);
+  const result = parse(tokenGenerator);
 
   assert.assertEquals(
     result,
@@ -46,45 +50,53 @@ Deno.test("sequence", () => {
 });
 
 Deno.test("token returns null on kind mismatch", () => {
-  const parser = token("T_PLUS");
+  const parse = parser.token("T_PLUS");
 
-  const tokenizer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
   const tokenGenerator = tokenizer.tokenizeFromString("5");
-  const result = parser(tokenGenerator);
+  const result = parse(tokenGenerator);
 
   assert.assertEquals(result, null);
 });
 
 Deno.test("token returns null on empty iterator", () => {
-  const parser = token("T_NUMERIC");
+  const parse = parser.token("T_NUMERIC");
 
-  const tokenizer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
   const tokenGenerator = tokenizer.tokenizeFromString("");
-  const result = parser(tokenGenerator);
+  const result = parse(tokenGenerator);
 
   assert.assertEquals(result, null);
 });
 
 Deno.test("sequence returns null when middle parser fails", () => {
-  const parser = sequence(
-    token("T_NUMERIC"),
-    token("T_PLUS"), // This will fail because there's whitespace first
-    token("T_NUMERIC"),
+  const parse = parser.sequence(
+    parser.token("T_NUMERIC"),
+    parser.token("T_PLUS"), // This will fail because there's whitespace first
+    parser.token("T_NUMERIC"),
   );
 
-  const tokenizer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
   const tokenGenerator = tokenizer.tokenizeFromString("1 + 2");
-  const result = parser(tokenGenerator);
+  const result = parse(tokenGenerator);
 
   assert.assertEquals(result, null);
 });
 
 Deno.test("sequence with empty parsers array returns empty result", () => {
-  const parser = sequence();
+  const parse = parser.sequence();
 
-  const tokenizer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
   const tokenGenerator = tokenizer.tokenizeFromString("5");
-  const result = parser(tokenGenerator);
+  const result = parse(tokenGenerator);
 
   assert.assertEquals(result, []);
 });

@@ -14,31 +14,53 @@
  */
 
 import * as exec from "@eserstack/shell/exec";
-import { getPlatform } from "@eserstack/standards/cross-runtime";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 
+/** What the consumer knows about the pane an agent is launched in. */
 export type SpawnContext = {
+  /** Directory the agent starts in. */
   readonly cwd: string;
+  /** Pane width in character columns. */
   readonly cols: number;
+  /** Pane height in character rows. */
   readonly rows: number;
-  /** Extra env to merge (e.g. session ids from the consumer). */
+  /** Environment the agent starts with, usually the consumer's own. */
   readonly baseEnv?: Record<string, string>;
+  /**
+   * Variables added on top of `baseEnv` (for example session ids from the
+   * consumer). A key set in both takes this value.
+   */
   readonly extraEnv?: Record<string, string>;
 };
 
+/** How to launch an agent: the program, its arguments and environment. */
 export type SpawnSpec = {
+  /** Binary name as found on PATH (for example "claude"). */
   readonly command: string;
+  /** Arguments passed to the binary. */
   readonly args: readonly string[];
+  /** Full environment for the process: `baseEnv` merged with `extraEnv`. */
   readonly env: Record<string, string>;
+  /** Directory to start the process in; when absent, the spawner picks one. */
   readonly cwd?: string;
 };
 
+/** Terminal features an agent's TUI handles. */
 export type AgentCapabilities = {
+  /**
+   * True if the agent accepts bracketed paste, so a multi-line paste arrives
+   * as one input instead of a key press per line.
+   */
   readonly supportsBracketedPaste: boolean;
 };
 
+/** Finds an interactive coding agent on PATH and builds its spawn spec. */
 export interface AgentAdapter {
+  /** Stable id used for lookup (for example "claude-code"). */
   readonly id: string;
+  /** Name shown to people (for example "Claude Code"). */
   readonly displayName: string;
+  /** Terminal features the agent handles. */
   readonly capabilities: AgentCapabilities;
   /** Resolve the binary on PATH; null when not installed. */
   resolveCommand(): Promise<string | null>;
@@ -52,7 +74,7 @@ export interface AgentAdapter {
 
 /** True if `name` resolves on PATH (cross-platform `which`/`where`). */
 export const isOnPath = async (name: string): Promise<boolean> => {
-  const probe = getPlatform() === "windows" ? "where" : "which";
+  const probe = crossRuntime.getPlatform() === "windows" ? "where" : "which";
   try {
     const code = await exec.exec`${probe} ${name}`.noThrow().code();
 
@@ -67,6 +89,9 @@ export const resolveFirstOnPath = async (
   candidates: readonly string[],
 ): Promise<string | null> => {
   for (const name of candidates) {
+    // Candidates are probed in priority order and the first hit wins, so later
+    // candidates are not spawned once one resolves.
+    // deno-lint-ignore no-await-in-loop
     if (await isOnPath(name)) return name;
   }
 
@@ -77,11 +102,18 @@ export const resolveFirstOnPath = async (
 // CLI adapter factory
 // ---------------------------------------------------------------------------
 
+/** Options for {@link createCliAgentAdapter}. */
 export type CliAdapterOptions = {
+  /** Stable id used for lookup (for example "aider"). */
   readonly id: string;
+  /** Name shown to people (for example "Aider"). */
   readonly displayName: string;
   /** PATH candidates, tried in order (e.g. ["claude", "claude-code"]). */
   readonly candidates: readonly string[];
+  /**
+   * Capabilities that differ from the defaults; every capability not given
+   * here is true.
+   */
   readonly capabilities?: Partial<AgentCapabilities>;
 };
 

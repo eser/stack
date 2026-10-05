@@ -1,12 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { reverseArray } from "./reverse-array.ts";
+import * as reverseArray from "./reverse-array.ts";
 
 Deno.test("basic", () => {
   const arr1 = [1, 2, 3, 4, 5];
 
-  const result = reverseArray(arr1);
+  const result = reverseArray.reverseArray(arr1);
 
   assert.assertNotStrictEquals(result, arr1);
   assert.assertEquals(result.length, 5);
@@ -23,7 +23,7 @@ Deno.test("with-generator", () => {
   };
 
   const generated1 = gen1();
-  const result = reverseArray(generated1);
+  const result = reverseArray.reverseArray(generated1);
 
   // deno-lint-ignore no-explicit-any
   assert.assertNotStrictEquals(<any> result, <any> generated1);

@@ -6,9 +6,11 @@
  * @module
  */
 
-import { type AgentAdapter, createCliAgentAdapter } from "../adapter.ts";
+import * as adapter from "../adapter.ts";
+import type { AgentAdapter } from "../adapter.ts";
 
-export const opencodeAdapter: AgentAdapter = createCliAgentAdapter({
+/** Adapter for OpenCode: looks for `opencode` on PATH. */
+export const opencodeAdapter: AgentAdapter = adapter.createCliAgentAdapter({
   id: "opencode",
   displayName: "OpenCode",
   candidates: ["opencode"],

@@ -12,7 +12,7 @@ import * as results from "@eserstack/primitives/results";
 import * as task from "@eserstack/functions/task";
 import type * as shellArgs from "@eserstack/shell/args";
 import type { Platform } from "../../../domain/values/platform.ts";
-import { ThreadPartialError } from "../../../application/thread-post-error.ts";
+import * as threadPostError from "../../../application/thread-post-error.ts";
 import * as wiring from "../wiring.ts";
 import * as output from "../output.ts";
 
@@ -44,18 +44,14 @@ export const main = async (
   );
   if (results.isFail(postsResult)) {
     const error = postsResult.error;
-    if (error instanceof ThreadPartialError) {
-      await output.outputError(
-        `Thread partially posted: ${error.postedTweets.length}/${error.totalCount} succeeded`,
-      );
-      if (error.postedTweets.length > 0) {
-        await output.outputPosts(error.postedTweets);
-      }
-      await output.outputError(
-        `Failed at index ${error.failedIndex}: ${error.failureCause.message}`,
-      );
-    } else {
-      await output.outputError(error.message);
+    // The message says where the thread stopped and why; the posts that went
+    // out follow it, so their IDs are at hand to continue the thread.
+    await output.outputError(error.message);
+    if (
+      error instanceof threadPostError.ThreadPartialError &&
+      error.postedTweets.length > 0
+    ) {
+      await output.outputPosts(error.postedTweets);
     }
     return results.fail({ exitCode: 1 });
   }

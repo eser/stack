@@ -6,18 +6,25 @@
  */
 
 import * as wiring from "../cli/wiring.ts";
-import { createTuiTriggers } from "./triggers.ts";
-import { TuiMenu } from "./menu.ts";
+import * as triggers from "./triggers.ts";
+import * as menu from "./menu.ts";
 
 export async function main(): Promise<void> {
   const { bound, auths, tokenStore, twitterRedirectUri } = await wiring
     .createAppContext();
-  const triggers = createTuiTriggers(bound);
-  const menu = new TuiMenu(triggers, auths, twitterRedirectUri, tokenStore);
-  await menu.run();
+  const tuiTriggers = triggers.createTuiTriggers(bound);
+  const tuiMenu = new menu.TuiMenu(
+    tuiTriggers,
+    auths,
+    twitterRedirectUri,
+    tokenStore,
+  );
+  await tuiMenu.run();
 }
 
 if (import.meta.main) {
+  // Script entry point: the await runs only when this file is executed
+  // directly (`deno task tui`), never when another module imports it.
   // deno-lint-ignore no-top-level-await
   await main();
 }

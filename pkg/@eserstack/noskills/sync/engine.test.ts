@@ -10,8 +10,8 @@
  * @module
  */
 
-import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { assert, assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as engine from "./engine.ts";
 
@@ -56,8 +56,8 @@ let tempDir: string;
 // Integration: syncAll with Kiro tool
 // =============================================================================
 
-describe("syncAll: Kiro tool integration", () => {
-  beforeEach(async () => {
+bdd.describe("syncAll: Kiro tool integration", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "engine_kiro_",
     });
@@ -75,82 +75,82 @@ describe("syncAll: Kiro tool integration", () => {
     );
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("generates noskills-protocol.md with YAML frontmatter", async () => {
+  bdd.it("generates noskills-protocol.md with YAML frontmatter", async () => {
     const config = makeConfig(["kiro"]);
     await engine.syncAll(tempDir, ["kiro"], config);
 
     const path = `${tempDir}/.kiro/steering/noskills-protocol.md`;
-    assert(await fileExists(path));
+    assert.assert(await fileExists(path));
     const content = await crossRuntime.runtime.fs.readTextFile(path);
-    assert(content.startsWith("---\n"));
+    assert.assert(content.startsWith("---\n"));
   });
 
-  it("generates noskills-coaching.md with YAML frontmatter", async () => {
+  bdd.it("generates noskills-coaching.md with YAML frontmatter", async () => {
     const config = makeConfig(["kiro"]);
     await engine.syncAll(tempDir, ["kiro"], config);
 
     const path = `${tempDir}/.kiro/steering/noskills-coaching.md`;
-    assert(await fileExists(path));
+    assert.assert(await fileExists(path));
     const content = await crossRuntime.runtime.fs.readTextFile(path);
-    assert(content.startsWith("---\n"));
+    assert.assert(content.startsWith("---\n"));
   });
 
-  it("generates noskills-rules.md containing the test rule", async () => {
+  bdd.it("generates noskills-rules.md containing the test rule", async () => {
     const config = makeConfig(["kiro"]);
     await engine.syncAll(tempDir, ["kiro"], config);
 
     const path = `${tempDir}/.kiro/steering/noskills-rules.md`;
-    assert(await fileExists(path));
+    assert.assert(await fileExists(path));
     const content = await crossRuntime.runtime.fs.readTextFile(path);
-    assert(content.includes("Always use strict TypeScript"));
+    assert.assert(content.includes("Always use strict TypeScript"));
   });
 
-  it("generates hooks.json as valid JSON", async () => {
+  bdd.it("generates hooks/noskills.json as valid JSON", async () => {
     const config = makeConfig(["kiro"]);
     await engine.syncAll(tempDir, ["kiro"], config);
 
-    const path = `${tempDir}/.kiro/settings/hooks.json`;
-    assert(await fileExists(path));
+    const path = `${tempDir}/.kiro/hooks/noskills.json`;
+    assert.assert(await fileExists(path));
     const raw = await crossRuntime.runtime.fs.readTextFile(path);
     const parsed = JSON.parse(raw);
-    assertEquals(typeof parsed, "object");
+    assert.assertEquals(typeof parsed, "object");
   });
 
-  it("generates noskills-executor.json as valid JSON", async () => {
+  bdd.it("generates noskills-executor.json as valid JSON", async () => {
     const config = makeConfig(["kiro"]);
     await engine.syncAll(tempDir, ["kiro"], config);
 
     const path = `${tempDir}/.kiro/agents/noskills-executor.json`;
-    assert(await fileExists(path));
+    assert.assert(await fileExists(path));
     const raw = await crossRuntime.runtime.fs.readTextFile(path);
     const parsed = JSON.parse(raw);
-    assertEquals(typeof parsed, "object");
+    assert.assertEquals(typeof parsed, "object");
   });
 
-  it("generates noskills-verifier.json as valid JSON", async () => {
+  bdd.it("generates noskills-verifier.json as valid JSON", async () => {
     const config = makeConfig(["kiro"]);
     await engine.syncAll(tempDir, ["kiro"], config);
 
     const path = `${tempDir}/.kiro/agents/noskills-verifier.json`;
-    assert(await fileExists(path));
+    assert.assert(await fileExists(path));
     const raw = await crossRuntime.runtime.fs.readTextFile(path);
     const parsed = JSON.parse(raw);
-    assertEquals(typeof parsed, "object");
+    assert.assertEquals(typeof parsed, "object");
   });
 
-  it("generates mcp.json as valid JSON", async () => {
+  bdd.it("generates mcp.json as valid JSON", async () => {
     const config = makeConfig(["kiro"]);
     await engine.syncAll(tempDir, ["kiro"], config);
 
     const path = `${tempDir}/.kiro/settings/mcp.json`;
-    assert(await fileExists(path));
+    assert.assert(await fileExists(path));
     const raw = await crossRuntime.runtime.fs.readTextFile(path);
     const parsed = JSON.parse(raw);
-    assertEquals(typeof parsed, "object");
+    assert.assertEquals(typeof parsed, "object");
   });
 });
 
@@ -158,8 +158,8 @@ describe("syncAll: Kiro tool integration", () => {
 // Integration: syncAll with multiple tools
 // =============================================================================
 
-describe("syncAll: multiple tools integration", () => {
-  beforeEach(async () => {
+bdd.describe("syncAll: multiple tools integration", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "engine_multi_",
     });
@@ -176,57 +176,62 @@ describe("syncAll: multiple tools integration", () => {
     });
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("generates both Kiro and Claude Code files", async () => {
+  bdd.it("generates both Kiro and Claude Code files", async () => {
     const config = makeConfig(["kiro", "claude-code"]);
     await engine.syncAll(tempDir, ["kiro", "claude-code"], config);
 
     // Kiro files
-    assert(
+    assert.assert(
       await fileExists(`${tempDir}/.kiro/steering/noskills-protocol.md`),
     );
-    assert(
+    assert.assert(
       await fileExists(`${tempDir}/.kiro/steering/noskills-coaching.md`),
     );
-    assert(await fileExists(`${tempDir}/.kiro/settings/hooks.json`));
-    assert(await fileExists(`${tempDir}/.kiro/agents/noskills-executor.json`));
-    assert(
+    assert.assert(await fileExists(`${tempDir}/.kiro/hooks/noskills.json`));
+    assert.assert(
+      await fileExists(`${tempDir}/.kiro/agents/noskills-executor.json`),
+    );
+    assert.assert(
       await fileExists(`${tempDir}/.kiro/agents/noskills-verifier.json`),
     );
-    assert(await fileExists(`${tempDir}/.kiro/settings/mcp.json`));
+    assert.assert(await fileExists(`${tempDir}/.kiro/settings/mcp.json`));
 
     // Claude Code files
-    assert(await fileExists(`${tempDir}/CLAUDE.md`));
+    assert.assert(await fileExists(`${tempDir}/CLAUDE.md`));
     const claudeMd = await crossRuntime.runtime.fs.readTextFile(
       `${tempDir}/CLAUDE.md`,
     );
-    assert(claudeMd.includes("noskills orchestrator"));
+    assert.assert(claudeMd.includes("noskills orchestrator"));
   });
 
-  it("returns synced list including both tools (and hooks marker)", async () => {
-    const config = makeConfig(["kiro", "claude-code"]);
-    const synced = await engine.syncAll(
-      tempDir,
-      ["kiro", "claude-code"],
-      config,
-    );
+  bdd.it(
+    "returns synced list including both tools (and hooks marker)",
+    async () => {
+      const config = makeConfig(["kiro", "claude-code"]);
+      const synced = await engine.syncAll(
+        tempDir,
+        ["kiro", "claude-code"],
+        config,
+      );
 
-    assert(synced.includes("kiro"));
-    assert(synced.includes("claude-code"));
-    // Claude Code adds a "hooks" marker for backward compat
-    assert(synced.includes("hooks"));
-  });
+      assert.assert(synced.includes("kiro"));
+      assert.assert(synced.includes("claude-code"));
+      // Claude Code adds a "hooks" marker for backward compat
+      assert.assert(synced.includes("hooks"));
+    },
+  );
 });
 
 // =============================================================================
 // Integration: syncAll returns correct synced list
 // =============================================================================
 
-describe("syncAll: return value", () => {
-  beforeEach(async () => {
+bdd.describe("syncAll: return value", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "engine_ret_",
     });
@@ -238,23 +243,23 @@ describe("syncAll: return value", () => {
     });
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("includes 'kiro' in the synced list", async () => {
+  bdd.it("includes 'kiro' in the synced list", async () => {
     const config = makeConfig(["kiro"]);
     const synced = await engine.syncAll(tempDir, ["kiro"], config);
 
-    assert(synced.includes("kiro"));
+    assert.assert(synced.includes("kiro"));
   });
 
-  it("does not include tools that were not requested", async () => {
+  bdd.it("does not include tools that were not requested", async () => {
     const config = makeConfig(["kiro"]);
     const synced = await engine.syncAll(tempDir, ["kiro"], config);
 
-    assertEquals(synced.includes("claude-code"), false);
-    assertEquals(synced.includes("cursor"), false);
+    assert.assertEquals(synced.includes("claude-code"), false);
+    assert.assertEquals(synced.includes("cursor"), false);
   });
 });
 
@@ -262,8 +267,8 @@ describe("syncAll: return value", () => {
 // Integration: idempotency
 // =============================================================================
 
-describe("syncAll: idempotency", () => {
-  beforeEach(async () => {
+bdd.describe("syncAll: idempotency", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "engine_idem_",
     });
@@ -279,11 +284,11 @@ describe("syncAll: idempotency", () => {
     );
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("produces identical files when run twice", async () => {
+  bdd.it("produces identical files when run twice", async () => {
     const config = makeConfig(["kiro"]);
 
     // First run
@@ -293,32 +298,49 @@ describe("syncAll: idempotency", () => {
       `${tempDir}/.kiro/steering/noskills-protocol.md`,
       `${tempDir}/.kiro/steering/noskills-coaching.md`,
       `${tempDir}/.kiro/steering/noskills-rules.md`,
-      `${tempDir}/.kiro/settings/hooks.json`,
+      `${tempDir}/.kiro/hooks/noskills.json`,
       `${tempDir}/.kiro/agents/noskills-executor.json`,
       `${tempDir}/.kiro/agents/noskills-verifier.json`,
       `${tempDir}/.kiro/settings/mcp.json`,
     ];
 
-    const firstRunContents: string[] = [];
-    for (const path of filesToCheck) {
-      firstRunContents.push(await crossRuntime.runtime.fs.readTextFile(path));
-    }
+    const readAll = (): Promise<string[]> =>
+      Promise.all(
+        filesToCheck.map((path) => crossRuntime.runtime.fs.readTextFile(path)),
+      );
+
+    const firstRunContents = await readAll();
 
     // Second run
     await engine.syncAll(tempDir, ["kiro"], config);
 
-    const secondRunContents: string[] = [];
-    for (const path of filesToCheck) {
-      secondRunContents.push(await crossRuntime.runtime.fs.readTextFile(path));
-    }
+    const secondRunContents = await readAll();
 
     // Compare
     for (let i = 0; i < filesToCheck.length; i++) {
-      assertEquals(
+      assert.assertEquals(
         firstRunContents[i],
         secondRunContents[i],
         `Content mismatch for ${filesToCheck[i]}`,
       );
     }
+  });
+});
+
+bdd.describe("toolsWithHooks", () => {
+  bdd.it("keeps the tools whose adapter writes noskills hooks", () => {
+    assert.assertEquals(
+      engine.toolsWithHooks([
+        "cursor",
+        "claude-code",
+        "windsurf",
+        "kiro",
+        "copilot",
+        "opencode",
+        "codex",
+        "copilot-cli",
+      ]),
+      ["claude-code", "kiro", "opencode", "codex", "copilot-cli"],
+    );
   });
 });

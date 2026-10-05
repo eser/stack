@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assert, assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
 
@@ -18,8 +18,8 @@ const createDiscoverySpec = (name: string): schema.StateFile => {
 // addFollowUp
 // =============================================================================
 
-describe("addFollowUp", () => {
-  it("creates follow-up with correct id pattern", () => {
+bdd.describe("addFollowUp", () => {
+  bdd.it("creates follow-up with correct id pattern", () => {
     let state = createDiscoverySpec("test");
     state = machine.addFollowUp(
       state,
@@ -29,28 +29,28 @@ describe("addFollowUp", () => {
     );
 
     const followUps = state.discovery.followUps ?? [];
-    assertEquals(followUps.length, 1);
-    assertEquals(followUps[0]!.id, "status_quoa"); // first follow-up = 'a'
-    assertEquals(followUps[0]!.parentQuestionId, "status_quo");
-    assertEquals(followUps[0]!.question, "What about edge cases?");
-    assertEquals(followUps[0]!.status, "pending");
-    assertEquals(followUps[0]!.answer, null);
+    assert.assertEquals(followUps.length, 1);
+    assert.assertEquals(followUps[0]!.id, "status_quoa"); // first follow-up = 'a'
+    assert.assertEquals(followUps[0]!.parentQuestionId, "status_quo");
+    assert.assertEquals(followUps[0]!.question, "What about edge cases?");
+    assert.assertEquals(followUps[0]!.status, "pending");
+    assert.assertEquals(followUps[0]!.answer, null);
   });
 
-  it("increments id suffix for multiple follow-ups", () => {
+  bdd.it("increments id suffix for multiple follow-ups", () => {
     let state = createDiscoverySpec("test");
     state = machine.addFollowUp(state, "Q3", "First?", "eser");
     state = machine.addFollowUp(state, "Q3", "Second?", "eser");
     state = machine.addFollowUp(state, "Q3", "Third?", "eser");
 
     const followUps = state.discovery.followUps ?? [];
-    assertEquals(followUps.length, 3);
-    assertEquals(followUps[0]!.id, "Q3a");
-    assertEquals(followUps[1]!.id, "Q3b");
-    assertEquals(followUps[2]!.id, "Q3c");
+    assert.assertEquals(followUps.length, 3);
+    assert.assertEquals(followUps[0]!.id, "Q3a");
+    assert.assertEquals(followUps[1]!.id, "Q3b");
+    assert.assertEquals(followUps[2]!.id, "Q3c");
   });
 
-  it("enforces max 3 follow-ups per question", () => {
+  bdd.it("enforces max 3 follow-ups per question", () => {
     let state = createDiscoverySpec("test");
     state = machine.addFollowUp(state, "Q3", "1?", "eser");
     state = machine.addFollowUp(state, "Q3", "2?", "eser");
@@ -58,18 +58,18 @@ describe("addFollowUp", () => {
     state = machine.addFollowUp(state, "Q3", "4? (should be ignored)", "eser");
 
     const followUps = state.discovery.followUps ?? [];
-    assertEquals(followUps.length, 3); // capped at 3
+    assert.assertEquals(followUps.length, 3); // capped at 3
   });
 
-  it("allows follow-ups on different questions independently", () => {
+  bdd.it("allows follow-ups on different questions independently", () => {
     let state = createDiscoverySpec("test");
     state = machine.addFollowUp(state, "Q1", "Q1 follow-up", "eser");
     state = machine.addFollowUp(state, "Q3", "Q3 follow-up", "eser");
 
     const followUps = state.discovery.followUps ?? [];
-    assertEquals(followUps.length, 2);
-    assertEquals(followUps[0]!.id, "Q1a");
-    assertEquals(followUps[1]!.id, "Q3a");
+    assert.assertEquals(followUps.length, 2);
+    assert.assertEquals(followUps[0]!.id, "Q1a");
+    assert.assertEquals(followUps[1]!.id, "Q3a");
   });
 });
 
@@ -77,26 +77,26 @@ describe("addFollowUp", () => {
 // answerFollowUp
 // =============================================================================
 
-describe("answerFollowUp", () => {
-  it("updates status and records answer", () => {
+bdd.describe("answerFollowUp", () => {
+  bdd.it("updates status and records answer", () => {
     let state = createDiscoverySpec("test");
     state = machine.addFollowUp(state, "Q3", "Reconnection strategy?", "eser");
     state = machine.answerFollowUp(state, "Q3a", "Exponential backoff");
 
     const followUps = state.discovery.followUps ?? [];
-    assertEquals(followUps[0]!.status, "answered");
-    assertEquals(followUps[0]!.answer, "Exponential backoff");
-    assert(followUps[0]!.answeredAt !== undefined);
+    assert.assertEquals(followUps[0]!.status, "answered");
+    assert.assertEquals(followUps[0]!.answer, "Exponential backoff");
+    assert.assert(followUps[0]!.answeredAt !== undefined);
   });
 
-  it("does not re-answer already answered follow-up", () => {
+  bdd.it("does not re-answer already answered follow-up", () => {
     let state = createDiscoverySpec("test");
     state = machine.addFollowUp(state, "Q3", "Question?", "eser");
     state = machine.answerFollowUp(state, "Q3a", "First answer");
     state = machine.answerFollowUp(state, "Q3a", "Second answer");
 
     const followUps = state.discovery.followUps ?? [];
-    assertEquals(followUps[0]!.answer, "First answer");
+    assert.assertEquals(followUps[0]!.answer, "First answer");
   });
 });
 
@@ -104,14 +104,14 @@ describe("answerFollowUp", () => {
 // skipFollowUp
 // =============================================================================
 
-describe("skipFollowUp", () => {
-  it("marks follow-up as skipped", () => {
+bdd.describe("skipFollowUp", () => {
+  bdd.it("marks follow-up as skipped", () => {
     let state = createDiscoverySpec("test");
     state = machine.addFollowUp(state, "Q3", "Not relevant?", "eser");
     state = machine.skipFollowUp(state, "Q3a");
 
     const followUps = state.discovery.followUps ?? [];
-    assertEquals(followUps[0]!.status, "skipped");
+    assert.assertEquals(followUps[0]!.status, "skipped");
   });
 });
 
@@ -119,8 +119,8 @@ describe("skipFollowUp", () => {
 // getPendingFollowUps
 // =============================================================================
 
-describe("getPendingFollowUps", () => {
-  it("returns only pending follow-ups", () => {
+bdd.describe("getPendingFollowUps", () => {
+  bdd.it("returns only pending follow-ups", () => {
     let state = createDiscoverySpec("test");
     state = machine.addFollowUp(state, "Q1", "Pending one", "eser");
     state = machine.addFollowUp(state, "Q2", "Will answer", "eser");
@@ -129,16 +129,16 @@ describe("getPendingFollowUps", () => {
     state = machine.skipFollowUp(state, "Q3a");
 
     const pending = machine.getPendingFollowUps(state);
-    assertEquals(pending.length, 1);
-    assertEquals(pending[0]!.id, "Q1a");
+    assert.assertEquals(pending.length, 1);
+    assert.assertEquals(pending[0]!.id, "Q1a");
   });
 
-  it("returns empty when none pending", () => {
+  bdd.it("returns empty when none pending", () => {
     let state = createDiscoverySpec("test");
     state = machine.addFollowUp(state, "Q1", "Q?", "eser");
     state = machine.answerFollowUp(state, "Q1a", "Done");
 
-    assertEquals(machine.getPendingFollowUps(state).length, 0);
+    assert.assertEquals(machine.getPendingFollowUps(state).length, 0);
   });
 });
 
@@ -146,17 +146,17 @@ describe("getPendingFollowUps", () => {
 // getFollowUpsForQuestion
 // =============================================================================
 
-describe("getFollowUpsForQuestion", () => {
-  it("filters by parent question", () => {
+bdd.describe("getFollowUpsForQuestion", () => {
+  bdd.it("filters by parent question", () => {
     let state = createDiscoverySpec("test");
     state = machine.addFollowUp(state, "Q1", "Q1 follow", "eser");
     state = machine.addFollowUp(state, "Q3", "Q3 follow 1", "eser");
     state = machine.addFollowUp(state, "Q3", "Q3 follow 2", "eser");
 
     const q3 = machine.getFollowUpsForQuestion(state, "Q3");
-    assertEquals(q3.length, 2);
-    assertEquals(q3[0]!.id, "Q3a");
-    assertEquals(q3[1]!.id, "Q3b");
+    assert.assertEquals(q3.length, 2);
+    assert.assertEquals(q3[0]!.id, "Q3a");
+    assert.assertEquals(q3[1]!.id, "Q3b");
   });
 });
 
@@ -164,8 +164,8 @@ describe("getFollowUpsForQuestion", () => {
 // Follow-up hint generation (via compiler)
 // =============================================================================
 
-describe("follow-up hint generation", () => {
-  it("generates hints for technology mentions", async () => {
+bdd.describe("follow-up hint generation", () => {
+  bdd.it("generates hints for technology mentions", async () => {
     const state = createDiscoverySpec("test");
     const addAnswer = machine.addDiscoveryAnswer(
       state,
@@ -190,8 +190,8 @@ describe("follow-up hint generation", () => {
 
     // The output should have followUpHints if the answer triggers them
     // Note: hints are in the DiscoveryOutput type
-    if ("followUpHints" in output && output.followUpHints) {
-      assert(
+    if ("followUpHints" in output && output.followUpHints !== undefined) {
+      assert.assert(
         (output.followUpHints as string[]).some((h: string) =>
           h.toLowerCase().includes("websocket")
         ),

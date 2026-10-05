@@ -31,8 +31,7 @@ func classifyAnthropicError(providerSentinel error, err error) error {
 		return ctxErr
 	}
 
-	var apiErr *anthropic.Error
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*anthropic.Error](err); ok {
 		return classifyAndWrap(providerSentinel, apiErr.StatusCode, err)
 	}
 
@@ -85,6 +84,10 @@ func (m *AnthropicModel) GetCapabilities() []ProviderCapability {
 		CapabilityToolCalling,
 		CapabilityVision,
 		CapabilityBatchProcessing,
+		CapabilityStructuredOut,
+		// A thinking budget turns on adaptive thinking, and the reply carries
+		// the thinking blocks.
+		CapabilityReasoning,
 	}
 }
 
@@ -293,6 +296,8 @@ func (m *AnthropicModel) runStreamReader(
 		switch variant := event.AsAny().(type) {
 		case anthropic.ContentBlockDeltaEvent:
 			m.handleContentBlockDelta(ctx, variant, eventCh)
+		case anthropic.ContentBlockStopEvent:
+			emitAccumulatedThinking(ctx, &accumulated, variant.Index, eventCh)
 		case anthropic.MessageDeltaEvent:
 			_ = variant
 
@@ -330,6 +335,26 @@ func (m *AnthropicModel) handleContentBlockDelta(
 	case anthropic.InputJSONDelta:
 		// Partial JSON for tool call arguments; accumulate and emit as delta.
 		sendStreamEvent(ctx, eventCh, newStreamEventToolCallTextDelta(delta.PartialJSON))
+	}
+}
+
+// emitAccumulatedThinking streams the block at index once it is complete, when
+// it is a thinking block. Its text and signature arrive in separate deltas, and
+// only the finished block can be replayed: the API checks the signature against
+// the whole text.
+func emitAccumulatedThinking(
+	ctx context.Context,
+	accumulated *anthropic.Message,
+	index int64,
+	eventCh chan<- StreamEvent,
+) {
+	// Accumulate has already rejected an index outside the content.
+	if index < 0 || index >= int64(len(accumulated.Content)) {
+		return
+	}
+
+	if part, ok := anthropicThinkingPart(accumulated.Content[index].AsAny()); ok {
+		sendStreamEvent(ctx, eventCh, newStreamEventThinking(part))
 	}
 }
 
@@ -388,12 +413,24 @@ func (m *AnthropicModel) buildMessageParams(
 	}
 
 	m.applySystemPrompt(&params, opts)
-	m.applyTemperature(&params, opts)
-	m.applyTopP(&params, opts)
 	m.applyStopSequences(&params, opts)
-	m.applyTools(&params, opts)
+
+	err = m.applyTools(&params, opts)
+	if err != nil {
+		return anthropic.MessageNewParams{}, err
+	}
+
 	m.applyToolChoice(&params, opts)
-	m.applyThinkingBudget(&params, opts)
+
+	err = m.applyEffort(&params, opts)
+	if err != nil {
+		return anthropic.MessageNewParams{}, err
+	}
+
+	err = m.applyResponseFormat(&params, opts)
+	if err != nil {
+		return anthropic.MessageNewParams{}, err
+	}
 
 	return params, nil
 }
@@ -409,26 +446,6 @@ func (m *AnthropicModel) applySystemPrompt(
 	}
 }
 
-func (m *AnthropicModel) applyTemperature(
-	params *anthropic.MessageNewParams,
-	opts *GenerateTextOptions,
-) {
-	if opts.Temperature != nil {
-		params.Temperature = anthropic.Float(*opts.Temperature)
-	} else if m.config.Temperature > 0 {
-		params.Temperature = anthropic.Float(m.config.Temperature)
-	}
-}
-
-func (m *AnthropicModel) applyTopP(
-	params *anthropic.MessageNewParams,
-	opts *GenerateTextOptions,
-) {
-	if opts.TopP != nil {
-		params.TopP = anthropic.Float(*opts.TopP)
-	}
-}
-
 func (m *AnthropicModel) applyStopSequences(
 	params *anthropic.MessageNewParams,
 	opts *GenerateTextOptions,
@@ -441,10 +458,19 @@ func (m *AnthropicModel) applyStopSequences(
 func (m *AnthropicModel) applyTools(
 	params *anthropic.MessageNewParams,
 	opts *GenerateTextOptions,
-) {
-	if len(opts.Tools) > 0 {
-		params.Tools = m.mapToolDefinitions(opts.Tools)
+) error {
+	if len(opts.Tools) == 0 {
+		return nil
 	}
+
+	tools, err := m.mapToolDefinitions(opts.Tools)
+	if err != nil {
+		return err
+	}
+
+	params.Tools = tools
+
+	return nil
 }
 
 func (m *AnthropicModel) applyToolChoice(
@@ -456,13 +482,73 @@ func (m *AnthropicModel) applyToolChoice(
 	}
 }
 
-func (m *AnthropicModel) applyThinkingBudget(
+// applyEffort sends output_config.effort, and adaptive thinking when the caller
+// set a thinking budget. An explicit Effort wins over the level the budget maps
+// to; with neither set, nothing is sent and the model's default applies.
+func (m *AnthropicModel) applyEffort(
 	params *anthropic.MessageNewParams,
 	opts *GenerateTextOptions,
-) {
+) error {
+	err := checkEffort(opts.Effort)
+	if err != nil {
+		return err
+	}
+
 	if opts.ThinkingBudget != nil {
-		params.Temperature = anthropic.Float(1.0) // required for thinking
-		params.Thinking = anthropic.ThinkingConfigParamOfEnabled(int64(*opts.ThinkingBudget))
+		// Claude 4.7+ and the Claude 5 models reject a fixed thinking budget and
+		// sampling parameters; the budget maps to an effort level instead.
+		params.Thinking = anthropic.ThinkingConfigParamUnion{OfAdaptive: &anthropic.ThinkingConfigAdaptiveParam{}} //nolint:exhaustruct
+	}
+
+	// The Effort constants are the API's own level names.
+	effort := anthropic.OutputConfigEffort(opts.Effort)
+	if opts.Effort == EffortDefault && opts.ThinkingBudget != nil {
+		effort = mapAnthropicEffort(*opts.ThinkingBudget)
+	}
+
+	// Set as a field rather than replacing OutputConfig, which also holds the
+	// format that applyResponseFormat sets.
+	if effort != "" {
+		params.OutputConfig.Effort = effort
+	}
+
+	return nil
+}
+
+// applyResponseFormat sends a json_schema response format as
+// output_config.format, next to the effort in the same object. Claude has no
+// JSON mode without a schema, so json_object and text send nothing and the
+// prompt alone decides the shape of the reply. The format's Name has no field
+// in the API and is not sent.
+func (m *AnthropicModel) applyResponseFormat(
+	params *anthropic.MessageNewParams,
+	opts *GenerateTextOptions,
+) error {
+	if opts.ResponseFormat == nil || opts.ResponseFormat.Type != "json_schema" {
+		return nil
+	}
+
+	schema, err := decodeResponseSchema(opts.ResponseFormat.JSONSchema)
+	if err != nil {
+		return err
+	}
+
+	// The format's type field marshals as "json_schema" when left unset.
+	params.OutputConfig.Format = anthropic.JSONOutputFormatParam{Schema: schema} //nolint:exhaustruct
+
+	return nil
+}
+
+// mapAnthropicEffort maps a legacy thinking budget to an effort level, with
+// the same thresholds as the OpenAI reasoning-effort mapping.
+func mapAnthropicEffort(budget int) anthropic.OutputConfigEffort {
+	switch {
+	case budget <= 1000:
+		return anthropic.OutputConfigEffortLow
+	case budget >= 10000:
+		return anthropic.OutputConfigEffortHigh
+	default:
+		return anthropic.OutputConfigEffortMedium
 	}
 }
 
@@ -499,8 +585,8 @@ func (m *AnthropicModel) mapMessages(messages []Message) ([]anthropic.MessagePar
 func (m *AnthropicModel) mapContentBlocks(msg Message) ([]anthropic.ContentBlockParamUnion, error) {
 	blocks := make([]anthropic.ContentBlockParamUnion, 0, len(msg.Content))
 
-	for _, block := range msg.Content {
-		mapped, err := m.mapSingleContentBlock(block)
+	for i := range msg.Content {
+		mapped, err := m.mapSingleContentBlock(&msg.Content[i])
 		if err != nil {
 			return nil, err
 		}
@@ -515,7 +601,7 @@ func (m *AnthropicModel) mapContentBlocks(msg Message) ([]anthropic.ContentBlock
 
 // mapSingleContentBlock converts one unified content block to an Anthropic content block param.
 func (m *AnthropicModel) mapSingleContentBlock(
-	block ContentBlock,
+	block *ContentBlock,
 ) (*anthropic.ContentBlockParamUnion, error) {
 	switch block.Type { //nolint:exhaustive
 	case ContentBlockText:
@@ -536,9 +622,58 @@ func (m *AnthropicModel) mapSingleContentBlock(
 	case ContentBlockToolResult:
 		return m.mapToolResultBlock(block.ToolResult)
 
+	case ContentBlockThinking:
+		return mapThinkingBlock(block.Thinking), nil
+
 	default:
 		// Unsupported block types (audio, file) are silently skipped.
 		return nil, nil //nolint:nilnil
+	}
+}
+
+// mapThinkingBlock replays a thinking block exactly as the API returned it.
+//
+// The API checks the signature, or the redacted data, of every thinking block
+// it gets back. A block with neither, such as one another provider produced,
+// cannot pass that check, so it is left out of the request.
+func mapThinkingBlock(part *ThinkingPart) *anthropic.ContentBlockParamUnion {
+	if part == nil {
+		return nil
+	}
+
+	if part.RedactedData != "" {
+		block := anthropic.NewRedactedThinkingBlock(part.RedactedData)
+
+		return &block
+	}
+
+	if part.Signature == "" {
+		return nil
+	}
+
+	block := anthropic.NewThinkingBlock(part.Signature, part.Text)
+
+	return &block
+}
+
+// anthropicThinkingPart returns the thinking part of a thinking or
+// redacted_thinking block, and false for every other block.
+func anthropicThinkingPart(block any) (*ThinkingPart, bool) {
+	switch variant := block.(type) {
+	case anthropic.ThinkingBlock:
+		return &ThinkingPart{
+			Text:         variant.Thinking,
+			Signature:    variant.Signature,
+			RedactedData: "",
+		}, true
+	case anthropic.RedactedThinkingBlock:
+		return &ThinkingPart{
+			Text:         "",
+			Signature:    "",
+			RedactedData: variant.Data,
+		}, true
+	default:
+		return nil, false
 	}
 }
 
@@ -635,11 +770,14 @@ func (m *AnthropicModel) mapImageBlock(img *ImagePart) (*anthropic.ContentBlockP
 	}, nil
 }
 
-// mapToolDefinitions converts unified tool definitions to Anthropic tool params.
-func (m *AnthropicModel) mapToolDefinitions(tools []ToolDefinition) []anthropic.ToolUnionParam {
+// mapToolDefinitions converts unified tool definitions to Anthropic tool
+// params. A tool whose Parameters do not decode fails the request rather than
+// reaching the model with no schema.
+func (m *AnthropicModel) mapToolDefinitions(tools []ToolDefinition) ([]anthropic.ToolUnionParam, error) {
 	result := make([]anthropic.ToolUnionParam, 0, len(tools))
 
-	for _, tool := range tools {
+	for idx := range tools {
+		tool := &tools[idx]
 		inputSchema := anthropic.ToolInputSchemaParam{} //nolint:exhaustruct
 
 		// ToolDefinition.Parameters is a whole JSON Schema document, but
@@ -652,17 +790,18 @@ func (m *AnthropicModel) mapToolDefinitions(tools []ToolDefinition) []anthropic.
 		// The other two adapters already treat Parameters as the whole document
 		// (openai's shared.FunctionParameters, google's ParametersJsonSchema);
 		// this one is the outlier.
-		if len(tool.Parameters) > 0 {
-			var schema map[string]any
+		schema, err := decodeToolParameters(tool)
+		if err != nil {
+			return nil, err
+		}
 
-			if err := json.Unmarshal(tool.Parameters, &schema); err == nil {
-				if properties, ok := schema["properties"].(map[string]any); ok {
-					inputSchema.Properties = properties
-				}
-
-				inputSchema.Required = schemaRequired(schema)
-				inputSchema.ExtraFields = schemaExtraFields(schema)
+		if schema != nil {
+			if properties, ok := schema["properties"].(map[string]any); ok {
+				inputSchema.Properties = properties
 			}
+
+			inputSchema.Required = schemaRequired(schema)
+			inputSchema.ExtraFields = schemaExtraFields(schema)
 		}
 
 		result = append(result, anthropic.ToolUnionParam{ //nolint:exhaustruct
@@ -674,7 +813,7 @@ func (m *AnthropicModel) mapToolDefinitions(tools []ToolDefinition) []anthropic.
 		})
 	}
 
-	return result
+	return result, nil
 }
 
 // mapAnthropicToolChoice converts a unified ToolChoice to the Anthropic tool choice param.
@@ -714,6 +853,7 @@ func (m *AnthropicModel) mapResponse(msg *anthropic.Message) *GenerateTextResult
 				File:       nil,
 				ToolCall:   nil,
 				ToolResult: nil,
+				Thinking:   nil,
 			})
 		case anthropic.ToolUseBlock:
 			inputJSON, marshalErr := json.Marshal(variant.Input)
@@ -734,18 +874,15 @@ func (m *AnthropicModel) mapResponse(msg *anthropic.Message) *GenerateTextResult
 					Arguments: inputJSON,
 				},
 				ToolResult: nil,
+				Thinking:   nil,
 			})
-		case anthropic.ThinkingBlock:
-			// Thinking blocks are internal reasoning; include as text with a marker.
-			content = append(content, ContentBlock{
-				Type:       ContentBlockText,
-				Text:       variant.Thinking,
-				Image:      nil,
-				Audio:      nil,
-				File:       nil,
-				ToolCall:   nil,
-				ToolResult: nil,
-			})
+		case anthropic.ThinkingBlock, anthropic.RedactedThinkingBlock:
+			// Kept as its own kind, never as text, and kept when the text is
+			// empty (Claude 5 omits it by default): the signature is what the
+			// next request of a tool-use loop must send back.
+			if part, ok := anthropicThinkingPart(variant); ok {
+				content = append(content, NewThinkingBlock(*part))
+			}
 		}
 	}
 
@@ -765,16 +902,20 @@ func (m *AnthropicModel) mapResponse(msg *anthropic.Message) *GenerateTextResult
 }
 
 // mapAnthropicStopReason converts an Anthropic stop reason to the unified type.
+// model_context_window_exceeded is a truncation like max_tokens: the reply was
+// cut off because the context window filled up.
 func mapAnthropicStopReason(reason anthropic.StopReason) StopReason {
 	switch reason { //nolint:exhaustive
 	case anthropic.StopReasonEndTurn:
 		return StopReasonEndTurn
-	case anthropic.StopReasonMaxTokens:
+	case anthropic.StopReasonMaxTokens, anthropic.StopReasonModelContextWindowExceeded:
 		return StopReasonMaxTokens
 	case anthropic.StopReasonToolUse:
 		return StopReasonToolUse
 	case anthropic.StopReasonStopSequence:
 		return StopReasonStop
+	case anthropic.StopReasonRefusal:
+		return StopReasonRefusal
 	default:
 		return StopReasonEndTurn
 	}
@@ -843,12 +984,11 @@ func newAnthropicBatchRequest(
 			Messages:      params.Messages,
 			Model:         params.Model,
 			System:        params.System,
-			Temperature:   params.Temperature, //nolint:staticcheck // mirrors MessageNewParams; still honoured for models before Opus 4.6
-			TopP:          params.TopP,        //nolint:staticcheck // mirrors MessageNewParams; still honoured for models before Opus 4.6
 			StopSequences: params.StopSequences,
 			Tools:         params.Tools,
 			ToolChoice:    params.ToolChoice,
 			Thinking:      params.Thinking,
+			OutputConfig:  params.OutputConfig,
 		},
 	}
 }

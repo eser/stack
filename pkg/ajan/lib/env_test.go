@@ -129,6 +129,8 @@ func TestEnvAwareFilenames(t *testing.T) { //nolint:funlen
 	})
 }
 
+// TestEnvGetCurrent is not parallel: t.Setenv changes the process
+// environment, which the testing package forbids in parallel tests.
 func TestEnvGetCurrent(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -141,13 +143,13 @@ func TestEnvGetCurrent(t *testing.T) {
 			expected: "development",
 		},
 		{
-			name:     "should return lowercase value of ENV",
+			name:     "should return a lowercase value unchanged",
 			envValue: "production",
 			expected: "production",
 		},
 		{
-			name:     "should return lowercase value of ENV with leading/trailing spaces",
-			envValue: "staging",
+			name:     "should lowercase an uppercase value",
+			envValue: "STAGING",
 			expected: "staging",
 		},
 	}

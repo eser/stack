@@ -96,6 +96,10 @@
     "should_trigger": true
   },
   {
+    "query": "take the ready backlog tasks and work on them in parallel, each agent in its own worktree",
+    "should_trigger": true
+  },
+  {
     "query": "what's the difference between Deno.test and bdd describe",
     "should_trigger": false
   },

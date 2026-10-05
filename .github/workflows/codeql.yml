@@ -21,6 +21,9 @@ concurrency:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
+    # ubuntu-latest (x64) on purpose: it is CodeQL's primary supported platform
+    # and Go autobuild runs there without extra setup. The other jobs use the
+    # pipeline's ARM runners.
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

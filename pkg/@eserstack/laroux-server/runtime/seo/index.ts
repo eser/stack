@@ -4,4 +4,8 @@
  */
 
 export type { PageMetadata, SeoConfig } from "./types.ts";
-export { generateJsonLd, generateMetaTags } from "./generate-meta.ts";
+export {
+  escapeHtml,
+  generateJsonLd,
+  generateMetaTags,
+} from "./generate-meta.ts";

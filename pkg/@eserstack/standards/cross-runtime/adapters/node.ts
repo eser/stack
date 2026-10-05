@@ -8,10 +8,6 @@
  * @module
  */
 
-import * as nodeChildProcess from "node:child_process";
-import nodeProcess from "node:process";
-import { Buffer } from "node:buffer";
-import { Readable, Writable } from "node:stream";
 import type {
   ChildProcess,
   ProcessOutput,
@@ -20,7 +16,9 @@ import type {
   RuntimeCapabilities,
   SpawnOptions,
 } from "../types.ts";
+import * as deps from "./deps.ts";
 import * as shared from "./shared.ts";
+import * as nodeHttp from "./node-http.ts";
 import * as nodeShared from "./node-shared.ts";
 
 /**
@@ -34,6 +32,7 @@ export const NODE_CAPABILITIES: RuntimeCapabilities = {
   env: true,
   stdin: true,
   stdout: true,
+  http: true,
   kv: false,
 } as const;
 
@@ -43,7 +42,7 @@ export const NODE_CAPABILITIES: RuntimeCapabilities = {
 
 const nodeSpawn = (
   cmd: string,
-  args: string[] = [],
+  args?: string[],
   options?: SpawnOptions,
 ): Promise<ProcessOutput> => {
   return new Promise((resolve, reject) => {
@@ -53,9 +52,11 @@ const nodeSpawn = (
       stdio[0] = "pipe";
     }
 
-    const proc = nodeChildProcess.spawn(cmd, args, {
+    const proc = deps.childProcess.spawn(cmd, args ?? [], {
       cwd: options?.cwd,
-      env: options?.env ? { ...nodeProcess.env, ...options.env } : undefined,
+      env: options?.env !== undefined
+        ? { ...deps.process.env, ...options.env }
+        : undefined,
       stdio,
       signal: options?.signal,
     });
@@ -68,19 +69,25 @@ const nodeSpawn = (
       proc.stdin.end(options.stdinText);
     }
 
-    const stdoutChunks: Buffer[] = [];
-    const stderrChunks: Buffer[] = [];
+    const stdoutChunks: deps.buffer.Buffer[] = [];
+    const stderrChunks: deps.buffer.Buffer[] = [];
 
-    proc.stdout?.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
-    proc.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+    proc.stdout?.on(
+      "data",
+      (chunk: deps.buffer.Buffer) => stdoutChunks.push(chunk),
+    );
+    proc.stderr?.on(
+      "data",
+      (chunk: deps.buffer.Buffer) => stderrChunks.push(chunk),
+    );
 
     proc.on("error", reject);
     proc.on("close", (code) => {
       resolve({
         success: code === 0,
         code: code ?? 1,
-        stdout: new Uint8Array(Buffer.concat(stdoutChunks)),
-        stderr: new Uint8Array(Buffer.concat(stderrChunks)),
+        stdout: new Uint8Array(deps.buffer.Buffer.concat(stdoutChunks)),
+        stderr: new Uint8Array(deps.buffer.Buffer.concat(stderrChunks)),
       });
     });
   });
@@ -88,21 +95,29 @@ const nodeSpawn = (
 
 const nodeSpawnChild = (
   cmd: string,
-  args: string[] = [],
+  args?: string[],
   options?: SpawnOptions,
 ): ChildProcess => {
-  const proc = nodeChildProcess.spawn(cmd, args, {
+  const proc = deps.childProcess.spawn(cmd, args ?? [], {
     cwd: options?.cwd,
-    env: options?.env ? { ...nodeProcess.env, ...options.env } : undefined,
+    env: options?.env !== undefined
+      ? { ...deps.process.env, ...options.env }
+      : undefined,
     stdio: shared.getNodeStdioArray(options),
     signal: options?.signal,
   });
 
-  const stdoutChunks: Buffer[] = [];
-  const stderrChunks: Buffer[] = [];
+  const stdoutChunks: deps.buffer.Buffer[] = [];
+  const stderrChunks: deps.buffer.Buffer[] = [];
 
-  proc.stdout?.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
-  proc.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+  proc.stdout?.on(
+    "data",
+    (chunk: deps.buffer.Buffer) => stdoutChunks.push(chunk),
+  );
+  proc.stderr?.on(
+    "data",
+    (chunk: deps.buffer.Buffer) => stderrChunks.push(chunk),
+  );
 
   const statusPromise = new Promise<ProcessStatus>((resolve, reject) => {
     proc.on("error", reject);
@@ -117,14 +132,14 @@ const nodeSpawnChild = (
 
   return {
     pid: proc.pid!,
-    stdin: proc.stdin
-      ? (Writable.toWeb(proc.stdin) as WritableStream<Uint8Array>)
+    stdin: proc.stdin !== null
+      ? (deps.stream.Writable.toWeb(proc.stdin) as WritableStream<Uint8Array>)
       : null,
-    stdout: proc.stdout
-      ? (Readable.toWeb(proc.stdout) as ReadableStream<Uint8Array>)
+    stdout: proc.stdout !== null
+      ? (deps.stream.Readable.toWeb(proc.stdout) as ReadableStream<Uint8Array>)
       : null,
-    stderr: proc.stderr
-      ? (Readable.toWeb(proc.stderr) as ReadableStream<Uint8Array>)
+    stderr: proc.stderr !== null
+      ? (deps.stream.Readable.toWeb(proc.stderr) as ReadableStream<Uint8Array>)
       : null,
     status: statusPromise,
     output: async (): Promise<ProcessOutput> => {
@@ -132,8 +147,8 @@ const nodeSpawnChild = (
       return {
         success: status.success,
         code: status.code,
-        stdout: new Uint8Array(Buffer.concat(stdoutChunks)),
-        stderr: new Uint8Array(Buffer.concat(stderrChunks)),
+        stdout: new Uint8Array(deps.buffer.Buffer.concat(stdoutChunks)),
+        stderr: new Uint8Array(deps.buffer.Buffer.concat(stderrChunks)),
       };
     },
     kill: (signal?: string): void => {
@@ -149,15 +164,16 @@ const nodeSpawnChild = (
 /**
  * Creates a Node.js runtime instance.
  * Composes: node-shared (fs, path, env, process) + shared exec (exec, execJson)
- * + Node-specific spawn/spawnChild.
+ * + Node-specific spawn/spawnChild + node-http (serve, upgradeWebSocket).
  */
 export const createNodeRuntime = (): Runtime => ({
   name: "node",
-  version: nodeProcess.versions.node,
+  version: deps.process.versions.node,
   capabilities: NODE_CAPABILITIES as RuntimeCapabilities,
   fs: nodeShared.createNodeCompatFs(),
   path: nodeShared.createNodeCompatPath(),
   exec: shared.createSharedExec(nodeSpawn, nodeSpawnChild),
   env: nodeShared.createNodeCompatEnv(),
   process: nodeShared.createNodeCompatProcess(),
+  http: nodeHttp.createNodeHttp(),
 });

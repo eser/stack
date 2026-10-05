@@ -25,7 +25,7 @@ enforced by `deno fmt` and the lint rules in the root `deno.json` (`eqeqeq`,
 
 ## Cross-Runtime APIs
 
-Scope: All `@eserstack/*` packages
+Scope: Library and package code; CLI entry points noted below
 
 Rule: File system, process, environment and path access goes through `runtime`
 from `@eserstack/standards/cross-runtime` (`runtime.fs.readTextFile`,
@@ -91,7 +91,7 @@ Rule: Use `globalThis`, not `window`.
 Scope: Conditions and defaults
 
 Rule: Only booleans use implicit checks. Defaults use `??`, never `||`. The full
-rule and examples are in coding-practices: Explicit Checks (CRITICAL).
+rule and examples are in coding-practices: Explicit Checks.
 
 Correct:
 

@@ -13,21 +13,20 @@
  *
  * @example
  * ```ts
- * import { createTailwindRoot } from "@eserstack/bundler/css/tailwind-plugin";
- * import { processCssModule } from "@eserstack/bundler/css/modules";
+ * import * as css from "@eserstack/bundler/css";
  *
  * // 1. Create Tailwind compiler root (reused across files)
- * const tailwind = createTailwindRoot({
+ * const tailwind = css.createTailwindRoot({
  *   base: ".",
  *   minify: true,
  * });
  *
  * try {
  *   // 2. Process CSS modules with @apply support
- *   const buttonModule = await processCssModule("src/components/Button.module.css", {
- *     tailwind,
- *     generateDts: true,
- *   });
+ *   const buttonModule = await css.processCssModule(
+ *     "src/components/Button.module.css",
+ *     { tailwind, generateDts: true },
+ *   );
  * } finally {
  *   // 3. Cleanup when done
  *   tailwind.dispose();
@@ -147,6 +146,9 @@ async function requiresRebuild(
       return true;
     }
     try {
+      // Sequential on purpose: the first changed dependency answers the
+      // question, so the remaining files are not stat'ed.
+      // deno-lint-ignore no-await-in-loop
       const stat = await runtime.fs.stat(path);
       if ((stat.mtime?.getTime() ?? 0) > mtime) {
         return true;
@@ -198,11 +200,14 @@ function needsReferenceInjection(content: string): boolean {
  *
  * @example
  * ```ts
- * const tailwind = createTailwindRoot({ base: "." });
+ * import * as css from "@eserstack/bundler/css";
+ *
+ * const tailwind = css.createTailwindRoot({ base: "." });
  *
  * // Compile a CSS file with Tailwind
+ * const cssContent = ".button { @apply px-4; }";
  * const result = await tailwind.compile(cssContent, "src/styles.css");
- * if (result) {
+ * if (result !== null) {
  *   console.log(result.code);
  * }
  *

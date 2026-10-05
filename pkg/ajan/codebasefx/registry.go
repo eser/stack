@@ -4,7 +4,6 @@ package codebasefx
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/eser/stack/pkg/ajan/workflowfx"
@@ -12,19 +11,34 @@ import (
 
 // ─── validatorTool ────────────────────────────────────────────────────────────
 
+// validatorFactory builds a validator from its tool options. It returns an
+// error for options it cannot apply, so a malformed configuration fails before
+// any file is read.
+type validatorFactory func(opts map[string]any) (ValidatorFunc, error)
+
+// staticFactory is the factory of a stateless validator that takes no options.
+func staticFactory(vf ValidatorFunc) validatorFactory {
+	return func(map[string]any) (ValidatorFunc, error) { return vf, nil }
+}
+
 // validatorTool adapts a single-file ValidatorFunc to the workflowfx.WorkflowTool
 // interface. factory is called fresh on each Run so stateful closures
 // (e.g. ValidateCaseConflict) start with a clean slate per invocation.
 type validatorTool struct {
 	name    string
 	desc    string
-	factory func(opts map[string]any) ValidatorFunc
+	factory validatorFactory
 }
 
 func (t *validatorTool) Name() string        { return t.name }
 func (t *validatorTool) Description() string { return t.desc }
 
 func (t *validatorTool) Run(ctx context.Context, opts map[string]any) (*workflowfx.WorkflowToolResult, error) {
+	vf, err := t.factory(opts)
+	if err != nil {
+		return nil, fmt.Errorf("%s: options: %w", t.name, err)
+	}
+
 	root := optStr(opts, "root", optStr(opts, "cwd", "."))
 
 	walkOpts := WalkOptions{Root: root, GitAware: true}
@@ -42,7 +56,6 @@ func (t *validatorTool) Run(ctx context.Context, opts map[string]any) (*workflow
 		return nil, fmt.Errorf("%s: walk: %w", t.name, err)
 	}
 
-	vf := t.factory(opts)
 	results := RunValidators(files, []ValidatorFunc{vf})
 
 	var r ValidatorResult
@@ -89,105 +102,103 @@ func RegisterAllValidators(r *workflowfx.Registry) {
 		{
 			name:    "codebase-eof",
 			desc:    "check files end with exactly one newline",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateEOF },
+			factory: staticFactory(ValidateEOF),
 		},
 		{
 			name:    "codebase-bom",
 			desc:    "detect UTF-8 BOM",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateBOM },
+			factory: staticFactory(ValidateBOM),
 		},
 		{
 			name:    "codebase-trailing",
 			desc:    "detect trailing whitespace",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateTrailingWhitespace },
+			factory: staticFactory(ValidateTrailingWhitespace),
 		},
 		{
 			name:    "codebase-line-endings",
 			desc:    "detect mixed CRLF/LF line endings",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateLineEndings },
+			factory: staticFactory(ValidateLineEndings),
 		},
 		{
 			name:    "codebase-merge-conflicts",
 			desc:    "detect leftover merge conflict markers",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateMergeConflicts },
+			factory: staticFactory(ValidateMergeConflicts),
 		},
 		{
 			name:    "codebase-secrets",
 			desc:    "detect potential secret leaks",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateSecrets },
+			factory: staticFactory(ValidateSecrets),
 		},
 		{
 			name: "codebase-large-file",
 			desc: "report files exceeding a size limit",
-			factory: func(opts map[string]any) ValidatorFunc {
-				maxKb := int64(1024)
-				if v, ok := opts["maxKb"].(int64); ok {
-					maxKb = v
-				} else if v, ok := opts["maxKb"].(float64); ok {
-					maxKb = int64(v)
+			factory: func(opts map[string]any) (ValidatorFunc, error) {
+				maxKb, err := ParseMaxKb(opts["maxKb"])
+				if err != nil {
+					return nil, err
 				}
-				return ValidateLargeFile(maxKb * 1024)
+				return ValidateLargeFile(maxKb * 1024), nil
 			},
 		},
 		{
 			name:    "codebase-json",
 			desc:    "validate JSON and JSONC syntax",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateJSON },
+			factory: staticFactory(ValidateJSON),
 		},
 		{
 			name:    "codebase-yaml",
 			desc:    "validate YAML syntax",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateYAML },
+			factory: staticFactory(ValidateYAML),
 		},
 		{
 			name:    "codebase-toml",
 			desc:    "validate TOML syntax",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateTOML },
+			factory: staticFactory(ValidateTOML),
 		},
 		{
 			name:    "codebase-license",
 			desc:    "check copyright license header in JS/TS files",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateLicenseHeader },
+			factory: staticFactory(ValidateLicenseHeader),
 		},
 		{
 			name:    "codebase-case-conflict",
 			desc:    "detect case-insensitive path conflicts",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateCaseConflict() },
+			factory: func(map[string]any) (ValidatorFunc, error) { return ValidateCaseConflict(), nil },
 		},
 		{
 			name:    "codebase-symlinks",
 			desc:    "detect broken symbolic links",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateSymlinks() },
+			factory: func(map[string]any) (ValidatorFunc, error) { return ValidateSymlinks(), nil },
 		},
 		{
 			name:    "codebase-submodules",
 			desc:    "detect git submodule references",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateSubmodules() },
+			factory: func(map[string]any) (ValidatorFunc, error) { return ValidateSubmodules(), nil },
 		},
 		{
 			name:    "codebase-shebangs",
 			desc:    "validate shebang lines (no-op placeholder)",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateShebangs },
+			factory: staticFactory(ValidateShebangs),
 		},
 		{
 			name: "codebase-filenames",
 			desc: "enforce filename conventions",
-			factory: func(opts map[string]any) ValidatorFunc {
-				var rules []FilenameRule
-				if raw, ok := opts["rules"].(string); ok {
-					_ = json.Unmarshal([]byte(raw), &rules)
+			factory: func(opts map[string]any) (ValidatorFunc, error) {
+				rules, err := ParseFilenameRules(opts["rules"])
+				if err != nil {
+					return nil, err
 				}
 				var excludes []string
 				if ex, ok := opts["globalExcludes"].([]string); ok {
 					excludes = ex
 				}
-				return ValidateFilenames(rules, excludes)
+				return ValidateFilenames(rules, excludes), nil
 			},
 		},
 		{
 			name:    "codebase-runtime-js-apis",
 			desc:    "detect direct Deno API usage in JS/TS files",
-			factory: func(_ map[string]any) ValidatorFunc { return ValidateRuntimeJSAPIs },
+			factory: staticFactory(ValidateRuntimeJSAPIs),
 		},
 	}
 
@@ -217,7 +228,10 @@ func RunSingleValidator(ctx context.Context, name string, files []FileEntry, opt
 	// When pre-walked files are provided, run the ValidatorFunc directly so we
 	// avoid a second filesystem walk.
 	if files != nil {
-		vfMap := builtinValidatorFuncs(opts)
+		vfMap, err := builtinValidatorFuncs(opts)
+		if err != nil {
+			return nil, fmt.Errorf("%s: options: %w", fullName, err)
+		}
 
 		vf, ok := vfMap[shortName]
 		if !ok {
@@ -270,15 +284,12 @@ func RunSingleValidator(ctx context.Context, name string, files []FileEntry, opt
 	return tool.Run(ctx, opts)
 }
 
-// builtinValidatorFuncs returns the short-name → ValidatorFunc map shared
-// between RunSingleValidator and the FFI bridge.
-func builtinValidatorFuncs(opts map[string]any) map[string]ValidatorFunc {
-	maxKb := int64(1024)
-
-	if v, ok := opts["maxKb"].(int64); ok {
-		maxKb = v
-	} else if v, ok := opts["maxKb"].(float64); ok {
-		maxKb = int64(v)
+// builtinValidatorFuncs returns the short-name → ValidatorFunc map that
+// RunSingleValidator uses for pre-walked files.
+func builtinValidatorFuncs(opts map[string]any) (map[string]ValidatorFunc, error) {
+	maxKb, err := ParseMaxKb(opts["maxKb"])
+	if err != nil {
+		return nil, err
 	}
 
 	return map[string]ValidatorFunc{
@@ -298,7 +309,7 @@ func builtinValidatorFuncs(opts map[string]any) map[string]ValidatorFunc {
 		"submodules":      ValidateSubmodules(),
 		"shebangs":        ValidateShebangs,
 		"runtime-js-apis": ValidateRuntimeJSAPIs,
-	}
+	}, nil
 }
 
 // optStr is a local helper (distinct from workflowfx's optString).

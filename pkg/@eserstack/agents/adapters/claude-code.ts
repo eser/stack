@@ -7,9 +7,11 @@
  * @module
  */
 
-import { type AgentAdapter, createCliAgentAdapter } from "../adapter.ts";
+import * as adapter from "../adapter.ts";
+import type { AgentAdapter } from "../adapter.ts";
 
-export const claudeCodeAdapter: AgentAdapter = createCliAgentAdapter({
+/** Adapter for Claude Code: looks for `claude`, then `claude-code` on PATH. */
+export const claudeCodeAdapter: AgentAdapter = adapter.createCliAgentAdapter({
   id: "claude-code",
   displayName: "Claude Code",
   candidates: ["claude", "claude-code"],

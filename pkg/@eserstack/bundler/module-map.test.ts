@@ -1,21 +1,15 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import {
-  addModule,
-  createModuleMap,
-  getAllChunks,
-  getModule,
-  hasModule,
-  type ModuleEntry,
-} from "./module-map.ts";
+import * as moduleMap from "./module-map.ts";
+import type { ModuleEntry } from "./module-map.ts";
 
 // ============================================================================
 // createModuleMap tests
 // ============================================================================
 
 Deno.test("createModuleMap returns empty object", () => {
-  const map = createModuleMap();
+  const map = moduleMap.createModuleMap();
 
   assert.assertEquals(map, {});
   assert.assertEquals(Object.keys(map).length, 0);
@@ -26,21 +20,21 @@ Deno.test("createModuleMap returns empty object", () => {
 // ============================================================================
 
 Deno.test("addModule adds module by ID", () => {
-  const map = createModuleMap();
+  const map = moduleMap.createModuleMap();
   const entry: ModuleEntry = {
     id: "./src/App.tsx",
     name: "App",
     chunks: ["main.js"],
   };
 
-  const updated = addModule(map, entry);
+  const updated = moduleMap.addModule(map, entry);
 
   assert.assertExists(updated["./src/App.tsx"]);
   assert.assertEquals(updated["./src/App.tsx"], entry);
 });
 
 Deno.test("addModule preserves existing modules", () => {
-  let map = createModuleMap();
+  let map = moduleMap.createModuleMap();
   const entry1: ModuleEntry = {
     id: "./src/A.tsx",
     name: "A",
@@ -52,8 +46,8 @@ Deno.test("addModule preserves existing modules", () => {
     chunks: ["b.js"],
   };
 
-  map = addModule(map, entry1);
-  map = addModule(map, entry2);
+  map = moduleMap.addModule(map, entry1);
+  map = moduleMap.addModule(map, entry2);
 
   assert.assertExists(map["./src/A.tsx"]);
   assert.assertExists(map["./src/B.tsx"]);
@@ -61,21 +55,21 @@ Deno.test("addModule preserves existing modules", () => {
 });
 
 Deno.test("addModule is immutable - does not modify original", () => {
-  const original = createModuleMap();
+  const original = moduleMap.createModuleMap();
   const entry: ModuleEntry = {
     id: "./src/New.tsx",
     name: "New",
     chunks: ["new.js"],
   };
 
-  const updated = addModule(original, entry);
+  const updated = moduleMap.addModule(original, entry);
 
   assert.assertEquals(Object.keys(original).length, 0);
   assert.assertEquals(Object.keys(updated).length, 1);
 });
 
 Deno.test("addModule allows updating existing module", () => {
-  let map = createModuleMap();
+  let map = moduleMap.createModuleMap();
   const entry1: ModuleEntry = {
     id: "./src/App.tsx",
     name: "App",
@@ -87,8 +81,8 @@ Deno.test("addModule allows updating existing module", () => {
     chunks: ["new.js"],
   };
 
-  map = addModule(map, entry1);
-  map = addModule(map, entry2);
+  map = moduleMap.addModule(map, entry1);
+  map = moduleMap.addModule(map, entry2);
 
   assert.assertEquals(Object.keys(map).length, 1);
   assert.assertEquals(map["./src/App.tsx"]?.name, "UpdatedApp");
@@ -100,23 +94,23 @@ Deno.test("addModule allows updating existing module", () => {
 // ============================================================================
 
 Deno.test("getModule returns module by ID", () => {
-  let map = createModuleMap();
+  let map = moduleMap.createModuleMap();
   const entry: ModuleEntry = {
     id: "./src/Counter.tsx",
     name: "Counter",
     chunks: ["counter-chunk.js"],
   };
-  map = addModule(map, entry);
+  map = moduleMap.addModule(map, entry);
 
-  const result = getModule(map, "./src/Counter.tsx");
+  const result = moduleMap.getModule(map, "./src/Counter.tsx");
 
   assert.assertEquals(result, entry);
 });
 
 Deno.test("getModule returns undefined for non-existent ID", () => {
-  const map = createModuleMap();
+  const map = moduleMap.createModuleMap();
 
-  const result = getModule(map, "./src/NotFound.tsx");
+  const result = moduleMap.getModule(map, "./src/NotFound.tsx");
 
   assert.assertEquals(result, undefined);
 });
@@ -126,21 +120,21 @@ Deno.test("getModule returns undefined for non-existent ID", () => {
 // ============================================================================
 
 Deno.test("hasModule returns true for existing module", () => {
-  let map = createModuleMap();
+  let map = moduleMap.createModuleMap();
   const entry: ModuleEntry = {
     id: "./src/Button.tsx",
     name: "Button",
     chunks: ["button.js"],
   };
-  map = addModule(map, entry);
+  map = moduleMap.addModule(map, entry);
 
-  assert.assertEquals(hasModule(map, "./src/Button.tsx"), true);
+  assert.assertEquals(moduleMap.hasModule(map, "./src/Button.tsx"), true);
 });
 
 Deno.test("hasModule returns false for non-existent module", () => {
-  const map = createModuleMap();
+  const map = moduleMap.createModuleMap();
 
-  assert.assertEquals(hasModule(map, "./src/Missing.tsx"), false);
+  assert.assertEquals(moduleMap.hasModule(map, "./src/Missing.tsx"), false);
 });
 
 // ============================================================================
@@ -148,27 +142,27 @@ Deno.test("hasModule returns false for non-existent module", () => {
 // ============================================================================
 
 Deno.test("getAllChunks returns empty array for empty map", () => {
-  const map = createModuleMap();
+  const map = moduleMap.createModuleMap();
 
-  const chunks = getAllChunks(map);
+  const chunks = moduleMap.getAllChunks(map);
 
   assert.assertEquals(chunks, []);
 });
 
 Deno.test("getAllChunks returns all unique chunks", () => {
-  let map = createModuleMap();
-  map = addModule(map, {
+  let map = moduleMap.createModuleMap();
+  map = moduleMap.addModule(map, {
     id: "./A.tsx",
     name: "A",
     chunks: ["chunk-a.js", "shared.js"],
   });
-  map = addModule(map, {
+  map = moduleMap.addModule(map, {
     id: "./B.tsx",
     name: "B",
     chunks: ["chunk-b.js", "vendor.js"],
   });
 
-  const chunks = getAllChunks(map);
+  const chunks = moduleMap.getAllChunks(map);
 
   assert.assertEquals(chunks.length, 4);
   assert.assert(chunks.includes("chunk-a.js"));
@@ -178,24 +172,24 @@ Deno.test("getAllChunks returns all unique chunks", () => {
 });
 
 Deno.test("getAllChunks deduplicates chunks across modules", () => {
-  let map = createModuleMap();
-  map = addModule(map, {
+  let map = moduleMap.createModuleMap();
+  map = moduleMap.addModule(map, {
     id: "./A.tsx",
     name: "A",
     chunks: ["common.js", "a.js"],
   });
-  map = addModule(map, {
+  map = moduleMap.addModule(map, {
     id: "./B.tsx",
     name: "B",
     chunks: ["common.js", "b.js"],
   });
-  map = addModule(map, {
+  map = moduleMap.addModule(map, {
     id: "./C.tsx",
     name: "C",
     chunks: ["common.js", "c.js"],
   });
 
-  const chunks = getAllChunks(map);
+  const chunks = moduleMap.getAllChunks(map);
 
   // common.js should only appear once
   assert.assertEquals(chunks.filter((c) => c === "common.js").length, 1);
@@ -203,19 +197,19 @@ Deno.test("getAllChunks deduplicates chunks across modules", () => {
 });
 
 Deno.test("getAllChunks handles modules with overlapping chunks", () => {
-  let map = createModuleMap();
-  map = addModule(map, {
+  let map = moduleMap.createModuleMap();
+  map = moduleMap.addModule(map, {
     id: "./A.tsx",
     name: "A",
     chunks: ["vendor.js", "react.js"],
   });
-  map = addModule(map, {
+  map = moduleMap.addModule(map, {
     id: "./B.tsx",
     name: "B",
     chunks: ["vendor.js", "react.js", "extra.js"],
   });
 
-  const chunks = getAllChunks(map);
+  const chunks = moduleMap.getAllChunks(map);
 
   assert.assertEquals(chunks.length, 3); // vendor, react, extra
   assert.assertEquals(chunks.filter((c) => c === "vendor.js").length, 1);
@@ -223,27 +217,27 @@ Deno.test("getAllChunks handles modules with overlapping chunks", () => {
 });
 
 Deno.test("getAllChunks handles single module", () => {
-  let map = createModuleMap();
-  map = addModule(map, {
+  let map = moduleMap.createModuleMap();
+  map = moduleMap.addModule(map, {
     id: "./Single.tsx",
     name: "Single",
     chunks: ["single.js"],
   });
 
-  const chunks = getAllChunks(map);
+  const chunks = moduleMap.getAllChunks(map);
 
   assert.assertEquals(chunks, ["single.js"]);
 });
 
 Deno.test("getAllChunks handles module with multiple chunks", () => {
-  let map = createModuleMap();
-  map = addModule(map, {
+  let map = moduleMap.createModuleMap();
+  map = moduleMap.addModule(map, {
     id: "./Large.tsx",
     name: "Large",
     chunks: ["chunk1.js", "chunk2.js", "chunk3.js", "chunk4.js"],
   });
 
-  const chunks = getAllChunks(map);
+  const chunks = moduleMap.getAllChunks(map);
 
   assert.assertEquals(chunks.length, 4);
 });

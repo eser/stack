@@ -1,11 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+// A build script run by hand: its progress lines are its user-facing output.
+// deno-lint-ignore-file no-console
+
 /**
  * Builds the noskills package for npm publishing.
  *
  * This script:
  * 1. Cleans the dist/ directory
- * 2. Bundles TypeScript using esbuild with Deno workspace resolver
+ * 2. Bundles TypeScript with esbuild
  * 3. Adds shebang for Node.js execution
  * 4. Generates package.json for npm
  * 5. Copies README.md
@@ -17,7 +20,7 @@
 
 import * as esbuild from "esbuild";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { NPM_EXTERNAL_PACKAGES } from "@eserstack/codebase/npm-externals";
+import * as npmExternals from "@eserstack/codebase/npm-externals";
 
 type PackageJson = {
   name: string;
@@ -35,13 +38,9 @@ type SourcePackageJson = {
   version: string;
 };
 
-type DenoJson = {
-  exports?: Record<string, string>;
-};
-
 // The externals list is shared by every npm build; see the module for the
 // reasoning behind each entry (and why `@eserstack/ajan` is NOT in it).
-const EXTERNAL_PACKAGES: readonly string[] = NPM_EXTERNAL_PACKAGES;
+const EXTERNAL_PACKAGES: readonly string[] = npmExternals.NPM_EXTERNAL_PACKAGES;
 
 /**
  * Creates an esbuild plugin that removes import.meta.main checks.
@@ -78,61 +77,6 @@ const createImportMetaMainPlugin = (entryPath: string): esbuild.Plugin => ({
   },
 });
 
-/**
- * Creates an esbuild plugin that resolves Deno workspace packages.
- * This is needed because esbuild doesn't understand Deno's workspace configuration.
- */
-const createDenoWorkspacePlugin = (projectRoot: string): esbuild.Plugin => ({
-  name: "deno-workspace",
-  setup(build) {
-    build.onResolve(
-      { filter: /^@eser\// },
-      async (args): Promise<esbuild.OnResolveResult | undefined> => {
-        const parts = args.path.split("/");
-        const pkgName = parts.slice(0, 2).join("/");
-        const subpath = parts.slice(2).join("/");
-
-        const denoJsonPath = runtime.path.join(
-          projectRoot,
-          "pkg",
-          pkgName,
-          "deno.json",
-        );
-
-        try {
-          const denoJson = JSON.parse(
-            await runtime.fs.readTextFile(denoJsonPath),
-          ) as DenoJson;
-          const exports = denoJson.exports ?? {};
-
-          const exportKey = subpath ? "./" + subpath : ".";
-          let exportPath = exports[exportKey];
-
-          if (exportPath === undefined && subpath) {
-            exportPath = exports[subpath];
-          }
-
-          if (exportPath !== undefined) {
-            const fullPath = runtime.path.join(
-              projectRoot,
-              "pkg",
-              pkgName,
-              exportPath.replace(/^\.\//, ""),
-            );
-            const realPath = await runtime.fs.realPath(fullPath);
-            return { path: realPath };
-          }
-        } catch {
-          // Package not found locally, let esbuild handle it
-        }
-        return undefined;
-      },
-    );
-
-    build.onResolve({ filter: /^jsr:/ }, () => ({ external: true }));
-  },
-});
-
 const main = async (): Promise<void> => {
   const scriptDir = import.meta.dirname;
   if (scriptDir === undefined) {
@@ -140,29 +84,28 @@ const main = async (): Promise<void> => {
   }
 
   const pkgDir = runtime.path.dirname(scriptDir);
-  const projectRoot = runtime.path.resolve(pkgDir, "../../..");
   const distDir = runtime.path.join(pkgDir, "dist");
   const mainTsPath = runtime.path.join(pkgDir, "main.ts");
 
-  // deno-lint-ignore no-console
   console.log("Building @eserstack/noskills for npm...\n");
 
   // Step 1: Clean dist directory
-  // deno-lint-ignore no-console
   console.log("1. Cleaning dist directory...");
-  try {
+  // Only a missing dist/ is skipped. Any other failure stops the build, since
+  // chunks left over from an earlier build would be published with this one.
+  if (await runtime.fs.exists(distDir)) {
     await runtime.fs.remove(distDir, { recursive: true });
-  } catch {
-    // Directory doesn't exist
   }
   await runtime.fs.mkdir(distDir, { recursive: true });
 
-  // Step 2: Bundle using esbuild with Deno workspace resolver
-  // deno-lint-ignore no-console
+  // Step 2: Bundle using esbuild
   console.log("2. Bundling with esbuild...");
 
+  // A failed bundle is thrown with its context and not printed here: the
+  // runtime reports the uncaught error from main() once.
+  let result: esbuild.BuildResult;
   try {
-    const result = await esbuild.build({
+    result = await esbuild.build({
       entryPoints: [mainTsPath],
       bundle: true,
       outdir: distDir,
@@ -173,36 +116,32 @@ const main = async (): Promise<void> => {
       platform: "node",
       target: "node18",
       minify: true,
-      external: [...EXTERNAL_PACKAGES, "npm:*"],
-      plugins: [
-        createImportMetaMainPlugin(mainTsPath),
-        createDenoWorkspacePlugin(projectRoot),
-      ],
+      // @eserstack/* imports need no plugin: pnpm links each workspace package
+      // into node_modules, and esbuild reads the exports of its package.json.
+      // esbuild cannot resolve Deno's npm: and jsr: specifiers, so they stay
+      // external.
+      external: [...EXTERNAL_PACKAGES, "npm:*", "jsr:*"],
+      plugins: [createImportMetaMainPlugin(mainTsPath)],
       logLevel: "warning",
     });
-
-    if (result.errors.length > 0) {
-      // deno-lint-ignore no-console
-      console.error("Bundle failed:");
-      for (const error of result.errors) {
-        // deno-lint-ignore no-console
-        console.error(`  - ${error.text}`);
-      }
-      throw new Error("Bundle failed");
-    }
   } catch (error) {
-    // deno-lint-ignore no-console
-    console.error("Bundle threw exception:", error);
-    throw error;
+    throw new Error(`bundle ${mainTsPath} with esbuild`, { cause: error });
   } finally {
     await esbuild.stop();
   }
 
-  // deno-lint-ignore no-console
+  if (result.errors.length > 0) {
+    const details = result.errors.map((error) => `  - ${error.text}`);
+    throw new Error(
+      `bundle ${mainTsPath} with esbuild: ${result.errors.length} error(s)\n${
+        details.join("\n")
+      }`,
+    );
+  }
+
   console.log("   Bundle created successfully");
 
   // Step 3: Add shebang to main entry file
-  // deno-lint-ignore no-console
   console.log("3. Adding shebang...");
   const bundlePath = runtime.path.join(distDir, "noskills.js");
   const content = await runtime.fs.readTextFile(bundlePath);
@@ -210,7 +149,6 @@ const main = async (): Promise<void> => {
   await runtime.fs.writeTextFile(bundlePath, shebang + content);
 
   // Step 4: Generate dist/package.json
-  // deno-lint-ignore no-console
   console.log("4. Generating dist/package.json...");
 
   const sourcePackageJson = JSON.parse(
@@ -233,31 +171,25 @@ const main = async (): Promise<void> => {
     JSON.stringify(pkg, null, 2) + "\n",
   );
 
-  // deno-lint-ignore no-console
   console.log(`   name: ${pkg.name}`);
-  // deno-lint-ignore no-console
   console.log(`   version: ${pkg.version}`);
 
   // Step 5: Copy README.md
-  // deno-lint-ignore no-console
   console.log("5. Copying README.md...");
-  try {
-    await runtime.fs.copyFile(
-      runtime.path.join(pkgDir, "README.md"),
-      runtime.path.join(distDir, "README.md"),
-    );
-  } catch {
-    // README.md doesn't exist yet — create a placeholder
-    await runtime.fs.writeTextFile(
-      runtime.path.join(distDir, "README.md"),
-      "# noskills\n\nNot disclosed yet.\n",
-    );
-  }
+  // The README is tracked, so a failed copy is an error, not a reason to
+  // publish a placeholder page.
+  await runtime.fs.copyFile(
+    runtime.path.join(pkgDir, "README.md"),
+    runtime.path.join(distDir, "README.md"),
+  );
 
-  // deno-lint-ignore no-console
   console.log("\n✓ Build complete!");
-  // deno-lint-ignore no-console
   console.log("\nTo publish: cd pkg/@eserstack/noskills/dist && npm publish");
 };
 
-main();
+if (import.meta.main) {
+  // Script entry point: the await runs only when this file is the program,
+  // never on import. A failed build rejects and exits non-zero.
+  // deno-lint-ignore no-top-level-await
+  await main();
+}

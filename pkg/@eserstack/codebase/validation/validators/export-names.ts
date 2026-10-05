@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkExportNames } from "../../validate-export-names.ts";
+import * as validateExportNames from "../../validate-export-names.ts";
 import type { Validator, ValidatorResult } from "../types.ts";
 
 /**
@@ -19,8 +19,10 @@ export const exportNamesValidator: Validator = {
   description: "Validate export naming conventions",
   requiredStacks: ["javascript"],
 
-  async validate(options): Promise<ValidatorResult> {
-    const result = await checkExportNames({ root: options.root });
+  validate: async (options): Promise<ValidatorResult> => {
+    const result = await validateExportNames.checkExportNames({
+      root: options.root,
+    });
 
     return {
       name: "validate-export-names",

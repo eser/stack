@@ -1,7 +1,7 @@
 # Deployments
 
-Deploying services built with eserstack to Kubernetes with ArgoCD. Publishing
-the packages themselves is release-process.md.
+Deploying services to Kubernetes with ArgoCD. Building their images is
+container-images.md; publishing packages is release-process.md.
 
 ---
 
@@ -20,8 +20,8 @@ kubectl get events -n <namespace> --sort-by=.lastTimestamp
 ```
 
 A change to a running cluster (apply, delete, scale, restart) is an action the
-user confirms first. ConfigMaps and Secrets are synced from env files with
-`@eserstack/cs`, not edited by hand.
+user confirms first. ConfigMaps and Secrets are synced from env files with the
+`cs` tool (`@eserstack/cs`), not edited by hand.
 
 ---
 

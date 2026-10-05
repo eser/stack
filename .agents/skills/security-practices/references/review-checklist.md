@@ -37,7 +37,8 @@ rule that explains it; review the lines that the change touches.
 - [ ] Prompts keep external text in a data section; model output is validated
       (security-rules.md: LLM Trust Boundary)
 - [ ] `go test -race` passes for code with shared state (go-practices testing)
-- [ ] `go tool govulncheck ./...` reports nothing reachable
+- [ ] `govulncheck` reports nothing reachable in any Go module (run it with the
+      command this codebase's AGENTS.md names)
 
 ## Medium
 

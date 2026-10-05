@@ -1,7 +1,7 @@
 # Go Testing
 
-How Go tests are written and run in this repository. The testing strategy
-(levels, coverage, what to test) is architecture-guidelines' testing reference.
+How Go tests are written and run. The testing strategy (levels, coverage, what
+to test) is architecture-guidelines' testing reference.
 
 ## Contents
 
@@ -19,9 +19,9 @@ Scope: All Go tests
 Rule: Write table-driven tests with `t.Parallel()` at both the test and the
 subtest level. Since Go 1.22 each loop iteration has its own variable, so the
 old `tc := tc` copy is not needed. Use `t.Context()` (Go 1.24+) instead of
-`context.Background()`. Tests run with the race detector: `make test` (or
-`deno task cli go-test` for coverage). A test that cannot run in parallel (it
-sets process environment or a global) says why in a comment.
+`context.Background()`. Tests run with the race detector (`go test -race ./...`,
+usually as `make test`). A test that cannot run in parallel (it sets process
+environment or a global) says why in a comment.
 
 Correct:
 

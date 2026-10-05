@@ -10,6 +10,7 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
+import type * as transitionValidation from "../context/transition-validation.ts";
 
 // =============================================================================
 // Types
@@ -91,6 +92,50 @@ const normalizeFormat = (raw: string): OutputFormat => {
 
 const get = <T>(obj: Record<string, unknown>, key: string): T | undefined =>
   obj[key] as T | undefined;
+
+// =============================================================================
+// Validation block (the `validation` field of `next` output)
+// =============================================================================
+
+type ValidationLines = {
+  /** Who ran the validator, or "not run" when the manifest entry is unusable. */
+  readonly by: string;
+  /** The validator's summary, or why the validation was skipped. */
+  readonly summary: string;
+  /** One "[severity] issue Suggestion: ..." line per finding. */
+  readonly items: readonly string[];
+};
+
+/** The second agent's result as plain lines, or null when there is none. */
+const validationOf = (
+  obj: Record<string, unknown>,
+): ValidationLines | null => {
+  const validation = get<transitionValidation.TransitionValidation>(
+    obj,
+    "validation",
+  );
+  if (validation === undefined) return null;
+
+  const by = validation.agent === null
+    ? "not run"
+    : `${validation.agent}, ${validation.model}`;
+
+  if (validation.status === "skipped") {
+    return { by, summary: `Skipped: ${validation.reason}`, items: [] };
+  }
+
+  return {
+    by,
+    summary: validation.findings.length === 0
+      ? [validation.summary, "No findings."].filter((t) => t !== "").join(" ")
+      : validation.summary,
+    items: validation.findings.map((f) =>
+      f.suggestion === ""
+        ? `[${f.severity}] ${f.issue}`
+        : `[${f.severity}] ${f.issue} Suggestion: ${f.suggestion}`
+    ),
+  };
+};
 
 // =============================================================================
 // JSON formatter (default — for agents and pipes)
@@ -177,7 +222,19 @@ const formatMarkdown = (data: unknown): string => {
     lines.push("");
   }
 
-  const behavioral = get<{ rules: string[]; tone: string; urgency?: string }>(
+  const validation = validationOf(obj);
+  if (validation !== null) {
+    lines.push(`## Validation (${validation.by})`);
+    lines.push("");
+    lines.push(validation.summary);
+    lines.push("");
+    for (const item of validation.items) {
+      lines.push(`- ${item}`);
+    }
+    if (validation.items.length > 0) lines.push("");
+  }
+
+  const behavioral = get<{ rules: string[]; tone: string }>(
     obj,
     "behavioral",
   );
@@ -188,10 +245,6 @@ const formatMarkdown = (data: unknown): string => {
     lines.push("");
     for (const r of behavioral.rules) {
       lines.push(`- ${r}`);
-    }
-    if (behavioral.urgency !== undefined) {
-      lines.push("");
-      lines.push(`**Urgency:** ${behavioral.urgency}`);
     }
     lines.push("");
   }
@@ -303,6 +356,15 @@ const formatText = (data: unknown): string => {
         String(get<string>(obj, "verificationOutput") ?? "").slice(0, 200)
       }`,
     );
+  }
+
+  const validation = validationOf(obj);
+  if (validation !== null) {
+    lines.push("");
+    lines.push(`Validation (${validation.by}): ${validation.summary}`);
+    for (const item of validation.items) {
+      lines.push(`  - ${item}`);
+    }
   }
 
   const meta = get<{ resumeHint: string }>(obj, "meta");

@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals } from "@std/assert";
-import { exec } from "./mod.ts";
+import * as assert from "@std/assert";
+import * as exec from "./mod.ts";
 
 // The property under test is that an interpolated argument arrives at the
 // process byte-for-byte as it was written. The template does a quote-and-
@@ -15,17 +15,17 @@ Deno.test("exec passes a backslash-bearing argument through unchanged", async ()
   // backslash inside single quotes is literal.
   const arg = String.raw`regex \d+ path C:\tmp and a\\double`;
 
-  const out = await exec`printf %s ${arg}`.noThrow().text();
+  const out = await exec.exec`printf %s ${arg}`.noThrow().text();
 
-  assertEquals(out, arg, "the argument was mutated in transit");
+  assert.assertEquals(out, arg, "the argument was mutated in transit");
 });
 
 Deno.test("exec passes quotes and spaces through unchanged", async () => {
   const arg = `it's a "quoted" phrase with  spaces`;
 
-  const out = await exec`printf %s ${arg}`.noThrow().text();
+  const out = await exec.exec`printf %s ${arg}`.noThrow().text();
 
-  assertEquals(out, arg);
+  assert.assertEquals(out, arg);
 });
 
 Deno.test("exec passes shell metacharacters through as data", async () => {
@@ -33,9 +33,9 @@ Deno.test("exec passes shell metacharacters through as data", async () => {
   // output would differ -- and a prompt containing `$(...)` would execute.
   const arg = `$(id) \`id\` ; rm -rf / | cat & $HOME`;
 
-  const out = await exec`printf %s ${arg}`.noThrow().text();
+  const out = await exec.exec`printf %s ${arg}`.noThrow().text();
 
-  assertEquals(out, arg);
+  assert.assertEquals(out, arg);
 });
 
 Deno.test("exec keeps a multi-line argument intact", async () => {
@@ -47,9 +47,9 @@ Deno.test("exec keeps a multi-line argument intact", async () => {
   // and tab are the part that has to survive.
   const arg = "line one\nline two\n\tindented";
 
-  const out = await exec`printf %s ${arg}`.noThrow().text();
+  const out = await exec.exec`printf %s ${arg}`.noThrow().text();
 
-  assertEquals(out, arg);
+  assert.assertEquals(out, arg);
 });
 
 // ── stdinText ────────────────────────────────────────────────────────────────
@@ -57,9 +57,9 @@ Deno.test("exec keeps a multi-line argument intact", async () => {
 Deno.test("exec delivers a payload on stdin", async () => {
   const payload = "line one\nline two";
 
-  const out = await exec`cat`.stdinText(payload).noThrow().text();
+  const out = await exec.exec`cat`.stdinText(payload).noThrow().text();
 
-  assertEquals(out, payload);
+  assert.assertEquals(out, payload);
 });
 
 // The point of stdinText. A 4 MiB argument is past ARG_MAX on macOS (~1 MiB)
@@ -68,21 +68,21 @@ Deno.test("exec delivers a payload on stdin", async () => {
 Deno.test("exec delivers a payload larger than argv could carry", async () => {
   const payload = "x".repeat(4 * 1024 * 1024);
 
-  const out = await exec`cat`.stdinText(payload).noThrow().text();
+  const out = await exec.exec`cat`.stdinText(payload).noThrow().text();
 
-  assertEquals(out.length, payload.length);
+  assert.assertEquals(out.length, payload.length);
 });
 
 // A process that exits without draining stdin closes the pipe under the
 // writer. That is the process's business; the call must still report its exit
 // rather than surfacing EPIPE as a spawn failure.
 Deno.test("exec survives a process that ignores its stdin", async () => {
-  const result = await exec`true`
+  const result = await exec.exec`true`
     .stdinText("y".repeat(1024 * 1024))
     .noThrow()
     .spawn();
 
-  assertEquals(result.code, 0);
+  assert.assertEquals(result.code, 0);
 });
 
 // An empty interpolation must still occupy an argv slot. When it vanished,
@@ -92,7 +92,7 @@ Deno.test("exec survives a process that ignores its stdin", async () => {
 Deno.test("exec keeps an empty interpolation as its own argument", async () => {
   const empty = "";
 
-  const out = await exec`printf [%s][%s] ${empty} after`.noThrow().text();
+  const out = await exec.exec`printf [%s][%s] ${empty} after`.noThrow().text();
 
-  assertEquals(out, "[][after]");
+  assert.assertEquals(out, "[][after]");
 });

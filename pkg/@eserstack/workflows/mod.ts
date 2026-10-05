@@ -12,12 +12,23 @@
  *
  * @example
  * ```typescript
- * import * as workflows from "@eserstack/workflows";
- * import * as task from "@eserstack/functions/task";
+ * import * as workflows from "@eserstack/workflows/mod";
+ * import * as functions from "@eserstack/functions";
  *
  * // Create a registry and register tools
  * const registry = workflows.createRegistry();
- * registry.register(myTool);
+ * registry.register({
+ *   name: "my-tool",
+ *   description: "Custom checker",
+ *   run: () =>
+ *     Promise.resolve({
+ *       name: "my-tool",
+ *       passed: true,
+ *       issues: [],
+ *       mutations: [],
+ *       stats: {},
+ *     }),
+ * });
  *
  * // Build a workflow
  * const workflow = workflows.createWorkflow("ci")
@@ -25,8 +36,8 @@
  *   .step("my-tool", { strict: true })
  *   .build();
  *
- * // Run it (returns a Task — use task.runTask() to execute)
- * const result = await task.runTask(
+ * // Run it: runWorkflow() returns a Task, functions.task.runTask() executes it
+ * const result = await functions.task.runTask(
  *   workflows.runWorkflow(workflow, registry, { fix: true }),
  * );
  * ```
@@ -48,6 +59,7 @@ export type {
   WorkflowsConfig,
   WorkflowStepConfig,
   WorkflowTool,
+  WorkflowToolContext,
   WorkflowToolResult,
 } from "./types.ts";
 

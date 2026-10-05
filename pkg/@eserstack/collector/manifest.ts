@@ -6,12 +6,12 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
-import { runtime, toPosix } from "@eserstack/standards/cross-runtime";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as logger from "@eserstack/logging/logger";
 import * as validatorIdentifier from "./validator-identifier/mod.ts";
 import * as formatter from "./formatter.ts";
 import * as collector from "./collector.ts";
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 const IMPORT_PREFIX = "$$";
 const PLACEHOLDER_PREFIX = `##!!//__`;
@@ -22,7 +22,9 @@ const PLACEHOLDER_SUFFIX = "__//!!##";
  * Normalizes to POSIX format and ensures ./ prefix for relative imports.
  */
 const toImportSpecifier = (file: string) => {
-  const specifier = toPosix(runtime.path.normalize(file));
+  const specifier = crossRuntime.toPosix(
+    crossRuntime.runtime.path.normalize(file),
+  );
 
   if (!specifier.startsWith(".")) {
     return `./${specifier}`;
@@ -36,7 +38,7 @@ export const specifierToIdentifier = (
   specifier: string,
   used: Set<string>,
 ): string => {
-  const lib = getLib();
+  const lib = ffiClient.getLib();
 
   if (lib !== null) {
     const raw = lib.symbols.EserAjanCollectorSpecifierToIdentifier(
@@ -50,7 +52,7 @@ export const specifierToIdentifier = (
   }
 
   // Fallback: TS implementation
-  const ext = runtime.path.extname(specifier);
+  const ext = crossRuntime.runtime.path.extname(specifier);
   const spec = ext ? specifier.slice(0, -ext.length) : specifier;
 
   let ident = "";
@@ -98,8 +100,8 @@ const placeholder = (text: string) => {
 export const writeManifestToString = async (
   collection: Array<[string, Array<[string, unknown]>]>,
 ): Promise<string> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib !== null) {
     const entries = collection.map(([relPath, exports]) => ({
@@ -194,7 +196,7 @@ export const buildManifestFile = async (
   const collection = await collector.collectExports(options);
   const manifestStr = await writeManifestToString(collection);
 
-  await runtime.fs.writeTextFile(filepath, manifestStr);
+  await crossRuntime.runtime.fs.writeTextFile(filepath, manifestStr);
 
   const exportModules = Object.values(collection);
   const exportCount = exportModules.reduce((acc, [, moduleFns]) => {

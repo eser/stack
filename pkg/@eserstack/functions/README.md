@@ -45,13 +45,25 @@ management.
   `run(function*() { ... })` — many steps composed into workflows.
 - **vs Effect.ts**: Lightweight, no runtime, no fibers. Our `Task<T, E, R>`
   mirrors Effect's `Effect<A, E, R>` three-parameter design for context
-  threading, but at 5% of the complexity.
+  threading, and a task is a plain object that holds one
+  `(ctx: R) => Promise<Result<T, E>>` function.
 
 ## Quick Start
 
+`fetchUser` and `fetchPosts` stand in for your own data access; each returns a
+`Result`, which `yield*` unwraps inside `functions.run()`:
+
 ```typescript
 import * as functions from "@eserstack/functions";
-import * as results from "@eserstack/primitives/results";
+import * as primitives from "@eserstack/primitives";
+
+type User = { readonly id: number; readonly name: string };
+type Post = { readonly userId: number; readonly title: string };
+
+const fetchUser = (id: number): primitives.results.Result<User, Error> =>
+  primitives.results.ok({ id, name: "Ada" });
+const fetchPosts = (userId: number): primitives.results.Result<Post[], Error> =>
+  primitives.results.ok([{ userId, title: "Hello" }]);
 
 // Monadic do-notation
 const result = await functions.run(async function* () {
@@ -61,7 +73,7 @@ const result = await functions.run(async function* () {
 });
 
 // Pattern matching
-results.match(result, {
+primitives.results.match(result, {
   ok: (value) => console.log(`Got ${value.posts.length} posts`),
   fail: (error) => console.error(`Error: ${error}`),
 });
@@ -69,22 +81,50 @@ results.match(result, {
 
 ## functions.run() / functions.runSync() — Monadic Composition
 
-Use when you need **sequential operations with access to intermediate values**:
+Use when you need **sequential operations with access to intermediate values**.
+When a step is async, `yield* await` unwraps the `Promise` of a `Result`:
 
 ```typescript
 import * as functions from "@eserstack/functions";
-import * as results from "@eserstack/primitives/results";
+import * as primitives from "@eserstack/primitives";
+
+type User = { readonly id: number; readonly name: string };
+type Post = { readonly userId: number; readonly title: string };
+type Fetched<T> = Promise<primitives.results.Result<T, Error>>;
+
+const fetchUser = (id: number): Fetched<User> =>
+  Promise.resolve(primitives.results.ok({ id, name: "Ada" }));
+const fetchPosts = (userId: number): Fetched<Post[]> =>
+  Promise.resolve(primitives.results.ok([{ userId, title: "Hello" }]));
 
 // Async monadic composition (do-notation)
 const fetchUserWithPosts = (userId: number) =>
   functions.run(async function* () {
-    const user = yield* fetchUser(userId); // Unwrap Result, get value
-    const posts = yield* fetchPosts(user.id); // Use user.id!
+    const user = yield* await fetchUser(userId); // Unwrap Result, get value
+    const posts = yield* await fetchPosts(user.id); // Use user.id!
     return { user, posts }; // Compute final result
   });
 
 const result = await fetchUserWithPosts(1);
 // result: Result<{ user: User, posts: Post[] }, Error>
+```
+
+`functions.runSync()` is the sync version. It stops at the first failure and
+returns it:
+
+```typescript
+import * as functions from "@eserstack/functions";
+import * as primitives from "@eserstack/primitives";
+
+type Json = { readonly port?: unknown; readonly host?: string };
+type Checked<T> = primitives.results.Result<T, string>;
+
+const parseJson = (input: string): Checked<Json> =>
+  primitives.results.tryCatch(() => JSON.parse(input), () => "invalid JSON");
+const validatePort = (port: unknown): Checked<number> =>
+  typeof port === "number" && port > 0 && port < 65536
+    ? primitives.results.ok(port)
+    : primitives.results.fail(`invalid port: ${port}`);
 
 // Sync version
 const parseConfig = (input: string) =>
@@ -96,31 +136,34 @@ const parseConfig = (input: string) =>
 
 // Short-circuits on first failure
 const computed = functions.runSync(function* () {
-  const a = yield* results.ok(5);
-  const b = yield* results.fail("error"); // Stops here
+  const a = yield* primitives.results.ok(5);
+  const b = yield* primitives.results.fail("error"); // Stops here
   return a + b; // Never reached
 });
-// computed: results.fail("error")
+// computed: primitives.results.fail("error")
 ```
 
 ## functions.collect() — Middleware/Streaming Pattern
 
-Koa-style middleware chains for streaming results with before/after hooks:
+Koa-style middleware chains for streaming results with before/after hooks. Each
+middleware receives a context and the arguments the pipeline runs with;
+`yield* ctx.next()` runs the rest of the chain and passes its results on.
+`ctx.state` is shared by the middleware of one run:
 
 ```typescript
 import * as functions from "@eserstack/functions";
-import * as results from "@eserstack/primitives/results";
+import * as primitives from "@eserstack/primitives";
 
 const pipeline = functions.collect<string, Error>()
-  .use(async function* (ctx, name: string) {
+  .use(async function* (ctx, name) {
     // Logging middleware
     console.log("Before:", name);
     yield* ctx.next(); // Delegate to next
     console.log("After");
   })
-  .use(async function* (_ctx, name: string) {
+  .use(async function* (_ctx, name) {
     // Handler - emit results
-    yield results.ok(`Hello, ${name}!`);
+    yield primitives.results.ok(`Hello, ${name}!`);
   });
 
 // Run and collect all results
@@ -131,11 +174,22 @@ const result = await pipeline.run("World");
 for await (const item of pipeline.iterate("World")) {
   console.log(item);
 }
+```
+
+`mapError()` and `recover()` apply once to every failure the chain emits,
+including failures that pass up through `ctx.next()`:
+
+```typescript
+import * as functions from "@eserstack/functions";
+import * as primitives from "@eserstack/primitives";
 
 // Error handling in pipelines
 const withRecovery = functions.collect<number, string>()
-  .use(() => results.fail("error"))
-  .recover((_error) => results.ok(0)); // Recover from errors
+  .use(() => primitives.results.fail("error"))
+  .recover((_error) => primitives.results.ok(0)); // Recover from errors
+
+const recovered = await withRecovery.run();
+// recovered: ok([0])
 ```
 
 ## functions.task.* — Lazy Computation
@@ -146,34 +200,61 @@ cancellation, and observability. See also:
 [Context-Aware Tasks](#-context-aware-tasks-reader-pattern) for dependency
 injection and cancellation.
 
+`fetchItem` builds a task that fetches one item; nothing is fetched until a task
+runs:
+
 ```typescript
 import * as functions from "@eserstack/functions";
 
-const { task } = functions;
+type Item = { readonly id: number; readonly tags: readonly string[] };
+type ParseError = { readonly _tag: "ParseError"; readonly id: number };
 
 // Create tasks
-const fetchData = task.fromPromise(() =>
-  fetch("/api/data").then((r) => r.json())
-);
-const constant = task.succeed(42);
+const fetchItem = (id: number) =>
+  functions.task.fromPromise(() =>
+    fetch(`/api/items/${id}`).then((r) => r.json() as Promise<Item>)
+  );
+const fetchData = fetchItem(1);
+const constant = functions.task.succeed(42);
 
 // Compose
-const transformed = task.map(fetchData, (data) => data.items);
-const chained = task.flatMap(fetchData, (data) => fetchDetails(data.id));
+const transformed = functions.task.map(fetchData, (data) => data.tags);
+const chained = functions.task.flatMap(fetchData, (data) => fetchItem(data.id));
 
 // Error type widening
-const widened = task.flatMapW(fetchData, (data) => parseData(data));
-// Task<Parsed, FetchError | ParseError>
+const parseTags = (
+  data: Item,
+): functions.task.Task<readonly string[], ParseError> =>
+  data.tags.length > 0
+    ? functions.task.succeed(data.tags)
+    : functions.task.failTask<ParseError>({ _tag: "ParseError", id: data.id });
+const widened = functions.task.flatMapW(fetchData, parseTags);
+// Task<readonly string[], Error | ParseError>
+```
+
+Retry, timeout and parallel execution wrap a task without running it;
+`runTask()` runs it:
+
+```typescript
+import * as functions from "@eserstack/functions";
+
+const fetchItem = (id: number) =>
+  functions.task.fromPromise(() => fetch(`/api/items/${id}`));
+const fetchData = fetchItem(1);
 
 // Add resilience
-const resilient = task.withRetry(fetchData, 3, 1000);
-const bounded = task.withTimeout(fetchData, 5000, new Error("Timeout"));
+const resilient = functions.task.withRetry(fetchData, 3, 1000);
+const bounded = functions.task.withTimeout(
+  fetchData,
+  5000,
+  new Error("Timeout"),
+);
 
 // Parallel execution
-const allData = task.allPar([task1, task2, task3]);
+const allData = functions.task.allPar([fetchItem(1), fetchItem(2)]);
 
 // Execute
-const result = await task.runTask(resilient);
+const result = await functions.task.runTask(resilient);
 ```
 
 ### 🧩 Context-Aware Tasks (Reader Pattern)
@@ -187,74 +268,124 @@ pattern, also used by [Effect.ts](https://effect.website/) as `Effect<A, E, R>`.
 Instead of passing dependencies through every function call:
 
 ```typescript
+type Database = { readonly find: (table: string, id: string) => unknown };
+type Logger = { readonly info: (message: string) => void };
+
 // ❌ Manual threading — verbose, error-prone
-const getUser = (id: string, db: Database, logger: Logger) => ...
-const getOrder = (userId: string, db: Database, logger: Logger) => ...
+const getUser = (id: string, db: Database, logger: Logger) => {
+  logger.info(`Fetching user ${id}`);
+  return db.find("users", id);
+};
+const getOrder = (userId: string, db: Database, logger: Logger) => {
+  logger.info(`Fetching orders of ${userId}`);
+  return db.find("orders", userId);
+};
 ```
 
-Declare requirements in the type and provide them once:
+Declare requirements in the type and provide them once. Here `AppCtx` holds an
+in-memory user table and a logger; `console` fits `functions.task.Logger`:
 
 ```typescript
 // ✅ Context threading — clean, composable
 import * as functions from "@eserstack/functions";
-import * as results from "@eserstack/primitives/results";
+import * as primitives from "@eserstack/primitives";
 
-const { task } = functions;
+type User = { readonly id: string; readonly name: string };
+type AppError = { readonly _tag: "NotFound"; readonly id: string };
+type AppCtx = {
+  readonly users: ReadonlyMap<string, User>;
+  readonly logger: functions.task.Logger;
+};
 
-type AppCtx = { readonly db: Database; readonly logger: Logger };
-
-const getUser = (id: string): task.Task<User, AppError, AppCtx> =>
-  task.task((ctx) => {
+const getUser = (id: string): functions.task.Task<User, AppError, AppCtx> =>
+  functions.task.task((ctx) => {
     ctx.logger.info("Fetching user", { id });
-    const user = ctx.db.users.find(id);
-    return Promise.resolve(results.ok(user));
+    const user = ctx.users.get(id);
+    return Promise.resolve(
+      user === undefined
+        ? primitives.results.fail({ _tag: "NotFound", id })
+        : primitives.results.ok(user),
+    );
   });
 
 // Provide context once at the edge
-const result = await task.runTask(getUser("123"), {
-  db: postgres,
+const users = new Map([["123", { id: "123", name: "Ada" }]]);
+const result = await functions.task.runTask(getUser("123"), {
+  users,
   logger: console,
 });
 ```
 
 #### Cancellation
 
+A task that needs `functions.task.Cancellable` reads the abort signal from its
+context:
+
 ```typescript
 import * as functions from "@eserstack/functions";
-import * as results from "@eserstack/primitives/results";
+import * as primitives from "@eserstack/primitives";
 
-const { task } = functions;
+type Data = { readonly items: readonly string[] };
+type FetchError = { readonly _tag: "FetchError"; readonly status: number };
 
-const fetchData = task.task<Data, FetchError, task.Cancellable>(
-  async (ctx) => {
-    const resp = await fetch("/api/data", { signal: ctx.signal });
-    return results.ok(await resp.json());
-  },
-);
+const fetchData = functions.task.task<
+  Data,
+  FetchError,
+  functions.task.Cancellable
+>(async (ctx) => {
+  const resp = await fetch("/api/data", { signal: ctx.signal });
+  if (!resp.ok) {
+    return primitives.results.fail({ _tag: "FetchError", status: resp.status });
+  }
+  return primitives.results.ok(await resp.json() as Data);
+});
 
 const controller = new AbortController();
 setTimeout(() => controller.abort(), 5000);
-const result = await task.runTask(fetchData, { signal: controller.signal });
+const result = await functions.task.runTask(fetchData, {
+  signal: controller.signal,
+});
 ```
 
 #### Observability
 
+`withLogging()` adds `functions.task.Observable` to the task's requirements, so
+the logger comes from the context:
+
 ```typescript
-const traced = task.withLogging(fetchData, "fetch-data");
+import * as functions from "@eserstack/functions";
+
+const fetchData = functions.task.fromPromise(() => fetch("/api/data"));
+
+const traced = functions.task.withLogging(fetchData, "fetch-data");
 // Automatically logs: "[fetch-data] started" and "[fetch-data] completed/failed"
+
+await functions.task.runTask(traced, { logger: console });
 ```
 
 #### Providing Context (Dependency Injection)
 
+`provideContext()` closes a task over its context. `greet` needs a greeting from
+the context:
+
 ```typescript
+import * as functions from "@eserstack/functions";
+import * as primitives from "@eserstack/primitives";
+
+type GreetCtx = { readonly greeting: string };
+
+const greet = (name: string): functions.task.Task<string, never, GreetCtx> =>
+  functions.task.task((ctx) =>
+    Promise.resolve(primitives.results.ok(`${ctx.greeting}, ${name}!`))
+  );
+
 // Satisfy requirements upfront → returns a context-free Task
-const ready = task.provideContext(getUser("123"), {
-  db: postgres,
-  logger: console,
+const ready = functions.task.provideContext(greet("Ada"), {
+  greeting: "Hello",
 });
 
 // Now runs without context
-const result = await task.runTask(ready);
+const result = await functions.task.runTask(ready);
 ```
 
 > **FP note:** `provideContext` is analogous to Haskell's `runReaderT` or
@@ -272,58 +403,102 @@ context system.
 
 #### Define a Handler
 
-A `Handler<I, O, E, R>` is a function from typed input to a context-aware Task:
+A `Handler<I, O, E, R>` is a function from typed input to a context-aware Task.
+`AppCtx` here holds an in-memory order list and a logger:
 
 ```typescript
 import * as functions from "@eserstack/functions";
-import * as results from "@eserstack/primitives/results";
-
-const { handler, task } = functions;
+import * as primitives from "@eserstack/primitives";
 
 type OrderInput = { readonly customerId: string };
+type Order = { readonly id: string; readonly customerId: string };
+type OrderError = { readonly _tag: "OrderError"; readonly message: string };
+type AppCtx = {
+  readonly orders: Order[];
+  readonly logger: functions.task.Logger;
+};
 
-const createOrder: handler.Handler<OrderInput, Order, OrderError, AppCtx> = (
-  input,
-) =>
-  task.task(async (ctx) => {
-    const order = await ctx.db.orders.insert(input);
-    return results.ok(order);
+const createOrder: functions.handler.Handler<
+  OrderInput,
+  Order,
+  OrderError,
+  AppCtx
+> = (input) =>
+  functions.task.task((ctx) => {
+    const order = { id: `order-${ctx.orders.length + 1}`, ...input };
+    ctx.orders.push(order);
+    ctx.logger.info("Order created", { id: order.id });
+    return Promise.resolve(primitives.results.ok(order));
   });
 ```
 
 #### Write Adapters for Each Trigger
 
+Each adapter turns one trigger's event into `OrderInput`, or fails with an
+`AdaptError`:
+
 ```typescript
-const { triggers } = functions;
+import * as functions from "@eserstack/functions";
+import * as primitives from "@eserstack/primitives";
+
+type OrderInput = { readonly customerId: string };
+type OrderAdapter<Event> = functions.handler.Adapter<Event, OrderInput>;
 
 // HTTP adapter
-const fromHttp: handler.Adapter<triggers.HttpEvent, OrderInput> = (event) => {
+const fromHttp: OrderAdapter<functions.triggers.HttpEvent> = (event) => {
   if (event.method !== "POST") {
-    return results.fail(handler.adaptError("Method not allowed"));
+    return primitives.results.fail(
+      functions.handler.adaptError("Method not allowed"),
+    );
   }
-  return results.ok(event.body as OrderInput);
+  return primitives.results.ok(event.body as OrderInput);
 };
 
 // Queue adapter
-const fromQueue: handler.Adapter<triggers.QueueEvent, OrderInput> = (event) =>
-  results.ok(JSON.parse(event.body as string) as OrderInput);
+const fromQueue: OrderAdapter<functions.triggers.QueueEvent> = (event) =>
+  primitives.results.ok(JSON.parse(event.body as string) as OrderInput);
 
 // CLI adapter
-const fromCli: handler.Adapter<triggers.CliEvent, OrderInput> = (event) =>
-  results.ok({ customerId: event.flags["customer"] as string });
+const fromCli: OrderAdapter<functions.triggers.CliEvent> = (event) =>
+  primitives.results.ok({ customerId: event.flags["customer"] as string });
 ```
 
 #### Bind and Run
 
+`bind()` joins a handler and an adapter into a handler that takes the trigger's
+event. The handler and adapters here are short versions of the ones above:
+
 ```typescript
-const httpHandler = handler.bind(createOrder, fromHttp);
-const queueHandler = handler.bind(createOrder, fromQueue);
-const cliHandler = handler.bind(createOrder, fromCli);
+import * as functions from "@eserstack/functions";
+import * as primitives from "@eserstack/primitives";
+
+type OrderInput = { readonly customerId: string };
+type AppCtx = { readonly logger: functions.task.Logger };
+
+const createOrder = (input: OrderInput) =>
+  functions.task.task<string, Error, AppCtx>((ctx) => {
+    ctx.logger.info("Order created", { customerId: input.customerId });
+    return Promise.resolve(primitives.results.ok(`order-${input.customerId}`));
+  });
+const fromQueue = (event: functions.triggers.QueueEvent) =>
+  primitives.results.ok(JSON.parse(event.body as string) as OrderInput);
+const fromCli = (event: functions.triggers.CliEvent) =>
+  primitives.results.ok({ customerId: event.flags["customer"] as string });
+
+const queueHandler = functions.handler.bind(createOrder, fromQueue);
+const cliHandler = functions.handler.bind(createOrder, fromCli);
 
 // All share the same context requirements
-const ctx = { db: postgres, logger: console };
-await task.runTask(httpHandler(httpEvent), ctx);
-await task.runTask(queueHandler(queueEvent), ctx);
+const ctx: AppCtx = { logger: console };
+const queueEvent = {
+  messageId: "msg-1",
+  body: '{"customerId":"cust-1"}',
+  attributes: {},
+  receiveCount: 1,
+};
+await functions.task.runTask(queueHandler(queueEvent), ctx);
+const cliEvent = { command: "order", args: [], flags: { customer: "cust-1" } };
+await functions.task.runTask(cliHandler(cliEvent), ctx);
 ```
 
 > **FP note:** `bind()` is a contravariant map on the input side — it maps over
@@ -337,58 +512,67 @@ await task.runTask(queueHandler(queueEvent), ctx);
 #### AI Tool Calls
 
 In the age of AI agents, functions aren't just triggered by HTTP or CLI —
-they're invoked by LLMs as **tool calls**. The same Handler pattern applies:
+they're invoked by LLMs as **tool calls**. The same Handler pattern applies.
+`createOrder` below is a context-free stand-in for the handler above; with a
+context-aware handler, `handleToolCall` takes the context as its second
+argument:
 
 ```typescript
-const { triggers } = functions;
+import * as functions from "@eserstack/functions";
+import * as primitives from "@eserstack/primitives";
+
+type OrderInput = { readonly customerId: string };
+type Order = { readonly id: string; readonly customerId: string };
+
+const createOrder: functions.handler.Handler<OrderInput, Order> = (input) =>
+  functions.task.succeed({ id: "order-1", ...input });
 
 // AI tool call adapter — validates arguments from the model
-const fromToolCall: handler.Adapter<triggers.ToolCallEvent, OrderInput> = (
-  event,
-) => {
+const fromToolCall: functions.handler.Adapter<
+  functions.triggers.ToolCallEvent,
+  OrderInput
+> = (event) => {
   const args = event.arguments as { customerId?: string } | null;
   if (args?.customerId === undefined) {
-    return results.fail(handler.adaptError("Missing customerId"));
+    return primitives.results.fail(
+      functions.handler.adaptError("Missing customerId"),
+    );
   }
-  return results.ok({ customerId: args.customerId });
+  return primitives.results.ok({ customerId: args.customerId });
 };
 
 // Response mapper — formats result for the model
-const toToolResponse: handler.ResponseMapper<
+const toToolResponse: functions.handler.ResponseMapper<
   Order,
-  OrderError | handler.AdaptError,
-  triggers.ToolCallResponse
+  Error | functions.handler.AdaptError,
+  functions.triggers.ToolCallResponse
 > = (result) => {
-  if (results.isOk(result)) {
+  if (primitives.results.isOk(result)) {
     return { content: result.value };
   }
   return { content: { error: result.error }, isError: true };
 };
 
 // Wire the trigger
-const handleToolCall = handler.createTrigger({
+const handleToolCall = functions.handler.createTrigger({
   handler: createOrder,
   adaptInput: fromToolCall,
   adaptOutput: toToolResponse,
 });
 
 // Called when an LLM invokes this as a tool
-const response = await handleToolCall(
-  {
-    name: "create-order",
-    arguments: { customerId: "cust-1" },
-    callId: "call_abc",
-  },
-  ctx,
-);
-// → { content: { id: "order-1", customerId: "cust-1" }, isError: false }
+const response = await handleToolCall({
+  name: "create-order",
+  arguments: { customerId: "cust-1" },
+  callId: "call_abc",
+});
+// → { content: { id: "order-1", customerId: "cust-1" } }
 ```
 
 This works with any AI framework — Claude tool use, OpenAI function calling, MCP
 tools, LangChain/LangGraph, Pydantic AI. The `ToolCallEvent` and
-`ToolCallResponse` types align with the Go
-[aifx](../../apps/services/pkg/eser-go/aifx/) package (`ToolCall` / `ToolResult`
-structs) for cross-language consistency.
+`ToolCallResponse` types align with the Go [aifx](../../ajan/aifx/) package
+(`ToolCall` / `ToolResult` structs) for cross-language consistency.
 
 > **Why it matters:** LLM arguments are loosely typed JSON. The `Adapter`
 > validates them with full type safety — if the model sends malformed arguments,
@@ -397,40 +581,62 @@ structs) for cross-language consistency.
 
 ## functions.resources.* — Resource Management
 
-Safe acquire-use-release patterns with guaranteed cleanup:
+Safe acquire-use-release patterns with guaranteed cleanup. `openFile` and
+`openConnection` stand in for resources that need closing:
 
 ```typescript
 import * as functions from "@eserstack/functions";
-import * as results from "@eserstack/primitives/results";
+import * as primitives from "@eserstack/primitives";
 
-const { resources } = functions;
+const openFile = (path: string) => ({ read: () => path, close: () => {} });
+const openConnection = () => ({
+  send: (s: string) => s.length,
+  close: () => {},
+});
 
 // Bracket pattern
-const result = await resources.bracket(
-  () => results.ok(openFile("data.txt")), // acquire
-  (file) => results.ok(file.read()), // use
+const result = await functions.resources.bracket(
+  () => primitives.results.ok(openFile("data.txt")), // acquire
+  (file) => primitives.results.ok(file.read()), // use
   (file) => file.close(), // release (always runs)
 );
 
 // Scope for multiple resources (LIFO cleanup)
-const processed = await resources.scoped(async (scope) => {
-  const file = await resources.acquireRelease(
+const processed = await functions.resources.scoped(async (scope) => {
+  const file = await functions.resources.acquireRelease(
     scope,
-    () => results.ok(openFile("data.txt")),
+    () => primitives.results.ok(openFile("data.txt")),
     (f) => f.close(),
   );
-
-  const conn = await resources.acquireRelease(
+  const conn = await functions.resources.acquireRelease(
     scope,
-    () => results.ok(openConnection()),
+    () => primitives.results.ok(openConnection()),
     (c) => c.close(),
   );
+  if (primitives.results.isFail(file) || primitives.results.isFail(conn)) {
+    return primitives.results.fail("acquire failed");
+  }
 
-  return results.ok(process(file, conn));
+  return primitives.results.ok(conn.value.send(file.value.read()));
 }); // All resources automatically released in reverse order
+```
+
+`retryWithBackoff()` and `withTimeout()` take a function that returns a
+`Promise` of a `Result`. `fetchData` and `slowOperation` stand in for yours:
+
+```typescript
+import * as functions from "@eserstack/functions";
+import * as primitives from "@eserstack/primitives";
+
+const fetchData = () =>
+  functions.task.runTask(functions.task.fromPromise(() => fetch("/api/data")));
+const slowOperation = () =>
+  new Promise<primitives.results.Result<string, string>>((resolve) =>
+    setTimeout(() => resolve(primitives.results.ok("done")), 100)
+  );
 
 // Retry with backoff
-const fetched = await resources.retryWithBackoff(
+const fetched = await functions.resources.retryWithBackoff(
   () => fetchData(),
   {
     maxAttempts: 3,
@@ -441,7 +647,7 @@ const fetched = await resources.retryWithBackoff(
 );
 
 // Timeout
-const slow = await resources.withTimeout(
+const slow = await functions.resources.withTimeout(
   () => slowOperation(),
   5000,
   "Operation timed out",
@@ -568,8 +774,8 @@ const slow = await resources.withTimeout(
   standard for AI tool integration
 - [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
   — OpenAI's function calling API
-- [eser-go aifx](../../apps/services/pkg/eser-go/aifx/) — Go-side AI provider
-  abstraction with matching `ToolCall`/`ToolResult` types
+- [ajan aifx](../../ajan/aifx/): Go-side AI provider abstraction with matching
+  `ToolCall`/`ToolResult` types
 
 ---
 

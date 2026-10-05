@@ -2,6 +2,7 @@
 
 import * as bdd from "@std/testing/bdd";
 import * as assert from "@std/assert";
+import * as handleMod from "./handle.ts";
 import * as postIdMod from "./post-id.ts";
 
 bdd.describe("toPostId", () => {
@@ -48,4 +49,17 @@ bdd.describe("toPostId", () => {
     const b = postIdMod.toPostId("id-two");
     assert.assertEquals(a === b, false);
   });
+
+  bdd.it(
+    "keeps plain strings and Handles out of PostId at compile time",
+    () => {
+      // The brand is type-only; deno check fails if either line compiles.
+      // @ts-expect-error: a plain string is not a PostId
+      const fromString: postIdMod.PostId = "123";
+      // @ts-expect-error: a Handle is not a PostId
+      const fromHandle: postIdMod.PostId = handleMod.toHandle("someone");
+
+      assert.assertEquals([fromString, fromHandle], ["123", "someone"]);
+    },
+  );
 });

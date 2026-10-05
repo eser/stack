@@ -109,6 +109,14 @@ type Conn struct {
 	done      chan struct{}
 	closeOnce sync.Once
 
+	// ctx is the parent of every inbound handler's context and is cancelled
+	// when done closes, so a handler still waiting (on a permission prompt, for
+	// example) unwinds when the connection goes. It is stored because the
+	// connection is the entry point for those handlers: no caller hands them a
+	// context.
+	ctx    context.Context //nolint:containedctx // lifetime context, see the comment above
+	cancel context.CancelFunc
+
 	// readErr explains why the reader stopped; read only after done is closed.
 	readErr error
 
@@ -135,12 +143,18 @@ const serveDrainTimeout = 5 * time.Second
 // when the caller owns that lifecycle (as the subprocess path does, where
 // shellfx owns the child).
 func NewConn(reader io.Reader, writer io.Writer, closer io.Closer, handler Handler) *Conn {
+	// The connection is where inbound requests enter the process, so this is
+	// the entry point that starts their context chain.
+	ctx, cancel := context.WithCancel(context.Background())
+
 	conn := &Conn{
 		writer:  writer,
 		closer:  closer,
 		handler: handler,
 		pending: make(map[int64]chan *message),
 		done:    make(chan struct{}),
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 
 	go conn.readLoop(reader)
@@ -230,6 +244,7 @@ func (c *Conn) Close() error {
 		}
 
 		close(c.done)
+		c.cancel()
 
 		if c.closer != nil {
 			err = c.closer.Close()
@@ -338,6 +353,7 @@ func (c *Conn) stop(err error) {
 		c.drainServing()
 
 		close(c.done)
+		c.cancel()
 
 		if c.closer != nil {
 			_ = c.closer.Close()
@@ -385,18 +401,10 @@ func (c *Conn) deliverReply(msg *message) {
 }
 
 func (c *Conn) serveRequest(msg *message) {
-	ctx, cancel := context.WithCancel(context.Background())
+	// Bound to the connection: if the agent dies while a permission prompt is
+	// open, the handler unwinds rather than lingers.
+	ctx, cancel := context.WithCancel(c.ctx)
 	defer cancel()
-
-	// Bind the handler's lifetime to the connection: if the agent dies while a
-	// permission prompt is open, the handler should unwind rather than linger.
-	go func() {
-		select {
-		case <-c.done:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
 
 	result, err := c.handler.HandleRequest(ctx, msg.Method, msg.Params)
 
@@ -434,16 +442,8 @@ func (c *Conn) serveRequest(msg *message) {
 }
 
 func (c *Conn) serveNotification(msg *message) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(c.ctx)
 	defer cancel()
-
-	go func() {
-		select {
-		case <-c.done:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
 
 	// A notification has no reply channel, so an error has nowhere to go.
 	_ = c.handler.HandleNotification(ctx, msg.Method, msg.Params)

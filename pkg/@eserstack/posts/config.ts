@@ -17,6 +17,10 @@ import * as crossRuntime from "@eserstack/standards/cross-runtime";
 
 // ── Config type ───────────────────────────────────────────────────────────────
 
+/**
+ * The typed settings of @eserstack/posts, as `loadPostsConfig()` reads them.
+ * An unset or empty value is `undefined`.
+ */
 export type PostsConfig = {
   /** Current environment name (development, production, test, …). */
   readonly env: string;
@@ -25,7 +29,10 @@ export type PostsConfig = {
     /** OAuth 2.0 client ID from developer.x.com. Optional — Twitter is
      *  disabled when absent. */
     readonly clientId: string | undefined;
-    /** OAuth 2.0 client secret. Used in confidential-client flows. */
+    /**
+     * OAuth 2.0 client secret of a confidential client (a Web App or an
+     * Automated App). When set, token requests authenticate with it.
+     */
     readonly clientSecret: string | undefined;
     /** OAuth callback URL. Default: http://127.0.0.1:8080/callback */
     readonly redirectUri: string;
@@ -43,8 +50,6 @@ export type PostsConfig = {
   };
 
   readonly ai: {
-    /** AI provider name. Default: "anthropic" */
-    readonly provider: string;
     /** Anthropic API key. Optional — translation feature is disabled when absent. */
     readonly apiKey: string | undefined;
   };
@@ -69,6 +74,18 @@ const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "[::1]", "::1"];
  */
 const readOperatorEnv = (key: string): string | undefined => {
   const value = crossRuntime.runtime.env.get(key);
+  return value === undefined || value === "" ? undefined : value;
+};
+
+/**
+ * Reads an optional key from .env files or the environment. An empty value,
+ * as in a template line such as `BLUESKY_IDENTIFIER=`, counts as unset.
+ */
+const readOptional = (
+  reader: dotenv.EnvReader,
+  key: string,
+): string | undefined => {
+  const value = reader.readString(key);
   return value === undefined || value === "" ? undefined : value;
 };
 
@@ -134,13 +151,12 @@ export const requireTokenStorePath = (
  *   BLUESKY_PDS_HOST       → bluesky.pdsHost     (process env only)
  *   BLUESKY_IDENTIFIER     → bluesky.identifier
  *   BLUESKY_APP_PASSWORD   → bluesky.appPassword
- *   AI_PROVIDER            → ai.provider         (default: "anthropic")
  *   ANTHROPIC_API_KEY      → ai.apiKey
  *   POSTS_TOKEN_STORE_PATH → tokenStorePath      (process env only; absolute or ~/)
  *
  * The keys marked "process env only" decide where credentials are sent or
  * stored. They are not read from .env files in the working directory, which a
- * cloned repository controls.
+ * cloned repository controls. An empty value counts as unset.
  */
 export async function loadPostsConfig(): Promise<PostsConfig> {
   const result = await dotenv.configure<PostsConfig>(
@@ -150,8 +166,8 @@ export async function loadPostsConfig(): Promise<PostsConfig> {
       const cfg: PostsConfig = {
         env: reader.getCurrentEnv(),
         twitter: {
-          clientId: reader.readString("TWITTER_CLIENT_ID"),
-          clientSecret: reader.readString("TWITTER_CLIENT_SECRET"),
+          clientId: readOptional(reader, "TWITTER_CLIENT_ID"),
+          clientSecret: readOptional(reader, "TWITTER_CLIENT_SECRET"),
           redirectUri: reader.readString(
             "TWITTER_REDIRECT_URI",
             DEFAULT_REDIRECT_URI,
@@ -166,12 +182,11 @@ export async function loadPostsConfig(): Promise<PostsConfig> {
             "BLUESKY_PDS_HOST",
             readOperatorEnv("BLUESKY_PDS_HOST"),
           ),
-          identifier: reader.readString("BLUESKY_IDENTIFIER"),
-          appPassword: reader.readString("BLUESKY_APP_PASSWORD"),
+          identifier: readOptional(reader, "BLUESKY_IDENTIFIER"),
+          appPassword: readOptional(reader, "BLUESKY_APP_PASSWORD"),
         },
         ai: {
-          provider: reader.readString("AI_PROVIDER", "anthropic"),
-          apiKey: reader.readString("ANTHROPIC_API_KEY"),
+          apiKey: readOptional(reader, "ANTHROPIC_API_KEY"),
         },
         tokenStorePath: requireTokenStorePath(
           readOperatorEnv("POSTS_TOKEN_STORE_PATH"),

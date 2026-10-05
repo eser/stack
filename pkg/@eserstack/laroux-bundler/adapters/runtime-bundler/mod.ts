@@ -10,3 +10,4 @@ export {
   RuntimeBundler,
   type RuntimeBundlerConfig,
 } from "./runtime-bundler.ts";
+export type { ResolvedBrowserShimsConfig } from "@eserstack/laroux/config";

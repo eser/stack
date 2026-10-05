@@ -3,7 +3,6 @@ package noskillsserverfx
 import (
 	"encoding/json"
 	"net"
-	"os/exec"
 	"sync"
 	"testing"
 	"time"
@@ -34,13 +33,7 @@ func TestWorkerCloseDoesNotSelfDeadlock(t *testing.T) {
 		}
 	}()
 
-	w := &workerImpl{
-		sessionID: "sess-deadlock",
-		cmd:       &exec.Cmd{}, // no Process: Close skips the Kill branch
-		conn:      local,
-		events:    make(chan WorkerEvent, 1),
-		enc:       json.NewEncoder(local),
-	}
+	w := newMuxWorker("sess-deadlock", local, nil) // no process to end
 
 	done := make(chan error, 1)
 
@@ -80,13 +73,7 @@ func TestWorkerSendIsStillMutuallyExclusive(t *testing.T) {
 		}
 	}()
 
-	w := &workerImpl{
-		sessionID: "sess-concurrent",
-		cmd:       &exec.Cmd{},
-		conn:      local,
-		events:    make(chan WorkerEvent, 1),
-		enc:       json.NewEncoder(local),
-	}
+	w := newMuxWorker("sess-concurrent", local, nil)
 
 	const senders = 8
 
@@ -98,7 +85,7 @@ func TestWorkerSendIsStillMutuallyExclusive(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			if err := w.PushMessage("hello"); err != nil {
+			if err := w.PushMessage(t.Context(), "hello"); err != nil {
 				t.Errorf("PushMessage: %v", err)
 			}
 		}()

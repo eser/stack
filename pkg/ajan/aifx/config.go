@@ -34,7 +34,7 @@ type ConfigTarget struct {
 	Location  string `conf:"location"`
 
 	// Generation defaults
-	MaxTokens   int     `conf:"max_tokens"  default:"1024"`
+	MaxTokens   int     `conf:"max_tokens"  default:"16000"`
 	Temperature float64 `conf:"temperature" default:"0.7"`
 
 	// RequestTimeout sets the per-request timeout for AI SDK calls.

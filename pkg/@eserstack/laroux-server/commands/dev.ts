@@ -68,32 +68,50 @@ export const main = async (
     : "info";
 
   const [
-    { startServer },
-    { reactRenderer, reactHtmlShellBuilder },
-    { reactPlugin },
-    { createTailwindPlugin },
+    server,
+    reactAdapter,
+    reactBundler,
+    tailwind,
+    lightningcss,
+    fonts,
+    sharp,
   ] = await Promise.all([
     import("../main.ts"),
     import("../adapters/react/mod.ts"),
     import("@eserstack/laroux-bundler/adapters/react"),
     import("@eserstack/laroux-bundler/adapters/tailwindcss"),
+    import("@eserstack/laroux-bundler/adapters/lightningcss"),
+    import("@eserstack/laroux-bundler/adapters/fonts"),
+    import("@eserstack/laroux-bundler/adapters/sharp"),
   ]);
 
   await out.close();
 
-  await startServer({
-    mode: "dev",
-    port,
-    logLevel,
-    hmr,
-    open,
-    renderer: reactRenderer,
-    htmlShell: reactHtmlShellBuilder,
-    frameworkPlugin: reactPlugin,
-    cssPlugin: createTailwindPlugin({
-      globalCssPath: "src/app/styles/global.css",
-    }),
-  });
+  try {
+    await server.startServer({
+      mode: "dev",
+      port,
+      logLevel,
+      hmr,
+      open,
+      renderer: reactAdapter.reactRenderer,
+      htmlShell: reactAdapter.reactHtmlShellBuilder,
+      frameworkPlugin: reactBundler.reactPlugin,
+      cssPlugin: tailwind.createTailwindPlugin({
+        globalCssPath: "src/app/styles/global.css",
+      }),
+      cssProcessor: lightningcss.lightningCssProcessor,
+      fontOptimizer: fonts.googleFontOptimizer,
+      imageOptimizer: sharp.sharpImageOptimizer,
+    });
+  } catch (error) {
+    // The build already logged its error; the CLI prints this summary and
+    // exits non-zero instead of serving a stale or empty dist/.
+    if (error instanceof server.BuildFailedError) {
+      return results.fail({ message: error.message, exitCode: 1 });
+    }
+    throw error;
+  }
 
   return results.ok(undefined);
 };

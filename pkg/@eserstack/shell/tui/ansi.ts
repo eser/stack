@@ -47,6 +47,7 @@ export const inverse = (text: string): string => `\x1b[7m${text}\x1b[27m`;
 /** Return the ANSI reset sequence. */
 export const reset = (): string => "\x1b[0m";
 
+// ANSI escape sequences start with the ESC control character.
 // deno-lint-ignore no-control-regex
 const ANSI_REGEX = /\x1b\[[0-9;]*[a-zA-Z]/g;
 

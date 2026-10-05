@@ -12,12 +12,13 @@
  * @module
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
-import process from "node:process";
-import {
-  normalizeTag,
-  parseChangelogText,
-} from "../../pkg/@eserstack/codebase/changelog-text.ts";
+// A bare `node` runs this script with no import map, so it imports `node:`
+// built-ins, and its usage and result lines are the job's terminal output.
+// deno-lint-ignore-file no-external-import no-console
+
+import * as fs from "node:fs";
+import * as process from "node:process";
+import * as changelogText from "../../pkg/@eserstack/codebase/changelog-text.ts";
 
 const [rawTag, outFile] = process.argv.slice(2);
 if (rawTag === undefined || outFile === undefined) {
@@ -25,8 +26,10 @@ if (rawTag === undefined || outFile === undefined) {
   process.exit(2);
 }
 
-const tag = normalizeTag(rawTag);
-const entry = parseChangelogText(readFileSync("CHANGELOG.md", "utf8"))
+const tag = changelogText.normalizeTag(rawTag);
+const entry = changelogText.parseChangelogText(
+  fs.readFileSync("CHANGELOG.md", "utf8"),
+)
   .find((e) => e.tag === tag);
 
 if (entry === undefined) {
@@ -34,5 +37,5 @@ if (entry === undefined) {
   process.exit(1);
 }
 
-writeFileSync(outFile, entry.notes);
+fs.writeFileSync(outFile, entry.notes);
 console.log(`Wrote ${tag} notes (${entry.notes.length} bytes) to ${outFile}`);

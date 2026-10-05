@@ -8,10 +8,10 @@
  *
  * @example
  * ```typescript
- * import { validate } from "@eserstack/codebase/validation";
+ * import * as validation from "@eserstack/codebase/validation";
  *
  * // Run all validators (defaults to all when no .eser/manifest.yml)
- * const result = await validate();
+ * const result = await validation.validate();
  *
  * if (!result.passed) {
  *   console.log("Validation failed:", result.results);
@@ -28,13 +28,14 @@
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eserstack/primitives/results";
-import * as shellArgs from "@eserstack/shell/args";
+import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { createCliContext, exitCli } from "../cli-support.ts";
-import { loadProjectConfig } from "./config.ts";
-import { getValidators } from "./registry.ts";
-import { ensureLib, getLib } from "../ffi-client.ts";
+import * as streams from "@eserstack/streams";
+import * as cliSupport from "../cli-support.ts";
+import * as config from "./config.ts";
+import * as registry from "./registry.ts";
+import * as ffiClient from "../ffi-client.ts";
 import type {
   SkippedValidator,
   ValidateOptions,
@@ -101,8 +102,8 @@ export type BuiltinValidatorOptions = {
 export const runBuiltinValidators = async (
   options: BuiltinValidatorOptions = {},
 ): Promise<ValidatorResult[]> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
   if (lib === null) {
     return [];
   }
@@ -147,13 +148,13 @@ export const validate = async (
   const root = options.root ?? runtime.process.cwd();
 
   // Load project config
-  const config = await loadProjectConfig(root);
-  const projectStack = config?.stack ?? [];
+  const projectConfig = await config.loadProjectConfig(root);
+  const projectStack = projectConfig?.stack ?? [];
   const skipList = [...(options.skip ?? [])];
   const onlyList = options.only ?? [];
 
   // Get all validators
-  const validators = getValidators();
+  const validators = registry.getValidators();
   const results: ValidatorResult[] = [];
   const skipped: SkippedValidator[] = [];
   const disabled: string[] = [];
@@ -190,6 +191,9 @@ export const validate = async (
       ...(options.fix !== undefined ? { fix: options.fix } : {}),
     };
 
+    // Validators run one at a time: with fix on, each one writes files that
+    // the next one reads.
+    // deno-lint-ignore no-await-in-loop
     const result = await validator.validate({
       root,
       options: mergedOptions,
@@ -225,24 +229,26 @@ export const main = async (
   );
 
   if (args["help"]) {
-    console.log("Usage: deno run --allow-all ./validation/mod.ts [options]");
-    console.log();
-    console.log("Options:");
-    console.log("  --root <dir>           Root directory (default: cwd)");
-    console.log(
+    const { output: out } = cliSupport.createCliContext();
+    out.writeln("Usage: deno run --allow-all ./validation/mod.ts [options]");
+    out.writeln();
+    out.writeln("Options:");
+    out.writeln("  --root <dir>           Root directory (default: cwd)");
+    out.writeln(
       "  --only <validators>    Run only specific validators (comma-separated)",
     );
-    console.log(
+    out.writeln(
       "  --skip <validators>    Skip specific validators (comma-separated)",
     );
-    console.log("  --fix                  Auto-fix issues where supported");
-    console.log(
+    out.writeln("  --fix                  Auto-fix issues where supported");
+    out.writeln(
       "  -y, --yes              Auto-confirm all fix prompts (no interactive prompts)",
     );
-    console.log(
+    out.writeln(
       "  --json                 Output results as JSON (suppresses TUI output)",
     );
-    console.log("  -h, --help             Show this help message");
+    out.writeln("  -h, --help             Show this help message");
+    await out.flush();
     return results.ok(undefined);
   }
 
@@ -267,7 +273,7 @@ export const main = async (
     ? {
       ctx: tui.createTuiContext({ interaction: "non-interactive" }),
     }
-    : createCliContext();
+    : cliSupport.createCliContext();
 
   const isInteractive = ctx.interaction === "interactive";
 
@@ -284,8 +290,8 @@ export const main = async (
     : tui.createSpinner(ctx, "Loading config...");
   spinner?.start();
 
-  const config = await loadProjectConfig(resolvedRoot);
-  const projectStack = config?.stack ?? [];
+  const projectConfig = await config.loadProjectConfig(resolvedRoot);
+  const projectStack = projectConfig?.stack ?? [];
   const stackInfo = projectStack.length > 0
     ? projectStack.join(", ")
     : "all (no .eser/manifest.yml)";
@@ -297,7 +303,7 @@ export const main = async (
   }
 
   // --- Filter validators (mirrors validate() logic) ---
-  const allValidators = getValidators();
+  const allValidators = registry.getValidators();
   const validatorsToRun: typeof allValidators[number][] = [];
   const skippedValidators: SkippedValidator[] = [];
   const disabledNames: string[] = [];
@@ -364,7 +370,8 @@ export const main = async (
     // Fixes may depend on execution order and require interactive confirm prompts,
     // so we must run validators one at a time.
     for (const validator of validatorsToRun) {
-      // First pass: always run in check-only mode
+      // First pass: always run in check-only mode. Sequential, as above.
+      // deno-lint-ignore no-await-in-loop
       const checkResult = await validator.validate({
         root: resolvedRoot,
         options: {},
@@ -379,6 +386,8 @@ export const main = async (
         // In interactive mode without --yes, prompt for confirmation
         if (isInteractive && !autoYes && !jsonMode) {
           const issueCount = checkResult.issues.length;
+          // One prompt at a time, as above.
+          // deno-lint-ignore no-await-in-loop
           const confirmed = await tui.confirm(ctx, {
             message: `Fix ${issueCount} issue(s) found by ${validator.name}?`,
             initialValue: true,
@@ -390,7 +399,8 @@ export const main = async (
         }
 
         if (shouldFix) {
-          // Re-run with fix enabled
+          // Re-run with fix enabled. Sequential, as above.
+          // deno-lint-ignore no-await-in-loop
           finalResult = await validator.validate({
             root: resolvedRoot,
             options: { fix: true },
@@ -417,6 +427,9 @@ export const main = async (
         }
 
         try {
+          // A worker runs one validator at a time; the worker count is what
+          // bounds the concurrency.
+          // deno-lint-ignore no-await-in-loop
           const result = await validator.validate({
             root: resolvedRoot,
             options: {},
@@ -508,6 +521,8 @@ export const main = async (
         { value: "__done__", label: "Done" },
       ];
 
+      // Interactive loop: each prompt waits for the previous answer.
+      // deno-lint-ignore no-await-in-loop
       const selected = await tui.select<string>(ctx, {
         message: "View details for which validator?",
         options: selectOptions,
@@ -557,7 +572,14 @@ export const main = async (
       null,
       2,
     );
-    console.log(jsonOutput);
+    // The JSON goes to stdout; the non-interactive context above writes to
+    // stderr. Closing the output flushes it before exitCli's hard exit.
+    const jsonOut = streams.output({
+      renderer: streams.renderers.plain(),
+      sink: streams.sinks.stdout(),
+    });
+    jsonOut.writeln(jsonOutput);
+    await jsonOut.close();
 
     if (!passed) {
       return results.fail({
@@ -587,5 +609,7 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  await exitCli(await main());
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  await cliSupport.exitCli(await main());
 }

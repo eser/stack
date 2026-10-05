@@ -15,42 +15,42 @@ Cross-platform cache management with XDG-compliant directory structure.
 ## Quick Start
 
 ```typescript
-import { createCacheManager } from "@eserstack/cache";
+import * as cache from "@eserstack/cache";
 
 // Create a cache manager for your application
-const cache = createCacheManager({
+const manager = cache.createCacheManager({
   app: { name: "my-cli", org: "eser" },
 });
 
 // Get versioned cache path
-const binaryPath = cache.getVersionedPath("1.0.0", "binary");
+const binaryPath = manager.getVersionedPath("1.0.0", "binary");
 // Linux: ~/.cache/eser/my-cli/v1.0.0/binary
 // macOS: ~/Library/Caches/eser/my-cli/v1.0.0/binary
 // Windows: %LOCALAPPDATA%/eser/my-cli/v1.0.0/binary
 
 // Check if cached item exists
-if (await cache.exists(binaryPath)) {
+if (await manager.exists(binaryPath)) {
   console.log("Using cached binary");
 } else {
-  await cache.ensureDir(cache.getCacheDir());
+  await manager.ensureDir(manager.getCacheDir());
   // Download and cache...
 }
 
 // List cached items
-const entries = await cache.list();
+const entries = await manager.list();
 
 // Clear cache
-await cache.clear();
+await manager.clear();
 ```
 
 ## XDG Directory Access
 
 ```typescript
-import * as xdg from "@eserstack/cache/xdg";
+import * as cache from "@eserstack/cache";
 
-const cacheHome = xdg.getXdgCacheHome(); // ~/.cache or ~/Library/Caches
-const dataHome = xdg.getXdgDataHome(); // ~/.local/share or ~/Library/Application Support
-const configHome = xdg.getXdgConfigHome(); // ~/.config or ~/Library/Preferences
+const cacheHome = cache.getXdgCacheHome(); // ~/.cache or ~/Library/Caches
+const dataHome = cache.getXdgDataHome(); // ~/.local/share or ~/Library/Application Support
+const configHome = cache.getXdgConfigHome(); // ~/.config or ~/Library/Preferences
 ```
 
 ## API Reference
@@ -74,6 +74,10 @@ Creates a cache manager instance.
 | `list()`                          | List all cache entries               |
 | `remove(path)`                    | Remove a cached item                 |
 | `clear()`                         | Clear the entire cache               |
+
+`list()`, `remove()` and `clear()` call the `@eserstack/ajan` native library and
+throw when it cannot be loaded; the path methods, `exists()` and `ensureDir()`
+work without it.
 
 ---
 

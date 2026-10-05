@@ -6,6 +6,7 @@
 
 export {
   type CssProcessOptions,
+  lightningCssProcessor,
   postProcessWithLightningCSS,
   processCss,
 } from "./css-processor.ts";

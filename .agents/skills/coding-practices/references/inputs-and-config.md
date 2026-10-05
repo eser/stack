@@ -51,7 +51,7 @@ the code get skipped on some path.
 
 ## No Machine-Specific Assumptions
 
-Scope: Source, scripts, tests and config committed to the repo
+Scope: Source, scripts, tests and config committed to this codebase
 
 Rule: No absolute paths, user names, home directories or local ports from one
 machine. Read machine settings from environment variables with defaults, and
@@ -142,9 +142,9 @@ file, _ := os.Open("config.json")
 json.NewDecoder(file).Decode(&cfg) // error ignored, file never closed
 ```
 
-In Go services, `pkg/ajan/configfx` loads files, env files and the system
-environment in this order into structs tagged with `conf:"..."`; use it instead
-of hand-written loading.
+In Go services, ajan's `configfx` (`github.com/eser/stack/pkg/ajan/configfx`)
+loads files, env files and the system environment in this order into structs
+tagged with `conf:"..."`; use it instead of hand-written loading.
 
 **Why:** a fixed order lets an operator override any setting without editing
 files, and a silently ignored broken file runs the program with settings nobody

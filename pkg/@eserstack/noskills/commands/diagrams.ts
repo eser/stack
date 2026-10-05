@@ -12,6 +12,7 @@ import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as diagrams from "../dashboard/diagrams.ts";
+import * as cmd from "../output/cmd.ts";
 
 export const main = async (
   args?: readonly string[],
@@ -22,6 +23,7 @@ export const main = async (
   });
 
   const { root } = await persistence.resolveProjectRoot();
+  await cmd.loadCommandPrefix(root);
   const sub = args?.[0];
 
   // noskills diagrams scan — scan project and update registry
@@ -47,7 +49,7 @@ export const main = async (
 
     if (registry.length === 0) {
       out.writeln(
-        span.dim("No diagrams registered. Run: noskills diagrams scan"),
+        span.dim(`No diagrams registered. Run: ${cmd.cmd("diagrams scan")}`),
       );
       await out.close();
       return results.ok(undefined);
@@ -58,7 +60,9 @@ export const main = async (
       out.writeln(
         `  ${e.file}:${e.line} `,
         span.dim(`[${e.type}]`),
-        ` refs: ${e.referencedFiles.join(", ") || "none"}`,
+        ` refs: ${
+          e.referencedFiles.length === 0 ? "none" : e.referencedFiles.join(", ")
+        }`,
       );
       out.writeln(
         span.dim(`    verified: ${e.lastVerified.slice(0, 10)}`),
@@ -94,8 +98,8 @@ export const main = async (
   // noskills diagrams verify <file> [--line=N]
   if (sub === "verify") {
     const file = args?.[1];
-    if (!file) {
-      out.writeln(span.red("Usage: noskills diagrams verify <file>"));
+    if (file === undefined || file === "") {
+      out.writeln(span.red(`Usage: ${cmd.cmd("diagrams verify <file>")}`));
       await out.close();
       return results.fail({ exitCode: 1 });
     }

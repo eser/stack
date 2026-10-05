@@ -15,11 +15,8 @@
 import * as tui from "@eserstack/shell/tui";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type { PaneId, Viewport } from "../../engine/types.ts";
-import {
-  type DecorationRegions,
-  decorationRegions,
-  DEFAULT_CHROME,
-} from "../../engine/geometry.ts";
+import * as geometry from "../../engine/geometry.ts";
+import type { DecorationRegions } from "../../engine/geometry.ts";
 import type { Keymap } from "../../keybindings/mod.ts";
 import type {
   FrontendToServer,
@@ -27,10 +24,10 @@ import type {
   Transport,
 } from "../../ipc/protocol.ts";
 import type { Scene } from "../../scene/scene.ts";
-import { createScheduler } from "../../render/scheduler.ts";
+import * as scheduler from "../../render/scheduler.ts";
 import type { Frontend } from "../frontend.ts";
-import { composite } from "./compositor.ts";
-import { keyToMessages, mouseToMessages } from "./input-source.ts";
+import * as compositor from "./compositor.ts";
+import * as inputSource from "./input-source.ts";
 
 /** Render extra content into the chrome's reserved regions (sidebars/strips). */
 export type DecorateFn = (
@@ -104,7 +101,7 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
   const render = (fullRedraw: boolean): void => {
     if (stopped || scene === null) return;
 
-    const frame = composite(
+    const frame = compositor.composite(
       scene,
       { getWidget: (id) => widgets.get(id) },
       { fullRedraw, statusText: opts.statusText },
@@ -113,7 +110,7 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
     let out = tui.terminal.hideCursorSeq() + frame.data;
     if (opts.decorate !== undefined) {
       out += opts.decorate({
-        regions: decorationRegions(scene.viewport, scene.chrome),
+        regions: geometry.decorationRegions(scene.viewport, scene.chrome),
         scene,
       });
     }
@@ -123,7 +120,7 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
     write(out);
   };
 
-  const scheduler = createScheduler(render);
+  const frameScheduler = scheduler.createScheduler(render);
 
   const handle = (msg: ServerToFrontend): void => {
     switch (msg.t) {
@@ -139,7 +136,7 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
             ? d.focusedPane
             : (prev?.focusedPane ?? null),
           panes: d.panes ?? prev?.panes ?? [],
-          chrome: d.chrome ?? prev?.chrome ?? DEFAULT_CHROME,
+          chrome: d.chrome ?? prev?.chrome ?? geometry.DEFAULT_CHROME,
         };
 
         const structural = msg.full || d.panes !== undefined ||
@@ -147,14 +144,14 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
           d.chrome !== undefined;
         if (structural) reconcileWidgets();
 
-        if (structural) scheduler.requestFull();
-        else scheduler.schedule();
+        if (structural) frameScheduler.requestFull();
+        else frameScheduler.schedule();
         break;
       }
 
       case "output":
         ensureWidget(msg.pane).write(msg.data);
-        scheduler.schedule();
+        frameScheduler.schedule();
         break;
 
       case "exit":
@@ -179,7 +176,7 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
     stopped = true; // make any late refresh()/render() a no-op
     abort?.abort();
     if (sizeTimer !== null) clearInterval(sizeTimer);
-    scheduler.stop();
+    frameScheduler.stop();
     write(
       tui.mouse.disableMouse() +
         tui.terminal.showCursorSeq() +
@@ -215,11 +212,13 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
         try {
           if (ev.kind === "mouse") {
             if (opts.onMouse?.(ev.event, scene) === true) continue;
-            for (const m of mouseToMessages(ev.event, scene)) transport.send(m);
+            for (const m of inputSource.mouseToMessages(ev.event, scene)) {
+              transport.send(m);
+            }
           } else {
             if (opts.onKey?.(ev.event, scene) === true) continue;
             for (
-              const m of keyToMessages(
+              const m of inputSource.keyToMessages(
                 ev.event,
                 scene?.mode ?? "normal",
                 keymap,
@@ -240,7 +239,7 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
     run,
     stop,
     refresh: () => {
-      if (!stopped) scheduler.schedule();
+      if (!stopped) frameScheduler.schedule();
     },
   };
 };

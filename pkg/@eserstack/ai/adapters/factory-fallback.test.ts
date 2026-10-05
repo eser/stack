@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals } from "@std/assert";
-import { defaultFactories, tsFactoryFor } from "./mod.ts";
+import * as assert from "@std/assert";
+import * as adapters from "./mod.ts";
 
 // The pure-TypeScript adapters are what a machine with no usable native binary
 // gets. Without a direct test they are invisible: on any machine where the
@@ -13,23 +13,35 @@ import { defaultFactories, tsFactoryFor } from "./mod.ts";
 // break every other FFI test file alongside it.
 
 Deno.test("every provider has a pure-TypeScript fallback", async () => {
-  const providers = (await defaultFactories()).map((factory) =>
+  const providers = (await adapters.defaultFactories()).map((factory) =>
     factory.provider
   );
 
-  assert(providers.length > 0, "defaultFactories returned nothing");
+  assert.assert(providers.length > 0, "defaultFactories returned nothing");
 
-  for (const provider of providers) {
-    const factory = await tsFactoryFor(provider);
+  const factories = await Promise.all(
+    providers.map((provider) => adapters.tsFactoryFor(provider)),
+  );
 
-    assert(
+  for (const [index, provider] of providers.entries()) {
+    const factory = factories[index];
+
+    assert.assert(
       factory !== undefined,
       `${provider} has no pure-TypeScript fallback`,
     );
-    assertEquals(factory.provider, provider);
+    assert.assertEquals(factory.provider, provider);
   }
 });
 
 Deno.test("tsFactoryFor is undefined for an unknown provider", async () => {
-  assertEquals(await tsFactoryFor("nonesuch"), undefined);
+  assert.assertEquals(await adapters.tsFactoryFor("nonesuch"), undefined);
 });
+
+// A provider name comes from the command line. Looked up on a plain object,
+// "constructor" returned `{}` as a factory and "__proto__" threw a TypeError.
+for (const provider of ["constructor", "toString", "__proto__"]) {
+  Deno.test(`tsFactoryFor is undefined for "${provider}"`, async () => {
+    assert.assertEquals(await adapters.tsFactoryFor(provider), undefined);
+  });
+}

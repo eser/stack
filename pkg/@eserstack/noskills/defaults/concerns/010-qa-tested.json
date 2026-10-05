@@ -22,27 +22,27 @@
       "id": "qa-plan",
       "title": "QA Plan",
       "placeholder": "_List the specific flows a tester must exercise — including failure paths, empty states, and edge inputs. Who does the QA? What is the acceptance threshold (no CRITICAL or HIGH issues)?_",
-      "condition": null,
       "position": "after:verification-strategy"
     },
     {
       "id": "test-coverage",
       "title": "Test Coverage",
       "placeholder": "_Map every new behavior to its test: file name, test case name, what behavior it pins. Include both happy path and failure path coverage. What is explicitly not tested and why?_",
-      "condition": null,
       "position": "after:verification-strategy"
     },
     {
       "id": "known-edge-cases",
       "title": "Known Edge Cases",
       "placeholder": "_List every edge case that must be tested: empty input, very long input, special characters, zero/negative numbers, missing auth, concurrent access, network failure mid-action._",
-      "condition": null,
       "position": "after:verification-strategy"
     }
   ],
   "reminders": [
     "QA mindset: you are not testing that the happy path works. You are trying to BREAK the system. Find the input that causes the wrong output, the state that causes the wrong render, the error that shows the wrong message.",
-    "Health Score Rubric — each category must score above threshold before ship: Console errors (0 = clean, -15 per JS error, -10 per warning), Broken links (0 = clean, -10 per 404), Form validation (-10 per unhandled invalid input), Empty states (-5 per missing), Error handling (-10 per unhandled error path), Cross-browser (-5 per layout break).",
+    {
+      "text": "Health Score Rubric — each category must score above threshold before ship: Console errors (0 = clean, -15 per JS error, -10 per warning), Broken links (0 = clean, -10 per 404), Form validation (-10 per unhandled invalid input), Empty states (-5 per missing), Error handling (-10 per unhandled error path), Cross-browser (-5 per layout break).",
+      "scope": ["ui"]
+    },
     "6-Phase QA Structure: (1) INITIALIZE — load the feature fresh, no prior state. (2) AUTHENTICATE — verify auth works AND fails correctly. (3) ORIENT — does the UI match the spec? Check labels, order, colors, states. (4) EXPLORE — exercise every input, every button, every state transition. (5) DOCUMENT — record every deviation from expected. (6) WRAP UP — rate severity per issue, block ship on CRITICAL and HIGH.",
     "Diff-aware mode: QA must focus on the diff, not the whole product. For every file changed, ask: what behavior changed? Test that behavior specifically — including the behavior before the change to catch regressions.",
     "Severity classification: CRITICAL = data loss or security issue (blocks ship). HIGH = broken core flow (blocks ship). MEDIUM = degraded experience (should fix before ship, can defer if documented). LOW = polish issue (document, ship anyway).",

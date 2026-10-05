@@ -18,7 +18,7 @@ self.addEventListener("activate", (event) => {
 // ── Push event ────────────────────────────────────────────────────────────────
 
 self.addEventListener("push", (event) => {
-  if (!event.data) return;
+  if (event.data === null) return;
 
   let payload;
   try {
@@ -31,7 +31,7 @@ self.addEventListener("push", (event) => {
   const kind = payload.kind ?? "notification";
   const body = payload.summary ?? "Activity in your session";
   const sessionId = payload.sessionId ?? "";
-  const tag = sessionId ? `${sessionId}:${kind}` : kind;
+  const tag = sessionId !== "" ? `${sessionId}:${kind}` : kind;
 
   const options = {
     body,
@@ -52,7 +52,9 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   const { url, sessionId } = event.notification.data ?? {};
-  const targetUrl = sessionId ? `/?session=${sessionId}` : (url ?? "/");
+  const targetUrl = typeof sessionId === "string" && sessionId !== ""
+    ? `/?session=${encodeURIComponent(sessionId)}`
+    : (url ?? "/");
 
   event.waitUntil(
     self.clients
@@ -66,7 +68,7 @@ self.addEventListener("notificationclick", (event) => {
           }
         }
         // Otherwise open a new window.
-        if (self.clients.openWindow) {
+        if (typeof self.clients.openWindow === "function") {
           return self.clients.openWindow(targetUrl);
         }
       }),
@@ -82,7 +84,7 @@ const DB_STORE = "fingerprints";
 
 function openCertDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = self.indexedDB.open(DB_NAME, 1);
     req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -95,7 +97,7 @@ self.addEventListener("message", (event) => {
   if (event.data?.type !== "store_cert_fingerprint") return;
 
   const { fingerprint } = event.data;
-  if (!fingerprint) return;
+  if (typeof fingerprint !== "string" || fingerprint === "") return;
 
   openCertDB().then((db) => {
     const tx = db.transaction(DB_STORE, "readwrite");

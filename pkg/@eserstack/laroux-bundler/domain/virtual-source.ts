@@ -9,11 +9,8 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import {
-  hasExtension,
-  JS_FILE_EXTENSIONS,
-} from "@eserstack/standards/patterns";
-import { copy, emptyDir, ensureDir, walk } from "@std/fs"; // emptyDir, copy, walk not available in runtime
+import * as patterns from "@eserstack/standards/patterns";
+import * as fs from "@std/fs"; // emptyDir, copy, walk not available in runtime
 import * as logging from "@eserstack/logging";
 
 // Pattern to ignore node_modules and hidden files
@@ -87,29 +84,45 @@ export async function createVirtualSource(
     // FULL COPY MODE: First build or no changed files specified
     // Clean any existing virtual source
     try {
-      await emptyDir(virtualSrcDir);
+      await fs.emptyDir(virtualSrcDir);
     } catch {
       // Directory may not exist yet
     }
 
     // Copy src/ to virtual source's src/ subdirectory
     // This maintains the same structure as original project
-    await copySourceFiles(srcDir, virtualSrcSubdir, projectRoot);
+    try {
+      await copySourceFiles(srcDir, virtualSrcSubdir, projectRoot);
+    } catch (error) {
+      // The caller gets no cleanup handle when creation fails, so a partial
+      // copy is removed here before the error propagates.
+      await removeVirtualSource(virtualSrcDir);
+      throw error;
+    }
     vsLogger.debug(`Virtual source created: ${virtualSrcDir}`);
   }
 
   return {
     virtualSrcDir,
-    cleanup: async () => {
-      vsLogger.debug(`Cleaning up virtual source: ${virtualSrcDir}`);
-      try {
-        await runtime.fs.remove(virtualSrcDir, { recursive: true });
-        vsLogger.debug("Virtual source cleaned up");
-      } catch (error) {
-        vsLogger.warn("Failed to clean up virtual source:", { error });
-      }
-    },
+    cleanup: () => removeVirtualSource(virtualSrcDir),
   };
+}
+
+/**
+ * Remove the virtual source directory. A failure is logged and not thrown:
+ * cleanup runs in `finally` blocks, where a second error must not hide the
+ * build error that is already propagating.
+ */
+async function removeVirtualSource(virtualSrcDir: string): Promise<void> {
+  vsLogger.debug(`Cleaning up virtual source: ${virtualSrcDir}`);
+  try {
+    await runtime.fs.remove(virtualSrcDir, { recursive: true });
+    vsLogger.debug("Virtual source cleaned up");
+  } catch (error) {
+    vsLogger.with({ error }).warn(
+      `remove virtual source ${virtualSrcDir}; delete it by hand`,
+    );
+  }
 }
 
 /**
@@ -123,7 +136,7 @@ async function incrementalCopySourceFiles(
 ): Promise<void> {
   // JS/TS extensions from standards + json and css for bundling
   const relevantExtensions = [
-    ...JS_FILE_EXTENSIONS,
+    ...patterns.JS_FILE_EXTENSIONS,
     "json",
     "css",
   ];
@@ -138,7 +151,7 @@ async function incrementalCopySourceFiles(
     }
 
     // Check if file has relevant extension
-    if (!hasExtension(filePath, relevantExtensions)) {
+    if (!patterns.hasExtension(filePath, relevantExtensions)) {
       continue;
     }
 
@@ -146,21 +159,14 @@ async function incrementalCopySourceFiles(
     const relativePath = runtime.path.relative(srcDir, filePath);
     const targetPath = runtime.path.resolve(virtualDir, relativePath);
 
-    // Check if source file exists
-    try {
-      await runtime.fs.stat(filePath);
-      // File exists - copy it
-      await ensureDir(runtime.path.dirname(targetPath));
-      await copy(filePath, targetPath, { overwrite: true });
+    // One file at a time keeps open file handles bounded; a branch switch
+    // can change more files than the open-file limit.
+    // deno-lint-ignore no-await-in-loop
+    const outcome = await syncChangedFile(filePath, targetPath);
+    if (outcome === "copied") {
       copiedCount++;
-    } catch {
-      // File was deleted - remove from virtual source
-      try {
-        await runtime.fs.remove(targetPath);
-        deletedCount++;
-      } catch {
-        // Target doesn't exist, that's fine
-      }
+    } else if (outcome === "deleted") {
+      deletedCount++;
     }
   }
 
@@ -168,6 +174,33 @@ async function incrementalCopySourceFiles(
     vsLogger.debug(
       `Incremental update: ${copiedCount} copied, ${deletedCount} deleted`,
     );
+  }
+}
+
+/**
+ * Mirror one changed source file into the virtual directory: copy it when it
+ * exists, remove its copy when it was deleted
+ */
+async function syncChangedFile(
+  filePath: string,
+  targetPath: string,
+): Promise<"copied" | "deleted" | "unchanged"> {
+  // Check if source file exists
+  try {
+    await runtime.fs.stat(filePath);
+    // File exists - copy it
+    await fs.ensureDir(runtime.path.dirname(targetPath));
+    await fs.copy(filePath, targetPath, { overwrite: true });
+    return "copied";
+  } catch {
+    // File was deleted - remove from virtual source
+    try {
+      await runtime.fs.remove(targetPath);
+      return "deleted";
+    } catch {
+      // Target doesn't exist, that's fine
+      return "unchanged";
+    }
   }
 }
 
@@ -184,15 +217,15 @@ async function copySourceFiles(
 
   // JS/TS extensions from standards + json and css for bundling
   const validExtensions = [
-    ...JS_FILE_EXTENSIONS,
+    ...patterns.JS_FILE_EXTENSIONS,
     "json",
     "css",
   ];
 
   // Use @std/fs walk to include all file types (walkFiles only supports JS files)
-  for await (const entry of walk(srcDir, { includeDirs: false })) {
+  for await (const entry of fs.walk(srcDir, { includeDirs: false })) {
     // Check extension
-    if (!hasExtension(entry.path, validExtensions)) {
+    if (!patterns.hasExtension(entry.path, validExtensions)) {
       continue;
     }
 
@@ -209,7 +242,7 @@ async function copySourceFiles(
     await runtime.fs.ensureDir(runtime.path.dirname(targetPath));
 
     // Copy file
-    await copy(entry.path, targetPath);
+    await fs.copy(entry.path, targetPath);
     copiedCount++;
   }
 

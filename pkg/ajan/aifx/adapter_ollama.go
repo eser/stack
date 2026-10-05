@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
+
+	"github.com/eser/stack/pkg/ajan/lib"
 )
 
 // Sentinel errors for the Ollama adapter.
@@ -19,6 +20,11 @@ var (
 const (
 	ollamaProviderName   = "ollama"
 	ollamaDefaultBaseURL = "http://localhost:11434"
+
+	// ollamaMaxResponseBytes caps one non-streaming /api/chat response. The
+	// body is a single assistant message plus counters; even a reply that
+	// fills a large output limit is a few megabytes.
+	ollamaMaxResponseBytes = 16 << 20
 )
 
 // ollamaModelFactory creates Ollama language models.
@@ -48,8 +54,9 @@ func (f *ollamaModelFactory) CreateModel(
 
 	return &OllamaModel{ //nolint:exhaustruct
 		baseURL: baseURL,
-		client:  &http.Client{}, //nolint:exhaustruct
-		config:  config,
+		// Same per-request timeout the SDK-based adapters apply.
+		client: &http.Client{Timeout: config.RequestTimeout}, //nolint:exhaustruct
+		config: config,
 	}, nil
 }
 
@@ -79,7 +86,10 @@ func (m *OllamaModel) GenerateText(
 	ctx context.Context,
 	opts *GenerateTextOptions,
 ) (*GenerateTextResult, error) {
-	body := m.buildChatBody(opts, false)
+	body, err := m.buildChatBody(opts, false)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrOllamaGenerationFailed, err)
+	}
 
 	payload, err := json.Marshal(body)
 	if err != nil {
@@ -110,9 +120,12 @@ func (m *OllamaModel) GenerateText(
 		)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := lib.ReadAllLimited(resp.Body, ollamaMaxResponseBytes)
 	if err != nil {
-		return nil, fmt.Errorf("%w: read response: %w", ErrOllamaGenerationFailed, err)
+		return nil, fmt.Errorf(
+			"%w: read /api/chat response from %s (limit %d bytes; use StreamText for longer replies): %w",
+			ErrOllamaGenerationFailed, m.baseURL, ollamaMaxResponseBytes, err,
+		)
 	}
 
 	var chatResp ollamaChatResponse
@@ -128,7 +141,10 @@ func (m *OllamaModel) StreamText(
 	ctx context.Context,
 	opts *StreamTextOptions,
 ) (*StreamIterator, error) {
-	body := m.buildChatBody(opts, true)
+	body, err := m.buildChatBody(opts, true)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrOllamaStreamFailed, err)
+	}
 
 	streamCtx, cancel := context.WithCancel(ctx)
 	eventCh := make(chan StreamEvent, 64) //nolint:mnd
@@ -187,8 +203,11 @@ func (m *OllamaModel) processStream(
 	ParseJsonlStream(ctx, resp.Body, eventCh, mapOllamaStreamEvent)
 }
 
-// buildChatBody constructs the Ollama /api/chat request body.
-func (m *OllamaModel) buildChatBody(opts *GenerateTextOptions, stream bool) map[string]any {
+// buildChatBody constructs the Ollama /api/chat request body. opts.Effort is
+// ignored: Ollama has no effort setting that every model accepts. A json_schema
+// response format whose schema is missing or not an object fails here, before
+// the request is sent.
+func (m *OllamaModel) buildChatBody(opts *GenerateTextOptions, stream bool) (map[string]any, error) {
 	messages := buildOllamaMessages(opts.Messages, opts.System)
 
 	body := map[string]any{
@@ -222,9 +241,9 @@ func (m *OllamaModel) buildChatBody(opts *GenerateTextOptions, stream bool) map[
 	if opts.ResponseFormat != nil {
 		switch opts.ResponseFormat.Type {
 		case "json_schema":
-			var schema any
-			if len(opts.ResponseFormat.JSONSchema) > 0 {
-				_ = json.Unmarshal(opts.ResponseFormat.JSONSchema, &schema)
+			schema, err := decodeResponseSchema(opts.ResponseFormat.JSONSchema)
+			if err != nil {
+				return nil, err
 			}
 
 			body["format"] = schema
@@ -233,7 +252,7 @@ func (m *OllamaModel) buildChatBody(opts *GenerateTextOptions, stream bool) map[
 		}
 	}
 
-	return body
+	return body, nil
 }
 
 // buildOllamaMessages converts unified messages to the Ollama chat format.

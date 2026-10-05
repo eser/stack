@@ -14,7 +14,7 @@ import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as identity from "../state/identity.ts";
-import { cmd } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 export const main = async (
@@ -26,17 +26,19 @@ export const main = async (
   });
 
   const { root } = await persistence.resolveProjectRoot();
-  const specResult = persistence.requireSpecFlag(args);
+  const prefix = await cmd.loadCommandPrefix(root);
+  const specResult = persistence.requireSpecFlag(args, prefix);
   if (!specResult.ok) {
     out.writeln(span.red(specResult.error));
     await out.close();
     return results.fail({ exitCode: 1 });
   }
   const filteredArgs = (args ?? []).filter((a) => !a.startsWith("--spec="));
-  const reason = filteredArgs.join(" ") || "No reason given";
+  const joinedReason = filteredArgs.join(" ");
+  const reason = joinedReason === "" ? "No reason given" : joinedReason;
   let state: schema.StateFile;
   try {
-    state = await persistence.resolveState(root, specResult.spec);
+    state = await persistence.resolveState(root, specResult.spec, prefix);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     out.writeln(span.red(msg));
@@ -51,7 +53,11 @@ export const main = async (
       await runtime.fs.stat(specDir);
     } catch {
       out.writeln(span.red(`Active spec '${state.spec}' directory not found.`));
-      out.writeln(span.dim("Run `noskills reset` to return to idle."));
+      out.writeln(
+        span.dim(
+          `Run \`${cmd.cmd(`spec ${state.spec} reset`)}\` to return to idle.`,
+        ),
+      );
       await out.close();
       return results.fail({ exitCode: 1 });
     }
@@ -78,7 +84,9 @@ export const main = async (
   out.writeln(span.yellow("⚠"), " Spec blocked: ", span.dim(reason));
   out.writeln(
     "Resolve with: ",
-    span.bold(`${cmd('next --answer="resolution"')}`),
+    span.bold(
+      `${cmd.cmd(`spec ${specResult.spec} next --answer="resolution"`)}`,
+    ),
   );
   await out.close();
 

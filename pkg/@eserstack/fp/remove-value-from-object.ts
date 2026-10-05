@@ -1,5 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+/**
+ * Returns an object without the properties whose value is one of `values`.
+ *
+ * @param instance - The source object
+ * @param values - The values to remove
+ * @returns A new object
+ */
 export const removeValueFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   ...values: ReadonlyArray<T>
@@ -18,5 +25,3 @@ export const removeValueFromObject = <T>(
 
   return result;
 };
-
-export { removeValueFromObject as default };

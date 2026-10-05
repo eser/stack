@@ -4,7 +4,7 @@ package logfx
 
 import (
 	"log/slog"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"sync"
 	"time"

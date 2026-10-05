@@ -2,13 +2,7 @@
 
 import * as assert from "@std/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import {
-  createCssModulesRuntime,
-  findCssModules,
-  generateTypeScriptDefinition,
-  processCssModule,
-  processCssModules,
-} from "./modules.ts";
+import * as modules from "./modules.ts";
 import type { CssModuleResult } from "./types.ts";
 
 // ============================================================================
@@ -18,7 +12,7 @@ import type { CssModuleResult } from "./types.ts";
 Deno.test("generateTypeScriptDefinition generates valid definition for single class", () => {
   const exports = { button: "button_abc123" };
 
-  const dts = generateTypeScriptDefinition(exports);
+  const dts = modules.generateTypeScriptDefinition(exports);
 
   assert.assert(dts.includes("readonly button: string;"));
   assert.assert(dts.includes("declare const styles"));
@@ -32,7 +26,7 @@ Deno.test("generateTypeScriptDefinition generates definition for multiple classe
     header: "header_ghi",
   };
 
-  const dts = generateTypeScriptDefinition(exports);
+  const dts = modules.generateTypeScriptDefinition(exports);
 
   assert.assert(dts.includes("readonly button: string;"));
   assert.assert(dts.includes("readonly container: string;"));
@@ -42,7 +36,7 @@ Deno.test("generateTypeScriptDefinition generates definition for multiple classe
 Deno.test("generateTypeScriptDefinition handles empty exports", () => {
   const exports = {};
 
-  const dts = generateTypeScriptDefinition(exports);
+  const dts = modules.generateTypeScriptDefinition(exports);
 
   assert.assert(dts.includes("declare const styles"));
   assert.assert(dts.includes("export default styles"));
@@ -51,7 +45,7 @@ Deno.test("generateTypeScriptDefinition handles empty exports", () => {
 Deno.test("generateTypeScriptDefinition includes auto-generated comment", () => {
   const exports = { test: "test_123" };
 
-  const dts = generateTypeScriptDefinition(exports);
+  const dts = modules.generateTypeScriptDefinition(exports);
 
   assert.assert(dts.includes("This file is auto-generated"));
 });
@@ -59,7 +53,7 @@ Deno.test("generateTypeScriptDefinition includes auto-generated comment", () => 
 Deno.test("generateTypeScriptDefinition includes default export", () => {
   const exports = { foo: "foo_bar" };
 
-  const dts = generateTypeScriptDefinition(exports);
+  const dts = modules.generateTypeScriptDefinition(exports);
 
   assert.assert(dts.includes("export default styles;"));
 });
@@ -71,7 +65,7 @@ Deno.test("generateTypeScriptDefinition includes default export", () => {
 Deno.test("createCssModulesRuntime generates JavaScript runtime for empty map", () => {
   const exportsMap = new Map<string, CssModuleResult>();
 
-  const cssModulesRuntime = createCssModulesRuntime(exportsMap);
+  const cssModulesRuntime = modules.createCssModulesRuntime(exportsMap);
 
   assert.assert(cssModulesRuntime.includes("const cssModules = {"));
   assert.assert(
@@ -88,7 +82,7 @@ Deno.test("createCssModulesRuntime generates runtime with module exports", () =>
     ],
   ]);
 
-  const cssModulesRuntime = createCssModulesRuntime(exportsMap);
+  const cssModulesRuntime = modules.createCssModulesRuntime(exportsMap);
 
   assert.assert(cssModulesRuntime.includes('"/src/button"'));
   assert.assert(cssModulesRuntime.includes('"btn"'));
@@ -103,7 +97,7 @@ Deno.test("createCssModulesRuntime strips .module.css extension from paths", () 
     ],
   ]);
 
-  const cssModulesRuntime = createCssModulesRuntime(exportsMap);
+  const cssModulesRuntime = modules.createCssModulesRuntime(exportsMap);
 
   assert.assert(cssModulesRuntime.includes('"/path/to/component"'));
   assert.assertEquals(cssModulesRuntime.includes(".module.css"), false);
@@ -112,7 +106,7 @@ Deno.test("createCssModulesRuntime strips .module.css extension from paths", () 
 Deno.test("createCssModulesRuntime includes getStyles function", () => {
   const exportsMap = new Map<string, CssModuleResult>();
 
-  const cssModulesRuntime = createCssModulesRuntime(exportsMap);
+  const cssModulesRuntime = modules.createCssModulesRuntime(exportsMap);
 
   assert.assert(
     cssModulesRuntime.includes("export function getStyles(modulePath)"),
@@ -129,7 +123,7 @@ Deno.test("createCssModulesRuntime handles multiple modules", () => {
     ["/c.module.css", { code: "", exports: { c: "c_3" }, dts: undefined }],
   ]);
 
-  const cssModulesRuntime = createCssModulesRuntime(exportsMap);
+  const cssModulesRuntime = modules.createCssModulesRuntime(exportsMap);
 
   assert.assert(cssModulesRuntime.includes('"/a"'));
   assert.assert(cssModulesRuntime.includes('"/b"'));
@@ -169,7 +163,7 @@ Deno.test("processCssModule processes simple CSS module and returns exports", as
       ".button { background: blue; }",
     );
 
-    const result = await processCssModule(cssPath);
+    const result = await modules.processCssModule(cssPath);
 
     assert.assertExists(result.code);
     assert.assertExists(result.exports);
@@ -192,7 +186,9 @@ Deno.test("processCssModule generates .d.ts when generateDts is true", async () 
       ".test { color: red; }",
     );
 
-    const result = await processCssModule(cssPath, { generateDts: true });
+    const result = await modules.processCssModule(cssPath, {
+      generateDts: true,
+    });
 
     assert.assertExists(result.dts);
     assert.assert(result.dts.includes("readonly test: string;"));
@@ -214,7 +210,7 @@ Deno.test("processCssModule does not generate .d.ts by default", async () => {
       ".cls { margin: 0; }",
     );
 
-    const result = await processCssModule(cssPath);
+    const result = await modules.processCssModule(cssPath);
 
     assert.assertEquals(result.dts, undefined);
   } finally {
@@ -235,7 +231,7 @@ Deno.test("processCssModule handles multiple classes", async () => {
       ".a { color: red; } .b { color: blue; } .c { color: green; }",
     );
 
-    const result = await processCssModule(cssPath);
+    const result = await modules.processCssModule(cssPath);
 
     assert.assertExists(result.exports["a"]);
     assert.assertExists(result.exports["b"]);
@@ -261,7 +257,7 @@ Deno.test("processCssModules processes multiple modules in parallel", async () =
       ".b { color: blue; }",
     );
 
-    const results = await processCssModules([css1, css2]);
+    const results = await modules.processCssModules([css1, css2]);
 
     assert.assertEquals(results.size, 2);
     assert.assertExists(results.get(css1));
@@ -272,7 +268,7 @@ Deno.test("processCssModules processes multiple modules in parallel", async () =
 });
 
 Deno.test("processCssModules handles empty array", async () => {
-  const results = await processCssModules([]);
+  const results = await modules.processCssModules([]);
 
   assert.assertEquals(results.size, 0);
 });
@@ -294,9 +290,9 @@ Deno.test("findCssModules finds .module.css files in directory", async () => {
       ".b {}",
     );
 
-    const modules = await findCssModules(tempDir);
+    const found = await modules.findCssModules(tempDir);
 
-    assert.assertEquals(modules.length, 2);
+    assert.assertEquals(found.length, 2);
   } finally {
     await cleanup();
   }
@@ -312,9 +308,9 @@ Deno.test("findCssModules returns empty array for directory with no modules", as
       ".foo {}",
     );
 
-    const modules = await findCssModules(tempDir);
+    const found = await modules.findCssModules(tempDir);
 
-    assert.assertEquals(modules.length, 0);
+    assert.assertEquals(found.length, 0);
   } finally {
     await cleanup();
   }
@@ -334,10 +330,10 @@ Deno.test("findCssModules handles nested directories", async () => {
       ".btn {}",
     );
 
-    const modules = await findCssModules(tempDir);
+    const found = await modules.findCssModules(tempDir);
 
-    assert.assertEquals(modules.length, 1);
-    assert.assert(modules[0]?.includes("Button.module.css"));
+    assert.assertEquals(found.length, 1);
+    assert.assert(found[0]?.includes("Button.module.css"));
   } finally {
     await cleanup();
   }
@@ -361,7 +357,7 @@ Deno.test("processCssModule works without tailwind option", async () => {
     );
 
     // No tailwind option provided - should work fine
-    const result = await processCssModule(cssPath, {});
+    const result = await modules.processCssModule(cssPath, {});
 
     assert.assertExists(result.code);
     assert.assertExists(result.exports);
@@ -387,7 +383,7 @@ Deno.test("processCssModule with @apply but no tailwind passes through silently"
     );
 
     // No tailwind option provided
-    const result = await processCssModule(cssPath, {});
+    const result = await modules.processCssModule(cssPath, {});
 
     assert.assertExists(result.code);
     assert.assertExists(result.exports);
@@ -410,8 +406,10 @@ Deno.test("processCssModule respects minify option without tailwind", async () =
       ".button {\n  color: red;\n  background: blue;\n}",
     );
 
-    const minified = await processCssModule(cssPath, { minify: true });
-    const notMinified = await processCssModule(cssPath, { minify: false });
+    const minified = await modules.processCssModule(cssPath, { minify: true });
+    const notMinified = await modules.processCssModule(cssPath, {
+      minify: false,
+    });
 
     // Minified should be shorter (no newlines/extra spaces)
     assert.assert(minified.code.length <= notMinified.code.length);
@@ -433,7 +431,9 @@ Deno.test("processCssModule generates dts without tailwind", async () => {
       ".container { display: flex; } .item { flex: 1; }",
     );
 
-    const result = await processCssModule(cssPath, { generateDts: true });
+    const result = await modules.processCssModule(cssPath, {
+      generateDts: true,
+    });
 
     assert.assertExists(result.dts);
     assert.assert(result.dts.includes("readonly container: string;"));
@@ -457,7 +457,7 @@ Deno.test("processCssModule handles CSS nesting without tailwind", async () => {
       ".card { color: black; &:hover { color: blue; } }",
     );
 
-    const result = await processCssModule(cssPath, {});
+    const result = await modules.processCssModule(cssPath, {});
 
     assert.assertExists(result.code);
     assert.assertExists(result.exports["card"]);
@@ -501,7 +501,9 @@ Deno.test("processCssModule calls tailwind.compile when provided", async () => {
       dispose: () => {},
     };
 
-    const result = await processCssModule(cssPath, { tailwind: mockTailwind });
+    const result = await modules.processCssModule(cssPath, {
+      tailwind: mockTailwind,
+    });
 
     assert.assertEquals(compileCalled, true);
     assert.assert(capturedContent.includes(".button"));
@@ -536,7 +538,9 @@ Deno.test("processCssModule uses tailwind.compile result when returned", async (
       dispose: () => {},
     };
 
-    const result = await processCssModule(cssPath, { tailwind: mockTailwind });
+    const result = await modules.processCssModule(cssPath, {
+      tailwind: mockTailwind,
+    });
 
     // The result should contain the expanded CSS (processed by Lightning CSS)
     assert.assertExists(result.code);
@@ -564,7 +568,9 @@ Deno.test("processCssModule skips tailwind when compile returns null", async () 
       dispose: () => {},
     };
 
-    const result = await processCssModule(cssPath, { tailwind: mockTailwind });
+    const result = await modules.processCssModule(cssPath, {
+      tailwind: mockTailwind,
+    });
 
     // Should still work - uses original CSS
     assert.assertExists(result.code);
@@ -594,7 +600,7 @@ Deno.test("processCssModule handles local keyframe animations", async () => {
       `,
     );
 
-    const result = await processCssModule(cssPath, {});
+    const result = await modules.processCssModule(cssPath, {});
 
     assert.assertExists(result.exports["fadeIn"]);
     assert.assert(result.code.includes("@keyframes"));
@@ -616,7 +622,7 @@ Deno.test("processCssModule handles pseudo-elements in nested selectors", async 
       ".tooltip { position: relative; &::after { content: 'Hint'; position: absolute; } }",
     );
 
-    const result = await processCssModule(cssPath, {});
+    const result = await modules.processCssModule(cssPath, {});
 
     assert.assertExists(result.exports["tooltip"]);
     assert.assert(
@@ -647,7 +653,7 @@ Deno.test("processCssModule handles deeply nested CSS structures", async () => {
       }`,
     );
 
-    const result = await processCssModule(cssPath, {});
+    const result = await modules.processCssModule(cssPath, {});
 
     assert.assertExists(result.exports["card"]);
     assert.assert(
@@ -675,7 +681,7 @@ Deno.test("processCssModule handles data attribute selectors", async () => {
       }`,
     );
 
-    const result = await processCssModule(cssPath, {});
+    const result = await modules.processCssModule(cssPath, {});
 
     assert.assertExists(result.exports["btn"]);
     // CSS modules transforms class names but preserves attribute selectors

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -46,7 +47,20 @@ type Handler struct {
 
 	ScopeName string
 
+	// Subscribers receive every handled record after it is written. The
+	// record they get carries the attributes added with WithAttrs and the
+	// groups opened with WithGroup, flattened to dotted keys (http.status).
 	Subscribers []func(ctx context.Context, rec slog.Record) error
+
+	// groupPrefix holds the names of the groups opened with WithGroup, each
+	// followed by a dot, such as "http.request.".
+	groupPrefix string
+
+	// attrs holds the attributes added with WithAttrs, flattened and keyed
+	// with the group prefix that was open when they were added. InnerHandler
+	// keeps its own copy for the JSON output; pretty mode and the
+	// subscribers read this one.
+	attrs []slog.Attr
 }
 
 var _ slog.Handler = (*Handler)(nil)
@@ -65,8 +79,10 @@ func NewHandler(scopeName string, w io.Writer, config *Config) *Handler {
 			err,
 		)
 
-		// FIXME(@eser) on error, explicitly set to zero value of slog.Level which is Info
-		level = slog.Level(0)
+		// ParseLevel returns a nil *slog.Level on error, and that nil pointer
+		// inside the Leveler interface panics on the first Enabled call. Fall
+		// back to Info; NewLogger reports InitError once the logger exists.
+		level = LevelInfo
 	}
 
 	opts := &slog.HandlerOptions{
@@ -111,6 +127,10 @@ func (h *Handler) AddAdditionalAttributes(ctx context.Context, rec *slog.Record)
 	}
 }
 
+// PrettifyMessage renders rec as colored text: the time, the level and the
+// message on the first line, then one "key = value" line per attribute. The
+// attributes added with WithAttrs come before the record's own, and each key
+// is prefixed with the groups it belongs to, joined by dots (http.status).
 func (h *Handler) PrettifyMessage(rec slog.Record) string { //nolint:gocritic // hugeParam: slog.Record is passed by value, as slog.Handler does
 	out := strings.Builder{}
 
@@ -129,7 +149,7 @@ func (h *Handler) PrettifyMessage(rec slog.Record) string { //nolint:gocritic //
 	out.WriteRune(' ')
 	out.WriteString(rec.Message)
 
-	rec.Attrs(func(attr slog.Attr) bool {
+	for _, attr := range h.qualifiedAttrs(rec) {
 		keyLen := min(len(attr.Key), PrettyModeKeyMaxLength)
 
 		out.WriteRune('\n')
@@ -140,9 +160,7 @@ func (h *Handler) PrettifyMessage(rec slog.Record) string { //nolint:gocritic //
 		out.WriteRune(' ')
 
 		out.WriteString(attr.Value.String())
-
-		return true
-	})
+	}
 
 	out.WriteRune('\n')
 	out.WriteRune('\n')
@@ -167,8 +185,15 @@ func (h *Handler) Handle(ctx context.Context, rec slog.Record) error { //nolint:
 		return fmt.Errorf("%w: %w", ErrFailedToWriteLog, err)
 	}
 
+	if len(h.Subscribers) == 0 {
+		return nil
+	}
+
+	flatRec := slog.NewRecord(rec.Time, rec.Level, rec.Message, rec.PC)
+	flatRec.AddAttrs(h.qualifiedAttrs(rec)...)
+
 	for _, subscriber := range h.Subscribers {
-		err := subscriber(ctx, rec)
+		err := subscriber(ctx, flatRec)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrFailedToHandleLog, err)
 		}
@@ -177,32 +202,96 @@ func (h *Handler) Handle(ctx context.Context, rec slog.Record) error { //nolint:
 	return nil
 }
 
+// WithAttrs returns a handler that adds attrs to every record it handles,
+// in the JSON output, in pretty mode and in what the subscribers receive.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	if len(attrs) == 0 {
+		return h
+	}
+
+	derived := h.derive(h.InnerHandler.WithAttrs(attrs))
+	// Clip forces append to copy, so handlers derived from the same parent
+	// never write into each other's attributes.
+	derived.attrs = appendQualifiedAttrs(slices.Clip(h.attrs), h.groupPrefix, attrs)
+
+	return derived
+}
+
+// WithGroup returns a handler that nests the attributes added after it under
+// name. An empty name returns the handler unchanged, as slog.Handler asks.
+func (h *Handler) WithGroup(name string) slog.Handler {
+	if name == "" {
+		return h
+	}
+
+	derived := h.derive(h.InnerHandler.WithGroup(name))
+	derived.groupPrefix = h.groupPrefix + name + "."
+
+	return derived
+}
+
+// derive copies h around a new inner handler; WithAttrs and WithGroup then
+// change the field they own.
+func (h *Handler) derive(innerHandler slog.Handler) *Handler {
 	return &Handler{
 		InitError: h.InitError,
 
-		InnerHandler: h.InnerHandler.WithAttrs(attrs),
+		InnerHandler: innerHandler,
 
 		InnerWriter: h.InnerWriter,
 		InnerConfig: h.InnerConfig,
 		Subscribers: h.Subscribers,
 
 		ScopeName: h.ScopeName,
+
+		groupPrefix: h.groupPrefix,
+		attrs:       h.attrs,
 	}
 }
 
-func (h *Handler) WithGroup(name string) slog.Handler {
-	return &Handler{
-		InitError: h.InitError,
+// qualifiedAttrs returns the attributes added with WithAttrs followed by the
+// attributes of rec, flattened and keyed with their group prefixes.
+func (h *Handler) qualifiedAttrs(rec slog.Record) []slog.Attr { //nolint:gocritic // hugeParam: slog.Record is passed by value, as slog.Handler does
+	result := make([]slog.Attr, 0, len(h.attrs)+rec.NumAttrs())
+	result = append(result, h.attrs...)
 
-		InnerHandler: h.InnerHandler.WithGroup(name),
+	rec.Attrs(func(attr slog.Attr) bool {
+		result = appendQualifiedAttrs(result, h.groupPrefix, []slog.Attr{attr})
 
-		InnerWriter: h.InnerWriter,
-		InnerConfig: h.InnerConfig,
-		Subscribers: h.Subscribers,
+		return true
+	})
 
-		ScopeName: h.ScopeName,
+	return result
+}
+
+// appendQualifiedAttrs appends attrs to dst with prefix in front of each key.
+// It follows the slog.Handler rules: values are resolved, an attribute with
+// an empty key and a zero value is dropped, a group is flattened into its
+// members with its key added to the prefix (an empty key inlines them), and
+// an empty group is dropped.
+func appendQualifiedAttrs(dst []slog.Attr, prefix string, attrs []slog.Attr) []slog.Attr {
+	for _, attr := range attrs {
+		value := attr.Value.Resolve()
+
+		if value.Kind() == slog.KindGroup {
+			memberPrefix := prefix
+			if attr.Key != "" {
+				memberPrefix += attr.Key + "."
+			}
+
+			dst = appendQualifiedAttrs(dst, memberPrefix, value.Group())
+
+			continue
+		}
+
+		if attr.Key == "" && value.Kind() == slog.KindAny && value.Any() == nil {
+			continue
+		}
+
+		dst = append(dst, slog.Attr{Key: prefix + attr.Key, Value: value})
 	}
+
+	return dst
 }
 
 // enableOTLPExport adds OTLP log export capability to the handler.

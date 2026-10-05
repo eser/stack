@@ -1,7 +1,7 @@
 # Go Language Conventions
 
-Day-to-day Go idioms this repository settles on: scoping, iteration, strings,
-types, parameters, enums, resources, iterators, regexp and JSON.
+Day-to-day Go idioms to settle on: scoping, iteration, strings, types,
+parameters, enums, resources, iterators, regexp and JSON.
 
 ## Contents
 
@@ -399,8 +399,8 @@ func valid(id string) bool {
 Scope: All Go JSON operations
 
 Rule: Use `encoding/json`. `encoding/json/v2` needs `GOEXPERIMENT=jsonv2` on the
-Go 1.26 toolchain this module targets and does not build without it, and the
-repository does not set that experiment. Use the `omitzero` tag (Go 1.24+) for
+Go 1.26 toolchain this module targets and does not build without it, and this
+codebase does not set that experiment. Use the `omitzero` tag (Go 1.24+) for
 fields whose zero value should be left out, including `time.Time` and structs,
 where `omitempty` does nothing. Stream large payloads with `json.NewDecoder`
 instead of reading them into memory first. Moving to v2 is part of raising the

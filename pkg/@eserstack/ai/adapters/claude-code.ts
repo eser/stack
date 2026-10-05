@@ -3,7 +3,7 @@
 import * as results from "@eserstack/primitives/results";
 import type * as types from "../types.ts";
 import type * as config from "../config.ts";
-import type * as generation from "../generation.ts";
+import * as generation from "../generation.ts";
 import type * as model from "../model.ts";
 import * as errors from "../errors.ts";
 import * as cliShared from "./cli-shared.ts";
@@ -17,6 +17,7 @@ export class ClaudeCodeModel implements model.LanguageModel {
     "text_generation",
     "streaming",
     "tool_calling",
+    "structured_output",
   ];
   readonly provider = "claude-code";
   readonly modelId: string;
@@ -34,7 +35,18 @@ export class ClaudeCodeModel implements model.LanguageModel {
     options: generation.GenerateTextOptions,
     signal?: AbortSignal,
   ): Promise<results.Result<generation.GenerateTextResult, errors.AiError>> {
-    const args = buildArgs(this.config, options, "json");
+    let args: string[];
+    try {
+      args = buildArgs(this.config, options, "json");
+    } catch (err) {
+      // buildArgs throws a BadRequestError for a json_schema format without an
+      // object schema; anything else is a bug and propagates.
+      if (err instanceof errors.BadRequestError) {
+        return results.fail(err);
+      }
+      throw err;
+    }
+
     const prompt = cliShared.formatMessagesAsText(
       options.messages,
       options.system,
@@ -53,40 +65,45 @@ export class ClaudeCodeModel implements model.LanguageModel {
     });
     const stderrPromise = cliShared.captureStderr(process.stderr);
 
-    const reader = process.stdout.getReader();
-    const chunks: string[] = [];
-    const decoder = new TextDecoder();
+    try {
+      const chunks: string[] = [];
+      const decoder = new TextDecoder();
 
-    let readResult = await reader.read();
+      for await (const chunk of process.stdout) {
+        chunks.push(decoder.decode(chunk, { stream: true }));
+      }
 
-    while (readResult.done !== true) {
-      chunks.push(decoder.decode(readResult.value, { stream: true }));
-      readResult = await reader.read();
+      const exit = await process.waitForExit();
+      const stderr = await stderrPromise;
+      const exitError = cliShared.classifyExitCode(
+        "claude-code",
+        exit.code,
+        stderr,
+      );
+
+      if (exitError !== null) {
+        return results.fail(exitError);
+      }
+
+      const rawOutput = chunks.join("");
+
+      return results.ok(parseJsonResult(rawOutput, this.modelId));
+    } finally {
+      await cliShared.stopCliProcess(process, stderrPromise);
     }
-
-    reader.releaseLock();
-
-    const exit = await process.waitForExit();
-    const stderr = await stderrPromise;
-    const exitError = cliShared.classifyExitCode(
-      "claude-code",
-      exit.code,
-      stderr,
-    );
-
-    if (exitError !== null) {
-      return results.fail(exitError);
-    }
-
-    const rawOutput = chunks.join("");
-
-    return results.ok(parseJsonResult(rawOutput, this.modelId));
   }
 
   async *streamText(
     options: generation.GenerateTextOptions,
     signal?: AbortSignal,
   ): AsyncIterable<generation.StreamEvent> {
+    // A --json-schema reply arrives whole, in the CLI's final result event, so
+    // it is read with the json output format and yielded in one piece.
+    if (options.responseFormat?.type === "json_schema") {
+      yield* this.#streamStructuredReply(options, signal);
+      return;
+    }
+
     // Configurable via properties.streamFormat: "text" (default) or "stream-json"
     //   - "text": true byte-level streaming, each stdout chunk → content_delta
     //   - "stream-json": structured JSONL events (tool calls, usage stats)
@@ -136,7 +153,36 @@ export class ClaudeCodeModel implements model.LanguageModel {
           ),
         };
       }
+    } finally {
+      // Also reached when the consumer stops reading early.
+      await cliShared.stopCliProcess(process, stderrPromise);
     }
+  }
+
+  async *#streamStructuredReply(
+    options: generation.GenerateTextOptions,
+    signal?: AbortSignal,
+  ): AsyncIterable<generation.StreamEvent> {
+    const result = await this.generateText(options, signal);
+
+    if (results.isFail(result)) {
+      yield { kind: "error", error: result.error };
+      return;
+    }
+
+    for (const block of result.value.content) {
+      if (block.kind === "text" && block.text !== "") {
+        yield { kind: "content_delta", textDelta: block.text };
+      } else if (block.kind === "tool_call") {
+        yield { kind: "tool_call_delta", toolCall: block.toolCall };
+      }
+    }
+
+    yield {
+      kind: "message_done",
+      stopReason: result.value.stopReason,
+      usage: result.value.usage,
+    };
   }
 
   async *#streamRawText(
@@ -146,19 +192,24 @@ export class ClaudeCodeModel implements model.LanguageModel {
     const decoder = new TextDecoder();
     const reader = process.stdout.getReader();
 
-    let readResult = await reader.read();
+    try {
+      let readResult = await reader.read();
 
-    while (readResult.done !== true) {
-      const text = decoder.decode(readResult.value, { stream: true });
+      while (readResult.done !== true) {
+        const text = decoder.decode(readResult.value, { stream: true });
 
-      if (text.length > 0) {
-        yield { kind: "content_delta", textDelta: text };
+        if (text.length > 0) {
+          yield { kind: "content_delta", textDelta: text };
+        }
+
+        // Reads stay sequential: each chunk is yielded in order before the
+        // next one is requested.
+        // deno-lint-ignore no-await-in-loop
+        readResult = await reader.read();
       }
-
-      readResult = await reader.read();
+    } finally {
+      reader.releaseLock();
     }
-
-    reader.releaseLock();
 
     const exit = await process.waitForExit();
     const stderr = await stderrPromise;
@@ -219,9 +270,9 @@ export class ClaudeCodeModel implements model.LanguageModel {
 
 export const claudeCodeFactory: model.ProviderFactory = {
   provider: "claude-code",
-  async createModel(
+  createModel: async (
     cfg: config.ResolvedConfigTarget,
-  ): Promise<model.LanguageModel> {
+  ): Promise<model.LanguageModel> => {
     const binary = await cliShared.resolveBinary("claude", cfg);
 
     return new ClaudeCodeModel(binary, cfg);
@@ -232,9 +283,15 @@ export const claudeCodeFactory: model.ProviderFactory = {
 // Internal Helpers
 // =============================================================================
 
-const buildArgs = (
+/**
+ * Builds the claude CLI arguments for one request. Exported for tests.
+ *
+ * @throws {errors.BadRequestError} for a `json_schema` format without an
+ * object `jsonSchema`.
+ */
+export const buildArgs = (
   cfg: config.ResolvedConfigTarget,
-  _options: generation.GenerateTextOptions,
+  options: generation.GenerateTextOptions,
   outputFormat: "json" | "text" | "stream-json",
 ): string[] => {
   const args: string[] = [];
@@ -281,7 +338,37 @@ const buildArgs = (
     args.push(...extraArgs);
   }
 
+  // The CLI's --effort takes the same five levels as GenerateTextOptions.
+  if (options.effort !== undefined) {
+    args.push("--effort", options.effort);
+  }
+
+  const schema = jsonSchemaArg(options.responseFormat);
+  if (schema !== null) {
+    args.push("--json-schema", schema);
+  }
+
   return args;
+};
+
+/**
+ * Returns a json_schema format's schema as the CLI's `--json-schema` value, or
+ * null when there is none to send. The CLI has no JSON mode without a schema,
+ * so `json_object` and `text` send nothing, as on the `anthropic` provider.
+ *
+ * @throws {errors.BadRequestError} for a `json_schema` format without an
+ * object `jsonSchema`.
+ */
+const jsonSchemaArg = (
+  responseFormat: generation.ResponseFormat | undefined,
+): string | null => {
+  if (responseFormat?.type !== "json_schema") {
+    return null;
+  }
+
+  return JSON.stringify(
+    generation.requireJsonSchema(responseFormat, "claude-code"),
+  );
 };
 
 export const parseJsonResult = (
@@ -336,9 +423,10 @@ export const parseJsonResult = (
 
 /**
  * Reduce the Claude Code v2 event array to a single result. Prefers the
- * `{type:"result"}` event's `result` field (the canonical final text), then the
- * last `{type:"assistant"}` message, delegating to {@link mapResultFromJson} for
- * the actual mapping.
+ * `{type:"result"}` event's `structured_output` (the reply to `--json-schema`)
+ * or `result` field (the canonical final text), then the last
+ * `{type:"assistant"}` message, delegating to {@link mapResultFromJson} for the
+ * actual mapping.
  */
 const mapResultFromArray = (
   events: readonly unknown[],
@@ -348,7 +436,9 @@ const mapResultFromArray = (
     e !== null && typeof e === "object";
 
   const resultEvent = events.find(
-    (e) => isObj(e) && e["type"] === "result" && e["result"] !== undefined,
+    (e) =>
+      isObj(e) && e["type"] === "result" &&
+      (e["result"] !== undefined || e["structured_output"] !== undefined),
   );
   if (resultEvent !== undefined) {
     return mapResultFromJson(resultEvent, modelId);
@@ -371,14 +461,24 @@ const mapResultFromArray = (
 };
 
 const mapResultFromJson = (
+  // The response is untyped vendor JSON; only the mapped fields are read.
   // deno-lint-ignore no-explicit-any
   parsed: any,
   modelId: string,
 ): generation.GenerateTextResult => {
   const contentBlocks: types.ContentBlock[] = [];
 
-  // Claude Code JSON output has { result: "text" } or { type: "result", result: "text" }
-  if (parsed.result !== undefined) {
+  // With --json-schema, the reply is the result event's structured_output, not
+  // its result field. Otherwise Claude Code JSON output has { result: "text" }
+  // or { type: "result", result: "text" }.
+  if (
+    parsed.structured_output !== undefined && parsed.structured_output !== null
+  ) {
+    contentBlocks.push({
+      kind: "text",
+      text: JSON.stringify(parsed.structured_output),
+    });
+  } else if (parsed.result !== undefined) {
     contentBlocks.push({ kind: "text", text: String(parsed.result) });
   } else if (parsed.message?.content !== undefined) {
     for (const block of parsed.message.content) {
@@ -407,7 +507,9 @@ const mapResultFromJson = (
 
   return {
     content: contentBlocks,
-    stopReason: parsed.stop_reason === "tool_use" ? "tool_use" : "end_turn",
+    stopReason: mapStopReason(
+      parsed.stop_reason ?? parsed.message?.stop_reason,
+    ),
     usage: {
       inputTokens: parsed.usage?.input_tokens ?? 0,
       outputTokens: parsed.usage?.output_tokens ?? 0,
@@ -419,6 +521,21 @@ const mapResultFromJson = (
   };
 };
 
+/**
+ * Maps the stop reason the CLI reports. A declined request stays a refusal, so
+ * a caller can tell it from an answer.
+ */
+const mapStopReason = (reason: unknown): generation.StopReason => {
+  if (reason === "tool_use") {
+    return "tool_use";
+  }
+  if (reason === "refusal") {
+    return "refusal";
+  }
+
+  return "end_turn";
+};
+
 const mapStreamEvent = (
   event: unknown,
 ): generation.StreamEvent | null => {
@@ -426,6 +543,7 @@ const mapStreamEvent = (
     return null;
   }
 
+  // Stream events are untyped JSON; each field is checked before use.
   // deno-lint-ignore no-explicit-any
   const obj = event as any;
 
@@ -454,7 +572,9 @@ const mapStreamEvent = (
   if (obj.type === "result") {
     return {
       kind: "message_done",
-      stopReason: obj.subtype === "tool_use" ? "tool_use" : "end_turn",
+      stopReason: obj.subtype === "tool_use"
+        ? "tool_use"
+        : mapStopReason(obj.stop_reason),
       usage: {
         inputTokens: obj.usage?.input_tokens ?? 0,
         outputTokens: obj.usage?.output_tokens ?? 0,

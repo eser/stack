@@ -39,8 +39,6 @@ export interface LinkConfig {
   replace?: boolean;
   /** Whether to scroll to top after navigation */
   scroll?: boolean;
-  /** Whether to prefetch the target */
-  prefetch?: boolean;
 }
 
 /**
@@ -57,8 +55,12 @@ export interface NavigationAnalysis {
  * Modifier key state during a click event
  */
 export interface ModifierKeys {
+  /** The Command key on macOS, the Windows key elsewhere */
   metaKey: boolean;
+  /** The Control key */
   ctrlKey: boolean;
+  /** The Shift key */
   shiftKey: boolean;
+  /** The Alt (Option) key */
   altKey: boolean;
 }

@@ -1,8 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * @module registry
- *
  * Unified registry pattern for @eser packages.
  *
  * ## Overview
@@ -20,10 +18,10 @@
  * ### Layer 0: ImmutableMap (Pure Key-Value)
  *
  * ```typescript
- * import { createMapBuilder } from "@eserstack/standards/collections";
+ * import * as standards from "@eserstack/standards";
  *
  * // Build phase (mutable)
- * const map = createMapBuilder<string, number>()
+ * const map = standards.collections.createMapBuilder<string, number>()
  *   .set("a", 1)
  *   .set("b", 2)
  *   .build();
@@ -40,10 +38,16 @@
  * ### Layer 1: Registry (With Lazy Support)
  *
  * ```typescript
- * import { createRegistryBuilder, type Registry } from "@eserstack/standards/collections";
+ * import * as standards from "@eserstack/standards";
+ *
+ * type Item = { readonly name: string };
+ *
+ * const itemAInstance: Item = { name: "item-a" };
+ * const createItemB = (): Item => ({ name: "item-b" });
+ * const newInstance: Item = { name: "item-c" };
  *
  * // Build phase (mutable)
- * const builder = createRegistryBuilder<string, Item>();
+ * const builder = standards.collections.createRegistryBuilder<string, Item>();
  * builder
  *   .set("item-a", itemAInstance)
  *   .setLazy("item-b", () => createItemB());
@@ -68,21 +72,40 @@
  * Define your own typed registry interface for compile-time key safety:
  *
  * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
+ * type ItemA = { readonly kind: "a" };
+ * type ItemB = { readonly kind: "b" };
+ *
  * interface MyRegistry {
  *   "item-a": ItemA;
  *   "item-b": ItemB;
  * }
  *
- * const builder = createRegistryBuilder<keyof MyRegistry, MyRegistry[keyof MyRegistry]>();
+ * const builder = standards.collections.createRegistryBuilder<
+ *   keyof MyRegistry,
+ *   MyRegistry[keyof MyRegistry]
+ * >();
  * ```
  *
  * ## Indexed Registry (Multi-Key Lookup)
  *
  * ```typescript
- * import { createIndexedRegistryBuilder, createExtensionIndex } from "@eserstack/standards/collections";
+ * import * as standards from "@eserstack/standards";
  *
- * const builder = createIndexedRegistryBuilder<string, Format>([
- *   createExtensionIndex("byExtension", (f) => f.extensions),
+ * type Format = {
+ *   readonly name: string;
+ *   readonly extensions: readonly string[];
+ * };
+ *
+ * const builder = standards.collections.createIndexedRegistryBuilder<
+ *   string,
+ *   Format
+ * >([
+ *   standards.collections.createExtensionIndex<Format>(
+ *     "byExtension",
+ *     (f) => f.extensions,
+ *   ),
  * ]);
  *
  * builder.set("json", { name: "json", extensions: ["json"] });
@@ -97,7 +120,7 @@
  * Create your own bitmap matcher for O(1) flag matching:
  *
  * ```typescript
- * import { createBitmapMatcher } from "@eserstack/standards/collections";
+ * import * as standards from "@eserstack/standards";
  *
  * // Consumer defines their own domain-specific mapping
  * const FlagBits = {
@@ -106,11 +129,13 @@
  *   optionC: 1 << 2,
  * } as const;
  *
- * const matcher = createBitmapMatcher(FlagBits);
+ * const matcher = standards.collections.createBitmapMatcher(FlagBits);
  * const bitmap = matcher.toBitmap(["optionA", "optionB"]);
  * matcher.match(0b01, 0b11);    // true (any match)
  * matcher.matchAll(0b11, 0b11); // true (all match)
  * ```
+ *
+ * @module
  */
 
 // =============================================================================

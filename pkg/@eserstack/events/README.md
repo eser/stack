@@ -20,7 +20,10 @@ import * as events from "@eserstack/events";
 
 // Register event listeners
 events.registry
-  .add("user:login", (e) => console.log("User logged in:", e.detail))
+  .add(
+    "user:login",
+    (e) => console.log("User logged in:", (e as CustomEvent).detail),
+  )
   .add("user:logout", () => console.log("User logged out"));
 
 // Dispatch events with data
@@ -33,13 +36,13 @@ events.registry.add("init", () => console.log("Initialized"), { once: true });
 ## Custom Event Registry
 
 ```typescript
-import { Registry } from "@eserstack/events";
+import * as events from "@eserstack/events";
 
 // Create an isolated event system
-const myEvents = new Registry();
+const myEvents = new events.Registry();
 
 myEvents.add("data:update", (e) => {
-  console.log("Data updated:", e.detail);
+  console.log("Data updated:", (e as CustomEvent).detail);
 });
 
 const dispatcher = myEvents.build();
@@ -49,9 +52,9 @@ dispatcher.dispatch("data:update", { detail: { id: 1, value: "new" } });
 ## Removing Listeners
 
 ```typescript
-import { Registry } from "@eserstack/events";
+import * as events from "@eserstack/events";
 
-const registry = new Registry();
+const registry = new events.Registry();
 
 const handler = (e: Event) => console.log(e);
 registry.add("click", handler);
@@ -81,6 +84,24 @@ registry.remove("click", handler);
 | `registry`   | Pre-configured global Registry         |
 | `dispatcher` | Pre-configured global Dispatcher       |
 | `events`     | Factory function for the global system |
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- The `default` export (the global `events` factory) is removed from the package
+  root and from `@eserstack/events/events`. Use the namespace import:
+
+  ```typescript
+  // Before
+  import events from "@eserstack/events";
+  // After
+  import * as events from "@eserstack/events";
+
+  events.events; // the factory that was the default export
+  ```
 
 ---
 

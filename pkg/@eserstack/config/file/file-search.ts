@@ -10,6 +10,17 @@ export type SearchFileHierarchyOptions = {
   readonly searchParents?: boolean;
 };
 
+/** Reports whether `filepath` exists and is a file, not a directory. */
+const isFile = async (filepath: string): Promise<boolean> => {
+  if (!(await runtime.fs.exists(filepath))) {
+    return false;
+  }
+
+  const stat = await runtime.fs.stat(filepath);
+
+  return stat.isFile;
+};
+
 /**
  * Searches for a file by name in a directory hierarchy.
  *
@@ -24,15 +35,18 @@ export type SearchFileHierarchyOptions = {
  *
  * @example
  * ```typescript
- * import { searchFileHierarchy } from "@eserstack/standards/cross-runtime";
+ * import * as fileSearch from "./file-search.ts";
  *
  * // Find config file in current directory only
- * const configPath = await searchFileHierarchy("./src", ["deno.json", "deno.jsonc"]);
+ * const localPath = await fileSearch.searchFileHierarchy("./src", [
+ *   "deno.json",
+ *   "deno.jsonc",
+ * ]);
  *
  * // Find config file, searching up to root
- * const configPath = await searchFileHierarchy("./src/lib", ["deno.json"], {
- *   searchParents: true
- * });
+ * const nearestPath = await fileSearch.searchFileHierarchy("./src/lib", [
+ *   "deno.json",
+ * ], { searchParents: true });
  * ```
  */
 export const searchFileHierarchy = async (
@@ -46,14 +60,11 @@ export const searchFileHierarchy = async (
   while (true) {
     for (const name of filenames) {
       const filepath = runtime.path.join(dir, name);
-      const exists = await runtime.fs.exists(filepath);
-
-      if (exists) {
-        // Verify it's a file, not a directory
-        const stat = await runtime.fs.stat(filepath);
-        if (stat.isFile) {
-          return filepath;
-        }
+      // Filenames are checked in priority order and the first match wins, so
+      // the checks run one at a time.
+      // deno-lint-ignore no-await-in-loop
+      if (await isFile(filepath)) {
+        return filepath;
       }
     }
 

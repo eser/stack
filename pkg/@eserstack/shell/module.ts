@@ -9,10 +9,10 @@
  *
  * @example
  * ```typescript
- * import { Module } from "@eserstack/shell/module";
+ * import * as shell from "@eserstack/shell";
  *
  * // Define a module
- * const mod = new Module({
+ * const mod = new shell.Module({
  *   description: "My tool",
  *   modules: {
  *     init: { description: "Initialize", load: () => import("./init.ts") },
@@ -23,6 +23,7 @@
  * await mod.toCommand("mytool", "1.0.0").parse();
  *
  * // Or compose into a parent
+ * const parentModule = new shell.Module({ description: "Parent CLI" });
  * parentModule.addSubmodule({ name: "mytool", aliases: ["mt"] }, mod);
  * ```
  *
@@ -30,7 +31,7 @@
  */
 
 import type { GroupOptions, ModuleEntry } from "./args/types.ts";
-import { Command } from "./args/command.ts";
+import * as command from "./args/command.ts";
 
 /**
  * Configuration for creating a Module.
@@ -59,6 +60,7 @@ export type SubmoduleRegistration = {
  * standalone or embedded as a submodule in another CLI.
  */
 export class Module {
+  /** Description shown in help text. */
   readonly description: string;
   readonly #modules: Readonly<Record<string, ModuleEntry>>;
   readonly #aliases: Readonly<Record<string, string>>;
@@ -66,6 +68,11 @@ export class Module {
     { registration: SubmoduleRegistration; module: Module }
   > = [];
 
+  /**
+   * Create a module from its description, entries and aliases.
+   *
+   * @param config - The module's configuration.
+   */
   constructor(config: ModuleConfig) {
     this.description = config.description;
     this.#modules = config.modules ?? {};
@@ -114,8 +121,8 @@ export class Module {
    * - Own modules are registered for flat dispatch (e.g., `noskills init`)
    * - Submodules are registered as module groups (e.g., `eser noskills init`)
    */
-  toCommand(name: string, version?: string): Command {
-    const cmd = new Command(name).description(this.description);
+  toCommand(name: string, version?: string): command.Command {
+    const cmd = new command.Command(name).description(this.description);
 
     if (version !== undefined) {
       cmd.version(version);

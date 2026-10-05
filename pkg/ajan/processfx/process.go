@@ -3,6 +3,8 @@ package processfx
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"slices"
@@ -25,6 +27,10 @@ type Process struct {
 
 	Cancel context.CancelFunc
 
+	// Signal receives SIGINT and SIGTERM while Ctx is live. New registers it
+	// and the signal watcher removes the registration as soon as Ctx ends, so
+	// the handler never outlives the process. A value sent here while Ctx is
+	// live cancels it the way a real signal does.
 	Signal chan os.Signal
 
 	ShutdownTimeout time.Duration
@@ -43,8 +49,18 @@ type Process struct {
 	// namesMu guards names, which exists only for diagnostics.
 	namesMu sync.Mutex
 	names   []string
+
+	// signalWatcherDone is closed when the goroutine started by New has
+	// returned and removed the signal registration. Wait blocks on it, which
+	// makes Wait the owner of that goroutine.
+	signalWatcherDone chan struct{}
 }
 
+// New returns a Process whose Ctx ends on SIGINT, SIGTERM, Cancel or the end
+// of baseCtx. The signal handler is registered here, so a signal that arrives
+// before Wait still shuts down gracefully, and it is removed once Ctx ends: a
+// caller that never calls Wait (a test, for example) releases it by calling
+// Cancel or ending baseCtx.
 func New(baseCtx context.Context, logger *logfx.Logger) *Process {
 	// Base context that will be used to signal shutdown to all components.
 	ctx, cancel := context.WithCancel(baseCtx)
@@ -53,18 +69,12 @@ func New(baseCtx context.Context, logger *logfx.Logger) *Process {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	go func() {
-		sig := <-sigChan
-		if logger != nil {
-			logger.InfoContext(
-				ctx,
-				"Received OS signal, initiating shutdown...",
-				"signal",
-				sig.String(),
-			)
-		}
+	signalWatcherDone := make(chan struct{})
 
-		cancel()
+	go func() {
+		defer close(signalWatcherDone)
+
+		watchSignals(ctx, cancel, sigChan, logger)
 	}()
 
 	return &Process{
@@ -77,6 +87,49 @@ func New(baseCtx context.Context, logger *logfx.Logger) *Process {
 		Signal: sigChan,
 
 		ShutdownTimeout: DefaultShutdownTimeout,
+
+		signalWatcherDone: signalWatcherDone,
+	}
+}
+
+// watchSignals cancels the process context on the first value from sigChan.
+// It also returns when ctx ends for any other reason (Cancel, or baseCtx
+// ending) and when sigChan is closed, and it always removes the signal
+// registration on the way out.
+//
+// It used to block on sigChan alone. Wait closed the channel after a cancel
+// that was not a signal, the receive then yielded a nil os.Signal, and calling
+// String on it crashed the process whenever a logger was set.
+func watchSignals(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	sigChan chan os.Signal,
+	logger *logfx.Logger,
+) {
+	defer signal.Stop(sigChan)
+
+	select {
+	case <-ctx.Done():
+		return
+
+	case sig, ok := <-sigChan:
+		if !ok {
+			// A closed channel delivers no signal, so this is not a shutdown
+			// request: stop listening and leave Ctx alone.
+			return
+		}
+
+		if logger != nil {
+			// fmt.Sprint, not sig.String(): a caller can send a nil os.Signal
+			// on the exported channel.
+			logger.InfoContext(
+				ctx,
+				"Received OS signal, initiating shutdown...",
+				slog.String("signal", fmt.Sprint(sig)),
+			)
+		}
+
+		cancel()
 	}
 }
 
@@ -116,17 +169,20 @@ func (p *Process) StartGoroutine(
 	})
 }
 
+// Wait blocks until Ctx ends, through an OS signal, Cancel or baseCtx, and
+// returns once the signal registration made by New is removed. It is safe to
+// call more than once.
 func (p *Process) Wait() {
-	// Block until the context is cancelled or an OS signal is received.
 	<-p.Ctx.Done()
 
 	if p.Cancel != nil {
 		p.Cancel()
 	}
 
-	if p.Signal != nil {
-		signal.Stop(p.Signal)
-		close(p.Signal)
+	// The watcher returns as soon as Ctx ends. Waiting for it means the signal
+	// handler is gone when Wait returns and the goroutine has an owner.
+	if p.signalWatcherDone != nil {
+		<-p.signalWatcherDone
 	}
 }
 

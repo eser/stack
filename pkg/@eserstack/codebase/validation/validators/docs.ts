@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkDocs } from "../../validate-docs.ts";
+import * as validateDocs from "../../validate-docs.ts";
 import type { Validator, ValidatorResult } from "../types.ts";
 
 /**
@@ -19,11 +19,11 @@ export const docsValidator: Validator = {
   description: "Validate JSDoc documentation",
   requiredStacks: ["javascript"],
 
-  async validate(options): Promise<ValidatorResult> {
+  validate: async (options): Promise<ValidatorResult> => {
     const requireExamples = options.options?.["requireExamples"] as
       | boolean
       | undefined;
-    const result = await checkDocs({
+    const result = await validateDocs.checkDocs({
       root: options.root,
       requireExamples,
     });

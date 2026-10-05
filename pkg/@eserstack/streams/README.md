@@ -25,12 +25,14 @@ lightweight **Span tree**. Renderers serialize Spans per target:
 
 ```typescript
 import * as streams from "@eserstack/streams";
-import * as span from "@eserstack/streams/span";
+
+const out = streams.output({ renderer: streams.renderers.ansi() });
+const recipe = { name: "fp-pipe", language: "typescript" };
 
 // Handler code — format-agnostic
-ctx.out.writeln(span.bold("Recipe: "), span.cyan(recipe.name));
-ctx.out.writeln(span.dim(`[${recipe.language}]`));
-ctx.out.writeln(span.green("✓ Done"));
+out.writeln(streams.span.bold("Recipe: "), streams.span.cyan(recipe.name));
+out.writeln(streams.span.dim(`[${recipe.language}]`));
+out.writeln(streams.span.green("✓ Done"));
 ```
 
 Same Span tree, different output:
@@ -49,27 +51,27 @@ The `output()` function is the console.log replacement:
 import * as streams from "@eserstack/streams";
 
 // CLI: colored terminal output
-const out = streams.output({
+const cliOut = streams.output({
   renderer: streams.renderers.ansi(),
   sink: streams.sinks.stdout(),
 });
 
 // MCP: markdown for tool responses
-const out = streams.output({
+const mcpOut = streams.output({
   renderer: streams.renderers.markdown(),
   sink: streams.sinks.buffer(),
 });
 
 // Test: plain text for assertions
-const out = streams.output({
+const testOut = streams.output({
   renderer: streams.renderers.plain(),
   sink: streams.sinks.buffer(),
 });
 
-out.write("plain text");
-out.writeln(span.bold("bold"), " and ", span.dim("dim"));
-await out.flush();
-await out.close();
+cliOut.write("plain text");
+cliOut.writeln(streams.span.bold("bold"), " and ", streams.span.dim("dim"));
+await cliOut.flush();
+await cliOut.close();
 ```
 
 ## Span Types
@@ -77,25 +79,27 @@ await out.close();
 ### Inline Spans
 
 ```typescript
-import * as span from "@eserstack/streams/span";
+import * as streams from "@eserstack/streams";
 
-span.text("plain text"); // { kind: "text", value: "plain text" }
-span.bold("important"); // { kind: "bold", children: [...] }
-span.dim("subtle"); // { kind: "dim", children: [...] }
-span.italic("emphasis"); // { kind: "italic", children: [...] }
-span.underline("link"); // { kind: "underline", children: [...] }
-span.strikethrough("removed"); // { kind: "strikethrough", children: [...] }
-span.red("error"); // { kind: "color", color: "red", children: [...] }
-span.green("success"); // { kind: "color", color: "green", children: [...] }
-span.cyan("info"); // { kind: "color", color: "cyan", children: [...] }
-span.yellow("warning"); // { kind: "color", color: "yellow", children: [...] }
-span.nl(); // { kind: "newline" }
+streams.span.text("plain text"); // { kind: "text", value: "plain text" }
+streams.span.bold("important"); // { kind: "bold", children: [...] }
+streams.span.dim("subtle"); // { kind: "dim", children: [...] }
+streams.span.italic("emphasis"); // { kind: "italic", children: [...] }
+streams.span.underline("link"); // { kind: "underline", children: [...] }
+streams.span.strikethrough("removed"); // { kind: "strikethrough", children: [...] }
+streams.span.red("error"); // { kind: "color", color: "red", children: [...] }
+streams.span.green("success"); // { kind: "color", color: "green", children: [...] }
+streams.span.cyan("info"); // { kind: "color", color: "cyan", children: [...] }
+streams.span.yellow("warning"); // { kind: "color", color: "yellow", children: [...] }
+streams.span.nl(); // { kind: "newline" }
 ```
 
 ### Block-Level Spans
 
 ```typescript
-span.table(
+import * as streams from "@eserstack/streams";
+
+streams.span.table(
   ["Name", "Language", "Scale"],
   [
     ["fp-pipe", "typescript", "utility"],
@@ -103,11 +107,11 @@ span.table(
   ],
 );
 
-span.codeBlock("const x = 42;", "typescript");
+streams.span.codeBlock("const x = 42;", "typescript");
 
-span.list([
-  ["Install: ", span.dim("pnpm install")],
-  ["Run: ", span.dim("deno task dev")],
+streams.span.list([
+  ["Install: ", streams.span.dim("pnpm install")],
+  ["Run: ", streams.span.dim("deno task dev")],
 ]);
 ```
 
@@ -116,7 +120,11 @@ span.list([
 Spans compose naturally:
 
 ```typescript
-span.bold("Recipe: ", span.cyan(recipe.name));
+import * as streams from "@eserstack/streams";
+
+const recipe = { name: "my-recipe" };
+
+streams.span.bold("Recipe: ", streams.span.cyan(recipe.name));
 // { kind: "bold", children: [
 //   { kind: "text", value: "Recipe: " },
 //   { kind: "color", color: "cyan", children: [
@@ -132,17 +140,20 @@ external packages can implement renderers that return any type.
 
 ### Built-in Renderers (return `string`)
 
-| Renderer     | Import                         | Use Case                        |
+| Renderer     | Access                         | Use Case                        |
 | ------------ | ------------------------------ | ------------------------------- |
-| `ansi()`     | `@eserstack/streams/renderers` | Terminal (colored escape codes) |
-| `markdown()` | `@eserstack/streams/renderers` | MCP tool responses, HTTP APIs   |
-| `plain()`    | `@eserstack/streams/renderers` | Tests, log files                |
+| `ansi()`     | `streams.renderers.ansi()`     | Terminal (colored escape codes) |
+| `markdown()` | `streams.renderers.markdown()` | MCP tool responses, HTTP APIs   |
+| `plain()`    | `streams.renderers.plain()`    | Tests, log files                |
 
 ```typescript
-import * as renderers from "@eserstack/streams/renderers";
+import * as streams from "@eserstack/streams";
 
-const renderer = renderers.ansi();
-const text = renderer.render([span.bold("hello"), span.text(" world")]);
+const renderer = streams.renderers.ansi();
+const text = renderer.render([
+  streams.span.bold("hello"),
+  streams.span.text(" world"),
+]);
 // "\x1b[1mhello\x1b[22m world\x1b[0m"
 ```
 
@@ -151,24 +162,27 @@ const text = renderer.render([span.bold("hello"), span.text(" world")]);
 Any package can implement `Renderer<T>` to produce a different output type. For
 example, `@eserstack/laroux-react` provides a React renderer:
 
-```tsx
-import { reactRenderer } from "@eserstack/laroux-react";
+```typescript
+import * as larouxReact from "@eserstack/laroux-react";
+import * as streams from "@eserstack/streams";
 
-const renderer = reactRenderer(); // Renderer<React.ReactElement>
-const element = renderer.render([span.bold("hello")]);
+const renderer = larouxReact.reactRenderer(); // Renderer<React.ReactElement>
+const element = renderer.render([streams.span.bold("hello")]);
 // <strong>hello</strong>
 ```
 
 ### Creating Your Own Renderer
 
 ```typescript
-import type { Renderer } from "@eserstack/streams/renderers";
-import type { Span } from "@eserstack/streams/span";
+import type * as streams from "@eserstack/streams";
 
-const myRenderer = (): Renderer<MyOutputType> => ({
+type MyOutputType = string;
+
+const myRenderer = (): streams.renderers.Renderer<MyOutputType> => ({
   name: "my-renderer",
-  render: (spans: readonly Span[]) => {
+  render: (spans: readonly streams.span.Span[]) => {
     // Convert Span tree to your target format
+    return spans.map((node) => node.kind).join(",");
   },
 });
 ```
@@ -183,8 +197,8 @@ import * as streams from "@eserstack/streams";
 // Transform pipeline
 const items = await streams.pipeline()
   .from(streams.sources.values(1, 2, 3, 4, 5))
-  .through(streams.layers.filter((n) => n > 2))
-  .through(streams.layers.map((n) => n * 10))
+  .through(streams.layers.filter((n: number) => n > 2))
+  .through(streams.layers.map((n: number) => n * 10))
   .collect<number>();
 // [30, 40, 50]
 ```
@@ -194,47 +208,87 @@ const items = await streams.pipeline()
 | Sink                  | Purpose                                     |
 | --------------------- | ------------------------------------------- |
 | `stdout()`            | Write to process.stdout                     |
+| `stderr()`            | Write to process.stderr                     |
 | `buffer()`            | Collect in memory (`.items()`, `.chunks()`) |
-| `null()`              | Discard all output                          |
+| `nullSink()`          | Discard all output                          |
 | `writable(stream)`    | Wrap any WritableStream                     |
 | `multiplex(...sinks)` | Fan-out to multiple sinks                   |
 
-## Integration with @eserstack/functions
-
-Handlers use `ctx.out` (an `Output` instance) injected via the Task context:
+Every `stdout()` and `stderr()` sink in the process writes through one queue per
+stream, so several outputs can share the terminal without failing on the
+stream's lock. `write()` and `writeln()` only buffer; the bytes reach the stream
+once the event loop runs. Before long synchronous work such as a native FFI
+call, `await out.flush()` so the lines already written appear first:
 
 ```typescript
-import * as task from "@eserstack/functions/task";
-import * as span from "@eserstack/streams/span";
+import * as streams from "@eserstack/streams";
 
-type HandlerContext = { readonly out: Output };
+const out = streams.output({ sink: streams.sinks.stdout() });
 
-const myHandler = (input: Input): task.Task<Output, Error, HandlerContext> =>
-  task.task(async (ctx) => {
-    ctx.out.writeln(span.bold("Processing..."));
-    // ... business logic
-    ctx.out.writeln(span.green("✓ Done"));
-    return results.ok(output);
-  });
+const runSynchronousStep = (): void => {
+  // Stands in for a synchronous FFI call that holds the event loop
+};
+
+out.writeln("Checking files...");
+await out.flush();
+runSynchronousStep();
+out.writeln("Done");
+await out.close();
 ```
 
-The adapter provides the Output with the right renderer + sink:
+## Integration with @eserstack/functions
+
+Handlers use `ctx.out` (an `Output` instance) injected via the Task context.
+Each adapter passes `myHandler` an Output with the renderer and sink its target
+needs:
 
 ```typescript
+import * as functions from "@eserstack/functions";
+import * as primitives from "@eserstack/primitives";
+import * as streams from "@eserstack/streams";
+
+type HandlerContext = { readonly out: streams.Output };
+
+const myHandler = (
+  input: string,
+): functions.task.Task<string, Error, HandlerContext> =>
+  functions.task.task(async (ctx) => {
+    ctx.out.writeln(streams.span.bold("Processing..."));
+    // ... business logic
+    ctx.out.writeln(streams.span.green("✓ Done"));
+    return primitives.results.ok(input.toUpperCase());
+  });
+
 // CLI adapter
-const out = streams.output({
-  renderer: renderers.ansi(),
-  sink: sinks.stdout(),
+const cliOut = streams.output({
+  renderer: streams.renderers.ansi(),
+  sink: streams.sinks.stdout(),
 });
-await task.runTask(myHandler(input), { out });
+await functions.task.runTask(myHandler("input"), { out: cliOut });
 
 // MCP adapter
-const buf = sinks.buffer();
-const out = streams.output({ renderer: renderers.markdown(), sink: buf });
-await task.runTask(myHandler(input), { out });
+const buf = streams.sinks.buffer();
+const mcpOut = streams.output({
+  renderer: streams.renderers.markdown(),
+  sink: buf,
+});
+await functions.task.runTask(myHandler("input"), { out: mcpOut });
+await mcpOut.flush();
 const response = buf.items().join("");
 ```
 
 ## License
 
 Apache-2.0
+
+---
+
+## 🔗 Links
+
+- [@eserstack/functions](https://jsr.io/@eserstack/functions): tasks whose
+  handlers write through an `Output`
+- [@eserstack/laroux-react](https://jsr.io/@eserstack/laroux-react): the React
+  renderer for Span trees
+- [JSR package](https://jsr.io/@eserstack/streams): the API reference generated
+  from source
+- [eser/stack on GitHub](https://github.com/eser/stack)

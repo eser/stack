@@ -4,14 +4,18 @@
  * Image processing with Sharp library
  */
 
+export type {
+  ImageManifest,
+  ImageVariant,
+  OptimizedImage,
+} from "../../domain/image-optimizer.ts";
+
 export {
   generateSrcset,
   getBestVariant,
-  type ImageManifest,
   type ImageOptimizationConfig,
-  type ImageVariant,
-  type OptimizedImage,
   optimizeImage,
   optimizeImages,
   scanImages,
+  sharpImageOptimizer,
 } from "./image-optimizer.ts";

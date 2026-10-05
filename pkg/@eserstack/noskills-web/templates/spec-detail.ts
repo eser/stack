@@ -7,26 +7,25 @@
  */
 
 import type * as dashboard from "@eserstack/noskills/dashboard";
-import { layout } from "./layout.ts";
-import * as c from "./components.ts";
-import { escHtml } from "./escape.ts";
+import * as layout from "./layout.ts";
+import * as components from "./components.ts";
+import * as escape from "./escape.ts";
 
 export const renderSpecDetail = (
   spec: dashboard.SpecSummary,
   specContent: string,
   _currentUser: dashboard.User | null,
 ): string => {
-  // Phase-specific CTAs
+  // Phase-specific CTAs. Each action must be one routes/api.ts handles.
+  // SPEC_APPROVED has none: the dashboard layer has no action that starts
+  // execution, so it starts from the agent (`noskills spec <name> next`).
   const ctas: string[] = [];
 
   if (spec.phase === "SPEC_PROPOSAL") {
-    ctas.push(c.ctaButton("Approve Spec", spec.slug, "approve"));
-  }
-  if (spec.phase === "SPEC_APPROVED") {
-    ctas.push(c.ctaButton("Start Execution", spec.slug, "start"));
+    ctas.push(components.ctaButton("Approve Spec", spec.slug, "approve"));
   }
   if (spec.phase === "EXECUTING") {
-    ctas.push(c.ctaButton("Mark Complete", spec.slug, "complete"));
+    ctas.push(components.ctaButton("Mark Complete", spec.slug, "complete"));
   }
 
   // Always show note/question buttons for active specs
@@ -34,8 +33,8 @@ export const renderSpecDetail = (
     spec.phase !== "COMPLETED" && spec.phase !== "IDLE" &&
     spec.phase !== "UNINITIALIZED"
   ) {
-    ctas.push(c.ctaButton("Add Note", spec.slug, "note"));
-    ctas.push(c.ctaButton("Ask Question", spec.slug, "question"));
+    ctas.push(components.ctaButton("Add Note", spec.slug, "note"));
+    ctas.push(components.ctaButton("Ask Question", spec.slug, "question"));
   }
 
   // Pending questions
@@ -45,9 +44,11 @@ export const renderSpecDetail = (
         ${
       spec.pendingQuestions.map((q) =>
         `<div class="question-item">
-            <strong>${escHtml(q.user)}</strong>: ${escHtml(q.text)}
+            <strong>${escape.escHtml(q.user)}</strong>: ${
+          escape.escHtml(q.text)
+        }
             ${
-          c.ctaButton("Reply", spec.slug, "reply", {
+          components.ctaButton("Reply", spec.slug, "reply", {
             "question-id": q.id,
           })
         }
@@ -68,11 +69,13 @@ export const renderSpecDetail = (
       spec.tasks.map((t) =>
         `<li class="${t.done ? "done" : ""}">
               <input type="checkbox" ${t.done ? "checked" : ""} disabled />
-              <span>${escHtml(t.id)}: ${escHtml(t.description)}</span>
+              <span>${escape.escHtml(t.id)}: ${
+          escape.escHtml(t.description)
+        }</span>
               ${
-          t.files
+          t.files !== undefined && t.files.length > 0
             ? `<span class="file-hints">${
-              t.files.map((f) => `<code>${escHtml(f)}</code>`).join(", ")
+              t.files.map((f) => `<code>${escape.escHtml(f)}</code>`).join(", ")
             }</span>`
             : ""
         }
@@ -85,7 +88,9 @@ export const renderSpecDetail = (
 
   // Spec markdown content
   const specHtml = specContent.length > 0
-    ? `<div class="spec-content"><pre>${escHtml(specContent)}</pre></div>`
+    ? `<div class="spec-content"><pre>${
+      escape.escHtml(specContent)
+    }</pre></div>`
     : "";
 
   const ctaBar = ctas.length > 0
@@ -96,9 +101,9 @@ export const renderSpecDetail = (
   <div class="spec-detail">
     <div class="spec-header">
       <a href="/" class="back-link">&larr; All Specs</a>
-      <h1>${escHtml(spec.name)} ${c.phaseBadge(spec.phase)}</h1>
-      <p class="spec-description">${escHtml(spec.description)}</p>
-      <div class="roadmap">${escHtml(spec.roadmap)}</div>
+      <h1>${escape.escHtml(spec.name)} ${components.phaseBadge(spec.phase)}</h1>
+      <p class="spec-description">${escape.escHtml(spec.description)}</p>
+      <div class="roadmap">${escape.escHtml(spec.roadmap)}</div>
       ${ctaBar}
     </div>
 
@@ -109,11 +114,11 @@ export const renderSpecDetail = (
     ${
     spec.contributors.length > 0
       ? `<div class="contributors">Contributors: ${
-        spec.contributors.map((n) => escHtml(n)).join(", ")
+        spec.contributors.map((n) => escape.escHtml(n)).join(", ")
       }</div>`
       : ""
   }
   </div>`;
 
-  return layout(`${spec.name} — noskills`, body);
+  return layout.layout(`${spec.name} — noskills`, body);
 };

@@ -19,27 +19,35 @@ var (
 // privateNetworks defines RFC 1918, RFC 5735, and RFC 4193 private/reserved CIDR ranges.
 //
 //nolint:gochecknoglobals
-var privateNetworks []*net.IPNet
+var privateNetworks = mustParseCIDRs([]string{
+	"10.0.0.0/8",     // RFC 1918
+	"172.16.0.0/12",  // RFC 1918
+	"192.168.0.0/16", // RFC 1918
+	"127.0.0.0/8",    // Loopback
+	"169.254.0.0/16", // Link-local
+	"0.0.0.0/8",      // Unspecified
+	"100.64.0.0/10",  // Shared address space (RFC 6598)
+	"::1/128",        // IPv6 loopback
+	"fc00::/7",       // IPv6 unique local
+	"fe80::/10",      // IPv6 link-local
+})
 
-//nolint:gochecknoinits
-func init() {
-	cidrs := []string{
-		"10.0.0.0/8",     // RFC 1918
-		"172.16.0.0/12",  // RFC 1918
-		"192.168.0.0/16", // RFC 1918
-		"127.0.0.0/8",    // Loopback
-		"169.254.0.0/16", // Link-local
-		"0.0.0.0/8",      // Unspecified
-		"100.64.0.0/10",  // Shared address space (RFC 6598)
-		"::1/128",        // IPv6 loopback
-		"fc00::/7",       // IPv6 unique local
-		"fe80::/10",      // IPv6 link-local
-	}
+// mustParseCIDRs parses constant CIDR strings. A malformed entry is a
+// programming error, so it panics at start-up instead of silently dropping
+// a range from the list.
+func mustParseCIDRs(cidrs []string) []*net.IPNet {
+	networks := make([]*net.IPNet, 0, len(cidrs))
 
 	for _, cidr := range cidrs {
-		_, network, _ := net.ParseCIDR(cidr)
-		privateNetworks = append(privateNetworks, network)
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			panic(fmt.Sprintf("lib: invalid CIDR constant %q: %v", cidr, err))
+		}
+
+		networks = append(networks, network)
 	}
+
+	return networks
 }
 
 func SplitHostPort(addr string) (string, string, error) {

@@ -9,10 +9,10 @@
  * @module
  */
 
-import { runtime, toPosix } from "@eserstack/standards/cross-runtime";
-import { hasExtension } from "@eserstack/standards/patterns";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as patterns from "@eserstack/standards/patterns";
 import * as shellExec from "@eserstack/shell/exec";
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 // =============================================================================
 // Types
@@ -114,8 +114,8 @@ export const walkSourceFiles = async (
 ): Promise<FileEntry[]> => {
   const { root = ".", extensions, exclude = [] } = options;
 
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
       // Go expects dot-prefixed extensions (".ts"), TS uses bare ("ts")
@@ -152,7 +152,7 @@ export const walkSourceFiles = async (
           .filter((f) => {
             // Exclude patterns use POSIX "/" separators; normalize the path so
             // they match on Windows (backslash) too. No-op on POSIX runtimes.
-            const posixPath = toPosix(f.path);
+            const posixPath = crossRuntime.toPosix(f.path);
             return !allExcludes.some((re) => re.test(posixPath));
           })
           .map((f) => ({
@@ -191,12 +191,12 @@ export const walkSourceFiles = async (
   if (gitFiles !== null) {
     // Git-aware path: iterate over git-tracked files
     for (const relativePath of gitFiles) {
-      const fullPath = runtime.path.join(root, relativePath);
-      const name = runtime.path.basename(relativePath);
+      const fullPath = crossRuntime.runtime.path.join(root, relativePath);
+      const name = crossRuntime.runtime.path.basename(relativePath);
 
       // Apply extension filter (bare extensions: "ts", "json", etc.)
       if (extensions !== undefined && extensions.length > 0) {
-        if (!hasExtension(relativePath, extensions)) {
+        if (!patterns.hasExtension(relativePath, extensions)) {
           continue;
         }
       }
@@ -204,7 +204,7 @@ export const walkSourceFiles = async (
       // Apply exclude patterns. Patterns use POSIX "/" separators, so normalize
       // the OS-native fullPath before testing (relativePath from git is already
       // POSIX). No-op on POSIX runtimes.
-      const posixFullPath = toPosix(fullPath);
+      const posixFullPath = crossRuntime.toPosix(fullPath);
       if (
         allExcludes.some((re) =>
           re.test(posixFullPath) || re.test(relativePath)
@@ -216,7 +216,10 @@ export const walkSourceFiles = async (
       let size = 0;
       let isSymlink = false;
       try {
-        const stat = await runtime.fs.lstat(fullPath);
+        // Files are stat'ed one at a time to bound concurrent file system
+        // calls on large trees; the Go walker above is the fast path.
+        // deno-lint-ignore no-await-in-loop
+        const stat = await crossRuntime.runtime.fs.lstat(fullPath);
         size = stat.size;
         isSymlink = stat.isSymlink;
         // Skip directories
@@ -232,7 +235,7 @@ export const walkSourceFiles = async (
   } else {
     // Fallback: filesystem walk (existing behavior)
     for await (
-      const entry of runtime.fs.walk(root, {
+      const entry of crossRuntime.runtime.fs.walk(root, {
         includeDirs: options.includeDirs ?? false,
         includeFiles: true,
         exts: extensions as string[] | undefined,
@@ -247,14 +250,14 @@ export const walkSourceFiles = async (
       // them against OS-native paths, so they silently miss on Windows. Re-apply
       // the excludes here against a POSIX-normalized path to guarantee matches
       // cross-platform. No-op on POSIX runtimes.
-      const posixPath = toPosix(entry.path);
+      const posixPath = crossRuntime.toPosix(entry.path);
       if (allExcludes.some((re) => re.test(posixPath))) {
         continue;
       }
 
       let size = 0;
       try {
-        const stat = await runtime.fs.stat(entry.path);
+        const stat = await crossRuntime.runtime.fs.stat(entry.path);
         size = stat.size;
       } catch {
         continue;
@@ -321,7 +324,7 @@ export const loadBytes = async (file: FileEntry): Promise<Uint8Array> => {
     return file.rawBytes;
   }
 
-  const bytes = await runtime.fs.readFile(file.path);
+  const bytes = await crossRuntime.runtime.fs.readFile(file.path);
   (file as { rawBytes?: Uint8Array }).rawBytes = bytes;
   return bytes;
 };
@@ -353,12 +356,12 @@ export const isBinaryBytes = (bytes: Uint8Array): boolean => {
  */
 export const matchesAnyPattern = (
   path: string,
-  patterns: readonly (string | RegExp)[],
+  filePatterns: readonly (string | RegExp)[],
 ): boolean => {
   // Patterns are authored with POSIX "/" separators; normalize the path so they
   // match OS-native (backslash) paths on Windows too. No-op on POSIX runtimes.
-  const normalized = toPosix(path);
-  for (const pattern of patterns) {
+  const normalized = crossRuntime.toPosix(path);
+  for (const pattern of filePatterns) {
     if (typeof pattern === "string") {
       if (normalized.includes(pattern) || normalized.endsWith(pattern)) {
         return true;
@@ -401,7 +404,13 @@ export const writeMutations = async (
   let written = 0;
   for (const mutation of mutations) {
     if (mutation.oldContent !== mutation.newContent) {
-      await runtime.fs.writeTextFile(mutation.path, mutation.newContent);
+      // Mutations are written in order, so when two of them target the same
+      // file the later one wins.
+      // deno-lint-ignore no-await-in-loop
+      await crossRuntime.runtime.fs.writeTextFile(
+        mutation.path,
+        mutation.newContent,
+      );
       written++;
     }
   }

@@ -2,10 +2,12 @@ package middlewares
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
 	"github.com/eser/stack/pkg/ajan/lib"
+	"github.com/eser/stack/pkg/ajan/logfx"
 )
 
 const (
@@ -31,7 +33,19 @@ func WithTrustedProxies(trustedProxies *httpfx.TrustedProxies) ResolveAddressOpt
 	}
 }
 
-func ResolveAddressMiddleware(options ...ResolveAddressOption) httpfx.Handler {
+// ResolveAddressMiddleware stores the client address in the request context
+// under ClientAddr, and whether it is a local or remote client under
+// ClientAddrOrigin. Forwarded headers are believed only from the proxies
+// given with WithTrustedProxies.
+//
+// When the address cannot be classified, for example a peer address that is
+// not an IP, the request is answered with a bare 500. The cause, which can
+// name the address, goes to logger with the request context and never into
+// the response.
+func ResolveAddressMiddleware(
+	logger *logfx.Logger,
+	options ...ResolveAddressOption,
+) httpfx.Handler {
 	cfg := &resolveAddressConfig{trustedProxies: nil}
 
 	for _, option := range options {
@@ -49,9 +63,16 @@ func ResolveAddressMiddleware(options ...ResolveAddressOption) httpfx.Handler {
 
 		isLocal, err := lib.DetectLocalNetwork(addr)
 		if err != nil {
+			logger.ErrorContext(
+				ctx.Request.Context(),
+				"httpfx resolve address: classify client address",
+				slog.String("scope_name", "httpfx_resolve_address"),
+				slog.Any("error", err),
+			)
+
 			return ctx.Results.Error(
 				http.StatusInternalServerError,
-				httpfx.WithPlainText(err.Error()),
+				httpfx.WithPlainText(http.StatusText(http.StatusInternalServerError)),
 			)
 		}
 
@@ -69,8 +90,6 @@ func ResolveAddressMiddleware(options ...ResolveAddressOption) httpfx.Handler {
 
 			return ctx.Next()
 		}
-
-		// TODO(@eser) add ip allowlist and blocklist implementations
 
 		newContext = context.WithValue(
 			newContext,

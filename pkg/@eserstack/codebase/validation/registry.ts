@@ -12,6 +12,7 @@
 
 import type { Validator } from "./types.ts";
 import type { FileTool, ToolOptions } from "../file-tool.ts";
+import * as ffiClient from "../ffi-client.ts";
 
 // Hand-written validators
 import * as circularDeps from "./validators/circular-deps.ts";
@@ -305,6 +306,9 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
         };
       }
 
+      // Load the bridge before the synchronous check so the native validator
+      // runs.
+      await ffiClient.ensureLib();
       const result = validateCommitMsg.validateCommitMsg(message, {
         allowAsterisk: options["allowAsterisk"] as boolean | undefined,
         allowMultipleScopes: options["allowMultipleScopes"] as

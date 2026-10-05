@@ -12,12 +12,13 @@ import type { ChunkManifest } from "./chunk-manifest.ts";
 import type { ClientComponent, ModuleMap } from "./framework-plugin.ts";
 
 import * as logging from "@eserstack/logging";
-import { replaceJsExtension } from "@eserstack/standards/patterns";
-import {
-  type BundlerConfig,
-  type BundleResult as EserBundleResult,
-  type BundlerPlugin,
-  createBundler,
+import { runtime } from "@eserstack/standards/cross-runtime";
+import * as patterns from "@eserstack/standards/patterns";
+import * as backends from "@eserstack/bundler/backends";
+import type {
+  BundlerConfig,
+  BundleResult as EserBundleResult,
+  BundlerPlugin,
 } from "@eserstack/bundler/backends";
 import type { BundlerBackend } from "../config.ts";
 
@@ -25,6 +26,14 @@ const bundlerLogger = logging.logger.getLogger([
   "laroux-bundler",
   "bundler",
 ]);
+
+/**
+ * Backend for client bundles, whatever backend the server bundle uses. The
+ * deno-bundler backend ignores bundler plugins, so only rolldown runs the
+ * import map resolver plugin that applies config.browserShims and keeps
+ * server-only modules out of the browser.
+ */
+export const CLIENT_BUNDLER_BACKEND: BundlerBackend = "rolldown";
 
 export type BundleOutput = {
   fileName: string;
@@ -185,7 +194,7 @@ export async function bundle(
 
   bundlerLogger.debug(`Creating bundler: ${backend}`);
 
-  const bundler = createBundler(backend, { entryName: "client" });
+  const bundler = backends.createBundler(backend, { entryName: "client" });
 
   // Build entrypoints map from array
   const entrypoints: Record<string, string> = {};
@@ -232,11 +241,20 @@ export async function bundle(
     throw new Error(`Bundle failed: ${errors}`);
   }
 
-  // Build component manifest from entrypointManifest
+  // Build component manifest from entrypointManifest. Rolldown keys it by
+  // real path, so a component under a symlinked directory (such as /var on
+  // macOS, a link to /private/var) is looked up under its real path as well.
   const manifest: Record<string, string[]> = {};
+  const realPaths = await Promise.all(
+    clientComponents.map((component) =>
+      runtime.fs.realPath(component.filePath)
+    ),
+  );
 
-  for (const component of clientComponents) {
-    const chunks = result.entrypointManifest?.[component.filePath] ?? [];
+  for (const [index, component] of clientComponents.entries()) {
+    const realPath = realPaths[index] ?? component.filePath;
+    const chunks = result.entrypointManifest?.[component.filePath] ??
+      result.entrypointManifest?.[realPath] ?? [];
     if (chunks.length > 0) {
       manifest[component.filePath] = [...chunks];
     }
@@ -305,7 +323,7 @@ export async function bundleServerComponents(
   bundlerLogger.debug(`   Output: ${options.outputDir}`);
   bundlerLogger.debug(`   Externals: ${options.externals?.length ?? 0}`);
 
-  const bundler = createBundler(backend, { entryName: "server" });
+  const bundler = backends.createBundler(backend, { entryName: "server" });
 
   // Build entrypoints map - each server component is a separate entry
   // Output preserves the full path structure (e.g., src/app/layout.ts → src/app/layout.js)
@@ -316,7 +334,7 @@ export async function bundleServerComponents(
       .replace(/^\//, "");
 
     // Strip file extension (src/app/layout.tsx → src/app/layout)
-    relativePath = replaceJsExtension(relativePath, "");
+    relativePath = patterns.replaceJsExtension(relativePath, "");
     entrypoints[relativePath] = filePath;
   }
 

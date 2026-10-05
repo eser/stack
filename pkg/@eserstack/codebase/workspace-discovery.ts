@@ -23,7 +23,7 @@
  * @module
  */
 
-import { JS_FILE_EXTENSIONS } from "@eserstack/standards/patterns";
+import * as patterns from "@eserstack/standards/patterns";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as pkg from "./package/mod.ts";
 import type { PackageConfig, WorkspaceModule } from "./package/types.ts";
@@ -114,10 +114,15 @@ export const resolveModulePath = (
   return runtime.path.resolve(basePath, specifier);
 };
 
+/** `x.test.ts`, `x.bench.tsx`, `x_test.js` and the other test and bench names. */
+const TEST_OR_BENCH_FILE = /[._](?:test|bench)\.[cm]?[jt]sx?$/;
+
 /**
  * Gets all TypeScript files in a package directory.
  *
- * Excludes test files (*_test.ts, *_bench.ts) and private files (_*.ts).
+ * Excludes test and benchmark files (`*.test.ts` and `*.bench.ts`, and the
+ * older `*_test.ts` and `*_bench.ts` forms, for every JS and TS extension),
+ * private files (`_*.ts`) and `testdata/` directories.
  *
  * @param packagePath - Path to package directory
  * @returns Array of TypeScript file paths (relative to package directory)
@@ -129,7 +134,7 @@ export const getPackageFiles = async (
 
   for await (
     const entry of runtime.fs.walk(packagePath, {
-      exts: JS_FILE_EXTENSIONS,
+      exts: patterns.JS_FILE_EXTENSIONS,
       includeDirs: false,
       skip: [/node_modules/, /\.git/],
     })
@@ -137,8 +142,7 @@ export const getPackageFiles = async (
     const relativePath = runtime.path.relative(packagePath, entry.path);
     const fileName = runtime.path.basename(relativePath);
 
-    // Skip test files
-    if (fileName.endsWith("_test.ts") || fileName.endsWith("_bench.ts")) {
+    if (TEST_OR_BENCH_FILE.test(fileName)) {
       continue;
     }
 
@@ -147,8 +151,9 @@ export const getPackageFiles = async (
       continue;
     }
 
-    // Skip testdata directories
-    if (relativePath.includes("testdata/")) {
+    // Skip testdata directories. Split on both separators so the check also
+    // holds for the backslash paths runtime.path.relative returns on Windows.
+    if (relativePath.split(/[\\/]/).includes("testdata")) {
       continue;
     }
 

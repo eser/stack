@@ -10,39 +10,40 @@
  *
  * @example
  * ```typescript
- * import { createCacheManager } from "@eserstack/cache";
+ * import * as cache from "@eserstack/cache";
+ * import { runtime } from "@eserstack/standards/cross-runtime";
  *
  * // Create a cache manager for your application
- * const cache = createCacheManager({
+ * const manager = cache.createCacheManager({
  *   app: { name: "my-cli", org: "eser" }
  * });
  *
  * // Get versioned cache path
- * const binaryPath = cache.getVersionedPath("1.0.0", "binary");
+ * const binaryPath = manager.getVersionedPath("1.0.0", "binary");
  *
  * // Check if cached item exists
- * if (await cache.exists(binaryPath)) {
+ * if (await manager.exists(binaryPath)) {
  *   console.log("Using cached binary");
  * } else {
- *   await cache.ensureDir(runtime.path.dirname(binaryPath));
+ *   await manager.ensureDir(runtime.path.dirname(binaryPath));
  *   // Download and cache...
  * }
  *
  * // List cached items
- * const entries = await cache.list();
+ * const entries = await manager.list();
  *
  * // Clear cache
- * await cache.clear();
+ * await manager.clear();
  * ```
  *
  * @example
  * ```typescript
  * // Direct XDG directory access
- * import * as xdg from "@eserstack/cache/xdg";
+ * import * as cache from "@eserstack/cache";
  *
- * const cacheHome = xdg.getXdgCacheHome();
- * const dataHome = xdg.getXdgDataHome();
- * const configHome = xdg.getXdgConfigHome();
+ * const cacheHome = cache.getXdgCacheHome();
+ * const dataHome = cache.getXdgDataHome();
+ * const configHome = cache.getXdgConfigHome();
  * ```
  *
  * @module

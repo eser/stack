@@ -6,8 +6,9 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
+import * as logger from "@eserstack/logging/logger";
 import * as patterns from "@eserstack/standards/patterns";
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 /**
  * Convert a simple glob pattern to a RegExp.
@@ -26,8 +27,8 @@ export async function* walkFiles(
   globFilter: string | undefined,
   ignoreFilePattern: RegExp,
 ): AsyncGenerator<string> {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error("native library unavailable");
@@ -102,9 +103,14 @@ export const collectExports = async (
 
       exports.push([entry, selectedExports]);
     } catch (err) {
-      // Log import failure with context for debugging
-      // Callers should be aware that some modules may fail to import
-      console.error(`Failed to import module: ${entryUri}`, err);
+      // A module that fails to import is skipped, not fatal: the remaining
+      // modules are still collected, and the warning names the one left out.
+      // The reason goes into the message text, since an Error passed as a log
+      // argument serializes to "{}" and would lose it.
+      const reason = err instanceof Error ? err.message : String(err);
+      await logger.current.warn(
+        `collectExports skipped ${entryUri}: importing it failed (${reason}). Fix the module or exclude it with ignoreFilePattern.`,
+      );
     }
   }
 

@@ -14,12 +14,16 @@ import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
-import { cmd, cmdPrefix } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  // The subcommands below build their command strings with this prefix.
+  const { root } = await persistence.resolveProjectRoot();
+  await cmd.loadCommandPrefix(root);
+
   const subcommand = args?.[0];
 
   if (subcommand === "start") return await sessionStart(args?.slice(1));
@@ -27,7 +31,7 @@ export const main = async (
   if (subcommand === "list") return await sessionList();
   if (subcommand === "gc") return await sessionGc();
 
-  const prefix = cmdPrefix();
+  const prefix = cmd.cmdPrefix();
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -67,7 +71,7 @@ const sessionStart = async (
     out.writeln(
       span.red("noskills is not initialized."),
       " Run: ",
-      span.bold(cmd("init")),
+      span.bold(cmd.cmd("init")),
     );
     await out.close();
     return results.fail({ exitCode: 1 });
@@ -108,7 +112,7 @@ const sessionStart = async (
     );
     out.writeln(
       span.dim(
-        `Example: ${cmdPrefix()} session start --spec=my-feature`,
+        `Example: ${cmd.cmdPrefix()} session start --spec=my-feature`,
       ),
     );
     await out.close();
@@ -119,7 +123,11 @@ const sessionStart = async (
   let phase: string | null = null;
   if (specName !== null) {
     try {
-      const specState = await persistence.resolveState(root, specName);
+      const specState = await persistence.resolveState(
+        root,
+        specName,
+        cmd.cmdPrefix(),
+      );
       phase = specState.phase;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -238,7 +246,7 @@ const sessionList = async (): Promise<shellArgs.CliResult<void>> => {
     out.writeln(
       span.dim(
         `  No active sessions. Start one with: ${
-          cmd("session start --spec=<name>")
+          cmd.cmd("session start --spec=<name>")
         }`,
       ),
     );

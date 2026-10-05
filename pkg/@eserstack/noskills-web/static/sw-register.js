@@ -7,7 +7,10 @@ if ("serviceWorker" in navigator) {
     fetch("/api/cert-fingerprint")
       .then((r) => r.json())
       .then((d) => {
-        if (d.fingerprint && reg.active) {
+        if (
+          typeof d.fingerprint === "string" && d.fingerprint !== "" &&
+          reg.active !== null
+        ) {
           reg.active.postMessage({
             type: "store_cert_fingerprint",
             fingerprint: d.fingerprint,

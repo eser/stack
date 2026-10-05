@@ -48,6 +48,7 @@ export type CliProcess = {
   readonly waitForExit: () => Promise<
     { readonly code: number; readonly success: boolean }
   >;
+  /** Sends the signal (SIGTERM by default); does nothing once it has exited. */
   readonly kill: (signal?: string) => void;
 };
 
@@ -79,38 +80,74 @@ export const spawnCliProcess = (
   if (useStdinPipe && child.stdin !== null) {
     const encoder = new TextEncoder();
     const writer = child.stdin.getWriter();
-    writer.write(encoder.encode(options!.stdinData!)).then(() => {
-      writer.close();
-    }).catch(() => {
-      // stdin may be closed already
-    });
+    writer.write(encoder.encode(options!.stdinData!))
+      .then(() => writer.close())
+      .catch(() => {
+        // The write fails only when the CLI has already exited; its exit code
+        // and stderr tell the caller how it ended.
+      });
   }
 
-  // Wire up AbortSignal → kill
-  if (options?.signal !== undefined) {
-    const signal = options.signal;
+  const signal = options?.signal;
+  let exited = false;
 
-    if (signal.aborted) {
-      child.kill("SIGTERM");
-    } else {
-      signal.addEventListener("abort", () => {
-        child.kill("SIGTERM");
-      }, { once: true });
+  // An exited process is never signalled: its pid may belong to another
+  // process by then.
+  const kill = (name?: string): void => {
+    if (!exited) {
+      child.kill(name ?? "SIGTERM");
     }
+  };
+  const onAbort = (): void => kill();
+
+  const status = child.status.then((result) => {
+    exited = true;
+    // A long-lived signal would otherwise hold one listener per request.
+    signal?.removeEventListener("abort", onAbort);
+
+    return result;
+  });
+
+  if (signal?.aborted === true) {
+    kill();
+  } else {
+    signal?.addEventListener("abort", onAbort, { once: true });
   }
 
   return {
     stdout: child.stdout!,
     stderr: child.stderr!,
     waitForExit: async () => {
-      const status = await child.status;
+      const result = await status;
 
-      return { code: status.code, success: status.success };
+      return { code: result.code, success: result.success };
     },
-    kill: (signal?: string) => {
-      child.kill(signal ?? "SIGTERM");
-    },
+    kill,
   };
+};
+
+/**
+ * Ends a CLI process when the caller is done with it: kills it if it is still
+ * running, then waits for its stderr capture to end, which happens when the
+ * process exits. Call it from `finally` in the scope that spawned the process.
+ * A stream whose consumer stops early otherwise leaves the CLI running, blocked
+ * on a stdout pipe that nobody reads.
+ */
+export const stopCliProcess = async (
+  process: CliProcess,
+  stderrPromise: Promise<string>,
+): Promise<void> => {
+  process.kill();
+
+  // The capture is awaited instead of the exit status: the native child
+  // settles its streams on every path, but leaves its status pending after a
+  // failed read.
+  try {
+    await stderrPromise;
+  } catch {
+    // stderr fails only together with stdout, whose read already reported the
+    // error to the caller, or was abandoned by a caller that stopped reading.
+  }
 };
 
 // =============================================================================
@@ -148,6 +185,9 @@ export async function* parseJsonlStream(
         }
       }
 
+      // Reads stay sequential: each chunk extends the line buffer, and the
+      // consumer pulls lines one at a time.
+      // deno-lint-ignore no-await-in-loop
       readResult = await reader.read();
     }
 
@@ -174,17 +214,11 @@ export const parseTextOutput = async (
   stdout: ReadableStream<Uint8Array>,
   modelId: string,
 ): Promise<generation.GenerateTextResult> => {
-  const reader = stdout.getReader();
   const chunks: string[] = [];
 
-  let readResult = await reader.read();
-
-  while (readResult.done !== true) {
-    chunks.push(decoder.decode(readResult.value, { stream: true }));
-    readResult = await reader.read();
+  for await (const chunk of stdout) {
+    chunks.push(decoder.decode(chunk, { stream: true }));
   }
-
-  reader.releaseLock();
 
   const text = chunks.join("").trim();
 
@@ -203,17 +237,11 @@ export const parseTextOutput = async (
 export const captureStderr = async (
   stderr: ReadableStream<Uint8Array>,
 ): Promise<string> => {
-  const reader = stderr.getReader();
   const chunks: string[] = [];
 
-  let readResult = await reader.read();
-
-  while (readResult.done !== true) {
-    chunks.push(decoder.decode(readResult.value, { stream: true }));
-    readResult = await reader.read();
+  for await (const chunk of stderr) {
+    chunks.push(decoder.decode(chunk, { stream: true }));
   }
-
-  reader.releaseLock();
 
   return chunks.join("").trim();
 };

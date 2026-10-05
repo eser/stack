@@ -1,7 +1,5 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import type { Promisable } from "@eserstack/primitives/promises";
-
 // =============================================================================
 // Core Types
 // =============================================================================
@@ -17,7 +15,7 @@ export type Lifetime = "value" | "lazy";
 /**
  * Factory function that produces a value, optionally async.
  */
-export type Factory<V> = () => Promisable<V>;
+export type Factory<V> = () => V | Promise<V>;
 
 /**
  * Entry descriptor tuple storing lifetime and value/factory.
@@ -52,7 +50,15 @@ export type RegistryItem = {
  *
  * @example
  * ```typescript
- * const builder = createRegistryBuilder<string, Service>();
+ * import * as standards from "@eserstack/standards";
+ *
+ * type Service = { readonly name: string };
+ *
+ * const loggerInstance: Service = { name: "logger" };
+ * const connectToDatabase = (): Promise<Service> =>
+ *   Promise.resolve({ name: "database" });
+ *
+ * const builder = standards.collections.createRegistryBuilder<string, Service>();
  * builder
  *   .set("logger", loggerInstance)
  *   .setLazy("database", () => connectToDatabase());
@@ -107,6 +113,15 @@ export type RegistryBuilder<K extends string = string, V = unknown> = {
  *
  * @example
  * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
+ * type Service = { readonly name: string };
+ *
+ * const builder = standards.collections.createRegistryBuilder<string, Service>()
+ *   .set("logger", { name: "logger" })
+ *   .setLazy("database", () => ({ name: "database" }));
+ * const newInstance: Service = { name: "newService" };
+ *
  * const registry = builder.build();
  *
  * // Read operations
@@ -181,7 +196,14 @@ export type Registry<K extends string = string, V = unknown> = {
  *
  * @example
  * ```typescript
- * const formatIndex: IndexConfig<WriterFormat> = {
+ * import * as standards from "@eserstack/standards";
+ *
+ * type WriterFormat = {
+ *   readonly name: string;
+ *   readonly extensions: readonly string[];
+ * };
+ *
+ * const formatIndex: standards.collections.IndexConfig<WriterFormat> = {
  *   name: "byExtension",
  *   extractor: (format) => format.extensions,
  *   normalize: (ext) => ext.toLowerCase().replace(/^\./, ""),
@@ -205,8 +227,20 @@ export type IndexConfig<V> = {
  *
  * @example
  * ```typescript
- * const registry = createIndexedRegistryBuilder<string, WriterFormat>([
- *   { name: "byExtension", extractor: (f) => f.extensions }
+ * import * as standards from "@eserstack/standards";
+ *
+ * type WriterFormat = {
+ *   readonly name: string;
+ *   readonly extensions: readonly string[];
+ * };
+ *
+ * const jsonFormat: WriterFormat = { name: "json", extensions: ["json"] };
+ *
+ * const registry = standards.collections.createIndexedRegistryBuilder<
+ *   string,
+ *   WriterFormat
+ * >([
+ *   { name: "byExtension", extractor: (f) => f.extensions },
  * ]).set("json", jsonFormat).build();
  *
  * registry.get("json");                       // By primary key
@@ -252,12 +286,18 @@ export type IndexedRegistryBuilder<K extends string = string, V = unknown> = {
  *
  * @example
  * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
+ * type ItemA = { readonly kind: "a" };
+ * type ItemB = { readonly kind: "b" };
+ *
  * interface MyRegistry {
  *   "item-a": ItemA;
  *   "item-b": ItemB;
  * }
  *
- * type Keys = RegistryKeys<MyRegistry>; // "item-a" | "item-b"
+ * // "item-a" | "item-b"
+ * type Keys = standards.collections.RegistryKeys<MyRegistry>;
  * ```
  */
 export type RegistryKeys<T> = keyof T & string;
@@ -267,12 +307,18 @@ export type RegistryKeys<T> = keyof T & string;
  *
  * @example
  * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
+ * type ItemA = { readonly kind: "a" };
+ * type ItemB = { readonly kind: "b" };
+ *
  * interface MyRegistry {
  *   "item-a": ItemA;
  *   "item-b": ItemB;
  * }
  *
- * type ValueA = RegistryValue<MyRegistry, "item-a">; // ItemA
+ * // ItemA
+ * type ValueA = standards.collections.RegistryValue<MyRegistry, "item-a">;
  * ```
  */
 export type RegistryValue<T, K extends keyof T> = T[K];

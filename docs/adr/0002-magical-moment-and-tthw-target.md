@@ -1,6 +1,6 @@
 # ADR 0002 — Magical Moment and Time-to-Hello-World Target
 
-**Status**: Accepted
+**Status**: Accepted; amended 2026-10-04 (see Amendments)
 **Date**: 2026-05-01
 **Deciders**: Eser Ozvataf
 
@@ -52,3 +52,25 @@ A 60-second asciinema recording at the top of the README: `brew install → star
 - 4 crash-safety tests are mandatory; they gate Phase 5b distribution.
 - First-run welcome banner must keep PIN visible without scrolling.
 - WebTransport cert pinning via `serverCertificateHashes` in the PWA client so phone access works without iOS CA trust gymnastics.
+
+## Amendments
+
+### 2026-10-04: The README recording is dropped
+
+The delivery vehicle above, a 60-second asciinema recording at the top of the
+README, is dropped. The recording was never made; `cmd/noskills-server/README.md`
+never had more than a placeholder comment for it. The persona, the TTHW target
+and the magical moment stand.
+
+Reasons:
+
+- The four crash-safety tests in
+  `pkg/ajan/noskillsserverfx/sessions_crash_test.go` prove the magical moment,
+  and the full gate (`deno task cli ok`) runs them on every change. A recording
+  shows one run on one machine.
+- A recording is a snapshot of the CLI's output that no check compares with the
+  current commands, so it goes stale unnoticed when the commands change. The
+  README's text and commands change in the same diff as the code
+  (documentation-conventions: Docs Change With the Code).
+- The noskills-server README states the moment in its "Why this exists" section,
+  next to install and quick start commands the reader can copy.

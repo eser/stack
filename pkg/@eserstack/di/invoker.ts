@@ -1,11 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as functions from "@eserstack/primitives/functions";
-import {
-  type ServiceKey,
-  type ServiceScope,
-  type ServiceValue,
-} from "./primitives.ts";
+import type * as functions from "@eserstack/primitives/functions";
+import type { ServiceKey, ServiceScope, ServiceValue } from "./primitives.ts";
 
 const getFunctionParametersFromString = (fnSerialized: string) => {
   // Limit input length to prevent ReDoS on pathological inputs

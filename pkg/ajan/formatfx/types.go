@@ -15,8 +15,11 @@ var (
 )
 
 // FormatOptions configures serialization and deserialization behavior.
+// A nil *FormatOptions means the zero value.
 type FormatOptions struct {
-	Pretty    bool
+	Pretty bool
+	// Indent is the indentation width. JSON applies it when Pretty is set and
+	// YAML always does; zero means two spaces.
 	Indent    int
 	Separator string
 	Headers   []string
@@ -26,7 +29,12 @@ type FormatOptions struct {
 	// IsFirst signals that WriteItem is being called for the first array element,
 	// allowing formats to suppress leading commas or separators.
 	IsFirst bool
-	Extra   map[string]any
+	// Document signals that the value passed to WriteItem is a whole document,
+	// not one entry of a list: JSON writes no array brackets or separators,
+	// YAML writes the value itself instead of a sequence entry, and TOML writes
+	// no "+++" separator after the table.
+	Document bool
+	Extra    map[string]any
 }
 
 // FormatReader reads items incrementally from chunks of text.
@@ -41,6 +49,8 @@ type FormatReader interface {
 // For formats without an array envelope (JSONL, CSV), WriteStart and WriteEnd
 // return empty strings. The caller must pass IsFirst=true in FormatOptions for
 // the first WriteItem call so that formats can suppress leading delimiters.
+// To write one value as a whole document instead of a list, pass
+// Document=true to a single WriteItem call.
 type Format interface {
 	Name() string
 	Extensions() []string

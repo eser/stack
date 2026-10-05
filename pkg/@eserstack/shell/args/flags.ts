@@ -97,10 +97,10 @@ export const extractFlags = (
  *
  * @example
  * ```ts
- * import { parseFlags } from "@eserstack/shell/args";
+ * import * as shell from "@eserstack/shell";
  *
  * export const main = async (args?: readonly string[]) => {
- *   const { positional, flags } = parseFlags(args ?? [], [
+ *   const { positional, flags } = shell.args.parseFlags(args ?? [], [
  *     { name: "port", short: "p", type: "number", default: 8000, description: "Server port" },
  *     { name: "verbose", type: "boolean", description: "Verbose output" },
  *   ]);

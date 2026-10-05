@@ -12,8 +12,9 @@ import type {
   SubscriptionTier,
   User,
 } from "../../domain/entities/user.ts";
-import { type Handle, toHandle } from "../../domain/values/handle.ts";
-import { toPostId } from "../../domain/values/post-id.ts";
+import * as handle from "../../domain/values/handle.ts";
+import type { Handle } from "../../domain/values/handle.ts";
+import * as postId from "../../domain/values/post-id.ts";
 import type {
   TwitterApiOAuthToken,
   TwitterApiTweet,
@@ -39,23 +40,19 @@ export function mapToDomainPost(
   raw: TwitterApiTweet,
   authorHandle: Handle,
 ): Post {
-  // deno-lint-ignore camelcase
   const conversationId = raw.conversation_id !== undefined
-    // deno-lint-ignore camelcase
-    ? toPostId(raw.conversation_id)
+    ? postId.toPostId(raw.conversation_id)
     : undefined;
-  // deno-lint-ignore camelcase
   const referencedPosts = raw.referenced_tweets?.flatMap((rt) => {
     const type = toReferenceType(rt.type);
     if (type === undefined) return [];
-    return [{ type, id: toPostId(rt.id) }];
+    return [{ type, id: postId.toPostId(rt.id) }];
   });
 
   return {
-    id: toPostId(raw.id),
+    id: postId.toPostId(raw.id),
     text: raw.text,
     authorHandle,
-    // deno-lint-ignore camelcase
     createdAt: raw.created_at !== undefined
       ? new Date(raw.created_at)
       : new Date(0),
@@ -77,10 +74,9 @@ function toSubscriptionTier(raw?: string): SubscriptionTier {
 export function mapToDomainUser(raw: TwitterApiUser): User {
   return {
     id: raw.id,
-    handle: toHandle(raw.username),
+    handle: handle.toHandle(raw.username),
     displayName: raw.name,
     platform: "twitter",
-    // deno-lint-ignore camelcase
     subscriptionTier: toSubscriptionTier(raw.subscription_type),
   };
 }
@@ -98,10 +94,8 @@ export function mapToOAuthTokens(raw: TwitterApiOAuthToken): OAuthTokens {
 
 /** Map an X API usage response to a domain UsageData entity. */
 export function mapToDomainUsage(raw: TwitterApiUsageResponse): UsageData {
-  // deno-lint-ignore camelcase
   const appUsages = raw.data?.daily_client_app_usage ?? [];
   const firstApp = appUsages[0];
-  // deno-lint-ignore camelcase
   const appName = firstApp?.app_name;
 
   // Aggregate daily usage across all app entries (usually just one app)
@@ -109,7 +103,6 @@ export function mapToDomainUsage(raw: TwitterApiUsageResponse): UsageData {
   for (const app of appUsages) {
     for (const day of app.usage ?? []) {
       const dateKey = day.start;
-      // deno-lint-ignore camelcase
       const dayCount = (day.usage_types ?? []).reduce(
         (sum, ut) => sum + ut.count,
         0,

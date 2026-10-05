@@ -6,19 +6,19 @@
  * promote prompt (→ rule add), spec isolation, convention discovery behavioral rule.
  */
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as machine from "./machine.ts";
 import * as schema from "./schema.ts";
 import * as compiler from "../context/compiler.ts";
 import * as template from "../spec/template.ts";
-import { loadDefaultConcerns } from "../context/concerns.ts";
+import * as defaultConcerns from "../defaults/concerns/mod.ts";
 
 // =============================================================================
 // Helpers
 // =============================================================================
 
-const allConcerns = await loadDefaultConcerns();
+const allConcerns = defaultConcerns.DEFAULT_CONCERNS;
 const noRules: readonly string[] = [];
 const noConcerns: readonly schema.ConcernDefinition[] = [];
 
@@ -54,21 +54,21 @@ const makeDecision = (
 // addDecision records in state
 // =============================================================================
 
-describe("Decision recording", () => {
-  it("type=rule sets promoted=true", () => {
+bdd.describe("Decision recording", () => {
+  bdd.it("type=rule sets promoted=true", () => {
     const d = makeDecision("d1", "Validation library", "Zod", true);
     const state = machine.addDecision(inExecuting(), d);
 
-    assertEquals(state.decisions.length, 1);
-    assertEquals(state.decisions[0]?.promoted, true);
+    assert.assertEquals(state.decisions.length, 1);
+    assert.assertEquals(state.decisions[0]?.promoted, true);
   });
 
-  it("type=one-time sets promoted=false", () => {
+  bdd.it("type=one-time sets promoted=false", () => {
     const d = makeDecision("d1", "Image API", "OpenAI Vision", false);
     const state = machine.addDecision(inExecuting(), d);
 
-    assertEquals(state.decisions.length, 1);
-    assertEquals(state.decisions[0]?.promoted, false);
+    assert.assertEquals(state.decisions.length, 1);
+    assert.assertEquals(state.decisions[0]?.promoted, false);
   });
 });
 
@@ -76,11 +76,11 @@ describe("Decision recording", () => {
 // BLOCKED → resolve records decision
 // =============================================================================
 
-describe("BLOCKED → resolve records decision", () => {
-  it("resolution from BLOCKED adds decision to state", () => {
+bdd.describe("BLOCKED → resolve records decision", () => {
+  bdd.it("resolution from BLOCKED adds decision to state", () => {
     const blocked = inBlocked("Which validation library?");
-    assertEquals(blocked.phase, "BLOCKED");
-    assertEquals(blocked.decisions.length, 0);
+    assert.assertEquals(blocked.phase, "BLOCKED");
+    assert.assertEquals(blocked.decisions.length, 0);
 
     // Simulate what next.ts BLOCKED handler does:
     const decision = makeDecision(
@@ -99,10 +99,10 @@ describe("BLOCKED → resolve records decision", () => {
       },
     };
 
-    assertEquals(newState.phase, "EXECUTING");
-    assertEquals(newState.decisions.length, 1);
-    assertEquals(newState.decisions[0]?.choice, "Use Zod");
-    assertEquals(newState.decisions[0]?.promoted, false);
+    assert.assertEquals(newState.phase, "EXECUTING");
+    assert.assertEquals(newState.decisions.length, 1);
+    assert.assertEquals(newState.decisions[0]?.choice, "Use Zod");
+    assert.assertEquals(newState.decisions[0]?.promoted, false);
   });
 });
 
@@ -110,38 +110,41 @@ describe("BLOCKED → resolve records decision", () => {
 // Promote prompt after block resolution
 // =============================================================================
 
-describe("Promote prompt after resolution", () => {
-  it("shows promotePrompt when lastProgress starts with 'Resolved:'", async () => {
-    let state = inExecuting();
-    const d = makeDecision("d1", "Which DB?", "PostgreSQL", false);
-    state = machine.addDecision(state, d);
-    state = {
-      ...state,
-      execution: {
-        ...state.execution,
-        lastProgress: "Resolved: PostgreSQL",
-      },
-    };
+bdd.describe("Promote prompt after resolution", () => {
+  bdd.it(
+    "shows promotePrompt when lastProgress starts with 'Resolved:'",
+    async () => {
+      let state = inExecuting();
+      const d = makeDecision("d1", "Which DB?", "PostgreSQL", false);
+      state = machine.addDecision(state, d);
+      state = {
+        ...state,
+        execution: {
+          ...state.execution,
+          lastProgress: "Resolved: PostgreSQL",
+        },
+      };
 
-    const output = await compiler.compile(
-      state,
-      noConcerns,
-      noRules,
-    ) as compiler.ExecutionOutput;
+      const output = await compiler.compile(
+        state,
+        noConcerns,
+        noRules,
+      ) as compiler.ExecutionOutput;
 
-    assertEquals(output.promotePrompt !== undefined, true);
-    assertEquals(output.promotePrompt!.choice, "PostgreSQL");
-    assertEquals(
-      output.promotePrompt!.prompt.includes("permanent rule"),
-      true,
-    );
-    assertEquals(
-      output.promotePrompt!.prompt.includes("rule add"),
-      true,
-    );
-  });
+      assert.assertEquals(output.promotePrompt !== undefined, true);
+      assert.assertEquals(output.promotePrompt!.choice, "PostgreSQL");
+      assert.assertEquals(
+        output.promotePrompt!.prompt.includes("permanent rule"),
+        true,
+      );
+      assert.assertEquals(
+        output.promotePrompt!.prompt.includes("rule add"),
+        true,
+      );
+    },
+  );
 
-  it("no promotePrompt when decision is already promoted", async () => {
+  bdd.it("no promotePrompt when decision is already promoted", async () => {
     let state = inExecuting();
     const d = makeDecision("d1", "Which DB?", "PostgreSQL", true);
     state = machine.addDecision(state, d);
@@ -160,41 +163,44 @@ describe("Promote prompt after resolution", () => {
     ) as compiler.ExecutionOutput;
 
     // No unpromoted decisions → no prompt
-    assertEquals(output.promotePrompt, undefined);
+    assert.assertEquals(output.promotePrompt, undefined);
   });
 
-  it("no promotePrompt during normal execution (no resolution)", async () => {
-    const state = inExecuting();
-    const output = await compiler.compile(
-      state,
-      noConcerns,
-      noRules,
-    ) as compiler.ExecutionOutput;
+  bdd.it(
+    "no promotePrompt during normal execution (no resolution)",
+    async () => {
+      const state = inExecuting();
+      const output = await compiler.compile(
+        state,
+        noConcerns,
+        noRules,
+      ) as compiler.ExecutionOutput;
 
-    assertEquals(output.promotePrompt, undefined);
-  });
+      assert.assertEquals(output.promotePrompt, undefined);
+    },
+  );
 });
 
 // =============================================================================
 // Spec isolation — one-time decisions
 // =============================================================================
 
-describe("Decision isolation across specs", () => {
-  it("one-time decisions stay in spec's decision list only", () => {
+bdd.describe("Decision isolation across specs", () => {
+  bdd.it("one-time decisions stay in spec's decision list only", () => {
     let state = inExecuting();
     const d = makeDecision("d1", "API", "OpenAI", false);
     state = machine.addDecision(state, d);
-    assertEquals(state.decisions.length, 1);
+    assert.assertEquals(state.decisions.length, 1);
 
     // Reset → start new spec → decisions cleared
     state = machine.resetToIdle(state);
-    assertEquals(state.decisions.length, 0);
+    assert.assertEquals(state.decisions.length, 0);
 
     state = machine.startSpec(state, "new-spec", "spec/new-spec");
-    assertEquals(state.decisions.length, 0);
+    assert.assertEquals(state.decisions.length, 0);
   });
 
-  it("promoted decisions persist as rules, not in state.decisions", () => {
+  bdd.it("promoted decisions persist as rules, not in state.decisions", () => {
     // When a decision is promoted, it gets written to .eser/rules/
     // The state.decisions array is per-spec (cleared on reset)
     // Rules persist via the sync engine, not via state
@@ -204,7 +210,7 @@ describe("Decision isolation across specs", () => {
 
     // Reset clears decisions
     state = machine.resetToIdle(state);
-    assertEquals(state.decisions.length, 0);
+    assert.assertEquals(state.decisions.length, 0);
 
     // But the rule file persists in .eser/rules/ (tested via sync integration)
     // The next spec will get it via context.rules, not state.decisions
@@ -215,8 +221,8 @@ describe("Decision isolation across specs", () => {
 // Spec template includes decisions table
 // =============================================================================
 
-describe("Spec template decisions table", () => {
-  it("includes decisions with promoted type", () => {
+bdd.describe("Spec template decisions table", () => {
+  bdd.it("includes decisions with promoted type", () => {
     const decisions = [
       makeDecision("d1", "Validation library", "Zod", true),
       makeDecision("d2", "Image API", "OpenAI Vision", false),
@@ -224,17 +230,17 @@ describe("Spec template decisions table", () => {
 
     const md = template.renderSpec("test", [], allConcerns, decisions);
 
-    assertEquals(md.includes("## Decisions"), true);
-    assertEquals(md.includes("Validation library"), true);
-    assertEquals(md.includes("Zod"), true);
-    assertEquals(md.includes("OpenAI Vision"), true);
-    assertEquals(md.includes("| yes |"), true); // promoted
-    assertEquals(md.includes("| no |"), true); // one-time
+    assert.assertEquals(md.includes("## Decisions"), true);
+    assert.assertEquals(md.includes("Validation library"), true);
+    assert.assertEquals(md.includes("Zod"), true);
+    assert.assertEquals(md.includes("OpenAI Vision"), true);
+    assert.assertEquals(md.includes("| yes |"), true); // promoted
+    assert.assertEquals(md.includes("| no |"), true); // one-time
   });
 
-  it("omits decisions section when no decisions", () => {
+  bdd.it("omits decisions section when no decisions", () => {
     const md = template.renderSpec("test", [], [], []);
-    assertEquals(md.includes("## Decisions"), false);
+    assert.assertEquals(md.includes("## Decisions"), false);
   });
 });
 
@@ -242,35 +248,41 @@ describe("Spec template decisions table", () => {
 // Convention discovery in behavioral rules
 // =============================================================================
 
-describe("Convention discovery behavioral rule", () => {
-  it("EXECUTING behavioral includes convention discovery instruction", async () => {
-    const state = inExecuting();
-    const output = await compiler.compile(state, noConcerns, noRules);
+bdd.describe("Convention discovery behavioral rule", () => {
+  bdd.it(
+    "EXECUTING behavioral includes convention discovery instruction",
+    async () => {
+      const state = inExecuting();
+      const output = await compiler.compile(state, noConcerns, noRules);
 
-    const hasConventionRule = output.behavioral.rules.some((r) =>
-      r.includes("Permanent rule") || r.includes("permanent rule") ||
-      r.includes("rule add")
-    );
-    assertEquals(hasConventionRule, true);
-  });
+      const hasConventionRule = output.behavioral.rules.some((r) =>
+        r.includes("Permanent rule") || r.includes("permanent rule") ||
+        r.includes("rule add")
+      );
+      assert.assertEquals(hasConventionRule, true);
+    },
+  );
 
-  it("convention discovery mentions rule add command", async () => {
+  bdd.it("convention discovery mentions rule add command", async () => {
     const state = inExecuting();
     const output = await compiler.compile(state, noConcerns, noRules);
 
     const hasRuleAdd = output.behavioral.rules.some((r) =>
       r.includes("rule add")
     );
-    assertEquals(hasRuleAdd, true);
+    assert.assertEquals(hasRuleAdd, true);
   });
 
-  it("convention discovery says never write to .eser/rules/ directly", async () => {
-    const state = inExecuting();
-    const output = await compiler.compile(state, noConcerns, noRules);
+  bdd.it(
+    "convention discovery says never write to .eser/rules/ directly",
+    async () => {
+      const state = inExecuting();
+      const output = await compiler.compile(state, noConcerns, noRules);
 
-    const hasDirect = output.behavioral.rules.some((r) =>
-      r.includes("Never write to")
-    );
-    assertEquals(hasDirect, true);
-  });
+      const hasDirect = output.behavioral.rules.some((r) =>
+        r.includes("Never write to")
+      );
+      assert.assertEquals(hasDirect, true);
+    },
+  );
 });

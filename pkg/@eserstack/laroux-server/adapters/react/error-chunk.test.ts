@@ -1,10 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals } from "@std/assert";
-import { createElement, forwardRef } from "react";
-import { renderToReadableStream } from "./rsc-flight-renderer.ts";
-import { renderSSR } from "./ssr-renderer.ts";
-import { toClientErrorValue } from "./error-chunk.ts";
+import * as assert from "@std/assert";
+import * as React from "react";
+import * as rscFlightRenderer from "./rsc-flight-renderer.ts";
+import * as ssrRenderer from "./ssr-renderer.ts";
+import * as errorChunk from "./error-chunk.ts";
 
 const SECRET_FRAME = "/srv/app/secret-internal-path.ts";
 
@@ -17,34 +17,48 @@ const failing = (): never => {
 const components = {
   sync: () => failing(),
   async: () => Promise.resolve().then(failing),
-  forwardRef: forwardRef(() => failing()),
+  forwardRef: React.forwardRef(() => failing()),
 };
 
 Deno.test("toClientErrorValue carries only the message", () => {
   const error = new Error("boom");
-  assertEquals(toClientErrorValue(error), { message: "boom" });
-  assertEquals(toClientErrorValue("plain"), { message: "plain" });
+  assert.assertEquals(errorChunk.toClientErrorValue(error), {
+    message: "boom",
+  });
+  assert.assertEquals(errorChunk.toClientErrorValue("plain"), {
+    message: "plain",
+  });
 });
 
 for (const [name, Component] of Object.entries(components)) {
   Deno.test(`flight stream error chunk has no stack (${name})`, async () => {
-    const element = createElement("div", null, createElement(Component));
-    const wire = await new Response(renderToReadableStream(element, {}))
+    const element = React.createElement(
+      "div",
+      null,
+      React.createElement(Component),
+    );
+    const wire = await new Response(
+      rscFlightRenderer.renderToReadableStream(element, {}),
+    )
       .text();
     const errorLine = wire.split("\n").find((l) => /^E\d+:/.test(l));
-    assert(errorLine !== undefined, wire);
-    assertEquals(errorLine.includes("boom"), true);
-    assertEquals(errorLine.includes("stack"), false);
-    assertEquals(wire.includes(SECRET_FRAME), false);
+    assert.assert(errorLine !== undefined, wire);
+    assert.assertEquals(errorLine.includes("boom"), true);
+    assert.assertEquals(errorLine.includes("stack"), false);
+    assert.assertEquals(wire.includes(SECRET_FRAME), false);
   });
 }
 
 Deno.test("SSR payload error chunk has no stack", async () => {
-  const element = createElement("div", null, createElement(components.sync));
-  const result = await renderSSR(element, {});
+  const element = React.createElement(
+    "div",
+    null,
+    React.createElement(components.sync),
+  );
+  const result = await ssrRenderer.renderSSR(element, {});
   const serialized = JSON.stringify(result.rscPayload) + result.html;
-  assertEquals(serialized.includes(SECRET_FRAME), false);
-  assertEquals(
+  assert.assertEquals(serialized.includes(SECRET_FRAME), false);
+  assert.assertEquals(
     result.rscPayload.some((c) =>
       c.type === "E" && typeof c.value === "object" && c.value !== null &&
       "stack" in c.value

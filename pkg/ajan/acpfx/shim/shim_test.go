@@ -36,6 +36,11 @@ const (
 
 	// fakeClaudeFail dies with a diagnosis on stderr.
 	fakeClaudeFail = "fail"
+
+	// fakeClaudeResultPrefix starts a mode that answers and then ends the turn
+	// with the given result event: "result:<subtype>:<stop_reason>". An empty
+	// stop reason is sent as null, as the CLI does when it has none.
+	fakeClaudeResultPrefix = "result:"
 )
 
 // TestMain intercepts before the testing framework parses flags, because the
@@ -61,6 +66,29 @@ func runFakeClaude(mode string) {
 	encoder := json.NewEncoder(os.Stdout)
 
 	emit := func(event map[string]any) { _ = encoder.Encode(event) }
+
+	if spec, isResult := strings.CutPrefix(mode, fakeClaudeResultPrefix); isResult {
+		subtype, stopReason, _ := strings.Cut(spec, ":")
+
+		var reported any
+		if stopReason != "" {
+			reported = stopReason
+		}
+
+		emit(map[string]any{"type": "system", "subtype": "init", "session_id": "sess-result"})
+		emit(map[string]any{
+			"type":       "assistant",
+			"session_id": "sess-result",
+			"message": map[string]any{"content": []map[string]any{
+				{"type": "text", "text": "I can't help with that."},
+			}},
+		})
+		emit(map[string]any{
+			"type": "result", "subtype": subtype, "session_id": "sess-result",
+			"result": "I can't help with that.", "stop_reason": reported,
+		})
+		os.Exit(0)
+	}
 
 	switch mode {
 	case fakeClaudeFail:
@@ -244,6 +272,47 @@ func TestShimTranslatesAVendorTurn(t *testing.T) {
 
 	if call.Kind != "edit" {
 		t.Fatalf("tool kind = %q, want edit -- this is the write signal consumers gate on", call.Kind)
+	}
+}
+
+// TestShimMapsTheResultToAStopReason pins how the CLI's result event becomes
+// the turn's ACP stop reason. The CLI reports a declined request as a
+// successful turn whose stop_reason is refusal, and the client must get a
+// refusal rather than end_turn, with the model's explanation still streamed.
+func TestShimMapsTheResultToAStopReason(t *testing.T) {
+	tests := []struct {
+		name       string
+		subtype    string
+		stopReason string
+		want       acpfx.StopReason
+	}{
+		{name: "refusal", subtype: "success", stopReason: "refusal", want: acpfx.StopReasonRefusal},
+		{name: "answer", subtype: "success", stopReason: "end_turn", want: acpfx.StopReasonEndTurn},
+		{name: "no stop reason", subtype: "success", stopReason: "", want: acpfx.StopReasonEndTurn},
+		{name: "max turns", subtype: "error_max_turns", stopReason: "", want: acpfx.StopReasonMaxTurnRequests},
+		{name: "unknown subtype", subtype: "error_during_execution", stopReason: "", want: acpfx.StopReasonEndTurn},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Not parallel: fakeClaude sets the process environment.
+			client, handler := connectShim(t, fakeClaude(t, fakeClaudeResultPrefix+tt.subtype+":"+tt.stopReason))
+
+			session := newShimSession(t, client)
+
+			resp, err := session.Prompt(t.Context(), []acpfx.ContentBlock{acpfx.TextBlock("hi")})
+			if err != nil {
+				t.Fatalf("Prompt: %v", err)
+			}
+
+			if resp.StopReason != tt.want {
+				t.Fatalf("stopReason = %q, want %q", resp.StopReason, tt.want)
+			}
+
+			waitFor(t, "the answer", func() bool {
+				return handler.texts(acpfx.UpdateAgentMessageChunk) == "I can't help with that."
+			})
+		})
 	}
 }
 

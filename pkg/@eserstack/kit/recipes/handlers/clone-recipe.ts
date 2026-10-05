@@ -16,40 +16,92 @@ import * as recipeApplier from "../recipe-applier.ts";
 import * as dependencyResolver from "../dependency-resolver.ts";
 import type * as registrySchema from "../registry-schema.ts";
 import type { HandlerContext } from "../handler-context.ts";
-import { ensureLib, getLib } from "../../ffi-client.ts";
+import * as errorChain from "../error-chain.ts";
+import * as ffiClient from "../../ffi-client.ts";
 
 // =============================================================================
 // Types
 // =============================================================================
 
-type ParsedSpecifier = registryFetcher.ResolvedSpecifier & {
+/** A specifier that names a GitHub repository, as {@link parseSpecifier} returns it. */
+export type ParsedSpecifier = registryFetcher.ResolvedSpecifier & {
   readonly kind: "repo";
 };
 
-type CloneRecipeInput = {
+/** What to clone, where, and how. */
+export type CloneRecipeInput = {
+  /** The repository, and the subpath and ref in it, to clone. */
   readonly specifier: ParsedSpecifier;
+  /**
+   * Path of the recipe file in the repository or subpath; `recipe.json` when
+   * absent. Without that file, the whole repository or subpath is copied.
+   */
   readonly recipePath?: string;
+  /** The directory to clone into. */
   readonly cwd: string;
+  /**
+   * Clone into the `cwd/projectName` directory instead, created when missing.
+   * It also fills the `project_name` variable unless `variables` sets one.
+   */
   readonly projectName?: string;
+  /** Print what would be written, and write nothing, not even `projectName`'s directory. */
   readonly dryRun?: boolean;
+  /** Overwrite files that already exist. */
   readonly force?: boolean;
+  /** Leave files that already exist as they are, without a warning. */
   readonly skipExisting?: boolean;
+  /** Print a line for each file. */
   readonly verbose?: boolean;
+  /** Values for the recipe's variables by name; they win over the defaults. */
   readonly variables?: Readonly<Record<string, string>>;
+  /** Prompt on the terminal for variables that have no value and no default. */
   readonly interactive?: boolean;
+  /** Do not run the recipe's post-install commands. */
   readonly skipPostInstall?: boolean;
+  /**
+   * Whole-repo mode: the most decompressed bytes read from the repository
+   * tarball. Defaults to the extractor's DEFAULT_MAX_BYTES (256 MiB).
+   */
+  readonly maxBytes?: number;
+  /**
+   * Whole-repo mode: the most entries read from the repository tarball.
+   * Defaults to the extractor's DEFAULT_MAX_ENTRIES (20,000).
+   */
+  readonly maxEntries?: number;
 };
 
-type CloneRecipeOutput = {
+/**
+ * What the clone did. When the native ajan library applied the recipe,
+ * `recipe` carries only the repository name and `depInfo` is empty.
+ */
+export type CloneRecipeOutput = {
+  /** The repository's recipe, or an empty one when it has no recipe file. */
   readonly recipe: registrySchema.Recipe;
+  /** The files written and the post-install commands that ran. */
   readonly result: recipeApplier.ApplyResult;
+  /** The install commands for the recipe's dependencies, and any warnings. */
   readonly depInfo: dependencyResolver.DependencyInstructions;
+  /** The directory the files were written to. */
   readonly targetDir: string;
 };
 
-type CloneRecipeError =
-  | { readonly _tag: "FetchError"; readonly message: string }
-  | { readonly _tag: "ApplyError"; readonly message: string };
+/**
+ * Why a clone stopped. `message` renders the whole cause chain for the
+ * person running the command; `cause` is the original error, for matching
+ * on its type (a RecipeLoadError for FetchError, a RecipeApplyError or
+ * PostInstallError for ApplyError).
+ */
+export type CloneRecipeError =
+  | {
+    readonly _tag: "FetchError";
+    readonly message: string;
+    readonly cause: unknown;
+  }
+  | {
+    readonly _tag: "ApplyError";
+    readonly message: string;
+    readonly cause: unknown;
+  };
 
 // =============================================================================
 // FFI eligibility — features the Go bridge does NOT implement
@@ -81,7 +133,14 @@ const canUseFfiPath = (
 // Specifier parsing (delegates to shared resolver)
 // =============================================================================
 
-const parseSpecifier = (specifier: string): ParsedSpecifier | undefined => {
+/**
+ * Parses a clone specifier such as `gh:owner/repo/sub#ref` (see
+ * `resolveSpecifier` in the fetcher for every form). Returns undefined when
+ * the specifier names a registry recipe rather than a repository.
+ */
+export const parseSpecifier = (
+  specifier: string,
+): ParsedSpecifier | undefined => {
   const resolved = registryFetcher.resolveSpecifier(specifier);
 
   if (resolved.kind !== "repo") {
@@ -95,7 +154,19 @@ const parseSpecifier = (specifier: string): ParsedSpecifier | undefined => {
 // Handler
 // =============================================================================
 
-const cloneRecipe = (
+/**
+ * Clones a recipe from a GitHub repository into `input.cwd`, or into its
+ * `projectName` subdirectory, and writes the progress to `ctx.out`. It reads
+ * the recipe file from the repository or subpath. When the file is not there
+ * (HTTP 404), it copies the whole repository or subpath from its tarball,
+ * within `maxBytes` and `maxEntries`. The native ajan library applies the
+ * file-list recipes it supports; the TypeScript applier does the rest.
+ *
+ * @param input - The repository, the target directory and the options
+ * @returns A task that resolves to what was cloned, or fails with a
+ *   FetchError when the recipe file cannot be loaded, or an ApplyError
+ */
+export const cloneRecipe = (
   input: CloneRecipeInput,
 ): task.Task<CloneRecipeOutput, CloneRecipeError, HandlerContext> =>
   task.task<CloneRecipeOutput, CloneRecipeError, HandlerContext>(
@@ -114,19 +185,23 @@ const cloneRecipe = (
             recipePath,
             specifier.subpath,
           );
-        } catch (e) {
-          if (e instanceof registryFetcher.RecipeFileNotFoundError) {
-            // recipe.json absent → whole-repo mode with empty recipe
-            recipe = { schema: "registry/v1" } as registrySchema.Recipe;
-          } else {
-            throw e;
+        } catch (error) {
+          if (!(error instanceof registryFetcher.RecipeFileNotFoundError)) {
+            return results.fail({
+              _tag: "FetchError" as const,
+              message: errorChain.formatErrorChain(error),
+              cause: error,
+            });
           }
+
+          // recipe.json absent → whole-repo mode with empty recipe
+          recipe = { schema: "registry/v1" } as registrySchema.Recipe;
         }
 
         // ── Step 2: Try Go FFI fast path when eligible ──
         if (canUseFfiPath(recipe, input)) {
-          await ensureLib();
-          const lib = getLib();
+          await ffiClient.ensureLib();
+          const lib = ffiClient.getLib();
 
           if (lib !== null) {
             const specifierStr = specifier.subpath !== undefined
@@ -156,7 +231,9 @@ const cloneRecipe = (
               error?: string;
             };
 
-            if (!goResult.error && goResult.recipes !== undefined) {
+            if (
+              goResult.error === undefined && goResult.recipes !== undefined
+            ) {
               let totalWritten = 0;
               for (const entry of goResult.recipes) {
                 totalWritten += entry.written.length;
@@ -211,7 +288,9 @@ const cloneRecipe = (
         let targetDir = input.cwd;
         if (input.projectName !== undefined) {
           targetDir = `${input.cwd}/${input.projectName}`;
-          await runtime.fs.mkdir(targetDir, { recursive: true });
+          if (input.dryRun !== true) {
+            await runtime.fs.mkdir(targetDir, { recursive: true });
+          }
         }
 
         const variables: Record<string, string> = { ...input.variables };
@@ -240,6 +319,8 @@ const cloneRecipe = (
           variables,
           interactive: input.interactive,
           skipPostInstall: input.skipPostInstall,
+          maxBytes: input.maxBytes,
+          maxEntries: input.maxEntries,
         });
 
         const project = await dependencyResolver.detectProjectType(targetDir);
@@ -277,17 +358,11 @@ const cloneRecipe = (
 
         return results.ok({ recipe, result, depInfo, targetDir });
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return results.fail({ _tag: "ApplyError" as const, message: msg });
+        return results.fail({
+          _tag: "ApplyError" as const,
+          message: errorChain.formatErrorChain(error),
+          cause: error,
+        });
       }
     },
   );
-
-export { cloneRecipe, parseSpecifier };
-
-export type {
-  CloneRecipeError,
-  CloneRecipeInput,
-  CloneRecipeOutput,
-  ParsedSpecifier,
-};

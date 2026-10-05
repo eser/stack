@@ -3,68 +3,45 @@
 
 // Client-side router hook for programmatic navigation
 
-import { useCallback } from "react";
 import type {
   NavigateOptions,
   RouterMethods,
 } from "@eserstack/laroux/navigation";
-import { NAVIGATION_EVENT_NAME } from "@eserstack/laroux/navigation";
+import * as linkNavigation from "./link-navigation.ts";
+
+// The methods hold no state, so every call of useRouter returns this one
+// object and its functions keep their identity across renders.
+const router: RouterMethods = {
+  push: (href: string, options: NavigateOptions = {}) => {
+    linkNavigation.navigateOnClient(globalThis.window, href, {
+      replace: false,
+      scroll: options.scroll !== false,
+    });
+  },
+  replace: (href: string, options: NavigateOptions = {}) => {
+    linkNavigation.navigateOnClient(globalThis.window, href, {
+      replace: true,
+      scroll: options.scroll !== false,
+    });
+  },
+  back: () => {
+    globalThis.window.history.back();
+  },
+  forward: () => {
+    globalThis.window.history.forward();
+  },
+  refresh: () => {
+    globalThis.window.location.reload();
+  },
+};
 
 /**
- * Hook to access client-side router methods
- * Provides programmatic navigation similar to Next.js useRouter
+ * Access the client-side router for programmatic navigation, such as after a
+ * successful submit. `push` and `replace` navigate like `Link` and scroll to
+ * the top unless `scroll` is `false`; `refresh` reloads the whole page.
+ *
+ * @returns The router methods; the same object on every call
  */
 export function useRouter(): RouterMethods {
-  const push = useCallback((href: string, options: NavigateOptions = {}) => {
-    const { scroll = true } = options;
-
-    // Update browser history
-    globalThis.window.history.pushState({}, "", href);
-
-    // Scroll to top if enabled
-    if (scroll) {
-      globalThis.window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    // Trigger navigation event for RSC update
-    globalThis.window.dispatchEvent(new Event(NAVIGATION_EVENT_NAME));
-  }, []);
-
-  const replace = useCallback(
-    (href: string, options: NavigateOptions = {}) => {
-      const { scroll = true } = options;
-
-      // Update browser history
-      globalThis.window.history.replaceState({}, "", href);
-
-      // Scroll to top if enabled
-      if (scroll) {
-        globalThis.window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-
-      // Trigger navigation event for RSC update
-      globalThis.window.dispatchEvent(new Event(NAVIGATION_EVENT_NAME));
-    },
-    [],
-  );
-
-  const back = useCallback(() => {
-    globalThis.window.history.back();
-  }, []);
-
-  const forward = useCallback(() => {
-    globalThis.window.history.forward();
-  }, []);
-
-  const refresh = useCallback(() => {
-    globalThis.window.location.reload();
-  }, []);
-
-  return {
-    push,
-    replace,
-    back,
-    forward,
-    refresh,
-  };
+  return router;
 }

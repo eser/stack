@@ -7,11 +7,11 @@
  * @module
  */
 
-import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { assert, assertEquals, assertThrows } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as packSchema from "./schema.ts";
-import { BUILTIN_PACKS } from "../defaults/packs/mod.ts";
+import * as defaultPacks from "../defaults/packs/mod.ts";
 import * as packCmd from "../commands/pack.ts";
 
 // =============================================================================
@@ -27,6 +27,16 @@ const fileExists = async (path: string): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+/** Checks every path concurrently; the result keeps the order of `paths`. */
+const filesExist = (paths: readonly string[]): Promise<boolean[]> =>
+  Promise.all(paths.map((path) => fileExists(path)));
+
+const removeFiles = async (paths: readonly string[]): Promise<void> => {
+  await Promise.all(
+    paths.map((path) => crossRuntime.runtime.fs.remove(path)),
+  );
 };
 
 const readJson = async (path: string): Promise<unknown> => {
@@ -47,8 +57,8 @@ const scaffoldEserDir = async (root: string): Promise<void> => {
 // PackManifest schema validation
 // =============================================================================
 
-describe("PackManifest validation", () => {
-  it("valid manifest parses successfully", () => {
+bdd.describe("PackManifest validation", () => {
+  bdd.it("valid manifest parses successfully", () => {
     const data = {
       name: "test-pack",
       version: "1.0.0",
@@ -58,45 +68,45 @@ describe("PackManifest validation", () => {
 
     const result = packSchema.validatePackManifest(data);
 
-    assertEquals(result.name, "test-pack");
-    assertEquals(result.version, "1.0.0");
-    assertEquals(result.description, "A test pack");
+    assert.assertEquals(result.name, "test-pack");
+    assert.assertEquals(result.version, "1.0.0");
+    assert.assertEquals(result.description, "A test pack");
   });
 
-  it("missing name throws", () => {
+  bdd.it("missing name throws", () => {
     const data = { version: "1.0.0", description: "No name" };
 
-    assertThrows(
+    assert.assertThrows(
       () => packSchema.validatePackManifest(data),
       Error,
       "name",
     );
   });
 
-  it("empty name throws", () => {
+  bdd.it("empty name throws", () => {
     const data = { name: "", version: "1.0.0", description: "Empty name" };
 
-    assertThrows(
+    assert.assertThrows(
       () => packSchema.validatePackManifest(data),
       Error,
       "name",
     );
   });
 
-  it("missing version throws", () => {
+  bdd.it("missing version throws", () => {
     const data = { name: "test", description: "No version" };
 
-    assertThrows(
+    assert.assertThrows(
       () => packSchema.validatePackManifest(data),
       Error,
       "version",
     );
   });
 
-  it("missing description throws", () => {
+  bdd.it("missing description throws", () => {
     const data = { name: "test", version: "1.0.0" };
 
-    assertThrows(
+    assert.assertThrows(
       () => packSchema.validatePackManifest(data),
       Error,
       "description",
@@ -108,54 +118,54 @@ describe("PackManifest validation", () => {
 // Built-in pack loading
 // =============================================================================
 
-describe("Built-in pack loading", () => {
-  it("loads all 3 built-in packs", () => {
-    assertEquals(BUILTIN_PACKS.size, 3);
-    assert(BUILTIN_PACKS.has("typescript"));
-    assert(BUILTIN_PACKS.has("react"));
-    assert(BUILTIN_PACKS.has("security"));
+bdd.describe("Built-in pack loading", () => {
+  bdd.it("loads all 3 built-in packs", () => {
+    assert.assertEquals(defaultPacks.BUILTIN_PACKS.size, 3);
+    assert.assert(defaultPacks.BUILTIN_PACKS.has("typescript"));
+    assert.assert(defaultPacks.BUILTIN_PACKS.has("react"));
+    assert.assert(defaultPacks.BUILTIN_PACKS.has("security"));
   });
 
-  it("typescript pack has correct structure", () => {
-    const ts = BUILTIN_PACKS.get("typescript")!;
+  bdd.it("typescript pack has correct structure", () => {
+    const ts = defaultPacks.BUILTIN_PACKS.get("typescript")!;
 
-    assertEquals(ts.manifest.name, "typescript");
-    assertEquals(ts.manifest.version, "1.0.0");
-    assertEquals(Object.keys(ts.ruleContents).length, 3);
-    assert("use-strict-types" in ts.ruleContents);
-    assert("no-any" in ts.ruleContents);
-    assert("prefer-const" in ts.ruleContents);
-    assertEquals(ts.concernContents.length, 1);
-    assertEquals(ts.concernContents[0]!.id, "ts-quality");
+    assert.assertEquals(ts.manifest.name, "typescript");
+    assert.assertEquals(ts.manifest.version, "1.0.0");
+    assert.assertEquals(Object.keys(ts.ruleContents).length, 3);
+    assert.assert("use-strict-types" in ts.ruleContents);
+    assert.assert("no-any" in ts.ruleContents);
+    assert.assert("prefer-const" in ts.ruleContents);
+    assert.assertEquals(ts.concernContents.length, 1);
+    assert.assertEquals(ts.concernContents[0]!.id, "ts-quality");
   });
 
-  it("react pack has correct structure", () => {
-    const react = BUILTIN_PACKS.get("react")!;
+  bdd.it("react pack has correct structure", () => {
+    const react = defaultPacks.BUILTIN_PACKS.get("react")!;
 
-    assertEquals(react.manifest.name, "react");
-    assertEquals(Object.keys(react.ruleContents).length, 3);
-    assertEquals(react.concernContents.length, 0);
+    assert.assertEquals(react.manifest.name, "react");
+    assert.assertEquals(Object.keys(react.ruleContents).length, 3);
+    assert.assertEquals(react.concernContents.length, 0);
   });
 
-  it("security pack has correct structure", () => {
-    const sec = BUILTIN_PACKS.get("security")!;
+  bdd.it("security pack has correct structure", () => {
+    const sec = defaultPacks.BUILTIN_PACKS.get("security")!;
 
-    assertEquals(sec.manifest.name, "security");
-    assertEquals(Object.keys(sec.ruleContents).length, 3);
-    assertEquals(sec.concernContents.length, 1);
-    assertEquals(sec.concernContents[0]!.id, "security-audit");
+    assert.assertEquals(sec.manifest.name, "security");
+    assert.assertEquals(Object.keys(sec.ruleContents).length, 3);
+    assert.assertEquals(sec.concernContents.length, 1);
+    assert.assertEquals(sec.concernContents[0]!.id, "security-audit");
   });
 
-  it("concern definitions follow ConcernDefinition schema", () => {
-    for (const [, builtin] of BUILTIN_PACKS) {
+  bdd.it("concern definitions follow ConcernDefinition schema", () => {
+    for (const [, builtin] of defaultPacks.BUILTIN_PACKS) {
       for (const concern of builtin.concernContents) {
-        assertEquals(typeof concern.id, "string");
-        assertEquals(typeof concern.name, "string");
-        assertEquals(typeof concern.description, "string");
-        assert(Array.isArray(concern.extras));
-        assert(Array.isArray(concern.specSections));
-        assert(Array.isArray(concern.reminders));
-        assert(Array.isArray(concern.acceptanceCriteria));
+        assert.assertEquals(typeof concern.id, "string");
+        assert.assertEquals(typeof concern.name, "string");
+        assert.assertEquals(typeof concern.description, "string");
+        assert.assert(Array.isArray(concern.extras));
+        assert.assert(Array.isArray(concern.specSections));
+        assert.assert(Array.isArray(concern.reminders));
+        assert.assert(Array.isArray(concern.acceptanceCriteria));
       }
     }
   });
@@ -165,80 +175,83 @@ describe("Built-in pack loading", () => {
 // Pack install (built-in)
 // =============================================================================
 
-describe("Pack install (built-in)", () => {
-  beforeEach(async () => {
+bdd.describe("Pack install (built-in)", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "pack_install_",
     });
     await scaffoldEserDir(tempDir);
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("copies rules to .eser/rules/ with pack prefix", async () => {
-    const builtin = BUILTIN_PACKS.get("typescript")!;
+  bdd.it("copies rules to .eser/rules/ with pack prefix", async () => {
+    const builtin = defaultPacks.BUILTIN_PACKS.get("typescript")!;
     const installed = await packCmd.installBuiltinPack(
       tempDir,
       "typescript",
       builtin,
     );
 
-    assertEquals(installed.rules.length, 3);
+    assert.assertEquals(installed.rules.length, 3);
 
     for (const ruleFile of installed.rules) {
-      assert(ruleFile.startsWith("pack-typescript-"));
-      assert(ruleFile.endsWith(".md"));
-      assert(await fileExists(`${tempDir}/.eser/rules/${ruleFile}`));
+      assert.assert(ruleFile.startsWith("pack-typescript-"));
+      assert.assert(ruleFile.endsWith(".md"));
     }
+    const rulesExist = await filesExist(
+      installed.rules.map((ruleFile) => `${tempDir}/.eser/rules/${ruleFile}`),
+    );
+    assert.assertEquals(rulesExist.includes(false), false);
   });
 
-  it("copies concerns to .eser/concerns/ with numeric prefix", async () => {
-    const builtin = BUILTIN_PACKS.get("typescript")!;
+  bdd.it("copies concerns to .eser/concerns/ with numeric prefix", async () => {
+    const builtin = defaultPacks.BUILTIN_PACKS.get("typescript")!;
     const installed = await packCmd.installBuiltinPack(
       tempDir,
       "typescript",
       builtin,
     );
 
-    assertEquals(installed.concerns.length, 1);
+    assert.assertEquals(installed.concerns.length, 1);
 
     const concernFile = installed.concerns[0]!;
-    assert(concernFile.match(/^\d{3}-ts-quality\.json$/));
-    assert(await fileExists(`${tempDir}/.eser/concerns/${concernFile}`));
+    assert.assertMatch(concernFile, /^\d{3}-ts-quality\.json$/);
+    assert.assert(await fileExists(`${tempDir}/.eser/concerns/${concernFile}`));
 
     const content = await readJson(
       `${tempDir}/.eser/concerns/${concernFile}`,
     ) as { id: string };
-    assertEquals(content.id, "ts-quality");
+    assert.assertEquals(content.id, "ts-quality");
   });
 
-  it("records correct metadata in InstalledPack", async () => {
-    const builtin = BUILTIN_PACKS.get("react")!;
+  bdd.it("records correct metadata in InstalledPack", async () => {
+    const builtin = defaultPacks.BUILTIN_PACKS.get("react")!;
     const installed = await packCmd.installBuiltinPack(
       tempDir,
       "react",
       builtin,
     );
 
-    assertEquals(installed.name, "react");
-    assertEquals(installed.version, "1.0.0");
-    assertEquals(installed.source, "builtin");
-    assertEquals(installed.rules.length, 3);
-    assertEquals(installed.concerns.length, 0);
-    assertEquals(installed.folderRules.length, 0);
-    assert(installed.installedAt.length > 0);
+    assert.assertEquals(installed.name, "react");
+    assert.assertEquals(installed.version, "1.0.0");
+    assert.assertEquals(installed.source, "builtin");
+    assert.assertEquals(installed.rules.length, 3);
+    assert.assertEquals(installed.concerns.length, 0);
+    assert.assertEquals(installed.folderRules.length, 0);
+    assert.assert(installed.installedAt.length > 0);
   });
 
-  it("rule files contain the rule text", async () => {
-    const builtin = BUILTIN_PACKS.get("security")!;
+  bdd.it("rule files contain the rule text", async () => {
+    const builtin = defaultPacks.BUILTIN_PACKS.get("security")!;
     await packCmd.installBuiltinPack(tempDir, "security", builtin);
 
     const content = await crossRuntime.runtime.fs.readTextFile(
       `${tempDir}/.eser/rules/pack-security-no-secrets-in-code.md`,
     );
-    assert(content.includes("Never hardcode API keys"));
+    assert.assert(content.includes("Never hardcode API keys"));
   });
 });
 
@@ -246,20 +259,20 @@ describe("Pack install (built-in)", () => {
 // Pack install (duplicate detection)
 // =============================================================================
 
-describe("Pack install (duplicate)", () => {
-  beforeEach(async () => {
+bdd.describe("Pack install (duplicate)", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "pack_dup_",
     });
     await scaffoldEserDir(tempDir);
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("packs.json records installed packs", async () => {
-    const builtin = BUILTIN_PACKS.get("typescript")!;
+  bdd.it("packs.json records installed packs", async () => {
+    const builtin = defaultPacks.BUILTIN_PACKS.get("typescript")!;
     const installed = await packCmd.installBuiltinPack(
       tempDir,
       "typescript",
@@ -269,8 +282,8 @@ describe("Pack install (duplicate)", () => {
     await packCmd.writePacksFile(tempDir, { installed: [installed] });
 
     const packsFile = await packCmd.readPacksFile(tempDir);
-    assertEquals(packsFile.installed.length, 1);
-    assertEquals(packsFile.installed[0]!.name, "typescript");
+    assert.assertEquals(packsFile.installed.length, 1);
+    assert.assertEquals(packsFile.installed[0]!.name, "typescript");
   });
 });
 
@@ -278,21 +291,21 @@ describe("Pack install (duplicate)", () => {
 // Pack uninstall
 // =============================================================================
 
-describe("Pack uninstall", () => {
-  beforeEach(async () => {
+bdd.describe("Pack uninstall", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "pack_uninst_",
     });
     await scaffoldEserDir(tempDir);
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("removes rule files on uninstall", async () => {
+  bdd.it("removes rule files on uninstall", async () => {
     // Install first
-    const builtin = BUILTIN_PACKS.get("typescript")!;
+    const builtin = defaultPacks.BUILTIN_PACKS.get("typescript")!;
     const installed = await packCmd.installBuiltinPack(
       tempDir,
       "typescript",
@@ -300,62 +313,52 @@ describe("Pack uninstall", () => {
     );
     await packCmd.writePacksFile(tempDir, { installed: [installed] });
 
+    const rulePaths = installed.rules.map((ruleFile) =>
+      `${tempDir}/.eser/rules/${ruleFile}`
+    );
+    const concernPaths = installed.concerns.map((concernFile) =>
+      `${tempDir}/.eser/concerns/${concernFile}`
+    );
+
     // Verify files exist
-    for (const ruleFile of installed.rules) {
-      assert(await fileExists(`${tempDir}/.eser/rules/${ruleFile}`));
-    }
+    assert.assertEquals((await filesExist(rulePaths)).includes(false), false);
 
     // Read packs, simulate uninstall by removing files
-    for (const ruleFile of installed.rules) {
-      await crossRuntime.runtime.fs.remove(
-        `${tempDir}/.eser/rules/${ruleFile}`,
-      );
-    }
-    for (const concernFile of installed.concerns) {
-      await crossRuntime.runtime.fs.remove(
-        `${tempDir}/.eser/concerns/${concernFile}`,
-      );
-    }
+    await removeFiles([...rulePaths, ...concernPaths]);
     await packCmd.writePacksFile(tempDir, { installed: [] });
 
     // Verify files are gone
-    for (const ruleFile of installed.rules) {
-      assertEquals(
-        await fileExists(`${tempDir}/.eser/rules/${ruleFile}`),
-        false,
-      );
-    }
+    assert.assertEquals((await filesExist(rulePaths)).includes(true), false);
 
     const packsFile = await packCmd.readPacksFile(tempDir);
-    assertEquals(packsFile.installed.length, 0);
+    assert.assertEquals(packsFile.installed.length, 0);
   });
 
-  it("removes concern files on uninstall", async () => {
-    const builtin = BUILTIN_PACKS.get("security")!;
+  bdd.it("removes concern files on uninstall", async () => {
+    const builtin = defaultPacks.BUILTIN_PACKS.get("security")!;
     const installed = await packCmd.installBuiltinPack(
       tempDir,
       "security",
       builtin,
     );
 
+    const concernPaths = installed.concerns.map((concernFile) =>
+      `${tempDir}/.eser/concerns/${concernFile}`
+    );
+
     // Verify concern exists
-    for (const concernFile of installed.concerns) {
-      assert(await fileExists(`${tempDir}/.eser/concerns/${concernFile}`));
-    }
+    assert.assertEquals(
+      (await filesExist(concernPaths)).includes(false),
+      false,
+    );
 
     // Remove
-    for (const concernFile of installed.concerns) {
-      await crossRuntime.runtime.fs.remove(
-        `${tempDir}/.eser/concerns/${concernFile}`,
-      );
-    }
+    await removeFiles(concernPaths);
 
-    for (const concernFile of installed.concerns) {
-      assertEquals(
-        await fileExists(`${tempDir}/.eser/concerns/${concernFile}`),
-        false,
-      );
-    }
+    assert.assertEquals(
+      (await filesExist(concernPaths)).includes(true),
+      false,
+    );
   });
 });
 
@@ -363,19 +366,19 @@ describe("Pack uninstall", () => {
 // Pack list helpers
 // =============================================================================
 
-describe("Pack list", () => {
-  it("readPacksFile returns empty for non-existent file", async () => {
+bdd.describe("Pack list", () => {
+  bdd.it("readPacksFile returns empty for non-existent file", async () => {
     const tmpDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "pack_list_",
     });
 
     const packsFile = await packCmd.readPacksFile(tmpDir);
-    assertEquals(packsFile.installed.length, 0);
+    assert.assertEquals(packsFile.installed.length, 0);
 
     await crossRuntime.runtime.fs.remove(tmpDir, { recursive: true });
   });
 
-  it("readPacksFile returns saved data", async () => {
+  bdd.it("readPacksFile returns saved data", async () => {
     const tmpDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "pack_list2_",
     });
@@ -397,8 +400,8 @@ describe("Pack list", () => {
     await packCmd.writePacksFile(tmpDir, data);
 
     const result = await packCmd.readPacksFile(tmpDir);
-    assertEquals(result.installed.length, 1);
-    assertEquals(result.installed[0]!.name, "test-pack");
+    assert.assertEquals(result.installed.length, 1);
+    assert.assertEquals(result.installed[0]!.name, "test-pack");
 
     await crossRuntime.runtime.fs.remove(tmpDir, { recursive: true });
   });
@@ -408,20 +411,20 @@ describe("Pack list", () => {
 // Rule prefix naming
 // =============================================================================
 
-describe("Rule prefix", () => {
-  beforeEach(async () => {
+bdd.describe("Rule prefix", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "pack_prefix_",
     });
     await scaffoldEserDir(tempDir);
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("installed rules have pack-{name}- prefix", async () => {
-    const builtin = BUILTIN_PACKS.get("react")!;
+  bdd.it("installed rules have pack-{name}- prefix", async () => {
+    const builtin = defaultPacks.BUILTIN_PACKS.get("react")!;
     const installed = await packCmd.installBuiltinPack(
       tempDir,
       "react",
@@ -429,16 +432,16 @@ describe("Rule prefix", () => {
     );
 
     for (const ruleFile of installed.rules) {
-      assert(
+      assert.assert(
         ruleFile.startsWith("pack-react-"),
         `Expected prefix pack-react-, got: ${ruleFile}`,
       );
     }
   });
 
-  it("different packs have different prefixes", async () => {
-    const ts = BUILTIN_PACKS.get("typescript")!;
-    const sec = BUILTIN_PACKS.get("security")!;
+  bdd.it("different packs have different prefixes", async () => {
+    const ts = defaultPacks.BUILTIN_PACKS.get("typescript")!;
+    const sec = defaultPacks.BUILTIN_PACKS.get("security")!;
 
     const tsInstalled = await packCmd.installBuiltinPack(
       tempDir,
@@ -452,10 +455,10 @@ describe("Rule prefix", () => {
     );
 
     for (const ruleFile of tsInstalled.rules) {
-      assert(ruleFile.startsWith("pack-typescript-"));
+      assert.assert(ruleFile.startsWith("pack-typescript-"));
     }
     for (const ruleFile of secInstalled.rules) {
-      assert(ruleFile.startsWith("pack-security-"));
+      assert.assert(ruleFile.startsWith("pack-security-"));
     }
   });
 });
@@ -464,37 +467,37 @@ describe("Rule prefix", () => {
 // Concern numeric prefix
 // =============================================================================
 
-describe("Concern install", () => {
-  beforeEach(async () => {
+bdd.describe("Concern install", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "pack_concern_",
     });
     await scaffoldEserDir(tempDir);
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("concern gets numeric prefix", async () => {
-    const builtin = BUILTIN_PACKS.get("typescript")!;
+  bdd.it("concern gets numeric prefix", async () => {
+    const builtin = defaultPacks.BUILTIN_PACKS.get("typescript")!;
     const installed = await packCmd.installBuiltinPack(
       tempDir,
       "typescript",
       builtin,
     );
 
-    assertEquals(installed.concerns.length, 1);
-    assert(installed.concerns[0]!.match(/^\d{3}-/));
+    assert.assertEquals(installed.concerns.length, 1);
+    assert.assertMatch(installed.concerns[0]!, /^\d{3}-/);
   });
 
-  it("second pack gets next available numeric prefix", async () => {
+  bdd.it("second pack gets next available numeric prefix", async () => {
     // Install typescript first (has ts-quality concern)
-    const ts = BUILTIN_PACKS.get("typescript")!;
+    const ts = defaultPacks.BUILTIN_PACKS.get("typescript")!;
     await packCmd.installBuiltinPack(tempDir, "typescript", ts);
 
     // Install security (has security-audit concern)
-    const sec = BUILTIN_PACKS.get("security")!;
+    const sec = defaultPacks.BUILTIN_PACKS.get("security")!;
     const secInstalled = await packCmd.installBuiltinPack(
       tempDir,
       "security",
@@ -502,11 +505,11 @@ describe("Concern install", () => {
     );
 
     // Second concern should have prefix 002
-    assert(secInstalled.concerns[0]!.startsWith("002-"));
+    assert.assert(secInstalled.concerns[0]!.startsWith("002-"));
   });
 
-  it("installed concern follows ConcernDefinition schema", async () => {
-    const builtin = BUILTIN_PACKS.get("security")!;
+  bdd.it("installed concern follows ConcernDefinition schema", async () => {
+    const builtin = defaultPacks.BUILTIN_PACKS.get("security")!;
     const installed = await packCmd.installBuiltinPack(
       tempDir,
       "security",
@@ -517,13 +520,13 @@ describe("Concern install", () => {
       `${tempDir}/.eser/concerns/${installed.concerns[0]}`,
     ) as Record<string, unknown>;
 
-    assertEquals(typeof content["id"], "string");
-    assertEquals(typeof content["name"], "string");
-    assertEquals(typeof content["description"], "string");
-    assert(Array.isArray(content["extras"]));
-    assert(Array.isArray(content["specSections"]));
-    assert(Array.isArray(content["reminders"]));
-    assert(Array.isArray(content["acceptanceCriteria"]));
+    assert.assertEquals(typeof content["id"], "string");
+    assert.assertEquals(typeof content["name"], "string");
+    assert.assertEquals(typeof content["description"], "string");
+    assert.assert(Array.isArray(content["extras"]));
+    assert.assert(Array.isArray(content["specSections"]));
+    assert.assert(Array.isArray(content["reminders"]));
+    assert.assert(Array.isArray(content["acceptanceCriteria"]));
   });
 });
 
@@ -531,8 +534,8 @@ describe("Concern install", () => {
 // Pack requires (dependency resolution)
 // =============================================================================
 
-describe("Pack requires", () => {
-  it("manifest with requires field is valid", () => {
+bdd.describe("Pack requires", () => {
+  bdd.it("manifest with requires field is valid", () => {
     const data = {
       name: "advanced-ts",
       version: "1.0.0",
@@ -542,8 +545,8 @@ describe("Pack requires", () => {
     };
 
     const result = packSchema.validatePackManifest(data);
-    assertEquals(result.requires?.length, 1);
-    assertEquals(result.requires![0], "typescript");
+    assert.assertEquals(result.requires?.length, 1);
+    assert.assertEquals(result.requires![0], "typescript");
   });
 });
 
@@ -551,8 +554,8 @@ describe("Pack requires", () => {
 // Sync after install
 // =============================================================================
 
-describe("Sync after install", () => {
-  beforeEach(async () => {
+bdd.describe("Sync after install", () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "pack_sync_",
     });
@@ -563,12 +566,12 @@ describe("Sync after install", () => {
     });
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("installed pack rules are picked up by sync engine", async () => {
-    const builtin = BUILTIN_PACKS.get("typescript")!;
+  bdd.it("installed pack rules are picked up by sync engine", async () => {
+    const builtin = defaultPacks.BUILTIN_PACKS.get("typescript")!;
     await packCmd.installBuiltinPack(tempDir, "typescript", builtin);
 
     // Load rules from the directory — sync engine uses loadScopedRules
@@ -581,7 +584,7 @@ describe("Sync after install", () => {
       r.text.includes("any") ||
       r.text.includes("const")
     );
-    assert(
+    assert.assert(
       packRules.length >= 3,
       `Expected at least 3 pack rules, found ${packRules.length}`,
     );
@@ -592,9 +595,94 @@ describe("Sync after install", () => {
 // createEmptyPacksFile
 // =============================================================================
 
-describe("createEmptyPacksFile", () => {
-  it("returns empty installed array", () => {
+bdd.describe("createEmptyPacksFile", () => {
+  bdd.it("returns empty installed array", () => {
     const packs = packSchema.createEmptyPacksFile();
-    assertEquals(packs.installed.length, 0);
+    assert.assertEquals(packs.installed.length, 0);
+  });
+});
+
+// =============================================================================
+// Remote install: concern scopes
+// =============================================================================
+
+bdd.describe("Pack install (remote): concern scopes", () => {
+  const specifier = "github:example/packs#scoped";
+  const manifest: packSchema.PackManifest = {
+    name: "scoped",
+    version: "1.0.0",
+    description: "A pack whose concern declares scopes",
+    concerns: ["concerns/scoped.json"],
+  };
+  const concernWith = (scope: readonly string[]) =>
+    JSON.stringify({
+      id: "scoped",
+      name: "Scoped",
+      description: "Scoped reminders",
+      extras: [],
+      specSections: [],
+      reminders: ["Plain", { text: "Design every state", scope }],
+      acceptanceCriteria: [],
+    });
+
+  let originalFetch: typeof globalThis.fetch;
+
+  // Serves the pack's concern file in place of raw.githubusercontent.com.
+  const serveConcern = (body: string): void => {
+    globalThis.fetch = (input: string | URL | Request) => {
+      const url = input instanceof Request ? input.url : String(input);
+
+      return Promise.resolve(
+        url.endsWith("/concerns/scoped.json")
+          ? new Response(body)
+          : new Response("not found", { status: 404 }),
+      );
+    };
+  };
+
+  bdd.beforeEach(async () => {
+    tempDir = await crossRuntime.runtime.fs.makeTempDir({
+      prefix: "nos_pack_scope_",
+    });
+    await scaffoldEserDir(tempDir);
+    originalFetch = globalThis.fetch;
+  });
+
+  bdd.afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
+  });
+
+  bdd.it("installs a concern whose reminders declare scopes", async () => {
+    serveConcern(concernWith(["ui"]));
+
+    const installed = await packCmd.installRemotePack(
+      tempDir,
+      specifier,
+      manifest,
+    );
+
+    assert.assertEquals(installed.concerns.length, 1);
+    const written = await readJson(
+      `${tempDir}/.eser/concerns/${installed.concerns[0]}`,
+    ) as { reminders: unknown[] };
+    assert.assertEquals(written.reminders[1], {
+      text: "Design every state",
+      scope: ["ui"],
+    });
+  });
+
+  bdd.it("refuses a concern with an unknown scope value", async () => {
+    serveConcern(concernWith(["frontend"]));
+
+    await assert.assertRejects(
+      () => packCmd.installRemotePack(tempDir, specifier, manifest),
+      Error,
+      'reminders[1].scope has "frontend"',
+    );
+    assert.assertEquals(
+      await fileExists(`${tempDir}/.eser/concerns/001-scoped.json`),
+      false,
+    );
   });
 });

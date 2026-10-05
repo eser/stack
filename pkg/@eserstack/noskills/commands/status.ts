@@ -13,14 +13,15 @@ import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as compiler from "../context/compiler.ts";
 import * as syncEngine from "../sync/engine.ts";
-import { QUESTIONS } from "../context/questions.ts";
+import * as questions from "../context/questions.ts";
 import * as formatter from "../output/formatter.ts";
-import { cmd } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const { root } = await persistence.resolveProjectRoot();
+  const prefix = await cmd.loadCommandPrefix(root);
   const fmt = formatter.parseOutputFormat(args);
 
   if (!(await persistence.isInitialized(root))) {
@@ -37,7 +38,7 @@ export const main = async (
       out.writeln(
         span.red("noskills is not initialized."),
         " Run: ",
-        span.bold(cmd("init")),
+        span.bold(cmd.cmd("init")),
       );
       await out.close();
     }
@@ -46,7 +47,7 @@ export const main = async (
   }
 
   const specFlag = persistence.parseSpecFlag(args);
-  const state = await persistence.resolveState(root, specFlag);
+  const state = await persistence.resolveState(root, specFlag, prefix);
   const config = await persistence.readManifest(root);
 
   // Build structured status data
@@ -58,7 +59,7 @@ export const main = async (
       state.phase === "DISCOVERY" || state.phase === "DISCOVERY_REFINEMENT"
         ? {
           answered: state.discovery.answers.length,
-          total: QUESTIONS.length,
+          total: questions.QUESTIONS.length,
         }
         : undefined,
     execution: state.phase === "EXECUTING" || state.phase === "BLOCKED"
@@ -106,7 +107,7 @@ export const main = async (
       sink: streams.sinks.stdout(),
     });
 
-    out.writeln(span.bold(`${cmd("status")}`));
+    out.writeln(span.bold(`${cmd.cmd("status")}`));
     out.writeln("");
 
     const phaseColor = state.phase === "COMPLETED"
@@ -126,7 +127,7 @@ export const main = async (
     }
     if (state.phase === "DISCOVERY" || state.phase === "DISCOVERY_REFINEMENT") {
       out.writeln(
-        `  Discovery: ${state.discovery.answers.length}/${QUESTIONS.length} questions answered`,
+        `  Discovery: ${state.discovery.answers.length}/${questions.QUESTIONS.length} questions answered`,
       );
     }
     if (state.phase === "EXECUTING") {

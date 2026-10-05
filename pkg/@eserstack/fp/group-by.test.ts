@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { groupBy } from "./group-by.ts";
+import * as groupBy from "./group-by.ts";
 
 Deno.test("basic", () => {
   const arr = [
@@ -10,7 +10,7 @@ Deno.test("basic", () => {
     { type: "a", value: 3 },
   ];
 
-  const result = groupBy(arr, (x) => x.type);
+  const result = groupBy.groupBy(arr, (x) => x.type);
 
   assert.assertEquals(result, {
     a: [
@@ -22,7 +22,7 @@ Deno.test("basic", () => {
 });
 
 Deno.test("empty-array", () => {
-  const result = groupBy([], (x: number) => x);
+  const result = groupBy.groupBy([], (x: number) => x);
 
   assert.assertEquals(result, {});
 });
@@ -30,7 +30,7 @@ Deno.test("empty-array", () => {
 Deno.test("single-group", () => {
   const arr = [1, 2, 3, 4, 5];
 
-  const result = groupBy(arr, () => "all");
+  const result = groupBy.groupBy(arr, () => "all");
 
   assert.assertEquals(result, { all: [1, 2, 3, 4, 5] });
 });
@@ -38,7 +38,7 @@ Deno.test("single-group", () => {
 Deno.test("with-math-floor", () => {
   const arr = [1.2, 2.1, 2.4, 3.5];
 
-  const result = groupBy(arr, Math.floor);
+  const result = groupBy.groupBy(arr, Math.floor);
 
   assert.assertEquals(result, {
     1: [1.2],
@@ -54,7 +54,7 @@ Deno.test("preserves-order", () => {
     { id: 3, group: "x" },
   ];
 
-  const result = groupBy(arr, (x) => x.group);
+  const result = groupBy.groupBy(arr, (x) => x.group);
   const xGroup = result["x"]!;
 
   assert.assertEquals(xGroup[0]!.id, 1);

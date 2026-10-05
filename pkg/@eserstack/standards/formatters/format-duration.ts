@@ -11,9 +11,11 @@ const MS_PER_SECOND = 1000;
  *
  * @example
  * ```typescript
- * formatDuration(500);   // "500ms"
- * formatDuration(1500);  // "1.50s"
- * formatDuration(65000); // "65.00s"
+ * import * as standards from "@eserstack/standards";
+ *
+ * standards.formatters.formatDuration(500);   // "500ms"
+ * standards.formatters.formatDuration(1500);  // "1.50s"
+ * standards.formatters.formatDuration(65000); // "65.00s"
  * ```
  */
 export const formatDuration = (ms: number): string => {

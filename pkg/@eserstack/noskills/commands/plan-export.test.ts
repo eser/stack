@@ -6,14 +6,14 @@
  * Covers: wrong-phase guard (exit code 1), valid-phase write (all 5 sections).
  */
 
-import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as results from "@eserstack/primitives/results";
 import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
 import * as persistence from "../state/persistence.ts";
-import { main } from "./plan-export.ts";
+import * as planExport from "./plan-export.ts";
 
 // =============================================================================
 // Helpers
@@ -33,11 +33,9 @@ const setupTempDir = async (): Promise<void> => {
     `${tempDir}/.eser/.state/progresses/specs`,
     { recursive: true },
   );
-  crossRuntime.runtime.env.set("NOSKILLS_PROJECT_ROOT", tempDir);
 };
 
 const teardownTempDir = async (): Promise<void> => {
-  crossRuntime.runtime.env.delete("NOSKILLS_PROJECT_ROOT");
   await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
 };
 
@@ -104,48 +102,42 @@ placeholder
 // Wrong phase guard
 // =============================================================================
 
-describe({
+bdd.describe({
   name: "noskills plan-export: wrong phase",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: () => {
-    beforeEach(async () => {
+    bdd.beforeEach(async () => {
       await setupTempDir();
     });
 
-    afterEach(async () => {
+    bdd.afterEach(async () => {
       await teardownTempDir();
     });
 
-    it("returns exit code 1 and message contains 'SPEC_PROPOSAL' when phase is DISCOVERY", async () => {
-      const discState = machine.startSpec(
-        schema.createInitialState(),
-        "my-spec",
-        "spec/my-spec",
-        "A spec",
-      );
-      await persistence.writeSpecState(tempDir, "my-spec", discState);
-
-      // Capture console.error output
-      const errors: string[] = [];
-      const origError = console.error;
-      console.error = (...args: unknown[]) => errors.push(String(args[0]));
-
-      try {
-        const result = await main(["--spec=my-spec"]);
-
-        assertEquals(results.isFail(result), true);
-        if (results.isFail(result)) {
-          assertEquals(result.error.exitCode, 1);
-        }
-        assertEquals(
-          errors.some((e) => e.includes("SPEC_PROPOSAL")),
-          true,
+    bdd.it(
+      "returns exit code 1 and message contains 'SPEC_PROPOSAL' when phase is DISCOVERY",
+      async () => {
+        const discState = machine.startSpec(
+          schema.createInitialState(),
+          "my-spec",
+          "spec/my-spec",
+          "A spec",
         );
-      } finally {
-        console.error = origError;
-      }
-    });
+        await persistence.writeSpecState(tempDir, "my-spec", discState);
+
+        const result = await planExport.main(["--spec=my-spec"], tempDir);
+
+        assert.assertEquals(results.isFail(result), true);
+        if (results.isFail(result)) {
+          assert.assertEquals(result.error.exitCode, 1);
+          assert.assertStringIncludes(
+            result.error.message ?? "",
+            "SPEC_PROPOSAL",
+          );
+        }
+      },
+    );
   },
 });
 
@@ -153,67 +145,73 @@ describe({
 // Valid phase — writes .claude/plan.md with all 5 sections
 // =============================================================================
 
-describe({
+bdd.describe({
   name: "noskills plan-export: valid phase",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: () => {
-    beforeEach(async () => {
+    bdd.beforeEach(async () => {
       await setupTempDir();
     });
 
-    afterEach(async () => {
+    bdd.afterEach(async () => {
       await teardownTempDir();
     });
 
-    it("SPEC_APPROVED writes .claude/plan.md with all 5 section headers", async () => {
-      const state = buildSpecApprovedState();
-      await persistence.writeSpecState(tempDir, "my-spec", state);
+    bdd.it(
+      "SPEC_APPROVED writes .claude/plan.md with all 5 section headers",
+      async () => {
+        const state = buildSpecApprovedState();
+        await persistence.writeSpecState(tempDir, "my-spec", state);
 
-      // Write a minimal spec.md for task parsing
-      await crossRuntime.runtime.fs.writeTextFile(
-        `${tempDir}/.eser/specs/my-spec/spec.md`,
-        SPEC_MD_CONTENT,
-      );
+        // Write a minimal spec.md for task parsing
+        await crossRuntime.runtime.fs.writeTextFile(
+          `${tempDir}/.eser/specs/my-spec/spec.md`,
+          SPEC_MD_CONTENT,
+        );
 
-      const result = await main(["--spec=my-spec"]);
+        const result = await planExport.main(["--spec=my-spec"], tempDir);
 
-      assertEquals(results.isOk(result), true);
+        assert.assertEquals(results.isOk(result), true);
 
-      // Verify output file exists
-      const planPath = `${tempDir}/.claude/plan.md`;
-      const content = await crossRuntime.runtime.fs.readTextFile(planPath);
+        // Verify output file exists
+        const planPath = `${tempDir}/.claude/plan.md`;
+        const content = await crossRuntime.runtime.fs.readTextFile(planPath);
 
-      assertEquals(content.includes("## Summary"), true);
-      assertEquals(content.includes("## Tasks"), true);
-      assertEquals(content.includes("## Acceptance Criteria"), true);
-      assertEquals(content.includes("## Out of Scope"), true);
-      assertEquals(content.includes("## Verification"), true);
+        assert.assertEquals(content.includes("## Summary"), true);
+        assert.assertEquals(content.includes("## Tasks"), true);
+        assert.assertEquals(content.includes("## Acceptance Criteria"), true);
+        assert.assertEquals(content.includes("## Out of Scope"), true);
+        assert.assertEquals(content.includes("## Verification"), true);
 
-      // Verify field values
-      assertEquals(
-        content.includes("Build an upload feature for the dashboard"),
-        true,
-      );
-      assertEquals(
-        content.includes("Files up to 10MB upload successfully"),
-        true,
-      );
-      assertEquals(
-        content.includes("No admin panel changes"),
-        true,
-      );
-      assertEquals(
-        content.includes("Run unit tests"),
-        true,
-      );
+        // Verify field values
+        assert.assertEquals(
+          content.includes("Build an upload feature for the dashboard"),
+          true,
+        );
+        assert.assertEquals(
+          content.includes("Files up to 10MB upload successfully"),
+          true,
+        );
+        assert.assertEquals(
+          content.includes("No admin panel changes"),
+          true,
+        );
+        assert.assertEquals(
+          content.includes("Run unit tests"),
+          true,
+        );
 
-      // Tasks rendered as checkboxes
-      assertEquals(content.includes("- [ ] Implement upload component"), true);
-      assertEquals(content.includes("- [ ] Write unit tests"), true);
+        // Tasks rendered as checkboxes
+        assert.assertEquals(
+          content.includes("- [ ] Implement upload component"),
+          true,
+        );
+        assert.assertEquals(content.includes("- [ ] Write unit tests"), true);
 
-      // Header includes spec name
-      assertEquals(content.includes("# Plan: my-spec"), true);
-    });
+        // Header includes spec name
+        assert.assertEquals(content.includes("# Plan: my-spec"), true);
+      },
+    );
   },
 });

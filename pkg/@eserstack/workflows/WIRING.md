@@ -1,27 +1,34 @@
 # @eserstack/workflows — FFI Wiring Notes
 
-## Go FFI path
+## The run command uses the TypeScript engine only
 
-`EserAjanWorkflowRun` supports two modes:
+`workflows run` runs every workflow on the TypeScript engine in `engine.ts`. It
+does not call the bridge's `EserAjanWorkflowRun`, which runs workflows on the Go
+engine in `pkg/ajan/workflowfx`.
 
-| Field        | Mode                                                 |
-| ------------ | ---------------------------------------------------- |
-| `event`      | Run all workflows whose `on` list includes the event |
-| `workflowId` | Run a single named workflow by ID                    |
+`run.ts` used to try the Go engine first when no tools were injected. The
+command module (`module.ts`) always injects a tool list, an empty one for the
+standalone CLI, so that branch never ran. It was removed instead of made
+reachable, because the Go path does not give the same results:
 
-Both modes use only the built-in `shell` tool on the Go side.
+| Area                       | TypeScript engine                                       | `EserAjanWorkflowRun`                                    |
+| -------------------------- | ------------------------------------------------------- | -------------------------------------------------------- |
+| Tools                      | The shell tool and injected tools (codebase validators) | The shell tool only                                      |
+| Step format                | Manifest steps: a tool name, or `{ tool: options }`     | `{ name, options }` objects, so a manifest step fails    |
+| `fixCommand`               | Runs with `--fix`                                       | Ignored                                                  |
+| `--dry-run`                | Shell steps run `command` instead of `fixCommand`       | Not sent                                                 |
+| Positional arguments       | Passed to tools as `_args`                              | Not sent                                                 |
+| `name`, `workingDirectory` | Applied                                                 | Ignored                                                  |
+| Step `timeout` option      | Seconds, applied to the step and to the shell command   | Read only from a `timeoutMs` field of the step object    |
+| Progress                   | Each step is printed as it ends                         | Results arrive after the whole run                       |
+| Result fields              | `workflowId`, numeric `stats`                           | `id`, and `stats.output` holds the command's output text |
 
-## TS_ONLY_BY_DESIGN: custom tool injection
+## Where the native library is still used
 
-`run.ts` accepts `cliOptions?.tools: WorkflowTool[]` injected by the CLI
-dispatcher. These additional tools (e.g. codebase validators from
-`@eserstack/codebase`) register duck-typed step handlers that Go cannot
-replicate without recompilation.
+The shell tool runs its command through `@eserstack/shell/exec`. When the native
+library is loaded, that is the bridge's `EserAjanShellExec`, which kills the
+command's whole process group at the step's timeout. Otherwise the runtime spawn
+runs the command and, at the same timeout, signals the `sh` process only, so a
+process it started in the background keeps running.
 
-**Decision:** custom tool injection is `TS_ONLY_BY_DESIGN`. When
-`cliOptions.tools` is provided, the FFI path is skipped entirely and the
-TypeScript engine runs instead.
-
-The FFI path is attempted only when `cliOptions.tools === undefined` (the common
-case for `precommit`, `commitmsg`, `prepush`, and named-workflow runs from the
-CLI).
+The codebase validators that the eser CLI injects call the bridge themselves.

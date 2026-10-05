@@ -11,25 +11,28 @@
  *
  * @example
  * ```ts
- * import { Command } from "@eserstack/shell/args";
+ * import * as primitives from "@eserstack/primitives";
+ * import * as shell from "@eserstack/shell";
  *
- * const app = new Command("myapp")
+ * const app = new shell.args.Command("myapp")
  *   .description("My CLI application")
  *   .version("1.0.0")
  *   .persistentFlag({ name: "verbose", short: "v", type: "boolean", description: "Verbose output" })
  *   .command(
- *     new Command("init")
+ *     new shell.args.Command("init")
  *       .description("Initialize a new project")
  *       .flag({ name: "template", short: "t", type: "string", description: "Template name" })
- *       .run(async (ctx) => {
+ *       .run((ctx) => {
  *         console.log("Initializing with template:", ctx.flags["template"]);
+ *         return primitives.results.ok(undefined);
  *       })
  *   )
  *   .command(
- *     new Command("build")
+ *     new shell.args.Command("build")
  *       .description("Build the project")
- *       .run(async (ctx) => {
+ *       .run(() => {
  *         console.log("Building...");
+ *         return primitives.results.ok(undefined);
  *       })
  *   );
  *
@@ -63,4 +66,8 @@ export {
   parseFlags,
   validateRequiredFlags,
 } from "./flags.ts";
-export { generateHelp, type HelpCommandMeta } from "./help.ts";
+export {
+  generateHelp,
+  type HelpCommandMeta,
+  type HelpShortcutMeta,
+} from "./help.ts";

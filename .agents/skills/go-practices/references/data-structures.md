@@ -129,8 +129,8 @@ write it for that type or use an interface.
 
 ## `unsafe`, `weak` and `unique`
 
-- `unsafe` is for the FFI bridge (`pkg/@eserstack/ajan`) and memory layout only.
-  Never keep a pointer in a `uintptr` across statements; use `unsafe.Add`,
+- `unsafe` is for FFI bridges (cgo, WASI exports) and memory layout only. Never
+  keep a pointer in a `uintptr` across statements; use `unsafe.Add`,
   `unsafe.Slice`, `unsafe.String` and `unsafe.SliceData`, which keep the value
   visible to the collector.
 - `unique.Make` (Go 1.23+) canonicalizes comparable values.

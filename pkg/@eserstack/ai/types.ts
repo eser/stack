@@ -42,6 +42,20 @@ export type ToolResult = {
   readonly isError: boolean;
 };
 
+/**
+ * A block of the model's reasoning, kept apart from the answer text. A
+ * provider that signs its reasoning (Anthropic) checks the block when it comes
+ * back in the next request of a multi-turn call, so send it back unchanged.
+ */
+export type ThinkingPart = {
+  /** The reasoning; empty when the provider omits it. */
+  readonly text: string;
+  /** The provider's opaque check value for `text`. */
+  readonly signature?: string;
+  /** Opaque, encrypted reasoning, set instead of `text` when the provider redacted it. */
+  readonly redactedData?: string;
+};
+
 // =============================================================================
 // Content Blocks (Discriminated Union)
 // =============================================================================
@@ -76,13 +90,19 @@ export type ToolResultBlock = {
   readonly toolResult: ToolResult;
 };
 
+export type ThinkingBlock = {
+  readonly kind: "thinking";
+  readonly thinking: ThinkingPart;
+};
+
 export type ContentBlock =
   | TextBlock
   | ImageBlock
   | AudioBlock
   | FileBlock
   | ToolCallBlock
-  | ToolResultBlock;
+  | ToolResultBlock
+  | ThinkingBlock;
 
 // =============================================================================
 // Messages

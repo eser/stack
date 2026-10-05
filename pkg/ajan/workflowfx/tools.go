@@ -5,6 +5,7 @@ package workflowfx
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 	"path/filepath"
 	"text/template"
 	"time"
+
+	"github.com/eser/stack/pkg/ajan/lib"
 )
 
 // ─── shellTool ─────────────────────────────────────────────────────────────────
@@ -126,6 +129,7 @@ func (t *fileCopyTool) Run(_ context.Context, opts map[string]any) (*WorkflowToo
 	if err != nil {
 		return failResult(t.Name(), err.Error()), nil
 	}
+	// in is only read; a failed close loses nothing.
 	defer func() { _ = in.Close() }()
 
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
@@ -136,11 +140,18 @@ func (t *fileCopyTool) Run(_ context.Context, opts map[string]any) (*WorkflowToo
 	if err != nil {
 		return failResult(t.Name(), err.Error()), nil
 	}
+	// Closes out on the error paths. The success path closes it below and
+	// checks the result; closing again then only returns os.ErrClosed.
 	defer func() { _ = out.Close() }()
 
 	n, err := io.Copy(out, in)
 	if err != nil {
 		return failResult(t.Name(), err.Error()), nil
+	}
+
+	// A failed close can mean the copy never reached the disk.
+	if err := out.Close(); err != nil {
+		return failResult(t.Name(), fmt.Sprintf("close %s: %v", dst, err)), nil
 	}
 
 	return &WorkflowToolResult{
@@ -204,6 +215,11 @@ func (t *templateRenderTool) Run(_ context.Context, opts map[string]any) (*Workf
 
 // ─── httpFetchTool ─────────────────────────────────────────────────────────────
 
+// httpFetchMaxBodyBytes caps the response body http-fetch reads into memory.
+// The body ends up in the step's stats, so anything larger is a download, not
+// a fetch, and fails the step.
+const httpFetchMaxBodyBytes = 10 << 20
+
 type httpFetchTool struct {
 	client *http.Client
 }
@@ -230,9 +246,17 @@ func (t *httpFetchTool) Run(ctx context.Context, opts map[string]any) (*Workflow
 	if err != nil {
 		return failResult(t.Name(), err.Error()), nil
 	}
+	// The body is read in full or abandoned on error; a failed close loses nothing.
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := lib.ReadAllLimited(resp.Body, httpFetchMaxBodyBytes)
+	if errors.Is(err, lib.ErrReadLimitExceeded) {
+		return failResult(t.Name(), fmt.Sprintf(
+			"response body of %s is larger than %d bytes; fetch a smaller resource or download it with the shell tool",
+			url, httpFetchMaxBodyBytes,
+		)), nil
+	}
+
 	if err != nil {
 		return failResult(t.Name(), err.Error()), nil
 	}

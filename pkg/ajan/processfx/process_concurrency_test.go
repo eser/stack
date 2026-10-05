@@ -21,7 +21,7 @@ import (
 func TestStartGoroutineIsConcurrencySafe(t *testing.T) {
 	t.Parallel()
 
-	process := processfx.New(context.Background(), nil)
+	process := processfx.New(t.Context(), nil)
 	process.ShutdownTimeout = 5 * time.Second
 
 	const starters = 64
@@ -62,7 +62,7 @@ func TestStartGoroutineIsConcurrencySafe(t *testing.T) {
 func TestShutdownWaitsForGoroutines(t *testing.T) {
 	t.Parallel()
 
-	process := processfx.New(context.Background(), nil)
+	process := processfx.New(t.Context(), nil)
 	process.ShutdownTimeout = 10 * time.Second
 
 	finished := make(chan struct{})
@@ -91,7 +91,7 @@ func TestShutdownWaitsForGoroutines(t *testing.T) {
 func TestShutdownHonoursTimeout(t *testing.T) {
 	t.Parallel()
 
-	process := processfx.New(context.Background(), nil)
+	process := processfx.New(t.Context(), nil)
 	process.ShutdownTimeout = 200 * time.Millisecond
 
 	release := make(chan struct{})

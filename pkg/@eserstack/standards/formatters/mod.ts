@@ -1,25 +1,20 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * @module @eserstack/standards/formatters
- *
  * Value formatting utilities for converting numbers, sizes, durations,
  * and percentages to human-readable strings.
  *
  * @example
  * ```typescript
- * import {
- *   formatDuration,
- *   formatSize,
- *   formatNumber,
- *   formatPercent,
- * } from "@eserstack/standards/formatters";
+ * import * as standards from "@eserstack/standards";
  *
- * formatDuration(1500);           // "1.50s"
- * formatSize(1048576);            // "1.00 MB"
- * formatNumber(1000000);          // "1,000,000"
- * formatPercent(0.75, 1, true);   // "75.0%"
+ * standards.formatters.formatDuration(1500);         // "1.50s"
+ * standards.formatters.formatSize(1048576);          // "1.00 MB"
+ * standards.formatters.formatNumber(1000000);        // "1,000,000"
+ * standards.formatters.formatPercent(0.75, 1, true); // "75.0%"
  * ```
+ *
+ * @module
  */
 
 export { formatDuration } from "./format-duration.ts";

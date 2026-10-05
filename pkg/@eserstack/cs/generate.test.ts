@@ -2,7 +2,7 @@
 
 import * as assert from "@std/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { generate } from "./generate.ts";
+import * as generate from "./generate.ts";
 // No longer need ensureDir import
 
 // Helper to create environment files for testing in temp directory
@@ -50,7 +50,7 @@ Deno.test({
   });
 
   try {
-    const result = await generate({
+    const result = await generate.generate({
       cwd: tempDir,
       resource: { type: "configmap", name: "test-config" },
       namespace: "test-namespace",
@@ -76,7 +76,7 @@ Deno.test("generate() should work with environment name", async () => {
   });
 
   try {
-    const result = await generate({
+    const result = await generate.generate({
       cwd: tempDir,
       resource: { type: "configmap", name: "test-config" },
       namespace: "test-namespace",
@@ -101,7 +101,7 @@ Deno.test("generate() should handle JSON format", async () => {
   });
 
   try {
-    const result = await generate({
+    const result = await generate.generate({
       cwd: tempDir,
       resource: { type: "configmap", name: "json-test" },
       namespace: "test",
@@ -127,7 +127,7 @@ Deno.test("generate() should generate Secret resources", async () => {
   });
 
   try {
-    const result = await generate({
+    const result = await generate.generate({
       cwd: tempDir,
       resource: { type: "secret", name: "test-secret" },
       namespace: "test-namespace",
@@ -152,7 +152,7 @@ Deno.test("generate() should include environment variables", async () => {
   });
 
   try {
-    const result = await generate({
+    const result = await generate.generate({
       cwd: tempDir,
       resource: { type: "configmap", name: "env-test" },
       format: "yaml",
@@ -175,7 +175,7 @@ Deno.test("generate() should work with different resource types", async () => {
   });
 
   try {
-    const result = await generate({
+    const result = await generate.generate({
       cwd: tempDir,
       resource: { type: "configmap", name: "multi-test" },
       format: "yaml",
@@ -198,7 +198,7 @@ Deno.test("generate() should capture runtime environment variables", async () =>
   });
 
   try {
-    const result = await generate({
+    const result = await generate.generate({
       cwd: tempDir,
       resource: { type: "configmap", name: "runtime-test" },
       format: "yaml",
@@ -220,7 +220,7 @@ Deno.test("generate() should handle multiple environment variables", async () =>
   });
 
   try {
-    const result = await generate({
+    const result = await generate.generate({
       cwd: tempDir,
       resource: { type: "configmap", name: "multi-var-test" },
       format: "yaml",
@@ -244,7 +244,7 @@ Deno.test("generate() should work with --env flag", async () => {
   });
 
   try {
-    const result = await generate({
+    const result = await generate.generate({
       cwd: tempDir,
       resource: { type: "configmap", name: "custom-env-test" },
       format: "yaml",
@@ -266,7 +266,7 @@ Deno.test("generate() should include system environment variables", async () => 
   });
 
   try {
-    const result = await generate({
+    const result = await generate.generate({
       cwd: tempDir,
       resource: { type: "configmap", name: "system-test" },
       format: "yaml",

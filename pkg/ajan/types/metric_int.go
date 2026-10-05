@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -15,6 +16,10 @@ const (
 	metricIntBillionF  float64 = 1_000_000_000
 	metricIntMillionF  float64 = 1_000_000
 	metricIntThousandF float64 = 1_000
+
+	// metricIntUpperBoundF is 2^63, the smallest float64 that no longer fits
+	// in an int64.
+	metricIntUpperBoundF float64 = 1 << 63
 )
 
 type MetricInt int64
@@ -126,6 +131,17 @@ func parseMetricIntString(input string) (int64, error) {
 	case 'b', 'B':
 		mul = metricIntBillionF
 	default:
+		// A plain integer parses exactly; float64 would round anything above
+		// 2^53 (9007199254740993 became 9007199254740992).
+		parsedInt, err := strconv.ParseInt(input, 10, 64)
+		if err == nil {
+			return parsedInt, nil
+		}
+
+		if errors.Is(err, strconv.ErrRange) {
+			return 0, metricIntOutOfRangeError(input)
+		}
+
 		mul = 1
 		base = input
 	}
@@ -135,6 +151,25 @@ func parseMetricIntString(input string) (int64, error) {
 		return 0, fmt.Errorf("%w (base=%q): %w", ErrFailedToParseFloat, base, err)
 	}
 
-	// FIXME(@eser) this is a hack to round the number to the nearest integer
-	return int64(math.Round(parsedNumber * mul)), nil
+	// Scaling a decimal leaves binary float error ("8.11K" is
+	// 8109.999999999999), so round to the nearest integer instead of
+	// truncating toward zero.
+	scaled := math.Round(parsedNumber * mul)
+
+	// Go leaves the int64 conversion of NaN or an out-of-range float
+	// implementation-defined ("1e19" gives math.MinInt64 on amd64 and
+	// math.MaxInt64 on arm64), so reject those values.
+	if math.IsNaN(scaled) || scaled >= metricIntUpperBoundF || scaled < math.MinInt64 {
+		return 0, metricIntOutOfRangeError(input)
+	}
+
+	return int64(scaled), nil
+}
+
+func metricIntOutOfRangeError(input string) error {
+	return fmt.Errorf(
+		"%w (input=%q): the value must fit in a signed 64-bit integer",
+		ErrMetricIntOutOfRange,
+		input,
+	)
 }

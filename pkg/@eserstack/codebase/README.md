@@ -4,27 +4,9 @@
 > **Install:** `pnpm add jsr:@eserstack/codebase`
 
 `@eserstack/codebase` provides validation tools and project management utilities
-for maintaining code quality. It includes 24 validation tools, git hook
-management, release tooling, and a workflow integration layer.
-
-## The shared `system` command tree
-
-`cli-system/` owns the operational commands every shipped binary carries —
-`install`, `uninstall`, `update`, `completions`, `version`, `doctor`, `info` —
-built once and parameterised by a `CliApp` so `eser`, `noskills` and `laroux`
-each get a tree describing themselves.
-
-```typescript
-import { attachStandardCommands } from "@eserstack/codebase/cli-support";
-
-const app = attachStandardCommands(module.toCommand("noskills", version));
-```
-
-It attaches to a binary's ROOT command, never to a Module. That is deliberate:
-`eser` mounts the very same module object the standalone `noskills` binary
-re-roots, so a layer living on the module would appear in both — and
-`eser noskills version` would exist, implying a submodule has a version of its
-own.
+for maintaining code quality. It includes the validation tools listed under
+Available Tools, git hook management, release tooling, and a workflow
+integration layer.
 
 ## 🚀 Quick Start
 
@@ -49,6 +31,9 @@ npx eser codebase validate-json
 
 # Fix missing trailing newlines
 npx eser codebase validate-eof --fix
+
+# Skip paths that match a regular expression; repeat --exclude for more
+npx eser codebase validate-trailing-whitespace --exclude docs/api/ --exclude etc/temp/
 
 # Validate commit message format
 npx eser codebase validate-commit-msg --message "feat(core): add feature"
@@ -91,6 +76,12 @@ npm has accepted the version — cut a new patch instead.
 | `versions`      | Bump version across all workspace packages               |
 | `changelog-gen` | Generate CHANGELOG entry from commits                    |
 
+### AI
+
+| Command     | Description                             |
+| ----------- | --------------------------------------- |
+| `commitmsg` | Generate a commit message from the diff |
+
 ### GitHub
 
 | Command            | Description                                           |
@@ -101,30 +92,35 @@ npm has accepted the version — cut a new patch instead.
 
 ### Validation
 
-| Command                        | Description                                 |
-| ------------------------------ | ------------------------------------------- |
-| `validate-eof`                 | Ensure files end with newline               |
-| `validate-trailing-whitespace` | Remove trailing whitespace                  |
-| `validate-bom`                 | Remove UTF-8 byte order markers             |
-| `validate-line-endings`        | Normalize line endings to LF                |
-| `validate-large-files`         | Detect files exceeding size limit           |
-| `validate-case-conflict`       | Detect case-conflicting filenames           |
-| `validate-merge-conflict`      | Detect merge conflict markers               |
-| `validate-json`                | Validate JSON syntax                        |
-| `validate-toml`                | Validate TOML syntax                        |
-| `validate-yaml`                | Validate YAML syntax                        |
-| `validate-symlinks`            | Detect broken symlinks                      |
-| `validate-shebangs`            | Validate shebang consistency                |
-| `validate-secrets`             | Detect credentials and private keys         |
-| `validate-filenames`           | Enforce filename conventions                |
-| `validate-submodules`          | Detect git submodules                       |
-| `validate-commit-msg`          | Validate conventional commit format         |
-| `validate-docs`                | Validate JSDoc documentation                |
-| `validate-circular-deps`       | Detect circular dependencies                |
-| `validate-export-names`        | Validate export naming conventions          |
-| `validate-licenses`            | Validate license headers                    |
-| `validate-mod-exports`         | Validate mod.ts export coverage             |
-| `validate-package-configs`     | Validate deno.json/package.json consistency |
+| Command                        | Description                                    |
+| ------------------------------ | ---------------------------------------------- |
+| `validate-eof`                 | Ensure files end with newline                  |
+| `validate-trailing-whitespace` | Remove trailing whitespace                     |
+| `validate-bom`                 | Remove UTF-8 byte order markers                |
+| `validate-line-endings`        | Normalize line endings to LF                   |
+| `validate-large-files`         | Detect files exceeding size limit              |
+| `validate-case-conflict`       | Detect case-conflicting filenames              |
+| `validate-merge-conflict`      | Detect merge conflict markers                  |
+| `validate-json`                | Validate JSON syntax                           |
+| `validate-toml`                | Validate TOML syntax                           |
+| `validate-yaml`                | Validate YAML syntax                           |
+| `validate-symlinks`            | Detect broken symlinks                         |
+| `validate-shebangs`            | Validate shebang consistency                   |
+| `validate-secrets`             | Detect credentials and private keys            |
+| `validate-filenames`           | Enforce filename conventions                   |
+| `validate-submodules`          | Detect git submodules                          |
+| `validate-commit-msg`          | Validate conventional commit format            |
+| `validate-docs`                | Validate JSDoc documentation                   |
+| `validate-circular-deps`       | Detect circular dependencies                   |
+| `validate-export-names`        | Validate export naming conventions             |
+| `validate-licenses`            | Validate license headers                       |
+| `validate-mod-exports`         | Detect modules no package entry point reaches  |
+| `validate-package-configs`     | Validate deno.json/package.json consistency    |
+| `validate-server-loc`          | Fail when a non-test file exceeds a line cap   |
+| `validate-error-coverage`      | Check error structs for required fields        |
+| `validate-self-imports`        | Detect a package importing its own name        |
+| `validate-runtime-js-apis`     | Detect `Deno.*`, `process.*` and `Bun.*` use   |
+| `validate-code-conventions`    | Enforce namespace imports, `??`, no `export *` |
 
 Run any tool with `--help` for options:
 
@@ -179,10 +175,26 @@ workflows:
           timeout: 300
 ```
 
+### Baselines
+
+`validate-code-conventions` and `validate-runtime-js-apis` apply their rules to
+new code while existing code is migrated. They record the current violations per
+file in `.eser/baselines/code-conventions.json` and
+`.eser/baselines/runtime-js-apis.json` (the `baseline` step option points
+elsewhere), and a file fails only when it has more violations than its baseline
+allows. After fixing violations, shrink the baseline:
+
+```bash
+npx eser codebase validate-runtime-js-apis --write-baseline
+```
+
 ## 🔌 API Usage
 
-```js
-import * as codebase from "@eserstack/codebase";
+The package root (`@eserstack/codebase`) is the CLI entry point. The library API
+lives under `@eserstack/codebase/mod`:
+
+```typescript
+import * as codebase from "@eserstack/codebase/mod";
 
 // Git operations
 const commits = await codebase.getCommitsBetween("v1.0.0", "HEAD");
@@ -192,16 +204,84 @@ const branch = await codebase.getCurrentBranch();
 const packages = await codebase.discoverPackages(".");
 ```
 
-```js
+```typescript
 import * as validation from "@eserstack/codebase/validation";
+
+// Run every validator that applies to the stack in .eser/manifest.yml
+const report = await validation.validate({ root: "." });
 
 // Get all registered tools as workflow-compatible objects
 const tools = validation.getWorkflowTools();
 
 // Run a specific validator programmatically
 const validator = validation.getValidator("validate-json");
-const result = await validator.validate({ root: "." });
+if (validator !== null) {
+  const result = await validator.validate({ root: "." });
+}
 ```
+
+### The shared `system` command tree
+
+`cli-system/` owns the operational commands every shipped binary carries —
+`install`, `uninstall`, `update`, `completions`, `version`, `doctor`, `info` —
+built once and parameterised by a `CliApp` so `eser`, `noskills` and `laroux`
+each get a tree describing themselves.
+
+```typescript
+import * as cliSupport from "@eserstack/codebase/cli-support";
+// The binary's own command module and package manifest.
+import * as module from "./module.ts";
+import config from "./package.json" with { type: "json" };
+
+const app = cliSupport.attachStandardCommands(
+  module.moduleDef.toCommand("noskills", config.version),
+);
+```
+
+It attaches to a binary's ROOT command, never to a Module. That is deliberate:
+`eser` mounts the very same module object the standalone `noskills` binary
+re-roots, so a layer living on the module would appear in both — and
+`eser noskills version` would exist, implying a submodule has a version of its
+own.
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- `versions()` rejects with `VersionWriteError` (with `targetVersion` and
+  `failures`) when a `package.json` or `deno.json` could not be written, and
+  does not write `VERSION`. It used to resolve and report those packages as
+  updated. Catch it, fix the listed files, then rerun with the explicit target:
+
+  ```bash
+  # Before: a failed write still reported success
+  eser codebase versions minor
+  # After: fix the files in error.failures, then pass error.targetVersion
+  eser codebase versions target_version
+  ```
+
+- Validator help, `gh --help`, the `--write-baseline` result line of
+  `validate-code-conventions` and `validate-runtime-js-apis`, and the output of
+  `validate-docs`, `validate-mod-exports`, `validate-export-names`,
+  `validate-package-configs`, `validate-circular-deps`, `validate-commit-msg`
+  and the standalone `commitmsg` entry go through the shared CLI context. When
+  stdout is not a TTY, that output is plain text on stderr instead of stdout.
+  Capture both streams: `eser codebase validate-docs > report.txt` becomes
+  `eser codebase validate-docs > report.txt 2>&1`.
+- For every file-tool validator, an empty `--exclude` value (a trailing
+  `--exclude` or `--exclude=`) fails with exit code 1; it used to match every
+  path, so nothing was checked. Repeated `--exclude` flags all apply, where only
+  the last one did. Pass real patterns and drop extra flags you relied on being
+  ignored.
+- `validate-runtime-js-apis` also reports `process.*`, `globalThis.process.*`
+  and `Bun.*`, always runs the TypeScript check (no Go delegation), and skips
+  test files and `standards/cross-runtime/` on its own. Its message is now
+  `direct Deno API usage: X; use Y from @eserstack/standards/cross-runtime`.
+  Switch to `runtime` from `@eserstack/standards/cross-runtime`, list scripts
+  that run on one runtime by design in the step's `exclude`, or record existing
+  uses with `eser codebase validate-runtime-js-apis --write-baseline`.
 
 ---
 

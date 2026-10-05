@@ -1,9 +1,17 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as functions from "@eserstack/primitives/functions";
+/**
+ * Logging contract shared by the logger implementations: OpenTelemetry
+ * severity levels, categories and the `Logger` interface.
+ *
+ * @module
+ */
 
-// OpenTelemetry severity levels (see: https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber)
-// Higher numbers = more severe (opposite of RFC 5424)
+/**
+ * OpenTelemetry severity numbers, from
+ * https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber.
+ * Higher numbers are more severe, the opposite of RFC 5424.
+ */
 export const Severities = {
   Trace: 1, // 1-4: most fine-grained diagnostic information
   Debug: 5, // 5-8: detailed troubleshooting data
@@ -16,9 +24,13 @@ export const Severities = {
   Emergency: 23, // within FATAL range: system is unusable (most severe)
 } as const;
 
+/** Name of a severity level, such as "Info". */
 export type SeverityKey = Exclude<keyof typeof Severities, number>;
+
+/** Severity number of a level, such as 9 for Info. */
 export type Severity = typeof Severities[SeverityKey];
 
+/** Level name for each severity number. */
 export const SeverityNames = {
   [Severities.Trace]: "Trace",
   [Severities.Debug]: "Debug",
@@ -58,11 +70,14 @@ export interface Logger {
   log<T>(
     severity: Severity,
     message:
+      // Any function type must match here so that a function message is always
+      // treated as a lazy producer, whatever its parameters and return type.
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
+    // Log arguments are free-form values passed through to the sink.
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
 
   /**

@@ -134,8 +134,8 @@ export const forbidden = (reason: string): Response =>
  * Lets a trusted external tool drive the server without scraping the dashboard
  * HTML. Absent, a fresh token is minted per process.
  */
-export const tokenFromEnv = (): string | undefined => {
+export const tokenFromEnv = (): string | null => {
   const value = runtime.env.get("NOSKILLS_WEB_TOKEN");
 
-  return value === undefined || value === "" ? undefined : value;
+  return value === undefined || value === "" ? null : value;
 };

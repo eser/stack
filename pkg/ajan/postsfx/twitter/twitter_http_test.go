@@ -5,12 +5,16 @@ package twitter
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/eser/stack/pkg/ajan/lib"
 	"github.com/eser/stack/pkg/ajan/postsfx"
 )
 
@@ -690,6 +694,31 @@ func TestClient_RoundTrip_HTTPError(t *testing.T) {
 	}
 }
 
+func TestClient_RoundTrip_OversizedBody(t *testing.T) {
+	t.Parallel()
+
+	oversized := strings.Repeat(" ", maxResponseBytes+1)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/2/tweets/huge", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(oversized))
+	})
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	srvURL, _ := url.Parse(srv.URL)
+	c := newClient("token")
+	c.http = &http.Client{
+		Transport: &redirectTransport{scheme: srvURL.Scheme, host: srvURL.Host},
+	}
+
+	err := c.get(t.Context(), "/tweets/huge", nil)
+	if !errors.Is(err, lib.ErrReadLimitExceeded) {
+		t.Fatalf("expected an error wrapping lib.ErrReadLimitExceeded, got %v", err)
+	}
+}
+
 func TestClient_RoundTrip_RateLimit(t *testing.T) {
 	t.Parallel()
 
@@ -736,6 +765,19 @@ func TestIsRateLimitError(t *testing.T) {
 
 	if isRateLimitError(nil) {
 		t.Error("expected false for nil error")
+	}
+
+	if !isRateLimitError(fmt.Errorf("publish post: %w", rle)) {
+		t.Error("expected true for a wrapped rateLimitError")
+	}
+}
+
+func TestRetryAfter_WrappedRateLimitError(t *testing.T) {
+	t.Parallel()
+
+	d := retryAfter(fmt.Errorf("publish post: %w", &rateLimitError{retryAfter: "7"}))
+	if d != 7*time.Second {
+		t.Errorf("expected 7s from a wrapped rateLimitError, got %v", d)
 	}
 }
 

@@ -38,8 +38,10 @@ func TestMapAnthropicStopReason(t *testing.T) {
 	}{
 		{anthropic.StopReasonEndTurn, StopReasonEndTurn},
 		{anthropic.StopReasonMaxTokens, StopReasonMaxTokens},
+		{anthropic.StopReasonModelContextWindowExceeded, StopReasonMaxTokens},
 		{anthropic.StopReasonToolUse, StopReasonToolUse},
 		{anthropic.StopReasonStopSequence, StopReasonStop},
+		{anthropic.StopReasonRefusal, StopReasonRefusal},
 		{"unknown", StopReasonEndTurn},
 	}
 
@@ -92,12 +94,21 @@ func TestAnthropicModel_GenerateText_WithTemperatureAndTools(t *testing.T) {
 	if _, hasTools := capturedBody["tools"]; !hasTools {
 		t.Error("expected tools in request body")
 	}
+
+	for _, key := range []string{"temperature", "top_p"} {
+		if _, has := capturedBody[key]; has {
+			t.Errorf("expected no %s in request body", key)
+		}
+	}
 }
 
 func TestAnthropicModel_GenerateText_WithThinkingBudget(t *testing.T) {
 	t.Parallel()
 
-	srv := newAnthropicTestServer(func(w http.ResponseWriter, _ *http.Request) {
+	var capturedBody map[string]json.RawMessage
+
+	srv := newAnthropicTestServer(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&capturedBody)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(anthropicTextResponse("Thought result", "claude-opus-4-5", 10, 50))
@@ -114,6 +125,18 @@ func TestAnthropicModel_GenerateText_WithThinkingBudget(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("GenerateText error: %v", err)
+	}
+
+	if got := string(capturedBody["thinking"]); got != `{"type":"adaptive"}` {
+		t.Errorf("thinking = %s, want adaptive", got)
+	}
+
+	if got := string(capturedBody["output_config"]); got != `{"effort":"medium"}` {
+		t.Errorf("output_config = %s, want medium effort", got)
+	}
+
+	if _, hasTemp := capturedBody["temperature"]; hasTemp {
+		t.Error("expected no temperature in request body")
 	}
 }
 
@@ -141,9 +164,10 @@ func TestAnthropicModel_GenerateText_ConfigTemperature(t *testing.T) {
 		t.Fatalf("GenerateText error: %v", err)
 	}
 
-	// Temperature should have been set from config
-	if _, hasTemp := capturedBody["temperature"]; !hasTemp {
-		t.Error("expected temperature from config to be included in request body")
+	// Claude 5 models reject non-default sampling parameters, so the
+	// configured temperature is not sent.
+	if _, hasTemp := capturedBody["temperature"]; hasTemp {
+		t.Error("expected no temperature in request body")
 	}
 }
 
@@ -464,9 +488,17 @@ func TestAnthropicModel_GenerateText_ThinkingResponse(t *testing.T) {
 		t.Fatalf("GenerateText error: %v", err)
 	}
 
-	// Should have both thinking block (as text) and text block.
-	if len(result.Content) < 2 {
-		t.Errorf("expected at least 2 content blocks (thinking+text), got %d", len(result.Content))
+	if len(result.Content) != 2 {
+		t.Fatalf("expected 2 content blocks (thinking+text), got %d", len(result.Content))
+	}
+
+	// The reasoning keeps its own kind and stays out of the answer text.
+	if result.Content[0].Type != ContentBlockThinking {
+		t.Errorf("block 0 type = %q, want %q", result.Content[0].Type, ContentBlockThinking)
+	}
+
+	if got := result.Text(); got != "The answer is 42." {
+		t.Errorf("Text() = %q, want only the answer", got)
 	}
 }
 
@@ -528,7 +560,7 @@ func TestAnthropicModel_MapSingleContentBlock_AudioType(t *testing.T) {
 		config: &ConfigTarget{APIKey: "test", Model: "claude-opus-4-5"},
 	}
 
-	result, err := m.mapSingleContentBlock(ContentBlock{Type: ContentBlockAudio})
+	result, err := m.mapSingleContentBlock(&ContentBlock{Type: ContentBlockAudio})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

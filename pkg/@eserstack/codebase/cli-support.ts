@@ -12,18 +12,19 @@
 import type * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eserstack/primitives/results";
 import type { CliEvent } from "@eserstack/functions/triggers";
-import * as shellArgs from "@eserstack/shell/args";
+import type * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
 
-import { appFromName, type CliApp } from "./cli-system/app.ts";
-import * as shellEnv from "@eserstack/shell/env";
+import * as cliApp from "./cli-system/app.ts";
+import type * as shellEnv from "@eserstack/shell/env";
 // The specific module, not the @eserstack/shell/tui barrel.
 //
 // Only createTuiContext and the TuiContext type are used here, but importing
 // the barrel pulled all 26 of its exports -- every prompt widget, the spinner,
 // the signal handling -- onto the startup path of every command that touches
 // cli-support, which is all of them.
-import { createTuiContext, type TuiContext } from "@eserstack/shell/tui/types";
+import * as types from "@eserstack/shell/tui/types";
+import type { TuiContext } from "@eserstack/shell/tui/types";
 import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -61,17 +62,38 @@ export const createCliContext = (): CliContext => {
     ? "interactive"
     : "non-interactive";
 
-  const ctx = createTuiContext({ interaction });
+  const ctx = types.createTuiContext({ interaction });
 
   liveOutputs.add(ctx.output);
 
   return { ctx, output: ctx.output };
 };
 
+// The cache behind getCliContext. It stays null until a command first needs
+// the context.
+let sharedCliContext: CliContext | null = null;
+
+/**
+ * Returns the CLI context shared by every command in this process, creating it
+ * on first use.
+ *
+ * Command modules call this inside their handlers instead of creating a
+ * context when they load: the context reads the terminal state, and importing
+ * a module must not (design-principles: Module-Level Side Effects).
+ */
+export const getCliContext = (): CliContext => {
+  if (sharedCliContext === null) {
+    sharedCliContext = createCliContext();
+  }
+
+  return sharedCliContext;
+};
+
 /**
  * Creates a standard Output wired to stdout with ANSI rendering.
  *
- * @deprecated Prefer {@link createCliContext} which returns a full `TuiContext`.
+ * @deprecated Use {@link getCliContext} or {@link createCliContext}, which
+ * return a full `TuiContext`.
  */
 export const createCliOutput = (): streams.Output => {
   const out = streams.output({
@@ -122,7 +144,12 @@ export const runCliMain = (
         if (out !== undefined) {
           out.writeln(span.red(error.message));
         } else {
-          console.error(error.message);
+          const errorOutput = streams.output({
+            renderer: streams.renderers.plain(),
+            sink: streams.sinks.stderr(),
+          });
+          liveOutputs.add(errorOutput);
+          errorOutput.writeln(error.message);
         }
       }
       runtime.process.setExitCode(error.exitCode);
@@ -151,6 +178,8 @@ export const exitCli = async (
     ok: () => 0,
     fail: (error) => {
       if (error.message !== undefined) {
+        // console.error writes synchronously, so the hard exit below cannot
+        // drop the message.
         // deno-lint-ignore no-console
         console.error(error.message);
       }
@@ -161,6 +190,59 @@ export const exitCli = async (
   await flushLiveOutputs();
 
   return runtime.process.exit(exitCode);
+};
+
+/**
+ * Attaches the `system` tree and its root aliases to a binary's root command.
+ *
+ * # Why a layer, and why it attaches to the ROOT
+ *
+ * Every shipped binary needs the same operational commands: `system install`,
+ * `uninstall`, `update`, `doctor`, `completions`, `version`, `info` — plus the
+ * short forms people actually type, `eser update` and `noskills doctor`.
+ *
+ * But `eser noskills version` must NOT exist. A submodule is not a program;
+ * giving it a version implies it has one of its own, and repeating the whole
+ * system tree under every namespace would bury each one's real commands.
+ *
+ * Attaching to the root Command rather than to the Module is what draws that
+ * line, and it draws it for free. The Module objects are SHARED — `eser` mounts
+ * the very same object the standalone `noskills` binary re-roots — so a layer
+ * living on the module would necessarily appear in both, with no way to have
+ * one without the other.
+ *
+ * The tree itself is built once in @eserstack/codebase/cli-system and
+ * parameterised by a `CliApp`, so `noskills system install` installs
+ * noskills and says so. One implementation, three bindings — not three copies.
+ */
+export const attachStandardCommands = (
+  command: shellArgs.Command,
+  app?: Partial<cliApp.CliApp>,
+): shellArgs.Command => {
+  const resolved: cliApp.CliApp = {
+    ...cliApp.appFromName(command.name),
+    ...app,
+  };
+
+  return command
+    .lazyCommand("system", {
+      description: "Commands related with this CLI",
+      load: async () => {
+        const cliSystem = await import("./cli-system/mod.ts");
+
+        return cliSystem.createSystemCommand(resolved);
+      },
+    })
+    // The short forms. `system` holds the canonical definitions; these are the
+    // names people type.
+    .shortcut(
+      "install",
+      "system install",
+      `Install ${resolved.command} globally`,
+    )
+    .shortcut("update", "system update", `Update ${resolved.command}`)
+    .shortcut("version", "system version", "Show version number")
+    .shortcut("doctor", "system doctor", "Run diagnostic checks");
 };
 
 /**
@@ -184,59 +266,6 @@ export const exitCli = async (
  * The only difference between the two entry points is where the module sits and
  * what the binary is called.
  */
-/**
- * Attaches the `system` tree and its root aliases to a binary's root command.
- *
- * # Why a layer, and why it attaches to the ROOT
- *
- * Every shipped binary needs the same operational commands: `system install`,
- * `uninstall`, `update`, `doctor`, `completions`, `version`, `info` — plus the
- * short forms people actually type, `eser update` and `noskills doctor`.
- *
- * But `eser noskills version` must NOT exist. A submodule is not a program;
- * giving it a version implies it has one of its own, and repeating the whole
- * system tree under every namespace would bury each one's real commands.
- *
- * Attaching to the root Command rather than to the Module is what draws that
- * line, and it draws it for free. The Module objects are SHARED — `eser` mounts
- * the very same object the standalone `noskills` binary re-roots — so a layer
- * living on the module would necessarily appear in both, with no way to have
- * one without the other.
- *
- * The tree itself is built once in @eserstack/codebase/cli-system and
- * parameterised by {@link CliApp}, so `noskills system install` installs
- * noskills and says so. One implementation, three bindings — not three copies.
- */
-export const attachStandardCommands = (
-  command: shellArgs.Command,
-  app?: Partial<CliApp>,
-): shellArgs.Command => {
-  const resolved: CliApp = {
-    ...appFromName(command.name),
-    ...app,
-  };
-
-  return command
-    .lazyCommand("system", {
-      description: "Commands related with this CLI",
-      load: async () => {
-        const { createSystemCommand } = await import("./cli-system/mod.ts");
-
-        return createSystemCommand(resolved);
-      },
-    })
-    // The short forms. `system` holds the canonical definitions; these are the
-    // names people type.
-    .shortcut(
-      "install",
-      "system install",
-      `Install ${resolved.command} globally`,
-    )
-    .shortcut("update", "system update", `Update ${resolved.command}`)
-    .shortcut("version", "system version", "Show version number")
-    .shortcut("doctor", "system doctor", "Run diagnostic checks");
-};
-
 export const runStandaloneModule = async (
   module: { toCommand: (name: string, version: string) => shellArgs.Command },
   name: string,

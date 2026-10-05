@@ -6,12 +6,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/eser/stack/pkg/ajan/lib"
 )
 
 const baseURL = "https://api.twitter.com/2"
@@ -125,6 +128,10 @@ func (c *client) do(ctx context.Context, method, path string, body, dst any) err
 	return fmt.Errorf("exceeded %d retries", maxRetries)
 }
 
+// maxResponseBytes caps one Twitter API response body. Posts, timelines
+// and search pages are a few hundred kilobytes at most.
+const maxResponseBytes = 8 << 20
+
 // roundTrip sends req and optionally JSON-decodes the response body into dst.
 func (c *client) roundTrip(req *http.Request, dst any) error {
 	resp, err := c.http.Do(req) //nolint:gosec // intentional HTTP client; no TLS override
@@ -132,9 +139,10 @@ func (c *client) roundTrip(req *http.Request, dst any) error {
 		return fmt.Errorf("HTTP %s %s: %w", req.Method, req.URL, err)
 	}
 
+	// The body is read in full or abandoned on error; a failed close loses nothing.
 	defer func() { _ = resp.Body.Close() }()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := lib.ReadAllLimited(resp.Body, maxResponseBytes)
 	if err != nil {
 		return fmt.Errorf("reading response body: %w", err)
 	}
@@ -166,12 +174,13 @@ func (e *rateLimitError) Error() string {
 }
 
 func isRateLimitError(err error) bool {
-	_, ok := err.(*rateLimitError) //nolint:errorlint
+	_, ok := errors.AsType[*rateLimitError](err)
+
 	return ok
 }
 
 func retryAfter(err error) time.Duration {
-	rle, ok := err.(*rateLimitError) //nolint:errorlint
+	rle, ok := errors.AsType[*rateLimitError](err)
 	if !ok || rle.retryAfter == "" {
 		return 5 * time.Second
 	}

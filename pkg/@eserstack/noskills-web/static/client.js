@@ -6,26 +6,30 @@
 // + per-pane output in, actions out). noskills-web glue (SSE dashboard feed,
 // REST tab create/close, spec CTAs) lives here; all rendering is in MuxRender.
 
-// The per-process token the server embedded in the page head. Every mutating
-// call and the /mux upgrade must carry it: binding to 127.0.0.1 is not an
-// authorization boundary, and WebSockets ignore the same-origin policy.
-const AUTH_TOKEN =
-  document.querySelector('meta[name="noskills-token"]')?.content ?? "";
-
-// fetch wrapper that attaches the token to anything that is not a plain read.
-const authedFetch = (url, init = {}) => {
-  const method = (init.method ?? "GET").toUpperCase();
-  if (method === "GET" || method === "HEAD") {
-    return fetch(url, init);
-  }
-  return fetch(url, {
-    ...init,
-    headers: { ...(init.headers ?? {}), "x-noskills-token": AUTH_TOKEN },
-  });
-};
-
 (() => {
   "use strict";
+
+  // Browser globals come from globalThis: deno lint checks this file against
+  // Deno's globals, which have no DOM and no MuxRender.
+  const { document } = globalThis;
+
+  // The per-process token the server embedded in the page head. Every mutating
+  // call and the /mux upgrade must carry it: binding to 127.0.0.1 is not an
+  // authorization boundary, and WebSockets ignore the same-origin policy.
+  const AUTH_TOKEN =
+    document.querySelector('meta[name="noskills-token"]')?.content ?? "";
+
+  // fetch wrapper that attaches the token to anything that is not a plain read.
+  const authedFetch = (url, init = {}) => {
+    const method = (init.method ?? "GET").toUpperCase();
+    if (method === "GET" || method === "HEAD") {
+      return fetch(url, init);
+    }
+    return fetch(url, {
+      ...init,
+      headers: { ...(init.headers ?? {}), "x-noskills-token": AUTH_TOKEN },
+    });
+  };
 
   // ── SSE — dashboard event stream ──────────────────────────────────────────
   const events = new EventSource("/events");
@@ -48,7 +52,10 @@ const authedFetch = (url, init = {}) => {
     try {
       const res = await fetch("/api/state");
       const state = await res.json();
-      if (document.querySelector(".spec-list") && state.specs) {
+      if (
+        document.querySelector(".spec-list") !== null &&
+        Array.isArray(state.specs)
+      ) {
         location.reload();
       }
     } catch {
@@ -63,18 +70,24 @@ const authedFetch = (url, init = {}) => {
   let reconnectTimer = null;
 
   function send(frame) {
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(frame));
+    if (ws !== null && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(frame));
+    }
   }
 
   function connect() {
-    if (!root || typeof Terminal === "undefined" || !globalThis.MuxRender) {
+    // The spec detail page has no terminal: no container, no xterm.
+    const { MuxRender, Terminal } = globalThis;
+    if (
+      root === null || Terminal === undefined || MuxRender === undefined
+    ) {
       return;
     }
 
     if (renderer === null) {
       const cell = MuxRender.measureCell(
-        "'SF Mono', 'Cascadia Code', 'Fira Code', monospace",
-        13,
+        MuxRender.FONT_FAMILY,
+        MuxRender.FONT_SIZE_PX,
       );
       renderer = MuxRender.createRenderer({
         root,
@@ -114,7 +127,9 @@ const authedFetch = (url, init = {}) => {
   document.addEventListener("click", async (e) => {
     const target = e.target;
 
-    if (target.classList.contains("tab") && target.dataset.index) {
+    if (
+      target.classList.contains("tab") && target.dataset.index !== undefined
+    ) {
       send({
         t: "action",
         action: { type: "gotoTab", index: Number(target.dataset.index) },
@@ -122,7 +137,10 @@ const authedFetch = (url, init = {}) => {
       return;
     }
 
-    if (target.classList.contains("tab-close") && target.dataset.close) {
+    if (
+      target.classList.contains("tab-close") &&
+      target.dataset.close !== undefined
+    ) {
       e.stopPropagation();
       await authedFetch(`/api/tab/${target.dataset.close}`, {
         method: "DELETE",
@@ -130,7 +148,7 @@ const authedFetch = (url, init = {}) => {
       return;
     }
 
-    if (target.id === "add-tab" || target.closest("#add-tab")) {
+    if (target.closest("#add-tab") !== null) {
       await authedFetch("/api/tab", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -142,20 +160,30 @@ const authedFetch = (url, init = {}) => {
     if (target.classList.contains("cta-btn")) {
       const spec = target.dataset.spec;
       const action = target.dataset.action;
-      if (!spec || !action) return;
+      if (
+        spec === undefined || spec === "" || action === undefined ||
+        action === ""
+      ) {
+        return;
+      }
 
       let body = {};
       if (action === "note" || action === "question") {
         const text = prompt(
           action === "note" ? "Add a note:" : "Ask a question:",
         );
-        if (!text) return;
+        // null is a cancelled prompt; an empty answer is not worth sending.
+        if (text === null || text === "") return;
         body = { text };
       }
       if (action === "reply") {
         const text = prompt("Your reply:");
-        if (!text) return;
-        body = { text, mentionId: target.dataset.questionId || "" };
+        if (text === null || text === "") return;
+        // Dashboard mentions carry data-mention-id, spec questions
+        // data-question-id; both name the thread the reply belongs to.
+        const mentionId = target.dataset.mentionId ??
+          target.dataset.questionId ?? "";
+        body = { text, mentionId };
       }
 
       const res = await authedFetch(`/api/spec/${spec}/${action}`, {
@@ -164,8 +192,15 @@ const authedFetch = (url, init = {}) => {
         body: JSON.stringify(body),
       });
       const result = await res.json();
-      if (result.ok) location.reload();
-      else alert(`Action failed: ${result.error || "Unknown error"}`);
+      if (result.ok === true) {
+        location.reload();
+        return;
+      }
+      // A fault carries the request id that its record in the server log has.
+      const reference = typeof result.requestId === "string"
+        ? ` (request ${result.requestId} in the noskills web log)`
+        : "";
+      alert(`Action failed: ${result.error ?? "Unknown error"}${reference}`);
       return;
     }
   });
@@ -176,7 +211,9 @@ const authedFetch = (url, init = {}) => {
     if (resizeTimer !== null) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       resizeTimer = null;
-      if (renderer) send({ t: "resize", viewport: renderer.viewport() });
+      if (renderer !== null) {
+        send({ t: "resize", viewport: renderer.viewport() });
+      }
     }, 150);
   });
 
@@ -187,7 +224,9 @@ const authedFetch = (url, init = {}) => {
     .then((r) => r.json())
     .then((state) => {
       const el = document.getElementById("user-info");
-      if (el && state.currentUser) el.textContent = state.currentUser.name;
+      if (el !== null && typeof state.currentUser?.name === "string") {
+        el.textContent = state.currentUser.name;
+      }
     })
     .catch(() => {});
 })();

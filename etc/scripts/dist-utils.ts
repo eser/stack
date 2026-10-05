@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Shared utilities for distribution scripts (Nix hash updater, Homebrew formula updater).
+ * Shared utilities for the release scripts in etc/scripts: the Nix hash
+ * updater, the Homebrew formula updater and the npm consumer preflight.
  *
- * Pure functions — no I/O, no side effects. Easy to test.
+ * Pure functions with no I/O and no side effects, so each one has a test.
  *
  * @module
  */
@@ -61,6 +62,40 @@ export const hexToSri = (hex: string): string => {
 
   return `sha256-${base64}`;
 };
+
+/**
+ * Resolves the repository root from the directory of a script in
+ * `etc/scripts/`, two levels below it. The release scripts use this instead of
+ * a path library because they run from a fresh checkout with nothing resolved
+ * from a registry. Deno and Node accept "/" separators on Windows too.
+ *
+ * @param scriptDir - The calling script's `import.meta.dirname`
+ * @returns The repository root, with "/" separators
+ * @throws Error if `scriptDir` is undefined, which happens when the script is
+ * not loaded from a local file
+ */
+export const repoRootFrom = (scriptDir: string | undefined): string => {
+  if (scriptDir === undefined) {
+    throw new Error(
+      "Cannot locate the repository root: import.meta.dirname is undefined. Run the script from a local checkout, not from a URL.",
+    );
+  }
+
+  // Drop the trailing "etc/scripts"; Windows paths may use either separator.
+  return scriptDir.split(/[\\/]/).slice(0, -2).join("/");
+};
+
+/**
+ * Replaces the credentials in every URL in `text` with "[redacted]", so a
+ * command line or tool output that carries an authenticated remote URL can go
+ * into an error message or a log.
+ *
+ * @param text - A command line, error message or tool output
+ * @returns `text` with each `scheme://credentials@host` written as
+ * `scheme://[redacted]@host`
+ */
+export const redactUrlCredentials = (text: string): string =>
+  text.replace(/:\/\/[^\s/@]+@/g, "://[redacted]@");
 
 /**
  * Computes the SHA256 hex hash of arbitrary data.

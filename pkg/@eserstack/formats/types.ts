@@ -16,14 +16,25 @@ export interface FormatReader {
   flush(): unknown[];
 }
 
+/**
+ * A serialization format: a writer and a streaming reader.
+ *
+ * Writers get two flags in their options. `_inArray` is true when the item is
+ * one entry of a list (`serialize` with an array, or a stream layer) and false
+ * when the value is the whole document. `_isFirst` is true for the first
+ * entry, so a format can leave out its separator or write a header before it.
+ */
 export interface Format {
   name: string;
   extensions: string[];
   streamable: boolean;
 
   // Write direction
+  /** Text before the items, such as the `[` of a JSON array. */
   writeStart?: (options?: FormatOptions) => string;
+  /** One item, with whatever separator the format puts between items. */
   writeItem: (data: unknown, options?: FormatOptions) => string;
+  /** Text after the items, such as the `]` of a JSON array. */
   writeEnd?: (options?: FormatOptions) => string;
 
   // Read direction

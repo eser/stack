@@ -44,7 +44,7 @@ var NSErrors = struct {
 	AuthMissing: &NSError{
 		Code:    "401.NS01",
 		Message: "auth token missing",
-		Cause:   "request has no Authorization: Bearer token or ?token= query param",
+		Cause:   "request has no Authorization: Bearer token (a WebTransport attach may send ?token= instead)",
 		Fix:     "run noskills-server pin to get your PIN, then POST /auth/login",
 	},
 	AuthTokenExpired: &NSError{

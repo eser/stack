@@ -9,8 +9,10 @@
  *
  * @example
  * ```typescript
- * formatNumber(1000);    // "1,000"
- * formatNumber(1000000); // "1,000,000"
+ * import * as standards from "@eserstack/standards";
+ *
+ * standards.formatters.formatNumber(1000);    // "1,000"
+ * standards.formatters.formatNumber(1000000); // "1,000,000"
  * ```
  */
 export const formatNumber = (num: number): string => {

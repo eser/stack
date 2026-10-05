@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { createMap, createMapBuilder, EMPTY_MAP } from "./immutable-map.ts";
+import * as immutableMap from "./immutable-map.ts";
 
 // =============================================================================
 // Test Data
@@ -26,9 +26,9 @@ const largeEntries: [string, number][] = Array.from(
 );
 
 // Pre-built structures for read benchmarks
-const immutableMapSmall = createMap(smallEntries);
-const immutableMapMedium = createMap(mediumEntries);
-const immutableMapLarge = createMap(largeEntries);
+const immutableMapSmall = immutableMap.createMap(smallEntries);
+const immutableMapMedium = immutableMap.createMap(mediumEntries);
+const immutableMapLarge = immutableMap.createMap(largeEntries);
 
 const nativeMapSmall = new Map(smallEntries);
 const nativeMapMedium = new Map(mediumEntries);
@@ -46,7 +46,7 @@ Deno.bench("ImmutableMap.create (10 entries)", {
   group: "create-small",
   baseline: true,
 }, () => {
-  const builder = createMapBuilder<string, number>();
+  const builder = immutableMap.createMapBuilder<string, number>();
   for (const [k, v] of smallEntries) builder.set(k, v);
   builder.build();
 });
@@ -63,7 +63,7 @@ Deno.bench("ImmutableMap.create (100 entries)", {
   group: "create-medium",
   baseline: true,
 }, () => {
-  const builder = createMapBuilder<string, number>();
+  const builder = immutableMap.createMapBuilder<string, number>();
   for (const [k, v] of mediumEntries) builder.set(k, v);
   builder.build();
 });
@@ -80,7 +80,7 @@ Deno.bench("ImmutableMap.create (1000 entries)", {
   group: "create-large",
   baseline: true,
 }, () => {
-  const builder = createMapBuilder<string, number>();
+  const builder = immutableMap.createMapBuilder<string, number>();
   for (const [k, v] of largeEntries) builder.set(k, v);
   builder.build();
 });
@@ -300,8 +300,14 @@ Deno.bench("Object.filter (manual, 100 entries)", { group: "filter" }, () => {
 // Merge Benchmarks
 // =============================================================================
 
-const mergeSource1 = createMap<string, number>([["a", 1], ["b", 2]]);
-const mergeSource2 = createMap<string, number>([["c", 3], ["d", 4]]);
+const mergeSource1 = immutableMap.createMap<string, number>([["a", 1], [
+  "b",
+  2,
+]]);
+const mergeSource2 = immutableMap.createMap<string, number>([["c", 3], [
+  "d",
+  4,
+]]);
 const nativeMerge1 = new Map([["a", 1], ["b", 2]]);
 const nativeMerge2 = new Map([["c", 3], ["d", 4]]);
 const objectMerge1 = { a: 1, b: 2 };
@@ -347,7 +353,7 @@ Deno.bench(
   "ImmutableMap.EMPTY_MAP access",
   { group: "empty", baseline: true },
   () => {
-    EMPTY_MAP.size;
+    immutableMap.EMPTY_MAP.size;
   },
 );
 

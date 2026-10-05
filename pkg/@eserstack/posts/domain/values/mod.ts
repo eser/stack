@@ -2,8 +2,19 @@
 
 /** Domain value objects barrel. */
 
-export * from "./char-limits.ts";
-export * from "./handle.ts";
-export * from "./platform.ts";
-export * from "./post-id.ts";
-export * from "./thread.ts";
+export {
+  getCharacterLimit,
+  getMinCharacterLimit,
+  validatePostLength,
+} from "./char-limits.ts";
+export type {
+  CharacterLimitContext,
+  PostLengthValidation,
+} from "./char-limits.ts";
+export { toHandle } from "./handle.ts";
+export type { Handle } from "./handle.ts";
+export type { Platform } from "./platform.ts";
+export { toPostId } from "./post-id.ts";
+export type { PostId } from "./post-id.ts";
+export { createThread } from "./thread.ts";
+export type { Thread } from "./thread.ts";

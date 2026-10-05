@@ -3,11 +3,15 @@
 package processfx_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/eser/stack/pkg/ajan/logfx"
 	"github.com/eser/stack/pkg/ajan/processfx"
 )
 
@@ -158,7 +162,7 @@ func TestHeartbeatFromContext_NotSet(t *testing.T) {
 func TestProcess_New(t *testing.T) {
 	t.Parallel()
 
-	p := processfx.New(context.Background(), nil)
+	p := processfx.New(t.Context(), nil)
 
 	if p == nil {
 		t.Fatal("expected non-nil Process")
@@ -180,7 +184,7 @@ func TestProcess_New(t *testing.T) {
 func TestProcess_StartGoroutine_Wait_Shutdown(t *testing.T) {
 	t.Parallel()
 
-	p := processfx.New(context.Background(), nil)
+	p := processfx.New(t.Context(), nil)
 
 	started := make(chan struct{})
 	stopped := make(chan struct{})
@@ -222,6 +226,84 @@ func TestProcess_StartGoroutine_Wait_Shutdown(t *testing.T) {
 	case <-stopped:
 	case <-time.After(1 * time.Second):
 		t.Fatal("goroutine did not stop cleanly")
+	}
+}
+
+// TestProcess_WaitEndsTheSignalWatcher pins the fix for the signal watcher
+// started by New. It used to block on the signal channel alone; Wait closed
+// that channel after a cancel that was not a signal, the watcher received a
+// nil os.Signal and called String on it, and the process crashed whenever a
+// logger was set. Each case uses a real logger for that reason, and calls
+// Wait twice because the old Wait also panicked on the second close.
+func TestProcess_WaitEndsTheSignalWatcher(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name          string
+		end           func(p *processfx.Process, cancelBase context.CancelFunc)
+		wantSignalLog bool
+	}{
+		{
+			name:          "cancel without a signal",
+			end:           func(p *processfx.Process, _ context.CancelFunc) { p.Cancel() },
+			wantSignalLog: false,
+		},
+		{
+			name:          "base context ends",
+			end:           func(_ *processfx.Process, cancelBase context.CancelFunc) { cancelBase() },
+			wantSignalLog: false,
+		},
+		{
+			name:          "signal received",
+			end:           func(p *processfx.Process, _ context.CancelFunc) { p.Signal <- os.Interrupt },
+			wantSignalLog: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Wait returns only after the watcher has written its last log
+			// line, so reading the buffer afterwards is race-free.
+			var logs bytes.Buffer
+
+			logger := logfx.NewLogger(logfx.WithWriter(&logs))
+
+			baseCtx, cancelBase := context.WithCancel(t.Context())
+			defer cancelBase()
+
+			p := processfx.New(baseCtx, logger)
+			tc.end(p, cancelBase)
+
+			waited := make(chan struct{})
+
+			go func() {
+				defer close(waited)
+
+				p.Wait()
+				p.Wait()
+			}()
+
+			select {
+			case <-waited:
+			case <-time.After(5 * time.Second):
+				t.Fatal("Wait did not return after the process context ended")
+			}
+
+			if p.Ctx.Err() == nil {
+				t.Error("Ctx is still live after Wait returned")
+			}
+
+			gotSignalLog := strings.Contains(logs.String(), "Received OS signal")
+			if gotSignalLog != tc.wantSignalLog {
+				t.Errorf("signal log written = %v, want %v; logs: %s", gotSignalLog, tc.wantSignalLog, logs.String())
+			}
+
+			if tc.wantSignalLog && !strings.Contains(logs.String(), os.Interrupt.String()) {
+				t.Errorf("signal log does not name %q; logs: %s", os.Interrupt.String(), logs.String())
+			}
+		})
 	}
 }
 

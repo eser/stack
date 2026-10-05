@@ -8,11 +8,20 @@
  * @returns Object with keys from iteratee and arrays of matching elements
  *
  * @example
- * groupBy([{type: 'a', v: 1}, {type: 'b', v: 2}, {type: 'a', v: 3}], x => x.type)
- * // { a: [{type: 'a', v: 1}, {type: 'a', v: 3}], b: [{type: 'b', v: 2}] }
+ * ```typescript
+ * import * as fp from "@eserstack/fp";
  *
- * groupBy([1.2, 2.1, 2.4], Math.floor)
- * // { 1: [1.2], 2: [2.1, 2.4] }
+ * const items = [
+ *   { type: "a", v: 1 },
+ *   { type: "b", v: 2 },
+ *   { type: "a", v: 3 },
+ * ];
+ *
+ * fp.groupBy(items, (x) => x.type);
+ * // { a: [{ type: "a", v: 1 }, { type: "a", v: 3 }], b: [{ type: "b", v: 2 }] }
+ *
+ * fp.groupBy([1.2, 2.1, 2.4], Math.floor); // { 1: [1.2], 2: [2.1, 2.4] }
+ * ```
  */
 export const groupBy = <T, K extends string | number | symbol>(
   array: ReadonlyArray<T>,
@@ -34,5 +43,3 @@ export const groupBy = <T, K extends string | number | symbol>(
 
   return result;
 };
-
-export { groupBy as default };

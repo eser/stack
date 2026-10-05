@@ -11,7 +11,7 @@
 
 import type * as tui from "@eserstack/shell/tui";
 import type { InputMode } from "../../engine/types.ts";
-import { lookup, parseChord } from "../../keybindings/mod.ts";
+import * as keybindings from "../../keybindings/mod.ts";
 import type { Keymap } from "../../keybindings/mod.ts";
 import type { FrontendToServer } from "../../ipc/protocol.ts";
 import type { Scene } from "../../scene/scene.ts";
@@ -28,7 +28,7 @@ export const keyToMessages = (
   mode: InputMode,
   keymap: Keymap,
 ): FrontendToServer[] => {
-  const actions = lookup(keymap, mode, parseChord(key));
+  const actions = keybindings.lookup(keymap, mode, keybindings.parseChord(key));
   if (actions !== undefined) {
     return actions.map((action) => ({ t: "action", action }));
   }

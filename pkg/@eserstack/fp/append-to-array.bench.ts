@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { appendToArray } from "./append-to-array.ts";
+import * as appendToArray from "./append-to-array.ts";
 
 const group = "append-to-array";
 
@@ -10,7 +10,7 @@ Deno.bench(
   () => {
     const arr1 = ["a", "b"];
 
-    appendToArray(arr1, "c");
+    appendToArray.appendToArray(arr1, "c");
   },
 );
 

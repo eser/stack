@@ -19,8 +19,10 @@
  */
 
 import * as standards from "@eserstack/standards";
-import { JS_FILE_EXTENSIONS } from "@eserstack/standards/patterns";
-import { createFileTool, type FileTool } from "./file-tool.ts";
+import * as patterns from "@eserstack/standards/patterns";
+import * as cliSupport from "./cli-support.ts";
+import * as fileTool from "./file-tool.ts";
+import type { FileTool } from "./file-tool.ts";
 
 const PACKAGE_DIR_PATTERN = /(?:^|\/)pkg\/@eserstack\/([^/]+)\//;
 
@@ -40,14 +42,14 @@ const isCommentLine = (line: string): boolean => {
 const escapeRe = (s: string): string =>
   s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-export const tool: FileTool = createFileTool({
+export const tool: FileTool = fileTool.createFileTool({
   name: "validate-self-imports",
   description:
     "Detect a package importing itself by its published name (breaks JSR publish; use a relative path)",
   canFix: false,
   stacks: ["javascript"],
   defaults: {},
-  extensions: JS_FILE_EXTENSIONS,
+  extensions: patterns.JS_FILE_EXTENSIONS,
 
   checkFile(file, content) {
     if (content === undefined) return [];
@@ -88,8 +90,10 @@ export const validator: FileTool["validator"] = tool.validator;
 export const main: FileTool["main"] = tool.main;
 
 if (import.meta.main) {
-  const { runCliMain } = await import("./cli-support.ts");
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result);
 }

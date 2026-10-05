@@ -53,7 +53,7 @@ func TestResponseTimeMiddleware(t *testing.T) { //nolint:funlen
 			t.Parallel()
 
 			// Create a router with the response time middleware
-			router := httpfx.NewRouter("/")
+			router := newTestRouter()
 			router.Use(middlewares.ResponseTimeMiddleware())
 
 			// Add a test route

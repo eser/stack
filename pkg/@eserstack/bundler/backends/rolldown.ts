@@ -5,7 +5,7 @@
  *
  * This backend wraps the Rolldown bundler (https://rolldown.rs)
  * with the unified Bundler interface. Rolldown is a Rust-based bundler
- * that is 10-30x faster than Rollup with Rollup-compatible plugin API.
+ * with a Rollup-compatible plugin API.
  *
  * Note: Rolldown is currently in beta. Use with caution in production.
  *
@@ -30,7 +30,7 @@ import type {
   TransformArgs,
   TransformResult,
 } from "../types.ts";
-import { createErrorResult, createSuccessResult } from "../types.ts";
+import * as types from "../types.ts";
 
 /**
  * Internal plugin build context for collecting hooks.
@@ -245,7 +245,7 @@ export class RolldownBackend implements Bundler {
 
       return await this.processRolldownOutput(result, config);
     } catch (error) {
-      return createErrorResult([
+      return types.createErrorResult([
         {
           message: error instanceof Error ? error.message : String(error),
           severity: "fatal",
@@ -280,7 +280,7 @@ export class RolldownBackend implements Bundler {
         onChange(result);
       } else if (event.code === "ERROR") {
         onChange(
-          createErrorResult([
+          types.createErrorResult([
             {
               message: event.error?.message ?? "Watch error",
               severity: "error",
@@ -305,6 +305,8 @@ export class RolldownBackend implements Bundler {
     try {
       // Try to import rolldown - it should be installed via npm
       // In Deno, this uses the npm: specifier
+      // The optional dependency's types are not imported; the module is
+      // narrowed to the RolldownModule interface right below.
       // deno-lint-ignore no-explicit-any
       const rolldownImport = await import("rolldown") as any;
 
@@ -377,6 +379,9 @@ export class RolldownBackend implements Bundler {
       ) => {
         for (const resolver of pluginBuild.resolvers) {
           if (resolver.options.filter.test(source)) {
+            // Resolvers run in registration order and the first one that
+            // resolves wins, so later resolvers must not run before it.
+            // deno-lint-ignore no-await-in-loop
             const result = await resolver.callback({
               path: source,
               importer: importer ?? "",
@@ -400,6 +405,9 @@ export class RolldownBackend implements Bundler {
       rollupPlugin.load = async (id: string) => {
         for (const loader of pluginBuild.loaders) {
           if (loader.options.filter.test(id)) {
+            // Loaders run in registration order and the first one that
+            // returns contents wins, so later loaders must not run before it.
+            // deno-lint-ignore no-await-in-loop
             const result = await loader.callback({
               path: id,
               namespace: loader.options.namespace ?? "file",
@@ -420,6 +428,8 @@ export class RolldownBackend implements Bundler {
         let currentCode = code;
         for (const transformer of pluginBuild.transformers) {
           if (transformer.options.filter.test(id)) {
+            // Each transformer receives the previous transformer's output.
+            // deno-lint-ignore no-await-in-loop
             const result = await transformer.callback({
               path: id,
               code: currentCode,
@@ -448,20 +458,18 @@ export class RolldownBackend implements Bundler {
     let mainEntrypoint = null;
     let totalSize = 0;
 
-    for (const output of result.output) {
+    // Hash every output concurrently; the outputs are already in memory and
+    // the results are applied in output order below.
+    const encodedOutputs = await Promise.all(
+      result.output.map(async (output) => {
+        const code = encodeRolldownOutput(output, config.basePath);
+
+        return { output, code, hash: await this.computeHash(code) };
+      }),
+    );
+
+    for (const { output, code, hash } of encodedOutputs) {
       if (output.type === "chunk") {
-        // Post-process: Replace URL paths (matches DenoBundler behavior)
-        let processedCode = output.code;
-        if (config.basePath !== undefined) {
-          processedCode = processedCode.replace(
-            /\/_lime\/alive/g,
-            `${config.basePath}/_lime/alive`,
-          );
-        }
-
-        const code = new TextEncoder().encode(processedCode);
-        const hash = await this.computeHash(code);
-
         const bundleOutput: BundleOutput = {
           path: output.fileName,
           code,
@@ -511,18 +519,13 @@ export class RolldownBackend implements Bundler {
             : {}),
         };
       } else if (output.type === "asset") {
-        const content = typeof output.source === "string"
-          ? new TextEncoder().encode(output.source)
-          : output.source;
-        const hash = await this.computeHash(content);
-
         outputs.set(output.fileName, {
           path: output.fileName,
-          code: content,
-          size: content.length,
+          code,
+          size: code.length,
           hash,
         });
-        totalSize += content.length;
+        totalSize += code.length;
       }
     }
 
@@ -538,7 +541,7 @@ export class RolldownBackend implements Bundler {
       totalSize,
     };
 
-    return createSuccessResult(outputs, options);
+    return types.createSuccessResult(outputs, options);
   }
 
   private async computeHash(content: Uint8Array): Promise<string> {
@@ -548,6 +551,27 @@ export class RolldownBackend implements Bundler {
     );
     return hex.encodeHex(new Uint8Array(hashBuffer)).slice(0, 16);
   }
+}
+
+/**
+ * Encode one Rolldown output as bytes. Chunks get the basePath rewrite of the
+ * `/_lime/alive` URL, matching the DenoBundler backend.
+ */
+function encodeRolldownOutput(
+  output: RolldownOutputChunk | RolldownOutputAsset,
+  basePath: string | undefined,
+): Uint8Array {
+  if (output.type === "asset") {
+    return typeof output.source === "string"
+      ? new TextEncoder().encode(output.source)
+      : output.source;
+  }
+
+  const code = basePath !== undefined
+    ? output.code.replace(/\/_lime\/alive/g, `${basePath}/_lime/alive`)
+    : output.code;
+
+  return new TextEncoder().encode(code);
 }
 
 /**
@@ -681,12 +705,14 @@ export const RolldownPresets = {
  *
  * @example
  * ```ts
+ * import * as bundler from "@eserstack/bundler";
+ *
  * // Use React preset
- * const bundler = createRolldownWithPreset("react");
+ * const react = bundler.createRolldownWithPreset("react");
  *
  * // Use preset with overrides
- * const bundler = createRolldownWithPreset("react", {
- *   advancedChunks: { minSize: 5000 }
+ * const customReact = bundler.createRolldownWithPreset("react", {
+ *   advancedChunks: { minSize: 5000 },
  * });
  * ```
  */

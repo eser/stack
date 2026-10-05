@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { memoize } from "./memoize.ts";
+import * as memoize from "./memoize.ts";
 
 Deno.test("basic", () => {
   let callCount = 0;
@@ -10,7 +10,7 @@ Deno.test("basic", () => {
     return x * 2;
   };
 
-  const memoized = memoize(fn);
+  const memoized = memoize.memoize(fn);
 
   assert.assertEquals(memoized(5), 10);
   assert.assertEquals(callCount, 1);
@@ -23,7 +23,7 @@ Deno.test("cache-hit", () => {
     return x * 2;
   };
 
-  const memoized = memoize(fn);
+  const memoized = memoize.memoize(fn);
 
   memoized(5);
   memoized(5);
@@ -39,7 +39,7 @@ Deno.test("different-args", () => {
     return x * 2;
   };
 
-  const memoized = memoize(fn);
+  const memoized = memoize.memoize(fn);
 
   memoized(1);
   memoized(2);
@@ -55,7 +55,7 @@ Deno.test("custom-resolver", () => {
     return `result-${id}`;
   };
 
-  const memoized = memoize(fn, (id) => id);
+  const memoized = memoize.memoize(fn, (id) => id);
 
   memoized("a", { force: true });
   memoized("a", { force: false });
@@ -67,7 +67,7 @@ Deno.test("custom-resolver", () => {
 Deno.test("cache-access", () => {
   const fn = (x: number) => x * 2;
 
-  const memoized = memoize(fn);
+  const memoized = memoize.memoize(fn);
 
   memoized(5);
   memoized(10);
@@ -84,7 +84,7 @@ Deno.test("cache-clear", () => {
     return x * 2;
   };
 
-  const memoized = memoize(fn);
+  const memoized = memoize.memoize(fn);
 
   memoized(5);
   memoized.cache.clear();
@@ -100,7 +100,7 @@ Deno.test("cache-delete", () => {
     return x * 2;
   };
 
-  const memoized = memoize(fn);
+  const memoized = memoize.memoize(fn);
 
   memoized(5);
   memoized.cache.delete(5);
@@ -112,7 +112,7 @@ Deno.test("cache-delete", () => {
 Deno.test("object-key", () => {
   const fn = (obj: { id: number }) => obj.id * 2;
 
-  const memoized = memoize(fn);
+  const memoized = memoize.memoize(fn);
 
   const obj1 = { id: 1 };
   const obj2 = { id: 1 }; // Same content, different reference

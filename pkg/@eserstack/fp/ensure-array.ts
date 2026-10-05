@@ -10,14 +10,14 @@
  *
  * @example
  * ```typescript
+ * import * as fp from "@eserstack/fp";
+ *
  * const set = new Set([1, 2, 3]);
- * const arr = ensureArray(set); // [1, 2, 3]
+ * const arr = fp.ensureArray(set); // [1, 2, 3]
  *
  * const existing = [1, 2, 3];
- * const same = ensureArray(existing); // same reference
+ * const same = fp.ensureArray(existing); // same reference
  * ```
  */
 export const ensureArray = <T>(instance: Iterable<T>): ReadonlyArray<T> =>
   instance.constructor === Array ? <ReadonlyArray<T>> instance : [...instance];
-
-export { ensureArray as default };

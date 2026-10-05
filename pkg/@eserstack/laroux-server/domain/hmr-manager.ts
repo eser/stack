@@ -43,22 +43,26 @@ export class HMRManager {
 
     // Handle errors
     socket.addEventListener("error", (event) => {
-      hmrLogger.error("HMR WebSocket error:", { event });
+      hmrLogger.with({ event }).error(
+        "HMR WebSocket error; dropping the client",
+      );
       this.clients.delete(socket);
     });
   }
 
   /**
    * Notify all connected clients of an update
+   *
+   * @param timestamp - When the update was built; the caller reads the clock
+   * @param changedModules - Modules the update touched, when known
    */
-  notifyUpdate(
-    timestamp: number = Date.now(),
-    changedModules?: string[],
-  ): void {
+  notifyUpdate(timestamp: number, changedModules?: string[]): void {
     const message: HMRMessage = { type: "update", timestamp, changedModules };
     hmrLogger.debug(
       `Notifying ${this.clients.size} clients of update${
-        changedModules ? ` (${changedModules.length} modules changed)` : ""
+        changedModules !== undefined
+          ? ` (${changedModules.length} modules changed)`
+          : ""
       }`,
     );
 
@@ -87,7 +91,9 @@ export class HMRManager {
       try {
         client.send(JSON.stringify(message));
       } catch (error) {
-        hmrLogger.error("Failed to send HMR message:", { error });
+        hmrLogger.with({ error }).error(
+          `send HMR ${message.type} message to a client`,
+        );
       }
     }
   }

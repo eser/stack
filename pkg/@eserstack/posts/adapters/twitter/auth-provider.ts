@@ -4,6 +4,11 @@
  * TwitterAuthProvider — OAuth 2.0 Authorization Code Flow with PKCE.
  * Browser-based flow: getAuthorizationUrl() → browser redirect → exchangeCode().
  * Uses Web Crypto API exclusively — no external crypto libraries.
+ *
+ * A public client (a Native App in the X developer portal) sends only its
+ * client ID. A confidential client (a Web App or an Automated App) also has a
+ * client secret, and its token requests authenticate with HTTP Basic auth:
+ * https://docs.x.com/resources/fundamentals/authentication/oauth-2-0/user-access-token
  */
 
 import type { OAuthTokens } from "../../domain/entities/user.ts";
@@ -11,7 +16,7 @@ import type {
   AuthorizationRequest,
   AuthProvider,
 } from "../../application/auth-provider.ts";
-import { mapToOAuthTokens } from "./mappers.ts";
+import * as mappers from "./mappers.ts";
 import type { TwitterApiOAuthToken } from "./types.ts";
 import type { TwitterClient } from "./client.ts";
 
@@ -19,6 +24,11 @@ import type { TwitterClient } from "./client.ts";
 export interface TwitterAuthConfig {
   /** OAuth 2.0 client ID registered in the Twitter Developer Portal. */
   clientId: string;
+  /**
+   * OAuth 2.0 client secret of a confidential client. When set, token
+   * requests send `Authorization: Basic` with the client ID and secret.
+   */
+  clientSecret?: string;
   /** Redirect URI registered in the Twitter Developer Portal. */
   redirectUri: string;
   /** OAuth scopes to request. Defaults to the minimum set for read/write. */
@@ -61,16 +71,35 @@ async function deriveCodeChallenge(verifier: string): Promise<string> {
   return toBase64Url(new Uint8Array(digest));
 }
 
+/**
+ * The client authentication header for a confidential client. RFC 6749
+ * section 2.3.1 form-encodes the ID and the secret before joining them, which
+ * also keeps the input to btoa within ASCII.
+ */
+const basicAuthHeader = (clientId: string, clientSecret: string): string =>
+  `Basic ${
+    btoa(
+      `${encodeURIComponent(clientId)}:${encodeURIComponent(clientSecret)}`,
+    )
+  }`;
+
 /** Implements AuthProvider using Twitter OAuth 2.0 PKCE browser flow. */
 export class TwitterAuthProvider implements AuthProvider {
   readonly requiresBrowser = true;
 
-  private readonly config: TwitterAuthConfig;
+  private readonly config: Omit<TwitterAuthConfig, "clientSecret">;
   private readonly client: TwitterClient;
+  // A private field, so the secret stays out of JSON and inspect output.
+  readonly #tokenRequestHeaders: Readonly<Record<string, string>> | undefined;
 
   constructor(config: TwitterAuthConfig, client: TwitterClient) {
-    this.config = config;
+    const { clientSecret, ...publicConfig } = config;
+    this.config = publicConfig;
     this.client = client;
+    this.#tokenRequestHeaders =
+      clientSecret !== undefined && clientSecret !== ""
+        ? { Authorization: basicAuthHeader(config.clientId, clientSecret) }
+        : undefined;
   }
 
   isAuthenticated(): boolean {
@@ -113,8 +142,9 @@ export class TwitterAuthProvider implements AuthProvider {
         client_id: this.config.clientId,
         code_verifier: params.codeVerifier,
       },
+      this.#tokenRequestHeaders,
     );
-    const tokens = mapToOAuthTokens(raw);
+    const tokens = mappers.mapToOAuthTokens(raw);
     this.client.setAccessToken(tokens.accessToken);
     return tokens;
   }
@@ -137,8 +167,9 @@ export class TwitterAuthProvider implements AuthProvider {
         refresh_token: refreshToken,
         client_id: this.config.clientId,
       },
+      this.#tokenRequestHeaders,
     );
-    const tokens = mapToOAuthTokens(raw);
+    const tokens = mappers.mapToOAuthTokens(raw);
     this.client.setAccessToken(tokens.accessToken);
     return tokens;
   }

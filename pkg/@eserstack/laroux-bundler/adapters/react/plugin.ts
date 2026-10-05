@@ -12,28 +12,15 @@ import type {
   ModuleMap,
   TransformResult,
 } from "../../domain/framework-plugin.ts";
-import type { BuildCache } from "../../domain/build-cache.ts";
+import type { ClientComponentCache } from "../../domain/build-cache.ts";
 
 // Import RSC implementations
-import {
-  analyzeClientComponents as analyzeClientComponentsImpl,
-  getAllComponents as getAllComponentsImpl,
-} from "./rsc-analyze.ts";
-import {
-  generateTransformManifest as generateTransformManifestImpl,
-  transformAllClientComponents as transformAllClientComponentsImpl,
-} from "./rsc-transform.ts";
-import {
-  createClientManifest as createClientManifestImpl,
-  generateModuleMap as generateModuleMapImpl,
-  type ModuleMap as RscModuleMap,
-  saveModuleMap as saveModuleMapImpl,
-} from "./rsc-module-map.ts";
-import {
-  rewriteAllServerComponents as rewriteAllServerComponentsImpl,
-  rewriteAllSrcCSSModuleImports as rewriteAllSrcCSSModuleImportsImpl,
-} from "./rsc-rewrite-imports.ts";
-import { createClientEntry as createClientEntryImpl } from "./rsc-client-entry.ts";
+import * as rscAnalyze from "./rsc-analyze.ts";
+import * as rscTransform from "./rsc-transform.ts";
+import * as rscModuleMap from "./rsc-module-map.ts";
+import type { ModuleMap as RscModuleMap } from "./rsc-module-map.ts";
+import * as rscRewriteImports from "./rsc-rewrite-imports.ts";
+import * as rscClientEntry from "./rsc-client-entry.ts";
 
 /**
  * React framework plugin for Laroux bundler
@@ -50,13 +37,13 @@ export const reactPlugin: FrameworkPlugin = {
   analyzeClientComponents: async (
     srcDir: string,
     projectRoot: string,
-    cache?: BuildCache,
+    cache?: ClientComponentCache,
   ): Promise<ClientComponent[]> => {
-    return await analyzeClientComponentsImpl(srcDir, projectRoot, cache);
+    return await rscAnalyze.analyzeClientComponents(srcDir, projectRoot, cache);
   },
 
   getAllComponents: async (srcDir: string): Promise<string[]> => {
-    return await getAllComponentsImpl(srcDir);
+    return await rscAnalyze.getAllComponents(srcDir);
   },
 
   transformClientComponents: async (
@@ -64,7 +51,7 @@ export const reactPlugin: FrameworkPlugin = {
     outputDir: string,
     projectRoot: string,
   ): Promise<TransformResult[]> => {
-    const results = await transformAllClientComponentsImpl(
+    const results = await rscTransform.transformAllClientComponents(
       components,
       outputDir,
       projectRoot,
@@ -81,7 +68,7 @@ export const reactPlugin: FrameworkPlugin = {
     outputPath: string,
     projectRoot: string,
   ): Promise<void> => {
-    await generateTransformManifestImpl(
+    await rscTransform.generateTransformManifest(
       transformResults,
       outputPath,
       projectRoot,
@@ -93,20 +80,20 @@ export const reactPlugin: FrameworkPlugin = {
   ): Promise<ModuleMap> => {
     // RSC's generateModuleMap returns Record<string, ModuleMapEntry>
     // which matches our ModuleMap type
-    return Promise.resolve(generateModuleMapImpl(components));
+    return Promise.resolve(rscModuleMap.generateModuleMap(components));
   },
 
   saveModuleMap: async (
     moduleMap: ModuleMap,
     outputPath: string,
   ): Promise<void> => {
-    await saveModuleMapImpl(moduleMap as RscModuleMap, outputPath);
+    await rscModuleMap.saveModuleMap(moduleMap as RscModuleMap, outputPath);
   },
 
   createClientManifest: (
     components: ClientComponent[],
   ): Promise<ModuleMap> => {
-    return Promise.resolve(createClientManifestImpl(components));
+    return Promise.resolve(rscModuleMap.createClientManifest(components));
   },
 
   rewriteServerComponents: async (
@@ -116,7 +103,7 @@ export const reactPlugin: FrameworkPlugin = {
     outputDir: string,
     projectRoot: string,
   ): Promise<void> => {
-    await rewriteAllServerComponentsImpl(
+    await rscRewriteImports.rewriteAllServerComponents(
       serverComponentPaths,
       transformResults,
       cssModulePaths,
@@ -130,7 +117,7 @@ export const reactPlugin: FrameworkPlugin = {
     cssModulePaths: string[],
     projectRoot: string,
   ): Promise<void> => {
-    await rewriteAllSrcCSSModuleImportsImpl(
+    await rscRewriteImports.rewriteAllSrcCSSModuleImports(
       srcDir,
       cssModulePaths,
       projectRoot,
@@ -142,6 +129,10 @@ export const reactPlugin: FrameworkPlugin = {
     projectRoot: string,
     distDir: string,
   ): Promise<string> => {
-    return await createClientEntryImpl(components, projectRoot, distDir);
+    return await rscClientEntry.createClientEntry(
+      components,
+      projectRoot,
+      distDir,
+    );
   },
 };

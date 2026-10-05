@@ -38,28 +38,28 @@
       "id": "design-states",
       "title": "Design States (empty, loading, error, success)",
       "placeholder": "_For every UI component in this change, specify: loading state, empty state, error state, success state, partial state. No placeholders — each state must be designed._",
-      "condition": "involvesWebUI",
+      "scope": ["ui"],
       "position": "after:acceptance-criteria"
     },
     {
       "id": "mobile-layout",
       "title": "Mobile Layout",
       "placeholder": "_Describe the mobile layout. Touch targets (≥44×44px)? Viewport behavior? Which breakpoints apply? What collapses or reflows on small screens?_",
-      "condition": "involvesWebUI",
+      "scope": ["ui"],
       "position": "after:acceptance-criteria"
     },
     {
       "id": "interaction-design",
       "title": "Interaction Design",
       "placeholder": "_Describe the interaction model: tap targets, hover states, focus management, animation intent, keyboard navigation. For multi-step flows: back/escape/abandonment behavior._",
-      "condition": "involvesWebUI",
+      "scope": ["ui"],
       "position": "after:acceptance-criteria"
     },
     {
       "id": "accessibility",
       "title": "Accessibility",
       "placeholder": "_Keyboard navigation, focus indicators, ARIA labels, contrast (WCAG 2.1 AA: 4.5:1 text, 3:1 UI), screen reader behavior. List every interactive element and its accessible name._",
-      "condition": "involvesWebUI",
+      "scope": ["ui"],
       "position": "after:acceptance-criteria"
     }
   ],
@@ -78,16 +78,46 @@
     ]
   },
   "reminders": [
-    "Loading state and error state must be designed, not placeholder",
-    "No AI slop — every UI element is intentional",
-    "Empty states need clear CTAs with examples",
-    "Rate each UI change 0-10 on design intentionality before marking task complete. If below 7, iterate.",
-    "Check all interaction states: loading, empty, error, success, partial. Missing states are bugs, not TODOs.",
-    "Edge case check: what happens with 47-character names? Zero results? Network failure mid-action?",
-    "AI SLOP BLACKLIST — reject these patterns in any UI implementation: (1) Purple/violet gradient backgrounds (2) 3-column feature grid with icon-in-circle + bold title + 2-line description (3) Icons in colored circles as decoration (4) Everything centered (text-align: center on all elements) (5) Uniform bubbly border-radius on every element (6) Decorative blobs, floating circles, wavy SVG dividers (7) Emoji as design elements in headings or bullets (8) Colored left-border on cards (9) Generic hero copy ('Welcome to X', 'Unlock the power of...') (10) Cookie-cutter section rhythm (hero → 3 features → testimonials → pricing). If the implementation matches any of these patterns, reject it and ask for a redesign with specific, intentional alternatives.",
-    "7-PASS DESIGN REVIEW before marking any UI task done: (1) Information hierarchy — what does the user see first? (2) Interaction states — all states specified? (3) Edge cases — long text, zero results, errors? (4) Accessibility — keyboard, contrast, touch targets? (5) Design system — consistent tokens? (6) AI Slop Litmus — does this look generated or designed? (7) Emotional arc — does the journey feel crafted?",
-    "LANDING PAGE RULES (when involvesWebUI): The 5-second test — does a cold visitor know what this does in 5 seconds? The skeptic test — what's the biggest objection a visitor has, and does the page address it above the fold? Social proof before CTA — never ask for commitment before establishing trust.",
-    "Design rating rubric: 0-4 = unacceptable (AI-generated look, missing states, broken on mobile), 5-6 = passable (functional, but generic), 7-8 = good (intentional, complete states, on-brand), 9-10 = exceptional (delightful, memorable, exceeds expectations). Do not ship below 7."
+    {
+      "text": "Loading state and error state must be designed, not placeholder",
+      "scope": ["ui"]
+    },
+    {
+      "text": "No AI slop — every UI element is intentional",
+      "scope": ["ui"]
+    },
+    {
+      "text": "Empty states need clear CTAs with examples",
+      "scope": ["ui"]
+    },
+    {
+      "text": "Rate each UI change 0-10 on design intentionality before marking task complete. If below 7, iterate.",
+      "scope": ["ui"]
+    },
+    {
+      "text": "Check all interaction states: loading, empty, error, success, partial. Missing states are bugs, not TODOs.",
+      "scope": ["ui"]
+    },
+    {
+      "text": "Edge case check: what happens with 47-character names? Zero results? Network failure mid-action?",
+      "scope": ["ui"]
+    },
+    {
+      "text": "AI SLOP BLACKLIST — reject these patterns in any UI implementation: (1) Purple/violet gradient backgrounds (2) 3-column feature grid with icon-in-circle + bold title + 2-line description (3) Icons in colored circles as decoration (4) Everything centered (text-align: center on all elements) (5) Uniform bubbly border-radius on every element (6) Decorative blobs, floating circles, wavy SVG dividers (7) Emoji as design elements in headings or bullets (8) Colored left-border on cards (9) Generic hero copy ('Welcome to X', 'Unlock the power of...') (10) Cookie-cutter section rhythm (hero → 3 features → testimonials → pricing). If the implementation matches any of these patterns, reject it and ask for a redesign with specific, intentional alternatives.",
+      "scope": ["ui"]
+    },
+    {
+      "text": "7-PASS DESIGN REVIEW before marking any UI task done: (1) Information hierarchy — what does the user see first? (2) Interaction states — all states specified? (3) Edge cases — long text, zero results, errors? (4) Accessibility — keyboard, contrast, touch targets? (5) Design system — consistent tokens? (6) AI Slop Litmus — does this look generated or designed? (7) Emotional arc — does the journey feel crafted?",
+      "scope": ["ui"]
+    },
+    {
+      "text": "LANDING PAGE RULES (when involvesWebUI): The 5-second test — does a cold visitor know what this does in 5 seconds? The skeptic test — what's the biggest objection a visitor has, and does the page address it above the fold? Social proof before CTA — never ask for commitment before establishing trust.",
+      "scope": ["ui"]
+    },
+    {
+      "text": "Design rating rubric: 0-4 = unacceptable (AI-generated look, missing states, broken on mobile), 5-6 = passable (functional, but generic), 7-8 = good (intentional, complete states, on-brand), 9-10 = exceptional (delightful, memorable, exceeds expectations). Do not ship below 7.",
+      "scope": ["ui"]
+    }
   ],
   "acceptanceCriteria": [
     "All UI states designed (empty, loading, error, success)",

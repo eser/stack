@@ -2,6 +2,16 @@
 
 import type { Chunk, Layer, Sink } from "../types.ts";
 
+/**
+ * Creates a layer that writes each chunk to `sink` as well and passes it on
+ * unchanged. The sink is closed when the stream ends.
+ *
+ * The layer takes the sink's writer when it is created, so use a separate
+ * `tee()` for each stream.
+ *
+ * @param sink - The extra sink that receives a copy of every chunk
+ * @returns A layer named `tee(<sink name>)`
+ */
 export const tee = <T = unknown>(
   sink: Sink<T>,
 ): Layer<T, T> => {

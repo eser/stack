@@ -28,7 +28,7 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import * as schema from "./schema.ts";
+import type * as schema from "./schema.ts";
 import * as persistence from "./persistence.ts";
 import * as questions from "../context/questions.ts";
 import * as concerns from "../context/concerns.ts";
@@ -62,19 +62,22 @@ export type LedgerRecord = {
   readonly artifacts: readonly string[];
 };
 
-/** Run-end rollup derived solely from noskills' own output. */
+/**
+ * Run-end rollup derived solely from noskills' own output. The snake_case keys
+ * are the summary.json format, so they are quoted.
+ */
 export type LedgerSummary = {
-  readonly resolved_decisions: number;
-  readonly provenance_breakdown: {
+  readonly "resolved_decisions": number;
+  readonly "provenance_breakdown": {
     readonly ratified: number;
     readonly inferred: number;
     readonly default: number;
   };
-  readonly open_questions: number;
+  readonly "open_questions": number;
   readonly specificity: {
-    readonly named_artifacts_count: number;
-    readonly acceptance_criteria_present: boolean;
-    readonly out_of_scope_present: boolean;
+    readonly "named_artifacts_count": number;
+    readonly "acceptance_criteria_present": boolean;
+    readonly "out_of_scope_present": boolean;
   };
 };
 
@@ -82,13 +85,14 @@ export type LedgerSummary = {
 // Deterministic helpers
 // =============================================================================
 
+// Keys are discovery question ids, which state files store as written.
 const QUESTION_CATEGORY: Readonly<Record<string, LedgerCategory>> = {
-  status_quo: "scope",
+  "status_quo": "scope",
   ambition: "scope",
   reversibility: "constraint",
-  user_impact: "constraint",
+  "user_impact": "constraint",
   verification: "acceptance-criteria",
-  scope_boundary: "out-of-scope",
+  "scope_boundary": "out-of-scope",
 };
 
 const categoryForQuestionId = (questionId: string): LedgerCategory =>

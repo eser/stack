@@ -2,7 +2,7 @@
 
 import * as csv from "@std/csv";
 import type { Format, FormatOptions, FormatReader } from "../types.ts";
-import { DeserializationError, SerializationError } from "../types.ts";
+import * as types from "../types.ts";
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && value !== undefined && value.constructor === Object;
@@ -50,7 +50,7 @@ export const writeItem = (
       columns: headers,
     });
   } catch (error) {
-    throw new SerializationError(
+    throw new types.SerializationError(
       `Failed to serialize CSV: ${
         error instanceof Error ? error.message : String(error)
       }`,
@@ -95,7 +95,7 @@ export const createReader = (options?: FormatOptions): FormatReader => {
           });
           items.push(...parsed);
         } catch (error) {
-          throw new DeserializationError(
+          throw new types.DeserializationError(
             `Failed to deserialize CSV row: ${
               error instanceof Error ? error.message : String(error)
             }`,
@@ -128,7 +128,7 @@ export const createReader = (options?: FormatOptions): FormatReader => {
         });
         return parsed;
       } catch (error) {
-        throw new DeserializationError(
+        throw new types.DeserializationError(
           `Failed to deserialize CSV: ${
             error instanceof Error ? error.message : String(error)
           }`,

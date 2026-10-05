@@ -13,8 +13,8 @@
 import * as assert from "@std/assert";
 import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { ensureLib, getLib } from "./ffi-client.ts";
-import { tool } from "./validate-secrets.ts";
+import * as ffiClient from "./ffi-client.ts";
+import * as validateSecrets from "./validate-secrets.ts";
 
 const HEADER =
   "// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.\n";
@@ -52,11 +52,13 @@ const makeFixture = async (): Promise<string> => {
     prefix: "validate-secrets-parity-",
   });
 
-  for (const [rel, body] of Object.entries(FIXTURE)) {
-    const full = path.join(root, rel);
-    await runtime.fs.mkdir(path.dirname(full), { recursive: true });
-    await runtime.fs.writeTextFile(full, body);
-  }
+  await Promise.all(
+    Object.entries(FIXTURE).map(async ([rel, body]) => {
+      const full = path.join(root, rel);
+      await runtime.fs.mkdir(path.dirname(full), { recursive: true });
+      await runtime.fs.writeTextFile(full, body);
+    }),
+  );
 
   return root;
 };
@@ -66,10 +68,10 @@ Deno.test({
   name: "validate-secrets: Go and TypeScript implementations agree",
   sanitizeResources: false,
   sanitizeOps: false,
-  async fn() {
-    await ensureLib();
-    const lib = getLib();
-    const nativeDisabled = Deno.env.get("ESER_AJAN_NATIVE") === "disabled";
+  fn: async () => {
+    await ffiClient.ensureLib();
+    const lib = ffiClient.getLib();
+    const nativeDisabled = runtime.env.get("ESER_AJAN_NATIVE") === "disabled";
 
     if (lib === null && nativeDisabled) {
       // Native deliberately off: only the TypeScript half can run here.
@@ -83,8 +85,8 @@ Deno.test({
 
     const root = await makeFixture();
     try {
-      const ts = await tool.run({ root, exclude: EXCLUDE });
-      const go = await tool.validator.validate({
+      const ts = await validateSecrets.tool.run({ root, exclude: EXCLUDE });
+      const go = await validateSecrets.tool.validator.validate({
         root,
         options: { exclude: EXCLUDE },
       });

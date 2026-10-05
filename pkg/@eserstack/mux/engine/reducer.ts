@@ -12,11 +12,7 @@
  */
 
 import type { Effect, ReducerResult } from "./effects.ts";
-import {
-  computeTabGeoms,
-  DEFAULT_CHROME,
-  neighborInDirection,
-} from "./geometry.ts";
+import * as geometry from "./geometry.ts";
 import * as tree from "./split-tree.ts";
 import type {
   Action,
@@ -195,8 +191,12 @@ export const reduce = (state: MuxState, action: Action): ReducerResult => {
       const tab = activeTabOf(state);
       if (tab === undefined) return noop(state);
 
-      const geoms = computeTabGeoms(tab, state.viewport, DEFAULT_CHROME);
-      const next = neighborInDirection(
+      const geoms = geometry.computeTabGeoms(
+        tab,
+        state.viewport,
+        geometry.DEFAULT_CHROME,
+      );
+      const next = geometry.neighborInDirection(
         geoms,
         tab.focusedPane,
         action.direction,

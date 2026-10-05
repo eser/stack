@@ -8,8 +8,8 @@ import type {
   Sink,
   Source,
 } from "./types.ts";
-import { PipelineError, TimeoutError } from "./types.ts";
-import { buffer as bufferSink } from "./sinks/buffer.ts";
+import * as types from "./types.ts";
+import * as buffer from "./sinks/buffer.ts";
 
 // =============================================================================
 // pipeline() — Composable stream builder
@@ -24,6 +24,12 @@ import { buffer as bufferSink } from "./sinks/buffer.ts";
 //     Source.readable → pipeThrough(layer1) → pipeThrough(layer2) → pipeTo(sink)
 // =============================================================================
 
+/**
+ * Creates an empty pipeline. Set a source with `from`, add layers with
+ * `through`, and set a sink with `to` before `run`.
+ *
+ * @returns The pipeline
+ */
 export const pipeline = (): Pipeline => {
   let source: Source | undefined;
   const layers: Layer[] = [];
@@ -47,10 +53,14 @@ export const pipeline = (): Pipeline => {
 
     run: async (options?: PipelineOptions): Promise<void> => {
       if (source === undefined) {
-        throw new PipelineError("Pipeline has no source. Call .from() first.");
+        throw new types.PipelineError(
+          "Pipeline has no source. Call .from() first.",
+        );
       }
       if (sink === undefined) {
-        throw new PipelineError("Pipeline has no sink. Call .to() first.");
+        throw new types.PipelineError(
+          "Pipeline has no sink. Call .to() first.",
+        );
       }
 
       // Build the pipeline chain
@@ -68,7 +78,7 @@ export const pipeline = (): Pipeline => {
 
       if (options?.timeout !== undefined && options.timeout > 0) {
         timeoutId = setTimeout(() => {
-          abortController.abort(new TimeoutError(options.timeout!));
+          abortController.abort(new types.TimeoutError(options.timeout!));
         }, options.timeout);
       }
 
@@ -77,13 +87,13 @@ export const pipeline = (): Pipeline => {
           signal: abortController.signal,
         });
       } catch (error) {
-        if (error instanceof TimeoutError) {
+        if (error instanceof types.TimeoutError) {
           throw error;
         }
         if (error instanceof DOMException && error.name === "AbortError") {
-          throw new TimeoutError(options?.timeout ?? 0);
+          throw new types.TimeoutError(options?.timeout ?? 0);
         }
-        throw new PipelineError(
+        throw new types.PipelineError(
           `Pipeline failed: ${
             error instanceof Error ? error.message : String(error)
           }`,
@@ -97,7 +107,7 @@ export const pipeline = (): Pipeline => {
     },
 
     collect: async <T = unknown>(): Promise<T[]> => {
-      const buf = bufferSink<T>();
+      const buf = buffer.buffer<T>();
       sink = buf;
 
       await self.run();

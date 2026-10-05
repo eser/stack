@@ -2,13 +2,15 @@
 
 /**
  * Cross-runtime abstraction module.
- * Provides runtime-agnostic APIs for filesystem, path, exec, and environment.
+ * Provides runtime-agnostic APIs for filesystem, path, exec, environment,
+ * process control (signals included) and an HTTP server with WebSockets.
  *
  * Supports: Deno, Node.js, Bun, Cloudflare Workers
  *
  * @example
  * ```typescript
  * import { runtime } from "@eserstack/standards/cross-runtime";
+ * import * as standards from "@eserstack/standards";
  *
  * // Check capabilities before use
  * if (runtime.capabilities.fs) {
@@ -19,8 +21,11 @@
  * const fullPath = runtime.path.join("src", "lib", "utils.ts");
  *
  * // For testing - use factory with mocks
- * import { createRuntime } from "@eserstack/standards/cross-runtime";
- * const mockRuntime = await createRuntime({ fs: mockFs });
+ * const mockFs: standards.crossRuntime.RuntimeFs = {
+ *   ...runtime.fs,
+ *   readTextFile: () => Promise.resolve('{"debug":true}'),
+ * };
+ * const mockRuntime = await standards.crossRuntime.createRuntime({ fs: mockFs });
  * ```
  *
  * @module
@@ -36,6 +41,8 @@ export type {
   FileOptions,
   FsEvent,
   FsWatcher,
+  HttpHandler,
+  HttpServer,
   MakeTempOptions,
   MkdirOptions,
   ParsedPath,
@@ -49,13 +56,17 @@ export type {
   RuntimeEnv,
   RuntimeExec,
   RuntimeFs,
+  RuntimeHttp,
   RuntimeName,
   RuntimePath,
   RuntimeProcess,
+  ServeOptions,
+  SignalName,
   SpawnOptions,
   WalkEntry,
   WalkOptions,
   WatchOptions,
+  WebSocketUpgrade,
   WriteFileOptions,
 } from "./types.ts";
 
@@ -114,7 +125,7 @@ import type {
   Runtime,
   RuntimeCapabilities,
 } from "./types.ts";
-import { createFallbackRuntime, detectRuntime } from "./adapters/shared.ts";
+import * as shared from "./adapters/shared.ts";
 
 // Adapters are loaded lazily via dynamic import() — only the detected
 // runtime's adapter is imported. This avoids loading all 5 adapters
@@ -160,6 +171,7 @@ const overrideKeys: readonly (keyof CreateRuntimeOptions)[] = [
   "env",
   "path",
   "process",
+  "http",
 ];
 
 /**
@@ -185,6 +197,7 @@ const mergeRuntime = (
   exec: options.exec ?? base.exec,
   env: options.env ?? base.env,
   process: options.process ?? base.process,
+  http: options.http ?? base.http,
 });
 
 /**
@@ -196,15 +209,15 @@ const mergeRuntime = (
 export const createRuntime = async (
   options?: CreateRuntimeOptions,
 ): Promise<Runtime> => {
-  const runtimeName = detectRuntime();
+  const runtimeName = shared.detectRuntime();
   const factory = runtimeFactories[runtimeName];
 
   const baseRuntime = factory !== undefined
     ? await factory()
-    : createFallbackRuntime(runtimeName);
+    : shared.createFallbackRuntime(runtimeName);
 
   // Apply capability overrides if provided
-  const capabilities = options?.capabilities
+  const capabilities = options?.capabilities !== undefined
     ? { ...baseRuntime.capabilities, ...options.capabilities }
     : baseRuntime.capabilities;
 
@@ -213,7 +226,7 @@ export const createRuntime = async (
   }
 
   // Return base runtime with potentially updated capabilities
-  if (options?.capabilities) {
+  if (options?.capabilities !== undefined) {
     return { ...baseRuntime, capabilities };
   }
 
@@ -237,5 +250,7 @@ export const createRuntime = async (
  * }
  * ```
  */
+// Consumers import this ready instance directly, and the detected runtime's
+// adapter loads through a dynamic import, so creating it needs this await.
 // deno-lint-ignore no-top-level-await
 export const runtime: Runtime = await createRuntime();

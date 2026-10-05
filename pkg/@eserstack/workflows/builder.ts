@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import * as workflows from "@eserstack/workflows";
+ * import * as workflows from "@eserstack/workflows/mod";
  *
  * const workflow = workflows.createWorkflow("default")
  *   .on("precommit", "prepush")

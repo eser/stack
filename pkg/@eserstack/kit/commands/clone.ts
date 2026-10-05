@@ -13,13 +13,135 @@ import * as task from "@eserstack/functions/task";
 import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import * as cloneRecipeHandler from "../recipes/handlers/clone-recipe.ts";
+import * as errorChain from "../recipes/error-chain.ts";
+import * as tar from "../recipes/tar.ts";
 import type * as shellArgs from "@eserstack/shell/args";
+
+// =============================================================================
+// Tarball extraction limits
+// =============================================================================
+
+/** Sets the tarball byte limit when `--max-bytes` is not given. */
+export const MAX_BYTES_ENV = "ESER_KIT_MAX_BYTES";
+
+/** Sets the tarball entry limit when `--max-entries` is not given. */
+export const MAX_ENTRIES_ENV = "ESER_KIT_MAX_ENTRIES";
+
+/** The extraction limits a clone passes on; an absent one keeps the default. */
+export type ExtractLimits = {
+  readonly maxBytes?: number;
+  readonly maxEntries?: number;
+};
+
+type LimitSetting = {
+  readonly flag: string;
+  readonly env: string;
+  readonly example: string;
+};
+
+const LIMIT_SETTINGS: Readonly<Record<tar.TarballLimit, LimitSetting>> = {
+  maxBytes: {
+    flag: "--max-bytes",
+    env: MAX_BYTES_ENV,
+    example: "536870912 for 512 MiB",
+  },
+  maxEntries: {
+    flag: "--max-entries",
+    env: MAX_ENTRIES_ENV,
+    example: "50000",
+  },
+};
+
+const POSITIVE_INTEGER = /^[1-9][0-9]*$/;
+
+/**
+ * Resolves one limit: the flag wins, then the environment variable (an empty
+ * one counts as unset); neither leaves the extractor default.
+ */
+const resolveLimit = (
+  setting: LimitSetting,
+  flagValue: string | undefined,
+  envValue: string | undefined,
+): results.Result<number | undefined, RangeError> => {
+  let source: string;
+  let raw: string;
+  if (flagValue !== undefined) {
+    source = setting.flag;
+    raw = flagValue;
+  } else if (envValue !== undefined && envValue !== "") {
+    source = setting.env;
+    raw = envValue;
+  } else {
+    return results.ok(undefined);
+  }
+
+  const value = Number(raw);
+  if (!POSITIVE_INTEGER.test(raw) || !Number.isSafeInteger(value)) {
+    return results.fail(
+      new RangeError(
+        `${source} "${raw}" is not a positive integer; expected a whole number such as ${setting.example}`,
+      ),
+    );
+  }
+
+  return results.ok(value);
+};
+
+/**
+ * Resolves the tarball extraction limits of a clone. For each limit the
+ * command-line flag wins, then the environment variable, then the
+ * extractor's default; kit reads no config file for them.
+ *
+ * @param flags - The raw `--max-bytes` and `--max-entries` values, if given
+ * @param getEnv - Reads an environment variable (`runtime.env.get` in the CLI)
+ */
+export const resolveExtractLimits = (
+  flags: { readonly maxBytes?: string; readonly maxEntries?: string },
+  getEnv: (name: string) => string | undefined,
+): results.Result<ExtractLimits, RangeError> => {
+  const maxBytes = resolveLimit(
+    LIMIT_SETTINGS.maxBytes,
+    flags.maxBytes,
+    getEnv(MAX_BYTES_ENV),
+  );
+  if (results.isFail(maxBytes)) return maxBytes;
+
+  const maxEntries = resolveLimit(
+    LIMIT_SETTINGS.maxEntries,
+    flags.maxEntries,
+    getEnv(MAX_ENTRIES_ENV),
+  );
+  if (results.isFail(maxEntries)) return maxEntries;
+
+  return results.ok({ maxBytes: maxBytes.value, maxEntries: maxEntries.value });
+};
+
+/**
+ * The message for a failed clone: the error chain, plus how to raise the
+ * limit when the repository tarball went past one.
+ */
+const failureMessage = (error: cloneRecipeHandler.CloneRecipeError): string => {
+  const limitError = errorChain.findCause(
+    error.cause,
+    tar.TarballLimitError,
+  );
+  if (limitError === null) {
+    return error.message;
+  }
+
+  const setting = LIMIT_SETTINGS[limitError.limit];
+  return `${error.message}\nIf you trust this repository, raise the limit with ${setting.flag} <n> or ${setting.env}=<n>.`;
+};
+
+// =============================================================================
+// Command
+// =============================================================================
 
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const parsed = cliParseArgs.parseArgs(cliArgs as string[] ?? [], {
-    string: ["recipe", "name", "var"],
+    string: ["recipe", "name", "var", "max-bytes", "max-entries"],
     boolean: [
       "force",
       "dry-run",
@@ -82,6 +204,12 @@ export const main = async (
     out.writeln(
       "  --verbose                      Show verbose output",
     );
+    out.writeln(
+      `  --max-bytes <n>                Tarball limit in decompressed bytes (default: ${tar.DEFAULT_MAX_BYTES}, env: ${MAX_BYTES_ENV})`,
+    );
+    out.writeln(
+      `  --max-entries <n>              Tarball limit in entries (default: ${tar.DEFAULT_MAX_ENTRIES}, env: ${MAX_ENTRIES_ENV})`,
+    );
     await out.close();
     return results.ok(undefined);
   }
@@ -96,6 +224,19 @@ export const main = async (
     );
     await out.close();
     return results.fail({ exitCode: 1 });
+  }
+
+  const limits = resolveExtractLimits(
+    {
+      maxBytes: parsed["max-bytes"] as string | undefined,
+      maxEntries: parsed["max-entries"] as string | undefined,
+    },
+    (name) => runtime.env.get(name),
+  );
+
+  if (results.isFail(limits)) {
+    await out.close();
+    return results.fail({ message: limits.error.message, exitCode: 1 });
   }
 
   // Parse --var flags
@@ -117,7 +258,7 @@ export const main = async (
   const interactive = !noInteractive && (explicitInteractive || isTty);
 
   if (!explicitInteractive && !noInteractive && isTty) {
-    // Auto-enabled — inform the user so they know why they are being prompted
+    // Prompting was turned on automatically; stderr tells the user why.
     // deno-lint-ignore no-console
     console.error(
       "Prompting for missing variables (use --no-interactive to disable)",
@@ -145,6 +286,8 @@ export const main = async (
       variables,
       interactive,
       skipPostInstall,
+      maxBytes: limits.value.maxBytes,
+      maxEntries: limits.value.maxEntries,
     }),
     { out },
   );
@@ -155,5 +298,8 @@ export const main = async (
     return results.ok(undefined);
   }
 
-  return results.fail({ exitCode: 1 });
+  return results.fail({
+    message: failureMessage(handlerResult.error),
+    exitCode: 1,
+  });
 };

@@ -1,13 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals } from "@std/assert";
+import * as assert from "@std/assert";
 import type { Action } from "./types.ts";
 import type { FrontendToServer } from "../ipc/protocol.ts";
-import {
-  sanitizeRemoteAction,
-  sanitizeRemoteMessage,
-  sanitizeRemoteTransport,
-} from "./sanitize.ts";
+import * as sanitize from "./sanitize.ts";
 
 // The property under test is a trust boundary: an action arriving from the
 // network must not be able to name a process to run. The local TUI dispatches
@@ -24,12 +20,15 @@ Deno.test("sanitizeRemoteAction strips spawn fields from newTab", () => {
     title: "innocent",
   } as Action;
 
-  const cleaned = sanitizeRemoteAction(hostile) as Record<string, unknown>;
+  const cleaned = sanitize.sanitizeRemoteAction(hostile) as Record<
+    string,
+    unknown
+  >;
 
-  assertEquals(cleaned["command"], undefined);
-  assertEquals(cleaned["args"], undefined);
-  assertEquals(cleaned["cwd"], undefined);
-  assertEquals(cleaned["title"], "innocent");
+  assert.assertEquals(cleaned["command"], undefined);
+  assert.assertEquals(cleaned["args"], undefined);
+  assert.assertEquals(cleaned["cwd"], undefined);
+  assert.assertEquals(cleaned["title"], "innocent");
 });
 
 // This is the hole the newTab-only guard left open. `newPane` carries the same
@@ -44,43 +43,46 @@ Deno.test("sanitizeRemoteAction strips spawn fields from newPane too", () => {
     cwd: "/",
   } as Action;
 
-  const cleaned = sanitizeRemoteAction(hostile) as Record<string, unknown>;
+  const cleaned = sanitize.sanitizeRemoteAction(hostile) as Record<
+    string,
+    unknown
+  >;
 
-  assertEquals(cleaned["command"], undefined);
-  assertEquals(cleaned["args"], undefined);
-  assertEquals(cleaned["cwd"], undefined);
+  assert.assertEquals(cleaned["command"], undefined);
+  assert.assertEquals(cleaned["args"], undefined);
+  assert.assertEquals(cleaned["cwd"], undefined);
 
   // The layout field is not a capability and must survive, or a remote client
   // loses the ability to split at all.
-  assertEquals(cleaned["direction"], "horizontal");
+  assert.assertEquals(cleaned["direction"], "horizontal");
 });
 
 Deno.test("sanitizeRemoteAction passes through actions with nothing to strip", () => {
   // Identity, not just equality: the common path must allocate nothing.
   const benign = { type: "focusNext" } as Action;
-  assert(sanitizeRemoteAction(benign) === benign);
+  assert.assert(sanitize.sanitizeRemoteAction(benign) === benign);
 
   const spawnless = { type: "newTab", title: "notes" } as Action;
-  assert(sanitizeRemoteAction(spawnless) === spawnless);
+  assert.assert(sanitize.sanitizeRemoteAction(spawnless) === spawnless);
 
   const splitOnly = { type: "newPane", direction: "vertical" } as Action;
-  assert(sanitizeRemoteAction(splitOnly) === splitOnly);
+  assert.assert(sanitize.sanitizeRemoteAction(splitOnly) === splitOnly);
 });
 
 Deno.test("sanitizeRemoteMessage only rewrites action frames", () => {
   const attach = { t: "attach" } as FrontendToServer;
-  assert(sanitizeRemoteMessage(attach) === attach);
+  assert.assert(sanitize.sanitizeRemoteMessage(attach) === attach);
 
   const hostile = {
     t: "action",
     action: { type: "newPane", command: "/bin/sh" },
   } as FrontendToServer;
 
-  const cleaned = sanitizeRemoteMessage(hostile) as {
+  const cleaned = sanitize.sanitizeRemoteMessage(hostile) as {
     action: Record<string, unknown>;
   };
 
-  assertEquals(cleaned.action["command"], undefined);
+  assert.assertEquals(cleaned.action["command"], undefined);
 });
 
 // Guards the tests above from passing because everything is stripped. A
@@ -95,11 +97,14 @@ Deno.test("sanitizeRemoteAction keeps the fields a remote client may choose", ()
     meta: { sessionId: "s-1" },
   } as Action;
 
-  const cleaned = sanitizeRemoteAction(action) as Record<string, unknown>;
+  const cleaned = sanitize.sanitizeRemoteAction(action) as Record<
+    string,
+    unknown
+  >;
 
-  assertEquals(cleaned["kind"], "terminal");
-  assertEquals(cleaned["title"], "shell");
-  assertEquals(cleaned["meta"], { sessionId: "s-1" });
+  assert.assertEquals(cleaned["kind"], "terminal");
+  assert.assertEquals(cleaned["title"], "shell");
+  assert.assertEquals(cleaned["meta"], { sessionId: "s-1" });
 });
 
 // The transport wrapper is what the daemon's mux worker actually installs, so
@@ -118,23 +123,26 @@ Deno.test("sanitizeRemoteTransport filters every inbound message", () => {
     close(): void {},
   };
 
-  const guarded = sanitizeRemoteTransport(raw);
+  const guarded = sanitize.sanitizeRemoteTransport(raw);
   guarded.onMessage((msg: FrontendToServer) => {
     seen.push(msg);
   });
 
-  assert(deliver !== null, "the wrapper never subscribed to the raw transport");
+  assert.assert(
+    deliver !== null,
+    "the wrapper never subscribed to the raw transport",
+  );
 
   (deliver as unknown as (msg: FrontendToServer) => void)({
     t: "action",
     action: { type: "newPane", command: "/bin/sh", args: ["-c", "id"] },
   } as FrontendToServer);
 
-  assertEquals(seen.length, 1);
+  assert.assertEquals(seen.length, 1);
 
   const action = (seen[0] as { action: Record<string, unknown> }).action;
-  assertEquals(action["command"], undefined);
-  assertEquals(action["args"], undefined);
+  assert.assertEquals(action["command"], undefined);
+  assert.assertEquals(action["args"], undefined);
 });
 
 // The wrapper must not swallow the rest of the transport: a server that can
@@ -142,7 +150,7 @@ Deno.test("sanitizeRemoteTransport filters every inbound message", () => {
 Deno.test("sanitizeRemoteTransport keeps the transport's other methods", () => {
   const sent: unknown[] = [];
 
-  const guarded = sanitizeRemoteTransport({
+  const guarded = sanitize.sanitizeRemoteTransport({
     send(frame: unknown): void {
       sent.push(frame);
     },
@@ -152,5 +160,5 @@ Deno.test("sanitizeRemoteTransport keeps the transport's other methods", () => {
 
   guarded.send({ t: "scene" });
 
-  assertEquals(sent.length, 1);
+  assert.assertEquals(sent.length, 1);
 });

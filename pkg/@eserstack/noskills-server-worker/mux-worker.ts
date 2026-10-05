@@ -9,157 +9,58 @@
  * spawn no JavaScript at all. A terminal pane's content channel is VT bytes
  * rather than protocol messages, which is why this one stays a process.
  *
- * Runtime-agnostic: it imports node: builtins plus workspace packages by bare
- * specifier, which Deno and Bun execute directly and Node runs with a
- * TypeScript loader. `workerRuntime` in pkg/ajan/noskillsserverfx/worker.go
- * picks whichever is present; NOSKILLS_WORKER_RUNTIME pins one.
+ * This file wires the protocol logic in worker.ts to the socket and the
+ * process. It is runtime-agnostic: it imports node: builtins (through deps.ts)
+ * plus workspace packages by bare specifier, which Deno and Bun execute directly
+ * and Node runs with a TypeScript loader. `workerRuntime` in
+ * pkg/ajan/noskillsserverfx/worker.go picks whichever is present;
+ * NOSKILLS_WORKER_RUNTIME pins one.
  *
  * @module
  */
 
-import process from "node:process";
-import * as net from "node:net";
-import * as mux from "@eserstack/mux";
-import { sanitizeRemoteTransport } from "@eserstack/mux/engine";
-import { buildAgentSpawnResolver } from "@eserstack/noskills/session";
+import * as deps from "./deps.ts";
+import * as worker from "./worker.ts";
 
-const socketPath = process.argv[2];
+const socketPath = deps.process.argv[2];
 
 if (socketPath === undefined || socketPath === "") {
-  process.stderr.write("[mux-worker] missing socket path argument\n");
-  process.exit(1);
+  deps.process.stderr.write("[mux-worker] missing socket path argument\n");
+  deps.process.exit(1);
 }
 
-// ── Connection ───────────────────────────────────────────────────────────────
-
-let conn: net.Socket | null = null;
-let readBuffer = "";
-
-const sendToDaemon = (msg: Record<string, unknown>): void => {
-  if (conn === null || conn.destroyed) return;
-  conn.write(JSON.stringify(msg) + "\n");
+const reportError = (message: string): void => {
+  deps.process.stderr.write(`[mux-worker] ${message}\n`);
 };
 
-// ── Mux server ───────────────────────────────────────────────────────────────
+const socket = deps.net.createConnection({ path: socketPath });
 
-// Captured from query_start so the spawn resolver can stamp the noskills env.
-let sessionCwd = process.cwd();
-let sessionId = "";
-
-const server = mux.createServer({
-  // The browser frontend reports its own viewport on attach; this is just a seed.
-  initialState: mux.engine.createInitialState({ cols: 120, rows: 40 }),
-  // The shared resolver, not a fourth copy. Both values are getters because
-  // this worker learns its cwd and session at query_start, which arrives after
-  // the server is built -- passing them by value would freeze them at whatever
-  // they were at process start.
-  resolveSpawn: buildAgentSpawnResolver(() => sessionCwd, {
-    sessionId: () => sessionId,
-  }),
-  // A remote session outlives any single tab; closing the last one leaves an
-  // empty multiplexer the client can repopulate.
-  exitOnEmpty: false,
-});
-
-// Bridge the mux server to the daemon socket: every server→frontend frame is
-// wrapped as a {type:"mux"} event; incoming {type:"mux"} commands are delivered
-// back to the server. The daemon relays both directions verbatim.
-let muxHandler: ((frame: mux.FrontendToServer) => void) | null = null;
-
-const transport: mux.Transport<mux.ServerToFrontend, mux.FrontendToServer> = {
-  send(frame: mux.ServerToFrontend): void {
-    sendToDaemon({ type: "mux", v: 1, frame });
+const muxWorker = worker.createMuxWorker({
+  cwd: deps.process.cwd(),
+  host: {
+    send: (message) => {
+      if (!socket.destroyed) {
+        socket.write(`${JSON.stringify(message)}\n`);
+      }
+    },
+    reportError,
+    exit: (code) => {
+      socket.destroy();
+      deps.process.exit(code);
+    },
   },
-  onMessage(handler: (frame: mux.FrontendToServer) => void): void {
-    muxHandler = handler;
-  },
-  close(): void {
-    muxHandler = null;
-  },
-};
-
-// Sanitised at the transport, not relayed verbatim. Every frame here arrived
-// over WebTransport and the daemon forwards it as opaque JSON, so without this
-// a remote client could send `newTab`/`newPane` naming any command, args and
-// cwd and have this process execute it with the daemon's full environment. The
-// in-process web bridge has always done this; the daemon path never did.
-server.connect(sanitizeRemoteTransport(transport));
-
-// ── Daemon → worker dispatch ───────────────────────────────────────────────────
-
-type DaemonMsg =
-  | { type: "query_start"; cwd?: string; sessionId?: string; resume?: string }
-  | { type: "mux"; frame: mux.FrontendToServer }
-  | { type: "shutdown" | "stop_task" | "abort" };
-
-const handleDaemonMessage = (msg: DaemonMsg): void => {
-  switch (msg.type) {
-    case "query_start":
-      sessionCwd = msg.cwd ?? sessionCwd;
-      sessionId = msg.sessionId ?? sessionId;
-      // Open the first tab so a freshly-attached client sees a live pane.
-      server.dispatch({
-        type: "newTab",
-        command: "claude",
-        cwd: sessionCwd,
-        title: "free",
-        meta: { sessionId },
-      });
-      break;
-    case "mux":
-      muxHandler?.(msg.frame);
-      break;
-    case "shutdown":
-    case "stop_task":
-    case "abort":
-      void server.dispose().finally(() => {
-        conn?.destroy();
-        process.exit(0);
-      });
-      break;
-  }
-};
-
-// ── Main ───────────────────────────────────────────────────────────────────────
-
-const client = net.createConnection({ path: socketPath }, () => {
-  conn = client;
-  sendToDaemon({ type: "spawn_progress", stage: "starting" });
-  sendToDaemon({ type: "ready" });
-  sendToDaemon({ type: "spawn_progress", stage: "ready" });
 });
 
-client.on("data", (chunk: Buffer) => {
-  readBuffer += chunk.toString();
-  const lines = readBuffer.split("\n");
-  readBuffer = lines.pop() ?? "";
+socket.on("connect", () => muxWorker.start());
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed === "") continue;
+socket.on("data", (chunk: Uint8Array) => muxWorker.receive(chunk));
 
-    let msg: DaemonMsg;
-    try {
-      msg = JSON.parse(trimmed) as DaemonMsg;
-    } catch {
-      process.stderr.write(`[mux-worker] failed to parse: ${trimmed}\n`);
-      continue;
-    }
-
-    try {
-      handleDaemonMessage(msg);
-    } catch (err) {
-      const e = err as Error;
-      process.stderr.write(`[mux-worker] dispatch error: ${e.message}\n`);
-    }
-  }
+socket.on("error", (error: Error) => {
+  reportError(`daemon socket: ${error.message}`);
+  deps.process.exit(1);
 });
 
-client.on("error", (err: Error) => {
-  process.stderr.write(`[mux-worker] socket error: ${err.message}\n`);
-  process.exit(1);
-});
-
-client.on("close", () => {
-  void server.dispose().finally(() => process.exit(0));
+socket.on("close", () => {
+  // stop() reports its own failure, so the promise never rejects.
+  void muxWorker.stop();
 });

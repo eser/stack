@@ -3,7 +3,7 @@
 How a skill in `.agents/skills/` is laid out and written. Based on Anthropic's
 skill authoring guidance
 (platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) and
-the Claude Code skills reference, adjusted to this repository.
+the Claude Code skills reference.
 
 ## Contents
 
@@ -73,7 +73,7 @@ A user-invoked skill's description is not shown to the model, so it needs no
 Correct:
 
 ```yaml
-description: "Go conventions for pkg/ajan and the FFI bridge, covering errors, logfx logging, context, testing, data structures and performance. Use when writing or reviewing .go files, adding a Go business domain, or fixing golangci-lint findings. Not for Go module tags (use release-and-ci)."
+description: "Go conventions of this codebase, covering errors, logfx logging, context, testing, data structures and performance. Use when writing or reviewing .go files, adding a Go business domain, or fixing golangci-lint findings. Not for releases (use release-and-ci)."
 ```
 
 Incorrect:
@@ -94,8 +94,8 @@ to at most 80 lines, in this order:
 1. `# Title`, then one or two sentences on scope and what the skill does not
    cover.
 2. `## Always`: 5 to 12 bullets that apply to every task in the domain. Only
-   project-specific rules, each with a short reason when the reason is not
-   obvious.
+   this codebase's own conventions, each with a short reason when the reason is
+   not obvious.
 3. `## References`: a table that links every reference file directly and says
    when to read it.
 
@@ -129,11 +129,18 @@ Rule:
 - **Contents list.** A file over 100 lines starts with `## Contents` after its
   one-line scope, so a partial read still shows everything the file covers.
   `validate-skills.ts --fix` writes and refreshes it.
-- **Repository facts go in `AGENTS.md`.** Paths, package counts, generators and
-  the command list of this repository are loaded every session from `AGENTS.md`;
-  skills state conventions that hold in any repository on the toolchain, and
-  point to `AGENTS.md` for the concrete names. Keep that section short, since
-  every session pays for it.
+- **Skills read as this codebase's conventions.** The skills are installed into
+  many codebases (`npx skills add eser/stack`), and in each one they read as the
+  conventions of the codebase they are installed in. A skill says "this
+  codebase" and states its rules as how this codebase works, never as advice
+  from outside and never as one specific repository's rules ("for eserstack",
+  "eserstack's"). The tools of the eser ecosystem (the `eser` CLI,
+  `.eser/manifest.yml`, ajan, laroux, `@eserstack/*` packages) are named as the
+  tools this codebase uses. Facts that differ from one codebase to another (its
+  paths, package names and counts, generator scripts, workflow names, the exact
+  gate command) stay out of skills: they live in this codebase's `AGENTS.md`,
+  which every session loads, or in `docs/agents/<topic>.md` files linked from
+  it, and a skill points there ("the gate named in this codebase's AGENTS.md").
 - **One owner per topic.** A rule lives in exactly one skill. Other skills point
   to it as `skill-name: Exact Section Title`; the validator checks that the
   title exists.
@@ -145,15 +152,15 @@ Rule:
 Scope: Every rule and example
 
 Rule: Assume the reader is a strong model. Write down only what it would not do
-by default in this repository:
+by default:
 
-- project decisions and conventions that differ from common defaults;
-- paths, commands, package names and validators that exist here;
+- decisions and conventions that differ from common defaults;
+- the tools to use and how (commands, packages, validators), named as choices;
 - the reason behind each rule, so it carries over to cases the examples miss.
 
 Leave out textbook explanations, lists of benefits, API catalogues, and rules a
 linter or formatter already enforces (name the tool in one line instead). Check
-every path and command against the repository before writing it. Every example
+every path, command and API against the code before writing it. Every example
 must follow the other skills' rules too: an example that breaks another rule
 teaches the break.
 
@@ -218,9 +225,9 @@ checklist run by hand), put the code in `scripts/` and tell the skill whether to
 run it or read it. A script runs without loading into context and gives the same
 result every time.
 
-Scripts use Node built-ins or the repo's own packages, carry the license header,
-handle their own errors with messages that say what to fix, justify their
-constants, and pass `deno task cli ok`.
+Scripts use Node built-ins or this codebase's own packages, carry the license
+header, handle their own errors with messages that say what to fix, justify
+their constants, and pass the full gate named in this codebase's AGENTS.md.
 
 ---
 
@@ -248,6 +255,7 @@ Pass skill directories to check only those. Errors exit 1; warnings do not.
 | Contents list        | error   | Present and current in reference files over 100 lines |
 | Reference length     | warning | At most 500 lines                                     |
 | Cross-skill pointers | warning | `skill-name: Title` matches a heading in that skill   |
+| Voice                | warning | No "for eserstack" or "eserstack's" framing           |
 | eser-rules-manager   | error   | Every skill is in both skill tables                   |
 
 ---

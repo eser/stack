@@ -7,8 +7,13 @@ import type { Category, LoggerConfig } from "./types.ts";
  * Accepts either a string (dot-separated) or an array.
  *
  * @example
- * normalizeCategory("myapp.http.request") // ["myapp", "http", "request"]
- * normalizeCategory(["myapp", "http"]) // ["myapp", "http"]
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.category.normalizeCategory("myapp.http.request");
+ * // ["myapp", "http", "request"]
+ * logging.category.normalizeCategory(["myapp", "http"]); // ["myapp", "http"]
+ * ```
  */
 export const normalizeCategory = (category: Category | string): Category => {
   if (typeof category === "string") {
@@ -22,7 +27,12 @@ export const normalizeCategory = (category: Category | string): Category => {
  * Converts a category array to a dot-separated string.
  *
  * @example
- * categoryToString(["myapp", "http", "request"]) // "myapp.http.request"
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.category.categoryToString(["myapp", "http", "request"]);
+ * // "myapp.http.request"
+ * ```
  */
 export const categoryToString = (
   category: Category,
@@ -43,9 +53,14 @@ export const categoryKey = (category: Category): string => {
  * A descendant has the parent as a prefix and is longer.
  *
  * @example
- * isDescendant(["app", "http", "req"], ["app"]) // true
- * isDescendant(["app", "http"], ["app", "http"]) // false (same, not descendant)
- * isDescendant(["app"], ["app", "http"]) // false (shorter)
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.category.isDescendant(["app", "http", "req"], ["app"]); // true
+ * // false: the same category is not a descendant
+ * logging.category.isDescendant(["app", "http"], ["app", "http"]);
+ * logging.category.isDescendant(["app"], ["app", "http"]); // false: shorter
+ * ```
  */
 export const isDescendant = (child: Category, parent: Category): boolean => {
   if (child.length <= parent.length) {
@@ -59,9 +74,13 @@ export const isDescendant = (child: Category, parent: Category): boolean => {
  * Checks if a child category is the same as or a descendant of a parent category.
  *
  * @example
- * isDescendantOrSelf(["app", "http"], ["app"]) // true
- * isDescendantOrSelf(["app"], ["app"]) // true
- * isDescendantOrSelf(["other"], ["app"]) // false
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.category.isDescendantOrSelf(["app", "http"], ["app"]); // true
+ * logging.category.isDescendantOrSelf(["app"], ["app"]); // true
+ * logging.category.isDescendantOrSelf(["other"], ["app"]); // false
+ * ```
  */
 export const isDescendantOrSelf = (
   child: Category,
@@ -78,8 +97,13 @@ export const isDescendantOrSelf = (
  * Checks if a parent category is an ancestor of a child category.
  *
  * @example
- * isAncestor(["app"], ["app", "http", "req"]) // true
- * isAncestor(["app", "http"], ["app", "http"]) // false (same, not ancestor)
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.category.isAncestor(["app"], ["app", "http", "req"]); // true
+ * // false: the same category is not an ancestor
+ * logging.category.isAncestor(["app", "http"], ["app", "http"]);
+ * ```
  */
 export const isAncestor = (parent: Category, child: Category): boolean => {
   return isDescendant(child, parent);
@@ -103,9 +127,17 @@ export const categoriesEqual = (a: Category, b: Category): boolean => {
  * A config matches if its category is the same as or an ancestor of the target category.
  *
  * @example
- * // configs: [{ category: ["app"] }, { category: ["app", "http"] }]
- * // findMatchingConfigs(["app", "http", "req"], configs)
- * // Returns: [{ category: ["app", "http"] }, { category: ["app"] }]
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * const configs = new Map<string, logging.LoggerConfig>([
+ *   ["app", { category: ["app"] }],
+ *   ["app.http", { category: ["app", "http"] }],
+ * ]);
+ *
+ * // [{ category: ["app", "http"] }, { category: ["app"] }]
+ * logging.category.findMatchingConfigs(["app", "http", "req"], configs);
+ * ```
  */
 export const findMatchingConfigs = (
   category: Category,
@@ -137,9 +169,13 @@ export const findMatchingConfigs = (
  * Returns null for root categories (empty or single element).
  *
  * @example
- * getParentCategory(["app", "http", "req"]) // ["app", "http"]
- * getParentCategory(["app"]) // null
- * getParentCategory([]) // null
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.category.getParentCategory(["app", "http", "req"]); // ["app", "http"]
+ * logging.category.getParentCategory(["app"]); // null
+ * logging.category.getParentCategory([]); // null
+ * ```
  */
 export const getParentCategory = (category: Category): Category | null => {
   if (category.length <= 1) {
@@ -153,8 +189,13 @@ export const getParentCategory = (category: Category): Category | null => {
  * Extends a category with additional parts.
  *
  * @example
- * extendCategory(["app"], "http") // ["app", "http"]
- * extendCategory(["app"], ["http", "req"]) // ["app", "http", "req"]
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.category.extendCategory(["app"], "http"); // ["app", "http"]
+ * logging.category.extendCategory(["app"], ["http", "req"]);
+ * // ["app", "http", "req"]
+ * ```
  */
 export const extendCategory = (
   parent: Category,
@@ -170,8 +211,12 @@ export const extendCategory = (
  * Returns an empty array if there's no common prefix.
  *
  * @example
- * getCommonAncestor(["app", "http"], ["app", "db"]) // ["app"]
- * getCommonAncestor(["app", "http"], ["other"]) // []
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.category.getCommonAncestor(["app", "http"], ["app", "db"]); // ["app"]
+ * logging.category.getCommonAncestor(["app", "http"], ["other"]); // []
+ * ```
  */
 export const getCommonAncestor = (a: Category, b: Category): Category => {
   const result: string[] = [];
@@ -193,9 +238,14 @@ export const getCommonAncestor = (a: Category, b: Category): Category => {
  * Supports "*" to match any single segment and "**" to match any number of segments.
  *
  * @example
- * matchesPattern(["app", "http", "req"], ["app", "*", "req"]) // true
- * matchesPattern(["app", "http", "req"], ["app", "**"]) // true
- * matchesPattern(["app", "http"], ["app", "db"]) // false
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * logging.category.matchesPattern(["app", "http", "req"], ["app", "*", "req"]);
+ * // true
+ * logging.category.matchesPattern(["app", "http", "req"], ["app", "**"]); // true
+ * logging.category.matchesPattern(["app", "http"], ["app", "db"]); // false
+ * ```
  */
 export const matchesPattern = (
   category: Category,

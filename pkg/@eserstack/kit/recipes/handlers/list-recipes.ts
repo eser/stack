@@ -15,28 +15,44 @@ import * as span from "@eserstack/streams/span";
 import * as registryFetcher from "../registry-fetcher.ts";
 import type * as registrySchema from "../registry-schema.ts";
 import type { HandlerContext } from "../handler-context.ts";
-import { ensureLib, getLib } from "../../ffi-client.ts";
+import * as errorChain from "../error-chain.ts";
+import * as ffiClient from "../../ffi-client.ts";
 
 // =============================================================================
 // Types
 // =============================================================================
 
-type ListRecipesInput = {
+/** Which registry to read and which of its recipes to keep. */
+export type ListRecipesInput = {
+  /** Path or URL of the registry manifest; the default registry when absent. */
   readonly registrySource?: string;
+  /** Keep only the recipes whose `language` is this value. */
   readonly language?: string;
+  /** Keep only the recipes whose `scale` is this value. */
   readonly scale?: string;
+  /** Keep only the recipes that have this tag. */
   readonly tag?: string;
+  /** Without a source, look for a `.eser/recipes.json` in the working directory or a parent first. */
   readonly local?: boolean;
 };
 
-type ListRecipesOutput = {
+/** The registry that was read and the recipes that passed the filters. */
+export type ListRecipesOutput = {
+  /** The registry manifest. */
   readonly manifest: registrySchema.RegistryManifest;
+  /** The recipes that match every given filter, in registry order. */
   readonly recipes: readonly registrySchema.Recipe[];
 };
 
-type ListRecipesError = {
+/**
+ * Why listing stopped. `message` renders the whole cause chain for the
+ * person running the command; `cause` is the original error, usually a
+ * RegistryLoadError.
+ */
+export type ListRecipesError = {
   readonly _tag: "RegistryError";
   readonly message: string;
+  readonly cause: unknown;
 };
 
 // =============================================================================
@@ -103,13 +119,22 @@ const writeRecipeOutput = (
 // Handler
 // =============================================================================
 
-const listRecipes = (
+/**
+ * Reads a registry, keeps the recipes that match the filters, and writes them
+ * to `ctx.out` grouped by scale. Uses the native ajan library when it loads,
+ * and the TypeScript fetcher otherwise.
+ *
+ * @param input - The registry to read and the filters
+ * @returns A task that resolves to the manifest and the matching recipes, or
+ *   fails with a RegistryError when the registry cannot be loaded
+ */
+export const listRecipes = (
   input: ListRecipesInput,
 ): task.Task<ListRecipesOutput, ListRecipesError, HandlerContext> =>
   task.task(async (ctx: HandlerContext) => {
     try {
-      await ensureLib();
-      const lib = getLib();
+      await ffiClient.ensureLib();
+      const lib = ffiClient.getLib();
 
       if (lib !== null) {
         const raw = lib.symbols.EserAjanKitListRecipes(
@@ -126,7 +151,7 @@ const listRecipes = (
           error?: string;
         };
 
-        if (!goResult.error && goResult.recipes !== undefined) {
+        if (goResult.error === undefined && goResult.recipes !== undefined) {
           let recipes = [...goResult.recipes];
 
           if (input.language !== undefined) {
@@ -177,11 +202,10 @@ const listRecipes = (
       writeRecipeOutput(ctx, recipes, manifest);
       return results.ok({ manifest, recipes });
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      return results.fail({ _tag: "RegistryError" as const, message: msg });
+      return results.fail({
+        _tag: "RegistryError" as const,
+        message: errorChain.formatErrorChain(error),
+        cause: error,
+      });
     }
   });
-
-export { listRecipes };
-
-export type { ListRecipesError, ListRecipesInput, ListRecipesOutput };

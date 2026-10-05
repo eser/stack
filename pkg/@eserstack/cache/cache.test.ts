@@ -2,24 +2,24 @@
 
 import * as assert from "@std/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { createCacheManager } from "./cache.ts";
+import * as cache from "./cache.ts";
 
 const createTempCacheManager = async () => {
   const tempDir = await runtime.fs.makeTempDir({
     prefix: "cache-test-",
   });
 
-  const cache = createCacheManager({
+  const manager = cache.createCacheManager({
     app: { name: "test-app", org: "test-org" },
     baseDir: tempDir,
   });
 
   return {
-    cache,
+    manager,
     tempDir,
     cleanup: async () => {
       try {
-        await cache.close();
+        await manager.close();
       } catch {
         // ignore close errors
       }
@@ -33,26 +33,26 @@ const createTempCacheManager = async () => {
 };
 
 Deno.test("createCacheManager returns CacheManager", () => {
-  const cache = createCacheManager({
+  const manager = cache.createCacheManager({
     app: { name: "test-app" },
   });
 
-  assert.assertExists(cache.getCacheDir);
-  assert.assertExists(cache.getVersionedPath);
-  assert.assertExists(cache.exists);
-  assert.assertExists(cache.ensureDir);
-  assert.assertExists(cache.list);
-  assert.assertExists(cache.remove);
-  assert.assertExists(cache.clear);
-  assert.assertExists(cache.close);
+  assert.assertExists(manager.getCacheDir);
+  assert.assertExists(manager.getVersionedPath);
+  assert.assertExists(manager.exists);
+  assert.assertExists(manager.ensureDir);
+  assert.assertExists(manager.list);
+  assert.assertExists(manager.remove);
+  assert.assertExists(manager.clear);
+  assert.assertExists(manager.close);
 });
 
 Deno.test("getCacheDir returns valid path", () => {
-  const cache = createCacheManager({
+  const manager = cache.createCacheManager({
     app: { name: "test-app" },
   });
 
-  const cacheDir = cache.getCacheDir();
+  const cacheDir = manager.getCacheDir();
 
   assert.assertExists(cacheDir);
   assert.assert(cacheDir.length > 0, "Cache dir should not be empty");
@@ -63,11 +63,11 @@ Deno.test("getCacheDir returns valid path", () => {
 });
 
 Deno.test("getCacheDir with org includes org in path", () => {
-  const cache = createCacheManager({
+  const manager = cache.createCacheManager({
     app: { name: "test-app", org: "test-org" },
   });
 
-  const cacheDir = cache.getCacheDir();
+  const cacheDir = manager.getCacheDir();
 
   assert.assert(
     cacheDir.includes("test-org"),
@@ -80,11 +80,11 @@ Deno.test("getCacheDir with org includes org in path", () => {
 });
 
 Deno.test("getVersionedPath normalizes version", () => {
-  const cache = createCacheManager({
+  const manager = cache.createCacheManager({
     app: { name: "test-app" },
   });
 
-  const path = cache.getVersionedPath("1.0.0", "binary");
+  const path = manager.getVersionedPath("1.0.0", "binary");
 
   assert.assert(
     path.includes("v1.0.0"),
@@ -94,15 +94,15 @@ Deno.test("getVersionedPath normalizes version", () => {
 });
 
 Deno.test("ensureDir creates directory", async () => {
-  const { cache, cleanup } = await createTempCacheManager();
+  const { manager, cleanup } = await createTempCacheManager();
 
   try {
     const testDir = runtime.path.join(
-      cache.getCacheDir(),
+      manager.getCacheDir(),
       "subdir",
     );
 
-    await cache.ensureDir(testDir);
+    await manager.ensureDir(testDir);
 
     const dirExists = await runtime.fs.exists(testDir);
     assert.assert(dirExists, "Directory should exist after ensureDir");
@@ -112,10 +112,10 @@ Deno.test("ensureDir creates directory", async () => {
 });
 
 Deno.test("exists returns false for non-existent path", async () => {
-  const { cache, cleanup } = await createTempCacheManager();
+  const { manager, cleanup } = await createTempCacheManager();
 
   try {
-    const result = await cache.exists("non-existent-file");
+    const result = await manager.exists("non-existent-file");
 
     assert.assertEquals(result, false);
   } finally {
@@ -124,17 +124,17 @@ Deno.test("exists returns false for non-existent path", async () => {
 });
 
 Deno.test("exists returns true for existing path", async () => {
-  const { cache, cleanup } = await createTempCacheManager();
+  const { manager, cleanup } = await createTempCacheManager();
 
   try {
     // Create a test file
-    const testDir = cache.getCacheDir();
+    const testDir = manager.getCacheDir();
     await runtime.fs.mkdir(testDir, { recursive: true });
 
     const testFile = runtime.path.join(testDir, "test-file");
     await runtime.fs.writeTextFile(testFile, "test content");
 
-    const result = await cache.exists("test-file");
+    const result = await manager.exists("test-file");
 
     assert.assertEquals(result, true);
   } finally {
@@ -146,10 +146,10 @@ Deno.test({
   name: "list returns empty array for empty cache",
   sanitizeResources: false,
 }, async () => {
-  const { cache, cleanup } = await createTempCacheManager();
+  const { manager, cleanup } = await createTempCacheManager();
 
   try {
-    const entries = await cache.list();
+    const entries = await manager.list();
 
     assert.assertExists(entries);
     assert.assertEquals(entries.length, 0);
@@ -159,10 +159,10 @@ Deno.test({
 });
 
 Deno.test("list returns entries for non-empty cache", async () => {
-  const { cache, cleanup } = await createTempCacheManager();
+  const { manager, cleanup } = await createTempCacheManager();
 
   try {
-    const cacheDir = cache.getCacheDir();
+    const cacheDir = manager.getCacheDir();
     await runtime.fs.mkdir(cacheDir, { recursive: true });
 
     // Create test files
@@ -174,7 +174,7 @@ Deno.test("list returns entries for non-empty cache", async () => {
       runtime.path.join(cacheDir, "dir1"),
     );
 
-    const entries = await cache.list();
+    const entries = await manager.list();
 
     assert.assertEquals(entries.length, 2);
 
@@ -191,33 +191,33 @@ Deno.test("list returns entries for non-empty cache", async () => {
 });
 
 Deno.test("remove deletes file", async () => {
-  const { cache, cleanup } = await createTempCacheManager();
+  const { manager, cleanup } = await createTempCacheManager();
 
   try {
-    const cacheDir = cache.getCacheDir();
+    const cacheDir = manager.getCacheDir();
     await runtime.fs.mkdir(cacheDir, { recursive: true });
 
     const testFile = runtime.path.join(cacheDir, "to-remove");
     await runtime.fs.writeTextFile(testFile, "content");
 
     // Verify file exists
-    assert.assertEquals(await cache.exists("to-remove"), true);
+    assert.assertEquals(await manager.exists("to-remove"), true);
 
     // Remove it
-    await cache.remove("to-remove");
+    await manager.remove("to-remove");
 
     // Verify it's gone
-    assert.assertEquals(await cache.exists("to-remove"), false);
+    assert.assertEquals(await manager.exists("to-remove"), false);
   } finally {
     await cleanup();
   }
 });
 
 Deno.test("clear removes all cache contents", async () => {
-  const { cache, cleanup } = await createTempCacheManager();
+  const { manager, cleanup } = await createTempCacheManager();
 
   try {
-    const cacheDir = cache.getCacheDir();
+    const cacheDir = manager.getCacheDir();
     await runtime.fs.mkdir(cacheDir, { recursive: true });
 
     // Create some files
@@ -231,7 +231,7 @@ Deno.test("clear removes all cache contents", async () => {
     );
 
     // Clear cache
-    await cache.clear();
+    await manager.clear();
 
     // Verify cache dir is gone
     const dirExists = await runtime.fs.exists(cacheDir);
@@ -245,11 +245,11 @@ Deno.test({
   name: "close() releases handle without error",
   sanitizeResources: false,
 }, async () => {
-  const { cache, tempDir } = await createTempCacheManager();
+  const { manager, tempDir } = await createTempCacheManager();
 
   try {
-    await cache.list(); // trigger handle creation
-    await cache.close(); // must not throw
+    await manager.list(); // trigger handle creation
+    await manager.close(); // must not throw
   } finally {
     try {
       await runtime.fs.remove(tempDir, { recursive: true });
@@ -262,12 +262,12 @@ Deno.test({
 Deno.test(
   { name: "double-close is safe", sanitizeResources: false },
   async () => {
-    const { cache, tempDir } = await createTempCacheManager();
+    const { manager, tempDir } = await createTempCacheManager();
 
     try {
-      await cache.list(); // trigger handle creation
-      await cache.close();
-      await cache.close(); // second close must be a no-op
+      await manager.list(); // trigger handle creation
+      await manager.close();
+      await manager.close(); // second close must be a no-op
     } finally {
       try {
         await runtime.fs.remove(tempDir, { recursive: true });

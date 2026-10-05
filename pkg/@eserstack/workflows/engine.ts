@@ -7,8 +7,8 @@
  * no I/O — mutations are returned in results and the caller decides
  * whether to apply them (via the `onMutations` callback).
  *
- * Uses `@eserstack/functions/task` for lazy composition, timeout handling,
- * and result-based error recovery.
+ * Uses `@eserstack/functions/task` for lazy composition and result-based
+ * error recovery.
  *
  * ```
  * runWorkflow(workflow, registry, options)
@@ -17,7 +17,8 @@
  *   │   ├─ resolveStep() → { name, options, continueOnError, timeout }
  *   │   ├─ Lookup tool in registry
  *   │   ├─ Merge step options + run options
- *   │   ├─ Run tool via task.withTimeout()
+ *   │   ├─ Run tool with { timeoutMs, signal }; on timeout abort the signal,
+ *   │   │  give the tool STOP_GRACE_MS to stop, and fail the step
  *   │   ├─ On error: if continueOnError → failed step; else propagate error
  *   │   ├─ Call onMutations() if mutations produced
  *   │   └─ Call onStepEnd()
@@ -46,8 +47,30 @@ import type {
   WorkflowResult,
   WorkflowsConfig,
   WorkflowStepConfig,
+  WorkflowTool,
   WorkflowToolResult,
 } from "./types.ts";
+
+/** How long a step that sets no `timeout` may run: 60 seconds. */
+const DEFAULT_STEP_TIMEOUT_MS = 60_000;
+
+/**
+ * The longest step timeout, in milliseconds (about 24.8 days): the longest
+ * delay a timer holds. A larger delay fires at once.
+ */
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+/** {@link MAX_TIMEOUT_MS} in whole seconds, the unit of the step option. */
+const MAX_TIMEOUT_SECONDS = Math.floor(MAX_TIMEOUT_MS / 1000);
+
+/**
+ * How long the engine waits, after a step timed out, for its tool to stop the
+ * work it started before the run goes on without it. Five seconds, as long as
+ * the Go bridge waits for a killed command (processfx `DefaultWaitDelay`).
+ */
+const STOP_GRACE_MS = 5_000;
+
+const TIMED_OUT = Symbol("timed out");
 
 /**
  * Create a WorkflowError value.
@@ -58,6 +81,131 @@ const workflowError = (message: string): WorkflowError => ({
 });
 
 /**
+ * Join names for an error message, or "(none)" when there are none.
+ */
+const joinOrNone = (
+  names: readonly string[],
+  separator: string,
+): string => names.length > 0 ? names.join(separator) : "(none)";
+
+/**
+ * Convert a step's `timeout` option, in seconds, to milliseconds.
+ *
+ * @throws {Error} When the value is not a number of seconds above 0 and at
+ *   most {@link MAX_TIMEOUT_SECONDS}
+ */
+const parseStepTimeout = (stepName: string, value: unknown): number => {
+  if (
+    typeof value !== "number" || !Number.isFinite(value) || value <= 0 ||
+    value > MAX_TIMEOUT_SECONDS
+  ) {
+    throw new Error(
+      `Invalid step config for '${stepName}': timeout must be a number of ` +
+        `seconds above 0 and at most ${MAX_TIMEOUT_SECONDS} (about 24.8 ` +
+        `days), such as 120; got ${JSON.stringify(value)}`,
+    );
+  }
+
+  return value * 1000;
+};
+
+/**
+ * Name a step in a message. Every shell step runs the `shell` tool, so a step
+ * with a `name` option is named by it too: `'deno-tests' (shell)`.
+ */
+const describeStep = (step: ResolvedStep): string => {
+  const displayName = step.options["name"];
+
+  return typeof displayName === "string" && displayName !== step.name
+    ? `'${displayName}' (${step.name})`
+    : `'${step.name}'`;
+};
+
+/**
+ * Settle with `promise`, or with {@link TIMED_OUT} once `ms` have passed,
+ * whichever comes first. The timer is cleared either way.
+ */
+const settleWithin = async <T>(
+  promise: Promise<T>,
+  ms: number,
+): Promise<T | typeof TIMED_OUT> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), ms);
+  });
+
+  try {
+    return await Promise.race([promise, deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+/**
+ * Run one step's tool within the step's time limit.
+ *
+ * The tool gets the limit and a signal. When the limit passes, the signal
+ * aborts and the step fails with a timeout, but first the tool gets
+ * {@link STOP_GRACE_MS} to stop what it started. The shell tool stops its
+ * command at the same limit, so the command is gone before the next step
+ * starts or the process exits. The signal also aborts when the tool returns.
+ *
+ * @param step - The step, named in the timeout message
+ * @param startedAt - `performance.now()` when the step started
+ */
+const runStepTool = async (
+  tool: WorkflowTool,
+  toolOptions: Record<string, unknown>,
+  step: ResolvedStep,
+  timeoutMs: number,
+  startedAt: number,
+): Promise<results.Result<WorkflowToolResult, WorkflowError>> => {
+  const controller = new AbortController();
+  const timeoutError = workflowError(
+    `Step ${describeStep(step)} ran past its ${timeoutMs / 1000}s timeout; ` +
+      `raise the step's timeout option (in seconds) to give it more time`,
+  );
+
+  // fromPromise turns a throw into a failed result, so toolRun never rejects.
+  const toolRun = task.runTask(
+    task.fromPromise(
+      () => tool.run(toolOptions, { timeoutMs, signal: controller.signal }),
+      (error) =>
+        workflowError(error instanceof Error ? error.message : String(error)),
+    ),
+  );
+
+  try {
+    // The time left until the step's deadline; none when the tool blocked the
+    // event loop past it before returning its promise.
+    const outcome = await settleWithin(
+      toolRun,
+      Math.max(0, startedAt + timeoutMs - performance.now()),
+    );
+
+    if (outcome === TIMED_OUT) {
+      controller.abort();
+      await settleWithin(toolRun, STOP_GRACE_MS);
+
+      return results.fail(timeoutError);
+    }
+
+    // A tool that applies the limit itself, as the shell tool does, fails at
+    // the deadline. When it blocks the event loop meanwhile (the native bridge
+    // runs a command synchronously), the timer above cannot fire first, so a
+    // failure at or past the limit is reported as the step's timeout too.
+    if (results.isFail(outcome) && performance.now() - startedAt >= timeoutMs) {
+      return results.fail(timeoutError);
+    }
+
+    return outcome;
+  } finally {
+    // The step is over: work the tool started and left running stops now.
+    controller.abort();
+  }
+};
+
+/**
  * Parse a step config into a resolved step with name, options, and engine directives.
  *
  * Engine directives (`continueOnError`, `timeout`) are extracted from the options
@@ -65,6 +213,9 @@ const workflowError = (message: string): WorkflowError => ({
  *
  * - `"fix-eof"` → `{ name: "fix-eof", options: {}, continueOnError: false }`
  * - `{ "check-json": { exclude: ["x"], timeout: 120 } }` → timeout extracted, options clean
+ *
+ * @throws {Error} When the record has other than one key, or its `timeout` is
+ *   not a number of seconds above 0
  */
 export const resolveStep = (step: WorkflowStepConfig): ResolvedStep => {
   if (typeof step === "string") {
@@ -87,8 +238,8 @@ export const resolveStep = (step: WorkflowStepConfig): ResolvedStep => {
     if (key === "continueOnError") {
       continueOnError = value === true;
     } else if (key === "timeout") {
-      // YAML timeout is in seconds, engine uses milliseconds
-      timeout = (value as number) * 1000;
+      // The config gives seconds; the engine works in milliseconds.
+      timeout = parseStepTimeout(name, value);
     } else {
       options[key] = value;
     }
@@ -96,29 +247,6 @@ export const resolveStep = (step: WorkflowStepConfig): ResolvedStep => {
 
   return { name, options, continueOnError, timeout };
 };
-
-/**
- * Create a Task that runs a single tool step with timeout.
- * Returns a Task<WorkflowToolResult, WorkflowError, void>.
- */
-const createStepTask = (
-  toolRun: () => Promise<WorkflowToolResult>,
-  timeoutMs: number,
-  stepName: string,
-): task.Task<WorkflowToolResult, WorkflowError> =>
-  task.withTimeout(
-    task.fromPromise(
-      toolRun,
-      (error) =>
-        workflowError(
-          error instanceof Error ? error.message : String(error),
-        ),
-    ),
-    timeoutMs,
-    workflowError(
-      `Step '${stepName}' timed out after ${(timeoutMs / 1000).toFixed(0)}s`,
-    ),
-  );
 
 /**
  * Run a single workflow definition against a registry of tools.
@@ -139,7 +267,20 @@ export const runWorkflow = (
   task.task<WorkflowResult, WorkflowError>(async () => {
     const startTime = performance.now();
     const stepResults: StepResult[] = [];
-    const defaultTimeout = options.defaultTimeout ?? 60_000;
+    const defaultTimeout = options.defaultTimeout ?? DEFAULT_STEP_TIMEOUT_MS;
+
+    if (
+      !Number.isFinite(defaultTimeout) || defaultTimeout <= 0 ||
+      defaultTimeout > MAX_TIMEOUT_MS
+    ) {
+      return results.fail(
+        workflowError(
+          `defaultTimeout ${defaultTimeout} is out of range: pass ` +
+            `milliseconds above 0 and at most ${MAX_TIMEOUT_MS}, such as ` +
+            `60_000, or leave it unset for 60 seconds`,
+        ),
+      );
+    }
 
     for (const stepConfig of workflow.steps) {
       const resolved = resolveStep(stepConfig);
@@ -155,7 +296,7 @@ export const runWorkflow = (
         return results.fail(
           workflowError(
             `Unknown tool '${resolved.name}' in workflow '${workflow.id}'. ` +
-              `Registered tools: ${registry.names().join(", ") || "(none)"}`,
+              `Registered tools: ${joinOrNone(registry.names(), ", ")}`,
           ),
         );
       }
@@ -165,6 +306,7 @@ export const runWorkflow = (
         ...resolved.options,
         root: options.root ?? ".",
         fix: options.fix ?? false,
+        dryRun: options.dryRun ?? false,
         _args: options.args ?? [],
       };
 
@@ -177,14 +319,17 @@ export const runWorkflow = (
       options.onStepStart?.(resolved.name);
 
       const stepStart = performance.now();
-      const timeoutMs = resolved.timeout ?? defaultTimeout;
-      const stepTask = createStepTask(
-        () => tool.run(mergedOptions),
-        timeoutMs,
-        resolved.name,
-      );
 
-      const stepTaskResult = await task.runTask(stepTask);
+      // Steps run one at a time on purpose: each step sees the files the
+      // previous step fixed, and a failing step stops the workflow.
+      // deno-lint-ignore no-await-in-loop
+      const stepTaskResult = await runStepTool(
+        tool,
+        mergedOptions,
+        resolved,
+        resolved.timeout ?? defaultTimeout,
+        stepStart,
+      );
 
       let toolResult: WorkflowToolResult;
 
@@ -216,6 +361,8 @@ export const runWorkflow = (
       if (
         toolResult.mutations.length > 0 && options.onMutations !== undefined
       ) {
+        // The next step must not start before these mutations are applied.
+        // deno-lint-ignore no-await-in-loop
         await options.onMutations(toolResult.mutations);
       }
 
@@ -272,7 +419,7 @@ export const resolveIncludes = (
     if (included === undefined) {
       throw new Error(
         `Workflow '${workflow.id}' includes '${includeId}' but no workflow with that id exists. ` +
-          `Available: ${allWorkflows.map((w) => w.id).join(", ") || "(none)"}`,
+          `Available: ${joinOrNone(allWorkflows.map((w) => w.id), ", ")}`,
       );
     }
 
@@ -309,9 +456,7 @@ export const runWorkflowWithConfig = (
       return results.fail(
         workflowError(
           `Workflow '${workflowId}' not found. ` +
-            `Available: ${
-              config.workflows.map((w) => w.id).join(", ") || "(none)"
-            }`,
+            `Available: ${joinOrNone(config.workflows.map((w) => w.id), ", ")}`,
         ),
       );
     }
@@ -343,9 +488,10 @@ export const runByEvent = (
         workflowError(
           `No workflows found for event '${event}'. ` +
             `Available: ${
-              workflows.map((w) => `${w.id} (${w.on.join(", ")})`).join(
+              joinOrNone(
+                workflows.map((w) => `${w.id} (${w.on.join(", ")})`),
                 "; ",
-              ) || "(none)"
+              )
             }`,
         ),
       );
@@ -354,6 +500,9 @@ export const runByEvent = (
     const workflowResults: WorkflowResult[] = [];
     for (const workflow of matching) {
       const resolved = resolveIncludes(workflow, workflows);
+      // Workflows run one at a time on purpose: in fix mode they change the
+      // same files, and the first failing workflow stops the run.
+      // deno-lint-ignore no-await-in-loop
       const result = await task.runTask(
         runWorkflow(resolved, registry, options),
       );

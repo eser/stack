@@ -84,6 +84,10 @@ importers:
       koffi:
         specifier: ^3.3.0
         version: 3.3.0
+    devDependencies:
+      '@std/assert':
+        specifier: npm:@jsr/std__assert@^1.0.19
+        version: '@jsr/std__assert@1.0.19'
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
         specifier: workspace:*
@@ -127,6 +131,10 @@ importers:
       '@eserstack/standards':
         specifier: workspace:*
         version: link:../standards
+    devDependencies:
+      '@std/assert':
+        specifier: npm:@jsr/std__assert@^1.0.19
+        version: '@jsr/std__assert@1.0.19'
 
   pkg/@eserstack/bundler:
     dependencies:
@@ -245,6 +253,9 @@ importers:
 
   pkg/@eserstack/codebase:
     dependencies:
+      '@eemeli/yaml':
+        specifier: npm:@jsr/eemeli__yaml@^2.9.1
+        version: '@jsr/eemeli__yaml@2.9.1'
       '@eserstack/ai':
         specifier: workspace:*
         version: link:../ai
@@ -290,9 +301,6 @@ importers:
       '@std/toml':
         specifier: npm:@jsr/std__toml@^1.0.11
         version: '@jsr/std__toml@1.0.11'
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
     devDependencies:
       '@eserstack/logging':
         specifier: workspace:*
@@ -322,6 +330,9 @@ importers:
 
   pkg/@eserstack/config:
     dependencies:
+      '@eemeli/yaml':
+        specifier: npm:@jsr/eemeli__yaml@^2.9.1
+        version: '@jsr/eemeli__yaml@2.9.1'
       '@eserstack/ajan':
         specifier: workspace:*
         version: link:../ajan
@@ -340,9 +351,6 @@ importers:
       '@std/toml':
         specifier: npm:@jsr/std__toml@^1.0.11
         version: '@jsr/std__toml@1.0.11'
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
     devDependencies:
       '@std/assert':
         specifier: npm:@jsr/std__assert@^1.0.19
@@ -410,6 +418,9 @@ importers:
 
   pkg/@eserstack/formats:
     dependencies:
+      '@eemeli/yaml':
+        specifier: npm:@jsr/eemeli__yaml@^2.9.1
+        version: '@jsr/eemeli__yaml@2.9.1'
       '@eserstack/ajan':
         specifier: workspace:*
         version: link:../ajan
@@ -422,9 +433,6 @@ importers:
       '@std/toml':
         specifier: npm:@jsr/std__toml@^1.0.11
         version: '@jsr/std__toml@1.0.11'
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
     devDependencies:
       '@std/assert':
         specifier: npm:@jsr/std__assert@^1.0.19
@@ -457,9 +465,6 @@ importers:
       lodash.memoize:
         specifier: ^4.1.2
         version: 4.1.2
-      lodash.reject:
-        specifier: ^4.6.0
-        version: 4.6.0
 
   pkg/@eserstack/functions:
     dependencies:
@@ -558,6 +563,10 @@ importers:
       '@eserstack/standards':
         specifier: workspace:*
         version: link:../standards
+    devDependencies:
+      '@std/assert':
+        specifier: npm:@jsr/std__assert@^1.0.19
+        version: '@jsr/std__assert@1.0.19'
 
   pkg/@eserstack/laroux-bundler:
     dependencies:
@@ -613,9 +622,6 @@ importers:
       '@eserstack/laroux':
         specifier: workspace:*
         version: link:../laroux
-      '@eserstack/laroux-bundler':
-        specifier: workspace:*
-        version: link:../laroux-bundler
       '@eserstack/logging':
         specifier: workspace:*
         version: link:../logging
@@ -653,6 +659,10 @@ importers:
       '@eserstack/standards':
         specifier: workspace:*
         version: link:../standards
+    devDependencies:
+      '@std/assert':
+        specifier: npm:@jsr/std__assert@^1.0.19
+        version: '@jsr/std__assert@1.0.19'
 
   pkg/@eserstack/laroux-server:
     dependencies:
@@ -726,9 +736,6 @@ importers:
       '@eserstack/ajan':
         specifier: workspace:*
         version: link:../ajan
-      '@eserstack/primitives':
-        specifier: workspace:*
-        version: link:../primitives
       '@eserstack/standards':
         specifier: workspace:*
         version: link:../standards
@@ -764,6 +771,9 @@ importers:
 
   pkg/@eserstack/noskills:
     dependencies:
+      '@eemeli/yaml':
+        specifier: npm:@jsr/eemeli__yaml@^2.9.1
+        version: '@jsr/eemeli__yaml@2.9.1'
       '@eserstack/agents':
         specifier: workspace:*
         version: link:../agents
@@ -794,9 +804,6 @@ importers:
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
     devDependencies:
       '@std/assert':
         specifier: npm:@jsr/std__assert@^1.0.19
@@ -813,6 +820,10 @@ importers:
       '@eserstack/webtransport':
         specifier: workspace:*
         version: link:../webtransport
+    devDependencies:
+      '@std/assert':
+        specifier: npm:@jsr/std__assert@^1.0.19
+        version: '@jsr/std__assert@1.0.19'
 
   pkg/@eserstack/noskills-server-worker:
     dependencies:
@@ -823,6 +834,12 @@ importers:
         specifier: workspace:*
         version: link:../noskills
     devDependencies:
+      '@eserstack/standards':
+        specifier: workspace:*
+        version: link:../standards
+      '@std/assert':
+        specifier: npm:@jsr/std__assert@^1.0.19
+        version: '@jsr/std__assert@1.0.19'
       '@types/node':
         specifier: ^26.6.1
         version: 26.6.1
@@ -835,21 +852,18 @@ importers:
       '@eserstack/agents':
         specifier: workspace:*
         version: link:../agents
+      '@eserstack/logging':
+        specifier: workspace:*
+        version: link:../logging
       '@eserstack/mux':
         specifier: workspace:*
         version: link:../mux
       '@eserstack/noskills':
         specifier: workspace:*
         version: link:../noskills
-      '@eserstack/shell':
-        specifier: workspace:*
-        version: link:../shell
       '@eserstack/standards':
         specifier: workspace:*
         version: link:../standards
-      '@std/path':
-        specifier: npm:@jsr/std__path@^1.1.6
-        version: '@jsr/std__path@1.1.6'
     devDependencies:
       '@std/assert':
         specifier: npm:@jsr/std__assert@^1.0.19
@@ -981,13 +995,17 @@ importers:
         specifier: npm:@jsr/std__assert@^1.0.19
         version: '@jsr/std__assert@1.0.19'
 
-  pkg/@eserstack/webtransport: {}
+  pkg/@eserstack/webtransport:
+    devDependencies:
+      '@std/assert':
+        specifier: npm:@jsr/std__assert@^1.0.19
+        version: '@jsr/std__assert@1.0.19'
 
   pkg/@eserstack/workflows:
     dependencies:
-      '@eserstack/ajan':
-        specifier: workspace:*
-        version: link:../ajan
+      '@eemeli/yaml':
+        specifier: npm:@jsr/eemeli__yaml@^2.9.1
+        version: '@jsr/eemeli__yaml@2.9.1'
       '@eserstack/config':
         specifier: workspace:*
         version: link:../config
@@ -1009,9 +1027,6 @@ importers:
       '@std/cli':
         specifier: npm:@jsr/std__cli@^1.0.32
         version: '@jsr/std__cli@1.0.32'
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
     devDependencies:
       '@std/assert':
         specifier: npm:@jsr/std__assert@^1.0.19
@@ -1383,6 +1398,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@jsr/eemeli__yaml@2.9.1':
+    resolution: {integrity: sha512-j3e26IFzDT84R25aeowX5B1HuT89uCAtmrTbIGrjWGUz+KZoIxZbdgNmD0cQcEVTEmHcJwIe7jmtPsmfU+YR6w==, tarball: https://npm.jsr.io/~/11/@jsr/eemeli__yaml/2.9.1.tgz}
 
   '@jsr/std__assert@1.0.19':
     resolution: {integrity: sha512-pEj6RPkGbqlgRmyKwATp4cUs6+ijxtdrv3bq8v1d2I2CEcMEyPaO8cVKro61wGRDH4cNg8Zx6haztvK/9m7gkA==, tarball: https://npm.jsr.io/~/11/@jsr/std__assert/1.0.19.tgz}
@@ -2382,9 +2400,6 @@ packages:
   lodash.memoize@4.1.2:
     resolution: {integrity: sha512-t7j+NzmgnQzTAYXcsHYLgimltOV1MXHtlOWf6GjL9Kj8GK5FInw5JotxvbOs+IvV1/Dzo04/fCGfLVs7aXb4Ag==}
 
-  lodash.reject@4.6.0:
-    resolution: {integrity: sha512-qkTuvgEzYdyhiJBx42YPzPo71R1aEr0z79kAv7Ixg8wPFEjgRgJdUsGMG3Hf3OYSF/kHI79XhNlt+5Ar6OzwxQ==}
-
   long@5.3.2:
     resolution: {integrity: sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==}
 
@@ -2661,11 +2676,6 @@ packages:
       utf-8-validate:
         optional: true
 
-  yaml@2.9.1:
-    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
-    engines: {node: '>= 14.6'}
-    hasBin: true
-
   zod-to-json-schema@3.25.2:
     resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
     peerDependencies:
@@ -2910,6 +2920,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@jsr/eemeli__yaml@2.9.1': {}
 
   '@jsr/std__assert@1.0.19':
     dependencies:
@@ -3803,8 +3815,6 @@ snapshots:
 
   lodash.memoize@4.1.2: {}
 
-  lodash.reject@4.6.0: {}
-
   long@5.3.2: {}
 
   magic-string@0.30.21:
@@ -4143,8 +4153,6 @@ snapshots:
     optional: true
 
   ws@8.21.3: {}
-
-  yaml@2.9.1: {}
 
   zod-to-json-schema@3.25.2(zod@4.4.3):
     dependencies:

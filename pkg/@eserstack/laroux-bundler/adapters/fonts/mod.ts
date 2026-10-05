@@ -7,6 +7,7 @@
 export {
   type FontFile,
   type FontOptimizationResult,
+  googleFontOptimizer,
   optimizeGoogleFonts,
   optimizeMultipleGoogleFonts,
 } from "./font-optimizer.ts";

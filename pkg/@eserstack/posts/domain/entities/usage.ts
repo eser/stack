@@ -7,6 +7,7 @@
 
 /** Usage totals for a single calendar day. */
 export interface DailyUsage {
+  /** The day the calls were counted on. */
   readonly date: Date;
   /** Total number of API calls counted for this day. */
   readonly callCount: number;
@@ -14,7 +15,9 @@ export interface DailyUsage {
 
 /** Aggregate API usage for the billing period, broken down by day. */
 export interface UsageData {
+  /** The developer app the usage belongs to, when the platform reports it. */
   readonly appName: string | undefined;
+  /** The call counts per day of the billing period. */
   readonly daily: ReadonlyArray<DailyUsage>;
   /** Sum of callCount across all days. */
   readonly totalCalls: number;

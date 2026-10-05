@@ -1,11 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { Registry } from "./container.ts";
-import { invoke } from "./invoker.ts";
+import * as container from "./container.ts";
+import * as invoker from "./invoker.ts";
 
 const create = () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   const services = registry.build();
 
@@ -21,7 +21,7 @@ Deno.test("basic", () => {
   registry.setLazy("lazy", () => "value2");
   registry.setTransient("transient", () => `value${++count + 2}`);
 
-  const result = invoke(services, (singleton, lazy, transient) => {
+  const result = invoker.invoke(services, (singleton, lazy, transient) => {
     return { singleton, lazy, transient };
   });
 

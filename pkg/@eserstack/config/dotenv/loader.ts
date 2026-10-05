@@ -1,8 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as dotenv from "@std/dotenv";
-import { NotFoundError, runtime } from "@eserstack/standards/cross-runtime";
-import { defaultEnvValue, env, type EnvMap, envVars } from "./base.ts";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as base from "./base.ts";
+import type { EnvMap } from "./base.ts";
 
 /**
  * Default maximum file size for .env files (1MB).
@@ -21,6 +22,13 @@ export class EnvFileTooLargeError extends Error {
   /** The maximum allowed size in bytes */
   readonly maxSize: number;
 
+  /**
+   * Creates the error.
+   *
+   * @param filepath - The file that is too large
+   * @param fileSize - Its size in bytes
+   * @param maxSize - The limit in bytes
+   */
   constructor(filepath: string, fileSize: number, maxSize: number) {
     super(
       `Environment file "${filepath}" is too large (${fileSize} bytes). Maximum allowed size is ${maxSize} bytes.`,
@@ -32,13 +40,21 @@ export class EnvFileTooLargeError extends Error {
   }
 }
 
-// type definitions
+/** Options for `load()`. Every field is optional there. */
 export type LoaderOptions = {
+  /** The directory that holds the `.env` files; defaults to `"."` */
   baseDir: string;
+  /** The environment name; read from `envVars` when absent */
   env: string | undefined;
+  /** The variables read for the environment name, in order */
   envVars: string[];
+  /** The environment name used when none of `envVars` is set */
   defaultEnvValue: string;
 
+  /**
+   * Whether process environment variables override the files; defaults to
+   * `true`
+   */
   loadProcessEnv: boolean;
 
   /**
@@ -49,7 +65,12 @@ export type LoaderOptions = {
   maxFileSize: number;
 };
 
-// public functions
+/**
+ * Parses the contents of a `.env` file.
+ *
+ * @param rawDotenv - The file contents
+ * @returns The variables by name
+ */
 export const parseEnvString = (
   rawDotenv: string,
 ): ReturnType<typeof dotenv.parse> => {
@@ -70,21 +91,20 @@ export const parseEnvFromFile = async (
 ): Promise<ReturnType<typeof parseEnvString>> => {
   try {
     // Check file size before reading to prevent memory exhaustion
-    const stat = await runtime.fs.stat(filepath);
+    const stat = await crossRuntime.runtime.fs.stat(filepath);
 
     if (stat.size > maxFileSize) {
       throw new EnvFileTooLargeError(filepath, stat.size, maxFileSize);
     }
 
-    const data = await runtime.fs.readFile(filepath);
+    const data = await crossRuntime.runtime.fs.readFile(filepath);
     const decoded = new TextDecoder("utf-8").decode(data);
-    const escaped = decodeURIComponent(decoded);
 
-    const result = parseEnvString(escaped);
+    const result = parseEnvString(decoded);
 
     return result;
   } catch (e) {
-    if (e instanceof NotFoundError) {
+    if (e instanceof crossRuntime.NotFoundError) {
       return {};
     }
 
@@ -92,13 +112,17 @@ export const parseEnvFromFile = async (
   }
 };
 
-const getEnvVar = (
-  sysVars: Record<string, string>,
+// The environment name is the value of the first variable in `envVars` that
+// is set and not empty, so ENV=production selects .env.production.
+const getEnvName = (
+  sysVars: Readonly<Record<string, string>>,
+  envVars: ReadonlyArray<string>,
   defaultValue: string,
 ): string => {
   for (const envVar of envVars) {
-    if (envVar in sysVars) {
-      return envVar;
+    const value = sysVars[envVar];
+    if (value !== undefined && value !== "") {
+      return value;
     }
   }
 
@@ -126,8 +150,8 @@ export const load = async (
     {
       baseDir: ".",
       env: undefined,
-      envVars: envVars,
-      defaultEnvValue: defaultEnvValue,
+      envVars: base.envVars,
+      defaultEnvValue: base.defaultEnvValue,
 
       loadProcessEnv: true,
       maxFileSize: DEFAULT_MAX_FILE_SIZE,
@@ -135,11 +159,12 @@ export const load = async (
     options,
   );
 
-  const sysVars = runtime.env.toObject();
-  const envName = options_.env ?? getEnvVar(sysVars, options_.defaultEnvValue);
+  const sysVars = crossRuntime.runtime.env.toObject();
+  const envName = options_.env ??
+    getEnvName(sysVars, options_.envVars, options_.defaultEnvValue);
 
-  const vars = new Map<typeof env | string, string>();
-  vars.set(env, envName);
+  const vars = new Map<typeof base.env | string, string>();
+  vars.set(base.env, envName);
 
   const envImport = (entries: Record<string, string>) => {
     for (const [key, value] of Object.entries(entries)) {

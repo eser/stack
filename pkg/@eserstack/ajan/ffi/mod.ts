@@ -78,11 +78,15 @@ export interface LoadOptions {
  */
 const getEnv = (name: string): string | undefined => {
   try {
+    // globalThis does not declare Deno, Bun or process on every runtime.
     // deno-lint-ignore no-explicit-any
     const g = globalThis as any;
 
     // process.env works on Deno 2.7+, Node.js, and Bun
-    if (typeof g.process !== "undefined" && g.process.env != null) {
+    if (
+      typeof g.process !== "undefined" &&
+      g.process.env !== undefined && g.process.env !== null
+    ) {
       return g.process.env[name] as string | undefined;
     }
   } catch {
@@ -116,6 +120,7 @@ const debugLog = (message: string): void => {
     return;
   }
 
+  // Opt-in diagnostics go to stderr directly; this module has no logger.
   // deno-lint-ignore no-console
   console.error(`[eser-ajan/ffi] ${message}`);
 };
@@ -135,8 +140,9 @@ const errorMessage = (error: unknown): string =>
  */
 const FFI_MODULE_DIR: string | undefined = import.meta.dirname;
 
-/** Re-export resolution utilities. */
-export const getLibraryExtension = resolve.getLibraryExtension;
+/** Returns the shared library file extension for the current OS. */
+export const getLibraryExtension: () => types.LibraryExtension =
+  resolve.getLibraryExtension;
 
 /**
  * Resolves the path to the eser-ajan shared library.
@@ -156,6 +162,7 @@ const BACKENDS: readonly types.FFIBackend[] = [
  * Detects the current JavaScript runtime.
  */
 export const detectRuntime = (): types.RuntimeId => {
+  // globalThis does not declare Deno, Bun or process on every runtime.
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
 

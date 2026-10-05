@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { NotFoundError } from "@eserstack/standards/cross-runtime";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 
 /**
  * Entry in a fake filesystem walk operation.
@@ -99,6 +99,8 @@ export const createFakeFs = (files: Record<string, string>): FakeFs => {
   }
 
   return {
+    // Async to match the FakeFs contract, so a miss is a rejection, not a
+    // throw.
     // deno-lint-ignore require-await
     async readTextFile(path: string): Promise<string> {
       const content = files[path];
@@ -106,9 +108,11 @@ export const createFakeFs = (files: Record<string, string>): FakeFs => {
         return content;
       }
 
-      throw new NotFoundError(path);
+      throw new crossRuntime.NotFoundError(path);
     },
 
+    // Async to match the FakeFs contract, so a miss is a rejection, not a
+    // throw.
     // deno-lint-ignore require-await
     async readFile(path: string): Promise<Uint8Array> {
       const content = files[path];
@@ -116,7 +120,7 @@ export const createFakeFs = (files: Record<string, string>): FakeFs => {
         return encoder.encode(content);
       }
 
-      throw new NotFoundError(path);
+      throw new crossRuntime.NotFoundError(path);
     },
 
     async *walk(root: string): AsyncIterable<WalkEntry> {

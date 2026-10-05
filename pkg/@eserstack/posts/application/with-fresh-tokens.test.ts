@@ -4,14 +4,10 @@ import * as bdd from "@std/testing/bdd";
 import * as assert from "@std/assert";
 import * as results from "@eserstack/primitives/results";
 import type { Platform } from "../domain/values/platform.ts";
-import { AuthRequiredError } from "./auth-required-error.ts";
+import * as authRequiredError from "./auth-required-error.ts";
 import type { InboundPostService } from "./post-service.ts";
-import {
-  createMockAuthProvider,
-  createMockTokenStore,
-  createTestTokens,
-} from "./testing.ts";
-import { withFreshTokens } from "./with-fresh-tokens.ts";
+import * as testing from "./testing.ts";
+import * as withFreshTokens from "./with-fresh-tokens.ts";
 
 const platform: Platform = "twitter";
 // Minimal stand-in — withFreshTokens never touches postService directly.
@@ -21,9 +17,9 @@ bdd.describe("withFreshTokens", () => {
   bdd.it(
     "happy path: installs valid tokens and saves them after the operation",
     async () => {
-      const tokenStore = createMockTokenStore();
-      const auth = createMockAuthProvider();
-      const tokens = createTestTokens();
+      const tokenStore = testing.createMockTokenStore();
+      const auth = testing.createMockAuthProvider();
+      const tokens = testing.createTestTokens();
       tokenStore.store.set(platform, tokens);
 
       const ctx = {
@@ -32,7 +28,7 @@ bdd.describe("withFreshTokens", () => {
         auths: new Map([[platform, auth]]),
       };
 
-      const result = await withFreshTokens(
+      const result = await withFreshTokens.withFreshTokens(
         ctx,
         platform,
         () => Promise.resolve(results.ok("done")),
@@ -53,14 +49,14 @@ bdd.describe("withFreshTokens", () => {
   bdd.it(
     "refreshes an expired token and saves the refreshed tokens",
     async () => {
-      const tokenStore = createMockTokenStore();
-      const refreshedTokens = createTestTokens({
+      const tokenStore = testing.createMockTokenStore();
+      const refreshedTokens = testing.createTestTokens({
         accessToken: "refreshed-token",
       });
-      const auth = createMockAuthProvider({
+      const auth = testing.createMockAuthProvider({
         refreshToken: () => Promise.resolve(refreshedTokens),
       });
-      const expiredTokens = createTestTokens({
+      const expiredTokens = testing.createTestTokens({
         expiresAt: new Date(Date.now() - 1_000), // already expired
       });
       tokenStore.store.set(platform, expiredTokens);
@@ -72,12 +68,16 @@ bdd.describe("withFreshTokens", () => {
       };
 
       let installedTokens;
-      const result = await withFreshTokens(ctx, platform, () => {
-        installedTokens = auth.calls
-          .filter((c) => c.method === "setTokens")
-          .at(-1)?.args[0];
-        return Promise.resolve(results.ok("done"));
-      });
+      const result = await withFreshTokens.withFreshTokens(
+        ctx,
+        platform,
+        () => {
+          installedTokens = auth.calls
+            .filter((c) => c.method === "setTokens")
+            .at(-1)?.args[0];
+          return Promise.resolve(results.ok("done"));
+        },
+      );
 
       assert.assertEquals(results.isOk(result), true);
       assert.assertEquals(installedTokens, refreshedTokens);
@@ -90,9 +90,9 @@ bdd.describe("withFreshTokens", () => {
   bdd.it(
     "saves tokens even when the operation fails",
     async () => {
-      const tokenStore = createMockTokenStore();
-      const auth = createMockAuthProvider();
-      tokenStore.store.set(platform, createTestTokens());
+      const tokenStore = testing.createMockTokenStore();
+      const auth = testing.createMockAuthProvider();
+      tokenStore.store.set(platform, testing.createTestTokens());
 
       const ctx = {
         postService: noopPostService,
@@ -101,7 +101,7 @@ bdd.describe("withFreshTokens", () => {
       };
 
       const err = new Error("API error");
-      const result = await withFreshTokens(
+      const result = await withFreshTokens.withFreshTokens(
         ctx,
         platform,
         () => Promise.resolve(results.fail(err)),
@@ -119,8 +119,8 @@ bdd.describe("withFreshTokens", () => {
   bdd.it(
     "returns AuthRequiredError when no tokens are stored",
     async () => {
-      const tokenStore = createMockTokenStore(); // store is empty
-      const auth = createMockAuthProvider();
+      const tokenStore = testing.createMockTokenStore(); // store is empty
+      const auth = testing.createMockAuthProvider();
 
       const ctx = {
         postService: noopPostService,
@@ -128,7 +128,7 @@ bdd.describe("withFreshTokens", () => {
         auths: new Map([[platform, auth]]),
       };
 
-      const result = await withFreshTokens(
+      const result = await withFreshTokens.withFreshTokens(
         ctx,
         platform,
         () => Promise.resolve(results.ok("never")),
@@ -137,7 +137,7 @@ bdd.describe("withFreshTokens", () => {
       assert.assertEquals(results.isFail(result), true);
       assert.assertInstanceOf(
         results.isFail(result) ? result.error : null,
-        AuthRequiredError,
+        authRequiredError.AuthRequiredError,
       );
     },
   );
@@ -145,11 +145,11 @@ bdd.describe("withFreshTokens", () => {
   bdd.it(
     "returns AuthRequiredError when token is expired and has no refresh token",
     async () => {
-      const tokenStore = createMockTokenStore();
-      const auth = createMockAuthProvider();
+      const tokenStore = testing.createMockTokenStore();
+      const auth = testing.createMockAuthProvider();
       tokenStore.store.set(
         platform,
-        createTestTokens({
+        testing.createTestTokens({
           expiresAt: new Date(Date.now() - 1_000),
           refreshToken: undefined,
         }),
@@ -161,7 +161,7 @@ bdd.describe("withFreshTokens", () => {
         auths: new Map([[platform, auth]]),
       };
 
-      const result = await withFreshTokens(
+      const result = await withFreshTokens.withFreshTokens(
         ctx,
         platform,
         () => Promise.resolve(results.ok("never")),
@@ -170,7 +170,7 @@ bdd.describe("withFreshTokens", () => {
       assert.assertEquals(results.isFail(result), true);
       assert.assertInstanceOf(
         results.isFail(result) ? result.error : null,
-        AuthRequiredError,
+        authRequiredError.AuthRequiredError,
       );
       assert.assertEquals(
         tokenStore.calls.some((c) => c.method === "save"),
@@ -193,7 +193,11 @@ bdd.describe("withFreshTokens", () => {
       const ctxNoStore = {
         postService: noopPostService,
       };
-      const r1 = await withFreshTokens(ctxNoStore, platform, operation);
+      const r1 = await withFreshTokens.withFreshTokens(
+        ctxNoStore,
+        platform,
+        operation,
+      );
       assert.assertEquals(operationCalled, true);
       assert.assertEquals(results.isOk(r1), true);
 
@@ -201,12 +205,50 @@ bdd.describe("withFreshTokens", () => {
       operationCalled = false;
       const ctxNoAuth = {
         postService: noopPostService,
-        tokenStore: createMockTokenStore(),
-        auths: new Map<Platform, ReturnType<typeof createMockAuthProvider>>(),
+        tokenStore: testing.createMockTokenStore(),
+        auths: new Map<
+          Platform,
+          ReturnType<typeof testing.createMockAuthProvider>
+        >(),
       };
-      const r2 = await withFreshTokens(ctxNoAuth, platform, operation);
+      const r2 = await withFreshTokens.withFreshTokens(
+        ctxNoAuth,
+        platform,
+        operation,
+      );
       assert.assertEquals(operationCalled, true);
       assert.assertEquals(results.isOk(r2), true);
+    },
+  );
+
+  bdd.it(
+    "fails without running the operation when the token store cannot load",
+    async () => {
+      const tokenStore = {
+        ...testing.createMockTokenStore(),
+        load: () => Promise.reject(new Error("token file is not valid JSON")),
+      };
+      let operationCalled = false;
+
+      const result = await withFreshTokens.withFreshTokens(
+        {
+          postService: noopPostService,
+          tokenStore,
+          auths: new Map([[platform, testing.createMockAuthProvider()]]),
+        },
+        platform,
+        () => {
+          operationCalled = true;
+          return Promise.resolve(results.ok("done"));
+        },
+      );
+
+      assert.assert(results.isFail(result));
+      assert.assertEquals(
+        result.error.message,
+        "load saved twitter tokens: token file is not valid JSON",
+      );
+      assert.assertEquals(operationCalled, false);
     },
   );
 });

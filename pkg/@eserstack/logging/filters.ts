@@ -1,21 +1,20 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as logging from "@eserstack/standards/logging";
+import type * as logging from "@eserstack/standards/logging";
 import type { Category, Filter, LogRecord } from "./types.ts";
-import {
-  isDescendantOrSelf,
-  matchesPattern,
-  normalizeCategory,
-} from "./category.ts";
+import * as category from "./category.ts";
 
 /**
  * Creates a filter that passes records at or above a given severity level.
  * Higher severity numbers are more severe (Trace=1, Emergency=23) per OpenTelemetry.
  *
  * @example
- * const filter = getLevelFilter(logging.Severities.Warning);
- * filter(infoRecord) // false (Info=9 < Warning=13)
- * filter(errorRecord) // true (Error=17 >= Warning=13)
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * // Passes Warning (13) and above, such as Error (17); drops Info (9)
+ * const warnings = logging.filters.getLevelFilter(logging.Severities.Warning);
+ * ```
  */
 export const getLevelFilter = (level: logging.Severity): Filter => {
   return (record: LogRecord): boolean => {
@@ -27,16 +26,20 @@ export const getLevelFilter = (level: logging.Severity): Filter => {
  * Creates a filter that passes records matching a specific category or its descendants.
  *
  * @example
- * const filter = getCategoryFilter(["app", "http"]);
- * filter(appHttpRecord) // true
- * filter(appHttpRequestRecord) // true
- * filter(appDbRecord) // false
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * // Passes app.http and app.http.request; drops app.db
+ * const http = logging.filters.getCategoryFilter(["app", "http"]);
+ * ```
  */
-export const getCategoryFilter = (category: Category | string): Filter => {
-  const normalized = normalizeCategory(category);
+export const getCategoryFilter = (
+  baseCategory: Category | string,
+): Filter => {
+  const normalized = category.normalizeCategory(baseCategory);
 
   return (record: LogRecord): boolean => {
-    return isDescendantOrSelf(record.category, normalized);
+    return category.isDescendantOrSelf(record.category, normalized);
   };
 };
 
@@ -45,28 +48,38 @@ export const getCategoryFilter = (category: Category | string): Filter => {
  * Supports "*" (any single segment) and "**" (any number of segments).
  *
  * @example
- * const filter = getCategoryPatternFilter(["app", "*", "request"]);
- * filter({ category: ["app", "http", "request"] }) // true
- * filter({ category: ["app", "db", "request"] }) // true
- * filter({ category: ["app", "http", "response"] }) // false
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * // Passes app.http.request and app.db.request; drops app.http.response
+ * const requests = logging.filters.getCategoryPatternFilter([
+ *   "app",
+ *   "*",
+ *   "request",
+ * ]);
+ * ```
  */
 export const getCategoryPatternFilter = (
   pattern: Category | string,
 ): Filter => {
-  const normalized = normalizeCategory(pattern);
+  const normalized = category.normalizeCategory(pattern);
 
   return (record: LogRecord): boolean => {
-    return matchesPattern(record.category, normalized);
+    return category.matchesPattern(record.category, normalized);
   };
 };
 
 /**
- * Creates a filter that checks for the presence of a property.
+ * Creates a filter that passes records that have the property, set through
+ * `logger.with()` or the logging context.
  *
  * @example
- * const filter = getPropertyFilter("requestId");
- * filter({ properties: { requestId: "123" } }) // true
- * filter({ properties: {} }) // false
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * // Passes records logged with a requestId property or context value
+ * const withRequestId = logging.filters.getPropertyFilter("requestId");
+ * ```
  */
 export const getPropertyFilter = (propertyName: string): Filter => {
   return (record: LogRecord): boolean => {
@@ -75,12 +88,20 @@ export const getPropertyFilter = (propertyName: string): Filter => {
 };
 
 /**
- * Creates a filter that checks a property value against a predicate.
+ * Creates a filter that checks a property value against a predicate. The
+ * value comes from the record's properties, or from its context when the
+ * properties do not set it.
  *
  * @example
- * const filter = getPropertyValueFilter("userId", (v) => v === 123);
- * filter({ properties: { userId: 123 } }) // true
- * filter({ properties: { userId: 456 } }) // false
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * // Passes records whose userId is 123
+ * const oneUser = logging.filters.getPropertyValueFilter(
+ *   "userId",
+ *   (value) => value === 123,
+ * );
+ * ```
  */
 export const getPropertyValueFilter = (
   propertyName: string,
@@ -95,12 +116,16 @@ export const getPropertyValueFilter = (
 };
 
 /**
- * Creates a filter that passes records containing a message substring.
+ * Creates a filter that passes records whose message contains `substring`,
+ * ignoring case unless `caseSensitive` is set.
  *
  * @example
- * const filter = getMessageFilter("error");
- * filter({ message: "An error occurred" }) // true
- * filter({ message: "Success" }) // false
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * // Passes "An Error occurred"; drops "Success"
+ * const errors = logging.filters.getMessageFilter("error");
+ * ```
  */
 export const getMessageFilter = (
   substring: string,
@@ -119,7 +144,11 @@ export const getMessageFilter = (
  * Creates a filter that passes records matching a message regex.
  *
  * @example
- * const filter = getMessageRegexFilter(/error|warning/i);
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * const problems = logging.filters.getMessageRegexFilter(/error|warning/i);
+ * ```
  */
 export const getMessageRegexFilter = (regex: RegExp): Filter => {
   return (record: LogRecord): boolean => {
@@ -131,10 +160,15 @@ export const getMessageRegexFilter = (regex: RegExp): Filter => {
  * Combines multiple filters with AND logic (all must pass).
  *
  * @example
- * const filter = combineFilters(
- *   getLevelFilter(logging.Severities.Warning),
- *   getCategoryFilter(["app", "http"])
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * // Passes warnings and above from app.http
+ * const httpWarnings = logging.filters.combineFilters(
+ *   logging.filters.getLevelFilter(logging.Severities.Warning),
+ *   logging.filters.getCategoryFilter(["app", "http"]),
  * );
+ * ```
  */
 export const combineFilters = (...filters: Filter[]): Filter => {
   return (record: LogRecord): boolean => {
@@ -146,10 +180,15 @@ export const combineFilters = (...filters: Filter[]): Filter => {
  * Combines multiple filters with OR logic (any must pass).
  *
  * @example
- * const filter = anyFilter(
- *   getCategoryFilter(["app", "http"]),
- *   getCategoryFilter(["app", "db"])
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * // Passes records from app.http or app.db
+ * const httpOrDb = logging.filters.anyFilter(
+ *   logging.filters.getCategoryFilter(["app", "http"]),
+ *   logging.filters.getCategoryFilter(["app", "db"]),
  * );
+ * ```
  */
 export const anyFilter = (...filters: Filter[]): Filter => {
   return (record: LogRecord): boolean => {
@@ -161,7 +200,13 @@ export const anyFilter = (...filters: Filter[]): Filter => {
  * Inverts a filter (NOT logic).
  *
  * @example
- * const filter = notFilter(getCategoryFilter(["debug"]));
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * const notDebug = logging.filters.notFilter(
+ *   logging.filters.getCategoryFilter(["debug"]),
+ * );
+ * ```
  */
 export const notFilter = (filter: Filter): Filter => {
   return (record: LogRecord): boolean => {
@@ -194,7 +239,12 @@ export const rejectAllFilter: Filter = (_record: LogRecord): boolean => {
  * @throws Error if parameters are invalid
  *
  * @example
- * const filter = getRateLimitFilter(10, 1000); // 10 records per second
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * // At most 10 records per second
+ * const limited = logging.filters.getRateLimitFilter(10, 1000);
+ * ```
  */
 export const getRateLimitFilter = (
   maxRecords: number,
@@ -229,14 +279,20 @@ export const getRateLimitFilter = (
 };
 
 /**
- * Creates a sampling filter that passes approximately 1 in N records.
+ * Creates a sampling filter that passes each record with a chance of 1 in
+ * `sampleRate`.
  *
- * @param sampleRate - Sample rate (e.g., 10 means ~10% of records pass)
- *                     Must be a positive number.
+ * @param sampleRate - A positive number; 10 passes each record with a 10%
+ *   chance
  * @throws Error if sampleRate is not a positive number
  *
  * @example
- * const filter = getSamplingFilter(10); // ~10% of records
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * // Each record passes with a 10% chance
+ * const sampled = logging.filters.getSamplingFilter(10);
+ * ```
  */
 export const getSamplingFilter = (sampleRate: number): Filter => {
   if (sampleRate <= 0 || !Number.isFinite(sampleRate)) {

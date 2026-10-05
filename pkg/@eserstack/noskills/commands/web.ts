@@ -9,6 +9,7 @@
 import * as results from "@eserstack/primitives/results";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
+import * as cmd from "../output/cmd.ts";
 
 export const main = async (
   args?: readonly string[],
@@ -16,8 +17,10 @@ export const main = async (
   const { root } = await persistence.resolveProjectRoot();
 
   if (!(await persistence.isInitialized(root))) {
-    console.error("noskills is not initialized. Run: noskills init");
-    return results.fail({ exitCode: 1 });
+    return results.fail({
+      exitCode: 1,
+      message: `noskills is not initialized. Run: ${cmd.cmd("init")}`,
+    });
   }
 
   // Parse flags
@@ -26,7 +29,15 @@ export const main = async (
 
   for (const arg of args ?? []) {
     if (arg.startsWith("--port=")) {
-      port = parseInt(arg.slice("--port=".length), 10);
+      const rawPort = arg.slice("--port=".length);
+      port = Number(rawPort);
+      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        return results.fail({
+          exitCode: 1,
+          message:
+            `--port "${rawPort}" is not a port number; pass an integer from 1 to 65535`,
+        });
+      }
     }
     if (arg === "--open") {
       open = true;
@@ -43,10 +54,10 @@ export const main = async (
     const mod = await import(specifier);
     startServer = mod.startServer;
   } catch {
-    console.error(
-      "@eserstack/noskills-web is not installed. Run: pnpm install",
-    );
-    return results.fail({ exitCode: 1 });
+    return results.fail({
+      exitCode: 1,
+      message: "@eserstack/noskills-web is not installed. Run: pnpm install",
+    });
   }
   await startServer({ root, port, open });
 

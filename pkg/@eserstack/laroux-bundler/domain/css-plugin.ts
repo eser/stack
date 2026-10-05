@@ -4,6 +4,7 @@
  * Defines the interface for pluggable CSS processors (Tailwind, UnoCSS, etc.)
  */
 
+/** The stylesheet a CSS plugin hook is called for. */
 export type CssPluginContext = {
   /** Project root directory */
   projectRoot: string;
@@ -11,6 +12,13 @@ export type CssPluginContext = {
   cssPath: string;
   /** Whether this is a CSS module (.module.css) */
   isModule: boolean;
+  /**
+   * Whether the plugin may add an @reference to the global stylesheet to a
+   * CSS module that has none, so its @apply rules see the app's theme. The
+   * build sets it to false when the app config sets noCssModuleAutoReference.
+   * Default: true.
+   */
+  injectReference?: boolean;
 };
 
 /**
@@ -42,6 +50,11 @@ export type UniversalCssResult = {
   themeVariables?: Record<string, string>;
 };
 
+/**
+ * CSS framework hooks, such as Tailwind's: preprocessing CSS modules,
+ * compiling the global stylesheet and splitting critical CSS from the rest.
+ * Every hook is optional; the build skips a step whose hook is missing.
+ */
 export type CssPlugin = {
   /** Plugin name for logging/debugging */
   name: string;

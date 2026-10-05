@@ -28,8 +28,7 @@ func classifyVertexAIError(providerSentinel error, err error) error {
 		return ctxErr
 	}
 
-	var apiErr genai.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[genai.APIError](err); ok {
 		return classifyAndWrap(providerSentinel, apiErr.Code, err)
 	}
 
@@ -132,7 +131,11 @@ func (m *VertexAIModel) GenerateText(
 	ctx context.Context,
 	opts *GenerateTextOptions,
 ) (*GenerateTextResult, error) {
-	config := buildGenerateContentConfig(opts)
+	config, err := buildGenerateContentConfig(opts)
+	if err != nil {
+		return nil, classifyVertexAIError(ErrVertexAIGenerationFailed, err)
+	}
+
 	contents := mapMessagesToGenAI(opts.Messages)
 
 	resp, err := m.client.Models.GenerateContent(ctx, m.modelID, contents, config)
@@ -155,7 +158,11 @@ func (m *VertexAIModel) StreamText(
 	ctx context.Context,
 	opts *StreamTextOptions,
 ) (*StreamIterator, error) {
-	config := buildGenerateContentConfig(opts)
+	config, err := buildGenerateContentConfig(opts)
+	if err != nil {
+		return nil, classifyVertexAIError(ErrVertexAIStreamFailed, err)
+	}
+
 	contents := mapMessagesToGenAI(opts.Messages)
 
 	streamCtx, cancel := context.WithCancel(ctx)
@@ -163,6 +170,8 @@ func (m *VertexAIModel) StreamText(
 
 	go func() {
 		defer close(eventCh)
+
+		mapper := &genAIStreamMapper{calledTool: false}
 
 		for resp, err := range m.client.Models.GenerateContentStream(streamCtx, m.modelID, contents, config) {
 			if err != nil {
@@ -173,7 +182,7 @@ func (m *VertexAIModel) StreamText(
 				return
 			}
 
-			emitStreamEventsFromResponse(streamCtx, eventCh, resp)
+			mapper.emit(streamCtx, eventCh, resp)
 		}
 
 		// Stream completed successfully -- send the done event.

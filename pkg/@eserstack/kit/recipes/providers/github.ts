@@ -11,6 +11,7 @@
 
 import type { ParsedSpec, Provider } from "./types.ts";
 
+const TARBALL_DOWNLOAD_TIMEOUT_MS = 120_000;
 const DEFAULT_REF = "main";
 
 type GitHubParsedSpec = ParsedSpec & {
@@ -77,21 +78,29 @@ const fetchGitHub = async (
   const tarballUrl =
     `https://codeload.github.com/${owner}/${repo}/tar.gz/${ref}`;
 
-  const response = await fetch(tarballUrl);
+  // Covers the whole download: the returned body is read under the same
+  // signal.
+  const response = await fetch(tarballUrl, {
+    signal: AbortSignal.timeout(TARBALL_DOWNLOAD_TIMEOUT_MS),
+  });
 
   if (!response.ok) {
+    // The body is not read; cancel it so the connection is released.
+    await response.body?.cancel();
     if (response.status === 404) {
       throw new Error(
-        `Repository not found: ${owner}/${repo} (ref: ${ref})`,
+        `download ${tarballUrl}: HTTP 404; check that the repository ${owner}/${repo} and the ref ${ref} exist`,
       );
     }
     throw new Error(
-      `Failed to fetch template: ${response.status} ${response.statusText}`,
+      `download ${tarballUrl}: HTTP ${response.status} ${response.statusText}; retry later, or check that the repository and ref exist`,
     );
   }
 
   if (response.body === null) {
-    throw new Error("Response body is empty");
+    throw new Error(
+      `download ${tarballUrl}: the response has no body; retry the clone`,
+    );
   }
 
   return response.body;

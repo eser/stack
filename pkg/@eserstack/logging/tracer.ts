@@ -1,12 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import {
-  type Span,
-  SpanStatusCode,
-  trace,
-  type Tracer,
-} from "@opentelemetry/api";
-import { withContext } from "./context.ts";
+import * as api from "@opentelemetry/api";
+import type { Span, Tracer } from "@opentelemetry/api";
+// Aliased because this module re-exports OpenTelemetry's `context` below.
+import * as loggingContext from "./context.ts";
 
 /**
  * @module @eserstack/logging
@@ -19,10 +16,13 @@ import { withContext } from "./context.ts";
  * ```typescript
  * import * as logging from "@eserstack/logging";
  *
+ * // Stands in for your own operation
+ * const doSomething = () => Promise.resolve("done");
+ *
  * // Automatic span management with log correlation
  * const result = await logging.tracer.withSpan("my-operation", async (span) => {
  *   // All logs within this callback will include traceId and spanId
- *   await logging.getLogger(["myapp"]).info("Processing");
+ *   await logging.logger.getLogger(["myapp"]).info("Processing");
  *   span.setAttribute("key", "value");
  *   return await doSomething();
  * });
@@ -44,7 +44,7 @@ import { withContext } from "./context.ts";
  * Default tracer instance for the @eserstack/logging package.
  * Uses the package name for identification in distributed tracing.
  */
-export const tracer: Tracer = trace.getTracer("@eserstack/logging");
+export const tracer: Tracer = api.trace.getTracer("@eserstack/logging");
 
 /**
  * Records an error on a span with appropriate status and exception details.
@@ -70,12 +70,12 @@ export const recordSpanError = (span: Span, error: unknown): void => {
   if (error instanceof Error) {
     span.recordException(error);
     span.setStatus({
-      code: SpanStatusCode.ERROR,
+      code: api.SpanStatusCode.ERROR,
       message: error.message,
     });
   } else {
     span.setStatus({
-      code: SpanStatusCode.ERROR,
+      code: api.SpanStatusCode.ERROR,
       message: String(error),
     });
   }
@@ -88,7 +88,7 @@ export const recordSpanError = (span: Span, error: unknown): void => {
  * @returns A new Tracer instance with the specified name
  */
 export const createTracer = (name: string, version?: string): Tracer => {
-  return trace.getTracer(name, version);
+  return api.trace.getTracer(name, version);
 };
 
 /**
@@ -122,7 +122,14 @@ const extractTraceContext = (
  *
  * @example
  * ```typescript
- * const result = await withSpan("fetch-user", async (span) => {
+ * import * as logging from "@eserstack/logging";
+ *
+ * const logger = logging.logger.getLogger(["app", "users"]);
+ * const userId = "your_user_id";
+ * // Stands in for your own data access
+ * const fetchUser = (id: string) => Promise.resolve({ id, name: "Ada" });
+ *
+ * const result = await logging.tracer.withSpan("fetch-user", async (span) => {
  *   span.setAttribute("user.id", userId);
  *   // This log will include traceId and spanId automatically
  *   await logger.info("Fetching user data");
@@ -142,16 +149,16 @@ export const withSpan = async <T>(
 
     // Run with logging context if trace context is available
     if (traceContext) {
-      const result = await withContext(traceContext, () => {
+      const result = await loggingContext.withContext(traceContext, () => {
         return fn(span);
       });
-      span.setStatus({ code: SpanStatusCode.OK });
+      span.setStatus({ code: api.SpanStatusCode.OK });
       return result;
     }
 
     // Fallback without context correlation
     const result = await fn(span);
-    span.setStatus({ code: SpanStatusCode.OK });
+    span.setStatus({ code: api.SpanStatusCode.OK });
     return result;
   } catch (error) {
     recordSpanError(span, error);
@@ -177,14 +184,14 @@ export const withSpanSync = <T>(name: string, fn: (span: Span) => T): T => {
 
     // Run with logging context if trace context is available
     if (traceContext) {
-      const result = withContext(traceContext, () => fn(span));
-      span.setStatus({ code: SpanStatusCode.OK });
+      const result = loggingContext.withContext(traceContext, () => fn(span));
+      span.setStatus({ code: api.SpanStatusCode.OK });
       return result;
     }
 
     // Fallback without context correlation
     const result = fn(span);
-    span.setStatus({ code: SpanStatusCode.OK });
+    span.setStatus({ code: api.SpanStatusCode.OK });
     return result;
   } catch (error) {
     recordSpanError(span, error);

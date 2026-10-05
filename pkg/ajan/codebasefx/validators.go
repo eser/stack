@@ -5,7 +5,9 @@ package codebasefx
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -527,6 +529,90 @@ func isFilenameExcluded(path, pattern string) bool {
 	return strings.Contains(path, pattern) || strings.HasSuffix(path, pattern)
 }
 
+// defaultMaxKb is the large-file limit, in kilobytes, when no "maxKb" option
+// is set.
+const defaultMaxKb = 1024
+
+// ParseMaxKb reads the large-file validator's "maxKb" option value: a whole
+// number of kilobytes, zero or more, 1024 when nil. A value of another
+// type is an error rather than a silent fallback to the default.
+func ParseMaxKb(raw any) (int64, error) {
+	var maxKb int64
+
+	switch v := raw.(type) {
+	case nil:
+		return defaultMaxKb, nil
+	case int:
+		maxKb = int64(v)
+	case int64:
+		maxKb = v
+	case float64:
+		maxKb = int64(v)
+		if float64(maxKb) != v {
+			return 0, fmt.Errorf("maxKb option %v is not a whole number of kilobytes", v)
+		}
+	default:
+		return 0, fmt.Errorf("maxKb option has type %T; expected a number of kilobytes", raw)
+	}
+
+	if maxKb < 0 {
+		return 0, fmt.Errorf("maxKb option %d is negative; expected zero or more kilobytes", maxKb)
+	}
+
+	return maxKb, nil
+}
+
+// ErrInvalidFilenameRule is returned for filename rules that ValidateFilenames
+// cannot apply as written.
+var ErrInvalidFilenameRule = errors.New("invalid filename rule")
+
+// ParseFilenameRules reads filename rules from an option value: a JSON string,
+// or a list already decoded from JSON or YAML. A nil value means no rules. A
+// value of another shape, a rule without a directory, or a convention other
+// than "kebab-case" or "snake_case" is an error, so a typo fails when the
+// validator is configured instead of silently falling back to kebab-case.
+func ParseFilenameRules(raw any) ([]FilenameRule, error) {
+	if raw == nil {
+		return nil, nil
+	}
+
+	data, isString := raw.(string)
+	if !isString {
+		encoded, err := json.Marshal(raw)
+		if err != nil {
+			return nil, fmt.Errorf("%w: encode rules option: %w", ErrInvalidFilenameRule, err)
+		}
+
+		data = string(encoded)
+	}
+
+	var rules []FilenameRule
+	if err := json.Unmarshal([]byte(data), &rules); err != nil {
+		return nil, fmt.Errorf(
+			"%w: parse rules option: %w; expected a list of {directory, convention, exclude}",
+			ErrInvalidFilenameRule, err,
+		)
+	}
+
+	for i, rule := range rules {
+		if rule.Directory == "" {
+			return nil, fmt.Errorf(
+				"%w: rule %d has no directory; use a path substring such as \"pkg/\", or \"*\" for every path",
+				ErrInvalidFilenameRule, i,
+			)
+		}
+
+		if rule.Convention != "kebab-case" && rule.Convention != "snake_case" {
+			return nil, fmt.Errorf(
+				"%w: rule %d (%q) has convention %q; expected \"kebab-case\" or \"snake_case\"",
+				ErrInvalidFilenameRule, i, rule.Directory, rule.Convention,
+			)
+		}
+	}
+
+	return rules, nil
+}
+
 // ValidateFilenames returns a ValidatorFunc that enforces filename conventions.
 // rules maps directory substrings to "kebab-case" or "snake_case"; nil uses the default.
 // globalExcludes is the list of path patterns to skip; nil uses the built-in defaults.
@@ -610,7 +696,9 @@ type runtimeAPIPattern struct {
 	replacement string
 }
 
-// denoAPIPatterns mirrors the DENO_PATTERNS list in validate-runtime-js-apis.ts.
+// denoAPIPatterns lists the Deno.* APIs this validator reports. The TypeScript
+// validate-runtime-js-apis.ts keeps its own list, which also covers process.*
+// and Bun.*, and no longer calls this one.
 var denoAPIPatterns = []runtimeAPIPattern{
 	{regexp.MustCompile(`\bDeno\.cwd\(\)`), "runtime.process.cwd()"},
 	{regexp.MustCompile(`\bDeno\.env\.get\b`), "runtime.env.get()"},
@@ -718,18 +806,32 @@ func BuiltinValidators() []ValidatorFunc {
 
 // RunValidators runs a set of validators over a list of files, reading each
 // file from disk once and passing the content to every validator.
+//
+// An entry without content still reaches every validator with nil content: a
+// broken symlink (ValidateSymlinks reports it), a symlink to a directory, or a
+// git submodule. Any other read failure (permissions, I/O) means the file was
+// not validated, so each validator's result carries an error issue for it and
+// fails.
 func RunValidators(files []FileEntry, validators []ValidatorFunc) []ValidatorResult {
 	results := make([]ValidatorResult, len(validators))
-	for i, v := range validators {
-		_ = v
+	for i := range validators {
 		results[i] = ValidatorResult{Passed: true}
 	}
 
 	for _, f := range files {
-		// ReadFile follows symlinks; broken symlinks produce nil content.
-		// We do NOT skip on error so that validators like ValidateSymlinks
-		// can be called for every file in the list.
-		content, _ := os.ReadFile(f.Path) //nolint:gosec
+		content, err := os.ReadFile(f.Path) //nolint:gosec // paths come from the caller's file walk
+		if err != nil && !hasNoContent(f.Path, err) {
+			for i := range validators {
+				results[i].Passed = false
+				results[i].Issues = append(results[i].Issues, ValidatorIssue{
+					Severity: "error",
+					File:     f.Path,
+					Message:  fmt.Sprintf("read file: %v; the file was not validated", err),
+				})
+			}
+
+			continue
+		}
 
 		for i, vf := range validators {
 			issues := vf(f.Path, content)
@@ -743,6 +845,19 @@ func RunValidators(files []FileEntry, validators []ValidatorFunc) []ValidatorRes
 	}
 
 	return results
+}
+
+// hasNoContent reports whether readErr means the entry has no content to read
+// rather than a failed read: the path does not resolve (a broken symlink, or a
+// file removed since the walk) or it resolves to a directory.
+func hasNoContent(path string, readErr error) bool {
+	if errors.Is(readErr, fs.ErrNotExist) {
+		return true
+	}
+
+	info, err := os.Stat(path)
+
+	return err == nil && info.IsDir()
 }
 
 // min returns the smaller of two ints.

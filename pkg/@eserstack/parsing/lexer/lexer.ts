@@ -1,22 +1,29 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import {
-  type PatternFunction,
-  type TokenDefinitions,
-} from "./tokens/definition.ts";
-import { getLib } from "../ffi-client.ts";
+import type { PatternFunction, TokenDefinitions } from "./tokens/definition.ts";
 
+/** One token: its kind, such as `T_COMMA`, and the text it matched. */
 export type Token = {
   kind: string;
   value: string | undefined;
 };
 
+/**
+ * The state of a `Tokenizer`: its token definitions, whether the input has
+ * ended, and the text not yet turned into tokens.
+ */
 export type TokenizerState = {
   readonly tokenDefs: TokenDefinitions;
   isDone: boolean;
   buffer: string;
 };
 
+/**
+ * Creates the state for a `Tokenizer` that uses the given definitions.
+ *
+ * @param tokenDefs - Token kinds and the patterns that match them
+ * @returns A state with an empty buffer
+ */
 export const createTokenizerState = (
   tokenDefs: TokenDefinitions,
 ): TokenizerState => {
@@ -28,97 +35,78 @@ export const createTokenizerState = (
 };
 
 /**
- * Returns serializable string-only definitions, or undefined when any pattern
- * is a function (callers should then let Go use its built-in simple-token set).
+ * Turns text into tokens. A string pattern matches literally, a pattern
+ * function decides itself, and the first definition that matches wins. A
+ * character no definition matches becomes a `T_UNKNOWN` token, and the last
+ * token is `T_END`.
+ *
+ * This tokenizer always runs in TypeScript. For the regular-expression
+ * tokenizer of the Go library, use `tokenizeWith(ffiLoader, ...)`, whose token
+ * kinds and pattern syntax differ.
+ *
+ * @example
+ * ```typescript
+ * import * as parsing from "@eserstack/parsing";
+ *
+ * const lexer = new parsing.Tokenizer(
+ *   parsing.createTokenizerState(parsing.simpleTokens),
+ * );
+ *
+ * const kinds = [...lexer.tokenizeFromString("1 + 2")].map((t) => t.kind);
+ * ```
  */
-const toStringDefinitions = (
-  tokenDefs: TokenDefinitions,
-): Array<{ name: string; pattern: string }> | undefined => {
-  const hasFunctions = Object.values(tokenDefs).some(
-    (p) => typeof p === "function",
-  );
-  if (hasFunctions) {
-    return undefined;
-  }
-  return Object.entries(tokenDefs)
-    .filter(([, p]) => p !== null)
-    .map(([name, pattern]) => ({ name, pattern: pattern as string }));
-};
-
 export class Tokenizer {
+  /** Definitions, end flag and pending text; the tokenizer updates it. */
   readonly state: TokenizerState;
 
+  /**
+   * Creates a tokenizer.
+   *
+   * @param state - From `createTokenizerState()`
+   */
   constructor(state: TokenizerState) {
     this.state = state;
   }
 
+  /**
+   * Tokenizes a whole string.
+   *
+   * @param input - The text to tokenize
+   * @returns The tokens in order, ending with `T_END`
+   */
   *tokenizeFromString(input: string): Generator<Token> {
     this._reset();
 
-    const lib = getLib();
-    if (lib !== null) {
-      // Definitions: undefined → Go uses its built-in simple tokens (matches
-      // the TS simpleTokens set which has function-based patterns).
-      const definitions = toStringDefinitions(this.state.tokenDefs);
-      const req: Record<string, unknown> = { input };
-      if (definitions !== undefined) req["definitions"] = definitions;
-
-      const raw = lib.symbols.EserAjanParsingTokenize(JSON.stringify(req));
-      const result = JSON.parse(raw) as {
-        tokens: Array<{ kind: string; value: string }>;
-        error?: string;
-      };
-
-      if (!result.error) {
-        for (const tok of result.tokens) {
-          yield { kind: tok.kind, value: tok.value };
-        }
-        return;
-      }
-    }
-
-    // Fallback: TS tokenizer
     yield* this._tokenizeChunk(input);
     yield* this._tokenizeChunk(null);
   }
 
+  /**
+   * Tokenizes text read from a stream of string chunks. A token that a
+   * pattern function matches may span chunks; a string pattern must fall
+   * within one chunk.
+   *
+   * @param input - A stream of string chunks
+   * @returns The tokens in order, ending with `T_END`
+   */
   async *tokenize(input: ReadableStream): AsyncGenerator<Token> {
     this._reset();
 
-    const lib = getLib();
-    if (lib !== null) {
-      // Accumulate all chunks, then tokenize in one Go call
-      const chunks: string[] = [];
-      for await (const chunk of input) {
-        chunks.push(chunk as string);
-      }
-      const fullInput = chunks.join("");
-      const definitions = toStringDefinitions(this.state.tokenDefs);
-      const req: Record<string, unknown> = { input: fullInput };
-      if (definitions !== undefined) req["definitions"] = definitions;
-
-      const raw = lib.symbols.EserAjanParsingTokenize(JSON.stringify(req));
-      const result = JSON.parse(raw) as {
-        tokens: Array<{ kind: string; value: string }>;
-        error?: string;
-      };
-
-      if (!result.error) {
-        for (const tok of result.tokens) {
-          yield { kind: tok.kind, value: tok.value };
-        }
-        return;
-      }
-    }
-
-    // Fallback: TS chunk-by-chunk tokenizer
-    this._reset();
     for await (const chunk of input) {
       yield* this._tokenizeChunk(chunk);
     }
     yield* this._tokenizeChunk(null);
   }
 
+  /**
+   * Tokenizes one chunk in TypeScript and keeps a partial token for the next
+   * chunk. Pass `null` to end the input. `tokenize()` and
+   * `tokenizeFromString()` call it; call it directly only to drive the
+   * tokenizer chunk by chunk.
+   *
+   * @param input - The next chunk, or `null` at the end of the input
+   * @returns The tokens completed by this chunk
+   */
   *_tokenizeChunk(input: string | null): Generator<Token> {
     if (input === null) {
       this.state.isDone = true;
@@ -197,7 +185,8 @@ export class Tokenizer {
     }
   }
 
-  _reset() {
+  /** Clears the buffer and the end flag before a new input. */
+  _reset(): void {
     this.state.isDone = false;
     this.state.buffer = "";
   }

@@ -7,16 +7,26 @@
  * @module
  */
 
-import { renderScreen, VTerminal } from "../vterm/mod.ts";
+import * as vterm from "../vterm/mod.ts";
 import type { RenderOptions } from "../vterm/mod.ts";
 import type { Panel } from "./layout.ts";
 
+/**
+ * A terminal emulator panel for a TUI: write PTY output in, render the screen
+ * into a panel as ANSI.
+ */
 export class VTermWidget {
-  #terminal: VTerminal;
+  #terminal: vterm.VTerminal;
   #dirty = false;
 
+  /**
+   * Create a widget backed by a new virtual terminal of the given size.
+   *
+   * @param rows - Terminal height in rows.
+   * @param cols - Terminal width in columns.
+   */
   constructor(rows: number, cols: number) {
-    this.#terminal = new VTerminal(rows, cols);
+    this.#terminal = new vterm.VTerminal(rows, cols);
   }
 
   /** Feed raw PTY data — parses ANSI and updates internal screen. */
@@ -25,7 +35,11 @@ export class VTermWidget {
     this.#dirty = true;
   }
 
-  /** Render the virtual screen into a panel at the given position. */
+  /**
+   * Render the virtual screen inside `panel`'s border.
+   *
+   * @param fullRedraw - Redraw every line, not only the ones that changed.
+   */
   render(panel: Panel, fullRedraw = false): string {
     const opts: RenderOptions = {
       offsetRow: panel.y + 1,
@@ -35,7 +49,7 @@ export class VTermWidget {
       fullRedraw,
     };
     this.#dirty = false;
-    return renderScreen(this.#terminal, opts);
+    return vterm.renderScreen(this.#terminal, opts);
   }
 
   /** Resize the virtual terminal. */
@@ -55,7 +69,7 @@ export class VTermWidget {
   }
 
   /** Access underlying terminal for advanced use. */
-  get terminal(): VTerminal {
+  get terminal(): vterm.VTerminal {
     return this.#terminal;
   }
 }

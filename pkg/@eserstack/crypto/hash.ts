@@ -8,7 +8,7 @@
  * @module
  */
 
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 /**
  * Hash algorithm options.
@@ -42,8 +42,8 @@ export const computeHash = async (
   algorithm: HashAlgorithm = "SHA-256",
   length = 16,
 ): Promise<string> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
   if (lib === null) {
     throw new Error("native library unavailable");
   }
@@ -77,8 +77,8 @@ export const computeStringHash = async (
   algorithm: HashAlgorithm = "SHA-256",
   length = 16,
 ): Promise<string> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
   if (lib === null) {
     throw new Error("native library unavailable");
   }

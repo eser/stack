@@ -1,34 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as assert from "@std/assert";
 import * as resolve from "./resolve.ts";
-
-// @eserstack/ajan ships no test-only dependencies -- it is the package every
-// other one bootstraps from -- so `@std/assert` is unavailable here.
-const assertEquals = (actual: string, expected: string): void => {
-  if (actual !== expected) {
-    throw new Error(
-      `expected:\n  ${expected}\nactual:\n  ${actual}`,
-    );
-  }
-};
-
-const assertIncludes = (haystack: string, needle: string): void => {
-  if (!haystack.includes(needle)) {
-    throw new Error(
-      `expected to find:\n  ${needle}\nin:\n${haystack}`,
-    );
-  }
-};
-
-const assertThrows = (fn: () => unknown): Error => {
-  try {
-    fn();
-  } catch (error) {
-    return error instanceof Error ? error : new Error(String(error));
-  }
-
-  throw new Error("expected the call to throw, but it returned");
-};
 
 const libName = `libeser_ajan${resolve.getLibraryExtension()}`;
 
@@ -49,6 +22,7 @@ const withEnvironment = <T>(
   libPathOverride: string | undefined,
   fn: () => T,
 ): T => {
+  // globalThis does not declare Deno, Bun or process on every runtime.
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
   const originalCwd = g.process.cwd;
@@ -100,7 +74,7 @@ const writeDummyLibrary = async (dir: string): Promise<string> => {
 
 /** Compares two candidate paths by identity, past `..` segments and symlinks. */
 const assertSameFile = (actual: string, expected: string): void => {
-  assertEquals(Deno.realPathSync(actual), Deno.realPathSync(expected));
+  assert.assertEquals(Deno.realPathSync(actual), Deno.realPathSync(expected));
 };
 
 Deno.test("resolveLibraryPath — finds the hoisted sibling package from any cwd", async () => {
@@ -190,7 +164,7 @@ Deno.test("resolveLibraryPath — ESER_AJAN_LIB_PATH overrides an installed pack
       () => resolve.resolveLibraryPath(moduleDir),
     );
 
-    assertEquals(resolved, override);
+    assert.assertEquals(resolved, override);
   } finally {
     await Deno.remove(tempRoot, { recursive: true });
   }
@@ -200,25 +174,27 @@ Deno.test("resolveLibraryPath — reports every probed location when nothing mat
   const { tempRoot, moduleDir } = await createInstallTree();
 
   try {
-    const error = assertThrows(() =>
-      withEnvironment(
-        tempRoot,
-        `${tempRoot}/missing/${libName}`,
-        () => resolve.resolveLibraryPath(moduleDir),
-      )
+    const error = assert.assertThrows(
+      () =>
+        withEnvironment(
+          tempRoot,
+          `${tempRoot}/missing/${libName}`,
+          () => resolve.resolveLibraryPath(moduleDir),
+        ),
+      Error,
     );
 
-    assertIncludes(error.message, "$ESER_AJAN_LIB_PATH = ");
-    assertIncludes(error.message, `${moduleDir}/${libName}`);
-    assertIncludes(
+    assert.assertStringIncludes(error.message, "$ESER_AJAN_LIB_PATH = ");
+    assert.assertStringIncludes(error.message, `${moduleDir}/${libName}`);
+    assert.assertStringIncludes(
       error.message,
       `${moduleDir}/../../ajan-${platformSlug}/${libName}`,
     );
-    assertIncludes(
+    assert.assertStringIncludes(
       error.message,
       `${tempRoot}/proj/node_modules/@eserstack/ajan-${platformSlug}/${libName}`,
     );
-    assertIncludes(error.message, `/usr/local/lib/${libName}`);
+    assert.assertStringIncludes(error.message, `/usr/local/lib/${libName}`);
   } finally {
     await Deno.remove(tempRoot, { recursive: true });
   }

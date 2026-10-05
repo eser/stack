@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals } from "@std/assert";
-import { hasGitWrite, isGitAllowed } from "./git.ts";
+import * as assert from "@std/assert";
+import * as git from "./git.ts";
 
 const READS = [
   "git config --get user.name",
@@ -37,12 +37,14 @@ const WRITES = [
 ];
 
 Deno.test("git config reads are allowed", () => {
-  for (const cmd of READS) assertEquals(isGitAllowed(cmd), true, cmd);
+  for (const cmd of READS) {
+    assert.assertEquals(git.isGitAllowed(cmd), true, cmd);
+  }
 });
 
 Deno.test("git config writes are denied even with a scope flag", () => {
   for (const cmd of WRITES) {
-    assertEquals(isGitAllowed(cmd), false, cmd);
-    assertEquals(hasGitWrite(cmd), true, cmd);
+    assert.assertEquals(git.isGitAllowed(cmd), false, cmd);
+    assert.assertEquals(git.hasGitWrite(cmd), true, cmd);
   }
 });

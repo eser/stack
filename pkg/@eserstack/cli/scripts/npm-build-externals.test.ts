@@ -18,10 +18,15 @@
  * @module
  */
 
-import { assertEquals, assertStringIncludes } from "@std/assert";
-import { NPM_EXTERNAL_PACKAGES } from "@eserstack/codebase/npm-externals";
+import * as assert from "@std/assert";
+import * as npmExternals from "@eserstack/codebase/npm-externals";
+import { runtime } from "@eserstack/standards/cross-runtime";
 
-const repoRoot = new URL("../../../../", import.meta.url);
+// This file sits in pkg/@eserstack/cli/scripts, four levels below the root.
+const repoRoot = runtime.path.resolve(
+  import.meta.dirname ?? ".",
+  "../../../..",
+);
 
 const BUILDS = [
   "pkg/@eserstack/cli/scripts/npm-build.ts",
@@ -30,38 +35,56 @@ const BUILDS = [
 ] as const;
 
 const SHARED_IMPORT =
-  'import { NPM_EXTERNAL_PACKAGES } from "@eserstack/codebase/npm-externals";';
+  'import * as npmExternals from "@eserstack/codebase/npm-externals";';
 
 /** Comments quote package names in prose, so strip them before any search. */
 const stripComments = (source: string): string =>
   source.replaceAll(/\/\*[\s\S]*?\*\//g, "").replaceAll(/\/\/[^\n]*/g, "");
 
 Deno.test("every npm build reads the shared externals list", async () => {
-  for (const relative of BUILDS) {
-    const source = await Deno.readTextFile(new URL(relative, repoRoot));
+  const builds = await Promise.all(
+    BUILDS.map(async (relative) => ({
+      relative,
+      source: await runtime.fs.readTextFile(
+        runtime.path.join(repoRoot, relative),
+      ),
+    })),
+  );
 
-    assertStringIncludes(
+  for (const { relative, source } of builds) {
+    assert.assertStringIncludes(
       source,
       SHARED_IMPORT,
-      `${relative} must import NPM_EXTERNAL_PACKAGES from @eserstack/codebase/npm-externals`,
+      `${relative} must import @eserstack/codebase/npm-externals`,
     );
 
     const code = stripComments(source);
-    assertEquals(
+    assert.assertEquals(
       /const EXTERNAL_PACKAGES\s*=\s*\[/.test(code),
       false,
       `${relative} carries a local externals array — that is the drift the shared module exists to prevent`,
     );
-    assertEquals(
+    assert.assertEquals(
+      /=\s*npmExternals\.NPM_EXTERNAL_PACKAGES;/.test(code),
+      true,
+      `${relative} must take EXTERNAL_PACKAGES from the shared list`,
+    );
+    assert.assertEquals(
       /external:\s*\[\.\.\.EXTERNAL_PACKAGES/.test(code),
       true,
       `${relative} must pass EXTERNAL_PACKAGES to esbuild`,
+    );
+    assert.assertEquals(
+      /external:\s*\[\.\.\.EXTERNAL_PACKAGES,\s*"npm:\*",\s*"jsr:\*"\s*\]/
+        .test(code),
+      true,
+      `${relative} must keep Deno's npm: and jsr: specifiers external`,
     );
   }
 });
 
 Deno.test("the shared externals list keeps the FFI builtins external and bundles @eserstack/ajan", () => {
-  const list = [...NPM_EXTERNAL_PACKAGES];
+  const list = [...npmExternals.NPM_EXTERNAL_PACKAGES];
 
   // bun:ffi is the one that actually breaks the build: it is a Bun-only builtin
   // that esbuild cannot resolve. @eserstack/ajan is the opposite case -- it is
@@ -69,14 +92,14 @@ Deno.test("the shared externals list keeps the FFI builtins external and bundles
   // uninstallable (404 on the dependency) and, because every ffi-client.ts now
   // imports the shared loader statically, unloadable even from a link install.
   for (const required of ["bun:ffi", "koffi", "@eserstack/ajan-*"]) {
-    assertEquals(
+    assert.assertEquals(
       list.includes(required),
       true,
       `"${required}" must stay external`,
     );
   }
 
-  assertEquals(
+  assert.assertEquals(
     list.includes("@eserstack/ajan"),
     false,
     '"@eserstack/ajan" must be bundled -- it is not on npm',

@@ -7,8 +7,23 @@
  * @module
  */
 
-export * from "./types.ts";
-export * from "./effects.ts";
+export type {
+  Action,
+  Direction,
+  Geom,
+  InputMode,
+  MuxState,
+  Pane,
+  PaneId,
+  PaneKind,
+  ScrollAction,
+  SplitDirection,
+  SplitNode,
+  Tab,
+  TabId,
+  Viewport,
+} from "./types.ts";
+export type { Effect, ReducerResult } from "./effects.ts";
 export * as tree from "./split-tree.ts";
 export * as geometry from "./geometry.ts";
 export { createInitialState, reduce } from "./reducer.ts";

@@ -9,32 +9,24 @@ import * as postServiceMod from "./post-service.ts";
 import type { FeedAggregator } from "./feed-aggregator.ts";
 import type { Scheduler } from "./scheduler.ts";
 import type { Translator } from "./translator.ts";
-import {
-  createMockAuthProvider,
-  createMockFeedAggregator,
-  createMockScheduler,
-  createMockSocialApi,
-  createMockTranslator,
-  createTestPost,
-  createTestUser,
-} from "./testing.ts";
+import * as testing from "./testing.ts";
 
 // ── Test helper ───────────────────────────────────────────────────────────────
 
 function makeService(overrides: {
-  socialApi?: ReturnType<typeof createMockSocialApi>;
+  socialApi?: ReturnType<typeof testing.createMockSocialApi>;
   translator?: Translator;
   scheduler?: Scheduler;
   feedAggregator?: FeedAggregator;
   platform?: "twitter" | "bluesky";
 } = {}): postServiceMod.PostService {
-  const socialApi = overrides.socialApi ?? createMockSocialApi();
+  const socialApi = overrides.socialApi ?? testing.createMockSocialApi();
   const platform = overrides.platform ?? "twitter";
   return new postServiceMod.PostService(
-    [{ platform, socialApi, auth: createMockAuthProvider() }],
-    overrides.translator ?? createMockTranslator(),
-    overrides.scheduler ?? createMockScheduler(),
-    overrides.feedAggregator ?? createMockFeedAggregator(),
+    [{ platform, socialApi, auth: testing.createMockAuthProvider() }],
+    overrides.translator ?? testing.createMockTranslator(),
+    overrides.scheduler ?? testing.createMockScheduler(),
+    overrides.feedAggregator ?? testing.createMockFeedAggregator(),
   );
 }
 
@@ -43,7 +35,7 @@ function makeService(overrides: {
 bdd.describe("PostService", () => {
   bdd.describe("composePost", () => {
     bdd.it("should call socialApi.createPost with the text", async () => {
-      const socialApi = createMockSocialApi();
+      const socialApi = testing.createMockSocialApi();
       const service = makeService({ socialApi });
 
       await service.composePost("Hello world");
@@ -53,7 +45,7 @@ bdd.describe("PostService", () => {
     });
 
     bdd.it("should call socialApi.getMe for author handle", async () => {
-      const socialApi = createMockSocialApi();
+      const socialApi = testing.createMockSocialApi();
       const service = makeService({ socialApi });
 
       await service.composePost("Hello world");
@@ -78,7 +70,7 @@ bdd.describe("PostService", () => {
     });
 
     bdd.it("should return Fail when socialApi.createPost rejects", async () => {
-      const socialApi = createMockSocialApi({
+      const socialApi = testing.createMockSocialApi({
         createPost: () => Promise.reject(new Error("API down")),
       });
       const service = makeService({ socialApi });
@@ -92,7 +84,7 @@ bdd.describe("PostService", () => {
     });
 
     bdd.it("should return Fail when socialApi.getMe rejects", async () => {
-      const socialApi = createMockSocialApi({
+      const socialApi = testing.createMockSocialApi({
         getMe: () => Promise.reject(new Error("Auth expired")),
       });
       const service = makeService({ socialApi });
@@ -108,8 +100,8 @@ bdd.describe("PostService", () => {
 
   bdd.describe("translateAndPost", () => {
     bdd.it("should translate first then post", async () => {
-      const socialApi = createMockSocialApi();
-      const translator = createMockTranslator();
+      const socialApi = testing.createMockSocialApi();
+      const translator = testing.createMockTranslator();
       const service = makeService({ socialApi, translator });
 
       await service.translateAndPost({ text: "Merhaba", from: "tr", to: "en" });
@@ -125,10 +117,10 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should pass translated text to createPost, not original",
       async () => {
-        const socialApi = createMockSocialApi();
+        const socialApi = testing.createMockSocialApi();
         const service = makeService({
           socialApi,
-          translator: createMockTranslator({
+          translator: testing.createMockTranslator({
             translate: () => Promise.resolve(results.ok("Hello")),
           }),
         });
@@ -149,10 +141,10 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should return Fail when translator rejects (without calling createPost)",
       async () => {
-        const socialApi = createMockSocialApi();
+        const socialApi = testing.createMockSocialApi();
         const service = makeService({
           socialApi,
-          translator: createMockTranslator({
+          translator: testing.createMockTranslator({
             translate: () =>
               Promise.resolve(results.fail(new Error("LLM down"))),
           }),
@@ -180,9 +172,11 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should call socialApi.replyToPost with text and parent post",
       async () => {
-        const socialApi = createMockSocialApi();
+        const socialApi = testing.createMockSocialApi();
         const service = makeService({ socialApi });
-        const parent = createTestPost({ id: postIdMod.toPostId("parent-1") });
+        const parent = testing.createTestPost({
+          id: postIdMod.toPostId("parent-1"),
+        });
 
         await service.replyToPost({ text: "My reply", inReplyToPost: parent });
 
@@ -195,7 +189,9 @@ bdd.describe("PostService", () => {
 
     bdd.it("should return Ok with inReplyToId set", async () => {
       const service = makeService();
-      const parent = createTestPost({ id: postIdMod.toPostId("parent-1") });
+      const parent = testing.createTestPost({
+        id: postIdMod.toPostId("parent-1"),
+      });
 
       const r = await service.replyToPost({
         text: "My reply",
@@ -211,7 +207,7 @@ bdd.describe("PostService", () => {
 
   bdd.describe("postThread", () => {
     bdd.it("should delegate to socialApi.postThread", async () => {
-      const socialApi = createMockSocialApi();
+      const socialApi = testing.createMockSocialApi();
       const service = makeService({ socialApi });
 
       await service.postThread(["Post 1", "Post 2"]);
@@ -222,11 +218,17 @@ bdd.describe("PostService", () => {
 
     bdd.it("should return Ok with array of Posts", async () => {
       const posts = [
-        createTestPost({ id: postIdMod.toPostId("p1"), text: "Post 1" }),
-        createTestPost({ id: postIdMod.toPostId("p2"), text: "Post 2" }),
+        testing.createTestPost({
+          id: postIdMod.toPostId("p1"),
+          text: "Post 1",
+        }),
+        testing.createTestPost({
+          id: postIdMod.toPostId("p2"),
+          text: "Post 2",
+        }),
       ];
       const service = makeService({
-        socialApi: createMockSocialApi({
+        socialApi: testing.createMockSocialApi({
           postThread: () => Promise.resolve(results.ok({ posts })),
         }),
       });
@@ -242,7 +244,7 @@ bdd.describe("PostService", () => {
 
   bdd.describe("schedulePost", () => {
     bdd.it("should delegate to scheduler.schedule", async () => {
-      const scheduler = createMockScheduler();
+      const scheduler = testing.createMockScheduler();
       const service = makeService({ scheduler });
       const scheduledAt = new Date("2026-06-01T12:00:00Z");
 
@@ -257,7 +259,7 @@ bdd.describe("PostService", () => {
 
     bdd.it("should return Fail when scheduler rejects", async () => {
       const service = makeService({
-        scheduler: createMockScheduler({
+        scheduler: testing.createMockScheduler({
           schedule: () => Promise.reject(new Error("Queue full")),
         }),
       });
@@ -276,7 +278,7 @@ bdd.describe("PostService", () => {
 
   bdd.describe("getTimeline", () => {
     bdd.it("should delegate to socialApi.getTimeline", async () => {
-      const socialApi = createMockSocialApi();
+      const socialApi = testing.createMockSocialApi();
       const service = makeService({ socialApi });
 
       await service.getTimeline();
@@ -288,7 +290,7 @@ bdd.describe("PostService", () => {
     });
 
     bdd.it("should pass maxResults to socialApi", async () => {
-      const socialApi = createMockSocialApi();
+      const socialApi = testing.createMockSocialApi();
       const service = makeService({ socialApi });
 
       await service.getTimeline({ maxResults: 5 });
@@ -300,7 +302,7 @@ bdd.describe("PostService", () => {
 
   bdd.describe("getUnifiedTimeline", () => {
     bdd.it("should delegate to feedAggregator.getUnifiedTimeline", async () => {
-      const feedAggregator = createMockFeedAggregator();
+      const feedAggregator = testing.createMockFeedAggregator();
       const service = makeService({ feedAggregator });
 
       await service.getUnifiedTimeline({ maxResultsPerPlatform: 3 });
@@ -330,9 +332,9 @@ bdd.describe("PostService", () => {
     bdd.it("should return Fail when no platforms are configured", async () => {
       const service = new postServiceMod.PostService(
         [],
-        createMockTranslator(),
-        createMockScheduler(),
-        createMockFeedAggregator(),
+        testing.createMockTranslator(),
+        testing.createMockScheduler(),
+        testing.createMockFeedAggregator(),
       );
 
       const r = await service.composePost("test");
@@ -343,28 +345,30 @@ bdd.describe("PostService", () => {
 
   bdd.describe("composePostToAll", () => {
     bdd.it("should post to all configured platforms", async () => {
-      const twitterApi = createMockSocialApi({
-        getMe: () => Promise.resolve(createTestUser({ platform: "twitter" })),
+      const twitterApi = testing.createMockSocialApi({
+        getMe: () =>
+          Promise.resolve(testing.createTestUser({ platform: "twitter" })),
       });
-      const blueskyApi = createMockSocialApi({
-        getMe: () => Promise.resolve(createTestUser({ platform: "bluesky" })),
+      const blueskyApi = testing.createMockSocialApi({
+        getMe: () =>
+          Promise.resolve(testing.createTestUser({ platform: "bluesky" })),
       });
       const service = new postServiceMod.PostService(
         [
           {
             platform: "twitter",
             socialApi: twitterApi,
-            auth: createMockAuthProvider(),
+            auth: testing.createMockAuthProvider(),
           },
           {
             platform: "bluesky",
             socialApi: blueskyApi,
-            auth: createMockAuthProvider(),
+            auth: testing.createMockAuthProvider(),
           },
         ],
-        createMockTranslator(),
-        createMockScheduler(),
-        createMockFeedAggregator(),
+        testing.createMockTranslator(),
+        testing.createMockScheduler(),
+        testing.createMockFeedAggregator(),
       );
 
       const r = await service.composePostToAll("Cross-platform post");
@@ -392,26 +396,74 @@ bdd.describe("PostService", () => {
     });
 
     bdd.it(
+      "publishes one platform after another, in configuration order",
+      async () => {
+        const events: string[] = [];
+        const recordingApi = (platform: string) =>
+          testing.createMockSocialApi({
+            createPost: async () => {
+              events.push(`${platform}:start`);
+              // Yield once, so a concurrent fan-out would interleave here.
+              await Promise.resolve();
+              events.push(`${platform}:end`);
+              return { id: postIdMod.toPostId(`${platform}-post`) };
+            },
+          });
+        const service = new postServiceMod.PostService(
+          [
+            {
+              platform: "twitter",
+              socialApi: recordingApi("twitter"),
+              auth: testing.createMockAuthProvider(),
+            },
+            {
+              platform: "bluesky",
+              socialApi: recordingApi("bluesky"),
+              auth: testing.createMockAuthProvider(),
+            },
+          ],
+          testing.createMockTranslator(),
+          testing.createMockScheduler(),
+          testing.createMockFeedAggregator(),
+        );
+
+        const r = await service.composePostToAll("In order");
+
+        assert.assert(results.isOk(r));
+        assert.assertEquals(
+          r.value.map((entry) => entry.platform),
+          ["twitter", "bluesky"],
+        );
+        assert.assertEquals(events, [
+          "twitter:start",
+          "twitter:end",
+          "bluesky:start",
+          "bluesky:end",
+        ]);
+      },
+    );
+
+    bdd.it(
       "should return Ok with one PostResult per platform even when one fails",
       async () => {
         const service = new postServiceMod.PostService(
           [
             {
               platform: "twitter",
-              socialApi: createMockSocialApi({
+              socialApi: testing.createMockSocialApi({
                 createPost: () => Promise.reject(new Error("Twitter down")),
               }),
-              auth: createMockAuthProvider(),
+              auth: testing.createMockAuthProvider(),
             },
             {
               platform: "bluesky",
-              socialApi: createMockSocialApi(),
-              auth: createMockAuthProvider(),
+              socialApi: testing.createMockSocialApi(),
+              auth: testing.createMockAuthProvider(),
             },
           ],
-          createMockTranslator(),
-          createMockScheduler(),
-          createMockFeedAggregator(),
+          testing.createMockTranslator(),
+          testing.createMockScheduler(),
+          testing.createMockFeedAggregator(),
         );
 
         const r = await service.composePostToAll("test");
@@ -438,7 +490,7 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should delegate to correct platform's socialApi.repost",
       async () => {
-        const socialApi = createMockSocialApi();
+        const socialApi = testing.createMockSocialApi();
         const service = makeService({ socialApi, platform: "twitter" });
 
         await service.repost({
@@ -454,7 +506,7 @@ bdd.describe("PostService", () => {
 
     bdd.it("should return Fail when socialApi.repost rejects", async () => {
       const service = makeService({
-        socialApi: createMockSocialApi({
+        socialApi: testing.createMockSocialApi({
           repost: () => Promise.reject(new Error("Rate limited")),
         }),
       });
@@ -489,7 +541,7 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should delegate to correct platform's socialApi.undoRepost",
       async () => {
-        const socialApi = createMockSocialApi();
+        const socialApi = testing.createMockSocialApi();
         const service = makeService({ socialApi, platform: "twitter" });
 
         await service.undoRepost({
@@ -505,7 +557,7 @@ bdd.describe("PostService", () => {
 
     bdd.it("should return Fail when socialApi.undoRepost rejects", async () => {
       const service = makeService({
-        socialApi: createMockSocialApi({
+        socialApi: testing.createMockSocialApi({
           undoRepost: () => Promise.reject(new Error("Not found")),
         }),
       });
@@ -526,7 +578,7 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should call socialApi.quotePost with text and quotedPostId",
       async () => {
-        const socialApi = createMockSocialApi();
+        const socialApi = testing.createMockSocialApi();
         const service = makeService({ socialApi, platform: "twitter" });
 
         await service.quotePost({
@@ -568,7 +620,7 @@ bdd.describe("PostService", () => {
 
     bdd.it("should return Fail when socialApi.quotePost rejects", async () => {
       const service = makeService({
-        socialApi: createMockSocialApi({
+        socialApi: testing.createMockSocialApi({
           quotePost: () => Promise.reject(new Error("Auth expired")),
         }),
       });
@@ -590,7 +642,7 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should delegate to correct platform's socialApi.searchPosts",
       async () => {
-        const socialApi = createMockSocialApi();
+        const socialApi = testing.createMockSocialApi();
         const service = makeService({ socialApi, platform: "twitter" });
 
         await service.searchPosts({
@@ -604,7 +656,7 @@ bdd.describe("PostService", () => {
     );
 
     bdd.it("should pass query and maxResults through", async () => {
-      const socialApi = createMockSocialApi();
+      const socialApi = testing.createMockSocialApi();
       const service = makeService({ socialApi, platform: "twitter" });
 
       await service.searchPosts({
@@ -642,12 +694,12 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should merge results from multiple platforms sorted by date desc",
       async () => {
-        const olderPost = createTestPost({
+        const olderPost = testing.createTestPost({
           platform: "twitter",
           createdAt: new Date("2026-01-01T10:00:00Z"),
           text: "older",
         });
-        const newerPost = createTestPost({
+        const newerPost = testing.createTestPost({
           platform: "bluesky",
           createdAt: new Date("2026-01-01T12:00:00Z"),
           text: "newer",
@@ -656,22 +708,22 @@ bdd.describe("PostService", () => {
           [
             {
               platform: "twitter",
-              socialApi: createMockSocialApi({
+              socialApi: testing.createMockSocialApi({
                 searchPosts: () => Promise.resolve([olderPost]),
               }),
-              auth: createMockAuthProvider(),
+              auth: testing.createMockAuthProvider(),
             },
             {
               platform: "bluesky",
-              socialApi: createMockSocialApi({
+              socialApi: testing.createMockSocialApi({
                 searchPosts: () => Promise.resolve([newerPost]),
               }),
-              auth: createMockAuthProvider(),
+              auth: testing.createMockAuthProvider(),
             },
           ],
-          createMockTranslator(),
-          createMockScheduler(),
-          createMockFeedAggregator(),
+          testing.createMockTranslator(),
+          testing.createMockScheduler(),
+          testing.createMockFeedAggregator(),
         );
 
         const r = await service.searchPostsAll({ query: "test" });
@@ -687,7 +739,7 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should return available results when one platform fails",
       async () => {
-        const post = createTestPost({
+        const post = testing.createTestPost({
           platform: "bluesky",
           text: "bluesky result",
         });
@@ -695,22 +747,22 @@ bdd.describe("PostService", () => {
           [
             {
               platform: "twitter",
-              socialApi: createMockSocialApi({
+              socialApi: testing.createMockSocialApi({
                 searchPosts: () => Promise.reject(new Error("Twitter down")),
               }),
-              auth: createMockAuthProvider(),
+              auth: testing.createMockAuthProvider(),
             },
             {
               platform: "bluesky",
-              socialApi: createMockSocialApi({
+              socialApi: testing.createMockSocialApi({
                 searchPosts: () => Promise.resolve([post]),
               }),
-              auth: createMockAuthProvider(),
+              auth: testing.createMockAuthProvider(),
             },
           ],
-          createMockTranslator(),
-          createMockScheduler(),
-          createMockFeedAggregator(),
+          testing.createMockTranslator(),
+          testing.createMockScheduler(),
+          testing.createMockFeedAggregator(),
         );
 
         const r = await service.searchPostsAll({ query: "test" });
@@ -727,7 +779,7 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should delegate to correct platform's socialApi.bookmarkPost",
       async () => {
-        const socialApi = createMockSocialApi();
+        const socialApi = testing.createMockSocialApi();
         const service = makeService({ socialApi, platform: "twitter" });
 
         await service.bookmarkPost({
@@ -762,7 +814,7 @@ bdd.describe("PostService", () => {
       "should return Fail when socialApi.bookmarkPost rejects",
       async () => {
         const service = makeService({
-          socialApi: createMockSocialApi({
+          socialApi: testing.createMockSocialApi({
             bookmarkPost: () =>
               Promise.reject(new Error("Bookmark scope missing")),
           }),
@@ -785,8 +837,8 @@ bdd.describe("PostService", () => {
     bdd.it(
       "should return Ok with bookmarks from specified platform",
       async () => {
-        const post = createTestPost({ text: "bookmarked post" });
-        const socialApi = createMockSocialApi({
+        const post = testing.createTestPost({ text: "bookmarked post" });
+        const socialApi = testing.createMockSocialApi({
           getBookmarks: () => Promise.resolve([post]),
         });
         const service = makeService({ socialApi, platform: "twitter" });
@@ -801,7 +853,7 @@ bdd.describe("PostService", () => {
     );
 
     bdd.it("should pass maxResults through", async () => {
-      const socialApi = createMockSocialApi();
+      const socialApi = testing.createMockSocialApi();
       const service = makeService({ socialApi, platform: "twitter" });
 
       await service.getBookmarks({ platform: "twitter", maxResults: 5 });

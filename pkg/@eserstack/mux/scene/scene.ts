@@ -11,12 +11,9 @@
  * @module
  */
 
-import {
-  type Chrome,
-  computeTabGeoms,
-  DEFAULT_CHROME,
-} from "../engine/geometry.ts";
-import { collectLeaves } from "../engine/split-tree.ts";
+import * as geometry from "../engine/geometry.ts";
+import type { Chrome } from "../engine/geometry.ts";
+import * as splitTree from "../engine/split-tree.ts";
 import type {
   Geom,
   InputMode,
@@ -58,7 +55,7 @@ export type Scene = {
 /** Derive the neutral scene for the active tab from engine state. */
 export const deriveScene = (
   state: MuxState,
-  chrome: Chrome = DEFAULT_CHROME,
+  chrome: Chrome = geometry.DEFAULT_CHROME,
 ): Scene => {
   const tab = state.tabs[state.activeTab];
 
@@ -74,8 +71,8 @@ export const deriveScene = (
     };
   }
 
-  const geoms = computeTabGeoms(tab, state.viewport, chrome);
-  const order = collectLeaves(tab.root);
+  const geoms = geometry.computeTabGeoms(tab, state.viewport, chrome);
+  const order = splitTree.collectLeaves(tab.root);
 
   const panes: ScenePane[] = [];
   for (const id of order) {

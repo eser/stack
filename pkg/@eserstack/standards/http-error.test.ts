@@ -1,22 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import {
-  badRequest,
-  conflict,
-  forbidden,
-  HttpError,
-  internalServerError,
-  isHttpError,
-  notFound,
-  serviceUnavailable,
-  tooManyRequests,
-  unauthorized,
-  unprocessableEntity,
-} from "./http-error.ts";
+import * as httpError from "./http-error.ts";
 
 Deno.test("HttpError should create error with status and message", () => {
-  const error = new HttpError(404, "User not found");
+  const error = new httpError.HttpError(404, "User not found");
 
   assert.assertEquals(error.status, 404);
   assert.assertEquals(error.message, "User not found");
@@ -25,7 +13,7 @@ Deno.test("HttpError should create error with status and message", () => {
 });
 
 Deno.test("HttpError should use default message from status code", () => {
-  const error = new HttpError(404);
+  const error = new httpError.HttpError(404);
 
   assert.assertEquals(error.status, 404);
   assert.assertEquals(error.message, "Not Found");
@@ -43,84 +31,84 @@ Deno.test("HttpError should handle various status codes", () => {
   ];
 
   for (const { status, expected } of testCases) {
-    const error = new HttpError(status);
+    const error = new httpError.HttpError(status);
     assert.assertEquals(error.message, expected);
     assert.assertEquals(error.status, status);
   }
 });
 
 Deno.test("isHttpError should correctly identify HttpError instances", () => {
-  const httpError = new HttpError(404);
+  const notFoundError = new httpError.HttpError(404);
   const regularError = new Error("regular");
   const stringValue = "not an error";
   const nullValue = null;
 
-  assert.assertEquals(isHttpError(httpError), true);
-  assert.assertEquals(isHttpError(regularError), false);
-  assert.assertEquals(isHttpError(stringValue), false);
-  assert.assertEquals(isHttpError(nullValue), false);
+  assert.assertEquals(httpError.isHttpError(notFoundError), true);
+  assert.assertEquals(httpError.isHttpError(regularError), false);
+  assert.assertEquals(httpError.isHttpError(stringValue), false);
+  assert.assertEquals(httpError.isHttpError(nullValue), false);
 });
 
 // Table-driven tests for HTTP error helper functions
 const helperTestCases = [
   {
-    helper: badRequest,
+    helper: httpError.badRequest,
     status: 400,
     message: "Invalid input",
     defaultMsg: "Bad Request",
     name: "badRequest",
   },
   {
-    helper: unauthorized,
+    helper: httpError.unauthorized,
     status: 401,
     message: "Login required",
     defaultMsg: "Unauthorized",
     name: "unauthorized",
   },
   {
-    helper: forbidden,
+    helper: httpError.forbidden,
     status: 403,
     message: "Access denied",
     defaultMsg: "Forbidden",
     name: "forbidden",
   },
   {
-    helper: notFound,
+    helper: httpError.notFound,
     status: 404,
     message: "Resource not found",
     defaultMsg: "Not Found",
     name: "notFound",
   },
   {
-    helper: conflict,
+    helper: httpError.conflict,
     status: 409,
     message: "Resource conflict",
     defaultMsg: "Conflict",
     name: "conflict",
   },
   {
-    helper: unprocessableEntity,
+    helper: httpError.unprocessableEntity,
     status: 422,
     message: "Validation failed",
     defaultMsg: "Unprocessable Entity",
     name: "unprocessableEntity",
   },
   {
-    helper: tooManyRequests,
+    helper: httpError.tooManyRequests,
     status: 429,
     message: "Rate limit exceeded",
     defaultMsg: "Too Many Requests",
     name: "tooManyRequests",
   },
   {
-    helper: internalServerError,
+    helper: httpError.internalServerError,
     status: 500,
     message: "Something went wrong",
     defaultMsg: "Internal Server Error",
     name: "internalServerError",
   },
   {
-    helper: serviceUnavailable,
+    helper: httpError.serviceUnavailable,
     status: 503,
     message: "Service is down",
     defaultMsg: "Service Unavailable",
@@ -145,9 +133,9 @@ for (const { helper, status, message, defaultMsg, name } of helperTestCases) {
 Deno.test("HttpError can be caught and inspected", () => {
   const throwAndCatch = (): { status: number; message: string } | null => {
     try {
-      throw new HttpError(403, "Access denied");
+      throw new httpError.HttpError(403, "Access denied");
     } catch (e) {
-      if (isHttpError(e)) {
+      if (httpError.isHttpError(e)) {
         return { status: e.status, message: e.message };
       }
       return null;

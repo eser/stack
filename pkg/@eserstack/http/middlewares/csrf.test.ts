@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { csrf, generateToken } from "./csrf.ts";
+import * as csrf from "./csrf.ts";
 
 const createRequest = (
   method: string,
@@ -16,8 +16,8 @@ const createRequest = (
 const okHandler = () => new Response("OK", { status: 200 });
 
 Deno.test("generateToken should create random hex string", () => {
-  const token1 = generateToken();
-  const token2 = generateToken();
+  const token1 = csrf.generateToken();
+  const token2 = csrf.generateToken();
 
   assert.assertNotEquals(token1, token2);
   assert.assertEquals(token1.length, 64); // 32 bytes = 64 hex chars
@@ -25,7 +25,7 @@ Deno.test("generateToken should create random hex string", () => {
 });
 
 Deno.test("csrf should allow GET requests without token", async () => {
-  const middleware = csrf();
+  const middleware = csrf.csrf();
   const req = createRequest("GET");
 
   const response = await middleware(req, okHandler);
@@ -34,7 +34,7 @@ Deno.test("csrf should allow GET requests without token", async () => {
 });
 
 Deno.test("csrf should set token cookie on GET request", async () => {
-  const middleware = csrf();
+  const middleware = csrf.csrf();
   const req = createRequest("GET");
 
   const response = await middleware(req, okHandler);
@@ -45,7 +45,7 @@ Deno.test("csrf should set token cookie on GET request", async () => {
 });
 
 Deno.test("csrf should reject POST without token", async () => {
-  const middleware = csrf();
+  const middleware = csrf.csrf();
   const req = createRequest("POST");
 
   const response = await middleware(req, okHandler);
@@ -56,7 +56,7 @@ Deno.test("csrf should reject POST without token", async () => {
 });
 
 Deno.test("csrf should reject POST with mismatched token", async () => {
-  const middleware = csrf();
+  const middleware = csrf.csrf();
   const req = createRequest("POST", {
     Cookie: "csrf_token=cookie-token",
     "X-CSRF-Token": "header-token",
@@ -68,8 +68,8 @@ Deno.test("csrf should reject POST with mismatched token", async () => {
 });
 
 Deno.test("csrf should allow POST with matching token", async () => {
-  const middleware = csrf();
-  const token = generateToken();
+  const middleware = csrf.csrf();
+  const token = csrf.generateToken();
   const req = createRequest("POST", {
     Cookie: `csrf_token=${token}`,
     "X-CSRF-Token": token,
@@ -81,8 +81,8 @@ Deno.test("csrf should allow POST with matching token", async () => {
 });
 
 Deno.test("csrf should rotate token after successful validation", async () => {
-  const middleware = csrf();
-  const token = generateToken();
+  const middleware = csrf.csrf();
+  const token = csrf.generateToken();
   const req = createRequest("POST", {
     Cookie: `csrf_token=${token}`,
     "X-CSRF-Token": token,
@@ -97,8 +97,8 @@ Deno.test("csrf should rotate token after successful validation", async () => {
 });
 
 Deno.test("csrf should use custom cookie name", async () => {
-  const middleware = csrf({ cookie: "my_csrf" });
-  const token = generateToken();
+  const middleware = csrf.csrf({ cookie: "my_csrf" });
+  const token = csrf.generateToken();
   const req = createRequest("POST", {
     Cookie: `my_csrf=${token}`,
     "X-CSRF-Token": token,
@@ -110,8 +110,8 @@ Deno.test("csrf should use custom cookie name", async () => {
 });
 
 Deno.test("csrf should use custom header name", async () => {
-  const middleware = csrf({ header: "X-My-CSRF" });
-  const token = generateToken();
+  const middleware = csrf.csrf({ header: "X-My-CSRF" });
+  const token = csrf.generateToken();
   const req = createRequest("POST", {
     Cookie: `csrf_token=${token}`,
     "X-My-CSRF": token,
@@ -123,7 +123,7 @@ Deno.test("csrf should use custom header name", async () => {
 });
 
 Deno.test("csrf should exclude paths from validation", async () => {
-  const middleware = csrf({
+  const middleware = csrf.csrf({
     excludePaths: ["/api/webhooks", "/api/public/*"],
   });
 
@@ -146,7 +146,7 @@ Deno.test("csrf should exclude paths from validation", async () => {
 });
 
 Deno.test("csrf should apply to configured methods only", async () => {
-  const middleware = csrf({ methods: ["POST", "DELETE"] });
+  const middleware = csrf.csrf({ methods: ["POST", "DELETE"] });
 
   // PUT should not require CSRF
   const putReq = createRequest("PUT");
@@ -160,7 +160,7 @@ Deno.test("csrf should apply to configured methods only", async () => {
 });
 
 Deno.test("csrf should set secure cookie options", async () => {
-  const middleware = csrf({
+  const middleware = csrf.csrf({
     cookieOptions: {
       httpOnly: true,
       secure: true,

@@ -28,15 +28,15 @@
  */
 
 import * as standards from "@eserstack/standards";
-import { toPosix } from "@eserstack/standards/cross-runtime";
-import { JS_FILE_EXTENSIONS } from "@eserstack/standards/patterns";
-import {
-  createFileTool,
-  type FileEntry,
-  type FileTool,
-  type ToolIssue,
-  type ToolOptions,
-  withGoValidator,
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as patterns from "@eserstack/standards/patterns";
+import * as cliSupport from "./cli-support.ts";
+import * as fileTool from "./file-tool.ts";
+import type {
+  FileEntry,
+  FileTool,
+  ToolIssue,
+  ToolOptions,
 } from "./file-tool.ts";
 
 // =============================================================================
@@ -68,7 +68,7 @@ const SKIP_PATTERNS = [
 // OS-native form ("\" on Windows), so normalize to forward slashes before testing
 // — otherwise patterns like /docs\// never match on Windows. No-op on POSIX.
 const shouldSkip = (path: string): boolean => {
-  const normalized = toPosix(path);
+  const normalized = crossRuntime.toPosix(path);
   return SKIP_PATTERNS.some((p) => p.test(normalized));
 };
 
@@ -150,15 +150,15 @@ const fixLicenseHeader = (
 // Tool
 // =============================================================================
 
-export const tool: FileTool = withGoValidator(
-  createFileTool({
+export const tool: FileTool = fileTool.withGoValidator(
+  fileTool.createFileTool({
     name: "validate-licenses",
     description: "Validate license headers",
     canFix: true,
     stacks: ["javascript"],
     defaults: {},
     // Dotted format required — matches path.extname() output in walkSourceFiles git-aware path
-    extensions: JS_FILE_EXTENSIONS,
+    extensions: patterns.JS_FILE_EXTENSIONS,
 
     checkFile: checkLicenseHeader,
     fixFile: fixLicenseHeader,
@@ -171,8 +171,10 @@ export const validator: FileTool["validator"] = tool.validator;
 export const main: FileTool["main"] = tool.main;
 
 if (import.meta.main) {
-  const { runCliMain } = await import("./cli-support.ts");
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result);
 }

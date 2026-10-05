@@ -7,25 +7,24 @@
  */
 
 import type * as dashboard from "@eserstack/noskills/dashboard";
-import { layout } from "./layout.ts";
-import * as c from "./components.ts";
-import type { TabInfo } from "./components.ts";
+import * as layout from "./layout.ts";
+import * as components from "./components.ts";
 
 export const renderDashboard = (
   state: dashboard.DashboardState,
-  tabs: readonly TabInfo[],
+  tabs: readonly components.TabInfo[],
   activeTabId: string | null,
   token?: string,
 ): string => {
   // Spec list
   const specItems = state.specs.length > 0
     ? state.specs.map((s) =>
-      c.specListItem(s, state.activeSpec?.slug === s.slug)
+      components.specListItem(s, state.activeSpec?.slug === s.slug)
     ).join("")
     : '<div class="empty-state">No specs yet. Create one from the terminal.</div>';
 
   // Pending items
-  const pending = c.pendingMentions(state.pendingMentions);
+  const pending = components.pendingMentions(state.pendingMentions);
 
   const body = `
   <div class="dashboard">
@@ -37,10 +36,10 @@ export const renderDashboard = (
       ${pending}
     </aside>
     <main class="main-area">
-      ${c.tabBar(tabs, activeTabId)}
-      ${c.terminalContainer()}
+      ${components.tabBar(tabs, activeTabId)}
+      ${components.terminalContainer()}
     </main>
   </div>`;
 
-  return layout("noskills", body, { includeTerminal: true, token });
+  return layout.layout("noskills", body, { includeTerminal: true, token });
 };

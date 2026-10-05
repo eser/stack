@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assert, assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as diagrams from "./diagrams.ts";
 import * as persistence from "../state/persistence.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -22,8 +22,8 @@ const makeTempDir = async (): Promise<string> => {
 // Scanning
 // =============================================================================
 
-describe("diagram scanner", () => {
-  it("finds mermaid blocks in markdown", async () => {
+bdd.describe("diagram scanner", () => {
+  bdd.it("finds mermaid blocks in markdown", async () => {
     const root = await makeTempDir();
     await runtime.fs.writeTextFile(
       `${root}/README.md`,
@@ -42,14 +42,14 @@ More text.
     );
 
     const entries = await diagrams.scanProject(root);
-    assertEquals(entries.length, 1);
-    assertEquals(entries[0]!.type, "mermaid");
-    assertEquals(entries[0]!.file, "README.md");
-    assert(entries[0]!.referencedFiles.includes("machine.ts"));
-    assert(entries[0]!.referencedFiles.includes("compiler.ts"));
+    assert.assertEquals(entries.length, 1);
+    assert.assertEquals(entries[0]!.type, "mermaid");
+    assert.assertEquals(entries[0]!.file, "README.md");
+    assert.assert(entries[0]!.referencedFiles.includes("machine.ts"));
+    assert.assert(entries[0]!.referencedFiles.includes("compiler.ts"));
   });
 
-  it("finds multiple mermaid blocks", async () => {
+  bdd.it("finds multiple mermaid blocks", async () => {
     const root = await makeTempDir();
     await runtime.fs.writeTextFile(
       `${root}/docs.md`,
@@ -68,10 +68,10 @@ sequenceDiagram
     );
 
     const entries = await diagrams.scanProject(root);
-    assertEquals(entries.length, 2);
+    assert.assertEquals(entries.length, 2);
   });
 
-  it("extracts file references from diagrams", async () => {
+  bdd.it("extracts file references from diagrams", async () => {
     const root = await makeTempDir();
     await runtime.fs.writeTextFile(
       `${root}/arch.md`,
@@ -84,10 +84,10 @@ graph LR
     );
 
     const entries = await diagrams.scanProject(root);
-    assertEquals(entries.length, 1);
+    assert.assertEquals(entries.length, 1);
     const refs = entries[0]!.referencedFiles;
-    assert(refs.some((r) => r.includes("machine.ts")));
-    assert(refs.some((r) => r.includes("compiler.ts")));
+    assert.assert(refs.some((r) => r.includes("machine.ts")));
+    assert.assert(refs.some((r) => r.includes("compiler.ts")));
   });
 });
 
@@ -95,14 +95,14 @@ graph LR
 // Registry
 // =============================================================================
 
-describe("diagram registry", () => {
-  it("reads empty when no registry file", async () => {
+bdd.describe("diagram registry", () => {
+  bdd.it("reads empty when no registry file", async () => {
     const root = await makeTempDir();
     const registry = await diagrams.readRegistry(root);
-    assertEquals(registry.length, 0);
+    assert.assertEquals(registry.length, 0);
   });
 
-  it("write and read round-trip", async () => {
+  bdd.it("write and read round-trip", async () => {
     const root = await makeTempDir();
     const entries: diagrams.DiagramEntry[] = [
       {
@@ -117,9 +117,9 @@ describe("diagram registry", () => {
 
     await diagrams.writeRegistry(root, entries);
     const read = await diagrams.readRegistry(root);
-    assertEquals(read.length, 1);
-    assertEquals(read[0]!.file, "README.md");
-    assertEquals(read[0]!.referencedFiles[0], "machine.ts");
+    assert.assertEquals(read.length, 1);
+    assert.assertEquals(read[0]!.file, "README.md");
+    assert.assertEquals(read[0]!.referencedFiles[0], "machine.ts");
   });
 });
 
@@ -127,8 +127,8 @@ describe("diagram registry", () => {
 // Verify
 // =============================================================================
 
-describe("verifyDiagram", () => {
-  it("updates lastVerified timestamp", async () => {
+bdd.describe("verifyDiagram", () => {
+  bdd.it("updates lastVerified timestamp", async () => {
     const root = await makeTempDir();
     await diagrams.writeRegistry(root, [
       {
@@ -142,18 +142,18 @@ describe("verifyDiagram", () => {
     ]);
 
     const verified = await diagrams.verifyDiagram(root, "README.md");
-    assertEquals(verified, true);
+    assert.assertEquals(verified, true);
 
     const registry = await diagrams.readRegistry(root);
-    assert(registry[0]!.lastVerified > "2026-01-01");
+    assert.assert(registry[0]!.lastVerified > "2026-01-01");
   });
 
-  it("returns false for unknown diagram", async () => {
+  bdd.it("returns false for unknown diagram", async () => {
     const root = await makeTempDir();
     await diagrams.writeRegistry(root, []);
 
     const verified = await diagrams.verifyDiagram(root, "nonexistent.md");
-    assertEquals(verified, false);
+    assert.assertEquals(verified, false);
   });
 });
 
@@ -161,8 +161,8 @@ describe("verifyDiagram", () => {
 // Staleness check
 // =============================================================================
 
-describe("checkStaleness", () => {
-  it("flags diagrams when referenced files change", async () => {
+bdd.describe("checkStaleness", () => {
+  bdd.it("flags diagrams when referenced files change", async () => {
     const root = await makeTempDir();
     await diagrams.writeRegistry(root, [
       {
@@ -176,11 +176,11 @@ describe("checkStaleness", () => {
     ]);
 
     const stale = await diagrams.checkStaleness(root, ["machine.ts"]);
-    assertEquals(stale.length, 1);
-    assert(stale[0]!.reason.includes("machine.ts"));
+    assert.assertEquals(stale.length, 1);
+    assert.assert(stale[0]!.reason.includes("machine.ts"));
   });
 
-  it("returns empty when no referenced files changed", async () => {
+  bdd.it("returns empty when no referenced files changed", async () => {
     const root = await makeTempDir();
     await diagrams.writeRegistry(root, [
       {
@@ -194,10 +194,10 @@ describe("checkStaleness", () => {
     ]);
 
     const stale = await diagrams.checkStaleness(root, ["other-file.ts"]);
-    assertEquals(stale.length, 0);
+    assert.assertEquals(stale.length, 0);
   });
 
-  it("handles partial path matches", async () => {
+  bdd.it("handles partial path matches", async () => {
     const root = await makeTempDir();
     await diagrams.writeRegistry(root, [
       {
@@ -213,6 +213,6 @@ describe("checkStaleness", () => {
     const stale = await diagrams.checkStaleness(root, [
       "pkg/@eserstack/noskills/dashboard/state.ts",
     ]);
-    assertEquals(stale.length, 1);
+    assert.assertEquals(stale.length, 1);
   });
 });

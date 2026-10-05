@@ -24,8 +24,8 @@ before a normal task stays in workflow-practices: Ask, Assume or Proceed.
   are settled, numbered, each with a recommended answer and its reason
 - Never ask a question whose answer depends on another question still open in
   the same round; it waits for a later round
-- Facts are the agent's job: look up anything the repository, tools or docs can
-  answer, with sub-agents in parallel, and never ask the user for it
+- Facts are the agent's job: look up anything this codebase, its tools or docs
+  can answer, with sub-agents in parallel, and never ask the user for it
 - A pending lookup blocks only the questions downstream of it; ask the rest of
   the frontier now
 - Decisions are the user's: put each one to them, and wait for the answers

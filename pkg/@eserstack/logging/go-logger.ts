@@ -10,17 +10,25 @@
  * @module
  */
 
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
+import * as serialize from "./serialize.ts";
 
+/** A level the Go logger accepts. */
 export type GoLogLevel = "debug" | "info" | "warn" | "error";
 
+/** Options for `createGoLogger()`, passed to the Go library as they are. */
 export type GoLoggerOptions = {
+  /** The scope name written with each entry */
   readonly scopeName?: string;
+  /** The lowest level the logger writes */
   readonly level?: GoLogLevel;
+  /** The output format of each entry */
   readonly format?: "json" | "text";
+  /** Whether each entry carries the source location */
   readonly addSource?: boolean;
 };
 
+/** A handle to a logger in the Go library. */
 export type GoLogger = {
   /** Write a log entry. */
   write(
@@ -42,9 +50,9 @@ export type GoLogger = {
  *
  * @example
  * ```typescript
- * import { createGoLogger } from "@eserstack/logging/go-logger";
+ * import * as goLogger from "@eserstack/logging/go-logger";
  *
- * const log = await createGoLogger({ scopeName: "myapp", level: "info" });
+ * const log = await goLogger.createGoLogger({ scopeName: "myapp", level: "info" });
  * log.write("info", "Server started", { port: 8080 });
  * log.close();
  * ```
@@ -52,8 +60,8 @@ export type GoLogger = {
 export const createGoLogger = async (
   options: GoLoggerOptions = {},
 ): Promise<GoLogger> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     // No-op fallback
@@ -66,7 +74,7 @@ export const createGoLogger = async (
   const raw = lib.symbols.EserAjanLogCreate(JSON.stringify(options));
   const result = JSON.parse(raw) as { handle: string; error?: string };
 
-  if (result.error) {
+  if (result.error !== undefined && result.error !== "") {
     return { write: () => {}, close: () => {} };
   }
 
@@ -78,15 +86,18 @@ export const createGoLogger = async (
       message: string,
       attrs?: Record<string, unknown>,
     ): void {
-      const lib2 = getLib();
+      const lib2 = ffiClient.getLib();
       if (lib2 === null) return;
       lib2.symbols.EserAjanLogWrite(
-        JSON.stringify({ handle, level, message, attrs }),
+        JSON.stringify(
+          { handle, level, message, attrs },
+          serialize.jsonReplacer,
+        ),
       );
     },
 
     close(): void {
-      const lib2 = getLib();
+      const lib2 = ffiClient.getLib();
       if (lib2 === null) return;
       lib2.symbols.EserAjanLogClose(JSON.stringify({ handle }));
     },
